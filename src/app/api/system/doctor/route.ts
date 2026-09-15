@@ -76,27 +76,8 @@ async function columnExists(table: string, column: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-export async function GET() {
-  const userId = await getApiUserId();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  if (!isRuntimeAvailable()) {
-    return NextResponse.json({
-      runtime: false,
-      summary: { status: "warn", pass: 0, warn: 1, fail: 0 },
-      checks: [
-        check(
-          "runtime",
-          "Local runtime",
-          "warn",
-          "Fleet Doctor runs full checks only on the local install.",
-        ),
-      ],
-    });
-  }
-
-  const checks: DoctorCheck[] = [];
-
+async function checkSystemdUnits(): Promise<DoctorCheck[]> {
+  const out: DoctorCheck[] = [];
   // Session 4 of killing-the-bash-daemon: only the local Next.js prod wrapper
   // remains as a Loki systemd unit. Fleet Runner desktop is a regular
   // Electron app the user launches from their tray menu — it has no
@@ -109,7 +90,7 @@ export async function GET() {
         shell(`systemctl --user is-active ${unit}`).catch(() => "inactive"),
         shell(`systemctl --user is-enabled ${unit}`).catch(() => "disabled"),
       ]);
-      checks.push(
+      out.push(
         check(
           `unit:${unit}`,
           unit,
@@ -122,7 +103,7 @@ export async function GET() {
         ),
       );
     } catch (err) {
-      checks.push(
+      out.push(
         check(`unit:${unit}`, unit, "fail", err instanceof Error ? err.message : String(err)),
       );
     }
@@ -131,7 +112,7 @@ export async function GET() {
   const legacyUnits = await shell(
     "systemctl --user list-unit-files '*cockpit*' --no-legend --no-pager 2>/dev/null || true",
   ).catch(() => "");
-  checks.push(
+  out.push(
     check(
       "legacy-units",
       "Legacy Cockpit units",
@@ -139,7 +120,11 @@ export async function GET() {
       legacyUnits ? legacyUnits.split("\n").slice(0, 3).join("; ") : "No active unit files listed.",
     ),
   );
+  return out;
+}
 
+async function checkClaudeHooks(): Promise<DoctorCheck[]> {
+  const out: DoctorCheck[] = [];
   // Session 4 of killing-the-bash-daemon retired the bash bridge that the
   // Stop hook used to exec. The hook is now expected to be a no-op (or
   // absent) — Fleet Runner's embedded watcher (home/watcher.ts) detects the
@@ -152,7 +137,7 @@ export async function GET() {
   const stopReferencesDeadBridge =
     stopExists &&
     readFileSync(/*turbopackIgnore: true*/ stopHook, "utf8").includes(deadBridgeTarget);
-  checks.push(
+  out.push(
     check(
       "hooks",
       "Claude Stop hook",
@@ -198,7 +183,7 @@ export async function GET() {
   }
   const captureScriptExists = existsSync(/*turbopackIgnore: true*/ captureScript);
   const captureHealthy = captureRegistered && captureScriptExists && !legacyCaptureRegistered;
-  checks.push(
+  out.push(
     check(
       "hooks-capture",
       "Claude prompt-capture hook",
@@ -210,12 +195,16 @@ export async function GET() {
           : "Not installed — directly-typed Claude prompts won't appear in Activity. Start Fleet Runner (it installs the hook once a token is saved).",
     ),
   );
+  return out;
+}
 
+async function checkRunnerTokens(userId: string): Promise<DoctorCheck[]> {
+  const out: DoctorCheck[] = [];
   const token = readTokenFile();
   const env = readRunnerEnv();
   const envToken = env.LOKI_DAEMON_TOKEN ?? "";
   const localToken = token ? await validateAgentToken(token) : null;
-  checks.push(
+  out.push(
     check(
       "token-local",
       "Local runner token",
@@ -225,7 +214,7 @@ export async function GET() {
         : "Missing or not registered for this user.",
     ),
   );
-  checks.push(
+  out.push(
     check(
       "token-env",
       "Runner env token",
@@ -243,7 +232,7 @@ export async function GET() {
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(8000),
       });
-      checks.push(
+      out.push(
         check(
           "token-cloud",
           "Cloud runner token",
@@ -252,7 +241,7 @@ export async function GET() {
         ),
       );
     } catch (err) {
-      checks.push(
+      out.push(
         check(
           "token-cloud",
           "Cloud runner token",
@@ -262,17 +251,21 @@ export async function GET() {
       );
     }
   } else {
-    checks.push(
+    out.push(
       check("token-cloud", "Cloud runner token", "fail", "No fleet-runner-token file found."),
     );
   }
+  return out;
+}
 
+async function checkMigrations(): Promise<DoctorCheck[]> {
+  const out: DoctorCheck[] = [];
   const auditTable = await tableExists("control_audit_events").catch(() => false);
   const beaconTable = await tableExists("beacon_sessions").catch(() => false);
   const installedAgents = await columnExists("runtime_snapshots", "installed_agents").catch(
     () => false,
   );
-  checks.push(
+  out.push(
     check(
       "migration:audit",
       "Audit migration",
@@ -280,7 +273,7 @@ export async function GET() {
       auditTable ? "control_audit_events exists." : "control_audit_events is missing.",
     ),
   );
-  checks.push(
+  out.push(
     check(
       "migration:beacon",
       "Beacon migration",
@@ -288,7 +281,7 @@ export async function GET() {
       beaconTable ? "beacon_sessions exists." : "beacon_sessions is missing.",
     ),
   );
-  checks.push(
+  out.push(
     check(
       "migration:runtime",
       "Runtime snapshot migration",
@@ -298,14 +291,18 @@ export async function GET() {
         : "runtime_snapshots.installed_agents is missing.",
     ),
   );
+  return out;
+}
 
+async function checkTelemetry(): Promise<DoctorCheck[]> {
+  const out: DoctorCheck[] = [];
   // Existence is not function. The three checks above prove tables EXIST — the
   // same thing every check proved for 76 days while claude_code_history quietly
   // stopped receiving rows. These ask the only question that can tell the
   // difference: is anything still arriving?
   const freshness = await checkTelemetryFreshness().catch(() => null);
   if (freshness === null) {
-    checks.push(
+    out.push(
       check(
         "telemetry",
         "Telemetry freshness",
@@ -317,7 +314,7 @@ export async function GET() {
     for (const r of freshness.results.filter((p) => p.monitored)) {
       const status: DoctorStatus =
         r.state === "flowing" ? "pass" : r.state === "unchecked" ? "warn" : "fail";
-      checks.push(
+      out.push(
         check(
           `telemetry:${r.table}`,
           r.label,
@@ -333,7 +330,11 @@ export async function GET() {
       );
     }
   }
+  return out;
+}
 
+async function checkRunnerVersions(userId: string): Promise<DoctorCheck[]> {
+  const out: DoctorCheck[] = [];
   // Publishing a release is not the same as a machine installing it. Nothing
   // compared the two until now, so the laptop sat on 0.8.12 for twelve days
   // while the box ran box-0.8.13 — and 0.8.12 predates the inject-hardening,
@@ -343,7 +344,7 @@ export async function GET() {
   // shipped, and every runner reports its version on every heartbeat.
   const snapshots = await getRuntimeSnapshots(userId).catch(() => null);
   if (snapshots === null) {
-    checks.push(
+    out.push(
       check(
         "runner:version",
         "Runner version",
@@ -352,7 +353,7 @@ export async function GET() {
       ),
     );
   } else if (snapshots.length === 0) {
-    checks.push(
+    out.push(
       check(
         "runner:version",
         "Runner version",
@@ -365,7 +366,7 @@ export async function GET() {
       const v = runnerVersionStatus(snap.runnerVersion);
       const status: DoctorStatus =
         v.state === "behind" ? "fail" : v.state === "unknown" ? "warn" : "pass";
-      checks.push(
+      out.push(
         check(
           `runner:version:${snap.channel ?? "unknown"}`,
           `Runner version (${snap.channel ?? "unknown"})`,
@@ -375,7 +376,11 @@ export async function GET() {
       );
     }
   }
+  return out;
+}
 
+async function checkLegacyPaths(): Promise<DoctorCheck[]> {
+  const out: DoctorCheck[] = [];
   const legacyPaths = [
     `${homedir()}/.config/cockpit`,
     `${homedir()}/.local/share/cockpit`,
@@ -383,7 +388,7 @@ export async function GET() {
     "/tmp/cockpit-beacon",
     "/tmp/cockpit-hook-auth",
   ].filter((path) => existsSync(/*turbopackIgnore: true*/ path));
-  checks.push(
+  out.push(
     check(
       "legacy-paths",
       "Legacy Cockpit paths",
@@ -391,16 +396,53 @@ export async function GET() {
       legacyPaths.length === 0 ? "No live legacy paths found." : legacyPaths.join(", "),
     ),
   );
+  return out;
+}
 
+/** One verdict from many: any failure fails the fleet, any warning warns it. */
+function summarize(checks: DoctorCheck[]) {
   const pass = checks.filter((c) => c.status === "pass").length;
   const warn = checks.filter((c) => c.status === "warn").length;
   const fail = checks.filter((c) => c.status === "fail").length;
   const status: DoctorStatus = fail > 0 ? "fail" : warn > 0 ? "warn" : "pass";
+  return { status, pass, warn, fail };
+}
+
+export async function GET() {
+  const userId = await getApiUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (!isRuntimeAvailable()) {
+    return NextResponse.json({
+      runtime: false,
+      summary: { status: "warn", pass: 0, warn: 1, fail: 0 },
+      checks: [
+        check(
+          "runtime",
+          "Local runtime",
+          "warn",
+          "Fleet Doctor runs full checks only on the local install.",
+        ),
+      ],
+    });
+  }
+
+  // Sequential on purpose: several probes shell out, and Fleet Doctor is a
+  // human-initiated page, not a hot path. The ORDER is the report's order.
+  const checks: DoctorCheck[] = [
+    ...(await checkSystemdUnits()),
+    ...(await checkClaudeHooks()),
+    ...(await checkRunnerTokens(userId)),
+    ...(await checkMigrations()),
+    ...(await checkTelemetry()),
+    ...(await checkRunnerVersions(userId)),
+    ...(await checkLegacyPaths()),
+  ];
 
   return NextResponse.json({
     runtime: true,
     checkedAt: new Date().toISOString(),
-    summary: { status, pass, warn, fail },
+    summary: summarize(checks),
     checks,
   });
 }
