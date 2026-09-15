@@ -24,6 +24,7 @@ import {
   ORCHESTRATION_ADAPTER_IDS,
   ORCHESTRATION_TASK_INTENT_IDS,
   type AdapterId,
+  type OrchestrationEventType,
   type OrchestrationTaskIntentId,
   type OrchestrationTaskRequest,
 } from "@/lib/orchestration";
@@ -90,6 +91,9 @@ const RunOrchestrationBody = z.object({
   queue: z.array(z.string().max(4000)).max(200).optional(),
 });
 
+type RunOrchestrationInput = z.infer<typeof RunOrchestrationBody>;
+type ResolvedIntent = ReturnType<typeof getOrchestrationIntent>;
+
 async function scheduleOpenClawWorker(
   runId: string,
   userId: string,
@@ -123,6 +127,684 @@ async function scheduleOpenClawWorker(
   });
 }
 
+/** Every project the user can dispatch to — own registry plus their org's. */
+async function listDispatchableProjects(userId: string) {
+  return [
+    ...(await getUserProjects(userId).catch(() => [])),
+    ...(await getOrgProjects(userId).catch(() => [])),
+  ];
+}
+
+async function findRegistryProject(userId: string, projectKey: string) {
+  return (await listDispatchableProjects(userId)).find(
+    (p) => p.name.toLowerCase() === projectKey.toLowerCase(),
+  );
+}
+
+/** The one-line WHY the human sees on the state badge, threaded into the agent's
+ *  prompt from the same SSOT (STATE_DEFINITIONS[k].description) — no paraphrasing. */
+async function describeProjectState(userId: string, projectKey: string): Promise<string> {
+  const row = await getProjectState(userId, projectKey).catch(() => null);
+  const stateKey = deriveProjectStateKey({
+    agentRunning: row?.agentRunning,
+    tabOpen: row?.tabOpen,
+    sessionStatus: row?.sessionStatus,
+    readyAt: row?.readyAt ? Math.floor(row.readyAt.getTime() / 1000) : null,
+    lockAt: row?.lockAt ? Math.floor(row.lockAt.getTime() / 1000) : null,
+    closingAt: row?.closingAt ? Math.floor(row.closingAt.getTime() / 1000) : null,
+    closedAt: row?.closedAt ? Math.floor(row.closedAt.getTime() / 1000) : null,
+  });
+  return projectStateDescription(stateKey);
+}
+
+/** Resolve projectPath + adapter from the registry when omitted (Loki dispatches
+ *  by name). Mirrors inject-core's lookup; mutates `data` in place because every
+ *  downstream branch reads it. Returns a 404 response when the name is unknown. */
+async function resolveProjectDefaults(
+  data: RunOrchestrationInput,
+  userId: string,
+): Promise<NextResponse | null> {
+  if (data.projectPath && data.adapter) return null;
+  const match = await findRegistryProject(userId, data.projectKey);
+  if (!data.projectPath) {
+    if (!match?.dirPath) {
+      return NextResponse.json(
+        { error: `Unknown project "${data.projectKey}" (or it has no local path).` },
+        { status: 404 },
+      );
+    }
+    data.projectPath = match.dirPath;
+    data.projectId = data.projectId ?? match.entityProjectId ?? null;
+  }
+  if (!data.adapter) {
+    data.adapter = (match?.agentPref as (typeof ORCHESTRATION_ADAPTER_IDS)[number]) ?? "openclaw";
+  }
+  return null;
+}
+
+/** Cloud mode: only the claude adapter can be queued via pending_commands.
+ *  Other adapters (openclaw, codex, gemini) require local workers/tools. */
+async function dispatchViaCloudQueue(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  announceOnClose: boolean,
+): Promise<NextResponse> {
+  if (!getAdapterDefinition(request.adapter).capabilities.cloudQueueable) {
+    return NextResponse.json(
+      {
+        error: `${request.adapter} orchestration requires the local runtime — not available in cloud mode`,
+      },
+      { status: 503 },
+    );
+  }
+  // Project-aware default channel — a dirPath-only project (no cloneable
+  // repo) can only execute where its directory exists; pin it to "local"
+  // instead of letting the cloud builder invent an empty workspace.
+  const registryMatch = await findRegistryProject(userId, request.projectKey);
+  const execution = await resolveQueuedExecution(userId, { project: registryMatch });
+  if (!execution.ok) {
+    return NextResponse.json(executionAccessErrorBody(execution), { status: execution.status });
+  }
+  const intent = getOrchestrationIntent(request.intent as OrchestrationTaskIntentId);
+  // Aim the agent at the project's roadmap: brief + active goals (getProjectContext).
+  request.projectContext = (await getProjectContext(userId, request.projectKey)) ?? undefined;
+  // Life-OS half: the operator's top-level goals + near-term deadlines, so this
+  // cloud-queued dispatch serves the captain's objectives too (mirrors the
+  // inject-prompt/inject-core paths). Best-effort background section.
+  const operatorSection = await buildOperatorContextSection(userId).catch(() => "");
+  // Exit contract — WITHOUT it a box-executed agent finishes real work, writes
+  // no ~/.loki/sessions/<tab>.md handoff, and gets reaped as a timeout (the
+  // same gap inject-prompt.ts:66-74 closes for the inject path). The local
+  // orchestration path gets this via buildPromptWithSession; the cloud path —
+  // Control's dispatch / Next-best buttons — was the one bypass. Appended here
+  // (renderTaskForAdapter does not include it) so every dispatch path lands a
+  // handoff. Tilde-relative on purpose: the agent expands HOME, not the server.
+  const sessionFileRef = `${FLEET_SESSIONS_DISPLAY_PATH}/${request.projectKey}.md`;
+  const prompt = `${[operatorSection, renderTaskForAdapter(request)].filter(Boolean).join("\n\n")}\n\n## Exit contract (operator requirement)\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
+  const cloudRunId = await createCloudTrackedRun(request, userId, announceOnClose);
+  // Enqueue a `dispatch` (not bare `inject`): the runner ensures the tab,
+  // launches the agent if none is running, then injects — so "Next best" on
+  // an idle project actually starts work instead of typing into the void.
+  // Model is forwarded so the runner's auto-launch honors it; when absent the
+  // runner's _conf_model_for_tab fallback reads agent-projects.conf.
+  const commandId = await enqueueDispatchCommand(userId, {
+    tab: request.projectKey,
+    ...(execution.channel ? { channel: execution.channel } : {}),
+    dir: request.projectPath,
+    agent: request.adapter,
+    prompt,
+    promptKey: request.intent,
+    promptLabel: intent.name,
+    model: request.model,
+    projectKey: request.projectKey,
+    runId: cloudRunId ?? undefined,
+  });
+  return NextResponse.json({
+    ok: true,
+    queued: true,
+    mode: "queued",
+    commandId,
+    runId: cloudRunId,
+    runnerConnected: execution.runnerConnected,
+    // Fail loud, not silent — a dispatch with no live runner says so.
+    ...(execution.runnerConnected === false && {
+      warning: "runner-offline",
+      message: "Fleet Runner is offline — queued; it will run as soon as the runner reconnects.",
+    }),
+  });
+}
+
+/** Create an orchestration_runs row for trackable intents so the local runner
+ *  can write /tmp/cockpit-run-<tab> and agent-hook-bridge.sh can close out the
+ *  outcome when the agent session ends. Lifecycle intents (hard_stop /
+ *  close_session) end sessions and don't produce work outcomes — skip tracking. */
+async function createCloudTrackedRun(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  announceOnClose: boolean,
+): Promise<string | null> {
+  if (request.intent === "hard_stop" || request.intent === "close_session") return null;
+  try {
+    const run = await createOrchestrationRun({
+      userId,
+      projectId: request.projectId ?? null,
+      adapter: request.adapter,
+      intent: request.intent,
+      // The runner has not executed this command yet. Runtime state will
+      // show active work only after a successful local injection.
+      state: ORCH_STATE.WAITING,
+      projectKey: request.projectKey,
+      projectPath: request.projectPath,
+      payload: {
+        projectId: request.projectId ?? null,
+        projectKey: request.projectKey,
+        projectPath: request.projectPath,
+        model: request.model,
+        // Cloud mode: the operator dispatched and will almost certainly
+        // stop watching — announce the outcome when it closes. Autopilot
+        // (Bearer token) stays silent, which is what the original
+        // "UI dispatches stay silent" rule was actually protecting.
+        ...(announceOnClose ? { notifyOnClose: true } : {}),
+      },
+    });
+    return run.id;
+  } catch (err) {
+    console.error("[orchestration/run] cloud tracked-run create failed:", err);
+    // Non-fatal — dispatch still proceeds without outcome tracking.
+    return null;
+  }
+}
+
+/** For tab-injected adapters: prioritize the prompt queue for next_best intent.
+ *  openclaw uses a worker process, not tab injection, so it does not participate in the queue.
+ *  This matches the stop-hook behavior and prevents AI-generated plans from superseding
+ *  user-defined queue items during auto-fire or manual 'Next best' clicks.
+ *  Health gate mirrors sessionHealthBlocksQueue() on the client: if session health is critical
+ *  or tests are failing, skip queue pop so the agent picks the recovery task instead.
+ *  Mutates `request` into a custom dispatch and returns the item it consumed. */
+async function popQueuedPromptForNextBest(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  effectiveKey: string,
+): Promise<string | null> {
+  const projectState = await getProjectState(userId, request.projectKey).catch(() => null);
+  const healthBlocks =
+    (projectState?.sessionHealth ?? "").toLowerCase().includes("critical") ||
+    (projectState?.sessionTests ?? "").toLowerCase().includes("fail");
+  if (healthBlocks) return null;
+
+  const first = projectState?.promptQueue[0];
+  if (!first) return null;
+  const consumed = await consumeProjectPrompt(userId, request.projectKey, first).catch(() => null);
+  if (!consumed?.consumed) return null;
+
+  writePromptQueueMirror(effectiveKey, consumed.queue);
+  request.intent = "custom";
+  request.customInstructions = first;
+  return first;
+}
+
+/** Create an orchestration_runs row for tab-injected adapters too — gives every dispatch
+ *  an outcome to learn from, not just openclaw worker runs. */
+async function createTabTrackedRun(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  effectiveKey: string,
+): Promise<string | null> {
+  try {
+    const run = await createOrchestrationRun({
+      userId,
+      projectId: request.projectId ?? null,
+      adapter: request.adapter,
+      intent: request.intent,
+      state: ORCH_STATE.RUNNING,
+      projectKey: request.projectKey,
+      projectPath: request.projectPath,
+      payload: {
+        projectId: request.projectId ?? null,
+        projectKey: request.projectKey,
+        projectPath: request.projectPath,
+        model: request.model,
+      },
+    });
+    // Sentinel read by scripts/agent-hook-bridge.sh:handle_stop to call the finish endpoint
+    // with the captured outcome once the agent ends its session.
+    fs.writeFileSync(stateFile.run(effectiveKey), run.id);
+    return run.id;
+  } catch (err) {
+    console.error("[orchestration/run] tracked run create failed:", err);
+    // Non-fatal — dispatch still proceeds without outcome tracking for this run.
+    return null;
+  }
+}
+
+/** Serialize same-project dispatch for tab-injected adapters (claude/codex/
+ *  gemini/grok) — the ones that share the project's zellij tab + git checkout +
+ *  /tmp sentinels. Queues this dispatch for the runner instead of colliding; it
+ *  drains FIFO once our run is the oldest open one. */
+async function dispatchQueuedBehind(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  opts: { intent: ResolvedIntent; trackedRunId: string | null; resolvedPromptBody: string },
+): Promise<NextResponse> {
+  const { intent, trackedRunId, resolvedPromptBody } = opts;
+  // Route the queued row the same way the live branch routes: by the
+  // project's stored locus and builder preference, never by who is online.
+  const presence = await getBuilderPresence(userId).catch(() => ({
+    cloud: false,
+    local: false,
+    any: false,
+  }));
+  const runnerConnected = presence.any;
+  const busyMatch = await findRegistryProject(userId, request.projectKey);
+  const pinnedChannel = pickDispatchChannel(busyMatch);
+
+  if (PARALLEL_DISPATCH_ENABLED && trackedRunId) {
+    return await dispatchParallelRun(request, userId, {
+      intent,
+      trackedRunId,
+      resolvedPromptBody,
+      pinnedChannel,
+      runnerConnected,
+    });
+  }
+
+  const commandId = await enqueueDispatchCommand(userId, {
+    tab: request.projectKey,
+    channel: pinnedChannel,
+    dir: request.projectPath,
+    agent: request.adapter,
+    prompt: resolvedPromptBody,
+    promptKey: request.intent,
+    promptLabel: intent.name,
+    model: request.model,
+    projectKey: request.projectKey,
+    runId: trackedRunId ?? undefined,
+  });
+  return NextResponse.json({
+    ok: true,
+    queued: true,
+    queuedBehind: true,
+    mode: "queued",
+    commandId,
+    runId: trackedRunId,
+    runnerConnected,
+  });
+}
+
+/** Phase 2 of worktree-per-agent: same-project PARALLEL dispatch. With
+ *  checkout isolation in place (each run gets its own git worktree), the
+ *  only reason to queue was the shared tab/session/sentinel identity — so
+ *  mint this run a derived tab alias (<project>~<runId8>) and every
+ *  tab-keyed mechanism (PTY workspace, session handoff, sentinels, zellij
+ *  tab, worktree) composes unchanged. The runner FORCES worktree isolation
+ *  for derived tabs regardless of its env flag, so parallel-without-
+ *  isolation is impossible. Run row keeps the BASE projectKey (analytics,
+ *  busy checks aggregate per project); payload.sessionTab carries the alias
+ *  for the close path. Opt-in via LOKI_PARALLEL_DISPATCH. */
+async function dispatchParallelRun(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  opts: {
+    intent: ResolvedIntent;
+    trackedRunId: string;
+    resolvedPromptBody: string;
+    pinnedChannel: ReturnType<typeof pickDispatchChannel>;
+    runnerConnected: boolean;
+  },
+): Promise<NextResponse> {
+  const { intent, trackedRunId, resolvedPromptBody, pinnedChannel, runnerConnected } = opts;
+  const runTab = deriveRunTab(request.projectKey, trackedRunId);
+  await updateOrchestrationRun(trackedRunId, {
+    payload: {
+      projectId: request.projectId ?? null,
+      projectKey: request.projectKey,
+      projectPath: request.projectPath,
+      model: request.model,
+      sessionTab: runTab,
+    },
+  }).catch((err) => console.error("[orchestration/run] sessionTab persist failed:", err));
+  // The alias gets its own session file — bake the Exit contract with the
+  // DERIVED path so the handoff lands where the close path looks for it.
+  const sessionFileRef = `${FLEET_SESSIONS_DISPLAY_PATH}/${runTab}.md`;
+  const parallelPrompt = `${resolvedPromptBody}\n\n## Exit contract (operator requirement)\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
+  const commandId = await enqueueDispatchCommand(userId, {
+    tab: runTab,
+    channel: pinnedChannel,
+    dir: request.projectPath,
+    agent: request.adapter,
+    prompt: parallelPrompt,
+    promptKey: request.intent,
+    promptLabel: intent.name,
+    model: request.model,
+    projectKey: request.projectKey,
+    runId: trackedRunId,
+  });
+  return NextResponse.json({
+    ok: true,
+    queued: true,
+    parallel: true,
+    mode: "parallel",
+    tab: runTab,
+    commandId,
+    runId: trackedRunId,
+    runnerConnected,
+  });
+}
+
+/** Write the lifecycle sentinels a dispatch leaves behind: hard_stop closes the
+ *  session outright, close_session marks it closing, and any other intent clears
+ *  a stale closing sentinel so the UI doesn't stay in "Closing…". */
+function writeLifecycleSentinels(intentId: string, effectiveKey: string, nowS: number) {
+  if (intentId === "hard_stop") {
+    fs.writeFileSync(stateFile.sentinel(effectiveKey), "");
+    fs.writeFileSync(stateFile.closing(effectiveKey), String(nowS));
+    fs.writeFileSync(stateFile.closed(effectiveKey), String(nowS));
+    return;
+  }
+  if (intentId === "close_session") {
+    // Sentinel tells the stop hook to write closedAt (not readyAt) when the session ends.
+    // Mirrors the same logic in /api/inject for close_session.
+    fs.writeFileSync(stateFile.sentinel(effectiveKey), "");
+    fs.writeFileSync(stateFile.closing(effectiveKey), String(nowS));
+    return;
+  }
+  // Clear any stale closing sentinel so the UI doesn't stay in "Closing…" state
+  // if the user re-dispatches after a close_session was sent but not yet completed.
+  // Mirrors the same guard in the inject route and the codex/gemini adapter path.
+  try {
+    fs.unlinkSync(stateFile.closing(effectiveKey));
+  } catch {
+    /* already gone */
+  }
+}
+
+function logInjectFailure(request: OrchestrationTaskRequest, userId: string, message: string) {
+  logDebug({
+    source: "api/orchestration/run",
+    level: "error",
+    message: `${request.adapter} inject failed: ${message}`,
+    meta: {
+      userId,
+      adapter: request.adapter,
+      intent: request.intent,
+      projectKey: request.projectKey,
+      projectPath: request.projectPath,
+    },
+  });
+}
+
+/** Claude remains hook-driven via prompt injection into a live tab. */
+async function dispatchClaudeInject(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  opts: {
+    intent: ResolvedIntent;
+    effectiveKey: string;
+    withOperator: (body: string) => string;
+    restoreConsumedQueueItem: () => Promise<void>;
+  },
+): Promise<NextResponse> {
+  const { intent, effectiveKey, withOperator, restoreConsumedQueueItem } = opts;
+  try {
+    const nowS = Math.floor(Date.now() / 1000);
+    const prompt = withOperator(renderTaskForAdapter(request));
+    const stateDescription = await describeProjectState(userId, request.projectKey);
+    // hard_stop skips session context — inject the bare stop directive, then immediately
+    // block auto-continue so stop.sh won't re-open even after Claude goes idle.
+    const fullPrompt =
+      request.intent === "hard_stop"
+        ? prompt
+        : buildPromptWithSession(prompt, request.projectKey, stateDescription);
+    injectOwned(userId, effectiveKey, fullPrompt);
+    await cancelActiveBeaconSessions(userId, effectiveKey);
+    clearHandshakeFiles(effectiveKey);
+    if (request.intent !== "hard_stop" && request.intent !== "close_session") {
+      // Write current-prompt so the UI shows the running banner.
+      // Mirrors the codex/gemini adapter paths and the inject route.
+      // Excluded for lifecycle intents (hard_stop/close_session) which end sessions.
+      fs.writeFileSync(
+        stateFile.prompt(effectiveKey),
+        JSON.stringify({
+          key: request.intent,
+          label: intent.name,
+          startedAt: nowS,
+          source: "run",
+          adapter: "claude",
+        }),
+      );
+    }
+    writeLifecycleSentinels(request.intent, effectiveKey, nowS);
+    return NextResponse.json({
+      ok: true,
+      injected: true,
+      adapter: request.adapter,
+      intent: request.intent,
+    });
+  } catch (err) {
+    await restoreConsumedQueueItem();
+    const message = err instanceof Error ? err.message : String(err);
+    logInjectFailure(request, userId, message);
+    return NextResponse.json({ error: `Inject failed: ${message}` }, { status: 500 });
+  }
+}
+
+/** Codex and Gemini have no native stop hook in this environment, so run the task as a
+ *  one-shot command in the project tab and hand completion back to the same
+ *  stop-hook bridge Beacon already uses for Claude. */
+async function dispatchCodexOrGemini(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  opts: {
+    intent: ResolvedIntent;
+    effectiveKey: string;
+    restoreConsumedQueueItem: () => Promise<void>;
+  },
+): Promise<NextResponse> {
+  const { intent, effectiveKey, restoreConsumedQueueItem } = opts;
+  try {
+    const basePrompt = renderTaskForAdapter(request);
+    const prompt = buildPromptWithSession(
+      basePrompt,
+      effectiveKey,
+      await describeProjectState(userId, request.projectKey),
+    );
+    const promptFile = path.join("/tmp", `${APP_SLUG}-${request.adapter}-prompt-${randomUUID()}.txt`);
+    fs.writeFileSync(promptFile, prompt);
+
+    const nowS = Math.floor(Date.now() / 1000);
+    fs.writeFileSync(
+      stateFile.prompt(effectiveKey),
+      JSON.stringify({
+        key: request.intent,
+        label: intent.name,
+        startedAt: nowS,
+        source: "runner",
+        adapter: request.adapter,
+      }),
+    );
+
+    emitTaskEvent(request, userId, {
+      eventType:
+        request.intent === "close_session" || request.intent === "hard_stop"
+          ? "close_requested"
+          : "continue_requested",
+      detail: intent.name,
+      happenedAt: new Date(nowS * 1000),
+    });
+    emitTaskEvent(request, userId, {
+      eventType: "task_started",
+      detail: intent.name,
+      happenedAt: new Date(nowS * 1000),
+    });
+
+    clearHandshakeFiles(effectiveKey);
+    writeLifecycleSentinels(request.intent, effectiveKey, nowS);
+
+    await provisionTaskRunner(request, userId, { effectiveKey, promptFile });
+    persistProjectRuntimeIfNewer({
+      projectKey: request.projectKey,
+      projectId: request.projectId ?? null,
+      userId,
+      workspaceId: workspaceIdFor(userId, request.projectKey),
+      tabName: effectiveKey,
+      runtimeObservedAt: new Date(),
+      currentPromptKey: request.intent,
+      currentPromptLabel: intent.name,
+      currentPromptStartedAt: new Date(nowS * 1000),
+    }).catch((err) => console.error("[orchestration/run] db write failed:", err));
+    return NextResponse.json({
+      ok: true,
+      injected: true,
+      adapter: request.adapter,
+      intent: request.intent,
+    });
+  } catch (err) {
+    await restoreConsumedQueueItem();
+    try {
+      fs.unlinkSync(stateFile.prompt(effectiveKey));
+    } catch {
+      /* absent */
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    logInjectFailure(request, userId, message);
+    // Close the started/failed pair — task_started was emitted above before the
+    // task runner was provisioned; if that throws, record the failed counterpart
+    // here so orchestration_events doesn't carry an orphan start.
+    emitTaskEvent(request, userId, {
+      eventType: "task_failed",
+      detail: `${intent.name}: ${message}`.slice(0, 400),
+      happenedAt: new Date(),
+      failureLabel: "task_failed",
+    });
+    return NextResponse.json({ error: `Inject failed: ${message}` }, { status: 500 });
+  }
+}
+
+/** The task script runs as its own owned process — an argument vector, no
+ *  shell line typed into a terminal — so the terminal page can watch it
+ *  and it cannot land in the wrong tab. */
+async function provisionTaskRunner(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  opts: { effectiveKey: string; promptFile: string },
+) {
+  const runner = path.join(
+    process.cwd(),
+    "scripts",
+    request.adapter === "gemini" ? "run-gemini-task.sh" : "run-codex-task.sh",
+  );
+  const taskModel =
+    request.model?.trim() ||
+    (request.adapter === "gemini" ? AGENT_DEFAULT_MODELS.gemini : AGENT_DEFAULT_MODELS.codex);
+  const { executor } = await import("@/lib/agent-execution");
+  await executor.provision({
+    id: `${workspaceIdFor(userId, opts.effectiveKey)}:task:${Date.now()}`,
+    cwd: request.projectPath,
+    command: "bash",
+    args: [runner, opts.effectiveKey, request.projectPath, opts.promptFile, taskModel],
+  });
+}
+
+/** Fire-and-forget orchestration_events write, with the same failure log line
+ *  every emit site in this route used. */
+function emitTaskEvent(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  opts: {
+    eventType: OrchestrationEventType;
+    detail: string;
+    happenedAt: Date;
+    failureLabel?: string;
+  },
+) {
+  createOrchestrationEvent({
+    userId,
+    projectId: request.projectId ?? null,
+    projectKey: request.projectKey,
+    eventType: opts.eventType,
+    source: "api-orchestration",
+    adapter: request.adapter,
+    intent: request.intent,
+    detail: opts.detail,
+    happenedAt: opts.happenedAt,
+  }).catch((e) =>
+    console.error(`[orchestration/run] ${opts.failureLabel ?? "db"} write failed:`, e),
+  );
+}
+
+async function dispatchOpenClawRun(
+  request: OrchestrationTaskRequest,
+  userId: string,
+  intent: ResolvedIntent,
+): Promise<NextResponse> {
+  const run = await createOrchestrationRun({
+    userId,
+    projectId: request.projectId ?? null,
+    adapter: request.adapter,
+    intent: request.intent,
+    state: ORCH_STATE.RUNNING,
+    projectKey: request.projectKey,
+    projectPath: request.projectPath,
+    payload: {
+      projectId: request.projectId ?? null,
+      projectKey: request.projectKey,
+      projectPath: request.projectPath,
+      model: request.model,
+    },
+  });
+
+  // Emit task_started for openclaw too — until now this branch had no
+  // lifecycle event of any kind on success (the codex/gemini branch
+  // emits task_started but this branch skipped it), so every
+  // successful openclaw run was invisible in orchestration_events. The
+  // matching task_completed/task_failed is emitted by the worker script.
+  emitTaskEvent(request, userId, {
+    eventType: "task_started",
+    detail: intent.name,
+    happenedAt: new Date(),
+    failureLabel: "task_started",
+  });
+
+  try {
+    await scheduleOpenClawWorker(run.id, userId, request);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await updateOrchestrationRun(run.id, {
+      state: ORCH_STATE.ERROR,
+      outcome: "error",
+      finishedAt: new Date(),
+      payload: {
+        projectId: request.projectId ?? null,
+        projectKey: request.projectKey,
+        projectPath: request.projectPath,
+        error: `Failed to start worker: ${message}`,
+      },
+    });
+    logDebug({
+      source: "api/orchestration/run",
+      level: "error",
+      message: `openclaw worker start failed: ${message}`,
+      meta: {
+        userId,
+        runId: run.id,
+        adapter: request.adapter,
+        intent: request.intent,
+        projectKey: request.projectKey,
+        projectPath: request.projectPath,
+      },
+    });
+    // Worker never started → the orchestration_runs row was just marked
+    // outcome:'error' above, but orchestration_events still had nothing
+    // for the openclaw failure path. Emit task_failed so the dispatch-
+    // outcome timeline shows the attempt regardless of which adapter
+    // failed.
+    // Canonical shape: "<intent_or_label>: <error>" — matches the other
+    // task_failed emit sites so downstream queries don't need to parse
+    // multiple separator formats. Source field 'api-orchestration' already
+    // carries the "openclaw worker start failed" context.
+    emitTaskEvent(request, userId, {
+      eventType: "task_failed",
+      detail: `${intent.name}: ${message}`.slice(0, 400),
+      happenedAt: new Date(),
+      failureLabel: "task_failed",
+    });
+    return NextResponse.json({ error: "Worker failed to start" }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    queued: true,
+    run: {
+      id: run.id,
+      state: run.state,
+      startedAt: run.startedAt,
+    },
+    adapter: getAdapterDefinition(request.adapter as AdapterId),
+    intent,
+  });
+}
+
 export async function POST(req: NextRequest) {
   const dataOrResp = await readJsonBody(req, RunOrchestrationBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
@@ -137,29 +819,8 @@ export async function POST(req: NextRequest) {
   // silently joins.
   const announceOnClose = shouldAnnounceOnClose(actor);
 
-  // Resolve projectPath + adapter from the registry when omitted (Loki dispatches
-  // by name). Mirrors inject-core's lookup; downstream branches read dataOrResp.
-  if (!dataOrResp.projectPath || !dataOrResp.adapter) {
-    const all = [
-      ...(await getUserProjects(userId).catch(() => [])),
-      ...(await getOrgProjects(userId).catch(() => [])),
-    ];
-    const match = all.find((p) => p.name.toLowerCase() === dataOrResp.projectKey.toLowerCase());
-    if (!dataOrResp.projectPath) {
-      if (!match?.dirPath) {
-        return NextResponse.json(
-          { error: `Unknown project "${dataOrResp.projectKey}" (or it has no local path).` },
-          { status: 404 },
-        );
-      }
-      dataOrResp.projectPath = match.dirPath;
-      dataOrResp.projectId = dataOrResp.projectId ?? match.entityProjectId ?? null;
-    }
-    if (!dataOrResp.adapter) {
-      dataOrResp.adapter =
-        (match?.agentPref as (typeof ORCHESTRATION_ADAPTER_IDS)[number]) ?? "openclaw";
-    }
-  }
+  const unresolved = await resolveProjectDefaults(dataOrResp, userId);
+  if (unresolved) return unresolved;
 
   // status:working gate removed 2026-06-11 (Session 5b of killing-the-bash-
   // runner). Original 2026-05-31 rationale: "even with status:working set,
@@ -172,114 +833,15 @@ export async function POST(req: NextRequest) {
   // auto-fire; manual fires fly through unconditionally.
 
   if (!isRuntimeAvailable()) {
-    // Cloud mode: only the claude adapter can be queued via pending_commands.
-    // Other adapters (openclaw, codex, gemini) require local workers/tools.
-    const request = dataOrResp as OrchestrationTaskRequest;
-    if (!getAdapterDefinition(request.adapter).capabilities.cloudQueueable) {
-      return NextResponse.json(
-        {
-          error: `${request.adapter} orchestration requires the local runtime — not available in cloud mode`,
-        },
-        { status: 503 },
-      );
-    }
-    // Project-aware default channel — a dirPath-only project (no cloneable
-    // repo) can only execute where its directory exists; pin it to "local"
-    // instead of letting the cloud builder invent an empty workspace.
-    const registryMatch = [
-      ...(await getUserProjects(userId).catch(() => [])),
-      ...(await getOrgProjects(userId).catch(() => [])),
-    ].find((p) => p.name.toLowerCase() === request.projectKey.toLowerCase());
-    const execution = await resolveQueuedExecution(userId, { project: registryMatch });
-    if (!execution.ok) {
-      return NextResponse.json(executionAccessErrorBody(execution), { status: execution.status });
-    }
-    const intent = getOrchestrationIntent(request.intent as OrchestrationTaskIntentId);
-    // Aim the agent at the project's roadmap: brief + active goals (getProjectContext).
-    request.projectContext = (await getProjectContext(userId, request.projectKey)) ?? undefined;
-    // Life-OS half: the operator's top-level goals + near-term deadlines, so this
-    // cloud-queued dispatch serves the captain's objectives too (mirrors the
-    // inject-prompt/inject-core paths). Best-effort background section.
-    const operatorSection = await buildOperatorContextSection(userId).catch(() => "");
-    // Exit contract — WITHOUT it a box-executed agent finishes real work, writes
-    // no ~/.loki/sessions/<tab>.md handoff, and gets reaped as a timeout (the
-    // same gap inject-prompt.ts:66-74 closes for the inject path). The local
-    // orchestration path gets this via buildPromptWithSession; the cloud path —
-    // Control's dispatch / Next-best buttons — was the one bypass. Appended here
-    // (renderTaskForAdapter does not include it) so every dispatch path lands a
-    // handoff. Tilde-relative on purpose: the agent expands HOME, not the server.
-    const sessionFileRef = `${FLEET_SESSIONS_DISPLAY_PATH}/${request.projectKey}.md`;
-    const prompt = `${[operatorSection, renderTaskForAdapter(request)].filter(Boolean).join("\n\n")}\n\n## Exit contract (operator requirement)\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
-    // Create an orchestration_runs row for trackable intents so the local runner
-    // can write /tmp/cockpit-run-<tab> and agent-hook-bridge.sh can close out the
-    // outcome when the agent session ends. Lifecycle intents (hard_stop /
-    // close_session) end sessions and don't produce work outcomes — skip tracking.
-    let cloudRunId: string | null = null;
-    if (request.intent !== "hard_stop" && request.intent !== "close_session") {
-      try {
-        const run = await createOrchestrationRun({
-          userId,
-          projectId: request.projectId ?? null,
-          adapter: request.adapter,
-          intent: request.intent,
-          // The runner has not executed this command yet. Runtime state will
-          // show active work only after a successful local injection.
-          state: ORCH_STATE.WAITING,
-          projectKey: request.projectKey,
-          projectPath: request.projectPath,
-          payload: {
-            projectId: request.projectId ?? null,
-            projectKey: request.projectKey,
-            projectPath: request.projectPath,
-            model: request.model,
-            // Cloud mode: the operator dispatched and will almost certainly
-            // stop watching — announce the outcome when it closes. Autopilot
-            // (Bearer token) stays silent, which is what the original
-            // "UI dispatches stay silent" rule was actually protecting.
-            ...(announceOnClose ? { notifyOnClose: true } : {}),
-          },
-        });
-        cloudRunId = run.id;
-      } catch (err) {
-        console.error("[orchestration/run] cloud tracked-run create failed:", err);
-        // Non-fatal — dispatch still proceeds without outcome tracking.
-      }
-    }
-    // Enqueue a `dispatch` (not bare `inject`): the runner ensures the tab,
-    // launches the agent if none is running, then injects — so "Next best" on
-    // an idle project actually starts work instead of typing into the void.
-    // Model is forwarded so the runner's auto-launch honors it; when absent the
-    // runner's _conf_model_for_tab fallback reads agent-projects.conf.
-    const commandId = await enqueueDispatchCommand(userId, {
-      tab: request.projectKey,
-      ...(execution.channel ? { channel: execution.channel } : {}),
-      dir: request.projectPath,
-      agent: request.adapter,
-      prompt,
-      promptKey: request.intent,
-      promptLabel: intent.name,
-      model: request.model,
-      projectKey: request.projectKey,
-      runId: cloudRunId ?? undefined,
-    });
-    return NextResponse.json({
-      ok: true,
-      queued: true,
-      mode: "queued",
-      commandId,
-      runId: cloudRunId,
-      runnerConnected: execution.runnerConnected,
-      // Fail loud, not silent — a dispatch with no live runner says so.
-      ...(execution.runnerConnected === false && {
-        warning: "runner-offline",
-        message: "Fleet Runner is offline — queued; it will run as soon as the runner reconnects.",
-      }),
-    });
+    return await dispatchViaCloudQueue(
+      dataOrResp as OrchestrationTaskRequest,
+      userId,
+      announceOnClose,
+    );
   }
   const request: OrchestrationTaskRequest = dataOrResp as OrchestrationTaskRequest;
   const adapter = getAdapterDefinition(request.adapter as AdapterId);
   let intent = getOrchestrationIntent(request.intent as OrchestrationTaskIntentId);
-  let consumedQueueItem: string | null = null;
 
   // Resolve the live tab once — the owned PTY's key may differ in case.
   const activeTabs = listOwnedTabs(userId, [request.projectKey]);
@@ -288,33 +850,10 @@ export async function POST(req: NextRequest) {
       ? resolveEffectiveTab(request.projectKey, activeTabs)
       : request.projectKey;
 
-  // For tab-injected adapters: prioritize the prompt queue for next_best intent.
-  // openclaw uses a worker process, not tab injection, so it does not participate in the queue.
-  // This matches the stop-hook behavior and prevents AI-generated plans from superseding
-  // user-defined queue items during auto-fire or manual 'Next best' clicks.
-  // Health gate mirrors sessionHealthBlocksQueue() on the client: if session health is critical
-  // or tests are failing, skip queue pop so the agent picks the recovery task instead.
+  let consumedQueueItem: string | null = null;
   if (adapter.capabilities.tabInjected && request.intent === "next_best") {
-    const projectState = await getProjectState(userId, request.projectKey).catch(() => null);
-    const healthBlocks =
-      (projectState?.sessionHealth ?? "").toLowerCase().includes("critical") ||
-      (projectState?.sessionTests ?? "").toLowerCase().includes("fail");
-
-    if (!healthBlocks) {
-      const first = projectState?.promptQueue[0];
-      if (first) {
-        const consumed = await consumeProjectPrompt(userId, request.projectKey, first).catch(
-          () => null,
-        );
-        if (consumed?.consumed) {
-          writePromptQueueMirror(effectiveKey, consumed.queue);
-          request.intent = "custom";
-          request.customInstructions = first;
-          intent = getOrchestrationIntent("custom");
-          consumedQueueItem = first;
-        }
-      }
-    }
+    consumedQueueItem = await popQueuedPromptForNextBest(request, userId, effectiveKey);
+    if (consumedQueueItem) intent = getOrchestrationIntent("custom");
   }
 
   const restoreConsumedQueueItem = async () => {
@@ -357,38 +896,14 @@ export async function POST(req: NextRequest) {
   // created — which left prompt_history joinable to its outcome only by
   // time-proximity heuristics, the exact gap self-improvement-plan.md names.)
 
-  // Create an orchestration_runs row for tab-injected adapters too — gives every dispatch
-  // an outcome to learn from, not just openclaw worker runs. Lifecycle intents (hard_stop /
-  // close_session) end sessions and don't produce work outcomes, so they're skipped.
+  // Lifecycle intents (hard_stop / close_session) end sessions and don't produce
+  // work outcomes, so they're skipped.
   const TRACKABLE_INTENTS = request.intent !== "hard_stop" && request.intent !== "close_session";
   const TAB_ADAPTERS = adapter.capabilities.tabInjected;
-  let trackedRunId: string | null = null;
-  if (TAB_ADAPTERS && TRACKABLE_INTENTS) {
-    try {
-      const run = await createOrchestrationRun({
-        userId,
-        projectId: request.projectId ?? null,
-        adapter: request.adapter,
-        intent: request.intent,
-        state: ORCH_STATE.RUNNING,
-        projectKey: request.projectKey,
-        projectPath: request.projectPath,
-        payload: {
-          projectId: request.projectId ?? null,
-          projectKey: request.projectKey,
-          projectPath: request.projectPath,
-          model: request.model,
-        },
-      });
-      trackedRunId = run.id;
-      // Sentinel read by scripts/agent-hook-bridge.sh:handle_stop to call the finish endpoint
-      // with the captured outcome once the agent ends its session.
-      fs.writeFileSync(stateFile.run(effectiveKey), trackedRunId);
-    } catch (err) {
-      console.error("[orchestration/run] tracked run create failed:", err);
-      // Non-fatal — dispatch still proceeds without outcome tracking for this run.
-    }
-  }
+  const trackedRunId =
+    TAB_ADAPTERS && TRACKABLE_INTENTS
+      ? await createTabTrackedRun(request, userId, effectiveKey)
+      : null;
 
   // The ordered, linked pair: the run exists (or provably could not be
   // created), so the prompt records which run it became. Still fire-and-forget
@@ -405,13 +920,11 @@ export async function POST(req: NextRequest) {
     runId: trackedRunId,
   }).catch((err) => console.error("[orchestration/run] db write failed:", err));
 
-  // Serialize same-project dispatch for tab-injected adapters (claude/codex/
-  // gemini/grok) — the ones that share the project's zellij tab + git checkout +
-  // /tmp sentinels. If another agent's run is already ahead of ours for this
-  // project, queue this dispatch for the runner instead of colliding; it drains
-  // FIFO once our run is the oldest open one. TRACKABLE_INTENTS already excludes
-  // hard_stop/close_session (which must always fire to interrupt). openclaw is a
-  // detached worker (no shared tab/checkout) → not gated. Fail open on DB hiccup.
+  // If another agent's run is already ahead of ours for this project, queue this
+  // dispatch for the runner instead of colliding. TRACKABLE_INTENTS already
+  // excludes hard_stop/close_session (which must always fire to interrupt).
+  // openclaw is a detached worker (no shared tab/checkout) → not gated. Fail
+  // open on DB hiccup.
   if (
     TAB_ADAPTERS &&
     TRACKABLE_INTENTS &&
@@ -419,334 +932,28 @@ export async function POST(req: NextRequest) {
       excludeRunId: trackedRunId ?? undefined,
     }).catch(() => false))
   ) {
-    // Route the queued row the same way the live branch routes: by the
-    // project's stored locus and builder preference, never by who is online.
-    const presence = await getBuilderPresence(userId).catch(() => ({
-      cloud: false,
-      local: false,
-      any: false,
-    }));
-    const runnerConnected = presence.any;
-    const busyMatch = [
-      ...(await getUserProjects(userId).catch(() => [])),
-      ...(await getOrgProjects(userId).catch(() => [])),
-    ].find((p) => p.name.toLowerCase() === request.projectKey.toLowerCase());
-    const pinnedChannel = pickDispatchChannel(busyMatch);
-
-    // Phase 2 of worktree-per-agent: same-project PARALLEL dispatch. With
-    // checkout isolation in place (each run gets its own git worktree), the
-    // only reason to queue was the shared tab/session/sentinel identity — so
-    // mint this run a derived tab alias (<project>~<runId8>) and every
-    // tab-keyed mechanism (PTY workspace, session handoff, sentinels, zellij
-    // tab, worktree) composes unchanged. The runner FORCES worktree isolation
-    // for derived tabs regardless of its env flag, so parallel-without-
-    // isolation is impossible. Run row keeps the BASE projectKey (analytics,
-    // busy checks aggregate per project); payload.sessionTab carries the alias
-    // for the close path. Opt-in via LOKI_PARALLEL_DISPATCH.
-    if (PARALLEL_DISPATCH_ENABLED && trackedRunId) {
-      const runTab = deriveRunTab(request.projectKey, trackedRunId);
-      await updateOrchestrationRun(trackedRunId, {
-        payload: {
-          projectId: request.projectId ?? null,
-          projectKey: request.projectKey,
-          projectPath: request.projectPath,
-          model: request.model,
-          sessionTab: runTab,
-        },
-      }).catch((err) => console.error("[orchestration/run] sessionTab persist failed:", err));
-      // The alias gets its own session file — bake the Exit contract with the
-      // DERIVED path so the handoff lands where the close path looks for it.
-      const sessionFileRef = `${FLEET_SESSIONS_DISPLAY_PATH}/${runTab}.md`;
-      const parallelPrompt = `${resolvedPromptBody}\n\n## Exit contract (operator requirement)\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
-      const commandId = await enqueueDispatchCommand(userId, {
-        tab: runTab,
-        channel: pinnedChannel,
-        dir: request.projectPath,
-        agent: request.adapter,
-        prompt: parallelPrompt,
-        promptKey: request.intent,
-        promptLabel: intent.name,
-        model: request.model,
-        projectKey: request.projectKey,
-        runId: trackedRunId,
-      });
-      return NextResponse.json({
-        ok: true,
-        queued: true,
-        parallel: true,
-        mode: "parallel",
-        tab: runTab,
-        commandId,
-        runId: trackedRunId,
-        runnerConnected,
-      });
-    }
-
-    const commandId = await enqueueDispatchCommand(userId, {
-      tab: request.projectKey,
-      channel: pinnedChannel,
-      dir: request.projectPath,
-      agent: request.adapter,
-      prompt: resolvedPromptBody,
-      promptKey: request.intent,
-      promptLabel: intent.name,
-      model: request.model,
-      projectKey: request.projectKey,
-      runId: trackedRunId ?? undefined,
-    });
-    return NextResponse.json({
-      ok: true,
-      queued: true,
-      queuedBehind: true,
-      mode: "queued",
-      commandId,
-      runId: trackedRunId,
-      runnerConnected,
+    return await dispatchQueuedBehind(request, userId, {
+      intent,
+      trackedRunId,
+      resolvedPromptBody,
     });
   }
 
-  // Claude remains hook-driven via prompt injection into a live tab.
   if (request.adapter === "claude") {
-    try {
-      const nowS = Math.floor(Date.now() / 1000);
-      const prompt = withOperator(renderTaskForAdapter(request));
-      // Fetch the project's current state so the agent receives the same
-      // one-line WHY the human sees on the badge tooltip. Same SSOT
-      // (STATE_DEFINITIONS[k].description) — no paraphrasing — so reading
-      // /control and reading the prompt feel like one shared truth.
-      const projectRow = await getProjectState(userId, request.projectKey).catch(() => null);
-      const stateKey = deriveProjectStateKey({
-        agentRunning: projectRow?.agentRunning,
-        tabOpen: projectRow?.tabOpen,
-        sessionStatus: projectRow?.sessionStatus,
-        readyAt: projectRow?.readyAt ? Math.floor(projectRow.readyAt.getTime() / 1000) : null,
-        lockAt: projectRow?.lockAt ? Math.floor(projectRow.lockAt.getTime() / 1000) : null,
-        closingAt: projectRow?.closingAt ? Math.floor(projectRow.closingAt.getTime() / 1000) : null,
-        closedAt: projectRow?.closedAt ? Math.floor(projectRow.closedAt.getTime() / 1000) : null,
-      });
-      const stateDescription = projectStateDescription(stateKey);
-      // hard_stop skips session context — inject the bare stop directive, then immediately
-      // block auto-continue so stop.sh won't re-open even after Claude goes idle.
-      const fullPrompt =
-        request.intent === "hard_stop"
-          ? prompt
-          : buildPromptWithSession(prompt, request.projectKey, stateDescription);
-      injectOwned(userId, effectiveKey, fullPrompt);
-      await cancelActiveBeaconSessions(userId, effectiveKey);
-      clearHandshakeFiles(effectiveKey);
-      if (request.intent === "hard_stop") {
-        fs.writeFileSync(stateFile.sentinel(effectiveKey), "");
-        fs.writeFileSync(stateFile.closing(effectiveKey), String(nowS));
-        fs.writeFileSync(stateFile.closed(effectiveKey), String(nowS));
-      } else if (request.intent === "close_session") {
-        // Sentinel tells the stop hook to write closedAt (not readyAt) when the session ends.
-        // Mirrors the same logic in /api/inject for close_session.
-        fs.writeFileSync(stateFile.sentinel(effectiveKey), "");
-        fs.writeFileSync(stateFile.closing(effectiveKey), String(nowS));
-      } else {
-        // Write current-prompt so the UI shows the running banner.
-        // Mirrors the codex/gemini adapter paths and the inject route.
-        // Excluded for lifecycle intents (hard_stop/close_session) which end sessions.
-        fs.writeFileSync(
-          stateFile.prompt(effectiveKey),
-          JSON.stringify({
-            key: request.intent,
-            label: intent.name,
-            startedAt: nowS,
-            source: "run",
-            adapter: "claude",
-          }),
-        );
-        // Clear any stale closing sentinel so the UI doesn't stay in "Closing…" state
-        // if the user re-dispatches after a close_session was sent but not yet completed.
-        // Mirrors the same guard in the inject route and the codex/gemini adapter path.
-        try {
-          fs.unlinkSync(stateFile.closing(effectiveKey));
-        } catch {
-          /* already gone */
-        }
-      }
-      return NextResponse.json({
-        ok: true,
-        injected: true,
-        adapter: request.adapter,
-        intent: request.intent,
-      });
-    } catch (err) {
-      await restoreConsumedQueueItem();
-      const message = err instanceof Error ? err.message : String(err);
-      logDebug({
-        source: "api/orchestration/run",
-        level: "error",
-        message: `claude inject failed: ${message}`,
-        meta: {
-          userId,
-          adapter: request.adapter,
-          intent: request.intent,
-          projectKey: request.projectKey,
-          projectPath: request.projectPath,
-        },
-      });
-      return NextResponse.json({ error: `Inject failed: ${message}` }, { status: 500 });
-    }
+    return await dispatchClaudeInject(request, userId, {
+      intent,
+      effectiveKey,
+      withOperator,
+      restoreConsumedQueueItem,
+    });
   }
 
-  // Codex and Gemini have no native stop hook in this environment, so run the task as a
-  // one-shot command in the project tab and hand completion back to the same
-  // stop-hook bridge Beacon already uses for Claude.
   if (request.adapter === "codex" || request.adapter === "gemini") {
-    try {
-      const basePrompt = renderTaskForAdapter(request);
-      // Same SSOT description threaded in — see the Claude branch above
-      // for the WHY (human and agent share one source of state context).
-      const cxgRow = await getProjectState(userId, request.projectKey).catch(() => null);
-      const cxgStateKey = deriveProjectStateKey({
-        agentRunning: cxgRow?.agentRunning,
-        tabOpen: cxgRow?.tabOpen,
-        sessionStatus: cxgRow?.sessionStatus,
-        readyAt: cxgRow?.readyAt ? Math.floor(cxgRow.readyAt.getTime() / 1000) : null,
-        lockAt: cxgRow?.lockAt ? Math.floor(cxgRow.lockAt.getTime() / 1000) : null,
-        closingAt: cxgRow?.closingAt ? Math.floor(cxgRow.closingAt.getTime() / 1000) : null,
-        closedAt: cxgRow?.closedAt ? Math.floor(cxgRow.closedAt.getTime() / 1000) : null,
-      });
-      const prompt = buildPromptWithSession(
-        basePrompt,
-        effectiveKey,
-        projectStateDescription(cxgStateKey),
-      );
-      const promptFile = path.join(
-        "/tmp",
-        `${APP_SLUG}-${request.adapter}-prompt-${randomUUID()}.txt`,
-      );
-      fs.writeFileSync(promptFile, prompt);
-
-      const nowS = Math.floor(Date.now() / 1000);
-      fs.writeFileSync(
-        stateFile.prompt(effectiveKey),
-        JSON.stringify({
-          key: request.intent,
-          label: intent.name,
-          startedAt: nowS,
-          source: "runner",
-          adapter: request.adapter,
-        }),
-      );
-
-      createOrchestrationEvent({
-        userId,
-        projectId: request.projectId ?? null,
-        projectKey: request.projectKey,
-        eventType:
-          request.intent === "close_session" || request.intent === "hard_stop"
-            ? "close_requested"
-            : "continue_requested",
-        source: "api-orchestration",
-        adapter: request.adapter,
-        intent: request.intent,
-        detail: intent.name,
-        happenedAt: new Date(nowS * 1000),
-      }).catch((err) => console.error("[orchestration/run] db write failed:", err));
-
-      createOrchestrationEvent({
-        userId,
-        projectId: request.projectId ?? null,
-        projectKey: request.projectKey,
-        eventType: "task_started",
-        source: "api-orchestration",
-        adapter: request.adapter,
-        intent: request.intent,
-        detail: intent.name,
-        happenedAt: new Date(nowS * 1000),
-      }).catch((err) => console.error("[orchestration/run] db write failed:", err));
-
-      clearHandshakeFiles(effectiveKey);
-
-      if (request.intent === "hard_stop") {
-        fs.writeFileSync(stateFile.sentinel(effectiveKey), "");
-        fs.writeFileSync(stateFile.closing(effectiveKey), String(nowS));
-        fs.writeFileSync(stateFile.closed(effectiveKey), String(nowS));
-      } else if (request.intent === "close_session") {
-        fs.writeFileSync(stateFile.sentinel(effectiveKey), "");
-        fs.writeFileSync(stateFile.closing(effectiveKey), String(nowS));
-      } else {
-        try {
-          fs.unlinkSync(stateFile.closing(effectiveKey));
-        } catch {
-          /* gone */
-        }
-      }
-
-      const runner = path.join(
-        process.cwd(),
-        "scripts",
-        request.adapter === "gemini" ? "run-gemini-task.sh" : "run-codex-task.sh",
-      );
-      const taskModel =
-        request.model?.trim() ||
-        (request.adapter === "gemini" ? AGENT_DEFAULT_MODELS.gemini : AGENT_DEFAULT_MODELS.codex);
-      // The task script runs as its own owned process — an argument vector, no
-      // shell line typed into a terminal — so the terminal page can watch it
-      // and it cannot land in the wrong tab.
-      const { executor } = await import("@/lib/agent-execution");
-      await executor.provision({
-        id: `${workspaceIdFor(userId, effectiveKey)}:task:${Date.now()}`,
-        cwd: request.projectPath,
-        command: "bash",
-        args: [runner, effectiveKey, request.projectPath, promptFile, taskModel],
-      });
-      persistProjectRuntimeIfNewer({
-        projectKey: request.projectKey,
-        projectId: request.projectId ?? null,
-        userId,
-        workspaceId: workspaceIdFor(userId, request.projectKey),
-        tabName: effectiveKey,
-        runtimeObservedAt: new Date(),
-        currentPromptKey: request.intent,
-        currentPromptLabel: intent.name,
-        currentPromptStartedAt: new Date(nowS * 1000),
-      }).catch((err) => console.error("[orchestration/run] db write failed:", err));
-      return NextResponse.json({
-        ok: true,
-        injected: true,
-        adapter: request.adapter,
-        intent: request.intent,
-      });
-    } catch (err) {
-      await restoreConsumedQueueItem();
-      try {
-        fs.unlinkSync(stateFile.prompt(effectiveKey));
-      } catch {
-        /* absent */
-      }
-      const message = err instanceof Error ? err.message : String(err);
-      logDebug({
-        source: "api/orchestration/run",
-        level: "error",
-        message: `${request.adapter} inject failed: ${message}`,
-        meta: {
-          userId,
-          adapter: request.adapter,
-          intent: request.intent,
-          projectKey: request.projectKey,
-          projectPath: request.projectPath,
-        },
-      });
-      // Close the started/failed pair — task_started was emitted at line ~296
-      // before injectIntoTab; if that throws, record the failed counterpart
-      // here so orchestration_events doesn't carry an orphan start.
-      createOrchestrationEvent({
-        userId,
-        projectId: request.projectId ?? null,
-        projectKey: request.projectKey,
-        eventType: "task_failed",
-        source: "api-orchestration",
-        adapter: request.adapter,
-        intent: request.intent,
-        detail: `${intent.name}: ${message}`.slice(0, 400),
-        happenedAt: new Date(),
-      }).catch((e) => console.error("[orchestration/run] task_failed write failed:", e));
-      return NextResponse.json({ error: `Inject failed: ${message}` }, { status: 500 });
-    }
+    return await dispatchCodexOrGemini(request, userId, {
+      intent,
+      effectiveKey,
+      restoreConsumedQueueItem,
+    });
   }
 
   if (request.adapter !== "openclaw") {
@@ -760,99 +967,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const run = await createOrchestrationRun({
-    userId,
-    projectId: request.projectId ?? null,
-    adapter: request.adapter,
-    intent: request.intent,
-    state: ORCH_STATE.RUNNING,
-    projectKey: request.projectKey,
-    projectPath: request.projectPath,
-    payload: {
-      projectId: request.projectId ?? null,
-      projectKey: request.projectKey,
-      projectPath: request.projectPath,
-      model: request.model,
-    },
-  });
-
-  // Emit task_started for openclaw too — until now this branch had no
-  // lifecycle event of any kind on success (the codex/gemini branch at
-  // line ~296 emits task_started but this branch skipped it), so every
-  // successful openclaw run was invisible in orchestration_events. The
-  // matching task_completed/task_failed is emitted by the worker script.
-  createOrchestrationEvent({
-    userId,
-    projectId: request.projectId ?? null,
-    projectKey: request.projectKey,
-    eventType: "task_started",
-    source: "api-orchestration",
-    adapter: request.adapter,
-    intent: request.intent,
-    detail: intent.name,
-    happenedAt: new Date(),
-  }).catch((e) => console.error("[orchestration/run] task_started write failed:", e));
-
-  try {
-    await scheduleOpenClawWorker(run.id, userId, request);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    await updateOrchestrationRun(run.id, {
-      state: ORCH_STATE.ERROR,
-      outcome: "error",
-      finishedAt: new Date(),
-      payload: {
-        projectId: request.projectId ?? null,
-        projectKey: request.projectKey,
-        projectPath: request.projectPath,
-        error: `Failed to start worker: ${message}`,
-      },
-    });
-    logDebug({
-      source: "api/orchestration/run",
-      level: "error",
-      message: `openclaw worker start failed: ${message}`,
-      meta: {
-        userId,
-        runId: run.id,
-        adapter: request.adapter,
-        intent: request.intent,
-        projectKey: request.projectKey,
-        projectPath: request.projectPath,
-      },
-    });
-    // Worker never started → the orchestration_runs row was just marked
-    // outcome:'error' above, but orchestration_events still had nothing
-    // for the openclaw failure path. Emit task_failed so the dispatch-
-    // outcome timeline shows the attempt regardless of which adapter
-    // failed.
-    createOrchestrationEvent({
-      userId,
-      projectId: request.projectId ?? null,
-      projectKey: request.projectKey,
-      eventType: "task_failed",
-      source: "api-orchestration",
-      adapter: request.adapter,
-      intent: request.intent,
-      // Canonical shape: "<intent_or_label>: <error>" — matches the other
-      // task_failed emit sites so downstream queries don't need to parse
-      // multiple separator formats. Source field 'api-orchestration' already
-      // carries the "openclaw worker start failed" context.
-      detail: `${intent.name}: ${message}`.slice(0, 400),
-      happenedAt: new Date(),
-    }).catch((e) => console.error("[orchestration/run] task_failed write failed:", e));
-    return NextResponse.json({ error: "Worker failed to start" }, { status: 500 });
-  }
-
-  return NextResponse.json({
-    ok: true,
-    queued: true,
-    run: {
-      id: run.id,
-      state: run.state,
-      startedAt: run.startedAt,
-    },
-    adapter,
-    intent,
-  });
+  return await dispatchOpenClawRun(request, userId, intent);
 }
