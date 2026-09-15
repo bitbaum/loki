@@ -589,7 +589,10 @@ async function dispatchCodexOrGemini(
       effectiveKey,
       await describeProjectState(userId, request.projectKey),
     );
-    const promptFile = path.join("/tmp", `${APP_SLUG}-${request.adapter}-prompt-${randomUUID()}.txt`);
+    const promptFile = path.join(
+      "/tmp",
+      `${APP_SLUG}-${request.adapter}-prompt-${randomUUID()}.txt`,
+    );
     fs.writeFileSync(promptFile, prompt);
 
     const nowS = Math.floor(Date.now() / 1000);

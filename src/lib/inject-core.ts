@@ -346,9 +346,12 @@ async function writeLocalInjectSideEffects(
   },
 ) {
   const { effectiveTab, promptKey, promptLabel, eventAdapter, nowS } = ctx;
-  const [{ cancelActiveBeaconSessions }, { stateFile, clearHandshakeFiles }, fs] = await Promise.all(
-    [import("@/app/api/beacon/route"), import("@/lib/agent-config"), import("fs")],
-  );
+  const [{ cancelActiveBeaconSessions }, { stateFile, clearHandshakeFiles }, fs] =
+    await Promise.all([
+      import("@/app/api/beacon/route"),
+      import("@/lib/agent-config"),
+      import("fs"),
+    ]);
 
   await cancelActiveBeaconSessions(userId, effectiveTab);
 
