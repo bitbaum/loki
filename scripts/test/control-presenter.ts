@@ -8,6 +8,7 @@ import {
   buildProjectOperationsSnapshot,
   buildProjectOperationsSnapshots,
   deriveFleetPulse,
+  deriveRunnerPresence,
   findProjectForOpenTab,
   formatAgentRuntimeLabel,
   inferAgentLabelFromTabName,
@@ -774,6 +775,71 @@ function runTests(): void {
     // ...and the same fleet, once known, is NOT all-clear.
     const known = buildControlPageState(controlData(projects), nowS, true, false).dashboard;
     assert(known.idleCount === projects.length, "known state buckets them as idle");
+  });
+
+  // ── deriveRunnerPresence ───────────────────────────────────────────────────
+  // Extracted out of ControlPanel 2026-09-15. It decides three separate things
+  // the page renders differently for, and the ADDITIVE rollout rule inside it
+  // (connected===false is not yet authoritative on its own) is the kind of
+  // thing a later simplification deletes by accident.
+  const NEVER = {
+    runtimeAvailable: false,
+    runnerConnected: null,
+    cloudBuilderPresent: false,
+    runnerLastPushedAt: null,
+    lastUpdated: Date.now(),
+  };
+
+  check("local runtime is never offline, whatever the bridge says", () => {
+    const p = deriveRunnerPresence({ ...NEVER, runtimeAvailable: true, runnerConnected: false });
+    assert(p.runnerOffline === false, "a local runtime needs no builder connection");
+    assert(p.runnerNeverSeen === false, "and is never 'never seen'");
+  });
+
+  check("no push ever + no connection = never seen, and state is unknown", () => {
+    const p = deriveRunnerPresence(NEVER);
+    assert(p.runnerNeverSeen === true, "nothing has ever reported");
+    assert(p.runtimeStateKnown === false, "so cached runtime must be hidden");
+    assert(p.runnerSyncStale === false, "there is no sync to call stale");
+  });
+
+  check("an open bridge connection is online even with an ancient heartbeat", () => {
+    const p = deriveRunnerPresence({
+      ...NEVER,
+      runnerConnected: true,
+      runnerLastPushedAt: new Date(Date.now() - 86_400_000).toISOString(),
+    });
+    assert(p.runnerOffline === false, "connection-based presence wins");
+    assert(p.runnerNeverSeen === false, "a connected runner has been seen");
+  });
+
+  check("a stale heartbeat with no connection is offline, but state stays known", () => {
+    const p = deriveRunnerPresence({
+      ...NEVER,
+      runnerLastPushedAt: new Date(Date.now() - 86_400_000).toISOString(),
+    });
+    assert(p.runnerOffline === true, "nothing is there to claim a dispatch");
+    assert(p.runtimeStateKnown === true, "last-known Working/Ready is still worth showing");
+    assert(p.runnerSyncStale === true, "labelled stale, not presented as live");
+    assert(p.runtimeSyncCtx.syncStale === true, "and the card context says so too");
+  });
+
+  check("a live cloud builder holds presence open while the heartbeat ages", () => {
+    // The ADDITIVE rollout: connected===false from a pre-rollout runner must
+    // not read as offline on its own.
+    const p = deriveRunnerPresence({
+      ...NEVER,
+      runnerConnected: false,
+      cloudBuilderPresent: true,
+      runnerLastPushedAt: new Date(Date.now() - 86_400_000).toISOString(),
+    });
+    assert(p.runnerOffline === true, "an explicit false IS authoritative");
+    const legacy = deriveRunnerPresence({
+      ...NEVER,
+      cloudBuilderPresent: true,
+      runnerLastPushedAt: new Date(Date.now() - 86_400_000).toISOString(),
+    });
+    assert(legacy.runnerOffline === false, "but an unknown connection defers to cloud presence");
   });
 
   console.log(`\n${passed}/${passed} passed`);
