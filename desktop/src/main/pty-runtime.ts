@@ -16,6 +16,7 @@
 import { executor } from "@/lib/agent-execution";
 import { provisionAgentWorkspace } from "@/lib/agent-execution/launch";
 import type { AgentOption } from "@/lib/agent-registry";
+import { ensureGrokWorkspaceTrusted } from "./grok-prep";
 
 /**
  * Stable runner-local workspace id for a project tab. The runner has no server
@@ -84,6 +85,13 @@ export async function launchAgentPty(
       console.warn(`[claude-prep] ${tab}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
+  if (agent === "grok") {
+    try {
+      ensureGrokWorkspaceTrusted(effectiveDir);
+    } catch (e) {
+      console.warn(`[grok-prep] ${tab}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
   await provisionAgentWorkspace("runner", {
     projectKey: tab,
     dir: effectiveDir,
@@ -131,6 +139,52 @@ export function injectPty(tab: string, text: string): void {
  */
 export function isPtyBusy(tab: string): boolean {
   return executor.get(runnerWorkspaceId(tab))?.status === "running";
+}
+
+/**
+ * Observe output produced after a prompt is submitted.
+ *
+ * Sampling `isPtyBusy` once at the end of an eight-second window loses real
+ * agents: Grok alternates between short output bursts and quiet inference, so
+ * a run can be visibly working in Terminal at second seven and read idle at
+ * second eight. Subscribe before injection and remember any later output.
+ */
+export function waitForPtyOutput(tab: string, timeoutMs = 8000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const id = runnerWorkspaceId(tab);
+    let replaying = true;
+    let settled = false;
+    let bytes = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      unsub();
+      resolve(value);
+    };
+    const unsub = executor.subscribe(id, 0, (event) => {
+      if (replaying || event.kind !== "output" || !event.data) return;
+      bytes += event.data.length;
+      // A submitted prompt causes a redraw even before the first model token.
+      // Requiring more than a cursor-control byte filters terminal noise.
+      if (bytes >= 64) finish(true);
+    });
+    replaying = false;
+    timer = setTimeout(() => finish(false), timeoutMs);
+  });
+}
+
+/** Turn a silent PTY into a cause and a concrete recovery action. */
+export function explainPtyDispatchFailure(tab: string, agent: AgentOption): string {
+  const screen = peekPtyBuffer(tab)?.toLowerCase() ?? "";
+  if (/do you trust|trust (?:this|the) (?:directory|folder|workspace)/.test(screen)) {
+    return `${agent} is waiting for workspace trust, so it consumed the prompt before the agent was ready. Open Terminal, approve this folder once, then Retry.`;
+  }
+  if (/not (?:logged|signed) in|login required|authentication required|unauthorized|\b401\b/.test(screen)) {
+    return `${agent} is not logged in on this computer. Open Terminal, run ${agent === "cursor" ? "cursor-agent login" : `${agent} login`}, then Retry.`;
+  }
+  return `${agent} opened on this computer, but produced no response after Loki submitted the prompt. Open Terminal to see the live CLI; if it is idle, choose another AI provider and Retry.`;
 }
 
 /**

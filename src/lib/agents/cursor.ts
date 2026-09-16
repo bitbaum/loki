@@ -89,6 +89,9 @@ export const cursorAdapter: AgentAdapter = {
   },
 
   buildLaunchCommand({ dir }: AgentRuntimeConfig): string {
-    return `source ~/.bashrc >/dev/null 2>&1 || true; cd ${shellEscape(dir)} && agent`;
+    // Implement is unattended. `--trust` prevents the first paste from being
+    // consumed by Cursor's workspace-trust screen; `--yolo` prevents a later
+    // tool approval from turning a visible Working run into a silent stall.
+    return `source ~/.bashrc >/dev/null 2>&1 || true; cd ${shellEscape(dir)} && cursor-agent --trust --yolo`;
   },
 };
