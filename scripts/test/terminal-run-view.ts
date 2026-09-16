@@ -39,7 +39,7 @@ check("quota language on the diagnostic is quota death", () => {
   assert.ok(alts);
   assert.deepEqual(
     alts.map((a) => a.id),
-    ["grok", "cursor", "gemini"],
+    ["codex", "cursor", "grok", "gemini"],
   );
   assert.equal(alts.find((a) => a.id === "gemini")?.label, "Antigravity");
   assert.equal(
