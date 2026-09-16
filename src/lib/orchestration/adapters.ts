@@ -79,6 +79,20 @@ export const ADAPTER_DEFINITIONS: Record<AdapterId, AdapterDefinition> = {
     notes:
       "Local Grok CLI integration with adapter-aware handoffs and hook-driven lifecycle state.",
   },
+  cursor: {
+    id: "cursor",
+    label: "Cursor",
+    capabilities: createCapabilities({
+      launchSession: true,
+      injectTask: true,
+      detectRunning: true,
+      sessionHandoff: true,
+      tabInjected: true,
+      cloudQueueable: true,
+    }),
+    notes:
+      "Cursor Agent CLI (cursor-agent) on This computer or cloud builder — must be on PATH and logged in.",
+  },
 };
 
 export function getAdapterDefinition(adapterId: AdapterId): AdapterDefinition {

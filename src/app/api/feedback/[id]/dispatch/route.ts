@@ -31,8 +31,10 @@ const DispatchBody = z.object({
 const IMPLEMENT_ADAPTERS = ORCHESTRATION_ADAPTER_IDS.filter((id) => id !== "openclaw");
 
 function resolveImplementAdapter(agentPref: string | null | undefined): AdapterId {
-  if (agentPref && (IMPLEMENT_ADAPTERS as readonly string[]).includes(agentPref)) {
-    return agentPref as AdapterId;
+  // UI may say Antigravity; orchestration id is still gemini.
+  const pref = agentPref === "antigravity" || agentPref === "agy" ? "gemini" : agentPref;
+  if (pref && (IMPLEMENT_ADAPTERS as readonly string[]).includes(pref)) {
+    return pref as AdapterId;
   }
   return DEFAULT_ADAPTER_ID;
 }
@@ -109,7 +111,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       projectId: row.feedback.projectId,
       allowHostedFallback: true,
       refuseOfflineQueue: true,
-      builderChannel: "cloud",
+      // Honor user_projects.builder_pref via pickDispatchChannel — do not force cloud.
       adapter,
       sessionId: currentSession?.sessionId,
       customPrompt: composeFeedbackFixPrompt(
