@@ -471,10 +471,18 @@ export function FeedbackItemRow({
           >
             Watch here
           </button>
-          <a href={terminalHref} className="ui-btn-secondary gap-1" title="Open Loki Terminal for this project">
+          <a
+            href={terminalHref}
+            className="ui-btn-secondary gap-1"
+            title="Open Loki Terminal for this project"
+          >
             Terminal
           </a>
-          <a href={chatHref} className="ui-btn-secondary gap-1" title="Open Loki chat for this project">
+          <a
+            href={chatHref}
+            className="ui-btn-secondary gap-1"
+            title="Open Loki chat for this project"
+          >
             Chat
           </a>
         </div>
