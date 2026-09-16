@@ -36,3 +36,7 @@ Feedback → Implement leaves users guessing. Status badges (Queued / Starting /
 
 ## Done when
 Walk **without opening Kitty**: Implement on a feedback row → auto Watch with Terminal + Chat links → healthy provider streams in Loki Terminal (or honest Needs you with Open Runner / switch provider). PR on bitbaum/loki; walked on production. If it fails, keep shipping and retesting until it passes.
+
+## Run status SSOT
+
+All surfaces use **one** status vocabulary: see `RUN-STATUS-SSOT.md`. Working means post-prompt generation evidence only — Feedback, Terminal, and Activity must not disagree.
