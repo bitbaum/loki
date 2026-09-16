@@ -58,6 +58,9 @@ export const grokAdapter: AgentAdapter = {
   },
 
   buildLaunchCommand({ dir }: AgentRuntimeConfig): string {
-    return `source ~/.bashrc >/dev/null 2>&1 || true; cd ${shellEscape(dir)} && grok`;
+    // Keep the PTY in browser scrollback and let an Implement run use tools
+    // without waiting for an invisible approval prompt. Workspace trust is
+    // prepared by Fleet Runner before this command starts.
+    return `source ~/.bashrc >/dev/null 2>&1 || true; cd ${shellEscape(dir)} && grok --always-approve --no-alt-screen`;
   },
 };

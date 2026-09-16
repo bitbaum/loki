@@ -39,6 +39,8 @@ import {
   launchAgentPty,
   injectPty,
   isPtyBusy,
+  waitForPtyOutput,
+  explainPtyDispatchFailure,
   terminatePty,
   waitForPtyReady,
   peekPtyBuffer,
@@ -591,6 +593,10 @@ async function handleCommand(
             if (await waitForPtyReady(tab, 15000)) await asleep(1800)
           }
           {
+            // Non-Claude CLIs do not expose Claude's session-status files.
+            // Subscribe BEFORE writing so short output bursts cannot happen
+            // between injection and verification setup.
+            let outputAfterInject = agent === 'claude' ? null : waitForPtyOutput(tab, 8000)
             injectPty(tab, effPrompt)
             // The moment the prompt reached the agent — reported in the ack so the
             // server stamps delivery HERE, not after the up-to-8s generating check
@@ -605,20 +611,28 @@ async function handleCommand(
             // kept redrawing, and six agents were acked "injected" while
             // sitting idle at an empty composer (2026-07-02). isPtyBusy stays
             // as the fallback for agents that don't write live status files.
-            verified = await waitForAgentGenerating(effDir, tab, 8000)
+            verified = outputAfterInject
+              ? await outputAfterInject
+              : await waitForAgentGenerating(effDir, tab, 8000)
             if (!verified) {
               // Most likely failure: the prompt is SITTING in the composer
               // unsubmitted (paste landed, Enter got swallowed). A bare Enter
               // submits it without duplicating the text; verifiably-idle means
               // it can't interrupt a turn.
+              outputAfterInject = agent === 'claude' ? null : waitForPtyOutput(tab, 6000)
               writeRawKey(tab, '\r')
-              verified = await waitForAgentGenerating(effDir, tab, 6000)
+              verified = outputAfterInject
+                ? await outputAfterInject
+                : await waitForAgentGenerating(effDir, tab, 6000)
             }
             if (!verified) {
               // Composer was actually empty (boot dialog ate the paste) —
               // re-inject the full prompt once.
+              outputAfterInject = agent === 'claude' ? null : waitForPtyOutput(tab, 8000)
               injectPty(tab, effPrompt)
-              verified = await waitForAgentGenerating(effDir, tab, 8000)
+              verified = outputAfterInject
+                ? await outputAfterInject
+                : await waitForAgentGenerating(effDir, tab, 8000)
             }
             ok = true
             workspaceId = runnerWorkspaceId(tab)
@@ -657,16 +671,7 @@ async function handleCommand(
               // while Activity looked busy. Prefer Failed over fake success.
               ok = false
               warning = undefined
-              error =
-                // `${agent}`, not the literal "grok". This read "launched claude
-                // (pty) + injected … switch the project agent away from grok" on
-                // a real dispatch (Prime tower, 2026-09-04) — advice naming an
-                // agent the operator is not using, in the same sentence that
-                // names the one they are. A hardcoded agent name in a generic
-                // failure is wrong for every agent but one, and it undermines
-                // the whole message: if the diagnosis can't tell which agent ran,
-                // why trust the rest of it?
-                `${text}, but the agent isn't generating yet — inject did not stick (booting, idle, or hung). Retry, or switch the project agent away from ${agent} if this repeats.`
+              error = `${text}, but Loki could not verify generation. ${explainPtyDispatchFailure(tab, agent as AgentOption)}`
             }
             break
           }

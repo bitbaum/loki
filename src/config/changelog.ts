@@ -29,6 +29,19 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.26",
+    tag: "fleet-runner-v0.8.26",
+    date: "2026-09-16T19:00:00Z",
+    highlights: [
+      "Feedback Implement now prepares Grok and Cursor for unattended work, so a first-run trust or approval screen cannot consume the implementation brief.",
+      "Run verification watches the whole post-submit output window. Short quiet moments no longer turn an actively working Grok or Cursor session into a false Failed row.",
+      "When an agent still cannot start, Loki names the observed blocker and the action to take in Terminal instead of showing a generic Retry message.",
+    ],
+    breaking: [],
+    notes:
+      "Proven through the production feedback loop: Grok was visibly reading and editing in Loki Terminal while the old verifier had already marked the run Failed.",
+  },
+  {
     version: "0.8.25",
     tag: "fleet-runner-v0.8.25",
     date: "2026-09-15T06:00:00Z",
