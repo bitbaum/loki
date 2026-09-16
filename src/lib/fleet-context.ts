@@ -13,6 +13,8 @@ export function fleetSurfaceHref(
   project: string | null,
   /** Only meaningful for the terminal surface. */
   source?: FleetTerminalSource,
+  /** Orchestration run Watch and Terminal share — Terminal opens the Loki rail on it. */
+  runId?: string | null,
 ): string {
   const value = project?.trim();
   if (!value) {
@@ -28,7 +30,10 @@ export function fleetSurfaceHref(
   if (surface === "chat") return `/loki?project=${encoded}`;
   if (surface === "control") return `/control?focus=${encoded}`;
   if (surface === "activity") return `/activity?project=${encoded}`;
-  return source ? `/terminal?project=${encoded}&source=${source}` : `/terminal?project=${encoded}`;
+  const run = runId?.trim() ? `&run=${encodeURIComponent(runId.trim())}` : "";
+  return source
+    ? `/terminal?project=${encoded}&source=${source}${run}`
+    : `/terminal?project=${encoded}${run}`;
 }
 
 /** Where to watch a queued inject: Control for state, Activity for the ledger,

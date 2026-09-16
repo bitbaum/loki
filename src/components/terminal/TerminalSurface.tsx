@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2, MonitorSmartphone } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { postJson } from "@/lib/api/fetch";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
@@ -34,6 +33,9 @@ import { TerminalSessionMiss } from "./TerminalSessionMiss";
 import { TerminalMobileHeader, type TerminalLiveState } from "./TerminalMobileHeader";
 import { TerminalSessionSheet } from "./TerminalSessionSheet";
 import { TerminalMobileDock } from "./TerminalMobileDock";
+import { TerminalLokiRail } from "./TerminalLokiRail";
+import { Modal } from "@/components/ui/modal";
+import { NARROW_QUERY } from "@/hooks/use-is-narrow";
 import { runnerTransport } from "./terminal-transport";
 import { useTerminalTabs } from "./use-terminal-tabs";
 
@@ -129,6 +131,7 @@ export function TerminalSurface({
   onToggleImmersive,
   initialSource,
   initialTab,
+  initialRunId = null,
 }: {
   local: boolean;
   immersive?: boolean;
@@ -138,6 +141,8 @@ export function TerminalSurface({
   /** Tab or project name from URL. When from ?project=, this is the project key
    *  that will be resolved to the actual tab name via context lookup. */
   initialTab?: string | null;
+  /** Same orchestration run Feedback Watch is following (`?run=`). */
+  initialRunId?: string | null;
 }) {
   // "shell" — a Loki-owned bash PTY — is only offered where one can
   // actually be provisioned. On the hosted control plane it is absent rather
@@ -330,6 +335,15 @@ export function TerminalSurface({
   const deck = useTerminalDeck();
   const keyboardInset = useKeyboardInset();
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Auto-open the Loki sheet only on a phone — desktop already shows the rail.
+  // Reusing one React element in both the split and the modal would unmount it
+  // from the visible desktop pane (the modal is md:hidden).
+  const [lokiSheetOpen, setLokiSheetOpen] = useState(
+    () =>
+      Boolean(initialRunId) &&
+      typeof window !== "undefined" &&
+      window.matchMedia(NARROW_QUERY).matches,
+  );
   const [liveState, setLiveState] = useState<TerminalLiveState>("connecting");
   const [geometry, setGeometry] = useState<PtyGeometry | null>(null);
 
@@ -354,6 +368,7 @@ export function TerminalSurface({
   );
   const tabContext = context?.tabs.find((t) => t.tab === activeTab) ?? null;
   const activeAgentId = tabContext?.agentPref ?? context?.agents.defaultAgent ?? null;
+  const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
 
   const [switchingAgent, setSwitchingAgent] = useState(false);
   const agentSwitchDisabledReason = !activeTab
@@ -452,10 +467,25 @@ export function TerminalSurface({
       agent={headerAgent}
       state={headerState}
       onOpenSheet={() => setSheetOpen(true)}
+      onOpenLoki={projectKey ? () => setLokiSheetOpen(true) : undefined}
       immersive={immersive}
       onToggleImmersive={onToggleImmersive ?? (() => {})}
     />
   );
+
+  // New element per call — never reuse one descriptor in the split AND the sheet.
+  const renderLokiRail = () =>
+    projectKey ? (
+      <TerminalLokiRail
+        project={projectKey}
+        tab={activeTab}
+        runId={initialRunId}
+        ptyLive={liveState === "live"}
+        currentAgent={activeAgentId}
+        canSwitchAgent={!agentSwitchDisabledReason}
+        onSwitchAgent={(id) => void switchAgent(id)}
+      />
+    ) : null;
 
   const sheet = sheetOpen ? (
     <TerminalSessionSheet
@@ -541,7 +571,7 @@ export function TerminalSurface({
             // repeating a command against an absent target fails identically
             // forever. The old copy said "Retry", so it sent the reader to
             // Control to hunt for a button that is not drawn.
-            `No live agent session for “${initialTab}”. If you just clicked Implement or Install, open Control — Attention offers “${REMEDY_LABEL[FAILURE_REMEDY.START_SESSION]}” when the prompt never started. Terminal only shows sessions that are actually running.`
+            `No live agent session for “${initialTab}”. Loki Terminal lists Fleet Runner and cloud PTYs — not a Kitty or Zellij pane. If you just clicked Implement, open Control — Attention offers “${REMEDY_LABEL[FAILURE_REMEDY.START_SESSION]}” when the prompt never started.`
           : null;
       const hint = gatedMessage ?? (offline ? copy.offlineHint : (tabHint ?? copy.emptyHint));
       const controlHref = initialTab
@@ -616,7 +646,14 @@ export function TerminalSurface({
           />
         </div>
       )}
-      <div className={cn("min-h-0 flex-1", immersive && "min-h-0")}>{body()}</div>
+      <div className="ui-term-split">
+        <div className="ui-term-split-pty">{body()}</div>
+        {projectKey && (
+          <div className="ui-term-split-rail" aria-label="Loki comments and inject">
+            {renderLokiRail()}
+          </div>
+        )}
+      </div>
 
       {/* Desktop composers. The phone's live in the dock below, alongside the
           key deck, so there is exactly one stack of controls under the screen
@@ -644,6 +681,19 @@ export function TerminalSurface({
       )}
 
       {sheet}
+      {lokiSheetOpen && projectKey && (
+        <div className="md:hidden">
+          <Modal
+            onClose={() => setLokiSheetOpen(false)}
+            position="bottom-mobile"
+            size="lg"
+            padded={false}
+            className="ui-sheet"
+          >
+            <div className="ui-term-loki-sheet">{renderLokiRail()}</div>
+          </Modal>
+        </div>
+      )}
     </div>
   );
 }

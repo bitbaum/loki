@@ -66,7 +66,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
-  const terminalHref = fleetSurfaceHref("terminal", row.projectName, "cloud");
+  const terminalHref = fleetSurfaceHref("terminal", row.projectName, undefined, run?.id);
 
   return NextResponse.json({
     work: {

@@ -90,6 +90,8 @@ export type FeedbackWorkView = {
   stepSummary?: string | null;
   /** Dig-in reason while Queued / Starting — one sentence, not a wall. */
   queueReason?: string | null;
+  /** Orchestration run Watch and Terminal share. */
+  runId?: string | null;
   /** pending_commands id when still queued — polls live dispatch status. */
   commandId?: string | null;
   /** When the agent started on it (delivery, else run start). ISO. */
@@ -189,6 +191,7 @@ function withStep(
     terminalReady,
     stepSummary: step.summary,
     queueReason: step.detail,
+    runId: run.id,
     commandId: run.commandId ?? null,
     // Dig-in gets the queue reason when the row itself stays quiet.
     diagnostic: view.diagnostic ?? step.detail,

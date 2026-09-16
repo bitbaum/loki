@@ -28,8 +28,8 @@ Feedback → Implement leaves users guessing. Status badges (Queued / Starting /
 
 3. **Watch / Terminal / Loki chat after Implement**  
    - Click Implement → auto-open Watch on the row with one-tap Terminal and Loki chat (project-scoped; honest stub if run-chat is not ready).  
-   - Ideal chrome: Terminal left + Loki commentary/inject rail right (~60/40; mobile bottom sheet).  
-   - Feedback Watch deep-links the same run. Empty Terminal explains Runner vs Kitty and the next action.
+   - Terminal chrome: PTY left + Loki commentary/inject rail right (~60/40; mobile bottom sheet). Rail is phase / stall / next action from `run_events`, not a log dump. Ask vs Inject share the session; after Inject the rail shows PTY bytes + ack. Quota death offers Grok / Cursor / Antigravity here.  
+   - Feedback Watch deep-links the same run (`?run=`). Empty Terminal explains Runner vs Kitty and the next action.
 
 4. **Delete/quarantine stale**  
    - No tab-name matching. Session attach by projectId/runId only. Audit Frankenstein Attention/Implement button clusters → one decision, one button.
