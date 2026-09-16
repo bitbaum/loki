@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Archive, Check, Loader2, PenLine, Rocket, Star, Undo2 } from "lucide-react";
 import { compactRelativeDate } from "@/lib/dates";
