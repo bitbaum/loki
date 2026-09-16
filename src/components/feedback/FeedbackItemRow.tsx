@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Archive, Check, Loader2, PenLine, Rocket, Star, Undo2 } from "lucide-react";
 import { compactRelativeDate } from "@/lib/dates";
@@ -91,11 +91,6 @@ export function FeedbackItemRow({
     markFollowing();
     onDispatch(note);
   };
-  // Refetch remount / phase change must not leave the panel closed after Implement.
-  useEffect(() => {
-    if (!followAfterImplement) return;
-    setWatchOpen(true);
-  }, [followAfterImplement, work.phase, showWatch]);
   // Somewhere for an agent to work. Rows from the per-project inbox carry no
   // flag and keep the one-click Implement; the server refuses the same case.
   const runnable = "runnable" in f ? f.runnable !== false : true;
