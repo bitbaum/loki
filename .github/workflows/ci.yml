@@ -119,8 +119,24 @@ jobs:
           psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector;'
           npx drizzle-kit push --force
 
+      # Merge→live latency (Cato 2026-09-16): full `verify` is ~60m. PRs keep it.
+      # Squash merges onto main already passed that gate on the PR — re-running
+      # doubles merge→live for no new signal. Fast `verify:main` on those tips;
+      # manual/weird main pushes (no (#N) in the subject) still get full verify.
       - name: Verify
-        run: pnpm run verify
+        run: |
+          set -euo pipefail
+          subject=$(git log -1 --format=%s)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "PR — full verify"
+            pnpm run verify
+          elif [ "${{ github.ref }}" = "refs/heads/main" ] && echo "$subject" | grep -Eq '\(#[0-9]+\)'; then
+            echo "main tip looks like a PR merge ($subject) — fast verify:main"
+            pnpm run verify:main
+          else
+            echo "main without PR subject ($subject) — full verify"
+            pnpm run verify
+          fi
 
       # `next build` is intentionally NOT here — the App-Router pages do
       # DB queries during static pre-render, so a real Postgres would
