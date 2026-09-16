@@ -120,6 +120,11 @@ assert.equal(
   "SUCCESS close waits for live proof / operator Resolve — never Done alone",
 );
 assert.equal(successClosed.label, "Finished", "no ledger yet: Finished, not Check live");
+assert.equal(
+  successClosed.stepSummary,
+  null,
+  "a closed run must not keep saying the agent is working from its last event",
+);
 assert.ok(
   !successClosed.label.toLowerCase().includes("done"),
   "badge must not say Done before Resolve",
