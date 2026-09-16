@@ -4,6 +4,7 @@ import {
   closeRunUndelivered,
   getOrchestrationRunById,
   stampRunDelivered,
+  stampRunInjectAck,
 } from "@/db/queries/orchestration-runs";
 import { emitRunEvent } from "@/db/queries/run-events";
 import { getApiUserId } from "@/lib/session";
@@ -90,11 +91,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // now so it doesn't head-of-line block the project's queued dispatches.
         await closeRunUndelivered(runId, userId, error ?? "runner error").catch(() => {});
       } else {
-        if (warning) void emitRunEvent(runId, userId, "blocked", { reason: warning, workspaceId });
-        else void emitRunEvent(runId, userId, "submitted", { text, workspaceId });
+        // verified:true = post-prompt generation confirmed → generating hop.
+        // verified:false / warning = inject-no-generate → blocked (Needs you).
+        // No verdict → submitted only (Starting until progress proves life).
+        if (verified === false || warning) {
+          void emitRunEvent(runId, userId, "blocked", {
+            reason: warning ?? "inject-no-generate",
+            workspaceId,
+          });
+        } else if (verified === true) {
+          void emitRunEvent(runId, userId, "generating", { text, workspaceId });
+        } else {
+          void emitRunEvent(runId, userId, "submitted", { text, workspaceId });
+        }
         // Delivery stamp: the close paths use payload.deliveredAt as the
         // handoff-freshness floor for per-run attribution.
         await stampRunDelivered(runId, userId, deliveredAt).catch(() => {});
+        // One alive-bit input for Feedback: stamp inject ack onto the run so
+        // work-phase does not wait on a separate command join.
+        if (typeof verified === "boolean") {
+          await stampRunInjectAck(runId, userId, verified, warning ?? null).catch(() => {});
+        }
       }
     }
   } catch {

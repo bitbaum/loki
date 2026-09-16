@@ -30,7 +30,7 @@ Every surface **reads** `work.phase` (and the same run id). They do not re-deriv
 | Code phase (`work-phase`) | SSOT label |
 |---------------------------|------------|
 | `not_started` | (no status chip — Implement) |
-| `queued` | Queued |
+| `queued` | Queued / Starting (badge label) |
 | `working` | Working — **only** if alive bit true; else demote to Needs you / Starting |
 | `stuck` / inject-no-generate | Needs you |
 | `failed` | Failed or Needs you (cause decides) |
@@ -41,7 +41,7 @@ Inbox groups stay: Needs you = YOU; Under way = MACHINE (Queued|Working only).
 
 ## Builder channels
 
-Status SSOT is **channel-agnostic**. “Waiting for cloud builder” vs “this computer” is a **detail** on Queued/Needs you, not a separate status family. Prefer cloud-first always-on Runner as default home; local is override.
+Status SSOT is **channel-agnostic**. “Waiting for cloud builder” vs “this computer” is a **detail** on Queued/Needs you, not a separate status family. Prefer cloud-first always-on Runner as default home; local is override for laptop-locked projects.
 
 ## Done when
 

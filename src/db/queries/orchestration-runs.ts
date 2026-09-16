@@ -135,6 +135,33 @@ export async function stampRunDelivered(
  * head-of-line block the project's queued dispatches for up to
  * STALE_RUN_MINUTES. Outcome ≠ success, so close-the-loop never fires off it.
  */
+
+/**
+ * Runner inject ack verdict on the open run — Feedback's one alive bit reads
+ * payload.injectVerified (true = generating confirmed; false = inject-no-generate).
+ */
+export async function stampRunInjectAck(
+  runId: string,
+  userId: string,
+  verified: boolean,
+  warning: string | null = null,
+): Promise<void> {
+  await db
+    .update(orchestrationRuns)
+    .set({
+      payload: sql`jsonb_set(
+        jsonb_set(COALESCE(payload, '{}'), '{injectVerified}', ${JSON.stringify(verified)}::jsonb),
+        '{injectWarning}', ${JSON.stringify(warning)}::jsonb)`,
+    })
+    .where(
+      and(
+        eq(orchestrationRuns.id, runId),
+        eq(orchestrationRuns.userId, userId),
+        isNull(orchestrationRuns.finishedAt),
+      ),
+    );
+}
+
 export async function closeRunUndelivered(
   runId: string,
   userId: string,

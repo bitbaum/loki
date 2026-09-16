@@ -1,6 +1,6 @@
 import { getOrchestrationRunsByIds } from "@/db/queries/orchestration-runs";
 import { getLatestRunEventKinds } from "@/db/queries/run-events";
-import { getOpenPendingByRunIds } from "@/db/queries/pending-commands";
+import { getOpenPendingByRunIds, getInjectAcksByRunIds } from "@/db/queries/pending-commands";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
 import { getUserProjectsByEntityIds } from "@/db/queries/user-projects";
 import type { FeedbackListItem } from "@/db/queries/site-feedback";
@@ -56,9 +56,10 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
     ...new Set(items.map((i) => i.dispatchedRunId).filter((id): id is string => !!id)),
   ];
   const runs = await getOrchestrationRunsByIds(userId, runIds);
-  const [latestKinds, pendingByRun, presence] = await Promise.all([
+  const [latestKinds, pendingByRun, injectAcks, presence] = await Promise.all([
     getLatestRunEventKinds(runIds),
     getOpenPendingByRunIds(userId, runIds),
+    getInjectAcksByRunIds(userId, runIds),
     getBuilderPresence(userId).catch(() => ({ cloud: false, local: false, any: false })),
   ]);
   // Presence flags alone are not enough: offline means the builder that owns
@@ -197,6 +198,11 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
       const ch = snap.builderChannel;
       snap.builderOffline =
         ch === "local" ? !presence.local : ch === "cloud" ? !presence.cloud : !presence.any;
+      const ack = injectAcks.get(row.id);
+      if (ack) {
+        if (snap.injectVerified == null && ack.verified != null) snap.injectVerified = ack.verified;
+        if (!snap.injectWarning && ack.warning) snap.injectWarning = ack.warning;
+      }
     }
     return { ...item, work: deriveFeedbackWork(item.status, snap) };
   });
@@ -226,6 +232,8 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     deliveredAt?: string;
     lastProgressAt?: string;
     blocked?: string | null;
+    injectVerified?: boolean | null;
+    injectWarning?: string | null;
     error?: string;
     fix?: FixShipping;
     commandId?: string;
@@ -241,6 +249,8 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     deliveredAt: payload?.deliveredAt ?? null,
     lastProgressAt: payload?.lastProgressAt ?? null,
     blocked: payload?.blocked ?? null,
+    injectVerified: typeof payload?.injectVerified === "boolean" ? payload.injectVerified : null,
+    injectWarning: payload?.injectWarning ?? null,
     error: payload?.error ?? null,
     summaryDone: (row.summary as { done?: string } | null)?.done ?? null,
     fix: payload?.fix ?? null,
