@@ -245,12 +245,13 @@ export async function POST(req: NextRequest) {
             health: p.sessionHealth,
           }).catch((err) => console.error("[runtime-state] changelog append failed:", err));
         }
-        // A freshly-ingested READY handoff is the run's completion signal — close
-        // the open run NOW instead of waiting for a human /control load or the
-        // hourly cron sweep. Fire-and-forget: ingestion latency stays flat, and
-        // closeRunFromSession's own guards (finishedAt, handoff-postdates-start)
-        // make a duplicate attempt a no-op.
-        if (updated && p.sessionStatus?.toLowerCase() === SESSION_STATUS.READY) {
+        // A READY handoff is the run's completion signal. Attempt the close on
+        // every heartbeat, even when this exact handoff was already persisted:
+        // the first close can be interrupted after persistence (deploy/restart,
+        // transient judge failure), and `updated` is then false forever. The
+        // close seam is deliberately idempotent and verifies delivery,
+        // freshness, and finishedAt before changing anything.
+        if (p.sessionStatus?.toLowerCase() === SESSION_STATUS.READY) {
           void closeOpenRunsForProject(userId, p.tab).catch((err) =>
             console.error("[runtime-state] run close from handoff failed:", err),
           );
