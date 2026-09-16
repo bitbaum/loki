@@ -196,11 +196,7 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
       // Unknown channel → any builder. Matches claimNextPendingCommand filters.
       const ch = snap.builderChannel;
       snap.builderOffline =
-        ch === "local"
-          ? !presence.local
-          : ch === "cloud"
-            ? !presence.cloud
-            : !presence.any;
+        ch === "local" ? !presence.local : ch === "cloud" ? !presence.cloud : !presence.any;
     }
     return { ...item, work: deriveFeedbackWork(item.status, snap) };
   });
