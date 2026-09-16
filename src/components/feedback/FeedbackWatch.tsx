@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, SquareTerminal } from "lucide-react";
+import { Loader2, MessagesSquare, SquareTerminal } from "lucide-react";
 
 type WatchPayload = {
   work: {
@@ -42,12 +42,15 @@ export function FeedbackWatchButton({ open, onToggle }: { open: boolean; onToggl
 export function FeedbackWatchPanel({
   feedbackId,
   fallbackTerminalHref,
+  chatHref,
   stepSummary,
   queueReason,
   terminalReady,
 }: {
   feedbackId: string;
   fallbackTerminalHref: string;
+  /** Honest Loki chat deep link for this project — not a fake run-scoped chat. */
+  chatHref: string;
   stepSummary?: string | null;
   queueReason?: string | null;
   terminalReady?: boolean;
@@ -109,20 +112,30 @@ export function FeedbackWatchPanel({
             </p>
           )}
         </div>
-        {ready ? (
-          <a href={termHref} className="ui-btn-secondary gap-1 shrink-0" title="Open the agent PTY">
-            <SquareTerminal className="h-3 w-3" /> Terminal
-          </a>
-        ) : (
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           <a
             href={termHref}
-            className="ui-btn-secondary gap-1 shrink-0"
-            title="Open Terminal for this project (may show builder offline until cold-start)"
+            className="ui-btn-secondary gap-1"
+            title={
+              ready
+                ? "Open the agent PTY"
+                : "Open Terminal for this project (may be empty until a session exists)"
+            }
           >
             <SquareTerminal className="h-3 w-3" /> Terminal
           </a>
-        )}
+          <a
+            href={chatHref}
+            className="ui-btn-secondary gap-1"
+            title="Open Loki chat for this project — talk to the run there when the agent is in chat"
+          >
+            <MessagesSquare className="h-3 w-3" /> Chat
+          </a>
+        </div>
       </div>
+      <p className="mt-1.5 text-micro text-text-muted">
+        Watching on this row. Terminal and Chat are one tap away — you should not have to hunt.
+      </p>
       {loading && !data && (
         <p className="mt-1 flex items-center gap-1 text-text-muted">
           <Loader2 className="ui-spinner-xs" /> Loading…
