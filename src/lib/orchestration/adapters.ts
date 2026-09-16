@@ -93,7 +93,6 @@ export const ADAPTER_DEFINITIONS: Record<AdapterId, AdapterDefinition> = {
     notes:
       "Cursor Agent CLI (cursor-agent) on This computer or cloud builder — must be on PATH and logged in.",
   },
-
 };
 
 export function getAdapterDefinition(adapterId: AdapterId): AdapterDefinition {

@@ -32,8 +32,7 @@ const IMPLEMENT_ADAPTERS = ORCHESTRATION_ADAPTER_IDS.filter((id) => id !== "open
 
 function resolveImplementAdapter(agentPref: string | null | undefined): AdapterId {
   // UI may say Antigravity; orchestration id is still gemini.
-  const pref =
-    agentPref === "antigravity" || agentPref === "agy" ? "gemini" : agentPref;
+  const pref = agentPref === "antigravity" || agentPref === "agy" ? "gemini" : agentPref;
   if (pref && (IMPLEMENT_ADAPTERS as readonly string[]).includes(pref)) {
     return pref as AdapterId;
   }

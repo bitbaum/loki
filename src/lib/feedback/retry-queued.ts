@@ -30,8 +30,7 @@ import { logDebug } from "@/db/queries/debug-logs";
 const IMPLEMENT_ADAPTERS = ORCHESTRATION_ADAPTER_IDS.filter((id) => id !== "openclaw");
 
 function resolveAdapter(agentPref: string | null | undefined): AdapterId {
-  const pref =
-    agentPref === "antigravity" || agentPref === "agy" ? "gemini" : agentPref;
+  const pref = agentPref === "antigravity" || agentPref === "agy" ? "gemini" : agentPref;
   if (pref && (IMPLEMENT_ADAPTERS as readonly string[]).includes(pref)) {
     return pref as AdapterId;
   }
