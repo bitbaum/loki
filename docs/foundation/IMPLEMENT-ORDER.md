@@ -1,21 +1,30 @@
-# Implement order
+# Implement order (loop works first)
 
-1. **P0 — Honest run states** (`HARNESS-SIMPLIFICATION.md` §1–2)  
-   If builder = This computer and runner offline → banner: Open Loki desktop / Fleet Runner (or switch to Cloud). Never silent Starting. If inject-no-generate → name provider + cause (quota / not logged in / no session) + one-tap alternatives. Never go silent while a run is in flight — always show phase + next action.
+Cato 2026-09-16: ship so **development through FleetCrown/Loki works** before polish. Do not build AI/Robots/chrome until Feedback→Implement→visible work→PR is reliable on cloud.
 
-2. **P0 — Terminal + Loki rail** (`HARNESS-SIMPLIFICATION.md` §3)  
-   Implement auto-opens Terminal split; Watch deep-links here; Ask/Inject; same run id.
+## P0 — Loop works (blocking)
 
-3. **P1 — AI providers tab** (`AI-PROVIDERS-TAB.md`)  
-   Single place: Cursor, Claude Code, Codex, ChatGPT, Grok, Antigravity, OpenCode, OpenRouter, (OpenClaw if real) — logged in?, tokens?, last used, Login / Switch.
+1. **Honest run states** (`HARNESS-SIMPLIFICATION.md`)  
+   - This computer + runner offline → **Open Loki desktop / Fleet Runner** (or Switch to Cloud). Never silent Starting.  
+   - Inject-no-generate → cause (quota / not logged in / no session) + one-tap Grok / Cursor / Antigravity.  
+   - Never silent in-flight work — always phase + next action.
 
-4. **P1 — Chrome UX** (`CHROME-UX.md`)  
-   Real top header: account dropdown (profile, settings, logout). Fix minimized sidebar horizontal scroll. Align to design-tokens; no Frankenstein control clusters.
+2. **Visible run chrome**  
+   Implement/Retry auto-opens Watch or Terminal+Loki rail (same run id). Empty Terminal must say why and what to open.
 
-5. **P2 — Robots tab** (`ROBOTS-TAB.md`)  
-   Foundation: register Cato’s two robot vacuums; status + last interaction; schema ready for bookable humanoids later. Can later extract to a robots-only product.
+3. **Working provider on Cloud**  
+   Default builder Cloud for boss-mode. Prefer a provider with tokens (Grok) or complete Cursor/Grok CLI login on the box. Prove one Feedback → PR walk on production.
 
-6. **P2 — Provider router wired to AI tab**  
-   Implement Needs you uses live AI-tab status (hide dry providers).
+**Gate:** Until a live walk closes Implement→PR (or honest Needs you with a real CTA), do not start P1.
 
-Acceptance for each PR: walk on loki.orangecat.ch; screenshots; CI green; PR body links this folder. Public name Cato only.
+## P1 — After the loop works
+
+4. **AI providers tab** (`AI-PROVIDERS-TAB.md`) — login/tokens/last used; feeds the P0 switcher.  
+5. **Chrome UX** (`CHROME-UX.md`) — header account menu; fix minimized sidebar scroll.
+
+## P2 — Foundation expansion
+
+6. **Robots tab** (`ROBOTS-TAB.md`) — two vacuums; humanoid-ready schema.  
+7. Wire AI-tab SSOT into every Needs-you provider chooser.
+
+Acceptance: each PR walked on loki.orangecat.ch; CI green; public name Cato only.
