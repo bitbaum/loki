@@ -1,6 +1,6 @@
 # Implement order (loop works first)
 
-Cato 2026-09-16: ship so **development through FleetCrown/Loki works** before polish. Do not build AI/Robots/chrome until Feedback→Implement→visible work→PR is reliable on cloud.
+Cato 2026-09-16: ship so **development through Loki works** before polish. Do not build AI/Robots/chrome until Feedback→Implement→visible work→PR is reliable on cloud.
 
 ## P0 — Loop works (blocking)
 
