@@ -30,8 +30,10 @@ import { logDebug } from "@/db/queries/debug-logs";
 const IMPLEMENT_ADAPTERS = ORCHESTRATION_ADAPTER_IDS.filter((id) => id !== "openclaw");
 
 function resolveAdapter(agentPref: string | null | undefined): AdapterId {
-  if (agentPref && (IMPLEMENT_ADAPTERS as readonly string[]).includes(agentPref)) {
-    return agentPref as AdapterId;
+  const pref =
+    agentPref === "antigravity" || agentPref === "agy" ? "gemini" : agentPref;
+  if (pref && (IMPLEMENT_ADAPTERS as readonly string[]).includes(pref)) {
+    return pref as AdapterId;
   }
   return DEFAULT_ADAPTER_ID;
 }
@@ -110,7 +112,6 @@ export async function autoRetryStuckFeedbackQueues(): Promise<{
           projectId: row.feedback.projectId,
           allowHostedFallback: true,
           refuseOfflineQueue: true,
-          builderChannel: "cloud",
           adapter,
           sessionId: currentSession?.sessionId,
           customPrompt: composeFeedbackFixPrompt(row.feedback, row.projectName),
