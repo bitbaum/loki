@@ -1,6 +1,6 @@
 /**
  * Terminal Loki rail: commentary from work-phase, not a log dump; quota death
- * offers Grok / Cursor / Antigravity and hides the dead agent.
+ * offers Claude Code / Codex / Cursor / Grok / Antigravity and hides the dead agent.
  *
  * Run: npx tsx scripts/test/terminal-run-view.ts
  */
@@ -80,7 +80,7 @@ check("next action prefers the queue reason over a badge", () => {
 });
 
 check("quota death overrides the queue reason with a chooser sentence", () => {
-  assert.match(nextActionForWork(work({ queueReason: "Retry" }), true), /Grok/);
+  assert.match(nextActionForWork(work({ queueReason: "Retry" }), true), /Claude Code|Codex|Grok/);
 });
 
 check("the view is phase + next action, not an event trail", () => {
@@ -101,8 +101,8 @@ check("the view is phase + next action, not an event trail", () => {
   assert.equal(view.runId, "run-1");
   assert.equal(view.stalled, true);
   assert.equal(view.quotaDeath, true);
-  assert.equal(view.alternatives.length, 3);
-  assert.match(view.nextAction, /Antigravity|Grok|Cursor/);
+  assert.equal(view.alternatives.length, 4);
+  assert.match(view.nextAction, /Claude Code|Codex|Antigravity|Grok|Cursor/);
   assert.equal("events" in view, false);
 });
 
@@ -113,12 +113,13 @@ check("empty Terminal names Fleet Runner vs Kitty", () => {
   assert.match(EXECUTOR_COPY.terminal.thisComputerEmptyHint, /Fleet Runner/);
 });
 
-check("quota chooser is Grok / Cursor / Antigravity, never Hermes", () => {
+check("quota chooser is all coding agents, never Hermes", () => {
   assert.deepEqual(
     QUOTA_ALTERNATIVE_AGENTS.map((a) => a.id),
-    ["grok", "cursor", "gemini"],
+    ["claude", "codex", "cursor", "grok", "gemini"],
   );
   assert.equal(QUOTA_ALTERNATIVE_AGENTS.find((a) => a.id === "gemini")?.label, "Antigravity");
+  assert.equal(QUOTA_ALTERNATIVE_AGENTS.find((a) => a.id === "claude")?.label, "Claude Code");
   assert.equal(
     QUOTA_ALTERNATIVE_AGENTS.some((a) => a.id === "hermes" || a.label === "Hermes"),
     false,
