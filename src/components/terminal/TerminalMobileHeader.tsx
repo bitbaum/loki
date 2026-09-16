@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronDown, Maximize2, MessagesSquare, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type TerminalLiveState = "live" | "connecting" | "stalled" | "idle";
@@ -37,6 +37,7 @@ export function TerminalMobileHeader({
   agent,
   state,
   onOpenSheet,
+  onOpenLoki,
   immersive,
   onToggleImmersive,
 }: {
@@ -44,6 +45,8 @@ export function TerminalMobileHeader({
   agent?: string | null;
   state: TerminalLiveState;
   onOpenSheet: () => void;
+  /** Opens the Loki commentary/inject sheet — same rail as desktop. */
+  onOpenLoki?: () => void;
   immersive: boolean;
   onToggleImmersive: () => void;
 }) {
@@ -66,6 +69,16 @@ export function TerminalMobileHeader({
         <ChevronDown className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
       </button>
 
+      {onOpenLoki && (
+        <button
+          type="button"
+          className="ui-term-mhead-icon"
+          onClick={onOpenLoki}
+          aria-label="Loki comments and inject"
+        >
+          <MessagesSquare className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
       <button
         type="button"
         className="ui-term-mhead-icon"

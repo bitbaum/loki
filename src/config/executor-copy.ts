@@ -182,7 +182,7 @@ export const EXECUTOR_COPY = {
     cloudLoading: "Looking for agents on the cloud builder…",
     cloudEmpty: "Nothing running on the cloud builder.",
     cloudEmptyHint:
-      "Start an agent below, or dispatch from Control (Implement) or Loki. When an agent session actually starts, it appears here — an empty Terminal means nothing is running for this tab yet.",
+      "Start an agent below, or dispatch from Control (Implement) or Loki. Loki Terminal shows Fleet Runner and cloud builder PTYs — a Kitty or Zellij pane is not a session here.",
     cloudOfflineHint: "The cloud builder (box-runner on Hetzner) is offline right now.",
     // Connected to the peek stream but no screen frames arrived → the runner is
     // wedged (e.g. its outbound fetch is failing). Honest, actionable — not a
@@ -195,7 +195,7 @@ export const EXECUTOR_COPY = {
       "Interactive view of agents on this computer via the desktop app. Same keystroke path as Cloud — click the terminal and type.",
     thisComputerEmpty: "Nothing running on this computer.",
     thisComputerEmptyHint:
-      "Start an agent below, or dispatch from Control or Loki — the live session shows up here only while an agent is running.",
+      "Start an agent below, or dispatch from Control or Loki. Loki Terminal shows Fleet Runner PTYs on this computer — not Kitty, Zellij, or another OS terminal.",
     thisComputerOfflineHint: "Connect Fleet Runner on this computer to this account.",
     thisComputerLoading: "Looking for agents on this computer…",
   },

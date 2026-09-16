@@ -68,7 +68,7 @@ export function FeedbackItemRow({
   });
   const work = "work" in f && f.work ? f.work : deriveFeedbackWork(f.status, null);
   // Let Terminal resolve source (This computer vs cloud); do not force cloud.
-  const terminalHref = fleetSurfaceHref("terminal", projectName);
+  const terminalHref = fleetSurfaceHref("terminal", projectName, undefined, work.runId);
   const chatHref = fleetSurfaceHref("chat", projectName);
   // Terminal when there is a PTY to look at (the prompt reached an agent),
   // Control when there is not — Terminal is empty until a session exists.

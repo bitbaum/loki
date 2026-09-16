@@ -2409,6 +2409,36 @@
     @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border-subtle bg-surface-raised text-text-secondary transition-colors active:bg-surface-overlay;
   }
 
+  /* Desktop: PTY ~60% / Loki rail ~40%. Phone: PTY fills; rail is a bottom sheet. */
+  .ui-term-split {
+    @apply flex min-h-0 flex-1 flex-col md:flex-row md:gap-2;
+  }
+  .ui-term-split-pty {
+    @apply min-h-0 min-w-0 flex-1 md:flex-[3];
+  }
+  .ui-term-split-rail {
+    @apply hidden min-h-0 min-w-0 md:flex md:flex-[2];
+  }
+  .ui-term-loki {
+    @apply flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface-raised;
+  }
+  .ui-term-loki-head {
+    @apply flex shrink-0 items-center justify-between gap-2 border-b border-border-subtle px-3 py-2;
+  }
+  .ui-term-loki-title {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-term-loki-body {
+    @apply min-h-0 flex-1 overflow-y-auto px-3 py-2;
+  }
+  .ui-term-loki-composer {
+    @apply flex shrink-0 flex-col gap-1.5 border-t border-border-subtle p-2;
+  }
+  .ui-term-loki-sheet {
+    @apply flex flex-col;
+    max-height: min(var(--modal-max-height), 70vh);
+  }
+
   /* Liveness dot. Bigger than ui-dot because at arm's length on a phone the
      1.5px status dot is a smudge, and this one answers the only question that
      matters before you read anything: is this thing still alive? */

@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { TerminalMobileShell } from "@/components/terminal/TerminalMobileShell";
 import { TerminalSurface } from "@/components/terminal/TerminalSurface";
 import type { TerminalSource } from "@/config/terminal-modes";
+import { isValidUuid } from "@/lib/utils";
 
 /** Legacy deep links used `source=server` for the cloud builder. Kept mapping
  *  so existing links (push notifications, FleetSurfaceGuide, bookmarks) still
@@ -20,7 +21,9 @@ export function TerminalPageClient({ local }: { local: boolean }) {
   const searchParams = useSearchParams();
   const initialSource = parseSource(searchParams.get("source"));
   const initialTab = searchParams.get("project") ?? searchParams.get("tab");
-  const surfaceKey = `${initialSource ?? "default"}:${initialTab ?? ""}`;
+  const runParam = searchParams.get("run");
+  const initialRunId = runParam && isValidUuid(runParam) ? runParam : null;
+  const surfaceKey = `${initialSource ?? "default"}:${initialTab ?? ""}:${initialRunId ?? ""}`;
 
   return (
     <TerminalMobileShell>
@@ -32,6 +35,7 @@ export function TerminalPageClient({ local }: { local: boolean }) {
           onToggleImmersive={toggleImmersive}
           initialSource={initialSource}
           initialTab={initialTab}
+          initialRunId={initialRunId}
         />
       )}
     </TerminalMobileShell>

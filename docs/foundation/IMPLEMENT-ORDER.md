@@ -23,7 +23,7 @@ Cato 2026-09-16 (locked): ship so **development through Loki works** before poli
    - Honor builder preference (Cursor / This computer / Cloud) — never silently fall back to Claude.
 
 2. **Visible run chrome**  
-   Implement/Retry auto-opens Watch with one-tap Terminal + Loki chat. Empty Terminal must say why (no Runner session ≠ Kitty pane) and what to open. Loki Terminal is Fleet Runner / cloud PTY — not a mirror of Kitty/Zellij.
+   Implement/Retry auto-opens Watch with one-tap Terminal + Loki chat. Terminal is a ~60/40 PTY / Loki split (mobile: Loki bottom sheet) on the same run id. Empty Terminal must say why (no Runner session ≠ Kitty pane) and what to open. Loki Terminal is Fleet Runner / cloud PTY — not a mirror of Kitty/Zellij.
 
 3. **Working provider**  
    Prefer a provider with tokens (Cursor / Grok / …) on This computer (Runner online) or Cloud. Prove one Feedback → visible Watch/Terminal → PR walk on production **without opening Kitty**.

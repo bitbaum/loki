@@ -205,6 +205,24 @@ export async function getOrchestrationRunById(userId: string, id: string) {
   return row ?? null;
 }
 
+/** Newest run for a project key — Terminal rail when no `?run=` was passed. */
+export async function getLatestRunForProjectKey(userId: string, projectKey: string) {
+  const key = projectKey.trim();
+  if (!key) return null;
+  const [row] = await db
+    .select()
+    .from(orchestrationRuns)
+    .where(
+      and(
+        eq(orchestrationRuns.userId, userId),
+        sql`lower(${orchestrationRuns.projectKey}) = lower(${key})`,
+      ),
+    )
+    .orderBy(sql`(${orchestrationRuns.finishedAt} IS NULL) DESC`, desc(orchestrationRuns.startedAt))
+    .limit(1);
+  return row ?? null;
+}
+
 /** Batch lookup for feedback work-phase enrichment. */
 export async function getOrchestrationRunsByIds(userId: string, ids: string[]) {
   if (ids.length === 0) return new Map<string, typeof orchestrationRuns.$inferSelect>();
