@@ -47,10 +47,25 @@ export function FeedbackItemRow({
   // the dispatch prompt. Plain Implement stays one-click.
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState("");
-  const [watchOpen, setWatchOpen] = useState(false);
-  // After Implement/Retry, keep Watch paths visible even before the next refetch
-  // marks the run watchable — so the operator never wonders where to look.
-  const [followAfterImplement, setFollowAfterImplement] = useState(false);
+  // Persist "just implemented" across list refetch remounts — otherwise Watch
+  // opens for one frame and vanishes when the inbox reloads (live walk 2026-09-16).
+  const followKey = `loki:follow-implement:${f.id}`;
+  const [followAfterImplement, setFollowAfterImplement] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return sessionStorage.getItem(followKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [watchOpen, setWatchOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return sessionStorage.getItem(followKey) === "1";
+    } catch {
+      return false;
+    }
+  });
   const work = "work" in f && f.work ? f.work : deriveFeedbackWork(f.status, null);
   // Let Terminal resolve source (This computer vs cloud); do not force cloud.
   const terminalHref = fleetSurfaceHref("terminal", projectName);
@@ -61,13 +76,26 @@ export function FeedbackItemRow({
   const terminalReady = work.terminalReady === true;
   // Watch is the primary control whenever a run exists (Queued included),
   // and immediately after the operator clicks Implement/Retry.
-  // Terminal + Chat live inside the Watch panel.
+  // Terminal + Chat live inside the Watch panel AND on a path strip after Implement.
   const showWatch = watchLive || followAfterImplement;
-  const startImplement = (note?: string) => {
+  const markFollowing = () => {
+    try {
+      sessionStorage.setItem(followKey, "1");
+    } catch {
+      /* private mode */
+    }
     setFollowAfterImplement(true);
     setWatchOpen(true);
+  };
+  const startImplement = (note?: string) => {
+    markFollowing();
     onDispatch(note);
   };
+  // Refetch remount / phase change must not leave the panel closed after Implement.
+  useEffect(() => {
+    if (!followAfterImplement) return;
+    setWatchOpen(true);
+  }, [followAfterImplement, work.phase, showWatch]);
   // Somewhere for an agent to work. Rows from the per-project inbox carry no
   // flag and keep the one-click Implement; the server refuses the same case.
   const runnable = "runnable" in f ? f.runnable !== false : true;
@@ -431,6 +459,26 @@ export function FeedbackItemRow({
         </div>
       )}
 
+      {followAfterImplement && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border-subtle bg-surface-secondary/40 px-3 py-2 text-xs">
+          <span className="font-medium text-text-primary">Watching this run</span>
+          <span className="text-text-muted">— pick where to look:</span>
+          <button
+            type="button"
+            className="ui-btn-save gap-1"
+            onClick={() => setWatchOpen(true)}
+            title="Open progress on this row"
+          >
+            Watch here
+          </button>
+          <a href={terminalHref} className="ui-btn-secondary gap-1" title="Open Loki Terminal for this project">
+            Terminal
+          </a>
+          <a href={chatHref} className="ui-btn-secondary gap-1" title="Open Loki chat for this project">
+            Chat
+          </a>
+        </div>
+      )}
       {watchOpen && showWatch && (
         <FeedbackWatchPanel
           feedbackId={f.id}
