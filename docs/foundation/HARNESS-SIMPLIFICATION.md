@@ -23,8 +23,8 @@ Feedback → Implement leaves users guessing. Status badges (Queued / Starting /
 
 2. **Provider dead**  
    - Detect: 429 / provider_quota remaining 0 / inject-no-generate within N seconds.  
-   - UI: “Claude has no tokens until reset” (or “Grok CLI not logged in on cloud builder”) + buttons Cursor / Grok / Antigravity (hide known-dead). One tap sets agentPref + Retry. Hermes not in default chooser unless opted in.
-   - Honor Cursor / builder preference — never silent Claude fallback.
+   - UI: cause (“Claude Code has no tokens until reset” / “Codex empty” / “CLI not logged in”) + one-tap **Claude Code / Codex / Cursor / Grok / Antigravity** (hide known-dead). Prefer auto-switch to a live agent; if several are viable, one ask. One tap sets agentPref + Retry. Hermes not in default chooser unless opted in.
+   - Honor builder preference — never silent wrong-agent fallback. AI providers tab is the SSOT for login/token rows (`AI-PROVIDERS-TAB.md`).
 
 3. **Watch / Terminal / Loki chat after Implement**  
    - Click Implement → auto-open Watch on the row with one-tap Terminal and Loki chat (project-scoped; honest stub if run-chat is not ready).  

@@ -34,7 +34,7 @@ export function quotaDeathAlternatives(input: {
 }
 
 export function nextActionForWork(work: FeedbackWorkView, quotaDeath = false): string {
-  if (quotaDeath) return "Quota empty — try Grok, Cursor, or Antigravity here.";
+  if (quotaDeath) return "Quota empty — try Claude Code, Codex, Cursor, Grok, or Antigravity here.";
   if (work.queueReason) return work.queueReason;
   if (work.detail) return work.detail;
   if (work.phase === FEEDBACK_WORK_PHASE.WORKING) {
