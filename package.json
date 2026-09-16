@@ -107,7 +107,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:no-experiment-litter": "bash scripts/ci/check-no-experiment-litter.sh",
-    "test:experiment-litter-gate": "bash scripts/test/experiment-litter-gate.sh"
+    "test:experiment-litter-gate": "bash scripts/test/experiment-litter-gate.sh",
+    "verify:main": "pnpm run format:check && pnpm run check:deploy-ready && pnpm run check:client-ledger && pnpm run check:no-experiment-litter && pnpm run check:telegram-registry && tsc --noEmit && pnpm run lint && pnpm run check:design"
   },
   "dependencies": {
     "@auth/core": "0.41.3",
