@@ -48,15 +48,26 @@ export function FeedbackItemRow({
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState("");
   const [watchOpen, setWatchOpen] = useState(false);
+  // After Implement/Retry, keep Watch paths visible even before the next refetch
+  // marks the run watchable — so the operator never wonders where to look.
+  const [followAfterImplement, setFollowAfterImplement] = useState(false);
   const work = "work" in f && f.work ? f.work : deriveFeedbackWork(f.status, null);
-  const terminalHref = fleetSurfaceHref("terminal", projectName, "cloud");
+  // Let Terminal resolve source (This computer vs cloud); do not force cloud.
+  const terminalHref = fleetSurfaceHref("terminal", projectName);
+  const chatHref = fleetSurfaceHref("chat", projectName);
   // Terminal when there is a PTY to look at (the prompt reached an agent),
   // Control when there is not — Terminal is empty until a session exists.
   const watchLive = work.watchable === true;
   const terminalReady = work.terminalReady === true;
-  // Watch is the primary control whenever a run exists (Queued included).
-  // Terminal link appears inside Watch once a PTY exists.
-  const showWatch = watchLive;
+  // Watch is the primary control whenever a run exists (Queued included),
+  // and immediately after the operator clicks Implement/Retry.
+  // Terminal + Chat live inside the Watch panel.
+  const showWatch = watchLive || followAfterImplement;
+  const startImplement = (note?: string) => {
+    setFollowAfterImplement(true);
+    setWatchOpen(true);
+    onDispatch(note);
+  };
   // Somewhere for an agent to work. Rows from the per-project inbox carry no
   // flag and keep the one-click Implement; the server refuses the same case.
   const runnable = "runnable" in f ? f.runnable !== false : true;
@@ -207,14 +218,17 @@ export function FeedbackItemRow({
             <>
               <button
                 type="button"
-                onClick={() => onDispatch()}
+                onClick={() => startImplement()}
                 disabled={busy}
                 className="ui-btn-save gap-1.5"
-                title="Ask the agent to fix this"
+                title="Ask the agent to fix this — Watch opens so you can follow"
               >
                 {busy ? <Loader2 className="ui-spinner-xs" /> : <Rocket className="h-3 w-3" />}
                 Implement
               </button>
+              {showWatch && (
+                <FeedbackWatchButton open={watchOpen} onToggle={() => setWatchOpen((v) => !v)} />
+              )}
               <button
                 type="button"
                 onClick={() => setNoteOpen((v) => !v)}
@@ -261,10 +275,10 @@ export function FeedbackItemRow({
               )}
               <button
                 type="button"
-                onClick={() => onDispatch()}
+                onClick={() => startImplement()}
                 disabled={busy}
                 className="ui-btn-save gap-1.5"
-                title="Queue again"
+                title="Queue again — Watch opens so you can follow"
               >
                 {busy ? <Loader2 className="ui-spinner-xs" /> : <Rocket className="h-3 w-3" />}
                 Retry
@@ -315,10 +329,10 @@ export function FeedbackItemRow({
               ) : ship ? (
                 <button
                   type="button"
-                  onClick={() => onDispatch()}
+                  onClick={() => startImplement()}
                   disabled={busy}
                   className="ui-btn-save gap-1.5"
-                  title="Queue again"
+                  title="Queue again — Watch opens so you can follow"
                 >
                   {busy ? <Loader2 className="ui-spinner-xs" /> : <Rocket className="h-3 w-3" />}
                   Retry
@@ -402,12 +416,12 @@ export function FeedbackItemRow({
             placeholder="Instruction for the agent, e.g. 'only fix the mobile layout'"
             className="ui-input-compact flex-1"
             onKeyDown={(e) => {
-              if (e.key === "Enter" && note.trim()) onDispatch(note.trim());
+              if (e.key === "Enter" && note.trim()) startImplement(note.trim());
             }}
           />
           <button
             type="button"
-            onClick={() => onDispatch(note.trim() || undefined)}
+            onClick={() => startImplement(note.trim() || undefined)}
             disabled={busy}
             className="ui-btn-save gap-1.5"
           >
@@ -421,7 +435,13 @@ export function FeedbackItemRow({
         <FeedbackWatchPanel
           feedbackId={f.id}
           fallbackTerminalHref={terminalHref}
-          stepSummary={work.stepSummary}
+          chatHref={chatHref}
+          stepSummary={
+            work.stepSummary ??
+            (followAfterImplement && !watchLive
+              ? "Starting — follow here, or open Terminal / Chat"
+              : null)
+          }
           queueReason={work.queueReason}
           terminalReady={terminalReady}
         />
