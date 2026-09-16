@@ -61,7 +61,8 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
     getOpenPendingByRunIds(userId, runIds),
     getBuilderPresence(userId).catch(() => ({ cloud: false, local: false, any: false })),
   ]);
-  const builderOffline = !presence.cloud && !presence.any;
+  // Presence flags alone are not enough: offline means the builder that owns
+  // THIS command's channel is down. Computed per row once we know the channel.
 
   // Projects first: deciding whether a cached ledger is still ABOUT the right
   // pull request means re-parsing the handoff, and that needs the repo.
@@ -176,6 +177,7 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
         snap.pendingUnclaimed = pending.claimedAt == null;
         snap.hostedPending = pending.type === "hosted_dispatch";
         snap.commandId = pending.id;
+        snap.builderChannel = pending.channel;
       } else {
         snap.pendingUnclaimed = false;
       }
@@ -183,11 +185,18 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
         commandId?: string;
         hostedDispatchId?: string;
         feedbackAutoRetriedAt?: string;
+        channel?: string;
       } | null;
       if (!snap.commandId && payload?.commandId) snap.commandId = payload.commandId;
       if (payload?.hostedDispatchId) snap.hostedPending = true;
       snap.feedbackAutoRetriedAt = payload?.feedbackAutoRetriedAt ?? null;
-      snap.builderOffline = builderOffline;
+      snap.localOnline = presence.local;
+      snap.cloudOnline = presence.cloud;
+      // Channel-aware offline: local queue → need Fleet Runner; cloud → need box.
+      // Unknown channel → any builder. Matches claimNextPendingCommand filters.
+      const ch = snap.builderChannel;
+      snap.builderOffline =
+        ch === "local" ? !presence.local : ch === "cloud" ? !presence.cloud : !presence.any;
     }
     return { ...item, work: deriveFeedbackWork(item.status, snap) };
   });

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       projectId: idOrResp,
       allowHostedFallback: true,
       refuseOfflineQueue: true,
-      builderChannel: "cloud",
+      // Honor user_projects.builder_pref via pickDispatchChannel — do not force cloud.
       customPrompt: prompt,
       notifyOnClose: true,
     },

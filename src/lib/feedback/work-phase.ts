@@ -135,8 +135,15 @@ export type FeedbackRunSnapshot = {
   commandId?: string | null;
   /** One auto-retry already spent — see retry-queued.ts. */
   feedbackAutoRetriedAt?: string | null;
-  /** Cloud (+ any) builder presence at attach time — offline Queued is not MACHINE. */
+  /**
+   * The builder that owns this queue is offline. Channel-aware: a local-queued
+   * job with Fleet Runner down is offline even when the cloud builder is up.
+   */
   builderOffline?: boolean;
+  /** pending_commands payload.channel for the open row. */
+  builderChannel?: "cloud" | "local" | null;
+  localOnline?: boolean;
+  cloudOnline?: boolean;
 };
 
 const STARTING_MS = 90_000;
@@ -177,6 +184,9 @@ function withStep(
     blocked: run.blocked,
     pendingUnclaimed: run.pendingUnclaimed,
     hosted: run.hostedPending === true,
+    channel: run.builderChannel ?? null,
+    localOnline: run.localOnline,
+    cloudOnline: run.cloudOnline,
   });
   // derivePhase sets watchable only when a PTY exists; that becomes terminalReady.
   // We then widen watchable so Queued/Stuck still offer the Watch panel.
@@ -326,14 +336,19 @@ function derivePhase(
   // Builder offline is known NOW — do not park under "moving on its own".
   // Telegram + dig-in; auto-retry cron may cold-start once Hermes/cloud returns.
   if (!run.deliveredAt && run.builderOffline) {
+    const localQueue = run.builderChannel === "local";
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
       label: "Builder offline",
-      detail: "Connect cloud builder or Retry — Telegram when it stays offline",
+      detail: localQueue
+        ? "Open Fleet Runner on This computer — or Switch Runs on to Cloud, then Retry"
+        : "Connect cloud builder or Retry — Telegram when it stays offline",
       // watchable filled by withStep (in-flight); no PTY yet → terminalReady false
       diagnostic: run.hostedPending
         ? "Cloud builder offline; hosted Hermes was queued but has not claimed yet."
-        : "Cloud builder offline — no agent session will appear until loki-box-runner is online (or Hermes accepts).",
+        : localQueue
+          ? "This computer (Fleet Runner) is offline — no agent session until it reconnects, or switch the project to Cloud."
+          : "Cloud builder offline — no agent session will appear until loki-box-runner is online (or Hermes accepts).",
     };
   }
   if (!run.deliveredAt && ageMs > STARTING_MS) {

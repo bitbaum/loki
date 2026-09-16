@@ -636,6 +636,8 @@ export type PendingByRun = {
   claimedAt: Date | null;
   executedAt: Date | null;
   createdAt: Date;
+  /** payload.channel — which builder may claim this row. */
+  channel: RunnerChannel | null;
 };
 
 export async function getOpenPendingByRunIds(
@@ -661,14 +663,17 @@ export async function getOpenPendingByRunIds(
     .limit(200);
   const out = new Map<string, PendingByRun>();
   for (const r of rows) {
-    const runId = (r.payload as { runId?: string } | null)?.runId;
+    const payload = r.payload as { runId?: string; channel?: string } | null;
+    const runId = payload?.runId;
     if (!runId || !wanted.has(runId) || out.has(runId)) continue;
+    const ch = payload?.channel;
     out.set(runId, {
       id: r.id,
       type: r.type,
       claimedAt: r.claimedAt,
       executedAt: r.executedAt,
       createdAt: r.createdAt,
+      channel: ch === "cloud" || ch === "local" ? ch : null,
     });
   }
   return out;

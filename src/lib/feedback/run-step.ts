@@ -8,6 +8,7 @@
  * raw event trail. Model-agnostic: labels come from events, not model prose.
  */
 import type { RunEventKind } from "@/db/schema/run-events";
+import type { BuilderChannel } from "@/lib/constants/statuses";
 
 export type RunStepSnapshot = {
   kind: RunEventKind | "waiting_builder" | "hosted_queued" | "starting";
@@ -55,6 +56,16 @@ export function summarizeRunStep(input: {
   pendingUnclaimed?: boolean;
   /** Hermes / hosted_dispatch id present. */
   hosted?: boolean;
+  /**
+   * Queue channel the open pending_commands row is pinned to.
+   * Absent/null = legacy unrouted (claimable by either runner) — treat like
+   * cloud for copy, but still offer the local CTA when This computer is online.
+   */
+  channel?: BuilderChannel | null;
+  /** Fleet Runner (This computer) presence at attach time. */
+  localOnline?: boolean;
+  /** Cloud box-runner presence at attach time. */
+  cloudOnline?: boolean;
 }): RunStepSnapshot {
   if (input.blocked === "auth") {
     return {
@@ -92,17 +103,61 @@ export function summarizeRunStep(input: {
     };
   }
   if (input.pendingUnclaimed !== false) {
-    return {
-      kind: "waiting_builder",
-      summary: "Waiting for cloud builder to claim",
-      detail:
-        "Command is in the queue. If this stays put, Watch shows why — Telegram when it stalls.",
-    };
+    return waitingBuilderStep(input.channel ?? null, input.localOnline, input.cloudOnline);
   }
   return {
     kind: "dispatched",
     summary: KIND_SUMMARY.dispatched,
     detail: null,
+  };
+}
+
+/** Honest waiting copy: name the queue, and when local is online but the job
+ *  is on cloud, say Switch to This computer — not a generic cloud claim. */
+function waitingBuilderStep(
+  channel: BuilderChannel | null,
+  localOnline: boolean | undefined,
+  cloudOnline: boolean | undefined,
+): RunStepSnapshot {
+  if (channel === "local") {
+    if (localOnline === false) {
+      return {
+        kind: "waiting_builder",
+        summary: "Open Fleet Runner on This computer",
+        detail:
+          "This job is on the This computer queue. Open Loki desktop / Fleet Runner to claim it — or Switch Runs on to Cloud.",
+      };
+    }
+    return {
+      kind: "waiting_builder",
+      summary: "Waiting for This computer to claim",
+      detail:
+        "Command is on the This computer queue. If this stays put, confirm Fleet Runner is polling — Telegram when it stalls.",
+    };
+  }
+
+  // cloud channel, or legacy null (either runner could claim)
+  if (localOnline === true && cloudOnline !== true) {
+    return {
+      kind: "waiting_builder",
+      summary: "Waiting for cloud builder — Switch to This computer",
+      detail:
+        "This computer is online, but this job is on the cloud queue. Set project Runs on → This computer (then Retry), or wait for the cloud builder.",
+    };
+  }
+  if (localOnline === true) {
+    return {
+      kind: "waiting_builder",
+      summary: "Waiting for cloud builder to claim",
+      detail:
+        "Job is on the cloud queue (This computer is also online). Switch Runs on → This computer if you want Fleet Runner to claim it — or wait for cloud.",
+    };
+  }
+  return {
+    kind: "waiting_builder",
+    summary: "Waiting for cloud builder to claim",
+    detail:
+      "Command is in the cloud queue. If this stays put, Watch shows why — Telegram when it stalls.",
   };
 }
 
