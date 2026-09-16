@@ -1,7 +1,13 @@
 /**
  * Honest work-phase for visitor feedback — what the captain sees after
  * Implement. DB status stays new|dispatched|resolved|archived; this layer
- * answers: not started / queued / working / stuck / failed / needs verify / done.
+ * answers the RUN-STATUS-SSOT labels: Queued / Starting / Working / Needs you
+ * (`stuck`) / Failed / Done (`needs_verify` → confirm). See
+ * docs/foundation/RUN-STATUS-SSOT.md.
+ *
+ * Working ⇔ post-prompt generation evidence (one alive bit). Inject-no-generate
+ * is Needs you, never Working. Builder copy is channel-agnostic detail;
+ * prefer cloud-first always-on box-runner — local only for laptop-locked work.
  *
  * "Done" means the live product changed (operator Resolve, or later a live
  * stamp / merged PR). An agent run finishing — or injectPrompt delivering a
@@ -122,6 +128,14 @@ export type FeedbackRunSnapshot = {
   lastProgressAt: string | null;
   /** payload.blocked — the runner named why the agent is quiet ("auth"). */
   blocked?: string | null;
+  /**
+   * Runner inject ack: true = post-prompt generation confirmed; false =
+   * inject-no-generate (prompt typed, agent never generated). Null/undefined
+   * = older ack with no verdict. See docs/foundation/RUN-STATUS-SSOT.md.
+   */
+  injectVerified?: boolean | null;
+  /** Runner ack warning (quota / not logged in / no session). */
+  injectWarning?: string | null;
   error: string | null;
   /** summary.done — the agent's handoff line naming what it did (and its PR). */
   summaryDone?: string | null;
@@ -161,6 +175,33 @@ export function workElapsedLabel(fromIso: string | Date, now = Date.now()): stri
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return m ? `${h} h ${String(m).padStart(2, "0")} min` : `${h} h`;
+}
+
+/**
+ * The one alive bit (RUN-STATUS-SSOT): Working only with post-prompt generation
+ * evidence — not a boot redraw, not a bare progress timer, not inject-no-generate.
+ */
+export function hasPostPromptGeneration(
+  run: FeedbackRunSnapshot,
+  now: number = Date.now(),
+): boolean {
+  if (run.injectVerified === false) return false;
+  // Runner confirmed generating — that is post-prompt evidence. Stay Working
+  // until the freshness window expires (lastProgressAt, else deliveredAt).
+  if (run.injectVerified === true) {
+    return isRunProgressFresh(run.lastProgressAt ?? run.deliveredAt, now);
+  }
+  if (!run.lastProgressAt || !isRunProgressFresh(run.lastProgressAt, now)) return false;
+  // Progress stamped before the prompt landed is boot/redraw, not generation.
+  if (run.deliveredAt) {
+    const progressMs = Date.parse(run.lastProgressAt);
+    const deliveredMs = Date.parse(run.deliveredAt);
+    if (!Number.isNaN(progressMs) && !Number.isNaN(deliveredMs) && progressMs < deliveredMs) {
+      return false;
+    }
+  }
+  const kind = run.latestEventKind;
+  return kind === "generating" || kind === "progress";
 }
 
 export function deriveFeedbackWork(
@@ -339,10 +380,10 @@ function derivePhase(
     const localQueue = run.builderChannel === "local";
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
-      label: "Builder offline",
+      label: "Needs you",
       detail: localQueue
-        ? "Open Fleet Runner on This computer — or Switch Runs on to Cloud, then Retry"
-        : "Connect cloud builder or Retry — Telegram when it stays offline",
+        ? "Open Fleet Runner on This computer — or use cloud builder, then Retry"
+        : "Reconnect cloud box-runner (always-on) — or Retry",
       // watchable filled by withStep (in-flight); no PTY yet → terminalReady false
       diagnostic: run.hostedPending
         ? "Cloud builder offline; hosted Hermes was queued but has not claimed yet."
@@ -354,8 +395,8 @@ function derivePhase(
   if (!run.deliveredAt && ageMs > STARTING_MS) {
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
-      label: "Not running",
-      detail: "Retry — or Watch for why it never started",
+      label: "Needs you",
+      detail: "Retry — or Open Terminal for why it never started",
     };
   }
   if (!run.deliveredAt) {
@@ -382,26 +423,53 @@ function derivePhase(
     };
   }
 
-  // Delivered. From here the runner's heartbeat is the truth: it beats while
-  // the agent's terminal keeps printing, and stops when it goes quiet. A run
-  // that reports progress is Working for as long as it takes — an hour-long
-  // fix used to flip to "Not running" at minute ten while the agent typed.
-  if (isRunProgressFresh(run.lastProgressAt, now)) {
+  // Inject-no-generate: runner typed the prompt but the agent never generated.
+  // Needs you immediately — never Working beside a dead inject.
+  if (run.injectVerified === false) {
+    const cause =
+      run.injectWarning?.trim() ||
+      "Prompt reached the agent, but it never started generating (quota, login, or dead session).";
+    return {
+      phase: FEEDBACK_WORK_PHASE.STUCK,
+      label: "Needs you",
+      detail: "Open Terminal — or switch provider / Restart Fleet Runner",
+      watchable: true,
+      since,
+      lastActivityAt: run.lastProgressAt,
+      diagnostic: cause.slice(0, 400),
+    };
+  }
+
+  // One alive bit: Working only with post-prompt generation evidence.
+  if (hasPostPromptGeneration(run, now)) {
+    const activityAt = run.lastProgressAt ?? run.deliveredAt;
     return {
       phase: FEEDBACK_WORK_PHASE.WORKING,
       label: `Working · ${workElapsedLabel(since, now)}`,
       detail: null,
       watchable: true,
       since,
+      lastActivityAt: activityAt,
+      diagnostic: activityAt ? `Last output ${workElapsedLabel(activityAt, now)} ago` : null,
+    };
+  }
+  if (run.lastProgressAt && isRunProgressFresh(run.lastProgressAt, now)) {
+    // Fresh bytes but not post-prompt generation (boot redraw / pre-verify).
+    return {
+      phase: FEEDBACK_WORK_PHASE.QUEUED,
+      label: "Starting",
+      detail: null,
+      watchable: true,
+      since,
       lastActivityAt: run.lastProgressAt,
-      diagnostic: `Last output ${workElapsedLabel(run.lastProgressAt!, now)} ago`,
+      diagnostic: "PTY is up; waiting for post-prompt generation",
     };
   }
   if (run.lastProgressAt) {
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
-      label: "Stalled",
-      detail: "Retry or Watch",
+      label: "Needs you",
+      detail: "Open Terminal — or Retry",
       watchable: true,
       since,
       lastActivityAt: run.lastProgressAt,
@@ -412,16 +480,14 @@ function derivePhase(
   if (sinceDeliveryMs > THINKING_MS) {
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
-      label: "Not running",
-      detail: "Retry — Telegram when builder is back",
+      label: "Needs you",
+      detail: "Open Terminal — or Restart Fleet Runner",
       watchable: true,
       since,
-      diagnostic: `Delivered ${workElapsedLabel(run.deliveredAt, now)} ago; no PTY output`,
+      diagnostic: `Delivered ${workElapsedLabel(run.deliveredAt, now)} ago; not streaming / no generation`,
     };
   }
-  // Delivered with no heartbeat yet: Starting, not Working. Working means a
-  // real PTY is printing. "Prompt delivered — waiting for first output" as
-  // Working was the phone lie when Cloud had no Heidi session at all.
+  // Delivered with no post-prompt evidence yet: Starting, never Working.
   return {
     phase: FEEDBACK_WORK_PHASE.QUEUED,
     label: "Starting",

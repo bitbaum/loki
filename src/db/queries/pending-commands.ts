@@ -678,3 +678,45 @@ export async function getOpenPendingByRunIds(
   }
   return out;
 }
+
+/** Latest executed inject ack per run — verified/ok/warning for work-phase. */
+export type InjectAckByRun = {
+  ok: boolean | null;
+  verified: boolean | null;
+  warning: string | null;
+};
+
+export async function getInjectAcksByRunIds(
+  userId: string,
+  runIds: string[],
+): Promise<Map<string, InjectAckByRun>> {
+  if (runIds.length === 0) return new Map();
+  const wanted = new Set(runIds);
+  const rows = await db
+    .select({
+      executedAt: pendingCommands.executedAt,
+      result: pendingCommands.result,
+      payload: pendingCommands.payload,
+    })
+    .from(pendingCommands)
+    .where(and(eq(pendingCommands.userId, userId), isNotNull(pendingCommands.executedAt)))
+    .orderBy(desc(pendingCommands.executedAt))
+    .limit(300);
+  const out = new Map<string, InjectAckByRun>();
+  for (const r of rows) {
+    const payload = r.payload as { runId?: string } | null;
+    const runId = payload?.runId;
+    if (!runId || !wanted.has(runId) || out.has(runId)) continue;
+    const result = (r.result ?? {}) as {
+      ok?: boolean;
+      verified?: boolean;
+      warning?: string;
+    };
+    out.set(runId, {
+      ok: typeof result.ok === "boolean" ? result.ok : null,
+      verified: typeof result.verified === "boolean" ? result.verified : null,
+      warning: typeof result.warning === "string" ? result.warning : null,
+    });
+  }
+  return out;
+}

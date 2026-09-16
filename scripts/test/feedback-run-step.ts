@@ -80,7 +80,7 @@ const offline = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, {
 });
 assert.equal(offline.phase, FEEDBACK_WORK_PHASE.STUCK);
 assert.equal(offline.waitingOn, WAITING_ON.YOU);
-assert.equal(offline.label, "Builder offline");
+assert.equal(offline.label, "Needs you");
 assert.ok(offline.diagnostic?.toLowerCase().includes("offline"));
 assert.equal(offline.watchable, true);
 

@@ -69,8 +69,19 @@ assert.equal(
     }),
   ).phase,
   FEEDBACK_WORK_PHASE.STUCK,
-  "RUNNING delivered long ago with no PTY output is Stuck, not Working",
+  "RUNNING delivered long ago with no PTY output is Stuck/Needs you, not Working",
 );
+assert.equal(
+  deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      state: ORCH_STATE.RUNNING,
+      deliveredAt: new Date(Date.now() - 40 * 60_000).toISOString(),
+    }),
+  ).label,
+  "Needs you",
+);
+
 assert.equal(
   deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, snap({ startedAt: new Date(Date.now() - 10_000) }))
     .phase,
@@ -272,6 +283,8 @@ console.log("✓ feedback work-phase tests passed");
       startedAt: new Date(now - 48 * 60_000),
       deliveredAt: delivered,
       lastProgressAt: new Date(now - 30_000).toISOString(),
+      injectVerified: true,
+      latestEventKind: "progress",
     }),
     now,
   );
@@ -290,17 +303,19 @@ console.log("✓ feedback work-phase tests passed");
       startedAt: new Date(now - 48 * 60_000),
       deliveredAt: delivered,
       lastProgressAt: new Date(now - 15 * 60_000).toISOString(),
+      injectVerified: true,
+      latestEventKind: "progress",
     }),
     now,
   );
-  assert.equal(stalled.phase, FEEDBACK_WORK_PHASE.STUCK, "a heartbeat gone quiet = Stalled");
-  assert.equal(stalled.label, "Stalled");
+  assert.equal(stalled.phase, FEEDBACK_WORK_PHASE.STUCK, "a heartbeat gone quiet = Needs you");
+  assert.equal(stalled.label, "Needs you");
   assert.equal(
     stalled.watchable,
     true,
-    "Stalled still links the terminal — it may be waiting on a person",
+    "Needs you still links the terminal — it may be waiting on a person",
   );
-  assert.equal(stalled.detail, "Retry or Watch");
+  assert.match(stalled.detail ?? "", /Open Terminal|Retry/);
   assert.match(stalled.diagnostic ?? "", /Worked 32 min, silent 15 min/);
 
   // Delivered and no heartbeat yet: Starting (Queued), never fake Working.
@@ -323,6 +338,7 @@ console.log("✓ feedback work-phase tests passed");
     now,
   );
   assert.equal(silent.phase, FEEDBACK_WORK_PHASE.STUCK);
+  assert.equal(silent.label, "Needs you");
   assert.equal(silent.watchable, true);
 
   // Queued (never delivered) has no PTY yet, but Watch still opens — step
@@ -360,15 +376,101 @@ console.log("✓ feedback work-phase tests passed");
   assert.equal(blocked.watchable, true, "the terminal is where they sign in");
   assert.equal(blocked.detail, "Sign in on Watch");
 
-  // Same run, no reason known: the old, honest-but-useless wording stands.
+  // Same run, no reason known: Needs you (not Working).
   const unexplained = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, snap(base), now);
-  assert.equal(unexplained.label, "Not running");
+  assert.equal(unexplained.label, "Needs you");
 
   // And a blocked flag never overrides an agent that is actually producing.
   const working = deriveFeedbackWork(
     FEEDBACK_STATUS.DISPATCHED,
-    snap({ ...base, blocked: null, lastProgressAt: new Date(now - 20_000).toISOString() }),
+    snap({
+      ...base,
+      blocked: null,
+      lastProgressAt: new Date(now - 20_000).toISOString(),
+      injectVerified: true,
+      latestEventKind: "progress",
+    }),
     now,
   );
   assert.equal(working.phase, FEEDBACK_WORK_PHASE.WORKING);
+}
+
+// 5. One alive bit — Working only with post-prompt evidence; inject-no-generate → Needs you.
+{
+  const now = Date.now();
+  const base = {
+    startedAt: new Date(now - 5 * 60_000),
+    deliveredAt: new Date(now - 4 * 60_000).toISOString(),
+    lastProgressAt: new Date(now - 20_000).toISOString(),
+  };
+  const bootOnly = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({ ...base, latestEventKind: "submitted" }),
+    now,
+  );
+  assert.notEqual(
+    bootOnly.phase,
+    FEEDBACK_WORK_PHASE.WORKING,
+    "fresh lastProgress without generating/progress hop is not Working",
+  );
+  assert.equal(bootOnly.label, "Starting");
+
+  const injectDead = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      ...base,
+      injectVerified: false,
+      injectWarning: "agent isn't generating",
+      latestEventKind: "blocked",
+    }),
+    now,
+  );
+  assert.equal(injectDead.phase, FEEDBACK_WORK_PHASE.STUCK);
+  assert.equal(injectDead.label, "Needs you");
+  assert.match(injectDead.detail ?? "", /Open Terminal|switch provider|Fleet Runner/);
+  assert.match(injectDead.diagnostic ?? "", /generating|isn't generating/i);
+
+  const alive = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({ ...base, injectVerified: true, latestEventKind: "generating" }),
+    now,
+  );
+  assert.equal(alive.phase, FEEDBACK_WORK_PHASE.WORKING);
+
+  const progressHop = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({ ...base, latestEventKind: "progress" }),
+    now,
+  );
+  assert.equal(progressHop.phase, FEEDBACK_WORK_PHASE.WORKING);
+
+  const prePromptBytes = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      ...base,
+      deliveredAt: new Date(now - 10_000).toISOString(),
+      lastProgressAt: new Date(now - 60_000).toISOString(),
+      latestEventKind: "progress",
+    }),
+    now,
+  );
+  assert.notEqual(
+    prePromptBytes.phase,
+    FEEDBACK_WORK_PHASE.WORKING,
+    "progress before deliveredAt is boot redraw, not Working",
+  );
+  const verifiedOnly = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      startedAt: new Date(now - 2 * 60_000),
+      deliveredAt: new Date(now - 90_000).toISOString(),
+      injectVerified: true,
+    }),
+    now,
+  );
+  assert.equal(
+    verifiedOnly.phase,
+    FEEDBACK_WORK_PHASE.WORKING,
+    "verified:true alone (no progress beat yet) is Working — post-prompt evidence",
+  );
 }

@@ -11,10 +11,10 @@ This folder is the SSOT for a multi-PR program. Ship in the order in `IMPLEMENT-
 | Doc | What |
 |-----|------|
 | `HARNESS-SIMPLIFICATION.md` | Explicit failures, local-runner prompt, provider hot-swap, Terminal+Loki rail, kill stale identity |
+| `RUN-STATUS-SSOT.md` | Queued / Starting / Working / Needs you / Done / Failed — one alive bit for Feedback ↔ Terminal |
 | `AI-PROVIDERS-TAB.md` | AI tab: subscriptions, login, tokens, last interaction |
 | `ROBOTS-TAB.md` | Robots tab foundation (2 vacuums now; humanoids later / optional split) |
 | `CHROME-UX.md` | Header/footer/nav like OrangeCat quality; kill Frankenstein sidebar |
 | `IMPLEMENT-ORDER.md` | PR sequence + acceptance walks + non-negotiable loop |
-| `RUN-STATUS-SSOT.md` | Canonical Queued/Starting/Working/Needs you/Done/Failed for every surface |
 
 **Related live pain (2026-09-16):** Implement → silent status / inject fail without watch chooser; Claude/Grok PTY inject without generate; “This computer” without “open Fleet Runner”; Loki Terminal empty while Kitty is busy (different session world); no account menu in header; minimized left rail horizontal scroll; operators left wondering if anything is happening.

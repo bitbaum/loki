@@ -10,11 +10,13 @@ Feedback → Implement leaves users guessing. Status badges (Queued / Starting /
 
 ## Principles
 - One job → one path. Agnostic underneath; calm defaults on top.
-- Verifier is evidence (heartbeat, PR URL, live stamp), not inject SUCCESS.
+- Status vocabulary is **RUN-STATUS-SSOT.md**: Queued / Starting / Working / Needs you / Done / Failed. **Working** only with post-prompt generation evidence — one alive bit shared by Feedback and Terminal.
+- Verifier is evidence (post-prompt PTY frames, PR URL, live stamp), not inject SUCCESS or a progress timer alone.
 - Every blocking state has **cause + primary CTA**.
 - Kill tab-name / mismatched session labels; run id owns the PTY.
 - **Never silent in-flight work** — always show phase and what to do next (product + agent UX).
 - **Loki-only development** — Implement opens Watch + Terminal + chat paths; operator should not need Kitty open.
+- **Cloud-first default**: always-on box-runner is the home path; local Fleet Runner is for laptop-locked projects only. Do not expand dual-channel status language — channel is detail on Queued/Needs you, not a second vocabulary.
 
 ## Ship
 1. **Builder offline / wrong place**  
