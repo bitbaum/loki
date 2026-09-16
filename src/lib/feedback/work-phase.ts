@@ -189,12 +189,16 @@ function withStep(
     ...view,
     watchable: inFlight || terminalReady ? true : view.watchable,
     terminalReady,
-    stepSummary: step.summary,
-    queueReason: step.detail,
+    // Run-event hops describe an active machine. Once the run is closed they
+    // are historical evidence, not the current step: showing “Agent is
+    // working” beside “Live · confirm” is exactly the uncertainty this layer
+    // exists to remove.
+    stepSummary: inFlight ? step.summary : (view.stepSummary ?? null),
+    queueReason: inFlight ? step.detail : (view.queueReason ?? null),
     runId: run.id,
     commandId: run.commandId ?? null,
     // Dig-in gets the queue reason when the row itself stays quiet.
-    diagnostic: view.diagnostic ?? step.detail,
+    diagnostic: view.diagnostic ?? (inFlight ? step.detail : null),
   };
 }
 
