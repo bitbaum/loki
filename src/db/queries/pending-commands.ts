@@ -636,6 +636,8 @@ export type PendingByRun = {
   claimedAt: Date | null;
   executedAt: Date | null;
   createdAt: Date;
+  /** payload.channel — which builder must claim this command. */
+  channel?: string | null;
 };
 
 export async function getOpenPendingByRunIds(
@@ -669,6 +671,7 @@ export async function getOpenPendingByRunIds(
       claimedAt: r.claimedAt,
       executedAt: r.executedAt,
       createdAt: r.createdAt,
+      channel: (r.payload as { channel?: string } | null)?.channel ?? null,
     });
   }
   return out;

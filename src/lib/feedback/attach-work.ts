@@ -1,8 +1,16 @@
 import { getOrchestrationRunsByIds } from "@/db/queries/orchestration-runs";
 import { getLatestRunEventKinds } from "@/db/queries/run-events";
-import { getOpenPendingByRunIds } from "@/db/queries/pending-commands";
+import { getOpenPendingByRunIds, type PendingByRun } from "@/db/queries/pending-commands";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
 import { getUserProjectsByEntityIds } from "@/db/queries/user-projects";
+import type { BuilderChannelPresence } from "@/lib/builder-presence";
+import { isBuilderChannelOffline } from "@/lib/builder-presence";
+import {
+  pickDispatchChannel,
+  projectChannelLock,
+  type ProjectLocus,
+} from "@/lib/execution-access";
+import { isBuilderChannel } from "@/lib/constants/statuses";
 import type { FeedbackListItem } from "@/db/queries/site-feedback";
 import {
   deriveFeedbackWork,
@@ -40,7 +48,42 @@ type RunRow = {
   finishedAt: Date | null;
   payload: unknown;
   summary: unknown;
+  adapter?: string | null;
 };
+
+export type RunHydrateContext = {
+  presence: BuilderChannelPresence;
+  project?: ProjectLocus;
+  pending?: PendingByRun | null;
+  latestEventKind?: string | null;
+  adapter?: string | null;
+};
+
+/**
+ * Stamp channel, presence, and pending onto a run snapshot. Inbox, Watch,
+ * Terminal, and Implement's duplicate-guard must agree — a local-offline run
+ * is STUCK (Open Fleet Runner), never silent Queued, even if cloud is up.
+ */
+export function applyRunContext(
+  snap: FeedbackRunSnapshot,
+  ctx: RunHydrateContext,
+): FeedbackRunSnapshot {
+  if (ctx.latestEventKind !== undefined) snap.latestEventKind = ctx.latestEventKind ?? null;
+  if (ctx.pending) {
+    snap.pendingUnclaimed = ctx.pending.claimedAt == null;
+    if (ctx.pending.type === "hosted_dispatch") snap.hostedPending = true;
+    snap.commandId = snap.commandId ?? ctx.pending.id;
+  } else if (ctx.pending === null) {
+    snap.pendingUnclaimed = false;
+  }
+  const pendingChannel = isBuilderChannel(ctx.pending?.channel) ? ctx.pending.channel : null;
+  const channel = pendingChannel ?? pickDispatchChannel(ctx.project);
+  snap.builderChannel = channel;
+  snap.builderOffline = isBuilderChannelOffline(ctx.presence, channel);
+  snap.locusLocked = projectChannelLock(ctx.project) != null;
+  snap.currentAgent = ctx.adapter ?? snap.currentAgent ?? null;
+  return snap;
+}
 
 /** Attach honest work-phase to inbox rows from linked orchestration runs.
  *  Generic so callers with wider rows (e.g. the cross-project inbox, which
@@ -61,7 +104,6 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
     getOpenPendingByRunIds(userId, runIds),
     getBuilderPresence(userId).catch(() => ({ cloud: false, local: false, any: false })),
   ]);
-  const builderOffline = !presence.cloud && !presence.any;
 
   // Projects first: deciding whether a cached ledger is still ABOUT the right
   // pull request means re-parsing the handoff, and that needs the repo.
@@ -170,15 +212,6 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
     const snap = runToFeedbackSnapshot(row);
     if (snap && row) {
       if (refreshed.has(row.id)) snap.fix = refreshed.get(row.id) ?? null;
-      snap.latestEventKind = latestKinds.get(row.id) ?? null;
-      const pending = pendingByRun.get(row.id);
-      if (pending) {
-        snap.pendingUnclaimed = pending.claimedAt == null;
-        snap.hostedPending = pending.type === "hosted_dispatch";
-        snap.commandId = pending.id;
-      } else {
-        snap.pendingUnclaimed = false;
-      }
       const payload = row.payload as {
         commandId?: string;
         hostedDispatchId?: string;
@@ -187,7 +220,13 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
       if (!snap.commandId && payload?.commandId) snap.commandId = payload.commandId;
       if (payload?.hostedDispatchId) snap.hostedPending = true;
       snap.feedbackAutoRetriedAt = payload?.feedbackAutoRetriedAt ?? null;
-      snap.builderOffline = builderOffline;
+      applyRunContext(snap, {
+        presence,
+        project: projects.get(item.projectId),
+        pending: pendingByRun.get(row.id) ?? null,
+        latestEventKind: latestKinds.get(row.id) ?? null,
+        adapter: row.adapter ?? null,
+      });
     }
     return { ...item, work: deriveFeedbackWork(item.status, snap) };
   });
@@ -206,6 +245,29 @@ function runFinishedWell(run: RunRow): boolean {
     closed &&
     (run.outcome === ORCHESTRATION_OUTCOME.SUCCESS || run.outcome === ORCHESTRATION_OUTCOME.PARTIAL)
   );
+}
+
+/** Load presence + pending + channel onto a single run. Watch, Terminal, and
+ *  Implement's duplicate-guard use this so they cannot disagree with the inbox. */
+export async function hydrateFeedbackSnapshot(
+  userId: string,
+  run: RunRow | null | undefined,
+  project?: ProjectLocus,
+): Promise<FeedbackRunSnapshot | null> {
+  const snap = runToFeedbackSnapshot(run);
+  if (!snap || !run) return snap;
+  const [latestKinds, pendingByRun, presence] = await Promise.all([
+    getLatestRunEventKinds([run.id]),
+    getOpenPendingByRunIds(userId, [run.id]),
+    getBuilderPresence(userId).catch(() => ({ cloud: false, local: false, any: false })),
+  ]);
+  return applyRunContext(snap, {
+    presence,
+    project,
+    pending: pendingByRun.get(run.id) ?? null,
+    latestEventKind: latestKinds.get(run.id) ?? null,
+    adapter: run.adapter ?? null,
+  });
 }
 
 /** Run row → the snapshot shape deriveFeedbackWork consumes. Shared with the
@@ -238,6 +300,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     commandId: payload?.commandId ?? null,
     hostedPending: !!payload?.hostedDispatchId,
     feedbackAutoRetriedAt: payload?.feedbackAutoRetriedAt ?? null,
+    currentAgent: "adapter" in row ? (row.adapter ?? null) : null,
   };
 }
 

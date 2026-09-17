@@ -103,6 +103,14 @@ export function builderCompactLabel(
   return map[stateKey];
 }
 
+/** Is the named builder channel offline right now? Presence of the other tier does not count. */
+export function isBuilderChannelOffline(
+  presence: BuilderChannelPresence,
+  channel: "local" | "cloud",
+): boolean {
+  return channel === "local" ? !presence.local : !presence.cloud;
+}
+
 /** Detail line under the compact label — which builder is missing when partially offline. */
 export function builderPresenceDetail(channels: BuilderChannelPresence): string | null {
   if (channels.cloud && channels.local) return null;

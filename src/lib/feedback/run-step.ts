@@ -8,6 +8,8 @@
  * raw event trail. Model-agnostic: labels come from events, not model prose.
  */
 import type { RunEventKind } from "@/db/schema/run-events";
+import { EXECUTOR_COPY } from "@/config/executor-copy";
+import type { BuilderChannel } from "@/lib/constants/statuses";
 
 export type RunStepSnapshot = {
   kind: RunEventKind | "waiting_builder" | "hosted_queued" | "starting";
@@ -55,6 +57,8 @@ export function summarizeRunStep(input: {
   pendingUnclaimed?: boolean;
   /** Hermes / hosted_dispatch id present. */
   hosted?: boolean;
+  /** Which builder this run is waiting on. Default cloud. */
+  channel?: BuilderChannel | null;
 }): RunStepSnapshot {
   if (input.blocked === "auth") {
     return {
@@ -92,11 +96,15 @@ export function summarizeRunStep(input: {
     };
   }
   if (input.pendingUnclaimed !== false) {
+    const local = input.channel === "local";
     return {
       kind: "waiting_builder",
-      summary: "Waiting for cloud builder to claim",
-      detail:
-        "Command is in the queue. If this stays put, Watch shows why — Telegram when it stalls.",
+      summary: local
+        ? EXECUTOR_COPY.loop.waitingForLocal
+        : EXECUTOR_COPY.loop.waitingForCloud,
+      detail: local
+        ? EXECUTOR_COPY.loop.waitingForLocalDetail
+        : EXECUTOR_COPY.loop.waitingForCloudDetail,
     };
   }
   return {

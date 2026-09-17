@@ -15,6 +15,9 @@ import { FIX_SHIP_STATE, firstSentence, type FixShipping } from "@/lib/feedback/
 import { autoShipHoldNote, type AutoShipHold } from "@/lib/feedback/auto-ship";
 import { summarizeRunStep } from "@/lib/feedback/run-step";
 import type { RunEventKind } from "@/db/schema/run-events";
+import { EXECUTOR_COPY } from "@/config/executor-copy";
+import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
+import type { BuilderChannel } from "@/lib/constants/statuses";
 
 export const FEEDBACK_WORK_PHASE = {
   NOT_STARTED: "not_started",
@@ -98,6 +101,16 @@ export type FeedbackWorkView = {
   since?: string | null;
   /** Last runner heartbeat — the PTY printed something. ISO. */
   lastActivityAt?: string | null;
+  /** Builder this run is waiting on. */
+  builderChannel?: BuilderChannel | null;
+  /** This computer is offline — primary next action is Open Fleet Runner. */
+  openRunner?: boolean;
+  /** Local-offline and the project can move to cloud. */
+  useCloud?: boolean;
+  /** Inject-no-generate / quota — offer Grok / Cursor / Antigravity. */
+  offerProviderSwitch?: boolean;
+  /** Adapter the run was dispatched with — hide it from the provider chooser. */
+  currentAgent?: string | null;
   /**
    * The fix ledger, once the agent finished: where its change is on the way
    * to the live product. Drives the row's "Review PR" / "Check live" and is
@@ -135,8 +148,14 @@ export type FeedbackRunSnapshot = {
   commandId?: string | null;
   /** One auto-retry already spent — see retry-queued.ts. */
   feedbackAutoRetriedAt?: string | null;
-  /** Cloud (+ any) builder presence at attach time — offline Queued is not MACHINE. */
+  /** Named builder is offline at attach time — offline Queued is not MACHINE. */
   builderOffline?: boolean;
+  /** Which builder this run is queued for. */
+  builderChannel?: BuilderChannel | null;
+  /** Physics lock — hide "Use cloud" when the checkout cannot leave this computer. */
+  locusLocked?: boolean;
+  /** Adapter the run was dispatched with. */
+  currentAgent?: string | null;
 };
 
 const STARTING_MS = 90_000;
@@ -177,6 +196,7 @@ function withStep(
     blocked: run.blocked,
     pendingUnclaimed: run.pendingUnclaimed,
     hosted: run.hostedPending === true,
+    channel: run.builderChannel,
   });
   // derivePhase sets watchable only when a PTY exists; that becomes terminalReady.
   // We then widen watchable so Queued/Stuck still offer the Watch panel.
@@ -185,6 +205,13 @@ function withStep(
     view.phase === FEEDBACK_WORK_PHASE.QUEUED ||
     view.phase === FEEDBACK_WORK_PHASE.WORKING ||
     view.phase === FEEDBACK_WORK_PHASE.STUCK;
+  const capacityText = [view.diagnostic, run.error].filter(Boolean).join(" ");
+  const offerProviderSwitch =
+    view.openRunner || run.builderOffline
+      ? false
+      : view.offerProviderSwitch === true ||
+        ((view.phase === FEEDBACK_WORK_PHASE.FAILED || view.phase === FEEDBACK_WORK_PHASE.STUCK) &&
+          looksLikeAgentCapacityIssue(capacityText));
   return {
     ...view,
     watchable: inFlight || terminalReady ? true : view.watchable,
@@ -199,6 +226,9 @@ function withStep(
     commandId: run.commandId ?? null,
     // Dig-in gets the queue reason when the row itself stays quiet.
     diagnostic: view.diagnostic ?? (inFlight ? step.detail : null),
+    builderChannel: view.builderChannel ?? run.builderChannel ?? null,
+    currentAgent: view.currentAgent ?? run.currentAgent ?? null,
+    offerProviderSwitch,
   };
 }
 
@@ -323,17 +353,31 @@ function derivePhase(
 
   // waiting / idle — the ambiguous zone that previously read as success.
   const ageMs = now - run.startedAt.getTime();
-  // Builder offline is known NOW — do not park under "moving on its own".
-  // Telegram + dig-in; auto-retry cron may cold-start once Hermes/cloud returns.
-  if (!run.deliveredAt && run.builderOffline) {
+  // Builder offline is known NOW — do not park under "moving on its own",
+  // even if a stale deliveredAt made the row say "Starting".
+  if (!run.lastProgressAt && run.builderOffline) {
+    const local = run.builderChannel === "local";
+    if (local) {
+      return {
+        phase: FEEDBACK_WORK_PHASE.STUCK,
+        label: EXECUTOR_COPY.loop.thisComputerOfflineLabel,
+        detail: EXECUTOR_COPY.loop.thisComputerOfflineDetail,
+        diagnostic: EXECUTOR_COPY.loop.thisComputerOfflineDiagnostic,
+        openRunner: true,
+        useCloud: run.locusLocked !== true,
+        builderChannel: "local",
+        currentAgent: run.currentAgent ?? null,
+      };
+    }
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
-      label: "Builder offline",
-      detail: "Connect cloud builder or Retry — Telegram when it stays offline",
-      // watchable filled by withStep (in-flight); no PTY yet → terminalReady false
+      label: EXECUTOR_COPY.loop.cloudOfflineLabel,
+      detail: EXECUTOR_COPY.loop.cloudOfflineDetail,
       diagnostic: run.hostedPending
-        ? "Cloud builder offline; hosted Hermes was queued but has not claimed yet."
-        : "Cloud builder offline — no agent session will appear until loki-box-runner is online (or Hermes accepts).",
+        ? EXECUTOR_COPY.loop.cloudOfflineHostedDiagnostic
+        : EXECUTOR_COPY.loop.cloudOfflineDiagnostic,
+      builderChannel: "cloud",
+      currentAgent: run.currentAgent ?? null,
     };
   }
   if (!run.deliveredAt && ageMs > STARTING_MS) {
@@ -398,10 +442,14 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
       label: "Not running",
-      detail: "Retry — Telegram when builder is back",
+      detail: EXECUTOR_COPY.loop.switchProviderDetail,
       watchable: true,
       since,
-      diagnostic: `Delivered ${workElapsedLabel(run.deliveredAt, now)} ago; no PTY output`,
+      diagnostic:
+        run.error?.slice(0, 400) ??
+        `Delivered ${workElapsedLabel(run.deliveredAt, now)} ago; no PTY output`,
+      offerProviderSwitch: true,
+      currentAgent: run.currentAgent ?? null,
     };
   }
   // Delivered with no heartbeat yet: Starting, not Working. Working means a

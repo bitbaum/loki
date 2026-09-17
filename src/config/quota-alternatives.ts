@@ -15,3 +15,12 @@ export const QUOTA_ALTERNATIVE_AGENTS = [
 
 export type QuotaAlternativeId = (typeof QUOTA_ALTERNATIVE_AGENTS)[number]["id"];
 export type QuotaAlternative = { id: QuotaAlternativeId; label: string };
+
+/** One-tap Grok / Cursor / Antigravity, hiding the agent that just died. */
+export function providerSwitchAlternatives(currentAgent?: string | null): QuotaAlternative[] {
+  const current = (currentAgent ?? "").toLowerCase();
+  return QUOTA_ALTERNATIVE_AGENTS.filter((a) => a.id !== current).map((a) => ({
+    id: a.id,
+    label: a.label,
+  }));
+}

@@ -262,6 +262,9 @@ export async function getFeedbackWithProject(
   projectName: string;
   userProjectId: string | null;
   agentPref: string | null;
+  builderPref: string | null;
+  dirPath: string | null;
+  gitUrl: string | null;
   /** A folder or a repository — somewhere for the agent to work. */
   hasWorkspace: boolean;
 } | null> {
@@ -272,6 +275,9 @@ export async function getFeedbackWithProject(
       userProjectName: userProjects.name,
       userProjectId: userProjects.id,
       agentPref: userProjects.agentPref,
+      builderPref: userProjects.builderPref,
+      dirPath: userProjects.dirPath,
+      gitUrl: userProjects.gitUrl,
       hasWorkspace: sql<boolean>`(${userProjects.dirPath} IS NOT NULL OR ${userProjects.gitUrl} IS NOT NULL)`,
     })
     .from(siteFeedback)
@@ -293,6 +299,9 @@ export async function getFeedbackWithProject(
     projectName: row.userProjectName ?? row.projectName,
     userProjectId: row.userProjectId,
     agentPref: row.agentPref ?? null,
+    builderPref: row.builderPref ?? null,
+    dirPath: row.dirPath ?? null,
+    gitUrl: row.gitUrl ?? null,
     hasWorkspace: row.hasWorkspace === true,
   };
 }

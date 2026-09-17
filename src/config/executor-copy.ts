@@ -199,4 +199,34 @@ export const EXECUTOR_COPY = {
     thisComputerOfflineHint: "Connect Fleet Runner on this computer to this account.",
     thisComputerLoading: "Looking for agents on this computer…",
   },
+
+  /**
+   * Feedback → Implement loop CTAs. Failures name cause + the next action
+   * (Open Fleet Runner / Use cloud / switch provider). Never bare Starting.
+   */
+  loop: {
+    openFleetRunner: "Open Fleet Runner",
+    openFleetRunnerHref: "/download",
+    useCloudBuilder: "Use cloud builder",
+    thisComputerOfflineLabel: "This computer offline",
+    thisComputerOfflineDetail: "Open Fleet Runner — or switch to Cloud",
+    thisComputerOfflineDiagnostic:
+      "This project runs on This computer, and Fleet Runner is not connected. Open Loki desktop on this machine, or switch the project to the cloud builder.",
+    cloudOfflineLabel: "Cloud builder offline",
+    cloudOfflineDetail: "Reconnect the cloud builder — or Open Fleet Runner",
+    cloudOfflineDiagnostic:
+      "Cloud builder is offline — no agent session will appear until loki-box-runner is online. Open Fleet Runner on this computer to run it here.",
+    cloudOfflineHostedDiagnostic:
+      "Cloud builder offline; hosted Hermes was queued but has not claimed yet.",
+    waitingForLocal: "Waiting for Fleet Runner on this computer",
+    waitingForLocalDetail:
+      "Command is in the queue for this computer. Open Fleet Runner to claim it, or switch to Cloud.",
+    waitingForCloud: "Waiting for cloud builder to claim",
+    waitingForCloudDetail:
+      "Command is in the queue. If this stays put, Watch shows why — Telegram when it stalls.",
+    terminalUntilSession:
+      "Terminal opens once a session exists. Open Fleet Runner if this project runs on this computer; otherwise the cloud builder cold-starts it.",
+    tryProvider: "Try another provider",
+    switchProviderDetail: "Retry — or switch provider",
+  },
 } as const;
