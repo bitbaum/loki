@@ -16,6 +16,15 @@ export async function GET() {
     listUserFeedback(userId),
     getFeedbackLoopMetrics(userId).catch(() => null),
   ]);
-  const feedback = await attachFeedbackWork(userId, raw);
+  // A collaborator's row executes in the project owner's tenant. Enrich each
+  // owner's runs with that owner id, then restore the original newest-first
+  // order; using the viewer id would make editor-visible runs look absent.
+  const byOwner = new Map<string, typeof raw>();
+  for (const item of raw) byOwner.set(item.userId, [...(byOwner.get(item.userId) ?? []), item]);
+  const enriched = (
+    await Promise.all([...byOwner].map(([ownerId, items]) => attachFeedbackWork(ownerId, items)))
+  ).flat();
+  const workById = new Map(enriched.map((item) => [item.id, item]));
+  const feedback = raw.map((item) => workById.get(item.id) ?? item);
   return jsonOk({ feedback, metrics });
 }

@@ -29,6 +29,18 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.27",
+    tag: "fleet-runner-v0.8.27",
+    date: "2026-09-17T08:00:00Z",
+    highlights: [
+      "Every Terminal viewer now receives the current agent screen immediately, including when the agent is quiet and another viewer was already connected.",
+      "Reopening or switching into a cloud session no longer leaves a connected black terminal that later claims the builder is not responding.",
+    ],
+    breaking: [],
+    notes:
+      "The runner still keeps one efficient PTY subscription per session; it now replays that retained screen for each new viewer.",
+  },
+  {
     version: "0.8.26",
     tag: "fleet-runner-v0.8.26",
     date: "2026-09-16T19:00:00Z",

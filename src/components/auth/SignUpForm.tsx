@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import {
   AuthShell,
@@ -18,6 +18,10 @@ import { AUTH_COPY, ROUTES } from "@/config/auth";
 
 export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? ROUTES.ONBOARDING;
+  const safeCallback =
+    callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : ROUTES.ONBOARDING;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,7 +49,13 @@ export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
 
       const result = await signIn("email-password", { email, password, redirect: false });
       if (result?.ok) {
-        router.push(ROUTES.ONBOARDING);
+        // Claim before onboarding can redirect the new account. This preserves
+        // the visitor's report even when onboarding takes place first.
+        const claimUrl = new URL(safeCallback, window.location.origin);
+        const claimToken =
+          claimUrl.pathname === "/claim-feedback" ? claimUrl.searchParams.get("token") : null;
+        if (claimToken) await postJson("/api/feedback/claim", { token: claimToken });
+        router.push(safeCallback);
       } else {
         router.push(ROUTES.SIGN_IN);
       }
@@ -67,7 +77,7 @@ export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
             much "sign up" buttons as the form below. */}
         {hasAnyOAuth(oauthFlags) && (
           <>
-            <OAuthButtons flags={oauthFlags} callbackUrl={ROUTES.APP_HOME} />
+            <OAuthButtons flags={oauthFlags} callbackUrl={safeCallback} />
             <AuthDivider label="or with email" />
           </>
         )}

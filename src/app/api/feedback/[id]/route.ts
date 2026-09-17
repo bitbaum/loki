@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readIdParam, readJsonBody, jsonOk, jsonError, z } from "@/lib/api/route-helpers";
 import { getSessionUserId } from "@/lib/session";
-import { setFeedbackFeatured, setFeedbackStatus } from "@/db/queries/site-feedback";
+import {
+  getFeedbackWithProject,
+  setFeedbackFeatured,
+  setFeedbackStatus,
+} from "@/db/queries/site-feedback";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { notifyFeedbackShipped } from "@/lib/feedback/close-loop";
 
@@ -32,15 +36,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (idOrResp instanceof NextResponse) return idOrResp;
   const dataOrResp = await readJsonBody(req, PatchBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
+  const row = await getFeedbackWithProject(userId, idOrResp);
+  if (!row) return jsonError("Feedback not found", 404);
+  if (!row.canEdit) return jsonError("Only project owners and editors can update feedback", 403);
+  const ownerUserId = row.ownerUserId;
 
   if (dataOrResp.featured !== undefined) {
-    const ok = await setFeedbackFeatured(userId, idOrResp, dataOrResp.featured);
+    const ok = await setFeedbackFeatured(ownerUserId, idOrResp, dataOrResp.featured);
     if (!ok) return jsonError("Not found or not resolved", 404);
     if (dataOrResp.status === undefined) return jsonOk({});
   }
 
   if (dataOrResp.status !== undefined) {
-    const updated = await setFeedbackStatus(userId, idOrResp, dataOrResp.status);
+    const updated = await setFeedbackStatus(ownerUserId, idOrResp, dataOrResp.status);
     if (!updated) return jsonError("Not found", 404);
     // Done = operator confirmed live change. Visitor "shipped" mail rides this
     // path now — not a bare SUCCESS run close (that lied about inject-only).

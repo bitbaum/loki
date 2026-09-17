@@ -138,12 +138,12 @@ export const STATE_DEFINITIONS: Record<ProjectStateKey, ProjectStateDefinition> 
     problem: null,
   },
   open_idle: {
-    label: "Awaiting input",
+    label: "Agent idle",
     description:
-      "Agent process detected but no recent lifecycle signal — the agent is at the prompt waiting for your next message.",
+      "Agent process detected but no recent lifecycle signal. It may be at a prompt, stalled, or simply quiet; Loki has no evidence that it asked you a question.",
     dotClass: "bg-border-default",
     tagClass: "ui-tag ui-tag-neutral",
-    counterCategory: "waiting",
+    counterCategory: "idle",
     problem: null,
   },
   working: {
@@ -322,7 +322,7 @@ export function deriveProjectStateKey(signals: {
   // Before this branch was added (2026-06-11), removing the bash Stop hook
   // in Session 1 of killing-the-bash-daemon meant readyAt stopped being
   // written, so projects whose session said "ready" fell through to
-  // open_idle ("Awaiting input") even seconds after Fleet Runner pushed
+  // open_idle ("Agent idle") even seconds after Fleet Runner pushed
   // the fresh status. The /control card read like the runner was offline
   // when in fact it had just synced.
   if (signals.sessionStatus === SESSION_STATUS.READY) return "ready";

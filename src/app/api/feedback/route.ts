@@ -12,6 +12,8 @@ import { getWidgetTokenByToken } from "@/db/queries/widget-tokens";
 import { bumpDuplicateFeedback, insertSiteFeedback } from "@/db/queries/site-feedback";
 import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
+import { createFeedbackClaimToken } from "@/lib/feedback/claim-token";
+import { appUrl } from "@/lib/email";
 
 /**
  * Public ingest for the embeddable feedback widget (docs/architecture/
@@ -127,8 +129,13 @@ export async function POST(req: NextRequest) {
   // inbox noise dropped. Idempotent for the visitor (they still see success).
   const contentHash = feedbackContentHash(data.suggestion, data.page ?? null);
   const bumped = await bumpDuplicateFeedback(token.projectId, contentHash);
-  if (bumped)
-    return NextResponse.json({ ok: true, duplicateOf: bumped }, { headers: CORS_HEADERS });
+  if (bumped) {
+    const claim = createFeedbackClaimToken(bumped);
+    return NextResponse.json(
+      { ok: true, duplicateOf: bumped, claimUrl: `${appUrl()}/claim-feedback?token=${claim}` },
+      { headers: CORS_HEADERS },
+    );
+  }
 
   const created = await insertSiteFeedback({
     projectId: token.projectId,
@@ -153,5 +160,9 @@ export async function POST(req: NextRequest) {
   // Duplicate bumps above stay silent — the row announced when first filed.
   void notifyFeedbackReceived(created);
 
-  return NextResponse.json({ ok: true }, { headers: CORS_HEADERS });
+  const claim = createFeedbackClaimToken(created.id);
+  return NextResponse.json(
+    { ok: true, claimUrl: `${appUrl()}/claim-feedback?token=${claim}` },
+    { headers: CORS_HEADERS },
+  );
 }

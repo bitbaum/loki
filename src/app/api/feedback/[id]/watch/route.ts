@@ -26,13 +26,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!row) return jsonError("Feedback not found", 404);
 
   const run = row.feedback.dispatchedRunId
-    ? await getOrchestrationRunById(userId, row.feedback.dispatchedRunId)
+    ? await getOrchestrationRunById(row.ownerUserId, row.feedback.dispatchedRunId)
     : null;
   const snap = runToFeedbackSnapshot(run);
   const work = deriveFeedbackWork(row.feedback.status, snap);
 
   const events = run
-    ? (await listRunEventsForRun(run.id, userId)).map((e) => ({
+    ? (await listRunEventsForRun(run.id, row.ownerUserId)).map((e) => ({
         kind: e.kind,
         label: runEventKindLabel(e.kind),
         at: e.createdAt.toISOString(),
@@ -45,7 +45,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     work.commandId ?? (run?.payload as { commandId?: string } | null)?.commandId ?? null;
   if (commandId) {
     const cmd = await getCommandById(commandId);
-    if (cmd && cmd.userId === userId) {
+    if (cmd && cmd.userId === row.ownerUserId) {
       commandLive = deriveDispatchLiveStatus({
         claimedAt: cmd.claimedAt,
         executedAt: cmd.executedAt,

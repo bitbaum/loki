@@ -4,14 +4,57 @@ import {
   entities,
   siteFeedback,
   userProjects,
+  projectMemberships,
   type SiteFeedback,
   type NewSiteFeedback,
 } from "@/db/schema";
 import { FEEDBACK_STATUS, type FeedbackStatus } from "@/lib/constants/statuses";
+import { getProjectAccess } from "@/db/queries/project-access";
 
 export async function insertSiteFeedback(values: NewSiteFeedback): Promise<SiteFeedback | null> {
   const [created] = await db.insert(siteFeedback).values(values).returning();
   return created ?? null;
+}
+
+/** Link exactly one signed claim to the signed-in reporter. A claim already
+ * owned by another account cannot be stolen by replaying its URL. */
+export async function claimFeedbackForReporter(
+  feedbackId: string,
+  reporterUserId: string,
+): Promise<"claimed" | "already-claimed" | "missing"> {
+  const [claimed] = await db
+    .update(siteFeedback)
+    .set({ reporterUserId })
+    .where(and(eq(siteFeedback.id, feedbackId), sql`${siteFeedback.reporterUserId} IS NULL`))
+    .returning({ id: siteFeedback.id });
+  if (claimed) return "claimed";
+  const [existing] = await db
+    .select({ reporterUserId: siteFeedback.reporterUserId })
+    .from(siteFeedback)
+    .where(eq(siteFeedback.id, feedbackId))
+    .limit(1);
+  if (!existing) return "missing";
+  return existing.reporterUserId === reporterUserId ? "claimed" : "already-claimed";
+}
+
+export async function listReporterFeedback(
+  reporterUserId: string,
+  limit = 200,
+): Promise<UserFeedbackListItem[]> {
+  const { screenshots: _screenshots, ...cols } = getTableColumns(siteFeedback);
+  return db
+    .select({
+      ...cols,
+      hasScreenshots: sql<boolean>`false`.as("has_screenshots"),
+      projectName: entities.name,
+      liveUrl: sql<string | null>`null`.as("live_url"),
+      runnable: sql<boolean>`false`.as("runnable"),
+    })
+    .from(siteFeedback)
+    .innerJoin(entities, eq(siteFeedback.projectId, entities.id))
+    .where(eq(siteFeedback.reporterUserId, reporterUserId))
+    .orderBy(desc(siteFeedback.createdAt))
+    .limit(limit);
 }
 
 /**
@@ -201,7 +244,14 @@ export async function listUserFeedback(
     })
     .from(siteFeedback)
     .innerJoin(entities, eq(siteFeedback.projectId, entities.id))
-    .where(eq(siteFeedback.userId, userId))
+    .where(
+      sql`(${siteFeedback.userId} = ${userId} OR EXISTS (
+        SELECT 1 FROM ${projectMemberships}
+        WHERE ${projectMemberships.projectId} = ${siteFeedback.projectId}
+          AND ${projectMemberships.userId} = ${userId}
+          AND ${projectMemberships.role} = 'editor'
+      ))`,
+    )
     .orderBy(desc(siteFeedback.createdAt))
     .limit(limit);
 }
@@ -238,7 +288,12 @@ export async function listFeedbackSummary(userId: string): Promise<ProjectFeedba
     .innerJoin(entities, eq(siteFeedback.projectId, entities.id))
     .where(
       and(
-        eq(siteFeedback.userId, userId),
+        sql`(${siteFeedback.userId} = ${userId} OR EXISTS (
+          SELECT 1 FROM ${projectMemberships}
+          WHERE ${projectMemberships.projectId} = ${siteFeedback.projectId}
+            AND ${projectMemberships.userId} = ${userId}
+            AND ${projectMemberships.role} = 'editor'
+        ))`,
         inArray(siteFeedback.status, [FEEDBACK_STATUS.NEW, FEEDBACK_STATUS.DISPATCHED]),
       ),
     )
@@ -255,7 +310,7 @@ export async function listFeedbackSummary(userId: string): Promise<ProjectFeedba
 
 /** Feedback plus its registered worker project. An entity alone cannot execute work. */
 export async function getFeedbackWithProject(
-  userId: string,
+  actorUserId: string,
   id: string,
 ): Promise<{
   feedback: SiteFeedback;
@@ -264,7 +319,17 @@ export async function getFeedbackWithProject(
   agentPref: string | null;
   /** A folder or a repository — somewhere for the agent to work. */
   hasWorkspace: boolean;
+  ownerUserId: string;
+  canEdit: boolean;
 } | null> {
+  const [identity] = await db
+    .select({ projectId: siteFeedback.projectId })
+    .from(siteFeedback)
+    .where(eq(siteFeedback.id, id))
+    .limit(1);
+  if (!identity) return null;
+  const access = await getProjectAccess(actorUserId, identity.projectId);
+  if (!access) return null;
   const [row] = await db
     .select({
       feedback: siteFeedback,
@@ -280,11 +345,11 @@ export async function getFeedbackWithProject(
       userProjects,
       and(
         eq(userProjects.entityProjectId, siteFeedback.projectId),
-        eq(userProjects.userId, userId),
+        eq(userProjects.userId, access.ownerUserId),
         eq(userProjects.isActive, true),
       ),
     )
-    .where(and(eq(siteFeedback.id, id), eq(siteFeedback.userId, userId)))
+    .where(and(eq(siteFeedback.id, id), eq(siteFeedback.userId, access.ownerUserId)))
     .limit(1);
   if (!row) return null;
   // The name is display/transport context; dispatch addresses feedback.projectId.
@@ -294,6 +359,8 @@ export async function getFeedbackWithProject(
     userProjectId: row.userProjectId,
     agentPref: row.agentPref ?? null,
     hasWorkspace: row.hasWorkspace === true,
+    ownerUserId: access.ownerUserId,
+    canEdit: access.canEdit,
   };
 }
 
