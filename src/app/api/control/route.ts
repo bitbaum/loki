@@ -538,7 +538,7 @@ function resolveAgentRuntime(args: {
       : null
     : rawCurrentPrompt;
 
-  return { agentRunning, activeAgents, sessionLifecycleSignals, currentPrompt };
+  return { agentRunning, activeAgents, sessionLifecycleSignals, currentPrompt, verifiedRunActive };
 }
 
 /** The wire shape of the project's most recent orchestration run. */
@@ -635,7 +635,7 @@ function buildProjectState(entry: ControlProjectEntry, ctx: ProjectStateContext)
 
   const projectAgentId = agentPref ?? agentConfig.agent;
   const projectAgent = agentRegistry.agents.find((agent) => agent.id === projectAgentId);
-  const { agentRunning, activeAgents, sessionLifecycleSignals, currentPrompt } =
+  const { agentRunning, activeAgents, sessionLifecycleSignals, currentPrompt, verifiedRunActive } =
     resolveAgentRuntime({
       runtimeAvailable,
       projectProcesses,
@@ -682,6 +682,7 @@ function buildProjectState(entry: ControlProjectEntry, ctx: ProjectStateContext)
     git: gitMap.get(dir) ?? null,
     sessionLifecycleSignals,
     agentRunning,
+    verifiedRunActive,
     activeAgents,
     profile:
       matchProfileById(projectId, slices.effectiveDbProjects) ??

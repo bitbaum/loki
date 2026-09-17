@@ -110,6 +110,12 @@ export type ProjectDisplayState = {
   isOrchestrationReady: boolean;
   isBeaconActive: boolean;
   isRunning: boolean;
+  /** WHICH signal made isRunning true. The evidence line names this rather
+   *  than asserting a /proc hit for all of them: only "process" is a detected
+   *  agent process. Control read "Working · Live agent process detected" for a
+   *  project whose own API reported agentRunning=false and activeAgents=[]
+   *  (2026-09-17) — the state was right, the stated reason was invented. */
+  runningEvidence: "process" | "live-turn" | "run-output" | "dispatched-prompt" | null;
   /** SSOT for "is the agent actively working right now?" — chip + badge read this. */
   isAgentWorking: boolean;
   isSessionOpen: boolean;
@@ -583,6 +589,19 @@ export function inferAgentLabelFromTabName(tabName: string): string | null {
   return id ? (AGENT_LABELS[id] ?? null) : null;
 }
 
+/** The evidence line for each way a project can be "Working". Keyed by
+ *  ProjectDisplayState["runningEvidence"] so a new running signal cannot be
+ *  added without stating what it actually observed. */
+const RUNNING_EVIDENCE_LABEL: Record<
+  NonNullable<ProjectDisplayState["runningEvidence"]>,
+  string
+> = {
+  process: "Live agent process detected",
+  "live-turn": "Agent reported a turn in progress",
+  "run-output": "Run output still arriving from the builder",
+  "dispatched-prompt": "Dispatched prompt still tracked, no agent process seen",
+};
+
 export function getProjectDisplayState(
   project: ProjectState,
   liveTabs: string[],
@@ -599,6 +618,7 @@ export function getProjectDisplayState(
       isOrchestrationReady: false,
       isBeaconActive: false,
       isRunning: false,
+      runningEvidence: null,
       isAgentWorking: false,
       isSessionOpen: false,
       isActive: false,
@@ -627,6 +647,7 @@ export function getProjectDisplayState(
   // server-side by OPEN_TURN_TTL_MS; a second time check here would be a
   // second definition of "too old" for the two to disagree about.
   const liveTurnRunning = (project.liveAgentTurns?.count ?? 0) > 0;
+  const verifiedRunRunning = project.verifiedRunActive;
 
   const isClosed =
     !dismissed && !project.agentRunning && withinWindow(project.closedAt, nowS, CLOSED_WINDOW_S);
@@ -645,6 +666,7 @@ export function getProjectDisplayState(
     !isClosing &&
     !currentPrompt &&
     !liveTurnRunning &&
+    !verifiedRunRunning &&
     withinWindow(project.readyAt, nowS, READY_WINDOW_S);
 
   const isBeaconActive = withinWindow(project.lockAt, nowS, READY_WINDOW_S);
@@ -659,10 +681,30 @@ export function getProjectDisplayState(
     !isClosing &&
     !currentPrompt &&
     !liveTurnRunning &&
+    !verifiedRunRunning &&
     project.latestOrchestrationRun?.state === ORCH_STATE.DONE &&
     withinWindow(latestFinishedAtS, nowS, READY_WINDOW_S);
 
-  const isRunning = promptRunning || liveTurnRunning;
+  // One derivation for "running" AND for why, so the badge and the evidence
+  // line cannot drift apart. Order is weakest-claim-last; a branch is only
+  // taken when its own signal is present, so the label never over-claims.
+  //
+  // `agentRunning` cannot stand in for "a process exists": the control route
+  // ORs verifiedRunActive into it, so a verified run alone sets it. Requiring
+  // !verifiedRunRunning here means a concurrent process + run is reported as
+  // "run-output" — under-claiming, which is the safe direction.
+  const processObserved = project.agentRunning && !verifiedRunRunning;
+  const runningEvidence: ProjectDisplayState["runningEvidence"] =
+    promptRunning && processObserved
+      ? "process"
+      : liveTurnRunning
+        ? "live-turn"
+        : verifiedRunRunning
+          ? "run-output"
+          : promptRunning
+            ? "dispatched-prompt"
+            : null;
+  const isRunning = runningEvidence !== null;
   // Show the running banner whenever a prompt is actively tracked — don't require
   // isRunning because the process may not yet appear in /proc on the current tick.
   const showRunningBanner = !isClosing && !isReady && Boolean(currentPrompt);
@@ -753,6 +795,7 @@ export function getProjectDisplayState(
       isOrchestrationReady: false,
       isBeaconActive: false,
       isRunning: false,
+      runningEvidence: null,
       isAgentWorking: false,
       isSessionOpen: false,
       isActive: false,
@@ -773,6 +816,7 @@ export function getProjectDisplayState(
     isOrchestrationReady,
     isBeaconActive,
     isRunning,
+    runningEvidence,
     isAgentWorking: isRunning,
     isSessionOpen,
     isActive,
@@ -843,13 +887,18 @@ export function buildProjectOperationsSnapshot(
       ? `Last dispatch ${timeAgo(new Date(latestActivity.at).getTime())}`
       : null;
 
+  // Each label names the signal that actually fired. "Live agent process
+  // detected" is reserved for a real /proc observation; the other three states
+  // are honest about being a report, a stream, or a tracked sentinel rather
+  // than borrowing the process claim (2026-09-17: Control asserted a detected
+  // process for a project whose API reported none — see runningEvidence).
   // Evidence labels are the LONG-form descriptions shown as subtitles next
   // to the badge. They INTENTIONALLY add detail the badge can't fit (e.g.,
   // "Agent signaled ready on connected computer" vs the badge's "Ready for
   // next step"). A quiet process is not proof that it asked the user a
   // question, so open_idle uses the same neutral label as its badge.
   const liveEvidenceLabel = display.isRunning
-    ? "Live agent process detected"
+    ? RUNNING_EVIDENCE_LABEL[display.runningEvidence ?? "dispatched-prompt"]
     : display.isReady
       ? "Agent signaled ready on connected computer"
       : display.isOrchestrationReady
