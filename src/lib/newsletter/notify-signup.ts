@@ -29,7 +29,18 @@ export async function notifyNewsletterSignup(email: string, source: string): Pro
       return;
     }
     const what = source.startsWith("bitbaum-hire") ? "🧾 Waitlist signup" : "📬 New subscriber";
-    await sendTelegramMessage(target, `${what} — ${source}\n${email}`);
+    const result = await sendTelegramMessage(target, `${what} — ${source}\n${email}`);
+    // sendTelegramMessage REPORTS failure, it does not throw — so ignoring the
+    // result swallows a dead channel silently, which is the exact failure this
+    // function exists to prevent. Asked "did the signup reach anyone?", the
+    // only honest answer must come from a log line, not from absence.
+    if (!result.ok) {
+      void logDebug({
+        source: "newsletter/notify-signup",
+        level: "warn",
+        message: `signup via ${source} was not delivered: ${result.error ?? "unknown error"}`,
+      });
+    }
   } catch (e) {
     void logDebug({
       source: "newsletter/notify-signup",
