@@ -86,9 +86,18 @@ jobs:
       - name: Setup SSH
         env:
           SSH_KEY: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
-          IP: "167.233.22.31"
+          # The box address is the org-level Actions variable HETZNER_IP, not a
+          # literal. This workflow is REUSED by ~20 repos, so a literal here is
+          # twenty edits on the day the box moves — and the DNS hint below
+          # quoted the same number a second time, in prose nobody greps.
+          IP: ${{ vars.HETZNER_IP }}
         run: |
           set -euo pipefail
+          if [ -z "$IP" ]; then
+            echo "::error::org variable HETZNER_IP is unset — a deploy cannot guess where the box is."
+            echo "::error::Set it under the bitbaum org: Settings -> Secrets and variables -> Actions -> Variables."
+            exit 1
+          fi
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
@@ -351,7 +360,7 @@ jobs:
           if ! getent hosts "$DOMAIN" >/dev/null 2>&1; then
             echo "::error::$DOMAIN does not resolve — this is a DNS gap, NOT a broken deploy."
             echo "::error::The app was deployed and Caddy is configured for it; the hostname simply does not exist."
-            echo "::error::Fix: create an A record $DOMAIN → 167.233.22.31 at the DNS provider (orangecat.ch is on Infomaniak), then re-run this workflow."
+            echo "::error::Fix: create an A record $DOMAIN → $IP at the DNS provider (orangecat.ch is on Infomaniak), then re-run this workflow."
             exit 1
           fi
 

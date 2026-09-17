@@ -8,32 +8,27 @@
  * Only fills rows where live_url IS NULL — a URL the user has edited is the
  * SSOT and must never be overwritten by a seed. Safe to re-run.
  *
- * Source of truth for this map: the Caddy vhosts + systemd units on the box
- * (`ls /etc/caddy/apps.d`), read 2026-08-06.
+ * The map is DERIVED from scripts/hetzner/apps.conf, the hosting register —
+ * the same source the public footer is generated from. It used to be a
+ * hand-typed copy "read 2026-08-06", and by 2026-09-15 two of its fifteen
+ * entries pointed at retired hosts (aoz-wohnen.orangecat.ch, revampit.orangecat.ch):
+ * running it would have written stale URLs into every empty live_url.
  *
  * Run: DATABASE_URL=... npx tsx scripts/seed-fleet-site-urls.ts [--apply]
  */
 import { isNull, and, eq } from "drizzle-orm";
 import { db } from "../src/db";
 import { userProjects } from "../src/db/schema";
+import { readAppsConf, hostedUrl } from "../src/lib/register/apps-conf";
+import { canonicalSlug } from "../src/lib/register/build";
 
-const SITES: Record<string, string> = {
-  "aoz-begleitung": "https://aoz-wohnen.orangecat.ch",
-  botsmann: "https://botsmann.orangecat.ch",
-  datacat: "https://datacat.orangecat.ch",
-  loki: "https://loki.orangecat.ch",
-  kivvi: "https://kivvi.orangecat.ch",
-  orangecat: "https://orangecat.ch",
-  petvity: "https://petvity.orangecat.ch",
-  printcraft: "https://printcraft.orangecat.ch",
-  "reparaturbonus-zh": "https://reparaturbonus.orangecat.ch",
-  "revamp-info": "https://revamp-info.orangecat.ch",
-  revampit: "https://revampit.orangecat.ch",
-  "sbb-fundbuero": "https://sbbfundbuero.orangecat.ch",
-  solon: "https://solon.orangecat.ch",
-  "surf-your-life": "https://surf-your-life.orangecat.ch",
-  vitareba: "https://vitareba.orangecat.ch",
-};
+/** Canonical project slug → the URL the box actually serves it at. */
+const SITES: Record<string, string> = Object.fromEntries(
+  readAppsConf().flatMap((app) => {
+    const url = hostedUrl(app);
+    return url ? [[canonicalSlug(app.name), url]] : [];
+  }),
+);
 
 const apply = process.argv.includes("--apply");
 

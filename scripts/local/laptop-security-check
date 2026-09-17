@@ -31,7 +31,21 @@ DRY_RUN=""; [ "${1:-}" = "--dry-run" ] && DRY_RUN=1
 S="${XDG_STATE_HOME:-$HOME/.local/state}/laptop-security-check${DRY_RUN:+/dry-run}"
 mkdir -p "$S"
 FIRST=0; [ -f "$S/seeded" ] || FIRST=1
-BOX_SSH="ssh -o BatchMode=yes -o ConnectTimeout=8 ubuntu@167.233.22.31"
+# _box-env.sh is the single source of truth for the box address. This script is
+# INSTALLED BY COPY into ~/.local/bin, and systemd --user runs that copy — so a
+# path relative to the script would point at ~/.local/hetzner and silently fail.
+# Resolve beside the real file first, then the loki checkout under DEV_ROOT, and
+# stop loudly if neither exists: a check that cannot find what it checks must
+# not look like a check that found nothing.
+for _box_env in "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../hetzner/_box-env.sh" \
+                "${DEV_ROOT:-$HOME/dev}/loki/scripts/hetzner/_box-env.sh"; do
+  if [ -f "$_box_env" ]; then . "$_box_env"; break; fi
+done
+if [ -z "${BOX_UBUNTU:-}" ]; then
+  echo "$(basename "$0"): cannot find loki scripts/hetzner/_box-env.sh (tried beside the script and under DEV_ROOT/loki)" >&2
+  exit 1
+fi
+BOX_SSH="ssh -o BatchMode=yes -o ConnectTimeout=8 $BOX_UBUNTU"
 findings=()
 
 set_diff() {  # <baseline> <current> → lines new in current; replaces baseline
