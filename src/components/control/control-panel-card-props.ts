@@ -19,6 +19,8 @@ type Deps = {
   liveTabs: string[];
   selectedAgent: string;
   switchableRegistry: RegistryEntry[];
+  /** Operator's provider ranking from the snapshot; null = fleet default. */
+  agentOrder: string[] | null;
   inject: (
     tab: string,
     promptKey?: string,
@@ -77,6 +79,7 @@ export function buildCardProps(deps: Deps) {
     liveTabs: deps.liveTabs,
     currentAdapter: deps.selectedAgent,
     availableAgents,
+    agentOrder: deps.agentOrder,
     onInject: async (
       tab: string,
       promptKey?: string,

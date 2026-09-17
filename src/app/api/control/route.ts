@@ -24,6 +24,8 @@ import {
   recordSessionHandoffChangelog,
 } from "@/db/queries/user-projects";
 import { readAgentPreferences, resolveAgentConfig } from "@/lib/agent-preferences";
+import { getUserPreferences } from "@/db/queries/user-preferences";
+import { parseProviderOrder } from "@/lib/provider-switch";
 import {
   buildSwitchableAgentCatalog,
   type AgentAvailabilityOverride,
@@ -223,6 +225,12 @@ export async function GET() {
   const preferences = readAgentPreferences();
   const agentConfig = resolveAgentConfig(preferences);
   const prompts = readPromptMeta();
+  // The operator's provider ranking, so Control's capacity banner offers the
+  // same next provider the Feedback row and Terminal rail do. Without it the
+  // two surfaces named different agents for the same stalled project.
+  const agentOrder = parseProviderOrder(
+    (await getUserPreferences(userId).catch(() => null))?.agentOrder ?? null,
+  );
 
   // Own projects + team projects (org peers). Own take precedence on tab-name collision.
   const [dbUserProjects, dbTeamProjects] = await Promise.all([
@@ -663,6 +671,7 @@ export async function GET() {
     {
       agentRegistry,
       agentConfig,
+      agentOrder,
       orchestration: {
         manualPromptInjection: true,
         autonomousPromptLoop: true,

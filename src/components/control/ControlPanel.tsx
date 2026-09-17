@@ -329,6 +329,7 @@ export function ControlPanel() {
     liveTabs: data?.liveTabs ?? [],
     selectedAgent,
     switchableRegistry,
+    agentOrder: data?.agentOrder ?? null,
     inject,
     runWithBrain,
     runCustomPrompt,
