@@ -7,7 +7,7 @@ import { injectPrompt } from "@/lib/inject-core";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { composeFeedbackFixPrompt } from "@/lib/feedback/compose-dispatch";
 import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-phase";
-import { runToFeedbackSnapshot } from "@/lib/feedback/attach-work";
+import { hydrateFeedbackSnapshot } from "@/lib/feedback/attach-work";
 import { getCurrentClaudeSessionForProject } from "@/db/queries/agent-sessions";
 import { DEFAULT_ADAPTER_ID, ORCHESTRATION_ADAPTER_IDS, type AdapterId } from "@/lib/orchestration";
 import { feedbackInjectAccepted } from "@/lib/feedback/dispatch-accept";
@@ -97,7 +97,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const run = row.feedback.dispatchedRunId
       ? await getOrchestrationRunById(executionUserId, row.feedback.dispatchedRunId)
       : null;
-    const work = deriveFeedbackWork(row.feedback.status, runToFeedbackSnapshot(run));
+    // Hydrated: without builder presence this guard cannot tell a live agent
+    // from one queued on a builder that is switched off, so it refused the
+    // retry the row was asking for.
+    const work = deriveFeedbackWork(
+      row.feedback.status,
+      await hydrateFeedbackSnapshot(executionUserId, run),
+    );
     if (work.phase === FEEDBACK_WORK_PHASE.QUEUED || work.phase === FEEDBACK_WORK_PHASE.WORKING) {
       return jsonError(
         "Already on this — Watch the terminal, or wait for Telegram when it needs you / stalls.",
