@@ -37,6 +37,8 @@ import {
   type SendResult,
 } from "@/lib/actions/telegram-send";
 import { resolveEventTimes } from "@/lib/actions/calendar-event";
+import { conflictsFor, conflictLine } from "@/lib/calendar/busy";
+import { getBusyAround } from "@/db/queries/calendar-busy";
 import { getUserPreferences, getActiveTimezone } from "@/db/queries/user-preferences";
 import { logDebug } from "@/db/queries/debug-logs";
 import { APP_URL } from "@/config/brand";
@@ -112,6 +114,53 @@ function describeAction(action: ActionRow, timeZone: string): string[] {
 }
 
 /**
+ * "⚠️ Clashes with …" for a proposed calendar event, or null when there is
+ * nothing worth saying.
+ *
+ * WHY THE CARD NEEDS THIS. The card exists so a booking can be checked before
+ * it happens, and the single most useful check — is that slot already taken? —
+ * was the one it could not perform: the cloud cannot read the calendar, because
+ * `gog` is authenticated on the operator's machine alone. On 2026-09-17 a
+ * proposal for 14:30–15:30 was approved on top of an existing 15:00 meeting and
+ * the card said nothing at all. The mirror (db/schema/calendar-busy.ts) exists
+ * to close exactly that gap.
+ *
+ * Best-effort by contract: a failed lookup returns null rather than blocking the
+ * card. A proposal the operator can still read and decide beats no proposal —
+ * but null here means "say nothing extra", NOT "the slot is free". That
+ * distinction is kept honest inside conflictsFor, which answers `unknown`
+ * rather than `clear` when the mirror is stale, and that answer DOES reach the
+ * card.
+ */
+async function conflictWarning(
+  userId: string,
+  action: ActionRow,
+  timeZone: string,
+): Promise<string | null> {
+  if (action.type !== ACTION_TYPE.CREATE_EVENT) return null;
+  const times = resolveEventTimes(action.payload);
+  if (!times) return null;
+
+  const start = new Date(times.allDay ? `${times.from}T00:00:00Z` : times.from);
+  const end = new Date(times.allDay ? `${times.to}T00:00:00Z` : times.to);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+
+  try {
+    const { blocks, syncedAt } = await getBusyAround(userId, start, end);
+    return conflictLine(conflictsFor({ start, end, busy: blocks, syncedAt }), (d) =>
+      d.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone,
+      }),
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
  * A draft is waiting on a human. Card + [Approve] [Edit] [Reject].
  *
  * `reason` is the standing-approval verdict's explanation when there was one —
@@ -139,6 +188,10 @@ export async function notifyActionNeedsDecision(
       `“${action.title}”`,
       ...describeAction(action, tz),
     ];
+    // Directly under the when/where, above the buttons: this is the fact most
+    // likely to change the answer, so it must not sit below a wall of text.
+    const clash = await conflictWarning(userId, action, tz);
+    if (clash) lines.push(clash);
     if (reason) lines.push(`\nWhy you're being asked: ${reason}.`);
 
     const keyboard: TelegramKeyboard = [
