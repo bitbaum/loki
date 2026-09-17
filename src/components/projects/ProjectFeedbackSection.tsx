@@ -316,7 +316,7 @@ export function ProjectFeedbackSection({
               feedback={f}
               projectName={projectName}
               busy={busyId === f.id}
-              onDispatch={(note) => dispatchFix(f.id, note)}
+              onDispatch={(opts) => dispatchFix(f.id, opts ?? {})}
               onResolve={() => setStatus(f.id, FEEDBACK_STATUS.RESOLVED)}
               onArchive={() => setStatus(f.id, FEEDBACK_STATUS.ARCHIVED)}
               onReopen={() => setStatus(f.id, FEEDBACK_STATUS.NEW)}

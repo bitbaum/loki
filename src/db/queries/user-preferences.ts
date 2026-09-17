@@ -13,6 +13,8 @@ export type UserPreferencesData = {
   currentCityUntil: string | null;
   writingVoice: string | null;
   memoryEnabled: boolean;
+  /** Preferred provider order, comma-separated agent ids. Null = fleet default. */
+  agentOrder: string | null;
 };
 
 export function getActiveCity(prefs: UserPreferencesData | null): string {
@@ -53,6 +55,7 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
       currentCityUntil: null,
       writingVoice: null,
       memoryEnabled: true,
+      agentOrder: null,
     };
 
   return {
@@ -64,6 +67,7 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     currentCityUntil: row.currentCityUntil,
     writingVoice: row.writingVoice,
     memoryEnabled: row.memoryEnabled,
+    agentOrder: row.agentOrder,
   };
 }
 
@@ -95,5 +99,6 @@ function toRow(d: UserPreferencesData) {
     currentCityUntil: d.currentCityUntil,
     writingVoice: d.writingVoice,
     memoryEnabled: d.memoryEnabled,
+    agentOrder: d.agentOrder,
   };
 }

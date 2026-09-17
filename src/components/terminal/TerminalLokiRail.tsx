@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { MarkdownText } from "@/components/ui/markdown-text";
+import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import { dispatchToneDotClass } from "@/lib/dispatch-status";
 import { presentTerminalRun, type TerminalRunView } from "@/lib/terminal-run-view";
@@ -19,7 +20,7 @@ export function TerminalLokiRail({
   tab,
   runId,
   ptyLive,
-  currentAgent,
+  projectId,
   canSwitchAgent,
   onSwitchAgent,
 }: {
@@ -27,7 +28,8 @@ export function TerminalLokiRail({
   tab: string | null;
   runId: string | null;
   ptyLive: boolean;
-  currentAgent: string | null;
+  /** user_projects id — lets the chooser exclude the agent that just died. */
+  projectId: string | null;
   canSwitchAgent: boolean;
   onSwitchAgent: (agentId: string) => void;
 }) {
@@ -39,7 +41,7 @@ export function TerminalLokiRail({
     commandId: string | null;
     runId: string | null;
   } | null>(null);
-  const [switching, setSwitching] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
 
   const liveDispatch = useDispatchLiveStatus(
     injectAck?.commandId ?? null,
@@ -82,12 +84,12 @@ export function TerminalLokiRail({
     };
   }, [load]);
 
-  const switchTo = async (agentId: string) => {
-    setSwitching(agentId);
+  const switchTo = (agentId: string) => {
+    setSwitching(true);
     try {
       onSwitchAgent(agentId);
     } finally {
-      window.setTimeout(() => setSwitching(null), 800);
+      window.setTimeout(() => setSwitching(false), 800);
     }
   };
 
@@ -104,9 +106,6 @@ export function TerminalLokiRail({
     );
   }
 
-  const alternatives = view?.quotaDeath
-    ? view.alternatives.filter((a) => a.id !== currentAgent)
-    : [];
   const ptyAck =
     injectAck &&
     (ptyLive || view?.lastProgressAt ? "PTY is printing." : "Injected — waiting for PTY bytes.");
@@ -142,23 +141,20 @@ export function TerminalLokiRail({
           </div>
         )}
 
-        {alternatives.length > 0 && (
+        {/* The rail used to list every alternative agent in config order,
+            whether or not the connected builder had it installed and whether or
+            not it had hit its own limit ten minutes earlier. Now it is the same
+            ranked, filtered chooser Feedback and Control show — one tap, the
+            operator's preferred order, only providers that can answer. */}
+        {view?.quotaDeath && canSwitchAgent && (
           <div className="mt-3 flex flex-col gap-1.5">
             <p className="text-xs font-medium text-text-primary">Try another provider</p>
-            <div className="flex flex-wrap gap-1.5">
-              {alternatives.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  className="ui-btn-secondary"
-                  disabled={!canSwitchAgent || switching === a.id}
-                  onClick={() => void switchTo(a.id)}
-                >
-                  {switching === a.id ? <Loader2 className="ui-spinner-xs" /> : null}
-                  Try {a.label}
-                </button>
-              ))}
-            </div>
+            <ProviderSwitch
+              projectId={projectId}
+              busy={switching}
+              hint="Quits the current CLI in this tab and launches the one you pick."
+              onSwitch={switchTo}
+            />
           </div>
         )}
 

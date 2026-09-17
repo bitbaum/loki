@@ -69,7 +69,6 @@ export async function GET(req: NextRequest) {
     runId: run.id,
     projectKey: run.projectKey,
     work,
-    currentAgent: run.adapter,
     lastProgressAt: snap?.lastProgressAt ?? null,
     error: snap?.error ?? null,
   });

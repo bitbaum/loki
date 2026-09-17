@@ -24,6 +24,21 @@ export const userPreferences = pgTable(
     // Consent: may the fleet build its knowledge index (RAG embeddings) from the
     // user's data? Gates upsertKnowledgeBatch — the single write chokepoint.
     memoryEnabled: boolean("memory_enabled").notNull().default(true),
+    /**
+     * Which agent CLI to reach for first when the current one runs out of
+     * quota — comma-separated agent ids, best first ("codex,claude,grok").
+     *
+     * Null is a real answer and not a missing one: it means the operator never
+     * stated a preference, and the fleet's default order (AGENT_FALLBACK_ORDER)
+     * applies. Stored as one ordered string rather than a rank-per-agent table
+     * because the only question ever asked of it is "what is the whole order",
+     * and a list is how an ordered list is spelled.
+     *
+     * Unknown ids are tolerated on read (parseProviderOrder drops them) so a
+     * retired agent id in an old row degrades to "not ranked" instead of
+     * breaking the chooser it feeds.
+     */
+    agentOrder: text("agent_order"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("idx_user_preferences_user_id").on(t.userId)],

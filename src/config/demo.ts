@@ -240,6 +240,7 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
   "project-states",
   "projects",
   "prompts",
+  "providers",
   "robots",
   "sessions",
   "setup",
@@ -261,6 +262,11 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
 //           OrangeCat, and that route carries its own denyDemoInHandler call —
 //           it cannot live in DEMO_HANDLER_ENFORCED because the matcher does
 //           reach /api/crew, and this list is for families it excludes.
+//   providers — read-only, and every input is the caller's own: their projects,
+//           their preference row, their builder's capability report, their own
+//           runs. It spends nothing to answer (the quota evidence is read from
+//           runs already recorded, never probed from a vendor), so a demo
+//           account asking who else could build is asking about itself.
 //   share — the assignee's endpoint. It answers on a token, before and without
 //           any session, exactly like /api/invitations/<token>. Gating the demo
 //           account on it would protect nothing: a caller holding a share token

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { getSessionUserId } from "@/lib/session";
 import { getUserPreferences, upsertUserPreferences } from "@/db/queries/user-preferences";
+import { PROVIDER_IDS, serializeProviderOrder } from "@/lib/provider-switch";
 
 const SUPPORTED_TIMEZONES = new Set(Intl.supportedValuesOf("timeZone"));
 
@@ -56,6 +57,14 @@ const PatchBody = z.object({
     .optional(),
   writingVoice: z.string().trim().max(600).nullable().optional(),
   memoryEnabled: z.boolean().optional(),
+  // Accepted as a LIST and stored as one string, so the client never has to
+  // know the storage shape and an unknown id can never reach the column.
+  agentOrder: z
+    .array(z.string())
+    .max(PROVIDER_IDS.length)
+    .transform(serializeProviderOrder)
+    .nullable()
+    .optional(),
 });
 
 export async function GET() {

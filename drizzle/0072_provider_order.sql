@@ -1,0 +1,21 @@
+-- Migration: user_preferences.agent_order — which provider to reach for next.
+--
+-- "Try next provider" needs an order, and until now the only one that existed
+-- was AGENT_FALLBACK_ORDER, a constant in the source. So the button offered the
+-- fleet's opinion rather than the operator's: it said "Try Cursor" to someone
+-- whose Cursor subscription had lapsed, and the only way to express otherwise
+-- was to set a per-project agent preference, one project at a time, after the
+-- switch had already gone to the wrong place.
+--
+-- One ordered string, not a rank-per-agent table: the only question ever asked
+-- of this column is "what is the whole order", and a list is how an ordered
+-- list is spelled.
+--
+-- NULL is a real answer and not a missing one — it means the operator never
+-- stated a preference, and the fleet default applies. Unknown ids inside the
+-- string are dropped on read (parseProviderOrder), so a retired agent id in an
+-- old row degrades to "not ranked" rather than breaking the chooser.
+--
+-- Nullable and additive. Every existing row keeps its meaning.
+
+ALTER TABLE "user_preferences" ADD COLUMN IF NOT EXISTS "agent_order" text;

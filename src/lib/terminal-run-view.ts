@@ -3,7 +3,6 @@
  * the same work-phase + run_events hop Watch uses. Not a log dump.
  */
 import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
-import { QUOTA_ALTERNATIVE_AGENTS, type QuotaAlternative } from "@/config/quota-alternatives";
 import { FEEDBACK_WORK_PHASE, type FeedbackWorkView } from "@/lib/feedback/work-phase";
 
 export type TerminalRunView = {
@@ -17,8 +16,17 @@ export type TerminalRunView = {
   diagnostic: string | null;
   terminalReady: boolean;
   lastProgressAt: string | null;
+  /**
+   * This run died on a capacity wall, so the rail offers the provider chooser.
+   *
+   * The list of WHICH providers is no longer computed here. It used to be —
+   * every alternative in config order, unfiltered — and the rail rendered it
+   * verbatim, offering agents the connected builder had never installed. The
+   * ranking now lives in one place (`/api/providers` over
+   * `src/lib/provider-switch.ts`) and is shared with Feedback and Control, so
+   * this flag says only whether to ask it.
+   */
   quotaDeath: boolean;
-  alternatives: QuotaAlternative[];
 };
 
 export type TerminalRunPresentation = Pick<TerminalRunView, "label" | "stepSummary" | "nextAction">;
@@ -42,20 +50,21 @@ export function presentTerminalRun(
   };
 }
 
-export function quotaDeathAlternatives(input: {
+/** Did this run die because the agent ran out of capacity? */
+export function isQuotaDeath(input: {
   diagnostic?: string | null;
   error?: string | null;
-  currentAgent?: string | null;
-}): QuotaAlternative[] | null {
+}): boolean {
   const text = [input.diagnostic, input.error].filter(Boolean).join(" ");
-  if (!text || !looksLikeAgentCapacityIssue(text)) return null;
-  const current = (input.currentAgent ?? "").toLowerCase();
-  const list = QUOTA_ALTERNATIVE_AGENTS.filter((a) => a.id !== current);
-  return list.length ? [...list] : null;
+  return !!text && looksLikeAgentCapacityIssue(text);
 }
 
 export function nextActionForWork(work: FeedbackWorkView, quotaDeath = false): string {
-  if (quotaDeath) return "Quota empty — try Claude Code, Codex, Cursor, Grok, or Antigravity.";
+  // Deliberately does not name the alternatives. It used to list all five, and
+  // that sentence went stale the moment the chooser started filtering to the
+  // ones actually installed — the prose promised Cursor while the button below
+  // it said Cursor was not installed.
+  if (quotaDeath) return "Quota empty — switch to a provider that still has some.";
   if (work.queueReason) return work.queueReason;
   if (work.detail) return work.detail;
   if (work.phase === FEEDBACK_WORK_PHASE.WORKING) {
@@ -71,16 +80,10 @@ export function buildTerminalRunView(input: {
   runId: string;
   projectKey: string;
   work: FeedbackWorkView;
-  currentAgent?: string | null;
   lastProgressAt?: string | null;
   error?: string | null;
 }): TerminalRunView {
-  const alternatives = quotaDeathAlternatives({
-    diagnostic: input.work.diagnostic,
-    error: input.error,
-    currentAgent: input.currentAgent,
-  });
-  const quotaDeath = alternatives !== null;
+  const quotaDeath = isQuotaDeath({ diagnostic: input.work.diagnostic, error: input.error });
   return {
     runId: input.runId,
     projectKey: input.projectKey,
@@ -95,6 +98,5 @@ export function buildTerminalRunView(input: {
     terminalReady: input.work.terminalReady === true,
     lastProgressAt: input.lastProgressAt ?? input.work.lastActivityAt ?? null,
     quotaDeath,
-    alternatives: alternatives ?? [],
   };
 }

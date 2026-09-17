@@ -9,6 +9,7 @@ import { PrivacySettings } from "./PrivacySettings";
 import { LocationSettings } from "./LocationSettings";
 import { VoiceSettings } from "./VoiceSettings";
 import { AiQuotaSettings } from "./AiQuotaSettings";
+import { ProviderOrderSettings } from "./ProviderOrderSettings";
 import { AgentTokenSettings } from "./AgentTokenSettings";
 import { BeaconSettings } from "./BeaconSettings";
 import { BillingSettings } from "./BillingSettings";
@@ -151,6 +152,7 @@ export function SettingsTabs({
         {activeTab === "location" && <LocationSettings initialPrefs={userPrefs} />}
         {activeTab === "agent" && (
           <div className="space-y-6">
+            <ProviderOrderSettings initialPrefs={userPrefs} />
             <AgentTokenSettings />
             <BeaconSettings />
           </div>

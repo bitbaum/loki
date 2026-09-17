@@ -43,6 +43,8 @@ export type TerminalTabContext = {
   agentPref: string | null;
   /** Registered project this tab resolves to — by name, else by pane cwd. */
   projectName: string | null;
+  /** user_projects id for that project — what /api/providers scopes on. */
+  projectId: string | null;
   /** Agent CLIs actually running in this tab's panes ("claude", "grok", …),
    *  from the runner's pane topology. Empty when unknown or shell-only. */
   liveAgents: string[];
@@ -116,6 +118,7 @@ export async function GET(req: Request) {
       dir: project?.dirPath ?? null,
       agentPref: project?.agentPref ?? null,
       projectName: project?.name ?? null,
+      projectId: project?.id ?? null,
       liveAgents,
     };
   });
