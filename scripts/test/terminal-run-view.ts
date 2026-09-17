@@ -15,6 +15,7 @@ import { FEEDBACK_WORK_PHASE, WAITING_ON, type FeedbackWorkView } from "@/lib/fe
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { QUOTA_ALTERNATIVE_AGENTS } from "@/config/quota-alternatives";
+import { capacityFailureFromScreen } from "../../desktop/src/main/pty-runtime";
 
 let passed = 0;
 const check = (label: string, fn: () => void) => {
@@ -66,6 +67,14 @@ check("the dead agent is hidden from the chooser", () => {
 check("silence is not quota death", () => {
   assert.equal(quotaDeathAlternatives({ diagnostic: "Waiting for first output" }), null);
   assert.equal(quotaDeathAlternatives({ diagnostic: null, error: null }), null);
+});
+
+check("a quota redraw is a blocker, not generation evidence", () => {
+  assert.match(
+    capacityFailureFromScreen("Weekly limit left: 0% · Grok 4.6", "grok") ?? "",
+    /usage limit is exhausted/,
+  );
+  assert.equal(capacityFailureFromScreen("Thinking…", "grok"), null);
 });
 
 check("next action prefers the queue reason over a badge", () => {

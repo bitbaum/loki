@@ -36,6 +36,7 @@
 - [x] Production Control walkthrough: `0 working · 0 awaiting input · 23 idle`; the false `3 awaiting input` claim is gone.
 - [x] Production Feedback walkthrough: rows show exact `submitted Sep …` timestamps.
 - [ ] Follow-up stale-run truth patch: deploy and confirm the old Substrata run says `Session ended` while no PTY exists.
+- [ ] Fleet Runner v0.8.28: deploy and confirm a Grok `Weekly limit left: 0%` screen becomes a capacity failure, not a `generating` event.
 
 ## Production evidence
 
@@ -44,6 +45,7 @@
 - Local source switch raised `Cannot read properties of null (reading 'key')`.
 - The v0.8.27 runner restart was initially held by four 90–113 minute idle Claude processes. They were stale, so the runner was restarted at 05:28 UTC; only the runner process remained afterward.
 - Authenticated browser audit produced no console errors. Screenshots are on the production box at `/tmp/terminal-cloud-prod.png`, `/tmp/terminal-local-prod.png`, `/tmp/control-prod.png`, and `/tmp/feedback-prod.png`.
+- A real Retry on “Easy inference-provider switch” opened Watch immediately and exposed Terminal + Chat links. Run `60071fea-05e8-4812-9b51-b42d69b20ddd` routed correctly to `This computer` + Grok and the command was acknowledged, but Grok's terminal showed `Weekly limit left: 0%`. The v0.8.27 verifier treated that redraw as generation; v0.8.28 fixes this classification.
 
 ## Resume point
 

@@ -41,6 +41,7 @@ import {
   isPtyBusy,
   waitForPtyOutput,
   explainPtyDispatchFailure,
+  detectPtyCapacityFailure,
   terminatePty,
   waitForPtyReady,
   peekPtyBuffer,
@@ -665,13 +666,21 @@ async function handleCommand(
               error =
                 `${agent} is not authenticated (401 / login required) — the prompt was delivered but the agent can't run. ` +
                 `On the runner host, remove any stale ~/.claude/.credentials.json and set CLAUDE_CODE_OAUTH_TOKEN (claude setup-token).`
-            } else if (!verified) {
+            } else {
+              const capacityFailure = detectPtyCapacityFailure(tab, agent as AgentOption)
+              if (capacityFailure) {
+                ok = false
+                verified = false
+                warning = undefined
+                error = capacityFailure
+              } else if (!verified) {
               // Unverified inject is a soft failure for the captain loop: "Install
               // dispatched" with no generation is how botsmann stayed Not live
               // while Activity looked busy. Prefer Failed over fake success.
               ok = false
               warning = undefined
               error = `${text}, but Loki could not verify generation. ${explainPtyDispatchFailure(tab, agent as AgentOption)}`
+              }
             }
             break
           }
