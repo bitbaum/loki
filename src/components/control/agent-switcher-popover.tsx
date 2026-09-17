@@ -16,6 +16,14 @@ export type AgentEntry = {
   /** From the runner capability report. `undefined` = unknown (treated as usable). */
   available?: boolean;
   availabilityReason?: string;
+  /**
+   * Short suffix for a disabled row. Defaults to "not installed", which is the
+   * only reason this popover knew about when it was the agent switcher alone.
+   * The provider chooser also disables agents that ARE installed and merely out
+   * of quota, and labelling those "(not installed)" was a false claim sitting
+   * directly above a sentence that said otherwise.
+   */
+  unavailableNote?: string;
   modelSuggestions?: string[];
 };
 
@@ -24,11 +32,17 @@ export function AgentSwitcherPopover({
   activeAgentId,
   onSwitch,
   onClose,
+  title = "Switch agent",
+  hint = "Quits the current CLI and launches the new one — no /quit in terminal.",
 }: {
   agents: AgentEntry[];
   activeAgentId: string;
   onSwitch: (agentId: string | null) => void;
   onClose: () => void;
+  /** Heading. The default describes a LIVE tab swap; the provider chooser on a
+   *  queued run is not swapping anything yet, so it says what it actually does. */
+  title?: string;
+  hint?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -52,12 +66,8 @@ export function AgentSwitcherPopover({
       ref={ref}
       className="absolute left-0 top-full z-50 mt-1.5 min-w-[130px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-border-default bg-surface-overlay py-1.5 shadow-card"
     >
-      <p className="px-3 pb-1 pt-0.5 text-micro uppercase tracking-wide text-text-muted">
-        Switch agent
-      </p>
-      <p className="px-3 pb-1.5 text-micro leading-snug text-text-muted">
-        Quits the current CLI and launches the new one — no /quit in terminal.
-      </p>
+      <p className="px-3 pb-1 pt-0.5 text-micro uppercase tracking-wide text-text-muted">{title}</p>
+      <p className="px-3 pb-1.5 text-micro leading-snug text-text-muted">{hint}</p>
       {agents.map((agent) => {
         const isActive = agent.id === activeAgentId;
         // undefined availability = unknown (no runner report) → treat as usable;
@@ -87,7 +97,7 @@ export function AgentSwitcherPopover({
               {isActive && <Check className="h-3 w-3 shrink-0" />}
               <span className={cn(isActive && "font-medium", !isActive && !unavailable && "pl-5")}>
                 {agent.label}
-                {unavailable && " (not installed)"}
+                {unavailable && ` (${agent.unavailableNote ?? "not installed"})`}
               </span>
             </span>
             {unavailable && agent.availabilityReason && (

@@ -10,6 +10,7 @@ import type { FeedbackListItem } from "@/db/queries/site-feedback";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import { FeedbackWorkBadge } from "@/components/feedback/FeedbackWorkBadge";
 import { FeedbackWatchButton, FeedbackWatchPanel } from "@/components/feedback/FeedbackWatch";
+import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 
@@ -37,7 +38,8 @@ export function FeedbackItemRow({
   /** Set on cross-project surfaces: renders a project chip linking home. */
   project?: { id: string; name: string } | null;
   busy: boolean;
-  onDispatch: (note?: string) => void;
+  /** Queue the fix. `agent` switches provider and records the preference. */
+  onDispatch: (opts?: { note?: string; agent?: string }) => void;
   onResolve: () => void;
   onArchive: () => void;
   onReopen: () => void;
@@ -87,9 +89,9 @@ export function FeedbackItemRow({
     setFollowAfterImplement(true);
     setWatchOpen(true);
   };
-  const startImplement = (note?: string) => {
+  const startImplement = (opts?: { note?: string; agent?: string }) => {
     markFollowing();
-    onDispatch(note);
+    onDispatch(opts);
   };
   // Somewhere for an agent to work. Rows from the per-project inbox carry no
   // flag and keep the one-click Implement; the server refuses the same case.
@@ -300,12 +302,22 @@ export function FeedbackItemRow({
               {showWatch && (
                 <FeedbackWatchButton open={watchOpen} onToggle={() => setWatchOpen((v) => !v)} />
               )}
+              {/* A run that needs you is most often a run that ran out of
+                  quota, and the fix is a different provider — not the same one
+                  again. So the switch is the PRIMARY control here and Retry
+                  steps down beside it. ProviderSwitch renders nothing when it
+                  has no provider that can answer, and Retry is promoted back. */}
+              <ProviderSwitch
+                projectId={f.projectId}
+                busy={busy}
+                onSwitch={(agent) => startImplement({ agent })}
+              />
               <button
                 type="button"
                 onClick={() => startImplement()}
                 disabled={busy}
-                className="ui-btn-save gap-1.5"
-                title="Queue again — Watch opens so you can follow"
+                className="ui-btn-secondary gap-1.5"
+                title="Queue again on the same provider — Watch opens so you can follow"
               >
                 {busy ? <Loader2 className="ui-spinner-xs" /> : <Rocket className="h-3 w-3" />}
                 Retry
@@ -443,12 +455,12 @@ export function FeedbackItemRow({
             placeholder="Instruction for the agent, e.g. 'only fix the mobile layout'"
             className="ui-input-compact flex-1"
             onKeyDown={(e) => {
-              if (e.key === "Enter" && note.trim()) startImplement(note.trim());
+              if (e.key === "Enter" && note.trim()) startImplement({ note: note.trim() });
             }}
           />
           <button
             type="button"
-            onClick={() => startImplement(note.trim() || undefined)}
+            onClick={() => startImplement(note.trim() ? { note: note.trim() } : undefined)}
             disabled={busy}
             className="ui-btn-save gap-1.5"
           >

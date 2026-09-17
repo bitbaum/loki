@@ -26,6 +26,7 @@ import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-pha
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { FeedbackWorkBadge } from "@/components/feedback/FeedbackWorkBadge";
+import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import type { ProjectFeedbackSummary } from "@/db/queries/site-feedback";
 import type { WidgetCoverageItem } from "@/db/queries/widget-tokens";
@@ -572,6 +573,23 @@ function FeedbackTriage({
                 )}
               </div>
               <ActionRail>
+                {/* Same chooser the Feedback row and the Terminal rail use, so
+                    a blocked run is one tap from a provider that can answer
+                    without leaving Control for deep project settings. */}
+                {broken && (
+                  <ProviderSwitch
+                    projectId={projectId}
+                    busy={busyId === f.id || batchBusy}
+                    compact
+                    onSwitch={(agent) =>
+                      act(
+                        f.id,
+                        () => postJson(`/api/feedback/${f.id}/dispatch`, { agent }),
+                        "Provider switch failed",
+                      )
+                    }
+                  />
+                )}
                 {(notStarted || broken) && (
                   <button
                     type="button"

@@ -25,17 +25,24 @@ import {
   effectiveModelSuggestions,
 } from "@/lib/agents";
 import type { AgentAdapter } from "@/lib/agents";
-import { looksLikeAgentCapacityIssue as detectCapacityIssue } from "@/lib/agent-resolution";
+import {
+  AGENT_FALLBACK_ORDER,
+  looksLikeAgentCapacityIssue as detectCapacityIssue,
+} from "@/lib/agent-resolution";
 
 export const AGENT_IDS = ["codex", "claude", "gemini", "cursor", "grok"] as const;
-export const AGENT_FALLBACK_ORDER: readonly Agent[] = [
-  "claude",
-  "cursor",
-  "codex",
-  "gemini",
-  "grok",
-];
 export type Agent = (typeof AGENT_IDS)[number];
+
+/**
+ * Re-export, not a second definition. This file used to declare its own
+ * `AGENT_FALLBACK_ORDER` beside the one in agent-resolution.ts — the same five
+ * ids, written twice, with nothing keeping them in step. The server reroute
+ * (resolveNextAvailableAgent, here) and the client reroute
+ * (resolveNextFallbackAgent, there) each read their own copy, so adding an
+ * agent to one would have silently split the fleet's fallback policy in half.
+ * agent-resolution.ts owns it because it is the client-safe leaf.
+ */
+export { AGENT_FALLBACK_ORDER } from "@/lib/agent-resolution";
 export type AgentOption = Agent | "openclaw";
 
 export { ALL_AGENT_IDS, AGENT_LABELS, type AnyAgentId } from "./agent-labels";

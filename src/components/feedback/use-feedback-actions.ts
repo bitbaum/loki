@@ -27,10 +27,19 @@ export function useFeedbackActions(refetch: () => void) {
     }
   }
 
-  const dispatchFix = (id: string, note?: string) =>
+  /**
+   * Queue (or re-queue) the fix. `agent` switches provider in the same tap:
+   * the route records it as the project's preference before dispatching, so
+   * the next run does not go back to the agent that just hit a rate limit.
+   */
+  const dispatchFix = (id: string, opts: { note?: string; agent?: string } = {}) =>
     act(
       id,
-      () => postJson(`/api/feedback/${id}/dispatch`, note ? { note } : {}),
+      () =>
+        postJson(`/api/feedback/${id}/dispatch`, {
+          ...(opts.note ? { note: opts.note } : {}),
+          ...(opts.agent ? { agent: opts.agent } : {}),
+        }),
       "Could not queue the fix",
     );
 

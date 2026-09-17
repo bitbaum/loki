@@ -49,6 +49,7 @@ export default async function SettingsPage() {
             currentCityUntil: null,
             writingVoice: null,
             memoryEnabled: true,
+            agentOrder: null,
           }
         }
         projects={projects}

@@ -11,6 +11,8 @@ import { runToFeedbackSnapshot } from "@/lib/feedback/attach-work";
 import { getCurrentClaudeSessionForProject } from "@/db/queries/agent-sessions";
 import { DEFAULT_ADAPTER_ID, ORCHESTRATION_ADAPTER_IDS, type AdapterId } from "@/lib/orchestration";
 import { feedbackInjectAccepted } from "@/lib/feedback/dispatch-accept";
+import { isQuotaAlternativeId } from "@/config/quota-alternatives";
+import { updateUserProject } from "@/db/queries/user-projects";
 
 /**
  * One-click Implement: queue a scoped agent run via injectPrompt.
@@ -25,6 +27,17 @@ import { feedbackInjectAccepted } from "@/lib/feedback/dispatch-accept";
 
 const DispatchBody = z.object({
   note: z.string().trim().max(500).optional(),
+  /**
+   * Switch provider and retry, in one tap.
+   *
+   * The whole point of the field is that it PERSISTS: a retry that ran on a
+   * different agent but left `agentPref` pointing at the one that just hit a
+   * rate limit sent the next dispatch straight back into the wall, and the
+   * operator had to find the preference in project settings to make it stick.
+   * So this writes the project's preference and then dispatches on it — one
+   * decision recorded once, in the place every other dispatch path reads.
+   */
+  agent: z.string().trim().max(40).optional(),
 });
 
 /** Adapters Implement may start. openclaw is orchestration-listed but not launchable. */
@@ -93,7 +106,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  const adapter = resolveImplementAdapter(row.agentPref);
+  // Provider switch: validate against the chooser's own id list, record it as
+  // the project's preference, then dispatch on it. Rejected rather than
+  // silently defaulted — a one-tap switch that quietly re-ran the spent agent
+  // would look exactly like a switch that worked.
+  const requestedAgent = dataOrResp.agent;
+  if (requestedAgent && !isQuotaAlternativeId(requestedAgent)) {
+    return jsonError(`Unknown provider: ${requestedAgent}`, 400);
+  }
+  if (requestedAgent && requestedAgent !== row.agentPref) {
+    await updateUserProject(row.userProjectId, executionUserId, { agentPref: requestedAgent });
+  }
+
+  const adapter = resolveImplementAdapter(requestedAgent ?? row.agentPref);
   const currentSession =
     adapter === "claude"
       ? await getCurrentClaudeSessionForProject(

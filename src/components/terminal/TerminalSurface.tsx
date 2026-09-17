@@ -478,7 +478,7 @@ export function TerminalSurface({
         tab={activeTab}
         runId={initialRunId}
         ptyLive={liveState === "live"}
-        currentAgent={activeAgentId}
+        projectId={tabContext?.projectId ?? null}
         canSwitchAgent={!agentSwitchDisabledReason}
         onSwitchAgent={(id) => void switchAgent(id)}
       />

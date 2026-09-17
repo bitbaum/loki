@@ -1,15 +1,16 @@
 /**
- * Terminal Loki rail: commentary from work-phase, not a log dump; quota death
- * offers Claude Code / Codex / Cursor / Grok / Antigravity and hides the dead agent.
+ * Terminal Loki rail: commentary from work-phase, not a log dump. Quota death is
+ * now a FLAG here — which providers to offer, in what order, and whether each
+ * can actually answer belongs to src/lib/provider-switch.ts and its own suite.
  *
  * Run: npx tsx scripts/test/terminal-run-view.ts
  */
 import assert from "node:assert/strict";
 import {
   buildTerminalRunView,
+  isQuotaDeath,
   nextActionForWork,
   presentTerminalRun,
-  quotaDeathAlternatives,
 } from "@/lib/terminal-run-view";
 import { FEEDBACK_WORK_PHASE, WAITING_ON, type FeedbackWorkView } from "@/lib/feedback/work-phase";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
@@ -19,6 +20,7 @@ import {
   capacityFailureFromScreen,
   shouldReplacePtyAgent,
 } from "../../desktop/src/main/pty-runtime";
+import { AGENT_FALLBACK_ORDER } from "@/lib/agent-resolution";
 
 let passed = 0;
 const check = (label: string, fn: () => void) => {
@@ -37,39 +39,13 @@ const work = (over: Partial<FeedbackWorkView> = {}): FeedbackWorkView => ({
 });
 
 check("quota language on the diagnostic is quota death", () => {
-  const alts = quotaDeathAlternatives({
-    diagnostic: "Claude rate limit: out of tokens until reset",
-    currentAgent: "claude",
-  });
-  assert.ok(alts);
-  assert.deepEqual(
-    alts.map((a) => a.id),
-    ["codex", "cursor", "grok", "gemini"],
-  );
-  assert.equal(alts.find((a) => a.id === "gemini")?.label, "Antigravity");
-  assert.equal(
-    alts.some((a) => a.id === "claude" || a.label === "Hermes"),
-    false,
-    "dead agent and Hermes stay out of the chooser",
-  );
-});
-
-check("the dead agent is hidden from the chooser", () => {
-  const alts = quotaDeathAlternatives({
-    error: "insufficient quota",
-    currentAgent: "grok",
-  });
-  assert.ok(alts);
-  assert.equal(
-    alts.some((a) => a.id === "grok"),
-    false,
-  );
-  assert.ok(alts.some((a) => a.id === "cursor"));
+  assert.equal(isQuotaDeath({ diagnostic: "Claude rate limit: out of tokens until reset" }), true);
+  assert.equal(isQuotaDeath({ error: "insufficient quota" }), true);
 });
 
 check("silence is not quota death", () => {
-  assert.equal(quotaDeathAlternatives({ diagnostic: "Waiting for first output" }), null);
-  assert.equal(quotaDeathAlternatives({ diagnostic: null, error: null }), null);
+  assert.equal(isQuotaDeath({ diagnostic: "Waiting for first output" }), false);
+  assert.equal(isQuotaDeath({ diagnostic: null, error: null }), false);
 });
 
 check("a quota redraw is a blocker, not generation evidence", () => {
@@ -98,8 +74,12 @@ check("next action prefers the queue reason over a badge", () => {
   );
 });
 
-check("quota death overrides the queue reason with a chooser sentence", () => {
-  assert.match(nextActionForWork(work({ queueReason: "Retry" }), true), /Claude Code|Codex|Grok/);
+check("quota death overrides the queue reason, without naming providers", () => {
+  const line = nextActionForWork(work({ queueReason: "Retry" }), true);
+  assert.match(line, /switch to a provider/i);
+  // The rail's own chooser says WHICH — a sentence that named them went stale
+  // the moment the chooser started filtering to what is installed.
+  assert.doesNotMatch(line, /Claude Code|Codex|Cursor|Grok|Antigravity/);
 });
 
 check("the view is phase + next action, not an event trail", () => {
@@ -114,14 +94,13 @@ check("the view is phase + next action, not an event trail", () => {
       diagnostic: "rate limit: out of tokens",
       lastActivityAt: "2026-09-16T10:00:00.000Z",
     }),
-    currentAgent: "claude",
     error: "rate limit",
   });
   assert.equal(view.runId, "run-1");
   assert.equal(view.stalled, true);
   assert.equal(view.quotaDeath, true);
-  assert.equal(view.alternatives.length, 4);
-  assert.match(view.nextAction, /Claude Code|Codex|Antigravity|Grok|Cursor/);
+  assert.equal("alternatives" in view, false, "the ranking belongs to /api/providers now");
+  assert.match(view.nextAction, /switch to a provider/i);
   assert.equal("events" in view, false);
 });
 
@@ -148,9 +127,20 @@ check("empty Terminal names Fleet Runner vs Kitty", () => {
 });
 
 check("quota chooser is all coding agents, never Hermes", () => {
+  // Membership, not sequence: the chooser's ORDER is now the operator's
+  // preference (user_preferences.agent_order), and the list is derived from
+  // AGENT_FALLBACK_ORDER so the two can never disagree about which agents exist.
+  assert.deepEqual([...QUOTA_ALTERNATIVE_AGENTS.map((a) => a.id)].sort(), [
+    "claude",
+    "codex",
+    "cursor",
+    "gemini",
+    "grok",
+  ]);
   assert.deepEqual(
     QUOTA_ALTERNATIVE_AGENTS.map((a) => a.id),
-    ["claude", "codex", "cursor", "grok", "gemini"],
+    [...AGENT_FALLBACK_ORDER],
+    "derived from the fallback order, not a second hand-written list",
   );
   assert.equal(QUOTA_ALTERNATIVE_AGENTS.find((a) => a.id === "gemini")?.label, "Antigravity");
   assert.equal(QUOTA_ALTERNATIVE_AGENTS.find((a) => a.id === "claude")?.label, "Claude Code");
