@@ -20,7 +20,7 @@
  * marker so it is recognisable in the ledger.
  *
  *   LOKI_SESSION_TOKEN=… npx tsx scripts/test/loki-loop-e2e.ts [--dispatch]
- *   BASE=https://loki.orangecat.ch  E2E_DISPATCH_MINUTES=20  E2E_PROJECT=loki
+ *   BASE=https://loki.orangecat.ch  E2E_DISPATCH_MINUTES=30  E2E_PROJECT=loki
  */
 import { config } from "dotenv";
 import { smokeSessionToken } from "@/lib/brand-env";
@@ -33,7 +33,17 @@ const BASE = (process.env.BASE ?? "https://loki.orangecat.ch").replace(/\/$/, ""
 const BITBAUM_MAP = process.env.BITBAUM_MAP_URL ?? "https://bitbaum.orangecat.ch/map.json";
 const PROJECT = process.env.E2E_PROJECT ?? "loki";
 const DISPATCH = process.argv.includes("--dispatch");
-const DISPATCH_MINUTES = Number(process.env.E2E_DISPATCH_MINUTES ?? 20);
+/**
+ * How long to wait for a dispatched run to come back.
+ *
+ * Thirty, not twenty, and measured rather than guessed: on 2026-09-15 a
+ * cold-start agent on the box (fresh PTY, boot, trust prompt, then the task)
+ * wrote its handoff at 13:44 for a dispatch injected at 13:23 — twenty-one
+ * minutes for `git status`. The old twenty-minute window aborted it at 13:43
+ * and reported a broken loop that was one minute from succeeding. A health
+ * check must outlast the slowest healthy path it exercises.
+ */
+const DISPATCH_MINUTES = Number(process.env.E2E_DISPATCH_MINUTES ?? 30);
 const MARKER = "[loki-e2e]";
 
 const token = smokeSessionToken();
