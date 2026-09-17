@@ -713,6 +713,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                   queuedActionId: queued.id,
                   queuedActionTitle: queued.title,
                   queuedActionType: queued.type,
+                  // Whether it is waiting on the operator or already running —
+                  // the footer says different things, and saying the wrong one
+                  // sends them to approve something that needs no approval.
+                  queuedActionAutoApproved: queued.autoApproved,
                 }
               : {}),
           },

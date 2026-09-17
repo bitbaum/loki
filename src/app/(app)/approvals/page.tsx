@@ -6,6 +6,12 @@ import { requirePageUserId } from "@/lib/session";
 import { isPrivateZoneLocked } from "@/lib/private-zone";
 import { getPendingActions } from "@/db/queries/actions";
 import { ActionQueueCard } from "@/components/today/ActionQueueCard";
+import { StandingApprovals } from "@/components/today/StandingApprovals";
+import { getUserPreferences } from "@/db/queries/user-preferences";
+import {
+  STANDING_APPROVAL_OPTIONS,
+  sanitizeStandingApprovals,
+} from "@/lib/actions/standing-approval";
 
 export const metadata = { title: "Approvals" };
 
@@ -50,8 +56,14 @@ export default async function ApprovalsPage() {
     );
   }
 
+  const prefs = await getUserPreferences(userId).catch(() => null);
+
   return (
     <PageLayout title="Approvals" subtitle="Review & approve actions Loki proposed">
+      <StandingApprovals
+        options={STANDING_APPROVAL_OPTIONS.map((o) => ({ ...o }))}
+        initial={sanitizeStandingApprovals(prefs?.standingApprovals)}
+      />
       <ActionQueueCard
         autoOpenTop
         emptyState={

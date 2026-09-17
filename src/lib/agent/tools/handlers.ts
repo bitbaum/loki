@@ -19,7 +19,7 @@
  * gap as an invitation.
  */
 import { z } from "zod";
-import { proposeAction } from "@/db/queries/actions";
+import { enqueueAction } from "@/lib/actions/enqueue-action";
 import { listCrew } from "@/db/queries/crew";
 import { createHumanTask } from "@/db/queries/human-tasks";
 import { TASK_ACTOR } from "@/config/crew";
@@ -350,9 +350,25 @@ const proposeActionTool = defineTool({
     to: z.string().max(120).optional(),
     body: z.string().max(4000).optional(),
     dueDate: z.string().max(40).optional(),
+    // Calendar fields. Their absence was a real bug, not an omission: a
+    // create_event proposal could only carry title/to/body/dueDate, so the WHEN
+    // of an appointment had nowhere to go and arrived as prose in `body`. The
+    // booker then had to recover it with a Groq pass over free text
+    // (enrichEventPayloadFromText), which is a language model guessing at a
+    // value the model one step earlier already knew exactly. A field the
+    // producer cannot fill is a field the consumer has to invent.
+    eventStart: z
+      .string()
+      .max(40)
+      .optional()
+      .describe("RFC3339 start with offset, e.g. 2026-09-19T14:00:00+02:00"),
+    eventEnd: z.string().max(40).optional().describe("RFC3339 end; defaults to start +1h"),
+    eventDate: z.string().max(40).optional().describe("YYYY-MM-DD when only the day is known"),
+    eventLocation: z.string().max(200).optional(),
+    allDay: z.boolean().optional(),
   }),
   example:
-    'TOOL: propose_action\nARGS: {"type": "send_message", "title": "Message Elena Weber about funding", "to": "Elena Weber SINGA Switzerland", "body": "Hi Elena — ...", "reasoning": "contact exists in [F2]; no prior interaction recorded"}',
+    'TOOL: propose_action\nARGS: {"type": "send_message", "title": "Message Elena Weber about funding", "to": "Elena Weber SINGA Switzerland", "body": "Hi Elena — ...", "reasoning": "contact exists in [F2]; no prior interaction recorded"}\nTOOL: propose_action\nARGS: {"type": "create_event", "title": "Dentist", "eventStart": "2026-09-19T14:00:00+02:00", "eventEnd": "2026-09-19T15:00:00+02:00", "eventLocation": "Zahnarztpraxis Oerlikon"}',
   handler: async (args, ctx) => {
     const a = args as {
       type: ActionType;
@@ -361,6 +377,11 @@ const proposeActionTool = defineTool({
       to?: string;
       body?: string;
       dueDate?: string;
+      eventStart?: string;
+      eventEnd?: string;
+      eventDate?: string;
+      eventLocation?: string;
+      allDay?: boolean;
     };
     const person =
       a.type === ACTION_TYPE.SEND_MESSAGE || a.type === ACTION_TYPE.SEND_EMAIL
@@ -373,41 +394,76 @@ const proposeActionTool = defineTool({
     // failed write as a successful queue is the over-claim this tool exists
     // to prevent.
     let writeFailed = false;
-    const created = await proposeAction(ctx.userId, {
-      type: a.type ?? ACTION_TYPE.OTHER,
-      title:
-        person && (a.type === ACTION_TYPE.SEND_MESSAGE || a.type === ACTION_TYPE.SEND_EMAIL)
-          ? `Message ${person.name}`.slice(0, 160)
-          : a.title,
-      reasoning: person
-        ? `Matched ${person.name}${reach ? ` on ${reach.channel}` : ""}.`
-        : (a.reasoning ?? null),
-      payload: enrichReachPayload({ to: a.to, body: a.body, dueDate: a.dueDate }, reach),
-      entityId: person?.id ?? null,
-    }).catch(() => {
+    const outcome = await enqueueAction(
+      ctx.userId,
+      {
+        type: a.type ?? ACTION_TYPE.OTHER,
+        title:
+          person && (a.type === ACTION_TYPE.SEND_MESSAGE || a.type === ACTION_TYPE.SEND_EMAIL)
+            ? `Message ${person.name}`.slice(0, 160)
+            : a.title,
+        reasoning: person
+          ? `Matched ${person.name}${reach ? ` on ${reach.channel}` : ""}.`
+          : (a.reasoning ?? null),
+        payload: enrichReachPayload(
+          {
+            to: a.to,
+            body: a.body,
+            dueDate: a.dueDate,
+            eventTitle: a.type === ACTION_TYPE.CREATE_EVENT ? a.title : undefined,
+            eventStart: a.eventStart,
+            eventEnd: a.eventEnd,
+            eventDate: a.eventDate,
+            eventLocation: a.eventLocation,
+            allDay: a.allDay,
+          },
+          reach,
+        ),
+        entityId: person?.id ?? null,
+      },
+      // The operator is in this conversation right now — this tool only fires
+      // because they asked for something. That is exactly the case a per-item
+      // card is for.
+      { operatorRequested: true },
+    ).catch(() => {
       writeFailed = true;
       return null;
     });
 
-    if (writeFailed) {
+    if (writeFailed || !outcome) {
       return empty(`Could not write that draft to the approval queue. Nothing was queued.`);
     }
-    if (!created) {
+    if (outcome.result === "deduped") {
       return empty(
         `A draft titled "${a.title}" is already waiting in the approval queue — not duplicated.`,
       );
     }
+
+    const created = outcome.action;
+    // The fact's `status` and `source` are what stop the model claiming a
+    // booking it did not make — so they must now distinguish the two real
+    // outcomes. Under a standing rule the action IS being carried out, and
+    // saying "awaiting approval" would be the mirror-image lie of the one this
+    // wording was written to prevent.
+    const auto = outcome.result === "auto";
     return {
       facts: [
         makeFact({
           kind: "commitment",
           subject: created.title,
-          source: "approval queue (DRAFT — awaiting the operator's approval, not yet done)",
+          source: auto
+            ? "action queue (APPROVED by the operator's standing rule — being carried out now)"
+            : "approval queue (DRAFT — awaiting the operator's approval, not yet done)",
           values: {
             title: created.title,
             due: a.dueDate ?? null,
+            when: a.eventStart ?? a.eventDate ?? null,
             counterparty: a.to ?? null,
-            status: "draft — needs approval",
+            status: auto
+              ? outcome.execution.executed
+                ? "done"
+                : "approved — running now"
+              : "draft — needs approval",
           },
         }),
       ],

@@ -2,6 +2,33 @@ import { TELEGRAM_CHAT_ID } from "@/lib/constants";
 
 export type SendResult = { ok: boolean; messageId?: string; error?: string };
 
+/**
+ * One inline-keyboard button. URL buttons ONLY — deliberately not callback_data.
+ *
+ * Telegram gives a bot exactly one consumer of its update stream, and on this
+ * fleet that consumer is the OpenClaw gateway running the chat. A callback
+ * button would either need that stream (breaking the chat) or would arrive as
+ * text for the model to interpret, which makes "did my approval land?" a
+ * question about a language model. A URL button needs no updates at all: it
+ * hits a signed route that changes the row itself, and it still works when the
+ * gateway is down — which is exactly when a stuck approval matters most.
+ */
+export type TelegramButton = { text: string; url: string };
+
+/** Rows of buttons, rendered left-to-right. Empty rows are dropped. */
+export type TelegramKeyboard = TelegramButton[][];
+
+export type SendOptions = {
+  /** Inline keyboard shown under the message. Omitted when empty. */
+  buttons?: TelegramKeyboard;
+  /**
+   * Suppress the link preview card. On by default for keyboard messages: an
+   * unfurled preview of the Loki app pushes the buttons off a phone screen,
+   * which defeats the point of sending buttons.
+   */
+  disablePreview?: boolean;
+};
+
 const TELEGRAM_API = "https://api.telegram.org";
 
 /**
@@ -49,7 +76,11 @@ export function isAllowedTelegramTarget(requested: string | null | undefined): b
  * Fail-closed: with TELEGRAM_CHAT_ID unset there is no allowed recipient, so
  * every send is refused rather than guessed at.
  */
-export async function sendTelegramMessage(chatId: string, text: string): Promise<SendResult> {
+export async function sendTelegramMessage(
+  chatId: string,
+  text: string,
+  options?: SendOptions,
+): Promise<SendResult> {
   if (!isAllowedTelegramTarget(chatId)) {
     return { ok: false, error: "recipient not allowed — self-only allowlist" };
   }
@@ -57,11 +88,19 @@ export async function sendTelegramMessage(chatId: string, text: string): Promise
   const target = chatId.trim() || (selfTelegramTarget() as string);
   const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
   if (!token) return { ok: false, error: "no TELEGRAM_BOT_TOKEN configured" };
+  const keyboard = normalizeKeyboard(options?.buttons);
   try {
     const res = await fetch(`${TELEGRAM_API}/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: target, text }),
+      body: JSON.stringify({
+        chat_id: target,
+        text,
+        ...(keyboard ? { reply_markup: { inline_keyboard: keyboard } } : {}),
+        ...(keyboard || options?.disablePreview
+          ? { link_preview_options: { is_disabled: true } }
+          : {}),
+      }),
       signal: AbortSignal.timeout(15000),
     });
     const data = (await res.json().catch(() => ({}))) as {
@@ -77,4 +116,22 @@ export async function sendTelegramMessage(chatId: string, text: string): Promise
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/**
+ * Drop empty rows and buttons with no label or no URL, and return undefined
+ * when nothing is left.
+ *
+ * Telegram rejects the WHOLE sendMessage with a 400 on a malformed
+ * reply_markup, so a caller that built one button from a value that turned out
+ * to be null would lose the message body too — the notification, not just its
+ * buttons. A message that arrives with fewer buttons is degraded; a message
+ * that does not arrive is the failure this guards against.
+ */
+function normalizeKeyboard(buttons: TelegramKeyboard | undefined): TelegramKeyboard | undefined {
+  if (!buttons?.length) return undefined;
+  const rows = buttons
+    .map((row) => row.filter((b) => b?.text?.trim() && b?.url?.trim()))
+    .filter((row) => row.length > 0);
+  return rows.length ? rows : undefined;
 }

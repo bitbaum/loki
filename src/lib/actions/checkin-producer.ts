@@ -10,12 +10,8 @@
  */
 import { searchPeople } from "@/db/queries/people";
 import { SORT_MODE } from "@/lib/constants/statuses";
-import {
-  proposeAction,
-  countPendingCheckins,
-  getEntityIdsWithRecentCheckin,
-} from "@/db/queries/actions";
-import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
+import { countPendingCheckins, getEntityIdsWithRecentCheckin } from "@/db/queries/actions";
+import { enqueueAction } from "@/lib/actions/enqueue-action";
 import {
   buildCheckinProposal,
   selectCheckinCandidates,
@@ -68,10 +64,20 @@ export async function proposeCheckins(userId: string, nowMs: number): Promise<Ch
 
   const proposed: QueuedActionSummary[] = [];
   for (const contact of selected) {
-    const action = await proposeAction(userId, buildCheckinProposal(contact, nowMs));
-    if (!action) continue; // deduped against an already-pending draft
-    await recordActionAuditEvent(userId, action, "proposed");
-    proposed.push({ id: action.id, type: action.type, title: action.title });
+    // operatorRequested: false — nobody asked for these. A check-in is Loki's
+    // own idea, so it belongs in the hourly digest rather than as a Telegram
+    // card per contact; that distinction is the whole reason the flag exists.
+    // (They are send_message rows in any case, which no standing rule covers.)
+    const outcome = await enqueueAction(userId, buildCheckinProposal(contact, nowMs), {
+      operatorRequested: false,
+    });
+    if (outcome.result === "deduped") continue; // an identical draft is pending
+    proposed.push({
+      id: outcome.action.id,
+      type: outcome.action.type,
+      title: outcome.action.title,
+      autoApproved: outcome.result === "auto",
+    });
   }
 
   return { proposed, scanned: contacts.length, skipped: null };

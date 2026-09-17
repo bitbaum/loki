@@ -21,10 +21,14 @@
  *
  * Two kinds, and the split is a safety boundary:
  *   read     — pure lookups. Free to run, run automatically, never confirmed.
- *   propose  — enqueue a DRAFT into the approval queue. Loki has no power to
- *              act; the operator approves each one. There is deliberately no
- *              `execute` kind, and adding one would be a product decision, not
- *              a refactor.
+ *   propose  — enqueue into the approval queue. Loki never decides for itself
+ *              whether something runs: it lands as a DRAFT and waits for the
+ *              operator, unless the operator has already said yes in advance
+ *              for that type (lib/actions/standing-approval.ts — calendar
+ *              events and commitments only, both private and reversible).
+ *              There is deliberately no `execute` kind. A tool that acted on
+ *              its own authority, rather than on an authorisation the operator
+ *              gave at some point, would be a product decision, not a refactor.
  */
 import { z } from "zod";
 import type { Fact } from "@bitbaum/ai-kit/grounding";

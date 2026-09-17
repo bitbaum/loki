@@ -66,7 +66,9 @@ not a message (fail2ban `caddy-scan`, journal only).
 |---|---|---|
 | Telemetry stale | Runner telemetry stops arriving | `src/app/api/crons/check-telemetry/route.ts` |
 | Runner stalled / wrong version | Box-runner stops claiming or lags the shipped version | `src/app/api/crons/check-runner-stall/route.ts`, `src/app/api/crons/check-runner-version/route.ts` |
-| Approvals waiting | Proposed actions sit undecided | `src/app/api/crons/check-pending-approvals/route.ts` |
+| Approvals waiting — with one-tap ✅ Approve / ✕ Reject / ✏️ Edit buttons when exactly one item is waiting, otherwise a link to the queue | Proposed actions sit undecided for over an hour; one message per episode, never per draft | `src/app/api/crons/check-pending-approvals/route.ts` |
+| 📋 \<type\> — needs your yes (the decision itself: what, when, where, plus Approve / Reject / Edit buttons) | A draft is queued from something the operator asked for in words, and no standing approval covers it. Spontaneous proposals (check-ins, the advisor) never send this — they wait for the hourly digest above | `src/lib/actions/notify-decision.ts` |
+| 📅 Booked — \<event\>, with a link into Google Calendar | A calendar event really reaches `executed` (says so only after `gog` succeeded, which is usually minutes after approval and in a different process). Names the standing approval when one acted on the operator's behalf, so an action taken without asking is never silent | `src/lib/actions/notify-decision.ts`, called from `src/lib/actions/execute-action.ts` and `src/app/api/actions/drain-events/route.ts` |
 | Feedback needs you (stalled Implement / no agent / Check live) | A dispatched fix is stuck or live and waiting for Confirm — one ping when the flag goes up | `src/app/api/crons/check-feedback-needs-you/route.ts`, `src/lib/feedback/notify-needs-you.ts` |
 | Model id rot | A configured model id stops resolving | `src/app/api/crons/check-model-ids/route.ts` |
 | Run escalation | A run needs the operator's decision to proceed | `src/db/queries/run-escalations.ts` |

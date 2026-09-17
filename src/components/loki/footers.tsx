@@ -163,19 +163,33 @@ export function DispatchFooter({ meta }: { meta: Record<string, unknown> | null 
   );
 }
 
-/** Footer when a chat turn proposed a real action into the approval queue. Loki
- *  can only PROPOSE — this is the visible handoff to the operator, who approves
- *  it on Today before anything executes. */
+/**
+ * Footer when a chat turn turned into a real action.
+ *
+ * Two outcomes, two sentences, and the difference is not cosmetic. Under a
+ * standing approval the action is ALREADY RUNNING, and the old copy — "added
+ * to your approval queue, review to run it" — would send the operator to a
+ * queue that no longer holds it, to approve something already approved. That
+ * is the same class of untruth as claiming a booking that never happened, just
+ * pointing the other way.
+ */
 export function QueuedActionFooter({ meta }: { meta: Record<string, unknown> | null }) {
   const id = typeof meta?.queuedActionId === "string" ? meta.queuedActionId : null;
   if (!id) return null;
   const title = typeof meta?.queuedActionTitle === "string" ? meta.queuedActionTitle : "an action";
+  const auto = meta?.queuedActionAutoApproved === true;
   return (
-    <Link href="/today#actions" className="ui-loki-queued-action">
+    <Link href={auto ? "/approvals" : "/today#actions"} className="ui-loki-queued-action">
       <ListChecks className="h-3.5 w-3.5" />
-      <span>
-        Added to your approval queue: <strong>{title}</strong> — review to run it
-      </span>
+      {auto ? (
+        <span>
+          Doing it now: <strong>{title}</strong> — your standing approval covers this
+        </span>
+      ) : (
+        <span>
+          Added to your approval queue: <strong>{title}</strong> — review to run it
+        </span>
+      )}
     </Link>
   );
 }

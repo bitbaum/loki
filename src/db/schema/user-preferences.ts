@@ -1,4 +1,5 @@
 import { pgTable, uuid, text, date, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { users } from "./users";
 
 export const userPreferences = pgTable(
@@ -24,6 +25,15 @@ export const userPreferences = pgTable(
     // Consent: may the fleet build its knowledge index (RAG embeddings) from the
     // user's data? Gates upsertKnowledgeBatch — the single write chokepoint.
     memoryEnabled: boolean("memory_enabled").notNull().default(true),
+    // Action types the operator has approved IN ADVANCE, so Loki may carry them
+    // out without a per-item tap. An authorisation record, so it is never
+    // trusted as stored: lib/actions/standing-approval.ts filters it against a
+    // hard-coded eligible set on read and re-checks the payload at decision
+    // time. A value here that is not eligible authorises nothing.
+    standingApprovals: text("standing_approvals")
+      .array()
+      .notNull()
+      .default(sql`'{create_event}'`),
     /**
      * Which agent CLI to reach for first when the current one runs out of
      * quota — comma-separated agent ids, best first ("codex,claude,grok").

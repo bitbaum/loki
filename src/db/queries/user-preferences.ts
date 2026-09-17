@@ -3,6 +3,8 @@ import { userPreferences } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { DEFAULT_TIMEZONE } from "@/lib/constants";
 import { WEATHER_CITY } from "@/lib/constants/today";
+import { ACTION_TYPE } from "@/lib/constants/statuses";
+import { sanitizeStandingApprovals } from "@/lib/actions/standing-approval";
 
 export type UserPreferencesData = {
   homeCity: string | null;
@@ -15,6 +17,12 @@ export type UserPreferencesData = {
   memoryEnabled: boolean;
   /** Preferred provider order, comma-separated agent ids. Null = fleet default. */
   agentOrder: string | null;
+  /**
+   * Action types the operator approved in advance — Loki carries these out
+   * without a per-item tap. Always passed through sanitizeStandingApprovals
+   * before it authorises anything (see lib/actions/standing-approval.ts).
+   */
+  standingApprovals: string[];
 };
 
 export function getActiveCity(prefs: UserPreferencesData | null): string {
@@ -37,6 +45,32 @@ export function getActiveTimezone(prefs: UserPreferencesData | null): string {
   return prefs?.homeTimezone ?? DEFAULT_TIMEZONE;
 }
 
+/**
+ * What a user with no preferences row has.
+ *
+ * Exported because the settings page needs the same answer, and used to spell
+ * it out again inline — so adding a field broke a page in a different directory
+ * for the mechanical reason that two copies of one default drifted. One
+ * definition, both readers.
+ *
+ * `standingApprovals` matches the COLUMN default the migration gives every
+ * row, so a user behaves identically before and after their preferences are
+ * first written. A mismatch here would be a silent behaviour change on the
+ * first unrelated settings save.
+ */
+export const EMPTY_USER_PREFERENCES: UserPreferencesData = {
+  homeCity: null,
+  homeTimezone: null,
+  homeLocale: null,
+  currentCity: null,
+  currentTimezone: null,
+  currentCityUntil: null,
+  writingVoice: null,
+  memoryEnabled: true,
+  agentOrder: null,
+  standingApprovals: [ACTION_TYPE.CREATE_EVENT],
+};
+
 export async function getUserPreferences(userId: string): Promise<UserPreferencesData> {
   const row = await db
     .select()
@@ -45,18 +79,7 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     .limit(1)
     .then((r) => r[0] ?? null);
 
-  if (!row)
-    return {
-      homeCity: null,
-      homeTimezone: null,
-      homeLocale: null,
-      currentCity: null,
-      currentTimezone: null,
-      currentCityUntil: null,
-      writingVoice: null,
-      memoryEnabled: true,
-      agentOrder: null,
-    };
+  if (!row) return { ...EMPTY_USER_PREFERENCES };
 
   return {
     homeCity: row.homeCity,
@@ -68,6 +91,7 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     writingVoice: row.writingVoice,
     memoryEnabled: row.memoryEnabled,
     agentOrder: row.agentOrder,
+    standingApprovals: row.standingApprovals ?? [],
   };
 }
 
@@ -100,5 +124,8 @@ function toRow(d: UserPreferencesData) {
     writingVoice: d.writingVoice,
     memoryEnabled: d.memoryEnabled,
     agentOrder: d.agentOrder,
+    // Narrowed on write as well as on read: the column is an authorisation
+    // record, and the only values that may ever land in it are the eligible ones.
+    standingApprovals: sanitizeStandingApprovals(d.standingApprovals),
   };
 }

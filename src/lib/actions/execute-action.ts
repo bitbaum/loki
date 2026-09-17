@@ -8,6 +8,7 @@ import { upsertEntityAttribute } from "@/db/queries/utils";
 import { scheduleProjectProfileReindexByEntityId } from "@/lib/rag/reindex-project-profile";
 
 import { bookCalendarEvent } from "@/lib/actions/calendar-event";
+import { notifyActionExecuted } from "@/lib/actions/notify-decision";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { injectPrompt } from "@/lib/inject-core";
 import { markFeedbackDispatchedBulk } from "@/db/queries/site-feedback";
@@ -15,6 +16,16 @@ import { applyEnrichment, applyImportedContact } from "@/db/queries/people-book"
 import { mergePeoplePair } from "@/db/queries/people-merge";
 import type { ImportedContact } from "@/lib/people-import";
 import type { ImportSource } from "@/config/book";
+
+export type ExecuteActionOptions = {
+  /**
+   * Approval came from a standing rule, not a tap. Carried only so the
+   * confirmation message can SAY so — it never changes what is executed. An
+   * action reaching this function has been approved; how is the operator's
+   * business, not the executor's.
+   */
+  autoApproved?: boolean;
+};
 
 export type ExecuteActionResult = {
   /** true only when a real-world effect happened and the row reached status='executed'. */
@@ -111,7 +122,11 @@ async function executeProfileUpdate(
  * for retry. A wrong/duplicate real send is the worst outcome — when in doubt we
  * do NOT act. The caller must have already approved the action (IRON RULE).
  */
-export async function executeAction(userId: string, action: Action): Promise<ExecuteActionResult> {
+export async function executeAction(
+  userId: string,
+  action: Action,
+  opts: ExecuteActionOptions = {},
+): Promise<ExecuteActionResult> {
   const profileUpdate =
     action.type === ACTION_TYPE.OTHER ? parseProfileUpdatePayload(action.payload) : null;
   if (profileUpdate) {
@@ -219,7 +234,11 @@ export async function executeAction(userId: string, action: Action): Promise<Exe
         // (see api/actions/drain-events) picks it up and books it for real.
         if (!isRuntimeAvailable()) {
           await recordActionAuditEvent(userId, action, "deferred", {
+            // The drain needs to know an auto-approved row must still announce
+            // itself when it books — it is not in this process, and 'approved'
+            // alone does not say who approved it.
             reason: "calendar runtime offline — awaiting local runtime to book via gog",
+            meta: { autoApproved: opts.autoApproved === true },
           });
           return { executed: false, deferred: true };
         }
@@ -240,6 +259,13 @@ export async function executeAction(userId: string, action: Action): Promise<Exe
         await recordActionAuditEvent(userId, action, "executed", {
           meta: { eventId: booked.eventId ?? null, htmlLink: booked.htmlLink ?? null },
         });
+        // Confirm the EFFECT, not the decision. This is the message the
+        // operator was actually waiting for — and with a standing rule it is
+        // the only one they get, so it is the whole review surface.
+        await notifyActionExecuted(userId, action, {
+          htmlLink: booked.htmlLink ?? null,
+          autoApproved: opts.autoApproved,
+        }).catch(() => {});
         return { executed: true };
       }
 

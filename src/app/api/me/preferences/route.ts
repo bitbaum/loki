@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { getSessionUserId } from "@/lib/session";
 import { getUserPreferences, upsertUserPreferences } from "@/db/queries/user-preferences";
+import {
+  STANDING_APPROVAL_ELIGIBLE,
+  sanitizeStandingApprovals,
+} from "@/lib/actions/standing-approval";
 import { PROVIDER_IDS, serializeProviderOrder } from "@/lib/provider-switch";
 
 const SUPPORTED_TIMEZONES = new Set(Intl.supportedValuesOf("timeZone"));
@@ -64,6 +68,19 @@ const PatchBody = z.object({
     .max(PROVIDER_IDS.length)
     .transform(serializeProviderOrder)
     .nullable()
+    .optional(),
+  // Which action types Loki may carry out without a per-item tap.
+  //
+  // Narrowed HERE as well as in the query layer, and against the same
+  // hard-coded set. This is the one field on this route that grants authority
+  // rather than storing a preference, so it does not get to rely on a single
+  // check somewhere downstream — an unknown or ineligible type is dropped,
+  // silently and always, rather than rejected: the request is honoured for the
+  // parts that are real, and nothing it asked for beyond them takes effect.
+  standingApprovals: z
+    .array(z.string())
+    .max(STANDING_APPROVAL_ELIGIBLE.length)
+    .transform(sanitizeStandingApprovals)
     .optional(),
 });
 
