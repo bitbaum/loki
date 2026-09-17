@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import {
   buildTerminalRunView,
   nextActionForWork,
+  presentTerminalRun,
   quotaDeathAlternatives,
 } from "@/lib/terminal-run-view";
 import { FEEDBACK_WORK_PHASE, WAITING_ON, type FeedbackWorkView } from "@/lib/feedback/work-phase";
@@ -104,6 +105,21 @@ check("the view is phase + next action, not an event trail", () => {
   assert.equal(view.alternatives.length, 4);
   assert.match(view.nextAction, /Claude Code|Codex|Antigravity|Grok|Cursor/);
   assert.equal("events" in view, false);
+});
+
+check("an open run never claims generation after its PTY is gone", () => {
+  const view = buildTerminalRunView({
+    runId: "run-stale",
+    projectKey: "substrata",
+    work: work(),
+  });
+  assert.deepEqual(presentTerminalRun(view, false), {
+    label: "Session ended",
+    stepSummary: "No live terminal session",
+    nextAction:
+      "The run record is still open, but its agent terminal is gone. Start this project again or return to Feedback and Retry.",
+  });
+  assert.equal(presentTerminalRun(view, true).label, "Working · 2 min");
 });
 
 check("empty Terminal names Fleet Runner vs Kitty", () => {

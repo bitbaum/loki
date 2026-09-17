@@ -21,6 +21,27 @@ export type TerminalRunView = {
   alternatives: QuotaAlternative[];
 };
 
+export type TerminalRunPresentation = Pick<TerminalRunView, "label" | "stepSummary" | "nextAction">;
+
+/** A durable run row can outlive its PTY (runner restart, crash, or manual
+ * stop). The terminal knows whether bytes can actually flow, so it must not
+ * repeat the run ledger's old “Working / generating” claim when no session is
+ * attached. */
+export function presentTerminalRun(
+  view: TerminalRunView,
+  ptyLive: boolean,
+): TerminalRunPresentation {
+  if (ptyLive || view.phase !== FEEDBACK_WORK_PHASE.WORKING) {
+    return view;
+  }
+  return {
+    label: "Session ended",
+    stepSummary: "No live terminal session",
+    nextAction:
+      "The run record is still open, but its agent terminal is gone. Start this project again or return to Feedback and Retry.",
+  };
+}
+
 export function quotaDeathAlternatives(input: {
   diagnostic?: string | null;
   error?: string | null;

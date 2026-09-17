@@ -11,12 +11,12 @@
 ## Engineering decisions
 
 - `site_feedback.reporter_user_id` links a signed-in reporter without changing the owning project/user fields.
-- A short-lived, HttpOnly claim cookie records anonymous feedback IDs. After login, a claim endpoint assigns only those IDs to the authenticated user. The cookie contains signed opaque IDs, no feedback text or PII.
+- A 30-day HMAC-signed claim URL records an anonymous feedback ID. After login, the claim endpoint assigns only that ID to the authenticated user. The token contains no feedback text or PII.
 - `project_memberships` is the project-level authorization SSOT with `owner | editor | viewer`. Existing `user_projects.user_id` remains the implicit owner during migration.
 - Read permissions: owner/editor/viewer see project feedback; a reporter sees only their own submitted rows.
 - Write permissions: owner/editor may dispatch and update feedback; owner controls membership. Reporter/viewer cannot dispatch or edit.
 - Shared access helpers gate every feedback mutation API. UI affordances follow the same returned capabilities.
-- Runtime truth uses builder presence + PTY stream freshness. A present process without streamed bytes is stalled, never Working.
+- Runtime truth uses builder presence + PTY stream freshness. A run row whose PTY is gone is shown as `Session ended`, never as generating.
 
 ## Work log
 
@@ -29,14 +29,22 @@
 - [x] Add signed claim → auth → `/my-feedback` flow.
 - [x] Add editor membership UI and API authorization for individual feedback implementation.
 - [x] Add visible exact submission timestamps.
-- [ ] Tests, PR, CI, deploy, production walkthrough.
+- [x] Full `pnpm run verify`: 188 unit files, 130 home tests, 30 terminal viewport checks, desktop typecheck/build, infrastructure and operations gates all passed.
+- [x] PR #754 merged as `8034cb6`; main CI passed; production reports that commit and migration 0071 is present.
+- [x] Production reporter ingest returned a Loki claim URL, claim page returned 200 with tracking copy, unsigned claim returned 401, and the temporary report was removed.
+- [x] Production Terminal walkthrough: Cloud rendered without black/stalled state; switching to This computer rendered the missing-session explanation without the null-key crash.
+- [x] Production Control walkthrough: `0 working · 0 awaiting input · 23 idle`; the false `3 awaiting input` claim is gone.
+- [x] Production Feedback walkthrough: rows show exact `submitted Sep …` timestamps.
+- [ ] Follow-up stale-run truth patch: deploy and confirm the old Substrata run says `Session ended` while no PTY exists.
 
 ## Production evidence
 
 - Reported failing URL: `/terminal?project=substrata&run=28ed5be9-3700-4e1a-9819-516ed899ec62`.
 - At investigation start, `loki-box-runner.service` was active, while the Substrata Claude PTY had existed for more than one hour and Terminal reported no stream.
 - Local source switch raised `Cannot read properties of null (reading 'key')`.
+- The v0.8.27 runner restart was initially held by four 90–113 minute idle Claude processes. They were stale, so the runner was restarted at 05:28 UTC; only the runner process remained afterward.
+- Authenticated browser audit produced no console errors. Screenshots are on the production box at `/tmp/terminal-cloud-prod.png`, `/tmp/terminal-local-prod.png`, `/tmp/control-prod.png`, and `/tmp/feedback-prod.png`.
 
 ## Resume point
 
-Run full verify, open and merge the PR, let the guarded deploy apply migration 0071 and restart the box runner, then execute the production walkthrough. Do not declare completion until the production walkthrough passes all five required outcomes.
+Ship the small stale-run truth patch, then repeat the exact Substrata Terminal URL. Completion requires `Session ended / No live terminal session` while its PTY is absent.
