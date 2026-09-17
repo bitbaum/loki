@@ -27,6 +27,27 @@ repo's own comments means the fleet overview (`fleetMapFacts`, published by
 `/api/fleet/map`). The prompt only ever sees the latter labelled "Fleet map",
 which is what keeps the model from confusing them — keep it that way.
 
+## What Loki builds: entities
+
+Loki is the **engineering plane** of an entity. An entity is anything that can
+hold a wallet and is better for holding one — a test rather than a list, which
+is what keeps the list open in principle: a new type earns its place by
+answering the test, not by resembling the types already there.
+
+The same entity sits on three planes. **OrangeCat** is its economy (it can
+hold, receive and send value), **Solon** its governance (its decisions can be
+put to a signed vote), **Loki** its engineering (it can be built and shipped by
+agents). A project Loki builds for someone is that third plane of a thing that
+also has the other two.
+
+The list of types has ONE producer: `orangecat/src/config/entity-registry.ts`,
+where every type carries `wallet: { holds, why }` under a ratchet test
+(bitbaum/orangecat#1071). Do not restate it here — the same rule this file
+already applies to `ORANGECAT_CAPABILITIES` above, and for the same measured
+reason: three copies of the entity list lived in orangecat's own agent-read
+docs and all three had drifted, one naming a type that has never existed. See
+`bitbaum/fleet` `AGENTS.md` → Producers.
+
 ## Where code lives
 
 Every repository Loki creates or registers lives in the `bitbaum` GitHub
