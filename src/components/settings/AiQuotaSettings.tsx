@@ -173,12 +173,16 @@ function QuotaRow({ row }: { row: QuotaRowView }) {
       {row.alsoMetered && row.alsoMetered.length > 0 && (
         <p className="ui-quota-detail">also metered: {row.alsoMetered.join(" · ")}</p>
       )}
-      <p className="ui-quota-consequence">
-        {(row.state === "exhausted" || row.state === "skipped") && (
-          <AlertTriangle className="mr-1 inline h-3 w-3" aria-hidden="true" />
-        )}
-        {row.consequence}
-      </p>
+      {/* Blank when the row above already said the same thing — five identical
+          "this is the last link" lines in a column bury the rows that differ. */}
+      {row.consequence && (
+        <p className="ui-quota-consequence">
+          {(row.state === "exhausted" || row.state === "skipped") && (
+            <AlertTriangle className="mr-1 inline h-3 w-3" aria-hidden="true" />
+          )}
+          {row.consequence}
+        </p>
+      )}
     </div>
   );
 }
@@ -193,7 +197,8 @@ function stateLabel(row: QuotaRowView): string {
   // next to it is how a dashboard earns the word made-up.
   if (row.shortfall) return "too low";
   if (row.state === "exhausted") return "spent";
-  return row.answers === null ? "available" : `~${row.answers.toLocaleString("en-US")} answers`;
+  if (row.answers === null) return "available";
+  return `~${row.answers.toLocaleString("en-US")} ${row.unitNoun ?? "answers"}`;
 }
 
 /**

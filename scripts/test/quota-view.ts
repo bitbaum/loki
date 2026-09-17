@@ -12,6 +12,7 @@
 import assert from "node:assert/strict";
 import {
   bindingRows,
+  dedupeConsequences,
   describeQuota,
   unknownQuota,
   summarise,
@@ -396,6 +397,73 @@ check("two different models stay two rows", () => {
     describeQuota(row({ model: "b" }), { now: NOW, nextProvider: null }),
   ]);
   assert.equal(rows.length, 2, "grouping is per MODEL — Groq meters each one separately");
+});
+
+// ── A vendor that publishes nothing has still SERVED ────────────────────────
+// Seen on the live page 2026-09-17: the google row read "configured, but it has
+// not served an answer yet" while Gemini was answering most of the traffic. It
+// has no rate-limit headers, so it can never appear in provider_quota — the row
+// would have stayed false forever, whoever waited. Spend is the second witness.
+
+check("a vendor that served but discloses no limits does not read as never called", () => {
+  const v = unknownQuota(
+    "google",
+    "served 14 calls today (9,532 tokens) — this vendor publishes no limits, so there is nothing left to measure",
+    "working, but its headroom cannot be known until it refuses",
+  );
+  assert.equal(v.state, "unknown", "still unknown — nothing was MEASURED");
+  assert.match(v.detail, /served 14 calls today/, v.detail);
+  assert.doesNotMatch(v.detail, /has not served/, "the false claim must be gone");
+  assert.doesNotMatch(
+    v.consequence,
+    /will be measured/,
+    "promising a future measurement is the same lie one step later",
+  );
+});
+
+check("a vendor nobody has called still says exactly that", () => {
+  const v = unknownQuota("cloudflare", "configured, but it has not served an answer yet");
+  assert.match(v.detail, /has not served an answer yet/);
+  assert.match(v.consequence, /will be measured/, "here the promise IS true");
+});
+
+// ── The unit has to match what the counter counts ───────────────────────────
+check("a transcription model's counter is not labelled in answers", () => {
+  const v = describeQuota(
+    row({ model: "whisper-large-v3-turbo", remaining: 1999, quotaLimit: 2000 }),
+    {
+      now: NOW,
+      nextProvider: null,
+    },
+  );
+  assert.equal(v.unitNoun, "transcriptions", "whisper serves transcriptions, not answers");
+});
+
+check("a chat model keeps answers", () => {
+  const v = describeQuota(row(), { now: NOW, nextProvider: null });
+  assert.equal(v.unitNoun, "answers");
+});
+
+// ── Say it once ─────────────────────────────────────────────────────────────
+check("a consequence repeated under itself is blanked, not printed five times", () => {
+  const last = "this is the last link — after it, answers wait for the reset";
+  const rows = dedupeConsequences([
+    { ...unknownQuota("a", "x"), consequence: last },
+    { ...unknownQuota("b", "x"), consequence: last },
+    { ...unknownQuota("c", "x"), consequence: last },
+  ]);
+  assert.equal(rows[0]!.consequence, last, "the first still says it");
+  assert.equal(rows[1]!.consequence, "");
+  assert.equal(rows[2]!.consequence, "");
+});
+
+check("a consequence that returns after a different one speaks again", () => {
+  const rows = dedupeConsequences([
+    { ...unknownQuota("a", "x"), consequence: "moves to google" },
+    { ...unknownQuota("b", "x"), consequence: "last link" },
+    { ...unknownQuota("c", "x"), consequence: "moves to google" },
+  ]);
+  assert.equal(rows[2]!.consequence, "moves to google", "not a global dedupe — only the row above");
 });
 
 console.log(`✓ quota view: ${passed} checks passed`);

@@ -67,3 +67,28 @@ export async function usageByFeature(
     .orderBy(desc(sql`sum(${aiUsage.tokens})`));
   return rows;
 }
+
+/**
+ * The day's totals per PROVIDER — the evidence that a vendor SERVED, even when
+ * it discloses no limits.
+ *
+ * Gemini publishes no rate-limit headers at all, so it can never appear in
+ * `provider_quota`. Without this, the capacity page said "configured, but it
+ * has not served an answer yet" about the vendor answering most of the traffic,
+ * and would have said it forever — the exact false claim this surface exists to
+ * stop. Spend is the second witness: it knows a call happened even when the
+ * vendor says nothing about what is left.
+ */
+export async function usageByProvider(
+  now = new Date(),
+): Promise<Array<{ provider: string; tokens: number; calls: number }>> {
+  return db
+    .select({
+      provider: aiUsage.provider,
+      tokens: sql<number>`sum(${aiUsage.tokens})::int`,
+      calls: sql<number>`sum(${aiUsage.calls})::int`,
+    })
+    .from(aiUsage)
+    .where(eq(aiUsage.day, utcDayKey(now)))
+    .groupBy(aiUsage.provider);
+}
