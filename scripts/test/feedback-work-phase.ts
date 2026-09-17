@@ -474,3 +474,82 @@ console.log("✓ feedback work-phase tests passed");
     "verified:true alone (no progress beat yet) is Working — post-prompt evidence",
   );
 }
+
+// Builder offline outranks silence — and stays reachable after delivery.
+//
+// The runner stamps executedAt on its inject-ack, so a claimed command is
+// "delivered" for nearly the whole run. Gating the offline branch on
+// `!deliveredAt` made it unreachable in practice: a laptop closed one minute
+// into a run read "Starting", then "Open Terminal — or Restart Fleet Runner",
+// pointing the operator at a machine that was off. Pinned here because nothing
+// pinned it before, which is how the guard drifted into dead code.
+{
+  const now = Date.now();
+  const offlineAfterDelivery = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      startedAt: new Date(now - 5 * 60_000),
+      deliveredAt: new Date(now - 4 * 60_000).toISOString(),
+      lastProgressAt: null,
+      builderOffline: true,
+      builderChannel: "local",
+    }),
+    now,
+  );
+  assert.equal(
+    offlineAfterDelivery.phase,
+    FEEDBACK_WORK_PHASE.STUCK,
+    "delivered + builder offline + no output is STUCK, not Starting",
+  );
+  assert.match(
+    offlineAfterDelivery.detail ?? "",
+    /Fleet Runner/,
+    "a local run on an offline computer asks for Fleet Runner, never a terminal on a dead machine",
+  );
+  assert.match(
+    offlineAfterDelivery.diagnostic ?? "",
+    /already handed to it/,
+    "claimed-then-silent says the prompt already reached that machine",
+  );
+
+  const offlineBeforeDelivery = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      startedAt: new Date(now - 60_000),
+      builderOffline: true,
+      builderChannel: "cloud",
+    }),
+    now,
+  );
+  assert.equal(
+    offlineBeforeDelivery.phase,
+    FEEDBACK_WORK_PHASE.STUCK,
+    "never-claimed + builder offline is still STUCK",
+  );
+  assert.doesNotMatch(
+    offlineBeforeDelivery.diagnostic ?? "",
+    /already handed to it/,
+    "never-claimed must not claim the prompt reached the builder",
+  );
+
+  // The guard is about SILENCE, not about presence: a run that is streaming
+  // keeps its own reading even if the presence table says offline (a heartbeat
+  // can lapse while the PTY is very much alive).
+  const streamingDespiteOffline = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      startedAt: new Date(now - 5 * 60_000),
+      deliveredAt: new Date(now - 4 * 60_000).toISOString(),
+      lastProgressAt: new Date(now - 5_000).toISOString(),
+      injectVerified: true,
+      builderOffline: true,
+      builderChannel: "local",
+    }),
+    now,
+  );
+  assert.equal(
+    streamingDespiteOffline.phase,
+    FEEDBACK_WORK_PHASE.WORKING,
+    "bytes now outrank a stale presence row — offline must not mute a live agent",
+  );
+}
