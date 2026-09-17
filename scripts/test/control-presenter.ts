@@ -690,6 +690,71 @@ function runTests(): void {
     assert(state.tone === "session-open", `expected session-open, got ${state.tone}`);
   });
 
+  // Control showed "Working · Live agent process detected" for a project whose
+  // own /api/control reported agentRunning=false and activeAgents=[] — the
+  // badge was right (a hook turn was open) and the stated reason was invented.
+  // Each running signal must name itself.
+  check("a live agent turn is reported as a turn, not as a detected process", () => {
+    const nowS = Math.floor(Date.now() / 1000);
+    const project = stubProject({
+      tab: "loki",
+      agentRunning: false,
+      activeAgents: [],
+      liveAgentTurns: openTurn(2),
+    });
+    const state = getProjectDisplayState(project, ["loki"], nowS);
+    assert(state.isRunning, "an open turn is work");
+    assert(
+      state.runningEvidence === "live-turn",
+      `expected live-turn, got ${String(state.runningEvidence)}`,
+    );
+    const snapshot = buildProjectOperationsSnapshot(project, ["loki"], nowS);
+    assert(
+      snapshot.evidenceLabel === "Agent reported a turn in progress",
+      `must not claim a process it never saw, got "${snapshot.evidenceLabel}"`,
+    );
+  });
+
+  check("verified run output is reported as run output", () => {
+    const nowS = Math.floor(Date.now() / 1000);
+    const project = stubProject({
+      tab: "loki",
+      agentRunning: true,
+      verifiedRunActive: true,
+    });
+    const state = getProjectDisplayState(project, ["loki"], nowS);
+    assert(
+      state.runningEvidence === "run-output",
+      `expected run-output, got ${String(state.runningEvidence)}`,
+    );
+    const snapshot = buildProjectOperationsSnapshot(project, ["loki"], nowS);
+    assert(
+      snapshot.evidenceLabel === "Run output still arriving from the builder",
+      `expected the run-output line, got "${snapshot.evidenceLabel}"`,
+    );
+  });
+
+  check("a tracked prompt with no agent process says so", () => {
+    const nowS = Math.floor(Date.now() / 1000);
+    const project = stubProject({
+      tab: "loki",
+      agentRunning: false,
+      activeAgents: [],
+      currentPrompt: { key: "runner", label: "Dispatched work", startedAt: nowS - 3 },
+    });
+    const state = getProjectDisplayState(project, ["loki"], nowS);
+    assert(state.isRunning, "a fresh tracked prompt still reads as work");
+    assert(
+      state.runningEvidence === "dispatched-prompt",
+      `expected dispatched-prompt, got ${String(state.runningEvidence)}`,
+    );
+    const snapshot = buildProjectOperationsSnapshot(project, ["loki"], nowS);
+    assert(
+      !snapshot.evidenceLabel.includes("process detected"),
+      `must not claim a process, got "${snapshot.evidenceLabel}"`,
+    );
+  });
+
   check("a count of 0 is not a live turn", () => {
     // The bucket only ever exists with count >= 1, but a future caller that
     // sends an empty bucket must not light the card up.
