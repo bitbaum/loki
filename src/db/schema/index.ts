@@ -39,6 +39,7 @@ export * from "./user-preferences";
 export * from "./debug-logs";
 export * from "./cron-jobs";
 export * from "./runtime-snapshots";
+export * from "./calendar-busy";
 export * from "./push-subscriptions";
 export * from "./control-audit-events";
 export * from "./runner-presence";
