@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Sparkles, Settings2 } from "lucide-react";
-import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
+import { STATE_DEFINITIONS } from "@/lib/control-states";
+import { deriveRunnerPresence, latestRunSignals } from "./control-presenter";
 import { postJson } from "@/lib/api/fetch";
 import { useControlData } from "@/hooks/use-control-data";
 import { useLaunchModal } from "@/hooks/use-launch-modal";
@@ -15,25 +14,23 @@ import {
   deriveFleetPulse,
 } from "./control-presenter";
 import { rememberFleetProject } from "@/lib/fleet-context";
-import { STATE_DEFINITIONS, deriveRunnerStateKey } from "@/lib/control-states";
-import { builderCompactLabel } from "@/lib/builder-presence";
-import { timeAgo } from "@/lib/dates";
 import { ControlFleetStatus } from "./ControlFleetStatus";
 import { AttentionBar } from "./AttentionBar";
 import { AgentEscalations } from "./AgentEscalations";
 import { ControlInbox } from "./ControlInbox";
-import { ControlSettingsSheet } from "./ControlSettingsSheet";
 import { RunnerStatusBanner } from "./RunnerStatusBanner";
-import { APP_NAME } from "@/config/brand";
-import { ActivityLogPanel, BrainConfigPanel } from "./control-panel-helpers";
+import { ActivityLogPanel } from "./control-panel-helpers";
+import {
+  ControlEmptyState,
+  ControlNotices,
+  LaunchDefaultsSection,
+  WorkspacesSection,
+} from "./control-panel-sections";
+import { ControlPanelModals } from "./ControlPanelModals";
+import { useControlDeepLink } from "./use-control-deep-link";
 import { LiveTerminalPanel } from "./LiveTerminalPanel";
 import { buildCardProps } from "./control-panel-card-props";
-import { LaunchTabModal, NewProjectModal } from "./control-panel-modals";
-import { BootstrapModal } from "./BootstrapModal";
 import { ProjectOperationsView } from "./ProjectOperationsView";
-import { EmptyStateWelcome } from "./EmptyStateWelcome";
-import { GitHubRepoSuggestions } from "./GitHubRepoSuggestions";
-import { LocalDevSuggestions } from "./LocalDevSuggestions";
 import { MissingCLIsBanner } from "@/components/desktop/MissingCLIsBanner";
 import { useAutomationPolicy } from "@/hooks/use-automation-policy";
 import type { AutoInjectMode } from "@/config/beacon";
@@ -97,12 +94,6 @@ export function ControlPanel() {
   const [highlightTab, setHighlightTab] = useState<string | null>(null);
   const [liveTargetTab, setLiveTargetTab] = useState<string | null>(null);
   const livePanelRef = useRef<HTMLElement>(null);
-  const handledFocusRef = useRef<string | null>(null);
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const focusParam = searchParams.get("focus")?.trim() ?? null;
-  const switchToParam = searchParams.get("switchTo")?.trim() ?? null;
   const [switchNotice, setSwitchNotice] = useState<string | null>(null);
   const [bootstrapOpen, setBootstrapOpen] = useState(false);
   // Fleet settings — autopilot, refresh, builder detail. Everything the hero
@@ -154,37 +145,21 @@ export function ControlPanel() {
     createError,
     createAndLaunch,
   } = useCreateProject({ openLaunchModal, refresh });
-  const runnerAgoMs =
-    lastUpdated && runnerLastPushedAt ? lastUpdated - new Date(runnerLastPushedAt).getTime() : null;
-  // Presence is connection-based: an open runner↔bridge SSE connection
-  // (runnerConnected === true) means online, full stop — the badge flips in
-  // <1s without waiting on the heartbeat. ADDITIVE ROLLOUT: we do NOT treat
-  // connected===false as authoritative offline yet, because a pre-rollout
-  // runner (no client=runner tag) reports false while heartbeating fine —
-  // so offline still requires a stale heartbeat. At cutover (once every runner
-  // tags itself) this drops to `runnerConnected === false`.
-  // See docs/architecture/connection-presence.md.
-  // Connection-based presence is authoritative when the bridge reports it.
-  // runnerConnected === true → online (cloud builder and/or desktop app).
-  // runnerConnected === false → offline even if a stale heartbeat exists.
-  // null → fall back to heartbeat age until the SSE event arrives.
-  const runnerOffline =
-    !runtimeAvailable &&
-    (runnerConnected === false ||
-      (runnerConnected !== true &&
-        !builderPresence?.cloud &&
-        runnerAgoMs !== null &&
-        runnerAgoMs > RUNNER_OFFLINE_THRESHOLD_MS));
-  const runnerNeverSeen =
-    !runtimeAvailable && runnerConnected !== true && runnerLastPushedAt === null;
-  // Only hide cached runtime when the runner has never connected. When offline
-  // but we have a last push, show last-known Working/Ready state with a stale label.
-  const runtimeStateKnown = !runnerNeverSeen;
-  const runnerSyncStale = runnerOffline && runnerLastPushedAt !== null;
-  const runtimeSyncCtx = {
-    syncStale: runnerSyncStale,
-    lastSyncedAt: runnerLastPushedAt,
-  };
+  const presence = deriveRunnerPresence({
+    runtimeAvailable,
+    runnerConnected,
+    cloudBuilderPresent: Boolean(builderPresence?.cloud),
+    runnerLastPushedAt,
+    lastUpdated,
+  });
+  // Copied out as primitives, not destructured: the React Compiler cannot prove
+  // a field read off a returned object stays put, and `runnerSyncStale` feeds a
+  // useMemo dependency list.
+  const runnerOffline = Boolean(presence.runnerOffline);
+  const runnerNeverSeen = Boolean(presence.runnerNeverSeen);
+  const runtimeStateKnown = Boolean(presence.runtimeStateKnown);
+  const runnerSyncStale = Boolean(presence.runnerSyncStale);
+  const runtimeSyncCtx = presence.runtimeSyncCtx;
   const pageState = data
     ? buildControlPageState(data, nowS, runtimeStateKnown, runnerSyncStale)
     : null;
@@ -199,19 +174,7 @@ export function ControlPanel() {
     // Genuine execution stalls (serialized/in-flight commands already filtered
     // out server-side) outrank "Building" — see deriveFleetPulse.
     executionStall: data?.runnerExecutionStall ?? null,
-    // Pair each project's latest outcome with how long ago its latest run
-    // finished, so a stale outage doesn't read as "currently stalled".
-    latestRuns: (data?.projects ?? [])
-      .map((p) => {
-        const outcome = p.recentOutcomes?.[0];
-        if (!outcome) return null;
-        const finishedAt = p.latestOrchestrationRun?.finishedAt;
-        const ageMs = finishedAt ? nowS * 1000 - Date.parse(finishedAt) : null;
-        return { outcome, ageMs };
-      })
-      .filter((r): r is { outcome: NonNullable<typeof r>["outcome"]; ageMs: number | null } =>
-        Boolean(r),
-      ),
+    latestRuns: latestRunSignals(data?.projects ?? [], nowS),
   });
   const liveTabRows = useMemo(
     () => (data ? buildLiveTabRows(data.liveTabs, data.projects, nowS, runnerSyncStale) : []),
@@ -247,71 +210,19 @@ export function ControlPanel() {
     if (selectedTab) rememberFleetProject(selectedTab);
   }, [selectedTab]);
 
-  // Push notification / palette deep-link: /control?focus=<tab>&switchTo=<agent>
-  useEffect(() => {
-    if (!focusParam) {
-      handledFocusRef.current = null;
-      return;
-    }
-    if (!data) return;
-
-    const tabLower = focusParam.toLowerCase();
-    const snapshot = snapshots?.find((s) => s.project.tab.toLowerCase() === tabLower);
-    const snapshotTab = snapshot?.project.tab;
-    const liveTab = liveTabRows.find((r) => r.tabName.toLowerCase() === tabLower)?.tabName;
-    const resolvedTab = snapshotTab ?? liveTab;
-    if (!resolvedTab) return;
-    const requestKey = `${tabLower}\u0000${switchToParam ?? ""}`;
-    if (handledFocusRef.current === requestKey) return;
-    handledFocusRef.current = requestKey;
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Deep-link handler: an App Router param change only surfaces as a re-render, so this effect IS the event handler for /control?focus=…. It resolves the target once, atomically, then selects + highlights + scrolls + clears the params; the requestKey ref already guarantees it runs once per navigation. Splitting the setStates into render-time adjustments would resolve the target twice against possibly-different data mid-refresh.
-    if (snapshotTab) setSelectedTab(snapshotTab);
-    // A deep link names a project, so on a phone it must LAND on that project
-    // rather than on the list — arriving from a push notification or the
-    // failure banner's "Open on Control" and being shown the roster instead
-    // would make the link useless exactly when it matters.
-    setProjectOpenOnPhone(true);
-    setHighlightTab(resolvedTab);
-    setLiveTargetTab(resolvedTab);
-    if (liveDetailsRef.current) liveDetailsRef.current.open = true;
-    livePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-
-    if (switchToParam && snapshot?.project.dir) {
-      const label = switchableRegistry.find((e) => e.id === switchToParam)?.label ?? switchToParam;
-      setSwitchNotice(`Switching ${snapshot.project.tab} to ${label}…`);
-      postJson("/api/control/switch-agent", {
-        tab: snapshot.project.liveTab ?? snapshot.project.tab,
-        dir: snapshot.project.dir,
-        toAgent: switchToParam,
-        fromAgent: snapshot.project.activeAgents[0] ?? snapshot.project.agentPref ?? undefined,
-      })
-        .then(() => {
-          setSwitchNotice(`Switched ${snapshot.project.tab} to ${label}`);
-          setTimeout(() => setSwitchNotice(null), 6000);
-        })
-        .catch(() => {
-          setSwitchNotice(`Could not switch ${snapshot.project.tab} to ${label}`);
-          setTimeout(() => setSwitchNotice(null), 8000);
-        });
-    }
-
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("focus");
-    params.delete("switchTo");
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [
-    focusParam,
-    switchToParam,
+  useControlDeepLink({
     data,
     snapshots,
     liveTabRows,
-    pathname,
-    router,
-    searchParams,
     switchableRegistry,
-  ]);
+    liveDetailsRef,
+    livePanelRef,
+    setSelectedTab,
+    setProjectOpenOnPhone,
+    setHighlightTab,
+    setLiveTargetTab,
+    setSwitchNotice,
+  });
 
   // Build cardProps unconditionally — the closure is fine with empty arrays
   // when `data` hasn't loaded yet. ProjectOperationsView only invokes the
@@ -425,28 +336,14 @@ export function ControlPanel() {
           Fleet Runner (no IPC) and when all expected tools are present. */}
       <MissingCLIsBanner />
 
-      {/* New-user welcome card. Shows ONLY when the user has zero registered
-          projects — the dead-end blank /control was the worst first-touch
-          we had. Three CTAs: import from GitHub (multi-select), add manually,
-          install Fleet Runner. Disappears the moment they add anything. */}
       {data && data.projects.length === 0 && (
-        <>
-          {/* "We already know your work" — two parallel one-click bulk
-              imports. GitHub suggestions render for users with a GitHub
-              OAuth account linked; LocalDevSuggestions renders inside Fleet
-              Runner when ~/dev has git repos. Either or both can be empty
-              (collapses to nothing) so the welcome cards still anchor the
-              empty state for users without either signal. */}
-          <GitHubRepoSuggestions />
-          <LocalDevSuggestions />
-          <EmptyStateWelcome
-            onAddManual={() => setNewProjectOpen(true)}
-            // Bootstrap requires the local Fleet Runner runner (writes to ~/dev,
-            // shells out to `gh repo create`); hide the CTA when runtime isn't
-            // available so we don't 503 the user on click.
-            onBootstrap={runtimeAvailable ? () => setBootstrapOpen(true) : undefined}
-          />
-        </>
+        <ControlEmptyState
+          onAddManual={() => setNewProjectOpen(true)}
+          // Bootstrap requires the local Fleet Runner runner (writes to ~/dev,
+          // shells out to `gh repo create`); hide the CTA when runtime isn't
+          // available so we don't 503 the user on click.
+          onBootstrap={runtimeAvailable ? () => setBootstrapOpen(true) : undefined}
+        />
       )}
 
       {/* Tier 2 of four — see the ordering note at the top of this return.
@@ -549,23 +446,14 @@ export function ControlPanel() {
           section. Add a GROUP to the inbox; never add a third strip here. */}
       <ControlInbox />
 
-      {/* Workspaces panel — collapsed by default. Projects already shows
-          per-project state; auto-opening this duplicated the same facts in a
-          second layout (dogfood: read as broken / demo chrome). Open when you
-          need quick-send or peek — not on every Control visit. */}
-      <details ref={liveDetailsRef} className="ui-control-live-details">
-        <summary className="ui-control-live-details-summary">
-          <span>Workspaces</span>
-          <span className="ui-tag ui-tag-neutral text-micro">
-            {runnerNeverSeen
-              ? "offline"
-              : runnerSyncStale
-                ? `${liveTabRows.length} tab${liveTabRows.length === 1 ? "" : "s"} · sync stale`
-                : `${liveTabRows.length} tab${liveTabRows.length === 1 ? "" : "s"}`}
-          </span>
-        </summary>
-        <div className="ui-control-live-details-body">{livePanel}</div>
-      </details>
+      <WorkspacesSection
+        detailsRef={liveDetailsRef}
+        tabCount={liveTabRows.length}
+        runnerNeverSeen={runnerNeverSeen}
+        runnerSyncStale={runnerSyncStale}
+      >
+        {livePanel}
+      </WorkspacesSection>
 
       {data.recentActivity.length > 0 && (
         <ActivityLogPanel
@@ -575,132 +463,92 @@ export function ControlPanel() {
         />
       )}
 
-      {/* Section is exactly what its title says now: the agent/model defaults
-          used for new launches. The old "Diagnostics and launch settings"
-          label promised diagnostics it never contained, and the panel carried
-          a second "New project" button no one could find down here — the
-          header's "+ New" is the one CTA for that. */}
-      <details className="ui-control-launch-defaults">
-        <summary className="ui-control-launch-defaults-summary flex items-center gap-2">
-          <Settings2 className="h-3.5 w-3.5" />
-          Launch defaults
-        </summary>
-        <div className="ui-control-launch-defaults-body space-y-5">
-          <section>
-            <p className="mb-3 text-xs leading-relaxed text-text-tertiary">
-              These choices are used when {APP_NAME} opens a new terminal tab. CLI availability is
-              reported by the connected computer, not by the cloud.
-            </p>
-            <BrainConfigPanel
-              selectedAgent={selectedAgent}
-              switchableRegistry={switchableRegistry}
-              model={model}
-              hasPendingChange={hasPendingChange}
-              savingAgent={savingAgent}
-              selectedDefinition={selectedDefinition}
-              lastTabResults={lastTabResults}
-              lastTabResultsAt={lastTabResultsAt}
-              onAgentSelect={handleAgentSelect}
-              onModelChange={handleModelChange}
-              onSave={saveAgent}
-              onRequestInstall={requestAgentInstall}
-            />
-          </section>
-        </div>
-      </details>
+      <LaunchDefaultsSection
+        selectedAgent={selectedAgent}
+        switchableRegistry={switchableRegistry}
+        model={model}
+        hasPendingChange={hasPendingChange}
+        savingAgent={savingAgent}
+        selectedDefinition={selectedDefinition}
+        lastTabResults={lastTabResults}
+        lastTabResultsAt={lastTabResultsAt}
+        onAgentSelect={handleAgentSelect}
+        onModelChange={handleModelChange}
+        onSave={saveAgent}
+        onRequestInstall={requestAgentInstall}
+      />
 
-      {fleetSettingsOpen && (
-        <ControlSettingsSheet
-          onClose={() => setFleetSettingsOpen(false)}
-          automationMode={automationPolicy.mode}
-          automationModeLoaded={automationPolicy.loaded}
-          automationSaving={automationPolicy.saving}
-          onAutomationChange={handleAutomationChange}
-          refreshing={refreshing}
-          onRefresh={() => refresh(true)}
-          lastUpdated={lastUpdated}
-          runnerLabel={builderCompactLabel(
-            deriveRunnerStateKey({
-              neverSeen: runnerNeverSeen,
-              offline: runnerOffline,
-              stateUnknown: runnerNeverSeen,
-            }),
-            runnerVersion,
-            builderPresence,
-          )}
-          runnerDetail={
-            runnerLastPushedAt && !runnerNeverSeen
-              ? `Builder sync ${timeAgo(new Date(runnerLastPushedAt).getTime())}`
-              : null
-          }
-          versionDetail={
-            [
-              data?.builderVersions?.cloud
-                ? `cloud v${data.builderVersions.cloud.replace(/^box-/, "")}`
-                : null,
-              data?.builderVersions?.local
-                ? `app v${data.builderVersions.local.replace(/^box-/, "")}`
-                : null,
-            ]
-              .filter(Boolean)
-              .join(" · ") || null
-          }
-        />
-      )}
+      <ControlPanelModals
+        fleetSettings={
+          fleetSettingsOpen
+            ? {
+                onClose: () => setFleetSettingsOpen(false),
+                automationPolicy,
+                onAutomationChange: handleAutomationChange,
+                refreshing,
+                onRefresh: () => refresh(true),
+                lastUpdated,
+                runnerNeverSeen,
+                runnerOffline,
+                runnerVersion,
+                runnerLastPushedAt,
+                builderPresence,
+                builderVersions: data?.builderVersions ?? null,
+              }
+            : null
+        }
+        bootstrap={
+          bootstrapOpen
+            ? {
+                agentId: selectedAgent,
+                agentModel: model,
+                onClose: async () => {
+                  setBootstrapOpen(false);
+                  await refresh(true);
+                },
+              }
+            : null
+        }
+        newProject={
+          newProjectOpen
+            ? {
+                name: newName,
+                dir: newDir,
+                gitUrl: newGitUrl,
+                error: createError,
+                creating: creatingProject,
+                onNameChange: setNewName,
+                onDirChange: setNewDir,
+                onGitUrlChange: setNewGitUrl,
+                onCreate: createAndLaunch,
+                onClose: () => setNewProjectOpen(false),
+              }
+            : null
+        }
+        launch={
+          launchTarget
+            ? {
+                tab: launchTarget.tab,
+                dir: launchTarget.dir,
+                agents: launchableAgents,
+                selectedAgentId: launchAgentId,
+                initialPrompt: launchInitialPrompt,
+                launching: launchingProject,
+                error: launchError,
+                onAgentChange: (agentId: string) => {
+                  const agent = launchableAgents.find((entry) => entry.id === agentId);
+                  setLaunchAgentId(agentId);
+                  setLaunchModel(agent?.defaultModel ?? "");
+                },
+                onInitialPromptChange: setLaunchInitialPrompt,
+                onLaunch: confirmLaunch,
+                onClose: () => setLaunchTarget(null),
+              }
+            : null
+        }
+      />
 
-      {bootstrapOpen && (
-        <BootstrapModal
-          agentId={selectedAgent}
-          agentModel={model}
-          onClose={async () => {
-            setBootstrapOpen(false);
-            await refresh(true);
-          }}
-        />
-      )}
-
-      {newProjectOpen && (
-        <NewProjectModal
-          name={newName}
-          dir={newDir}
-          gitUrl={newGitUrl}
-          error={createError}
-          creating={creatingProject}
-          onNameChange={setNewName}
-          onDirChange={setNewDir}
-          onGitUrlChange={setNewGitUrl}
-          onCreate={createAndLaunch}
-          onClose={() => setNewProjectOpen(false)}
-        />
-      )}
-
-      {launchTarget && (
-        <LaunchTabModal
-          tab={launchTarget.tab}
-          dir={launchTarget.dir}
-          agents={launchableAgents}
-          selectedAgentId={launchAgentId}
-          initialPrompt={launchInitialPrompt}
-          launching={launchingProject}
-          error={launchError}
-          onAgentChange={(agentId) => {
-            const agent = launchableAgents.find((entry) => entry.id === agentId);
-            setLaunchAgentId(agentId);
-            setLaunchModel(agent?.defaultModel ?? "");
-          }}
-          onInitialPromptChange={setLaunchInitialPrompt}
-          onLaunch={confirmLaunch}
-          onClose={() => setLaunchTarget(null)}
-        />
-      )}
-
-      {error && <p className="ui-box-error">{error}</p>}
-      {(queuedNotice || switchNotice) && (
-        <div className="ui-control-notice">
-          <Sparkles className="h-3.5 w-3.5 shrink-0" />
-          {switchNotice ?? queuedNotice}
-        </div>
-      )}
+      <ControlNotices error={error} queuedNotice={queuedNotice} switchNotice={switchNotice} />
     </div>
   );
 }

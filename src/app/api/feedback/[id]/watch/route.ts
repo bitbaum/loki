@@ -5,7 +5,7 @@ import { getFeedbackWithProject } from "@/db/queries/site-feedback";
 import { getOrchestrationRunById } from "@/db/queries/orchestration-runs";
 import { listRunEventsForRun } from "@/db/queries/run-events";
 import { getCommandById } from "@/db/queries/pending-commands";
-import { runToFeedbackSnapshot } from "@/lib/feedback/attach-work";
+import { hydrateFeedbackSnapshot } from "@/lib/feedback/attach-work";
 import { deriveFeedbackWork } from "@/lib/feedback/work-phase";
 import { runEventKindLabel } from "@/lib/feedback/run-step";
 import { deriveDispatchLiveStatus } from "@/lib/dispatch-status";
@@ -28,7 +28,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const run = row.feedback.dispatchedRunId
     ? await getOrchestrationRunById(row.ownerUserId, row.feedback.dispatchedRunId)
     : null;
-  const snap = runToFeedbackSnapshot(run);
+  // Hydrated, not bare: Watch must give the same answer as the row it was
+  // opened from. A bare snapshot has no builder presence, so an offline
+  // Fleet Runner read as "Starting" here while the row said "Needs you".
+  const snap = await hydrateFeedbackSnapshot(row.ownerUserId, run);
   const work = deriveFeedbackWork(row.feedback.status, snap);
 
   const events = run

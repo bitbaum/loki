@@ -14,48 +14,23 @@ import {
   Loader2,
   Repeat2,
 } from "lucide-react";
-import { AGENT_LABELS, type AnyAgentId } from "@/lib/agent-labels";
 import { useFetch } from "@/hooks/use-fetch";
 import { useCommandPalette } from "@/hooks/use-command-palette";
 import { useVoiceInput } from "@/hooks/use-voice-input";
 import { useOverlayLock } from "@/hooks/use-overlay-lock";
-import { NAV_ITEMS, type NavItem } from "@/config/navigation";
-import { PROMPT_TEMPLATES, type PromptTemplate } from "@/config/prompt-library";
 import type { AgentPrompt } from "@/app/api/prompts/agent/route";
+import {
+  buildPaletteEntries,
+  filterPaletteEntries,
+  type PaletteEntry,
+  type UserProjectLite,
+} from "./palette-entries";
+import { useCommandComposer } from "./use-command-composer";
 import {
   PALETTE_RECENT_STORAGE_KEY,
   LEGACY_PALETTE_RECENT_STORAGE_KEY,
 } from "@/config/brand-storage";
 import { cn } from "@/lib/utils";
-
-type PaletteEntry =
-  | { kind: "agent-prompt"; key: string; label: string; sub: string; icon: string; href: string }
-  | { kind: "prompt-template"; key: string; label: string; sub: string; icon: null; href: string }
-  | { kind: "nav"; key: string; label: string; sub: string; icon: null; href: string }
-  | { kind: "project"; key: string; label: string; sub: string; icon: null; href: string }
-  | { kind: "switch-agent"; key: string; label: string; sub: string; icon: null; href: string }
-  // Composer (Loki Phase 1): run a natural-language command, and the project
-  // picker shown when the command is project-ambiguous ("ask when ambiguous").
-  | { kind: "run-command"; key: string; label: string; sub: string; icon: null; href: null }
-  | {
-      kind: "pick-project";
-      key: string;
-      label: string;
-      sub: string;
-      icon: null;
-      href: null;
-      projectName: string;
-    };
-
-const SWITCHABLE_AGENT_IDS = [
-  "claude",
-  "cursor",
-  "codex",
-  "gemini",
-  "grok",
-] as const satisfies readonly AnyAgentId[];
-
-type UserProjectLite = { id: string; name: string; dirPath?: string | null; isActive?: boolean };
 
 const RECENT_LIMIT = 6;
 
@@ -86,11 +61,6 @@ export function CommandPalette() {
 
   // Full-screen overlay: freeze the page under it, same as every other one.
   useOverlayLock(open);
-  // Composer state (Loki Phase 1): busy = resolving/dispatching; pending = a
-  // command whose project we still need to ask for; note = inline status/error.
-  const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<{ prompt: string } | null>(null);
-  const [note, setNote] = useState<string | null>(null);
 
   // Global Escape: closes the palette regardless of where focus is. The
   // input's own onKeyDown already handles Escape when focused, but that
@@ -127,74 +97,18 @@ export function CommandPalette() {
     [projects],
   );
 
-  // Fire-and-forget the resolved instruction into the project's agent session
-  // (the operator's call: dispatch goes to the existing session, not a new one).
-  const dispatchInject = useCallback(
-    async (projectKey: string, prompt: string) => {
-      setBusy(true);
-      setNote(null);
-      try {
-        const res = await fetch("/api/inject", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tab: projectKey, customPrompt: prompt }),
-        });
-        if (!res.ok) {
-          const b = (await res.json().catch(() => ({}))) as { error?: string };
-          setNote(b.error ?? `Dispatch failed (HTTP ${res.status})`);
-          return;
-        }
-        setPending(null);
+  const { busy, pending, note, reset, cancelPending, dispatchInject, resolveAndRun } =
+    useCommandComposer({
+      projectNames,
+      onDispatched: () => {
         setQuery("");
         setOpen(false);
-      } catch {
-        setNote("Dispatch failed — check the runner is connected.");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [setOpen],
-  );
-
-  // Resolve NL → { project, prompt }. If the project is ambiguous, switch to a
-  // project picker instead of guessing ("ask when ambiguous").
-  const resolveAndRun = useCallback(
-    async (text: string) => {
-      if (!text.trim()) return;
-      setBusy(true);
-      setNote(null);
-      try {
-        const res = await fetch("/api/command/resolve", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, projects: projectNames }),
-        });
-        const r = (await res.json().catch(() => ({}))) as {
-          projectKey?: string | null;
-          prompt?: string;
-          needsProject?: boolean;
-          error?: string;
-        };
-        if (!res.ok) {
-          setNote(r.error ?? "Couldn't understand that command.");
-          return;
-        }
-        const prompt = r.prompt?.trim() || text.trim();
-        if (r.needsProject || !r.projectKey) {
-          setPending({ prompt });
-          setQuery("");
-          setHighlight(0);
-          return;
-        }
-        await dispatchInject(r.projectKey, prompt);
-      } catch {
-        setNote("Couldn't reach the resolver.");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [projectNames, dispatchInject],
-  );
+      },
+      onNeedsProject: () => {
+        setQuery("");
+        setHighlight(0);
+      },
+    });
 
   // Opening the palette resets the composer. Guarded render-time adjustment
   // (React's "adjusting state when a prop changes" pattern) instead of an
@@ -205,9 +119,7 @@ export function CommandPalette() {
     if (open) {
       setQuery("");
       setHighlight(0);
-      setPending(null);
-      setNote(null);
-      setBusy(false);
+      reset();
     }
   }
 
@@ -219,110 +131,22 @@ export function CommandPalette() {
     return () => window.clearTimeout(t);
   }, [open]);
 
-  const entries = useMemo<PaletteEntry[]>(() => {
-    const agent = (agentPrompts ?? [])
-      .filter((p) => p.style !== "internal")
-      .map<PaletteEntry>((p) => ({
-        kind: "agent-prompt",
-        key: `agent:${p.key}`,
-        label: p.label,
-        sub: `Agent · ${p.category}`,
-        icon: p.icon,
-        href: `/control?prompt=${encodeURIComponent(p.key)}`,
-      }));
-    const templates = PROMPT_TEMPLATES.map<PaletteEntry>((t: PromptTemplate) => ({
-      kind: "prompt-template",
-      key: `template:${t.id}`,
-      label: t.name,
-      sub: `Template · ${t.category}`,
-      icon: null,
-      href: `/prompts?template=${encodeURIComponent(t.id)}`,
-    }));
-    const nav = NAV_ITEMS.filter((n) => n.active).map<PaletteEntry>((n: NavItem) => ({
-      kind: "nav",
-      key: `nav:${n.id}`,
-      label: n.label,
-      sub: `Go to · ${n.description}`,
-      icon: null,
-      href: n.href,
-    }));
-    // Projects come right after navigation because the most-common Cmd-K
-    // intent in a fleet-management product is "jump to project X". The href
-    // uses /control?focus=<tab> which the ControlPanel deep-link handler
-    // picks up (existing behavior from v0.6 push notification flow).
-    const projectEntries = (projects ?? [])
-      .filter((p) => p.isActive !== false && p.name)
-      .map<PaletteEntry>((p) => ({
-        kind: "project",
-        key: `project:${p.id}`,
-        label: p.name,
-        sub: `Project · ${p.dirPath ?? "no local path"}`,
-        icon: null,
-        href: `/control?focus=${encodeURIComponent(p.name)}`,
-      }));
-    const switchEntries = (projects ?? [])
-      .filter((p) => p.isActive !== false && p.name && p.dirPath)
-      .flatMap((p) =>
-        SWITCHABLE_AGENT_IDS.map<PaletteEntry>((agentId) => ({
-          kind: "switch-agent",
-          key: `switch:${p.id}:${agentId}`,
-          label: `Switch ${p.name} to ${AGENT_LABELS[agentId]}`,
-          sub: `Agent · quits current CLI and launches ${AGENT_LABELS[agentId]}`,
-          icon: null,
-          href: `/control?focus=${encodeURIComponent(p.name)}&switchTo=${encodeURIComponent(agentId)}`,
-        })),
-      );
-    return [...projectEntries, ...switchEntries, ...nav, ...agent, ...templates];
-  }, [agentPrompts, projects]);
+  const entries = useMemo<PaletteEntry[]>(
+    () => buildPaletteEntries({ agentPrompts, projects }),
+    [agentPrompts, projects],
+  );
 
-  const filtered = useMemo<PaletteEntry[]>(() => {
-    const q = query.trim().toLowerCase();
-    // Project-picker mode: command resolved but project ambiguous — pick one.
-    if (pending) {
-      return projectNames
-        .filter((name) => !q || name.toLowerCase().includes(q))
-        .map<PaletteEntry>((name) => ({
-          kind: "pick-project",
-          key: `pick:${name}`,
-          label: name,
-          sub: "Run the command here",
-          icon: null,
-          href: null,
-          projectName: name,
-        }))
-        .slice(0, 60);
-    }
-    // A free-text query is a candidate command — offer it as the top action,
-    // above any matching navigate/prompt entries.
-    const runRow: PaletteEntry[] = query.trim()
-      ? [
-          {
-            kind: "run-command",
-            key: "__run__",
-            label: `Run: ${query.trim()}`,
-            sub: "Resolve in natural language & dispatch",
-            icon: null,
-            href: null,
-          },
-        ]
-      : [];
-    if (!q) {
-      // Default ordering: recents (in order) → nav → agent → templates.
-      const byKey = new Map(entries.map((e) => [e.key, e]));
-      const recentEntries = recent.map((k) => byKey.get(k)).filter(Boolean) as PaletteEntry[];
-      const remaining = entries.filter((e) => !recent.includes(e.key));
-      return [...recentEntries, ...remaining].slice(0, 60);
-    }
-    const matches = entries
-      .filter(
-        (e) =>
-          e.label.toLowerCase().includes(q) ||
-          e.sub.toLowerCase().includes(q) ||
-          e.key.toLowerCase().includes(q),
-      )
-      .slice(0, 59);
-    return [...runRow, ...matches];
-  }, [entries, query, recent, pending, projectNames]);
+  const filtered = useMemo<PaletteEntry[]>(
+    () =>
+      filterPaletteEntries({
+        entries,
+        query,
+        recent,
+        pending: Boolean(pending),
+        projectNames,
+      }),
+    [entries, query, recent, pending, projectNames],
+  );
 
   // Clamp the highlight at render time — avoids setState-in-effect when the
   // filtered range shrinks beneath the stored cursor.
@@ -357,10 +181,8 @@ export function CommandPalette() {
     } else if (e.key === "Escape") {
       e.preventDefault();
       // Back out of the project picker first, rather than closing the palette.
-      if (pending) {
-        setPending(null);
-        setNote(null);
-      } else setOpen(false);
+      if (pending) cancelPending();
+      else setOpen(false);
     }
   };
 

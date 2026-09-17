@@ -21,7 +21,7 @@
  *
  * Run: npx tsx scripts/test/widget-server-caps-mirror.ts
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,7 +29,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../..");
 
 const route = readFileSync(join(repoRoot, "src/app/api/feedback/route.ts"), "utf8");
-const widget = readFileSync(join(repoRoot, "widget/main.ts"), "utf8");
+// Every widget module, not just main.ts: the clamps live where the field is
+// built, and splitting the bundle into modules must not silently drop a check.
+const widgetDir = join(repoRoot, "widget");
+const widget = readdirSync(widgetDir)
+  .filter((f) => f.endsWith(".ts"))
+  .map((f) => readFileSync(join(widgetDir, f), "utf8"))
+  .join("\n");
 
 let pass = 0;
 let fail = 0;

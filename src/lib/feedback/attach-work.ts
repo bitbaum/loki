@@ -2,8 +2,8 @@ import { getOrchestrationRunsByIds } from "@/db/queries/orchestration-runs";
 import { getLatestRunEventKinds } from "@/db/queries/run-events";
 import { getOpenPendingByRunIds, getInjectAcksByRunIds } from "@/db/queries/pending-commands";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
-import { getUserProjectsByEntityIds } from "@/db/queries/user-projects";
-import { pickDispatchChannel } from "@/lib/execution-access";
+import { getUserProjectsByEntityIds, getUserProjectByEntityId } from "@/db/queries/user-projects";
+import { applyRunContext } from "@/lib/feedback/run-context";
 import type { FeedbackListItem } from "@/db/queries/site-feedback";
 import {
   deriveFeedbackWork,
@@ -41,6 +41,9 @@ type RunRow = {
   finishedAt: Date | null;
   payload: unknown;
   summary: unknown;
+  /** Entity project id. The run knows which project it belongs to, so a single
+   *  run can resolve its own builder routing without the caller supplying it. */
+  projectId?: string | null;
 };
 
 /** Attach honest work-phase to inbox rows from linked orchestration runs.
@@ -173,42 +176,13 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
     const snap = runToFeedbackSnapshot(row);
     if (snap && row) {
       if (refreshed.has(row.id)) snap.fix = refreshed.get(row.id) ?? null;
-      snap.latestEventKind = latestKinds.get(row.id) ?? null;
-      const pending = pendingByRun.get(row.id);
-      if (pending) {
-        snap.pendingUnclaimed = pending.claimedAt == null;
-        snap.hostedPending = pending.type === "hosted_dispatch";
-        snap.commandId = pending.id;
-        snap.builderChannel = pending.channel;
-      } else {
-        snap.pendingUnclaimed = false;
-      }
-      const payload = row.payload as {
-        commandId?: string;
-        hostedDispatchId?: string;
-        feedbackAutoRetriedAt?: string;
-        channel?: string;
-      } | null;
-      if (!snap.commandId && payload?.commandId) snap.commandId = payload.commandId;
-      if (payload?.hostedDispatchId) snap.hostedPending = true;
-      snap.feedbackAutoRetriedAt = payload?.feedbackAutoRetriedAt ?? null;
-      snap.localOnline = presence.local;
-      snap.cloudOnline = presence.cloud;
-      // Channel-aware offline: local queue → need Fleet Runner; cloud → need box.
-      // The open pending row is the truth while it exists, but the runner stamps
-      // executedAt on its inject-ack, so for most of a run there is no row left
-      // to ask and the channel read back as unknown — which fell through to "any
-      // builder will do" and reported a local run HEALTHY because the cloud box
-      // was up. The project's stored routing decision (locus lock → builder_pref
-      // → cloud floor) is the same answer the dispatcher used, so ask it.
-      const ch = snap.builderChannel ?? pickDispatchChannel(projects.get(item.projectId));
-      snap.builderChannel = ch;
-      snap.builderOffline = ch === "local" ? !presence.local : !presence.cloud;
-      const ack = injectAcks.get(row.id);
-      if (ack) {
-        if (snap.injectVerified == null && ack.verified != null) snap.injectVerified = ack.verified;
-        if (!snap.injectWarning && ack.warning) snap.injectWarning = ack.warning;
-      }
+      applyRunContext(snap, row, {
+        presence,
+        project: projects.get(item.projectId),
+        pending: pendingByRun.get(row.id) ?? null,
+        latestEventKind: latestKinds.get(row.id) ?? null,
+        ack: injectAcks.get(row.id) ?? null,
+      });
     }
     return { ...item, work: deriveFeedbackWork(item.status, snap) };
   });
@@ -227,6 +201,36 @@ function runFinishedWell(run: RunRow): boolean {
     closed &&
     (run.outcome === ORCHESTRATION_OUTCOME.SUCCESS || run.outcome === ORCHESTRATION_OUTCOME.PARTIAL)
   );
+}
+
+/**
+ * The single-run version of the inbox's hydration, for the routes that look at
+ * one run: Watch, Terminal's rail, and Implement's duplicate-guard. The run
+ * carries its own `projectId`, so no caller has to know how builder routing is
+ * decided — which is exactly how the three of them drifted apart.
+ */
+export async function hydrateFeedbackSnapshot(
+  userId: string,
+  run: RunRow | null | undefined,
+): Promise<FeedbackRunSnapshot | null> {
+  const snap = runToFeedbackSnapshot(run);
+  if (!snap || !run) return snap;
+  const [latestKinds, pendingByRun, injectAcks, presence, project] = await Promise.all([
+    getLatestRunEventKinds([run.id]),
+    getOpenPendingByRunIds(userId, [run.id]),
+    getInjectAcksByRunIds(userId, [run.id]),
+    getBuilderPresence(userId).catch(() => ({ cloud: false, local: false, any: false })),
+    run.projectId
+      ? getUserProjectByEntityId(userId, run.projectId).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  return applyRunContext(snap, run, {
+    presence,
+    project: project ?? undefined,
+    pending: pendingByRun.get(run.id) ?? null,
+    latestEventKind: latestKinds.get(run.id) ?? null,
+    ack: injectAcks.get(run.id) ?? null,
+  });
 }
 
 /** Run row → the snapshot shape deriveFeedbackWork consumes. Shared with the
