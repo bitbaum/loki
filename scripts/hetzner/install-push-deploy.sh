@@ -50,7 +50,7 @@ if git symbolic-ref --short HEAD 2>/dev/null | grep -qxE 'main|master'; then
   ( sleep 5
     _sha=\$(git rev-parse HEAD)
     _nwo=\$(git remote get-url origin 2>/dev/null | sed -E 's#(git@github.com:|https://github.com/)##; s#\\.git\$##')
-    if [ -n "\$_nwo" ] && ! bash "$HERE/ci-gate.sh" "\$_nwo" "\$_sha"; then
+    if [ -n "\$_nwo" ] && ! bash "\${DEV_ROOT:-\$HOME/dev}/loki/scripts/hetzner/ci-gate.sh" "\$_nwo" "\$_sha"; then
       echo "[push-deploy] $app: BLOCKED by CI gate for \${_sha} — fix CI, then re-push or deploy manually"
     else
       $deploy_cmd
@@ -87,6 +87,6 @@ for app in "${apps[@]}"; do
   fi
   app_lookup "$app" || continue
   install_hook "$REPO" \
-    "env -u CI bash $HERE/deploy.sh $NAME" \
+    "env -u CI bash \"\${DEV_ROOT:-\$HOME/dev}/loki/scripts/hetzner/deploy.sh\" $NAME" \
     "$NAME"
 done
