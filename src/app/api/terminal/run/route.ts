@@ -6,10 +6,7 @@ import {
   getLatestRunForProjectKey,
   getOrchestrationRunById,
 } from "@/db/queries/orchestration-runs";
-import { getLatestRunEventKinds } from "@/db/queries/run-events";
-import { getOpenPendingByRunIds } from "@/db/queries/pending-commands";
-import { getBuilderPresence } from "@/db/queries/runner-presence";
-import { runToFeedbackSnapshot } from "@/lib/feedback/attach-work";
+import { hydrateFeedbackSnapshot } from "@/lib/feedback/attach-work";
 import { deriveFeedbackWork } from "@/lib/feedback/work-phase";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { buildTerminalRunView } from "@/lib/terminal-run-view";
@@ -36,33 +33,11 @@ export async function GET(req: NextRequest) {
       : null;
   if (!run) return jsonOk({ view: null });
 
-  const [latestKinds, pendingByRun, presence] = await Promise.all([
-    getLatestRunEventKinds([run.id]),
-    getOpenPendingByRunIds(userId, [run.id]),
-    getBuilderPresence(userId).catch(() => ({ cloud: false, local: false, any: false })),
-  ]);
-
-  const snap = runToFeedbackSnapshot(run);
-  if (snap) {
-    snap.latestEventKind = latestKinds.get(run.id) ?? null;
-    const pending = pendingByRun.get(run.id);
-    if (pending) {
-      snap.pendingUnclaimed = pending.claimedAt == null;
-      snap.hostedPending = pending.type === "hosted_dispatch";
-      snap.commandId = pending.id;
-      snap.builderChannel = pending.channel;
-    } else {
-      snap.pendingUnclaimed = false;
-    }
-    snap.localOnline = presence.local;
-    snap.cloudOnline = presence.cloud;
-    snap.builderOffline =
-      snap.builderChannel === "local"
-        ? !presence.local
-        : snap.builderChannel === "cloud"
-          ? !presence.cloud
-          : !presence.any;
-  }
+  // One hydrate, shared with the inbox row, Watch and Implement's guard. This
+  // route used to keep its own copy, and that copy still fell back to "any
+  // builder will do" when the channel was unknown — reporting a local run
+  // healthy whenever the cloud box happened to be up.
+  const snap = await hydrateFeedbackSnapshot(userId, run);
 
   const work = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, snap);
   const view = buildTerminalRunView({
