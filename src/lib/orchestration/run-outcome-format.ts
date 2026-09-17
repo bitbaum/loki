@@ -1,4 +1,5 @@
 import { ORCHESTRATION_OUTCOME } from "@/db/schema/orchestration-runs";
+import { runReportText } from "@/lib/orchestration/summary";
 import type { OrchestrationRun } from "@/db/schema/orchestration-runs";
 
 /**
@@ -49,13 +50,16 @@ function headline(run: Pick<OrchestrationRun, "projectKey" | "outcome">): string
 }
 
 export function formatRunOutcomeMessage(
-  run: Pick<OrchestrationRun, "id" | "projectKey" | "outcome" | "finishedAt" | "payload">,
+  run: Pick<
+    OrchestrationRun,
+    "id" | "projectKey" | "outcome" | "finishedAt" | "payload" | "summary"
+  >,
   ctx: RunOutcomeContext = {},
 ): RunOutcomeMessage | null {
   const conversationId = run.payload?.conversationId;
   if (!conversationId || !run.finishedAt) return null;
 
-  const summary = (run.payload?.resultText ?? run.payload?.error ?? "").trim();
+  const summary = runReportText(run);
   const evidence = ctx.evidence ?? run.payload?.evidence ?? null;
   const prUrl = evidence?.kind === "pr" ? evidence.url : null;
   const liveUrl = ctx.liveUrl ?? null;

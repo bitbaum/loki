@@ -108,4 +108,37 @@ check("the summary is capped so a wall of handoff text cannot flood the thread",
   assert.ok(m.content.length < 1200, `content is ${m.content.length} chars`);
 });
 
+check("a run closed from a session handoff carries the agent's own words", () => {
+  // The local PTY path — the one a person watches after typing into /loki —
+  // never sets payload.resultText: it closes from the handoff, and the words
+  // land in `summary`. This used to print a bare "🟡 partly done" and nothing
+  // else, which is the trip out of the product this message exists to prevent.
+  const m = formatRunOutcomeMessage({
+    ...base,
+    outcome: "partial",
+    payload: { conversationId: "conv-1" },
+    summary: {
+      done: "e2e ok — no changes",
+      next: "Definition of done not yet met — include a committed and pushed change.",
+      tests: "not run (health probe)",
+      todos: "0",
+      health: "",
+    },
+  } as never);
+  assert.ok(m);
+  assert.match(m.content, /🟡 \*\*loki\*\* — partly done\./);
+  assert.match(m.content, /e2e ok — no changes/);
+  assert.match(m.content, /Next: Definition of done not yet met/);
+});
+
+check("a runner's own result text still wins over the handoff", () => {
+  const m = formatRunOutcomeMessage({
+    ...base,
+    summary: { done: "handoff words", next: "", tests: "", todos: "", health: "" },
+  } as never);
+  assert.ok(m);
+  assert.match(m.content, /Renamed the product; PR opened\./);
+  assert.doesNotMatch(m.content, /handoff words/);
+});
+
 console.log(`\nrun-outcome-format: ${pass} passed`);

@@ -35,6 +35,8 @@ const PROJECT = process.env.E2E_PROJECT ?? "loki";
 const DISPATCH = process.argv.includes("--dispatch");
 const DISPATCH_MINUTES = Number(process.env.E2E_DISPATCH_MINUTES ?? 20);
 const MARKER = "[loki-e2e]";
+/** The handoff summary the probe asks for, and the proof that it came back. */
+const PROBE_SUMMARY = "e2e ok — no changes";
 
 const token = smokeSessionToken();
 if (!token) {
@@ -249,7 +251,7 @@ async function checkClosesTheLoop() {
   const id = await createConversation(`${MARKER} loop`, [PROJECT]);
   const task =
     `${MARKER} Health probe of the dispatch loop. Do NOT change any file, do NOT commit, push or open a pull request. ` +
-    `Run \`git status --short | head -3\` in the checkout, then write a handoff whose summary is exactly: "e2e ok — no changes". Finish immediately.`;
+    `Run \`git status --short | head -3\` in the checkout, then write a handoff whose summary is exactly: "${PROBE_SUMMARY}". Finish immediately.`;
   const turns = await send(id, task, { selectedProjects: [PROJECT] });
   const dispatch = turns.find((t) => t.kind === "dispatch");
   const runId = (dispatch?.meta?.runId as string | undefined) ?? null;
@@ -310,10 +312,26 @@ async function checkClosesTheLoop() {
     return;
   }
   const text = outcome.content.replace(/\s+/g, " ");
-  const success = /✅/.test(text);
+  /**
+   * What proves the loop is the agent's OWN words coming back into the thread
+   * — not a ✅.
+   *
+   * This probe forbids changing a file, committing, or opening a pull request,
+   * and the definition-of-done judge correctly downgrades a run with no
+   * committed change to 🟡 ("include a committed and pushed change"). So the
+   * old `/✅/` assertion asserted the one thing the prompt ruled out: a
+   * perfect run failed the check, and the box reported a broken loop while
+   * every leg of it worked (2026-09-17, run 69cdbdb7 — injected 11:56:11,
+   * handoff "e2e ok — no changes" 32 seconds later).
+   *
+   * A ❌ is still a failure, and a turn without the probe's own summary still
+   * fails: that is what would catch a run closed off somebody else's handoff.
+   */
+  const failed = /❌/.test(text);
+  const carriesHandoff = text.includes(PROBE_SUMMARY);
   record(
     "closes the loop: outcome came back into the thread",
-    success,
+    !failed && carriesHandoff,
     `run ${runId}: "${text.slice(0, 220)}"`,
   );
 }
