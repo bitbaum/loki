@@ -22,6 +22,9 @@
  *
  * Run: npx tsx scripts/test/newsletter-public-cors.ts
  */
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve as resolvePath } from "node:path";
 import {
   PUBLIC_POST_ORIGINS,
   isAllowedPublicOrigin,
@@ -30,6 +33,15 @@ import {
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
+}
+
+/** Source with comments removed — a rule must never be satisfied by the prose
+ *  that explains it. */
+function codeOf(relPath: string): string {
+  const repoRoot = resolvePath(dirname(fileURLToPath(import.meta.url)), "../..");
+  return readFileSync(resolvePath(repoRoot, relPath), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
 const STUDIO = "https://bitbaum.orangecat.ch";
@@ -88,6 +100,27 @@ for (const origin of PUBLIC_POST_ORIGINS) {
   );
 }
 
+// ── The wire, not the helper ────────────────────────────────────────────────
+//
+// Everything above asserts what publicCorsHeaders RETURNS. That is not what a
+// browser sees. Measured on the live endpoint 2026-09-17, minutes after the
+// first deploy: the correct per-origin Access-Control-Allow-Origin, and NO
+// `Vary: Origin` beside it — Next attaches its own Vary list (rsc,
+// next-router-*) and a Vary passed in a `headers:` init lost to it. ACAO that
+// varies by origin, served without Vary, is the exact header a shared cache
+// may hand to the wrong origin.
+//
+// So the route must APPLY the headers to a response object, appending Vary.
+const route = codeOf("src/app/api/newsletter/route.ts");
+assert(
+  /headers\.append\(\s*["']Vary["']/.test(route),
+  "the route must APPEND Vary to the response — setting it loses to the framework's own Vary list",
+);
+assert(
+  !/headers:\s*cors\b/.test(route),
+  "CORS headers must not be passed as a response init: Vary is silently dropped that way",
+);
+
 console.log(
-  `✓ newsletter public CORS: ${PUBLIC_POST_ORIGINS.length} allowlisted, wildcard refused`,
+  `✓ newsletter public CORS: ${PUBLIC_POST_ORIGINS.length} allowlisted, wildcard refused, Vary appended`,
 );
