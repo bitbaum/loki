@@ -58,9 +58,28 @@ echo "→ refreshing the gog shim's refusal message"
 # below rather than assumed: a shim that silently stopped blocking would be a
 # hole nobody would notice, so the install fails loudly if the calendar-write
 # block is not still there afterwards. Never "fix" that by deleting the check.
-ssh "$HOST" "sudo sed -i 's|route it through George.s [A-Za-z]* approval queue, not directly.|use the loki skill instead: loki.sh book \"<title>\" <start> [end] [location] — it proposes the event through the approval queue and books it. Do NOT tell George to open a website.|' /usr/local/bin/gog"
+#
+# THE REPLACEMENT MUST NOT CONTAIN A DOUBLE QUOTE. It is substituted into the
+# shim's `block()` function, whose body is `echo "…" >&2` — a double-quoted
+# bash string. A quote in the middle of it closes that string early and leaves
+# the shim a syntax error, which means EVERY gog call on this box fails,
+# including the reads that pass through and the drain's real bookings. Worth
+# stating because the natural way to write usage text is with quotes around
+# the placeholder.
+ssh "$HOST" "sudo sed -i 's|route it through George.s [A-Za-z]* approval queue, not directly.|use the loki skill instead: loki.sh book <title> <start> [end] [location] — it proposes the event through the approval queue and books it. Do NOT tell George to open a website.|' /usr/local/bin/gog"
+
+# The shim is a shell script we just edited in place, so prove it still PARSES
+# before trusting anything else about it. `bash -n` is the difference between
+# finding this now and finding it the next time an appointment fails to book.
+ssh "$HOST" "sudo bash -n /usr/local/bin/gog" \
+  || { echo "✗ the gog shim no longer parses after the edit — fix it by hand now"; exit 1; }
 ssh "$HOST" "grep -q '\"calendar create\"' /usr/local/bin/gog" \
   || { echo "✗ the gog shim no longer blocks calendar writes — refusing to leave it that way"; exit 1; }
+# And prove the block still FIRES, not merely that its text is present. A rule
+# you can read in a file is not a rule you have seen refuse anything.
+ssh "$HOST" "sudo -u openclaw gog calendar create primary --summary probe --from 2030-01-01 --to 2030-01-02 >/dev/null 2>&1" \
+  && { echo "✗ the shim ALLOWED a calendar write — it is no longer protecting anything"; exit 1; } \
+  || echo "  the shim still refuses calendar writes"
 
 echo "→ verifying"
 ssh "$HOST" "sudo -u openclaw test -x $DEST/scripts/loki.sh && echo '  loki.sh executable by openclaw'"
