@@ -34,6 +34,7 @@ import {
   sendTelegramMessage,
   selfTelegramTarget,
   type TelegramKeyboard,
+  type SendResult,
 } from "@/lib/actions/telegram-send";
 import { resolveEventTimes } from "@/lib/actions/calendar-event";
 import { getUserPreferences, getActiveTimezone } from "@/db/queries/user-preferences";
@@ -151,14 +152,13 @@ export async function notifyActionNeedsDecision(
       [{ text: "✏️ Edit", url: actionEditUrl(action.id) }],
     ];
 
-    await sendTelegramMessage(target, lines.join("\n"), { buttons: keyboard });
+    await reportSend(
+      await sendTelegramMessage(target, lines.join("\n"), { buttons: keyboard }),
+      action.id,
+      "approval card",
+    );
   } catch (err) {
-    await logDebug({
-      source: "actions/notify-decision",
-      level: "warn",
-      message: "could not send approval card",
-      meta: { actionId: action.id, error: err instanceof Error ? err.message : String(err) },
-    }).catch(() => {});
+    await logFailure(action.id, "approval card", err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -204,13 +204,42 @@ export async function notifyActionExecuted(
       ? [[{ text: "📅 Open in calendar", url: opts.htmlLink }]]
       : [];
 
-    await sendTelegramMessage(target, lines.join("\n"), { buttons: keyboard });
+    await reportSend(
+      await sendTelegramMessage(target, lines.join("\n"), { buttons: keyboard }),
+      action.id,
+      "execution confirmation",
+    );
   } catch (err) {
-    await logDebug({
-      source: "actions/notify-decision",
-      level: "warn",
-      message: "could not send execution confirmation",
-      meta: { actionId: action.id, error: err instanceof Error ? err.message : String(err) },
-    }).catch(() => {});
+    await logFailure(
+      action.id,
+      "execution confirmation",
+      err instanceof Error ? err.message : String(err),
+    );
   }
+}
+
+/**
+ * A refused send is a failure, even though nothing threw.
+ *
+ * sendTelegramMessage reports a rejected token, a blocked chat or an API error
+ * as `{ok:false}` — an ordinary return value. Only catching exceptions
+ * therefore left the one case that actually happens in production completely
+ * silent, and silence here is the expensive kind: the confirmation message IS
+ * the review mechanism for actions a standing rule took without asking. If it
+ * stops arriving, the operator does not notice that Loki went quiet — they
+ * notice that Loki apparently stopped doing things, which is the opposite of
+ * what is true.
+ */
+async function reportSend(result: SendResult, actionId: string, what: string): Promise<void> {
+  if (result.ok) return;
+  await logFailure(actionId, what, result.error ?? "telegram refused the send");
+}
+
+async function logFailure(actionId: string, what: string, error: string): Promise<void> {
+  await logDebug({
+    source: "actions/notify-decision",
+    level: "warn",
+    message: `could not send ${what}`,
+    meta: { actionId, error },
+  }).catch(() => {});
 }

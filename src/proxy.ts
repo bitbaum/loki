@@ -39,6 +39,17 @@ export const config = {
      *   share/task/                – an assignment handed to a human; the minted
      *                                token IS their credential and they have no
      *                                account by design (see config/crew.ts)
+     *   a/                         – one-tap approve/reject of ONE queued action
+     *                                from the operator's phone. Same rationale as
+     *                                share/task/: the signed token IS the
+     *                                credential, and requiring a session would
+     *                                put a login between a Telegram button and a
+     *                                yes/no — the entire cost this removes.
+     *                                The trailing slash is load-bearing: a bare
+     *                                `a` would make every path starting with
+     *                                that letter public, /approvals and /api
+     *                                included. See lib/actions/action-link.ts for
+     *                                why one token can only decide one action.
      *   beacon                     – public beacon page
      *   api/auth                   – NextAuth internal endpoints
      *   api/agent/install          – serves the @loki/agent CLI for curl|node install
@@ -71,6 +82,6 @@ export const config = {
      *                                register behind a session is a register with a private copy
      *                                on every consumer. api/fleet/status stays protected.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|u/|share/project/|share/task/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|widget\\.js).+)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|u/|share/project/|share/task/|a/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|widget\\.js).+)",
   ],
 };
