@@ -335,11 +335,27 @@ and change it THERE, because a fix made here would reach nobody.
   default `GITHUB_TOKEN` does not trigger workflows, so without it merges land
   and silently never deploy. `ci.yml` carries `workflow_dispatch` for this.
 - **The `GITHUB_TOKEN` no-cascade rule applies one level deeper than you
-  expect.** The re-armed CI run is *itself* `GITHUB_TOKEN`-created, so its
-  completion fires no `workflow_run` event either. Anything that listens for CI
-  therefore never wakes on an automated merge. Observed 2026-08-05: three PRs
-  merged onto a green `main` and zero Deploy runs were created — invisible,
-  because CI itself ran and went green.
+  expect — but check WHICH TOKEN the sweep is holding.** With the default
+  token, the re-armed CI run is *itself* `GITHUB_TOKEN`-created, so its
+  completion fires no `workflow_run` event either, and anything listening for
+  CI never wakes on an automated merge. Observed 2026-08-05: three PRs merged
+  onto a green `main` and zero Deploy runs created — invisible, because CI
+  itself ran and went green.
+
+  **That is no longer what happens here.** `FLEET_PAT` is a live `bitbaum`
+  **org** secret and `auto-merge.yml` passes it to the sweep, so the re-arm is
+  PAT-created and **does** emit `workflow_run`. Deliberately — it is what makes
+  the queue drain at CI speed instead of at the throttled schedule — but the
+  conclusion above inverts with it: downstream *does* wake, and the sweep wakes
+  **itself**. Verified 2026-09-17 by listing the org secrets.
+
+  So the invariant is conditional, and reasoning from the wrong half is
+  expensive in both directions: assume no-cascade under a PAT and you miss a
+  feedback loop (bitbaum/solon that day: six sweeps a minute apart re-running
+  two mutually-cancelling CI runs on one commit, Deploy failing on a docs-only
+  change); assume cascade under the default token and you ship a merge that
+  silently never deploys. **Establish which token is in play before predicting
+  what a dispatch wakes.**
 - **Deployment is a reconciler, not a trigger.** Each sweep compares `main`'s tip
   against the last successful Deploy and dispatches `deploy.yml` directly when
   they differ, so a deploy that never fired *or* failed is retried next sweep
