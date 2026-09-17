@@ -36,6 +36,7 @@ export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
       "A provider quota screen is now reported as an exhausted usage limit with a provider-switch action, instead of being mistaken for model generation.",
       "Grok weekly-limit screens and other zero-capacity messages stop the run honestly even when the terminal redraws after prompt delivery.",
       "Retry now replaces a live terminal when the project provider changed, so choosing Cursor cannot silently inject into an old Grok session.",
+      "The provider switch command now follows the project's Cloud or This computer setting instead of silently defaulting to Cloud.",
     ],
     breaking: [],
     notes:

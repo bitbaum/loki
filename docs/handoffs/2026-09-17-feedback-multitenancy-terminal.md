@@ -46,6 +46,7 @@
 - The v0.8.27 runner restart was initially held by four 90–113 minute idle Claude processes. They were stale, so the runner was restarted at 05:28 UTC; only the runner process remained afterward.
 - Authenticated browser audit produced no console errors. Screenshots are on the production box at `/tmp/terminal-cloud-prod.png`, `/tmp/terminal-local-prod.png`, `/tmp/control-prod.png`, and `/tmp/feedback-prod.png`.
 - A real Retry on “Easy inference-provider switch” opened Watch immediately and exposed Terminal + Chat links. Run `60071fea-05e8-4812-9b51-b42d69b20ddd` routed correctly to `This computer` + Grok and the command was acknowledged, but Grok's terminal showed `Weekly limit left: 0%`. The v0.8.27 verifier treated that redraw as generation; v0.8.28 fixes this classification.
+- The same walk exposed a second routing hazard: the explicit switch-agent API defaulted to Cloud instead of reading the project's `builderPref`. It now routes through the project's execution locus, so a Loki project pinned to `This computer` sends the switch to Fleet Runner.
 
 ## Resume point
 
