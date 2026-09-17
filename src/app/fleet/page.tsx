@@ -19,7 +19,7 @@ import { getUserProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { buildFleetRegister, commerce, summarize, type RegisterRow } from "@/lib/register/build";
-import { solonOrgSlugs } from "@/lib/register/solon";
+import { solonClaims } from "@/lib/register/solon";
 import { orangecatProjectsThatResolve } from "@/lib/register/orangecat";
 import {
   fleetListFor,
@@ -56,7 +56,7 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
   const params = await searchParams;
   const owner = await getSelfImprovementTarget();
   const projects = owner ? await getUserProjects(owner.userId) : [];
-  const solon = await solonOrgSlugs();
+  const solon = await solonClaims();
   const apps = readAppsConf();
   const viewerId = await getSessionUserId();
   const viewerIsOwner = !!owner && viewerId === owner.userId;
@@ -76,7 +76,7 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
       isActive: p.isActive,
     })),
     apps,
-    solon.orgs,
+    solon.claims,
   );
 
   const spec = fleetListFor(rows);
