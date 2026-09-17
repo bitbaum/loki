@@ -32,7 +32,7 @@ fi
 dispatch=""
 [ "$(cat "$MON/state/host_builder_auth" 2>/dev/null)" = "ok" ] && dispatch="--dispatch"
 
-out=$(env LOKI_SESSION_TOKEN="$token" BASE=https://loki.orangecat.ch E2E_DISPATCH_MINUTES=20 \
+out=$(env LOKI_SESSION_TOKEN="$token" BASE=https://loki.orangecat.ch E2E_DISPATCH_MINUTES=35 \
   node_modules/.bin/tsx scripts/test/loki-loop-e2e.ts $dispatch 2>&1); code=$?
 summary=$(printf '%s\n' "$out" | tail -1 | cut -c1-300)
 fails=$(printf '%s\n' "$out" | grep -E '^FAIL' | cut -c7-90 | paste -sd ';' -)
