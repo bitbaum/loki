@@ -27,6 +27,8 @@ import { denyDemoInHandler } from "@/lib/demo-guard";
 import { getBeaconSettings } from "@/db/queries/beacon-settings";
 import { getProjectAutopilotOverride } from "@/db/queries/projects";
 import { getUserProjects } from "@/db/queries/user-projects";
+import { getUserPreferences } from "@/db/queries/user-preferences";
+import { parseProviderOrder } from "@/lib/provider-switch";
 import { enqueueSwitchAgentCommand, recentSwitchAgentStats } from "@/db/queries/pending-commands";
 import { decideHeadlessReroute, MAX_AUTO_REROUTES_PER_WINDOW } from "@/lib/auto-reroute";
 import { resolveQueuedExecution } from "@/lib/execution-access";
@@ -168,7 +170,18 @@ export async function POST(req: NextRequest) {
   const currentAgent: Agent | null = isAgentId(dataOrResp.currentAgent)
     ? dataOrResp.currentAgent
     : "claude";
-  const nextAgent = resolveNextAvailableAgent(dataOrResp.currentAgent ?? "claude");
+  // The operator's ranking, not the fleet's. This is the HEADLESS reroute: it
+  // fires on a capacity wall with nobody watching, so a fallback that ignored
+  // the order set in Settings → Agent would quietly move work onto a provider
+  // the operator had deliberately ranked last, and they would only find out
+  // from the run history.
+  const providerOrder = parseProviderOrder(
+    (await getUserPreferences(userId).catch(() => null))?.agentOrder ?? null,
+  );
+  const nextAgent = resolveNextAvailableAgent(
+    dataOrResp.currentAgent ?? "claude",
+    providerOrder ?? undefined,
+  );
   const capacityIssue = looksLikeAgentCapacityIssue(dataOrResp.sessionContent);
 
   const id = await createBeaconSession({

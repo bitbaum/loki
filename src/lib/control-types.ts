@@ -185,6 +185,16 @@ export type FailedCommand = {
 export type ControlData = {
   agentRegistry: import("@/lib/agent-catalog").AgentCatalog;
   agentConfig: { agent: import("@/lib/agent-catalog").SwitchableAgent; model: string };
+  /**
+   * The operator's provider ranking (user_preferences.agent_order), or null
+   * when they have never stated one — null means "use the fleet default",
+   * which is a different thing from an empty preference.
+   *
+   * Lives on the snapshot rather than being fetched per card so Control's
+   * capacity banner resolves the same next provider the Feedback row and the
+   * Terminal rail do. They disagreed before this field existed.
+   */
+  agentOrder: string[] | null;
   orchestration: {
     manualPromptInjection: boolean;
     autonomousPromptLoop: boolean;

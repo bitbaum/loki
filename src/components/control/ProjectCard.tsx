@@ -45,6 +45,7 @@ export function ProjectCard({
   liveTabs,
   currentAdapter,
   availableAgents,
+  agentOrder,
   onInject,
   onRunWithBrain,
   onRunCustomPrompt,
@@ -66,6 +67,8 @@ export function ProjectCard({
   liveTabs: string[];
   currentAdapter: string;
   availableAgents: { id: string; label: string; modelSuggestions: string[] }[];
+  /** Operator's provider ranking; null = fleet default. See resolveNextFallbackAgent. */
+  agentOrder?: string[] | null;
   onInject: (
     tab: string,
     promptKey?: string,
@@ -99,7 +102,11 @@ export function ProjectCard({
   const installedAgentIds = availableAgents.map((a) => a.id);
   const outgoingAgent = resolveOutgoingAgent(project, localAgent);
   const capacityIssue = detectCapacityIssueFromProject(project);
-  const suggestedFallback = resolveNextFallbackAgent(outgoingAgent, installedAgentIds);
+  const suggestedFallback = resolveNextFallbackAgent(
+    outgoingAgent,
+    installedAgentIds,
+    agentOrder ?? undefined,
+  );
 
   // A (re)appearing capacity issue or a new session state re-arms the banner.
   // Guarded render-time adjustment (React's "adjusting state when props
