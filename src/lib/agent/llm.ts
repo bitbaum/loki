@@ -35,6 +35,19 @@ import { recordAIHealthFailure, recordAIHealthSuccess } from "@/lib/ai/health";
 import { recordVendorQuota, recordPreflightSkip, recordRefusal } from "@/lib/ai/record-quota";
 import { readSseChunks } from "@/lib/agent/sse-stream";
 
+/**
+ * Write one tool-loop call to the usage ledger.
+ *
+ * Lazy import for the same reason `record-quota.ts` uses one: `@/db` throws at
+ * MODULE INIT with no connection string, and this module is imported by tests
+ * that touch no database.
+ */
+function recordUsage(provider: string, model: string, feature: string, tokens: number): void {
+  void import("@/db/queries/ai-usage")
+    .then((m) => m.recordUsage({ provider, model, feature, tokens }))
+    .catch(() => undefined);
+}
+
 export type ChatMessage = {
   role: "system" | "user" | "assistant" | "tool";
   content: string;
@@ -229,6 +242,17 @@ export type ModelCallInput = {
   messages: ChatMessage[];
   tools: Array<Record<string, unknown>>;
   validToolNames: string[];
+  /**
+   * WHO is asking, for the spend ledger — "loki-chat", "loki-e2e".
+   *
+   * REQUIRED, and the reason is a hole this file had. `groq.ts` was metered and
+   * called "one door"; it is not the door chat comes through. Every tool-loop
+   * turn — the bulk of the traffic, and the only path Gemini serves — spent
+   * tokens that `ai_usage` never saw, so the capacity page listed background
+   * features only and a vendor that answers exclusively here could never appear
+   * as having served at all.
+   */
+  feature: string;
   model?: string;
   maxTokens?: number;
   temperature?: number;
@@ -701,6 +725,10 @@ export async function callModelWithTools(
         // Recorded once per top-level call — a later link answering is the
         // fallback doing its job, not a health problem.
         recordAIHealthSuccess();
+        // What it cost, charged to the caller that asked. Fire-and-forget and
+        // caught, like every other write on this path: telemetry must not be
+        // able to fail an answer someone is waiting for.
+        recordUsage(link.provider.id, link.model, input.feature, turn.usageTokens);
         return turn;
       } catch (e) {
         if (emitted) outer?.reset();

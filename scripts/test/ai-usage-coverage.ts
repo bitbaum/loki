@@ -78,4 +78,24 @@ check("the ledger write can never fail an answer", () => {
   assert.match(groq, /\.catch\(\(\) => undefined\)/, "must swallow its own failure");
 });
 
+check("BOTH doors record spend, not just the one that was easy to find", () => {
+  // The hole this check exists for: groq.ts was metered and called "one door".
+  // It is not the door chat comes through. Every tool-loop turn — the bulk of
+  // the traffic, and the only path Gemini serves — spent tokens `ai_usage`
+  // never saw, so the capacity page listed background features only and a
+  // vendor answering exclusively there could never appear as having served.
+  for (const [file, why] of [
+    ["src/lib/groq.ts", "the shared text client (19 callers)"],
+    ["src/lib/agent/llm.ts", "the TOOL LOOP — most of the traffic"],
+  ] as const) {
+    assert.match(read(file), /recordUsage\(/, `${file} must charge its spend — ${why}`);
+  }
+});
+
+check("the tool loop names its caller too", () => {
+  const llm = read("src/lib/agent/llm.ts");
+  assert.match(llm, /\n {2}feature: string;/, "required on ModelCallInput, same as GroqOptions");
+  assert.doesNotMatch(llm, /feature\?: string/, "optional is how the first hole opened");
+});
+
 console.log(`✓ ai usage coverage: ${passed} checks passed`);
