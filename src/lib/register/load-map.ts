@@ -8,7 +8,7 @@ import { getUserProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { buildFleetRegister, canonicalSlug, repoFromGitUrl } from "@/lib/register/build";
-import { solonOrgSlugs } from "@/lib/register/solon";
+import { solonClaims } from "@/lib/register/solon";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
 import {
   buildFleetMap,
@@ -26,7 +26,7 @@ import {
 export async function loadFleetMap(): Promise<FleetMap | null> {
   const owner = await getSelfImprovementTarget();
   if (!owner) return null;
-  const [projects, solon] = await Promise.all([getUserProjects(owner.userId), solonOrgSlugs()]);
+  const [projects, solon] = await Promise.all([getUserProjects(owner.userId), solonClaims()]);
   const rows = buildFleetRegister(
     projects.map((p) => ({
       id: p.id,
@@ -41,7 +41,7 @@ export async function loadFleetMap(): Promise<FleetMap | null> {
       isActive: p.isActive,
     })),
     readAppsConf(),
-    solon.orgs,
+    solon.claims,
   );
 
   // The identity half of the profile lives on the ENTITY, not on user_projects:

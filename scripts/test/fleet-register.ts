@@ -79,7 +79,9 @@ const rows = buildFleetRegister(
     { id: "6", name: "Sink client", slug: "s-ink", gitUrl: null },
   ],
   apps,
-  new Set(["orangecat"]),
+  // The organisation that CLAIMS each project, keyed by project slug — not a set
+  // of organisation names. scripts/test/solon-claims.ts pins why.
+  new Map([["orangecat", "orangecat"]]),
 );
 const by = Object.fromEntries(rows.map((r) => [r.slug, r]));
 
@@ -92,7 +94,7 @@ ok(by["aoz-begleitung"]?.loki?.id === "2", "…and keeps its Loki profile");
 ok(by["s-ink"]?.site?.host === "sinktattoo.com", "sink row attaches to the stored slug s-ink");
 ok(by["s-ink"]?.loki?.id === "6", "stored slug wins over the display name");
 ok(by["orangecat"]?.orangecat?.projectId === "cb09", "OrangeCat link carried");
-ok(by["orangecat"]?.solon?.slug === "orangecat", "Solon membership from the org set");
+ok(by["orangecat"]?.solon?.slug === "orangecat", "Solon organisation from the project's claim");
 ok(by["kivvi"]?.solon === null && by["kivvi"]?.orangecat === null, "no link → null, not false");
 ok(
   by["factory-sep11-0110"]?.loki === null && by["factory-sep11-0110"]?.site !== null,
