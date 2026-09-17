@@ -179,6 +179,27 @@ export function nextProvider(options: readonly ProviderOption[]): ProviderOption
   return options.find((o) => o.usable) ?? null;
 }
 
+/**
+ * Which agent this project would run on right now — the one to EXCLUDE.
+ *
+ * Not simply `agentPref`. A project that has never had a preference set still
+ * dispatches, on the default adapter, and reading "current" as null there let
+ * the chooser cheerfully offer Claude Code as the way out of a Claude Code rate
+ * limit. So: what it last actually ran on, else what it would be told to run
+ * on, else the fleet default.
+ */
+export function currentProviderFor(input: {
+  agentPref?: string | null;
+  /** Freshest-first runs for THIS project, as listRecentRuns returns them. */
+  projectRuns?: readonly { adapter: string }[];
+  defaultAdapter: string;
+}): string {
+  const lastRun = input.projectRuns?.find((r) => isQuotaAlternativeId(r.adapter))?.adapter;
+  if (lastRun) return lastRun;
+  if (input.agentPref && isQuotaAlternativeId(input.agentPref)) return input.agentPref;
+  return input.defaultAdapter;
+}
+
 export type ProviderRunEvidence = {
   adapter: string;
   error?: string | null;

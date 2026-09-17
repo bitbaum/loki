@@ -21,6 +21,7 @@ import {
   nextProvider,
   parseProviderOrder,
   preferredProviderOrder,
+  currentProviderFor,
   rankProviders,
   serializeProviderOrder,
   spentProviders,
@@ -134,6 +135,37 @@ check("nothing usable is a real answer — null, not a button that cannot work",
   const options = rankProviders({ current: "claude", installed: ["claude"] });
   assert.equal(nextProvider(options), null);
   assert.ok(options.length > 0, "the reasons are still there to read");
+});
+
+// ── Which agent is "current" ────────────────────────────────────────────────
+
+check("a project with no stored preference still has a current agent", () => {
+  // The gap this closes: agentPref null read as "nothing to exclude", so the
+  // chooser offered Claude Code as the escape from a Claude Code rate limit.
+  const current = currentProviderFor({ agentPref: null, defaultAdapter: "claude" });
+  assert.equal(current, "claude");
+  assert.equal(
+    rankProviders({ current }).some((o) => o.id === "claude"),
+    false,
+  );
+});
+
+check("what it last RAN on outranks what it is configured to run on", () => {
+  const current = currentProviderFor({
+    agentPref: "claude",
+    projectRuns: [{ adapter: "grok" }, { adapter: "claude" }],
+    defaultAdapter: "claude",
+  });
+  assert.equal(current, "grok", "freshest run wins — that is the one that just died");
+});
+
+check("a run on an agent the chooser cannot offer is not 'current'", () => {
+  const current = currentProviderFor({
+    agentPref: "codex",
+    projectRuns: [{ adapter: "openclaw" }],
+    defaultAdapter: "claude",
+  });
+  assert.equal(current, "codex", "openclaw is not switchable — fall through to the preference");
 });
 
 // ── The evidence ────────────────────────────────────────────────────────────

@@ -18,8 +18,10 @@ import { getUserProject, getUserProjectByEntityId } from "@/db/queries/user-proj
 import { getUserPreferences } from "@/db/queries/user-preferences";
 import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
 import { listRecentRuns } from "@/db/queries/orchestration-runs";
+import { DEFAULT_ADAPTER_ID } from "@/lib/orchestration";
 import {
   PROVIDER_SPENT_WINDOW_MS,
+  currentProviderFor,
   nextProvider,
   parseProviderOrder,
   rankProviders,
@@ -61,7 +63,20 @@ export async function GET(req: Request) {
     listRecentRuns(userId, { limit: 50, sinceMs: PROVIDER_SPENT_WINDOW_MS }).catch(() => []),
   ]);
 
-  const current = project?.agentPref ?? null;
+  // What this project would run on right now — see currentProviderFor. A
+  // project with no stored preference still dispatches (on the default
+  // adapter), and treating that as "no current agent" is how the chooser ended
+  // up offering Claude Code as the escape from a Claude Code rate limit.
+  const projectRuns = project
+    ? runs.filter((r) => r.projectKey.toLowerCase() === project.name.toLowerCase())
+    : [];
+  const current = project
+    ? currentProviderFor({
+        agentPref: project.agentPref,
+        projectRuns,
+        defaultAdapter: DEFAULT_ADAPTER_ID,
+      })
+    : null;
   const spent = spentProviders(runs);
   const options = rankProviders({
     current,
