@@ -7,8 +7,8 @@
 // Companion to BootstrapModal which does the full local stack scaffold but
 // only works when the local runner is running.
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, GitBranch, Check, Copy } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
@@ -37,10 +37,36 @@ type CreateResponse = {
   hasGithub?: boolean;
 };
 
-export default function NewFromScratchPage() {
+/**
+ * ARRIVING FROM SOMEWHERE ELSE.
+ *
+ * Loki is the engineering plane of an entity; OrangeCat is its economy. Someone
+ * who has just described what they want to build, over there, should not have
+ * to type it again over here — retyping is where a handoff is lost.
+ *
+ * So this page accepts the brief in the URL:
+ *
+ *   /control/new-from-scratch?name=<repo>&brief=<what to build>
+ *
+ * Prefill only. Nothing is created, nothing is sent, and every field stays
+ * editable — an inbound link may not act on someone's behalf, it may only save
+ * them the typing. OrangeCat's Cat has had the mirror of this for a while
+ * (`/dashboard/cat?q=`), which is what makes the round trip possible.
+ *
+ * Capped because a URL is attacker-controlled: a caller cannot use this to
+ * paste a novel into the form.
+ */
+const MAX_PREFILL = { name: 100, brief: 2000 };
+
+function NewFromScratchForm() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const params = useSearchParams();
+  const [name, setName] = useState(() =>
+    (params?.get("name") ?? "").trim().slice(0, MAX_PREFILL.name),
+  );
+  const [description, setDescription] = useState(() =>
+    (params?.get("brief") ?? "").trim().slice(0, MAX_PREFILL.brief),
+  );
   const [visibility, setVisibility] = useState<"private" | "public">("private");
   const [template, setTemplate] = useState<TemplateId>("bare");
   const [submitting, setSubmitting] = useState(false);
@@ -438,5 +464,18 @@ export default function NewFromScratchPage() {
         </div>
       </div>
     </PageLayout>
+  );
+}
+
+/**
+ * `useSearchParams` requires a Suspense boundary or the build fails on this
+ * route. The fallback is deliberately nothing: the form appears a tick later,
+ * and a skeleton that flashes for one frame is worse than no skeleton.
+ */
+export default function NewFromScratchPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewFromScratchForm />
+    </Suspense>
   );
 }
