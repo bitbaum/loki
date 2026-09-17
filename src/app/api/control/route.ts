@@ -82,6 +82,7 @@ import {
 import { resolveProjectSession, isRuntimeObservationFresh } from "@/lib/project-session";
 import { workspaceIdFor } from "@/lib/agent-execution/ownership";
 import { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
+import { isVerifiedRunActive } from "@/lib/control-run-truth";
 
 export type {
   ProjectProfile,
@@ -513,14 +514,28 @@ export async function GET() {
       // Stale runner observations must not read as live work (a killed agent
       // once showed "Working" forever) — gate the DB fallback on freshness.
       const dbRuntimeFresh = isRuntimeObservationFresh(dbState);
-      const agentRunning = runtimeAvailable
-        ? projectProcesses.length > 0
-        : dbRuntimeFresh && (dbState?.agentRunning ?? false);
+      const verifiedRunActive = isVerifiedRunActive(latestRun);
+      const agentRunning =
+        (runtimeAvailable
+          ? projectProcesses.length > 0
+          : dbRuntimeFresh && (dbState?.agentRunning ?? false)) || verifiedRunActive;
       const activeAgents = runtimeAvailable
-        ? [...new Set(projectProcesses.map((process) => process.agentId))]
+        ? [
+            ...new Set([
+              ...projectProcesses.map((process) => process.agentId),
+              ...(verifiedRunActive && latestRun?.adapter ? [latestRun.adapter] : []),
+            ]),
+          ]
         : dbRuntimeFresh
-          ? (dbState?.activeAgents ?? [])
-          : [];
+          ? [
+              ...new Set([
+                ...(dbState?.activeAgents ?? []),
+                ...(verifiedRunActive && latestRun?.adapter ? [latestRun.adapter] : []),
+              ]),
+            ]
+          : verifiedRunActive && latestRun?.adapter
+            ? [latestRun.adapter]
+            : [];
       const sessionLifecycleSignals =
         projectProcesses.length > 0
           ? projectProcesses.some((process) => process.sessionLifecycleSignals)
