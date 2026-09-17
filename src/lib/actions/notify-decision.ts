@@ -38,6 +38,10 @@ import {
 import { resolveEventTimes } from "@/lib/actions/calendar-event";
 import { getUserPreferences, getActiveTimezone } from "@/db/queries/user-preferences";
 import { logDebug } from "@/db/queries/debug-logs";
+import { APP_URL } from "@/config/brand";
+
+/** Where a standing approval is switched off. */
+const APPROVALS_URL = `${APP_URL}/approvals`;
 
 /** Human label per type, for the card's first line. */
 const TYPE_LABEL: Record<string, string> = {
@@ -182,10 +186,13 @@ export async function notifyActionExecuted(
     const head = isEvent ? "📅 Booked" : "✅ Done";
     const lines = [`${head} — “${action.title}”`, ...describeAction(action, tz)];
     if (opts.autoApproved) {
+      // Name the rule AND where to switch it off, in the same breath. A
+      // standing approval the operator cannot find is one they cannot
+      // withdraw, and an unwithdrawable permission is not a permission.
       lines.push(
         `\nDone without asking — you have a standing approval for ${
           TYPE_LABEL[action.type]?.toLowerCase() ?? action.type
-        }s. Turn it off at ${actionEditUrl(action.id).split("?")[0]}.`,
+        }s. Turn it off at ${APPROVALS_URL}.`,
       );
     }
 

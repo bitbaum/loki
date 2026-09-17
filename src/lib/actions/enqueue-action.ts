@@ -23,7 +23,8 @@ import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
 import { getUserPreferences } from "@/db/queries/user-preferences";
 import { finalizeApproved } from "@/lib/actions/finalize-approved";
 import { standingApprovalVerdict } from "@/lib/actions/standing-approval";
-import { notifyActionNeedsDecision } from "@/lib/actions/notify-decision";
+import { notifyActionNeedsDecision, notifyActionExecuted } from "@/lib/actions/notify-decision";
+import { ACTION_TYPE } from "@/lib/constants/statuses";
 import type { ExecuteActionResult } from "@/lib/actions/execute-action";
 
 export type EnqueueOutcome =
@@ -103,6 +104,21 @@ export async function enqueueAction(
   }
 
   const execution = await finalizeApproved(userId, approved, { via: "standing-rule" });
+
+  // An auto-approval that nobody is told about is not a standing rule, it is a
+  // silent one — and the whole case for letting Loki act without asking rests
+  // on the operator still seeing what was done in their name.
+  //
+  // CREATE_EVENT announces itself elsewhere, and must not be announced here:
+  // approving an event only hands it to the calendar drain, so "done" at this
+  // point would be a claim about a booking that has not happened yet (and may
+  // still fail). Its message is sent from where `gog` actually succeeds. Every
+  // other type finishes synchronously right here, so here is the only place
+  // that knows it finished at all.
+  if (approved.type !== ACTION_TYPE.CREATE_EVENT && execution.executed) {
+    await notifyActionExecuted(userId, approved, { autoApproved: true }).catch(() => {});
+  }
+
   return { result: "auto", action: approved, execution };
 }
 

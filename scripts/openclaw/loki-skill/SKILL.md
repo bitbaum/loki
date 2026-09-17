@@ -1,27 +1,27 @@
 ---
-name: fleetcrown
-description: Command George's FleetCrown fleet from chat — book calendar appointments, dispatch coding tasks to projects, list the approval queue, and approve/reject queued actions. Use when George asks to put something in his calendar, run/dispatch/build something in a project, asks what's waiting for approval, or says approve/reject.
+name: loki
+description: Command George's Loki fleet from chat — book calendar appointments, dispatch coding tasks to projects, list the approval queue, and approve/reject queued actions. Use when George asks to put something in his calendar, run/dispatch/build something in a project, asks what's waiting for approval, or says approve/reject.
 ---
 
-# FleetCrown fleet control
+# Loki fleet control
 
-FleetCrown is the orchestration layer over George's ~20 repos, and the owner of
-his action queue. This skill is the chat seam: book appointments, dispatch work,
-see the queue, and decide queued actions — all against the FleetCrown API with
+Loki is the orchestration layer over George's ~20 repos, and the owner of his
+action queue. This skill is the chat seam: book appointments, dispatch work,
+see the queue, and decide queued actions — all against the Loki API with
 George's own agent token.
 
 All commands go through one wrapper (never call curl yourself — auth and
 error shaping live in the script):
 
 ```bash
-bash /home/openclaw/.openclaw/workspace/skills/fleetcrown/scripts/fc.sh <command> [args]
+bash /home/openclaw/.openclaw/workspace/skills/loki/scripts/loki.sh <command> [args]
 ```
 
 ## Put something in George's calendar
 
 ```bash
-bash .../fc.sh book "Dentist" "2026-09-19T14:00:00+02:00" "2026-09-19T15:00:00+02:00" "Praxis Oerlikon"
-bash .../fc.sh book "Flight to Berlin" "2026-10-02"     # bare date = all-day
+bash .../loki.sh book "Dentist" "2026-09-19T14:00:00+02:00" "2026-09-19T15:00:00+02:00" "Praxis Oerlikon"
+bash .../loki.sh book "Flight to Berlin" "2026-10-02"     # bare date = all-day
 ```
 
 **This is the only way to write to the calendar.** `gog calendar create` is
@@ -49,7 +49,7 @@ Rules that matter:
 ## Dispatch a task to a project
 
 ```bash
-bash .../fc.sh dispatch <project> "<task>"
+bash .../loki.sh dispatch <project> "<task>"
 ```
 Sends the task to the project's agent via the Fleet Runner (local machine) or
 queues it if the runner is offline (it then auto-falls-back to the hosted
@@ -60,7 +60,7 @@ dispatch is queued and that the result will arrive as a push; do NOT poll.
 ## Dispatch to the hosted (cloud) runner explicitly
 
 ```bash
-bash .../fc.sh hosted <project> "<task>"
+bash .../loki.sh hosted <project> "<task>"
 ```
 Clone → agent → PR, independent of the laptop. Use when George says "in the
 cloud", or the fleet runner is known offline.
@@ -68,7 +68,7 @@ cloud", or the fleet runner is known offline.
 ## List the approval queue
 
 ```bash
-bash .../fc.sh pending
+bash .../loki.sh pending
 ```
 Returns the open drafts (id, type, title, reasoning). Summarize them for
 George with a short id prefix (first 8 chars) per row.
@@ -76,8 +76,8 @@ George with a short id prefix (first 8 chars) per row.
 ## Approve or reject a queued action
 
 ```bash
-bash .../fc.sh decide <id-or-prefix> approve
-bash .../fc.sh decide <id-or-prefix> reject
+bash .../loki.sh decide <id-or-prefix> approve
+bash .../loki.sh decide <id-or-prefix> reject
 ```
 Prefix is resolved against the pending list; ambiguous or unknown prefixes
 fail loudly — never guess. Approving EXECUTES the action (send, dispatch,

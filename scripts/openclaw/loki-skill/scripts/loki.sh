@@ -1,22 +1,36 @@
 #!/usr/bin/env bash
-# fc.sh — FleetCrown API wrapper for the chat agent's fleetcrown skill.
+# loki.sh — Loki API wrapper for the chat agent's `loki` skill.
 #
 # Installed onto bitbaum at
-#   /home/openclaw/.openclaw/workspace/skills/fleetcrown/scripts/fc.sh
-# by scripts/openclaw/install-fleetcrown-skill.sh. It lived ONLY on the box
-# until 2026-09-17, which meant the seam between the operator's chat and this
-# app's action queue was unreviewable, undiffable and one `rm` from gone.
+#   /home/openclaw/.openclaw/workspace/skills/loki/scripts/loki.sh
+# by scripts/openclaw/install-loki-skill.sh.
 #
-# Auth: reuses the box's existing agent token (SSOT: calendar-drain.env — the
-# same ck_* token the calendar drain authenticates with). No token is printed.
+# TWO THINGS WENT WRONG HERE, AND BOTH ARE WHY THIS FILE IS NOW IN THE REPO.
+#
+# It lived ONLY on the box, so the seam between the operator's chat and this
+# app's action queue was unreviewable and undiffable. And on 2026-09-14 the
+# product was renamed to Loki — the env file's keys were renamed with it, but
+# this script was not, because nothing that runs in CI could see it. Every
+# command in it had been aborting on a missing variable ever since:
+#
+#   line 14: FLEE…_AGENT_TOKEN: …_AGENT_TOKEN missing in calendar-drain.env
+#
+# So from Telegram the operator could not list the approval queue, could not
+# approve anything, and could not dispatch — silently, because a skill that
+# errors just makes the agent talk about something else. The only surviving
+# route to a decision was the website, which is exactly what they complained
+# about. A file no gate can reach is a file that rots where nobody is looking.
+#
+# Auth: the box's existing agent token (SSOT: calendar-drain.env — the same
+# ck_* token the calendar drain uses). No token is ever printed.
 set -euo pipefail
 
 ENV_FILE="/home/openclaw/.openclaw/calendar-drain.env"
 [ -f "$ENV_FILE" ] || { echo "error: $ENV_FILE not found (token source)"; exit 1; }
 # shellcheck disable=SC1090
 set -a; source "$ENV_FILE"; set +a
-BASE="${FLEETCROWN_API_URL:-http://127.0.0.1:4002}"
-TOKEN="${FLEETCROWN_AGENT_TOKEN:?FLEETCROWN_AGENT_TOKEN missing in $ENV_FILE}"
+BASE="${LOKI_API_URL:-http://127.0.0.1:4002}"
+TOKEN="${LOKI_AGENT_TOKEN:?LOKI_AGENT_TOKEN missing in $ENV_FILE}"
 
 api() { # api <method> <path> [json-body]
   local method=$1 path=$2 body=${3:-}
@@ -55,13 +69,13 @@ resolve_id() { # resolve_id <prefix> — full id from pending list, fail on 0 or
 cmd=${1:-help}
 case "$cmd" in
   dispatch)
-    project=${2:?usage: fc.sh dispatch <project> "<task>"}
-    task=${3:?usage: fc.sh dispatch <project> "<task>"}
+    project=${2:?usage: loki.sh dispatch <project> "<task>"}
+    task=${3:?usage: loki.sh dispatch <project> "<task>"}
     api POST /api/inject "{\"tab\":$(jesc "$project"),\"customPrompt\":$(jesc "$task"),\"notifyOnClose\":true}" | jq .
     ;;
   hosted)
-    project=${2:?usage: fc.sh hosted <project> "<task>"}
-    task=${3:?usage: fc.sh hosted <project> "<task>"}
+    project=${2:?usage: loki.sh hosted <project> "<task>"}
+    task=${3:?usage: loki.sh hosted <project> "<task>"}
     api POST /api/hermes/dispatch "{\"projectKey\":$(jesc "$project"),\"task\":$(jesc "$task")}" | jq .
     ;;
   book)
@@ -87,8 +101,8 @@ case "$cmd" in
     #
     # Times must be absolute, with an offset (the API will not invent a
     # timezone): 2026-09-19T14:00:00+02:00. A bare YYYY-MM-DD means all-day.
-    title=${2:?usage: fc.sh book "<title>" <start> [end] [location]}
-    start=${3:?usage: fc.sh book "<title>" <start> [end] [location]}
+    title=${2:?usage: loki.sh book "<title>" <start> [end] [location]}
+    start=${3:?usage: loki.sh book "<title>" <start> [end] [location]}
     end=${4:-}
     location=${5:-}
 
@@ -108,15 +122,15 @@ case "$cmd" in
     api GET /api/actions/pending | jq '.pending'
     ;;
   decide)
-    prefix=${2:?usage: fc.sh decide <id-or-prefix> approve|reject}
-    decision=${3:?usage: fc.sh decide <id-or-prefix> approve|reject}
+    prefix=${2:?usage: loki.sh decide <id-or-prefix> approve|reject}
+    decision=${3:?usage: loki.sh decide <id-or-prefix> approve|reject}
     case "$decision" in approve|reject) ;; *) echo "error: decision must be approve or reject" >&2; exit 1 ;; esac
     id=$(resolve_id "$prefix")
     api POST "/api/actions/$id/decision" "{\"decision\":\"$decision\"}" | jq .
     ;;
   help|*)
-    echo "usage: fc.sh dispatch <project> \"<task>\" | hosted <project> \"<task>\""
-    echo "       fc.sh book \"<title>\" <start> [end] [location]"
-    echo "       fc.sh pending | decide <id> approve|reject"
+    echo "usage: loki.sh dispatch <project> \"<task>\" | hosted <project> \"<task>\""
+    echo "       loki.sh book \"<title>\" <start> [end] [location]"
+    echo "       loki.sh pending | decide <id> approve|reject"
     ;;
 esac

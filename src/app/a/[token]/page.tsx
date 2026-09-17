@@ -23,6 +23,16 @@ export const dynamic = "force-dynamic";
  * someone already decided in the app, a link that outlived its draft. All three
  * are states the operator can and will reach, and "that didn't work" would send
  * them to the app to find out which — the trip this page exists to remove.
+ *
+ * ON THE PRIVATE-ZONE LOCK, which /approvals honours and this page does not.
+ * That page hides the queue behind the PIN because proposals can name private
+ * people, and it is reachable by anyone holding a session. This page is
+ * reachable only by holding a link that was sent to one chat and names one
+ * action — and the message that carried it already stated the title in full.
+ * Re-showing that title discloses nothing the holder of the link was not just
+ * shown. It deliberately shows NOTHING ELSE: no queue, no other rows, no
+ * navigation into the app's data. If this page ever grows a list, it needs the
+ * lock.
  */
 export default async function ActionLinkPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
