@@ -608,6 +608,7 @@ export async function GET() {
         git: gitMap.get(dir) ?? null,
         sessionLifecycleSignals,
         agentRunning,
+        verifiedRunActive,
         activeAgents,
         profile:
           matchProfileById(projectId, effectiveDbProjects) ??

@@ -102,6 +102,10 @@ export type ProjectState = {
   git: GitState | null;
   sessionLifecycleSignals: boolean;
   agentRunning: boolean;
+  /** Fresh post-prompt PTY output on an unfinished Loki run. This is the
+   *  shared Watch/Control alive bit; unlike agentRunning it proves work, not
+   *  merely that an interactive process exists. */
+  verifiedRunActive: boolean;
   activeAgents: string[];
   profile: ProjectProfile | null;
   currentPrompt: CurrentPrompt | null;

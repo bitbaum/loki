@@ -32,6 +32,7 @@ function stubProject(overrides: Partial<ProjectState> & Pick<ProjectState, "tab"
     git: null,
     sessionLifecycleSignals: true,
     agentRunning: false,
+    verifiedRunActive: false,
     activeAgents: [],
     profile: null,
     currentPrompt: null,
@@ -666,6 +667,27 @@ function runTests(): void {
     );
     assert(!state.isRunning, "no turn, no dispatch, no tab → not running");
     assert(state.tone === "idle", `expected tone idle, got ${state.tone}`);
+  });
+
+  check("verified run output makes a project working without a process match", () => {
+    const state = getProjectDisplayState(
+      stubProject({ tab: "loki", agentRunning: true, verifiedRunActive: true }),
+      [],
+      Math.floor(Date.now() / 1000),
+    );
+    assert(state.isRunning, "verified run output is active work");
+    assert(state.isAgentWorking, "fleet counts must include the verified run");
+    assert(state.tone === "running", `expected tone running, got ${state.tone}`);
+  });
+
+  check("an open idle process without verified run output stays idle", () => {
+    const state = getProjectDisplayState(
+      stubProject({ tab: "loki", agentRunning: true, verifiedRunActive: false }),
+      [],
+      Math.floor(Date.now() / 1000),
+    );
+    assert(!state.isRunning, "an open process alone does not prove work");
+    assert(state.tone === "session-open", `expected session-open, got ${state.tone}`);
   });
 
   check("a count of 0 is not a live turn", () => {

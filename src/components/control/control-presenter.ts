@@ -547,6 +547,7 @@ export function getProjectDisplayState(
   // server-side by OPEN_TURN_TTL_MS; a second time check here would be a
   // second definition of "too old" for the two to disagree about.
   const liveTurnRunning = (project.liveAgentTurns?.count ?? 0) > 0;
+  const verifiedRunRunning = project.verifiedRunActive;
 
   const isClosed =
     !dismissed && !project.agentRunning && withinWindow(project.closedAt, nowS, CLOSED_WINDOW_S);
@@ -565,6 +566,7 @@ export function getProjectDisplayState(
     !isClosing &&
     !currentPrompt &&
     !liveTurnRunning &&
+    !verifiedRunRunning &&
     withinWindow(project.readyAt, nowS, READY_WINDOW_S);
 
   const isBeaconActive = withinWindow(project.lockAt, nowS, READY_WINDOW_S);
@@ -579,10 +581,11 @@ export function getProjectDisplayState(
     !isClosing &&
     !currentPrompt &&
     !liveTurnRunning &&
+    !verifiedRunRunning &&
     project.latestOrchestrationRun?.state === ORCH_STATE.DONE &&
     withinWindow(latestFinishedAtS, nowS, READY_WINDOW_S);
 
-  const isRunning = promptRunning || liveTurnRunning;
+  const isRunning = promptRunning || liveTurnRunning || verifiedRunRunning;
   // Show the running banner whenever a prompt is actively tracked — don't require
   // isRunning because the process may not yet appear in /proc on the current tick.
   const showRunningBanner = !isClosing && !isReady && Boolean(currentPrompt);
