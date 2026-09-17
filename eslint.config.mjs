@@ -83,6 +83,45 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+
+  // ── Function length ────────────────────────────────────────────────────────
+  //
+  // A 733-line POST handler is not a style problem, it is the thing that makes
+  // a file unreadable and unreviewable, and nothing was watching it grow. On
+  // 2026-09-15 the repo held a 733-line orchestration POST, a 627-line
+  // injectPrompt, a 492-line control GET, a 450-line chat POST and a 776-line
+  // widget mount(); all five were split, and this rule is what keeps the next
+  // one from arriving unannounced.
+  //
+  // It is an ERROR, not a warning, because a warning on a 200-file repo is a
+  // number nobody reads. Comments and blank lines are skipped: this codebase
+  // comments heavily on purpose (the WHY notes are load-bearing) and a rule
+  // that punished that would push explanation out of the code.
+  //
+  // Two thresholds, because the two halves fail differently. Logic — routes,
+  // lib, queries, the agent library — is where length hides branching, so it
+  // gets the tight bound. A React component's length is mostly JSX depth,
+  // which is real but far less dangerous, so it gets a looser one. Both are
+  // set just above today's worst case: they are RATCHETS. Lower them when the
+  // worst case drops; never raise one to let a new function in.
+  {
+    files: ["src/app/api/**/*.ts", "src/lib/**/*.ts", "src/db/**/*.ts", "home/**/*.ts"],
+    rules: {
+      "max-lines-per-function": [
+        "error",
+        { max: 300, skipBlankLines: true, skipComments: true, IIFEs: true },
+      ],
+    },
+  },
+  {
+    files: ["src/components/**/*.tsx", "src/app/**/*.tsx", "src/hooks/**/*.ts", "widget/**/*.ts"],
+    rules: {
+      "max-lines-per-function": [
+        "error",
+        { max: 510, skipBlankLines: true, skipComments: true, IIFEs: true },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

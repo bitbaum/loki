@@ -19,6 +19,7 @@ import type { OrchestrationOutcome } from "@/db/schema/orchestration-runs";
 import { isFailingOutcome } from "@/lib/events";
 import { latestActivitySummary } from "./project-activity-ledger";
 import { DAY_MS } from "@/lib/constants/time";
+import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
 
 export type RuntimeSyncContext = {
   /** True when the cloud has never received a runner runtime-state push. */
@@ -220,6 +221,85 @@ export type FleetPulse = {
  * was merely idle. "Stalled" must mean "failing now", not "last failed once".
  */
 export const FLEET_PULSE_STALE_MS = DAY_MS;
+
+export type RunnerPresence = {
+  /** Nothing can be dispatched: no builder is reachable. */
+  runnerOffline: boolean;
+  /** No builder has EVER pushed runtime state for this account. */
+  runnerNeverSeen: boolean;
+  /** Cached runtime state is worth showing (offline but once seen). */
+  runtimeStateKnown: boolean;
+  /** Offline with a last-known push — show state, label it stale. */
+  runnerSyncStale: boolean;
+  runtimeSyncCtx: RuntimeSyncContext;
+};
+
+/**
+ * Is a builder there, and can we trust what it last told us?
+ *
+ * Presence is connection-based: an open runner↔bridge SSE connection
+ * (runnerConnected === true) means online, full stop — the badge flips in
+ * <1s without waiting on the heartbeat. ADDITIVE ROLLOUT: we do NOT treat
+ * connected===false as authoritative offline yet, because a pre-rollout
+ * runner (no client=runner tag) reports false while heartbeating fine —
+ * so offline still requires a stale heartbeat. At cutover (once every runner
+ * tags itself) this drops to `runnerConnected === false`.
+ * See docs/architecture/connection-presence.md.
+ *
+ * runnerConnected === true  → online (cloud builder and/or desktop app).
+ * runnerConnected === false → offline even if a stale heartbeat exists.
+ * null                      → fall back to heartbeat age until the SSE event arrives.
+ */
+export function deriveRunnerPresence(input: {
+  runtimeAvailable: boolean;
+  runnerConnected: boolean | null;
+  cloudBuilderPresent: boolean;
+  runnerLastPushedAt: string | null;
+  lastUpdated: number | null;
+}): RunnerPresence {
+  const {
+    runtimeAvailable,
+    runnerConnected,
+    cloudBuilderPresent,
+    runnerLastPushedAt,
+    lastUpdated,
+  } = input;
+  const runnerAgoMs =
+    lastUpdated && runnerLastPushedAt ? lastUpdated - new Date(runnerLastPushedAt).getTime() : null;
+  const runnerOffline =
+    !runtimeAvailable &&
+    (runnerConnected === false ||
+      (runnerConnected !== true &&
+        !cloudBuilderPresent &&
+        runnerAgoMs !== null &&
+        runnerAgoMs > RUNNER_OFFLINE_THRESHOLD_MS));
+  const runnerNeverSeen =
+    !runtimeAvailable && runnerConnected !== true && runnerLastPushedAt === null;
+  // Only hide cached runtime when the runner has never connected. When offline
+  // but we have a last push, show last-known Working/Ready state with a stale label.
+  const runnerSyncStale = runnerOffline && runnerLastPushedAt !== null;
+  return {
+    runnerOffline,
+    runnerNeverSeen,
+    runtimeStateKnown: !runnerNeverSeen,
+    runnerSyncStale,
+    runtimeSyncCtx: { syncStale: runnerSyncStale, lastSyncedAt: runnerLastPushedAt },
+  };
+}
+
+/** Each project's latest outcome paired with how long ago its latest run
+ *  finished, so a stale outage doesn't read as "currently stalled". */
+export function latestRunSignals(
+  projects: ProjectState[],
+  nowS: number,
+): Array<{ outcome: OrchestrationOutcome; ageMs: number | null }> {
+  return projects.flatMap((p) => {
+    const outcome = p.recentOutcomes?.[0];
+    if (!outcome) return [];
+    const finishedAt = p.latestOrchestrationRun?.finishedAt;
+    return [{ outcome, ageMs: finishedAt ? nowS * 1000 - Date.parse(finishedAt) : null }];
+  });
+}
 
 export function deriveFleetPulse(input: {
   automationMode: string;
