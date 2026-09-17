@@ -79,11 +79,19 @@ DEFAULT_HEALTH_PATH=/api/health
 # a manifest whose other fields are a repo path and a deploy target. It does
 # have a process — annushka-api on 4030 serves /api/* — which can fall over
 # while the static pages carry on serving perfectly. Exactly botsmann's shape.
+#
+# bitbaum is the studio site itself — static files Caddy serves straight from
+# /opt/bitbaum/app, so it has no port, no unit and no repo path and can never
+# hold a manifest row either. It was the one public host on the box that
+# nothing watched, which mattered little while nothing linked to it and matters
+# now: every package README points at it and /hire/ takes waitlist signups
+# through it.
 EXTRA_TARGETS='
 bridge|bridge.orangecat.ch
 loki|loki.orangecat.ch
 orangecat|orangecat.ch
 annushka|annushka.orangecat.ch
+bitbaum|bitbaum.orangecat.ch
 '
 
 # Apps whose health route is not at the fleet's /api/health. One table for
@@ -102,6 +110,7 @@ annushka|annushka.orangecat.ch
 HEALTH_PATHS='
 bridge|/healthz
 petvity|/api/healthz
+bitbaum|/
 '
 
 # ── Pure helpers (no network, no box) — exercised by test-uptime-sweep.sh ─────
