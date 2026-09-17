@@ -7,9 +7,13 @@ import { newsletterSubscribers } from "@/db/schema";
  * effectively case-insensitive. A repeat signup (any casing) is a silent
  * no-op: the visitor asked to be on the list and they are — that is success.
  */
-export async function subscribeToNewsletter(email: string, source: string): Promise<void> {
-  await db
+export async function subscribeToNewsletter(email: string, source: string): Promise<boolean> {
+  const inserted = await db
     .insert(newsletterSubscribers)
     .values({ email: email.trim().toLowerCase(), source })
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ id: newsletterSubscribers.id });
+  // True only for a genuinely NEW row, so a caller can announce once. The
+  // visitor is told the same thing either way — see the note above.
+  return inserted.length > 0;
 }

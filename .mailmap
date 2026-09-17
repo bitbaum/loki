@@ -1,36 +1,45 @@
-# One identity: Cato.
+# One identity: Cato <41178744+catomean@users.noreply.github.com>
 #
-# Rewrites the DISPLAYED author of existing commits (git log, GitHub) without
-# rewriting a single hash. Six name variants and seven addresses accumulated
-# across these repos before the git config was corrected.
+# Rewrites the DISPLAYED author of existing commits (git log, git shortlog,
+# GitHub) without rewriting a single hash. Several names and addresses
+# accumulated here before the git config was corrected.
 #
-# Two kinds of rule, and the difference matters:
-#   `Cato <canonical> <old-email>`        — matches by commit email alone.
-#   `Cato <canonical> Name <that-email>`  — needed when the commit already
-#                                            carries the canonical email, so an
-#                                            email-only rule cannot match it.
+# The canonical identity is always on the LEFT. A retired name on the left is
+# the bug this file replaces: it renders every commit under the retired name,
+# including new ones that were authored correctly.
+#
+# Three forms are used below:
+#   `Cato <canonical>`                    - any name on the canonical address.
+#   `Cato <canonical> <old-email>`        - matches by commit email alone.
+#   `Cato <canonical> Name <that-email>`  - name + email, the narrowest form.
 
-# Retired noreply addresses (both the numbered and unnumbered forms)
+# Any name ever used on the canonical address resolves to Cato.
+Cato <41178744+catomean@users.noreply.github.com>
+
+# Retired noreply addresses (numbered and unnumbered forms of both accounts)
 Cato <41178744+catomean@users.noreply.github.com> <41178744+maonakamoto@users.noreply.github.com>
 Cato <41178744+catomean@users.noreply.github.com> <maonakamoto@users.noreply.github.com>
 Cato <41178744+catomean@users.noreply.github.com> <41178744+g-but@users.noreply.github.com>
+
+# The unnumbered form of the current noreply address
+Cato <41178744+catomean@users.noreply.github.com> <catomean@users.noreply.github.com>
 
 # Personal and machine-local addresses that leaked into commit metadata
 Cato <41178744+catomean@users.noreply.github.com> <butaeff@gmail.com>
 Cato <41178744+catomean@users.noreply.github.com> <gbut@DESKTOP-Q45PBJ6>
 
-# git's uninitialised default, used before the config was set
+# A work address that carried both the retired and the current display name
+Cato <41178744+catomean@users.noreply.github.com> <georgy.butaev@revamp-it.ch>
+
+# The uninitialised default, used before a git config existed here
 Cato <41178744+catomean@users.noreply.github.com> <your.email@example.com>
 
-# Names carrying the CANONICAL email — email-only rules cannot reach these
-Cato <41178744+catomean@users.noreply.github.com> G <41178744+catomean@users.noreply.github.com>
-Cato <41178744+catomean@users.noreply.github.com> Mao Nakamoto <41178744+catomean@users.noreply.github.com>
-
-# A handful of commits carry a human name on the assistant's address — the
-# author was the human, so they resolve to Cato. The name+email rule wins over
-# the email-only Claude rule below, which still covers genuine agent commits.
+# A commit carrying a human name on the assistant's address resolves to Cato:
+# the name+email rule wins over the email-only rule below, which still covers
+# genuine agent commits.
 Cato <41178744+catomean@users.noreply.github.com> Mao Nakamoto <noreply@anthropic.com>
 
+# The assistant's own commits stay the assistant's.
 Claude (AI assistant) <noreply@anthropic.com> <noreply@anthropic.com>
 
 # Placeholder identities from commits made before a git config existed here.

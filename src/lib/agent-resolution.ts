@@ -98,23 +98,41 @@ export function detectCapacityIssueFromProject(project: ProjectState): boolean {
   return parts.some(looksLikeAgentCapacityIssue);
 }
 
-/** Next switchable agent in fallback order (client-side; pass installed ids). */
+/**
+ * Next switchable agent in fallback order (client-side; pass installed ids).
+ *
+ * `order` is the OPERATOR's ranking (user_preferences.agent_order), and passing
+ * it is not optional politeness. b71941be shipped a settings surface where the
+ * operator ranks their providers, and every caller that kept resolving against
+ * the fleet default silently overruled it: the Feedback row offered "Try Grok"
+ * while Control's capacity banner offered "Switch to Cursor" for the same
+ * stalled project, and the headless reroute picked Cursor with nobody watching.
+ * Two surfaces disagreeing about one run is a defect by this product's own
+ * contract (docs/foundation/LOKI-WORKS.md).
+ *
+ * Defaults to AGENT_FALLBACK_ORDER so a caller with no user context (and no way
+ * to know the preference) behaves exactly as before rather than guessing.
+ */
 export function resolveNextFallbackAgent(
   currentAgent: string | null | undefined,
   availableIds: readonly string[],
+  order: readonly string[] = AGENT_FALLBACK_ORDER,
 ): string | null {
   const available = new Set(availableIds);
   const current = currentAgent && available.has(currentAgent) ? currentAgent : null;
+  // An order that ranks only some agents must still be able to reach the rest,
+  // or a half-filled preference would shrink the fallback set to nothing.
+  const ranked = [...order, ...AGENT_FALLBACK_ORDER.filter((id) => !order.includes(id))];
 
   if (current) {
-    const idx = AGENT_FALLBACK_ORDER.indexOf(current as (typeof AGENT_FALLBACK_ORDER)[number]);
-    const after = idx >= 0 ? AGENT_FALLBACK_ORDER.slice(idx + 1) : AGENT_FALLBACK_ORDER;
+    const idx = ranked.indexOf(current);
+    const after = idx >= 0 ? ranked.slice(idx + 1) : ranked;
     for (const candidate of after) {
       if (available.has(candidate) && candidate !== current) return candidate;
     }
   }
 
-  for (const candidate of AGENT_FALLBACK_ORDER) {
+  for (const candidate of ranked) {
     if (candidate !== current && available.has(candidate)) return candidate;
   }
   return null;

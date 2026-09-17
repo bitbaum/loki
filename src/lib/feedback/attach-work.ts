@@ -3,6 +3,7 @@ import { getLatestRunEventKinds } from "@/db/queries/run-events";
 import { getOpenPendingByRunIds, getInjectAcksByRunIds } from "@/db/queries/pending-commands";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
 import { getUserProjectsByEntityIds } from "@/db/queries/user-projects";
+import { pickDispatchChannel } from "@/lib/execution-access";
 import type { FeedbackListItem } from "@/db/queries/site-feedback";
 import {
   deriveFeedbackWork,
@@ -194,10 +195,15 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
       snap.localOnline = presence.local;
       snap.cloudOnline = presence.cloud;
       // Channel-aware offline: local queue → need Fleet Runner; cloud → need box.
-      // Unknown channel → any builder. Matches claimNextPendingCommand filters.
-      const ch = snap.builderChannel;
-      snap.builderOffline =
-        ch === "local" ? !presence.local : ch === "cloud" ? !presence.cloud : !presence.any;
+      // The open pending row is the truth while it exists, but the runner stamps
+      // executedAt on its inject-ack, so for most of a run there is no row left
+      // to ask and the channel read back as unknown — which fell through to "any
+      // builder will do" and reported a local run HEALTHY because the cloud box
+      // was up. The project's stored routing decision (locus lock → builder_pref
+      // → cloud floor) is the same answer the dispatcher used, so ask it.
+      const ch = snap.builderChannel ?? pickDispatchChannel(projects.get(item.projectId));
+      snap.builderChannel = ch;
+      snap.builderOffline = ch === "local" ? !presence.local : !presence.cloud;
       const ack = injectAcks.get(row.id);
       if (ack) {
         if (snap.injectVerified == null && ack.verified != null) snap.injectVerified = ack.verified;

@@ -35,7 +35,7 @@ export const FLEET_SITE_COPY: Readonly<Record<string, { name: string; blurb: str
   solon: { name: "Solon", blurb: "Bitcoin-native governance for the digital age." },
   "surf-your-life": { name: "Surf Your Life", blurb: "Psychiatry-led burnout recovery in Zürich." },
   vitareba: {
-    name: "VitaReBa",
+    name: "Vita",
     blurb: "Metabolische Psychiatrie und systemische Longevity, Zürich.",
   },
   heidi: { name: "Heidi", blurb: "Züritüütsch verstehen, dann wie ein Local texten. Im Aufbau." },

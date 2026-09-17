@@ -123,11 +123,24 @@ export function looksLikeAgentCapacityIssue(text: string): boolean {
   return detectCapacityIssue(text);
 }
 
-/** Find the next agent in `AGENT_FALLBACK_ORDER` that's installed + switchable.
+/** Find the next installed + switchable agent to fall back to.
+ *
  *  Used by the rate-limit / quota fallback path: if Claude exhausted its
- *  budget, try Cursor, then Codex, etc. */
-export function resolveNextAvailableAgent(currentAgent?: string | null): Agent | null {
+ *  budget, try the operator's next choice. `order` is their ranking
+ *  (user_preferences.agent_order) — see resolveNextFallbackAgent for why a
+ *  caller that CAN know it must pass it. Defaults to the fleet order for
+ *  callers with no user context. */
+export function resolveNextAvailableAgent(
+  currentAgent?: string | null,
+  order: readonly string[] = AGENT_FALLBACK_ORDER,
+): Agent | null {
   const current = isAgentId(currentAgent) ? currentAgent : null;
+  // Unranked agents still reachable — a partial preference must not shrink the
+  // fallback set. Filtered back down to real Agent ids after merging.
+  const ranked = [
+    ...order.filter(isAgentId),
+    ...AGENT_FALLBACK_ORDER.filter((id) => !order.includes(id)),
+  ];
   const registry = listAgentRegistry();
   const available = new Set(
     registry
@@ -142,14 +155,14 @@ export function resolveNextAvailableAgent(currentAgent?: string | null): Agent |
   );
 
   if (current) {
-    const currentIndex = AGENT_FALLBACK_ORDER.indexOf(current);
-    const afterCurrent = AGENT_FALLBACK_ORDER.slice(currentIndex + 1);
+    const currentIndex = ranked.indexOf(current);
+    const afterCurrent = currentIndex >= 0 ? ranked.slice(currentIndex + 1) : ranked;
     for (const candidate of afterCurrent) {
       if (available.has(candidate)) return candidate;
     }
   }
 
-  for (const candidate of AGENT_FALLBACK_ORDER) {
+  for (const candidate of ranked) {
     if (candidate !== current && available.has(candidate)) return candidate;
   }
 

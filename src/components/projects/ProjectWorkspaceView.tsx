@@ -9,6 +9,7 @@ import { ProjectSettingsPanel } from "./ProjectSettingsPanel";
 import { ProjectFeedbackSection } from "./ProjectFeedbackSection";
 import { DoneSection, NextSection, NowSection } from "./ProjectDossierSections";
 import { OrangeCatPublishButton } from "./OrangeCatPublishButton";
+import { SolonFoundButton } from "./SolonFoundButton";
 import { LiveUrlField } from "./LiveUrlField";
 import { RegisterSiteButton } from "./RegisterSiteButton";
 import { getProjectLinks } from "./project-detail-types";
@@ -161,6 +162,7 @@ export function ProjectWorkspaceView({
               </a>
             )}
             {!dossier.readonly && <OrangeCatPublishButton projectId={project.id} />}
+            {!dossier.readonly && <SolonFoundButton projectId={project.id} />}
             {primaryOrangeCatLink && (
               <a
                 href={primaryOrangeCatLink.publicUrl}

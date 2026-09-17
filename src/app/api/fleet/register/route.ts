@@ -3,7 +3,7 @@ import { getUserProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { buildFleetRegister, summarize } from "@/lib/register/build";
-import { solonOrgSlugs } from "@/lib/register/solon";
+import { solonClaims } from "@/lib/register/solon";
 
 /**
  * GET /api/fleet/register — the studio's projects, joined across every surface.
@@ -23,7 +23,7 @@ export async function GET() {
   if (!owner) {
     return NextResponse.json({ error: "no owner resolved" }, { status: 503 });
   }
-  const [projects, solon] = await Promise.all([getUserProjects(owner.userId), solonOrgSlugs()]);
+  const [projects, solon] = await Promise.all([getUserProjects(owner.userId), solonClaims()]);
   const rows = buildFleetRegister(
     projects.map((p) => ({
       id: p.id,
@@ -43,7 +43,7 @@ export async function GET() {
       isActive: p.isActive,
     })),
     readAppsConf(),
-    solon.orgs,
+    solon.claims,
   );
   return NextResponse.json(
     {

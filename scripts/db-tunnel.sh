@@ -16,7 +16,8 @@
 # session. Do not point migrations through it.
 set -euo pipefail
 
-BOX="${HETZNER_SSH:-ubuntu@167.233.22.31}"
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/hetzner/_box-env.sh"   # SSOT: BOX_UBUNTU
+BOX="${HETZNER_SSH:-$BOX_UBUNTU}"
 LOCAL_PORT="${TUNNEL_PORT:-15432}"
 
 if [ "${1:-}" = "--close" ]; then

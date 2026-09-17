@@ -101,13 +101,17 @@ export type RegisterRow = {
  * OrangeCat and Solon). Pure: no I/O, so the whole thing is unit-testable and
  * the API/page/footer cannot disagree — they call this.
  *
- * `solonOrgs`, when given, is the set of organisation slugs Solon reports;
- * a project counts as "on Solon" if its slug (or stored solonOrgSlug) is in it.
+ * `solonClaims`, when given, maps a project slug to the Solon organisation that
+ * claims to govern it. A project is "on Solon" only through that claim (or a
+ * stored solonOrgSlug) — never because an organisation shares its name. Solon
+ * records a claim only when Loki signed a grant for the founder's own identity,
+ * and founding is open to anyone, so a name match proves nothing: joining on it
+ * would let whoever founds `loki` appear on this register to govern Loki.
  */
 export function buildFleetRegister(
   projects: RegisterProjectInput[],
   apps: HostedApp[],
-  solonOrgs?: ReadonlySet<string>,
+  solonClaims?: ReadonlyMap<string, string>,
 ): RegisterRow[] {
   const bySlug = new Map<string, RegisterRow>();
 
@@ -168,9 +172,10 @@ export function buildFleetRegister(
     };
   }
 
-  if (solonOrgs) {
+  if (solonClaims) {
     for (const r of bySlug.values()) {
-      if (!r.solon && solonOrgs.has(r.slug)) r.solon = { slug: r.slug };
+      const org = solonClaims.get(r.slug);
+      if (!r.solon && org) r.solon = { slug: org };
     }
   }
 

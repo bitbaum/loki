@@ -54,6 +54,13 @@ BOX_LOKI_ENV="${BOX_LOKI_ENV:-/opt/loki/app/.env}"
 # existing Diplodoctor project belongs to this account.
 LOKI_OWNER_EMAIL="${LOKI_OWNER_EMAIL:-butaeff@gmail.com}"
 
+# WHO a scaffolded repo's first commit is authored as. `catomean` is the LIVE
+# GitHub login (maonakamoto is retired and 404s), and the noreply address keeps
+# a private address out of public commit metadata. Here once, because two
+# scripts commit as this identity and a change must not mean hunting both.
+GIT_SCAFFOLD_NAME="${GIT_SCAFFOLD_NAME:-Cato}"
+GIT_SCAFFOLD_EMAIL="${GIT_SCAFFOLD_EMAIL:-catomean@users.noreply.github.com}"
+
 # The SSH key GitHub Actions uses to reach the box. Scripts never READ this
 # file — they pipe it into `gh secret set`, so the key never lands in a shell
 # variable, a log, or an agent's context. One path, because the alternative was

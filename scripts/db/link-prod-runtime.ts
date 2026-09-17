@@ -8,6 +8,8 @@
  * Env: LOKI_DB_PASSWORD + HETZNER_IP from .env.hetzner.local
  */
 import { config } from "dotenv";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 config({ path: ".env.hetzner.local" });
 
@@ -17,7 +19,7 @@ const APPLY = process.argv.includes("--apply");
 const RUNTIME_LINKS: Array<{ name: string; dirPath: string; reason: string }> = [
   {
     name: "Bitbaum",
-    dirPath: "/home/g/dev/bitbaum",
+    dirPath: join(process.env.DEV_ROOT ?? join(homedir(), "dev"), "bitbaum"),
     reason: "Entity enriched but missing user_projects dir",
   },
 ];

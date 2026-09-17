@@ -8,7 +8,7 @@
 # ┌─ BEFORE YOU ENABLE THIS (it is inert until on `main` + secrets exist) ─────┐
 # │ 1. Add repo secret HETZNER_SSH_KEY = a private key whose public half is in │
 # │    the box's root authorized_keys (a deploy-only key, ideally).            │
-# │ 2. (optional) repo variable HETZNER_IP (defaults to 167.233.22.31).       │
+# │ 2. org variable HETZNER_IP — the box address, set once for the org.       │
 # │ 3. DISABLE the local hook or you'll deploy twice: comment out the          │
 # │    `>>> loki push-deploy >>>` block in .husky/pre-push.              │
 # │ 4. Merge this file to main. First run: watch the "Build" step — it builds  │
@@ -70,7 +70,7 @@ jobs:
 
     env:
       DATABASE_URL: postgres://postgres:ci@localhost:5432/loki
-      HETZNER_IP: ${{ vars.HETZNER_IP || '167.233.22.31' }}
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
 
     steps:
       - uses: actions/checkout@v7

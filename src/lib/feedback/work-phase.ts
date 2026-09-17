@@ -376,8 +376,21 @@ function derivePhase(
   const ageMs = now - run.startedAt.getTime();
   // Builder offline is known NOW — do not park under "moving on its own".
   // Telegram + dig-in; auto-retry cron may cold-start once Hermes/cloud returns.
-  if (!run.deliveredAt && run.builderOffline) {
+  //
+  // Gated on PROGRESS, not on delivery. The runner stamps executedAt on its
+  // inject-ack (early, right after the prompt lands), so a claimed command is
+  // "delivered" for almost the whole run; guarding on `!deliveredAt` meant the
+  // branch could only ever fire in the first seconds, and a laptop closed one
+  // minute in read "Starting" and then "Open Terminal — or Restart Fleet
+  // Runner" — a terminal on a machine that is off. No bytes ever arrived and
+  // the builder is down NOW: that is the whole diagnosis, delivered or not.
+  // A run that did stream keeps its own reading below; this never touches it.
+  if (!run.lastProgressAt && run.builderOffline) {
     const localQueue = run.builderChannel === "local";
+    // Claimed-then-silent is a different sentence from never-claimed: the work
+    // may have started on that machine, so the honest ask is to bring it back
+    // rather than to re-dispatch blind.
+    const claimed = !!run.deliveredAt;
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
       label: "Needs you",
@@ -388,8 +401,8 @@ function derivePhase(
       diagnostic: run.hostedPending
         ? "Cloud builder offline; hosted Hermes was queued but has not claimed yet."
         : localQueue
-          ? "This computer (Fleet Runner) is offline — no agent session until it reconnects, or switch the project to Cloud."
-          : "Cloud builder offline — no agent session will appear until loki-box-runner is online (or Hermes accepts).",
+          ? `This computer (Fleet Runner) is offline${claimed ? " and the prompt was already handed to it — no output since" : " — no agent session until it reconnects"}, or switch the project to Cloud.`
+          : `Cloud builder offline${claimed ? " and the prompt was already handed to it — no output since" : " — no agent session will appear until loki-box-runner is online (or Hermes accepts)"}.`,
     };
   }
   if (!run.deliveredAt && ageMs > STARTING_MS) {
