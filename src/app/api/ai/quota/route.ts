@@ -1,7 +1,7 @@
 import { jsonOk, jsonError } from "@/lib/api/route-helpers";
 import { getSessionUserId } from "@/lib/session";
 import { listQuota } from "@/db/queries/provider-quota";
-import { usageByFeature } from "@/db/queries/ai-usage";
+import { usageByFeature, usageByProvider } from "@/db/queries/ai-usage";
 import { usableChatChain } from "@/config/chat-models";
 import { isGatewayConfigured } from "@/lib/openclaw-gateway";
 import {
@@ -9,6 +9,7 @@ import {
   describeQuota,
   unknownQuota,
   summarise,
+  dedupeConsequences,
   type QuotaRowView,
 } from "@/lib/ai/quota-view";
 
@@ -30,14 +31,19 @@ export async function GET() {
   if (!userId) return jsonError("Unauthorized", 401);
 
   const now = Date.now();
-  const [rows, chain, spend] = await Promise.all([
+  const [rows, chain, spend, providerSpend] = await Promise.all([
     listQuota().catch(() => []),
     Promise.resolve(usableChatChain()),
     // What today went ON. A limit with no spend beside it tells the operator
     // how much room is left but never where the room went — which is the half
     // they can actually act on.
     usageByFeature().catch(() => []),
+    // The SECOND witness. A vendor that publishes no rate-limit headers can
+    // never appear in provider_quota, so headers alone cannot tell "never
+    // called" from "called, says nothing".
+    usageByProvider().catch(() => []),
   ]);
+  const servedToday = new Map(providerSpend.map((r) => [r.provider, r]));
 
   // Chain order is fallback order, so "what serves this next" is simply the
   // following link — that is the consequence half of every row.
@@ -79,7 +85,22 @@ export async function GET() {
   for (const link of chain) {
     if (heardFrom.has(link.provider.id)) continue;
     if (silent.some((s) => s.provider === link.provider.id)) continue;
-    silent.push(unknownQuota(link.provider.id, "configured, but it has not served an answer yet"));
+    // Gemini serves most of the traffic and publishes nothing, so the old copy
+    // — "has not served an answer yet" — was false about the busiest vendor,
+    // and would have stayed false forever however long anyone waited. Spend
+    // knows better: it records the call even when the vendor discloses no limit.
+    const served = servedToday.get(link.provider.id);
+    silent.push(
+      served
+        ? unknownQuota(
+            link.provider.id,
+            `served ${served.calls.toLocaleString("en-US")} call${served.calls === 1 ? "" : "s"} ` +
+              `today (${served.tokens.toLocaleString("en-US")} tokens) — this vendor publishes no ` +
+              `limits, so there is nothing left to measure`,
+            "working, but its headroom cannot be known until it refuses",
+          )
+        : unknownQuota(link.provider.id, "configured, but it has not served an answer yet"),
+    );
   }
 
   // Ordered by CHAIN POSITION, not by when each was last heard from. Recency
@@ -113,7 +134,8 @@ export async function GET() {
   }
   return jsonOk({
     summary: summarise(providers),
-    providers,
+    // Said once per run of rows that share it — see dedupeConsequences.
+    providers: dedupeConsequences(providers),
     // So the page can say WHY a vendor is absent from the chain entirely.
     configured: chain.map((l) => ({ provider: l.provider.id, model: l.model })),
     /**

@@ -46,6 +46,13 @@ export type QuotaRowView = {
   /** When this counter was read, so a stale row cannot outrank a fresh one. */
   observedAt?: number | null;
   /**
+   * What one unit of this counter IS, for the label. "answers" for a chat model;
+   * a transcription model serves transcriptions, and calling those answers is a
+   * small lie in the unit — the kind that makes a reader distrust the number
+   * beside it.
+   */
+  unitNoun?: string;
+  /**
    * Blocking, but NOT empty: something is left, just less than one answer
    * costs. "Spent" beside "3,984 of 8,000" is the kind of line that gets a
    * dashboard called made-up, so this state gets its own word.
@@ -155,6 +162,11 @@ export function describeQuota(
       ? Math.max(0, Math.floor(row.remaining))
       : Math.max(0, Math.floor(row.remaining / perAnswer));
 
+  // Derived from the model id because that is all the meter records: a reading
+  // carries a vendor's counter, not our registry's notion of "chat" vs
+  // "transcribe". Wrong-but-harmless if a future chat model is called whisper;
+  // silently mislabelled units are the thing being avoided.
+  const unitNoun = /whisper/i.test(row.model) ? "transcriptions" : "answers";
   const unit = row.scope === "requests" ? "requests" : "tokens";
   const per = row.window === "day" ? " today" : row.window === "minute" ? " this minute" : "";
   const detail =
@@ -200,6 +212,7 @@ export function describeQuota(
     model: row.model,
     state: exhausted ? "exhausted" : "known",
     answers,
+    unitNoun,
     detail: shortfallDetail,
     ...(shortfall ? { shortfall: true } : {}),
     refills: refillsIn(row.resetAt, opts.now),
@@ -217,7 +230,17 @@ export function describeQuota(
  * would let a reader assume the list is the whole fleet, and silently drop the
  * one that is about to serve their next turn.
  */
-export function unknownQuota(provider: string, reason: string): QuotaRowView {
+export function unknownQuota(
+  provider: string,
+  reason: string,
+  /**
+   * What happens next. The default promises a future measurement, which is
+   * true for a vendor we simply have not called and FALSE for one that
+   * publishes no limits at all — it will never be measured, however long you
+   * wait, so saying so is the only honest row.
+   */
+  consequence = "will be measured on the next answer it serves",
+): QuotaRowView {
   return {
     provider,
     model: "—",
@@ -225,7 +248,7 @@ export function unknownQuota(provider: string, reason: string): QuotaRowView {
     answers: null,
     detail: reason,
     refills: null,
-    consequence: "will be measured on the next answer it serves",
+    consequence,
     level: null,
     urgent: false,
   };
@@ -355,4 +378,25 @@ export function summarise(rows: QuotaRowView[]): string {
 
   const head = parts.length > 0 ? parts.join(" · ") : "nothing measured yet";
   return `${head.charAt(0).toUpperCase()}${head.slice(1)}${of}.`;
+}
+
+/**
+ * Say a consequence once, not once per model.
+ *
+ * OpenRouter carries five models, so "this is the last link — after it, answers
+ * wait for the reset" printed five times in a column, burying the rows that said
+ * something different. The fact is per-PROVIDER; repeating it per model does not
+ * make it truer, it just costs the reader the contrast that made the page
+ * scannable.
+ *
+ * Blanks a consequence only when the row directly above already said the same
+ * words, so a repeat that returns later still speaks.
+ */
+export function dedupeConsequences(rows: QuotaRowView[]): QuotaRowView[] {
+  let previous = "";
+  return rows.map((row) => {
+    const same = row.consequence === previous;
+    previous = row.consequence;
+    return same ? { ...row, consequence: "" } : row;
+  });
 }
