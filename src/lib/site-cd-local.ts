@@ -61,10 +61,12 @@ export function resolveRegisterScriptPath(): string | null {
 function deployKeyCandidates(): string[] {
   const out: string[] = [];
   if (process.env.DEPLOY_KEY_PATH?.trim()) out.push(process.env.DEPLOY_KEY_PATH.trim());
+  // The running user's own key. loki-app runs as `ubuntu`, so on the box this
+  // already is /home/ubuntu; on a laptop it is that person's home. A different
+  // user sets DEPLOY_KEY_PATH above — the documented SSOT (_box-env.sh). There
+  // used to be two more literals here naming one specific laptop user and the
+  // box user by path; both were this same candidate spelled for one person.
   out.push(path.join(os.homedir(), ".ssh/loki_ci_deploy"));
-  // Laptop SSOT when the app somehow runs as another user on a shared host.
-  out.push("/home/g/.ssh/loki_ci_deploy");
-  out.push("/home/ubuntu/.ssh/loki_ci_deploy");
   return [...new Set(out)];
 }
 

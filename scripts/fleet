@@ -153,7 +153,7 @@ case "${1:-help}" in
     echo "  fc pause / resume        # Low-power mode"
     echo ""
     echo "Setup (recommended):"
-    echo "  ln -s /home/g/dev/loki/scripts/fleet ~/bin/fc"
+    echo "  ln -s $(readlink -f "$0") ~/bin/fc"
     echo ""
     echo "Then just use: fc daemon start"
     ;;

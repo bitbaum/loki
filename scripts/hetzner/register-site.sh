@@ -107,7 +107,7 @@ publish_register_row() {
       say "register row already on main"
     else
       printf '%s\n' "$line" >> "$wt/scripts/hetzner/apps.conf"
-      if git -C "$wt" -c user.name='Cato' -c user.email='catomean@users.noreply.github.com' \
+      if git -C "$wt" -c user.name="$GIT_SCAFFOLD_NAME" -c user.email="$GIT_SCAFFOLD_EMAIL" \
            commit -q -am "chore(register): add $SLUG ($PORT)" \
          && env -u GH_TOKEN -u GITHUB_TOKEN git -C "$wt" push -q -f -u origin "$branch" 2>/dev/null \
          && pr=$(env -u GH_TOKEN -u GITHUB_TOKEN gh pr create --repo "$(git -C "$fc_git" remote get-url origin | sed -E 's#^https://github.com/##; s#^git@github.com:##; s#\.git$##')" \

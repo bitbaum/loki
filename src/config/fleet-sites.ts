@@ -82,7 +82,7 @@ export const FLEET_SITES: readonly FleetSite[] = [
     blurb: "Psychiatry-led burnout recovery in Zürich.",
   },
   {
-    name: "VitaReBa",
+    name: "Vita",
     url: "https://vitareba.orangecat.ch",
     blurb: "Metabolische Psychiatrie und systemische Longevity, Zürich.",
   },

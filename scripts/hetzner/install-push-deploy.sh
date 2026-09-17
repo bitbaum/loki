@@ -50,7 +50,7 @@ if git symbolic-ref --short HEAD 2>/dev/null | grep -qxE 'main|master'; then
   ( sleep 5
     _sha=\$(git rev-parse HEAD)
     _nwo=\$(git remote get-url origin 2>/dev/null | sed -E 's#(git@github.com:|https://github.com/)##; s#\\.git\$##')
-    if [ -n "\$_nwo" ] && ! bash "$HERE/ci-gate.sh" "\$_nwo" "\$_sha"; then
+    if [ -n "\$_nwo" ] && ! bash "\${DEV_ROOT:-\$HOME/dev}/loki/scripts/hetzner/ci-gate.sh" "\$_nwo" "\$_sha"; then
       echo "[push-deploy] $app: BLOCKED by CI gate for \${_sha} — fix CI, then re-push or deploy manually"
     else
       $deploy_cmd
@@ -71,20 +71,22 @@ if [ ${#apps[@]} -eq 0 ]; then
 fi
 
 for app in "${apps[@]}"; do
+  # DEV_ROOT comes from _box-env.sh (via lib.sh, sourced above) — the checkout
+  # root is one constant, not a laptop path repeated per special case.
   if [ "$app" = "loki" ]; then
-    install_hook /home/g/dev/loki \
-      "env -u CI bash /home/g/dev/loki/scripts/deploy-hetzner.sh" \
+    install_hook "$DEV_ROOT/loki" \
+      "env -u CI bash $DEV_ROOT/loki/scripts/deploy-hetzner.sh" \
       loki
     continue
   fi
   if [ "$app" = "evig" ]; then
-    install_hook /home/g/dev/evig \
-      "env -u CI bash /home/g/dev/evig/scripts/selfhost-deploy-evig.sh" \
+    install_hook "$DEV_ROOT/evig" \
+      "env -u CI bash $DEV_ROOT/evig/scripts/selfhost-deploy-evig.sh" \
       evig
     continue
   fi
   app_lookup "$app" || continue
   install_hook "$REPO" \
-    "env -u CI bash $HERE/deploy.sh $NAME" \
+    "env -u CI bash \"\${DEV_ROOT:-\$HOME/dev}/loki/scripts/hetzner/deploy.sh\" $NAME" \
     "$NAME"
 done

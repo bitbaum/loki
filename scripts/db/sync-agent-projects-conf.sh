@@ -27,7 +27,8 @@
 #   AGENT_PROJECTS_CONF=/tmp/x.conf scripts/db/sync-agent-projects-conf.sh   # write elsewhere (testing)
 set -euo pipefail
 
-BOX="${SYNC_AGENT_PROJECTS_BOX:-ubuntu@167.233.22.31}"
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../hetzner/_box-env.sh"   # SSOT: BOX_UBUNTU
+BOX="${SYNC_AGENT_PROJECTS_BOX:-$BOX_UBUNTU}"
 OUT="${AGENT_PROJECTS_CONF:-$HOME/.config/agent-projects.conf}"
 CHECK_ONLY=false
 [[ "${1:-}" == "--check" ]] && CHECK_ONLY=true
