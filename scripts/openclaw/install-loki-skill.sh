@@ -48,10 +48,27 @@ echo "→ removing the superseded skill directory"
 # holding two skills that claim the same job, one of which cannot run — and the
 # broken one is the one it has been choosing. Two answers to one question is
 # how this failure lasted as long as it did.
-ssh "$HOST" "for d in $SKILLS/*/; do \
-    [ \"\$d\" = '$DEST/' ] && continue; \
-    if [ -f \"\$d/scripts/fc.sh\" ]; then echo \"  removing \$d\"; sudo rm -rf \"\$d\"; fi; \
-  done"
+#
+# THE WHOLE LOOP RUNS UNDER sudo, and that is the point. The first version
+# globbed `$SKILLS/*/` as the ssh user, who cannot traverse the openclaw home:
+# the glob matched nothing, the loop did nothing, and the script printed its
+# success banner anyway. A cleanup step that cannot see what it is cleaning is
+# indistinguishable from one with nothing to clean — the same silent-no-op that
+# this whole change exists to stamp out.
+ssh "$HOST" "sudo bash -c 'for d in $SKILLS/*/; do \
+    [ \"\$d\" = \"$DEST/\" ] && continue; \
+    if [ -f \"\$d/scripts/fc.sh\" ]; then echo \"  removing \$d\"; rm -rf \"\$d\"; fi; \
+  done'"
+
+# And prove it: assert no OTHER skill still ships the old entrypoint. Trusting
+# the loop's own silence is what let the first version pass.
+leftover=$(ssh "$HOST" "sudo find $SKILLS -mindepth 2 -maxdepth 3 -name fc.sh -not -path '$DEST/*' 2>/dev/null" || true)
+if [ -n "$leftover" ]; then
+  echo "✗ a superseded skill is still installed — the agent can still pick the broken one:"
+  printf '    %s\n' "$leftover"
+  exit 1
+fi
+echo "  no superseded skill remains"
 
 echo "→ refreshing the gog shim's refusal message"
 # Only the message changes. The block list is untouched, and that is ASSERTED
