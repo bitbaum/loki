@@ -50,10 +50,18 @@ export async function GET(req: NextRequest) {
       snap.pendingUnclaimed = pending.claimedAt == null;
       snap.hostedPending = pending.type === "hosted_dispatch";
       snap.commandId = pending.id;
+      snap.builderChannel = pending.channel;
     } else {
       snap.pendingUnclaimed = false;
     }
-    snap.builderOffline = !presence.cloud && !presence.any;
+    snap.localOnline = presence.local;
+    snap.cloudOnline = presence.cloud;
+    snap.builderOffline =
+      snap.builderChannel === "local"
+        ? !presence.local
+        : snap.builderChannel === "cloud"
+          ? !presence.cloud
+          : !presence.any;
   }
 
   const work = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, snap);
