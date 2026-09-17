@@ -287,15 +287,12 @@ export function TerminalSurface({
     tabs,
     loading,
   });
-  // Suppress the miss UI while we're auto-switching to the other source.
-  // Use case-insensitive matching to check if tab exists on other source.
-  const otherHasTab = Boolean(
-    resolvedInitialTab &&
-    otherSource &&
-    !otherSourceTabs.loading &&
-    otherSourceTabs.tabs.some((t) => t.toLowerCase() === resolvedInitialTab.toLowerCase()),
-  );
-  const deepLinkMiss = rawDeepLinkMiss && resolvedInitialTab && !otherHasTab;
+  // Auto-switching is already reflected in `source` and therefore in `tabs`.
+  // Do not consult the statically named `otherSourceTabs` here: after a manual
+  // source switch that hook can describe the CURRENT source, which suppressed
+  // the miss state and left activeTab/transport null. That was the production
+  // "Cannot read properties of null (reading 'key')" crash.
+  const deepLinkMiss = Boolean(rawDeepLinkMiss && resolvedInitialTab);
 
   // The terminal is one of the four project surfaces, so the tab you are
   // watching IS the fleet's active project — Control, Loki and the project
@@ -605,10 +602,26 @@ export function TerminalSurface({
         </div>
       );
     }
+    // A source switch can briefly leave the previous source's selected tab in
+    // state while the new source already has a different tab list. Rendering
+    // TerminalView in that gap used to pass a null transport and crash on
+    // `transport.key`. Keep the page usable and explain what is settling.
+    if (!activeTab || !transport) {
+      return (
+        <div className="ui-empty-page">
+          <Loader2 className="ui-spinner h-5 w-5" aria-hidden="true" />
+          <p className="text-sm text-text-secondary">Selecting an available session…</p>
+          <p className="max-w-md text-center text-xs text-text-muted">
+            Loki is reconciling the sessions reported by {sourceLabel}. This page will attach
+            automatically; you do not need to retry.
+          </p>
+        </div>
+      );
+    }
     return (
       <TerminalView
         key={`${channel}:${activeTab}`}
-        transport={transport!}
+        transport={transport}
         fill
         // Only Type mode captures keystrokes, and only where the operator
         // actually wants the canvas to have the keyboard. In Prompt and Voice

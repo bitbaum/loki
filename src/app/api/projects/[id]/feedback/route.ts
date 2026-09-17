@@ -3,6 +3,7 @@ import { readIdParam, jsonOk, jsonError } from "@/lib/api/route-helpers";
 import { getSessionUserId } from "@/lib/session";
 import { getFeedbackLoopMetrics, listProjectFeedback } from "@/db/queries/site-feedback";
 import { attachFeedbackWork } from "@/lib/feedback/attach-work";
+import { getProjectAccess } from "@/db/queries/project-access";
 
 /** Per-project feedback inbox (visitor submissions from the embed widget)
  *  plus the loop metrics (resolved count, median report→fix). Each row
@@ -12,10 +13,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!userId) return jsonError("Unauthorized", 401);
   const idOrResp = await readIdParam(params);
   if (idOrResp instanceof NextResponse) return idOrResp;
+  const access = await getProjectAccess(userId, idOrResp);
+  if (!access) return jsonError("Project not found", 404);
   const [raw, metrics] = await Promise.all([
-    listProjectFeedback(userId, idOrResp),
-    getFeedbackLoopMetrics(userId, idOrResp).catch(() => null),
+    listProjectFeedback(access.ownerUserId, idOrResp),
+    getFeedbackLoopMetrics(access.ownerUserId, idOrResp).catch(() => null),
   ]);
-  const feedback = await attachFeedbackWork(userId, raw);
-  return jsonOk({ feedback, metrics });
+  const feedback = await attachFeedbackWork(access.ownerUserId, raw);
+  return jsonOk({ feedback, metrics, access: { role: access.role, canEdit: access.canEdit } });
 }

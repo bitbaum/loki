@@ -49,6 +49,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const row = await getFeedbackWithProject(userId, idOrResp);
   if (!row) return jsonError("Feedback not found", 404);
+  if (!row.canEdit) return jsonError("Only project owners and editors can implement feedback", 403);
+  const executionUserId = row.ownerUserId;
 
   // Verify the project actually exists in user_projects before dispatching.
   // This prevents creating runs for projects that can't be found by inject.
@@ -80,7 +82,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // QUEUED/WORKING → refuse the duplicate; STUCK/FAILED (including a
     // dispatched row whose run record is missing) → allow the retry.
     const run = row.feedback.dispatchedRunId
-      ? await getOrchestrationRunById(userId, row.feedback.dispatchedRunId)
+      ? await getOrchestrationRunById(executionUserId, row.feedback.dispatchedRunId)
       : null;
     const work = deriveFeedbackWork(row.feedback.status, runToFeedbackSnapshot(run));
     if (work.phase === FEEDBACK_WORK_PHASE.QUEUED || work.phase === FEEDBACK_WORK_PHASE.WORKING) {
@@ -95,7 +97,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const currentSession =
     adapter === "claude"
       ? await getCurrentClaudeSessionForProject(
-          userId,
+          executionUserId,
           row.projectName,
           new Date(),
           row.feedback.projectId,
@@ -121,7 +123,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ),
       notifyOnClose: true,
     },
-    userId,
+    executionUserId,
   );
 
   // Accepted = inject returned ok with a tracked run id, and did not refuse
@@ -137,7 +139,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const accepted = feedbackInjectAccepted(status, body);
   const runId = accepted ? body.runId : undefined;
   if (accepted) {
-    await setFeedbackStatus(userId, idOrResp, FEEDBACK_STATUS.DISPATCHED, runId);
+    await setFeedbackStatus(executionUserId, idOrResp, FEEDBACK_STATUS.DISPATCHED, runId);
   }
 
   const workLabel = accepted

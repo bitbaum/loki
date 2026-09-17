@@ -12,6 +12,7 @@ import {
   promptHistory,
   projectStates,
   pendingCommands,
+  projectMemberships,
 } from "@/db/schema";
 import { eq, and, asc, desc, inArray, ilike, isNull, or, isNotNull, max, sql } from "drizzle-orm";
 import { excludeSmokeDispatchesSql } from "./smoke-filter";
@@ -335,11 +336,20 @@ export async function getOrgEntityProjects(
   userId: string,
 ): Promise<(ProjectRow & { readonly: true })[]> {
   const peerIds = await getOrgPeerIds(userId);
-  if (peerIds.length === 0) return [];
+  const explicit = await db
+    .select({ projectId: projectMemberships.projectId })
+    .from(projectMemberships)
+    .where(eq(projectMemberships.userId, userId));
+  const explicitIds = explicit.map((row) => row.projectId);
+  if (peerIds.length === 0 && explicitIds.length === 0) return [];
+  const access = [
+    ...(peerIds.length ? [inArray(entities.userId, peerIds)] : []),
+    ...(explicitIds.length ? [inArray(entities.id, explicitIds)] : []),
+  ];
   const projects = await db
     .select()
     .from(entities)
-    .where(and(inArray(entities.userId, peerIds), eq(entities.type, ENTITY_TYPE.PROJECT)))
+    .where(and(or(...access), eq(entities.type, ENTITY_TYPE.PROJECT)))
     .orderBy(entities.name);
   const ids = projects.map((p) => p.id);
   const [attrsByEntity, runtimeByEntity] = await Promise.all([
@@ -376,10 +386,11 @@ export async function resolveProjectDetailWithOrgFallback(
 ): Promise<{
   detail: NonNullable<Awaited<ReturnType<typeof getProjectDetail>>>;
   ownerId: string;
+  canEdit: boolean;
 } | null> {
   // Fast path: viewer owns the entity.
   const ownDetail = await getProjectDetail(viewerUserId, projectId);
-  if (ownDetail) return { detail: ownDetail, ownerId: viewerUserId };
+  if (ownDetail) return { detail: ownDetail, ownerId: viewerUserId, canEdit: true };
 
   // Look up the entity without userId filter to find its actual owner.
   const [entity] = await db
@@ -389,6 +400,20 @@ export async function resolveProjectDetailWithOrgFallback(
     .limit(1);
 
   if (!entity || entity.userId === viewerUserId) return null;
+
+  const [projectMember] = await db
+    .select({ role: projectMemberships.role })
+    .from(projectMemberships)
+    .where(
+      and(eq(projectMemberships.projectId, projectId), eq(projectMemberships.userId, viewerUserId)),
+    )
+    .limit(1);
+  if (projectMember) {
+    const detail = await getProjectDetail(entity.userId, projectId);
+    return detail
+      ? { detail, ownerId: entity.userId, canEdit: projectMember.role === "editor" }
+      : null;
+  }
 
   // Check that viewer and owner share at least one org.
   const viewerOrgs = await db
@@ -408,7 +433,7 @@ export async function resolveProjectDetailWithOrgFallback(
   if (shared.length === 0) return null;
 
   const detail = await getProjectDetail(entity.userId, projectId);
-  return detail ? { detail, ownerId: entity.userId } : null;
+  return detail ? { detail, ownerId: entity.userId, canEdit: false } : null;
 }
 
 export async function getProjectDetail(userId: string, id: string) {

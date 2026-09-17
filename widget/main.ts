@@ -283,6 +283,8 @@ input { margin-bottom: 10px; }
             display: inline-flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
 .ok p { font-size: 13px; margin-top: 12px; color: ${theme.text}; }
 .ok .sub { font-size: 11px; color: ${theme.textSecondary}; margin-top: 4px; }
+.ok .track { display: inline-flex; margin-top: 14px; border-radius: 9px; padding: 9px 12px;
+  background: ${theme.accent}; color: ${ink}; font-size: 12px; font-weight: 650; text-decoration: none; }
 
 /* ---- element picker bar: the same surface, at the top ---- */
 .pickbar {
@@ -1274,7 +1276,8 @@ function h<K extends keyof HTMLElementTagNameMap>(
           const body = (await res.json().catch(() => null)) as { error?: string } | null;
           throw new Error(body?.error ?? `Request failed (${res.status})`);
         }
-        showSuccess();
+        const body = (await res.json()) as { claimUrl?: string };
+        showSuccess(body.claimUrl ?? null);
       } catch (err) {
         submitting = false;
         sendBtn.disabled = false;
@@ -1283,17 +1286,27 @@ function h<K extends keyof HTMLElementTagNameMap>(
       }
     }
 
-    function showSuccess() {
+    function showSuccess(claimUrl: string | null) {
       panel.textContent = "";
       const ok = h("div", "ok");
       const tick = h("div", "tick", "✓");
       ok.append(
         tick,
         h("p", undefined, "Sent. Thank you."),
-        h("div", "sub", "An agent picks this up in Loki."),
+        h("div", "sub", "Track what happens next in Loki."),
       );
+      if (claimUrl) {
+        const track = h("a", "track", "Track this feedback →") as HTMLAnchorElement;
+        track.href = claimUrl;
+        track.target = "_blank";
+        track.rel = "noopener noreferrer";
+        ok.append(track);
+      }
       panel.appendChild(ok);
       setTimeout(() => {
+        // Keep the success view open while the tracking invitation is visible.
+        // A visitor should never have to race a disappearing confirmation.
+        if (claimUrl) return;
         closePanel();
         // Rebuild the form for the next open (success view replaced it).
         panel.textContent = "";

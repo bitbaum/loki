@@ -53,6 +53,9 @@ export type ProjectDossier = {
   ownerId: string;
   /** Viewer is an org peer, not the owner — page renders read-only. */
   readonly: boolean;
+  /** Project editor capability is narrower than ownership: editors can work
+   * feedback without changing billing, identity, or membership. */
+  canEditFeedback: boolean;
   state: Awaited<ReturnType<typeof getProjectStateForProject>> | null;
   activity: ProjectActivityEvent[];
   runs: ProjectRunRow[];
@@ -81,7 +84,7 @@ export async function getProjectDossier(
 ): Promise<ProjectDossier | null> {
   const resolved = await resolveProjectDetailWithOrgFallback(viewerUserId, projectId);
   if (!resolved) return null;
-  const { detail, ownerId } = resolved;
+  const { detail, ownerId, canEdit } = resolved;
   const projectKey = detail.project.name;
 
   const [activity, runs, outcomes, userProject] = await Promise.all([
@@ -122,6 +125,7 @@ export async function getProjectDossier(
     detail,
     ownerId,
     readonly: ownerId !== viewerUserId,
+    canEditFeedback: canEdit,
     state,
     activity,
     runs,

@@ -111,12 +111,16 @@ export function FeedbackItemRow({
   // element chip (element) or by its absence (page); the run id is a lookup
   // key, not something a reader can act on, so it stays out of the line.
   const pageLabel = f.page || (f.url ? f.url.replace(/^https?:\/\/[^/]+/, "") || f.url : null);
+  const submittedAt = new Date(f.createdAt).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
   const meta = [
     pageLabel,
     !agentBadge && f.contact,
     f.status === FEEDBACK_STATUS.RESOLVED && f.resolvedAt
-      ? `resolved ${compactRelativeDate(f.resolvedAt)}`
-      : compactRelativeDate(f.createdAt),
+      ? `submitted ${submittedAt} · resolved ${compactRelativeDate(f.resolvedAt)}`
+      : `submitted ${submittedAt}`,
   ].filter(Boolean);
   const failed =
     work.phase === FEEDBACK_WORK_PHASE.FAILED || work.phase === FEEDBACK_WORK_PHASE.STUCK;

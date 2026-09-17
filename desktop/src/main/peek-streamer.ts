@@ -17,7 +17,7 @@
 // gets one informational frame and no polling loop.
 
 import { executor } from '@/lib/agent-execution'
-import { isPtyBacked, runnerWorkspaceId } from './pty-runtime'
+import { isPtyBacked, peekPtyBuffer, runnerWorkspaceId } from './pty-runtime'
 
 const MAX_FRAME = 256_000    // matches the cloud route's cap
 
@@ -47,7 +47,16 @@ async function postFrame(
 }
 
 export function startPeek(base: string, token: string, tab: string): void {
-  if (streams.has(key(tab))) return // already streaming this tab
+  if (streams.has(key(tab))) {
+    // A new SSE viewer joined an already-streamed tab. The cloud fanout does
+    // not retain frames, so replay the current screen for this viewer instead
+    // of waiting forever for the next byte from a quiet agent.
+    const snapshot = peekPtyBuffer(tab);
+    if (snapshot !== null) {
+      void postFrame(base, token, tab, 0, snapshot.slice(-MAX_FRAME), false)
+    }
+    return
+  }
   if (isPtyBacked(tab)) {
     startPtyStream(base, token, tab)
   } else {
@@ -83,7 +92,7 @@ function startPtyStream(base: string, token: string, tab: string): void {
     enqueue(e.data, true)
   })
   replaying = false
-  if (initial) enqueue(initial.length > MAX_FRAME ? initial.slice(initial.length - MAX_FRAME) : initial, true)
+  if (initial) enqueue(initial.length > MAX_FRAME ? initial.slice(initial.length - MAX_FRAME) : initial, false)
   streams.set(key(tab), { stop: unsub })
 }
 

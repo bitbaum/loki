@@ -70,13 +70,15 @@ export async function GET(req: NextRequest) {
         }
       };
 
-      // First viewer for this tab → ask the runner to start streaming it.
-      if (addPeekViewer(userId, tab, runnerChannel)) {
-        await enqueuePeekCommand(userId, "peek_start", {
-          tab,
-          ...(runnerChannel ? { channel: runnerChannel } : {}),
-        }).catch(() => {});
-      }
+      // Every viewer requests a snapshot. The bus is intentionally ephemeral:
+      // a second browser cannot replay the frame sent to the first one. The
+      // runner de-duplicates the underlying subscription but replays its PTY
+      // buffer for each peek_start, so a quiet terminal still paints at once.
+      addPeekViewer(userId, tab, runnerChannel);
+      await enqueuePeekCommand(userId, "peek_start", {
+        tab,
+        ...(runnerChannel ? { channel: runnerChannel } : {}),
+      }).catch(() => {});
       send(sseEvent("ready", { tab }));
 
       const onFrame = (payload: PeekFrame) => send(sseEvent("frame", payload));

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readIdParam, jsonError } from "@/lib/api/route-helpers";
 import { getSessionUserId } from "@/lib/session";
-import { getFeedbackScreenshots } from "@/db/queries/site-feedback";
+import { getFeedbackScreenshots, getFeedbackWithProject } from "@/db/queries/site-feedback";
 
 /**
  * The visitor-attached images for one feedback row. Returns JSON array of
@@ -17,7 +17,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const idOrResp = await readIdParam(params);
   if (idOrResp instanceof NextResponse) return idOrResp;
 
-  const screenshots = await getFeedbackScreenshots(userId, idOrResp);
+  const row = await getFeedbackWithProject(userId, idOrResp);
+  if (!row) return jsonError("Feedback not found", 404);
+  const screenshots = await getFeedbackScreenshots(row.ownerUserId, idOrResp);
   if (!screenshots || screenshots.length === 0) {
     return jsonError("No screenshots", 404);
   }

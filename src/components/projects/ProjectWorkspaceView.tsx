@@ -264,7 +264,7 @@ export function ProjectWorkspaceView({
               </>
             ),
           },
-          ...(dossier.readonly
+          ...(!dossier.canEditFeedback
             ? []
             : [
                 {

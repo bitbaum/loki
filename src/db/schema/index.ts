@@ -24,6 +24,7 @@ export * from "./prompt-history";
 export * from "./claude-code-history";
 export * from "./auth";
 export * from "./user-projects";
+export * from "./project-memberships";
 export * from "./project-states";
 export * from "./invitations";
 export * from "./password-reset-tokens";

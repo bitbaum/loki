@@ -35,6 +35,11 @@ export const siteFeedback = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id),
+    /** Account that claimed this visitor report. Separate from userId, which
+     * remains the project owner/execution tenant. */
+    reporterUserId: uuid("reporter_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     tokenId: uuid("token_id").references(() => widgetTokens.id, { onDelete: "set null" }),
 
     suggestion: text("suggestion").notNull(),
@@ -75,6 +80,7 @@ export const siteFeedback = pgTable(
   (t) => [
     index("idx_site_feedback_project").on(t.projectId, t.status),
     index("idx_site_feedback_user").on(t.userId, t.status),
+    index("idx_site_feedback_reporter").on(t.reporterUserId, t.createdAt),
     index("idx_site_feedback_dedupe").on(t.projectId, t.contentHash),
   ],
 );

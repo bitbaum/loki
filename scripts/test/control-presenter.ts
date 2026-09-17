@@ -350,24 +350,17 @@ function runTests(): void {
     );
   });
 
-  check("open session is labeled 'Awaiting input' to match the summary chip", () => {
+  check("quiet process is labeled Agent idle without claiming it asked the user", () => {
     const nowS = 1_700_000_000;
     const project = stubProject({ tab: "Loki", agentRunning: true });
     const state = getProjectDisplayState(project, ["Loki"], nowS);
     const snapshot = buildProjectOperationsSnapshot(project, ["Loki"], nowS);
-    // Previous label "Waiting for instructions" implied the project itself was
-    // dormant when really the only known fact is "agent process detected, no
-    // recent handoff signal" — actionable wording matches the summary section
-    // ("X awaiting input") so the row + chip agree.
     assert(
-      state.stateLabel === "Awaiting input",
-      "open inactive agent must read as awaiting your next prompt",
+      state.stateLabel === "Agent idle",
+      "a quiet process must not be presented as an explicit request for input",
     );
     assert(snapshot.phase === "open_idle", "open_idle phase is still the underlying state");
-    assert(
-      snapshot.evidenceLabel === "Awaiting input",
-      "evidence label must match the badge wording",
-    );
+    assert(snapshot.evidenceLabel === "Agent idle", "evidence label must match the badge wording");
   });
 
   check("ready sentinel is a next-step state, not generic waiting", () => {

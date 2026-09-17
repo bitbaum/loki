@@ -313,7 +313,7 @@ const LIVE_TAB_RANK: Record<LiveTabRankLabel, number> = {
   Offline: 0,
   Working: 0,
   "Ready for next step": 1,
-  "Awaiting input": 3,
+  "Agent idle": 3,
   Closing: 2,
   Completed: 3,
   "Not running": 4,
@@ -766,10 +766,8 @@ export function buildProjectOperationsSnapshot(
   // Evidence labels are the LONG-form descriptions shown as subtitles next
   // to the badge. They INTENTIONALLY add detail the badge can't fit (e.g.,
   // "Agent signaled ready on connected computer" vs the badge's "Ready for
-  // next step"). 2026-06-08: simplified "Agent shell waiting for
-  // instructions" → "Awaiting input" so the subtitle matches the
-  // badge wording — no need for two different ways to say the same thing
-  // stacked on the same row.
+  // next step"). A quiet process is not proof that it asked the user a
+  // question, so open_idle uses the same neutral label as its badge.
   const liveEvidenceLabel = display.isRunning
     ? "Live agent process detected"
     : display.isReady
@@ -777,7 +775,7 @@ export function buildProjectOperationsSnapshot(
       : display.isOrchestrationReady
         ? "Last run completed"
         : display.isSessionOpen
-          ? "Awaiting input"
+          ? "Agent idle"
           : display.tabOpen
             ? recentDispatchSuffix
               ? `Workspace tab open · ${recentDispatchSuffix}`

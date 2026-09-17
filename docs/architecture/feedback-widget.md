@@ -1,8 +1,8 @@
 # Loki Feedback Widget
 
 **Created:** 2026-07-17  
-**Last modified:** 2026-08-14  
-**Last modified summary:** Widget card uses ui-panel / ui-callout (no ad-hoc shadow); snippet collapsed when Live; botsmann boot confirmed 2026-08-14 from https://botsmann.orangecat.ch; CSP must allow the Loki origin.
+**Last modified:** 2026-09-17
+**Last modified summary:** Added reporter claim links, personal tracking, visible submission times, and project-level editor authorization.
 
 **Status**: COMPLETE 2026-07-28. Phases 1–4 implemented 2026-07-17 — four
 `feat(feedback):` commits (ingest spine, embed bundle, inbox + dispatch,
@@ -35,6 +35,30 @@ injectPrompt SSOT  →  local Fleet Runner if connected, else cloud builder
         ↓
 Run succeeds  →  feedback auto-resolves (+ optional reporter email)
 ```
+
+## People and permissions
+
+The feedback row has three distinct actors. Keeping them distinct is the
+multi-tenant security boundary:
+
+- **Reporter:** the widget returns a 30-day HMAC-signed claim URL after the DB
+  insert. The success view stays open and offers **Track this feedback**. After
+  sign-up/sign-in, that one row is linked through
+  `site_feedback.reporter_user_id` and appears at `/my-feedback`. A reporter can
+  read their own text, submission timestamp, project name, and implementation
+  status. They cannot read the project inbox or call a mutation route.
+- **Editor:** an owner adds an existing Loki account by email in the project's
+  Feedback tab. `project_memberships` grants `editor` or `viewer` per entity
+  project. Editors can read, triage, and Implement feedback; execution still
+  uses the owner's project and runner tenant. Viewers are read-only.
+- **Owner:** the `user_projects.user_id` owner retains project identity,
+  runtime credentials, billing, and membership management. Project membership
+  never copies or transfers those credentials.
+
+All feedback mutation routes resolve `getProjectAccess` before acting. UI
+capabilities follow the same API result. Contact text is not identity and never
+grants access. Every operator row renders an exact `Submitted <date, time>`;
+relative ages remain appropriate only for runtime activity.
 
 **You do not choose a terminal.** Dispatch never targets “this Cursor chat” or
 “Loki’s Terminal page” directly. It injects into the **project’s agent
