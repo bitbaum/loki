@@ -75,13 +75,13 @@ export function StandingApprovals({
           const on = enabled.includes(option.type);
           return (
             <li key={option.type}>
-              <label className="flex cursor-pointer items-start gap-3 rounded-card p-2 hover:bg-surface-hover">
+              <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-surface-raised">
                 <input
                   type="checkbox"
                   checked={on}
                   disabled={saving !== null}
                   onChange={() => toggle(option.type)}
-                  className="mt-1 h-4 w-4 shrink-0 accent-brand"
+                  className="mt-1 h-4 w-4 shrink-0"
                 />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2 text-sm">

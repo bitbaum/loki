@@ -100,7 +100,7 @@ export default async function ActionLinkPage({ params }: { params: Promise<{ tok
 
   return (
     <Outcome
-      icon={<CalendarCheck className="h-5 w-5 text-brand" />}
+      icon={<CalendarCheck className="h-5 w-5 text-accent-text" />}
       title="Approved"
       body={
         pendingBooking
