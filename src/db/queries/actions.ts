@@ -220,6 +220,13 @@ export async function expireDraft(id: string): Promise<ActionRow | null> {
 export type StaleDraftSummary = {
   userId: string;
   pending: number;
+  /**
+   * The oldest waiting draft's id — so a reminder about ONE decision can carry
+   * that decision (a one-tap approve link) instead of a link to a list with one
+   * row in it. Comes from the same aggregate as the title, which is the point:
+   * a second query could return a different row than the one being named.
+   */
+  oldestId: string;
   oldestTitle: string;
   oldestAgeSeconds: number;
 };
@@ -246,6 +253,7 @@ export async function getStaleDraftSummaries(
       pending: sql<number>`count(*)::int`,
       // Oldest-first ordering inside the aggregate, so [1] is the one that has
       // been waiting longest — the item worth naming in the alert.
+      oldestId: sql<string>`(array_agg(${actions.id} order by ${actions.createdAt}))[1]`,
       oldestTitle: sql<string>`(array_agg(${actions.title} order by ${actions.createdAt}))[1]`,
       // Age computed in SQL: one clock (the database's), no driver timezone games.
       oldestAgeSeconds: sql<number>`extract(epoch from now() - min(${actions.createdAt}))::int`,
@@ -264,6 +272,7 @@ export async function getStaleDraftSummaries(
   return rows.map((r) => ({
     userId: r.userId,
     pending: Number(r.pending),
+    oldestId: r.oldestId,
     oldestTitle: r.oldestTitle,
     oldestAgeSeconds: Number(r.oldestAgeSeconds),
   }));

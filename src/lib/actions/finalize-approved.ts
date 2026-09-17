@@ -11,6 +11,13 @@ const INTERACTION_ACTION_TYPES = new Set<ActionType>([
 ]);
 
 /**
+ * How the approval was given. `operator` is a tap — the Approvals page, the
+ * chat decision route, or a one-tap link. `standing-rule` is a rule the
+ * operator set in advance (lib/actions/standing-approval.ts).
+ */
+export type ApprovalSource = "operator" | "standing-rule";
+
+/**
  * Shared post-approval path: log the outbound interaction (for message types),
  * audit the approval, then run the executor. The executor is fail-closed — it
  * only advances the row to 'executed' on a real successful effect; external
@@ -23,6 +30,7 @@ const INTERACTION_ACTION_TYPES = new Set<ActionType>([
 export async function finalizeApproved(
   userId: string,
   action: ActionRow,
+  opts: { via?: ApprovalSource } = {},
 ): Promise<ExecuteActionResult> {
   if (action.entityId && INTERACTION_ACTION_TYPES.has(action.type)) {
     await createInteraction(userId, {
@@ -32,6 +40,11 @@ export async function finalizeApproved(
       summary: action.title,
     });
   }
-  await recordActionAuditEvent(userId, action, "approved");
-  return executeAction(userId, action);
+  // WHICH KIND of approval this was is part of the record, not a detail. With
+  // standing rules, "approved" alone no longer answers "who decided this" —
+  // and an auto-approval that is indistinguishable in the audit trail from a
+  // tap is a standing rule nobody can review after the fact.
+  const via: ApprovalSource = opts.via ?? "operator";
+  await recordActionAuditEvent(userId, action, "approved", { meta: { via } });
+  return executeAction(userId, action, { autoApproved: via === "standing-rule" });
 }

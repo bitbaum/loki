@@ -10,6 +10,9 @@ import {
 } from "@/db/queries/actions";
 import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
+import { notifyActionExecuted } from "@/lib/actions/notify-decision";
+import { standingApprovalVerdict } from "@/lib/actions/standing-approval";
+import { getUserPreferences } from "@/db/queries/user-preferences";
 
 /**
  * Calendar-event drain seam for the LOCAL runtime.
@@ -109,5 +112,32 @@ export async function POST(req: NextRequest) {
   await recordActionAuditEvent(userId, executed, "executed", {
     meta: { eventId: eventId ?? null, htmlLink: htmlLink ?? null, via: "local-drain" },
   });
+
+  // Tell the operator the event is really in their calendar.
+  //
+  // This is the ONLY confirmation for the ordinary path: approval happens on
+  // the cloud control plane, which has no `gog`, so the row is deferred here
+  // and the booking finishes minutes later in a different process. Without
+  // this, "I booked it" was said by whoever approved — before anything had
+  // been booked — and the operator found out it had failed by noticing an
+  // appointment that was not there.
+  //
+  // Whether a standing rule approved it is RE-DERIVED rather than carried:
+  // a rule that covers this action means no human ever saw the row, because
+  // enqueueAction approves rule-covered drafts before they can be shown. The
+  // only way that reads wrong is if the rule was switched on inside the few
+  // seconds between proposal and booking, which costs a sentence, not a fact.
+  const standing = await getUserPreferences(userId)
+    .then((p) => p.standingApprovals)
+    .catch(() => [] as string[]);
+  const autoApproved = standingApprovalVerdict({
+    type: executed.type,
+    payload: executed.payload,
+    standingApprovals: standing,
+  }).auto;
+  await notifyActionExecuted(userId, executed, { htmlLink: htmlLink ?? null, autoApproved }).catch(
+    () => {},
+  );
+
   return NextResponse.json({ ok: true, marked: true });
 }

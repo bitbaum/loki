@@ -7,23 +7,34 @@
  * call this so the queue's producer lives in exactly one place.
  *
  * Fully best-effort: extraction or the queue write failing just means "nothing
- * queued this turn" — it must never break the chat reply. IRON RULE holds: this
- * only ever inserts status='draft'; the operator approves before anything runs.
+ * queued this turn" — it must never break the chat reply. The IRON RULE holds:
+ * everything enters as status='draft' and only the operator's approval moves it
+ * — given per item, or in advance via a standing rule (lib/actions/standing-approval.ts).
  */
 import type { ActionType } from "@/lib/constants/statuses";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
 import { extractActionProposal } from "@/lib/actions/extract-proposal";
-import { proposeAction } from "@/db/queries/actions";
-import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
+import { enqueueAction } from "@/lib/actions/enqueue-action";
 import { enrichReachPayload, reachFromPerson, resolvePersonToReach } from "@/lib/people-resolve";
 
-export type QueuedActionSummary = { id: string; type: ActionType; title: string };
+export type QueuedActionSummary = {
+  id: string;
+  type: ActionType;
+  title: string;
+  /**
+   * A standing rule approved it and it is already running — so the chat UI must
+   * say "done", not "queued for approval". The queue's whole value is that its
+   * status line is true; a summary that cannot express "already done" would
+   * make the UI report a completed booking as still awaiting a decision.
+   */
+  autoApproved: boolean;
+};
 
 /**
- * Detect an actionable request in `rawMessage`, enqueue it as a draft, and return
- * a summary for the UI. Returns null when there's nothing to queue OR when the
- * draft dedupes against an already-pending one (so the UI never claims a
- * duplicate add). `nowISO` anchors relative dates — the caller passes the clock.
+ * Detect an actionable request in `rawMessage`, enqueue it, and return a summary
+ * for the UI. Returns null when there's nothing to queue OR when the draft
+ * dedupes against an already-pending one (so the UI never claims a duplicate
+ * add). `nowISO` anchors relative dates — the caller passes the clock.
  */
 export async function enqueueProposalFromMessage(
   userId: string,
@@ -40,7 +51,7 @@ export async function enqueueProposalFromMessage(
       : null;
   const reach = person ? reachFromPerson(person) : null;
 
-  const action = await proposeAction(userId, {
+  const outcome = await enqueueAction(userId, {
     type: proposal.type,
     title:
       person &&
@@ -54,9 +65,17 @@ export async function enqueueProposalFromMessage(
       : (proposal.reasoning ?? "Proposed by Loki from chat — approve to run it."),
     entityId: person?.id ?? null,
   });
-  // proposeAction dedupes an already-pending draft title to null.
-  if (!action) return null;
+  // An already-pending draft title dedupes — nothing new was queued.
+  if (outcome.result === "deduped") return null;
 
-  await recordActionAuditEvent(userId, action, "proposed");
-  return { id: action.id, type: action.type, title: action.title };
+  // No Telegram card from this producer: the operator is looking at the web
+  // chat that produced it, and the reply already says what was queued. Pinging
+  // the phone about something on the screen in front of you is the storm.
+  const action = outcome.action;
+  return {
+    id: action.id,
+    type: action.type,
+    title: action.title,
+    autoApproved: outcome.result === "auto",
+  };
 }

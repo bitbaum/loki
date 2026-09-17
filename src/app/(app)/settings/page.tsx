@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
 import { listInvitations } from "@/db/queries/invitations";
 import { getUserById } from "@/db/queries/users";
-import { getUserPreferences } from "@/db/queries/user-preferences";
+import { getUserPreferences, EMPTY_USER_PREFERENCES } from "@/db/queries/user-preferences";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { PageLayout } from "@/components/ui/page-layout";
 import { getEnabledAuthProviders } from "@/lib/auth-providers";
@@ -39,19 +39,7 @@ export default async function SettingsPage() {
           plan: user.plan,
           planStatus: user.planStatus ?? null,
         }}
-        userPrefs={
-          userPrefs ?? {
-            homeCity: null,
-            homeTimezone: null,
-            homeLocale: null,
-            currentCity: null,
-            currentTimezone: null,
-            currentCityUntil: null,
-            writingVoice: null,
-            memoryEnabled: true,
-            agentOrder: null,
-          }
-        }
+        userPrefs={userPrefs ?? EMPTY_USER_PREFERENCES}
         projects={projects}
         teamProjects={teamProjects}
         projectLimit={

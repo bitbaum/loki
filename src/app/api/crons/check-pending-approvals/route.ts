@@ -50,6 +50,7 @@ import { isEventSlotPassed, resolveEventTimes } from "@/lib/actions/calendar-eve
 import { sendTelegramMessage, selfTelegramTarget } from "@/lib/actions/telegram-send";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
 import { APP_URL } from "@/config/brand";
+import { actionEditUrl, actionLinkUrl } from "@/lib/actions/action-link";
 
 /** Alert type — the dedupe key for raise/refresh/resolve. */
 const ALERT_TYPE = "pending_approvals";
@@ -137,11 +138,39 @@ export async function GET(req: NextRequest) {
       // not looking at the app — that is the entire failure this fixes.
       const tg = selfTelegramTarget();
       if (tg) {
+        // The digest stays a digest (one message per episode, never per draft),
+        // but it no longer ends in a chore. When the backlog is a SINGLE item,
+        // the decision itself rides along as buttons — the common case by far,
+        // and the one where "go to the website and find the row" was absurd.
+        // Several items have no single answer, so that one still routes to the
+        // queue, which is the right place to triage more than one decision.
+        const buttons =
+          s.pending === 1
+            ? [
+                [
+                  {
+                    text: "✅ Approve",
+                    url: actionLinkUrl({
+                      actionId: s.oldestId,
+                      userId: s.userId,
+                      verb: "approve",
+                    }),
+                  },
+                  {
+                    text: "✕ Reject",
+                    url: actionLinkUrl({ actionId: s.oldestId, userId: s.userId, verb: "reject" }),
+                  },
+                ],
+                [{ text: "✏️ Edit", url: actionEditUrl(s.oldestId) }],
+              ]
+            : [[{ text: `📋 Review ${s.pending} items`, url: `${APP_URL}/approvals` }]];
+
         const sent = await sendTelegramMessage(
           tg,
           `🕐 Loki: ${s.pending} ${noun} waiting for your approval.\n` +
             `Oldest: "${s.oldestTitle}" (${waited}).\n` +
-            `Approve or reject: ${APP_URL}/approvals`,
+            `Nothing runs until you decide.`,
+          { buttons },
         );
         if (sent.ok) pinged++;
       }
