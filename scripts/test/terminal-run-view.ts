@@ -15,7 +15,10 @@ import { FEEDBACK_WORK_PHASE, WAITING_ON, type FeedbackWorkView } from "@/lib/fe
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { QUOTA_ALTERNATIVE_AGENTS } from "@/config/quota-alternatives";
-import { capacityFailureFromScreen } from "../../desktop/src/main/pty-runtime";
+import {
+  capacityFailureFromScreen,
+  shouldReplacePtyAgent,
+} from "../../desktop/src/main/pty-runtime";
 
 let passed = 0;
 const check = (label: string, fn: () => void) => {
@@ -75,6 +78,12 @@ check("a quota redraw is a blocker, not generation evidence", () => {
     /usage limit is exhausted/,
   );
   assert.equal(capacityFailureFromScreen("Thinking…", "grok"), null);
+});
+
+check("Retry replaces a live PTY when the project provider changed", () => {
+  assert.equal(shouldReplacePtyAgent("grok", "cursor"), true);
+  assert.equal(shouldReplacePtyAgent("cursor", "cursor"), false);
+  assert.equal(shouldReplacePtyAgent(null, "cursor"), false);
 });
 
 check("next action prefers the queue reason over a badge", () => {

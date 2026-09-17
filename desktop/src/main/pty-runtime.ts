@@ -19,6 +19,8 @@ import type { AgentOption } from "@/lib/agent-registry";
 import { ensureGrokWorkspaceTrusted } from "./grok-prep";
 import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
 
+const agentByTab = new Map<string, AgentOption>();
+
 /**
  * Stable runner-local workspace id for a project tab. The runner has no server
  * userId locally, so it keys by tab; the cloud stream relay namespaces by the
@@ -101,6 +103,18 @@ export async function launchAgentPty(
     sessionId,
     workspaceId: runnerWorkspaceId(tab),
   });
+  agentByTab.set(tab, agent);
+}
+
+export function ptyAgentForTab(tab: string): AgentOption | null {
+  return agentByTab.get(tab) ?? null;
+}
+
+export function shouldReplacePtyAgent(
+  current: AgentOption | null,
+  requested: AgentOption,
+): boolean {
+  return current !== null && current !== requested;
 }
 
 /**
@@ -223,6 +237,7 @@ export function resizePty(tab: string, cols: number, rows: number): void {
 /** Kill the agent's PTY and release the workspace. */
 export async function terminatePty(tab: string): Promise<void> {
   await executor.terminate(runnerWorkspaceId(tab));
+  agentByTab.delete(tab);
 }
 
 /** Tabs currently backed by a live owned PTY (for the heartbeat's open-tabs). */
