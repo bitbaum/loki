@@ -76,7 +76,70 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers() {
+    // Security headers on every response. Shape follows the fleet reference
+    // implementation, aoz-begleitung/next.config.js. Everything in this list is
+    // inert for rendering: it constrains sniffing, framing, referrer detail,
+    // transport and device APIs — never what a page is allowed to load.
+    const securityHeaders = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      // SAMEORIGIN is safe for the embeddable feedback widget. widget/main.ts
+      // mounts a shadow-DOM host into the CUSTOMER page's own <body>
+      // (attachShadow + document.body.appendChild) — Loki serves no document
+      // that is framed on a customer site, and there is no iframe anywhere in
+      // widget/ or src/. /api/widget-boot and the ingest API are cross-origin
+      // fetches; framing rules do not touch CORS, and those routes keep setting
+      // their own Access-Control-* headers.
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+      // microphone=(self) — deliberately NOT the empty `microphone=()`. An
+      // empty allowlist denies the feature to EVERY origin including this one,
+      // so the browser never prompts and getUserMedia rejects immediately with
+      // NotAllowedError. That would silently kill speak-to-report in the
+      // dogfood widget (widget/voice.ts) and the app's own dictation
+      // (src/hooks/use-whisper-mic.ts, src/hooks/use-voice-input.ts).
+      // orangecat.ch shipped the empty form once and had to undo it for exactly
+      // this reason. camera and geolocation stay fully denied — nothing here
+      // uses them.
+      { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
+      // REPORT-ONLY on purpose, and it must stay that way until it has been
+      // observed. An enforcing Content-Security-Policy blocks SILENTLY: a
+      // policy one source short breaks a stylesheet, an image or a third-party
+      // script with nothing on screen to explain it. Report-Only asks the
+      // browser to report what WOULD have been blocked and block nothing, so
+      // this header cannot change how any page looks or behaves.
+      //
+      // What has to be observed before it could ever become an enforcing
+      // `Content-Security-Policy`:
+      //   1. a report sink is actually wired up (report-to / report-uri, e.g.
+      //      via the Sentry tunnel at /monitoring) — today nothing collects
+      //      these reports, so the header is a placeholder for that work;
+      //   2. zero violations over real traffic covering the authenticated
+      //      shell, /docs/feedback-widget and the widget itself, the Sentry
+      //      tunnel, and the markdown content pages (/thoughts, /whitepaper);
+      //   3. 'unsafe-inline' and 'unsafe-eval' replaced by per-request nonces —
+      //      while they are present script-src is largely decorative.
+      {
+        key: "Content-Security-Policy-Report-Only",
+        value: [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: blob: https:",
+          "font-src 'self' data:",
+          "media-src 'self' blob: data:",
+          "connect-src 'self' https://*.sentry.io",
+          "frame-src 'self'",
+          "frame-ancestors 'self'",
+          "base-uri 'self'",
+          "form-action 'self'",
+          "object-src 'none'",
+        ].join("; "),
+      },
+    ];
+
     return [
+      { source: "/(.*)", headers: securityHeaders },
       {
         source: "/sw.js",
         headers: [
