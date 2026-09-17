@@ -442,6 +442,10 @@ export async function runLokiTurn(input: {
         lastSystem = system;
         try {
           return await callModel({
+            // One label for the whole turn: a round, a plan retry and a repair
+            // are the same question being answered, and three lines on the
+            // capacity page would read as three features.
+            feature: "loki-chat",
             messages: [
               { role: "system", content: system },
               ...prior,
@@ -512,6 +516,7 @@ export async function runLokiTurn(input: {
     sink?.reset();
     try {
       const retry = await callModel({
+        feature: "loki-chat",
         messages: [
           { role: "system", content: lastSystem },
           ...prior,
@@ -567,6 +572,7 @@ export async function runLokiTurn(input: {
     // Repair asks for DELETION, not regeneration — the model is not missing
     // knowledge, it added claims. Tools stay off so it cannot wander further.
     const repaired = await callModel({
+      feature: "loki-chat",
       messages: [
         { role: "system", content: systemPrompt(registry, false) },
         {
