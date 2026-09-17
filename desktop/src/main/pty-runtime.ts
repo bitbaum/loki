@@ -17,6 +17,9 @@ import { executor } from "@/lib/agent-execution";
 import { provisionAgentWorkspace } from "@/lib/agent-execution/launch";
 import type { AgentOption } from "@/lib/agent-registry";
 import { ensureGrokWorkspaceTrusted } from "./grok-prep";
+import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
+
+const agentByTab = new Map<string, AgentOption>();
 
 /**
  * Stable runner-local workspace id for a project tab. The runner has no server
@@ -100,6 +103,18 @@ export async function launchAgentPty(
     sessionId,
     workspaceId: runnerWorkspaceId(tab),
   });
+  agentByTab.set(tab, agent);
+}
+
+export function ptyAgentForTab(tab: string): AgentOption | null {
+  return agentByTab.get(tab) ?? null;
+}
+
+export function shouldReplacePtyAgent(
+  current: AgentOption | null,
+  requested: AgentOption,
+): boolean {
+  return current !== null && current !== requested;
 }
 
 /**
@@ -178,6 +193,8 @@ export function waitForPtyOutput(tab: string, timeoutMs = 8000): Promise<boolean
 /** Turn a silent PTY into a cause and a concrete recovery action. */
 export function explainPtyDispatchFailure(tab: string, agent: AgentOption): string {
   const screen = peekPtyBuffer(tab)?.toLowerCase() ?? "";
+  const capacity = capacityFailureFromScreen(screen, agent);
+  if (capacity) return capacity;
   if (/do you trust|trust (?:this|the) (?:directory|folder|workspace)/.test(screen)) {
     return `${agent} is waiting for workspace trust, so it consumed the prompt before the agent was ready. Open Terminal, approve this folder once, then Retry.`;
   }
@@ -185,6 +202,18 @@ export function explainPtyDispatchFailure(tab: string, agent: AgentOption): stri
     return `${agent} is not logged in on this computer. Open Terminal, run ${agent === "cursor" ? "cursor-agent login" : `${agent} login`}, then Retry.`;
   }
   return `${agent} opened on this computer, but produced no response after Loki submitted the prompt. Open Terminal to see the live CLI; if it is idle, choose another AI provider and Retry.`;
+}
+
+/** A CLI quota wall redraws the terminal, so output volume alone cannot prove
+ * generation. Convert the provider's own screen into an exact blocker before
+ * the runner acknowledges `generating`. */
+export function capacityFailureFromScreen(screen: string, agent: AgentOption): string | null {
+  if (!looksLikeAgentCapacityIssue(screen)) return null;
+  return `${agent} cannot generate because its usage limit is exhausted. Switch this project to a provider with available capacity, then Retry.`;
+}
+
+export function detectPtyCapacityFailure(tab: string, agent: AgentOption): string | null {
+  return capacityFailureFromScreen(peekPtyBuffer(tab) ?? "", agent);
 }
 
 /**
@@ -208,6 +237,7 @@ export function resizePty(tab: string, cols: number, rows: number): void {
 /** Kill the agent's PTY and release the workspace. */
 export async function terminatePty(tab: string): Promise<void> {
   await executor.terminate(runnerWorkspaceId(tab));
+  agentByTab.delete(tab);
 }
 
 /** Tabs currently backed by a live owned PTY (for the heartbeat's open-tabs). */

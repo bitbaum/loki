@@ -112,6 +112,13 @@ function runTests(): void {
     assert(looksLikeAgentCapacityIssue("You have exceeded your quota"), "expected quota match");
   });
 
+  check("looksLikeAgentCapacityIssue matches CLI weekly-limit screens", () => {
+    assert(
+      looksLikeAgentCapacityIssue("You hit your weekly limit. Weekly limit left: 0%"),
+      "expected weekly-limit match",
+    );
+  });
+
   console.log(`\n${passed} agent-resolution tests passed`);
 }
 

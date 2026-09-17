@@ -13,7 +13,7 @@ import type { ProjectState } from "@/lib/control-types";
 export const AGENT_FALLBACK_ORDER = ["claude", "cursor", "codex", "gemini", "grok"] as const;
 
 const CAPACITY_ISSUE_RE =
-  /rate\s*limit|quota|credit|usage\s*limit|token\s*limit|out\s+of\s+tokens|context\s*(window|length|limit)|maximum\s+context|insufficient\s+quota/i;
+  /rate\s*limit|quota|credit|usage\s*limit|token\s*limit|weekly\s*limit|limit\s+left:\s*0%|hit your .{0,20}limit|out\s+of\s+tokens|context\s*(window|length|limit)|maximum\s+context|insufficient\s+quota/i;
 
 /** Tab suffix → adapter id: "Loki Cursor" → "cursor". */
 export function inferAdapterFromTabName(tabName: string): AnyAgentId | null {

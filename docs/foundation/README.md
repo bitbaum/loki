@@ -8,8 +8,11 @@ Loki’s bar: **easiest place to build things** and **most powerful** — agent-
 
 This folder is the SSOT for a multi-PR program. Ship in the order in `IMPLEMENT-ORDER.md`. Each slice has its own brief; do not boil the ocean in one PR. When Cato restates the loop, update these docs in the same change set — do not let aspirations drift.
 
+Start with `LOKI-WORKS.md`. It is the acceptance contract for the feedback-to-live loop, truthful status, collaboration, model independence, Loki chat, and shared packages.
+
 | Doc | What |
 |-----|------|
+| `LOKI-WORKS.md` | Definition of working: one-click feedback-to-live, trust, roles, model independence, chat, packages, and production acceptance |
 | `HARNESS-SIMPLIFICATION.md` | Explicit failures, local-runner prompt, provider hot-swap, Terminal+Loki rail, kill stale identity |
 | `RUN-STATUS-SSOT.md` | Queued / Starting / Working / Needs you / Done / Failed — one alive bit for Feedback ↔ Terminal |
 | `AI-PROVIDERS-TAB.md` | AI tab: subscriptions, login, tokens, last interaction |

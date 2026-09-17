@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import { dispatchToneDotClass } from "@/lib/dispatch-status";
-import type { TerminalRunView } from "@/lib/terminal-run-view";
+import { presentTerminalRun, type TerminalRunView } from "@/lib/terminal-run-view";
 import { TerminalLokiComposer } from "./TerminalLokiComposer";
 
 type RunPayload = { ok?: boolean; view: TerminalRunView | null; error?: string };
@@ -110,12 +110,13 @@ export function TerminalLokiRail({
   const ptyAck =
     injectAck &&
     (ptyLive || view?.lastProgressAt ? "PTY is printing." : "Injected — waiting for PTY bytes.");
+  const presented = view ? presentTerminalRun(view, ptyLive) : null;
 
   return (
     <aside className="ui-term-loki">
       <header className="ui-term-loki-head">
         <h2 className="ui-term-loki-title">Loki</h2>
-        {view && <span className="ui-badge">{view.label}</span>}
+        {presented && <span className="ui-badge">{presented.label}</span>}
       </header>
 
       <div className="ui-term-loki-body">
@@ -133,8 +134,8 @@ export function TerminalLokiRail({
         )}
         {view && (
           <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium text-text-primary">{view.stepSummary}</p>
-            <p className="text-xs text-text-secondary">{view.nextAction}</p>
+            <p className="text-sm font-medium text-text-primary">{presented?.stepSummary}</p>
+            <p className="text-xs text-text-secondary">{presented?.nextAction}</p>
             {view.stalled && view.diagnostic && view.diagnostic !== view.nextAction && (
               <p className="text-micro text-text-tertiary">{view.diagnostic}</p>
             )}

@@ -41,6 +41,9 @@ import {
   isPtyBusy,
   waitForPtyOutput,
   explainPtyDispatchFailure,
+  detectPtyCapacityFailure,
+  ptyAgentForTab,
+  shouldReplacePtyAgent,
   terminatePty,
   waitForPtyReady,
   peekPtyBuffer,
@@ -533,7 +536,17 @@ async function handleCommand(
         // (the `git add -A` swallow, 2026-07-17). Injecting into an already-live
         // session never remaps — we follow wherever that session was launched
         // (worktreeByTab), because verification (transcript lookup) is cwd-keyed.
-        const ptyAlreadyLive = isPtyBacked(tab)
+        let ptyAlreadyLive = isPtyBacked(tab)
+        // A preference change must replace the old provider before Retry.
+        // Injecting a Cursor task into a live Grok PTY both ignores the user's
+        // choice and records the wrong provider on the run.
+        if (
+          ptyAlreadyLive &&
+          shouldReplacePtyAgent(ptyAgentForTab(tab), agent as AgentOption)
+        ) {
+          await terminatePty(tab)
+          ptyAlreadyLive = false
+        }
         let effDir = ptyAlreadyLive ? (worktreeByTab.get(tab)?.launchDir ?? dir) : dir
         let effPrompt = prompt
         // Derived run-tabs ("<project>~<runId8>", same-project parallel dispatch)
@@ -665,13 +678,21 @@ async function handleCommand(
               error =
                 `${agent} is not authenticated (401 / login required) — the prompt was delivered but the agent can't run. ` +
                 `On the runner host, remove any stale ~/.claude/.credentials.json and set CLAUDE_CODE_OAUTH_TOKEN (claude setup-token).`
-            } else if (!verified) {
+            } else {
+              const capacityFailure = detectPtyCapacityFailure(tab, agent as AgentOption)
+              if (capacityFailure) {
+                ok = false
+                verified = false
+                warning = undefined
+                error = capacityFailure
+              } else if (!verified) {
               // Unverified inject is a soft failure for the captain loop: "Install
               // dispatched" with no generation is how botsmann stayed Not live
               // while Activity looked busy. Prefer Failed over fake success.
               ok = false
               warning = undefined
               error = `${text}, but Loki could not verify generation. ${explainPtyDispatchFailure(tab, agent as AgentOption)}`
+              }
             }
             break
           }

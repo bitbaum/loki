@@ -8,6 +8,7 @@ import { resolveOutgoingAgentForDir } from "@/lib/agent-process-scan";
 import { workspaceIdFor } from "@/lib/agent-execution/ownership";
 import { executionAccessErrorBody, resolveQueuedExecution } from "@/lib/execution-access";
 import { sleep } from "@/lib/async";
+import { getUserProjects } from "@/db/queries/user-projects";
 
 const SwitchAgentBody = z.object({
   tab: z.string().trim().min(1).max(120),
@@ -31,7 +32,14 @@ export async function POST(req: NextRequest) {
   if (!isRuntimeAvailable()) {
     const userId = await getSessionUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const execution = await resolveQueuedExecution(userId, { defaultChannel: "cloud" });
+    const projects = await getUserProjects(userId).catch(() => []);
+    const project = projects.find(
+      (candidate) => candidate.name.toLowerCase() === tab.toLowerCase(),
+    );
+    const execution = await resolveQueuedExecution(
+      userId,
+      project ? { project } : { defaultChannel: "cloud" },
+    );
     if (!execution.ok) {
       return NextResponse.json(executionAccessErrorBody(execution), { status: execution.status });
     }
