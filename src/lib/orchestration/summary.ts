@@ -44,3 +44,34 @@ export function parseOrchestrationSummary(
 
   return buildOrchestrationSummary(fields);
 }
+
+/**
+ * What the agent itself said it did, for a human reading a closed run.
+ *
+ * `payload.resultText` is written by the runners that report a result back
+ * directly (the hosted runner, openclaw). The local PTY path has none: it
+ * closes from the agent's session handoff, and the agent's words land in
+ * `summary` instead. Both close notifications used to read only resultText,
+ * so every locally-closed run — the main path, the one a person watches after
+ * typing into /loki — arrived as a bare "🟡 partly done" with nothing said
+ * about what happened. That is precisely the trip out of the product these
+ * messages exist to prevent.
+ *
+ * `next` is carried as well as `done`, because on anything short of success it
+ * holds the reason: the definition-of-done judge writes the gap it found
+ * there, and the gap is the one thing the operator has to act on.
+ */
+export function runReportText(run: {
+  payload?: { resultText?: string; error?: string } | null;
+  summary?: OrchestrationTaskSummary | null;
+}): string {
+  const direct = run.payload?.resultText?.trim() || run.payload?.error?.trim() || "";
+  if (direct) return direct;
+
+  const done = run.summary?.done?.trim() ?? "";
+  const next = run.summary?.next?.trim() ?? "";
+  const lines: string[] = [];
+  if (done) lines.push(done);
+  if (next && next.toLowerCase() !== "none") lines.push(`Next: ${next}`);
+  return lines.join("\n\n");
+}

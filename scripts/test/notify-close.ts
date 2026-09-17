@@ -48,6 +48,25 @@ function runTests(): void {
     );
   });
 
+  check("a run closed from a handoff says what the agent did", () => {
+    // The local PTY path sets no resultText — the agent's words live in the
+    // handoff summary. Reading only resultText sent "🟡 orangecat: run
+    // partial" and nothing else to the person's phone.
+    const msg = formatRunCloseMessage({
+      ...base,
+      outcome: "partial",
+      summary: {
+        done: "e2e ok — no changes",
+        next: "Definition of done not yet met — include a committed change.",
+        tests: "",
+        todos: "",
+        health: "",
+      },
+    } as Parameters<typeof formatRunCloseMessage>[0]);
+    assert(!!msg && msg.includes("e2e ok — no changes"), `got: ${msg}`);
+    assert(!!msg && msg.includes("Next: Definition of done"), `got: ${msg}`);
+  });
+
   check("success carries ✅ + project + outcome", () => {
     const msg = formatRunCloseMessage(base);
     assert(!!msg && msg.startsWith("✅ orangecat: run success"), `got: ${msg}`);

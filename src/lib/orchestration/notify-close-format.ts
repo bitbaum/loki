@@ -1,5 +1,6 @@
 import { ORCHESTRATION_OUTCOME } from "@/db/schema/orchestration-runs";
 import type { OrchestrationRun } from "@/db/schema/orchestration-runs";
+import { runReportText } from "@/lib/orchestration/summary";
 
 /** Longest summary/error excerpt a close notification carries into chat. */
 const SUMMARY_MAX_CHARS = 600;
@@ -36,12 +37,12 @@ export function shouldAnnounceOnClose(
  * scripts/test/notify-close.ts can cover it without a database.
  */
 export function formatRunCloseMessage(
-  run: Pick<OrchestrationRun, "projectKey" | "outcome" | "finishedAt" | "payload">,
+  run: Pick<OrchestrationRun, "projectKey" | "outcome" | "finishedAt" | "payload" | "summary">,
 ): string | null {
   if (!run.payload?.notifyOnClose || !run.finishedAt) return null;
   const ok = run.outcome === ORCHESTRATION_OUTCOME.SUCCESS;
   const icon = ok ? "✅" : run.outcome === ORCHESTRATION_OUTCOME.PARTIAL ? "🟡" : "❌";
-  const summary = run.payload?.resultText?.trim() || run.payload?.error?.trim() || "";
+  const summary = runReportText(run);
   const lines = [
     `${icon} ${run.projectKey}: run ${run.outcome ?? "closed"}`,
     ...(summary ? [summary.slice(0, SUMMARY_MAX_CHARS)] : []),
