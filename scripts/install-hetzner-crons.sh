@@ -81,15 +81,29 @@ Type=oneshot
 ExecStart=/opt/loki/fc-cron.sh %i
 SVC
 
-# Times are "HH:MM" (daily) or "*:MM" (hourly) — both expand to OnCalendar=*-*-* <val>:00.
-declare -A SCHED=( [prune-debug-logs]="03:00" [nudge-idle]="04:00" [prune-agent-tokens]="05:00" [email-canary]="06:00" [check-model-ids]="06:30" [check-telemetry]="06:45" [check-runner-version]="06:50" [sweep-orphan-alerts]="06:55" [send-digest-emails]="07:00" [frontier-digest]="08:00" [orangecat-promote-backfill]="09:00" [downgrade-expired-plans]="09:30" [propose-checkins]="09:45" [feedback-digest]="10:15" [reset-demo]="04:20" [reap-stale-runs]="*:15" [check-runner-stall]="*:30" [check-pending-approvals]="*:45" [sync-feedback-alerts]="*:10" [check-feedback-needs-you]="*:05" )
+# Times are "HH:MM" (daily), "*:MM" (hourly), or "Ddd HH:MM" (weekly, e.g.
+# "Thu 08:30"). The first two expand to OnCalendar=*-*-* <val>:00; the weekly
+# form puts the day in front, which is the only shape systemd accepts for it.
+#
+# The weekly form was added for the event scout: a digest of what is on in the
+# coming weeks is a planning object, and sending it daily would turn a thing
+# worth opening into a feed worth ignoring.
+declare -A SCHED=( [prune-debug-logs]="03:00" [nudge-idle]="04:00" [prune-agent-tokens]="05:00" [email-canary]="06:00" [check-model-ids]="06:30" [check-telemetry]="06:45" [check-runner-version]="06:50" [sweep-orphan-alerts]="06:55" [send-digest-emails]="07:00" [frontier-digest]="08:00" [orangecat-promote-backfill]="09:00" [downgrade-expired-plans]="09:30" [propose-checkins]="09:45" [feedback-digest]="10:15" [reset-demo]="04:20" [reap-stale-runs]="*:15" [check-runner-stall]="*:30" [check-pending-approvals]="*:45" [sync-feedback-alerts]="*:10" [check-feedback-needs-you]="*:05" [scout-events]="Thu 08:30" )
 for name in "${!SCHED[@]}"; do
+  # "Thu 08:30" carries a space; daily/hourly forms never do. Anything else
+  # stays exactly as it was, so adding the weekly shape cannot change when an
+  # existing job fires.
+  if [[ "${SCHED[$name]}" == *" "* ]]; then
+    ONCAL="${SCHED[$name]}:00"
+  else
+    ONCAL="*-*-* ${SCHED[$name]}:00"
+  fi
   cat > "/etc/systemd/system/fc-cron@${name}.timer" <<TIMER
 [Unit]
 Description=Loki cron timer: ${name}
 
 [Timer]
-OnCalendar=*-*-* ${SCHED[$name]}:00
+OnCalendar=${ONCAL}
 Persistent=true
 Unit=fc-cron@${name}.service
 
