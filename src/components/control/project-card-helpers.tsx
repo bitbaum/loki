@@ -9,6 +9,7 @@ import { formatRunUsage } from "@/lib/usage/format";
 import type { ProjectState } from "@/lib/control-types";
 import { MINUTE_MS } from "@/lib/constants/time";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
+import { describeRunShipping, shippingLanded } from "@/lib/control-run-shipping";
 
 export function ClosedBanner({
   session,
@@ -202,7 +203,17 @@ export function LatestOrchestrationPanel({
   // mode the control loop must catch.
   const commitRaw = run.summary?.commit?.trim() ?? "";
   const committed = commitRaw && commitRaw.toLowerCase() !== "none";
-  const claimedWorkNoCommit = run.state === ORCH_STATE.DONE && summaryDone.length > 0 && !committed;
+  // The fix ledger outranks the run's self-report: a merged, deployed pull
+  // request proves the work landed even when the handoff recorded no commit.
+  // Without this the card printed "no commit" directly beside "merged and
+  // deployed".
+  const shipping = run.payload?.fix;
+  const shippingLine = describeRunShipping(shipping);
+  const claimedWorkNoCommit =
+    run.state === ORCH_STATE.DONE &&
+    summaryDone.length > 0 &&
+    !committed &&
+    !shippingLanded(shipping);
 
   // Loop-control truthful state (persisted via the SSOT summary build): a blocked
   // agent isn't failing OR succeeding — it's stuck waiting, and a high no-op count
@@ -249,6 +260,31 @@ export function LatestOrchestrationPanel({
             no commit
           </span>
         )}
+        {shippingLine &&
+          (shipping?.prUrl ? (
+            <a
+              href={shipping.prUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                "ui-tag",
+                shippingLanded(shipping) ? "ui-tag-positive" : "ui-tag-neutral",
+              )}
+              title="Where this run's change got to after the run closed. The state above grades the attempt; this grades the change."
+            >
+              {shippingLine}
+            </a>
+          ) : (
+            <span
+              className={cn(
+                "ui-tag",
+                shippingLanded(shipping) ? "ui-tag-positive" : "ui-tag-neutral",
+              )}
+              title="Where this run's change got to after the run closed. The state above grades the attempt; this grades the change."
+            >
+              {shippingLine}
+            </span>
+          ))}
         {blockReason && (
           <span
             className="ui-tag ui-tag-warning"
