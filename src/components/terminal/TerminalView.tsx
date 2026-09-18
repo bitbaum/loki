@@ -14,6 +14,8 @@ import {
   type PtyGeometry,
 } from "@/lib/terminal-viewport";
 import type { TerminalTransport } from "./terminal-transport";
+import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
+import { TerminalCapacityBanner, type AgentAvailability } from "./TerminalCapacityBanner";
 
 /**
  * Font sizing on a phone is a column-count problem wearing a typography mask.
@@ -36,6 +38,30 @@ function isNarrowViewport(): boolean {
 }
 
 const URL_RE = /https?:\/\/[^\s"'`<>\\)\]}]+/g;
+
+/** Detect capacity issue language in terminal buffer text. */
+function detectCapacityInBuffer(term: import("@xterm/xterm").Terminal): {
+  detected: boolean;
+  resetsAt?: string;
+} {
+  const buf = term.buffer.active;
+  // Scan the recent terminal output (last 100 lines) for capacity language.
+  const start = Math.max(0, buf.length - 100);
+  let text = "";
+  for (let i = start; i < buf.length; i++) {
+    text += buf.getLine(i)?.translateToString(true) ?? "";
+    text += "\n";
+  }
+
+  const detected = looksLikeAgentCapacityIssue(text);
+  if (!detected) return { detected: false };
+
+  // Try to extract reset time from messages like "resets 1pm (Europe/Zurich)"
+  const resetMatch = text.match(/resets?\s+([^\n]+?)(?:\n|$)/i);
+  const resetsAt = resetMatch?.[1]?.trim();
+
+  return { detected: true, resetsAt };
+}
 
 /** Reconstruct whole URLs from the rendered terminal BUFFER (not the raw byte
  *  stream). TUI tools — ink, e.g. `claude setup-token` — HARD-wrap long URLs to
@@ -195,6 +221,10 @@ export function TerminalView({
   onLive,
   onGeometry,
   className,
+  currentAgent,
+  availableAgents,
+  onSwitchAgent,
+  switchingAgent = false,
 }: {
   transport: TerminalTransport;
   /** Capture keystrokes (onData → transport.sendKey) and keep the PTY resized. */
@@ -219,6 +249,10 @@ export function TerminalView({
   onGeometry?: (geometry: PtyGeometry) => void;
   /** Host div class (bare layout). */
   className?: string;
+  currentAgent?: string | null;
+  availableAgents?: AgentAvailability[];
+  onSwitchAgent?: (agent: string) => void;
+  switchingAgent?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [connected, setConnected] = useState(false);
@@ -234,6 +268,11 @@ export function TerminalView({
   // it is the difference between "the agent wrote nonsense" and "my screen is
   // narrower than the screen this was drawn for".
   const [geometry, setGeometry] = useState<PtyGeometry | null>(null);
+  // Capacity detection — scanned from the terminal buffer.
+  const [capacityState, setCapacityState] = useState<{
+    detected: boolean;
+    resetsAt?: string;
+  }>({ detected: false });
   // null = auto-fit to TERMINAL_TARGET_COLS. A number means the operator used
   // the stepper and their choice outranks the fit. Owned here only when the
   // caller does not own it (see the `font` prop) — the hook is called
@@ -550,12 +589,13 @@ export function TerminalView({
       syncSize();
 
       // Scan the rendered buffer for URLs (newest first, capped) and surface them
-      // in <LinkBar/>. Debounced: run once output settles, after xterm has laid
-      // the bytes into the grid — only then can full-width rows be joined back
-      // into whole URLs. Kept after the URL leaves the screen on a TUI redraw.
+      // in <LinkBar/>. Also scan for capacity issues — debounced to run once output
+      // settles, after xterm has laid the bytes into the grid.
       let scanTimer = 0;
       const scheduleScan = () => {
         if (scanTimer) return;
+        // Reduced from 150ms to 50ms for faster capacity detection. The overlay
+        // needs to appear quickly to replace the vendor error text.
         scanTimer = window.setTimeout(() => {
           scanTimer = 0;
           const urls = extractUrlsFromBuffer(term);
@@ -566,7 +606,10 @@ export function TerminalView({
               return next.length === prev.length ? prev : next.slice(0, 4);
             });
           }
-        }, 150);
+          // Also scan for capacity issues in the buffer.
+          const capacity = detectCapacityInBuffer(term);
+          setCapacityState(capacity);
+        }, 50);
       };
       // Stall watchdog: arm on connect, disarm on the first frame. If it fires,
       // the stream said "ready" but the runner never streamed the screen —
@@ -664,12 +707,30 @@ export function TerminalView({
     if (rendered) fontSync(rendered);
   }, [geometry, fontSync]);
 
+  // Capacity banner takes precedence over stalled overlay — a capacity wall is
+  // a known, actionable state; stalled is "maybe wedged, maybe just slow".
+  const showCapacity =
+    capacityState.detected &&
+    currentAgent &&
+    availableAgents &&
+    availableAgents.length > 0 &&
+    onSwitchAgent;
+
   if (bare) {
     return (
       <div className={`flex flex-col ${className ?? "h-full w-full"}`}>
         <div className="relative min-h-0 flex-1">
           <div ref={hostRef} className="h-full w-full" />
-          {stalled && <TerminalStalledOverlay message={stallMessage} />}
+          {showCapacity && (
+            <TerminalCapacityBanner
+              currentAgent={currentAgent}
+              agents={availableAgents}
+              resetsAt={capacityState.resetsAt}
+              onSwitch={onSwitchAgent}
+              switching={switchingAgent}
+            />
+          )}
+          {!showCapacity && stalled && <TerminalStalledOverlay message={stallMessage} />}
         </div>
         <LinkBar links={links} onDismiss={() => setLinks([])} />
       </div>
@@ -760,7 +821,16 @@ export function TerminalView({
         className={`relative w-full overflow-hidden rounded-md bg-surface-terminal ${fill ? "min-h-0 flex-1" : compactChrome ? "min-h-0 flex-1" : "h-72"}`}
       >
         <div ref={hostRef} className="h-full w-full" />
-        {stalled && <TerminalStalledOverlay message={stallMessage} />}
+        {showCapacity && (
+          <TerminalCapacityBanner
+            currentAgent={currentAgent}
+            agents={availableAgents}
+            resetsAt={capacityState.resetsAt}
+            onSwitch={onSwitchAgent}
+            switching={switchingAgent}
+          />
+        )}
+        {!showCapacity && stalled && <TerminalStalledOverlay message={stallMessage} />}
       </div>
       <LinkBar links={links} onDismiss={() => setLinks([])} />
       {onSend && !interactive && sendOpen && (

@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, MonitorSmartphone } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
+import { listAgentRegistry, AGENT_FALLBACK_ORDER } from "@/lib/agent-registry";
+import type { AgentAvailability } from "@/components/terminal/TerminalCapacityBanner";
 import { useFetch } from "@/hooks/use-fetch";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { useTerminalFont } from "@/hooks/use-terminal-font";
@@ -294,6 +296,44 @@ export function TerminalSurface({
   // "Cannot read properties of null (reading 'key')" crash.
   const deepLinkMiss = Boolean(rawDeepLinkMiss && resolvedInitialTab);
 
+  // Auto-switch sources when Watch opens a tab that's on the other side.
+  // Uses a ref to track the switch signature so we only auto-switch once per
+  // deep-link miss episode, preventing infinite loops.
+  const autoSwitchSignatureRef = useRef<string | null>(null);
+  const [autoSwitching, setAutoSwitching] = useState(false);
+
+  useEffect(() => {
+    // When we have a deep link miss and haven't auto-switched for this episode,
+    // automatically try the other source. This makes Watch land on the right
+    // side without requiring a manual "Look on X" click.
+    if (!deepLinkMiss || !initialTab) {
+      autoSwitchSignatureRef.current = null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAutoSwitching(false);
+      return;
+    }
+
+    const signature = `${initialTab}:${source}`;
+    if (signature === autoSwitchSignatureRef.current) return;
+
+    const otherSource = source === "machine" ? "cloud" : "machine";
+    if (!sources.includes(otherSource)) {
+      setAutoSwitching(false);
+      return;
+    }
+
+    autoSwitchSignatureRef.current = signature;
+    setAutoSwitching(true);
+    setSource(otherSource);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkMiss, initialTab, source]);
+  // ^^^ Episodic automation: this effect reacts to a polled tab list and must
+  // switch sources exactly once per miss episode (ref-tracked signature as loop
+  // guard). Deriving the state during render would rewire the loop-safety
+  // guarantees of a live source-switching path for no user-visible gain. sources
+  // and setSource are intentionally omitted from deps (would cause loops) — the
+  // [deepLinkMiss, initialTab, source] triple captures the decision point.
+
   // The terminal is one of the four project surfaces, so the tab you are
   // watching IS the fleet's active project — Control, Loki and the project
   // profile follow you here instead of resetting.
@@ -397,6 +437,20 @@ export function TerminalSurface({
     },
     [activeTab, tabDir, activeAgentId],
   );
+
+  // Build agent fallback chain for capacity banner — uses the registry SSOT.
+  const agentFallbackChain: AgentAvailability[] = useMemo(() => {
+    const registry = listAgentRegistry();
+    return AGENT_FALLBACK_ORDER.map((id) => {
+      const entry = registry.find((r) => r.id === id);
+      return {
+        id,
+        label: entry?.label ?? id,
+        available: entry?.available ?? false,
+        availabilityReason: entry?.availabilityReason,
+      };
+    }).filter((a) => a.id !== activeAgentId); // Exclude current agent from the chain
+  }, [activeAgentId]);
 
   // The strip tells the truth about each tab: the project it resolves to (by
   // name, or by pane cwd for generically named tabs) and the agent CLI actually
@@ -536,6 +590,19 @@ export function TerminalSurface({
   // ── Agent sessions ──────────────────────────────────────────────────────
   const body = () => {
     if (deepLinkMiss) {
+      // Show loading while we auto-switch to check the other source.
+      if (autoSwitching) {
+        return (
+          <div className="flex items-center gap-2 p-6 text-sm text-text-muted">
+            <Loader2 className="ui-spinner" /> Looking for session on{" "}
+            {source === "machine"
+              ? EXECUTOR_COPY.terminal.thisComputerLabel
+              : EXECUTOR_COPY.terminal.cloudLabel}
+            …
+          </div>
+        );
+      }
+
       return (
         <TerminalSessionMiss
           requestedTab={resolvedInitialTab!}
@@ -589,11 +656,11 @@ export function TerminalSurface({
                 defaultAgent={context?.agents.defaultAgent ?? null}
                 channel={channel}
               />
-              <div className="mt-2 flex flex-wrap justify-center gap-2">
-                <Link href={controlHref} className="ui-btn-secondary">
+              <div className="flex flex-wrap justify-center gap-2">
+                <Link href={controlHref} className="ui-btn-xs">
                   Open on Control
                 </Link>
-                <Link href="/loki" className="ui-btn-secondary">
+                <Link href="/loki" className="ui-btn-xs">
                   Ask Loki
                 </Link>
               </div>
@@ -635,6 +702,10 @@ export function TerminalSurface({
         font={font}
         onLive={setLiveState}
         onGeometry={setGeometry}
+        currentAgent={activeAgentId}
+        availableAgents={agentFallbackChain}
+        onSwitchAgent={switchAgent}
+        switchingAgent={switchingAgent}
       />
     );
   };

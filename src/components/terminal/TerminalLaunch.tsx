@@ -70,10 +70,16 @@ export function TerminalLaunch({
   };
 
   return (
-    <div className="mt-2 flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-3">
+      {/* Launch form — one row, consistent sizing */}
       <div className="flex flex-wrap items-center justify-center gap-2">
         <select
-          className="ui-input-compact"
+          className="ui-chip-toggle min-w-[120px] cursor-pointer appearance-none bg-surface-base pr-7 font-normal"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E")`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 0.75rem center",
+          }}
           aria-label="Project to start an agent in"
           value={projectName}
           onChange={(e) => setProjectName(e.target.value)}
@@ -85,7 +91,12 @@ export function TerminalLaunch({
           ))}
         </select>
         <select
-          className="ui-input-compact"
+          className="ui-chip-toggle min-w-[100px] cursor-pointer appearance-none bg-surface-base pr-7 font-normal"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E")`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 0.75rem center",
+          }}
           aria-label="Agent to start"
           value={agentId}
           onChange={(e) => setAgentOverride(e.target.value)}
@@ -98,12 +109,12 @@ export function TerminalLaunch({
         </select>
         <button
           type="button"
-          className="ui-btn-primary"
+          className="ui-btn-primary ui-btn-xs inline-flex items-center gap-1.5"
           onClick={() => void start()}
           disabled={busy || !project || !agentId}
         >
-          {busy ? <Loader2 className="ui-spinner" /> : <Play className="h-3.5 w-3.5" />}
-          Start here
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+          Start
         </button>
       </div>
       {error && <p className="ui-error">{error}</p>}
