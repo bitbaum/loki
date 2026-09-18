@@ -210,6 +210,19 @@ export function hasPostPromptGeneration(
   return kind === "generating" || kind === "progress";
 }
 
+/**
+ * The one ask for a builder that is offline right now.
+ *
+ * Both offline readings send the operator to the same place, so the sentence
+ * lives once: a run that never streamed and a run that streamed and then went
+ * quiet differ in what already happened, not in what to do about it.
+ */
+function builderOfflineAsk(localQueue: boolean): string {
+  return localQueue
+    ? "Open Fleet Runner on This computer — or use cloud builder, then Retry"
+    : "Reconnect cloud box-runner (always-on) — or Retry";
+}
+
 export function deriveFeedbackWork(
   status: FeedbackStatus,
   run: FeedbackRunSnapshot | null,
@@ -401,9 +414,7 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
       label: "Needs you",
-      detail: localQueue
-        ? "Open Fleet Runner on This computer — or use cloud builder, then Retry"
-        : "Reconnect cloud box-runner (always-on) — or Retry",
+      detail: builderOfflineAsk(localQueue),
       // watchable filled by withStep (in-flight); no PTY yet → terminalReady false
       diagnostic: run.hostedPending
         ? "Cloud builder offline; hosted Hermes was queued but has not claimed yet."
@@ -506,6 +517,31 @@ function derivePhase(
     };
   }
   if (run.lastProgressAt) {
+    const worked = workElapsedLabel(since, Date.parse(run.lastProgressAt));
+    const silent = workElapsedLabel(run.lastProgressAt, now);
+    // A run that DID stream and then went quiet, on a builder that is offline
+    // NOW. Freshness has expired, so the silence is not the agent thinking —
+    // the machine carrying it is gone. Without this the row said "Open
+    // Terminal", pointing at a PTY on a switched-off laptop: the same false
+    // sentence #769 removed from runs that never streamed, left behind on the
+    // ones that did. Only the diagnostic differs between the two, because only
+    // the history differs; the ask is identical.
+    if (run.builderOffline) {
+      const localQueue = run.builderChannel === "local";
+      return {
+        phase: FEEDBACK_WORK_PHASE.STUCK,
+        label: "Needs you",
+        detail: builderOfflineAsk(localQueue),
+        since,
+        lastActivityAt: run.lastProgressAt,
+        // Observation only: what it did before the builder went away, and how
+        // long ago. Whether that work survived on the machine is not something
+        // this can see, so it does not say.
+        diagnostic: `Worked ${worked}, then the ${
+          localQueue ? "This computer (Fleet Runner)" : "cloud"
+        } builder went offline — silent ${silent}.`,
+      };
+    }
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
       label: "Needs you",
@@ -513,7 +549,7 @@ function derivePhase(
       watchable: true,
       since,
       lastActivityAt: run.lastProgressAt,
-      diagnostic: `Worked ${workElapsedLabel(since, Date.parse(run.lastProgressAt))}, silent ${workElapsedLabel(run.lastProgressAt, now)}`,
+      diagnostic: `Worked ${worked}, silent ${silent}`,
     };
   }
   const sinceDeliveryMs = now - Date.parse(run.deliveredAt);

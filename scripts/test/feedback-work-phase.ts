@@ -317,6 +317,52 @@ for (const prompt of [
   assert.match(stalled.detail ?? "", /Open Terminal|Retry/);
   assert.match(stalled.diagnostic ?? "", /Worked 32 min, silent 15 min/);
 
+  // Same run, but the builder is offline NOW. #769 removed "Open Terminal" for
+  // runs that never streamed, on the grounds that it points at a PTY on a
+  // machine that is switched off. A run that DID stream and then went quiet
+  // was left behind on the old sentence — the machine is just as off.
+  const stalledOffline = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      startedAt: new Date(now - 48 * 60_000),
+      deliveredAt: delivered,
+      lastProgressAt: new Date(now - 15 * 60_000).toISOString(),
+      injectVerified: true,
+      latestEventKind: "progress",
+      builderOffline: true,
+      builderChannel: "local",
+    }),
+    now,
+  );
+  assert.equal(stalledOffline.phase, FEEDBACK_WORK_PHASE.STUCK);
+  assert.ok(
+    !/Open Terminal/.test(stalledOffline.detail ?? ""),
+    `must not send the operator to a terminal on an offline machine: "${stalledOffline.detail}"`,
+  );
+  assert.match(stalledOffline.detail ?? "", /Fleet Runner/);
+  assert.match(stalledOffline.diagnostic ?? "", /went offline/);
+  assert.match(
+    stalledOffline.diagnostic ?? "",
+    /Worked 32 min/,
+    "it still says what the run achieved before the builder vanished",
+  );
+
+  // A cloud run gets the cloud ask, not the laptop one.
+  const stalledCloudOffline = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      startedAt: new Date(now - 48 * 60_000),
+      deliveredAt: delivered,
+      lastProgressAt: new Date(now - 15 * 60_000).toISOString(),
+      injectVerified: true,
+      latestEventKind: "progress",
+      builderOffline: true,
+      builderChannel: "cloud",
+    }),
+    now,
+  );
+  assert.match(stalledCloudOffline.detail ?? "", /box-runner/);
+
   // Delivered and no heartbeat yet: Starting (Queued), never fake Working.
   const fresh = deriveFeedbackWork(
     FEEDBACK_STATUS.DISPATCHED,
