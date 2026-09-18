@@ -5,6 +5,7 @@ import { ChevronDown, Loader2, Repeat2 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { AgentSwitcherPopover } from "@/components/control/agent-switcher-popover";
 import { PROVIDER_BLOCK_NOTE, type ProviderOption } from "@/lib/provider-switch";
+import { describeProviderEvidence } from "@/lib/provider-switch";
 
 /**
  * "Try next provider" — the one control, wherever a run is blocked.
@@ -24,6 +25,8 @@ export type ProviderSwitchResponse = {
   options: ProviderOption[];
   next: ProviderOption | null;
   installedKnown: boolean;
+  /** Which builder the `installed` evidence came from, and when it was seen. */
+  evidence?: { channel: string | null; observedAt: string | null };
 };
 
 export function ProviderSwitch({
@@ -95,7 +98,10 @@ export function ProviderSwitch({
           }))}
           activeAgentId={data?.current ?? ""}
           title="Try another provider"
-          hint={hint}
+          // The chooser disables rows on one builder's capability report, so
+          // it says which machine answered and when — and when none has, that
+          // the availability here is unknown rather than empty.
+          hint={`${hint} ${describeProviderEvidence(data?.evidence, data?.installedKnown ?? false)}`}
           onSwitch={(id) => {
             if (id) onSwitch(id);
           }}
