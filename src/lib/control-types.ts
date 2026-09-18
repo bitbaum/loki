@@ -2,6 +2,7 @@ import type { RecentCustomPrompt } from "@/db/queries/prompt-history";
 import type { OrchestrationTaskSummary } from "@/lib/orchestration";
 import type { OrchestrationOutcome } from "@/db/schema/orchestration-runs";
 import type { RepoWorkEvidence } from "@/lib/repo-evidence";
+import type { RunShipping } from "@/lib/control-run-shipping";
 
 export type ProjectProfile = {
   description: string;
@@ -168,6 +169,12 @@ export type ProjectState = {
        *  corrected to partial. Structured, so the card can link to it instead
        *  of saying "(see evidence)" and leaving the reader to guess where. */
       evidence?: RepoWorkEvidence;
+      /** Where this run's CHANGE got to, from the fix ledger. The outcome
+       *  grades the agent's attempt and is stamped at close; this keeps moving
+       *  afterwards, through merge and deploy. Control read only the outcome,
+       *  so a run that closed `partial` and then shipped looked like
+       *  unfinished work. See lib/control-run-shipping.ts. */
+      fix?: RunShipping;
       durationMs?: number;
       model?: string;
     } | null;

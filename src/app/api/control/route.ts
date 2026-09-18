@@ -86,6 +86,7 @@ import { resolveProjectSession, isRuntimeObservationFresh } from "@/lib/project-
 import { workspaceIdFor } from "@/lib/agent-execution/ownership";
 import { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
 import { isVerifiedRunActive } from "@/lib/control-run-truth";
+import { normalizeRunShipping } from "@/lib/control-run-shipping";
 
 export type {
   ProjectProfile,
@@ -566,6 +567,9 @@ function serializeLatestRun(latestRun: NonNullable<LatestRun>) {
           // kind drops the whole evidence block rather than shipping a link
           // labelled by a value nothing checked.
           evidence: normalizeRepoWorkEvidence(latestRun.payload.evidence) ?? undefined,
+          // Same rule as `evidence` above, and the reason the card can tell an
+          // operator that a `partial` run has since merged and deployed.
+          fix: normalizeRunShipping((latestRun.payload as { fix?: unknown } | null)?.fix),
           durationMs: latestRun.payload.durationMs,
           model: latestRun.payload.model,
         }
