@@ -8,6 +8,7 @@ import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-phase";
 import type { FeedbackListItem } from "@/db/queries/site-feedback";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
+import { FeedbackReportText } from "@/components/feedback/FeedbackReportText";
 import { FeedbackWorkBadge } from "@/components/feedback/FeedbackWorkBadge";
 import { FeedbackWatchButton, FeedbackWatchPanel } from "@/components/feedback/FeedbackWatch";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
@@ -150,7 +151,7 @@ export function FeedbackItemRow({
           {/* The message leads, alone on its line. Status, source and repeat
               count sit on the context line beneath it, where they read as
               facts about the report instead of interrupting it. */}
-          <p className="min-w-0 text-sm leading-relaxed text-text-primary">{f.suggestion}</p>
+          <FeedbackReportText text={f.suggestion} />
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
             {showBadge && badge}
             {agentBadge && <span className="ui-tag shrink-0">{agentBadge}</span>}
