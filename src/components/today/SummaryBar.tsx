@@ -12,6 +12,7 @@ import {
   CirclePause,
 } from "lucide-react";
 import { ScrollAffordance } from "@/components/ui/scroll-affordance";
+import { buildTodayBriefPrompt } from "@/lib/today-brief";
 import Link from "next/link";
 import { LokiDispatchButton } from "@/components/shared/LokiDispatchButton";
 import { getTodaySummary, getFleetSummary } from "@/db/queries/today";
@@ -66,25 +67,13 @@ export async function SummaryBar() {
       }
     : rawSummary;
 
-  const todayBriefPrompt = [
+  // The prompt lives in lib/today-brief.ts so it can be tested. Inline here it
+  // carried two silent bugs — see that file.
+  const todayBriefPrompt = buildTodayBriefPrompt(
     `Daily brief — ${new Date().toLocaleDateString(APP_LOCALE, { weekday: "long", month: "long", day: "numeric" })}`,
-    "",
-    s.activeGoals > 0 && `Goals: ${s.activeGoals} active, ${s.avgGoalProgress}% average progress`,
-    s.habitsTotal > 0 && `Habits: ${s.habitsDone}/${s.habitsTotal} done today`,
-    s.goalsDueSoon > 0 && `Goals due soon: ${s.goalsDueSoon}`,
-    s.stuckGoals > 0 && `Stalled goals: ${s.stuckGoals}`,
-    s.eventsDueSoon > 0 && `Events with upcoming deadlines: ${s.eventsDueSoon}`,
-    s.overdueCommitments > 0 && `Overdue commitments: ${s.overdueCommitments}`,
-    s.staleContacts > 0 && `Contacts needing attention: ${s.staleContacts}`,
-    s.pendingDrafts > 0 && `Pending action drafts: ${s.pendingDrafts}`,
-    s.urgentAlerts > 0 && `Urgent alerts: ${s.urgentAlerts}`,
-    (fleet.running > 0 || fleet.waiting > 0 || fleet.degraded > 0) &&
-      `Agent fleet: ${[fleet.running > 0 && `${fleet.running} running`, fleet.waiting > 0 && `${fleet.waiting} waiting`, fleet.degraded > 0 && `${fleet.degraded} degraded`].filter(Boolean).join(", ")}`,
-    "",
-    "What should I focus on today? What's the most urgent thing I'm likely to overlook?",
-  ]
-    .filter(Boolean)
-    .join("\n");
+    s,
+    fleet,
+  );
 
   // Group chips by semantic so the row reads as: "what I have" → "what wants me"
   // → "what my fleet is doing" → "ask Loki." Previously 10+ mixed chips with
