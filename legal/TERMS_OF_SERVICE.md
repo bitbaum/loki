@@ -54,8 +54,9 @@ You agree NOT to:
 
 ## 7. Our Intellectual Property
 
-- The Service, its software, design, brand, and documentation are our proprietary property, protected by intellectual property law.
-- These Terms do not grant you any rights to our intellectual property except the limited right to use the Service per Section 1.
+- **The software is open source, licensed MIT** (see `LICENSE` in the repository): you may use, copy, modify and redistribute it on those terms, and nothing in these Terms narrows that licence.
+- The name, brand and logo are not covered by that licence and remain ours; running your own copy of the software does not grant the right to present it as this Service.
+- These Terms govern your use of the hosted Service, not your use of the source code.
 - Feedback, suggestions, or ideas you provide to us may be used by us without compensation or attribution.
 
 ## 8. Fees and Payment
