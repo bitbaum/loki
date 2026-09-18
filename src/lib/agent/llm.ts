@@ -79,6 +79,16 @@ export type ModelTurn = {
    * `usage`, which reads as "unknown", never as "free".
    */
   usageTokens: number;
+  /**
+   * Why this answer is not whole, or null when it is whole or unknowable.
+   *
+   * Carried rather than only logged so a caller can decide what an operator
+   * sees. Nothing renders it yet: what a severed answer should LOOK like is a
+   * product decision, and the grounding `Violation` channel that would be its
+   * natural home is owned by @bitbaum/ai-kit, so widening it is a change to
+   * make there, deliberately, not a side effect of this one.
+   */
+  cutOff: string | null;
 };
 
 /**
@@ -417,21 +427,87 @@ async function callOneLink(
     return true;
   });
 
+  const cutOff = cutOffReason(raw.finishReason);
+  // Said out loud, because until now it was said nowhere: the answer above is
+  // not the whole answer, and every other signal on this path — no throw, a
+  // 200, a plausible-looking paragraph — says it is. Warn only when there is
+  // prose to be severed; a tool-call round legitimately carries no text.
+  if (cutOff && rawText.length > 0) {
+    console.warn(
+      `[loki] ${link.provider.id}/${link.model} cut the answer off: ${cutOff} ` +
+        `(${rawText.length} chars kept)`,
+    );
+  }
+
   return {
     text: stripToolCallLines(rawText),
     toolCalls: [...native, ...fromText],
     model: `${link.provider.id}/${link.model}`,
+    cutOff,
     usageTokens: Math.max(0, Math.round(raw.usageTokens)),
   };
 }
 
+/**
+ * Did the vendor say it cut the answer off?
+ *
+ * Returns a human reason when the answer is NOT whole, null when it is — or
+ * when we cannot tell, which is a third state and must not be reported as a
+ * problem: a vendor that omits `finish_reason` has told us nothing, and
+ * warning on silence would cry wolf on every provider that stays quiet.
+ *
+ * Why this exists at all: nothing in this repo read `finish_reason` — the
+ * field arrives in the very frames already parsed for `usage` and was dropped,
+ * so a severed answer was stored and rendered exactly like a complete one. Seen
+ * in prod on 2026-09-18: a reply ending mid-word, at `running on \`research-`,
+ * with an unclosed backtick and no indication anywhere that anything was
+ * missing. `frontier/propose.ts` carries a comment about the same thing
+ * ("a third was cut in half") worked around by raising a number rather than by
+ * noticing the condition.
+ */
+export function cutOffReason(finishReason: string | null | undefined): string | null {
+  if (!finishReason) return null; // absent — unknown, not broken
+  switch (finishReason) {
+    // A finished answer, and a model that stopped to call a tool: both whole.
+    case "stop":
+    case "tool_calls":
+    case "function_call":
+    case "end_turn":
+      return null;
+    case "length":
+    case "max_tokens":
+    case "MAX_TOKENS":
+      return "ran out of output budget";
+    case "content_filter":
+    case "safety":
+    case "SAFETY":
+    case "recitation":
+    case "RECITATION":
+      return `stopped by the provider's filter (${finishReason})`;
+    default:
+      // Unrecognised is reported VERBATIM rather than swallowed or guessed at.
+      // Vendors add reasons; a new one meaning "cut off" must not read as
+      // "fine" just because this switch predates it.
+      return `unrecognised stop reason (${finishReason})`;
+  }
+}
+
 /** What both body readers produce, before either protocol is parsed. */
-type RawBody = { text: string; toolCalls: NativeToolCall[]; usageTokens: number };
+type RawBody = {
+  text: string;
+  toolCalls: NativeToolCall[];
+  usageTokens: number;
+  /** Null when the vendor omitted it — unknown, never assumed complete. */
+  finishReason: string | null;
+};
 
 /** The whole reply at once — the shape every non-streaming caller gets. */
 async function readBufferedBody(res: Response): Promise<RawBody> {
   const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string; tool_calls?: NativeToolCall[] } }>;
+    choices?: Array<{
+      message?: { content?: string; tool_calls?: NativeToolCall[] };
+      finish_reason?: string | null;
+    }>;
     usage?: { total_tokens?: number };
   };
   const msg = data.choices?.[0]?.message;
@@ -439,6 +515,7 @@ async function readBufferedBody(res: Response): Promise<RawBody> {
     text: msg?.content ?? "",
     toolCalls: msg?.tool_calls ?? [],
     usageTokens: data.usage?.total_tokens ?? 0,
+    finishReason: data.choices?.[0]?.finish_reason ?? null,
   };
 }
 
@@ -563,12 +640,20 @@ export function createProseGate(
  *    case; where they disagree the persisted text wins, because it is the one
  *    that was parsed rather than guessed at line boundaries.
  */
-async function readStreamedBody(res: Response, sink: StreamSink): Promise<RawBody> {
+// Exported for scripts/test/cut-off-answer.ts, which drives it with real SSE
+// frames. The rule worth pinning is an ORDERING one and is invisible to review:
+// the frame carrying `finish_reason` usually carries no delta, so reading the
+// stop reason after the `if (!delta) return` guard throws away the only field
+// that says whether the prose above is whole.
+export async function readStreamedBody(res: Response, sink: StreamSink): Promise<RawBody> {
   const body = res.body;
   if (!body) throw new LinkError("other", "streamed response had no body");
 
   let text = ""; // everything the model wrote, gate or no gate
   let usageTokens = 0;
+  // Rides the last chunk of the choice, like `usage`. Kept as LAST-WINS rather
+  // than first: a vendor that repeats it must not have an early null stick.
+  let finishReason: string | null = null;
   const calls = new Map<number, { id?: string; name: string; args: string }>();
   const gate = createProseGate(sink.delta, sink.reset);
 
@@ -577,7 +662,14 @@ async function readStreamedBody(res: Response, sink: StreamSink): Promise<RawBod
     // the day's budget is charged against — never estimated.
     if (chunk.usage?.total_tokens) usageTokens = chunk.usage.total_tokens;
 
+    const stop = chunk.choices?.[0]?.finish_reason;
+    if (stop) finishReason = stop;
+
     const delta = chunk.choices?.[0]?.delta;
+    // NB: read the stop reason BEFORE this guard. The frame that carries
+    // `finish_reason` routinely carries an empty delta, so returning early on a
+    // missing delta would throw away the only field that says whether the
+    // answer above is whole.
     if (!delta) return;
 
     if (delta.content) {
@@ -607,6 +699,7 @@ async function readStreamedBody(res: Response, sink: StreamSink): Promise<RawBod
       .sort(([a], [b]) => a - b)
       .map(([, c]) => ({ id: c.id, function: { name: c.name, arguments: c.args } })),
     usageTokens,
+    finishReason,
   };
 }
 
