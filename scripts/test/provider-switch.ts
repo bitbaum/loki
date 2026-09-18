@@ -22,6 +22,7 @@ import {
   parseProviderOrder,
   preferredProviderOrder,
   currentProviderFor,
+  describeProviderEvidence,
   rankProviders,
   serializeProviderOrder,
   spentProviders,
@@ -246,6 +247,37 @@ check("a rate-limited Claude run offers one tap to a provider that can answer", 
   // And the two that cannot answer still say why.
   assert.equal(options.find((o) => o.id === "cursor")?.block, "spent");
   assert.equal(options.find((o) => o.id === "grok")?.block, "not-installed");
+});
+
+// -- WHOSE MACHINE the installed list describes ------------------------------
+// `installed` is one builder's capability report, pushed on a ~5 min heartbeat,
+// and the chooser disables rows on it. Stated with no machine and no time it
+// reads as "true now, everywhere" — which is how a cloud heartbeat could make a
+// laptop-only agent read "not installed".
+
+check("unknown availability says so, instead of implying nothing is installed", () => {
+  const line = describeProviderEvidence({ channel: "local", observedAt: null }, false);
+  assert.match(line, /unknown, not empty/);
+  assert.ok(!/as observed/.test(line), "it must not claim an observation it never had");
+});
+
+check("a scoped answer names the machine it came from", () => {
+  const local = describeProviderEvidence(
+    { channel: "local", observedAt: new Date(Date.now() - 4 * 60_000).toISOString() },
+    true,
+  );
+  assert.match(local, /This computer/);
+  const cloud = describeProviderEvidence(
+    { channel: "cloud", observedAt: new Date(Date.now() - 4 * 60_000).toISOString() },
+    true,
+  );
+  assert.match(cloud, /cloud builder/);
+  assert.ok(!/This computer/.test(cloud), "the cloud answer must not name the laptop");
+});
+
+check("with no project named, the list is the union and says so", () => {
+  const line = describeProviderEvidence({ channel: null, observedAt: null }, true);
+  assert.match(line, /across your builders/);
 });
 
 console.log(`\nprovider-switch: ${passed} checks passed`);

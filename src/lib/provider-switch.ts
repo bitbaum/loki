@@ -51,6 +51,7 @@ import {
   type QuotaAlternativeId,
 } from "@/config/quota-alternatives";
 import { AGENT_FALLBACK_ORDER, looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
+import { timeAgo } from "@/lib/dates";
 
 /** How long a capacity wall keeps a provider out of the chooser. */
 export const PROVIDER_SPENT_WINDOW_MS = 60 * 60 * 1000;
@@ -64,6 +65,41 @@ export const PROVIDER_SPENT_WINDOW_MS = 60 * 60 * 1000;
  * limit — two different claims about the same agent, one of them false.
  */
 export type ProviderBlock = "not-installed" | "spent";
+
+/**
+ * Where the `installed` evidence came from, as a sentence.
+ *
+ * A capability claim with no machine and no timestamp reads as "true now,
+ * everywhere", and it is neither: `installed` is one builder's report, pushed
+ * on a ~5 minute heartbeat. The chooser disables rows on the strength of it, so
+ * the operator is owed which computer answered and when — especially when the
+ * answer is that none has, which must read as UNKNOWN rather than as "nothing
+ * is installed".
+ *
+ * `channel` null means no project was named, so the list is the union across
+ * this user's builders rather than any single machine.
+ */
+// No injectable `now`: the relative phrasing comes from `timeAgo`, which is the
+// single place that appends "ago" (its own doc warns that re-deriving the ladder
+// is how the "now ago" bug came back). Taking a clock this function then ignored
+// is worse than taking none — the tests below pin the machine name and the
+// unknown sentence, which is what this decides.
+export function describeProviderEvidence(
+  evidence: { channel?: string | null; observedAt?: string | null } | null | undefined,
+  installedKnown: boolean,
+): string {
+  if (!installedKnown) {
+    return "No builder has reported what it has installed, so availability here is unknown, not empty.";
+  }
+  const where = !evidence?.channel
+    ? "across your builders"
+    : evidence.channel === "local"
+      ? "on This computer (Fleet Runner)"
+      : "on the cloud builder";
+  const at = evidence?.observedAt ? Date.parse(evidence.observedAt) : NaN;
+  const when = Number.isFinite(at) ? `, ${timeAgo(at)}` : "";
+  return `Installed list as observed ${where}${when}.`;
+}
 
 export const PROVIDER_BLOCK_NOTE: Record<ProviderBlock, string> = {
   "not-installed": "not installed",
