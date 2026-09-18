@@ -200,7 +200,7 @@ export type ControlDashboardState = {
 
 /** Truthful fleet-pulse for the Control hero. */
 export type FleetPulse = {
-  key: "paused" | "building" | "waiting" | "failing" | "stalled";
+  key: "paused" | "building" | "waiting" | "failing" | "stalled" | "partial";
   label: string;
   /** Secondary sentence for the failing/stalled states ("failing" renders
    *  with an Activity link; "stalled" names the stuck projects inline). */
@@ -307,6 +307,16 @@ export function latestRunSignals(
   });
 }
 
+/** Recent runs that stopped part-way. One definition, so the "Building" detail
+ *  and the "Half-finished" verdict cannot disagree about the same runs. */
+function recentPartials(
+  latestRuns: { outcome: OrchestrationOutcome | null; ageMs: number | null }[],
+): number {
+  return latestRuns.filter(
+    (r) => r.ageMs != null && r.ageMs <= FLEET_PULSE_STALE_MS && r.outcome === "partial",
+  ).length;
+}
+
 export function deriveFleetPulse(input: {
   automationMode: string;
   workingCount: number;
@@ -342,11 +352,41 @@ export function deriveFleetPulse(input: {
       detail: `${stall.stalledCount} dispatch${stall.stalledCount === 1 ? "" : "es"} queued for ${mins}m${who} — the builder is connected but not executing them. Restart the desktop app or check the cloud builder if this persists.`,
     };
   }
-  if (input.workingCount > 0) return { key: "building", label: "Building", detail: null };
+  if (input.workingCount > 0) {
+    // Building is the honest HEADLINE while an agent works, and it used to
+    // return here with `detail: null` — which is why a project showing "5 of
+    // last 5 partial" sat under a hero that said only "Building", with no hint
+    // that nothing had actually landed recently. The label stays; the silence
+    // does not.
+    const stalling = recentPartials(input.latestRuns);
+    return {
+      key: "building",
+      label: "Building",
+      detail:
+        stalling >= 2
+          ? `Working now — but the last run on ${stalling} project${stalling === 1 ? "" : "s"} only got part-way. Worth checking what it left behind.`
+          : null,
+    };
+  }
 
   const recent = input.latestRuns.filter((r) => r.ageMs != null && r.ageMs <= FLEET_PULSE_STALE_MS);
   const failed = recent.filter((r) => isFailingOutcome(r.outcome)).length;
-  const succeeded = recent.filter((r) => r.outcome === "success" || r.outcome === "partial").length;
+  // `partial` is NOT evidence of health.
+  //
+  // It used to be counted here alongside `success`, which meant a fleet whose
+  // every recent run came back partial could never reach the failing state:
+  // `succeeded` was non-zero, so the check below could not fire. Two feet away
+  // on the same screen, OutcomeStreak renders the same outcome with
+  // `ui-tag-warning` and the words "5 of last 5 partial". One fact, graded two
+  // ways, in one view — and the forgiving reading was the one driving the
+  // headline.
+  //
+  // `partial` is correctly excluded from FAILING_OUTCOMES: a run that delivered
+  // something is not a hard failure, and the dispatch brake should not trip on
+  // it. But "not a failure" and "proof things are working" are different
+  // claims, and only the first one is true.
+  const succeeded = recent.filter((r) => r.outcome === "success").length;
+  const partial = recent.filter((r) => r.outcome === "partial").length;
   if (failed >= 2 && succeeded === 0) {
     return {
       key: "failing",
@@ -359,6 +399,16 @@ export function deriveFleetPulse(input: {
   // when the queue was empty and the only thing anyone was waiting on was
   // the HUMAN (1 project sat "Awaiting input" under a hero promising
   // imminent dispatch, 2026-08-13 review). Say which quiet state it is.
+  // Nothing failed outright, but nothing finished either. Before this, such a
+  // fleet fell through to "Idle — nothing queued", which reads as a clean desk
+  // when it is actually a pile of half-finished work.
+  if (partial >= 2 && succeeded === 0) {
+    return {
+      key: "partial",
+      label: "Half-finished",
+      detail: `The last run on ${partial} project${partial === 1 ? "" : "s"} stopped part-way — it delivered something, but not what was asked. Open the project to see what is missing.`,
+    };
+  }
   if ((input.waitingCount ?? 0) > 0) {
     const n = input.waitingCount!;
     return {
