@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Archive, Check, Loader2, PenLine, Rocket, Star, Undo2 } from "lucide-react";
 import { compactRelativeDate } from "@/lib/dates";
@@ -8,6 +8,7 @@ import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-phase";
 import type { FeedbackListItem } from "@/db/queries/site-feedback";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
+import { FeedbackReportText } from "@/components/feedback/FeedbackReportText";
 import { FeedbackWorkBadge } from "@/components/feedback/FeedbackWorkBadge";
 import { FeedbackWatchButton, FeedbackWatchPanel } from "@/components/feedback/FeedbackWatch";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
@@ -143,31 +144,6 @@ export function FeedbackItemRow({
     <FeedbackWorkBadge work={work} />
   );
 
-  // Is the body actually cut off? Measured, not guessed from a character
-  // count: the same text wraps to a different number of lines at a phone
-  // width and on a wide screen, so a length heuristic would offer "More" on
-  // rows that have nothing more to show and hide it on rows that do.
-  const bodyRef = useRef<HTMLParagraphElement>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-
-  const measure = useCallback(() => {
-    const el = bodyRef.current;
-    // Nothing to measure while expanded — by definition it is not clipped.
-    if (!el || expanded) return;
-    setOverflows(el.scrollHeight > el.clientHeight + 1);
-  }, [expanded]);
-
-  useEffect(() => {
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    // Re-measure on width changes: a row that fits on a desktop is clipped on
-    // a phone, and the toggle has to appear and disappear with the truth.
-    const observer = new ResizeObserver(measure);
-    if (bodyRef.current) observer.observe(bodyRef.current);
-    return () => observer.disconnect();
-  }, [measure, f.suggestion]);
-
   return (
     <div className="flex flex-col gap-2 py-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -175,25 +151,7 @@ export function FeedbackItemRow({
           {/* The message leads, alone on its line. Status, source and repeat
               count sit on the context line beneath it, where they read as
               facts about the report instead of interrupting it. */}
-          <p
-            ref={bodyRef}
-            className={`ui-feedback-body${expanded ? "" : " ui-feedback-body-clamped"}`}
-          >
-            {f.suggestion}
-          </p>
-          {/* Only offered when the text is actually cut off. A "more" that
-              expands nothing is worse than no affordance — it teaches people
-              the control is decorative. */}
-          {(overflows || expanded) && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="ui-feedback-body-toggle"
-              aria-expanded={expanded}
-            >
-              {expanded ? "Show less" : "More"}
-            </button>
-          )}
+          <FeedbackReportText text={f.suggestion} />
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
             {showBadge && badge}
             {agentBadge && <span className="ui-tag shrink-0">{agentBadge}</span>}
