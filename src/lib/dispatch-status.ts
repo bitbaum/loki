@@ -119,7 +119,46 @@ export type DispatchLiveView = {
   terminal: boolean;
 };
 
-export function deriveDispatchLiveStatus(cmd: CommandLiveInput): DispatchLiveView {
+/**
+ * How long this has been going, in the shortest form that is still precise.
+ *
+ * Every non-terminal state used to read the same from one second in to twenty
+ * minutes in — "waiting for a completion handoff", forever. Observed
+ * 2026-09-18: a dispatch sat on that line for five minutes with no elapsed
+ * time, no heartbeat and no log, and the only way to learn whether anything
+ * had happened was to go and read `git log` in another window. A dead builder
+ * and a busy one are the same sentence.
+ *
+ * Deliberately NOT a judgement. There is no measured baseline for how long a
+ * run should take, so this says how long it HAS taken and lets the person
+ * decide. Inventing "taking longer than usual" would be a claim nothing here
+ * can back.
+ */
+export function elapsedLabel(since: string | Date | null, now: number = Date.now()): string | null {
+  if (!since) return null;
+  const started = since instanceof Date ? since.getTime() : Date.parse(since);
+  if (!Number.isFinite(started)) return null;
+  const secs = Math.floor((now - started) / 1000);
+  if (secs < 0) return null;
+  if (secs < 10) return "just now";
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return rem === 0 ? `${hours}h` : `${hours}h ${rem}m`;
+}
+
+/** `detail`, with the elapsed time appended when there is one to show. */
+function withElapsed(detail: string, since: string | Date | null, now: number): string {
+  const label = elapsedLabel(since, now);
+  return label ? `${detail} · ${label}` : detail;
+}
+
+export function deriveDispatchLiveStatus(
+  cmd: CommandLiveInput,
+  now: number = Date.now(),
+): DispatchLiveView {
   const r = cmd.result ?? {};
   if (!cmd.executedAt) {
     if (!cmd.claimedAt) {
@@ -134,7 +173,7 @@ export function deriveDispatchLiveStatus(cmd: CommandLiveInput): DispatchLiveVie
     return {
       status: "working",
       label: "Agent picked up — working",
-      detail: "running your prompt now",
+      detail: withElapsed("running your prompt now", cmd.claimedAt, now),
       tone: "positive",
       terminal: false,
     };
@@ -173,7 +212,9 @@ export function deriveDispatchLiveStatus(cmd: CommandLiveInput): DispatchLiveVie
     return {
       status: "delivered",
       label: "Delivered to agent",
-      detail: "waiting for a completion handoff",
+      // "completion handoff" is the internal name for it; what a person needs
+      // to know is that the agent has the work and has not reported back yet.
+      detail: withElapsed("agent has it — no result reported back yet", cmd.executedAt, now),
       tone: "positive",
       terminal: false,
     };
@@ -182,7 +223,7 @@ export function deriveDispatchLiveStatus(cmd: CommandLiveInput): DispatchLiveVie
     return {
       status: "working",
       label: run.state === ORCH_STATE.CLOSING ? "Agent is finishing" : "Agent is working",
-      detail: "the tracked run is still open",
+      detail: withElapsed("still working", cmd.executedAt, now),
       tone: "positive",
       terminal: false,
     };

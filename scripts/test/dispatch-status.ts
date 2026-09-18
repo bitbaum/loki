@@ -8,6 +8,7 @@ import {
   dispatchAssistantContent,
   dispatchStatusLabel,
   dispatchToneDotClass,
+  elapsedLabel,
 } from "@/lib/dispatch-status";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
@@ -219,6 +220,85 @@ for (const tone of ["positive", "warning", "negative", "neutral"] as const) {
   if (!cls || !cls.startsWith("ui-dot-")) {
     throw new Error(`tone ${tone} has no dot class — got "${cls}"`);
   }
+}
+
+// ── Elapsed time on the states that can go quiet ────────────────────────────
+//
+// Observed 2026-09-18: a dispatch sat on "waiting for a completion handoff" for
+// five minutes with no elapsed time, no heartbeat and no log. A dead builder
+// and a busy one read identically, and the only way to tell them apart was to
+// open another window and read git log.
+
+const T0 = Date.parse("2026-09-18T06:40:00.000Z");
+const at = (secs: number) => T0 + secs * 1000;
+
+{
+  // The exact shape that went quiet: executed, run open, waiting on a handoff.
+  const view = deriveDispatchLiveStatus(
+    {
+      claimedAt: new Date(T0).toISOString(),
+      executedAt: new Date(T0).toISOString(),
+      result: {},
+      run: { state: "waiting", outcome: null },
+    },
+    at(305),
+  );
+  if (view.terminal) throw new Error("a run awaiting a handoff is not terminal");
+  if (!view.detail?.includes("5m")) {
+    throw new Error(`waiting detail must carry elapsed time — got "${view.detail}"`);
+  }
+  // The internal name for the mechanism is not what a person needs.
+  if (view.detail?.includes("completion handoff")) {
+    throw new Error("jargon leaked back into the waiting state");
+  }
+}
+
+{
+  // Picked up but not yet executed — timed from claimedAt, not executedAt.
+  const view = deriveDispatchLiveStatus(
+    { claimedAt: new Date(T0).toISOString(), executedAt: null, result: {}, run: null },
+    at(90),
+  );
+  if (!view.detail?.includes("1m")) {
+    throw new Error(`picked-up detail must carry elapsed time — got "${view.detail}"`);
+  }
+}
+
+{
+  // A settled run says what happened, not how long it has been happening.
+  const view = deriveDispatchLiveStatus(
+    {
+      claimedAt: new Date(T0).toISOString(),
+      executedAt: new Date(T0).toISOString(),
+      result: {},
+      run: { state: "done", outcome: "success" },
+    },
+    at(9999),
+  );
+  if (!view.terminal) throw new Error("a successful run is terminal");
+  if (view.detail?.includes("·")) {
+    throw new Error("a finished run must not keep counting");
+  }
+}
+
+// The label itself, across the boundaries that matter.
+const labels: [number, string | null][] = [
+  [3, "just now"],
+  [42, "42s"],
+  [60, "1m"],
+  [305, "5m"],
+  [3600, "1h"],
+  [4500, "1h 15m"],
+];
+for (const [secs, expected] of labels) {
+  const got = elapsedLabel(new Date(T0).toISOString(), at(secs));
+  if (got !== expected) throw new Error(`elapsed ${secs}s → expected ${expected}, got ${got}`);
+}
+// No timestamp is "no idea", never "0s" — a confident zero is worse than silence.
+if (elapsedLabel(null) !== null) throw new Error("a missing timestamp has no elapsed label");
+// A clock that disagrees must not render a negative age.
+if (elapsedLabel(new Date(T0).toISOString(), at(-30)) !== null) {
+  throw new Error("a future timestamp has no elapsed label");
 }
 
 console.log("✓ dispatch-status tests passed");
