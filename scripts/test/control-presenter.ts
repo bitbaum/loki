@@ -564,6 +564,70 @@ function runTests(): void {
     assert(pulse.key === "waiting", "a single failing project must not panic the hero");
   });
 
+  check("fleet pulse: partial does NOT mask real failures", () => {
+    // THE BUG, pinned. `succeeded` used to count "success" OR "partial", so a
+    // fleet with two hard failures and a couple of half-finished runs had a
+    // non-zero `succeeded` and could never reach the failing state. Before the
+    // fix this returned "waiting"; the fleet was dead and the hero was calm.
+    const pulse = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 0,
+      latestRuns: runs(["timeout", "error", "partial", "partial"]),
+    });
+    assert(pulse.key === "failing", "partials must not vouch for a failing fleet");
+  });
+
+  check("fleet pulse: a fleet that only half-delivers says so", () => {
+    // Observed live on 2026-09-18: a project reading "5 of last 5 partial"
+    // under a hero that said nothing was wrong. Nothing FAILED, so the old
+    // code fell through to "Idle — nothing queued", which reads as a clean
+    // desk when it is a pile of half-finished work.
+    const pulse = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 0,
+      waitingCount: 0,
+      latestRuns: runs(["partial", "partial", "partial"]),
+    });
+    assert(pulse.key === "partial", "an all-partial fleet is not idle");
+    assert(pulse.label === "Half-finished", "say what it is");
+    assert(!!pulse.detail && pulse.detail.includes("3"), "name how many stopped part-way");
+  });
+
+  check("fleet pulse: one partial among successes is not a verdict", () => {
+    // The converse. A single half-finished run is ordinary; only a pattern
+    // with nothing landing is worth a headline.
+    const pulse = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 0,
+      waitingCount: 0,
+      latestRuns: runs(["success", "success", "partial"]),
+    });
+    assert(pulse.key === "waiting", "one partial next to real successes is fine");
+  });
+
+  check("fleet pulse: Building stops being silent about a partial streak", () => {
+    // "Building" is the right headline while an agent works, and it used to
+    // return detail: null — which is how a 5-of-5 partial streak sat under a
+    // hero that mentioned nothing. The label stays; the silence does not.
+    const pulse = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 1,
+      latestRuns: runs(["partial", "partial", "partial"]),
+    });
+    assert(pulse.key === "building", "an agent is working, so Building is still true");
+    assert(!!pulse.detail, "a partial streak must be named even while building");
+  });
+
+  check("fleet pulse: Building stays quiet when there is nothing to report", () => {
+    const pulse = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 1,
+      latestRuns: runs(["success", "success"]),
+    });
+    assert(pulse.key === "building", "still building");
+    assert(pulse.detail === null, "no partials means no warning sentence");
+  });
+
   check(
     "fleet pulse: 0 working, nothing queued, nobody waiting → Idle, not 'about to dispatch'",
     () => {

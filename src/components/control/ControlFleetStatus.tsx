@@ -238,13 +238,24 @@ export function ControlFleetStatus({
           }
         : fleetPulse.key === "failing" || fleetPulse.key === "stalled"
           ? { dot: "ui-dot-negative", text: fleetPulse.label, sub: fleetPulse.detail }
-          : working > 0
-            ? {
-                dot: "ui-dot-positive animate-pulse",
-                text: fleetPulse.label,
-                sub: `${working} agent${working === 1 ? "" : "s"} working`,
-              }
-            : { dot: "ui-dot-neutral", text: fleetPulse.label, sub: fleetPulse.detail };
+          : // Half-finished is not a failure and not health. It gets the warning
+            // dot rather than the neutral one, because a grey dot next to "5 of
+            // last 5 partial" is the same silence this whole change removes.
+            fleetPulse.key === "partial"
+            ? { dot: "ui-dot-warning", text: fleetPulse.label, sub: fleetPulse.detail }
+            : working > 0
+              ? {
+                  dot: "ui-dot-positive animate-pulse",
+                  // The detail WINS when there is one. This line used to be
+                  // `${working} agents working` unconditionally, which quietly
+                  // discarded the pulse's own sentence — so a partial streak
+                  // detected while an agent worked could never be shown. The
+                  // count is already visible elsewhere on this card; a warning
+                  // nobody can see is worse than no warning.
+                  text: fleetPulse.label,
+                  sub: fleetPulse.detail ?? `${working} agent${working === 1 ? "" : "s"} working`,
+                }
+              : { dot: "ui-dot-neutral", text: fleetPulse.label, sub: fleetPulse.detail };
 
   // At most one. A card with two equally-weighted buttons has no primary, and
   // this card's whole job is to make the next step obvious.

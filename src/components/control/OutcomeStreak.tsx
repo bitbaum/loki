@@ -36,7 +36,7 @@ const OUTCOME_TONE: Record<OrchestrationOutcome, string> = {
 
 const OUTCOME_LABEL: Record<OrchestrationOutcome, string> = {
   success: "succeeded",
-  partial: "partial",
+  partial: "stopped part-way",
   error: "errored",
   hang: "hung",
   timeout: "timed out",
@@ -73,7 +73,12 @@ function summarize(outcomes: OrchestrationOutcome[]): string {
   const partial = outcomes.filter((o) => o === "partial").length;
   const n = outcomes.length;
   if (failed > 0) return `${failed} of last ${n} failed`;
-  if (partial > 0) return `${partial} of last ${n} partial`;
+  // "partial" is the database's word, not a person's. The summary already
+  // earned its place by replacing bare glyphs with a sentence; saying "5 of
+  // last 5 partial" only moves the cipher from a symbol to a term. What a
+  // reader needs is what actually happened: the agent delivered something and
+  // stopped before finishing.
+  if (partial > 0) return `${partial} of last ${n} stopped part-way`;
   return n === 1 ? "last run clean" : `last ${n} clean`;
 }
 export function OutcomeStreak({
