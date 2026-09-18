@@ -610,6 +610,25 @@
   .ui-loki-nudge-text {
     @apply line-clamp-3 text-sm leading-relaxed text-text-secondary;
   }
+  /* A feedback report's body in a list.
+     Reported through the widget on 2026-09-17: "one long report takes over the
+     whole inbox. The top item right now is eight lines of dictated text and it
+     pushes every other item below the fold, so the queue stops being
+     scannable." Dictated reports are long by nature — the queue has to stay
+     readable anyway, and the full text has to stay reachable.
+
+     No `block` display utility here: a display utility silently defeats
+     -webkit-line-clamp, the same trap noted above .ui-loki-nudge-text. */
+  .ui-feedback-body {
+    @apply min-w-0 text-sm leading-relaxed text-text-primary;
+  }
+  .ui-feedback-body-clamped {
+    @apply line-clamp-3;
+  }
+  .ui-feedback-body-toggle {
+    @apply mt-1 text-xs font-medium text-text-secondary underline-offset-2 hover:underline;
+  }
+
   .ui-loki-nudge-shimmer {
     @apply text-text-muted italic;
   }
