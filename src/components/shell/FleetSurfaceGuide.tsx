@@ -1,19 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FolderKanban, MessageSquare, SlidersHorizontal, SquareTerminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FLEET_SURFACES } from "@/config/navigation";
-import {
-  FLEET_PROJECT_EVENT,
-  fleetSurfaceHref,
-  projectFromFleetRoute,
-  readRememberedFleetProject,
-  rememberFleetProject,
-  type FleetWorkspaceSurfaceId,
-} from "@/lib/fleet-context";
+import { fleetSurfaceHref, type FleetWorkspaceSurfaceId } from "@/lib/fleet-context";
+import { useFleetProject } from "@/hooks/use-fleet-project";
 
 const ICONS = {
   profile: FolderKanban,
@@ -21,15 +14,6 @@ const ICONS = {
   control: SlidersHorizontal,
   terminal: SquareTerminal,
 } satisfies Record<FleetWorkspaceSurfaceId, typeof MessageSquare>;
-
-function subscribeToFleetProject(onStoreChange: () => void) {
-  window.addEventListener(FLEET_PROJECT_EVENT, onStoreChange);
-  window.addEventListener("storage", onStoreChange);
-  return () => {
-    window.removeEventListener(FLEET_PROJECT_EVENT, onStoreChange);
-    window.removeEventListener("storage", onStoreChange);
-  };
-}
 
 /**
  * Profile, Chat, Control, and Terminal are views of one project workspace.
@@ -43,22 +27,7 @@ export function FleetSurfaceGuide() {
       ? isProjectProfile
       : pathname === s.href || pathname.startsWith(`${s.href}/`),
   );
-  const readProject = useCallback(() => {
-    const routeProject = projectFromFleetRoute(
-      pathname,
-      new URLSearchParams(window.location.search),
-    );
-    return routeProject ?? readRememberedFleetProject();
-  }, [pathname]);
-  const project = useSyncExternalStore(subscribeToFleetProject, readProject, () => null);
-
-  useEffect(() => {
-    const routeProject = projectFromFleetRoute(
-      pathname,
-      new URLSearchParams(window.location.search),
-    );
-    if (routeProject) rememberFleetProject(routeProject);
-  }, [pathname]);
+  const project = useFleetProject();
 
   // Loki is the start/continue surface, not a project-workspace tab. The
   // Profile/Chat/Control/Terminal strip duplicates the bottom nav on phones

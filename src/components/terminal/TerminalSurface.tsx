@@ -11,7 +11,8 @@ import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { useTerminalFont } from "@/hooks/use-terminal-font";
 import { useTerminalDeck } from "@/hooks/use-terminal-deck";
 import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
-import { rememberFleetProject } from "@/lib/fleet-context";
+import { fleetSurfaceHref, rememberFleetProject } from "@/lib/fleet-context";
+import { useFleetProject } from "@/hooks/use-fleet-project";
 import { resolveTabAttachment, type PtyGeometry } from "@/lib/terminal-viewport";
 import type { BuilderChannel } from "@/lib/event-stream-types";
 import { resolveTerminalSource } from "@/lib/terminal-deep-link";
@@ -187,6 +188,12 @@ export function TerminalSurface({
     : "cloud";
   const primaryChannel = channelFor(primarySource);
   const primaryTabs = useTerminalTabs(primaryChannel);
+
+  // The project the operator is looking at, independent of whether a PTY is
+  // attached. The empty state needs exactly this: `activeTab` is null there by
+  // definition, so anything derived from it silently loses the scope that the
+  // tab strip above is still showing.
+  const fleetProject = useFleetProject();
 
   const otherSource: TerminalSource | null =
     primarySource === "machine" && sources.includes("cloud")
@@ -571,9 +578,13 @@ export function TerminalSurface({
             `No live agent session for “${initialTab}”. Loki Terminal lists Fleet Runner and cloud PTYs — not a Kitty or Zellij pane. If you just clicked Implement, open Control — Attention offers “${REMEDY_LABEL[FAILURE_REMEDY.START_SESSION]}” when the prompt never started.`
           : null;
       const hint = gatedMessage ?? (offline ? copy.offlineHint : (tabHint ?? copy.emptyHint));
-      const controlHref = initialTab
-        ? `/control?focus=${encodeURIComponent(initialTab)}`
-        : "/control";
+      // `initialTab` is the ATTACHED tab, which is null on exactly this
+      // screen — nothing is running, that is why the empty state renders. Fall
+      // back to the workspace project so these two buttons keep the scope the
+      // Profile/Chat/Control/Terminal strip is showing directly above them.
+      const emptyStateProject = initialTab ?? fleetProject;
+      const controlHref = fleetSurfaceHref("control", emptyStateProject);
+      const chatHref = fleetSurfaceHref("chat", emptyStateProject);
       return (
         <div className="ui-empty-page">
           <MonitorSmartphone className="h-6 w-6 text-text-muted" aria-hidden="true" />
@@ -587,13 +598,14 @@ export function TerminalSurface({
                 projects={context?.launchable ?? []}
                 agents={agents}
                 defaultAgent={context?.agents.defaultAgent ?? null}
+                activeProject={emptyStateProject}
                 channel={channel}
               />
               <div className="mt-2 flex flex-wrap justify-center gap-2">
                 <Link href={controlHref} className="ui-btn-secondary">
                   Open on Control
                 </Link>
-                <Link href="/loki" className="ui-btn-secondary">
+                <Link href={chatHref} className="ui-btn-secondary">
                   Ask Loki
                 </Link>
               </div>
