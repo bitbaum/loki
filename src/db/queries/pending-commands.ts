@@ -11,6 +11,7 @@ import {
   type RunnerChannel,
 } from "@/db/schema/pending-commands";
 import { eq, isNull, isNotNull, and, inArray, notInArray, desc, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import type { FailedCommand } from "@/lib/control-types";
 import { STALE_RUN_MINUTES } from "./orchestration-runs";
 import { requireNotDemo } from "@/lib/demo-guard";
@@ -90,20 +91,25 @@ export async function getRunnerExecutionStall(userId: string, graceSeconds = 120
  * parallel worktree-per-agent) own an isolated tab, so they neither block
  * base-tab commands nor wait on them.
  */
-function fifoEligibilitySql() {
-  return sql`(
-    ${pendingCommands.type} NOT IN ('dispatch','inject')
-    OR ${pendingCommands.payload}->>'projectKey' IS NULL
-    OR ${pendingCommands.payload}->>'runId' IS NULL
-    OR EXISTS (
-      SELECT 1 FROM orchestration_runs own
-      WHERE own.id = (${pendingCommands.payload}->>'runId')::uuid
-        AND own.payload->>'sessionTab' IS NOT NULL
-    )
-    OR NOT EXISTS (
+/**
+ * The runs that hold a project's lane, as ONE definition.
+ *
+ * `fifoEligibilitySql` (the gate) and `findQueueBlockers` (what the UI shows a
+ * person) have to mean the same thing by "busy", or the product ends up
+ * withholding a command for one reason and explaining it with another — which
+ * is exactly what it did: a dispatch queued correctly behind an older run was
+ * reported as "Retry — or Open Terminal for why it never started", sending the
+ * operator to check a Fleet Runner that was working perfectly (2026-09-17).
+ *
+ * So both callers compose this fragment and neither restates the rule. The
+ * caller passes its own run's identity as SQL, because the gate reads it out
+ * of a command payload while the lookup reads it off the run row.
+ */
+function olderOpenRunSql(ownTuple: SQL, userId: SQL, projectKey: SQL) {
+  return sql`
       SELECT 1 FROM orchestration_runs r
-      WHERE r.user_id = ${pendingCommands.userId}
-        AND r.project_key = ${pendingCommands.payload}->>'projectKey'
+      WHERE r.user_id = ${userId}
+        AND r.project_key = ${projectKey}
         AND r.finished_at IS NULL
         AND r.started_at > NOW() - INTERVAL '1 minute' * ${STALE_RUN_MINUTES}
         AND r.payload->>'sessionTab' IS NULL
@@ -120,10 +126,89 @@ function fifoEligibilitySql() {
           WHERE pc.user_id = r.user_id
             AND pc.payload->>'runId' = r.id::text
         )
-        AND (r.started_at, r.id) < (
+        AND (r.started_at, r.id) < ${ownTuple}`;
+}
+
+/** What is ahead of these runs in their project's lane, if anything. */
+export type QueueBlocker = {
+  /** The open run that holds the lane. */
+  runId: string;
+  startedAt: Date;
+  /** Its prompt label ("Next Best Task"), when the dispatch recorded one. */
+  label: string | null;
+};
+
+/**
+ * For each given run, the OLDEST open run ahead of it in its project's lane.
+ *
+ * A run with no entry is not being withheld by the gate — whatever else is
+ * wrong with it, "waiting its turn" is not the explanation. Reads the same
+ * predicate the claim query enforces (see olderOpenRunSql), so the sentence a
+ * person is shown and the decision the queue actually made cannot drift apart.
+ */
+export async function findQueueBlockers(runIds: string[]): Promise<Map<string, QueueBlocker>> {
+  const ids = runIds.filter(Boolean);
+  const out = new Map<string, QueueBlocker>();
+  if (ids.length === 0) return out;
+  const rows = await db.execute<{
+    own_id: string;
+    blocker_id: string;
+    blocker_started_at: Date;
+    blocker_label: string | null;
+  }>(sql`
+    SELECT own.id AS own_id,
+           b.id AS blocker_id,
+           b.started_at AS blocker_started_at,
+           b.payload->>'promptLabel' AS blocker_label
+      FROM orchestration_runs own
+      JOIN LATERAL (
+        ${olderOpenRunSql(sql`(own.started_at, own.id)`, sql`own.user_id`, sql`own.project_key`)}
+        ORDER BY r.started_at, r.id
+        LIMIT 1
+      ) blocked ON TRUE
+      JOIN orchestration_runs b
+        ON b.user_id = own.user_id
+       AND b.project_key = own.project_key
+       AND b.finished_at IS NULL
+       AND b.payload->>'sessionTab' IS NULL
+       AND (b.started_at, b.id) < (own.started_at, own.id)
+     WHERE own.id IN (${sql.join(
+       ids.map((id) => sql`${id}::uuid`),
+       sql`, `,
+     )})
+       AND own.finished_at IS NULL
+       AND own.payload->>'sessionTab' IS NULL
+     ORDER BY own.id, b.started_at, b.id`);
+  for (const row of rows) {
+    if (out.has(row.own_id)) continue; // ORDER BY put the oldest blocker first
+    out.set(row.own_id, {
+      runId: row.blocker_id,
+      startedAt: row.blocker_started_at,
+      label: row.blocker_label,
+    });
+  }
+  return out;
+}
+
+function fifoEligibilitySql() {
+  return sql`(
+    ${pendingCommands.type} NOT IN ('dispatch','inject')
+    OR ${pendingCommands.payload}->>'projectKey' IS NULL
+    OR ${pendingCommands.payload}->>'runId' IS NULL
+    OR EXISTS (
+      SELECT 1 FROM orchestration_runs own
+      WHERE own.id = (${pendingCommands.payload}->>'runId')::uuid
+        AND own.payload->>'sessionTab' IS NOT NULL
+    )
+    OR NOT EXISTS (
+      ${olderOpenRunSql(
+        sql`(
           SELECT own.started_at, own.id FROM orchestration_runs own
           WHERE own.id = (${pendingCommands.payload}->>'runId')::uuid
-        )
+        )`,
+        sql`${pendingCommands.userId}`,
+        sql`${pendingCommands.payload}->>'projectKey'`,
+      )}
     )
   )`;
 }

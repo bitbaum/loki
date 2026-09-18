@@ -66,6 +66,11 @@ export function summarizeRunStep(input: {
   localOnline?: boolean;
   /** Cloud box-runner presence at attach time. */
   cloudOnline?: boolean;
+  /**
+   * The open run ahead of this one in the project's lane (findQueueBlockers).
+   * When set, the command is unclaimed BY DESIGN and no runner is at fault.
+   */
+  queuedBehind?: { label: string | null } | null;
 }): RunStepSnapshot {
   if (input.blocked === "auth") {
     return {
@@ -103,6 +108,20 @@ export function summarizeRunStep(input: {
     };
   }
   if (input.pendingUnclaimed !== false) {
+    // An unclaimed command has two very different causes, and only one of them
+    // is anybody's fault. The per-project gate withholds a command while an
+    // older run for that project is still open — no runner ever sees it, so
+    // "confirm Fleet Runner is polling" sends the reader to inspect a healthy
+    // machine. Name the run that holds the lane instead.
+    if (input.queuedBehind) {
+      const ahead = input.queuedBehind.label?.trim();
+      return {
+        kind: "waiting_builder",
+        summary: ahead ? `Waiting its turn behind “${ahead}”` : "Waiting its turn on this project",
+        detail:
+          "Loki runs one agent per project at a time. This starts by itself when the run ahead of it finishes — nothing to fix, and Retry would only queue a second one.",
+      };
+    }
     return waitingBuilderStep(input.channel ?? null, input.localOnline, input.cloudOnline);
   }
   return {
