@@ -13,6 +13,15 @@
 /** The subset of a chunk both callers read. Extra fields survive the cast. */
 export type SseDelta = {
   choices?: Array<{
+    /**
+     * Why the model stopped, on the LAST chunk of a choice.
+     *
+     * The one field that separates a finished answer from a severed one, and
+     * it rides the same frames this reader was already parsing for `usage`.
+     * The header above says a dropped stream "does not fail — it silently
+     * truncates an answer"; this is the vendor telling us it happened.
+     */
+    finish_reason?: string | null;
     delta?: {
       content?: string | null;
       tool_calls?: Array<{
