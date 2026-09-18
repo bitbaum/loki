@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projectMemberships, userProjects, users, type ProjectRole } from "@/db/schema";
+import { capabilitiesForRole, OWNER_CAPABILITIES } from "@/lib/project-capabilities";
 
 export type ProjectAccess = {
   role: "owner" | ProjectRole;
@@ -27,8 +28,7 @@ export async function getProjectAccess(
       ),
     )
     .limit(1);
-  if (owned)
-    return { role: "owner", ownerUserId: owned.ownerUserId, canEdit: true, canManageMembers: true };
+  if (owned) return { role: "owner", ownerUserId: owned.ownerUserId, ...OWNER_CAPABILITIES };
 
   const [member] = await db
     .select({ role: projectMemberships.role, ownerUserId: userProjects.userId })
@@ -46,8 +46,7 @@ export async function getProjectAccess(
   return {
     role: member.role,
     ownerUserId: member.ownerUserId,
-    canEdit: member.role === "editor",
-    canManageMembers: false,
+    ...capabilitiesForRole(member.role),
   };
 }
 
