@@ -47,17 +47,25 @@ export function buildShadowCSS(theme: WidgetTheme): string {
 button { cursor: pointer; border: none; background: none; color: inherit; font: inherit; }
 button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid ${theme.accent}; outline-offset: 2px; }
 .mono { font-family: ${mono}; letter-spacing: .08em; text-transform: uppercase; font-size: 10px; }
-.dot { width: 7px; height: 7px; border-radius: 50%; background: ${theme.accent}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: ${theme.accent}; flex: none; box-shadow: 0 0 0 3px ${theme.accentMuted}; }
+
+/* ---- surface modes: the header's Report / Chat / Watch chips ----
+   No var() fallbacks here. The widget lives in a Shadow DOM under
+   :host all:initial and defines no custom properties, so a var() with a hex
+   fallback ALWAYS resolves to that fallback — a hardcoded colour wearing a
+   token's clothes. Every colour interpolates from the boot theme, like the
+   rest of this file. */
 .modes { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
 .mode {
-  font-size: 11px; padding: 4px 10px; border-radius: var(--rc, 6px);
-  border: 1px solid var(--border, #333); color: var(--text-sec, #aaa);
+  font-size: 11px; padding: 4px 10px; border-radius: ${rc};
+  border: 1px solid ${theme.borderStrong}; color: ${theme.textSecondary};
   background: transparent;
 }
-.mode.on { border-color: var(--accent, #f60); color: var(--text, #fff); background: var(--accent-muted, rgba(255,102,0,.12)); }
+.mode.on { border-color: ${theme.accent}; color: ${theme.text}; background: ${theme.accentMuted}; }
 .mode:disabled { opacity: .55; cursor: not-allowed; }
-.mode-hint { font-size: 11px; color: var(--text-mut, #888); margin-top: 6px; line-height: 1.35; }
-; flex: none; box-shadow: 0 0 0 3px ${theme.accentMuted}; }
+/* textTertiary, not textMuted: the hint is the one line that explains what the
+   selected mode does, so it has to stay readable on the panel's near-black. */
+.mode-hint { font-size: 11px; color: ${theme.textTertiary}; margin-top: 6px; line-height: 1.35; }
 
 /* ---- launcher: a Loki pill, not an orange circle ----
    QUIET UNTIL WANTED. This sits on every client's site, in the corner of every
