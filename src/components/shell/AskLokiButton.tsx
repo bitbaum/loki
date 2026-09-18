@@ -43,6 +43,10 @@ type Turn = {
   meta?: Record<string, unknown>;
 };
 
+/** Ceiling for the drawer composer's auto-grow. Smaller than the full-page
+ *  composer's 240px: this one floats over the page it is asking about. */
+const MAX_ASK_INPUT_PX = 160;
+
 function subscribeContext(onChange: () => void) {
   return subscribeAssistantContext(onChange);
 }
@@ -109,7 +113,7 @@ export function AskLokiButton() {
   const [askError, setAskError] = useState<string | null>(null);
   const sentContextRef = useRef<string | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // The transcript, for the history the next ask sends. A ref, not a dep: the
   // ask callback must not be rebuilt on every turn, and reading the latest
@@ -157,6 +161,16 @@ export function AskLokiButton() {
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
+  }, [open]);
+
+  /** Grow with the text, to a ceiling — a drawer that swallows the page is its
+   *  own problem. Matches loki/Composer.tsx rather than inventing a second
+   *  auto-grow. */
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, MAX_ASK_INPUT_PX)}px`;
   }, [open]);
 
   useEffect(() => {
@@ -379,10 +393,39 @@ export function AskLokiButton() {
             }}
             className="flex items-center gap-2 border-t border-border-subtle p-3"
           >
-            <input
+            {/*
+              A TEXTAREA, not an input, and the difference is data loss rather
+              than comfort.
+
+              "Brief Loki" on /today prefills this control with a multi-line
+              prompt built by SummaryBar — a heading, the day's counts, then the
+              question — joined with "\n". An <input> cannot hold a newline, so
+              the browser silently stripped every one and the value arrived as
+              "Daily brief — Friday, 18 SeptemberWhat should I focus on today?".
+              Measured live on 2026-09-18: newlineCount 0. The product generated
+              a structured prompt and its own field destroyed the structure,
+              with no error and nothing to notice.
+
+              It is also the composer for the thing this product is FOR. A brief
+              is multiple sentences by nature; a single-line box that scrolls
+              horizontally shows about forty characters of it, so you cannot read
+              back what you are about to dispatch.
+
+              Enter sends and Shift+Enter breaks the line — the convention
+              everywhere else in this app, including loki/Composer.tsx, whose
+              auto-grow this mirrors.
+            */}
+            <textarea
               ref={inputRef}
+              rows={1}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void ask();
+                }
+              }}
               placeholder={
                 activeForm
                   ? `Describe or change ${activeForm.title}…`
@@ -390,7 +433,7 @@ export function AskLokiButton() {
                     ? `Ask about ${context.name}…`
                     : "Ask across your fleet…"
               }
-              className="ui-input-compact min-w-0 flex-1"
+              className="ui-input-compact min-w-0 flex-1 resize-none"
               aria-label="Ask Loki"
             />
             <button
