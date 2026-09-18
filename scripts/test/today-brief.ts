@@ -58,7 +58,10 @@ check("the heading never runs into the question", () => {
 
 check("an empty day still separates its two parts by a blank line", () => {
   const out = buildTodayBriefPrompt(HEADING, NO_COUNTS, NO_FLEET);
-  assert(out === `${HEADING}\n\n${TODAY_BRIEF_QUESTION}`, `unexpected shape: ${JSON.stringify(out)}`);
+  assert(
+    out === `${HEADING}\n\n${TODAY_BRIEF_QUESTION}`,
+    `unexpected shape: ${JSON.stringify(out)}`,
+  );
 });
 
 check("no run of blank lines, however many counts are absent", () => {
@@ -94,7 +97,10 @@ check("a zero count contributes no line at all", () => {
 
 check("the fleet line names only what is actually happening", () => {
   const out = buildTodayBriefPrompt(HEADING, NO_COUNTS, { running: 2, waiting: 0, degraded: 1 });
-  assert(out.includes("Agent fleet: 2 running, 1 degraded"), "running + degraded, no empty waiting");
+  assert(
+    out.includes("Agent fleet: 2 running, 1 degraded"),
+    "running + degraded, no empty waiting",
+  );
   assert(!out.includes("waiting"), "a zero bucket must not be listed");
 });
 
