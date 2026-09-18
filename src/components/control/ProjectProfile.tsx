@@ -18,6 +18,7 @@ import type { UserProject } from "@/db/schema/user-projects";
 import { DIMENSION_META, DimensionSection } from "./project-profile-sections";
 import { NotesSection } from "./project-profile-helpers";
 import { buildSessionHandoffFromProjectSession, SessionHandoff } from "./SessionHandoff";
+import { describeDispatchTarget } from "@/lib/dispatch-target";
 
 type AgentEntry = { id: string; label: string; modelSuggestions: string[] };
 type AgentId = string;
@@ -289,6 +290,45 @@ export function ProjectProfile({
                 </button>
               ))}
             </div>
+          </div>
+        );
+      })()}
+
+      {/* What a dispatch from here will actually do. The three controls above
+          each set one part of it and none of them states the combination, so
+          the first time the operator saw agent + model + machine together was
+          on the run record, afterwards. The cost is the LAST run's, measured:
+          what this one will cost cannot be known, and a predicted number beside
+          a button reads as a quote. */}
+      {(() => {
+        const agentEntry = availableAgents.find((a) => a.id === activeAgent);
+        const suggestions = agentEntry?.modelSuggestions ?? [];
+        const view = describeDispatchTarget({
+          agentLabel: agentEntry?.label ?? activeAgent,
+          model: suggestions.length ? (localModel ?? suggestions[0]) : null,
+          channel: localBuilder ?? DEFAULT_BUILDER_CHANNEL,
+          lastRun: project.latestOrchestrationRun
+            ? {
+                costUsd: project.latestOrchestrationRun.costUsd,
+                error: project.latestOrchestrationRun.payload?.error ?? null,
+              }
+            : null,
+        });
+        return (
+          <div className="flex flex-col gap-1 border-t border-border-subtle px-4 py-3 sm:px-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="ui-kicker shrink-0">Dispatch runs</span>
+              <span className="text-xs font-medium text-text-secondary">{view.line}</span>
+              {view.cost && (
+                <span
+                  className="ui-tag ui-tag-neutral tabular-nums"
+                  title="What the previous run on this project cost. Not an estimate for this one."
+                >
+                  last run {view.cost}
+                </span>
+              )}
+            </div>
+            {view.caution && <p className="ui-error text-xs">{view.caution}</p>}
           </div>
         );
       })()}
