@@ -50,6 +50,13 @@ export type FixShipping = {
   checkedAt: string;
   /** No GitHub token / API failure: the state is what the handoff claimed, unverified. */
   unverified?: boolean;
+  /**
+   * The pull request named in `pr` is NOT this run's work: GitHub says it was
+   * already open before the run was dispatched. The state is therefore
+   * NO_EVIDENCE — the reference is kept so the row can say which pull request
+   * it discounted, rather than leaving a reader to wonder what the agent meant.
+   */
+  foreignPr?: boolean;
   /** Loki merged this itself because the project opted in. */
   shippedByFleet?: boolean;
   /** Automatic shipping is on but declined to merge — why (see auto-ship.ts). */

@@ -96,6 +96,30 @@ export function prOpenedByRun(
   return pr >= run - RUN_CLOCK_SLACK_MS;
 }
 
+/**
+ * GitHub says this pull request already existed when the run was dispatched,
+ * so the run cannot have produced it.
+ *
+ * NOT the negation of prOpenedByRun, and the difference is the point. That one
+ * answers "may Loki press merge on this?", where the safe answer to *unknown*
+ * is no. This one answers "may Loki tell the operator their report shipped?",
+ * where the safe answer to unknown is *keep believing the ledger* — demoting a
+ * real fix to "nothing shipped" because GitHub omitted a timestamp would break
+ * every honest row to catch a dishonest one. So both predicates return false
+ * when either timestamp is missing or unparseable, and only a PROVEN ordering
+ * moves anything.
+ */
+export function prPredatesRun(
+  prCreatedAt: string | null | undefined,
+  runStartedAt: string | Date | null | undefined,
+): boolean {
+  if (!prCreatedAt || !runStartedAt) return false;
+  const pr = Date.parse(prCreatedAt);
+  const run = typeof runStartedAt === "string" ? Date.parse(runStartedAt) : runStartedAt.getTime();
+  if (!Number.isFinite(pr) || !Number.isFinite(run)) return false;
+  return pr < run - RUN_CLOCK_SLACK_MS;
+}
+
 /** GitHub conclusions that mean "this check is not a reason to stop". */
 const PASSING = new Set(["success", "neutral", "skipped"]);
 

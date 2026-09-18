@@ -542,6 +542,15 @@ function shippingView(run: FeedbackRunSnapshot): Omit<FeedbackWorkView, "waiting
   const pr = fix.pr ? `PR #${fix.pr.number}` : "the change";
   switch (fix.state) {
     case FIX_SHIP_STATE.NO_EVIDENCE:
+      // A pull request WAS found — it just belongs to other work, and saying
+      // "none was found" would send the reader looking for a parsing bug.
+      // Naming the number is what lets them check the call in one click.
+      if (fix.foreignPr)
+        return {
+          ...base,
+          label: "Finished · nothing shipped",
+          detail: `The agent pointed at ${pr}, but GitHub says it was already open before this run started, so the run did not produce it. Retry, or Resolve if it was not a code change.`,
+        };
       return {
         ...base,
         label: "Finished · nothing shipped",
