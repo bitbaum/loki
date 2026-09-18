@@ -764,11 +764,22 @@ export async function getOpenPendingByRunIds(
   return out;
 }
 
-/** Latest executed inject ack per run — verified/ok/warning for work-phase. */
+/** Latest executed inject ack per run — verified/ok/warning for work-phase,
+ *  plus WHERE that attempt actually ran. */
 export type InjectAckByRun = {
   ok: boolean | null;
   verified: boolean | null;
   warning: string | null;
+  /**
+   * The channel this attempt was handed to, read off the executed command row.
+   *
+   * This is the immutable execution identity of the ATTEMPT. The open pending
+   * row carries the same fact but is gone for most of a run's life (the runner
+   * stamps executedAt on its inject-ack), and the fallback after that was the
+   * project's CURRENT routing preference — a setting the operator can change
+   * afterwards, which cannot prove where a historical run went.
+   */
+  channel: RunnerChannel | null;
 };
 
 export async function getInjectAcksByRunIds(
@@ -789,7 +800,7 @@ export async function getInjectAcksByRunIds(
     .limit(300);
   const out = new Map<string, InjectAckByRun>();
   for (const r of rows) {
-    const payload = r.payload as { runId?: string } | null;
+    const payload = r.payload as { runId?: string; channel?: string } | null;
     const runId = payload?.runId;
     if (!runId || !wanted.has(runId) || out.has(runId)) continue;
     const result = (r.result ?? {}) as {
@@ -801,6 +812,9 @@ export async function getInjectAcksByRunIds(
       ok: typeof result.ok === "boolean" ? result.ok : null,
       verified: typeof result.verified === "boolean" ? result.verified : null,
       warning: typeof result.warning === "string" ? result.warning : null,
+      // Same validation as the open-row reader above: the channel lives in the
+      // jsonb payload, so an unrecognised value is not a channel.
+      channel: payload.channel === "cloud" || payload.channel === "local" ? payload.channel : null,
     });
   }
   return out;

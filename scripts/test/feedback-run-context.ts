@@ -134,4 +134,54 @@ const LOCAL_DOWN = { cloud: true, local: false, any: true };
   assert.equal(s.hostedPending, true, "a non-hosted pending row must not erase a hosted dispatch");
 }
 
+// WHERE A PAST ATTEMPT RAN is a recorded fact, not a current setting.
+//
+// The open pending row is gone for most of a run's life, and the fallback after
+// it was the project's routing preference — which the operator can change at any
+// time. Flip a project from This computer to Cloud and every finished local run
+// would start claiming it ran on the box, with its offline verdict computed
+// against a machine it never touched. The executed command row still records
+// where the attempt was actually handed, so ask that first.
+{
+  const s = applyRunContext(
+    snap(),
+    { payload: null },
+    {
+      presence: LOCAL_DOWN,
+      // The project says Cloud TODAY...
+      project: { dirPath: null, gitUrl: "https://github.com/bitbaum/loki", builderPref: "cloud" },
+      pending: null,
+      // ...but this attempt was handed to the laptop when it ran.
+      ack: { ok: true, verified: true, warning: null, channel: "local" },
+    },
+  );
+  assert.equal(
+    s.builderChannel,
+    "local",
+    "the recorded attempt outranks the project's current preference",
+  );
+  assert.equal(
+    s.builderOffline,
+    true,
+    "and the offline verdict is computed against the machine it actually ran on",
+  );
+}
+
+// An attempt that never reached a builder has no recorded channel, so the
+// dispatcher's own rule is still the best available guess.
+{
+  const s = applyRunContext(
+    snap(),
+    { payload: null },
+    {
+      presence: LOCAL_DOWN,
+      project: { dirPath: null, gitUrl: "https://github.com/bitbaum/loki", builderPref: "cloud" },
+      pending: null,
+      ack: { ok: null, verified: null, warning: null, channel: null },
+    },
+  );
+  assert.equal(s.builderChannel, "cloud", "no recorded channel → fall back to the stored decision");
+  assert.equal(s.builderOffline, false, "the cloud box is up");
+}
+
 console.log("✓ feedback run-context tests passed");

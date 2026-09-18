@@ -86,7 +86,20 @@ export function applyRunContext(
   // will do" and reported a local run HEALTHY because the cloud box was up. The
   // project's stored routing decision (locus lock → builder_pref → cloud floor)
   // is the same answer the dispatcher used, so ask it.
-  const ch = snap.builderChannel ?? pickDispatchChannel(ctx.project);
+  // Order matters, and it is an order of EVIDENCE, not convenience:
+  //
+  //   1. the open pending row  — this attempt, right now
+  //   2. the executed command  — this attempt, recorded when it was handed over
+  //   3. the project's setting — where a NEW dispatch would go today
+  //
+  // Only the first two are about the attempt being described. The third is a
+  // live preference the operator can change afterwards, so using it to explain
+  // a historical run answers a question nobody asked: flip a project to Cloud
+  // and yesterday's laptop run starts claiming it ran on the box, with its
+  // offline verdict computed against the wrong machine. It stays as the last
+  // resort because a run that never reached a builder has no recorded channel
+  // at all, and the dispatcher's own rule is the best available guess there.
+  const ch = snap.builderChannel ?? ctx.ack?.channel ?? pickDispatchChannel(ctx.project);
   snap.builderChannel = ch;
   snap.builderOffline = ch === "local" ? !ctx.presence.local : !ctx.presence.cloud;
 
