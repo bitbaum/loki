@@ -5,7 +5,7 @@
  * Deliberately free of data access so the invariant it encodes can be tested
  * without a database — `attach-work.ts` does the querying and calls in here.
  */
-import type { PendingByRun, InjectAckByRun } from "@/db/queries/pending-commands";
+import type { PendingByRun, InjectAckByRun, QueueBlocker } from "@/db/queries/pending-commands";
 import { pickDispatchChannel, type ProjectLocus } from "@/lib/execution-access";
 import type { BuilderChannelPresence } from "@/lib/builder-presence";
 import type { FeedbackRunSnapshot } from "@/lib/feedback/work-phase";
@@ -22,6 +22,12 @@ export type RunHydrateContext = {
   pending?: PendingByRun | null;
   latestEventKind?: string | null;
   ack?: InjectAckByRun | null;
+  /**
+   * The open run ahead of this one in its project's lane, from
+   * findQueueBlockers. Present = the per-project gate is withholding this
+   * command on purpose, and no builder is at fault for not claiming it.
+   */
+  blocker?: QueueBlocker | null;
 };
 
 /**
@@ -43,6 +49,13 @@ export function applyRunContext(
   ctx: RunHydrateContext,
 ): FeedbackRunSnapshot {
   snap.latestEventKind = ctx.latestEventKind ?? null;
+  snap.queuedBehind = ctx.blocker
+    ? {
+        runId: ctx.blocker.runId,
+        label: ctx.blocker.label,
+        startedAt: ctx.blocker.startedAt.toISOString(),
+      }
+    : null;
   const pending = ctx.pending ?? null;
   if (pending) {
     snap.pendingUnclaimed = pending.claimedAt == null;

@@ -158,6 +158,12 @@ export type FeedbackRunSnapshot = {
   builderChannel?: "cloud" | "local" | null;
   localOnline?: boolean;
   cloudOnline?: boolean;
+  /**
+   * The open run ahead of this one in the project's lane, when the per-project
+   * FIFO gate is deliberately withholding this command (see findQueueBlockers).
+   * Absent means the gate is not the reason this run has not started.
+   */
+  queuedBehind?: { runId: string; label: string | null; startedAt: string } | null;
 };
 
 const STARTING_MS = 90_000;
@@ -224,6 +230,7 @@ function withStep(
     lastProgressAt: run.lastProgressAt,
     blocked: run.blocked,
     pendingUnclaimed: run.pendingUnclaimed,
+    queuedBehind: run.queuedBehind ?? null,
     hosted: run.hostedPending === true,
     channel: run.builderChannel ?? null,
     localOnline: run.localOnline,
@@ -403,6 +410,26 @@ function derivePhase(
         : localQueue
           ? `This computer (Fleet Runner) is offline${claimed ? " and the prompt was already handed to it — no output since" : " — no agent session until it reconnects"}, or switch the project to Cloud.`
           : `Cloud builder offline${claimed ? " and the prompt was already handed to it — no output since" : " — no agent session will appear until loki-box-runner is online (or Hermes accepts)"}.`,
+    };
+  }
+  // Waiting its turn is not a fault, and must be read BEFORE the age-based
+  // "never started" verdict below. Loki serialises per project: while one run
+  // is open, the queue deliberately withholds the next command for that
+  // project (fifoEligibilitySql). On 2026-09-17 a dispatch held that way was
+  // reported as "Retry — or Open Terminal for why it never started" while the
+  // panel under it said "confirm Fleet Runner is polling" — two wrong
+  // sentences, contradicting each other, about a queue and a runner that were
+  // both working. Retry cannot help: it only enqueues a second command that
+  // the same gate withholds for the same reason.
+  if (!run.deliveredAt && run.queuedBehind) {
+    const ahead = run.queuedBehind.label?.trim();
+    return {
+      phase: FEEDBACK_WORK_PHASE.QUEUED,
+      label: "Queued",
+      detail: ahead
+        ? `Behind “${ahead}” on this project — starts when that run finishes`
+        : "Behind another run on this project — starts when that one finishes",
+      since: run.queuedBehind.startedAt,
     };
   }
   if (!run.deliveredAt && ageMs > STARTING_MS) {

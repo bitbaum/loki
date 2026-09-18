@@ -1,6 +1,10 @@
 import { getOrchestrationRunsByIds } from "@/db/queries/orchestration-runs";
 import { getLatestRunEventKinds } from "@/db/queries/run-events";
-import { getOpenPendingByRunIds, getInjectAcksByRunIds } from "@/db/queries/pending-commands";
+import {
+  getOpenPendingByRunIds,
+  getInjectAcksByRunIds,
+  findQueueBlockers,
+} from "@/db/queries/pending-commands";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
 import { getUserProjectsByEntityIds, getUserProjectByEntityId } from "@/db/queries/user-projects";
 import { applyRunContext } from "@/lib/feedback/run-context";
@@ -60,11 +64,12 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
     ...new Set(items.map((i) => i.dispatchedRunId).filter((id): id is string => !!id)),
   ];
   const runs = await getOrchestrationRunsByIds(userId, runIds);
-  const [latestKinds, pendingByRun, injectAcks, presence] = await Promise.all([
+  const [latestKinds, pendingByRun, injectAcks, presence, blockers] = await Promise.all([
     getLatestRunEventKinds(runIds),
     getOpenPendingByRunIds(userId, runIds),
     getInjectAcksByRunIds(userId, runIds),
     getBuilderPresence(userId).catch(() => ({ cloud: false, local: false, any: false })),
+    findQueueBlockers(runIds).catch(() => new Map()),
   ]);
   // Presence flags alone are not enough: offline means the builder that owns
   // THIS command's channel is down. Computed per row once we know the channel.
@@ -182,6 +187,7 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
         pending: pendingByRun.get(row.id) ?? null,
         latestEventKind: latestKinds.get(row.id) ?? null,
         ack: injectAcks.get(row.id) ?? null,
+        blocker: blockers.get(row.id) ?? null,
       });
     }
     return { ...item, work: deriveFeedbackWork(item.status, snap) };
@@ -215,7 +221,7 @@ export async function hydrateFeedbackSnapshot(
 ): Promise<FeedbackRunSnapshot | null> {
   const snap = runToFeedbackSnapshot(run);
   if (!snap || !run) return snap;
-  const [latestKinds, pendingByRun, injectAcks, presence, project] = await Promise.all([
+  const [latestKinds, pendingByRun, injectAcks, presence, project, blockers] = await Promise.all([
     getLatestRunEventKinds([run.id]),
     getOpenPendingByRunIds(userId, [run.id]),
     getInjectAcksByRunIds(userId, [run.id]),
@@ -223,6 +229,7 @@ export async function hydrateFeedbackSnapshot(
     run.projectId
       ? getUserProjectByEntityId(userId, run.projectId).catch(() => null)
       : Promise.resolve(null),
+    findQueueBlockers([run.id]).catch(() => new Map()),
   ]);
   return applyRunContext(snap, run, {
     presence,
@@ -230,6 +237,7 @@ export async function hydrateFeedbackSnapshot(
     pending: pendingByRun.get(run.id) ?? null,
     latestEventKind: latestKinds.get(run.id) ?? null,
     ack: injectAcks.get(run.id) ?? null,
+    blocker: blockers.get(run.id) ?? null,
   });
 }
 
