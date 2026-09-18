@@ -17,6 +17,7 @@ import {
   decideAutoShip,
   projectsPausedByBrokenDeploy,
   prOpenedByRun,
+  prPredatesRun,
   RUN_CLOCK_SLACK_MS,
   type AutoShipInput,
 } from "../../src/lib/feedback/auto-ship";
@@ -184,6 +185,51 @@ console.log("feedback-auto-ship: ok");
     hold({ fromOurDispatch: false }),
     AUTO_SHIP_HOLD.NOT_OURS,
     "a pull request this run did not open is never merged",
+  );
+
+  // ── The same rule, for what the operator is TOLD ──────────────────────────
+  //
+  // prPredatesRun is what stops a mentioned number rendering "Live · confirm"
+  // on a report nothing was done about. It is deliberately not the negation of
+  // prOpenedByRun: both answer false when the timestamps are unknown, so an
+  // unknown never merges AND never demotes a real fix to "nothing shipped".
+  assert.equal(
+    prPredatesRun(t(-RUN_CLOCK_SLACK_MS - 1), runStart),
+    true,
+    "older than the slack window — the run cannot have produced it",
+  );
+  assert.equal(prPredatesRun(t(-86_400_000), runStart), true, "yesterday's pull request");
+  assert.equal(prPredatesRun(t(60_000), runStart), false, "opened during the run — ours");
+  assert.equal(
+    prPredatesRun(t(-30_000), runStart),
+    false,
+    "inside the slack window is clock skew, not someone else's work",
+  );
+
+  // The unknown case, stated twice because it is the whole design: neither
+  // predicate fires, so a missing created_at leaves the ledger exactly as it
+  // was rather than merging it or contradicting it.
+  for (const [prAt, run] of [
+    [null, runStart],
+    [t(60_000), null],
+    ["not a date", runStart],
+  ] as const) {
+    assert.equal(prOpenedByRun(prAt, run), false, "unknown never merges");
+    assert.equal(prPredatesRun(prAt, run), false, "unknown never discounts a real fix");
+  }
+
+  // The real numbers again (dogfood-site-sep10-1201, 2026-09-11): the pull
+  // request the parser wrongly named is six hours older than the run, so the
+  // ledger must discount it — that shape is what printed a false "Live".
+  assert.equal(
+    prPredatesRun("2026-09-11T10:21:48Z", "2026-09-11T16:13:25Z"),
+    true,
+    "PR #1, six hours older — discounted, never reported as shipped",
+  );
+  assert.equal(
+    prPredatesRun("2026-09-11T16:15:37Z", "2026-09-11T16:13:25Z"),
+    false,
+    "PR #3, opened two minutes in — the real fix, still reported",
   );
 }
 

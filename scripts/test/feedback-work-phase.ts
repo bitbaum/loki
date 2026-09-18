@@ -17,11 +17,12 @@ import {
   deriveFeedbackWork,
   workElapsedLabel,
   FEEDBACK_WORK_PHASE,
+  WAITING_ON,
   type FeedbackRunSnapshot,
 } from "../../src/lib/feedback/work-phase";
 import { FEEDBACK_STATUS } from "../../src/lib/constants/statuses";
 import { ORCH_STATE, ORCHESTRATION_OUTCOME } from "../../src/lib/orchestration/contract";
-import { livePageHref } from "../../src/lib/feedback/fix-shipping";
+import { FIX_SHIP_STATE, livePageHref } from "../../src/lib/feedback/fix-shipping";
 import { feedbackInjectAccepted } from "../../src/lib/feedback/dispatch-accept";
 
 function snap(over: Partial<FeedbackRunSnapshot>): FeedbackRunSnapshot {
@@ -267,8 +268,6 @@ for (const prompt of [
   assert.match(prompt, /normal PR\/merge\/deploy path/);
   assert.match(prompt, /Leave feedback resolution to the operator/);
 }
-
-console.log("✓ feedback work-phase tests passed");
 
 // 3. The runner heartbeat decides Working vs Stalled after delivery — not the
 //    clock. Before this, every delivered run turned "Not running" at minute
@@ -553,3 +552,66 @@ console.log("✓ feedback work-phase tests passed");
     "bytes now outrank a stale presence row — offline must not mute a live agent",
   );
 }
+
+// ── A pull request the run did not open never reads as shipped ──────────────
+//
+// The failure this pins is the worst sentence this surface can produce. The
+// pull request is resolved from PROSE the agent wrote, so a handoff that merely
+// mentions a number hands the ledger someone else's work; if that PR happens to
+// be merged and deployed, the row rendered "Live · confirm" for a report
+// nothing had been done about — and a false Live takes the row out of the queue
+// that exists to say what still needs the operator.
+//
+// The refresher now discounts it (state NO_EVIDENCE + foreignPr), which is the
+// SAME rule that already refused to merge it (AUTO_SHIP_HOLD.NOT_OURS). This
+// asserts the reader-facing half: waiting on YOU, no "live", and the number
+// named rather than an inaccurate "no pull request was found".
+{
+  const foreign = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      state: ORCH_STATE.CLOSED,
+      outcome: ORCHESTRATION_OUTCOME.PARTIAL,
+      finishedAt: new Date(),
+      fix: {
+        state: FIX_SHIP_STATE.NO_EVIDENCE,
+        pr: { number: 42, url: "https://github.com/o/r/pull/42", title: "someone else's work" },
+        foreignPr: true,
+        checkedAt: new Date().toISOString(),
+      },
+    }),
+  );
+  assert.equal(foreign.phase, FEEDBACK_WORK_PHASE.NEEDS_VERIFY);
+  assert.equal(foreign.waitingOn, WAITING_ON.YOU, "nothing shipped — it is the operator's move");
+  assert.equal(foreign.label, "Finished · nothing shipped");
+  assert.ok(
+    !/\blive\b/i.test(`${foreign.label} ${foreign.detail ?? ""}`),
+    "a discounted pull request must never render as Live",
+  );
+  assert.ok(foreign.checkLive !== true, "no Check live button for a fix that does not exist");
+  assert.ok(
+    foreign.detail?.includes("PR #42"),
+    "name the pull request it discounted — 'none was found' would send the reader hunting a parser bug",
+  );
+
+  // Same state WITHOUT the flag keeps the original wording, so the honest
+  // "the agent shipped nothing at all" case is untouched.
+  const nothing = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      state: ORCH_STATE.CLOSED,
+      outcome: ORCHESTRATION_OUTCOME.SUCCESS,
+      finishedAt: new Date(),
+      fix: { state: FIX_SHIP_STATE.NO_EVIDENCE, checkedAt: new Date().toISOString() },
+    }),
+  );
+  assert.ok(
+    nothing.detail?.includes("no pull request or push was found"),
+    "unchanged when there really was no evidence",
+  );
+}
+
+// Last line on purpose: this used to sit two thirds of the way up, so a
+// failure in any assertion below it printed UNDER a line claiming the suite
+// had passed. The runner reads the exit code, but a person reads the log.
+console.log("✓ feedback work-phase tests passed");

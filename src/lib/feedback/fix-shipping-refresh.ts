@@ -11,7 +11,7 @@
 import { GITHUB_API_BASE } from "@/lib/github-api";
 import { getRepoWriteToken } from "@/lib/github-org-token";
 import { stampRunFix } from "@/db/queries/orchestration-runs";
-import { decideAutoShip, prOpenedByRun } from "@/lib/feedback/auto-ship";
+import { decideAutoShip, prOpenedByRun, prPredatesRun } from "@/lib/feedback/auto-ship";
 import {
   deriveShippingFromPr,
   FIX_SHIP_STATE,
@@ -227,7 +227,27 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
       else {
         const pr = await fetchPr(ref, picked.token);
         if (!pr) fix = claimed;
-        else {
+        else if (prPredatesRun(pr.createdAt, input.runStartedAt)) {
+          // The pull request is older than the run that claims it, so the run
+          // cannot have produced it — the number came out of prose the agent
+          // wrote, and it belongs to other work.
+          //
+          // Loki ALREADY refused to merge this pull request for exactly this
+          // reason (AUTO_SHIP_HOLD.NOT_OURS). It went on reporting it anyway:
+          // deriveShippingFromPr ran on every ledger regardless, so a mentioned
+          // number that happened to be merged and deployed rendered
+          // "Live · confirm" on a report nothing had been done about. That is
+          // the worst thing this surface can say — the operator's queue exists
+          // to tell them what still needs them, and a false Live removes a row
+          // from that queue. Refusing to act on evidence while still publishing
+          // a conclusion from it was never coherent; one rule, both decisions.
+          fix = {
+            state: FIX_SHIP_STATE.NO_EVIDENCE,
+            pr: { number: pr.number, url: pr.html_url, title: pr.title },
+            foreignPr: true,
+            checkedAt,
+          };
+        } else {
           const runs =
             pr.merged_at && pr.merge_commit_sha
               ? await fetchRunsForSha(ref, pr.merge_commit_sha, picked.token)
