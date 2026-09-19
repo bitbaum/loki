@@ -138,9 +138,19 @@ Minimum local `.env.local`:
 ```bash
 DATABASE_URL=postgresql://loki:changeme@localhost:5432/loki
 AUTH_SECRET=replace-me
+AUTH_TRUST_HOST=true   # without it every /api/auth/session returns 500
 GITHUB_CLIENT_ID=replace-me
 GITHUB_CLIENT_SECRET=replace-me
 ```
+
+`AUTH_TRUST_HOST` is not optional on localhost: Auth.js rejects an untrusted
+host, so the pages render but nothing can read a session. It is compared to the
+exact string `"true"` — `1` does not work.
+
+The database needs the **pgvector** extension (the knowledge index stores a
+`vector(384)`); `drizzle-kit push` fails on the first table without it. The
+compose db service uses the `pgvector/pgvector` image and creates the extension
+on first boot. Against your own Postgres, run `CREATE EXTENSION vector;` first.
 
 On a fresh database, visit `/setup` to create the first user.
 
