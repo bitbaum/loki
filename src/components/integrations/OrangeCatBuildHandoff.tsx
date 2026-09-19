@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowRight, Bot, ExternalLink } from "lucide-react";
 import type { OrangeCatBuildIntent } from "@/lib/integrations/orangecat-build-intent";
-import { decideHandoffMode, kickoffAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
+import { decideHandoffMode, interviewAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
 
 interface ProjectOption {
   id: string;
@@ -78,9 +78,10 @@ export function OrangeCatBuildHandoff({
       });
       const body = (await response.json()) as { url?: string; error?: string };
       if (!response.ok || !body.url) throw new Error(body.error || "Could not create project.");
-      // A new project lands with the kickoff running; a linked existing one
-      // lands as it is — linking is not consent to start work on it.
-      window.location.assign(mode === "new" ? kickoffAutoHref(body.url) : body.url);
+      // A new project lands on the interview, which runs the kickoff once it
+      // has answers; a linked existing one lands as it is — linking is not
+      // consent to start work on it.
+      window.location.assign(mode === "new" ? interviewAutoHref(body.url) : body.url);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create project.");
       setSubmitting(false);
@@ -121,9 +122,12 @@ export function OrangeCatBuildHandoff({
             <li className="flex gap-2.5">
               <span aria-hidden>—</span>
               <span>
-                <strong className="font-medium text-text-primary">The build starts now.</strong>{" "}
-                Loki creates the project, fills its profile, plans milestones, creates a repository
-                and puts an agent on it. No money moves and nothing is published.{" "}
+                <strong className="font-medium text-text-primary">
+                  Loki asks you a few questions, then builds.
+                </strong>{" "}
+                It creates the project, asks what your public page could not say, and then fills the
+                profile, plans milestones, creates a repository and puts an agent on it. You can
+                skip every question. No money moves and nothing is published.{" "}
                 <a href={reviewHref} className="ui-public-link">
                   Prefer to choose where it lands first?
                 </a>
@@ -223,7 +227,7 @@ export function OrangeCatBuildHandoff({
             <>
               <h2 className="text-lg font-semibold text-text-primary">Creating the project</h2>
               <p className="mt-2 text-sm text-text-secondary">
-                One moment — you will land on the new project with the kickoff already running.
+                One moment — you will land on the new project with the first question ready.
               </p>
             </>
           ) : (

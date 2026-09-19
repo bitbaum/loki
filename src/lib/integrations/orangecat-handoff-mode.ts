@@ -32,12 +32,39 @@ export function decideHandoffMode(input: {
 export const KICKOFF_AUTO_PARAM = "kickoff";
 export const KICKOFF_AUTO_VALUE = "auto";
 
+/**
+ * Query flag that opens the interview instead — what a NEW project gets.
+ *
+ * A project created from a handoff knows a title and one public sentence, and
+ * the kickoff turns exactly that text into a profile, a roadmap and an agent's
+ * brief. Starting there means the first thing Loki does with a new customer is
+ * build confidently from almost nothing. So a new project stops to ask first,
+ * and reaches the kickoff a few sentences later with a profile worth building
+ * from. An EXISTING project that was merely linked gets neither flag — linking
+ * is not consent to start work on it, which was already true and stays true.
+ */
+export const INTERVIEW_AUTO_PARAM = "interview";
+export const INTERVIEW_AUTO_VALUE = "auto";
+
 /** The project URL the API returned, with the auto-kickoff flag appended. */
 export function kickoffAutoHref(projectUrl: string): string {
+  return withFlag(projectUrl, KICKOFF_AUTO_PARAM, KICKOFF_AUTO_VALUE);
+}
+
+/** The same URL, flagged to open the interview before anything is built. */
+export function interviewAutoHref(projectUrl: string): string {
+  return withFlag(projectUrl, INTERVIEW_AUTO_PARAM, INTERVIEW_AUTO_VALUE);
+}
+
+function withFlag(projectUrl: string, param: string, value: string): string {
   const sep = projectUrl.includes("?") ? "&" : "?";
-  return `${projectUrl}${sep}${KICKOFF_AUTO_PARAM}=${KICKOFF_AUTO_VALUE}`;
+  return `${projectUrl}${sep}${param}=${value}`;
 }
 
 export function isKickoffAuto(value: string | string[] | undefined): boolean {
   return value === KICKOFF_AUTO_VALUE;
+}
+
+export function isInterviewAuto(value: string | string[] | undefined): boolean {
+  return value === INTERVIEW_AUTO_VALUE;
 }

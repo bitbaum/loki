@@ -17,8 +17,11 @@ import { getHealthSignals, HEALTH_SIGNAL_CONFIG } from "./project-badges";
 import { computeProjectHealth } from "@/lib/project-health";
 import { FixSignalButton } from "./ProjectActionButtons";
 import { ProjectKickoff } from "./ProjectKickoff";
+import { ProjectInterview } from "./ProjectInterview";
 import { AssistantContextBridge } from "./AssistantContextBridge";
 import { needsKickoff } from "@/lib/project-kickoff";
+import { needsInterview } from "@/lib/project-interview";
+import { kickoffAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
 import { deriveBuildStatus, isBuildActive } from "@/lib/project-build-status";
 import { ProjectBuildStatus } from "./ProjectBuildStatus";
 import { answer, cleanDescription } from "@/lib/project-display";
@@ -28,11 +31,14 @@ export function ProjectWorkspaceView({
   dossier,
   shareAction,
   autoKickoff = false,
+  autoInterview = false,
 }: {
   dossier: ProjectDossier;
   shareAction?: React.ReactNode;
   /** Arrived from a one-click build (OrangeCat handoff): start the kickoff without a press. */
   autoKickoff?: boolean;
+  /** Arrived on a project the handoff just CREATED: ask before building. */
+  autoInterview?: boolean;
 }) {
   const { detail, userProject } = dossier;
   const project = detail.project;
@@ -206,6 +212,17 @@ export function ProjectWorkspaceView({
                   setupNeeded={showKickoff}
                   hasNextStep={Boolean(nextStep)}
                 />
+                {/* Before the kickoff, not beside it: every step below reads the
+                    profile, so the questions are worth asking first. It renders
+                    only while essential fields are still blank. */}
+                {!dossier.readonly && (
+                  <ProjectInterview
+                    projectId={project.id}
+                    needed={needsInterview({ attrs })}
+                    autoStart={autoInterview}
+                    kickoffHref={kickoffAutoHref(`/projects/${project.id}`)}
+                  />
+                )}
                 {!dossier.readonly && (
                   <ProjectKickoff
                     projectId={project.id}
