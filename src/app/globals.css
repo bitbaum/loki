@@ -533,9 +533,7 @@
   .ui-mobile-nav-row-active {
     @apply bg-accent-muted text-text-primary;
   }
-  .ui-mobile-nav-sheet-footer {
-    @apply shrink-0 space-y-1 border-t border-border-subtle px-3 py-3;
-  }
+
   .ui-sidebar {
     position: sticky;
     top: 0;
