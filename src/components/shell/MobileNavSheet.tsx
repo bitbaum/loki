@@ -1,22 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, Lock, Settings as SettingsIcon, X } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { Lock, X } from "lucide-react";
 import {
   MOBILE_NAV_ITEMS,
-  NAV,
   SIDEBAR_SECTIONS,
   type NavItem,
   type SidebarSection,
 } from "@/config/navigation";
 import { isCurrentPath } from "@/lib/navigation";
-import { ROUTES } from "@/config/auth";
 import { cn } from "@/lib/utils";
 import { usePrivateZone } from "@/hooks/use-private-zone";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 import { useOverlayLock } from "@/hooks/use-overlay-lock";
-import { ThemeToggle } from "@/components/shell/ThemeToggle";
 
 const TAB_IDS = new Set(MOBILE_NAV_ITEMS.map((item) => item.id));
 
@@ -106,6 +102,7 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
             return (
               <div key={section.id} className="px-3 pb-2">
                 <p className="ui-mobile-nav-sheet-label">{section.label}</p>
+                <p className="ui-mobile-nav-sheet-question">{section.question}</p>
                 <div className="space-y-1">
                   {items.map((item) => (
                     <MobileNavRow
@@ -121,27 +118,11 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
           })}
         </div>
 
-        <div className="ui-mobile-nav-sheet-footer">
-          <div className="flex items-center justify-between gap-3 rounded-xl px-3 py-2">
-            <span className="text-sm text-text-secondary">Appearance</span>
-            <ThemeToggle showLabel />
-          </div>
-          <Link href={NAV.settings.href} onClick={onClose} className="ui-mobile-nav-row">
-            <SettingsIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
-            <span className="text-sm font-medium">{NAV.settings.label}</span>
-          </Link>
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              signOut({ callbackUrl: ROUTES.SIGN_IN });
-            }}
-            className="ui-mobile-nav-row text-text-secondary"
-          >
-            <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
-            <span className="text-sm font-medium">Sign out</span>
-          </button>
-        </div>
+        {/* No footer. This sheet used to end with Appearance + Settings +
+            Sign out — a second account menu, duplicating the sidebar footer's,
+            with neither of them called one and no account menu in the header
+            at all. All three now live in AccountMenu, which is in the top bar
+            on every viewport including this one. */}
       </div>
     </>
   );

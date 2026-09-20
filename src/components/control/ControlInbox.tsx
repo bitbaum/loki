@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFetch } from "@/hooks/use-fetch";
+import { type ControlInboxState } from "@/hooks/use-control-inbox";
 import { patchJson, postJson, throwApiError } from "@/lib/api/fetch";
 import { compactRelativeDate } from "@/lib/dates";
 import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
@@ -28,7 +29,6 @@ import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { FeedbackWorkBadge } from "@/components/feedback/FeedbackWorkBadge";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
-import type { ProjectFeedbackSummary } from "@/db/queries/site-feedback";
 import type { WidgetCoverageItem } from "@/db/queries/widget-tokens";
 import { FAILURE_REMEDY, REMEDY_LABEL } from "@/lib/failure-remedy";
 
@@ -79,29 +79,19 @@ const PREVIEW_LIMIT = 3;
 
 type GroupId = "feedback" | "widget";
 
-export function ControlInbox() {
-  const feedback = useFetch<{ summary: ProjectFeedbackSummary[] }>("/api/feedback/summary");
-  const widget = useFetch<{ coverage: WidgetCoverageItem[]; needsAttention: WidgetCoverageItem[] }>(
-    "/api/feedback/widget-coverage",
-  );
-
+/**
+ * The queue is READ by `useControlInbox`, one level up in ControlPanel, and
+ * handed to this component. It used to own the fetches, which meant its count
+ * could not be seen by the hero that claims to answer the same question — and
+ * so the hero said "Idle — nothing queued" above a panel badged 6.
+ */
+export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
   // Collapsed until asked — see rule 1. `null` is a real state, not "unset":
   // there is no auto-open to fall back to.
   const [openGroup, setOpenGroup] = useState<GroupId | null>(null);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
 
-  const summary = feedback.data?.summary ?? [];
-  const needsWidget = widget.data?.needsAttention ?? [];
-
-  const feedbackCount = summary.reduce((n, s) => n + (s.newCount || s.openCount), 0);
-  const total = feedbackCount + needsWidget.length;
-
-  // A fetch that failed yields `[]` exactly like a queue that is genuinely
-  // empty, and this panel answers "is anything waiting on me?" by existing at
-  // all. Conflating the two makes a failed request render as the confident
-  // answer "no" — the one wrong answer this component must never give.
-  const loadFailed = Boolean(feedback.error || widget.error);
-  const settling = feedback.loading || widget.loading;
+  const { summary, needsWidget, feedbackCount, total, loadFailed, settling } = inbox;
 
   // Silence is the correct rendering of an empty queue. An "Inbox (0)" panel is
   // a permanent reminder that a feature exists, which is not the same as being
@@ -123,14 +113,7 @@ export function ControlInbox() {
           <p className="ui-inbox-row-blocked" role="status">
             Couldn&apos;t load the inbox — this is not a claim that nothing needs you.
           </p>
-          <button
-            type="button"
-            className="ui-btn-xs mt-2"
-            onClick={() => {
-              feedback.refetch();
-              widget.refetch();
-            }}
-          >
+          <button type="button" className="ui-btn-xs mt-2" onClick={inbox.refetch}>
             Retry
           </button>
         </div>
@@ -189,7 +172,7 @@ export function ControlInbox() {
               key={openProjectId}
               projectId={openProjectId}
               projectName={summary.find((s) => s.projectId === openProjectId)?.projectName ?? ""}
-              onChanged={feedback.refetch}
+              onChanged={inbox.refetch}
             />
           )}
           {!openProjectId && (
@@ -206,7 +189,7 @@ export function ControlInbox() {
           open={openGroup === "widget"}
           onToggle={() => toggle("widget")}
         >
-          <WidgetCoverage items={needsWidget} onChanged={widget.refetch} />
+          <WidgetCoverage items={needsWidget} onChanged={inbox.refetch} />
         </GroupRow>
       )}
     </section>

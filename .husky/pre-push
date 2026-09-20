@@ -81,10 +81,23 @@ fi
 # is cheaper than the incident.
 touches() { grep -qE "$1" "$_changed"; }
 
+# Route each path to the suite that actually COVERS it.
+#
+# `scripts/test/` used to sit in the _ops arm, and that was backwards in both
+# directions. test:ops runs `scripts/hetzner/test-*.sh` and nothing else — no
+# file under scripts/test/ can affect it. Meanwhile scripts/test/ holds the 218
+# .ts files that ARE the unit suite (scripts/test-unit.ts globs the directory),
+# and the unit suite lives in the _app arm. So editing a unit test ran an
+# unrelated shell suite and never ran the unit suite it belonged to: a broken
+# test added under scripts/test/ passed pre-push.
+#
+# The .sh gate scripts that also live there (deploy-ref-gate, not-behind-gate,
+# client-ledger-gate, deploy-ready-gate) belong to the _register arm, which is
+# what runs them.
 _app=""; _ops=""; _register=""
-touches '^(src|home|widget)/|^(package\.json|pnpm-lock\.yaml|tsconfig.*\.json|eslint\.config\.[cm]?js|next\.config\.[cm]?js)$' && _app=1
-touches '^scripts/(hetzner|site-template|test)/' && _ops=1
-touches '^scripts/hetzner/apps\.conf$|^scripts/ci/|^docs/telegram-notifications\.md$' && _register=1
+touches '^(src|home|widget)/|^scripts/test/.*\.ts$|^(package\.json|pnpm-lock\.yaml|tsconfig.*\.json|eslint\.config\.[cm]?js|next\.config\.[cm]?js)$' && _app=1
+touches '^scripts/(hetzner|site-template)/' && _ops=1
+touches '^scripts/hetzner/apps\.conf$|^scripts/ci/|^scripts/test/.*gate\.sh$|^docs/telegram-notifications\.md$' && _register=1
 
 echo "→ pre-push: $(wc -l < "$_changed") file(s) vs origin/${_def:-main} — app:${_app:-0} ops:${_ops:-0} register:${_register:-0} — load $(cut -d' ' -f1 /proc/loadavg 2>/dev/null) on $(nproc 2>/dev/null) cores"
 

@@ -200,7 +200,7 @@ export type ControlDashboardState = {
 
 /** Truthful fleet-pulse for the Control hero. */
 export type FleetPulse = {
-  key: "paused" | "building" | "waiting" | "failing" | "stalled" | "partial";
+  key: "paused" | "building" | "waiting" | "failing" | "stalled" | "partial" | "inbox" | "unknown";
   label: string;
   /** Secondary sentence for the failing/stalled states ("failing" renders
    *  with an Activity link; "stalled" names the stuck projects inline). */
@@ -336,6 +336,14 @@ export function deriveFleetPulse(input: {
     oldestSeconds: number;
     tabs?: string[];
   } | null;
+  /** The "Needs you" queue — feedback awaiting triage plus sites missing the
+   *  widget. The hero's whole brief is "is anything waiting on me?", and until
+   *  this argument existed it answered that question without reading the one
+   *  queue on the page that literally counts things waiting on the operator:
+   *  it printed "Idle — nothing queued" above a panel badged 6. `unknown` is
+   *  distinct from `count: 0` on purpose — a queue we failed to read is not a
+   *  queue we know to be empty. */
+  inbox?: { count: number; unknown: boolean } | null;
 }): FleetPulse {
   if (input.automationMode === "off") return { key: "paused", label: "Paused", detail: null };
   // A genuine execution stall outranks "Building": an observed terminal
@@ -415,6 +423,28 @@ export function deriveFleetPulse(input: {
       key: "waiting",
       label: "Waiting on you",
       detail: `${n} project${n === 1 ? "" : "s"} awaiting your input — autopilot doesn't interrupt a session that's waiting on you.`,
+    };
+  }
+  // Ranked LAST among the states that say something is up, and deliberately so:
+  // these are small chores, not a blocked fleet, so a stall, a failure, a
+  // half-finished run or a project awaiting input all outrank them. But they
+  // comfortably outrank "Idle", because they are the literal answer to the
+  // question this hero asks.
+  const inbox = input.inbox;
+  if (inbox && inbox.count > 0) {
+    return {
+      key: "inbox",
+      label: "Waiting on you",
+      detail:
+        `${inbox.count} small thing${inbox.count === 1 ? "" : "s"} to review — ` +
+        `feedback to triage and sites missing the widget. See “Needs you” below.`,
+    };
+  }
+  if (inbox?.unknown) {
+    return {
+      key: "unknown",
+      label: "Nothing queued",
+      detail: "Couldn’t read the review queue, so this is not a claim that nothing needs you.",
     };
   }
   return { key: "waiting", label: "Idle — nothing queued", detail: null };

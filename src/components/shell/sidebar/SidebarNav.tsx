@@ -15,11 +15,15 @@ import {
   SIDEBAR_SECTIONS_STORAGE_KEY,
   LEGACY_SIDEBAR_SECTIONS_STORAGE_KEY,
 } from "@/config/brand-storage";
+// Every loop section starts open. The old default kept three of four sections
+// collapsed, which is why the sidebar read as a short list with a lot of
+// chevrons: the taxonomy was hidden behind the very control meant to reveal
+// it. With the loop there are only three sections and eleven items — they fit.
 const DEFAULT_EXPANDED: Record<string, boolean> = {
-  work: true, // the four daily surfaces
-  more: false, // destinations — Terminal, Agents, Atlas, …
-  private: false, // hidden until the user explicitly opens it
-  site: false, // marketing pages — least-used inside the app shell
+  now: true, // what needs me
+  fleet: true, // what my fleet is doing
+  command: true, // how I act on it
+  private: false, // the user's own data — opened deliberately, not browsed
 };
 
 function loadExpanded(): Record<string, boolean> {
@@ -79,9 +83,10 @@ export function SidebarNav({ pathname, collapsed }: { pathname: string; collapse
   return (
     <nav className={collapsed ? "px-2 py-4 space-y-4" : "px-3 py-4 space-y-3"}>
       {SIDEBAR_SECTIONS.map((section) => {
-        // Collapsed rail is the daily surface: Work only. More/site stay
-        // behind expand + Menu + palette. Private still needs the lock.
-        if (collapsed && section.id !== "work" && !(section.private && privateLocked)) {
+        // The collapsed rail carries the whole loop — Now, Fleet, Command —
+        // because eleven icons fit a rail and the loop is the product. Only
+        // Private is withheld, and only to keep its lock meaningful.
+        if (collapsed && section.private && !privateLocked) {
           return null;
         }
         // Icon-only sidebar shows every remaining item regardless of section
@@ -161,6 +166,7 @@ function SidebarNavSection({
           className="ui-sidebar-section-toggle"
           aria-expanded={isExpanded}
           aria-controls={`sidebar-section-${section.id}`}
+          title={section.question}
         >
           <span>{section.label}</span>
           <ChevronDown
