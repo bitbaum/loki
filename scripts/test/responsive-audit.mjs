@@ -120,6 +120,12 @@ const PAGES = [
   "/control",
   "/projects",
   "/approvals",
+  // /feedback and /robots were reachable from the sidebar and audited by
+  // neither list — the same hole the paragraph above describes, still open.
+  // /feedback is where an operator spends the triage half of their day, and its
+  // per-row action cluster is the densest control group in the app.
+  "/feedback",
+  "/robots",
   "/terminal",
   "/prompts",
   "/activity",

@@ -87,7 +87,7 @@ export function EventsGrid({
 
       {/* Type filter chips */}
       {types.length > 1 && (
-        <div className="ui-filter-chip-row">
+        <div className="ui-filter-chip-row ui-scroll-fade-right">
           {types.map((t) => (
             <button
               key={t}
