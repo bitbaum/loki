@@ -43,6 +43,17 @@ export const PatchProjectBody = z
      *  user-level beacon_settings.auto_inject_mode. Pass an AutoInjectMode
      *  value (e.g. "off", "queue_only", "strategist") to pin this project. */
     autoInjectModeOverride: z.union([z.enum(AUTO_INJECT_MODE_VALUES), z.null()]).optional(),
+    /** Consent to appear in Loki's public catalogue at /fleet. Lives on
+     *  user_projects, not entities — see patchProject. */
+    listedPublicly: z.boolean().optional(),
+    /** Operator's editorial pick for the landing hero. Accepted here but
+     *  AUTHORIZED IN THE ROUTE (isSiteOperator) — a tenant must not be able to
+     *  put themselves on the homepage by PATCHing their own project. */
+    featured: z.boolean().optional(),
+    /** "Not now" on the catalogue invitation. Write-once from the owner's own
+     *  page; there is no un-dismiss, because the toggle beside it is the way
+     *  back in and a second prompt would be the nagging this prevents. */
+    dismissListingPrompt: z.literal(true).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "Nothing to update" });
 
@@ -109,6 +120,22 @@ export async function patchProject(userId: string, id: string, data: PatchProjec
     .set(patch)
     .where(and(eq(entities.id, id), eq(entities.userId, userId)))
     .returning({ id: entities.id });
+
+  // Public-catalogue consent is a property of the user_projects row, which is
+  // what /fleet reads — so it is written separately rather than folded into the
+  // entities patch above. Always scoped by userId: consent is the owner's to
+  // give, and an id alone must never be enough to publish someone's project.
+  if (updated && (data.listedPublicly !== undefined || data.dismissListingPrompt)) {
+    await db
+      .update(userProjects)
+      .set({
+        ...(data.listedPublicly !== undefined ? { listedPublicly: data.listedPublicly } : {}),
+        ...(data.dismissListingPrompt ? { listingPromptDismissedAt: new Date() } : {}),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(userProjects.userId, userId), eq(userProjects.entityProjectId, id)));
+  }
+
   return updated ?? null;
 }
 

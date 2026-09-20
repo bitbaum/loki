@@ -19,7 +19,8 @@ import {
 } from "@/lib/rag/reindex-project-profile";
 import { getProjectActivity } from "@/db/queries/activity";
 import { getProjectStateByProjectId } from "@/db/queries/project-states";
-import { getUserProjectByEntityId } from "@/db/queries/user-projects";
+import { getUserProjectByEntityId, setProjectFeatured } from "@/db/queries/user-projects";
+import { isSiteOperator } from "@/db/queries/users";
 import { getRepoWriteToken } from "@/lib/github-org-token";
 import { deprovisionGithubRepo } from "@/lib/github-provision";
 
@@ -56,13 +57,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const dataOrResp = await readJsonBody(req, PatchProjectBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
 
+  // `featured` is the site operator's editorial pick for the landing hero, so
+  // it is handled here rather than in patchProject and is NOT scoped to the
+  // caller's own projects: curating the homepage means featuring other
+  // tenants' work. That is precisely why it needs its own authorization — a
+  // tenant PATCHing their own project must not be able to promote it.
+  const { featured, ...ownFields } = dataOrResp;
+  if (featured !== undefined) {
+    if (!(await isSiteOperator(userId))) {
+      return NextResponse.json(
+        { error: "Only the site operator can feature a project" },
+        { status: 403 },
+      );
+    }
+    const ok = await setProjectFeatured(idOrResp, featured);
+    if (!ok) {
+      // Either no such project, or it has not consented to be listed. Featuring
+      // cannot override consent — see db/queries/public-visibility.ts.
+      return NextResponse.json(
+        { error: "Not found, or the owner has not listed this project publicly" },
+        { status: 404 },
+      );
+    }
+    if (Object.keys(ownFields).length === 0) return NextResponse.json({ ok: true });
+  }
+
   try {
-    const before = dataOrResp.name !== undefined ? await getProjectCore(userId, idOrResp) : null;
-    const updated = await patchProject(userId, idOrResp, dataOrResp);
+    const before = ownFields.name !== undefined ? await getProjectCore(userId, idOrResp) : null;
+    const updated = await patchProject(userId, idOrResp, ownFields);
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (dataOrResp.name !== undefined && before?.name) {
+    if (ownFields.name !== undefined && before?.name) {
       scheduleRenamedProjectProfileReindex(userId, idOrResp, before.name);
-    } else if (dataOrResp.description !== undefined) {
+    } else if (ownFields.description !== undefined) {
       scheduleProjectProfileReindexByEntityId(userId, idOrResp);
     }
     return NextResponse.json({ ok: true });

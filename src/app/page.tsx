@@ -56,18 +56,18 @@ export default async function LandingPage({
   const elsewhere = landingRedirect({ insideRunner, signedIn, params });
   if (elsewhere) redirect(elsewhere);
 
-  // Real fleet snapshot for the hero console — the OWNER's actual fleet (founder
-  // dogfooding), public-safe fields only. Never fabricated. Falls back to an
-  // empty snapshot if the owner/data can't be resolved, so the hero degrades
-  // gracefully rather than showing invented numbers.
+  // Real fleet snapshot for the hero console: the SHOWCASE tier (owner
+  // consented AND operator featured) plus fleet-wide totals, public-safe
+  // fields only. It used to be the default user's own project list, which in a
+  // multi-tenant product published one account because of who it was — see
+  // db/queries/public-visibility.ts. Never fabricated; falls back to an empty
+  // snapshot so the hero degrades gracefully rather than inventing numbers.
+  const fleet: HeroFleetSnapshot = await getHeroFleetSnapshot().catch(() => ({
+    isLive: false,
+    projects: [],
+    metrics: [],
+  }));
   const owner = await getDefaultUser().catch(() => null);
-  const fleet: HeroFleetSnapshot = owner
-    ? await getHeroFleetSnapshot(owner.id).catch(() => ({
-        isLive: false,
-        projects: [],
-        metrics: [],
-      }))
-    : { isLive: false, projects: [], metrics: [] };
   // "Shipped thanks to feedback" — operator-featured resolved reports only
   // (raw visitor text never auto-publishes). Renders nothing until real
   // entries exist, per the same never-fabricate doctrine as the hero.
@@ -117,8 +117,9 @@ export default async function LandingPage({
             )}
           </div>
 
-          {/* Hero product visual — a REAL snapshot of the owner's fleet (founder
-              dogfooding), fetched server-side. Public-safe fields only; "LIVE"
+          {/* Hero product visual — a REAL snapshot of the FLEET, fetched
+              server-side: the showcase tier (owner consented AND operator
+              featured) plus fleet-wide counts. Public-safe fields only; "LIVE"
               shows only when an agent is actually running. Hidden if there's no
               fleet data, so we never render an empty/fake box. */}
           {fleet.metrics.length > 0 && (
@@ -144,11 +145,29 @@ export default async function LandingPage({
                       {project.note && (
                         <span className="ui-public-hero-console-note">{project.note}</span>
                       )}
+                      {/* Whose work this is. A showcased project belongs to a
+                          tenant; printing it unattributed would read as "our
+                          projects". Linked when they have a handle, so being
+                          credited is worth something to them. */}
+                      {project.by &&
+                        (project.by.href ? (
+                          <Link href={project.by.href} className="ui-public-hero-console-by">
+                            {project.by.label}
+                          </Link>
+                        ) : (
+                          <span className="ui-public-hero-console-by">{project.by.label}</span>
+                        ))}
                     </div>
                   ))}
                 </div>
               )}
-              <div className="ui-public-hero-console-metrics">
+              <div
+                className={
+                  fleet.projects.length > 0
+                    ? "ui-public-hero-console-metrics"
+                    : "ui-public-hero-console-metrics ui-public-hero-console-metrics-flush"
+                }
+              >
                 {fleet.metrics.map((metric) => (
                   <div key={metric.label}>
                     <div className="ui-public-hero-console-metric-num">{metric.value}</div>

@@ -79,8 +79,15 @@ const VIEWPORTS = [
  * whole app is what actually protects it — a rule enforced on a sample is a rule
  * with holes exactly where nobody looked.
  *
- * Public/marketing routes are excluded: they render for signed-out visitors and
- * belong to `npm run smoke`, which already covers them at no session cost.
+ * Public/marketing routes USED to be excluded here, deferred to `npm run smoke`
+ * "which already covers them". It does not: smoke curls each route and asserts
+ * a 2xx/3xx status. A status code says nothing about a layout, so the pages
+ * every stranger sees FIRST were the only ones in the product with no
+ * responsive coverage at all — the exact hole this file's own comment warns
+ * about, in the one place nobody was looking. Measured when finally audited:
+ * 19 sub-44px tap targets on /fleet, every one of them the site address that
+ * is the whole point of the row. They are in PUBLIC_PAGES below now, and they
+ * need no session, so they cost nothing to keep honest.
  */
 /**
  * FIVE of the twenty entries that used to be here were `redirect()` stubs:
@@ -131,6 +138,32 @@ const PAGES = [
   "/goals",
   "/memory",
 ];
+
+/**
+ * Unauthenticated routes. Audited with NO session — that is the point: this is
+ * what a stranger gets, so measuring it while signed in would measure a
+ * different page (the landing redirects a signed-in operator straight to the
+ * app). Kept separate from PAGES for that reason, not for tidiness.
+ */
+const PUBLIC_PAGES = [
+  "/",
+  "/fleet",
+  "/pricing",
+  "/download",
+  "/mission",
+  "/philosophy",
+  "/roadmap",
+  "/investors",
+  "/whitepaper",
+  "/thoughts",
+  "/changelog",
+  "/support",
+  "/docs",
+  "/sign-in",
+  "/sign-up",
+];
+
+const isPublicPage = (p) => PUBLIC_PAGES.includes(p);
 
 const MIN_TOUCH_PX = 44;
 
@@ -461,13 +494,18 @@ function measurePage(minTouch) {
 
 async function main() {
   const only = process.argv.slice(2).filter((a) => a.startsWith("/"));
-  const pages = only.length > 0 ? only : PAGES;
+  const pages = only.length > 0 ? only : [...PUBLIC_PAGES, ...PAGES];
 
-  const token = await mintToken();
-  if (!token) {
+  // A session is needed only for the authenticated half. Demanding one up front
+  // meant the public pages — which need none — could not be audited without
+  // credentials, which is a large part of why they never were.
+  const needsSession = pages.some((p) => !isPublicPage(p));
+  const token = needsSession ? await mintToken() : null;
+  if (needsSession && !token) {
     console.error(
       "✗ no session. Set LOKI_SESSION_TOKEN, or AUDIT_DATABASE_URL + AUTH_SECRET.\n" +
-        "  For a firewalled Postgres: bash scripts/db-tunnel.sh   (prints the URL to use)",
+        "  For a firewalled Postgres: bash scripts/db-tunnel.sh   (prints the URL to use)\n" +
+        "  Public routes need no session: pass them as arguments, e.g. `/ /fleet`.",
     );
     process.exit(2);
   }
@@ -484,16 +522,21 @@ async function main() {
       hasTouch: vp.touch,
       deviceScaleFactor: 1,
     });
-    const cookies = [
-      {
-        name: cookieName(),
-        value: token,
-        domain: new URL(BASE).hostname,
-        path: "/",
-        httpOnly: true,
-        secure: BASE.startsWith("https://"),
-      },
-    ];
+    // No token when auditing only public routes — and a cookie with an
+    // undefined value is not "no cookie", it is a malformed one that Playwright
+    // rejects. So the session cookie is added only when there is a session.
+    const cookies = token
+      ? [
+          {
+            name: cookieName(),
+            value: token,
+            domain: new URL(BASE).hostname,
+            path: "/",
+            httpOnly: true,
+            secure: BASE.startsWith("https://"),
+          },
+        ]
+      : [];
     const pz = process.env.LOKI_PRIVATE_ZONE_COOKIE?.trim();
     const pzEq = pz ? pz.indexOf("=") : -1;
     if (pzEq > 0) {

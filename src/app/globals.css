@@ -1243,6 +1243,41 @@
   .ui-fleet-chip-count {
     @apply font-mono text-[10px] text-text-muted;
   }
+  /* The facet rows, collapsible on a phone and always open from md up.
+     <details> so it works with no JavaScript — this page deliberately has
+     none, and a filter panel that needs a bundle to open would be the one
+     thing on it that does. */
+  .ui-fleet-filters {
+    @apply border-b border-border-subtle md:border-b-0;
+  }
+  .ui-fleet-filters-summary {
+    @apply flex min-h-11 cursor-pointer list-none items-center gap-2 py-2 font-mono text-xs uppercase tracking-caps text-text-muted transition-colors hover:text-text-primary;
+  }
+  /* Safari still paints the default triangle without this. */
+  .ui-fleet-filters-summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-fleet-filters-badge {
+    @apply inline-flex min-w-5 items-center justify-center rounded-full bg-accent-muted px-1.5 font-mono text-[10px] text-accent-text;
+  }
+  /* Hiding the closed panel has to be explicit. The UA hides a closed
+     <details>'s children with `display: none`, but AUTHOR styles outrank the UA
+     sheet and .ui-fleet-facet-row is `@apply flex` — so the rows stayed visible
+     while the element reported open=false. Measured that way: the toggle
+     rendered and changed nothing. */
+  @media (max-width: 767px) {
+    .ui-fleet-filters:not([open]) > *:not(summary) {
+      display: none;
+    }
+  }
+  /* From md the panel is simply always open and the toggle goes away with it —
+     no JS, no second copy of the markup, and the rows keep their own display so
+     nothing here has to know they are flex. */
+  @media (min-width: 768px) {
+    .ui-fleet-filters-summary {
+      display: none;
+    }
+  }
   .ui-fleet-resultbar {
     @apply flex flex-col gap-3 border-t border-border-subtle py-3 sm:flex-row sm:items-center sm:justify-between;
   }
@@ -1273,8 +1308,14 @@
   .ui-public-fleet-row:hover {
     @apply bg-surface-raised;
   }
+  /* inline-flex for the same reason as .ui-public-fleet-site: the coarse
+     pointer floor sets min-height, and min-height does nothing to an inline
+     box. Measured 21px tall on a phone — and this is the row's PRIMARY link,
+     the one that opens the project. It only surfaced once a real project row
+     rendered; while the page was showing hosted sites alone, nothing here was
+     a link at all. */
   .ui-public-fleet-name {
-    @apply text-base font-semibold text-text-primary underline decoration-transparent underline-offset-4 transition-colors;
+    @apply inline-flex items-center text-base font-semibold text-text-primary underline decoration-transparent underline-offset-4 transition-colors;
   }
   .ui-public-fleet-row:hover .ui-public-fleet-name {
     @apply decoration-border-interactive;
@@ -1299,8 +1340,13 @@
   .ui-public-fleet-nowrap {
     @apply whitespace-nowrap;
   }
+  /* inline-flex, not inline: the pointer:coarse floor below sets min-height,
+     which does nothing to an inline box — so as a plain <a> this stayed 18px
+     tall on a phone no matter what the floor said. Same reasoning as
+     .ui-chip-toggle and the other links already noted in that block.
+     `items-center` keeps the text centred once the floor inflates the box. */
   .ui-public-fleet-site {
-    @apply break-all text-sm text-text-secondary transition-colors hover:text-text-primary;
+    @apply inline-flex items-center break-all text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
   .ui-public-fleet-none {
     @apply text-sm text-text-muted;
@@ -1660,8 +1706,25 @@
   .ui-public-hero-console-note {
     @apply truncate pl-[18px] text-xs text-text-tertiary sm:ml-auto sm:pl-3 sm:font-mono sm:text-text-secondary;
   }
+  /* The byline on a showcased project. Quiet on purpose — the project is the
+     headline and the builder is the credit, not a competing label — but a real
+     link when there is a handle to visit, and a tap target that a finger can
+     actually hit (the pointer:coarse floor needs inline-flex to apply). */
+  .ui-public-hero-console-by {
+    @apply inline-flex shrink-0 items-center pl-[18px] font-mono text-micro text-text-muted transition-colors hover:text-text-secondary sm:pl-3;
+  }
   .ui-public-hero-console-metrics {
     @apply mt-4 grid grid-cols-3 gap-2 border-t border-border-subtle pt-4 sm:gap-3;
+  }
+  /* Nothing featured yet, so there are no project rows above. The bar's own
+     bottom border is then the only separator needed, and keeping the metrics'
+     top border drew a SECOND line 32px below it with nothing in between —
+     which reads as content that failed to load rather than a panel with
+     nothing to list. Defined after the base class so it wins on source order.
+     Featuring is an editorial act nobody may have performed yet (0076 does not
+     backfill one), so this is a state the live page will really be in. */
+  .ui-public-hero-console-metrics-flush {
+    @apply mt-0 border-t-0 pt-0;
   }
   .ui-public-hero-console-metric-num {
     @apply font-mono text-xl text-text-primary sm:text-2xl;
@@ -3292,6 +3355,31 @@
   .ui-settings-section {
     @apply space-y-5 rounded-2xl border border-border-subtle bg-surface-base p-5 sm:p-6;
     box-shadow: var(--shadow-panel);
+  }
+  /* ── "Show this project in Loki's catalogue?" ──────────────────────────
+     An invitation, not an alert: it uses the accent border rather than a
+     status colour, because nothing is wrong and nothing is required. Stacks
+     on a phone and sits side-by-side from sm, so the two answers never end up
+     squeezed onto one cramped line. */
+  .ui-listing-invite {
+    @apply flex flex-col gap-4 rounded-2xl border border-border-interactive bg-surface-base p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5;
+  }
+  .ui-listing-invite-body {
+    @apply flex min-w-0 items-start gap-3;
+  }
+  .ui-listing-invite-icon {
+    @apply mt-0.5 h-5 w-5 shrink-0 text-accent-text;
+  }
+  .ui-listing-invite-title {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-listing-invite-note {
+    @apply mt-1 text-xs leading-relaxed text-text-secondary;
+  }
+  /* shrink-0 so the buttons keep their width and the prose reflows instead —
+     a wrapped label on a 44px button is how tap targets quietly shrink. */
+  .ui-listing-invite-actions {
+    @apply flex shrink-0 flex-wrap items-center gap-2;
   }
   /* ── AI capacity, in Settings → AI ─────────────────────────────────────
      Built to one rule: a number that does not imply an action is decoration.
@@ -5771,6 +5859,13 @@
   .ui-public-nav-toggle,
   .ui-public-link,
   .ui-public-link-standalone,
+  .ui-public-hero-console-by,
+  /* The address on each /fleet row. Measured 18px tall on a phone — 19 of them
+     on one page, and the ONLY sub-44px targets left on any public route. They
+     are the whole point of the catalogue (that is where you go to see the
+     thing), so they were the worst possible link to leave un-tappable. */
+  .ui-public-fleet-name,
+  .ui-public-fleet-site,
   .ui-auth-hint-link,
   .ui-auth-footer-link,
   .ui-auth-muted-link,

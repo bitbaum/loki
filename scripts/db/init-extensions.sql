@@ -1,0 +1,13 @@
+-- Extensions the schema needs before `drizzle-kit push` can run.
+--
+-- Mounted into the compose db service's /docker-entrypoint-initdb.d, so it runs
+-- once when the volume is first created — before the `migrate` service starts.
+--
+-- Why this file exists: src/db/schema/knowledge-embeddings.ts declares
+-- `vector(384)`. Without the extension, push fails on the FIRST table it
+-- touches with `type "vector" does not exist` and leaves an empty database —
+-- which reads like a broken checkout rather than a missing extension.
+--
+-- On the box the extension is created by hand as superuser (see the header of
+-- knowledge-embeddings.ts); this file covers local dev only.
+CREATE EXTENSION IF NOT EXISTS vector;

@@ -6,6 +6,7 @@ import { ProjectWorkspaceView } from "@/components/projects/ProjectWorkspaceView
 import { ProjectSharePanel } from "@/components/projects/ProjectSharePanel";
 import { ROUTES } from "@/config/auth";
 import { isKickoffAuto } from "@/lib/integrations/orangecat-handoff-mode";
+import { isSiteOperator } from "@/db/queries/users";
 
 export const metadata = { title: "Project" };
 
@@ -24,6 +25,11 @@ export default async function ProjectPage({
   const { kickoff } = await searchParams;
   const dossier = await getProjectDossier(session.user.id, id).catch(() => null);
   if (!dossier) notFound();
+
+  // Featuring curates Loki's own landing page, so it is the instance
+  // operator's call, not the project owner's — and the operator features other
+  // tenants' work, so this is asked about the VIEWER rather than the dossier.
+  const viewerIsSiteOperator = await isSiteOperator(session.user.id).catch(() => false);
 
   const share =
     dossier.ownerId === session.user.id
@@ -46,6 +52,7 @@ export default async function ProjectPage({
     <ProjectWorkspaceView
       dossier={dossier}
       autoKickoff={isKickoffAuto(kickoff)}
+      viewerIsSiteOperator={viewerIsSiteOperator}
       shareAction={
         !dossier.readonly ? (
           <ProjectSharePanel projectId={id} initialShare={shareForClient} />

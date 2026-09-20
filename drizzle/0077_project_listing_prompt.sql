@@ -1,0 +1,30 @@
+-- Migration: user_projects.listing_prompt_dismissed_at — "not now" on the
+-- in-app invitation to list a project in Loki's public catalogue.
+--
+-- WHY THIS EXISTS
+-- 0075 gave the owner a consent toggle and 0076 gave the operator a feature
+-- stamp, but nothing ever ASKS. A consent model where the only way to say yes
+-- is to find a control you did not know existed is a consent model that
+-- reliably produces no. The catalogue then stays empty, and the empty
+-- catalogue gets "fixed" by someone widening the query again — which is the
+-- exact bug 0075 removed.
+--
+-- So Loki invites, once the project is real enough to be worth showing, and
+-- this column is how it takes no for an answer.
+--
+-- PER PROJECT, NOT PER USER. Declining for a private client build says nothing
+-- about the open-source one beside it, and a single per-user "stop asking"
+-- would silence the question for projects that were never asked about.
+--
+-- IN THE DATABASE, NOT localStorage. A dismissal that resets on a new device
+-- is a product that nags, and this prompt asks to publish something — the one
+-- kind of asking that must remember a refusal. It is also per-project state
+-- the owner may see from any device, which browser storage cannot be.
+--
+-- NULL means "never answered". It does not mean "not asked": eligibility is
+-- computed from the project (see ProjectWorkspaceView), so a project can
+-- become eligible later — when it gains a repo, say — and the invitation
+-- appears then. Saying yes sets listed_publicly and is recorded there;
+-- this column only silences the prompt.
+ALTER TABLE user_projects
+  ADD COLUMN IF NOT EXISTS listing_prompt_dismissed_at timestamptz;

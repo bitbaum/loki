@@ -9,6 +9,10 @@ import { ProjectSettingsPanel } from "./ProjectSettingsPanel";
 import { ProjectFeedbackSection } from "./ProjectFeedbackSection";
 import { DoneSection, NextSection, NowSection } from "./ProjectDossierSections";
 import { OrangeCatPublishButton } from "./OrangeCatPublishButton";
+import { ProjectPublicListingToggle } from "./ProjectPublicListingToggle";
+import { ProjectFeatureToggle } from "./ProjectFeatureToggle";
+import { ProjectListingInvitation } from "./ProjectListingInvitation";
+import { shouldInviteToPublicCatalogue } from "@/lib/listing-invitation";
 import { SolonFoundButton } from "./SolonFoundButton";
 import { LiveUrlField } from "./LiveUrlField";
 import { RegisterSiteButton } from "./RegisterSiteButton";
@@ -28,11 +32,14 @@ export function ProjectWorkspaceView({
   dossier,
   shareAction,
   autoKickoff = false,
+  viewerIsSiteOperator = false,
 }: {
   dossier: ProjectDossier;
   shareAction?: React.ReactNode;
   /** Arrived from a one-click build (OrangeCat handoff): start the kickoff without a press. */
   autoKickoff?: boolean;
+  /** Viewer runs this Loki instance, so they may curate its landing page. */
+  viewerIsSiteOperator?: boolean;
 }) {
   const { detail, userProject } = dossier;
   const project = detail.project;
@@ -72,6 +79,16 @@ export function ProjectWorkspaceView({
     commits: dossier.commits,
     nowMs: dossier.builtAtMs,
   });
+  // Ask once, per project, and only when there is something worth showing.
+  // The rule is in lib/ so it is testable without a browser or a database.
+  const inviteToCatalogue = shouldInviteToPublicCatalogue({
+    listedPublicly: userProject?.listedPublicly ?? false,
+    dismissedAt: userProject?.listingPromptDismissedAt ?? null,
+    isActive: userProject?.isActive ?? false,
+    gitUrl: userProject?.gitUrl ?? project.gitUrl ?? null,
+    readonly: dossier.readonly,
+  });
+
   const showKickoff =
     !dossier.readonly &&
     needsKickoff({
@@ -161,6 +178,19 @@ export function ProjectWorkspaceView({
                 <GitBranch className="h-4 w-4" aria-hidden="true" /> Repository
               </a>
             )}
+            {!dossier.readonly && (
+              <ProjectPublicListingToggle
+                projectId={project.id}
+                listedPublicly={userProject?.listedPublicly ?? false}
+              />
+            )}
+            {viewerIsSiteOperator && (
+              <ProjectFeatureToggle
+                projectId={project.id}
+                featured={Boolean(userProject?.featuredAt)}
+                listedPublicly={userProject?.listedPublicly ?? false}
+              />
+            )}
             {!dossier.readonly && <OrangeCatPublishButton projectId={project.id} />}
             {!dossier.readonly && <SolonFoundButton projectId={project.id} />}
             {primaryOrangeCatLink && (
@@ -189,6 +219,8 @@ export function ProjectWorkspaceView({
 
           Anchors could not fix it either: scrolling into a wall still leaves
           the other 2,400 words underneath. A tab removes them. */}
+      {inviteToCatalogue && <ProjectListingInvitation projectId={project.id} />}
+
       <ProjectTabs
         tabs={[
           {

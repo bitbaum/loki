@@ -235,8 +235,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
     },
   },
-  // Allow localhost and any host when AUTH_TRUST_HOST=true. Set on the box and
-  // for the local production server; Caddy terminates TLS in front of the app.
+  // Allow localhost and any host when AUTH_TRUST_HOST=true. Caddy terminates
+  // TLS in front of the app on the box, where scripts/hetzner/gen-env.sh writes
+  // this var. EVERY other entry point has to set it too: unset, Auth.js answers
+  // /api/auth/session with 500 UntrustedHost and no page can read a session.
+  // This comment used to claim the local production server set it — it did not,
+  // and neither did .env.example or docker-compose.yml, so a clean checkout
+  // came up broken on the documented path. Compared as the exact string
+  // "true", so "1" is not a truthy value here.
   trustHost: process.env.AUTH_TRUST_HOST === "true",
   // JWT strategy required for Credentials provider to work alongside DB adapter
   session: { strategy: "jwt" },

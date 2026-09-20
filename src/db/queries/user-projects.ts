@@ -1,13 +1,21 @@
-import { and, asc, count, eq, ilike, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { promoteDevLogEntry } from "@/lib/integrations/orangecat-publish";
-import { entities, orgs, userProjects, type NewUserProject, type UserProject } from "@/db/schema";
+import {
+  entities,
+  orgs,
+  userProjects,
+  users,
+  type NewUserProject,
+  type UserProject,
+} from "@/db/schema";
 import type { DevLogEntry } from "@/db/schema/user-projects";
 import { ENTITY_TYPE } from "@/lib/constants/statuses";
 import { getOrgPeerIds } from "./utils";
 import { findProjectEntityByName } from "./project-merge";
 import { isPublicTestArtifact } from "@/lib/project-display";
 import { getProjectByOrangeCatEntity } from "./orangecat-links";
+import { PUBLIC_CATALOGUE_WHERE, PUBLIC_SHOWCASE_WHERE, SHOWCASE_LIMIT } from "./public-visibility";
 
 export async function getUserProjects(userId: string): Promise<UserProject[]> {
   return db
@@ -108,6 +116,94 @@ export async function getPublicProjects(userId: string): Promise<UserProject[]> 
   // surface a smoke/dogfood artifact even if one leaks into the DB. See
   // isPublicTestArtifact.
   return rows.filter((p) => !isPublicTestArtifact(p.name));
+}
+
+/**
+ * Projects whose owner has opted them into Loki's OWN public catalogue (/fleet).
+ *
+ * Distinct from getPublicProjects, and the difference is who is speaking. A
+ * profile at /u/[username] is the USER showing their work, so "active, has a
+ * repo" is a fair reading of intent. /fleet is the PRODUCT showing a catalogue,
+ * and a multi-tenant product may not enrol a tenant by inference — so this asks
+ * for a stored decision (listed_publicly) and nothing else will do.
+ *
+ * Not scoped to one account on purpose. /fleet used to resolve a single owner
+ * via getSelfImprovementTarget() and publish everything they had; consent is a
+ * property of the project, so the catalogue is now every consenting project
+ * regardless of who owns it — which is also what makes the page meaningful once
+ * Loki has more than one user.
+ */
+export async function getPubliclyListedProjects(): Promise<UserProject[]> {
+  const rows = await db
+    .select()
+    .from(userProjects)
+    .where(PUBLIC_CATALOGUE_WHERE)
+    .orderBy(asc(userProjects.position), asc(userProjects.createdAt));
+  return rows.filter((p) => !isPublicTestArtifact(p.name));
+}
+
+/**
+ * Tier 3 — what the landing hero shows: consented AND operator-featured,
+ * across every tenant. Newest feature first, so promoting a project surfaces
+ * it without anyone reordering the rest.
+ *
+ * The predicate lives in public-visibility.ts because the homepage must not be
+ * able to drift from the catalogue's idea of consent.
+ */
+export type ShowcaseProject = UserProject & {
+  /** Who built it. Null only when the account has neither handle nor name —
+   *  the surface then shows no byline rather than inventing one. */
+  owner: { username: string | null; name: string | null };
+};
+
+export async function getShowcaseProjects(limit = SHOWCASE_LIMIT): Promise<ShowcaseProject[]> {
+  // Joined, not fetched per row: four hero rows would otherwise be four extra
+  // round trips on the busiest uncached page in the product.
+  const rows = await db
+    .select({ project: userProjects, username: users.username, name: users.name })
+    .from(userProjects)
+    .innerJoin(users, eq(users.id, userProjects.userId))
+    .where(PUBLIC_SHOWCASE_WHERE)
+    .orderBy(desc(userProjects.featuredAt))
+    .limit(limit);
+  return rows
+    .filter((r) => !isPublicTestArtifact(r.project.name))
+    .map((r) => ({ ...r.project, owner: { username: r.username, name: r.name } }));
+}
+
+/**
+ * Set or clear the operator's feature flag on a project, by ENTITY id.
+ *
+ * Deliberately not folded into patchProject: featuring is the one field on a
+ * project that a tenant may not set for themselves, so it gets its own entry
+ * point that the route guards with isSiteOperator. A field that is dangerous
+ * for one caller should not ride the same function as the safe ones.
+ *
+ * Featuring requires consent to already be given — mirroring
+ * setFeedbackFeatured, which will only feature a row that is already resolved.
+ * PUBLIC_SHOWCASE_WHERE would filter an unconsented row out at read time
+ * anyway; refusing it here means the operator finds out immediately instead of
+ * wondering why the homepage ignored them.
+ *
+ * Returns false when there is no such project, or when it has not consented.
+ */
+export async function setProjectFeatured(
+  entityProjectId: string,
+  featured: boolean,
+): Promise<boolean> {
+  const rows = await db
+    .update(userProjects)
+    .set({ featuredAt: featured ? new Date() : null, updatedAt: new Date() })
+    .where(
+      featured
+        ? and(
+            eq(userProjects.entityProjectId, entityProjectId),
+            eq(userProjects.listedPublicly, true),
+          )
+        : eq(userProjects.entityProjectId, entityProjectId),
+    )
+    .returning({ id: userProjects.id });
+  return rows.length > 0;
 }
 
 /**

@@ -51,6 +51,28 @@ export async function getDefaultUser() {
   return db.query.users.findFirst({ where: eq(users.isDefault, true) }) ?? null;
 }
 
+/**
+ * Does this account run THIS Loki instance?
+ *
+ * `is_default` is set once, by createInitialUser, for the account made at
+ * /setup — so it already means "whoever installed this instance", which is
+ * exactly who may curate its public face. On loki.orangecat.ch that is the
+ * founder; on a self-hosted Loki it is that operator. No new role table for a
+ * question the data already answers.
+ *
+ * This is deliberately NOT "is a tenant" — featuring puts a project on the
+ * homepage, so letting any tenant set it would make the shop window
+ * first-come. Consent is the tenant's decision; featuring is the operator's.
+ * See db/queries/public-visibility.ts.
+ */
+export async function isSiteOperator(userId: string): Promise<boolean> {
+  const row = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { isDefault: true },
+  });
+  return row?.isDefault === true;
+}
+
 export async function getUserCount(): Promise<number> {
   const [{ value }] = await db.select({ value: count() }).from(users);
   return value;

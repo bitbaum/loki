@@ -45,14 +45,18 @@ export default async function PublicProfilePage({
   const user = await getUser(username);
   if (!user) notFound();
 
-  const projectsRaw = await getPublicProjects(user.id);
-  // Hierarchy, not 18 equal cards — lead with the flagships.
-  const FLAGSHIPS = ["loki", "orangecat"];
-  const projects = [...projectsRaw].sort((a, b) => {
-    const ai = FLAGSHIPS.indexOf(a.name.toLowerCase());
-    const bi = FLAGSHIPS.indexOf(b.name.toLowerCase());
-    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-  });
+  // Hierarchy, not 18 equal cards — lead with what the operator featured, then
+  // fall back to the owner's own ordering (position, then age) that
+  // getPublicProjects already applies.
+  //
+  // This replaced a hardcoded FLAGSHIPS = ["loki", "orangecat"], which sorted
+  // EVERY tenant's profile by two of the founder's project names: on anyone
+  // else's page it did nothing, and on the page of a user who happened to name
+  // a project "loki" it silently promoted it. A profile's hierarchy has to come
+  // from data about that profile, not from two names compiled into the page.
+  const projects = [...(await getPublicProjects(user.id))].sort(
+    (a, b) => Number(Boolean(b.featuredAt)) - Number(Boolean(a.featuredAt)),
+  );
 
   // Only show filesystem-based essays on the site owner's profile.
   // Team member profiles have no associated authored content.
