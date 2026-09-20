@@ -48,7 +48,6 @@ export function useAutoContinue(tab: string, initialEnabled?: boolean) {
     try {
       const response = await postJson("/api/control/auto-continue", { tab, enabled: next });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      if (!next) await postJson("/api/beacon/cancel", { tab }).catch(() => undefined);
     } catch {
       setEnabled(previous);
     } finally {

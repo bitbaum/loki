@@ -81,7 +81,7 @@ async function attemptLocalWhisper(audio: File, model: string): Promise<AttemptR
       recoverable: false,
       status: 503,
       error:
-        "Local Whisper runtime not available on this server (no ffmpeg / python3 / model). Pick Groq under Settings → Beacon, or install Whisper.",
+        "Local Whisper runtime not available on this server (no ffmpeg / python3 / model). Pick Groq under Settings → Agent, or install Whisper.",
     };
   }
   const webmPath = join(tmpdir(), `beacon-${randomUUID()}.webm`);

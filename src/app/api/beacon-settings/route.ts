@@ -4,7 +4,6 @@ import { MIN_BEACON_COUNTDOWN_S, MAX_BEACON_COUNTDOWN_S } from "@/lib/constants/
 import {
   WHISPER_MODEL_VALUES,
   TRANSCRIPTION_PROVIDER_VALUES,
-  POPUP_MODE_VALUES,
   AUTO_INJECT_MODE_VALUES,
 } from "@/config/beacon";
 import { getApiUserId } from "@/lib/session";
@@ -16,7 +15,6 @@ import type { AutoInjectMode } from "@/config/beacon";
 export type { BeaconSettingsData } from "@/db/queries/beacon-settings";
 
 const PatchBody = z.object({
-  popup_mode: z.enum(POPUP_MODE_VALUES).optional(),
   countdown_seconds: z
     .number()
     .int()

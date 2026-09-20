@@ -33,7 +33,6 @@ export default function robots(): MetadataRoute.Robots {
           "/onboarding",
           "/setup",
           "/sign-out",
-          "/beacon/",
           "/_next/",
         ],
       },

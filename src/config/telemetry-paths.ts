@@ -185,14 +185,6 @@ export const TELEMETRY_PATHS: TelemetryPath[] = [
       "about a single-operator fleet, not a broken ledger.",
   },
   {
-    table: "beacon_sessions",
-    timeColumn: "created_at",
-    label: "Beacon sessions",
-    writer: "a user starting a beacon session",
-    monitored: false,
-    because: "User-initiated and self-purging (10-minute TTL). Silence is the " + "normal state.",
-  },
-  {
     table: "captures",
     timeColumn: "created_at",
     label: "Captures",

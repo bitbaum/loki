@@ -177,7 +177,6 @@ export const DEMO_PARTIAL_PREFIXES: Readonly<Record<string, string>> = {
 export const DEMO_HANDLER_ENFORCED: ReadonlyArray<readonly [string, DemoDenialReason, string]> = [
   ["/api/auth/forgot-password", "credentials", "src/app/api/auth/forgot-password/route.ts"],
   ["/api/auth/reset-password", "credentials", "src/app/api/auth/reset-password/route.ts"],
-  ["/api/beacon", "dispatch", "src/app/api/beacon/route.ts"],
   ["/api/beacon/transcribe", "spend", "src/app/api/beacon/transcribe/route.ts"],
 ] as const;
 

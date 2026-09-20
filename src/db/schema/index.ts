@@ -33,7 +33,6 @@ export * from "./pending-commands";
 export * from "./captures";
 export * from "./habit-goals";
 export * from "./beacon-settings";
-export * from "./beacon-sessions";
 export * from "./prompts";
 export * from "./user-preferences";
 export * from "./debug-logs";

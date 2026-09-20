@@ -10,7 +10,6 @@ import { deriveProjectStateKey, projectStateDescription } from "@/lib/control-st
 import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { injectOwned, listOwnedTabs } from "@/lib/agent-execution/owned";
 import { AGENT_DEFAULT_MODELS } from "@/lib/agent-registry";
-import { cancelActiveBeaconSessions } from "@/app/api/beacon/route";
 import {
   buildPromptWithSession,
   resolveEffectiveTab,
@@ -537,7 +536,6 @@ async function dispatchClaudeInject(
         ? prompt
         : buildPromptWithSession(prompt, request.projectKey, stateDescription);
     injectOwned(userId, effectiveKey, fullPrompt);
-    await cancelActiveBeaconSessions(userId, effectiveKey);
     clearHandshakeFiles(effectiveKey);
     if (request.intent !== "hard_stop" && request.intent !== "close_session") {
       // Write current-prompt so the UI shows the running banner.

@@ -261,7 +261,6 @@ async function checkRunnerTokens(userId: string): Promise<DoctorCheck[]> {
 async function checkMigrations(): Promise<DoctorCheck[]> {
   const out: DoctorCheck[] = [];
   const auditTable = await tableExists("control_audit_events").catch(() => false);
-  const beaconTable = await tableExists("beacon_sessions").catch(() => false);
   const installedAgents = await columnExists("runtime_snapshots", "installed_agents").catch(
     () => false,
   );
@@ -271,14 +270,6 @@ async function checkMigrations(): Promise<DoctorCheck[]> {
       "Audit migration",
       auditTable ? "pass" : "fail",
       auditTable ? "control_audit_events exists." : "control_audit_events is missing.",
-    ),
-  );
-  out.push(
-    check(
-      "migration:beacon",
-      "Beacon migration",
-      beaconTable ? "pass" : "fail",
-      beaconTable ? "beacon_sessions exists." : "beacon_sessions is missing.",
     ),
   );
   out.push(

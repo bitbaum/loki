@@ -637,32 +637,6 @@ export async function markCommandExecuted(
   return updated.length > 0;
 }
 
-/** Loop-guard stats for headless auto-reroute: how many switch_agent commands
- *  we've queued for this project (by tab) in the last 15 min, and whether one
- *  is still unclaimed. Windowed so a long-dead unclaimed command can't block
- *  reroute forever. See decideHeadlessReroute. */
-export async function recentSwitchAgentStats(
-  userId: string,
-  tab: string,
-): Promise<{ windowCount: number; pending: number }> {
-  const rows = await db
-    .select({
-      windowCount: sql<number>`count(*)`,
-      pending: sql<number>`count(*) filter (where ${pendingCommands.claimedAt} is null)`,
-    })
-    .from(pendingCommands)
-    .where(
-      and(
-        eq(pendingCommands.userId, userId),
-        eq(pendingCommands.type, "switch_agent"),
-        sql`${pendingCommands.payload}->>'tab' = ${tab}`,
-        sql`${pendingCommands.createdAt} > now() - interval '15 minutes'`,
-      ),
-    );
-  const r = rows[0];
-  return { windowCount: Number(r?.windowCount ?? 0), pending: Number(r?.pending ?? 0) };
-}
-
 // Returns commands the user should know about: executed-and-failed (ok=false)
 // PLUS executed-but-unverified inject commands (ok=true, verified=false — the
 // keystrokes landed but the agent didn't react within the post-flight window).
