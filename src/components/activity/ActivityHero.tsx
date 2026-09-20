@@ -100,14 +100,19 @@ export function ActivityHero({
             <span className="ui-activity-kpi-label">{label}</span>
           </Link>
         ))}
+        {/* A LINK, like every tile beside it. This was the one number on the
+            row you could not open — and on 2026-09-20 it was the biggest, 49
+            against "0 Running". Its only explanation was a `title`, which a
+            touch device never shows. */}
         {summary.queued > 0 && (
-          <span
+          <Link
+            href={activityHref({ window: digestWindow, project: projectKey, filter: "queued" })}
             className="ui-activity-kpi"
             title="Dispatched, but no run has been recorded yet — waiting on a builder to pick it up."
           >
             <span className="ui-activity-kpi-value tabular-nums">{summary.queued}</span>
             <span className="ui-activity-kpi-label">Queued</span>
-          </span>
+          </Link>
         )}
       </div>
     </section>

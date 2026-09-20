@@ -28,6 +28,7 @@ export const FILTER_LABEL: Record<ActivityFilter, string> = {
   all: "All",
   attention: "Needs attention",
   running: "Running",
+  queued: "Queued",
   done: "Done",
 };
 

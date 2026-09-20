@@ -292,7 +292,7 @@ export function buildActivityEvents(input: {
 
 // ─── Triage ──────────────────────────────────────────────────────────────────
 
-export const ACTIVITY_FILTERS = ["all", "attention", "running", "done"] as const;
+export const ACTIVITY_FILTERS = ["all", "attention", "running", "queued", "done"] as const;
 export type ActivityFilter = (typeof ACTIVITY_FILTERS)[number];
 
 export function normalizeActivityFilter(value: string | null | undefined): ActivityFilter {
@@ -315,6 +315,24 @@ export function eventNeedsAttention(event: ActivityEvent): boolean {
   return NEEDS_ATTENTION.has(event.outcome);
 }
 
+/**
+ * Dispatched, and nothing has run it yet.
+ *
+ * Exported so the KPI tile, the tab tally and the filtered list are ONE rule.
+ * The hero counted this in its own `else if` chain while the list had no way
+ * to select it, so "49 Queued" was the largest number on the page and the only
+ * one you could not open — every other tile beside it is a link. Two copies of
+ * the rule would be worse than none: a count and a list that disagree teach
+ * people not to trust either.
+ *
+ * Attention wins over queued, matching the order the summary already used: a
+ * dispatch that never reached an agent is reported as needing you, not as
+ * patiently waiting.
+ */
+export function eventIsQueued(event: ActivityEvent): boolean {
+  return !eventNeedsAttention(event) && event.outcome === "dispatched" && !event.isLocalChat;
+}
+
 export function filterActivityEvents(
   events: ActivityEvent[],
   filter: ActivityFilter,
@@ -322,6 +340,7 @@ export function filterActivityEvents(
   if (filter === "all") return events;
   if (filter === "attention") return events.filter(eventNeedsAttention);
   if (filter === "running") return events.filter((e) => e.outcome === "running");
+  if (filter === "queued") return events.filter(eventIsQueued);
   return events.filter((e) => e.outcome === "success");
 }
 
@@ -329,6 +348,7 @@ export type ActivityTallies = {
   total: number;
   attention: number;
   running: number;
+  queued: number;
   done: number;
 };
 
@@ -337,6 +357,7 @@ export function tallyActivityEvents(events: ActivityEvent[]): ActivityTallies {
     total: events.length,
     attention: events.filter(eventNeedsAttention).length,
     running: events.filter((e) => e.outcome === "running").length,
+    queued: events.filter(eventIsQueued).length,
     done: events.filter((e) => e.outcome === "success").length,
   };
 }

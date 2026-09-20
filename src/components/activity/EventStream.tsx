@@ -43,6 +43,7 @@ export function EventStream({
     { id: "all", label: "All", count: tallies.total },
     { id: "attention", label: "Needs attention", count: tallies.attention, tone: "attention" },
     { id: "running", label: "Running", count: tallies.running },
+    { id: "queued", label: "Queued", count: tallies.queued },
     { id: "done", label: "Done", count: tallies.done },
   ];
 
