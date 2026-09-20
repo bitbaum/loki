@@ -161,7 +161,13 @@ export default async function LandingPage({
                   ))}
                 </div>
               )}
-              <div className="ui-public-hero-console-metrics">
+              <div
+                className={
+                  fleet.projects.length > 0
+                    ? "ui-public-hero-console-metrics"
+                    : "ui-public-hero-console-metrics ui-public-hero-console-metrics-flush"
+                }
+              >
                 {fleet.metrics.map((metric) => (
                   <div key={metric.label}>
                     <div className="ui-public-hero-console-metric-num">{metric.value}</div>

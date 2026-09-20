@@ -1696,6 +1696,16 @@
   .ui-public-hero-console-metrics {
     @apply mt-4 grid grid-cols-3 gap-2 border-t border-border-subtle pt-4 sm:gap-3;
   }
+  /* Nothing featured yet, so there are no project rows above. The bar's own
+     bottom border is then the only separator needed, and keeping the metrics'
+     top border drew a SECOND line 32px below it with nothing in between —
+     which reads as content that failed to load rather than a panel with
+     nothing to list. Defined after the base class so it wins on source order.
+     Featuring is an editorial act nobody may have performed yet (0076 does not
+     backfill one), so this is a state the live page will really be in. */
+  .ui-public-hero-console-metrics-flush {
+    @apply mt-0 border-t-0 pt-0;
+  }
   .ui-public-hero-console-metric-num {
     @apply font-mono text-xl text-text-primary sm:text-2xl;
   }
