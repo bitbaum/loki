@@ -99,7 +99,7 @@ export const PRICING_BILLING_NOTE = PRICING_ANNOUNCED
 // once, honestly, instead of scattered as per-tier gates the code doesn't apply.
 export const PRICING_INCLUDED: string[] = [
   "One identity — Loki — over every agent (Claude, Grok, Codex, Cursor, OpenClaw)",
-  "Feedback widget on every site you run — visitor reports become dispatchable fleet work, with the loop closed automatically",
+  "Feedback widget on every site you run — visitor reports become dispatchable fleet work, and the visitor hears back when you resolve it",
   "Live fleet dashboard: Control, Today, Projects, Activity",
   "Local-first execution on your laptop or your own always-on box",
   "Cross-model verification — a definition-of-done gate a single agent can't do",

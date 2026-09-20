@@ -102,9 +102,10 @@ than CI enforces. A doc that restates a machine-readable SSOT will always
 eventually lie about it; point at the source instead.
 
 CI (`.github/workflows/ci.yml`) runs `pnpm run verify` **verbatim** — green local
-verify ⇒ green CI. Run it before declaring any change done. A husky pre-commit
-hook runs `tsc --noEmit` + `eslint`; pre-push runs `test:home` (+ `smoke` when
-the dev server is up).
+verify ⇒ green CI. Run it before declaring any change done. The hooks are only a
+fast filter and prove nothing: pre-commit runs `eslint` on STAGED FILES ONLY (no
+`tsc`), and pre-push runs only the gates the changed files can affect — a
+docs-only push runs nothing at all.
 
 ## Database & schema (see `docs/infrastructure/migration-strategy.md`)
 

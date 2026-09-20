@@ -5,7 +5,7 @@ excerpt: The customer who downloads Fleet Runner v0.9.0 never runs the bash daem
 publishedAt: 2026-06-10
 tags: architecture,fleet-runner,deletion,first-principles,executors,migration
 featured: true
-author: Mao Nakamoto
+author: Cato
 readingTimeMin: 11
 ---
 

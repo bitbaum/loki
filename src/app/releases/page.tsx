@@ -6,7 +6,7 @@ import { longDate } from "@/lib/dates";
 
 export const metadata = {
   title: "Changelog",
-  description: "Fleet Runner changelog. Every shipped version, what changed, and why.",
+  description: "Fleet Runner changelog: what changed in each release, and why.",
 };
 
 const RELEASES_GH_BASE = "https://github.com/bitbaum/loki-releases/releases/tag";
@@ -95,8 +95,8 @@ export default function ReleasesPage() {
             <div className="ui-changelog-eyebrow">Changelog</div>
             <h1 className="ui-changelog-title">Loki</h1>
             <p className="ui-changelog-lede">
-              What shipped, what changed, and why — platform milestones and every Fleet Runner
-              version. The latest runner is{" "}
+              What shipped, what changed, and why — platform milestones and each Fleet Runner
+              release. The latest runner is{" "}
               <span className="ui-changelog-code">v{CURRENT_RELEASE.version}</span>, published{" "}
               {longDate(CURRENT_RELEASE.date)}.
             </p>

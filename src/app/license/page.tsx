@@ -3,7 +3,7 @@ import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 
 export const metadata = {
   title: "License",
-  description: "How Loki source and binaries may be used.",
+  description: "Loki is MIT licensed. How the source, the binaries and the name may be used.",
 };
 
 export default function LicensePage() {
@@ -11,61 +11,48 @@ export default function LicensePage() {
     <PublicSurface right={<PublicHeaderActions />}>
       <main className="mx-auto max-w-3xl px-6 py-16 ui-public-prose">
         <h1 className="ui-public-title mb-2">License</h1>
-        <p className="ui-public-meta mb-12">Source-available, personal-use friendly.</p>
+        <p className="ui-public-meta mb-12">MIT. The name is the only carve-out.</p>
 
         <section className="space-y-4 mb-10">
           <h2 className="ui-public-prose-h2">Plain English</h2>
           <p>
-            Loki is a personal project by Cato, source-available on GitHub. You can read the code,
-            run it locally, and use the hosted product for free for personal and small-team work.
-            Commercial redistribution, repackaging, or running it as a competing hosted service
-            requires a separate agreement.
+            Loki is released under the{" "}
+            <a
+              href="https://github.com/bitbaum/loki/blob/main/LICENSE"
+              className="ui-public-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              MIT License
+            </a>
+            , © 2025-2026 Cato. Read it, run it, fork it, change it, ship it, sell it. You do not
+            need permission and you do not need to ask.
           </p>
           <p>
-            This will be replaced by a standard open-source license when the project incorporates
-            and adopts a definitive license. Until then, the terms below apply.
+            That includes running your own instance for anyone you like, including commercially,
+            and including as a hosted service that competes with this one. MIT means what it says.
           </p>
         </section>
 
         <section className="space-y-4 mb-10">
-          <h2 className="ui-public-prose-h2">You may</h2>
-          <ul className="list-disc pl-6 space-y-2">
-            <li>
-              Read, fork, and modify the source code at{" "}
-              <a
-                href="https://github.com/bitbaum/loki"
-                className="ui-public-link"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                github.com/bitbaum/loki
-              </a>
-              .
-            </li>
-            <li>Run your own instance for personal use or for use by a team you are part of.</li>
-            <li>Submit pull requests, file issues, and discuss the project publicly.</li>
-            <li>
-              Use the released binaries (AppImage, .deb, .dmg, .exe) to run Fleet Runner on your
-              computer.
-            </li>
-          </ul>
+          <h2 className="ui-public-prose-h2">What MIT requires of you</h2>
+          <p>
+            One thing: keep the copyright notice and the permission notice in copies or substantial
+            portions of the software. That is the whole obligation.
+          </p>
+          <p>
+            And one thing it withholds: the software is provided &ldquo;as is&rdquo;, without
+            warranty of any kind.
+          </p>
         </section>
 
         <section className="space-y-4 mb-10">
-          <h2 className="ui-public-prose-h2">You may not, without separate written agreement</h2>
-          <ul className="list-disc pl-6 space-y-2">
-            <li>
-              Operate Loki as a hosted service for third parties (e.g. spin up a Loki clone and sell
-              access to it).
-            </li>
-            <li>
-              Repackage the binaries or source as a different branded product and distribute that
-              product to others.
-            </li>
-            <li>
-              Use the &ldquo;Loki&rdquo; name or brand for a derivative product without permission.
-            </li>
-          </ul>
+          <h2 className="ui-public-prose-h2">The name is not part of the grant</h2>
+          <p>
+            MIT covers the code. It does not grant rights to the &ldquo;Loki&rdquo; name, the
+            wordmark, or the visual identity. Fork the software freely — just ship it under your
+            own name, so nobody is misled about who stands behind a build.
+          </p>
         </section>
 
         <section className="space-y-4 mb-10">
@@ -74,15 +61,15 @@ export default function LicensePage() {
             Loki bundles open-source dependencies including but not limited to Electron, React,
             Next.js, Tailwind, and Drizzle. Each is governed by its own license, included in the
             source tree under <code>node_modules/</code> for the JavaScript ecosystem and in the
-            released Fleet Runner binary&apos;s LICENSES files for the native components. The terms
-            on this page do not override those upstream licenses.
+            released Fleet Runner binary&apos;s LICENSES files for the native components. The MIT
+            grant on this project does not override those upstream licenses.
           </p>
         </section>
 
         <section className="space-y-4 mb-10">
           <h2 className="ui-public-prose-h2">Questions</h2>
           <p>
-            For licensing questions or to request commercial usage rights, open an issue at{" "}
+            Open an issue at{" "}
             <a
               href="https://github.com/bitbaum/loki/issues"
               className="ui-public-link"
@@ -90,15 +77,10 @@ export default function LicensePage() {
               rel="noopener noreferrer"
             >
               github.com/bitbaum/loki/issues
-            </a>{" "}
-            or email Cato via the address on the GitHub profile.
+            </a>
+            . You do not need to ask for usage rights — MIT already granted them.
           </p>
         </section>
-
-        <p className="ui-public-meta mt-16">
-          Final licensing terms will be set at incorporation. Current contributors and users are
-          explicitly grandfathered — anything you can do today, you will be able to keep doing.
-        </p>
       </main>
     </PublicSurface>
   );

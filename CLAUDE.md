@@ -399,16 +399,20 @@ pnpm exec tsx home/watcher.ts --start # Run a single home/ piece for iteration
 A husky **pre-commit** hook runs `eslint` on STAGED FILES ONLY — no `tsc`. A
 commit is cheap and local, so it is gated cheaply.
 
-A husky **pre-push** hook runs the full `pnpm run verify` bundle — the same one
-CI runs, so green locally means green in CI — plus a schema-drift guard, dev-server
-smoke (if one is up), and, when `SMOKE_PRIVATE_PIN` is in `.env.local` (or
-exported), `pnpm run test:pre-push-prod-dogfood`: authenticated prod smoke and
-headless prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is
-online; `dogfood:machine` when a local Fleet Runner is connected). A push is
-shared, so it is gated completely.
+A husky **pre-push** hook runs only the gates the CHANGED FILES can affect —
+NOT the full bundle. It used to run everything; that cost 7h13m under load on
+2026-09-11, and the hook's own header records why it stopped. A docs-or-config
+-only push therefore runs **nothing** locally and prints so.
 
-Budget for it: pre-push takes minutes, not seconds. That is the trade — the
-expensive gate sits where the work becomes everyone's problem.
+**Green pre-push does NOT mean green CI.** CI is the gate; the hook is only a
+fast filter. Before declaring a change done, run `pnpm run verify` yourself —
+that is the bundle CI runs verbatim.
+
+When they do fire, the hook's extras are a schema-drift guard, dev-server smoke
+(if one is up), and, when `SMOKE_PRIVATE_PIN` is in `.env.local` (or exported),
+`pnpm run test:pre-push-prod-dogfood`: authenticated prod smoke and headless
+prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is online;
+`dogfood:machine` when a local Fleet Runner is connected).
 
 ## Views
 

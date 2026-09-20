@@ -301,7 +301,7 @@ function buildAppMenu(): Menu {
       detail:
         `Version ${app.getVersion()}\n\n` +
         'The local authoritative desktop application for the Loki AI agent fleet platform.\n\n' +
-        '© 2026 Mao Nakamoto · Loki',
+        '© 2026 Cato · Loki',
       buttons: ['Visit Website', 'Close'],
       defaultId: 1,
       cancelId: 1,
@@ -886,7 +886,7 @@ app.whenReady().then(async () => {
   app.setAboutPanelOptions({
     applicationName: 'Fleet Runner',
     applicationVersion: app.getVersion(),
-    copyright: '© 2026 Mao Nakamoto · Loki',
+    copyright: '© 2026 Cato · Loki',
     website: APP_URL,
     credits: 'Owned agent terminals, deep-link auth, auto-update.\nPart of the Loki agent-fleet platform.',
   })
