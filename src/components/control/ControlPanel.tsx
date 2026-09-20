@@ -18,6 +18,7 @@ import { ControlFleetStatus } from "./ControlFleetStatus";
 import { AttentionBar } from "./AttentionBar";
 import { AgentEscalations } from "./AgentEscalations";
 import { ControlInbox } from "./ControlInbox";
+import { useControlInbox } from "@/hooks/use-control-inbox";
 import { RunnerStatusBanner } from "./RunnerStatusBanner";
 import { ActivityLogPanel } from "./control-panel-helpers";
 import {
@@ -163,6 +164,9 @@ export function ControlPanel() {
   const pageState = data
     ? buildControlPageState(data, nowS, runtimeStateKnown, runnerSyncStale)
     : null;
+  // One read, two consumers: the hero headline and the "Needs you" panel. See
+  // use-control-inbox.ts for why this cannot live inside the panel.
+  const inbox = useControlInbox();
   const dashboard = pageState?.dashboard ?? null;
   const attention = pageState?.attention ?? [];
   // Truthful hero headline: what the fleet is actually doing, from live
@@ -171,6 +175,13 @@ export function ControlPanel() {
     automationMode: automationPolicy.mode,
     workingCount: dashboard?.runningCount ?? 0,
     waitingCount: dashboard?.waitingCount ?? 0,
+    // The hero asks "is anything waiting on me?". The review queue is the one
+    // thing on this page that counts exactly that, so the hero reads it rather
+    // than leaving it to a panel further down to contradict him.
+    inbox: {
+      count: inbox.total,
+      unknown: inbox.loadFailed && !inbox.settling,
+    },
     // Genuine execution stalls (serialized/in-flight commands already filtered
     // out server-side) outrank "Building" — see deriveFleetPulse.
     executionStall: data?.runnerExecutionStall ?? null,
@@ -370,6 +381,20 @@ export function ControlPanel() {
       />
       {data.projects.length > 0 && <AgentEscalations />}
 
+      {/* Tier 2, with the rest of "what is waiting on me?".
+          This panel is titled "Needs you" and renders a count badge, which is
+          the definition of tier 2 — yet it sat in tier 4, below the whole
+          project list. On a 23-project fleet that put the only thing actually
+          needing the operator roughly a screen and a half below a hero reading
+          "Idle — nothing queued". The tier rule above is right; this section
+          was filed against it.
+          It costs what tier 2 can afford because of how it is built: every
+          group is ONE line until opened, nothing auto-expands, and the whole
+          panel renders nothing at all when the queue is empty. That is two
+          rows above the fleet, not the ~1,400px of unbounded strips it
+          replaced (#367). Add a GROUP to the inbox; never add a strip here. */}
+      <ControlInbox inbox={inbox} />
+
       {/* ControlFleetStatus shows runner health + working/ready/open counters
           + autopilot pill. When the user has 0 projects, all counters are 0
           and the panel reads as noise stacked under the empty-state welcome
@@ -435,16 +460,6 @@ export function ControlPanel() {
           void refresh(true);
         }}
       />
-
-      {/* Tier 4 of four — slack-time chores. Neither is time-critical: widget
-          coverage is "these sites could have the widget" and feedback is
-          inbound suggestions with an Implement button. Moving them out of the
-          path of the fleet (#367) was half the fix; the other half is that
-          they were two unbounded full-width strips, one auto-expanded, that
-          between them spent ~1,400px of a 390px phone. They are one queue —
-          small things a human has to say yes to — so they are one collapsed
-          section. Add a GROUP to the inbox; never add a third strip here. */}
-      <ControlInbox />
 
       <WorkspacesSection
         detailsRef={liveDetailsRef}
