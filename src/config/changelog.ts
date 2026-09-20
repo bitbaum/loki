@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.29",
+    tag: "fleet-runner-v0.8.29",
+    date: "2026-09-20T00:00:00Z",
+    highlights: [
+      "The About dialog and the installer's copyright metadata now read \u00a9 2026 Cato. Every build since the rename had shipped a name that was retired months ago \u2014 it was in the desktop app rather than the website, so no audit of the site ever looked there.",
+    ],
+    breaking: [],
+    notes:
+      "Cosmetic, but it shipped in every installer: the only place the retired identity was still compiled into a binary rather than rendered from content.",
+  },
+  {
     version: "0.8.28",
     tag: "fleet-runner-v0.8.28",
     date: "2026-09-17T09:00:00Z",

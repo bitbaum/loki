@@ -29,8 +29,8 @@ export default function LicensePage() {
             need permission and you do not need to ask.
           </p>
           <p>
-            That includes running your own instance for anyone you like, including commercially,
-            and including as a hosted service that competes with this one. MIT means what it says.
+            That includes running your own instance for anyone you like, including commercially, and
+            including as a hosted service that competes with this one. MIT means what it says.
           </p>
         </section>
 
@@ -50,8 +50,8 @@ export default function LicensePage() {
           <h2 className="ui-public-prose-h2">The name is not part of the grant</h2>
           <p>
             MIT covers the code. It does not grant rights to the &ldquo;Loki&rdquo; name, the
-            wordmark, or the visual identity. Fork the software freely — just ship it under your
-            own name, so nobody is misled about who stands behind a build.
+            wordmark, or the visual identity. Fork the software freely — just ship it under your own
+            name, so nobody is misled about who stands behind a build.
           </p>
         </section>
 

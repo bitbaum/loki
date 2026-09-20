@@ -49,7 +49,7 @@ The Work Product includes, without limitation:
 - All product designs, UX flows, brand identity, marketing copy and visual assets
 - All documentation, technical specifications, architectural decisions and internal records
 - All trademarks, service marks, trade dress and brand names, including discarded working titles
-  (notably "Cockpit" and "FleetCrown") and any future renamings
+  (notably "Cockpit") and any future renamings
 - All inventions, methods, processes and know-how embodied in the Work Product
 - All goodwill associated with the foregoing
 

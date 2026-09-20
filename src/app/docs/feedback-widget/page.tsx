@@ -162,8 +162,8 @@ export default function FeedbackWidgetDocsPage() {
           <p>
             Every dispatched report remembers its run, so you can see what shipped against it.
             Resolving is deliberately a human act — a green run is not proof the reporter&apos;s
-            problem went away. When you mark a report resolved, any visitor who left an email gets
-            a short note that their feedback shipped. Reporters who hear back report again; that is
+            problem went away. When you mark a report resolved, any visitor who left an email gets a
+            short note that their feedback shipped. Reporters who hear back report again; that is
             the point.
           </p>
         </section>

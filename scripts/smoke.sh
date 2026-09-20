@@ -79,7 +79,6 @@ AUTH_API_ROUTES=(
   "/api/prompts/agent"
   "/api/captures"
   "/api/beacon-settings"
-  "/api/checkout/personal"
   "/api/orgs"
   "/api/agent-tokens"
   "/api/agent/register"
@@ -109,6 +108,37 @@ fi
 
 failed=0
 
+# Resolve a URL path to its route file, honouring [dynamic] and [...catch-all]
+# segments. Returns 0 if a route exists on disk.
+#
+# WHY THIS EXISTS: the auth middleware answers 401 BEFORE routing, so an
+# authenticated probe cannot tell a real route from one that was deleted —
+# /api/definitely-not-real returns 401 exactly like /api/orgs. Every entry in
+# AUTH_API_ROUTES therefore passed unconditionally, and /api/checkout/personal
+# sat in the list for 15 days after the Stripe rail was removed without the
+# gate noticing. A probe that cannot fail is not a gate.
+route_file_exists() {
+  local path="${1#/}"
+  local dir="src/app"
+  local IFS='/'
+  for seg in $path; do
+    [ -z "$seg" ] && continue
+    if [ -d "$dir/$seg" ]; then
+      dir="$dir/$seg"
+    else
+      local match=""
+      for cand in "$dir"/\[*\]; do
+        [ -d "$cand" ] && { match="$cand"; break; }
+      done
+      [ -n "$match" ] || return 1
+      dir="$match"
+      case "$match" in *"[..."*) return 0 ;; esac
+    fi
+  done
+  [ -f "$dir/route.ts" ] || [ -f "$dir/route.tsx" ] \
+    || [ -f "$dir/page.tsx" ] || [ -f "$dir/page.ts" ]
+}
+
 # check_route ROUTE [check_body=0] [label] [allow_401=0] [extra_ok_code=""]
 check_route() {
   local route="$1"
@@ -127,7 +157,16 @@ check_route() {
   if [ "$code" -ge 200 ] && [ "$code" -lt 400 ]; then
     ok=1
   elif [ "$allow_401" = "1" ] && [ "$code" = "401" ]; then
-    ok=1
+    # A 401 only proves the middleware ran. Demand that the route actually
+    # exists, or a deleted route passes forever.
+    if route_file_exists "$route"; then
+      ok=1
+    else
+      printf "  FAIL %3s  %s  (401, but no route file — route was deleted)\n" "$code" "$label"
+      rm -f "$body_file"
+      failed=$((failed + 1))
+      return
+    fi
   elif [ -n "$extra_ok_code" ] && [ "$code" = "$extra_ok_code" ]; then
     ok=1
   fi
