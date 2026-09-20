@@ -39,6 +39,31 @@ const SOURCE_FILTERS = [
  * toggle. Status could not answer the page's one question: `dispatched` covers
  * both an agent mid-run and a fix that deployed an hour ago.
  */
+/**
+ * The line under the Reports total, which must ACCOUNT for the total.
+ *
+ * `open` is new + dispatched and `resolved` is shipped, so a reader who
+ * subtracts is left holding a remainder with no name. Prod on 2026-09-20:
+ * "68 reports · 29 still open" beside "32 shipped" — and 29 + 32 is 61. The
+ * other seven were archived: filed away rather than fixed, a state no card
+ * admitted existed.
+ *
+ * Pure and exported so the arithmetic is pinned without rendering: three
+ * numbers that do not reconcile look exactly like three numbers that do.
+ */
+export function reportsSubLine(m: {
+  total: number;
+  open: number;
+  resolved: number;
+  archived: number;
+}): string {
+  const parts = [
+    m.open > 0 ? `${m.open} still open` : null,
+    m.archived > 0 ? `${m.archived} archived` : null,
+  ].filter((p): p is string => p !== null);
+  return parts.length ? parts.join(" · ") : "all handled";
+}
+
 export function FeedbackInbox() {
   // `loadError` is aliased because `error` below is the *mutation* error from
   // useFeedbackActions. They are different failures and the page shows them in
@@ -233,11 +258,13 @@ export function FeedbackInbox() {
           project filter rather than quietly answering a different question. */}
       {!projectFilter && metrics && metrics.total > 0 && (
         <StatRow>
-          <StatCard
-            label="Reports"
-            value={String(metrics.total)}
-            sub={metrics.open > 0 ? `${metrics.open} still open` : "all handled"}
-          />
+          {/* The sub-line names the ARCHIVED remainder as well as the open
+              count, because otherwise the three cards do not add up and the
+              reader is left to wonder which number is wrong. Prod on
+              2026-09-20: "68 reports \u00b7 29 still open" next to "32 shipped",
+              and 29 + 32 = 61. The other seven were archived — filed away
+              rather than fixed — and no card admitted that state existed. */}
+          <StatCard label="Reports" value={String(metrics.total)} sub={reportsSubLine(metrics)} />
           <StatCard
             label="Shipped"
             value={String(metrics.resolved)}

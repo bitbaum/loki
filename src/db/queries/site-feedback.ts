@@ -155,6 +155,16 @@ export type FeedbackLoopMetrics = {
   open: number;
   resolved: number;
   resolved30d: number;
+  /**
+   * Reports that were filed away rather than fixed.
+   *
+   * Counted because without it the page does not add up. `open` is new +
+   * dispatched and `resolved` is shipped, so a reader who subtracts is left
+   * holding a remainder with no name: prod on 2026-09-20 showed "68 reports ·
+   * 29 still open" beside "32 shipped", and 29 + 32 is 61. The missing seven
+   * were archived, and nothing on screen said the state existed.
+   */
+  archived: number;
   medianResolutionHours: number | null;
 };
 
@@ -171,6 +181,7 @@ export async function getFeedbackLoopMetrics(
       open: sql<number>`count(*) filter (where ${siteFeedback.status} in (${FEEDBACK_STATUS.NEW}, ${FEEDBACK_STATUS.DISPATCHED}))::int`,
       resolved: sql<number>`count(*) filter (where ${siteFeedback.status} = ${FEEDBACK_STATUS.RESOLVED})::int`,
       resolved30d: sql<number>`count(*) filter (where ${siteFeedback.status} = ${FEEDBACK_STATUS.RESOLVED} and ${siteFeedback.resolvedAt} > now() - interval '30 days')::int`,
+      archived: sql<number>`count(*) filter (where ${siteFeedback.status} = ${FEEDBACK_STATUS.ARCHIVED})::int`,
       medianResolutionHours: sql<
         number | null
       >`extract(epoch from percentile_cont(0.5) within group (order by (${siteFeedback.resolvedAt} - ${siteFeedback.createdAt})) filter (where ${siteFeedback.resolvedAt} is not null)) / 3600`,
@@ -182,6 +193,7 @@ export async function getFeedbackLoopMetrics(
     open: row?.open ?? 0,
     resolved: row?.resolved ?? 0,
     resolved30d: row?.resolved30d ?? 0,
+    archived: row?.archived ?? 0,
     medianResolutionHours:
       row?.medianResolutionHours != null ? Number(row.medianResolutionHours) : null,
   };

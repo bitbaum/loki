@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { postJson, deleteJson } from "@/lib/api/fetch";
 import { PIN_MAX_DIGITS } from "@/lib/constants/auth";
@@ -87,6 +88,22 @@ export function PrivatePinGate({ children }: { children?: React.ReactNode }) {
             {loading ? "Checking…" : "Unlock"}
           </button>
         </form>
+        {/* A gate records; it never blocks — and this one blocked absolutely.
+            Changing or removing the PIN both require the CURRENT one (on
+            purpose: it stops a hijacked session swapping it), and there is no
+            reset flow anywhere. So a forgotten PIN meant a screen with an
+            input, "Incorrect PIN", and nothing else — while the zone behind it
+            holds thousands of contacts and the whole knowledge graph. The way
+            out is not to weaken the gate, it is to stop pretending there is a
+            way in. */}
+        <p className="mt-6 text-xs text-text-tertiary">
+          Forgotten it? There is no automatic reset — the private zone stays locked until the PIN is
+          entered.{" "}
+          <Link href="/support" className="underline underline-offset-2 hover:text-text-secondary">
+            Get help
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );
