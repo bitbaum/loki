@@ -10,6 +10,7 @@ import { ProjectFeedbackSection } from "./ProjectFeedbackSection";
 import { DoneSection, NextSection, NowSection } from "./ProjectDossierSections";
 import { OrangeCatPublishButton } from "./OrangeCatPublishButton";
 import { ProjectPublicListingToggle } from "./ProjectPublicListingToggle";
+import { ProjectFeatureToggle } from "./ProjectFeatureToggle";
 import { SolonFoundButton } from "./SolonFoundButton";
 import { LiveUrlField } from "./LiveUrlField";
 import { RegisterSiteButton } from "./RegisterSiteButton";
@@ -29,11 +30,14 @@ export function ProjectWorkspaceView({
   dossier,
   shareAction,
   autoKickoff = false,
+  viewerIsSiteOperator = false,
 }: {
   dossier: ProjectDossier;
   shareAction?: React.ReactNode;
   /** Arrived from a one-click build (OrangeCat handoff): start the kickoff without a press. */
   autoKickoff?: boolean;
+  /** Viewer runs this Loki instance, so they may curate its landing page. */
+  viewerIsSiteOperator?: boolean;
 }) {
   const { detail, userProject } = dossier;
   const project = detail.project;
@@ -165,6 +169,13 @@ export function ProjectWorkspaceView({
             {!dossier.readonly && (
               <ProjectPublicListingToggle
                 projectId={project.id}
+                listedPublicly={userProject?.listedPublicly ?? false}
+              />
+            )}
+            {viewerIsSiteOperator && (
+              <ProjectFeatureToggle
+                projectId={project.id}
+                featured={Boolean(userProject?.featuredAt)}
                 listedPublicly={userProject?.listedPublicly ?? false}
               />
             )}

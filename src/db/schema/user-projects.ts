@@ -86,6 +86,15 @@ export const userProjects = pgTable(
     // public surface using the unfiltered query. Nothing recorded a decision
     // because nothing asked for one.
     listedPublicly: boolean("listed_publicly").default(false).notNull(),
+    // Operator's editorial pick, on top of the owner's consent above. Same
+    // shape and same doctrine as site_feedback.featured_at: consent decides
+    // whether a thing MAY be shown, featuring decides whether it IS shown in
+    // the small curated space (the landing hero). Null = not featured.
+    //
+    // Two gates, because they answer to different people: the owner may always
+    // withdraw consent, and no amount of featuring overrides that — every
+    // showcase query is consent AND featured, never featured alone.
+    featuredAt: timestamp("featured_at", { withTimezone: true }),
     notes: text("notes"), // free-form scratchpad visible in the profile panel
     resources: jsonb("resources").$type<ProjectResource[]>().default([]).notNull(),
     devLog: jsonb("dev_log").$type<DevLogEntry[]>().default([]).notNull(),

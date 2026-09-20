@@ -56,18 +56,18 @@ export default async function LandingPage({
   const elsewhere = landingRedirect({ insideRunner, signedIn, params });
   if (elsewhere) redirect(elsewhere);
 
-  // Real fleet snapshot for the hero console — the OWNER's actual fleet (founder
-  // dogfooding), public-safe fields only. Never fabricated. Falls back to an
-  // empty snapshot if the owner/data can't be resolved, so the hero degrades
-  // gracefully rather than showing invented numbers.
+  // Real fleet snapshot for the hero console: the SHOWCASE tier (owner
+  // consented AND operator featured) plus fleet-wide totals, public-safe
+  // fields only. It used to be the default user's own project list, which in a
+  // multi-tenant product published one account because of who it was — see
+  // db/queries/public-visibility.ts. Never fabricated; falls back to an empty
+  // snapshot so the hero degrades gracefully rather than inventing numbers.
+  const fleet: HeroFleetSnapshot = await getHeroFleetSnapshot().catch(() => ({
+    isLive: false,
+    projects: [],
+    metrics: [],
+  }));
   const owner = await getDefaultUser().catch(() => null);
-  const fleet: HeroFleetSnapshot = owner
-    ? await getHeroFleetSnapshot(owner.id).catch(() => ({
-        isLive: false,
-        projects: [],
-        metrics: [],
-      }))
-    : { isLive: false, projects: [], metrics: [] };
   // "Shipped thanks to feedback" — operator-featured resolved reports only
   // (raw visitor text never auto-publishes). Renders nothing until real
   // entries exist, per the same never-fabricate doctrine as the hero.

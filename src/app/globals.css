@@ -1279,8 +1279,13 @@
   .ui-public-fleet-nowrap {
     @apply whitespace-nowrap;
   }
+  /* inline-flex, not inline: the pointer:coarse floor below sets min-height,
+     which does nothing to an inline box — so as a plain <a> this stayed 18px
+     tall on a phone no matter what the floor said. Same reasoning as
+     .ui-chip-toggle and the other links already noted in that block.
+     `items-center` keeps the text centred once the floor inflates the box. */
   .ui-public-fleet-site {
-    @apply break-all text-sm text-text-secondary transition-colors hover:text-text-primary;
+    @apply inline-flex items-center break-all text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
   .ui-public-fleet-none {
     @apply text-sm text-text-muted;
@@ -5721,6 +5726,11 @@
   .ui-public-nav-toggle,
   .ui-public-link,
   .ui-public-link-standalone,
+  /* The address on each /fleet row. Measured 18px tall on a phone — 19 of them
+     on one page, and the ONLY sub-44px targets left on any public route. They
+     are the whole point of the catalogue (that is where you go to see the
+     thing), so they were the worst possible link to leave un-tappable. */
+  .ui-public-fleet-site,
   .ui-auth-hint-link,
   .ui-auth-footer-link,
   .ui-auth-muted-link,

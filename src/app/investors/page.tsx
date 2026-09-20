@@ -1,7 +1,6 @@
 import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { INVESTORS, INVESTOR_DETAILS } from "@/config/marketing-content";
-import { getDefaultUser } from "@/db/queries/users";
 import { getHeroFleetSnapshot, type HeroFleetSnapshot } from "@/db/queries/public-fleet";
 
 export const metadata = {
@@ -10,16 +9,16 @@ export const metadata = {
 };
 
 export default async function InvestorsPage() {
-  // Same real data source as the homepage hero — the founder's actual fleet,
-  // public-safe fields only. Degrades to nothing rather than fake numbers.
-  const owner = await getDefaultUser().catch(() => null);
-  const fleet: HeroFleetSnapshot = owner
-    ? await getHeroFleetSnapshot(owner.id).catch(() => ({
-        isLive: false,
-        projects: [],
-        metrics: [],
-      }))
-    : { isLive: false, projects: [], metrics: [] };
+  // Same real data source as the homepage hero: the SHOWCASE tier — projects
+  // whose owner consented and the operator featured — plus fleet-wide totals.
+  // No longer "the founder's actual fleet": an investor should see how busy
+  // Loki is across its tenants, which is also the number that means anything.
+  // Degrades to nothing rather than fake numbers.
+  const fleet: HeroFleetSnapshot = await getHeroFleetSnapshot().catch(() => ({
+    isLive: false,
+    projects: [],
+    metrics: [],
+  }));
 
   return (
     <PublicSurface right={<PublicHeaderActions />}>

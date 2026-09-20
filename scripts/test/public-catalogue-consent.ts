@@ -37,6 +37,11 @@ const registerNote = readFileSync(
   join(ROOT, "src/components/projects/FleetRegisterNote.tsx"),
   "utf8",
 );
+const visibility = readFileSync(join(ROOT, "src/db/queries/public-visibility.ts"), "utf8");
+const heroQuery = readFileSync(join(ROOT, "src/db/queries/public-fleet.ts"), "utf8");
+const landing = readFileSync(join(ROOT, "src/app/page.tsx"), "utf8");
+const projectRoute = readFileSync(join(ROOT, "src/app/api/projects/[id]/route.ts"), "utf8");
+const profile = readFileSync(join(ROOT, "src/app/u/[username]/page.tsx"), "utf8");
 
 // ── The column exists, and defaults to withholding consent ──────────────────
 ok(
@@ -61,8 +66,8 @@ ok(
 
 // A consenting-but-retired project should not linger in the shop window.
 ok(
-  /getPubliclyListedProjects[\s\S]{0,600}eq\(userProjects\.isActive,\s*true\)/.test(projectsQuery),
-  "the public catalogue is also scoped to active projects",
+  /eq\(userProjects\.isActive,\s*true\)/.test(visibility),
+  "the public catalogue tier is also scoped to active projects",
 );
 
 // ── The box register is not every tenant's business ─────────────────────────
@@ -73,6 +78,46 @@ ok(
   /getSelfImprovementTarget/.test(registerNote) &&
     /owner\.userId\s*!==\s*userId/.test(registerNote),
   "the box-register note is shown only to the account that operates that box",
+);
+
+// ── The showcase is the catalogue narrowed, never a second opinion ─────────
+// The one property worth a gate of its own: withdrawing consent must drop a
+// project off the homepage even while it is still featured. That only holds
+// while the showcase predicate is BUILT ON the catalogue predicate — written
+// as isNotNull(featuredAt) alone it would silently invert.
+ok(
+  /featuredAt:\s*timestamp\("featured_at"/.test(schema),
+  "user_projects carries a featured_at stamp for the operator's pick",
+);
+ok(
+  /PUBLIC_SHOWCASE_WHERE[\s\S]{0,240}PUBLIC_CATALOGUE_WHERE/.test(visibility),
+  "the showcase predicate is built ON the catalogue predicate — featuring cannot bypass consent",
+);
+ok(
+  /isNotNull\(userProjects\.featuredAt\)/.test(visibility),
+  "the showcase predicate also requires an actual feature decision",
+);
+
+// ── The landing speaks for the product, not for one account ────────────────
+ok(
+  /export async function getHeroFleetSnapshot\(\)/.test(heroQuery),
+  "the hero snapshot takes NO userId — it is fleet-wide, not one account's",
+);
+ok(!/getPublicProjects/.test(heroQuery), "the hero does not read one account's public projects");
+ok(/getShowcaseProjects/.test(heroQuery), "the hero reads the showcase tier");
+ok(
+  !/getHeroFleetSnapshot\([^)]+\)/.test(landing),
+  "the landing calls the hero snapshot with no owner argument",
+);
+ok(
+  !/const FLAGSHIPS/.test(heroQuery) && !/const FLAGSHIPS/.test(profile),
+  "no page hardcodes a flagship name list — featuring is per project and stored",
+);
+
+// ── Featuring is the operator's, and only the operator's ───────────────────
+ok(
+  /isSiteOperator/.test(projectRoute) && /403/.test(projectRoute),
+  "the project route refuses to feature unless the caller runs this instance",
 );
 
 console.log(`${pass} passed, ${fail} failed`);

@@ -46,6 +46,10 @@ export const PatchProjectBody = z
     /** Consent to appear in Loki's public catalogue at /fleet. Lives on
      *  user_projects, not entities — see patchProject. */
     listedPublicly: z.boolean().optional(),
+    /** Operator's editorial pick for the landing hero. Accepted here but
+     *  AUTHORIZED IN THE ROUTE (isSiteOperator) — a tenant must not be able to
+     *  put themselves on the homepage by PATCHing their own project. */
+    featured: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "Nothing to update" });
 
