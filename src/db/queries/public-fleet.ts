@@ -45,12 +45,29 @@ export type HeroFleetSnapshot = {
  * nobody, so it needs no consent — and unlike one account's list it grows
  * honestly as Loki gains users, which is the number a visitor actually wants.
  */
-async function getFleetWideMetrics(): Promise<{ projects: number; running: number }> {
-  const [[projects], [running]] = await Promise.all([
+async function getFleetWideMetrics(): Promise<{
+  projects: number;
+  running: number;
+  weekRuns: number;
+}> {
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const [[projects], [running], [weekRuns]] = await Promise.all([
     db.select({ value: count() }).from(userProjects).where(eq(userProjects.isActive, true)),
     db.select({ value: count() }).from(projectStates).where(eq(projectStates.agentRunning, true)),
+    // "Is anything actually happening here?" — the one number that answers it,
+    // and the reason this console has three columns rather than two. Counted
+    // fleet-wide like the others, so it grows with the product instead of
+    // describing one account's week.
+    db
+      .select({ value: count() })
+      .from(orchestrationRuns)
+      .where(gte(orchestrationRuns.startedAt, weekAgo)),
   ]);
-  return { projects: projects?.value ?? 0, running: running?.value ?? 0 };
+  return {
+    projects: projects?.value ?? 0,
+    running: running?.value ?? 0,
+    weekRuns: weekRuns?.value ?? 0,
+  };
 }
 
 /**
@@ -106,6 +123,7 @@ export async function getHeroFleetSnapshot(): Promise<HeroFleetSnapshot> {
         value: String(totals.running),
         label: totals.running === 1 ? "agent running" : "agents running",
       },
+      { value: String(totals.weekRuns), label: "runs this week" },
     ],
   };
 }
@@ -121,9 +139,15 @@ export async function getHeroFleetSnapshot(): Promise<HeroFleetSnapshot> {
 // One import block for drizzle + db + tables, serving BOTH halves of this file.
 // ES imports hoist, so the hero above reads them fine; two blocks would have
 // meant two `eq`/`db` bindings and a duplicate-identifier error.
-import { and, count, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { entities, projectStates, siteFeedback, userProjects } from "@/db/schema";
+import {
+  entities,
+  orchestrationRuns,
+  projectStates,
+  siteFeedback,
+  userProjects,
+} from "@/db/schema";
 import { getFeedbackLoopMetrics } from "./site-feedback";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 
