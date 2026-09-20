@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.30",
+    tag: "fleet-runner-v0.8.30",
+    date: "2026-09-20T00:00:00Z",
+    highlights: [
+      "Updated five bundled libraries to their security-patched versions. Nothing in the runner behaves differently \u2014 the previous builds simply carried known-vulnerable copies of code they depend on.",
+    ],
+    breaking: [],
+    notes:
+      "These are transitive dependencies, libraries pulled in by other libraries rather than chosen directly, which is why no automatic update ever proposed a fix for them. They ship inside the runner, so the patched versions only reach a machine through a release like this one.",
+  },
+  {
     version: "0.8.29",
     tag: "fleet-runner-v0.8.29",
     date: "2026-09-20T00:00:00Z",
