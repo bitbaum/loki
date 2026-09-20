@@ -198,6 +198,21 @@ async function main() {
   console.log(
     `✓ groq chain fallback: ${chain.length} link(s) across ${vendors.length} vendor(s); provenance + panel isolation hold`,
   );
+
+  // Every refusal case above walks the vendor-error path, which fire-and-forgets
+  // a quota write: `recordRefusal` -> `persist` -> lazy import of `@/db` ->
+  // `postgres(url, { max: 5 })`. Nothing closes that pool, so its sockets hold
+  // the event loop open and this process never exits on its own.
+  //
+  // It cost fifty-six minutes of every CI run before anyone looked, and it was
+  // invisible locally: with no DATABASE_URL the import rejects and the process
+  // exits in two seconds, so the hang exists only where a database does.
+  //
+  // Exiting here is safe precisely because that write is worthless — the
+  // readings come from a stubbed vendor answering a fake key, so persisting
+  // them would put fiction in the quota table. This is the same ending the
+  // other database-touching tests use (rag-retrieval, telegram-allowlist).
+  process.exit(0);
 }
 
 void main();
