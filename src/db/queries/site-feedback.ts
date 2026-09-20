@@ -47,7 +47,19 @@ export async function listReporterFeedback(
       ...cols,
       hasScreenshots: sql<boolean>`false`.as("has_screenshots"),
       projectName: entities.name,
-      liveUrl: sql<string | null>`null`.as("live_url"),
+      // The project's public origin, so the reporter can be sent to look at
+      // the page they reported once a fix ships. Stubbed `null` until now,
+      // which silently disabled "Check the live page" on the one surface whose
+      // reader is the person best placed to confirm the fix.
+      liveUrl: sql<string | null>`(
+        SELECT ${userProjects.liveUrl} FROM ${userProjects}
+        WHERE ${userProjects.entityProjectId} = ${entities.id}
+          AND ${userProjects.userId} = ${siteFeedback.userId}
+          AND ${userProjects.isActive} = true
+        ORDER BY ${userProjects.createdAt} ASC LIMIT 1
+      )`.as("live_url"),
+      // Whether an agent COULD be launched is the owner's question, never the
+      // reporter's — no button on this page dispatches anything.
       runnable: sql<boolean>`false`.as("runnable"),
     })
     .from(siteFeedback)

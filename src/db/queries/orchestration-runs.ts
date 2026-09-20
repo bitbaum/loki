@@ -260,6 +260,30 @@ export async function getOrchestrationRunsByIds(userId: string, ids: string[]) {
   return new Map(rows.map((r) => [r.id, r]));
 }
 
+/**
+ * Runs behind a REPORTER's own feedback rows — deliberately not owner-scoped.
+ *
+ * getOrchestrationRunsByIds above filters by `userId` because its caller is
+ * the operator reading their own fleet. A reporter is a different person: they
+ * filed a report on someone else's project, so the run that is fixing it is
+ * owned by that someone else and an owner filter would return nothing, which
+ * is precisely how the reporter page ended up with no progress to show.
+ *
+ * Authorization therefore comes from the REPORT, not the run: the caller has
+ * already proved `site_feedback.reporter_user_id = <this user>` and passes the
+ * `dispatched_run_id` values off those rows and nothing else. Passing ids from
+ * anywhere else would hand a user runs they have no claim on.
+ *
+ * Only the columns the work-phase layer consumes are selected, and none of
+ * them is rendered to the reporter — src/lib/feedback/reporter-view.ts writes
+ * its own sentences from the derived phase. See that file for the boundary.
+ */
+export async function getRunsByIdsForReporter(ids: string[]) {
+  if (ids.length === 0) return new Map<string, typeof orchestrationRuns.$inferSelect>();
+  const rows = await db.select().from(orchestrationRuns).where(inArray(orchestrationRuns.id, ids));
+  return new Map(rows.map((r) => [r.id, r]));
+}
+
 export async function cleanupStaleOrchestrationRuns(userId?: string) {
   // Did this run's project produce a handoff AFTER the run started? project_states
   // holds the box-pushed session state; a ready_at / session_updated_at newer
