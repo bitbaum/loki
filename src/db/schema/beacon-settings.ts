@@ -9,9 +9,7 @@ export const beaconSettings = pgTable(
       .notNull()
       .unique()
       .references(() => users.id, { onDelete: "cascade" }),
-    popupMode: text("popup_mode").notNull().default("web"),
     countdownSeconds: integer("countdown_seconds").notNull().default(12),
-    minIdleSeconds: integer("min_idle_seconds").notNull().default(0),
     whisperModel: text("whisper_model").notNull().default("base"),
     transcriptionProvider: text("transcription_provider").notNull().default("auto"),
     // off | on — autopilot is binary after the 2026-06-11 collapse (see

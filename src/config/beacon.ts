@@ -1,5 +1,3 @@
-import { APP_NAME } from "./brand";
-
 export const WHISPER_MODEL_VALUES = ["tiny", "base", "small", "medium", "large"] as const;
 type WhisperModel = (typeof WHISPER_MODEL_VALUES)[number];
 
@@ -32,7 +30,7 @@ export const TRANSCRIPTION_PROVIDERS: readonly {
   {
     value: "local",
     label: "Local Whisper",
-    note: "your machine's Whisper model — requires runtime, no Groq attempt",
+    note: "the server's Whisper runtime — no Groq attempt",
   },
 ];
 
@@ -64,17 +62,6 @@ export const AUTO_INJECT_MODES: readonly {
   },
 ];
 
-/** Legacy modes from before the 2026-06-11 collapse. Read-only; used only
- *  by the one-time migration UPDATE and for tolerant parsing of old stored
- *  values. Do not reference from runtime decision code. */
-export const LEGACY_AUTO_INJECT_MODE_VALUES = [
-  "queue_only",
-  "beacon",
-  "next_best",
-  "strategist",
-] as const;
-export type LegacyAutoInjectMode = (typeof LEGACY_AUTO_INJECT_MODE_VALUES)[number];
-
 /** Map any value (current or legacy) to the new 2-state space. Off stays off;
  *  every other historical mode collapses to "on" because they all auto-fired
  *  in some way. Use this when reading an old DB row or env var that hasn't
@@ -83,29 +70,3 @@ export function normalizeAutoInjectMode(raw: string | null | undefined): AutoInj
   if (raw === "off") return "off";
   return "on";
 }
-
-export const POPUP_MODE_VALUES = ["web", "disabled"] as const;
-export type PopupMode = (typeof POPUP_MODE_VALUES)[number];
-
-export const POPUP_MODES: readonly {
-  value: PopupMode;
-  label: string;
-  description: string;
-  pros: string;
-  cons: string;
-}[] = [
-  {
-    value: "web",
-    label: "Web popup",
-    description: `Chrome --app window opens at /beacon/live; same UI as ${APP_NAME}.`,
-    pros: "Single source of truth — design lives in src/components/control, no native copy to drift",
-    cons: `Requires ${APP_NAME} to be running and a Chromium-family browser installed`,
-  },
-  {
-    value: "disabled",
-    label: "Disabled",
-    description: "No popup fires — agent loops fully autonomously.",
-    pros: "Zero interruptions; auto-continue always fires immediately",
-    cons: "No human checkpoint — agent runs without asking for direction",
-  },
-];

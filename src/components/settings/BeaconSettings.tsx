@@ -13,7 +13,6 @@ import {
 import {
   WHISPER_MODELS,
   TRANSCRIPTION_PROVIDERS,
-  POPUP_MODES,
   AUTO_INJECT_MODES,
   type AutoInjectMode,
 } from "@/config/beacon";
@@ -21,7 +20,6 @@ import { LOKI_REFRESH_EVENT } from "@/lib/client-events";
 
 export function BeaconSettings() {
   const [data, setData] = useState<BeaconSettingsData | null>(null);
-  const [popupMode, setPopupMode] = useState("web");
   const [countdown, setCountdown] = useState(DEFAULT_BEACON_COUNTDOWN_S);
   const [model, setModel] = useState("base");
   const [provider, setProvider] = useState("auto");
@@ -35,7 +33,6 @@ export function BeaconSettings() {
     getJson<BeaconSettingsData>("/api/beacon-settings")
       .then((d) => {
         setData(d);
-        setPopupMode(d.popup_mode);
         setCountdown(d.countdown_seconds);
         setModel(d.whisper_model);
         setProvider(d.transcription_provider);
@@ -46,8 +43,7 @@ export function BeaconSettings() {
 
   const dirty =
     data !== null &&
-    (popupMode !== data.popup_mode ||
-      countdown !== data.countdown_seconds ||
+    (countdown !== data.countdown_seconds ||
       model !== data.whisper_model ||
       provider !== data.transcription_provider ||
       autoInjectMode !== data.auto_inject_mode);
@@ -58,7 +54,6 @@ export function BeaconSettings() {
     setSaved(false);
     try {
       const res = await patchJson("/api/beacon-settings", {
-        popup_mode: popupMode,
         countdown_seconds: countdown,
         whisper_model: model,
         transcription_provider: provider,
@@ -66,7 +61,6 @@ export function BeaconSettings() {
       });
       if (!res.ok) await throwApiError(res, "Failed to save");
       setData({
-        popup_mode: popupMode,
         countdown_seconds: countdown,
         whisper_model: model,
         transcription_provider: provider,
@@ -80,8 +74,6 @@ export function BeaconSettings() {
       setSaving(false);
     }
   };
-
-  const selectedMode = POPUP_MODES.find((m) => m.value === popupMode) ?? POPUP_MODES[0];
 
   return (
     <section className="ui-settings-section">
@@ -170,50 +162,9 @@ export function BeaconSettings() {
                 <span className="text-sm text-text-tertiary">seconds</span>
               </div>
               <p className="text-xs text-text-muted">
-                How long the beacon waits before auto-submitting the primary action. Currently{" "}
-                {countdown}s.
+                How long the &ldquo;Agent finished&rdquo; banner on Control waits before sending the
+                next queued instruction. Currently {countdown}s.
               </p>
-            </div>
-          </div>
-
-          <hr className="border-border-subtle" />
-
-          {/* ─── Subgroup: Popup behavior ─── */}
-          <div className="space-y-5">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-              Popup behavior
-            </h3>
-
-            <div className="space-y-2">
-              <label className="ui-kicker">Popup mode</label>
-              <div className="grid grid-cols-2 gap-2">
-                {POPUP_MODES.map((m) => (
-                  <button
-                    key={m.value}
-                    type="button"
-                    onClick={() => setPopupMode(m.value)}
-                    className={[
-                      "text-left rounded-lg border p-3 transition-colors",
-                      popupMode === m.value
-                        ? "border-accent-primary bg-accent-muted"
-                        : "border-border-default bg-surface-base hover:border-border-interactive",
-                    ].join(" ")}
-                  >
-                    <div className="font-medium text-sm text-text-primary">{m.label}</div>
-                    <div className="mt-1 text-xs text-text-tertiary">{m.description}</div>
-                  </button>
-                ))}
-              </div>
-              <div className="rounded-lg border border-border-subtle bg-surface-raised p-3 space-y-1">
-                <p className="text-xs text-status-positive">
-                  <span className="font-semibold">Advantage — </span>
-                  {selectedMode.pros}
-                </p>
-                <p className="text-xs text-text-muted">
-                  <span className="font-semibold">Trade-off — </span>
-                  {selectedMode.cons}
-                </p>
-              </div>
             </div>
           </div>
 
@@ -256,9 +207,9 @@ export function BeaconSettings() {
                 ))}
               </select>
               <p className="text-xs text-text-muted">
-                Whisper model used when provider is Local or Auto with runtime available. Larger
-                models are more accurate but slower. Cached in{" "}
-                <code className="text-text-secondary">~/.cache/whisper/</code>.
+                Whisper model used when provider is Local, or Auto with a server runtime available.
+                Larger models are more accurate but slower. Downloaded on the server and cached in{" "}
+                <code className="text-text-secondary">~/.cache/huggingface/</code>.
               </p>
             </div>
           </div>

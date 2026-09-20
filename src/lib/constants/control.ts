@@ -9,7 +9,6 @@ export const ACTIVE_WINDOW_S = 300; // 5 min — active vs idle split in control
 export const DEFAULT_BEACON_COUNTDOWN_S = 12; // fallback when settings file is absent — must match Python COUNTDOWN_SECONDS
 export const MIN_BEACON_COUNTDOWN_S = 5; // shortest allowed beacon countdown
 export const MAX_BEACON_COUNTDOWN_S = 300; // longest allowed beacon countdown (5 minutes)
-export const DEFAULT_POPUP_MODE = "web"; // "web" | "disabled" — "both"/"pyqt" coerced to "web" for legacy rows
 /** New-user autopilot policy. After the 2026-06-11 collapse the choice is
  *  binary — "on" defaults to true so new users get the fire-when-ready
  *  behavior immediately (still safety-gated by status:working, blockers,

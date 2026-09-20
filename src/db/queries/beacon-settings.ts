@@ -1,24 +1,18 @@
 import { db } from "@/db";
 import { beaconSettings, userProjects } from "@/db/schema";
 import { and, eq, isNull, ne, or } from "drizzle-orm";
-import {
-  DEFAULT_BEACON_COUNTDOWN_S,
-  DEFAULT_POPUP_MODE,
-  DEFAULT_AUTO_INJECT_MODE,
-} from "@/lib/constants/control";
+import { DEFAULT_BEACON_COUNTDOWN_S, DEFAULT_AUTO_INJECT_MODE } from "@/lib/constants/control";
 import { AUTO_INJECT_MODE_VALUES, type AutoInjectMode } from "@/config/beacon";
 
 export type { AutoInjectMode } from "@/config/beacon";
 
 /**
- * `min_idle_seconds` is deliberately absent. The column stays (migrations are
- * forward-only), but nothing wrote a consumer for it in the ~year it was
- * offered on /settings as "Skip popup if you've been active in the last Ns" —
- * so the knob described behaviour that did not exist. Removed from the shape
- * on 2026-09-11 rather than left reading back a number nobody honours.
+ * `popup_mode` and `min_idle_seconds` are both gone. Each described the popup
+ * retired on 2026-06-11; their columns are dropped in the migration beside
+ * this change. Keeping them was how a dead control stayed on the Settings
+ * page for three months, saving a value nothing read.
  */
 export type BeaconSettingsData = {
-  popup_mode: string;
   countdown_seconds: number;
   whisper_model: string;
   transcription_provider: string;
@@ -26,7 +20,6 @@ export type BeaconSettingsData = {
 };
 
 const DEFAULTS: BeaconSettingsData = {
-  popup_mode: DEFAULT_POPUP_MODE,
   countdown_seconds: DEFAULT_BEACON_COUNTDOWN_S,
   whisper_model: "base",
   transcription_provider: "auto",
@@ -41,12 +34,6 @@ function coerceAutoInjectMode(v: string | null | undefined): AutoInjectMode {
     : DEFAULT_AUTO_INJECT_MODE;
 }
 
-/** PyQt mode was retired (see scripts/beacon.py). Legacy DB rows with 'both' or
- *  'pyqt' are coerced to 'web' on read so the UI never offers a dead option. */
-function coercePopupMode(stored: string): string {
-  return stored === "disabled" ? "disabled" : "web";
-}
-
 export async function getBeaconSettings(userId: string): Promise<BeaconSettingsData> {
   const rows = await db
     .select()
@@ -57,7 +44,6 @@ export async function getBeaconSettings(userId: string): Promise<BeaconSettingsD
   if (!rows[0]) return { ...DEFAULTS };
 
   return {
-    popup_mode: coercePopupMode(rows[0].popupMode),
     countdown_seconds: rows[0].countdownSeconds,
     whisper_model: rows[0].whisperModel,
     transcription_provider: rows[0].transcriptionProvider,
@@ -98,7 +84,6 @@ export async function upsertBeaconSettings(
   const updateSet: Partial<typeof beaconSettings.$inferInsert> & { updatedAt: Date } = {
     updatedAt: new Date(),
   };
-  if (patch.popup_mode !== undefined) updateSet.popupMode = patch.popup_mode;
   if (patch.countdown_seconds !== undefined) updateSet.countdownSeconds = patch.countdown_seconds;
   if (patch.whisper_model !== undefined) updateSet.whisperModel = patch.whisper_model;
   if (patch.transcription_provider !== undefined)
@@ -109,7 +94,6 @@ export async function upsertBeaconSettings(
     .insert(beaconSettings)
     .values({
       userId,
-      popupMode: inserted.popup_mode,
       countdownSeconds: inserted.countdown_seconds,
       whisperModel: inserted.whisper_model,
       transcriptionProvider: inserted.transcription_provider,
