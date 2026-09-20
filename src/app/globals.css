@@ -505,6 +505,13 @@
   .ui-mobile-nav-sheet-label {
     @apply mb-1.5 px-3 text-micro font-semibold uppercase tracking-caps text-text-muted;
   }
+  /* The section's question, shown only in the Menu sheet. The sidebar keeps
+     it as a tooltip instead: the sheet is a surface you open to ask "where
+     can I go?", so the taxonomy is the content there; the sidebar is always
+     on screen, where the same line would be permanent noise. */
+  .ui-mobile-nav-sheet-question {
+    @apply px-3 pb-1 text-xs text-text-tertiary;
+  }
   .ui-mobile-nav-row {
     @apply flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-left text-text-primary transition-colors hover:bg-surface-raised;
   }
@@ -4100,6 +4107,36 @@
   }
   .ui-inbox-more {
     @apply inline-flex min-h-9 items-center text-xs text-text-secondary underline decoration-border-subtle underline-offset-2 transition-colors hover:decoration-current;
+  }
+
+  /* ── Account menu ─────────────────────────────────────────────────────────
+     Identity dropdown in the app top bar: who is signed in, their settings,
+     appearance, the private-zone lock, and sign out. The trigger is the ONLY
+     bordered control in `ui-app-topbar-right` — that weight used to belong to
+     the theme toggle, which is a preference, not an identity. */
+  .ui-account-trigger {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-default bg-surface-base text-xs font-semibold uppercase tracking-caps text-text-secondary transition-colors hover:border-border-interactive hover:bg-surface-raised hover:text-text-primary;
+  }
+  .ui-account-panel {
+    @apply fixed right-2 top-14 z-50 w-[min(16rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised py-1 shadow-panel-strong;
+  }
+  .ui-account-identity {
+    @apply border-b border-border-subtle px-3 pb-2.5 pt-2;
+  }
+  .ui-account-name {
+    @apply truncate text-sm font-semibold text-text-primary;
+  }
+  .ui-account-email {
+    @apply truncate text-xs text-text-tertiary;
+  }
+  .ui-account-group {
+    @apply border-b border-border-subtle py-1 last:border-b-0;
+  }
+  .ui-account-row {
+    @apply flex w-full min-h-11 items-center gap-2.5 px-3 text-sm text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary;
+  }
+  .ui-account-row-static {
+    @apply flex w-full min-h-11 items-center gap-2.5 px-3 text-sm text-text-secondary;
   }
 
   /* ── Notification panel ───────────────────────────────────────────────────

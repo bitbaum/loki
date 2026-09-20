@@ -5,16 +5,23 @@ import { usePathname } from "next/navigation";
 import { useCommandPalette } from "@/hooks/use-command-palette";
 import { NotificationsPill } from "./NotificationsPill";
 import { FleetRunnerStatusPill } from "@/components/desktop/FleetRunnerStatusPill";
-import { ThemeToggle } from "@/components/shell/ThemeToggle";
+import { AccountMenu } from "@/components/shell/AccountMenu";
 import { NAV_ITEMS } from "@/config/navigation";
 import { isCurrentPath } from "@/lib/navigation";
 
 /**
  * Slim app-shell top bar. Universal across every authenticated route.
  *
- * Hosts the command palette trigger (Cmd-K) and the push-notification status
- * pill. Pages still own their own page headers; this bar is intentionally
- * quiet — chrome that signals state, not content.
+ * Hosts, left to right: where you are (mobile) or where you can go (search),
+ * then live state (Fleet Runner, notifications), then who you are
+ * (AccountMenu). Pages still own their own page headers; this bar is
+ * intentionally quiet — chrome that signals state, not content.
+ *
+ * Ordering rule: state before identity. Everything to the left of the avatar
+ * changes on its own; the avatar never does. A control that only changes when
+ * the user changes it does not belong among live indicators — which is the
+ * mistake the theme toggle made here, drawn heavier than every signal beside
+ * it. It now sits inside the account menu.
  *
  * Mobile shape: the full-width search button collapses to a header that
  * shows the current page name on the left and an icon-only search trigger
@@ -81,9 +88,13 @@ export function AppTopBar({
             <LayoutPanelLeft className="h-4 w-4" aria-hidden="true" />
           </button>
         )}
-        <ThemeToggle />
         <FleetRunnerStatusPill />
         <NotificationsPill />
+        {/* Identity is the LAST thing in the bar and the only bordered one:
+            it is the anchor a user looks for when they want to leave, and
+            "where do I sign out?" had no answer in this bar at all. The theme
+            toggle it replaced now lives inside the menu. */}
+        <AccountMenu />
       </div>
     </header>
   );

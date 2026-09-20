@@ -22,9 +22,7 @@ import {
   FileText,
   Download,
   Newspaper,
-  Network,
   Inbox,
-  Globe,
   MessagesSquare,
   Handshake,
   LayoutGrid,
@@ -83,15 +81,6 @@ export const NAV = {
     active: true,
     mobile: false,
   },
-  agents: {
-    id: "agents",
-    label: "Agents",
-    description: "Folded into Control — roster and escalations live there",
-    href: "/control",
-    icon: Network,
-    active: true,
-    mobile: false,
-  },
   control: {
     id: "control",
     label: "Control",
@@ -125,15 +114,6 @@ export const NAV = {
     description: "Visitor & review reports across your fleet — triage and implement",
     href: "/feedback",
     icon: MessagesSquare,
-    active: true,
-    mobile: false,
-  },
-  atlas: {
-    id: "atlas",
-    label: "Atlas",
-    description: "Folded into Projects — live URL and down-state live there",
-    href: "/projects",
-    icon: Globe,
     active: true,
     mobile: false,
   },
@@ -315,52 +295,72 @@ export const NAV = {
 } satisfies Record<string, NavItem>;
 
 // ─── Sidebar sections — SSOT for sidebar groupings ────────────────────────────
-// Each section has a label header. When `private: true`, the section is hidden
-// behind the PIN gate — see SidebarNav.tsx.
+//
+// Loki is an operator console. Its authenticated surface answers three
+// questions, and every sidebar section is exactly one of them:
+//
+//   1. What needs me?       → Now     (Today, Approvals, Feedback)
+//   2. What is my fleet doing? → Fleet   (Control, Projects, Activity, System)
+//   3. How do I act on it?  → Command (Loki, Terminal, Prompts)
+//
+// A page that answers none of those three does not belong in the sidebar.
+// That test is what dissolved the old "More" section, whose only membership
+// rule was that nobody had decided: it held Approvals (a "needs me" surface),
+// Terminal and Prompts (acting), Activity and System (fleet state), Thoughts
+// (marketing essays) and Fleet (a PUBLIC marketing register rendered inside
+// the signed-in shell). Six unrelated things in one drawer named after the
+// absence of a decision.
+//
+// Two sections sit deliberately OUTSIDE the loop:
+//   • Private — the user's own data (people, money, habits …). Already
+//     PIN-gated, which was the tell: half the sidebar was a different product.
+//   • Account — Settings, appearance, Download, sign out. These are reached
+//     from the header account menu, not browsed, so they own no sidebar seat.
+//
+// The public marketing pages (Mission, Philosophy, Roadmap, Investors,
+// Whitepaper, Thoughts, the /fleet register) left the sidebar entirely. They
+// stay in NAV so the command palette can still jump to them, and they are
+// reachable from the public nav where they belong. "Investors" was in the
+// signed-in app navigation; that is the clearest evidence the old taxonomy
+// grouped pages by who built them rather than by what an operator does.
 
 export type SidebarSection = {
   id: string;
   label: string;
   items: NavItem[];
+  /** One line: which of the operator's questions this section answers. */
+  question: string;
   /** Hidden behind the PIN gate when configured + locked. */
   private?: boolean;
 };
 
 export const SIDEBAR_SECTIONS: SidebarSection[] = [
   {
-    id: "work",
-    // Daily surfaces only. A page earns this seat if you open it with no
-    // context: queue (Today), command (Loki), live state (Control), catalog
-    // (Projects), inbound reports (Feedback). Destinations live in "more".
-    // Agents and Atlas are not pages — roster/escalations sit on Control,
-    // live URL on Projects.
-    label: "Work",
-    items: [NAV.today, NAV.loki, NAV.control, NAV.projects, NAV.feedback],
+    id: "now",
+    label: "Now",
+    question: "What needs me?",
+    items: [NAV.today, NAV.approvals, NAV.feedback],
   },
   {
-    id: "more",
-    // Reachable from Menu, command palette, FleetSurfaceGuide, and deep
-    // links. Not a daily peer of Work — opening them empty is a dead page.
-    label: "More",
-    items: [
-      NAV.approvals,
-      NAV.terminal,
-      NAV.prompts,
-      NAV.activity,
-      NAV.system,
-      NAV.fleet,
-      NAV.thoughts,
-    ],
+    id: "fleet",
+    label: "Fleet",
+    question: "What is my fleet doing?",
+    // System belongs here and not in a drawer of its own: "what is running"
+    // includes the runtime that runs it — gateway, disk, scheduled jobs.
+    items: [NAV.control, NAV.projects, NAV.activity, NAV.system],
+  },
+  {
+    id: "command",
+    label: "Command",
+    question: "How do I act on it?",
+    // The same act at three altitudes: say it (Loki), type it (Terminal),
+    // or save it to repeat (Prompts).
+    items: [NAV.loki, NAV.terminal, NAV.prompts],
   },
   {
     id: "private",
-    // Personal data — the user's people book, the crew they delegate to,
-    // robots, goals, habits, events, money ledger, and the Memory entity graph
-    // derived from all of the above. Crew sits here rather than in Work because
-    // its roster IS the address book: an assignment leaves the private zone
-    // only through a share link, handed over one at a time on purpose.
-    // Hidden behind the PIN gate when configured + locked.
     label: "Private",
+    question: "My own data.",
     private: true,
     items: [
       NAV.memory,
@@ -373,18 +373,39 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       NAV.money,
     ],
   },
-  {
-    id: "site",
-    // Public marketing pages, surfaced inside the app shell so logged-in
-    // users can reach them without leaving the sidebar.
-    label: "Site",
-    items: [NAV.download, NAV.mission, NAV.philosophy, NAV.roadmap, NAV.investors, NAV.whitepaper],
-  },
 ];
 
-// Flat list — preserved for places that need every nav item without sections
-// (mobile bottom tab bar filter, command palette indexing, etc.).
-export const NAV_ITEMS: NavItem[] = SIDEBAR_SECTIONS.flatMap((s) => s.items).concat(NAV.settings);
+// ─── Account menu — SSOT for the header account dropdown ─────────────────────
+// Identity-scoped destinations. They are NOT sidebar items: you do not browse
+// to your own settings, you reach them from your own avatar. Sign out and the
+// private-zone lock live in the menu component itself because they are
+// actions, not destinations.
+export const ACCOUNT_NAV_ITEMS: NavItem[] = [NAV.settings, NAV.download];
+
+// ─── Marketing pages ─────────────────────────────────────────────────────────
+// Public surface. Not in the sidebar; kept here so the command palette can
+// reach them and so there is one list to render the public nav from.
+export const SITE_NAV_ITEMS: NavItem[] = [
+  NAV.mission,
+  NAV.philosophy,
+  NAV.roadmap,
+  NAV.thoughts,
+  NAV.whitepaper,
+  NAV.investors,
+  NAV.fleet,
+  NAV.download,
+];
+
+// Flat list of every reachable destination — the command palette's index and
+// the "which page am I on?" lookup used by AppTopBar and PageTitle.
+//
+// Derived from NAV itself, NOT from SIDEBAR_SECTIONS. Curating the sidebar
+// must never make a page unfindable: Cmd-K still reaches Whitepaper even
+// though no operator needs a sidebar seat for it. Retired redirect stubs
+// (the old `agents` → /control and `atlas` → /projects entries) were deleted
+// rather than hidden — left in this list they shadowed the real pages, and
+// AppTopBar would have titled /control "Agents".
+export const NAV_ITEMS: NavItem[] = Object.values(NAV);
 
 // ─── Fleet workspace tabs ─────────────────────────────────────────────────────
 // These are four views of the same active project. The catalog stays the fleet
