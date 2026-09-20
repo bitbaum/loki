@@ -24,9 +24,12 @@ Loki is a multi-user SaaS platform for commanding AI agent fleets across project
 - **Next.js 16** (App Router, Server Components, Server Actions)
 - **TypeScript strict** — no `any` without justification
 - **Tailwind CSS 4 + shadcn/ui** — dark by DEFAULT, not forced. `ThemeProvider`
-  sets `defaultTheme="dark"`; a `ThemeToggle` ships in 8 places including the
-  public nav, so light mode is a real state your styling must survive. Never
-  assume a dark ground outside the always-dark surfaces noted below.
+  sets `defaultTheme="dark"`; `ThemeToggle` ships in the account menu, the
+  Settings page and the public nav, so light mode is a real state your styling
+  must survive. Never assume a dark ground outside the always-dark surfaces
+  noted below. It used to ship in eight places including the app top bar,
+  where it was the only bordered control among ghost-circle status icons — a
+  preference drawn heavier than every live signal beside it.
 - **Drizzle ORM** — schema is SSOT for types (`$inferSelect`, `$inferInsert`)
 - **PostgreSQL 17** (self-hosted, `loki` database)
 
@@ -37,7 +40,18 @@ src/
 ├── app/           → Pages + API routes (thin, delegate to queries/components)
 ├── components/
 │   ├── ui/        → Shared primitives (Card, Modal, Drawer, Field, PageLayout)
-│   ├── shell/     → AppShell, Sidebar, MobileNav (Today/Control/Projects + Loki + More), AskLokiButton → /loki
+│   ├── shell/     → AppShell, Sidebar, AppTopBar + AccountMenu, MobileNav,
+│   │                 AskLokiButton → /loki.
+│   │                 The sidebar NAVIGATES; the account menu acts on the
+│   │                 ACCOUNT. Nothing appears in both — that split is what
+│   │                 stopped the sidebar footer becoming a second settings
+│   │                 page. Sign out, Settings, appearance and the private-zone
+│   │                 lock live in AccountMenu (top bar, every viewport).
+│   │                 Sections are SSOT in config/navigation.ts and are the
+│   │                 operator loop: Now (what needs me) · Fleet (what is it
+│   │                 doing) · Command (how do I act) + PIN-gated Private.
+│   │                 A page that answers none of those three does not get a
+│   │                 sidebar seat — that test is what dissolved "More".
 │   ├── control/   → ControlPanel, ProjectCard, ProjectProfile (fleet command).
 │   │                 There is no ProjectTile
 │   │                 ControlFleetStatus = the hero: ONE question ("is anything

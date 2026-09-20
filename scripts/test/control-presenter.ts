@@ -993,6 +993,88 @@ function runTests(): void {
     assert(legacy.runnerOffline === false, "but an unknown connection defers to cloud presence");
   });
 
+  // ── The hero and the inbox must agree ──────────────────────────────────────
+  // Observed on prod 2026-09-20: the Control hero read "Idle — nothing queued"
+  // while the panel one screen below it was titled "Needs you" and badged 6.
+  // One page, one question, two answers. These pin the rule that the confident
+  // answer is the one that has to earn it.
+
+  check("fleet pulse: a non-empty review queue is never 'Idle'", () => {
+    const pulse = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 0,
+      waitingCount: 0,
+      latestRuns: [],
+      inbox: { count: 6, unknown: false },
+    });
+    assert(pulse.key === "inbox", "six things needing a human is not an idle fleet");
+    assert(pulse.label === "Waiting on you", "and the headline says whose turn it is");
+    assert(pulse.detail?.includes("6") === true, "the count is in the sentence, not just a badge");
+  });
+
+  check("fleet pulse: an empty review queue still reads Idle", () => {
+    const pulse = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 0,
+      waitingCount: 0,
+      latestRuns: [],
+      inbox: { count: 0, unknown: false },
+    });
+    assert(pulse.key === "waiting", "an empty queue is a genuinely quiet fleet");
+  });
+
+  check("fleet pulse: an unreadable review queue is not a claim of emptiness", () => {
+    const pulse = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 0,
+      waitingCount: 0,
+      latestRuns: [],
+      inbox: { count: 0, unknown: true },
+    });
+    assert(pulse.key === "unknown", "a queue we failed to read is not a queue known to be empty");
+    assert(
+      pulse.detail !== null && /not a claim/i.test(pulse.detail),
+      "and it says so, rather than rendering silence as the answer 'no'",
+    );
+  });
+
+  check("fleet pulse: real trouble still outranks the chore queue", () => {
+    // The inbox is small things a human says yes to. It must never displace a
+    // stalled dispatch pipeline, a failing fleet, or a project blocked on the
+    // operator — all of which are worse news arriving at the same address.
+    const withInbox = { inbox: { count: 9, unknown: false } };
+    assert(
+      deriveFleetPulse({
+        automationMode: "on",
+        workingCount: 0,
+        waitingCount: 0,
+        latestRuns: runs(["error", "error"]),
+        ...withInbox,
+      }).key === "failing",
+      "a failing fleet outranks chores",
+    );
+    assert(
+      deriveFleetPulse({
+        automationMode: "on",
+        workingCount: 0,
+        waitingCount: 2,
+        latestRuns: [],
+        ...withInbox,
+      }).key === "waiting",
+      "projects blocked on the operator outrank chores",
+    );
+    assert(
+      deriveFleetPulse({
+        automationMode: "on",
+        workingCount: 1,
+        waitingCount: 0,
+        latestRuns: runs(["success"]),
+        ...withInbox,
+      }).key === "building",
+      "work in flight outranks chores",
+    );
+  });
+
   console.log(`\n${passed}/${passed} passed`);
 }
 

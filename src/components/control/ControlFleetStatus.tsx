@@ -241,7 +241,13 @@ export function ControlFleetStatus({
           : // Half-finished is not a failure and not health. It gets the warning
             // dot rather than the neutral one, because a grey dot next to "5 of
             // last 5 partial" is the same silence this whole change removes.
-            fleetPulse.key === "partial"
+            //
+            // `inbox` shares that dot for the same reason: the headline reads
+            // "Waiting on you", and a neutral grey beside those words is the
+            // page agreeing with itself in tone while disagreeing in substance.
+            // `unknown` deliberately does NOT — we could not read the queue, so
+            // neutral is the honest colour for "no idea".
+            fleetPulse.key === "partial" || fleetPulse.key === "inbox"
             ? { dot: "ui-dot-warning", text: fleetPulse.label, sub: fleetPulse.detail }
             : working > 0
               ? {

@@ -34,6 +34,17 @@ export function FleetSurfaceGuide() {
   // and answers a question the composer already answers.
   if (pathname === "/loki" || currentIndex === -1) return null;
 
+  // No project, no strip.
+  //
+  // This component's entire claim is that the four tabs are views of ONE
+  // project and moving between them preserves it. With no active project
+  // `fleetSurfaceHref` falls back to the bare routes — /projects, /loki,
+  // /control, /terminal — which are four sidebar entries rendered a second
+  // time, above every Control, Terminal and Projects page, preserving
+  // nothing. A navigation surface that carries no information the sidebar
+  // lacks is not a shortcut; it is a fifth nav system charging rent.
+  if (!project) return null;
+
   return (
     <nav
       aria-label="Project workspace views"

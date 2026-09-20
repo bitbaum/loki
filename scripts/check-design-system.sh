@@ -143,6 +143,17 @@ if ! node scripts/check-loki-classes.mjs; then
   fail=1
 fi
 
+# The same question asked of every OTHER ui-* rule, as a ratchet rather than a
+# hard zero — there are 35 rules nothing references, and a check that fails on
+# day one is a check that gets switched off on day two. It may only go down.
+# Dead CSS matters more here than most places: this repo's Layer 3 contract
+# says the named class IS the design decision, so an unused rule does not read
+# as dead, it reads as the house style.
+checks_run=$((checks_run + 1))
+if ! node scripts/check-ui-classes.mjs; then
+  fail=1
+fi
+
 if [[ "$fail" -ne 0 ]]; then
   exit 1
 fi
