@@ -110,6 +110,9 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
       : (query.facets[key] ?? []).includes(value);
 
   const narrowed = isNarrowed(query);
+  // Shown on the collapsed <summary>: a filter you cannot see is a filter you
+  // forget you set, and then the empty result looks like a broken page.
+  const activeFacetCount = Object.values(query.facets).reduce((n, vs) => n + (vs?.length ?? 0), 0);
   const kindOptions = (spec.facets.find((f) => f.key === "kind")?.options ?? []) as string[];
   const ownerOptions = (spec.facets.find((f) => f.key === "owner")?.options ?? []) as string[];
 
@@ -158,61 +161,75 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
           </button>
         </form>
 
-        <FacetRow label="Where">
-          {GROUP_OPTIONS.map((g) => (
-            <Chip
-              key={g}
-              href={href(withFacet("group", g))}
-              active={on("group", g)}
-              count={result.counts.group?.[g]}
-            >
-              {GROUP_LABEL[g]}
-            </Chip>
-          ))}
-        </FacetRow>
+        {/* On a phone these four rows measured 366px, putting the first project
+          at y=1020 — more than a screenful of filters before any of the
+          catalogue they filter. <details> collapses them there and costs no
+          JavaScript, which this page does not have and does not want; CSS
+          forces it open from md up, so nothing changes on a desktop. */}
+        <details className="ui-fleet-filters">
+          <summary className="ui-fleet-filters-summary">
+            <span>Filters</span>
+            {activeFacetCount > 0 && (
+              <span className="ui-fleet-filters-badge">{activeFacetCount}</span>
+            )}
+          </summary>
 
-        <FacetRow label="Kind">
-          {kindOptions.map((k) => (
-            <Chip
-              key={k}
-              href={href(withFacet("kind", k))}
-              active={on("kind", k)}
-              count={result.counts.kind?.[k]}
-            >
-              {k}
-            </Chip>
-          ))}
-        </FacetRow>
-
-        {ownerOptions.length > 0 && (
-          <FacetRow label="For">
-            {ownerOptions.map((o) => (
+          <FacetRow label="Where">
+            {GROUP_OPTIONS.map((g) => (
               <Chip
-                key={o}
-                href={href(withFacet("owner", o))}
-                active={on("owner", o)}
-                count={result.counts.owner?.[o]}
+                key={g}
+                href={href(withFacet("group", g))}
+                active={on("group", g)}
+                count={result.counts.group?.[g]}
               >
-                {o}
+                {GROUP_LABEL[g]}
               </Chip>
             ))}
           </FacetRow>
-        )}
 
-        {/* The register as a to-do list read sideways. These three are the
+          <FacetRow label="Kind">
+            {kindOptions.map((k) => (
+              <Chip
+                key={k}
+                href={href(withFacet("kind", k))}
+                active={on("kind", k)}
+                count={result.counts.kind?.[k]}
+              >
+                {k}
+              </Chip>
+            ))}
+          </FacetRow>
+
+          {ownerOptions.length > 0 && (
+            <FacetRow label="For">
+              {ownerOptions.map((o) => (
+                <Chip
+                  key={o}
+                  href={href(withFacet("owner", o))}
+                  active={on("owner", o)}
+                  count={result.counts.owner?.[o]}
+                >
+                  {o}
+                </Chip>
+              ))}
+            </FacetRow>
+          )}
+
+          {/* The register as a to-do list read sideways. These three are the
             reason it is worth keeping, and until there was a filter the only
             way to use them was to count 38 rows by eye. */}
-        <FacetRow label="Missing">
-          <Chip href={href(withFlag("nosite"))} active={on("nosite")}>
-            no site
-          </Chip>
-          <Chip href={href(withFlag("noorangecat"))} active={on("noorangecat")}>
-            no OrangeCat
-          </Chip>
-          <Chip href={href(withFlag("nosolon"))} active={on("nosolon")}>
-            no Solon
-          </Chip>
-        </FacetRow>
+          <FacetRow label="Missing">
+            <Chip href={href(withFlag("nosite"))} active={on("nosite")}>
+              no site
+            </Chip>
+            <Chip href={href(withFlag("noorangecat"))} active={on("noorangecat")}>
+              no OrangeCat
+            </Chip>
+            <Chip href={href(withFlag("nosolon"))} active={on("nosolon")}>
+              no Solon
+            </Chip>
+          </FacetRow>
+        </details>
 
         <div className="ui-fleet-resultbar">
           <p className="ui-fleet-count">

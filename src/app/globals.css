@@ -1223,6 +1223,41 @@
   .ui-fleet-chip-count {
     @apply font-mono text-[10px] text-text-muted;
   }
+  /* The facet rows, collapsible on a phone and always open from md up.
+     <details> so it works with no JavaScript — this page deliberately has
+     none, and a filter panel that needs a bundle to open would be the one
+     thing on it that does. */
+  .ui-fleet-filters {
+    @apply border-b border-border-subtle md:border-b-0;
+  }
+  .ui-fleet-filters-summary {
+    @apply flex min-h-11 cursor-pointer list-none items-center gap-2 py-2 font-mono text-xs uppercase tracking-caps text-text-muted transition-colors hover:text-text-primary;
+  }
+  /* Safari still paints the default triangle without this. */
+  .ui-fleet-filters-summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-fleet-filters-badge {
+    @apply inline-flex min-w-5 items-center justify-center rounded-full bg-accent-muted px-1.5 font-mono text-[10px] text-accent-text;
+  }
+  /* Hiding the closed panel has to be explicit. The UA hides a closed
+     <details>'s children with `display: none`, but AUTHOR styles outrank the UA
+     sheet and .ui-fleet-facet-row is `@apply flex` — so the rows stayed visible
+     while the element reported open=false. Measured that way: the toggle
+     rendered and changed nothing. */
+  @media (max-width: 767px) {
+    .ui-fleet-filters:not([open]) > *:not(summary) {
+      display: none;
+    }
+  }
+  /* From md the panel is simply always open and the toggle goes away with it —
+     no JS, no second copy of the markup, and the rows keep their own display so
+     nothing here has to know they are flex. */
+  @media (min-width: 768px) {
+    .ui-fleet-filters-summary {
+      display: none;
+    }
+  }
   .ui-fleet-resultbar {
     @apply flex flex-col gap-3 border-t border-border-subtle py-3 sm:flex-row sm:items-center sm:justify-between;
   }
