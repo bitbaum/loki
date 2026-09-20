@@ -80,7 +80,7 @@ export default async function PricingPage() {
               >
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-lg font-semibold text-text-primary">{plan.name}</h2>
-                  {plan.featured && <span className="ui-public-price-badge">Most popular</span>}
+                  {plan.featured && <span className="ui-public-price-badge">Recommended</span>}
                 </div>
 
                 <div className="mt-4 flex items-baseline gap-1.5">
