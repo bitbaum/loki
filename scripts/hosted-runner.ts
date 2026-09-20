@@ -39,6 +39,7 @@ import {
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { getGithubToken } from "@/lib/github-token";
 import { appendProjectDevLog } from "@/db/queries/user-projects";
+import { hostedRunDevLogEntry, type HostedRunOutcome } from "@/lib/hosted-run-log";
 import { createOrchestrationEvent } from "@/db/queries/orchestration-events";
 import type { AdapterId, OrchestrationEventType } from "@/lib/orchestration";
 import { analyzeRepo } from "@/lib/hosted-runner/analyze";
@@ -130,15 +131,23 @@ async function closeHostedRun(
   ).catch((err) => console.error("[hosted-runner] run close failed:", err));
 }
 
-async function logResult(userId: string, projectKey: string, label: string, text: string) {
-  await appendProjectDevLog(userId, projectKey, {
-    date: new Date().toISOString(),
-    done: label.slice(0, 100),
-    next: text.slice(0, 2_000),
-    tests: "",
-    todos: "",
-    health: "good",
-  }).catch((e) => console.error("[hosted-runner] devlog append failed:", e));
+/**
+ * One dev-log line per finished hosted run.
+ *
+ * The shape of that line is decided in src/lib/hosted-run-log.ts, not here:
+ * the newest entry is what the project dossier re-serves to every later
+ * dispatch as "Latest handoff", so what goes in it is a product decision with
+ * a test behind it rather than a slice() at a call site (#584).
+ */
+async function logResult(
+  userId: string,
+  projectKey: string,
+  task: string,
+  outcome: HostedRunOutcome,
+) {
+  await appendProjectDevLog(userId, projectKey, hostedRunDevLogEntry(task, outcome)).catch((e) =>
+    console.error("[hosted-runner] devlog append failed:", e),
+  );
 }
 
 /** Emit a lifecycle event into orchestration_events — the SAME stream inject-core
@@ -336,12 +345,13 @@ async function tick(userId: string): Promise<boolean> {
             noChanges: res.noChanges,
           });
         }
-        await logResult(
-          userId,
-          p.projectKey,
-          `Hosted dispatch (Hermes) — ${p.task.slice(0, 70)}`,
-          summary,
-        );
+        await logResult(userId, p.projectKey, p.task, {
+          ok: true,
+          kind: "dispatch",
+          prUrl: res.prUrl,
+          branch: res.branch,
+          noChanges: res.noChanges,
+        });
         void emitHostedEvent(
           userId,
           p.projectKey,
@@ -361,12 +371,11 @@ async function tick(userId: string): Promise<boolean> {
         if (p.runId) await closeHostedRun(userId, p.runId, { ok: false, error: res.error });
         // Failures used to vanish into console only — log + emit so a broken hosted
         // path is visible in the project dev log and Activity, not archaeology.
-        await logResult(
-          userId,
-          p.projectKey,
-          `Hosted dispatch (Hermes) FAILED — ${p.task.slice(0, 60)}`,
-          res.error,
-        );
+        await logResult(userId, p.projectKey, p.task, {
+          ok: false,
+          kind: "dispatch",
+          error: res.error,
+        });
         void emitHostedEvent(
           userId,
           p.projectKey,
@@ -388,12 +397,7 @@ async function tick(userId: string): Promise<boolean> {
       const res = await analyzeRepo({ gitUrl: p.gitUrl, task: p.task, projectContext: ctx, token });
       if (res.ok) {
         await markCommandExecuted(cmd.id, userId, { ok: true, text: res.report });
-        await logResult(
-          userId,
-          p.projectKey,
-          `Hosted analysis — ${p.task.slice(0, 80)}`,
-          res.report,
-        );
+        await logResult(userId, p.projectKey, p.task, { ok: true, kind: "analysis" });
         void emitHostedEvent(
           userId,
           p.projectKey,
@@ -403,12 +407,11 @@ async function tick(userId: string): Promise<boolean> {
         console.log(`[hosted-runner] ✓ ${p.projectKey} (${res.model})`);
       } else {
         await markCommandExecuted(cmd.id, userId, { ok: false, error: res.error });
-        await logResult(
-          userId,
-          p.projectKey,
-          `Hosted analysis FAILED — ${p.task.slice(0, 60)}`,
-          res.error,
-        );
+        await logResult(userId, p.projectKey, p.task, {
+          ok: false,
+          kind: "analysis",
+          error: res.error,
+        });
         void emitHostedEvent(
           userId,
           p.projectKey,
