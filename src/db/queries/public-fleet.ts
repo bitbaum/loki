@@ -1,65 +1,129 @@
 // Real data for the public landing hero — replaces the fabricated HOME_HERO_CONSOLE.
 //
-// The landing is unauthenticated, so this serves the OWNER's real fleet (founder
-// dogfooding). Everything here is PUBLIC-SAFE: aggregate counts + public project
-// names + their one-line descriptions + a coarse running/idle status dot. No
-// internal dev-log notes, no task text. Honest by construction — `isLive` is true
-// only when an agent is actually running, so the hero never claims "LIVE" falsely.
+// TENANT-AGNOSTIC BY CONSTRUCTION. This used to take a userId and serve "the
+// OWNER's real fleet (founder dogfooding)" — resolved via getDefaultUser(), so
+// every stranger's first sight of Loki was one account's project list, shown
+// because of who owned it rather than because anyone agreed to publish it.
+// Loki is multi-tenant and the founder is tenant #1, so the hero now reads the
+// SHOWCASE tier (owner-consented AND operator-featured) across every account,
+// and its numbers are fleet-wide aggregates that identify nobody.
+// See ./public-visibility.ts for the tiers and why there are two gates.
+//
+// It also replaces a hardcoded FLAGSHIPS = ["loki", "orangecat"] ordering — the
+// ad-hoc version of "featured", which could only ever name the founder's own
+// projects. featured_at is the real thing, and it is per project.
+//
+// Everything here stays PUBLIC-SAFE: counts + public project names + their
+// one-line descriptions + a coarse running/idle dot. No dev-log notes, no task
+// text. Honest by construction — `isLive` is true only when an agent is really
+// running, so the hero never claims "LIVE" falsely.
 
-import { countActiveProjects, getPublicProjects } from "./user-projects";
-import { getFleetSummary, getRecentOrchestrationRuns } from "./today";
-import { getProjectStatesByUserId } from "./project-states";
-import { isPublicTestArtifact, publicHeroNote } from "@/lib/project-display";
+import { getShowcaseProjects } from "./user-projects";
+import { publicHeroNote } from "@/lib/project-display";
 
-export type HeroFleetRow = { name: string; state: "running" | "queued" | "idle"; note: string };
+export type HeroFleetRow = {
+  name: string;
+  state: "running" | "queued" | "idle";
+  note: string;
+  /**
+   * Who built it. A showcased project belongs to a TENANT, and a homepage that
+   * shows their work without saying whose it is reads as "our projects" — which
+   * is both untrue and the opposite of the reason to have a showcase. `href` is
+   * set only when the owner has a handle to link to; `label` is what to print.
+   * Both null = no byline rather than an invented one.
+   */
+  by: { label: string; href: string | null } | null;
+};
 export type HeroFleetSnapshot = {
   isLive: boolean;
   projects: HeroFleetRow[];
   metrics: { value: string; label: string }[];
 };
 
-const HERO_PROJECT_ROWS = 4;
+/**
+ * Fleet-wide counts. Tier 1 of public-visibility: an aggregate identifies
+ * nobody, so it needs no consent — and unlike one account's list it grows
+ * honestly as Loki gains users, which is the number a visitor actually wants.
+ */
+async function getFleetWideMetrics(): Promise<{
+  projects: number;
+  running: number;
+  weekRuns: number;
+}> {
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const [[projects], [running], [weekRuns]] = await Promise.all([
+    db.select({ value: count() }).from(userProjects).where(eq(userProjects.isActive, true)),
+    db.select({ value: count() }).from(projectStates).where(eq(projectStates.agentRunning, true)),
+    // "Is anything actually happening here?" — the one number that answers it,
+    // and the reason this console has three columns rather than two. Counted
+    // fleet-wide like the others, so it grows with the product instead of
+    // describing one account's week.
+    db
+      .select({ value: count() })
+      .from(orchestrationRuns)
+      .where(gte(orchestrationRuns.startedAt, weekAgo)),
+  ]);
+  return {
+    projects: projects?.value ?? 0,
+    running: running?.value ?? 0,
+    weekRuns: weekRuns?.value ?? 0,
+  };
+}
 
-/** Compose a public-safe, real snapshot of the owner's fleet for the landing hero. */
-export async function getHeroFleetSnapshot(userId: string): Promise<HeroFleetSnapshot> {
-  const [projectCount, fleet, publicProjects, states, weekRuns] = await Promise.all([
-    countActiveProjects(userId),
-    getFleetSummary(userId),
-    getPublicProjects(userId),
-    getProjectStatesByUserId(userId),
-    getRecentOrchestrationRuns(userId, 168).catch(() => [] as unknown[]),
+/**
+ * The byline for a showcased project.
+ *
+ * Handle first, because @name is the public identity and /u/[username] is a
+ * real page to send someone to — being credited AND linked is most of what a
+ * tenant gets back for consenting. Display name is the fallback when there is
+ * no handle (nothing to link to, so no link). Neither: no byline at all, and
+ * never a stand-in label — Anonymous, or some generic phrase for a Loki user —
+ * because that is a name we would be inventing for somebody.
+ */
+function byline(owner: { username: string | null; name: string | null }) {
+  const handle = owner.username?.trim();
+  if (handle) return { label: `@${handle}`, href: `/u/${handle}` };
+  const name = owner.name?.trim();
+  return name ? { label: name, href: null } : null;
+}
+
+/** A public-safe, real snapshot of the FLEET (not one account) for the hero. */
+export async function getHeroFleetSnapshot(): Promise<HeroFleetSnapshot> {
+  const [showcase, totals, runningKeys] = await Promise.all([
+    getShowcaseProjects(),
+    getFleetWideMetrics(),
+    db
+      .select({ projectKey: projectStates.projectKey })
+      .from(projectStates)
+      .where(eq(projectStates.agentRunning, true))
+      .catch(() => [] as { projectKey: string }[]),
   ]);
 
-  // Match coarse status by canonical project key (project_states.projectKey ~ name).
-  const runningByKey = new Map(states.map((s) => [s.projectKey.toLowerCase(), s.agentRunning]));
+  // Match a showcased project to a live agent by its canonical key. Cross-tenant
+  // now, so compare on the key alone — two tenants may both run "api", and a dot
+  // saying "something named api is running" is true either way and names nobody.
+  const running = new Set(runningKeys.map((r) => r.projectKey.toLowerCase()));
 
-  // Feature flagships first, then fill — so the rows lead with what matters.
-  const FLAGSHIPS = ["loki", "orangecat"];
-  const ordered = [...publicProjects].sort((a, b) => {
-    const ai = FLAGSHIPS.indexOf(a.name.toLowerCase());
-    const bi = FLAGSHIPS.indexOf(b.name.toLowerCase());
-    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-  });
-
-  const projects: HeroFleetRow[] = ordered
-    .filter((p) => !isPublicTestArtifact(p.name))
-    .slice(0, HERO_PROJECT_ROWS)
-    .map((p) => ({
-      name: p.name,
-      state: runningByKey.get(p.name.toLowerCase()) ? "running" : "idle",
-      note: publicHeroNote(p.description) ?? "",
-    }));
+  const projects: HeroFleetRow[] = showcase.map((p) => ({
+    name: p.name,
+    state: running.has(p.name.toLowerCase()) ? "running" : "idle",
+    note: publicHeroNote(p.description) ?? "",
+    by: byline(p.owner),
+  }));
 
   return {
-    isLive: fleet.running > 0,
+    isLive: totals.running > 0,
     projects,
     metrics: [
-      { value: String(projectCount), label: projectCount === 1 ? "project" : "projects" },
       {
-        value: String(fleet.running),
-        label: fleet.running === 1 ? "agent running" : "agents running",
+        value: String(totals.projects),
+        label: totals.projects === 1 ? "project" : "projects",
       },
-      { value: String(weekRuns.length), label: "runs this week" },
+      {
+        value: String(totals.running),
+        label: totals.running === 1 ? "agent running" : "agents running",
+      },
+      { value: String(totals.weekRuns), label: "runs this week" },
     ],
   };
 }
@@ -72,9 +136,18 @@ export async function getHeroFleetSnapshot(userId: string): Promise<HeroFleetSna
 // aggregate counts carry the story even before anything is featured.
 // ---------------------------------------------------------------------------
 
-import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
+// One import block for drizzle + db + tables, serving BOTH halves of this file.
+// ES imports hoist, so the hero above reads them fine; two blocks would have
+// meant two `eq`/`db` bindings and a duplicate-identifier error.
+import { and, count, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { entities, siteFeedback } from "@/db/schema";
+import {
+  entities,
+  orchestrationRuns,
+  projectStates,
+  siteFeedback,
+  userProjects,
+} from "@/db/schema";
 import { getFeedbackLoopMetrics } from "./site-feedback";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 

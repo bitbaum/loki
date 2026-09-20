@@ -135,8 +135,8 @@ export function ProjectsWorkspace({
           </EmptyState>
         ) : (
           <EmptyState icon={FolderKanban} title="No projects yet">
-            Register your first project with “New project” above — connect a repo and the fleet can
-            start working on it.
+            Register your first project with “Add” above — connect a repo and the fleet can start
+            working on it.
           </EmptyState>
         )
       ) : (

@@ -106,19 +106,27 @@ export function PublicFooter() {
           </div>
         ))}
       </div>
-      {/* The fleet. Every site here had no inbound link from anywhere else on
-          the fleet until this block existed — see config/fleet-sites.ts. Plain
-          anchors, not next/link: these are other origins, and the point is that
-          a crawler follows them. Collapsed by default so the three product
-          pillars above stay the footer's primary content — the links remain in
-          the DOM for crawlers whether or not a human ever opens the disclosure. */}
+      {/* Sites the studio builds and runs. Every one had no inbound link from
+          anywhere else until this block existed — see config/fleet-sites.ts.
+          Plain anchors, not next/link: these are other origins, and the point
+          is that a crawler follows them. Collapsed by default so the three
+          product pillars above stay the footer's primary content — the links
+          remain in the DOM for crawlers whether or not a human opens it.
+
+          NOT "the fleet", though it used to say so. This list is generated from
+          apps.conf — ONE box, the studio's — so on a multi-tenant Loki calling
+          it the fleet told every visitor that one account's client sites were
+          what Loki is. Same error as the /fleet lede, and the same fix: say
+          whose they are. The links stay, because they are real work and the
+          cross-linking is the reason this block exists; only the claim
+          changes. The tenants' own catalogue is one line below. */}
       <details className="ui-public-footer-fleet">
         <summary className="ui-public-footer-fleet-summary">
-          Part of the fleet — {FLEET_SITES.length} more sites
+          Built by the studio — {FLEET_SITES.length} more sites
         </summary>
         <div className="mt-3">
           <Link href="/fleet" className="ui-public-link-standalone text-sm">
-            The whole register — every project, and where it lives →
+            Projects built with Loki — the public catalogue →
           </Link>
         </div>
         <div className="ui-public-footer-fleet-grid mt-4">

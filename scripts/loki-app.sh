@@ -41,6 +41,10 @@ export HOSTNAME=127.0.0.1
 # NEXTAUTH_URL must match the local URL so auth callbacks work.
 export NEXTAUTH_URL="${NEXTAUTH_URL:-http://localhost:${PORT}}"
 export NEXTAUTH_SECRET="${NEXTAUTH_SECRET:-${AUTH_SECRET:-}}"
+# Auth.js refuses a host it does not trust and answers /api/auth/session with
+# 500 UntrustedHost. src/auth.ts compares this to the exact string "true".
+# It serves on 127.0.0.1 behind a proxy, so the host is ours either way.
+export AUTH_TRUST_HOST="${AUTH_TRUST_HOST:-true}"
 export NODE_ENV="production"
 
 exec node "$STANDALONE/server.js"

@@ -15,7 +15,7 @@ import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { FinalCta } from "@/components/public/FinalCta";
 import { getSessionUserId } from "@/lib/session";
-import { getUserProjects } from "@/db/queries/user-projects";
+import { getPubliclyListedProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { buildFleetRegister, commerce, summarize, type RegisterRow } from "@/lib/register/build";
@@ -33,7 +33,7 @@ import {
 export const metadata: Metadata = {
   title: "The fleet",
   description:
-    "Every project the studio runs, and where each one exists: a site, a Loki profile, an OrangeCat profile, a Solon organisation.",
+    "Projects built with Loki whose owners chose to list them, and where each one exists: a site, a Loki profile, an OrangeCat profile, a Solon organisation.",
 };
 export const dynamic = "force-dynamic";
 
@@ -55,7 +55,13 @@ type Params = Promise<Record<string, string | string[] | undefined>>;
 export default async function FleetRegisterPage({ searchParams }: { searchParams: Params }) {
   const params = await searchParams;
   const owner = await getSelfImprovementTarget();
-  const projects = owner ? await getUserProjects(owner.userId) : [];
+  // Consent, not ownership. This page used to read the projects table for a
+  // single chosen account — whichever owns the oldest entity named "loki" — and
+  // publish every row it got back, because the row existed rather than because
+  // anyone agreed. `owner` survives only to decide whether the VIEWER gets the
+  // owner's editing affordances below; it no longer selects what is shown.
+  // scripts/test/public-catalogue-consent.ts pins that.
+  const projects = await getPubliclyListedProjects();
   const solon = await solonClaims();
   const apps = readAppsConf();
   const viewerId = await getSessionUserId();
@@ -77,6 +83,10 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
     })),
     apps,
     solon.claims,
+    // A hosted site with no project here is the OPERATOR's to-do item, not a
+    // public listing. apps.conf describes one box; letting it mint rows on a
+    // multi-tenant page published that box's inventory as "the fleet".
+    { includeUnlinkedSites: viewerIsOwner },
   );
 
   const spec = fleetListFor(rows);
@@ -104,6 +114,9 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
       : (query.facets[key] ?? []).includes(value);
 
   const narrowed = isNarrowed(query);
+  // Shown on the collapsed <summary>: a filter you cannot see is a filter you
+  // forget you set, and then the empty result looks like a broken page.
+  const activeFacetCount = Object.values(query.facets).reduce((n, vs) => n + (vs?.length ?? 0), 0);
   const kindOptions = (spec.facets.find((f) => f.key === "kind")?.options ?? []) as string[];
   const ownerOptions = (spec.facets.find((f) => f.key === "owner")?.options ?? []) as string[];
 
@@ -113,8 +126,8 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
         <div className="ui-public-eyebrow">The fleet</div>
         <h1 className="ui-public-page-title mt-3 sm:mt-4">Every project, and where it lives.</h1>
         <p className="ui-public-lede mt-4 max-w-2xl sm:mt-6">
-          This is the studio&rsquo;s whole catalogue — products, client work, demos, and the ones
-          still only named. Most of them run on one box, and Loki is what puts them there. Search
+          Projects their owners chose to show — products, client work, demos, and the ones still
+          only named. Each one is built and shipped by agents its owner commands from Loki. Search
           it, narrow it, and send anyone the view you end up with.
         </p>
         <div className="ui-public-surface-card-meta">
@@ -152,61 +165,75 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
           </button>
         </form>
 
-        <FacetRow label="Where">
-          {GROUP_OPTIONS.map((g) => (
-            <Chip
-              key={g}
-              href={href(withFacet("group", g))}
-              active={on("group", g)}
-              count={result.counts.group?.[g]}
-            >
-              {GROUP_LABEL[g]}
-            </Chip>
-          ))}
-        </FacetRow>
+        {/* On a phone these four rows measured 366px, putting the first project
+          at y=1020 — more than a screenful of filters before any of the
+          catalogue they filter. <details> collapses them there and costs no
+          JavaScript, which this page does not have and does not want; CSS
+          forces it open from md up, so nothing changes on a desktop. */}
+        <details className="ui-fleet-filters">
+          <summary className="ui-fleet-filters-summary">
+            <span>Filters</span>
+            {activeFacetCount > 0 && (
+              <span className="ui-fleet-filters-badge">{activeFacetCount}</span>
+            )}
+          </summary>
 
-        <FacetRow label="Kind">
-          {kindOptions.map((k) => (
-            <Chip
-              key={k}
-              href={href(withFacet("kind", k))}
-              active={on("kind", k)}
-              count={result.counts.kind?.[k]}
-            >
-              {k}
-            </Chip>
-          ))}
-        </FacetRow>
-
-        {ownerOptions.length > 0 && (
-          <FacetRow label="For">
-            {ownerOptions.map((o) => (
+          <FacetRow label="Where">
+            {GROUP_OPTIONS.map((g) => (
               <Chip
-                key={o}
-                href={href(withFacet("owner", o))}
-                active={on("owner", o)}
-                count={result.counts.owner?.[o]}
+                key={g}
+                href={href(withFacet("group", g))}
+                active={on("group", g)}
+                count={result.counts.group?.[g]}
               >
-                {o}
+                {GROUP_LABEL[g]}
               </Chip>
             ))}
           </FacetRow>
-        )}
 
-        {/* The register as a to-do list read sideways. These three are the
+          <FacetRow label="Kind">
+            {kindOptions.map((k) => (
+              <Chip
+                key={k}
+                href={href(withFacet("kind", k))}
+                active={on("kind", k)}
+                count={result.counts.kind?.[k]}
+              >
+                {k}
+              </Chip>
+            ))}
+          </FacetRow>
+
+          {ownerOptions.length > 0 && (
+            <FacetRow label="For">
+              {ownerOptions.map((o) => (
+                <Chip
+                  key={o}
+                  href={href(withFacet("owner", o))}
+                  active={on("owner", o)}
+                  count={result.counts.owner?.[o]}
+                >
+                  {o}
+                </Chip>
+              ))}
+            </FacetRow>
+          )}
+
+          {/* The register as a to-do list read sideways. These three are the
             reason it is worth keeping, and until there was a filter the only
             way to use them was to count 38 rows by eye. */}
-        <FacetRow label="Missing">
-          <Chip href={href(withFlag("nosite"))} active={on("nosite")}>
-            no site
-          </Chip>
-          <Chip href={href(withFlag("noorangecat"))} active={on("noorangecat")}>
-            no OrangeCat
-          </Chip>
-          <Chip href={href(withFlag("nosolon"))} active={on("nosolon")}>
-            no Solon
-          </Chip>
-        </FacetRow>
+          <FacetRow label="Missing">
+            <Chip href={href(withFlag("nosite"))} active={on("nosite")}>
+              no site
+            </Chip>
+            <Chip href={href(withFlag("noorangecat"))} active={on("noorangecat")}>
+              no OrangeCat
+            </Chip>
+            <Chip href={href(withFlag("nosolon"))} active={on("nosolon")}>
+              no Solon
+            </Chip>
+          </FacetRow>
+        </details>
 
         <div className="ui-fleet-resultbar">
           <p className="ui-fleet-count">
@@ -244,17 +271,37 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
       <div className="ui-public-container-mid space-y-12 pb-14 sm:space-y-16 sm:pb-24">
         <section className="pt-8 sm:pt-10">
           {result.rows.length === 0 ? (
-            <div className="ui-fleet-empty">
-              <p className="ui-public-section-lede">
-                Nothing matches that. {narrowed ? "The filters are narrower than the fleet." : null}
-              </p>
-              <Link
-                href={href(emptyQuery(spec))}
-                className="ui-public-link-standalone mt-3 text-sm"
-              >
-                Clear the filters →
-              </Link>
-            </div>
+            /* Two different empty states, and conflating them was misleading:
+               with nothing listed at all, the page said "Nothing matches that
+               — clear the filters" to a visitor who had set none, and offered
+               a link that changes nothing. A fresh self-hosted Loki shows this
+               on its very first visit, so it is the first thing that instance
+               ever says. `rows` is the whole catalogue before the query, so it
+               distinguishes "you filtered it away" from "there is none yet". */
+            rows.length === 0 ? (
+              <div className="ui-fleet-empty">
+                <p className="ui-public-section-lede">
+                  No projects are listed here yet. Owners choose which of their projects appear —
+                  nothing is published without them saying so.
+                </p>
+                <Link href="/" className="ui-public-link-standalone mt-3 text-sm">
+                  What Loki does →
+                </Link>
+              </div>
+            ) : (
+              <div className="ui-fleet-empty">
+                <p className="ui-public-section-lede">
+                  Nothing matches that.{" "}
+                  {narrowed ? "The filters are narrower than the fleet." : null}
+                </p>
+                <Link
+                  href={href(emptyQuery(spec))}
+                  className="ui-public-link-standalone mt-3 text-sm"
+                >
+                  Clear the filters →
+                </Link>
+              </div>
+            )
           ) : (
             <ol className="ui-public-fleet-list">
               {result.rows.map((r) => (

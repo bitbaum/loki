@@ -75,6 +75,38 @@ export const userProjects = pgTable(
     autoShip: boolean("auto_ship"),
     position: integer("position").default(0), // user-defined sort order
     isActive: boolean("is_active").default(true).notNull(),
+    // Consent to appear in Loki's OWN public catalogue at /fleet. Default false,
+    // and that default is the point: Loki is multi-tenant, so a page that speaks
+    // for the product must never enrol a tenant's projects by existing. A user's
+    // own profile (/u/[username]) is a different question — that page is the user
+    // speaking, and it has always been scoped by getPublicProjects.
+    //
+    // Before this column, /fleet called getUserProjects on whichever account owns
+    // the oldest entity named "loki" and listed EVERY row it got back — the only
+    // public surface using the unfiltered query. Nothing recorded a decision
+    // because nothing asked for one.
+    listedPublicly: boolean("listed_publicly").default(false).notNull(),
+    // Operator's editorial pick, on top of the owner's consent above. Same
+    // shape and same doctrine as site_feedback.featured_at: consent decides
+    // whether a thing MAY be shown, featuring decides whether it IS shown in
+    // the small curated space (the landing hero). Null = not featured.
+    //
+    // Two gates, because they answer to different people: the owner may always
+    // withdraw consent, and no amount of featuring overrides that — every
+    // showcase query is consent AND featured, never featured alone.
+    featuredAt: timestamp("featured_at", { withTimezone: true }),
+    // "Not now" on the in-app invitation to list this project publicly.
+    //
+    // Stored per PROJECT rather than per user, because the question is per
+    // project: declining for a private client build says nothing about the
+    // open-source one next to it. Stored in the DATABASE rather than
+    // localStorage because a dismissal that resets on a new device is a
+    // product that nags — and this one asks to publish something, which is
+    // exactly the kind of asking that must take no for an answer.
+    //
+    // Null = never asked, or asked and not yet answered either way. Consent
+    // itself lives in listed_publicly; this column only silences the prompt.
+    listingPromptDismissedAt: timestamp("listing_prompt_dismissed_at", { withTimezone: true }),
     notes: text("notes"), // free-form scratchpad visible in the profile panel
     resources: jsonb("resources").$type<ProjectResource[]>().default([]).notNull(),
     devLog: jsonb("dev_log").$type<DevLogEntry[]>().default([]).notNull(),
