@@ -126,6 +126,14 @@ const PAGES = [
   // per-row action cluster is the densest control group in the app.
   "/feedback",
   "/robots",
+  // Authenticated, and both were reachable and unmeasured. /my-feedback is
+  // the REPORTER's view — the one feedback surface whose reader may be a
+  // stranger on someone else's site, and the one AGENTS.md records as having
+  // been forgotten before ("the three-line clamp shipped to the operator
+  // inbox never reached it"). /unlock is the PIN gate, which is a real
+  // rendered form, not a redirect.
+  "/my-feedback",
+  "/unlock",
   "/terminal",
   "/prompts",
   "/activity",
@@ -167,7 +175,47 @@ const PUBLIC_PAGES = [
   "/docs",
   "/sign-in",
   "/sign-up",
+  // All render 200 to a signed-out stranger and none were measured. The legal
+  // three are the point: /license has already been missed once by a change
+  // that touched everything around it — the MIT relicense fixed LICENSE,
+  // README and Terms and left this page telling readers they "may not" host
+  // or repackage (loki#802).
+  "/license",
+  "/privacy",
+  "/terms",
+  "/releases",
+  "/setup",
+  "/docs/quickstart",
+  "/docs/feedback-widget",
 ];
+
+/**
+ * Page routes deliberately NOT measured, each with the reason.
+ *
+ * This list is the other half of the paragraph above PAGES: a rule enforced on
+ * the pages that happened to be reachable is a rule with holes. So every
+ * `page.tsx` in the app must be in PAGES, in PUBLIC_PAGES, or here — and
+ * scripts/test/audit-covers-every-page.ts fails when a new one is in none of
+ * them. Adding a page then becomes a decision about whether it is measured,
+ * rather than a silent omission.
+ */
+export const NOT_MEASURED = {
+  "/agents": "retired — 308 to /control, renders nothing",
+  "/atlas": "retired — 308 to /projects, renders nothing",
+  "/duet": "retired — redirect stub",
+  "/digests": "retired — redirect stub onto /activity",
+  "/decisions": "retired — redirect stub onto /activity",
+  "/history": "retired — redirect stub onto /activity",
+  "/blog": "307 to /thoughts, renders nothing",
+  "/sign-out": "an action, not a page",
+  "/onboarding": "first-run flow: needs a brand-new account to render its real state",
+  "/control/workspace": "needs a selected workspace in session state",
+  "/control/import-local": "needs a local Fleet Runner connected",
+  "/claim-feedback": "needs a one-time claim token from a widget report",
+  "/verify-email": "needs a live verification token",
+  "/forgot-password": "needs a live reset token",
+  "/x-login/complete": "OAuth callback landing, not a page anyone navigates to",
+};
 
 const isPublicPage = (p) => PUBLIC_PAGES.includes(p);
 
