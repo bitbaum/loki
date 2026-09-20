@@ -17,6 +17,7 @@ import { ScheduleModal } from "./ScheduleModal";
 import { SAVED_PROMPTS_TITLE } from "@/config/control-labels";
 import { RowActions } from "@/components/ui/row-actions";
 import { DeleteButton } from "@/components/ui/delete-button";
+import { timeAgo } from "@/lib/dates";
 
 /**
  * Adapt a user-owned prompt into the PromptTemplate shape the existing
@@ -55,6 +56,39 @@ export interface UserPromptCard {
   updatedAt: string;
 }
 
+/** \u0000 escape, not a literal NUL: the raw byte made this file read as
+ *  binary to grep, diff and most editors. */
+export const dupeKey = (p: UserPromptCard) => `${p.name}\u0000${p.body}`;
+
+/**
+ * Collapse exact duplicates (same name + body), and count how many there were.
+ *
+ * A smoke session once forked the same default six times and the section
+ * rendered "Next Best Step" ×7, so this dedupes at render and the newest copy
+ * wins (the list arrives most-recent first).
+ *
+ * It returns the COUNT as well, because hiding the copies silently made delete
+ * look broken: the card stands for a whole group, so deleting it drew the next
+ * identical row in its place and the prompt appeared to come back. Measured on
+ * prod 2026-09-18: 8 rows named "Next Best Step", two groups of four, rendering
+ * as two cards over a header that said "2 saved".
+ */
+export function collapseDuplicates(prompts: UserPromptCard[]): {
+  visible: UserPromptCard[];
+  copies: Map<string, number>;
+} {
+  const copies = new Map<string, number>();
+  for (const p of prompts) copies.set(dupeKey(p), (copies.get(dupeKey(p)) ?? 0) + 1);
+  const seen = new Set<string>();
+  const visible = prompts.filter((p) => {
+    const key = dupeKey(p);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return { visible, copies };
+}
+
 export function UserPromptsSection({
   prompts,
   projects,
@@ -90,19 +124,7 @@ export function UserPromptsSection({
   const runningPrompt = runId ? (prompts.find((p) => p.id === runId) ?? null) : null;
   const schedulingPrompt = scheduleId ? (prompts.find((p) => p.id === scheduleId) ?? null) : null;
 
-  // Collapse exact duplicates (same name + body). A smoke session once forked
-  // the same default six times and the section rendered "Next Best Step" ×7 —
-  // dedupe at render so duplicate rows can never wall the page again. The
-  // newest copy wins (list arrives most-recent first).
-  const seen = new Set<string>();
-  const visiblePrompts = prompts.filter((p) => {
-    // \u0000 escape, not a literal NUL: the raw byte made this file read as
-    // binary to grep, diff and most editors.
-    const key = `${p.name}\u0000${p.body}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const { visible: visiblePrompts, copies } = collapseDuplicates(prompts);
 
   return (
     <section className="space-y-3">
@@ -193,6 +215,22 @@ export function UserPromptsSection({
                         one. The body is what Edit opens. */}
                     <p className="text-xs text-text-muted line-clamp-2 mt-0.5">
                       {p.description || p.body}
+                    </p>
+                    {/* The header promises "most-recent first" and the card hid
+                        the only field that claim rests on. It costs a line and
+                        it is the difference between two cards you cannot tell
+                        apart: the summary above is clamped to two lines, so two
+                        prompts that share a name and diverge later in the body
+                        render identically — which is exactly what /prompts
+                        showed on 2026-09-18, two "Next Best Step" cards side by
+                        side. The dedupe above is right to keep them (they DO
+                        differ); this says which is which. */}
+                    <p className="text-micro text-text-muted mt-1">
+                      saved {timeAgo(new Date(p.updatedAt).getTime())}
+                      {p.runCount > 0 ? ` · run ${p.runCount}×` : " · never run"}
+                      {(copies.get(dupeKey(p)) ?? 1) > 1
+                        ? ` · ${copies.get(dupeKey(p))} identical copies saved`
+                        : ""}
                     </p>
                   </div>
                   {/* Running it is what a saved prompt is FOR, so that stays a
