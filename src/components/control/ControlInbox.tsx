@@ -148,7 +148,7 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
           open={openGroup === "feedback"}
           onToggle={() => toggle("feedback")}
         >
-          <div className="ui-inbox-projects">
+          <div className="ui-inbox-projects ui-scroll-fade-right">
             {summary.map((s) => (
               <button
                 key={s.projectId}

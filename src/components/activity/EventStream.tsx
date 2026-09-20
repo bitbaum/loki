@@ -60,7 +60,11 @@ export function EventStream({
 
       {/* Counts that are also the filter. A count you cannot follow to its
           subject is decoration; these navigate. */}
-      <div className="ui-activity-tabs" role="tablist" aria-label="Filter activity by outcome">
+      <div
+        className="ui-activity-tabs ui-scroll-fade-right"
+        role="tablist"
+        aria-label="Filter activity by outcome"
+      >
         {tabs.map((tab) => {
           const active = filter === tab.id;
           // A zero bucket is still worth showing for "all"; the others would

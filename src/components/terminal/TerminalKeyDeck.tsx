@@ -131,7 +131,7 @@ export function TerminalKeyDeck({ onKey }: { onKey: (bytes: string) => void }) {
 
   return (
     <div className="ui-term-deck">
-      <div className="ui-term-key-lane" role="group" aria-label="More keys">
+      <div className="ui-term-key-lane ui-scroll-fade-right" role="group" aria-label="More keys">
         {TERMINAL_SECONDARY_GROUPS.map((group) => (
           <div key={group.label} className="ui-term-key-group">
             <span className="ui-term-key-group-label">{group.label}</span>
