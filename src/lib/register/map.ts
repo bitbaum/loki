@@ -17,7 +17,10 @@ import { PUBLIC_IDENTITY_ATTRS, type PublicIdentityAttr } from "@/config/project
  */
 
 export type MapLayer =
-  "economic" | "capability" | "governance" | "client" | "product" | "demo" | "next";
+  // "capability" until 2026-09-20. Renamed with the pillar it names: Loki is
+  // the EXECUTION layer, and "capability" described what it can do rather than
+  // what it is for. See orangecat/src/config/ecosystem.ts → ECOSYSTEM_PILLARS.
+  "economic" | "execution" | "governance" | "client" | "product" | "demo" | "next";
 
 export type FleetMapEntry = {
   slug: string;
@@ -73,8 +76,8 @@ export const PILLARS: ReadonlyArray<{ slug: string; layer: MapLayer; role: strin
   },
   {
     slug: "loki",
-    layer: "capability",
-    role: "Get work built: a captain over a fleet of agents, with verification and approval built in.",
+    layer: "execution",
+    role: "Get the work done: a captain over a fleet of agents, with verification and approval built in — and the people, commitments and spending the work runs on.",
   },
   {
     slug: "solon",
@@ -265,7 +268,7 @@ export function buildFleetMap(
   // reads top-down, so the shape of the studio is the first thing seen.
   const rank: Record<MapLayer, number> = {
     economic: 0,
-    capability: 0,
+    execution: 0,
     governance: 0,
     product: 1,
     client: 2,

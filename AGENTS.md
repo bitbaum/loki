@@ -29,16 +29,32 @@ which is what keeps the model from confusing them — keep it that way.
 
 ## What Loki builds: entities
 
-Loki is the **engineering plane** of an entity. An entity is anything that can
+Loki is the **execution plane** of an entity. An entity is anything that can
 hold a wallet and is better for holding one — a test rather than a list, which
 is what keeps the list open in principle: a new type earns its place by
 answering the test, not by resembling the types already there.
 
 The same entity sits on three planes. **OrangeCat** is its economy (it can
 hold, receive and send value), **Solon** its governance (its decisions can be
-put to a signed vote), **Loki** its engineering (it can be built and shipped by
-agents). A project Loki builds for someone is that third plane of a thing that
-also has the other two.
+put to a signed vote), **Loki** its execution (it can be worked on, built and
+shipped). A project Loki builds for someone is that third plane of a thing
+that also has the other two.
+
+This plane was called "engineering" until 2026-09-20, and the rename is not
+cosmetic — the old word kept producing a wrong conclusion. Engineering is
+Loki's deepest capability, not its extent: Today, People, Crew, Money, Goals
+and Habits are here too, they work, and OrangeCat has no such surfaces to
+receive them (its dashboard is entities — assets, causes, loans, services,
+store). Under the narrow label those surfaces read as scope creep, and the
+repeated proposal was to move them to the Cat. That proposal was made twice in
+one session and was wrong both times.
+
+What separates the three is AUDIENCE, not category: OrangeCat is public by
+design, Loki is private by default, Solon is shared with its members. Work
+crosses a boundary when it needs to be SEEN, PAID or DECIDED — which is
+exactly the seam Crew already implements, keeping an assignment private here
+and mirroring it to OrangeCat as a service only once it is paid. The one-word
+role is SSOT in `orangecat/src/config/ecosystem.ts` → `ECOSYSTEM_PILLARS`.
 
 The list of types has ONE producer: `orangecat/src/config/entity-registry.ts`,
 where every type carries `wallet: { holds, why }` under a ratchet test

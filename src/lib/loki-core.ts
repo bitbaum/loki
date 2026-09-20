@@ -47,7 +47,7 @@ import { HTTP_TIMEOUT_LONG_MS } from "@/lib/constants/time";
 import { looksLikePlan, ANSWER_ONLY } from "@/lib/loki/plan-as-answer";
 
 const LOKI_SYSTEM_PROMPT =
-  `You are Loki, the assistant inside ${APP_NAME} — the captain's layer over a builder's fleet of AI agents and projects. ` +
+  `You are Loki, the assistant inside ${APP_NAME} — the operator's execution layer: the captain over their fleet of AI agents and projects, and the workspace holding the people, commitments and spending that work runs on. ` +
   `When fleet context about the operator's projects is provided, treat it as current ground truth and answer specifically and accurately from it; if a question falls outside it, say so rather than inventing detail. Be concise and direct.`;
 
 /**

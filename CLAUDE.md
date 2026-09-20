@@ -17,7 +17,19 @@ render anything itself.
 
 ## What This Is
 
-Loki is a multi-user SaaS platform for commanding AI agent fleets across projects. Users sign in (GitHub OAuth), register their projects, and launch/monitor AI agents from a single dashboard. Dark-first, mobile-ready, designed for builders who want control without complexity.
+Loki is a multi-user SaaS **execution layer** for builders: where an operator's
+work actually gets done. Users sign in, register their projects, and command AI
+agent fleets from one dashboard — and the same workspace holds the people they
+work with, the commitments they owe, and what they spend. Dark-first,
+mobile-ready, designed for builders who want control without complexity.
+
+Commanding agent fleets is the largest part of that and the reason most people
+arrive, but it is not the whole product, and describing Loki as "the
+engineering plane" made the rest look like clutter that belonged elsewhere.
+There is nowhere else: OrangeCat's dashboard is economic entities and has no
+Today, no habits, no commitments, no crew. See `AGENTS.md` → "What Loki builds"
+for the audience-based split that actually separates the three products, and
+`orangecat/src/config/ecosystem.ts` → `ECOSYSTEM_PILLARS` for the SSOT.
 
 ## Stack
 
