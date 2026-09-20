@@ -35,6 +35,11 @@ const routes = [
   "/terminal?source=server&tab=loki",
   "/projects",
   "/prompts",
+  // Both feedback surfaces. The reporter page shipped an unclamped report body
+  // that swallowed the list at phone width for two days; neither page was ever
+  // driven through a viewport here.
+  "/feedback",
+  "/my-feedback",
   "/activity",
   "/history",
   "/decisions",
