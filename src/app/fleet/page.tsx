@@ -271,17 +271,37 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
       <div className="ui-public-container-mid space-y-12 pb-14 sm:space-y-16 sm:pb-24">
         <section className="pt-8 sm:pt-10">
           {result.rows.length === 0 ? (
-            <div className="ui-fleet-empty">
-              <p className="ui-public-section-lede">
-                Nothing matches that. {narrowed ? "The filters are narrower than the fleet." : null}
-              </p>
-              <Link
-                href={href(emptyQuery(spec))}
-                className="ui-public-link-standalone mt-3 text-sm"
-              >
-                Clear the filters →
-              </Link>
-            </div>
+            /* Two different empty states, and conflating them was misleading:
+               with nothing listed at all, the page said "Nothing matches that
+               — clear the filters" to a visitor who had set none, and offered
+               a link that changes nothing. A fresh self-hosted Loki shows this
+               on its very first visit, so it is the first thing that instance
+               ever says. `rows` is the whole catalogue before the query, so it
+               distinguishes "you filtered it away" from "there is none yet". */
+            rows.length === 0 ? (
+              <div className="ui-fleet-empty">
+                <p className="ui-public-section-lede">
+                  No projects are listed here yet. Owners choose which of their projects appear —
+                  nothing is published without them saying so.
+                </p>
+                <Link href="/" className="ui-public-link-standalone mt-3 text-sm">
+                  What Loki does →
+                </Link>
+              </div>
+            ) : (
+              <div className="ui-fleet-empty">
+                <p className="ui-public-section-lede">
+                  Nothing matches that.{" "}
+                  {narrowed ? "The filters are narrower than the fleet." : null}
+                </p>
+                <Link
+                  href={href(emptyQuery(spec))}
+                  className="ui-public-link-standalone mt-3 text-sm"
+                >
+                  Clear the filters →
+                </Link>
+              </div>
+            )
           ) : (
             <ol className="ui-public-fleet-list">
               {result.rows.map((r) => (
