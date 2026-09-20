@@ -17,7 +17,19 @@ render anything itself.
 
 ## What This Is
 
-Loki is a multi-user SaaS platform for commanding AI agent fleets across projects. Users sign in (GitHub OAuth), register their projects, and launch/monitor AI agents from a single dashboard. Dark-first, mobile-ready, designed for builders who want control without complexity.
+Loki is a multi-user SaaS **execution layer** for builders: where an operator's
+work actually gets done. Users sign in, register their projects, and command AI
+agent fleets from one dashboard — and the same workspace holds the people they
+work with, the commitments they owe, and what they spend. Dark-first,
+mobile-ready, designed for builders who want control without complexity.
+
+Commanding agent fleets is the largest part of that and the reason most people
+arrive, but it is not the whole product, and describing Loki as "the
+engineering plane" made the rest look like clutter that belonged elsewhere.
+There is nowhere else: OrangeCat's dashboard is economic entities and has no
+Today, no habits, no commitments, no crew. See `AGENTS.md` → "What Loki builds"
+for the audience-based split that actually separates the three products, and
+`orangecat/src/config/ecosystem.ts` → `ECOSYSTEM_PILLARS` for the SSOT.
 
 ## Stack
 
@@ -282,6 +294,15 @@ explicit rule to admit when something is not in that excerpt.
 `pnpm run test:ai-forms` exercises fill + follow-up refine against the live model
 (needs `GROQ_API_KEY`; not part of `verify`).
 
+### No dead ends
+A gate records; it never blocks. Anything that pauses a person shows the way
+forward on the same screen: a default with its consequence stated and one tap
+to change it, a skip that lands exactly where the old path landed, an error
+state with a button, never a wall. The interview before a kickoff
+(`components/projects/ProjectInterview.tsx`) is the pattern — every question
+skippable, "Skip to the build" even when the questions fail to load. This is
+fleet-wide; its permanent home is bitbaum/fleet `AGENTS.md`.
+
 ### SSOT Rules
 - **User ID**: `getApiUserId()` (API routes, returns `string | null`) or `requirePageUserId()`
   (pages, throws/redirects) from `lib/session.ts`. There is no `getCurrentUserId` and no
@@ -399,16 +420,20 @@ pnpm exec tsx home/watcher.ts --start # Run a single home/ piece for iteration
 A husky **pre-commit** hook runs `eslint` on STAGED FILES ONLY — no `tsc`. A
 commit is cheap and local, so it is gated cheaply.
 
-A husky **pre-push** hook runs the full `pnpm run verify` bundle — the same one
-CI runs, so green locally means green in CI — plus a schema-drift guard, dev-server
-smoke (if one is up), and, when `SMOKE_PRIVATE_PIN` is in `.env.local` (or
-exported), `pnpm run test:pre-push-prod-dogfood`: authenticated prod smoke and
-headless prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is
-online; `dogfood:machine` when a local Fleet Runner is connected). A push is
-shared, so it is gated completely.
+A husky **pre-push** hook runs only the gates the CHANGED FILES can affect —
+NOT the full bundle. It used to run everything; that cost 7h13m under load on
+2026-09-11, and the hook's own header records why it stopped. A docs-or-config
+-only push therefore runs **nothing** locally and prints so.
 
-Budget for it: pre-push takes minutes, not seconds. That is the trade — the
-expensive gate sits where the work becomes everyone's problem.
+**Green pre-push does NOT mean green CI.** CI is the gate; the hook is only a
+fast filter. Before declaring a change done, run `pnpm run verify` yourself —
+that is the bundle CI runs verbatim.
+
+When they do fire, the hook's extras are a schema-drift guard, dev-server smoke
+(if one is up), and, when `SMOKE_PRIVATE_PIN` is in `.env.local` (or exported),
+`pnpm run test:pre-push-prod-dogfood`: authenticated prod smoke and headless
+prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is online;
+`dogfood:machine` when a local Fleet Runner is connected).
 
 ## Views
 

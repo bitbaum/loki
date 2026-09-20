@@ -5,7 +5,7 @@ excerpt: Loki is not a competitor to Cursor or Copilot. It is the productized ve
 publishedAt: 2026-06-04
 tags: product,positioning,levelsio,fleet-runner,strategy,studio,architecture
 featured: true
-author: Mao Nakamoto
+author: Cato
 readingTimeMin: 14
 ---
 
@@ -136,4 +136,4 @@ If you are building tools for builders, your customers are *building in public*.
 
 The work now is to ship the product that lives up to the description. Which is a tractable problem.
 
-— Mao Nakamoto, 4 June 2026
+— Cato, 4 June 2026

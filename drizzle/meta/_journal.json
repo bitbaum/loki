@@ -3,458 +3,549 @@
   "dialect": "postgresql",
   "entries": [
     {
-      "idx": 1,
+      "idx": 0,
       "version": "7",
       "when": 1767225600000,
       "tag": "0001_canonical_project_identity",
       "breakpoints": true
     },
     {
-      "idx": 2,
+      "idx": 1,
       "version": "7",
       "when": 1767225601000,
       "tag": "0002_project_states_composite_key",
       "breakpoints": true
     },
     {
-      "idx": 3,
+      "idx": 2,
       "version": "7",
       "when": 1767225602000,
       "tag": "0003_user_projects_unique_name",
       "breakpoints": true
     },
     {
-      "idx": 4,
+      "idx": 3,
       "version": "7",
       "when": 1767225603000,
       "tag": "0004_attributes_user_scoped_unique",
       "breakpoints": true
     },
     {
-      "idx": 5,
+      "idx": 4,
       "version": "7",
       "when": 1767225604000,
       "tag": "0005_orchestration_runs_org_id_and_outcome",
       "breakpoints": true
     },
     {
-      "idx": 6,
+      "idx": 5,
       "version": "7",
       "when": 1767225605000,
       "tag": "0006_project_states_align_schema",
       "breakpoints": true
     },
     {
-      "idx": 7,
+      "idx": 6,
       "version": "7",
       "when": 1767225606000,
       "tag": "0007_user_projects_org_id",
       "breakpoints": true
     },
     {
-      "idx": 8,
+      "idx": 7,
       "version": "7",
       "when": 1767225607000,
       "tag": "0008_beacon_settings_and_user_preferences",
       "breakpoints": true
     },
     {
-      "idx": 9,
+      "idx": 8,
       "version": "7",
       "when": 1767225608000,
       "tag": "0009_project_states_session_status",
       "breakpoints": true
     },
     {
-      "idx": 10,
+      "idx": 9,
       "version": "7",
       "when": 1767225609000,
       "tag": "0010_project_states_prompt_queue",
       "breakpoints": true
     },
     {
-      "idx": 11,
+      "idx": 10,
       "version": "7",
       "when": 1767225610000,
       "tag": "0011_beacon_settings_auto_inject_mode",
       "breakpoints": true
     },
     {
-      "idx": 12,
+      "idx": 11,
       "version": "7",
       "when": 1767225611000,
       "tag": "0012_project_states_unique_lower_key",
       "breakpoints": true
     },
     {
-      "idx": 13,
+      "idx": 12,
       "version": "7",
       "when": 1767225612000,
       "tag": "0013_runtime_snapshots",
       "breakpoints": true
     },
     {
-      "idx": 14,
+      "idx": 13,
       "version": "7",
       "when": 1767225613000,
       "tag": "0014_debug_logs",
       "breakpoints": true
     },
     {
-      "idx": 15,
+      "idx": 14,
       "version": "7",
       "when": 1767225614000,
       "tag": "0015_project_states_auto_continue",
       "breakpoints": true
     },
     {
-      "idx": 16,
+      "idx": 15,
       "version": "7",
       "when": 1767225615000,
       "tag": "0016_project_states_prompt_queue_revision",
       "breakpoints": true
     },
     {
-      "idx": 17,
+      "idx": 16,
       "version": "7",
       "when": 1767225616000,
       "tag": "0017_orchestration_events_dedupe_key",
       "breakpoints": true
     },
     {
-      "idx": 18,
+      "idx": 17,
       "version": "7",
       "when": 1767225617000,
       "tag": "0018_runtime_observation_versions",
       "breakpoints": true
     },
     {
-      "idx": 19,
+      "idx": 18,
       "version": "7",
       "when": 1767225618000,
       "tag": "0019_beacon_settings_default_strategist",
       "breakpoints": true
     },
     {
-      "idx": 20,
+      "idx": 19,
       "version": "7",
       "when": 1767225619000,
       "tag": "0020_push_subscriptions",
       "breakpoints": true
     },
     {
-      "idx": 21,
+      "idx": 20,
       "version": "7",
       "when": 1767225620000,
       "tag": "0021_subscriptions_orangecat_service_id",
       "breakpoints": true
     },
     {
-      "idx": 22,
+      "idx": 21,
       "version": "7",
       "when": 1767225621000,
       "tag": "0022_notify_triggers",
       "breakpoints": true
     },
     {
-      "idx": 23,
+      "idx": 22,
       "version": "7",
       "when": 1767225622000,
       "tag": "0023_entities_auto_inject_mode_override",
       "breakpoints": true
     },
     {
-      "idx": 24,
+      "idx": 23,
       "version": "7",
       "when": 1767225623000,
       "tag": "0024_beacon_sessions",
       "breakpoints": true
     },
     {
-      "idx": 25,
+      "idx": 24,
       "version": "7",
       "when": 1767225624000,
       "tag": "0025_prompts",
       "breakpoints": true
     },
     {
-      "idx": 26,
+      "idx": 25,
       "version": "7",
       "when": 1767225625000,
       "tag": "0026_drop_legacy_project_states_trigger",
       "breakpoints": true
     },
     {
-      "idx": 27,
+      "idx": 26,
       "version": "7",
       "when": 1767225626000,
       "tag": "0026_runner_presence",
       "breakpoints": true
     },
     {
-      "idx": 28,
+      "idx": 27,
       "version": "7",
       "when": 1767225627000,
       "tag": "0027_runtime_snapshots_agent_inventory",
       "breakpoints": true
     },
     {
-      "idx": 29,
+      "idx": 28,
       "version": "7",
       "when": 1767225628000,
       "tag": "0028_control_audit_events",
       "breakpoints": true
     },
     {
-      "idx": 30,
+      "idx": 29,
       "version": "7",
       "when": 1767225629000,
       "tag": "0030_session_block_reason",
       "breakpoints": true
     },
     {
-      "idx": 31,
+      "idx": 30,
       "version": "7",
       "when": 1767225630000,
       "tag": "0031_builder_presence_channels",
       "breakpoints": true
     },
     {
-      "idx": 32,
+      "idx": 31,
       "version": "7",
       "when": 1767225631000,
       "tag": "0032_runtime_snapshots_runner_version",
       "breakpoints": true
     },
     {
-      "idx": 33,
+      "idx": 32,
       "version": "7",
       "when": 1767225632000,
       "tag": "0033_runtime_snapshots_channel",
       "breakpoints": true
     },
     {
-      "idx": 34,
+      "idx": 33,
       "version": "7",
       "when": 1767225633000,
       "tag": "0034_users_orangecat_actor_id",
       "breakpoints": true
     },
     {
-      "idx": 35,
+      "idx": 34,
       "version": "7",
       "when": 1767225634000,
       "tag": "0035_user_projects_orangecat_project_id",
       "breakpoints": true
     },
     {
-      "idx": 36,
+      "idx": 35,
       "version": "7",
       "when": 1767225635000,
       "tag": "0036_project_states_workspace_id",
       "breakpoints": true
     },
     {
-      "idx": 37,
+      "idx": 36,
       "version": "7",
       "when": 1767225636000,
       "tag": "0037_run_events",
       "breakpoints": true
     },
     {
-      "idx": 38,
+      "idx": 37,
       "version": "7",
       "when": 1767225637000,
       "tag": "0038_user_projects_resources",
       "breakpoints": true
     },
     {
-      "idx": 39,
+      "idx": 38,
       "version": "7",
       "when": 1767225638000,
       "tag": "0039_project_shares",
       "breakpoints": true
     },
     {
+      "idx": 39,
+      "version": "7",
+      "when": 1767225639000,
+      "tag": "0040_tough_abomination",
+      "breakpoints": true
+    },
+    {
       "idx": 40,
       "version": "7",
-      "when": 1785240845250,
-      "tag": "0040_tough_abomination",
+      "when": 1767225640000,
+      "tag": "0041_normal_ezekiel_stane",
       "breakpoints": true
     },
     {
       "idx": 41,
       "version": "7",
-      "when": 1785481422709,
-      "tag": "0041_normal_ezekiel_stane",
+      "when": 1767225641000,
+      "tag": "0042_stiff_sprite",
       "breakpoints": true
     },
     {
       "idx": 42,
       "version": "7",
-      "when": 1785489749681,
-      "tag": "0042_stiff_sprite",
+      "when": 1767225642000,
+      "tag": "0043_flaky_black_knight",
       "breakpoints": true
     },
     {
       "idx": 43,
       "version": "7",
-      "when": 1785490497980,
-      "tag": "0043_flaky_black_knight",
+      "when": 1767225643000,
+      "tag": "0044_dizzy_hex",
       "breakpoints": true
     },
     {
       "idx": 44,
       "version": "7",
-      "when": 1785491429289,
-      "tag": "0044_dizzy_hex",
+      "when": 1767225644000,
+      "tag": "0045_acoustic_timeslip",
       "breakpoints": true
     },
     {
       "idx": 45,
       "version": "7",
-      "when": 1785493125187,
-      "tag": "0045_acoustic_timeslip",
+      "when": 1767225645000,
+      "tag": "0046_lovely_lily_hollister",
       "breakpoints": true
     },
     {
       "idx": 46,
       "version": "7",
-      "when": 1785666988889,
-      "tag": "0046_lovely_lily_hollister",
+      "when": 1767225646000,
+      "tag": "0047_late_darkstar",
       "breakpoints": true
     },
     {
       "idx": 47,
       "version": "7",
-      "when": 1785672609013,
-      "tag": "0047_late_darkstar",
+      "when": 1767225647000,
+      "tag": "0048_colossal_maria_hill",
       "breakpoints": true
     },
     {
       "idx": 48,
       "version": "7",
-      "when": 1786004725472,
-      "tag": "0048_colossal_maria_hill",
+      "when": 1767225648000,
+      "tag": "0049_tearful_mandrill",
       "breakpoints": true
     },
     {
       "idx": 49,
       "version": "7",
-      "when": 1786016449335,
-      "tag": "0049_tearful_mandrill",
+      "when": 1767225649000,
+      "tag": "0050_burly_harry_osborn",
       "breakpoints": true
     },
     {
       "idx": 50,
       "version": "7",
-      "when": 1786023816401,
-      "tag": "0050_burly_harry_osborn",
+      "when": 1767225650000,
+      "tag": "0051_hesitant_harpoon",
       "breakpoints": true
     },
     {
       "idx": 51,
       "version": "7",
-      "when": 1786033707892,
-      "tag": "0051_hesitant_harpoon",
+      "when": 1767225651000,
+      "tag": "0052_adorable_squadron_supreme",
       "breakpoints": true
     },
     {
       "idx": 52,
       "version": "7",
-      "when": 1786088816933,
-      "tag": "0052_adorable_squadron_supreme",
+      "when": 1767225652000,
+      "tag": "0053_polite_slyde",
       "breakpoints": true
     },
     {
       "idx": 53,
       "version": "7",
-      "when": 1786638261114,
-      "tag": "0053_polite_slyde",
+      "when": 1767225653000,
+      "tag": "0054_outgoing_bedlam",
       "breakpoints": true
     },
     {
       "idx": 54,
       "version": "7",
-      "when": 1786802895415,
-      "tag": "0054_outgoing_bedlam",
+      "when": 1767225654000,
+      "tag": "0055_whole_ma_gnuci",
       "breakpoints": true
     },
     {
       "idx": 55,
       "version": "7",
-      "when": 1786883406248,
-      "tag": "0055_whole_ma_gnuci",
+      "when": 1767225655000,
+      "tag": "0056_silly_colleen_wing",
       "breakpoints": true
     },
     {
       "idx": 56,
       "version": "7",
-      "when": 1786888259854,
-      "tag": "0056_silly_colleen_wing",
+      "when": 1767225656000,
+      "tag": "0057_loose_spyke",
       "breakpoints": true
     },
     {
       "idx": 57,
       "version": "7",
-      "when": 1787739702509,
-      "tag": "0057_loose_spyke",
+      "when": 1767225657000,
+      "tag": "0058_undelivered_backfill",
       "breakpoints": true
     },
     {
       "idx": 58,
       "version": "7",
-      "when": 1787739703509,
-      "tag": "0058_undelivered_backfill",
+      "when": 1767225658000,
+      "tag": "0059_unconfirmed_rename",
       "breakpoints": true
     },
     {
       "idx": 59,
       "version": "7",
-      "when": 1787739704509,
-      "tag": "0059_unconfirmed_rename",
+      "when": 1767225659000,
+      "tag": "0060_parched_salo",
       "breakpoints": true
     },
     {
       "idx": 60,
       "version": "7",
-      "when": 1787765886562,
-      "tag": "0060_parched_salo",
+      "when": 1767225660000,
+      "tag": "0061_mysterious_purifiers",
       "breakpoints": true
     },
     {
       "idx": 61,
       "version": "7",
-      "when": 1787991680224,
-      "tag": "0061_mysterious_purifiers",
+      "when": 1767225661000,
+      "tag": "0062_vengeful_lockjaw",
       "breakpoints": true
     },
     {
       "idx": 62,
       "version": "7",
-      "when": 1788426696563,
-      "tag": "0062_vengeful_lockjaw",
+      "when": 1767225662000,
+      "tag": "0063_rainy_mattie_franklin",
       "breakpoints": true
     },
     {
       "idx": 63,
       "version": "7",
-      "when": 1788626716800,
-      "tag": "0063_rainy_mattie_franklin",
+      "when": 1767225663000,
+      "tag": "0064_feedback_screenshots_array",
       "breakpoints": true
     },
     {
       "idx": 64,
       "version": "7",
-      "when": 1789620487077,
-      "tag": "0071_feedback_collaboration",
+      "when": 1767225664000,
+      "tag": "0065_builder_pref",
       "breakpoints": true
     },
     {
       "idx": 65,
       "version": "7",
-      "when": 1789625943428,
+      "when": 1767225665000,
+      "tag": "0065_project_registry_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1767225666000,
+      "tag": "0066_project_auto_ship",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1767225667000,
+      "tag": "0067_provider_quota",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1767225668000,
+      "tag": "0068_provider_quota_window_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1767225669000,
+      "tag": "0069_provider_quota_note",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1767225670000,
+      "tag": "0070_ai_usage",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1767225671000,
+      "tag": "0071_feedback_collaboration",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1767225672000,
       "tag": "0072_provider_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1767225673000,
+      "tag": "0073_standing_approvals",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1767225674000,
+      "tag": "0074_calendar_busy",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1767225675000,
+      "tag": "0075_project_public_listing",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1767225676000,
+      "tag": "0076_project_featured",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1767225677000,
+      "tag": "0077_project_listing_prompt",
       "breakpoints": true
     }
   ]

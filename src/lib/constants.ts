@@ -9,7 +9,7 @@ const WORKSPACE_DIR = `${OPENCLAW_DIR}/workspace`;
 export const TOOLS_DIR = `${WORKSPACE_DIR}/tools`;
 export const CRON_FILE = path.join(HOME, ".openclaw", "cron", "jobs.json");
 
-export const DEFAULT_USER_NAME = envAlias("DEFAULT_USER_NAME", "Mao");
+export const DEFAULT_USER_NAME = envAlias("DEFAULT_USER_NAME", "there");
 /** External ID of the owner entity — used to exclude the user from people
  *  queries. "self" is the neutral marker; DBs seeded before 2026-07-17 were
  *  migrated from the legacy value with

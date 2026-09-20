@@ -53,9 +53,10 @@ lives in git history.
 
 ### Wave 1 — identity, secrets, URLs, design, dead code
 - **Private-zone PIN** removed from 3 tracked scripts (usage examples now `<pin>`).
-- **Identity scrub**: seed email now `SEED_OWNER_EMAIL` env (fallback `mao@orangecat.ch`);
-  `GEORGE_USER_ID` → `OWNER_USER_ID`; "George" comments → "the operator"/"Mao" in
-  code + docs + a published Thoughts essay; CODEOWNERS `@g-but` → `@bitbaum`;
+- **Identity scrub**: seed email now `SEED_OWNER_EMAIL` env (fallback
+  `cato@orangecat.ch`); `GEORGE_USER_ID` → `OWNER_USER_ID`; "George" comments →
+  "the operator" in code + docs + a published Thoughts essay; CODEOWNERS
+  `@g-but` → `@catomean`;
   real phone + author paths anonymized; `/home/g` runtime fallback → `os.homedir()`.
 - **`DEFAULT_USER_EXTERNAL_ID`** default `"george"` → `"self"`, with the entity row
   migrated in BOTH local and box DBs (`UPDATE entities SET external_id='self'`).

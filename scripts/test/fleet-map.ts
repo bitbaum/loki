@@ -82,7 +82,7 @@ const rows: RegisterRow[] = [
 ];
 
 check("layers: pillars by name, clients by owner, demos by kind, no site = next", () => {
-  assert.equal(layerFor(rows[1]), "capability");
+  assert.equal(layerFor(rows[1]), "execution");
   assert.equal(layerFor(rows[4]), "economic");
   assert.equal(layerFor(rows[0]), "client");
   assert.equal(layerFor(rows[2]), "demo");
@@ -177,7 +177,7 @@ check("the overview names every project once, with facts in a fixed order", () =
   assert.match(text, /^Fleet map \(5 projects, 3 live, 1 client systems\)/);
   assert.match(
     text,
-    /loki — A captain over a fleet of agents; capability, live; live at https:\/\/loki\.orangecat\.ch; code https:\/\/github\.com\/bitbaum\/loki; last log 2026-09-13: Renamed; next: Close the loop/,
+    /loki — A captain over a fleet of agents; execution, live; live at https:\/\/loki\.orangecat\.ch; code https:\/\/github\.com\/bitbaum\/loki; last log 2026-09-13: Renamed; next: Close the loop/,
   );
   assert.match(text, /kivvi — Nanny booking; client, live, for kivvi/);
   assert.match(text, /aoz-demo — \(no description yet\)/);

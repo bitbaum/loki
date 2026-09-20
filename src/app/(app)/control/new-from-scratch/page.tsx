@@ -40,7 +40,7 @@ type CreateResponse = {
 /**
  * ARRIVING FROM SOMEWHERE ELSE.
  *
- * Loki is the engineering plane of an entity; OrangeCat is its economy. Someone
+ * Loki is the execution plane of an entity; OrangeCat is its economy. Someone
  * who has just described what they want to build, over there, should not have
  * to type it again over here — retyping is where a handoff is lost.
  *

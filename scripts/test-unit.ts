@@ -81,18 +81,57 @@ console.log(`→ running ${files.length} unit tests (parallel ${MAX_PARALLEL})\n
 const runner = existsSync(TSX_BIN) ? TSX_BIN : "npx";
 const baseArgs = existsSync(TSX_BIN) ? [] : ["tsx"];
 
+/**
+ * A test that never exits must be a FAILURE, not a wait.
+ *
+ * Measured 2026-09-20: groq-chain-fallback.ts finished its assertions in two
+ * seconds, printed its ✓, and then held the job open for FIFTY-SIX MINUTES.
+ * Its last case drives the vendor-refusal path, which fire-and-forgets a quota
+ * write; that lazily imports `@/db`, which opens a postgres pool nothing ever
+ * closes. Locally there is no DATABASE_URL, so the import rejects and the
+ * process exits — the hang appears only in CI, where a database exists.
+ *
+ * Without a cap, one such file sets the runtime of the whole suite, and it
+ * reads as "CI is slow" rather than "a test is broken". A per-file deadline
+ * turns fifty-six silent minutes into one named red line.
+ *
+ * The kill is SIGKILL after a SIGTERM grace: the wedged process is holding an
+ * open socket, and a handler that politely waits for it would hang too.
+ */
+const FILE_TIMEOUT_MS = Number(process.env.UNIT_TEST_TIMEOUT_MS ?? 120_000);
+
 function run(file: string): Promise<{ file: string; ok: boolean; tail: string }> {
   return new Promise((resolve) => {
     const child = spawn(runner, [...baseArgs, join(TEST_DIR, file)], {
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
+    let settled = false;
+    const finish = (r: { file: string; ok: boolean; tail: string }) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(r);
+    };
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      setTimeout(() => child.kill("SIGKILL"), 2_000).unref();
+      finish({
+        file,
+        ok: false,
+        tail:
+          `TIMED OUT after ${FILE_TIMEOUT_MS}ms — the process did not exit. ` +
+          `Assertions may all have passed; something is holding the event loop open ` +
+          `(an unclosed database pool from a fire-and-forget write is the usual cause). ` +
+          `End the file with process.exit(0), as the other database-touching tests do.`,
+      });
+    }, FILE_TIMEOUT_MS);
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (out += d));
-    child.on("error", (err) => resolve({ file, ok: false, tail: `spawn error: ${err.message}` }));
+    child.on("error", (err) => finish({ file, ok: false, tail: `spawn error: ${err.message}` }));
     child.on("close", (code) => {
       const tail = out.trim().split("\n").slice(-1)[0] ?? "";
-      resolve({ file, ok: code === 0, tail });
+      finish({ file, ok: code === 0, tail });
     });
   });
 }

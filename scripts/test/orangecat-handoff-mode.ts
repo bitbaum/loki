@@ -5,6 +5,8 @@
  */
 import {
   decideHandoffMode,
+  interviewAutoHref,
+  isInterviewAuto,
   isKickoffAuto,
   kickoffAutoHref,
 } from "@/lib/integrations/orangecat-handoff-mode";
@@ -41,6 +43,28 @@ if (
   isKickoffAuto("1")
 ) {
   throw new Error("isKickoffAuto accepts exactly the single 'auto' value");
+}
+
+// A project the handoff CREATES is asked about before it is built. The two
+// flags must stay distinct: landing on ?kickoff=auto skips the interview, which
+// is right for a project whose profile is already written and wrong for a brand
+// new one carrying a single public sentence.
+if (interviewAutoHref("/projects/abc") !== "/projects/abc?interview=auto") {
+  throw new Error("interview href must append the interview flag");
+}
+if (interviewAutoHref("/projects/abc?tab=now") !== "/projects/abc?tab=now&interview=auto") {
+  throw new Error("interview href must respect an existing query string");
+}
+if (interviewAutoHref("/projects/abc").includes("kickoff")) {
+  throw new Error("the interview arrival must not also start the kickoff");
+}
+if (
+  !isInterviewAuto("auto") ||
+  isInterviewAuto(undefined) ||
+  isInterviewAuto(["auto"]) ||
+  isInterviewAuto("1")
+) {
+  throw new Error("isInterviewAuto accepts exactly the single 'auto' value");
 }
 
 console.log("✓ orangecat handoff mode");

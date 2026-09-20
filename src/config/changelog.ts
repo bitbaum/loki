@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.29",
+    tag: "fleet-runner-v0.8.29",
+    date: "2026-09-20T00:00:00Z",
+    highlights: [
+      "The About dialog and the installer's copyright metadata now read \u00a9 2026 Cato. Every build since the rename had shipped a name that was retired months ago \u2014 it was in the desktop app rather than the website, so no audit of the site ever looked there.",
+    ],
+    breaking: [],
+    notes:
+      "Cosmetic, but it shipped in every installer: the only place the retired identity was still compiled into a binary rather than rendered from content.",
+  },
+  {
     version: "0.8.28",
     tag: "fleet-runner-v0.8.28",
     date: "2026-09-17T09:00:00Z",
@@ -66,18 +77,6 @@ export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
     breaking: [],
     notes:
       "Proven through the production feedback loop: Grok was visibly reading and editing in Loki Terminal while the old verifier had already marked the run Failed.",
-  },
-  {
-    version: "0.8.25",
-    tag: "fleet-runner-v0.8.25",
-    date: "2026-09-15T06:00:00Z",
-    highlights: [
-      "A task the agent finishes in seconds now closes its run. The runner reports the moment it handed the prompt over, instead of the moment it finished checking that the agent had started — a gap of up to eight seconds, in which a quick job could finish and then look older than its own dispatch.",
-      'Before this, such a run sat "waiting" until an hourly sweep called it a timeout, and the result never reached the conversation that asked for it.',
-    ],
-    breaking: [],
-    notes:
-      "Found by the end-to-end check: a probe that only runs git status did everything right and was reported as a timeout an hour later.",
   },
   {
     version: "0.8.24",
