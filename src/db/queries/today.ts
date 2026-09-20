@@ -114,8 +114,21 @@ export async function fulfillCommitment(id: string, userId: string) {
 
 /** Active commitments due on or before `now + days` (overdue included — those are
  *  the most urgent). Feeds dispatch context so agents are aware of the operator's
- *  time-sensitive obligations. Soonest first; capped so a long list can't bloat
- *  the prompt. */
+ *  time-sensitive obligations. Nearest deadline first; capped so a long list
+ *  can't bloat the prompt.
+ *
+ *  Nearest deadline, not earliest date. Ordering by `due_date` ascending sounds
+ *  like "most urgent first" and is the opposite once overdue rows are in scope:
+ *  the oldest rows sort first and take the whole cap, so the two items that
+ *  reached every dispatch on 2026-09-20 were a Coinbase bonus that expired
+ *  2026-05-03 and a project-restore window that closed 2026-07-03, while
+ *  anything actually due that fortnight never made the list (#584). A deadline
+ *  two days past is urgent; one four months past is not, and neither is more
+ *  urgent than tomorrow's. Distance from today is what "urgent" means here, so
+ *  that is what the ORDER BY says.
+ *
+ *  Callers must render the overdue ones AS overdue — see isOverdue in
+ *  lib/dates.ts, which shares this query's day boundary. */
 export async function listUpcomingCommitments(userId: string, days = 14, limit = 8) {
   const until = new Date(Date.now() + days * DAY_MS);
   return db
@@ -129,7 +142,7 @@ export async function listUpcomingCommitments(userId: string, days = 14, limit =
         lte(commitments.dueDate, until),
       ),
     )
-    .orderBy(commitments.dueDate)
+    .orderBy(sql`abs(extract(epoch from (${commitments.dueDate} - now())))`)
     .limit(limit);
 }
 

@@ -95,6 +95,33 @@ export function compactRelativeDate(date: Date | string): string {
 }
 
 /**
+ * Is this due date already in the past — by CALENDAR DAY, in the same timezone
+ * `toLocalDateStr` prints?
+ *
+ * Two decisions, both to stop a label contradicting the date printed next to it.
+ *
+ * Day-granular, not instant-granular: something due at 09:00 today is still due
+ * today at 17:00. `isPast` (what `deadlineLabel` uses for its relative phrasing)
+ * would call that overdue eight hours early, and a deadline the operator still
+ * reads as "today" must never reach an agent as missed.
+ *
+ * Compared as printed dates rather than instants, because these two facts are
+ * rendered side by side — "was due 2026-07-03 (OVERDUE)" — and a boundary
+ * computed in a different timezone from the one the date was formatted in can
+ * mark today's row overdue. Comparing the strings makes agreement structural:
+ * the word can only ever say "overdue" when the date beside it really is before
+ * the date the same helper would print for today.
+ *
+ * `now` is injectable so callers can test the boundary without freezing a clock.
+ */
+export function isOverdue(date: Date | string | null | undefined, now: Date = new Date()): boolean {
+  if (!date) return false;
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return false;
+  // YYYY-MM-DD sorts lexicographically exactly as it sorts chronologically.
+  return toLocalDateStr(d) < toLocalDateStr(now);
+}
+/**
  * Standard "Overdue / Due X" phrasing used across deadline displays
  * (events, goals, project deadlines). Returns the formatted label and
  * the overdue flag so callers can colour their wrapping element.
