@@ -6,7 +6,7 @@ import { useCommandPalette } from "@/hooks/use-command-palette";
 import { NotificationsPill } from "./NotificationsPill";
 import { FleetRunnerStatusPill } from "@/components/desktop/FleetRunnerStatusPill";
 import { AccountMenu } from "@/components/shell/AccountMenu";
-import { NAV_ITEMS } from "@/config/navigation";
+import { MOBILE_NAV_ITEMS, NAV_ITEMS } from "@/config/navigation";
 import { isCurrentPath } from "@/lib/navigation";
 
 /**
@@ -44,7 +44,16 @@ export function AppTopBar({
   // Falls back to empty string for pages outside the nav config (sign-in,
   // /u/<username>, etc.) so the top bar stays clean rather than guessing.
   const currentNavItem = NAV_ITEMS.find((item) => isCurrentPath(pathname, item.href));
-  const pageLabel = currentNavItem?.label ?? "";
+
+  // Say where you are ONLY when nothing else on screen already does.
+  //
+  // Below md the bottom bar carries Today / Loki / Control as labelled,
+  // highlighted tabs — so on those three pages the top bar's title was the
+  // third simultaneous answer to "where am I?", after the bottom tab and the
+  // page's own heading. It earns its place on every OTHER page, where the
+  // bottom bar can only show "Menu" and genuinely cannot tell you.
+  const onBottomBarTab = MOBILE_NAV_ITEMS.some((item) => isCurrentPath(pathname, item.href));
+  const pageLabel = onBottomBarTab ? "" : (currentNavItem?.label ?? "");
 
   return (
     <header className="ui-app-topbar">
