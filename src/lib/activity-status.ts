@@ -175,6 +175,14 @@ export type PromptDisplay = {
   expandable: boolean;
   /** True when no prompt text was ever recorded (not merely hidden). */
   missing: boolean;
+  /**
+   * The autopilot loop that injected this, when a loop did — `next_best`,
+   * `quality`, `test_and_fix` — else null for a prompt a human actually typed.
+   *
+   * The feed labels every row "asked:", which is a claim about who asked. For
+   * these rows nobody did, and the prompt says so in its own first sentence.
+   */
+  autopilotLoop: string | null;
 };
 
 const PREVIEW_MAX = 240;
@@ -182,6 +190,36 @@ const PREVIEW_MAX = 240;
 function onePreviewLine(text: string): string {
   const flat = text.replace(/\s+/g, " ").trim();
   return flat.length > PREVIEW_MAX ? `${flat.slice(0, PREVIEW_MAX - 1)}…` : flat;
+}
+
+/**
+ * The header `config/prompt-library.ts` puts on every autopilot template:
+ * `[autopilot · loop=next_best — this prompt was auto-injected by the local
+ * dispatch loop, NOT typed by a human …]`.
+ *
+ * It is addressed to the AGENT, and it is ~230 characters — which is the whole
+ * 240-character preview budget. Measured on prod 2026-09-20: three consecutive
+ * "Needs you" rows whose visible text was this same sentence, cut at
+ * "suspect th…". Three different runs, one indistinguishable paragraph, and
+ * the reader never reached a word of what was actually asked.
+ *
+ * Stripped from the PREVIEW only. `task` is what a re-dispatch sends and
+ * `full` is what the agent received; removing it there would re-run the loop's
+ * work without the instruction that tells the agent a loop sent it.
+ */
+const AUTOPILOT_PREAMBLE = /\[autopilot\s*·\s*loop=([a-z_]+)\b[^\]]*\]/i;
+
+/** Which loop injected this prompt, or null when a human typed it. */
+export function readAutopilotLoop(text: string): string | null {
+  return AUTOPILOT_PREAMBLE.exec(text)?.[1] ?? null;
+}
+
+/** The same text with the agent-facing header removed, for display. */
+export function stripAutopilotPreamble(text: string): string {
+  return text
+    .replace(AUTOPILOT_PREAMBLE, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
 }
 
 /**
@@ -196,11 +234,13 @@ export function promptDisplay(row: PromptBodyInput): PromptDisplay {
   // A plain custom prompt (no envelope) is already exactly the human ask.
   if (rawCustom && !isOperatorEnvelope(rawCustom)) {
     return {
-      preview: onePreviewLine(rawCustom),
+      // Preview only. `task` and `full` keep the header — see AUTOPILOT_PREAMBLE.
+      preview: onePreviewLine(stripAutopilotPreamble(rawCustom)),
       full: rawCustom,
       task: rawCustom,
       expandable: rawCustom.replace(/\s+/g, " ").trim().length > PREVIEW_MAX,
       missing: false,
+      autopilotLoop: readAutopilotLoop(rawCustom),
     };
   }
 
@@ -208,7 +248,9 @@ export function promptDisplay(row: PromptBodyInput): PromptDisplay {
   const envelope = isOperatorEnvelope(rawCustom) ? rawCustom : rawResolved;
   if (envelope) {
     const recovered = isOperatorEnvelope(envelope) ? extractOperatorTask(envelope) : envelope;
-    const preview = recovered ? onePreviewLine(recovered) : getIntentLabel(row.intent);
+    const preview = recovered
+      ? onePreviewLine(stripAutopilotPreamble(recovered))
+      : getIntentLabel(row.intent);
     return {
       preview,
       full: envelope,
@@ -217,12 +259,20 @@ export function promptDisplay(row: PromptBodyInput): PromptDisplay {
       // actually received, which is the whole point of being able to look.
       expandable: true,
       missing: false,
+      autopilotLoop: readAutopilotLoop(envelope),
     };
   }
 
   // Nothing was recorded. Say so rather than printing the intent slug as if it
   // were the prompt — a body reading "custom" is indistinguishable from a bug.
-  return { preview: "", full: null, task: null, expandable: false, missing: true };
+  return {
+    preview: "",
+    full: null,
+    task: null,
+    expandable: false,
+    missing: true,
+    autopilotLoop: null,
+  };
 }
 
 // The most informative body for a prompt row. Custom text (what the user

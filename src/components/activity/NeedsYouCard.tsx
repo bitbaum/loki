@@ -58,7 +58,17 @@ export function NeedsYouCard({
             ) : (
               <p className="ui-needs-you-why line-clamp-2">
                 {event.outcomeLabel} with no recorded reason
-                {event.ask?.preview ? ` — asked: ${event.ask.preview}` : "."}
+                {/* "asked" is a claim about WHO asked, and for an autopilot row
+                    nobody did — the prompt's own first sentence says it was not
+                    typed by a human. Name the loop instead of implying the
+                    operator wrote it. */}
+                {event.ask?.preview
+                  ? `${
+                      event.ask.autopilotLoop
+                        ? ` — autopilot (${event.ask.autopilotLoop}) ran: `
+                        : " — asked: "
+                    }${event.ask.preview}`
+                  : "."}
               </p>
             )}
 
