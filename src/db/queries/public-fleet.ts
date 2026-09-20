@@ -45,6 +45,31 @@ export type HeroFleetSnapshot = {
  * nobody, so it needs no consent — and unlike one account's list it grows
  * honestly as Loki gains users, which is the number a visitor actually wants.
  */
+/**
+ * An agent we are willing to call RUNNING in public.
+ *
+ * `project_states.agent_running` is a raw boolean that nothing expires: a
+ * session killed mid-run — crash, closed laptop, SIGKILL — never clears it. On
+ * 2026-09-20 the fleet held 46 rows flagged running and the oldest had not been
+ * touched since 13 August, 910 hours earlier; only TWO had moved in the last
+ * half hour. So the investor page read "46 agents running" while Control, on
+ * the same data, read "0 working" — and this file's own header promises
+ * "honest by construction — isLive is true only when an agent is really
+ * running, so the hero never claims LIVE falsely".
+ *
+ * The bound is the one the app already uses for exactly this. OPEN_TURN_TTL_MS
+ * is 30 minutes, and its comment records why it exists: without it a dead Codex
+ * tab showed "working 61h". Reusing it rather than picking a second number is
+ * the point — two definitions of "too old to believe" eventually disagree on
+ * screen, and then a reader is right to trust neither.
+ */
+function isActuallyRunning(now = new Date()) {
+  return and(
+    eq(projectStates.agentRunning, true),
+    gt(projectStates.updatedAt, new Date(now.getTime() - OPEN_TURN_TTL_MS)),
+  );
+}
+
 async function getFleetWideMetrics(): Promise<{
   projects: number;
   running: number;
@@ -53,7 +78,7 @@ async function getFleetWideMetrics(): Promise<{
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const [[projects], [running], [weekRuns]] = await Promise.all([
     db.select({ value: count() }).from(userProjects).where(eq(userProjects.isActive, true)),
-    db.select({ value: count() }).from(projectStates).where(eq(projectStates.agentRunning, true)),
+    db.select({ value: count() }).from(projectStates).where(isActuallyRunning()),
     // "Is anything actually happening here?" — the one number that answers it,
     // and the reason this console has three columns rather than two. Counted
     // fleet-wide like the others, so it grows with the product instead of
@@ -95,7 +120,7 @@ export async function getHeroFleetSnapshot(): Promise<HeroFleetSnapshot> {
     db
       .select({ projectKey: projectStates.projectKey })
       .from(projectStates)
-      .where(eq(projectStates.agentRunning, true))
+      .where(isActuallyRunning())
       .catch(() => [] as { projectKey: string }[]),
   ]);
 
@@ -139,7 +164,7 @@ export async function getHeroFleetSnapshot(): Promise<HeroFleetSnapshot> {
 // One import block for drizzle + db + tables, serving BOTH halves of this file.
 // ES imports hoist, so the hero above reads them fine; two blocks would have
 // meant two `eq`/`db` bindings and a duplicate-identifier error.
-import { and, count, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   entities,
@@ -150,6 +175,9 @@ import {
 } from "@/db/schema";
 import { getFeedbackLoopMetrics } from "./site-feedback";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
+// The one definition of "too old to believe" — shared with Control so the
+// public number and the operator number can never disagree.
+import { OPEN_TURN_TTL_MS } from "@/lib/agent-turns";
 
 export type ShippedFeedbackEntry = {
   excerpt: string;
