@@ -16,6 +16,7 @@ import { ladderEffectForClose } from "@/lib/orchestration/escalation-ladder";
 import { notifyRunClosed } from "@/lib/orchestration/notify-close";
 import { deliveryStampFor } from "@/lib/orchestration/close-from-session";
 import { correctTimeoutReapsWithRepoEvidence } from "@/lib/orchestration/reap-evidence";
+import { attachHandoffToReapedPartials } from "@/lib/orchestration/reap-handoff";
 import { emitRunEvent } from "./run-events";
 import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
 
@@ -413,6 +414,15 @@ export async function cleanupStaleOrchestrationRuns(userId?: string) {
   // forget: GitHub lookups must never slow a reap (page-load call sites).
   if (reaped.some((r) => r.outcome === ORCHESTRATION_OUTCOME.TIMEOUT)) {
     void correctTimeoutReapsWithRepoEvidence(reaped);
+  }
+  // A run stamped `partial` above was stamped so because the agent HAD saved a
+  // handoff — yet the UPDATE copies none of it, leaving a verdict with nothing
+  // behind it (the NULL-summary partial this function's own freshness-floor
+  // comment names as the state to avoid). Give it the handoff back. Attaches
+  // evidence only: the outcome is not re-judged. Fire-and-forget, like the
+  // evidence corrector above.
+  if (reaped.some((r) => r.outcome === ORCHESTRATION_OUTCOME.PARTIAL && r.summary == null)) {
+    void attachHandoffToReapedPartials(reaped);
   }
   // Reaped closes bypass updateOrchestrationRun, so advance ladders here.
   // Only genuinely failing outcomes count (timeout yes, partial no — same

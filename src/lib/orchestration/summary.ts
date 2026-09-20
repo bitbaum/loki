@@ -75,3 +75,59 @@ export function runReportText(run: {
   if (next && next.toLowerCase() !== "none") lines.push(`Next: ${next}`);
   return lines.join("\n\n");
 }
+
+/** The `project_states` handoff columns, named as the summary's own fields. */
+export type SessionHandoffRow = {
+  status: string | null;
+  tsc: string | null;
+  lint: string | null;
+  tests: string | null;
+  todos: string | null;
+  done: string | null;
+  next: string | null;
+  commit: string | null;
+  health: string | null;
+  blockReason: string | null;
+  noOpCount: number | null;
+  /** GREATEST(ready_at, session_updated_at) — the reaper's own recency basis. */
+  writtenAtMs: number;
+};
+
+/**
+ * Build a run summary from a saved session handoff, or null when that handoff
+ * cannot honestly be attributed to the run.
+ *
+ * The third "summary from X" builder, beside the field map and the text parse.
+ * Used by the post-reap pass that gives a reaped `partial` its handoff back —
+ * the reaper stamps that outcome on proof a handoff EXISTS and then copied none
+ * of it, leaving a verdict with nothing behind it.
+ *
+ * Pure so it is testable without a database; the DB half lives in reap-handoff.ts.
+ */
+export function summaryFromHandoff(
+  row: SessionHandoffRow,
+  effectiveStartMs: number,
+): OrchestrationTaskSummary | null {
+  // Same floor as `closeRunFromSession` and the reaper's `wroteAfterStart`: a
+  // handoff from before this run's prompt was delivered is someone else's work.
+  if (!(row.writtenAtMs > effectiveStartMs)) return null;
+
+  const summary = buildOrchestrationSummary({
+    status: row.status ?? undefined,
+    tsc: row.tsc ?? undefined,
+    lint: row.lint ?? undefined,
+    tests: row.tests ?? undefined,
+    todos: row.todos ?? undefined,
+    done: row.done ?? undefined,
+    next: row.next ?? undefined,
+    commit: row.commit ?? undefined,
+    health: row.health ?? undefined,
+    "block-reason": row.blockReason ?? undefined,
+    "no-op-count": row.noOpCount != null ? String(row.noOpCount) : undefined,
+  });
+
+  // An all-blank summary is the NULL we started with, dressed up — it would
+  // read as the agent deliberately reporting nothing. Leave the column NULL.
+  const hasContent = Object.values(summary).some((v) => typeof v === "string" && v.trim() !== "");
+  return hasContent ? summary : null;
+}
