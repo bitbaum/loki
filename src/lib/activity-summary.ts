@@ -8,7 +8,7 @@
 // point of view. That is this file.
 
 import type { ActivityEvent } from "@/lib/activity-events";
-import { eventNeedsAttention } from "@/lib/activity-events";
+import { eventNeedsAttention, eventIsQueued } from "@/lib/activity-events";
 
 // ─── Headline KPIs ───────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ export function summarizeActivity(events: ActivityEvent[]): ActivitySummary {
     if (eventNeedsAttention(event)) attention += 1;
     else if (event.outcome === "success") shipped += 1;
     else if (event.outcome === "running") running += 1;
-    else if (event.outcome === "dispatched" && !event.isLocalChat) queued += 1;
+    else if (eventIsQueued(event)) queued += 1;
   }
 
   let busiestProject: string | null = null;
