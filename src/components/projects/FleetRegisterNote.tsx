@@ -2,6 +2,7 @@ import Link from "next/link";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { buildFleetRegister } from "@/lib/register/build";
 import { getUserProjects } from "@/db/queries/user-projects";
+import { getSelfImprovementTarget } from "@/db/queries/frontier";
 
 /**
  * The Projects page lists Loki projects. The box hosts sites, and the two
@@ -14,6 +15,14 @@ import { getUserProjects } from "@/db/queries/user-projects";
  * the register where the rows are.
  */
 export async function FleetRegisterNote({ userId }: { userId: string }) {
+  // apps.conf describes ONE box — the studio's — and is a file in this repo, not
+  // per-tenant data. Rendered for everyone it told a brand-new account with zero
+  // projects that "19 sites are hosted on the box with no project here", about
+  // sites they do not own and cannot see. The gap is only a to-do list for the
+  // account that operates that box, so only that account is told about it.
+  const owner = await getSelfImprovementTarget();
+  if (!owner || owner.userId !== userId) return null;
+
   let unlinked = 0;
   try {
     const projects = await getUserProjects(userId);

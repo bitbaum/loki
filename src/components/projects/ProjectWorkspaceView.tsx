@@ -9,6 +9,7 @@ import { ProjectSettingsPanel } from "./ProjectSettingsPanel";
 import { ProjectFeedbackSection } from "./ProjectFeedbackSection";
 import { DoneSection, NextSection, NowSection } from "./ProjectDossierSections";
 import { OrangeCatPublishButton } from "./OrangeCatPublishButton";
+import { ProjectPublicListingToggle } from "./ProjectPublicListingToggle";
 import { SolonFoundButton } from "./SolonFoundButton";
 import { LiveUrlField } from "./LiveUrlField";
 import { RegisterSiteButton } from "./RegisterSiteButton";
@@ -160,6 +161,12 @@ export function ProjectWorkspaceView({
               >
                 <GitBranch className="h-4 w-4" aria-hidden="true" /> Repository
               </a>
+            )}
+            {!dossier.readonly && (
+              <ProjectPublicListingToggle
+                projectId={project.id}
+                listedPublicly={userProject?.listedPublicly ?? false}
+              />
             )}
             {!dossier.readonly && <OrangeCatPublishButton projectId={project.id} />}
             {!dossier.readonly && <SolonFoundButton projectId={project.id} />}

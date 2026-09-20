@@ -75,6 +75,17 @@ export const userProjects = pgTable(
     autoShip: boolean("auto_ship"),
     position: integer("position").default(0), // user-defined sort order
     isActive: boolean("is_active").default(true).notNull(),
+    // Consent to appear in Loki's OWN public catalogue at /fleet. Default false,
+    // and that default is the point: Loki is multi-tenant, so a page that speaks
+    // for the product must never enrol a tenant's projects by existing. A user's
+    // own profile (/u/[username]) is a different question — that page is the user
+    // speaking, and it has always been scoped by getPublicProjects.
+    //
+    // Before this column, /fleet called getUserProjects on whichever account owns
+    // the oldest entity named "loki" and listed EVERY row it got back — the only
+    // public surface using the unfiltered query. Nothing recorded a decision
+    // because nothing asked for one.
+    listedPublicly: boolean("listed_publicly").default(false).notNull(),
     notes: text("notes"), // free-form scratchpad visible in the profile panel
     resources: jsonb("resources").$type<ProjectResource[]>().default([]).notNull(),
     devLog: jsonb("dev_log").$type<DevLogEntry[]>().default([]).notNull(),

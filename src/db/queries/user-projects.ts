@@ -111,6 +111,30 @@ export async function getPublicProjects(userId: string): Promise<UserProject[]> 
 }
 
 /**
+ * Projects whose owner has opted them into Loki's OWN public catalogue (/fleet).
+ *
+ * Distinct from getPublicProjects, and the difference is who is speaking. A
+ * profile at /u/[username] is the USER showing their work, so "active, has a
+ * repo" is a fair reading of intent. /fleet is the PRODUCT showing a catalogue,
+ * and a multi-tenant product may not enrol a tenant by inference — so this asks
+ * for a stored decision (listed_publicly) and nothing else will do.
+ *
+ * Not scoped to one account on purpose. /fleet used to resolve a single owner
+ * via getSelfImprovementTarget() and publish everything they had; consent is a
+ * property of the project, so the catalogue is now every consenting project
+ * regardless of who owns it — which is also what makes the page meaningful once
+ * Loki has more than one user.
+ */
+export async function getPubliclyListedProjects(): Promise<UserProject[]> {
+  const rows = await db
+    .select()
+    .from(userProjects)
+    .where(and(eq(userProjects.listedPublicly, true), eq(userProjects.isActive, true)))
+    .orderBy(asc(userProjects.position), asc(userProjects.createdAt));
+  return rows.filter((p) => !isPublicTestArtifact(p.name));
+}
+
+/**
  * Record a NEW session handoff as a changelog entry (devLog) — the single
  * append point behind both handoff ingestion paths: /api/control (local
  * runtime reads the session file directly) and /api/control/runtime-state

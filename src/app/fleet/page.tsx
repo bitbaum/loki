@@ -15,7 +15,7 @@ import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { FinalCta } from "@/components/public/FinalCta";
 import { getSessionUserId } from "@/lib/session";
-import { getUserProjects } from "@/db/queries/user-projects";
+import { getPubliclyListedProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { buildFleetRegister, commerce, summarize, type RegisterRow } from "@/lib/register/build";
@@ -55,7 +55,13 @@ type Params = Promise<Record<string, string | string[] | undefined>>;
 export default async function FleetRegisterPage({ searchParams }: { searchParams: Params }) {
   const params = await searchParams;
   const owner = await getSelfImprovementTarget();
-  const projects = owner ? await getUserProjects(owner.userId) : [];
+  // Consent, not ownership. This page used to read the projects table for a
+  // single chosen account — whichever owns the oldest entity named "loki" — and
+  // publish every row it got back, because the row existed rather than because
+  // anyone agreed. `owner` survives only to decide whether the VIEWER gets the
+  // owner's editing affordances below; it no longer selects what is shown.
+  // scripts/test/public-catalogue-consent.ts pins that.
+  const projects = await getPubliclyListedProjects();
   const solon = await solonClaims();
   const apps = readAppsConf();
   const viewerId = await getSessionUserId();
