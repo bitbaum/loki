@@ -25,6 +25,17 @@ export type PricingPlan = {
   /** The tier's real differentiators — led by the enforced project limit. */
   highlights: string[];
   cta: string;
+  /**
+   * Draw this tier louder than the others. The SELLER's emphasis — never a
+   * claim about what other people bought.
+   *
+   * It used to render as "Most popular". Loki has 7 users and 0 on any paid
+   * plan (checked 2026-09-20), and every paid tier reads "Price to be
+   * announced", so nothing has ever been bought and no tier can be the
+   * popular one. The page's own header promises honesty about billing state —
+   * "a paid CTA only appears when a rail can actually take the money, never a
+   * dead Buy button" — and this was the one line that broke it.
+   */
   featured?: boolean;
 };
 
