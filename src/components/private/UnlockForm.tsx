@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, ShieldCheck } from "lucide-react";
@@ -77,6 +78,21 @@ export function UnlockForm({ next, areas }: { next: string; areas: Area[] }) {
             <Lock className="h-4 w-4" />
             {loading ? "Unlocking…" : "Unlock"}
           </button>
+          {/* Say the consequence on the screen that depends on it. Both the
+              change and the remove paths require the CURRENT PIN — deliberately,
+              so a hijacked session cannot swap it — and no reset flow exists.
+              Without this line the page implied a door that is not there. */}
+          <p className="text-xs text-text-tertiary">
+            Forgotten it? There is no automatic reset — the private zone stays locked until the PIN
+            is entered.{" "}
+            <Link
+              href="/support"
+              className="underline underline-offset-2 hover:text-text-secondary"
+            >
+              Get help
+            </Link>
+            .
+          </p>
         </form>
       </div>
 
