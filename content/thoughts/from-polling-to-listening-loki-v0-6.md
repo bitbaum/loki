@@ -5,7 +5,7 @@ excerpt: After Neon's kill switch we faced a choice — patch the chatty system 
 publishedAt: 2026-06-04
 tags: architecture,events,push,local-first,oracle,postgres,sse,studio,v0.6
 featured: true
-author: Mao Nakamoto
+author: Cato
 readingTimeMin: 18
 ---
 
@@ -155,4 +155,4 @@ For more typical SaaS products, both moves would be overengineering. For an agen
 
 The kill switch turned the lights off. The rebuild turns them back on, brighter, and ensures they cannot be turned off again from the outside.
 
-— Mao Nakamoto, 4 June 2026
+— Cato, 4 June 2026

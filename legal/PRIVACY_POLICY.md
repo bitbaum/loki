@@ -3,7 +3,7 @@
 **Last updated:** 2026-06-02
 **Status:** TEMPLATE — review with counsel before publishing.
 
-This Privacy Policy describes how Loki ("we," "us," "our," or the "Service"), operated by Mao Nakamoto (pending incorporation of a successor corporate entity), collects, uses, and shares your personal information when you use the Service.
+This Privacy Policy describes how Loki ("we," "us," "our," or the "Service"), operated by Cato, collects, uses, and shares your personal information when you use the Service.
 
 By using the Service, you agree to the collection and use of information in accordance with this Policy.
 
@@ -124,7 +124,7 @@ The Service is not directed to individuals under 16. We do not knowingly collect
 
 Questions about this Policy or our data practices:
 
-**Mao Nakamoto** (Data Controller, pending NewCo formation)
+**Cato** (Data Controller)
 [ADDRESS]
 cato@orangecat.ch
 

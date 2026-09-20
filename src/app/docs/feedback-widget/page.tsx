@@ -158,11 +158,12 @@ export default function FeedbackWidgetDocsPage() {
         </section>
 
         <section className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">6. The loop closes itself</h2>
+          <h2 className="ui-public-prose-h2">6. You close the loop</h2>
           <p>
-            Every dispatched report remembers its run. When the run finishes with a verified
-            success, the report resolves automatically — and if the visitor left an email, they get
-            a short note that their feedback shipped. Reporters who hear back report again; that is
+            Every dispatched report remembers its run, so you can see what shipped against it.
+            Resolving is deliberately a human act — a green run is not proof the reporter&apos;s
+            problem went away. When you mark a report resolved, any visitor who left an email gets a
+            short note that their feedback shipped. Reporters who hear back report again; that is
             the point.
           </p>
         </section>

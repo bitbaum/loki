@@ -152,7 +152,7 @@ export const ROADMAP: {
           details: [
             "Tray icon, OS notifications on agent idle, and an embedded session watcher for fire-and-walk-away dispatch.",
             "The legacy bash runner was retired by deletion — one path, not two.",
-            "Multi-OS release pipeline: one tag push produces signed installers from a shared CI matrix.",
+            "Multi-OS release pipeline: one tag push produces installers for Linux, macOS and Windows from a shared CI matrix.",
           ],
         },
       ],

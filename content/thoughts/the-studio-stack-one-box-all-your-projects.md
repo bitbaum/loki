@@ -5,7 +5,7 @@ excerpt: Most cloud services are priced for the typical web app — a single pro
 publishedAt: 2026-06-04
 tags: infrastructure,hetzner,postgres,studio,indie,architecture,levelsio
 featured: true
-author: Mao Nakamoto
+author: Cato
 readingTimeMin: 16
 ---
 
@@ -162,4 +162,4 @@ You can find the install scripts, runbooks, and migration kit in this repository
 
 The most valuable thing this stack gives you isn't the savings or the simplicity. It's the *attention back*. Time you'd have spent watching meters, debugging vendor quirks, and contemplating tier upgrades is time you can spend on the products themselves. That recovered attention is the real return on the boring stack.
 
-— Mao Nakamoto, 4 June 2026
+— Cato, 4 June 2026

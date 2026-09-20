@@ -10,7 +10,7 @@ The shipped design is documented in `docs/architecture/box-owned-pty-executor.md
 and `docs/development/cloud-local-workflows.md`. `docs/desktop-app.md` and
 `docs/fleet-runner-pty-ownership.md` are the historical decision records.
 
-## Current status (0.8.19)
+## Current status
 
 - Packaged native app (AppImage + .deb produced via electron-builder;
   macOS/Windows builds via `.github/workflows/desktop-release.yml`).
@@ -45,10 +45,10 @@ and `docs/development/cloud-local-workflows.md`. `docs/desktop-app.md` and
 
 ```bash
 # Point the desktop at the hosted production app (default)
-LOKI_WEB_URL=https://loki.orangecat.ch ./Fleet-Runner-0.8.19.AppImage
+LOKI_WEB_URL=https://loki.orangecat.ch ./Fleet-Runner-*.AppImage
 
 # Or against a local dev server
-LOKI_WEB_URL=http://localhost:3000 ./Fleet-Runner-0.8.19.AppImage
+LOKI_WEB_URL=http://localhost:3000 ./Fleet-Runner-*.AppImage
 ```
 
 ## Get the runnable app
@@ -67,8 +67,8 @@ npm run dist:linux    # or dist:mac / dist:win on those platforms
 Then run:
 
 ```bash
-chmod +x dist/Fleet-Runner-0.8.19.AppImage
-./dist/Fleet-Runner-0.8.19.AppImage
+chmod +x dist/Fleet-Runner-*.AppImage
+./dist/Fleet-Runner-*.AppImage
 ```
 
 (Or install the .deb / .dmg / .exe.)
@@ -109,11 +109,11 @@ git push --follow-tags
 
 The workflow takes ~10 minutes. Once it's green, the binaries are at:
 
-- `https://github.com/bitbaum/loki/releases/latest/download/Fleet-Runner-linux-x86_64.AppImage`
-- `https://github.com/bitbaum/loki/releases/latest/download/Fleet-Runner-linux-amd64.deb`
-- `https://github.com/bitbaum/loki/releases/latest/download/Fleet-Runner-mac-x64.dmg`
-- `https://github.com/bitbaum/loki/releases/latest/download/Fleet-Runner-mac-arm64.dmg`
-- `https://github.com/bitbaum/loki/releases/latest/download/Fleet-Runner-win-x64.exe`
+- `https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-linux-x86_64.AppImage`
+- `https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-linux-amd64.deb`
+- `https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-mac-x64.dmg`
+- `https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-mac-arm64.dmg`
+- `https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-win-x64.exe`
 
 To test the workflow without minting a real release, dispatch it manually from
 the Actions tab with `dry_run: true` — it builds on all three runners but
