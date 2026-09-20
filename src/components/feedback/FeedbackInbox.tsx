@@ -193,63 +193,86 @@ export function FeedbackInbox() {
   return (
     <div className="space-y-6">
       {(showProjectChips || showSourceChips || projectFilter) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {projectFilter && !showProjectChips ? (
-            <button
-              type="button"
-              onClick={() => setProjectFilter(null)}
-              className="ui-projects-filter-chip ui-projects-filter-chip-active"
-              title="Show every project"
-            >
-              {projectFilter}
-              <span aria-hidden="true">×</span>
-            </button>
-          ) : null}
-          {showProjectChips && (
-            <>
+        <div className="space-y-2">
+          {/* TWO dimensions, two rows. They used to share one `flex-wrap`
+              block with a divider between them — and that divider is
+              `hidden sm:block`, so on a phone the project chips and the source
+              chips ran together across four wrapped rows with nothing to
+              separate them: "All sources" landed mid-line beside "orangecat",
+              and the filters ate the top 210px of a 390px screen before any
+              report was visible.
+
+              `ui-filter-chip-row` is the primitive the rest of the app already
+              uses for exactly this (People, Prompts, Goals, Events): one
+              scrolling line below sm, wrapping from sm up. Feedback had rolled
+              its own. Two rows instead of four, and each row is one thing. */}
+          <div
+            className="ui-filter-chip-row ui-scroll-fade-right items-center gap-2"
+            role="group"
+            aria-label="Filter reports by project"
+          >
+            {projectFilter && !showProjectChips ? (
               <button
                 type="button"
                 onClick={() => setProjectFilter(null)}
-                className={cn(
-                  "ui-projects-filter-chip",
-                  projectFilter === null && "ui-projects-filter-chip-active",
-                )}
+                className="ui-projects-filter-chip ui-projects-filter-chip-active"
+                title="Show every project"
               >
-                All projects
+                {projectFilter}
+                <span aria-hidden="true">×</span>
               </button>
-              {projects.map((p) => (
+            ) : null}
+            {showProjectChips && (
+              <>
                 <button
-                  key={p.name}
                   type="button"
-                  onClick={() => setProjectFilter((v) => (v === p.name ? null : p.name))}
+                  onClick={() => setProjectFilter(null)}
                   className={cn(
                     "ui-projects-filter-chip",
-                    projectFilter === p.name && "ui-projects-filter-chip-active",
+                    projectFilter === null && "ui-projects-filter-chip-active",
                   )}
                 >
-                  {p.name}
-                  {p.open > 0 && <span className="ui-projects-filter-count">{p.open}</span>}
+                  All projects
+                </button>
+                {projects.map((p) => (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => setProjectFilter((v) => (v === p.name ? null : p.name))}
+                    className={cn(
+                      "ui-projects-filter-chip",
+                      projectFilter === p.name && "ui-projects-filter-chip-active",
+                    )}
+                  >
+                    {p.name}
+                    {p.open > 0 && <span className="ui-projects-filter-count">{p.open}</span>}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+          {/* The row break is the separator now, at every width — the old
+              vertical rule only existed from sm up. */}
+          <div
+            className="ui-filter-chip-row ui-scroll-fade-right items-center gap-2"
+            role="group"
+            aria-label="Filter reports by source"
+          >
+            {showSourceChips &&
+              SOURCE_FILTERS.filter((s) => s.key === null || sourcesPresent.has(s.key)).map((s) => (
+                <button
+                  key={s.label}
+                  type="button"
+                  onClick={() => setSourceFilter(s.key)}
+                  className={cn(
+                    "ui-projects-filter-chip",
+                    sourceFilter === s.key && "ui-projects-filter-chip-active",
+                  )}
+                >
+                  {s.label}
                 </button>
               ))}
-            </>
-          )}
-          {showProjectChips && showSourceChips && (
-            <span className="mx-1 hidden h-4 w-px bg-border-subtle sm:block" aria-hidden="true" />
-          )}
-          {showSourceChips &&
-            SOURCE_FILTERS.filter((s) => s.key === null || sourcesPresent.has(s.key)).map((s) => (
-              <button
-                key={s.label}
-                type="button"
-                onClick={() => setSourceFilter(s.key)}
-                className={cn(
-                  "ui-projects-filter-chip",
-                  sourceFilter === s.key && "ui-projects-filter-chip-active",
-                )}
-              >
-                {s.label}
-              </button>
-            ))}
+          </div>
         </div>
       )}
 

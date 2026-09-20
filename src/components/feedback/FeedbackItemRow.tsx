@@ -152,14 +152,26 @@ export function FeedbackItemRow({
               count sit on the context line beneath it, where they read as
               facts about the report instead of interrupting it. */}
           <FeedbackReportText text={f.suggestion} />
+          {/* TWO lines, each holding one kind of fact.
+              They were one `flex-wrap` line carrying six heterogeneous items:
+              a wide status badge, an agent tag, a repeat count, the project
+              link, an element chip and a long "page · contact · submitted …"
+              run. At 390px that wrapped into three ragged lines with items
+              landing wherever they fit — the project name floating alone
+              mid-line above its own status. Splitting them does not change
+              what is said, only whether the order survives a narrow screen. */}
+          {(showBadge || agentBadge || f.duplicateCount > 1) && (
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
+              {showBadge && badge}
+              {agentBadge && <span className="ui-tag shrink-0">{agentBadge}</span>}
+              {f.duplicateCount > 1 && (
+                <span className="ui-badge shrink-0" title={`Reported ${f.duplicateCount} times`}>
+                  ×{f.duplicateCount}
+                </span>
+              )}
+            </p>
+          )}
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
-            {showBadge && badge}
-            {agentBadge && <span className="ui-tag shrink-0">{agentBadge}</span>}
-            {f.duplicateCount > 1 && (
-              <span className="ui-badge shrink-0" title={`Reported ${f.duplicateCount} times`}>
-                ×{f.duplicateCount}
-              </span>
-            )}
             {project && (
               <Link
                 href={`/projects/${project.id}#feedback`}
