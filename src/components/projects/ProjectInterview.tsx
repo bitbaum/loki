@@ -248,7 +248,24 @@ export function ProjectInterview({
         </div>
       )}
 
-      {error && <p className="text-sm text-status-negative">{error}</p>}
+      {error && (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-status-negative">{error}</p>
+          {/* An error is never a wall. The questions are an improvement to the
+              build, not a condition of it — so the build is always one tap away. */}
+          <button
+            type="button"
+            onClick={() => {
+              router.replace(kickoffHref);
+              router.refresh();
+            }}
+            className="ui-btn-secondary min-h-11 gap-2"
+          >
+            Skip to the build
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      )}
     </section>
   );
 }

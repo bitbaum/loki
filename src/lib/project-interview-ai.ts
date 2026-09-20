@@ -84,7 +84,10 @@ export async function tailorInterviewQuestions(
       systemPrompt: SYSTEM_PROMPT,
       maxTokens: 500,
       temperature: 0.3,
-      timeoutMs: 20_000,
+      // Short on purpose. The person is sitting on "Reading your page…" for
+      // exactly this long, and the plain questions are already good — a slow
+      // model should cost wording, never waiting.
+      timeoutMs: 8_000,
     });
     const parsed = TailoredSchema.safeParse(parseModelJson(raw));
     if (!parsed.success) return asked;

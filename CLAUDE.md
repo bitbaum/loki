@@ -268,6 +268,15 @@ explicit rule to admit when something is not in that excerpt.
 `pnpm run test:ai-forms` exercises fill + follow-up refine against the live model
 (needs `GROQ_API_KEY`; not part of `verify`).
 
+### No dead ends
+A gate records; it never blocks. Anything that pauses a person shows the way
+forward on the same screen: a default with its consequence stated and one tap
+to change it, a skip that lands exactly where the old path landed, an error
+state with a button, never a wall. The interview before a kickoff
+(`components/projects/ProjectInterview.tsx`) is the pattern — every question
+skippable, "Skip to the build" even when the questions fail to load. This is
+fleet-wide; its permanent home is bitbaum/fleet `AGENTS.md`.
+
 ### SSOT Rules
 - **User ID**: `getApiUserId()` (API routes, returns `string | null`) or `requirePageUserId()`
   (pages, throws/redirects) from `lib/session.ts`. There is no `getCurrentUserId` and no
