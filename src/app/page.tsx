@@ -117,8 +117,9 @@ export default async function LandingPage({
             )}
           </div>
 
-          {/* Hero product visual — a REAL snapshot of the owner's fleet (founder
-              dogfooding), fetched server-side. Public-safe fields only; "LIVE"
+          {/* Hero product visual — a REAL snapshot of the FLEET, fetched
+              server-side: the showcase tier (owner consented AND operator
+              featured) plus fleet-wide counts. Public-safe fields only; "LIVE"
               shows only when an agent is actually running. Hidden if there's no
               fleet data, so we never render an empty/fake box. */}
           {fleet.metrics.length > 0 && (
@@ -144,6 +145,18 @@ export default async function LandingPage({
                       {project.note && (
                         <span className="ui-public-hero-console-note">{project.note}</span>
                       )}
+                      {/* Whose work this is. A showcased project belongs to a
+                          tenant; printing it unattributed would read as "our
+                          projects". Linked when they have a handle, so being
+                          credited is worth something to them. */}
+                      {project.by &&
+                        (project.by.href ? (
+                          <Link href={project.by.href} className="ui-public-hero-console-by">
+                            {project.by.label}
+                          </Link>
+                        ) : (
+                          <span className="ui-public-hero-console-by">{project.by.label}</span>
+                        ))}
                     </div>
                   ))}
                 </div>

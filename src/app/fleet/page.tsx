@@ -33,7 +33,7 @@ import {
 export const metadata: Metadata = {
   title: "The fleet",
   description:
-    "Every project the studio runs, and where each one exists: a site, a Loki profile, an OrangeCat profile, a Solon organisation.",
+    "Projects built with Loki whose owners chose to list them, and where each one exists: a site, a Loki profile, an OrangeCat profile, a Solon organisation.",
 };
 export const dynamic = "force-dynamic";
 
@@ -83,6 +83,10 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
     })),
     apps,
     solon.claims,
+    // A hosted site with no project here is the OPERATOR's to-do item, not a
+    // public listing. apps.conf describes one box; letting it mint rows on a
+    // multi-tenant page published that box's inventory as "the fleet".
+    { includeUnlinkedSites: viewerIsOwner },
   );
 
   const spec = fleetListFor(rows);
@@ -122,8 +126,8 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
         <div className="ui-public-eyebrow">The fleet</div>
         <h1 className="ui-public-page-title mt-3 sm:mt-4">Every project, and where it lives.</h1>
         <p className="ui-public-lede mt-4 max-w-2xl sm:mt-6">
-          This is the studio&rsquo;s whole catalogue — products, client work, demos, and the ones
-          still only named. Most of them run on one box, and Loki is what puts them there. Search
+          Projects their owners chose to show — products, client work, demos, and the ones still
+          only named. Each one is built and shipped by agents its owner commands from Loki. Search
           it, narrow it, and send anyone the view you end up with.
         </p>
         <div className="ui-public-surface-card-meta">

@@ -21,7 +21,19 @@
 import { getShowcaseProjects } from "./user-projects";
 import { publicHeroNote } from "@/lib/project-display";
 
-export type HeroFleetRow = { name: string; state: "running" | "queued" | "idle"; note: string };
+export type HeroFleetRow = {
+  name: string;
+  state: "running" | "queued" | "idle";
+  note: string;
+  /**
+   * Who built it. A showcased project belongs to a TENANT, and a homepage that
+   * shows their work without saying whose it is reads as "our projects" — which
+   * is both untrue and the opposite of the reason to have a showcase. `href` is
+   * set only when the owner has a handle to link to; `label` is what to print.
+   * Both null = no byline rather than an invented one.
+   */
+  by: { label: string; href: string | null } | null;
+};
 export type HeroFleetSnapshot = {
   isLive: boolean;
   projects: HeroFleetRow[];
@@ -39,6 +51,23 @@ async function getFleetWideMetrics(): Promise<{ projects: number; running: numbe
     db.select({ value: count() }).from(projectStates).where(eq(projectStates.agentRunning, true)),
   ]);
   return { projects: projects?.value ?? 0, running: running?.value ?? 0 };
+}
+
+/**
+ * The byline for a showcased project.
+ *
+ * Handle first, because @name is the public identity and /u/[username] is a
+ * real page to send someone to — being credited AND linked is most of what a
+ * tenant gets back for consenting. Display name is the fallback when there is
+ * no handle (nothing to link to, so no link). Neither: no byline at all, and
+ * never a stand-in label — Anonymous, or some generic phrase for a Loki user —
+ * because that is a name we would be inventing for somebody.
+ */
+function byline(owner: { username: string | null; name: string | null }) {
+  const handle = owner.username?.trim();
+  if (handle) return { label: `@${handle}`, href: `/u/${handle}` };
+  const name = owner.name?.trim();
+  return name ? { label: name, href: null } : null;
 }
 
 /** A public-safe, real snapshot of the FLEET (not one account) for the hero. */
@@ -62,6 +91,7 @@ export async function getHeroFleetSnapshot(): Promise<HeroFleetSnapshot> {
     name: p.name,
     state: running.has(p.name.toLowerCase()) ? "running" : "idle",
     note: publicHeroNote(p.description) ?? "",
+    by: byline(p.owner),
   }));
 
   return {

@@ -1288,8 +1288,14 @@
   .ui-public-fleet-row:hover {
     @apply bg-surface-raised;
   }
+  /* inline-flex for the same reason as .ui-public-fleet-site: the coarse
+     pointer floor sets min-height, and min-height does nothing to an inline
+     box. Measured 21px tall on a phone — and this is the row's PRIMARY link,
+     the one that opens the project. It only surfaced once a real project row
+     rendered; while the page was showing hosted sites alone, nothing here was
+     a link at all. */
   .ui-public-fleet-name {
-    @apply text-base font-semibold text-text-primary underline decoration-transparent underline-offset-4 transition-colors;
+    @apply inline-flex items-center text-base font-semibold text-text-primary underline decoration-transparent underline-offset-4 transition-colors;
   }
   .ui-public-fleet-row:hover .ui-public-fleet-name {
     @apply decoration-border-interactive;
@@ -1679,6 +1685,13 @@
      right-aligned on the same row, as before. */
   .ui-public-hero-console-note {
     @apply truncate pl-[18px] text-xs text-text-tertiary sm:ml-auto sm:pl-3 sm:font-mono sm:text-text-secondary;
+  }
+  /* The byline on a showcased project. Quiet on purpose — the project is the
+     headline and the builder is the credit, not a competing label — but a real
+     link when there is a handle to visit, and a tap target that a finger can
+     actually hit (the pointer:coarse floor needs inline-flex to apply). */
+  .ui-public-hero-console-by {
+    @apply inline-flex shrink-0 items-center pl-[18px] font-mono text-micro text-text-muted transition-colors hover:text-text-secondary sm:pl-3;
   }
   .ui-public-hero-console-metrics {
     @apply mt-4 grid grid-cols-3 gap-2 border-t border-border-subtle pt-4 sm:gap-3;
@@ -3312,6 +3325,31 @@
   .ui-settings-section {
     @apply space-y-5 rounded-2xl border border-border-subtle bg-surface-base p-5 sm:p-6;
     box-shadow: var(--shadow-panel);
+  }
+  /* ── "Show this project in Loki's catalogue?" ──────────────────────────
+     An invitation, not an alert: it uses the accent border rather than a
+     status colour, because nothing is wrong and nothing is required. Stacks
+     on a phone and sits side-by-side from sm, so the two answers never end up
+     squeezed onto one cramped line. */
+  .ui-listing-invite {
+    @apply flex flex-col gap-4 rounded-2xl border border-border-interactive bg-surface-base p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5;
+  }
+  .ui-listing-invite-body {
+    @apply flex min-w-0 items-start gap-3;
+  }
+  .ui-listing-invite-icon {
+    @apply mt-0.5 h-5 w-5 shrink-0 text-accent-text;
+  }
+  .ui-listing-invite-title {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-listing-invite-note {
+    @apply mt-1 text-xs leading-relaxed text-text-secondary;
+  }
+  /* shrink-0 so the buttons keep their width and the prose reflows instead —
+     a wrapped label on a 44px button is how tap targets quietly shrink. */
+  .ui-listing-invite-actions {
+    @apply flex shrink-0 flex-wrap items-center gap-2;
   }
   /* ── AI capacity, in Settings → AI ─────────────────────────────────────
      Built to one rule: a number that does not imply an action is decoration.
@@ -5761,10 +5799,12 @@
   .ui-public-nav-toggle,
   .ui-public-link,
   .ui-public-link-standalone,
+  .ui-public-hero-console-by,
   /* The address on each /fleet row. Measured 18px tall on a phone — 19 of them
      on one page, and the ONLY sub-44px targets left on any public route. They
      are the whole point of the catalogue (that is where you go to see the
      thing), so they were the worst possible link to leave un-tappable. */
+  .ui-public-fleet-name,
   .ui-public-fleet-site,
   .ui-auth-hint-link,
   .ui-auth-footer-link,

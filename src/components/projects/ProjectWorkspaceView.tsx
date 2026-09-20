@@ -11,6 +11,8 @@ import { DoneSection, NextSection, NowSection } from "./ProjectDossierSections";
 import { OrangeCatPublishButton } from "./OrangeCatPublishButton";
 import { ProjectPublicListingToggle } from "./ProjectPublicListingToggle";
 import { ProjectFeatureToggle } from "./ProjectFeatureToggle";
+import { ProjectListingInvitation } from "./ProjectListingInvitation";
+import { shouldInviteToPublicCatalogue } from "@/lib/listing-invitation";
 import { SolonFoundButton } from "./SolonFoundButton";
 import { LiveUrlField } from "./LiveUrlField";
 import { RegisterSiteButton } from "./RegisterSiteButton";
@@ -77,6 +79,16 @@ export function ProjectWorkspaceView({
     commits: dossier.commits,
     nowMs: dossier.builtAtMs,
   });
+  // Ask once, per project, and only when there is something worth showing.
+  // The rule is in lib/ so it is testable without a browser or a database.
+  const inviteToCatalogue = shouldInviteToPublicCatalogue({
+    listedPublicly: userProject?.listedPublicly ?? false,
+    dismissedAt: userProject?.listingPromptDismissedAt ?? null,
+    isActive: userProject?.isActive ?? false,
+    gitUrl: userProject?.gitUrl ?? project.gitUrl ?? null,
+    readonly: dossier.readonly,
+  });
+
   const showKickoff =
     !dossier.readonly &&
     needsKickoff({
@@ -207,6 +219,8 @@ export function ProjectWorkspaceView({
 
           Anchors could not fix it either: scrolling into a wall still leaves
           the other 2,400 words underneath. A tab removes them. */}
+      {inviteToCatalogue && <ProjectListingInvitation projectId={project.id} />}
+
       <ProjectTabs
         tabs={[
           {

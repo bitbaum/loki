@@ -108,10 +108,29 @@ export type RegisterRow = {
  * and founding is open to anyone, so a name match proves nothing: joining on it
  * would let whoever founds `loki` appear on this register to govern Loki.
  */
+/**
+ * `includeUnlinkedSites` decides whether a hosted app with NO Loki project
+ * becomes a row of its own.
+ *
+ * It must be false on any multi-tenant public surface. apps.conf describes ONE
+ * box — the studio's — and is a file in this repo, so letting it mint rows
+ * publishes that box's hosting inventory as though it were the fleet: a
+ * brand-new Loki with zero consented projects still rendered 19 sites, none of
+ * them the viewer's and none of them anyone's decision to publish.
+ *
+ * True for the operator, for whom the unlinked rows are the whole point — the
+ * register read sideways is a to-do list of sites that have no project yet.
+ *
+ * Note what this does NOT change: a hosted app still ENRICHES a project that
+ * does exist, so a consented project keeps its real address either way. Only
+ * row creation is gated, because only row creation publishes something nobody
+ * asked to publish.
+ */
 export function buildFleetRegister(
   projects: RegisterProjectInput[],
   apps: HostedApp[],
   solonClaims?: ReadonlyMap<string, string>,
+  { includeUnlinkedSites = true }: { includeUnlinkedSites?: boolean } = {},
 ): RegisterRow[] {
   const bySlug = new Map<string, RegisterRow>();
 
@@ -157,7 +176,9 @@ export function buildFleetRegister(
   for (const a of apps) {
     const url = hostedUrl(a);
     if (!url) continue;
-    const target = byHosted.get(a.name) ?? row(canonicalSlug(a.name), a.name);
+    const linked = byHosted.get(a.name) ?? bySlug.get(canonicalSlug(a.name));
+    if (!linked && !includeUnlinkedSites) continue;
+    const target = linked ?? row(canonicalSlug(a.name), a.name);
     // NOTE the omission: `plan` and `price` are NOT copied here. This row is
     // served by a public endpoint, and what a client is charged is theirs, not
     // the internet's. The commercial read lives in commerce(), which takes

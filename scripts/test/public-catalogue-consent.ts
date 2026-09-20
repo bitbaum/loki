@@ -42,6 +42,7 @@ const heroQuery = readFileSync(join(ROOT, "src/db/queries/public-fleet.ts"), "ut
 const landing = readFileSync(join(ROOT, "src/app/page.tsx"), "utf8");
 const projectRoute = readFileSync(join(ROOT, "src/app/api/projects/[id]/route.ts"), "utf8");
 const profile = readFileSync(join(ROOT, "src/app/u/[username]/page.tsx"), "utf8");
+const registerBuild = readFileSync(join(ROOT, "src/lib/register/build.ts"), "utf8");
 
 // ── The column exists, and defaults to withholding consent ──────────────────
 ok(
@@ -118,6 +119,45 @@ ok(
 ok(
   /isSiteOperator/.test(projectRoute) && /403/.test(projectRoute),
   "the project route refuses to feature unless the caller runs this instance",
+);
+
+// ── A showcased project says whose it is ───────────────────────────────────
+// Showing a tenant's work unattributed reads as "our projects", which is both
+// untrue and the opposite of the reason to have a showcase at all.
+ok(/by: byline\(p\.owner\)/.test(heroQuery), "each showcased row carries a byline");
+ok(
+  /innerJoin\(users/.test(projectsQuery),
+  "the showcase query joins the owner rather than leaving attribution to the page",
+);
+ok(/\/u\/\$\{handle\}/.test(heroQuery), "a byline with a handle links to that owner's profile");
+// Quoted LITERALS only: the prose above byline() names the labels it refuses
+// to invent, and a gate that reads comments fails on its own documentation.
+ok(
+  !/["'`](Anonymous|A Loki user|a Loki user|Unknown)["'`]/.test(heroQuery),
+  "an owner with no handle and no name gets NO byline, never an invented label",
+);
+ok(
+  /return name \? \{ label: name, href: null \} : null;/.test(heroQuery),
+  "the no-name case returns null rather than a placeholder",
+);
+
+// ── One box's inventory is not a multi-tenant catalogue ────────────────────
+// apps.conf describes the studio's box and is a file in this repo. Letting it
+// mint rows on the public page published 19 sites on a Loki with none of its
+// own — none of them the viewer's, none of them anyone's decision.
+ok(
+  /includeUnlinkedSites/.test(registerBuild),
+  "the register can be built without minting rows for unlinked hosted sites",
+);
+ok(
+  /includeUnlinkedSites:\s*viewerIsOwner/.test(fleetPage),
+  "/fleet mints those rows only for the operator of the box they describe",
+);
+
+// ── The ask, and its refusal ───────────────────────────────────────────────
+ok(
+  /listingPromptDismissedAt:\s*timestamp\("listing_prompt_dismissed_at"/.test(schema),
+  "a declined invitation is remembered in the database, not the browser",
 );
 
 console.log(`${pass} passed, ${fail} failed`);

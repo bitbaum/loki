@@ -50,6 +50,10 @@ export const PatchProjectBody = z
      *  AUTHORIZED IN THE ROUTE (isSiteOperator) — a tenant must not be able to
      *  put themselves on the homepage by PATCHing their own project. */
     featured: z.boolean().optional(),
+    /** "Not now" on the catalogue invitation. Write-once from the owner's own
+     *  page; there is no un-dismiss, because the toggle beside it is the way
+     *  back in and a second prompt would be the nagging this prevents. */
+    dismissListingPrompt: z.literal(true).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "Nothing to update" });
 
@@ -121,10 +125,14 @@ export async function patchProject(userId: string, id: string, data: PatchProjec
   // what /fleet reads — so it is written separately rather than folded into the
   // entities patch above. Always scoped by userId: consent is the owner's to
   // give, and an id alone must never be enough to publish someone's project.
-  if (updated && data.listedPublicly !== undefined) {
+  if (updated && (data.listedPublicly !== undefined || data.dismissListingPrompt)) {
     await db
       .update(userProjects)
-      .set({ listedPublicly: data.listedPublicly, updatedAt: new Date() })
+      .set({
+        ...(data.listedPublicly !== undefined ? { listedPublicly: data.listedPublicly } : {}),
+        ...(data.dismissListingPrompt ? { listingPromptDismissedAt: new Date() } : {}),
+        updatedAt: new Date(),
+      })
       .where(and(eq(userProjects.userId, userId), eq(userProjects.entityProjectId, id)));
   }
 
