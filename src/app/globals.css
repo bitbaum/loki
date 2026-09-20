@@ -4674,6 +4674,27 @@
   details[open] > summary .ui-disclosure-chevron {
     @apply rotate-180;
   }
+  /* One row of Today's cards: one column on a phone, two from md up.
+     
+     The cards inside a row render nothing when they have nothing to say — an
+     empty calendar, a quiet alerts card, anything behind the locked private
+     zone — and React drops a null child from the DOM entirely. A fixed two-track
+     grid then keeps both tracks, so a row that lost one card drew its survivor
+     at half width beside an equally wide void. Measured on prod 2026-09-18 with
+     the private zone locked: FOUR rows in a row, each a 408px card next to
+     408px of nothing, which is most of what the page looked like.
+
+     So the row is authored as a pair and degrades to a single: when only one
+     card survives it spans the whole row. Nothing changes when both render, so
+     the deliberate pairings the page comments defend ("the two cards that are
+     only true right now") are untouched. */
+  .ui-today-row {
+    @apply grid grid-cols-1 gap-4 md:grid-cols-2;
+  }
+  .ui-today-row > :only-child {
+    grid-column: 1 / -1;
+  }
+
   .ui-disclosure-body {
     @apply px-3 pb-4 pt-1;
   }

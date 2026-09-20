@@ -38,12 +38,11 @@ const Streamed = ({ children }: { children: ReactNode }) => (
   <Suspense fallback={<CardSkeleton />}>{children}</Suspense>
 );
 
-/** The page's one row shape: a single column on a phone, two from md up.
+/** The page's one row shape: a single column on a phone, two from md up, and
+ *  a single full-width card when only one of the pair had anything to say.
  *  `alignTop` is for rows whose two cards differ in height. */
 const CardRow = ({ children, alignTop = false }: { children: ReactNode; alignTop?: boolean }) => (
-  <div className={`grid grid-cols-1 md:grid-cols-2 gap-4${alignTop ? " items-start" : ""}`}>
-    {children}
-  </div>
+  <div className={`ui-today-row${alignTop ? " items-start" : ""}`}>{children}</div>
 );
 
 async function loadTodayInputs() {
