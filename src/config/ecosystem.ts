@@ -74,7 +74,7 @@ export const ORANGECAT_INTEGRATION = {
     lightning: ECOSYSTEM.support.lightningAddress,
   },
   relation: "Loki is a customer of OrangeCat through the shared entity graph.",
-  note: "OrangeCat is the public funding layer; Loki is the building layer.",
+  note: "OrangeCat is the public funding layer; Loki is the execution layer where the work gets done.",
 } as const;
 
 /**
