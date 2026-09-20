@@ -25,6 +25,7 @@
  */
 import { getStuckGoals, getGoalsDueSoon, listUpcomingCommitments } from "@/db/queries/today";
 import { getEventsDueSoon } from "@/db/queries/events";
+import { isOverdue, toLocalDateStr } from "@/lib/dates";
 import { getTodayHabits } from "@/db/queries/habits";
 import type { Directive } from "@bitbaum/ai-kit/grounding";
 
@@ -33,10 +34,14 @@ const IMMINENT_DAYS = 3;
 /** Progress-at-zero staleness window, matching getStuckGoals' own default. */
 const STUCK_DAYS = 30;
 
+/** YYYY-MM-DD, through the same helper `isOverdue` compares against. It used to
+ *  be `toISOString().slice(0,10)` — a UTC day next to a word decided on the
+ *  local one, which disagree for part of every day and would print "due" beside
+ *  yesterday's date (or the reverse) depending only on where the process runs. */
 function dateLabel(d: Date | string | null): string {
   if (!d) return "no date";
   const date = typeof d === "string" ? new Date(d) : d;
-  return Number.isNaN(date.getTime()) ? "no date" : date.toISOString().slice(0, 10);
+  return Number.isNaN(date.getTime()) ? "no date" : toLocalDateStr(date);
 }
 
 /**
@@ -78,15 +83,16 @@ export async function buildDailyBrief(userId: string): Promise<Directive[]> {
   directives.push(
     goalsDue === null
       ? {
-          question: `goals with a target date inside ${IMMINENT_DAYS} days`,
+          question: `goals with a target date inside ${IMMINENT_DAYS} days, or already past`,
           answer: [],
           method: "QUERY FAILED — treat as unknown, not as none",
         }
       : {
-          question: `goals with a target date inside ${IMMINENT_DAYS} days`,
-          method: `SQL: status=active AND target_date <= now()+${IMMINENT_DAYS}d`,
+          question: `goals with a target date inside ${IMMINENT_DAYS} days, or already past`,
+          method: `SQL: status=active AND target_date <= now()+${IMMINENT_DAYS}d (no floor — past targets are IN scope)`,
           answer: goalsDue.map(
-            (g) => `${g.title} — due ${dateLabel(g.targetDate)}, ${g.progress ?? 0}% done`,
+            (g) =>
+              `${g.title} — ${isOverdue(g.targetDate) ? "target passed" : "due"} ${dateLabel(g.targetDate)}, ${g.progress ?? 0}% done`,
           ),
         },
   );
@@ -94,28 +100,34 @@ export async function buildDailyBrief(userId: string): Promise<Directive[]> {
   directives.push(
     commitments === null
       ? {
-          question: `commitments due inside ${IMMINENT_DAYS} days`,
+          question: `commitments due inside ${IMMINENT_DAYS} days, or already overdue`,
           answer: [],
           method: "QUERY FAILED — treat as unknown, not as none",
         }
       : {
-          question: `commitments due inside ${IMMINENT_DAYS} days`,
-          method: `SQL: status=active AND due_date <= now()+${IMMINENT_DAYS}d`,
-          answer: commitments.map((c) => `${c.description} — due ${dateLabel(c.dueDate)}`),
+          question: `commitments due inside ${IMMINENT_DAYS} days, or already overdue`,
+          method: `SQL: status=active AND due_date <= now()+${IMMINENT_DAYS}d (no floor — overdue rows are IN scope), nearest deadline first`,
+          answer: commitments.map(
+            (c) =>
+              `${c.description} — ${isOverdue(c.dueDate) ? "was due" : "due"} ${dateLabel(c.dueDate)}`,
+          ),
         },
   );
 
   directives.push(
     events === null
       ? {
-          question: `events/deadlines inside ${IMMINENT_DAYS} days`,
+          question: `events/deadlines inside ${IMMINENT_DAYS} days, or already past`,
           answer: [],
           method: "QUERY FAILED — treat as unknown, not as none",
         }
       : {
-          question: `events/deadlines inside ${IMMINENT_DAYS} days`,
-          method: `SQL: deadline <= now()+${IMMINENT_DAYS}d`,
-          answer: events.map((e) => `${e.name} (${e.type}) — deadline ${dateLabel(e.deadline)}`),
+          question: `events/deadlines inside ${IMMINENT_DAYS} days, or already past`,
+          method: `SQL: status=active AND deadline <= now()+${IMMINENT_DAYS}d (no floor — passed deadlines are IN scope)`,
+          answer: events.map(
+            (e) =>
+              `${e.name} (${e.type}) — ${isOverdue(e.deadline) ? "deadline passed" : "deadline"} ${dateLabel(e.deadline)}`,
+          ),
         },
   );
 
