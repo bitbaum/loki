@@ -49,8 +49,9 @@ routes.
 
 Navigation:
 
-- **Desktop (`md+`)**: `Sidebar` + full `AppTopBar` search + theme cycle in top bar and sidebar footer
-- **Mobile**: `AppTopBar` page label + icon search + theme cycle; bottom bar is **Today · Control · Loki · Menu**; the Menu sheet mirrors sidebar sections (Work / Private / Site) with Settings, appearance, and sign-out in the footer
+- **Desktop (`md+`)**: `Sidebar` (Now / Fleet / Command + PIN-gated Private) + full `AppTopBar` search + `AccountMenu`
+- **Mobile**: `AppTopBar` page label + icon search + `AccountMenu`; bottom bar is **Today · Control · Loki · Menu** — one entry point per loop section, plus Menu; the Menu sheet shows the same sections with their questions, and carries no footer
+- **Account actions** (Settings, Download, appearance, lock private zone, sign out) live in `AccountMenu` only. They used to be duplicated in the sidebar footer and the Menu sheet footer — two account menus, neither called one, and none in the header where users look first.
 
 ## Component patterns
 

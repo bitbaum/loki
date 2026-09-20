@@ -108,7 +108,7 @@ Loki is the name because it positions the *product* as the authoritative command
 - **OG / social images**: All use the same mark + `APP_NAME` / tagline from SSOT. Per-article and per-user variants exist and should continue to stamp the small brand mark in the corner for recognition.
 - **Font & typography discipline**: Headings use the display font + `--tracking-display`. Micro / nano sizes and label tracking are CSS vars. Never put font-family or size literals for brand text in components.
 - **Responsive / mobile (2026-06-27)**: All authenticated routes must work at 320px+ without horizontal page scroll. SSOT: `docs/development/responsive-design.md` + Layer 1 chrome tokens (`--mobile-chrome-bottom`, `--app-viewport-height`) and shell classes (`.app-viewport-pane`, `.app-page-compact`). Full-height chat/terminal pages must not use raw `100vh`/`100dvh` in JSX. Modals and drawers must clear the floating bottom nav on phones.
-- **Theme (2026-06-27)**: One `ThemeToggle` cycle button (`ui-theme-cycle-btn`) — never three separate Light/Dark/Auto buttons. Placed in top bar, sidebar footer, and mobile menu footer; Settings uses the `select` variant only.
+- **Theme (2026-06-27)**: One `ThemeToggle` cycle button (`ui-theme-cycle-btn`) — never three separate Light/Dark/Auto buttons. Placed in the account menu (top bar) and the public nav; Settings uses the `select` variant only. It was in the top bar directly until 2026-09-20, where `ui-theme-cycle-btn`'s border and fill made a preference the loudest control in a bar of ghost-circle status icons.
 
 ## When Evaluating Future Names or Visual Refreshes
 

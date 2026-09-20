@@ -72,8 +72,13 @@
      the fleet's most-used button, under it. Near-black is ~6:1. Paired with
      the background it belongs to so nobody has to remember which ink an
      orange button takes. Mirrors --on-accent in @fleet/design-tokens v1.1.0
-     (SSOT for Solon and OrangeCat); Loki still declares its ramp
-     locally, so the value is kept in step by hand. */
+     (SSOT for Solon and OrangeCat). Loki still declares its ramp locally —
+     but "kept in step by hand", which is what this comment used to claim,
+     was never true: measured 2026-09-20, Loki and the package disagreed on
+     32 of the 36 tokens they both define. scripts/test/token-drift.ts now
+     requires every one of those differences to be DECLARED with a reason,
+     so a divergence is a decision somebody signed rather than a drift
+     nobody noticed. */
   --color-on-accent: var(--on-accent);
   /* Status tokens — the only chromatic colors in the system */
   --color-status-positive: var(--status-positive);
@@ -301,8 +306,18 @@
      worst surface: secondary 8.0:1, muted 6.0:1, tertiary 4.9:1. */
   --text-primary: oklch(0.92 0 0);
   --text-secondary: oklch(0.72 0 0);
-  --text-muted: oklch(0.65 0 0);
-  --text-tertiary: oklch(0.59 0 0);
+  /* tertiary before muted — the ramp descends primary → secondary → tertiary
+     → muted, and these two were the wrong way round in DARK only. The block
+     was written in the order primary/secondary/muted/tertiary with values
+     descending in THAT order (0.92, 0.72, 0.65, 0.59), so `muted` rendered
+     BRIGHTER than `tertiary`: the two quietest tiers in the system inverted,
+     on the theme that is the default. Light had it right all along
+     (0.1 → 0.4 → 0.58 → 0.72). The two values are swapped, not retuned, so
+     no new colour enters the system and the contrast range is unchanged.
+     scripts/test/token-drift.ts now fails if either theme's ramp stops
+     descending. */
+  --text-tertiary: oklch(0.65 0 0);
+  --text-muted: oklch(0.59 0 0);
   --text-inverted: oklch(0.07 0 0);
   --surface-page: oklch(0.07 0 0);
   --surface-base: oklch(0.1 0 0);
