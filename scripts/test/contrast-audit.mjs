@@ -33,6 +33,21 @@ const BASE = (process.env.BASE ?? "https://loki.orangecat.ch").replace(/\/$/, ""
 const ROUTES = (
   process.env.ROUTES ?? "/control,/today,/projects,/activity,/prompts,/settings"
 ).split(",");
+/**
+ * Both themes, because only one of them was ever measured.
+ *
+ * A fresh browser context has no `loki-theme` in localStorage, so ThemeProvider
+ * falls back to its `defaultTheme="dark"` — which means this audit, and the
+ * responsive one beside it, have always reported on the dark theme alone.
+ * CLAUDE.md is explicit that "light mode is a real state your styling must
+ * survive", and nothing checked it.
+ *
+ * It matters: measured on prod 2026-09-20, the same page that has ONE sub-AA
+ * text node in dark has FORTY-EIGHT in light, because the light ramp's muted
+ * tier lands at 2.28:1 on the page surface. None of that was visible to a gate
+ * that only ever rendered dark.
+ */
+const THEMES = (process.env.THEMES ?? "dark,light").split(",").map((t) => t.trim());
 /** WCAG 2.1 AA: 4.5:1 for text under 18.66px (or under 24px when not bold). */
 const AA_SMALL = 4.5;
 const AA_LARGE = 3.0;
@@ -189,53 +204,78 @@ async function main() {
     process.exit(2);
   }
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  await ctx.addCookies([
-    {
-      name: cookieName(),
-      value: token,
-      domain: new URL(BASE).hostname,
-      path: "/",
-      httpOnly: true,
-      secure: BASE.startsWith("https://"),
-    },
-  ]);
 
   const failures = [];
   let measured = 0;
-  for (const route of ROUTES) {
-    const page = await ctx.newPage();
-    try {
-      // NOT networkidle: these pages hold an open SSE stream and poll, so the
-      // network never goes idle and the wait resolves on a timeout — measuring
-      // the server-rendered shell before the client-fetched body arrives. The
-      // first run of this audit reported 9 controls on a page with ~60, which
-      // is the silent-truncation failure: a clean "✓" over most of the page
-      // never examined. Settle on a real, growing DOM instead.
-      await page.goto(BASE + route, { waitUntil: "domcontentloaded", timeout: 60000 });
-      let rows = [];
-      let stable = 0;
-      for (let attempt = 0; attempt < 12 && stable < 2; attempt++) {
-        await page.waitForTimeout(1000);
-        const next = await page.evaluate(MEASURE);
-        stable = next.length > 0 && next.length === rows.length ? stable + 1 : 0;
-        rows = next;
+  for (const theme of THEMES) {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    await ctx.addCookies([
+      {
+        name: cookieName(),
+        value: token,
+        domain: new URL(BASE).hostname,
+        path: "/",
+        httpOnly: true,
+        secure: BASE.startsWith("https://"),
+      },
+    ]);
+    // Seed the same key ThemeProvider persists, before any page script runs.
+    await ctx.addInitScript(
+      `try { localStorage.setItem("loki-theme", ${JSON.stringify(theme)}); } catch (e) {}`,
+    );
+    console.log(`\n── ${theme} ──`);
+    for (const route of ROUTES) {
+      const page = await ctx.newPage();
+      try {
+        // NOT networkidle: these pages hold an open SSE stream and poll, so the
+        // network never goes idle and the wait resolves on a timeout — measuring
+        // the server-rendered shell before the client-fetched body arrives. The
+        // first run of this audit reported 9 controls on a page with ~60, which
+        // is the silent-truncation failure: a clean "✓" over most of the page
+        // never examined. Settle on a real, growing DOM instead.
+        await page.goto(BASE + route, { waitUntil: "domcontentloaded", timeout: 60000 });
+        // Prove the theme took. Without this the light pass would quietly render
+        // dark and report it clean — the exact shape of gate this audit exists to
+        // stop: present, green, and measuring the wrong thing.
+        const applied = await page.evaluate("document.documentElement.getAttribute('data-theme')");
+        if (applied !== theme) {
+          throw new Error(`theme did not apply: asked for ${theme}, page is ${applied}`);
+        }
+        let rows = [];
+        let stable = 0;
+        // Three consecutive identical counts, and never before the fourth read.
+        // Two sufficed when one warm context served every route, but each theme
+        // now gets its OWN cold context — and a cold /control served 2 labels
+        // twice running while it hydrated, then latched and reported 2 of the
+        // 54 it has. An audit that measures a skeleton prints a clean tick for
+        // a page it never looked at, which is the failure this file exists to
+        // prevent.
+        for (let attempt = 0; attempt < 16 && (stable < 3 || attempt < 4); attempt++) {
+          await page.waitForTimeout(1000);
+          const next = await page.evaluate(MEASURE);
+          stable = next.length > 0 && next.length === rows.length ? stable + 1 : 0;
+          rows = next;
+        }
+        console.log(`  ${route}: ${rows.length} interactive labels`);
+        measured += rows.length;
+        for (const r of rows) {
+          const floor = r.large ? AA_LARGE : AA_SMALL;
+          if (r.contrast < floor) failures.push({ theme, route, floor, ...r });
+        }
+      } catch (e) {
+        console.error(`  ! ${theme} ${route}: ${e.message}`);
+      } finally {
+        await page.close();
       }
-      console.log(`  ${route}: ${rows.length} interactive labels`);
-      measured += rows.length;
-      for (const r of rows) {
-        const floor = r.large ? AA_LARGE : AA_SMALL;
-        if (r.contrast < floor) failures.push({ route, floor, ...r });
-      }
-    } catch (e) {
-      console.error(`  ! ${route}: ${e.message}`);
-    } finally {
-      await page.close();
     }
+    await ctx.close();
   }
   await browser.close();
 
-  console.log(`\ncontrast audit — ${measured} interactive labels across ${ROUTES.length} routes\n`);
+  console.log(
+    `\ncontrast audit — ${measured} interactive labels across ${ROUTES.length} routes ` +
+      `× ${THEMES.length} theme(s): ${THEMES.join(", ")}\n`,
+  );
   if (failures.length === 0) {
     console.log("✓ every interactive label meets its WCAG AA floor");
     process.exit(0);
@@ -244,7 +284,7 @@ async function main() {
   failures.sort((a, b) => a.contrast - b.contrast);
   for (const f of failures) {
     console.log(
-      `✗ ${String(f.contrast).padStart(5)}:1 (needs ${f.floor})  ${f.route}  ` +
+      `✗ ${String(f.contrast).padStart(5)}:1 (needs ${f.floor})  ${f.theme}  ${f.route}  ` +
         `<${f.tag}> ${Math.round(f.fontSize)}px  "${f.text}"${f.href ? `  → ${f.href}` : ""}`,
     );
   }
