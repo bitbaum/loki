@@ -153,6 +153,10 @@ export const ROADMAP: {
             "Tray icon, OS notifications on agent idle, and an embedded session watcher for fire-and-walk-away dispatch.",
             "The legacy bash runner was retired by deletion — one path, not two.",
             "Multi-OS release pipeline: one tag push produces installers for Linux, macOS and Windows from a shared CI matrix.",
+            // Moved up from "Next", where it was listed as forthcoming while
+            // already running: `build.publish` is the GitHub provider, and the
+            // latest-*.yml update feeds publish with every release.
+            "Auto-update through the GitHub release feed, so a running install pulls each new version in the background instead of going stale.",
           ],
         },
       ],
@@ -163,11 +167,23 @@ export const ROADMAP: {
         "Concrete engineering, in sequence: distribution first, then the remote control channel, then mobile on top of it.",
       items: [
         {
-          title: "Distribution and auto-update",
-          line: "Make Fleet Runner trivial to install and keep current on every platform — including for builders who never open a terminal.",
+          // Two of the four details here had already SHIPPED, and one of them
+          // contradicted a "Shipping now" bullet on this same page ("one tag
+          // push produces installers for Linux, macOS and Windows"). Checked
+          // against release fleet-runner-v0.8.29: mac .dmg/.zip, win .exe and
+          // both Linux artefacts all publish, and `build.publish` is exactly
+          // the GitHub provider this promised. A roadmap that lists finished
+          // work as forthcoming makes the product look less built than it is,
+          // and it is the same untrue-copy problem as any other.
+          //
+          // What is genuinely outstanding is the SIGNING — no CSC_LINK /
+          // APPLE_ID secret exists at repo or org level, and desktop-release.yml
+          // says so itself: "empty when the secret is unset -> unsigned build,
+          // exactly as today". That is what the first detail now claims.
+          title: "Signed installers and native channels",
+          line: "Make Fleet Runner trivial to install on every platform — including for builders who never open a terminal.",
           details: [
-            "Public macOS (.dmg, signed + notarized) and Windows (.exe) builds landing on every tagged release alongside the existing Linux AppImage / .deb.",
-            "Auto-update via electron-builder's GitHub provider so users never download a stale binary.",
+            "Apple-signed and notarized macOS builds, and a signed Windows .exe, so the first launch stops needing a Gatekeeper or SmartScreen detour. The builds themselves already ship on every tagged release.",
             "Native package channels where they exist — Homebrew tap for macOS, winget for Windows, .deb apt repo for Linux.",
             "Headless CLI agent install path for servers, CI runners, and operators who prefer a pure terminal flow.",
           ],
@@ -351,7 +367,16 @@ export const DESKTOP_DOWNLOAD = {
     {
       number: "01",
       title: "Make it runnable, then open",
-      body: "On Linux, downloads start non-executable for safety. Paste the one-line command shown under Download to mark Fleet Runner executable and launch it. On macOS and Windows, a normal double-click is enough.",
+      // The builds are NOT signed: desktop-release.yml wires CSC_LINK /
+      // APPLE_ID from secrets that do not exist at repo or org level, and its
+      // own comment says so — "gated: empty when the secret is unset \u2192 unsigned
+      // build, exactly as today". So the first launch is where a new user
+      // actually gets stuck, and this step used to tell them the opposite:
+      // "on macOS and Windows, a normal double-click is enough". It is not.
+      // Gatekeeper refuses an unsigned app outright and SmartScreen interrupts
+      // one. The page was already careful about the Linux chmod friction and
+      // silent about the two that block.
+      body: "On Linux, downloads start non-executable for safety \u2014 paste the one-line command shown under Download to mark Fleet Runner executable and launch it. On macOS, the builds are not yet signed by Apple, so the first launch needs right-click \u2192 Open, then Open again (a plain double-click is refused). On Windows, SmartScreen shows \u201cWindows protected your PC\u201d \u2014 choose More info \u2192 Run anyway. After the first launch, both open normally.",
     },
     {
       number: "02",
