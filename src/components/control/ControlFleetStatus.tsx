@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { activityHref } from "@/components/activity/activity-shared";
 import { ArrowRight, Plus, Radio, Settings2, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/dates";
@@ -339,7 +340,16 @@ export function ControlFleetStatus({
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       ) : fleetPulse.key === "failing" ? (
-        <Link href="/activity?window=week" className="ui-hero-action ui-btn-primary">
+        // Was a hand-written "/activity?window=week" — the one activity link
+        // in the app that skipped activityHref, and so the one that carried no
+        // filter. "Review failures" landed the operator on an unfiltered week
+        // of every dispatch, success and failure alike, and left them to find
+        // the four the sentence above had just counted. `attention` is exactly
+        // that set: error, timeout, hang, partial, unconfirmed.
+        <Link
+          href={activityHref({ window: "week", filter: "attention" })}
+          className="ui-hero-action ui-btn-primary"
+        >
           Review failures
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>

@@ -20,6 +20,34 @@ import type { AgentEntry } from "./agent-switcher-popover";
 import { OutcomeStreak } from "./OutcomeStreak";
 import { STATE_DEFINITIONS, type ProjectStateKey } from "@/lib/control-states";
 
+/**
+ * Does the subtitle merely say the badge again?
+ *
+ * True when one label's words are a subset of the other's, ignoring case,
+ * order and punctuation — so "Tab open" vs "Workspace tab open" is caught,
+ * while "Tab open" vs "Last run completed" is not.
+ *
+ * Exported so the rule is testable without rendering a card. The version this
+ * replaces was `a !== b`: correct-looking, and catching only the one phrasing
+ * nobody was ever going to write twice.
+ */
+export function restatesLabel(evidence: string, stateLabel: string): boolean {
+  const words = (v: string) =>
+    new Set(
+      v
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+  const a = words(evidence);
+  const b = words(stateLabel);
+  if (a.size === 0 || b.size === 0) return false;
+  const [small, large] = a.size <= b.size ? [a, b] : [b, a];
+  for (const w of small) if (!large.has(w)) return false;
+  return true;
+}
+
 export function ProjectCardHeader({
   project,
   tabOpen,
@@ -141,9 +169,16 @@ export function ProjectCardHeader({
                 <OutcomeStreak outcomes={project.recentOutcomes} projectKey={project.tab} />
               </div>
               {/* Suppress the subtitle when it would just repeat the badge
-                  with no timestamp to add ("Awaiting input / Awaiting input"). */}
+                  with no timestamp to add ("Awaiting input / Awaiting input").
+
+                  Exact equality was not enough. The badge read "Tab open" and
+                  the subtitle read "Workspace tab open" — the same fact in
+                  different words, on every card in that state, and the guard
+                  waved it through because the strings differ by one word. It
+                  compares the WORDS now, ignoring case, order and punctuation,
+                  so a rewording cannot slip past it again. */}
               {evidenceLabel &&
-                (evidenceLabel !== stateLabel || (evidenceAt && lastActiveLabel)) && (
+                (!restatesLabel(evidenceLabel, stateLabel) || (evidenceAt && lastActiveLabel)) && (
                   <p
                     className="mt-0.5 text-xs text-text-muted"
                     title={
