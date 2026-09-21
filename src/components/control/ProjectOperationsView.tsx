@@ -8,7 +8,7 @@ import { postJson } from "@/lib/api/fetch";
 import { LOKI_REFRESH_EVENT } from "@/lib/client-events";
 import type { ProjectState } from "@/lib/control-types";
 import type { ProjectOperationsSnapshot } from "./control-presenter";
-import { STATE_DEFINITIONS } from "@/lib/control-states";
+import { STATE_DEFINITIONS, type ProjectStateKey } from "@/lib/control-states";
 import type { AutoInjectMode } from "@/config/beacon";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectAutopilotToggle } from "./ProjectAutopilotToggle";
@@ -29,6 +29,34 @@ function snapshotActivityMs(snapshot: ProjectOperationsSnapshot): number {
       : 0,
     project.recentActivity[0]?.at ? Date.parse(project.recentActivity[0].at) : 0,
   );
+}
+
+/**
+ * How far up the rail a project belongs, lowest first.
+ *
+ * "Priority" was the DEFAULT sort and it ranked nothing: the comparator read
+ * `sourceSnapshots.indexOf(a) - sourceSnapshots.indexOf(b)`, which is the
+ * order the API happened to return. That is why the rail opened with four
+ * idle projects while the three with an open workspace tab sat two thirds of
+ * the way down, and why the order looked arbitrary — it was.
+ *
+ * Nothing new is invented here. `control-states.ts` is already the SSOT for
+ * what each state MEANS: `problem` is non-null exactly when "this needs your
+ * attention", and `counterCategory` is the bucket the summary chips count. The
+ * rail now reads the same two fields the chips read, so the row order and the
+ * "0 working · 0 awaiting input · 23 idle" line can never tell different
+ * stories.
+ *
+ * The order is Control's one question — "is anything waiting on me?" — answered
+ * top to bottom.
+ */
+export function priorityRank(phase: ProjectStateKey): number {
+  const def = STATE_DEFINITIONS[phase];
+  if (def.problem) return 0; // something is wrong and it is yours to fix
+  if (def.counterCategory === "waiting") return 1; // your move: type a prompt
+  if (def.counterCategory === "working") return 2; // running; watchable
+  if (def.counterCategory === "offline") return 3; // we cannot see it
+  return 4; // idle
 }
 
 export function ProjectOperationsView({
@@ -117,7 +145,13 @@ export function ProjectOperationsView({
           snapshotActivityMs(b) - snapshotActivityMs(a) ||
           a.project.tab.localeCompare(b.project.tab)
         );
-      return sourceSnapshots.indexOf(a) - sourceSnapshots.indexOf(b);
+      // priority: attention first, then by how recently anything happened, so
+      // two idle projects still land newest-first instead of API-order.
+      return (
+        priorityRank(a.phase) - priorityRank(b.phase) ||
+        snapshotActivityMs(b) - snapshotActivityMs(a) ||
+        a.project.tab.localeCompare(b.project.tab)
+      );
     });
     order = ranked.map((s) => s.project.tab);
     setFrozenOrder({ key: setKey, order });
