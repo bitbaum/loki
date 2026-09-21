@@ -8,8 +8,16 @@
 // half to the Cat". There is nowhere to move it to.
 //
 // A rename is only worth making if it cannot quietly roll back, so this pins
-// the three places it actually lives: the fleet map's layer, the role sentence
-// an agent reads, and the two assistant prompts a user talks to. The one-word
+// the places it actually lives: the fleet map's layer, the role sentence an
+// agent reads, the two assistant prompts a user talks to — and, since
+// 2026-09-21, the PUBLIC copy.
+//
+// The public half was the gap. The 2026-09-20 rename corrected everything an
+// agent or a maintainer reads and left /philosophy telling strangers exactly
+// the story it had just retired: "infrastructure for builders running many
+// agents at once across multiple projects — not a friendly chat assistant".
+// The correction reached the machines and not the humans, which is the wrong
+// way round. The one-word
 // role itself is SSOT in orangecat/src/config/ecosystem.ts → ECOSYSTEM_PILLARS;
 // this repo is downstream of that and must not drift from it.
 //
@@ -36,6 +44,26 @@ function check(name: string, fn: () => void) {
 }
 
 const loki = PILLARS.find((p) => p.slug === "loki");
+
+check("the public copy does not sell the narrow product back", () => {
+  // Not a banned-phrase list: the point is that the PRINCIPLES page must not
+  // define Loki as agent infrastructure ALONE, because Today, People, Crew,
+  // Money, Goals and Habits ship here and have nowhere else to go.
+  // Comments are not copy. Without this the check fails on the very comment
+  // recording what was retired — a file has to be able to explain itself, and
+  // a detector that cannot tell code from commentary invents work.
+  const copy = read("src/config/marketing-content.ts")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/^\s*\/\/.*$/gm, " ");
+  assert.ok(
+    !/not a friendly chat assistant/i.test(copy),
+    "the retired framing is back in the public copy",
+  );
+  assert.ok(
+    !/Loki is infrastructure for builders running many agents/i.test(copy),
+    "the public copy defines Loki as agent infrastructure and nothing else",
+  );
+});
 
 check("Loki sits on the execution layer of the fleet map", () => {
   assert.ok(loki, "PILLARS must still contain loki");

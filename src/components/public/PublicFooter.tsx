@@ -39,7 +39,12 @@ const FOOTER_GROUPS = [
   {
     heading: "Support",
     links: [
-      { label: "Support Loki", href: "/support" },
+      // "Support Loki" under a heading already reading SUPPORT asks the
+      // reader to fund the project. It goes to the help desk, whose own H1 is
+      // "Get help" — so the label promised one thing and delivered another in
+      // both directions: someone wanting to contribute lands on a support
+      // form, and someone stuck may not click what reads like a donate link.
+      { label: "Get help", href: "/support" },
       {
         label: "GitHub issues",
         href: "https://github.com/bitbaum/loki/issues",

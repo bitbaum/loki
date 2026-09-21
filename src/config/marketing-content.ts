@@ -46,8 +46,15 @@ export const PHILOSOPHY = {
     },
     {
       name: "Open models, first class.",
+      // "Open AND LOCAL models compete equally for your work" claimed a
+      // capability that does not exist: the chat chain is freeChain("LOKI") —
+      // Groq, OpenRouter, Gemini, all hosted — and every agent adapter is a
+      // hosted-model CLI. There is no Ollama / llama.cpp / LM Studio path
+      // anywhere in src. What IS true is the open-WEIGHT half: llama, qwen and
+      // gpt-oss drive the loop today. So the claim keeps the half it earns and
+      // states the other as the direction it is.
       description:
-        "Frontier subscriptions are not the destination. Open and local models compete equally for your attention and your work.",
+        "Frontier subscriptions are not the destination. Open-weight models drive Loki today — llama, qwen and gpt-oss — and running them locally is where this is going.",
     },
     {
       name: "Nothing hidden.",
@@ -56,8 +63,16 @@ export const PHILOSOPHY = {
     },
     {
       name: "Built for serious operators.",
+      // Said "infrastructure for builders running many agents at once across
+      // multiple projects — not a friendly chat assistant" until 2026-09-21.
+      // That is the narrow framing #801 removed everywhere else on the same
+      // day, and scripts/test/execution-plane.ts records why: it "named Loki's
+      // deepest capability and not the product — Today, People, Crew, Money,
+      // Goals and Habits ship here too", and under the narrow label those
+      // surfaces read as scope creep. That rename pinned the three places it
+      // lives internally and never reached the page the public reads.
       description:
-        "Loki is infrastructure for builders running many agents at once across multiple projects — not a friendly chat assistant.",
+        "Loki is where an operator's work actually gets done — commanding agent fleets is the largest part of it, alongside the people you work with, what you owe, and what you spend.",
     },
   ],
   closer:
