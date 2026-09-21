@@ -986,9 +986,18 @@ export function buildProjectOperationsSnapshot(
         : display.isSessionOpen
           ? "Agent idle"
           : display.tabOpen
-            ? recentDispatchSuffix
-              ? `Workspace tab open · ${recentDispatchSuffix}`
-              : "Workspace tab open"
+            ? // The state chip on this card ALREADY reads "Tab open" — it is the
+              // label control-states.ts gives this phase. Saying "Workspace tab
+              // open" underneath repeated it in different words and told the
+              // reader nothing new, on every card in that state.
+              //
+              // The evidence line exists to name WHAT WAS OBSERVED that
+              // justifies the state: "Live agent process detected", "Agent
+              // signaled ready on connected computer", "Last run completed".
+              // When the only thing to say is the label again, the honest
+              // amount to say is nothing — unless there is a real observation
+              // to add, which is what the dispatch suffix carries.
+              (recentDispatchSuffix ?? "")
             : "No recent activity";
 
   // "Saved agent context" was the prior wording — flagged in browser dogfood
