@@ -3607,6 +3607,23 @@
   .ui-btn-xs {
     @apply inline-flex items-center gap-1 rounded border border-border-subtle px-2 py-1 text-xs text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary disabled:opacity-40;
   }
+  /* A SIZE modifier must not repaint a VARIANT.
+     `.ui-btn-xs` carries `text-text-muted`, and it is defined 59 lines after
+     `.ui-btn-primary`. Same specificity, so source order decides and the size
+     class won: `ui-btn-xs ui-btn-primary` painted muted grey on the orange
+     accent. Measured on /system in light mode, 2026-09-22 — the "Accept →
+     goal" button on all twelve pending proposals rendered at 1.38:1 against a
+     4.5 floor. The page's primary action, on the only surface that asks the
+     operator to decide something, was effectively invisible.
+
+     Writing the classes in the other order in JSX does not help; CSS source
+     order is what decides, so the author has no way to win from the call site.
+     Two classes beat one, so this restores the variant's own label colour
+     wherever the two are composed. `ui-btn-xs` keeps owning size and the
+     muted treatment for its 19 standalone uses, which are unchanged. */
+  .ui-btn-xs.ui-btn-primary {
+    @apply text-on-accent hover:text-on-accent;
+  }
   /* Accent icon button — caller adds padding (p-1 or p-1.5) */
   .ui-btn-icon-accent {
     @apply shrink-0 rounded-lg bg-accent-primary text-text-inverted transition-colors hover:bg-accent-hover disabled:opacity-30;
