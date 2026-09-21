@@ -194,6 +194,36 @@ export async function closeRunUndelivered(
     // chat notification — a chat dispatch that never reached a runner is
     // exactly the close the operator most needs to hear about.
     void notifyRunClosed(closed);
+    // ...and advance the ladder, for the reason that notification alone is not
+    // enough. `formatRunCloseMessage` self-gates on `payload.notifyOnClose`,
+    // which ONLY human-initiated dispatches carry — so for autopilot and cron
+    // dispatches the line above returns null and this close said nothing at
+    // all. The ladder is the mechanism that exists to surface exactly that:
+    // repeated failures with no human watching, escalating to an alert at the
+    // `human` rung.
+    //
+    // Without it this was the one failing-close path feeding the ladder
+    // nothing — `updateOrchestrationRun` advances, the reaper advances, this
+    // did not — so a dispatch that dies BEFORE reaching an agent could never
+    // build a streak no matter how often it happened. Measured on prod
+    // 2026-09-21: six dispatches failed across FOUR projects (loki, kivvi,
+    // solon, reparaturbonus-zh) in twelve hours on an exhausted Claude quota,
+    // every one of them through here, and the newest alert in the table was
+    // six days old. The fleet stopped executing and nothing said so.
+    //
+    // Derived, not assumed, via the same predicate the other two call sites
+    // use — one rule for what a close does to a ladder. `lastOutcome` keeps
+    // this honest downstream: the ladder already distinguishes a streak built
+    // from undelivered dispatches from one built from an agent's failing work.
+    if (ladderEffectForClose(closed.outcome).kind === "advance") {
+      void advanceEscalation({
+        userId,
+        projectKey: closed.projectKey,
+        runId,
+        outcome: closed.outcome ?? ORCHESTRATION_OUTCOME.ERROR,
+        error: `Dispatch failed before the prompt reached the agent: ${reason}`,
+      });
+    }
   }
 }
 
