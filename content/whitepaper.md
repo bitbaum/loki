@@ -1,8 +1,8 @@
 ---
 title: The Builder's Operating System
 subtitle: A technical architecture for sustained autonomous execution across many projects simultaneously
-publishedAt: 2026-08-12
-version: 0.3
+publishedAt: 2026-09-21
+version: 0.3.1
 ---
 
 ## The Execution Gap
@@ -120,15 +120,15 @@ Loki makes this visible together so operators can reason about their actual situ
 
 ## Subscription Tiers
 
-Loki is offered as a hosted SaaS product with four subscription levels: a free tier and three paid tiers.
+Loki is a hosted SaaS product with four levels: a free tier and three paid tiers. Only the free tier is purchasable today — the three paid tiers are published without prices while the billing rail is finished, and /pricing shows them as such.
 
 **Free** — for commanding your first projects. The full captain dashboard with your own runner and agent keys, limited in project count — enough to see the whole loop working before paying anything.
 
 **Personal** — for solo builders managing up to 5 projects. Cloud builder by default, your own machine via Fleet Runner when you want it, remote access from anywhere. Full project/agent/life OS features. Designed for the individual operator who wants to run the full system without self-hosting.
 
-**Pro** — for power builders running 10+ active projects. Faster dispatch inference, extended prompt history, priority support, and direct access to new features in beta. Intended for builders where Loki is an operational dependency.
+**Pro** — for power builders running many projects at once, with no project ceiling. Faster dispatch inference, extended prompt history, priority support, and direct access to new features in beta. Intended for builders where Loki is an operational dependency.
 
-**Team** — for small groups (up to 10 people) sharing a fleet. Multi-user project state, shared prompt queues, and team-level dashboards. Built for pairs and small studios who want a shared execution surface without enterprise overhead.
+**Team** — for small groups sharing a fleet. Multi-user project state, shared prompt queues, and team-level dashboards. Built for pairs and small studios who want a shared execution surface without enterprise overhead.
 
 Self-hosted deployment remains fully supported for operators who prefer to run Loki on their own infrastructure. The architecture is designed to run on a single machine with PostgreSQL.
 
