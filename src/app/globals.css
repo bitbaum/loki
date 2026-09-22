@@ -4274,6 +4274,11 @@
   }
   /* A project whose reports are all with an agent. Words, not a number:
      a count here reads as work you owe, and this is the opposite. */
+  /* The flags that lead a project page. Principle 2: only the alarm earns an
+     edge - one warning rule on the leading side, no card, no tint. */
+  .ui-project-flags-lead {
+    @apply mb-6 border-l-2 border-status-warning pl-4;
+  }
   .ui-inbox-group-note {
     @apply shrink-0 text-nano text-text-muted;
   }
