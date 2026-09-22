@@ -4,7 +4,7 @@ import { orchestrationRuns } from "@/db/schema/orchestration-runs";
 import { attributes } from "@/db/schema/attributes";
 import { goals } from "@/db/schema/goals";
 import { PUBLIC_IDENTITY_ATTRS } from "@/config/project-attrs";
-import { getUserProjects } from "@/db/queries/user-projects";
+import { getPubliclyListedProjects, getUserProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { buildFleetRegister, canonicalSlug, repoFromGitUrl } from "@/lib/register/build";
@@ -169,4 +169,24 @@ export async function loadFleetMap(): Promise<FleetMap | null> {
   }
 
   return buildFleetMap(rows, profiles, activity);
+}
+
+/**
+ * The slugs a public per-project page may render.
+ *
+ * The map is built from OWNERSHIP — every project the studio owner has, which
+ * is what the assistant and the register need. A public page may not read it
+ * that way: /fleet asks `getPubliclyListedProjects` for a stored decision
+ * (scripts/test/public-catalogue-consent.ts holds that line), while
+ * /fleet/[slug] resolved any slug in the map. Today those agree by accident —
+ * all 36 of the owner's projects are listed — so the day one is un-listed it
+ * would vanish from the catalogue and keep its profile page. Consent is asked
+ * here so both halves of the same surface answer to the same decision.
+ */
+export async function publiclyListedSlugs(): Promise<Set<string>> {
+  const rows = await getPubliclyListedProjects();
+  const slugs = rows
+    .map((p) => canonicalSlug(p.slug || repoFromGitUrl(p.gitUrl) || p.name))
+    .filter((s) => s.length > 0);
+  return new Set(slugs);
 }

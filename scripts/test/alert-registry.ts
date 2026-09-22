@@ -108,7 +108,12 @@ for (const file of srcFiles) {
   raiseSites += 1;
 
   const literals = new Set<string>();
-  for (const m of code.matchAll(/(?:ALERT_TYPE\s*=\s*|type:\s*)"([a-z_]+)"/g)) {
+  // `type:` must be a key of its own, not the tail of one. Without the
+  // preceding boundary this also matched `grant_type: "refresh_token"` in the
+  // OAuth refresh beside a raise site, and reported "refresh_token" as an
+  // unregistered alert type — a true-looking failure about a line that has
+  // nothing to do with alerts, on a file whose only crime was raising one.
+  for (const m of code.matchAll(/(?:ALERT_TYPE\s*=\s*|(?<![A-Za-z0-9_])type:\s*)"([a-z_]+)"/g)) {
     literals.add(m[1]);
   }
   assert(

@@ -112,10 +112,48 @@ ok(road[0].title === "Deploy on origin/main + auto-migrate + rollback", "title s
 ok(road[0].progress === 75, "progress survives");
 ok(road[0].targetDate === "2026-10-01", "target date is a DAY, not a timestamp");
 ok(road[0].milestones.length === 2, "milestone titles survive");
-ok(road[0].milestones[0] === "ledger-base migration", "...as plain strings");
+ok(road[0].milestones[0].title === "ledger-base migration", "...with the title");
+ok(
+  road[0].milestones[0].done === true && road[0].milestones[1].done === false,
+  "...and with `done`, which is the one column of a roadmap a reader cannot infer",
+);
 ok(
   road.some((r) => r.status === "completed"),
   "completed goals stay — a roadmap that hides what shipped reads as though nothing does",
+);
+
+// A `Source: <url>` entry is provenance that goal seeding leaves in the
+// milestone list. Published as a step it is untickable, and as prose it is an
+// unbreakable 90-character token in a 390px column — which is exactly how
+// /fleet/heidi came to clip 47% of every roadmap line behind an ancestor's
+// overflow:hidden. It is lifted out, not dropped: the reader still gets it.
+const seeded = publicRoadmap({
+  goals: [
+    {
+      title: "Build a consent-aware learner model",
+      status: "active",
+      progress: 0,
+      milestones: [
+        { title: "Capture what the learner did not understand", done: false },
+        {
+          title:
+            "Source: https://github.com/bitbaum/heidi/blob/e75493f917f88a19bd9c61882fbe6a8b9965a4b0/HEIDI.md",
+          done: false,
+        },
+      ],
+    },
+  ],
+});
+ok(seeded[0].milestones.length === 1, "a Source: pointer is not a milestone");
+ok(
+  seeded[0].source ===
+    "https://github.com/bitbaum/heidi/blob/e75493f917f88a19bd9c61882fbe6a8b9965a4b0/HEIDI.md",
+  "...it is published as the item's source instead",
+);
+ok(
+  publicRoadmap({ goals: [{ title: "g", milestones: [{ title: "Sourcing the recordings" }] }] })[0]
+    .milestones.length === 1,
+  "a real step that merely starts with the word Source is untouched",
 );
 
 // The negative: goal descriptions are internal and must never appear. This is
@@ -179,6 +217,32 @@ ok(Object.keys(noisy[0]).join(",") === "date,done", "an entry has exactly two ke
 ok(JSON.stringify(noisy).includes("Playwright") === false, "`tests` never reaches output");
 ok(JSON.stringify(noisy).includes("George") === false, "`todos` never reaches output");
 ok(JSON.stringify(noisy).includes("red") === false, "`health` never reaches output");
+
+// Run bookkeeping is not a changelog. These four lines are the exact shape
+// `hostedRunDevLogEntry` writes, and three of Heidi's six public entries were
+// this — two of them announcing a FAILED dispatch, stored truncated mid-word
+// by the bug #584 fixed. The run and its error keep their homes (the
+// orchestration run, the activity feed, the catalogue's last-run outcome);
+// what they lose is a slot in the public account of what the product does.
+const bookkeeping = publicChangelog({
+  devLog: [
+    {
+      date: "2026-09-10T20:05:44.767Z",
+      done: "Hosted dispatch (Hermes) FAILED — Repo: https://github.com/bitbaum/heidi (Next.js 16 App Route",
+    },
+    { date: "2026-09-10T19:12:27.041Z", done: "Hosted dispatch (Hermes) — opened PR #3" },
+    { date: "2026-09-10T18:00:00.000Z", done: "Hosted analysis — read the repo" },
+    { date: "2026-09-11T00:11:28.000Z", done: "Added app/sitemap.ts and app/robots.ts." },
+  ],
+});
+ok(bookkeeping.length === 1, "hosted dispatch/analysis lines are not changelog entries");
+ok(bookkeeping[0].done.startsWith("Added app/sitemap.ts"), "...and real entries are untouched");
+ok(
+  publicChangelog({
+    devLog: [{ date: "2026-09-11T00:00:00.000Z", done: "Hosted the docs on the box" }],
+  }).length === 1,
+  "the filter keys on the machine's exact prefix, never on prose that resembles it",
+);
 
 const many = publicChangelog({
   devLog: Array.from({ length: 50 }, (_, i) => ({

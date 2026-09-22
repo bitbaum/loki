@@ -125,17 +125,41 @@ export type MapIdentity = {
   vision: string | null;
 };
 
+/** One step of a roadmap item, and whether it is done. */
+export type MapMilestone = { title: string; done: boolean };
+
 export type MapRoadmapItem = {
   title: string;
   status: string | null;
   progress: number | null;
   targetDate: string | null;
-  milestones: string[];
+  milestones: MapMilestone[];
+  /**
+   * Where this item came from, when the goal records it — a spec or brief in
+   * the repo. Its own field because it arrives INSIDE the milestone list
+   * (`Source: https://…`) and it is not a step anyone can do.
+   */
+  source: string | null;
 };
 
 export type MapChangelogEntry = { date: string; done: string };
 
 const OWN = new Set(["bitbaum", "-", ""]);
+
+/**
+ * A project's PUBLIC profile path — the only Loki URL about one project that
+ * resolves for a reader with no account.
+ *
+ * One function because there was one hardcoded string too many. Every entry
+ * Loki has ever published to an OrangeCat wall linked back to `/projects`,
+ * which is the operator's private dashboard: a stranger following it lands on
+ * a sign-in form, and the owner lands on all 36 projects rather than the one
+ * the entry was about. The page it should have pointed at has existed the
+ * whole time.
+ */
+export function publicProfilePath(slug: string): string {
+  return `/fleet/${encodeURIComponent(slug)}`;
+}
 
 export function layerFor(row: RegisterRow): MapLayer {
   const pillar = PILLARS.find((p) => p.slug === row.slug);
@@ -192,13 +216,37 @@ export function publicIdentity(profile: MapProfile | undefined): MapIdentity {
 export function publicRoadmap(profile: MapProfile | undefined): MapRoadmapItem[] {
   return (profile?.goals ?? [])
     .filter((g) => prose(g.title))
-    .map((g) => ({
-      title: g.title.trim(),
-      status: prose(g.status),
-      progress: typeof g.progress === "number" ? g.progress : null,
-      targetDate: g.targetDate ? g.targetDate.slice(0, 10) : null,
-      milestones: (g.milestones ?? []).map((m) => prose(m?.title)).filter((t): t is string => !!t),
-    }));
+    .map((g) => {
+      const steps = (g.milestones ?? [])
+        .map((m) => ({ title: prose(m?.title), done: m?.done === true }))
+        .filter((m): m is MapMilestone => !!m.title);
+      return {
+        title: g.title.trim(),
+        status: prose(g.status),
+        progress: typeof g.progress === "number" ? g.progress : null,
+        targetDate: g.targetDate ? g.targetDate.slice(0, 10) : null,
+        // `done` rides along now. Dropping it published the one column of a
+        // roadmap nobody can infer: four steps with no state next to "0%
+        // recorded progress" says less than the row it came from.
+        milestones: steps.filter((m) => !sourcePointer(m.title)),
+        source: steps.map((m) => sourcePointer(m.title)).find((u) => u) ?? null,
+      };
+    });
+}
+
+/**
+ * The `Source: https://…` entry that goal seeding leaves in a milestone list.
+ *
+ * It is provenance, not a step — nobody can tick it — and rendering it as one
+ * put an unbreakable 90-character URL in the middle of public prose. Measured
+ * at 390px on /fleet/heidi: 737px of content in a 390px column, clipped by an
+ * ancestor's `overflow-x: hidden`, so 47% of every milestone line was
+ * unreachable and there was no scrollbar to say so. Lifted out here and shown
+ * as a link, the roadmap is steps again and the provenance is still published.
+ */
+function sourcePointer(title: string): string | null {
+  const m = /^source:\s*(https?:\/\/\S+)$/i.exec(title.trim());
+  return m ? m[1] : null;
 }
 
 /**
@@ -215,9 +263,35 @@ export function publicRoadmap(profile: MapProfile | undefined): MapRoadmapItem[]
 export function publicChangelog(profile: MapProfile | undefined, limit = 20): MapChangelogEntry[] {
   return (profile?.devLog ?? [])
     .filter((e) => e?.date && prose(e.done))
+    .filter((e) => !isRunBookkeeping(e.done ?? ""))
     .map((e) => ({ date: e.date.slice(0, 10), done: (e.done ?? "").trim() }))
     .sort((a, b) => (a.date < b.date ? 1 : -1))
     .slice(0, limit);
+}
+
+/**
+ * A dev-log line that records a RUN, not a change to the product.
+ *
+ * `hostedRunDevLogEntry` writes one line per hosted run, prefixed with the
+ * machine that did it — "Hosted dispatch (Hermes) FAILED — …". That line is
+ * load-bearing for the next agent (it is the dossier's latest handoff) and it
+ * is not a changelog entry: three of Heidi's six public entries were these,
+ * two of them announcing a failed dispatch, and the oldest ones were stored
+ * truncated mid-word by a bug fixed in #584 — so the public changelog of a
+ * working product read "Hosted dispatch (Hermes) FAILED — Repo:
+ * https://github.com/bitbaum/heidi (Next.js 16 App Route".
+ *
+ * Matched on the machine-written PREFIX only, never on prose. A filter that
+ * guessed at meaning would eat real entries; this one keys on the exact label
+ * its producer writes, so a change there fails the test beside it rather than
+ * silently widening what the public page hides.
+ *
+ * Nothing is concealed by this: the run and its error live on the
+ * orchestration run, in the activity feed, and in the last-run outcome the
+ * catalogue already shows per project.
+ */
+function isRunBookkeeping(done: string): boolean {
+  return /^hosted (dispatch|analysis)\b/i.test(done.trim());
 }
 
 export function buildFleetMap(

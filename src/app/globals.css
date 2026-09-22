@@ -1842,15 +1842,36 @@
   .ui-public-section-lede {
     @apply max-w-2xl text-base leading-relaxed text-text-secondary sm:text-xl sm:leading-normal;
     text-wrap: pretty;
+    overflow-wrap: anywhere;
   }
   .ui-public-step-num {
     @apply w-8 shrink-0 font-mono text-sm text-text-secondary;
   }
   .ui-public-prose-strong {
     @apply font-medium text-text-primary;
+    overflow-wrap: anywhere;
   }
+  /* `overflow-wrap: anywhere` on the public prose tokens, not on the one page
+     that needed it. Public copy carries URLs, commit hashes and file paths —
+     tokens no language breaks — and the marketing surface sets
+     `overflow-x: hidden`, so an unbreakable token does not scroll: it is
+     CLIPPED, silently, with no scrollbar and nothing for the reader to reach
+     it with. Measured on /fleet/heidi at 390px: 737px of content in a 390px
+     column, 47% of every roadmap line unreachable. `anywhere` rather than
+     `break-word` because only `anywhere` also shrinks the box's min-content
+     width, which is what stops a flex or grid child from overflowing its
+     track in the first place. */
   .ui-public-prose-muted {
     @apply text-text-secondary;
+    overflow-wrap: anywhere;
+  }
+  /* The tick box beside a roadmap step. Fixed size and `shrink-0` so the step
+     text wraps beside it rather than squeezing it into an ellipse. */
+  .ui-public-milestone-mark {
+    @apply mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border-default text-text-primary;
+  }
+  .ui-public-milestone-mark[data-done="true"] {
+    @apply border-border-strong bg-surface-raised;
   }
   .ui-public-band {
     @apply border-t border-border-default bg-surface-page;
