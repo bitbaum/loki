@@ -193,6 +193,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Org bootstrap moved here from the signIn callback — at this point
       // `user.id` is the DB UUID (handleLoginOrRegister has run), so org
       // queries that join on uuid columns are safe.
+      const account = (message as { account?: { provider?: string; providerAccountId?: string } })
+        .account;
+
+      // FIRST, and in its own try: store what this sign-in just handed us.
+      //
+      // The adapter writes tokens only on the FIRST link, so without this a
+      // re-authorization — the remedy every broken-link message points at —
+      // signs the person in and changes nothing. Measured on prod: five fresh
+      // OrangeCat token sets issued in one day, all discarded, while the
+      // stored link stayed dead (lib/auth/persist-oauth-tokens.ts).
+      //
+      // Alone, because the onboarding heal and the org bootstrap below share
+      // one try/catch that swallows what it catches. Behind them, a failure in
+      // work this does not depend on would silently cost the credential write
+      // — and the whole point of this call is that it is the only way a broken
+      // link can be repaired at all.
+      try {
+        if (message.user?.id) {
+          await persistOAuthTokens(account as OAuthTokenSet, message.user.id);
+        }
+      } catch (e) {
+        db.execute(
+          sql`
+          INSERT INTO debug_logs (source, level, message, meta)
+          VALUES ('auth', 'event:signIn-persist-tokens', ${(e as Error)?.message ?? String(e)},
+                  ${JSON.stringify({ userId: message.user?.id, provider: account?.provider })}::jsonb)
+        `,
+        ).catch(() => {});
+      }
+
       try {
         if (message.user?.id) {
           const existing = await getUserById(message.user.id);
@@ -205,18 +235,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // it so the rest of the app can resolve "this FC user = that OC actor"
           // without joining through the accounts table. Idempotent — same value
           // every sign-in.
-          const account = (
-            message as { account?: { provider?: string; providerAccountId?: string } }
-          ).account;
-
-          // Store what this sign-in just handed us. The adapter writes tokens
-          // only on the FIRST link, so without this a re-authorization — the
-          // remedy every broken-link message points at — signs the person in
-          // and changes nothing. Measured: five fresh OrangeCat token sets
-          // issued in one day, all discarded, while the stored link stayed
-          // dead. See lib/auth/persist-oauth-tokens.ts.
-          await persistOAuthTokens(account as OAuthTokenSet, message.user.id);
-
           if (
             account?.provider === "orangecat" &&
             account.providerAccountId &&
