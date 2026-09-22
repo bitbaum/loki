@@ -41,6 +41,7 @@ import { fetchRecentGithubCommits, type RepoCommit } from "@/lib/github-commits"
 import { computeProjectHealth, describeProjectHealth } from "@/lib/project-health";
 import { getOrangeCatLinksForProject } from "./orangecat-links";
 import { PROJECT_ATTR, PROJECT_FIELDS } from "@/config/project-attrs";
+import { operatorAddedContextLines } from "@/lib/project-custom-context";
 import type { OrangeCatEntityLink } from "@/db/schema";
 import {
   fetchOrangeCatFundingSummary,
@@ -226,6 +227,10 @@ export function renderProjectDossierForAgent(dossier: ProjectDossier): string {
     lines.push("## Profile");
     for (const [label, value] of filledProfile) lines.push(`- ${label}: ${value}`);
   }
+
+  // Fields the operator added themselves. See lib/project-custom-context.ts
+  // for why only unregistered keys qualify.
+  lines.push(...operatorAddedContextLines(attrs));
 
   if (state) {
     lines.push("## Runtime");
