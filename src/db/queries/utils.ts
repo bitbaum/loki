@@ -42,6 +42,56 @@ export async function getOrgPeerIds(userId: string): Promise<string[]> {
   return rows.map((r) => r.userId);
 }
 
+/**
+ * When an attribute was last written, by what, and when it stops being true.
+ *
+ * The row already carries this — `select()` pulls every column — and the
+ * grouping loop below used to drop all of it on the floor, keeping only
+ * key → value. So a flag like `security_vulnerability` reached the UI as a
+ * bare sentence with no date and no author, which is why a note typed months
+ * ago could pin a project to the top of the list forever and nobody could tell
+ * how old it was. Nothing extra is queried to return it.
+ */
+export type AttributeMeta = {
+  value: string;
+  updatedAt: string;
+  source: string | null;
+  validUntil: string | null;
+};
+
+/** key → value, from an already-fetched meta map. No second query. */
+export function attrValuesFromMeta(
+  meta: Record<string, AttributeMeta> | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, m] of Object.entries(meta ?? {})) out[key] = m.value;
+  return out;
+}
+
+export async function fetchAttributesWithMetaByEntityIds(
+  entityIds: string[],
+): Promise<Map<string, Record<string, AttributeMeta>>> {
+  if (entityIds.length === 0) return new Map();
+
+  const allAttrs = await db
+    .select()
+    .from(attributes)
+    .where(inArray(attributes.entityId, entityIds));
+
+  const grouped = new Map<string, Record<string, AttributeMeta>>();
+  for (const attr of allAttrs) {
+    const existing = grouped.get(attr.entityId) ?? {};
+    existing[attr.key] = {
+      value: attr.value,
+      updatedAt: (attr.updatedAt ?? attr.createdAt).toISOString(),
+      source: attr.source ?? null,
+      validUntil: attr.validUntil ? attr.validUntil.toISOString() : null,
+    };
+    grouped.set(attr.entityId, existing);
+  }
+  return grouped;
+}
+
 export async function fetchAttributesByEntityIds(
   entityIds: string[],
 ): Promise<Map<string, Record<string, string>>> {

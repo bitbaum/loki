@@ -1,9 +1,11 @@
 import { ShieldAlert, AlertTriangle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { timeAgo } from "@/lib/dates";
+import { signalHasExpired, type AttrProvenance } from "@/lib/project-signals";
 import { HEALTH_SIGNAL_BASE } from "./project-detail-types";
 import type { HealthSignalBase, HealthSignalKind } from "./project-detail-types";
 
-export type { HealthSignalKind };
+export type { HealthSignalKind, AttrProvenance };
 
 export type HealthSignalConfig = HealthSignalBase & { icon: LucideIcon };
 
@@ -23,21 +25,37 @@ export type HealthSignal = {
   kind: HealthSignalKind;
   label: string;
   value: string;
+  /** ISO of the last write, when the caller loaded provenance. */
+  updatedAt?: string;
+  /** What wrote it — an agent, the UI, an import. */
+  source?: string | null;
 };
 
-export function getHealthSignals(attrs: Record<string, string>): HealthSignal[] {
+export function getHealthSignals(
+  attrs: Record<string, string>,
+  meta?: AttrProvenance,
+): HealthSignal[] {
   const signals: HealthSignal[] = [];
   for (const cfg of HEALTH_SIGNAL_CONFIG) {
     if (!attrs[cfg.key]) continue;
+    if (signalHasExpired(meta, cfg.key)) continue;
     if (cfg.kind === "broken") {
       const count = attrs[cfg.key].split(",").length;
       signals.push({
         kind: cfg.kind,
         label: `${count} broken feature${count > 1 ? "s" : ""}`,
         value: attrs[cfg.key],
+        updatedAt: meta?.[cfg.key]?.updatedAt,
+        source: meta?.[cfg.key]?.source ?? null,
       });
     } else {
-      signals.push({ kind: cfg.kind, label: cfg.label, value: attrs[cfg.key] });
+      signals.push({
+        kind: cfg.kind,
+        label: cfg.label,
+        value: attrs[cfg.key],
+        updatedAt: meta?.[cfg.key]?.updatedAt,
+        source: meta?.[cfg.key]?.source ?? null,
+      });
     }
   }
   return signals;
@@ -93,10 +111,27 @@ export function StatusBadge({ value }: { value: string }) {
 export function HealthBadge({ signal }: { signal: HealthSignal }) {
   const cfg = HEALTH_SIGNAL_CONFIG.find((c) => c.kind === signal.kind)!;
   const Icon = cfg.icon;
+  /* An age, because "Security risk" alone is undated and therefore unweighable:
+     a note written this morning and one typed in June looked identical, and
+     both outranked every other project equally. The row already had this in
+     the database and was discarding it.
+
+     Terse on the badge (`· 23d`) and spelled out in the tooltip with the exact
+     date and what wrote it — the badge is scanned, the tooltip is read. */
+  const age = signal.updatedAt ? timeAgo(new Date(signal.updatedAt).getTime()) : null;
+  const written = signal.updatedAt
+    ? `Noted ${age}${signal.source ? ` by ${signal.source}` : ""} · ${new Date(
+        signal.updatedAt,
+      ).toLocaleDateString()}`
+    : null;
   return (
-    <span className={`ui-projects-badge gap-1 ${cfg.badgeCls}`}>
+    <span
+      className={`ui-projects-badge gap-1 ${cfg.badgeCls}`}
+      title={written ? `${signal.value}\n\n${written}` : signal.value}
+    >
       <Icon className="h-3 w-3 shrink-0" />
       {signal.label}
+      {age && <span className="opacity-70">· {age}</span>}
     </span>
   );
 }

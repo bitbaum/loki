@@ -16,7 +16,12 @@ import {
 } from "@/db/schema";
 import { eq, and, asc, desc, inArray, ilike, isNull, or, isNotNull, max, sql } from "drizzle-orm";
 import { excludeSmokeDispatchesSql } from "./smoke-filter";
-import { fetchAttributesByEntityIds, getOrgPeerIds } from "./utils";
+import {
+  attrValuesFromMeta,
+  fetchAttributesByEntityIds,
+  fetchAttributesWithMetaByEntityIds,
+  getOrgPeerIds,
+} from "./utils";
 import { findProjectEntityByName } from "./project-merge";
 import { z } from "zod";
 import { isPrivateZoneLocked } from "@/lib/private-zone";
@@ -311,16 +316,23 @@ export async function getProjects(userId: string) {
     .orderBy(entities.name);
 
   const ids = projects.map((p) => p.id);
-  const [attrsByEntity, runtimeByEntity] = await Promise.all([
-    fetchAttributesByEntityIds(ids),
+  // The META variant, not the flat one: same single query, but it keeps the
+  // `updatedAt` / `source` / `validUntil` the flat version discards. The list
+  // needs them to say how old a flag is and where it came from — a bare
+  // "Security risk" with no date is what let a note typed months ago pin a
+  // project to the top of the page indefinitely.
+  const [attrMetaByEntity, runtimeByEntity] = await Promise.all([
+    fetchAttributesWithMetaByEntityIds(ids),
     fetchRuntimeMetaByEntityIds(ids),
   ]);
 
   return projects.map((p) => {
     const runtime = runtimeByEntity.get(p.id);
+    const attrMeta = attrMetaByEntity.get(p.id) ?? {};
     return {
       ...p,
-      attrs: attrsByEntity.get(p.id) ?? {},
+      attrs: attrValuesFromMeta(attrMeta),
+      attrMeta,
       dirPath: runtime?.dirPath ?? null,
       agentPref: runtime?.agentPref ?? null,
       builderPref: runtime?.builderPref ?? null,
@@ -379,15 +391,20 @@ export async function getOrgEntityProjects(
     .where(and(or(...access), eq(entities.type, ENTITY_TYPE.PROJECT)))
     .orderBy(entities.name);
   const ids = projects.map((p) => p.id);
-  const [attrsByEntity, runtimeByEntity] = await Promise.all([
-    fetchAttributesByEntityIds(ids),
+  // Meta here too. A team project's flags are no less in need of a date than
+  // your own — and a row that silently lacked provenance would read as "this
+  // flag has no age" rather than "we did not fetch it".
+  const [attrMetaByEntity, runtimeByEntity] = await Promise.all([
+    fetchAttributesWithMetaByEntityIds(ids),
     fetchRuntimeMetaByEntityIds(ids),
   ]);
   return projects.map((p) => {
     const runtime = runtimeByEntity.get(p.id);
+    const attrMeta = attrMetaByEntity.get(p.id) ?? {};
     return {
       ...p,
-      attrs: attrsByEntity.get(p.id) ?? {},
+      attrs: attrValuesFromMeta(attrMeta),
+      attrMeta,
       dirPath: runtime?.dirPath ?? null,
       agentPref: runtime?.agentPref ?? null,
       builderPref: runtime?.builderPref ?? null,

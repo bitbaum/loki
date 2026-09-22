@@ -37,7 +37,7 @@ export function ProjectRow({
   const statusLabel = shortProjectStatus(status);
   const nextStep = answer(attrs["next_step"]);
   const description = cleanDescription(project.description) ?? answer(attrs["description"]);
-  const signals = getHealthSignals(attrs);
+  const signals = getHealthSignals(attrs, project.attrMeta);
   const siteDown = Boolean(project.liveUrl) && project.siteOk === false;
   const flagged = signals.length > 0 || siteDown;
   const line = nextStep ?? description;
