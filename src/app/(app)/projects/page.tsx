@@ -63,7 +63,7 @@ export default async function ProjectsPage({
         // projects that already knew their next step ABOVE the ones that were
         // stuck. A page that names its sort can be trusted or argued with; one
         // that hides it just feels arbitrary.
-        subtitle="Every project you run — flagged first, then most recently active."
+        subtitle="Every project you run — flagged first, then by most recent agent run."
         maxWidth="max-w-5xl"
         right={<NewProjectButton autoOpen={autoOpenCreate} initialName={prefillName} />}
       >

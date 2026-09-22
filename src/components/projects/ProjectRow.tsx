@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ChevronRight, ArrowRight } from "lucide-react";
 import { StatusBadge, HealthBadge, getHealthSignals } from "./project-badges";
-import { shortProjectStatus } from "@/lib/projects-display";
 import type { ProjectGridRow } from "./project-grid-row";
 import { cn } from "@/lib/utils";
 import { deriveProjectLoopReadiness } from "@/lib/project-loop-readiness";
@@ -34,7 +33,12 @@ export function ProjectRow({
 }) {
   const { attrs } = project;
   const status = attrs["status"];
-  const statusLabel = shortProjectStatus(status);
+  // The RAW value, not shortProjectStatus(). That helper returned null for
+  // anything outside a 13-string list, and the caller below rendered nothing —
+  // so a project whose stage read "Early Stage" or "MVP" was indistinguishable
+  // from one that had never set a stage at all. StatusBadge resolves the
+  // vocabulary itself now and marks what it cannot resolve.
+  const statusLabel = status?.trim() ? status : null;
   const nextStep = answer(attrs["next_step"]);
   const description = cleanDescription(project.description) ?? answer(attrs["description"]);
   const signals = getHealthSignals(attrs, project.attrMeta);
@@ -50,9 +54,17 @@ export function ProjectRow({
     attrs,
   });
 
+  // "last run", not "active".
+  //
+  // This is the newest AGENT DISPATCH for the project (prompt_history), and
+  // calling it "active" told the operator he had worked on something he had
+  // not touched in months — printcraft read "active 10h ago" because an
+  // autopilot run fired at 06:00 and failed. Worse, the list is ORDERED by
+  // this, under a subtitle promising "most recently active": the page ranked
+  // his projects by when a robot last ran and used a word that means he did.
   const recency = lastDispatchAt
-    ? `active ${timeAgo(new Date(lastDispatchAt).getTime())}`
-    : "no runs yet";
+    ? `last run ${timeAgo(new Date(lastDispatchAt).getTime())}`
+    : "never run";
 
   return (
     <div
