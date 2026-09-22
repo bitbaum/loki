@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { checkEnv, envHealthy } from "@/lib/env";
 import { getAIHealth } from "@/lib/ai/health";
+import { APP_SLUG } from "@/config/brand";
 
 /**
  * The commit this build was made from, stamped into the artifact by
@@ -48,6 +49,14 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       ok: healthy,
+      // WHICH app answered. Every app in the fleet serves /api/health from the
+      // same template, so "it responded, and the payload has a commit field"
+      // identifies a shape, not a product — and the pre-push smoke used
+      // exactly that test. On 2026-09-22 it ran Loki's 48-route auth smoke
+      // against a Heidi dev server that had claimed :3000 first, reported 23
+      // routes returning 404, and blocked a push on a verdict about somebody
+      // else's app. A name is cheap and cannot be mistaken for another one.
+      app: APP_SLUG,
       runtime: isRuntimeAvailable(),
       version: process.env.npm_package_version ?? null,
       // The one field that answers "is prod running main?" without an ssh session.

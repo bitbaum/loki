@@ -67,8 +67,14 @@ function pageRoutes(dir: string, out: string[] = []): string[] {
 /** The three lists in the audit, read from its source so they cannot drift. */
 function auditLists(): { measured: Set<string>; excluded: Set<string> } {
   const src = readFileSync(AUDIT, "utf8");
+  // Anchored on the array's own closing `\n];`, not on the first `]` in it.
+  // The lazy `[\s\S]*?\]` form ended the array at the first bracket of any
+  // sort — so a comment INSIDE the list that mentioned a route pattern like
+  // /fleet/[slug] silently truncated it, and every entry below that comment
+  // read as unmeasured. The parse check then still passed, because what it
+  // counts is "more than twenty", which a truncated list can be.
   const arrayOf = (name: string) => {
-    const m = new RegExp(`const ${name}\\s*=\\s*\\[([\\s\\S]*?)\\]`).exec(src);
+    const m = new RegExp(`const ${name}\\s*=\\s*\\[([\\s\\S]*?)\\n\\];`).exec(src);
     return m ? [...m[1].matchAll(/"(\/[^"]*)"/g)].map((x) => x[1]) : [];
   };
   const excludedBlock = /export const NOT_MEASURED\s*=\s*\{([\s\S]*?)\n\};/.exec(src);
@@ -94,7 +100,6 @@ check("the audit's own lists parse", () => {
 });
 
 check("every static page route is measured or excluded with a reason", () => {
-  // Dynamic segments need a real id to render and are out of scope.
   const statics = [...new Set(routes.filter((r) => !r.includes("[")))].sort();
   const orphans = statics.filter((r) => !measured.has(r) && !excluded.has(r));
   assert(
@@ -104,10 +109,49 @@ check("every static page route is measured or excluded with a reason", () => {
   );
 });
 
+/**
+ * A dynamic route is covered when one CONCRETE path in the audit lists matches
+ * its shape — `/fleet/heidi` covers `/fleet/[slug]`.
+ *
+ * This is the hole the check above was written with, and it was the largest
+ * one left: "dynamic segments need a real id and are out of scope" excused
+ * thirteen routes, one of which (/fleet/[slug]) renders the public profile of
+ * every project in the fleet and is the link target on every OrangeCat wall
+ * entry. It had never been measured at any width, and was clipping 47% of
+ * every roadmap line at 390px.
+ *
+ * Needing a parameter is a real obstacle for most of them — a token, a row id
+ * — but it is an obstacle to MEASURING, not a reason the page is exempt. So
+ * each one now takes the same decision as a static page: a sample that proves
+ * it, or a line in NOT_MEASURED saying what it would take.
+ */
+function patternOf(route: string): RegExp {
+  const body = route
+    .split("/")
+    .filter(Boolean)
+    .map((seg) => (seg.startsWith("[") ? "[^/]+" : seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+    .join("/");
+  return new RegExp(`^/${body}$`);
+}
+
+check("every dynamic page route is measured through a sample, or excluded", () => {
+  const dynamics = [...new Set(routes.filter((r) => r.includes("[")))].sort();
+  const samples = [...measured];
+  const orphans = dynamics.filter(
+    (r) => !excluded.has(r) && !samples.some((s) => patternOf(r).test(s)),
+  );
+  assert(
+    orphans.length === 0,
+    `dynamic page routes with no sample and no exclusion:\n      ${orphans.join("\n      ")}\n` +
+      `      Add one concrete path per route to PAGES / PUBLIC_PAGES (e.g. "/fleet/heidi"),\n` +
+      `      or add the route pattern to NOT_MEASURED with what it would take.`,
+  );
+});
+
 check("nothing is excluded that no longer exists", () => {
   // An exclusion for a deleted page is a stale reason nobody will re-examine.
-  const statics = new Set(routes.filter((r) => !r.includes("[")));
-  const ghosts = [...excluded].filter((r) => !statics.has(r));
+  const all = new Set(routes);
+  const ghosts = [...excluded].filter((r) => !all.has(r));
   assert(ghosts.length === 0, `excluded routes with no page: ${ghosts.join(", ")}`);
 });
 

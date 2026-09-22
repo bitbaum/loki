@@ -554,6 +554,13 @@
       "when": 1767225678000,
       "tag": "0078_retire_beacon_popup",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1767225679000,
+      "tag": "0079_project_orangecat_autopost",
+      "breakpoints": true
     }
   ]
 }

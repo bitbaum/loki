@@ -20,12 +20,9 @@ import { db } from "@/db";
 import { userProjects, type DevLogEntry } from "@/db/schema";
 import { getOrangeCatLink } from "./orangecat-identity";
 import { OC_BASE } from "./orangecat";
-import {
-  PROMOTE_POLICY,
-  LOKI_PUBLIC_ORIGIN,
-  type PromotableMoment,
-} from "@/config/orangecat-publish";
+import { PROMOTE_POLICY, type PromotableMoment } from "@/config/orangecat-publish";
 import { linkOrangeCatEntity, unlinkOrangeCatEntity } from "@/db/queries/orangecat-links";
+import { mayPostActivity, wallLinkFor } from "./orangecat-wall-link";
 import { ECOSYSTEM } from "@/config/ecosystem";
 import { cleanDescription } from "@/lib/project-display";
 import { buildRunMoment, type RunPromoteInput } from "./orangecat-run-moment";
@@ -48,7 +45,16 @@ export interface PublishResult {
 export async function publishProjectToOrangeCat(
   userId: string,
   userProjectId: string,
+  /**
+   * The activity-feed decision, taken at the same moment as the page. Passed
+   * explicitly so publishing RECORDS an answer rather than leaving `null`,
+   * which would mean the wall stays silent until someone finds a switch they
+   * do not know exists — the failure mode the listing prompt was built to
+   * avoid one column over.
+   */
+  opts: { autopost?: boolean } = {},
 ): Promise<PublishResult> {
+  const autopost = opts.autopost ?? true;
   // The projects UI addresses projects by their entity id; the back-link
   // lives on user_projects — accept either.
   const project = await db.query.userProjects.findFirst({
@@ -94,7 +100,7 @@ export async function publishProjectToOrangeCat(
 
     await db
       .update(userProjects)
-      .set({ orangecatProjectId: ocProjectId, updatedAt: new Date() })
+      .set({ orangecatProjectId: ocProjectId, orangecatAutopost: autopost, updatedAt: new Date() })
       .where(eq(userProjects.id, project.id));
 
     await linkOrangeCatEntity({
@@ -193,7 +199,10 @@ export async function unpublishProjectFromOrangeCat(
 
   await db
     .update(userProjects)
-    .set({ orangecatProjectId: null, updatedAt: new Date() })
+    // The feed decision goes with the page it was about. Keeping a stale
+    // `true` would mean re-publishing later silently resumed posting on the
+    // strength of consent given for a page that was taken down since.
+    .set({ orangecatProjectId: null, orangecatAutopost: null, updatedAt: new Date() })
     .where(eq(userProjects.id, project.id));
   await unlinkOrangeCatEntity({ userId, projectId: project.id, entityType: "project" });
   return { ok: true };
@@ -227,15 +236,36 @@ export async function promoteMomentToOrangeCat(
   if (!policy?.enabled) return "skipped";
 
   try {
-    let subjectId = input.subjectId;
-    if (!subjectId) {
-      const project = await db.query.userProjects.findFirst({
-        where: and(eq(userProjects.id, userProjectId), eq(userProjects.userId, userId)),
-        columns: { orangecatProjectId: true },
-      });
-      subjectId = project?.orangecatProjectId ?? undefined;
-    }
+    // Read the row even when the caller supplied a subject id: the wall entry
+    // needs somewhere to point BACK to, and that is a property of the project,
+    // not of the moment.
+    const project = await db.query.userProjects.findFirst({
+      where: and(eq(userProjects.id, userProjectId), eq(userProjects.userId, userId)),
+      columns: {
+        orangecatProjectId: true,
+        slug: true,
+        gitUrl: true,
+        name: true,
+        listedPublicly: true,
+        orangecatAutopost: true,
+      },
+    });
+    const subjectId = input.subjectId ?? project?.orangecatProjectId ?? undefined;
     if (!subjectId) return "skipped"; // not published to OC — nothing to promote onto
+
+    // Consent to a PAGE is not consent to a FEED. Publishing used to enrol the
+    // project in a live stream of everything its agents did, and the only way
+    // to stop it was to take the public page down. Explicit `true` or nothing
+    // is posted: `null` means nobody has answered, and an unanswered question
+    // is not a yes.
+    //
+    // No exceptions, the publish announcement included. An exemption for "the
+    // page went up" is defensible on its own terms and still wrong: it would
+    // make the rule "Loki posts nothing, except the one it decided you meant",
+    // and the person switching this off is switching off exactly the class of
+    // surprise that carve-out belongs to. Publishing with the feed on is one
+    // press and records both answers, so nothing is lost by the strict rule.
+    if (!mayPostActivity(project)) return "skipped";
 
     const link = await getOrangeCatLink(userId);
     if (!link) return "skipped";
@@ -254,7 +284,7 @@ export async function promoteMomentToOrangeCat(
         subject_id: subjectId,
         title: input.title.slice(0, 200),
         description: input.description?.slice(0, 2000),
-        url: `${LOKI_PUBLIC_ORIGIN}/projects`,
+        url: wallLinkFor(project),
         content: input.content,
       }),
       signal: AbortSignal.timeout(15_000),

@@ -187,6 +187,23 @@ const PUBLIC_PAGES = [
   "/setup",
   "/docs/quickstart",
   "/docs/feedback-widget",
+  /**
+   * DYNAMIC routes, measured through one real instance each.
+   *
+   * These were not "missed" — they were excluded by construction:
+   * audit-covers-every-page skipped every route containing "[", so a template
+   * was out of scope however many pages it served. /fleet/[slug] serves the
+   * public build profile of all 36 projects and every "via Loki" link on an
+   * OrangeCat wall should land on it, and it had never been driven through a
+   * viewport. It was clipping 47% of every roadmap line at 390px.
+   *
+   * A sample that stops resolving now FAILS (see the 404 guard in the loop)
+   * rather than quietly measuring a not-found page, because a rotted sample
+   * looks exactly like a covered route.
+   */
+  "/fleet/heidi",
+  "/thoughts/shipped-is-not-witnessed",
+  "/u/cato",
 ];
 
 /**
@@ -215,6 +232,19 @@ export const NOT_MEASURED = {
   "/verify-email": "needs a live verification token",
   "/forgot-password": "needs a live reset token",
   "/x-login/complete": "OAuth callback landing, not a page anyone navigates to",
+  // Dynamic routes whose parameter cannot be known from the repo. Each names
+  // what it would take, so "needs an id" is a decision on record rather than
+  // the silent exclusion every "[" used to get.
+  "/projects/[id]": "needs a project id from the audited environment's database",
+  "/atlas/[projectId]": "needs a project id from the audited environment's database",
+  "/people/[id]": "needs a person id from the private zone",
+  "/robots/[id]": "needs an agent id from the audited environment",
+  "/a/[token]": "needs a live action token from a dispatched approval",
+  "/invite/[token]": "needs a live invitation token",
+  "/reset-password/[token]": "needs a live password-reset token",
+  "/verify-email/[token]": "needs a live email-verification token",
+  "/share/project/[token]": "needs a share token minted for one project",
+  "/share/task/[token]": "needs a share token minted for one task",
 };
 
 const isPublicPage = (p) => PUBLIC_PAGES.includes(p);
@@ -372,6 +402,61 @@ function measurePage(minTouch) {
       h: Math.round(hitBox(el).height),
     }))
     .slice(0, 12);
+
+  // Text WIDER than its own box, where nothing on the page can scroll to the
+  // rest of it.
+  //
+  // This is the failure that shipped on the /fleet/[slug] profile: unbreakable
+  // GitHub URLs inside roadmap prose made the content 737px wide in a 390px
+  // column, and `.ui-public-surface` sets `overflow-x: hidden` — so the page
+  // reported no overflow (the clip absorbed it), no ellipsis appeared, no
+  // scrollbar appeared, and 47% of every line was simply gone. Every existing
+  // detector here was blind to it by construction: the overflow check reads
+  // `documentElement.scrollWidth`, which the clip holds at the viewport width;
+  // the clipped-text check below requires the element ITSELF to clip (here the
+  // clipper is an ancestor) and measures HEIGHT; clipped-prose requires a
+  // declared ellipsis.
+  //
+  // So the question asked here is the reader's: can I get to the rest of this
+  // sentence? An ellipsis, a line-clamp and a scrollable strip all answer yes,
+  // and are excluded; an ancestor with `overflow-x: hidden` answers no. Only
+  // evaluated when the PAGE itself does not scroll sideways — when it does,
+  // the overflow check owns the finding and states it better.
+  const SCROLLS_X = new Set(["auto", "scroll", "overlay"]);
+  const pageScrollsX = de.scrollWidth > vw + 1;
+  const unreachable = pageScrollsX
+    ? []
+    : [...document.querySelectorAll("body *")]
+        .filter((el) => {
+          if (el.children.length > 0) return false;
+          if (/^(input|textarea|select|option|svg|path)$/i.test(el.tagName)) return false;
+          const t = (el.textContent || "").trim();
+          if (t.length < 12) return false;
+          const r = el.getBoundingClientRect();
+          // sr-only text lives in a 1px box with overflow hidden — visually
+          // hidden on purpose, and it would otherwise fill this report.
+          if (r.width <= 4 || r.height <= 4) return false;
+          const cs = getComputedStyle(el);
+          if (cs.visibility === "hidden" || cs.display === "none") return false;
+          if (cs.textOverflow === "ellipsis") return false;
+          if (cs.webkitLineClamp && cs.webkitLineClamp !== "none") return false;
+          if (el.scrollWidth <= el.clientWidth + 2) return false;
+          if (SCROLLS_X.has(cs.overflowX)) return false;
+          for (let a = el.parentElement; a; a = a.parentElement) {
+            if (SCROLLS_X.has(getComputedStyle(a).overflowX)) return false;
+          }
+          return true;
+        })
+        .map((el) => ({
+          tag: el.tagName.toLowerCase(),
+          text: (el.textContent || "").trim().slice(0, 40),
+          cls:
+            ((el.className || "").toString().match(/ui-[\w-]+/g) || []).join(".") ||
+            (el.className || "").toString().slice(0, 40),
+          hidden: el.scrollWidth - el.clientWidth,
+          shownPct: Math.round((el.clientWidth / el.scrollWidth) * 100),
+        }))
+        .slice(0, 8);
 
   // Text clipped by a fixed-height box: content the operator simply cannot
   // read, and invisible to an overflow check because the container itself fits.
@@ -539,6 +624,7 @@ function measurePage(minTouch) {
     offenders,
     small,
     clipped,
+    unreachable,
     clippedProse,
     deadClamps,
     buried,
@@ -636,7 +722,22 @@ async function main() {
           badRequests.push(`${s} ${url.replace(BASE, "").slice(0, 70)}`);
       });
       try {
-        await page.goto(`${BASE}${route}`, { waitUntil: "networkidle", timeout: 45_000 });
+        const nav = await page.goto(`${BASE}${route}`, {
+          waitUntil: "networkidle",
+          timeout: 45_000,
+        });
+        // A listed route that 404s is a hole in the list, not a measurement.
+        // It matters most for the DYNAMIC samples — /fleet/heidi, /u/cato, one
+        // essay slug — which stand in for a whole template: rename the essay
+        // or unlist the project and this audit would go on measuring a
+        // not-found page and reporting it green, which is indistinguishable
+        // from coverage. Fails loudly instead, so the sample gets replaced.
+        const status = nav?.status() ?? 0;
+        if (status === 404) {
+          failures.push(`${route} @${vp.name}: 404 — the audit list names a page that is gone`);
+          console.log(`  ✗ ${route} @${vp.name}px — 404, list is stale`);
+          continue;
+        }
         // AUDIT_EXTRA_CSS: measure a stylesheet change against PRODUCTION
         // markup, before shipping it. A design-system rule is only correct in
         // contact with real pages in real states, and the alternatives are both
@@ -687,6 +788,20 @@ async function main() {
                 .join("\n"),
           );
           console.log(`  ✗ ${route} @${vp.name}px — overflow ${r.scrollWidth} > ${r.vw}`);
+        } else if (r.unreachable.length > 0) {
+          failures.push(
+            `${route} @${vp.name}: text clipped with no way to reach the rest — ` +
+              `the page does not scroll sideways and an ancestor hides the overflow\n` +
+              r.unreachable
+                .map(
+                  (u) =>
+                    `      ${u.tag}.${u.cls} "${u.text}…" — ${u.shownPct}% shown, -${u.hidden}px`,
+                )
+                .join("\n"),
+          );
+          console.log(
+            `  ✗ ${route} @${vp.name}px — ${r.unreachable.length} clipped, unreachable text run(s): ${r.unreachable[0].shownPct}% of "${r.unreachable[0].text}…" shown`,
+          );
         } else if (httpFailures.length > 0) {
           failures.push(
             `${route} @${vp.name}: server error(s) — ${httpFailures.slice(0, 3).join("; ")}`,

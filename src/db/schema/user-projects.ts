@@ -113,6 +113,27 @@ export const userProjects = pgTable(
     // Cross-product bridge Part C: the published OrangeCat project this project
     // projects onto (opt-in "Publish to OrangeCat"). Null = not published.
     orangecatProjectId: uuid("orangecat_project_id"),
+    /**
+     * May Loki post this project's build activity onto its OrangeCat wall —
+     * every closed run and changelog entry, as it happens?
+     *
+     * A SECOND decision, not a consequence of the first. Publishing created a
+     * public page; it also silently enrolled the project in a live feed of
+     * everything its agents did, with no switch anywhere to stop it. Those are
+     * different asks: a page is a description, a feed is surveillance you
+     * consented to. Someone may want the funding page and not the diary, and
+     * until now the only way to stop the diary was to take the page down.
+     *
+     * NULL is the third state, as with `auto_ship` above: nobody has chosen,
+     * so the surface asks instead of showing a switch that looks like a
+     * decision. Promotion requires an explicit `true` — an unanswered question
+     * is not consent (see promoteMomentToOrangeCat).
+     *
+     * Worth choosing ON, and the reason is the funder's, not ours: a page that
+     * shows what was actually built, when, is evidence. That is the half of a
+     * transparency claim a project cannot fake by writing better copy.
+     */
+    orangecatAutopost: boolean("orangecat_autopost"),
     // Canonical identity. The fleet register (src/lib/register) joins the four
     // surfaces — this table, apps.conf, OrangeCat, Solon — and "which project is
     // this" was answered by NAME, which has drifted into several spellings

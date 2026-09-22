@@ -18,6 +18,7 @@ import { getSessionUserId } from "@/lib/session";
 import { getPubliclyListedProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
+import { publicProfilePath } from "@/lib/register/map";
 import { buildFleetRegister, commerce, summarize, type RegisterRow } from "@/lib/register/build";
 import { solonClaims } from "@/lib/register/solon";
 import { orangecatProjectsThatResolve } from "@/lib/register/orangecat";
@@ -427,7 +428,7 @@ function Row({
   orangecatLive: ReadonlySet<string>;
 }) {
   const projectHref = r.loki && canOpenProjects ? `/projects/${r.loki.id}` : null;
-  const publicProfileHref = `/fleet/${encodeURIComponent(r.slug)}`;
+  const publicProfileHref = publicProfilePath(r.slug);
   return (
     // id = slug, so any single project is linkable: /fleet#causius.
     <li className="ui-public-fleet-row" id={r.slug}>

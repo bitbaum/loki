@@ -83,6 +83,10 @@ export const ALERT_TYPES = {
     label: "Feedback work stalled or needs Check live",
     producer: "src/lib/feedback/notify-needs-you.ts",
   },
+  orangecat_link_broken: {
+    label: "OrangeCat rejected the account's token — publishing is paused",
+    producer: "src/lib/integrations/orangecat-identity.ts",
+  },
 } as const satisfies Record<string, AlertTypeSpec>;
 
 export type AlertType = keyof typeof ALERT_TYPES;

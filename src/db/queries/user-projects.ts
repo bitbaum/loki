@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNotNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { promoteDevLogEntry } from "@/lib/integrations/orangecat-publish";
 import {
@@ -516,6 +516,34 @@ export async function setProjectAutoShip(
     .update(userProjects)
     .set({ autoShip })
     .where(and(eq(userProjects.userId, userId), eq(userProjects.entityProjectId, entityProjectId)))
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * Turn the OrangeCat activity feed on or off for one project, addressed by
+ * EITHER of its ids — the publish control holds whichever the page gave it,
+ * and the OrangeCat routes beside this one already accept both.
+ *
+ * Reversible on purpose and in both directions. A feed that can only be
+ * started is not a choice, and the previous shape of this — implied by
+ * publishing, stoppable only by unpublishing — made "stop telling everyone
+ * what my agents are doing" cost the project its public funding page.
+ */
+export async function setProjectOrangeCatAutopost(
+  userId: string,
+  projectId: string,
+  autopost: boolean,
+): Promise<UserProject | null> {
+  const [row] = await db
+    .update(userProjects)
+    .set({ orangecatAutopost: autopost, updatedAt: new Date() })
+    .where(
+      and(
+        eq(userProjects.userId, userId),
+        or(eq(userProjects.id, projectId), eq(userProjects.entityProjectId, projectId)),
+      ),
+    )
     .returning();
   return row ?? null;
 }
