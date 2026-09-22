@@ -38,7 +38,7 @@ export function ScrollAffordance({
           aria-hidden
           className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center pr-1 text-text-tertiary sm:hidden"
         >
-          <ChevronRight className="h-4 w-4 drop-shadow-[0_0_4px_var(--surface-page)]" />
+          <ChevronRight className="ui-scroll-affordance-glyph h-4 w-4" />
         </span>
       )}
     </div>
