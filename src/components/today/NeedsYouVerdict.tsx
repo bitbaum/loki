@@ -5,10 +5,22 @@ import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import { useControlInbox } from "@/hooks/use-control-inbox";
 
 export type FlaggedProject = {
+  /** React key only. NOT assumed to be linkable — see `href`. */
   id: string;
   name: string;
   /** What the flag says, already truncated by the server. */
   reason: string;
+  /**
+   * Where to send the reader, or null when there is nowhere to send them.
+   *
+   * /projects/[id] resolves by ENTITY id, and a catalog project need not have
+   * an entity row yet. Guessing a URL for those would put a 404 behind a row
+   * that says something needs you — so a project with no destination is still
+   * NAMED (it genuinely needs you) and simply is not a link. Dropping it
+   * instead would make the front door quietly incomplete, which is the bug
+   * this component exists to end.
+   */
+  href: string | null;
 };
 
 /**
@@ -105,14 +117,25 @@ export function NeedsYouVerdict({ flagged }: { flagged: FlaggedProject[] }) {
         {/* Named, not counted. "3 projects flagged" is a number to go and
             decode; "evig — Email verification bypass…" is the sentence you
             actually act on, and it is already in the database. */}
-        {flagged.map((p) => (
-          <li key={p.id}>
-            <Link href={`/projects/${p.id}`} className="ui-verdict-item">
+        {flagged.map((p) => {
+          const body = (
+            <>
               <span className="font-medium text-text-primary">{p.name}</span>
               <span className="ui-verdict-reason">{p.reason}</span>
-            </Link>
-          </li>
-        ))}
+            </>
+          );
+          return (
+            <li key={p.id}>
+              {p.href ? (
+                <Link href={p.href} className="ui-verdict-item">
+                  {body}
+                </Link>
+              ) : (
+                <span className="ui-verdict-item">{body}</span>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

@@ -20,6 +20,7 @@ import { isFailingOutcome } from "@/lib/events";
 import { latestActivitySummary } from "./project-activity-ledger";
 import { DAY_MS } from "@/lib/constants/time";
 import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
+import { projectAttentionVerdict } from "@/lib/project-attention";
 
 export type RuntimeSyncContext = {
   /** True when the cloud has never received a runner runtime-state push. */
@@ -610,29 +611,20 @@ export type ControlPageState = {
   attention: AttentionItem[];
 };
 
+/**
+ * Control's adapter onto the ONE attention rule.
+ *
+ * The scoring used to live here, which meant it could only ever be asked by a
+ * client component holding a full ProjectState. /today could not ask it at
+ * all, so the front door answered "what needs you" without agent attention in
+ * it and named a different project than Control did. The rule moved to
+ * lib/project-attention.ts; this picks the two fields out of the live state.
+ */
 function attentionScore(project: ProjectState): { score: number; reason: string } {
-  let score = 0;
-  const reasons: string[] = [];
-
-  const sessionHealth = project.session?.health?.toLowerCase() ?? "";
-  if (sessionHealth === "critical") {
-    score += 4;
-    reasons.push("critical");
-  } else if (sessionHealth.includes("attention")) {
-    score += 2;
-    reasons.push("needs attention");
-  }
-
-  const runHealth = project.latestOrchestrationRun?.summary?.health?.toLowerCase() ?? "";
-  if (runHealth === "critical" && score < 4) {
-    score += 3;
-    reasons.push("last run: critical");
-  } else if (runHealth.includes("attention") && score < 2) {
-    score += 2;
-    reasons.push("last run: needs attention");
-  }
-
-  return { score, reason: reasons[0] ?? "" };
+  return projectAttentionVerdict({
+    sessionHealth: project.session?.health,
+    runHealth: project.latestOrchestrationRun?.summary?.health,
+  });
 }
 
 /** "agent" is a legacy process basename for Cursor — see scripts/_agents.sh
