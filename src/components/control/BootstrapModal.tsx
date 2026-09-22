@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import { AGENT_LABELS, type AnyAgentId } from "@/lib/agent-labels";
 import { Modal } from "@/components/ui/modal";
 import { postJson } from "@/lib/api/fetch";
 import { useClipboard } from "@/hooks/use-clipboard";
@@ -182,6 +183,7 @@ export function BootstrapModal({
           launchError={launchError}
           copied={copied}
           onLaunch={launchClaudeCode}
+          agentLabel={AGENT_LABELS[agentId as AnyAgentId] ?? agentId}
           onCopyPrompt={copyPrompt}
         />
       )}

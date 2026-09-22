@@ -12,7 +12,7 @@ export function AppearanceSettings() {
           <p className="mt-1 text-sm text-text-tertiary">
             Choose how {APP_NAME} looks. Auto follows your OS preference. Tap the sun/moon icon in
             the top bar or sidebar to cycle modes quickly. This choice is remembered in this
-            browser, so a different device starts on Auto again.
+            browser, so a different device starts on Dark until you choose there too.
           </p>
         </div>
         <ThemeToggle variant="select" />

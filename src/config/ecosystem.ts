@@ -27,7 +27,11 @@ export const ECOSYSTEM = {
     title: "OrangeCat",
     projectId:
       process.env.NEXT_PUBLIC_ORANGECAT_PROJECT_ID ?? "cb093f00-8745-4579-98df-050ebfb37181",
-    profileUrl: orangeCatPage("/profile/mao-nakamoto"),
+    // The retired pseudonym was in this URL, rendered publicly on /support.
+    // The real username is not verifiable from outside — every /profile/*
+    // path redirects to login — so this points at the OrangeCat home (200)
+    // rather than guessing a slug. Repoint it once the handle is known.
+    profileUrl: orangeCatPage("/"),
     siteUrl: orangeCatOrigin.toString(),
   },
   loki: {
@@ -50,7 +54,7 @@ export const ECOSYSTEM = {
 } as const;
 
 export const ECOSYSTEM_LINKS = {
-  mao: ECOSYSTEM.orangeCat.profileUrl,
+  cato: ECOSYSTEM.orangeCat.profileUrl,
   orangeCat: orangeCatPage(`/projects/${ECOSYSTEM.orangeCat.projectId}`),
   loki: orangeCatPage(`/projects/${ECOSYSTEM.loki.projectId}`),
 } as const;
@@ -62,7 +66,7 @@ export const ORANGECAT_INTEGRATION = {
   orangeCat: {
     title: ECOSYSTEM.orangeCat.title,
     projectUrl: ECOSYSTEM_LINKS.orangeCat,
-    profile: ECOSYSTEM_LINKS.mao,
+    profile: ECOSYSTEM_LINKS.cato,
   },
   loki: {
     title: ECOSYSTEM.loki.title,
@@ -90,7 +94,10 @@ export const ORANGECAT_INTEGRATION = {
  * cannot render a video; it can tell the operator where one gets rendered.
  */
 export const ORANGECAT_CAPABILITIES = {
-  studioUrl: orangeCatPage("/studio"),
+  // /studio 404s. This string is injected into Loki's grounding preface
+  // (src/lib/loki-core.ts), so a dead path here makes the assistant send
+  // operators to a 404. /create is the verified surface (200).
+  studioUrl: orangeCatPage("/create"),
   lines: [
     'OrangeCat has a Studio that renders video, music, longform writing and artwork, and revises it from plain-language notes ("the middle drags", "colder light") rather than settings.',
     "Video, music and artwork there run on the operator's own AI provider key; writing runs on OrangeCat's free models.",
