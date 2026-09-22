@@ -78,10 +78,10 @@ export function BeaconSettings() {
   return (
     <section className="ui-settings-section">
       <div>
-        <h2 className="font-medium text-text-primary">Beacon</h2>
+        <h2 className="font-medium text-text-primary">When an agent finishes</h2>
         <p className="mt-1 text-sm text-text-tertiary">
-          Controls the popup and auto-continue behavior when an agent finishes a task. Settings are
-          stored per account and apply across all your sessions.
+          What Loki does when an agent reports it is done, and how your voice becomes text. Stored
+          per account and applied across all your sessions.
         </p>
       </div>
 
