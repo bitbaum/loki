@@ -1,26 +1,8 @@
 import { db } from "@/db";
-import {
-  users,
-  actions,
-  alerts,
-  claudeCodeHistory,
-  commitments,
-  entities,
-  entityRelations,
-  events,
-  goals,
-  habitCompletions,
-  habits,
-  interactions,
-  invitations,
-  orchestrationRuns,
-  promptHistory,
-  siteFeedback,
-  subscriptions,
-  attributes,
-} from "@/db/schema";
+import { users, invitations } from "@/db/schema";
 import { eq, count } from "drizzle-orm";
 import type { Plan, PlanStatus } from "@/db/schema/users";
+import { USER_PURGE_ORDER } from "@/db/queries/user-purge-tables";
 
 export async function getUserById(id: string) {
   return db.query.users.findFirst({ where: eq(users.id, id) }) ?? null;
@@ -165,42 +147,16 @@ export async function updateUser(id: string, patch: UpdateUserInput) {
 /**
  * Permanently delete a user and everything they own (Settings → Danger zone).
  *
- * Most user-owned tables declare onDelete:"cascade" and purge automatically
- * with the users row. The tables below do NOT (plain references(users.id)),
- * so they must be cleared explicitly first or the users delete raises an FK
- * violation. Order matters only around entities: interactions / attributes /
- * entity_relations cascade from entities via entity_id, but each also carries
- * its own non-cascading user_id FK — delete them by user_id before entities
- * so no row survives pointing at the user. Everything runs in one
- * transaction: the account is either fully gone or untouched.
+ * Everything runs in one transaction: the account is either fully gone or
+ * untouched. After the hand-cleared tables above, deleting the users row
+ * purges every onDelete:"cascade" table with it.
  */
 export async function deleteUserAccount(userId: string): Promise<void> {
   await db.transaction(async (tx) => {
-    // Leaf rows first (non-cascading user_id FKs).
-    await tx.delete(siteFeedback).where(eq(siteFeedback.userId, userId));
-    await tx.delete(claudeCodeHistory).where(eq(claudeCodeHistory.userId, userId));
-    await tx.delete(promptHistory).where(eq(promptHistory.userId, userId));
-    await tx.delete(subscriptions).where(eq(subscriptions.userId, userId));
-    await tx.delete(alerts).where(eq(alerts.userId, userId));
-    await tx.delete(actions).where(eq(actions.userId, userId));
-    await tx.delete(commitments).where(eq(commitments.userId, userId));
-    await tx.delete(goals).where(eq(goals.userId, userId));
-    await tx.delete(events).where(eq(events.userId, userId));
-    // orchestration_runs: run_events cascade from it via run_id.
-    await tx.delete(orchestrationRuns).where(eq(orchestrationRuns.userId, userId));
-    // habits: habit_completions cascade via habit_id, but also clear any
-    // completion rows carrying this user_id directly.
-    await tx.delete(habitCompletions).where(eq(habitCompletions.userId, userId));
-    await tx.delete(habits).where(eq(habits.userId, userId));
-    // Knowledge graph: children by user_id, then the entities themselves.
-    await tx.delete(interactions).where(eq(interactions.userId, userId));
-    await tx.delete(attributes).where(eq(attributes.userId, userId));
-    await tx.delete(entityRelations).where(eq(entityRelations.userId, userId));
-    await tx.delete(entities).where(eq(entities.userId, userId));
-    // invitations.used_by is nullable with no cascade — detach, don't delete
-    // (the invite belongs to whoever created it).
+    for (const table of USER_PURGE_ORDER) {
+      await tx.delete(table).where(eq(table.userId, userId));
+    }
     await tx.update(invitations).set({ usedBy: null }).where(eq(invitations.usedBy, userId));
-    // Finally the users row — every onDelete:"cascade" table purges with it.
     await tx.delete(users).where(eq(users.id, userId));
   });
 }
