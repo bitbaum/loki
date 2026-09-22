@@ -95,7 +95,7 @@ export function SettingsTabs({
 
   return (
     <div className="lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:gap-8">
-      {/* Nav: a vertical left rail on lg+ (all 11 sections visible — the old
+      {/* Nav: a vertical left rail on lg+ (all 12 sections visible — the old
           horizontal bar overflowed 4 off-screen), falling back to the
           horizontal scroll bar under lg. */}
       <nav className="lg:self-start">
