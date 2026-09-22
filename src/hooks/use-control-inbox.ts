@@ -3,6 +3,7 @@
 import { useFetch } from "@/hooks/use-fetch";
 import type { ProjectFeedbackSummary } from "@/db/queries/site-feedback";
 import type { WidgetCoverageItem } from "@/db/queries/widget-tokens";
+import { feedbackAwaitingTriage, feedbackInProgress } from "@/lib/feedback/queue-counts";
 
 /**
  * The Control inbox — every small thing the fleet noticed that a human has to
@@ -24,6 +25,8 @@ export type ControlInboxState = {
   summary: ProjectFeedbackSummary[];
   needsWidget: WidgetCoverageItem[];
   feedbackCount: number;
+  /** Reports an agent already holds. Shown, never counted as needing you. */
+  inProgressCount: number;
   /** Feedback awaiting triage plus sites missing the widget. */
   total: number;
   /** A request failed — `total` may be low, and silence is not an answer. */
@@ -41,12 +44,17 @@ export function useControlInbox(): ControlInboxState {
 
   const summary = feedback.data?.summary ?? [];
   const needsWidget = widget.data?.needsAttention ?? [];
-  const feedbackCount = summary.reduce((n, s) => n + (s.newCount || s.openCount), 0);
+  // ONE definition of "feedback needs you" — see lib/feedback/queue-counts.
+  // This used to be a local `newCount || openCount`, hand-copied into the
+  // notifications pill and spelt a third way inside ControlInbox, while the
+  // sidebar summed newCount alone. Sidebar 4, front door 5, same screen.
+  const feedbackCount = feedbackAwaitingTriage(summary);
 
   return {
     summary,
     needsWidget,
     feedbackCount,
+    inProgressCount: feedbackInProgress(summary),
     total: feedbackCount + needsWidget.length,
     // A fetch that failed yields `[]` exactly like a queue that is genuinely
     // empty. Conflating the two makes a failed request render as the confident

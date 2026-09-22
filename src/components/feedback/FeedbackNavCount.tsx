@@ -2,6 +2,7 @@
 
 import { useFetch } from "@/hooks/use-fetch";
 import type { ProjectFeedbackSummary } from "@/db/queries/site-feedback";
+import { feedbackAwaitingTriage } from "@/lib/feedback/queue-counts";
 
 /**
  * NEW-feedback count for the Feedback nav item — the in-app half of the
@@ -14,7 +15,7 @@ export function FeedbackNavCount({ collapsed }: { collapsed: boolean }) {
   const { data } = useFetch<{ summary: ProjectFeedbackSummary[] }>("/api/feedback/summary", {
     intervalMs: 2 * 60_000,
   });
-  const count = (data?.summary ?? []).reduce((n, s) => n + s.newCount, 0);
+  const count = feedbackAwaitingTriage(data?.summary ?? []);
   if (count === 0) return null;
   if (collapsed) {
     return (

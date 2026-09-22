@@ -4272,6 +4272,14 @@
   .ui-inbox-project-count {
     @apply rounded-full bg-surface-overlay px-1.5 text-nano tabular-nums text-text-tertiary;
   }
+  /* A project whose reports are all with an agent. Words, not a number:
+     a count here reads as work you owe, and this is the opposite. */
+  .ui-inbox-group-note {
+    @apply shrink-0 text-nano text-text-muted;
+  }
+  .ui-inbox-project-state {
+    @apply text-nano text-text-muted;
+  }
   .ui-inbox-list {
     @apply divide-y divide-border-subtle;
   }

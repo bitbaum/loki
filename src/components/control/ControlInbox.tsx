@@ -91,7 +91,8 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
   const [openGroup, setOpenGroup] = useState<GroupId | null>(null);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
 
-  const { summary, needsWidget, feedbackCount, total, loadFailed, settling } = inbox;
+  const { summary, needsWidget, feedbackCount, inProgressCount, total, loadFailed, settling } =
+    inbox;
 
   // Silence is the correct rendering of an empty queue. An "Inbox (0)" panel is
   // a permanent reminder that a feature exists, which is not the same as being
@@ -101,6 +102,11 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
   // requests are still in flight we stay quiet (a failure that resolves in
   // 300ms should not flash), but once they have settled and we still have
   // nothing, say which of the two happened.
+  // NOTE for anyone tempted to count dispatched work to keep this panel up:
+  // a panel titled "Needs you" going quiet when nothing needs you is correct,
+  // and watching a fix run is Activity's job, not this one's. Presence is
+  // protected WITHIN the panel (the group below is gated on summary.length),
+  // not by inflating the number that decides whether it appears at all.
   if (total === 0) {
     if (settling || !loadFailed) return null;
     return (
@@ -140,11 +146,18 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
         </p>
       )}
 
-      {feedbackCount > 0 && (
+      {/* Gated on PRESENCE, counted on PRESSURE. Gating on the count instead
+          would make the whole group disappear the moment the last NEW report
+          was dispatched — losing the project chip while you are watching the
+          fix it dispatched actually run. That is the failure the old
+          `newCount || openCount` fallback was reaching for; it belongs here,
+          in what renders, not in the number. */}
+      {summary.length > 0 && (
         <GroupRow
           icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />}
           label="Feedback to triage"
           count={feedbackCount}
+          note={feedbackCount === 0 ? `${inProgressCount} with an agent` : undefined}
           open={openGroup === "feedback"}
           onToggle={() => toggle("feedback")}
         >
@@ -161,9 +174,16 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
                 )}
               >
                 {s.projectName}
-                <span className="ui-inbox-project-count">
-                  {s.newCount > 0 ? s.newCount : s.openCount}
-                </span>
+                {/* The chip is listed because the project has an OPEN report
+                    (the query filters to new+dispatched), but the number on it
+                    is what awaits YOU. A project whose reports are all with an
+                    agent says so in words instead of showing a count that
+                    reads as work you owe. */}
+                {s.newCount > 0 ? (
+                  <span className="ui-inbox-project-count">{s.newCount}</span>
+                ) : (
+                  <span className="ui-inbox-project-state">in progress</span>
+                )}
               </button>
             ))}
           </div>
@@ -202,6 +222,7 @@ function GroupRow({
   icon,
   label,
   count,
+  note,
   open,
   onToggle,
   children,
@@ -209,6 +230,10 @@ function GroupRow({
   icon: React.ReactNode;
   label: string;
   count: number;
+  /** Shown INSTEAD of a zero count. A group can be worth opening without
+   *  anything in it waiting on you, and "0" next to "to triage" reads as a
+   *  bug rather than as good news. */
+  note?: string;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -218,7 +243,11 @@ function GroupRow({
       <button type="button" onClick={onToggle} aria-expanded={open} className="ui-inbox-group-btn">
         <span className="shrink-0 text-text-tertiary">{icon}</span>
         <span className="ui-inbox-group-label">{label}</span>
-        <span className="ui-inbox-group-count">{count}</span>
+        {count > 0 ? (
+          <span className="ui-inbox-group-count">{count}</span>
+        ) : (
+          note && <span className="ui-inbox-group-note">{note}</span>
+        )}
         <ChevronRight
           className={cn(
             "h-4 w-4 shrink-0 text-text-muted transition-transform",
