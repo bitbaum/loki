@@ -7,7 +7,7 @@ import { SOURCE_LOKI_UI } from "@/lib/constants";
 import { patchProject } from "@/db/queries/projects";
 import { syncUserProjectDescription } from "@/db/queries/user-projects";
 import { scheduleProjectProfileReindexByEntityId } from "@/lib/rag/reindex-project-profile";
-import { PROJECT_ATTR } from "@/config/project-attrs";
+import { PROJECT_AI_FILL_KEYS } from "@/config/project-attrs";
 import { hasAnswer } from "@/lib/project-display";
 import { parseModelJson } from "@/lib/ai/model-json";
 
@@ -374,30 +374,13 @@ export async function applyProjectProfile(
     await syncUserProjectDescription(userId, entityId, profile.description).catch(() => {});
   }
 
-  const attrKeys = [
-    PROJECT_ATTR.MISSION,
-    PROJECT_ATTR.VISION,
-    PROJECT_ATTR.CUSTOMERS,
-    PROJECT_ATTR.STACK,
-    PROJECT_ATTR.STATUS,
-    PROJECT_ATTR.NEXT_STEP,
-    PROJECT_ATTR.ARCHITECTURE,
-    PROJECT_ATTR.CONVENTIONS,
-    PROJECT_ATTR.DEFINITION_OF_DONE,
-    PROJECT_ATTR.DISTRIBUTION,
-    PROJECT_ATTR.GTM,
-    PROJECT_ATTR.PROBLEM,
-    PROJECT_ATTR.SOLUTION,
-    PROJECT_ATTR.CURRENT_ALTERNATIVES,
-    PROJECT_ATTR.COMPETITORS,
-    PROJECT_ATTR.COMPLEMENTS_SUBSTITUTES,
-    PROJECT_ATTR.PARTNERSHIPS,
-    PROJECT_ATTR.POTENTIAL_CUSTOMERS,
-    PROJECT_ATTR.EXPANSION_IDEAS,
-  ] as const;
+  // DERIVED from the field registry (config/project-attrs.ts): every field
+  // marked `aiFill`. The model returns a partial profile, so index it as a bag
+  // of optional strings rather than restating the key list a second time here.
+  const filled = profile as Record<string, string | undefined>;
 
-  const entries = attrKeys.flatMap((key) => {
-    const value = profile[key];
+  const entries = PROJECT_AI_FILL_KEYS.flatMap((key) => {
+    const value = filled[key];
     return value && !occupied(key) ? [[key, value] as const] : [];
   });
 
@@ -426,7 +409,10 @@ export async function applyProjectProfile(
             target: [attributes.userId, attributes.entityId, attributes.key],
             set: { value, updatedAt: new Date() },
           });
-        applied[key] = value;
+        // Same bag-of-optional-strings treatment as `filled` above: the key
+        // list is the registry's, which is wider than this object's literal
+        // union. `aiFillKeysMatchProfileSchema` pins the two together.
+        (applied as Record<string, string | undefined>)[key] = value;
       }
     });
   }

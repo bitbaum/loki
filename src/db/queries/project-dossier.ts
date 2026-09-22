@@ -40,6 +40,7 @@ import { getGithubToken } from "@/lib/github-token";
 import { fetchRecentGithubCommits, type RepoCommit } from "@/lib/github-commits";
 import { computeProjectHealth, describeProjectHealth } from "@/lib/project-health";
 import { getOrangeCatLinksForProject } from "./orangecat-links";
+import { PROJECT_ATTR, PROJECT_FIELDS } from "@/config/project-attrs";
 import type { OrangeCatEntityLink } from "@/db/schema";
 import {
   fetchOrangeCatFundingSummary,
@@ -196,35 +197,30 @@ export function renderProjectDossierForAgent(dossier: ProjectDossier): string {
   const description = cleanDescription(detail.project.description);
   if (description) lines.push(`Brief: ${description}`);
 
-  const profile: Array<[string, string | undefined | null]> = [
-    ["Mission", attrs.mission],
-    ["Vision", attrs.vision],
-    ["Customers", attrs.customers],
-    ["Problem", attrs.problem],
-    ["Solution", attrs.solution],
-    ["Distribution", attrs.distribution],
-    ["Go-to-market", attrs.gtm],
-    ["Status", attrs.status],
-    // Derived, traceable health — replaces the hand-typed attrs.maturity score.
-    [
-      "Health",
-      describeProjectHealth(
-        computeProjectHealth({
-          description: detail.project.description,
-          gitUrl: userProject?.gitUrl ?? detail.project.gitUrl,
-          dirPath: userProject?.dirPath,
-          liveUrl: userProject?.liveUrl,
-          attrs,
-        }),
-      ),
-    ],
-    ["Stack", attrs.stack ?? userProject?.stack],
-    ["Architecture", attrs.architecture],
-    ["Conventions", attrs.conventions],
-    ["Definition of done", attrs.definition_of_done],
-    ["Next owner step", attrs.next_step],
-    ["Operator notes", userProject?.notes],
-  ];
+  // Derived, traceable health — replaces the hand-typed attrs.maturity score.
+  const health = describeProjectHealth(
+    computeProjectHealth({
+      description: detail.project.description,
+      gitUrl: userProject?.gitUrl ?? detail.project.gitUrl,
+      dirPath: userProject?.dirPath,
+      liveUrl: userProject?.liveUrl,
+      attrs,
+    }),
+  );
+
+  // Rows come from the field registry (config/project-attrs.ts), in its order,
+  // so what an agent reads is described in exactly one place. Only the two rows
+  // that are not attr-backed stay bespoke: Health is computed, and Operator
+  // notes live on user_projects rather than in the attributes table.
+  const profile: Array<[string, string | undefined | null]> = [];
+  for (const field of PROJECT_FIELDS) {
+    if (!field.inAgentDossier) continue;
+    const value =
+      field.key === PROJECT_ATTR.STACK ? (attrs.stack ?? userProject?.stack) : attrs[field.key];
+    profile.push([field.dossierLabel ?? field.label, value]);
+    if (field.key === PROJECT_ATTR.STATUS) profile.push(["Health", health]);
+  }
+  profile.push(["Operator notes", userProject?.notes]);
   const filledProfile = profile.filter(([, value]) => value?.trim()) as Array<[string, string]>;
   if (filledProfile.length > 0) {
     lines.push("## Profile");
