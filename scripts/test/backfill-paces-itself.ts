@@ -70,5 +70,27 @@ ok(
   "the clock, not the cap, is what ends a large tick — which is why `capped` must be honest",
 );
 
+// ── every project gets a turn ───────────────────────────────────────────────
+//
+// The tick used to walk the projects in order and stop at the budget, from the
+// top, every time — so a project far enough down the list was never reached.
+// Not "eventually": never. Measured on prod while catching up a five-day
+// outage, three consecutive ticks each reported `posted: 30, capped: true`,
+// and across all three Heidi's wall went 0 → 0 → 0 while the head of the list
+// was re-sent the same thirty moments. The janitor looked busy and was
+// starving its own tail.
+ok(
+  /const queues: Array<Array<\(\) => Promise<PromoteOutcome>>> = \[\];/.test(SRC),
+  "every project's work is queued before any of it is sent",
+);
+ok(
+  /for \(const queue of queues\) \{[\s\S]{0,200}queue\.shift\(\)/.test(SRC),
+  "...and the queues are drained round-robin, one moment per project per round",
+);
+ok(
+  !/outer: for \(const project of linked\)/.test(SRC),
+  "...not top-to-bottom, which is what could never reach the tail",
+);
+
 console.log(`${pass}/${pass + fail} backfill-paces-itself cases passed`);
 if (fail > 0) process.exit(1);
