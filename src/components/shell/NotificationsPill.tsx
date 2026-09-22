@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Bell } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
+import { feedbackAwaitingTriage } from "@/lib/feedback/queue-counts";
 import { NotificationPanel } from "./NotificationPanel";
 import type { Alert } from "@/db/schema/alerts";
 
@@ -61,7 +62,7 @@ export function NotificationsPill() {
 
   const alerts = data?.alerts ?? [];
   const feedbackSummary = feedback.data?.summary ?? [];
-  const feedbackCount = feedbackSummary.reduce((n, s) => n + (s.newCount || s.openCount), 0);
+  const feedbackCount = feedbackAwaitingTriage(feedbackSummary);
   const totalCount = alerts.length + feedbackCount;
   const hasAlerts = totalCount > 0;
 
