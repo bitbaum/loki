@@ -111,6 +111,23 @@ check("and every surface that shows a count reads the owner", () => {
   }
 });
 
+check("nothing re-declares the summary SHAPE either", () => {
+  // NotificationPanel carried a structural copy of ProjectFeedbackSummary.
+  // A second declaration does not break at runtime, which is why it survives:
+  // it just quietly stops seeing any field the real type gains.
+  const offenders = files.filter(
+    (f) =>
+      f.rel !== PRODUCER &&
+      /type\s+\w*FeedbackSummary\s*=\s*\{[\s\S]{0,200}?\bnewCount\b[\s\S]{0,120}?\bopenCount\b/.test(
+        f.src,
+      ),
+  );
+  assert(
+    offenders.length === 0,
+    `a second declaration of the feedback summary shape lives in: ${offenders.map((o) => o.rel).join(", ")} — import it from ${PRODUCER}`,
+  );
+});
+
 check("RULE 2: a project whose reports are all dispatched needs nothing", () => {
   const s = [
     { projectId: "a", projectName: "A", newCount: 0, openCount: 4, latestAt: "" },

@@ -5,6 +5,7 @@ import { Bell } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import { feedbackAwaitingTriage } from "@/lib/feedback/queue-counts";
+import type { ProjectFeedbackSummary } from "@/db/queries/site-feedback";
 import { NotificationPanel } from "./NotificationPanel";
 import type { Alert } from "@/db/schema/alerts";
 
@@ -22,18 +23,10 @@ const subscribeNothing = () => () => {};
 const onClient = () => true;
 const onServer = () => false;
 
-type FeedbackSummary = {
-  projectId: string;
-  projectName: string;
-  newCount: number;
-  openCount: number;
-  latestAt: string;
-};
-
 export function NotificationsPill() {
   const [panelOpen, setPanelOpen] = useState(false);
   const { data } = useFetch<{ alerts: Alert[] }>("/api/alerts");
-  const feedback = useFetch<{ summary: FeedbackSummary[] }>("/api/feedback/summary");
+  const feedback = useFetch<{ summary: ProjectFeedbackSummary[] }>("/api/feedback/summary");
 
   /**
    * Render NOTHING until mounted, so the server and the first client render

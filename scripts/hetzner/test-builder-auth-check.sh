@@ -8,7 +8,17 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="$HERE/builder-auth-check.sh"
 pass=0; fail=0
 ok() { if [ "$1" = 0 ]; then pass=$((pass+1)); else fail=$((fail+1)); echo "  ✗ $2"; fi }
-has() { echo "$1" | grep -qi -- "$2" && ok 0 "" || ok 1 "expected output to mention '$2'"; }
+# On a miss, SHOW what the command actually printed. A bare "expected output
+# to mention 'DRY RUN'" is undiagnosable after the fact: this suite failed once
+# inside a full `verify` on 2026-09-22 and passed 25/25 standalone, and there
+# was no way to tell what the script had said instead. An assertion that hides
+# its input turns an intermittent failure into a guess.
+has() {
+  if echo "$1" | grep -qi -- "$2"; then ok 0 ""; else
+    ok 1 "expected output to mention '$2'"
+    printf '      got (first 400 chars): %s\n' "$(printf '%s' "$1" | head -c 400 | tr '\n' '|')"
+  fi
+}
 hasnt() { echo "$1" | grep -qi -- "$2" && ok 1 "output must NOT mention '$2'" || ok 0 ""; }
 run() { PROBE_OUTPUT="$1" PROBE_EXIT="${2:-0}" bash "$SCRIPT" --report 2>&1; }
 
