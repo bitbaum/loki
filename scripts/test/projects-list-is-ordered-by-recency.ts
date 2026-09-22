@@ -20,7 +20,7 @@
  *
  * Run: npx tsx scripts/test/projects-list-is-ordered-by-recency.ts
  */
-import { filterProjects } from "@/lib/projects-page-stats";
+import { filterProjects, isProjectsSort, PROJECTS_SORTS } from "@/lib/projects-page-stats";
 import { PROJECT_ATTR } from "@/config/project-attrs";
 import type { ProjectGridRow } from "@/components/projects/project-grid-row";
 
@@ -162,6 +162,57 @@ check("search and filters still work, and still return recency order", () => {
   const seen = { "alpha-shop": ago(30), "beta-shop": ago(1), gamma: ago(0) };
   const got = filterProjects(rows, "shop", null, seen).map((p) => p.name);
   assert(got.join(",") === "beta-shop,alpha-shop", `search order wrong: ${got.join(",")}`);
+});
+
+check("SORT=recent is flat — a stale flag does not outrank this morning", () => {
+  // Someone who picks "Recent" asked one question. Hoisting a project flagged
+  // in March above work done an hour ago is the page overruling them.
+  const rows = [
+    project("flagged-in-march", { [PROJECT_ATTR.SECURITY_VULNERABILITY]: "old note" }),
+    project("worked-today"),
+  ];
+  const seen = { "flagged-in-march": ago(200), "worked-today": ago(0.04) };
+  const got = filterProjects(rows, "", null, seen, "recent").map((p) => p.name);
+  assert(got[0] === "worked-today", `recent still tiers by attention: ${got.join(", ")}`);
+});
+
+check("SORT=az is flat too, and is purely by name", () => {
+  const rows = [
+    project("zebra", { [PROJECT_ATTR.BROKEN_FEATURES]: "x" }),
+    project("alpha"),
+    project("middle"),
+  ];
+  const seen = { zebra: ago(0.01), alpha: ago(99), middle: ago(50) };
+  const got = filterProjects(rows, "", null, seen, "az").map((p) => p.name);
+  assert(got.join(",") === "alpha,middle,zebra", `A-Z is not by name: ${got.join(",")}`);
+});
+
+check("SORT=priority is the default and still tiers", () => {
+  const rows = [
+    project("flagged", { [PROJECT_ATTR.DEPLOYMENT_ISSUE]: "x" }),
+    project("recent-clean"),
+  ];
+  const seen = { flagged: ago(200), "recent-clean": ago(0.01) };
+  const explicit = filterProjects(rows, "", null, seen, "priority").map((p) => p.name);
+  const byDefault = filterProjects(rows, "", null, seen).map((p) => p.name);
+  assert(explicit[0] === "flagged", "priority stopped hoisting flagged projects");
+  assert(
+    explicit.join(",") === byDefault.join(","),
+    "the default is no longer priority — a caller omitting the argument gets a different page",
+  );
+});
+
+check("an unknown sort in the URL cannot change the order", () => {
+  assert(!isProjectsSort("recency"), "a near-miss string was accepted as a sort");
+  assert(!isProjectsSort(null) && !isProjectsSort(""), "empty values were accepted");
+  for (const s of PROJECTS_SORTS) assert(isProjectsSort(s.id), `${s.id} is not recognised`);
+});
+
+check("every offered sort says what it does", () => {
+  // The whole point of this page is an order you can read rather than guess.
+  for (const s of PROJECTS_SORTS) {
+    assert(s.label.length > 0 && s.hint.length > 0, `${s.id} has no label or hint`);
+  }
 });
 
 console.log(failures === 0 ? "  all good" : `  ${failures} failure(s)`);
