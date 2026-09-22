@@ -167,8 +167,13 @@ BASE="${COCKPIT_URL:-http://localhost:3000}"
 _health=$(curl -sf --max-time 2 "$BASE/api/health" 2>/dev/null || true)
 if [ -z "$_health" ]; then
   echo "→ smoke: server not running at $BASE — skipping (start with pnpm run dev or install-app)"
-elif ! printf '%s' "$_health" | grep -q '"commit"'; then
-  echo "→ smoke: server at $BASE is NOT Loki (health payload lacks \"commit\") — skipping"
+elif ! printf '%s' "$_health" | grep -q '"app":"loki"'; then
+  # Identify the APP, not the shape of its answer. Every app in the fleet
+  # serves this route from the same template, so `"commit"` is present in all
+  # of them: on 2026-09-22 a Heidi dev server holding :3000 passed this test,
+  # and Loki's 48-route auth smoke ran against it — 23 routes "failing" with
+  # 404 and a blocked push, on a verdict about somebody else's app.
+  echo "→ smoke: server at $BASE is NOT Loki — skipping (it answered: $(printf '%s' "$_health" | head -c 80))"
 else
   echo "→ smoke: Loki server detected at $BASE"
   pnpm run smoke
