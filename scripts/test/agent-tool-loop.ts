@@ -690,3 +690,68 @@ main()
     console.error(e);
     process.exit(1);
   });
+
+// Useful depth is different from repeating the same request.
+async function checkInvestigationDepth() {
+  let executions = 0;
+  const registry: ToolRegistry = {
+    inspect: defineTool({
+      name: "inspect",
+      kind: "propose",
+      description: "test proposal",
+      params: z.object({ step: z.number(), label: z.string().default("test") }),
+      example: 'TOOL: inspect\nARGS: {"step":1}',
+      handler: async () => {
+        executions++;
+        return { facts: [], note: "Recorded." };
+      },
+    }),
+  };
+  const deep = scriptedModel([
+    ...[1, 2, 3, 4, 5].map((step) => ({
+      toolCalls: [{ id: String(step), name: "inspect", args: { step } }],
+    })),
+    { text: "All five steps checked." },
+  ]);
+  const result = await runLokiTurn({
+    userId: "u1",
+    message: "Investigate",
+    registry,
+    seed: SEED,
+    callModel: deep.fn,
+  });
+  assert.equal(executions, 5, "five distinct dependent steps must be reachable");
+  assert.equal(result.rounds, 6);
+  assert.equal(deep.seen.at(-1)?.toolsAdvertised, 0);
+
+  executions = 0;
+  const duplicate = scriptedModel([
+    {
+      toolCalls: [
+        { id: "1", name: "inspect", args: { step: 1 } },
+        { id: "2", name: "inspect", args: { label: "test", step: 1 } },
+      ],
+    },
+    { toolCalls: [{ id: "3", name: "inspect", args: { step: 1, label: "test" } }] },
+    { text: "One proposal recorded." },
+  ]);
+  await runLokiTurn({
+    userId: "u1",
+    message: "Propose",
+    registry,
+    seed: SEED,
+    callModel: duplicate.fn,
+  });
+  assert.equal(
+    executions,
+    1,
+    "same proposal must not run twice across batches, defaults or reordered keys",
+  );
+  assert.equal(duplicate.calls(), 3, "a repeating model should answer early");
+  assert.equal(duplicate.seen.at(-1)?.toolsAdvertised, 0);
+  console.log("✓ useful depth and duplicate proposal protection");
+}
+checkInvestigationDepth().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
