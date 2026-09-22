@@ -25,6 +25,7 @@ import { verifyTicket } from "@/lib/x-oauth1";
 import { findOrCreateTwitterUser } from "@/db/queries/oauth-x";
 import { getEnabledAuthProviders } from "@/lib/auth-providers";
 import { ORANGECAT_BASE_FALLBACK } from "@/lib/integrations/orangecat";
+import { persistOAuthTokens, type OAuthTokenSet } from "@/lib/auth/persist-oauth-tokens";
 
 // Enabled-provider predicates, shared with the sign-in page (src/app/sign-in)
 // so a rendered button can never drift from the mounted provider.
@@ -207,6 +208,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const account = (
             message as { account?: { provider?: string; providerAccountId?: string } }
           ).account;
+
+          // Store what this sign-in just handed us. The adapter writes tokens
+          // only on the FIRST link, so without this a re-authorization — the
+          // remedy every broken-link message points at — signs the person in
+          // and changes nothing. Measured: five fresh OrangeCat token sets
+          // issued in one day, all discarded, while the stored link stayed
+          // dead. See lib/auth/persist-oauth-tokens.ts.
+          await persistOAuthTokens(account as OAuthTokenSet, message.user.id);
+
           if (
             account?.provider === "orangecat" &&
             account.providerAccountId &&
