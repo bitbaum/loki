@@ -28,6 +28,10 @@ import { getProjects } from "@/db/queries/projects";
 import { hasProjectAttention, isSiteDown } from "@/lib/projects-page-stats";
 import { PROJECT_ATTR } from "@/config/project-attrs";
 import { signalHasExpired } from "@/lib/project-signals";
+import { projectAttentionVerdict } from "@/lib/project-attention";
+import { normalizeTabName } from "@/lib/agent-config";
+import { getProjectStatesByUserId } from "@/db/queries/project-states";
+import { getLatestRunsByProjectPaths } from "@/db/queries/orchestration-runs";
 import { hasAnswer } from "@/lib/project-display";
 import { NeedsYouVerdict, type FlaggedProject } from "@/components/today/NeedsYouVerdict";
 import { FIRST_RUN } from "@/lib/constants/today";
@@ -77,7 +81,7 @@ async function loadTodayInputs() {
     step("getCurrentUserName", () => getCurrentUserName()),
     step("requirePageUserId", () => requirePageUserId()),
   ]);
-  const [projects, orgProjects, entityProjects] = await Promise.all([
+  const [projects, orgProjects, entityProjects, projectStates] = await Promise.all([
     step("getUserProjects", () => getUserProjects(userId)),
     step("getOrgProjects", () => getOrgProjects(userId)),
     // For the front-door verdict. Read through the SAME predicate the projects
@@ -85,7 +89,40 @@ async function loadTodayInputs() {
     // the other — two surfaces disagreeing about "needs you" is the defect
     // this whole section exists to end.
     step("getProjects", () => getProjects(userId).catch(() => [])),
+    // The other half of "what needs you": a project whose AGENT is blocked.
+    // Control counted these and /today did not, so the front door said seven
+    // things needed you while Control named a project in none of the seven.
+    step("getProjectStates", () => getProjectStatesByUserId(userId).catch(() => [])),
   ]);
+
+  const dirPaths = projects.map((p) => p.dirPath).filter((d): d is string => Boolean(d));
+  const latestRuns = await step("getLatestRuns", () =>
+    getLatestRunsByProjectPaths(userId, dirPaths).catch(() => new Map()),
+  );
+  const sessionHealthByTab = new Map(
+    projectStates.map((st) => [normalizeTabName(st.projectKey), st.sessionHealth]),
+  );
+
+  /* Read through the SAME rule Control's hero uses (lib/project-attention),
+     so the two surfaces cannot name different projects. A blocked agent is
+     present-tense need: someone has to go and unblock it. */
+  const blocked: FlaggedProject[] = projects
+    .map((p) => {
+      const verdict = projectAttentionVerdict({
+        sessionHealth: sessionHealthByTab.get(normalizeTabName(p.name)),
+        runHealth: p.dirPath ? latestRuns.get(p.dirPath)?.summary?.health : null,
+      });
+      return { project: p, verdict };
+    })
+    .filter(({ verdict }) => verdict.score > 0)
+    .map(({ project, verdict }) => ({
+      id: project.id,
+      name: project.name,
+      reason: verdict.reason,
+      // Only an ENTITY id resolves at /projects/[id]; a catalog row without
+      // one is named without a link rather than linked to a 404.
+      href: project.entityProjectId ? `/projects/${project.entityProjectId}` : null,
+    }));
 
   const FLAG_KEYS = [
     PROJECT_ATTR.SECURITY_VULNERABILITY,
@@ -104,10 +141,17 @@ async function loadTodayInputs() {
         id: p.id,
         name: p.name,
         reason: raw.length > 90 ? `${raw.slice(0, 89)}…` : raw,
+        href: `/projects/${p.id}`,
       };
     });
 
-  return { name, userId, projects, orgProjects, flagged };
+  /* One list, so the verdict cannot double-count a project that is BOTH
+     flagged and blocked. The flag wins: it says what is wrong in the
+     operator's own words, where the blocked reason is a health word. */
+  const flaggedHrefs = new Set(flagged.map((f) => f.href));
+  const needsYou = [...flagged, ...blocked.filter((b) => !b.href || !flaggedHrefs.has(b.href))];
+
+  return { name, userId, projects, orgProjects, flagged: needsYou };
 }
 
 export default async function TodayPage() {
