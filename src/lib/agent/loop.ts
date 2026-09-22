@@ -70,8 +70,8 @@ async function defaultSeed(userId: string, message: string): Promise<LoopSeed> {
   return buildSeed(userId, message);
 }
 
-/** Model turns per request. 3 covers plan→gather→answer; more is usually a loop. */
-const MAX_ROUNDS = 3;
+/** Up to five useful tool rounds, then an answer. Repeated calls stop early. */
+const MAX_ROUNDS = 6;
 /** Tool executions per round — enough to fan out, few enough to stay fast. */
 const MAX_CALLS_PER_ROUND = 4;
 /** Total facts carried. Past this, small models answer about the wrong record. */
@@ -246,6 +246,7 @@ async function runToolCalls(
   calls: ToolCall[],
   registry: ToolRegistry,
   ctx: { userId: string; message: string },
+  attempted: Set<string>,
   emit: (event: LokiTurnEvent) => void = () => {},
 ): Promise<{ facts: Fact[]; messages: ChatMessage[]; used: string[] }> {
   const facts: Fact[] = [];
@@ -271,6 +272,22 @@ async function runToolCalls(
       });
       continue;
     }
+    // Use validated arguments: defaults and object key order must not let the
+    // same proposal execute twice. Failed attempts are also remembered: their
+    // outcome may be unknown, so automatic retries can duplicate a write.
+    const key = JSON.stringify([call.name, parsed.data], (_key, value) =>
+      value && typeof value === "object" && !Array.isArray(value)
+        ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
+        : value,
+    );
+    if (attempted.has(key)) {
+      messages.push({
+        role: "user",
+        content: `[tool ${call.name}] already attempted with these arguments. Use its earlier result; do not repeat it. Refine the query if more evidence is needed.`,
+      });
+      continue;
+    }
+    attempted.add(key);
     used.push(call.name);
     emit({ type: "tool", name: call.name, phase: "start" });
     try {
@@ -363,6 +380,8 @@ export async function runLokiTurn(input: {
   // Summed across every call this turn makes — rounds AND the repair pass.
   let usageTokens = 0;
   let rounds = 0;
+  const attempted = new Set<string>();
+  let answerNext = false;
 
   const emit = input.onEvent ?? (() => {});
   // Handed to the model call so prose reaches the screen as it is written.
@@ -388,7 +407,7 @@ export async function runLokiTurn(input: {
     // The last round must produce an answer, so stop advertising tools — a weak
     // model handed tools will keep calling them, and the operator would get a
     // dangling tool call instead of a reply.
-    const lastRound = round === MAX_ROUNDS - 1;
+    const lastRound = answerNext || round === MAX_ROUNDS - 1;
     const system = systemPrompt(advertised, !lastRound) + voiceLine;
 
     // Everything charged besides facts. It GROWS as the loop proceeds — the
@@ -471,10 +490,15 @@ export async function runLokiTurn(input: {
     usageTokens += turn.usageTokens;
     text = turn.text;
 
-    if (turn.toolCalls.length === 0) break;
+    if (turn.toolCalls.length === 0 || lastRound) break;
 
-    const executed = await runToolCalls(turn.toolCalls, registry, ctx, emit);
+    const executed = await runToolCalls(turn.toolCalls, registry, ctx, attempted, emit);
     used.push(...executed.used);
+    // Repeating only previously attempted calls is a loop. Invalid arguments
+    // still get another chance to be repaired within the round budget.
+    answerNext =
+      executed.messages.length > 0 &&
+      executed.messages.every((m) => m.content.includes("already attempted with these arguments"));
     if (executed.facts.length > 0) {
       retrievedTotal += executed.facts.length;
       facts = assignFactIds(mergeFactsWithCap(facts, executed.facts, MAX_FACTS));
