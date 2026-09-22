@@ -99,20 +99,35 @@ check("THE PAYOFF: the health chip is the interactive one", () => {
   assert(el.includes("projectId"), "no projectId — the disclosure would be read-only");
 });
 
-check("controls sit above the stretched overlay", () => {
+check("controls sit above the stretched overlay — by position, NOT z-index", () => {
   // Without this the ::after covers the chip and the click opens the project
   // instead of expanding the breakdown — which looks like the feature is broken
   // rather than absent.
+  //
+  // CORRECTED: this originally demanded `z-[1]` here, and that was wrong. A
+  // z-index makes every row its own STACKING CONTEXT, which traps the health
+  // panel inside its row — the panel asks for z-40 and every row below still
+  // paints over it. Shipped that way in #832 and it made the disclosure
+  // unreadable on production.
+  //
+  // `relative` alone is sufficient and correct: this and the link's ::after
+  // are both positioned with z-index auto, so they paint in DOM order and the
+  // actions come second. The test now pins the INTENT (positioned, no
+  // stacking context) instead of one broken implementation of it.
   assert(
     code.includes("ui-projects-row-actions"),
     "the controls column is not lifted above the stretched link",
   );
   const at = css.indexOf(".ui-projects-row-actions");
   assert(at !== -1, "ui-projects-row-actions is not defined in globals.css");
-  const block = css.slice(at, at + 160);
+  const block = css.slice(at, css.indexOf("}", at));
   assert(
-    /z-\[?1/.test(block) && block.includes("relative"),
-    `actions are not stacked above the overlay: ${block.slice(0, 120)}`,
+    block.includes("relative"),
+    `actions are not positioned, so the stretched link swallows their clicks: ${block.slice(0, 120)}`,
+  );
+  assert(
+    !/z-\[|z-\d/.test(block),
+    `a z-index is back — it traps the health panel inside the row: ${block.replace(/\s+/g, " ")}`,
   );
 });
 

@@ -163,9 +163,26 @@ export function HealthScoreBar({
     }
   }
 
+  /*
+   * Earned segments first, so the track reads as the meter it is shaped like.
+   *
+   * It rendered in CHECK ORDER, which put gaps wherever the failures happened
+   * to fall: a 7/10 came out as ●●●●●○○●● — filled, filled, gap, filled. That
+   * is the shape of a progress bar carrying the content of a checklist laid
+   * sideways, and at a glance it reads as neither. Seen on /projects
+   * 2026-09-22.
+   *
+   * Sorting costs nothing, because segment POSITION carries no information to
+   * anyone: the track is aria-hidden and no segment is labelled, hoverable or
+   * individually addressable. Which checks failed is the panel's job, and the
+   * panel names them in full. If a segment ever becomes identifiable, this
+   * sort has to go — the comment is here so that is a decision rather than a
+   * surprise.
+   */
+  const segments = [...checks].sort((a, b) => Number(b.pass) - Number(a.pass));
   const bar = (
     <span className="ui-health-track" aria-hidden>
-      {checks.map((check) => (
+      {segments.map((check) => (
         <span
           key={check.key}
           className={check.pass ? `ui-health-seg ui-health-seg-${tone}` : "ui-health-seg"}

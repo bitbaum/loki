@@ -3050,7 +3050,12 @@
       /* Stays scrollable above `sm` too: the panel is a worklist now, with a
          rule and an editor per outstanding check, so it can exceed the screen
          on a laptop as easily as on a phone. */
-      @apply absolute inset-x-auto left-0 top-full mt-1 max-h-[70vh] w-96 max-w-[85vw] rounded-lg;
+      /* Anchored RIGHT, because the chip is: on /projects the health control
+         sits at the right edge of the row, so a left-anchored 24rem panel
+         opened off the side of the screen and cut its own sentences in half
+         ("anyone can register @revamp-it.ch domain and get Sta…"). Hanging it
+         from the right edge means it opens back across the row it belongs to. */
+      @apply absolute inset-x-auto right-0 top-full mt-1 max-h-[70vh] w-96 max-w-[85vw] rounded-lg;
       bottom: auto;
     }
   }
@@ -4379,8 +4384,20 @@
     content: "";
     @apply absolute inset-0;
   }
+  /* `relative` and NOT a z-index.
+
+     A z-index here makes every row its own STACKING CONTEXT, which traps the
+     health panel inside it: the panel asks for z-40, but z-40 only ranks it
+     against its siblings within this row, so every row further down the list
+     paints straight over the open panel. Seen on /projects immediately after
+     the stretched-link change shipped — the disclosure opened with other
+     rows' text bleeding through it, unreadable.
+
+     `relative` alone is enough to clear the stretched link: both this and the
+     link's ::after are positioned with z-index auto, so they paint in DOM
+     order, and this comes second. */
   .ui-projects-row-actions {
-    @apply relative z-[1];
+    @apply relative;
   }
   .ui-projects-show-more {
     @apply flex w-full min-h-11 items-center justify-center gap-2 rounded-xl border border-border-subtle bg-surface-base py-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-border-default hover:bg-surface-raised hover:text-text-primary;
