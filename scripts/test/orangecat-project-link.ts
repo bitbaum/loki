@@ -42,11 +42,21 @@ function ok(cond: boolean, label: string) {
 
 // ── consent, not ownership ──────────────────────────────────────────────────
 ok(
-  /rows\.find\(\(r\) => r\.project\.listedPublicly\)/.test(SRC),
-  "only a project whose owner consented to public listing is ever reported",
+  /linked\.find\(\(r\) => r\.project\.listedPublicly\)/.test(SRC) &&
+    /legacy\.find\(\(p\) => p\.listedPublicly\)/.test(SRC),
+  "only a project whose owner consented to public listing is ever reported — from EITHER source",
+);
+// Two tables record the same fact and they do not always agree. Measured on
+// prod: one of nine published projects had the legacy column and no link row,
+// and it was Loki's own — so asking the newer table alone answered "not
+// linked" for a project that had been building in public for months.
+ok(
+  /getProjectsByOrangeCatEntity\("project", projectId\)/.test(SRC) &&
+    /eq\(userProjects\.orangecatProjectId, projectId\)/.test(SRC),
+  "both the link table and the legacy column are asked",
 );
 ok(
-  /const match = /.test(SRC) && /if \(!match\)/.test(SRC),
+  /const match =/.test(SRC) && /if \(!match\)/.test(SRC),
   "...and everything else takes the not-linked exit",
 );
 

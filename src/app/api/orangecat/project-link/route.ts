@@ -1,4 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { userProjects } from "@/db/schema";
 import { getProjectsByOrangeCatEntity } from "@/db/queries/orangecat-links";
 import { canonicalSlug, repoFromGitUrl } from "@/lib/register/build";
 import { publicProfilePath } from "@/lib/register/map";
@@ -46,12 +49,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "project_id must be a UUID" }, { status: 400 });
   }
 
-  const rows = await getProjectsByOrangeCatEntity("project", projectId);
+  // TWO places record the same fact, so both are asked.
+  //
+  // `orangecat_entity_links` is the general one (any entity type, a role, a
+  // title). `user_projects.orangecat_project_id` is the legacy single-UUID
+  // column that predates it and is still written by every publish for the
+  // funding read path. They normally agree — but measured on prod the day this
+  // shipped, one of nine published projects had the column and no link row,
+  // and it was Loki's own. Asking only the newer table answered "not linked"
+  // for a project that has been building in public for months, which is the
+  // exact wrong answer this route exists to stop giving.
+  const [linked, legacy] = await Promise.all([
+    getProjectsByOrangeCatEntity("project", projectId),
+    db.select().from(userProjects).where(eq(userProjects.orangecatProjectId, projectId)).limit(5),
+  ]);
+
   // The first CONSENTING project wins. More than one Loki project can point at
   // one OrangeCat entity (a repointed origin leaves the old link behind); a
   // reader needs one destination, and an unlisted row must not shadow a listed
   // one by happening to sort first.
-  const match = rows.find((r) => r.project.listedPublicly);
+  const match =
+    linked.find((r) => r.project.listedPublicly)?.project ?? legacy.find((p) => p.listedPublicly);
 
   if (!match) {
     return NextResponse.json(
@@ -60,14 +78,12 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const slug = canonicalSlug(
-    match.project.slug || repoFromGitUrl(match.project.gitUrl) || match.project.name,
-  );
+  const slug = canonicalSlug(match.slug || repoFromGitUrl(match.gitUrl) || match.name);
 
   return NextResponse.json(
     {
       linked: true,
-      name: match.project.name,
+      name: match.name,
       // The reader's destination — purpose, roadmap, changelog, what moved
       // last. Never the workspace: that is behind a sign-in, and this answer
       // is served to anyone.
