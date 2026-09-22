@@ -7,6 +7,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import { patchJson, throwApiError } from "@/lib/api/fetch";
 import { compactRelativeDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+import type { ProjectFeedbackSummary } from "@/db/queries/site-feedback";
 import type { Alert } from "@/db/schema/alerts";
 
 const SEVERITY_CONFIG = {
@@ -15,17 +16,9 @@ const SEVERITY_CONFIG = {
   urgent: { label: "Urgent", color: "text-status-negative" },
 } as const;
 
-type FeedbackSummary = {
-  projectId: string;
-  projectName: string;
-  newCount: number;
-  openCount: number;
-  latestAt: string;
-};
-
 export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const { data, loading, refetch } = useFetch<{ alerts: Alert[] }>("/api/alerts");
-  const feedback = useFetch<{ summary: FeedbackSummary[] }>("/api/feedback/summary");
+  const feedback = useFetch<{ summary: ProjectFeedbackSummary[] }>("/api/feedback/summary");
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const alerts = data?.alerts ?? [];
