@@ -1,5 +1,19 @@
 # Loki × OrangeCat — Master Plan, Loki Side (July 2026)
 
+> **STATUS — read before acting on this (added 2026-09-22).**
+> This is a July 2026 plan, kept for its reasoning. Two of its load-bearing
+> facts have since changed:
+>
+> - **Stripe is gone.** Removed entirely in #508 (2026-09-06): no
+>   `src/app/api/stripe/`, no `stripe` dependency in `package.json`. Every
+>   sentence below treating Stripe as "coded and ready to flip live" describes
+>   a rail that no longer exists. The payment path is the OrangeCat BTC pass.
+> - **zellij is gone** (#630), so any dispatch mechanics described in terms of
+>   zellij tabs are historical.
+>
+> Nothing here has been deleted — a plan that was right when written is worth
+> reading. Just do not treat its inventory as current.
+
 **Companion to:** `orangecat/docs/business/executive/master-plan-2026-07.md`
 (the OC-side plan, written 2026-07-02). The two plans interlock: OC carries
 proof and the moat, FC carries revenue and distribution. This document is the

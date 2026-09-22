@@ -73,7 +73,7 @@ Loki is the name because it positions the *product* as the authoritative command
 `pnpm run check:design` now fails on any bare `(text|fill|stroke|border|ring|bg)-accent` in TSX. The general lesson: a token whose name reads like a colour may be half of a surface pair — check its OKLCH lightness against the background it will sit on before using it as ink.
 
 **Brand mark (the geometric logo):**
-- The single source of truth for the mark is the SVG inside `src/components/shell/BrandMark.tsx` (rounded control-window frame + vertical divider + horizontal control bars). It is rendered with `currentColor` + semantic text tokens so it adapts to light/dark and context.
+- The single source of truth for the mark is `src/config/brand-mark.ts` (`BRAND_MARK` + `spiralPathD()`). `src/components/shell/BrandMark.tsx` renders it and must never hand-redraw the geometry — the config file says so in its own header. It is rendered with `currentColor` + semantic text tokens so it adapts to light/dark and context.
 - `public/icon.svg` (PWA, apple, manifest) and every `opengraph-*.tsx` / `twitter-image.tsx` **must render the identical geometry** (scaled). They duplicate the paths for static/edge reasons but are annotated with "must stay visually identical".
 - Never introduce a third mark. The crosshair/target that previously lived in the icon/OG was replaced (2026) to match the in-app control window because the latter better communicates "command center / control plane".
 - The wordmark next to the mark always comes from `APP_NAME` (never a second source).
@@ -83,7 +83,7 @@ Loki is the name because it positions the *product* as the authoritative command
 - Always dark (near-black) by design, even when the app is in light mode. This is why `ui-public-*` and `ui-auth-*` legitimately contain `text-white/xx` and `bg-white/xx` *inside the class definitions in globals.css only*. Components never use the opacity utilities directly.
 - The massive black download band and CTAs use `--public-accent` (warm orange) for the hover/CTA state — defined once in Layer 1, referenced from the ui-public-download-cta hover rule.
 
-**Desktop app styles (`desktop/src/renderer/src/styles/globals.css`):**
+**Desktop app styles — GONE.** `desktop/src/renderer/` was deleted in v0.7.4; `desktop/src/` is `main/` + `preload/` only. Fleet Runner renders the web app, so there is no second stylesheet to keep in sync. (`docs/HANDOFF.md` records this as "DO NOT bring it back".)
 - Separate from the web four-layer system on purpose (native Electron window, different constraints, "local authoritative" feel).
 - Uses its own minimal dark tokens + `fleet-*` and runner primitives.
 - Shares the same `--public-accent` / warm orange value for consistency with marketing CTAs.
@@ -123,13 +123,13 @@ Ask (in order):
 ## Related Files & Commands
 
 - `src/config/brand.ts`, `scripts/_brand.sh`
-- `src/app/globals.css` (the 1845-line single source for every visual decision)
+- `src/app/globals.css` (the single source for every visual decision)
 - `scripts/check-design-system.sh` + the grep in CLAUDE.md
-- `src/components/shell/BrandMark.tsx` + `SidebarBrand.tsx`
+- `src/components/shell/BrandMark.tsx` (there is no `SidebarBrand.tsx`)
 - `src/app/layout.tsx` (metadata), `public/manifest.json`, `src/app/opengraph-image.tsx` + siblings
 - `src/config/marketing-content.ts`
 - `pnpm run check:design`
-- Desktop: `desktop/src/renderer/src/App.tsx`, its globals.css, `desktop/src/main/index.ts`
+- Desktop: `desktop/src/main/index.ts` only — there is no renderer (deleted v0.7.4)
 - Docs: this file + `CLAUDE.md` (design system section) + `docs/desktop-app.md` (rebrand notes from the cockpit→loki pass)
 
 The system exists to serve builders who run many projects and many agents at once. Every pixel and every syllable should make that human feel more in control, not less.

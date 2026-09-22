@@ -1,5 +1,20 @@
 # Loki Debt Reduction Roadmap
 
+> **STATUS — partly superseded (added 2026-09-22).** This roadmap is linked from
+> the README as current, so read this first:
+>
+> - **The Beacon sections are obsolete.** The beacon popup was retired on
+>   2026-06-11 (`2391c6f7`) and its remains were deleted in #804:
+>   `scripts/beacon.py`, `POST /api/beacon` and the `beacon_sessions` table are
+>   gone, and `/beacon/live` 404s. Anything below that treats Beacon as live
+>   architecture — "stabilize Beacon as a client", "the always-on-top desktop
+>   overlay" — describes something that no longer exists. What replaced it is
+>   Fleet Runner's `notifyOnIdle` + autopilot dispatch.
+> - Its file links were absolute paths into one machine's home directory and
+>   were broken for every other reader; they are now repo-relative.
+>
+> The non-Beacon debt items have not been re-checked against current main.
+
 ## Purpose
 
 This document turns the current architectural concerns into an execution
@@ -87,9 +102,9 @@ Why:
 Targets:
 
 - direct prompt semantics embedded in Beacon file-reading logic in
-  [scripts/beacon.py](/home/g/dev/loki/scripts/beacon.py)
+  [scripts/beacon.py](../scripts/beacon.py)
 - any remaining Claude-only prompt meaning outside
-  [src/lib/orchestration/intents.ts](/home/g/dev/loki/src/lib/orchestration/intents.ts)
+  [src/lib/orchestration/intents.ts](../src/lib/orchestration/intents.ts)
 
 Action:
 
@@ -104,9 +119,9 @@ Why:
 Targets:
 
 - direct ready/closing/closed interpretation in
-  [src/app/api/control/route.ts](/home/g/dev/loki/src/app/api/control/route.ts)
+  [src/app/api/control/route.ts](../src/app/api/control/route.ts)
 - direct prompt/run semantics in
-  [src/app/api/inject/route.ts](/home/g/dev/loki/src/app/api/inject/route.ts)
+  [src/app/api/inject/route.ts](../src/app/api/inject/route.ts)
 
 Action:
 
@@ -121,9 +136,9 @@ Why:
 Targets:
 
 - browser countdown in
-  [src/components/control/project-card-helpers.tsx](/home/g/dev/loki/src/components/control/project-card-helpers.tsx)
+  [src/components/control/project-card-helpers.tsx](../src/components/control/project-card-helpers.tsx)
 - Beacon countdown logic in
-  [scripts/beacon.py](/home/g/dev/loki/scripts/beacon.py)
+  [scripts/beacon.py](../scripts/beacon.py)
 
 Action:
 
@@ -137,10 +152,10 @@ These concepts exist more than once and should be unified.
 
 Current split:
 
-- prompt config in [src/lib/agent-config.ts](/home/g/dev/loki/src/lib/agent-config.ts)
-- orchestration intents in [src/lib/orchestration/intents.ts](/home/g/dev/loki/src/lib/orchestration/intents.ts)
-- control button labels/groups in [src/config/control-intents.ts](/home/g/dev/loki/src/config/control-intents.ts)
-- Beacon prompt metadata loading in [scripts/beacon.py](/home/g/dev/loki/scripts/beacon.py)
+- prompt config in [src/lib/agent-config.ts](../src/lib/agent-config.ts)
+- orchestration intents in [src/lib/orchestration/intents.ts](../src/lib/orchestration/intents.ts)
+- control button labels/groups in [src/config/control-intents.ts](../src/config/control-intents.ts)
+- Beacon prompt metadata loading in [scripts/beacon.py](../scripts/beacon.py)
 
 Problem:
 
@@ -156,10 +171,10 @@ Merge target:
 
 Current split:
 
-- fast-state reading in [src/lib/control-fast-state.ts](/home/g/dev/loki/src/lib/control-fast-state.ts)
-- slower control aggregation in [src/app/api/control/route.ts](/home/g/dev/loki/src/app/api/control/route.ts)
+- fast-state reading in [src/lib/control-fast-state.ts](../src/lib/control-fast-state.ts)
+- slower control aggregation in [src/app/api/control/route.ts](../src/app/api/control/route.ts)
 - orchestration run persistence in
-  [src/db/queries/orchestration-runs.ts](/home/g/dev/loki/src/db/queries/orchestration-runs.ts)
+  [src/db/queries/orchestration-runs.ts](../src/db/queries/orchestration-runs.ts)
 
 Problem:
 
@@ -181,9 +196,9 @@ Current split:
 
 Targets:
 
-- [src/lib/agent-config.ts](/home/g/dev/loki/src/lib/agent-config.ts)
-- [src/app/api/control/route.ts](/home/g/dev/loki/src/app/api/control/route.ts)
-- [src/app/api/inject/route.ts](/home/g/dev/loki/src/app/api/inject/route.ts)
+- [src/lib/agent-config.ts](../src/lib/agent-config.ts)
+- [src/app/api/control/route.ts](../src/app/api/control/route.ts)
+- [src/app/api/inject/route.ts](../src/app/api/inject/route.ts)
 
 Merge target:
 
@@ -216,9 +231,9 @@ Target role:
 
 Keep building on:
 
-- [src/lib/orchestration/contract.ts](/home/g/dev/loki/src/lib/orchestration/contract.ts)
-- [src/lib/orchestration/adapters.ts](/home/g/dev/loki/src/lib/orchestration/adapters.ts)
-- [src/lib/orchestration/runners/openclaw.ts](/home/g/dev/loki/src/lib/orchestration/runners/openclaw.ts)
+- [src/lib/orchestration/contract.ts](../src/lib/orchestration/contract.ts)
+- [src/lib/orchestration/adapters.ts](../src/lib/orchestration/adapters.ts)
+- [src/lib/orchestration/runners/openclaw.ts](../src/lib/orchestration/runners/openclaw.ts)
 
 Needed:
 
@@ -234,9 +249,9 @@ Keep:
 
 Current locations:
 
-- [src/lib/control-fast-state.ts](/home/g/dev/loki/src/lib/control-fast-state.ts)
-- [src/app/api/sessions/route.ts](/home/g/dev/loki/src/app/api/sessions/route.ts)
-- [src/lib/agent-config.ts](/home/g/dev/loki/src/lib/agent-config.ts)
+- [src/lib/control-fast-state.ts](../src/lib/control-fast-state.ts)
+- [src/app/api/sessions/route.ts](../src/app/api/sessions/route.ts)
+- [src/lib/agent-config.ts](../src/lib/agent-config.ts)
 
 Needed:
 
@@ -300,8 +315,8 @@ Implement:
 
 Files to center:
 
-- [src/lib/orchestration/contract.ts](/home/g/dev/loki/src/lib/orchestration/contract.ts)
-- [src/lib/orchestration/intents.ts](/home/g/dev/loki/src/lib/orchestration/intents.ts)
+- [src/lib/orchestration/contract.ts](../src/lib/orchestration/contract.ts)
+- [src/lib/orchestration/intents.ts](../src/lib/orchestration/intents.ts)
 
 ### Priority 2: Introduce event log and derived state
 
@@ -379,11 +394,11 @@ Result:
 
 ### Highest-risk files
 
-- [src/app/api/control/route.ts](/home/g/dev/loki/src/app/api/control/route.ts)
-- [src/app/api/inject/route.ts](/home/g/dev/loki/src/app/api/inject/route.ts)
-- [src/lib/agent-config.ts](/home/g/dev/loki/src/lib/agent-config.ts)
-- [src/lib/control-fast-state.ts](/home/g/dev/loki/src/lib/control-fast-state.ts)
-- [scripts/beacon.py](/home/g/dev/loki/scripts/beacon.py)
+- [src/app/api/control/route.ts](../src/app/api/control/route.ts)
+- [src/app/api/inject/route.ts](../src/app/api/inject/route.ts)
+- [src/lib/agent-config.ts](../src/lib/agent-config.ts)
+- [src/lib/control-fast-state.ts](../src/lib/control-fast-state.ts)
+- [scripts/beacon.py](../scripts/beacon.py)
 
 Reason:
 
@@ -394,11 +409,11 @@ Reason:
 Implemented:
 
 - `dotfiles` stop and notification hooks now delegate to
-  [scripts/agent-hook-bridge.sh](/home/g/dev/loki/scripts/agent-hook-bridge.sh)
+  [scripts/agent-hook-bridge.sh](../scripts/agent-hook-bridge.sh)
 - shared runtime hook utilities now live in
-  [scripts/agent-hook-lib.sh](/home/g/dev/loki/scripts/agent-hook-lib.sh)
+  [scripts/agent-hook-lib.sh](../scripts/agent-hook-lib.sh)
 - `dotfiles` Beacon now delegates to
-  [scripts/beacon.py](/home/g/dev/loki/scripts/beacon.py)
+  [scripts/beacon.py](../scripts/beacon.py)
 
 Still a shim:
 
@@ -410,9 +425,9 @@ Still a shim:
 
 ### Good foundation files
 
-- [src/lib/orchestration/contract.ts](/home/g/dev/loki/src/lib/orchestration/contract.ts)
-- [src/lib/orchestration/intents.ts](/home/g/dev/loki/src/lib/orchestration/intents.ts)
-- [src/db/schema/orchestration-runs.ts](/home/g/dev/loki/src/db/schema/orchestration-runs.ts)
+- [src/lib/orchestration/contract.ts](../src/lib/orchestration/contract.ts)
+- [src/lib/orchestration/intents.ts](../src/lib/orchestration/intents.ts)
+- [src/db/schema/orchestration-runs.ts](../src/db/schema/orchestration-runs.ts)
 
 Reason:
 
