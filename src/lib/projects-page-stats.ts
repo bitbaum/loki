@@ -53,6 +53,10 @@ export function filterProjects(
   projects: ProjectGridRow[],
   query: string,
   pageFilter: ProjectsPageFilter,
+  /** entity id → ISO of the newest real dispatch; the same map the rows label
+   *  themselves from. Omitted (tests, callers without it) → recency is simply
+   *  not a factor and the order falls through to name. */
+  lastActivityByProject?: Record<string, string>,
 ): ProjectGridRow[] {
   const q = query.trim().toLowerCase();
 
@@ -80,12 +84,52 @@ export function filterProjects(
     const bNew = isFreshProject(b, now);
     if (aNew !== bNew) return aNew ? -1 : 1;
     if (aNew && bNew) return createdMs(b) - createdMs(a);
-    const aHasNext = hasAnswer(a.attrs[PROJECT_ATTR.NEXT_STEP]);
-    const bHasNext = hasAnswer(b.attrs[PROJECT_ATTR.NEXT_STEP]);
-    if (aHasNext !== bHasNext) return aHasNext ? -1 : 1;
-    if (a.readonly !== b.readonly) return a.readonly ? 1 : -1;
+
+    // MOST RECENTLY ACTIVE. Every row already prints "active 23d ago", and
+    // until now the list ignored the very number it displayed: the real
+    // tiebreaker was `name.localeCompare`, and with 22 of 36 projects holding
+    // a next step, the ALPHABET decided most of the page. Measured on prod
+    // 2026-09-22: 9 inversions across 21 adjacent pairs; loki, active seven
+    // minutes earlier, sat ELEVENTH, below two projects untouched for a month;
+    // and the three projects whose runs had failed at 06:00 that morning sat
+    // at 15, 18 and 20.
+    //
+    // Two tiers were removed to get here, both undocumented:
+    //   - has-a-next-step first. Backwards on its face — a project that knows
+    //     its next step is the one that needs you LEAST — and it was the tier
+    //     that split the page into two alphabetical blocks.
+    //   - own-before-team. A team project touched yesterday outranks a
+    //     personal one untouched for a month; recency says that better.
+    //
+    // What survives is one sentence a reader can hold: flagged first, then
+    // most recently active. The header says exactly that, so the order is
+    // legible instead of mysterious.
+    const aSeen = lastActivityMs(a, lastActivityByProject);
+    const bSeen = lastActivityMs(b, lastActivityByProject);
+    if (aSeen !== bSeen) return bSeen - aSeen;
+
+    // Same recency (usually: both never dispatched) — a stable, explicable
+    // order beats an arbitrary one.
     return a.name.localeCompare(b.name);
   });
+}
+
+/**
+ * When this project last did something, as epoch ms; 0 when it never has.
+ *
+ * Read from the same map the row renders its "active … ago" label from, so the
+ * order and the label can never disagree — a list sorted by one clock and
+ * labelled with another is how this page came to display the exact number it
+ * was ignoring.
+ */
+function lastActivityMs(
+  p: ProjectGridRow,
+  lastActivityByProject: Record<string, string> | undefined,
+): number {
+  const iso = lastActivityByProject?.[p.id];
+  if (!iso) return 0;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : 0;
 }
 
 export const FRESH_PROJECT_MS = 24 * 60 * 60 * 1000;

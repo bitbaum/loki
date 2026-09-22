@@ -68,8 +68,8 @@ export function ProjectsWorkspace({
   const stats = useMemo(() => computeProjectsPageStats(projects), [projects]);
 
   const filtered = useMemo(
-    () => filterProjects(projects, debouncedQuery, pageFilter),
-    [projects, debouncedQuery, pageFilter],
+    () => filterProjects(projects, debouncedQuery, pageFilter, lastDispatchByProject),
+    [projects, debouncedQuery, pageFilter, lastDispatchByProject],
   );
 
   // Never fold a flagged project below the chunk line — attention outranks
