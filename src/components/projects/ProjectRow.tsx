@@ -72,9 +72,12 @@ export function ProjectRow({
           {signals.map((s) => (
             <HealthBadge key={s.kind} signal={s} />
           ))}
+          {/* Not desktop-only. "Needs path" means Loki cannot dispatch an agent
+              for this project at all — the most actionable badge on the row,
+              and it was hidden on the viewport where the row is narrowest. */}
           {loopReadiness.state !== "ready" && (
             <span
-              className="ui-projects-badge ui-projects-badge-warning hidden sm:inline-flex"
+              className="ui-projects-badge ui-projects-badge-warning"
               title={loopReadiness.description}
             >
               {loopReadiness.label}
@@ -108,6 +111,25 @@ export function ProjectRow({
             </span>
           </p>
         )}
+        {/* The same facts, on the viewport that had none of them.
+
+            The right-hand meta column below is `sm:flex`, so on a phone the row
+            lost health, "active … ago" and the open-feedback count outright.
+            That became indefensible the moment this page started SORTING by
+            recency and saying so in its subtitle: the order was unverifiable on
+            the device where it matters most — you were asked to trust a
+            sequence whose evidence had been hidden.
+
+            A stacked line rather than the desktop column: at 390px a right rail
+            steals the width the project name needs, and the name is what you
+            came to read. `health N/10` is spelled out because a bare "7/10"
+            next to a date is a magic number — the score's own module exists to
+            stop it being one. */}
+        <p className="mt-1 text-micro text-text-muted sm:hidden">
+          {recency}
+          {` · health ${health.score}/${health.max}`}
+          {feedbackOpen ? ` · ${feedbackOpen} feedback` : ""}
+        </p>
       </div>
       <div className="hidden shrink-0 flex-col items-end gap-1 sm:flex">
         <HealthScoreBar health={health} />
