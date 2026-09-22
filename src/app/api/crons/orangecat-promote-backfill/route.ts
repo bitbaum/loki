@@ -34,6 +34,36 @@ const BACKFILL_WINDOW_DAYS = 14;
 /** Cap re-emits per tick so a misconfig can't hammer the OC publish bus. */
 const MAX_PROMOTES_PER_TICK = 50;
 
+/**
+ * One emit every this long, because OrangeCat allows 30 writes per minute per
+ * user (`rateLimitWriteAsync`, sliding 60s window) and this janitor used to
+ * fire its whole tick as fast as the event loop allowed.
+ *
+ * The arithmetic was doing exactly what it looks like: measured on prod
+ * 2026-09-22, the first tick after a five-day outage reported
+ * `posted: 30, failed: 20` — the first thirty landed, the bucket emptied, and
+ * every remaining attempt came back 429 and was logged as a failure. Not a
+ * fluke to retry past: a backlog larger than thirty ALWAYS burned the
+ * remainder of its budget on refusals, and the deterministic external ids
+ * meant the next tick re-sent the same doomed twenty a day later.
+ *
+ * Paced, nothing is refused and nothing is wasted. The number is the
+ * neighbour's published limit with headroom (60s / 30 = 2000ms), not a guess
+ * tuned until the errors stopped.
+ */
+const PROMOTE_PACE_MS = 2_100;
+
+/**
+ * Stop before the caller does. The systemd timer curls this with `-m 120`
+ * (scripts/install-hetzner-crons.sh), and a tick killed mid-flight reports
+ * nothing at all — no counts, no debug_logs row, just a dead curl. Ending
+ * early and saying `capped` keeps the tick's own account of itself intact;
+ * the deterministic ids mean the rest is picked up next time.
+ */
+const TIME_BUDGET_MS = 90_000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function GET(req: NextRequest) {
   const denied = requireCronAuth(req);
   if (denied) return denied;
@@ -50,6 +80,7 @@ export async function GET(req: NextRequest) {
     .from(userProjects)
     .where(and(isNotNull(userProjects.orangecatProjectId), eq(userProjects.isActive, true)));
 
+  const startedAt = Date.now();
   const counts: Record<PromoteOutcome, number> = { posted: 0, skipped: 0, failed: 0 };
   let attempted = 0;
   let capped = false;
@@ -94,12 +125,18 @@ export async function GET(req: NextRequest) {
     ];
 
     // Sequential on purpose: this is a janitor, not a hot path — one in-flight
-    // request to the OC bus at a time.
+    // request to the OC bus at a time. Sequential is not the same as PACED,
+    // which is what the pause below adds; see PROMOTE_PACE_MS.
     for (const emit of moments) {
       if (attempted >= MAX_PROMOTES_PER_TICK) {
         capped = true;
         break outer;
       }
+      if (Date.now() - startedAt > TIME_BUDGET_MS) {
+        capped = true;
+        break outer;
+      }
+      if (attempted > 0) await sleep(PROMOTE_PACE_MS);
       attempted++;
       counts[await emit()]++;
     }
