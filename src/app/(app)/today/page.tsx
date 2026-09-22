@@ -24,6 +24,12 @@ import { LayoutGrid, ChevronDown } from "lucide-react";
 import { DayPhaseDispatch } from "@/components/today/DayPhaseDispatch";
 import { requirePageUserId, getCurrentUserName } from "@/lib/session";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
+import { getProjects } from "@/db/queries/projects";
+import { hasProjectAttention, isSiteDown } from "@/lib/projects-page-stats";
+import { PROJECT_ATTR } from "@/config/project-attrs";
+import { signalHasExpired } from "@/lib/project-signals";
+import { hasAnswer } from "@/lib/project-display";
+import { NeedsYouVerdict, type FlaggedProject } from "@/components/today/NeedsYouVerdict";
 import { FIRST_RUN } from "@/lib/constants/today";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { AutoRefresh } from "@/components/shared/AutoRefresh";
@@ -71,15 +77,41 @@ async function loadTodayInputs() {
     step("getCurrentUserName", () => getCurrentUserName()),
     step("requirePageUserId", () => requirePageUserId()),
   ]);
-  const [projects, orgProjects] = await Promise.all([
+  const [projects, orgProjects, entityProjects] = await Promise.all([
     step("getUserProjects", () => getUserProjects(userId)),
     step("getOrgProjects", () => getOrgProjects(userId)),
+    // For the front-door verdict. Read through the SAME predicate the projects
+    // list sorts by, so a project cannot be flagged on one page and calm on
+    // the other — two surfaces disagreeing about "needs you" is the defect
+    // this whole section exists to end.
+    step("getProjects", () => getProjects(userId).catch(() => [])),
   ]);
-  return { name, userId, projects, orgProjects };
+
+  const FLAG_KEYS = [
+    PROJECT_ATTR.SECURITY_VULNERABILITY,
+    PROJECT_ATTR.BROKEN_FEATURES,
+    PROJECT_ATTR.DEPLOYMENT_ISSUE,
+  ] as const;
+
+  const flagged: FlaggedProject[] = entityProjects
+    .filter((p) => hasProjectAttention(p))
+    .map((p) => {
+      // The first live flag's OWN WORDS. The sentence someone wrote is what
+      // the operator acts on; a count is a number to go and decode.
+      const key = FLAG_KEYS.find((k) => hasAnswer(p.attrs[k]) && !signalHasExpired(p.attrMeta, k));
+      const raw = key ? p.attrs[key] : isSiteDown(p) ? "Live site is down" : "";
+      return {
+        id: p.id,
+        name: p.name,
+        reason: raw.length > 90 ? `${raw.slice(0, 89)}…` : raw,
+      };
+    });
+
+  return { name, userId, projects, orgProjects, flagged };
 }
 
 export default async function TodayPage() {
-  const { name, userId, projects, orgProjects } = await loadTodayInputs();
+  const { name, userId, projects, orgProjects, flagged } = await loadTodayInputs();
   const isFirstRun = projects.length === 0 && orgProjects.length === 0;
   return (
     <PullToRefresh>
@@ -124,6 +156,17 @@ export default async function TodayPage() {
 
         {!isFirstRun && (
           <>
+            {/* THE ANSWER, FIRST.
+
+                Measured on production 2026-09-22: this page mentioned feedback
+                zero times, failures zero times and flagged projects zero times
+                — while showing the weather and "92 runs this week", and while
+                its own sidebar badged "Feedback 4". A front door that reports
+                VOLUME instead of NEED makes you go three clicks away to learn
+                whether you are free, and Control and Activity then answered it
+                differently from each other. */}
+            <NeedsYouVerdict flagged={flagged} />
+
             <Suspense fallback={null}>
               <LockedZoneBanner />
             </Suspense>
