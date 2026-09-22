@@ -2,11 +2,17 @@ export const WHISPER_MODEL_VALUES = ["tiny", "base", "small", "medium", "large"]
 type WhisperModel = (typeof WHISPER_MODEL_VALUES)[number];
 
 export const WHISPER_MODELS: readonly { value: WhisperModel; label: string; note: string }[] = [
-  { value: "tiny", label: "Tiny", note: "~39 MB · fastest, lower accuracy" },
-  { value: "base", label: "Base", note: "~74 MB · good balance (default)" },
-  { value: "small", label: "Small", note: "~244 MB · better accuracy" },
-  { value: "medium", label: "Medium", note: "~769 MB · high accuracy" },
-  { value: "large", label: "Large", note: "~1.5 GB · best accuracy, slowest" },
+  // No download sizes here on purpose. The figures that used to sit in these
+  // notes (39/74/244/769 MB, 1.5 GB) are openai-whisper .pt sizes, but
+  // scripts/transcribe.py uses faster-whisper, which fetches CT2 builds that
+  // are roughly twice as large — measured 2026-09-22: tiny 75 MB, small
+  // 464 MB. Only those two were ever downloaded, so three of the five numbers
+  // could not be corrected, only guessed. Ordering is the honest signal.
+  { value: "tiny", label: "Tiny", note: "fastest, lowest accuracy" },
+  { value: "base", label: "Base", note: "good balance (default)" },
+  { value: "small", label: "Small", note: "better accuracy" },
+  { value: "medium", label: "Medium", note: "high accuracy, slower" },
+  { value: "large", label: "Large", note: "best accuracy, slowest" },
 ];
 
 export const TRANSCRIPTION_PROVIDER_VALUES = ["auto", "local", "groq"] as const;
