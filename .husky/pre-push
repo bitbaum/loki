@@ -169,6 +169,24 @@ if [ -z "$_health" ]; then
   echo "→ smoke: server not running at $BASE — skipping (start with pnpm run dev or install-app)"
 elif ! printf '%s' "$_health" | grep -q '"commit"'; then
   echo "→ smoke: server at $BASE is NOT Loki (health payload lacks \"commit\") — skipping"
+elif printf '%s' "$_health" | grep -q '"state":"unconfigured"'; then
+  # A RUNNING server is not a SMOKEABLE server.
+  #
+  # "Is this Loki?" was answered by the presence of a `commit` field, which a
+  # Loki process with no database satisfies perfectly — so the hook smoked a
+  # server that 404s every database-backed route and failed 23 of 48 of them,
+  # on changes that could not possibly have caused it (CSS, a copy string, a
+  # sort comparator). Observed twice on 2026-09-22 against a dev server left
+  # running without DATABASE_URL; both pushes went out --no-verify and CI
+  # passed the identical bundle each time.
+  #
+  # That is the worst shape a gate can take: it blocks correct work, names the
+  # wrong cause, and trains you to bypass it — after which it protects nothing.
+  # The health payload already says `schema.state`, so the hook had the fact it
+  # needed and simply did not look.
+  echo "→ smoke: server at $BASE has no database (schema: unconfigured) — skipping"
+  echo "  It answers /api/health but 404s every data route, so smoking it tests"
+  echo "  the server's state, not your change. Fix with: pnpm run db:push"
 else
   echo "→ smoke: Loki server detected at $BASE"
   pnpm run smoke
