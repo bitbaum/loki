@@ -106,6 +106,65 @@ export function ProjectWorkspaceView({
       agentRunning: isBuildActive(buildStatus),
     });
 
+  /**
+   * WHAT IS WRONG, ABOVE WHAT IS HAPPENING.
+   *
+   * Measured on production 2026-09-22 (evig): the Now tab opened with
+   * "BUILD — Nothing is being built right now" in the page's largest type
+   * beside its only orange button, and THREE live flags sat underneath it as
+   * plain rows — the first of them "Email verification bypass: anyone can
+   * register @revamp-it.ch domain and get Staff role with admin access to 14
+   * areas".
+   *
+   * That is the same fault /today had: the surface reported the MACHINE'S
+   * status where the reader was asking what needs them. Idle is not news.
+   * A security hole is.
+   *
+   * So the flags lead WHEN THERE ARE FLAGS, and the build status leads when
+   * there are none — at which point "nothing is being built" is genuinely
+   * the most useful thing the tab can say.
+   *
+   * Raising, editing and clearing still live in <ProjectFlags> further down,
+   * which is ALWAYS rendered: "how do I flag this?" had no answer anywhere in
+   * the product, and a control that only appears once the thing has already
+   * happened cannot be that answer.
+   */
+  const flagsBlock =
+    healthSignals.length > 0 ? (
+      <section className="ui-project-flags-lead" aria-labelledby="project-flags-title">
+        <h2 id="project-flags-title" className="ui-section-label text-status-warning">
+          {healthSignals.length === 1
+            ? "1 flag on this project"
+            : `${healthSignals.length} flags on this project`}
+        </h2>
+        <div className="divide-y divide-border-subtle">
+          {healthSignals.map((signal) => {
+            const signalKey = HEALTH_SIGNAL_CONFIG.find((c) => c.kind === signal.kind)?.key;
+            return (
+              <div
+                key={signal.kind}
+                className="flex flex-col gap-2 py-3 sm:flex-row sm:items-baseline sm:gap-3"
+              >
+                <span className="shrink-0 text-sm font-medium text-status-warning">
+                  {signal.label}
+                </span>
+                <span className="flex-1 text-sm leading-relaxed text-text-secondary">
+                  {signal.value}
+                </span>
+                {!dossier.readonly && signalKey && (
+                  <FixSignalButton
+                    projectId={project.id}
+                    workspaceKey={workspaceKey}
+                    signalKey={signalKey}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    ) : null;
+
   return (
     <div className="app-page max-w-5xl space-y-6">
       <AssistantContextBridge
@@ -237,6 +296,7 @@ export function ProjectWorkspaceView({
             urgent: healthSignals.length > 0,
             content: (
               <>
+                {flagsBlock}
                 <ProjectBuildStatus
                   status={buildStatus}
                   projectId={project.id}
@@ -274,42 +334,6 @@ export function ProjectWorkspaceView({
                   <h2 id="project-overview-title" className="sr-only">
                     Overview
                   </h2>
-                  {/* The read-and-fix view stays conditional: there is nothing
-                      to show when nothing is wrong. Raising, editing and
-                      clearing live in <ProjectFlags> further down, which is
-                      ALWAYS rendered — because "how do I flag this?" had no
-                      answer anywhere in the product, and a control that only
-                      appears once the thing already happened cannot be the
-                      answer. */}
-                  {healthSignals.length > 0 && (
-                    <div className="mb-5 divide-y divide-border-subtle border-y border-border-subtle">
-                      {healthSignals.map((signal) => {
-                        const signalKey = HEALTH_SIGNAL_CONFIG.find(
-                          (c) => c.kind === signal.kind,
-                        )?.key;
-                        return (
-                          <div
-                            key={signal.kind}
-                            className="flex flex-col gap-2 py-3 sm:flex-row sm:items-baseline sm:gap-3"
-                          >
-                            <span className="shrink-0 text-sm font-medium text-status-warning">
-                              {signal.label}
-                            </span>
-                            <span className="flex-1 text-sm leading-relaxed text-text-secondary">
-                              {signal.value}
-                            </span>
-                            {!dossier.readonly && signalKey && (
-                              <FixSignalButton
-                                projectId={project.id}
-                                workspaceKey={workspaceKey}
-                                signalKey={signalKey}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
                   <div className="grid gap-5 lg:grid-cols-2">
                     <NowSection dossier={dossier} interactive={false} showBrief={false} />
                     <NextSection
