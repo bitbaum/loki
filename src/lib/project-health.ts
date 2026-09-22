@@ -43,6 +43,11 @@ export type ProjectHealthFix =
 export type ProjectHealthCheck = {
   key: string;
   label: string;
+  /** What to call this check while it is FAILING. `label` is the goal state
+   *  ("No security risks open"), which is right in a "missing: …" list and
+   *  wrong as a heading printed directly above the risk itself. Only the three
+   *  signal checks set it; everything else reads the same either way. */
+  failLabel?: string;
   pass: boolean;
   /** For failing checks: the concrete action that earns the point.
    *  For passing checks: the fact that earned it. */
@@ -61,6 +66,18 @@ export type ProjectHealth = {
 
 const truncate = (value: string, n = 80) =>
   value.length > n ? `${value.slice(0, n - 1)}…` : value;
+
+/**
+ * How much of an operator-written report the health panel shows.
+ *
+ * The three signal checks are the only ones whose detail is a REPORT someone
+ * wrote rather than the value of a field, and the panel is where you go to
+ * read it — 80 characters cut "anyone can register @revamp-it.ch domain and
+ * get Sta…" mid-word, which is the sentence you opened the panel for. The
+ * panel scrolls, so this is generous; it stays bounded only so a pathological
+ * note cannot push the actions off the bottom of the screen.
+ */
+const EVIDENCE_MAX = 400;
 
 /**
  * A definition_of_done earns its point only if a turn can EVIDENCE it.
@@ -193,12 +210,32 @@ export function computeProjectHealth(input: ProjectHealthInput): ProjectHealth {
     ...HEALTH_SIGNAL_BASE.map((signal) => ({
       key: signal.key,
       label: signal.clearLabel,
+      // What to call this check WHEN IT IS FAILING.
+      //
+      // `label` is the goal state ("No security risks open"), which is right
+      // in the tooltip's "missing: …" list — the missing thing really is that
+      // state. It is wrong as a heading, because the panel prints the actual
+      // risk directly beneath it, so the row read:
+      //
+      //     No security risks open
+      //     Email verification bypass: anyone can register @revamp-it.ch…
+      //
+      // A headline contradicting the sentence under it. Failing rows name the
+      // problem; passing rows keep naming the goal.
+      failLabel: signal.label,
       pass: !hasAnswer(attrs[signal.key]),
       // Machine-built from `label` this read "No broken" / "No open broken
       // recorded." — a sentence with its noun missing, on every project page.
       // The wording is written per signal now (clearLabel) instead of derived.
       detail: hasAnswer(attrs[signal.key])
-        ? truncate(attrs[signal.key])
+        ? // THE EVIDENCE, not a preview of it. These three are the only checks
+          // whose detail is a report someone wrote rather than a field's value,
+          // and the panel is the place you open to read it — so clamping at 80
+          // characters cut the sentence you came for: "anyone can register
+          // @revamp-it.ch domain and get Sta…". The panel already scrolls.
+          // Still bounded, because a pathological note should not be able to
+          // push the actions off the bottom of the screen.
+          truncate(attrs[signal.key], EVIDENCE_MAX)
         : `Nothing flagged — this point is lost if one is recorded.`,
       rule: signal.clearRule,
       fix: { kind: "clear" as const, attr: signal.key },

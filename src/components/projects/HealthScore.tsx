@@ -280,8 +280,16 @@ export function HealthScoreBar({
                       <div className="flex items-start gap-2">
                         <X className="mt-0.5 h-3 w-3 shrink-0 text-status-negative" aria-hidden />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-text-primary">{check.label}</p>
-                          <p className="mt-0.5 text-xs leading-relaxed text-text-muted">
+                          {/* The PROBLEM, not the goal. This list is the
+                              failing checks, and `label` is the state you are
+                              missing ("No security risks open") — correct in
+                              the tooltip's "missing: …" list, and a headline
+                              contradicting its own body here, where the risk
+                              itself is printed directly beneath it. */}
+                          <p className="text-xs font-medium text-text-primary">
+                            {check.failLabel ?? check.label}
+                          </p>
+                          <p className="mt-0.5 text-xs leading-relaxed text-text-secondary">
                             {check.detail}
                           </p>
                           <p className="ui-health-rule">{check.rule}</p>
