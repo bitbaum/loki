@@ -4485,6 +4485,36 @@
      four true columns with a straight edge down the page. That alignment is
      the whole point: it is what makes 25 rows read as one list rather than 25
      separate widgets. */
+  /* ── The front-door verdict ──────────────────────────────────────────────
+     Principle 1 (type does the work): the answer is a SENTENCE at the top of
+     the page, not a card competing with the weather. Principle 3 (space
+     separates): no box in the calm state — only the alarm state earns an edge,
+     and it is a single left rule rather than a panel. Principle 2 (colour is
+     for alarms): the only tint here is the warning rule and its icon. */
+  .ui-verdict {
+    @apply px-1 py-2;
+  }
+  .ui-verdict-alert {
+    @apply border-l-2 border-l-status-warning/60 pl-3;
+  }
+  .ui-verdict-unknown {
+    @apply border-l-2 border-l-border-default pl-3;
+  }
+  .ui-verdict-line {
+    @apply flex items-center gap-2 text-base font-medium text-text-primary;
+  }
+  .ui-verdict-sub {
+    @apply mt-1 text-sm text-text-secondary;
+  }
+  .ui-verdict-list {
+    @apply mt-2 space-y-1;
+  }
+  .ui-verdict-item {
+    @apply flex min-h-11 flex-wrap items-baseline gap-x-2 text-sm text-text-secondary transition-colors hover:text-text-primary;
+  }
+  .ui-verdict-reason {
+    @apply truncate text-xs text-text-tertiary;
+  }
   .ui-projects-row {
     /* Principle 3 (space separates): a hairline between rows, no card per row.
        Principle 4 (one height): min-h-16 from the scale, not a bespoke value. */
