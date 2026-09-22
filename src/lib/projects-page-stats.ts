@@ -5,6 +5,31 @@ import { signalHasExpired } from "@/lib/project-signals";
 
 export type ProjectsPageFilter = null | "attention" | "next-step" | "team";
 
+/**
+ * How the roster is ordered. Same three names Control's project rail uses,
+ * because they are the same three questions about the same objects — Control
+ * rendering a second, smaller list of your projects with its own sort is the
+ * duplication this page is absorbing.
+ *
+ *  - `priority` — flagged first, then freshly created, then most recently
+ *    active. The default, and what the page's subtitle promises.
+ *  - `recent` — most recently active, full stop. Answers "what moved?" without
+ *    a flagged project from March sitting on top of it.
+ *  - `az` — by name. The only order that helps when you already know what you
+ *    are looking for and just want to find it.
+ */
+export type ProjectsSort = "priority" | "recent" | "az";
+
+export const PROJECTS_SORTS: ReadonlyArray<{ id: ProjectsSort; label: string; hint: string }> = [
+  { id: "priority", label: "Priority", hint: "Flagged first, then most recently active" },
+  { id: "recent", label: "Recent", hint: "Most recently active first" },
+  { id: "az", label: "A-Z", hint: "By name" },
+];
+
+export function isProjectsSort(value: unknown): value is ProjectsSort {
+  return value === "priority" || value === "recent" || value === "az";
+}
+
 export function isSiteDown(project: Pick<ProjectGridRow, "liveUrl" | "siteOk">): boolean {
   return Boolean(project.liveUrl) && project.siteOk === false;
 }
@@ -67,6 +92,7 @@ export function filterProjects(
    *  themselves from. Omitted (tests, callers without it) → recency is simply
    *  not a factor and the order falls through to name. */
   lastActivityByProject?: Record<string, string>,
+  sort: ProjectsSort = "priority",
 ): ProjectGridRow[] {
   const q = query.trim().toLowerCase();
 
@@ -83,6 +109,22 @@ export function filterProjects(
   });
 
   const now = Date.now();
+
+  // The two explicit orders are deliberately FLAT — no tiers at all.
+  //
+  // Someone who picks "Recent" is asking one question, and a flagged project
+  // from March hoisted above this morning's work is the page overruling them.
+  // The tiering below is what "Priority" MEANS; it is not a property of the
+  // list that every mode has to inherit.
+  if (sort === "az") return result.sort((a, b) => a.name.localeCompare(b.name));
+  if (sort === "recent") {
+    return result.sort(
+      (a, b) =>
+        lastActivityMs(b, lastActivityByProject) - lastActivityMs(a, lastActivityByProject) ||
+        a.name.localeCompare(b.name),
+    );
+  }
+
   return result.sort((a, b) => {
     const aHasIssues = hasProjectAttention(a);
     const bHasIssues = hasProjectAttention(b);

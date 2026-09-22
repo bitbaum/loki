@@ -5,13 +5,17 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Search, FolderKanban, ChevronDown } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useEscapeKey } from "@/hooks/use-escape-key";
+import { cn } from "@/lib/utils";
 import { SEARCH_DEBOUNCE_MS } from "@/lib/constants/timings";
 import { PROJECTS_LIST_CHUNK } from "@/lib/projects-display";
 import {
   computeProjectsPageStats,
   filterProjects,
   hasProjectAttention,
+  isProjectsSort,
+  PROJECTS_SORTS,
   type ProjectsPageFilter,
+  type ProjectsSort,
 } from "@/lib/projects-page-stats";
 import type { ProjectGridRow } from "./project-grid-row";
 import { ProjectRow } from "./ProjectRow";
@@ -50,6 +54,10 @@ export function ProjectsWorkspace({
   const [pageFilter, setPageFilter] = useState<ProjectsPageFilter>(() =>
     parseFilter(searchParams.get("filter")),
   );
+  const [sort, setSort] = useState<ProjectsSort>(() => {
+    const raw = searchParams.get("sort");
+    return isProjectsSort(raw) ? raw : "priority";
+  });
   const [listExpanded, setListExpanded] = useState(false);
 
   useEffect(() => {
@@ -61,15 +69,18 @@ export function ProjectsWorkspace({
     const params = new URLSearchParams();
     if (debouncedQuery.trim()) params.set("q", debouncedQuery.trim());
     if (pageFilter) params.set("filter", pageFilter);
+    // Only when it differs from the default, so the common URL stays clean and
+    // a shared link carries the order the sender was actually looking at.
+    if (sort !== "priority") params.set("sort", sort);
     const qs = params.toString();
     window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
-  }, [debouncedQuery, pageFilter, pathname]);
+  }, [debouncedQuery, pageFilter, sort, pathname]);
 
   const stats = useMemo(() => computeProjectsPageStats(projects), [projects]);
 
   const filtered = useMemo(
-    () => filterProjects(projects, debouncedQuery, pageFilter, lastDispatchByProject),
-    [projects, debouncedQuery, pageFilter, lastDispatchByProject],
+    () => filterProjects(projects, debouncedQuery, pageFilter, lastDispatchByProject, sort),
+    [projects, debouncedQuery, pageFilter, lastDispatchByProject, sort],
   );
 
   // Never fold a flagged project below the chunk line — attention outranks
@@ -124,6 +135,45 @@ export function ProjectsWorkspace({
           resultCount={filtered.length}
           totalCount={projects.length}
         />
+
+        {/* The order, as a control rather than a claim.
+
+            The subtitle states the default ("flagged first, then most recently
+            active"), which makes the order legible — but only a control makes
+            it ARGUABLE. Control's project rail has carried exactly these three
+            for a while, on a second, smaller copy of this same list; this is
+            the half of that duplication worth keeping.
+
+            A radiogroup, not three buttons: they are one choice with one
+            answer, and arrow keys should move between them. */}
+        <div
+          role="radiogroup"
+          aria-label="Sort projects"
+          className="flex items-center gap-1 text-micro"
+        >
+          <span className="ui-micro-label mr-1 text-text-muted">Sort</span>
+          {PROJECTS_SORTS.map(({ id, label, hint }) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={sort === id}
+              title={hint}
+              onClick={() => {
+                setSort(id);
+                setListExpanded(false);
+              }}
+              className={cn(
+                "ui-tap justify-center rounded-md px-2 py-1 transition-colors",
+                sort === id
+                  ? "bg-accent-muted text-accent-text"
+                  : "text-text-muted hover:bg-surface-overlay hover:text-text-secondary",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
