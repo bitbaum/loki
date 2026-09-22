@@ -1,6 +1,6 @@
 {
   "name": "fleet-runner",
-  "version": "0.8.29",
+  "version": "0.8.30",
   "description": "Fleet Runner — the Loki desktop agent runtime: owns the agent terminals on this computer for projects set to run here.",
   "main": "./out/main/index.js",
   "author": {

@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.30",
+    tag: "fleet-runner-v0.8.30",
+    date: "2026-09-22T00:00:00Z",
+    highlights: [
+      "Crash reporting and the build toolchain move up a version (@sentry/electron 7.19.0, vite 8.3.0), and the YAML parser bundled with the runner is updated to 4.3.2.",
+    ],
+    breaking: [],
+    notes:
+      "Dependency maintenance only — nothing about how the runner behaves changes. These updates sat in three separate pull requests for up to fifteen days: the auto-merge sweep had deadlocked, and each was additionally red on the release-drift gate, which asks any change reaching a machine to bump this version and add the entry you are reading. Shipped as one release rather than three so operators get one update, not three identical-looking ones.",
+  },
+  {
     version: "0.8.29",
     tag: "fleet-runner-v0.8.29",
     date: "2026-09-20T00:00:00Z",
