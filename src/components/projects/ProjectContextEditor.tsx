@@ -9,101 +9,24 @@ import { ProjectResources } from "./ProjectResources";
 import { BusinessPlanSection } from "./BusinessPlanSection";
 import { AddAttrInline, AttrRow } from "./project-overview-helpers";
 import { getProjectLinks, type ProjectResource } from "./project-detail-types";
-import { PROJECT_ATTR, humanizeAttrKey } from "@/config/project-attrs";
+import {
+  PROJECT_CONTEXT_GROUPS,
+  PROJECT_EDITOR_HIDDEN_KEYS,
+  humanizeAttrKey,
+} from "@/config/project-attrs";
 import { answer, hasAnswer } from "@/lib/project-display";
 
-const CONTEXT_GROUPS = [
-  {
-    title: "Purpose",
-    fields: [
-      { key: PROJECT_ATTR.MISSION, label: "Mission", placeholder: "Why this project exists now" },
-      {
-        key: PROJECT_ATTR.VISION,
-        label: "Vision",
-        placeholder: "The future this project should create",
-      },
-      {
-        key: PROJECT_ATTR.CUSTOMERS,
-        label: "People served",
-        placeholder: "Who uses it and what they need",
-      },
-    ],
-  },
-  {
-    title: "Product",
-    fields: [
-      {
-        key: PROJECT_ATTR.PROBLEM,
-        label: "Problem",
-        placeholder: "The concrete problem worth solving",
-      },
-      {
-        key: PROJECT_ATTR.SOLUTION,
-        label: "Solution",
-        placeholder: "How this project solves the problem",
-      },
-    ],
-  },
-  {
-    title: "Reach",
-    fields: [
-      {
-        key: PROJECT_ATTR.DISTRIBUTION,
-        label: "Distribution",
-        placeholder: "Channels that exist today — RSS, newsletter, social queue, OG cards",
-      },
-      {
-        key: PROJECT_ATTR.GTM,
-        label: "Go-to-market",
-        placeholder: "ICP, path to first paying customer, monetization state",
-      },
-    ],
-  },
-  {
-    title: "Build contract",
-    fields: [
-      {
-        key: PROJECT_ATTR.STACK,
-        label: "Stack",
-        placeholder: "Languages, frameworks, and infrastructure",
-      },
-      {
-        key: PROJECT_ATTR.ARCHITECTURE,
-        label: "Architecture",
-        placeholder: "Main modules, stores, and integrations",
-      },
-      {
-        key: PROJECT_ATTR.CONVENTIONS,
-        label: "Conventions",
-        placeholder: "Patterns and rules every agent must follow",
-      },
-    ],
-  },
-] as const;
+// All three DERIVED from the field registry (config/project-attrs.ts), so the
+// labels and placeholders a person edits are the same description the agent
+// dossier and the AI profile-fill read. Market-lens attrs are in neither set,
+// which is how they keep falling through to "Additional context" below.
+const CONTEXT_GROUPS = PROJECT_CONTEXT_GROUPS;
 
 const CONTEXT_KEYS = new Set<string>(
   CONTEXT_GROUPS.flatMap((group) => group.fields.map((field) => field.key)),
 );
 /** Known attrs that are NOT free-form context — rendered by dedicated UI elsewhere. */
-const NON_CONTEXT_KEYS = new Set<string>([
-  PROJECT_ATTR.STATUS,
-  PROJECT_ATTR.MATURITY,
-  PROJECT_ATTR.NEXT_STEP,
-  PROJECT_ATTR.DEFINITION_OF_DONE,
-  PROJECT_ATTR.GOAL_MAX_TURNS,
-  PROJECT_ATTR.DESCRIPTION,
-  PROJECT_ATTR.OWNER,
-  PROJECT_ATTR.PRODUCTION_URL,
-  PROJECT_ATTR.URL,
-  PROJECT_ATTR.REPO,
-  PROJECT_ATTR.GITHUB_REPO,
-  PROJECT_ATTR.SECURITY_VULNERABILITY,
-  PROJECT_ATTR.BROKEN_FEATURES,
-  PROJECT_ATTR.DEPLOYMENT_ISSUE,
-  PROJECT_ATTR.BUSINESS_PLAN,
-  PROJECT_ATTR.BUSINESS_ACTIONS,
-  PROJECT_ATTR.BUSINESS_PLAN_UPDATED_AT,
-]);
+const NON_CONTEXT_KEYS = PROJECT_EDITOR_HIDDEN_KEYS;
 
 export function ProjectContextEditor({
   projectId,
@@ -162,10 +85,7 @@ export function ProjectContextEditor({
 
       <div className="mt-6 grid gap-x-8 gap-y-7 lg:grid-cols-2">
         {CONTEXT_GROUPS.map((group) => (
-          <section
-            key={group.title}
-            className={group.title === "Build contract" ? "lg:col-span-2" : undefined}
-          >
+          <section key={group.id} className={group.id === "build" ? "lg:col-span-2" : undefined}>
             <h3 className="ui-projects-section-label mb-1">{group.title}</h3>
             <div className="border-y border-border-subtle">
               {group.fields.map((field) => {

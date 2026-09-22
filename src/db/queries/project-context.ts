@@ -13,7 +13,7 @@ import { db } from "@/db";
 import { entities, goals, userProjects } from "@/db/schema";
 import type { Milestone } from "@/db/schema/goals";
 import { ENTITY_TYPE, GOAL_STATUS } from "@/lib/constants/statuses";
-import { PROJECT_ATTR } from "@/config/project-attrs";
+import { PROJECT_DRIVING_FIELDS } from "@/config/project-attrs";
 import { renderOperatingPrinciples } from "@/config/operating-principles";
 import { getProjectDossierByProjectKey, renderProjectDossierForAgent } from "./project-dossier";
 import { fetchAttributesByEntityIds } from "./utils";
@@ -29,23 +29,12 @@ const MAX_GOALS = 6;
 // operator, so they're deliberately excluded to keep the prompt focused + cheap.
 // Distribution and go-to-market are deliberately INCLUDED — they drive what
 // agents build toward (who it must reach and how it earns), unlike market lens.
-export const DRIVING_FIELDS: ReadonlyArray<readonly [string, string]> = [
-  [PROJECT_ATTR.MISSION, "Mission"],
-  [PROJECT_ATTR.VISION, "Vision"],
-  [PROJECT_ATTR.CUSTOMERS, "Customers"],
-  [PROJECT_ATTR.PROBLEM, "Problem"],
-  [PROJECT_ATTR.SOLUTION, "Solution"],
-  [PROJECT_ATTR.DISTRIBUTION, "Distribution (channels this project reaches people through today)"],
-  [PROJECT_ATTR.GTM, "Go-to-market (ICP, path to first paying customer, monetization state)"],
-  [PROJECT_ATTR.STACK, "Stack"],
-  [PROJECT_ATTR.NEXT_STEP, "Next step (owner's highest-priority action right now)"],
-  [PROJECT_ATTR.ARCHITECTURE, "Architecture"],
-  [PROJECT_ATTR.CONVENTIONS, "Conventions (how this project is built — follow these)"],
-  [
-    PROJECT_ATTR.DEFINITION_OF_DONE,
-    "Definition of done (a change isn't finished until this holds)",
-  ],
-];
+// DERIVED from the field registry (config/project-attrs.ts) — the one place a
+// project field is described. Note this is the FALLBACK path: getProjectContext
+// below returns the dossier whenever the project has one, so most dispatches
+// never reach these lines. Re-exported under the old name so call sites and the
+// comments that reference DRIVING_FIELDS keep working.
+export const DRIVING_FIELDS = PROJECT_DRIVING_FIELDS;
 
 /**
  * Formatted brief + active goals for a project, or null when the project has no
