@@ -62,7 +62,13 @@ export const config = {
      *                                trailing slash keeps GET /api/invitations (list) protected
      *   api/share/task/            – the assignee's read + accept/decline/deliver, by token;
      *                                the path segment keeps every other /api/share child protected
-     *   api/orangecat/             – OrangeCat webhooks (entitlement, events); each verifies its own HMAC signature
+     *   api/orangecat/             – OrangeCat webhooks (entitlement, events); each verifies its own HMAC
+     *                                signature. One exception, deliberately unsigned:
+     *                                api/orangecat/project-link answers "is this OrangeCat project
+     *                                being built here" and returns only what /fleet already
+     *                                publishes — it withholds an unlisted project exactly as it
+     *                                withholds an unknown id, so there is nothing for a signature
+     *                                to protect.
      *   api/solon/                 – Solon governance webhooks (decision.finalized); verifies its own HMAC signature
      *   api/newsletter             – public email-capture (zod + rate-limited in-handler)
      *   api/feedback               – public widget ingest (fcw_* token auth + CORS); the

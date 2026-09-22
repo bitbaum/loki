@@ -108,8 +108,12 @@ ok(
 const ROUTE = readFileSync(join(ROOT, "src/app/api/me/connected-accounts/route.ts"), "utf8");
 const SETTINGS = readFileSync(join(ROOT, "src/components/settings/AccountSettings.tsx"), "utf8");
 ok(
-  /needsReconnect: provider === "orangecat" && !refreshToken/.test(ROUTE),
-  "a link whose refresh token OrangeCat refused is reported as needing reconnection",
+  /getOrangeCatLink\(userId\)/.test(ROUTE),
+  "the settings page RESOLVES the link rather than reading a column that may not have been written yet",
+);
+ok(
+  /needsReconnect: provider === "orangecat" && !orangeCatWorks/.test(ROUTE),
+  "...and reports health, not the presence of a row",
 );
 ok(
   /needsReconnect \?/.test(SETTINGS) && /Reconnect/.test(SETTINGS),

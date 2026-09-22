@@ -91,6 +91,9 @@ const PUBLIC: Record<string, string> = {
   "fleet/map":
     "public map of the studio's projects — the register above plus each project's purpose line, layer, hosting state, public doors, and what last moved on it (dev-log headline, last run outcome, open-run count). All of it is already published on the project pages and the register; prices, paths and tokens stay out. bitbaum renders it and the knowledge index embeds it, so a session would put a private copy on every consumer. Owner-scoped, cached 5 min.",
 
+  "orangecat/project-link":
+    'answers one question for OrangeCat\'s project page — is this OrangeCat project already being built in Loki, and where can a reader see the build record. It is asked before the page decides whether to offer "Build it with Loki" to someone who did that months ago, and it is what puts a public link to the build log in front of a funder. Nothing here is private BY CONSTRUCTION, not by intention: `linked: true` requires the Loki project to carry listed_publicly, so every field returned is already served at /fleet and /fleet/<slug>, and a project without that consent answers byte-identically to an id nobody has heard of. scripts/test/orangecat-project-link.ts holds both halves. A signature would protect nothing and would put a shared secret into a page render.',
+
   // — The bearer IS the credential; there is no user to look up first.
   "invitations/[token]": "unguessable invite token in the path is the credential",
   "invitations/[token]/accept": "same token; accepting is what creates the membership",
