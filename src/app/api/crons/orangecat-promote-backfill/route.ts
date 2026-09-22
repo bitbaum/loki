@@ -85,7 +85,26 @@ export async function GET(req: NextRequest) {
   let attempted = 0;
   let capped = false;
 
-  outer: for (const project of linked) {
+  /**
+   * Build every project's queue FIRST, then drain them round-robin.
+   *
+   * WHY, and it is not tidiness: the previous shape walked the projects in
+   * order and stopped at the budget, from the top, every tick. So a project
+   * far enough down the list was never reached — not "eventually", never.
+   * Measured on prod 2026-09-22 while catching up a five-day outage: three
+   * consecutive ticks each reported `posted: 30, capped: true`, and across all
+   * three Heidi's wall went 0 → 0 → 0 while the first projects in the list
+   * were re-sent their same thirty moments each time. The janitor looked busy
+   * and was starving its own tail.
+   *
+   * Round-robin makes the budget a share rather than a race: one moment from
+   * each project in turn, so every wall moves every tick and a project with a
+   * large backlog cannot hold the others hostage. Unused turns are reclaimed
+   * naturally — a project whose queue empties simply stops being asked.
+   */
+  const queues: Array<Array<() => Promise<PromoteOutcome>>> = [];
+
+  for (const project of linked) {
     // Linking an OrangeCat account is not consent to publish. Publish sets the
     // funding entity link; its createdAt is when the operator opted the project
     // onto the public wall. Never backfill private history from before that.
@@ -105,7 +124,7 @@ export async function GET(req: NextRequest) {
 
     // The "went public" moment first — it anchors the wall if the original
     // fire-and-forget emit was dropped during the publish call.
-    const moments: Array<() => Promise<PromoteOutcome>> = [
+    queues.push([
       () =>
         promoteMomentToOrangeCat(project.userId, project.id, "project_published", {
           externalId: `loki_project_published_${project.id}`,
@@ -122,24 +141,30 @@ export async function GET(req: NextRequest) {
             await getRecentSuccessfulRuns(project.userId, project.name, new Date(historyCutoffIso))
           ).map((run) => () => promoteRunClose(run))
         : []),
-    ];
+    ]);
+  }
 
-    // Sequential on purpose: this is a janitor, not a hot path — one in-flight
-    // request to the OC bus at a time. Sequential is not the same as PACED,
-    // which is what the pause below adds; see PROMOTE_PACE_MS.
-    for (const emit of moments) {
-      if (attempted >= MAX_PROMOTES_PER_TICK) {
+  // Sequential on purpose: this is a janitor, not a hot path — one in-flight
+  // request to the OC bus at a time. Sequential is not the same as PACED,
+  // which is what the pause below adds; see PROMOTE_PACE_MS.
+  let cursor = 0;
+  drain: while (queues.some((q) => q.length > 0)) {
+    for (const queue of queues) {
+      const emit = queue.shift();
+      if (!emit) continue;
+      if (attempted >= MAX_PROMOTES_PER_TICK || Date.now() - startedAt > TIME_BUDGET_MS) {
         capped = true;
-        break outer;
-      }
-      if (Date.now() - startedAt > TIME_BUDGET_MS) {
-        capped = true;
-        break outer;
+        break drain;
       }
       if (attempted > 0) await sleep(PROMOTE_PACE_MS);
       attempted++;
       counts[await emit()]++;
     }
+    cursor++;
+    // Defensive: a round that moved nothing would spin. Cannot happen while
+    // every round shifts from a non-empty queue, but a janitor that can hang
+    // is worse than one that stops early and says so.
+    if (cursor > MAX_PROMOTES_PER_TICK) break;
   }
 
   const summary = { projects: linked.length, attempted, ...counts, capped };
