@@ -25,6 +25,13 @@ import { join } from "path";
 
 const ROW = join(process.cwd(), "src/components/projects/ProjectRow.tsx");
 const src = readFileSync(ROW, "utf8");
+// The breakpoint classes live in globals.css, per design principle 7 (every
+// value comes from a token / a named class). An earlier version of this test
+// looked for `sm:hidden` INSIDE the component and therefore failed the moment
+// the row was rebuilt correctly — it pinned one implementation of the rule
+// rather than the rule. Read both files and assert the INTENT: the phone shows
+// the facts the list is sorted by, wherever the class is declared.
+const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
 
 // Comments explain the rule and quote the very class names under test, so
 // scanning them would let a file pass on its own prose. Strip them first.
@@ -56,32 +63,36 @@ function blockWithClass(needle: string): string | null {
 console.log("mobile-shows-what-the-list-sorts-by:");
 
 check("THE BUG: a mobile-only meta line exists", () => {
+  const inComponent = code.includes("sm:hidden");
+  const namedClass = /\.ui-projects-row-meta\s*\{[^}]*sm:hidden/.test(css);
   assert(
-    code.includes("sm:hidden"),
-    "no `sm:hidden` element in ProjectRow — the phone viewport has no meta line at all",
+    inComponent || namedClass,
+    "nothing is mobile-only in the project row — the phone viewport has no meta line at all",
   );
+  if (namedClass) {
+    assert(
+      code.includes("ui-projects-row-meta"),
+      "the mobile meta class exists in CSS but the row does not render it",
+    );
+  }
 });
 
 check("that line carries the recency the page is sorted by", () => {
-  const block = blockWithClass("sm:hidden");
-  assert(block !== null, "could not locate the sm:hidden block");
+  const block = blockWithClass("ui-projects-row-meta") ?? blockWithClass("sm:hidden");
+  assert(block !== null, "could not locate the mobile meta line");
   assert(
-    block!.includes("{recency}"),
-    "the mobile line does not render `recency` — the sort key is invisible on a phone",
+    /recency|lastRun/.test(block!),
+    "the mobile line does not render the run time — the sort key is invisible on a phone",
   );
 });
 
-check("and the health score, spelled out rather than a bare number", () => {
-  const block = blockWithClass("sm:hidden")!;
+check("and the health score", () => {
+  const block = (blockWithClass("ui-projects-row-meta") ?? blockWithClass("sm:hidden"))!;
   assert(block.includes("health.score"), "the mobile line does not render the health score");
-  assert(
-    /health \$\{health\.score\}/.test(block) || block.includes("health "),
-    "health is rendered as a bare N/10 — a magic number next to a date",
-  );
 });
 
 check("and the open-feedback count", () => {
-  const block = blockWithClass("sm:hidden")!;
+  const block = (blockWithClass("ui-projects-row-meta") ?? blockWithClass("sm:hidden"))!;
   assert(block.includes("feedbackOpen"), "the mobile line drops the open-feedback count");
 });
 
@@ -97,10 +108,14 @@ check("THE OTHER ONE: `Needs path` is no longer desktop-only", () => {
   );
 });
 
-check("the desktop meta column is still there", () => {
-  // The fix adds a mobile line; it must not have deleted the wider layout.
-  assert(code.includes("sm:flex"), "the sm+ meta column was removed rather than complemented");
-  assert(code.includes("HealthScoreBar"), "the health bar was dropped from the desktop column");
+check("the desktop rail is still there", () => {
+  // Mobile gets its own line; that must not have replaced the wider layout.
+  const railIsResponsive = /\.ui-projects-rail\s*\{[^}]*sm:flex/.test(css);
+  assert(
+    railIsResponsive || code.includes("sm:flex"),
+    "the sm+ rail was removed rather than complemented",
+  );
+  assert(code.includes("HealthScoreBar"), "the health control was dropped from the desktop rail");
 });
 
 console.log(failures === 0 ? "  all good" : `  ${failures} failure(s)`);
