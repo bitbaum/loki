@@ -47,6 +47,10 @@ export const ALERT_TYPES = {
     label: "A machine is running a Fleet Runner we replaced",
     producer: "src/app/api/crons/check-runner-version/route.ts",
   },
+  project_repo_missing: {
+    label: "A project points at a repository GitHub cannot find",
+    producer: "src/app/api/crons/check-project-repos/route.ts",
+  },
   model_rot: {
     label: "A pinned AI model id no longer exists upstream",
     producer: "src/app/api/crons/check-model-ids/route.ts",
