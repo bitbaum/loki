@@ -127,8 +127,11 @@ export function AiQuotaSettings() {
           <SpendToday spend={data.spend} total={data.spendTotal} />
 
           <p className="text-xs text-text-muted">
-            Counters are recorded from the rate-limit headers on answers already served, so a
-            provider only appears once it has served one. Nothing here costs a request to measure.
+            Counters come from three places, never a probe: the rate-limit headers on answers
+            already served, the refusal itself when a vendor states a limit its headers do not (Groq
+            publishes a daily token pool only in the 429 body), and links skipped before they were
+            called. That last one is why a vendor can appear here having served nothing. Nothing on
+            this page costs a request to measure.
           </p>
         </>
       )}
