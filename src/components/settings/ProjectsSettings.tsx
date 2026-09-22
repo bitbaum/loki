@@ -145,7 +145,9 @@ export function ProjectsSettings({ projects: initial, teamProjects, projectLimit
           onClick={() => !atLimit && setAdding((v) => !v)}
           disabled={atLimit}
           title={
-            atLimit ? `Upgrade your plan to add more than ${projectLimit} projects` : undefined
+            atLimit
+              ? `Your plan allows ${projectLimit} projects. See plans to raise the limit.`
+              : undefined
           }
           className="ui-btn-secondary py-1.5 text-xs gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
         >
