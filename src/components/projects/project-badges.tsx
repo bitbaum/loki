@@ -118,9 +118,15 @@ export function HealthBadge({ signal }: { signal: HealthSignal }) {
 
      Terse on the badge (`· 23d`) and spelled out in the tooltip with the exact
      date and what wrote it — the badge is scanned, the tooltip is read. */
-  const age = signal.updatedAt ? timeAgo(new Date(signal.updatedAt).getTime()) : null;
+  const relative = signal.updatedAt ? timeAgo(new Date(signal.updatedAt).getTime()) : null;
+  /* "· 6mo", not "· 6mo ago". Looked at on production and the full phrase cost
+     ~10 characters per badge, which pushed evig's third flag onto a second
+     line and shoved the next-step text down with it. "ago" is doing no work
+     next to a label that is plainly a timestamp, and the tooltip below still
+     spells the whole thing out. */
+  const age = relative?.replace(/\s*ago$/, "") ?? null;
   const written = signal.updatedAt
-    ? `Noted ${age}${signal.source ? ` by ${signal.source}` : ""} · ${new Date(
+    ? `Noted ${relative}${signal.source ? ` by ${signal.source}` : ""} · ${new Date(
         signal.updatedAt,
       ).toLocaleDateString()}`
     : null;
