@@ -55,17 +55,25 @@ export function ProjectRow({
     : "no runs yet";
 
   return (
-    <Link
-      href={`/projects/${project.id}`}
+    <div
       className={cn(
-        "ui-projects-row group flex w-full min-h-11 items-center gap-3",
+        "ui-projects-row group relative flex w-full min-h-11 items-center gap-3",
         flagged && "ui-projects-row-flagged",
       )}
-      aria-label={`Open ${project.name}`}
     >
       <div className="min-w-0 flex-1 text-left">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="truncate text-sm font-medium text-text-primary">{project.name}</span>
+          {/* The name is the link, and its ::after covers the row — so the whole
+              row is still one click target, while the row itself is no longer an
+              <a> and may finally contain controls of its own. A screen reader
+              now announces a link whose text is the project's name, instead of
+              an aria-label bolted onto a wrapper. */}
+          <Link
+            href={`/projects/${project.id}`}
+            className="ui-projects-row-link truncate text-sm font-medium text-text-primary"
+          >
+            {project.name}
+          </Link>
           {project.readonly && <span className="ui-projects-badge shrink-0">Team</span>}
           {statusLabel && <StatusBadge value={statusLabel} />}
           {siteDown && <span className="ui-projects-badge ui-projects-badge-negative">Down</span>}
@@ -131,8 +139,24 @@ export function ProjectRow({
           {feedbackOpen ? ` · ${feedbackOpen} feedback` : ""}
         </p>
       </div>
-      <div className="hidden shrink-0 flex-col items-end gap-1 sm:flex">
-        <HealthScoreBar health={health} />
+      {/* Above the stretched link, so the chip takes its own clicks.
+          `interactive` was always supported by HealthScoreBar — a real button,
+          an aria-expanded disclosure naming each missing point, inline edits,
+          and an AI draft-from-the-brief action. None of it could be used here
+          while the row was an <a>, so the list rendered the dead <span> with a
+          hover title: on touch and to a screen reader, a bare "7/10". */}
+      <div className="ui-projects-row-actions hidden shrink-0 flex-col items-end gap-1 sm:flex">
+        <HealthScoreBar
+          health={health}
+          interactive
+          projectId={project.id}
+          userProjectId={project.userProjectId}
+          /* The CLEANED description, never the raw column: the bulk-import
+             placeholder ("Local repository imported from loki-ui") is not a
+             brief, and the gap-fill would happily draft a mission from it.
+             eslint's no-restricted-syntax rule here caught exactly that. */
+          brief={description}
+        />
         <span className="text-micro text-text-muted">
           {recency}
           {feedbackOpen ? ` · ${feedbackOpen} feedback` : ""}
@@ -142,6 +166,6 @@ export function ProjectRow({
         className="h-4 w-4 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-text-secondary"
         aria-hidden="true"
       />
-    </Link>
+    </div>
   );
 }
