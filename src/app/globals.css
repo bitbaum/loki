@@ -4364,6 +4364,24 @@
   .ui-projects-row-flagged {
     @apply border-l-2 border-l-status-warning/50 pl-[calc(1rem-2px)];
   }
+  /* The row used to BE one <a>, which is why it had zero interactive children:
+     HTML forbids a button or a link inside an anchor, so the health chip could
+     only ever be a dead <span> with a hover title — while HealthScoreBar had a
+     full interactive mode sitting unused. Every number on the row led to the
+     same generic destination because structurally nothing else was allowed to.
+
+     Stretched link instead: the project name is the real anchor and its
+     ::after covers the row, so the whole row stays one big click target and
+     keyboard/screen-reader users get one honest link with the project's name
+     as its text — better than the old aria-label on a wrapper. Anything that
+     needs its own click sits above the overlay via .ui-projects-row-actions. */
+  .ui-projects-row-link::after {
+    content: "";
+    @apply absolute inset-0;
+  }
+  .ui-projects-row-actions {
+    @apply relative z-[1];
+  }
   .ui-projects-show-more {
     @apply flex w-full min-h-11 items-center justify-center gap-2 rounded-xl border border-border-subtle bg-surface-base py-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-border-default hover:bg-surface-raised hover:text-text-primary;
   }
