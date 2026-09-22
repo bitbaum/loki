@@ -16,12 +16,7 @@ import {
 } from "@/db/schema";
 import { eq, and, asc, desc, inArray, ilike, isNull, or, isNotNull, max, sql } from "drizzle-orm";
 import { excludeSmokeDispatchesSql } from "./smoke-filter";
-import {
-  attrValuesFromMeta,
-  fetchAttributesByEntityIds,
-  fetchAttributesWithMetaByEntityIds,
-  getOrgPeerIds,
-} from "./utils";
+import { attrValuesFromMeta, fetchAttributesWithMetaByEntityIds, getOrgPeerIds } from "./utils";
 import { findProjectEntityByName } from "./project-merge";
 import { z } from "zod";
 import { isPrivateZoneLocked } from "@/lib/private-zone";
@@ -510,8 +505,10 @@ export async function getProjectDetail(userId: string, id: string) {
         // not reproducibly milestone 1.
         .orderBy(desc(goals.progress), asc(goals.createdAt));
 
+  // Meta, not the flat map: the project page's Flags panel needs to say when
+  // each flag was written and by what. Same single query either way.
   const [attrMap, relations, recentInteractions, linkedGoals, userProject] = await Promise.all([
-    fetchAttributesByEntityIds([id]),
+    fetchAttributesWithMetaByEntityIds([id]),
     db
       .select()
       .from(entityRelations)
@@ -550,7 +547,8 @@ export async function getProjectDetail(userId: string, id: string) {
   return {
     project,
     createdAt: project.createdAt,
-    attrs: attrMap.get(id) ?? {},
+    attrs: attrValuesFromMeta(attrMap.get(id)),
+    attrMeta: attrMap.get(id) ?? {},
     relations: relations.map((r) => ({
       type: r.type,
       strength: r.strength,

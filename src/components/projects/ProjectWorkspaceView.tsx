@@ -4,6 +4,7 @@ import type { ProjectDossier } from "@/db/queries/project-dossier";
 import { ProjectWorkspaceHeader } from "./ProjectWorkspaceHeader";
 import { ProjectTabs } from "./ProjectTabs";
 import { ProjectContextEditor } from "./ProjectContextEditor";
+import { ProjectFlags } from "./ProjectFlags";
 import { ProjectPlanSection } from "./ProjectPlanSection";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel";
 import { ProjectFeedbackSection } from "./ProjectFeedbackSection";
@@ -273,6 +274,13 @@ export function ProjectWorkspaceView({
                   <h2 id="project-overview-title" className="sr-only">
                     Overview
                   </h2>
+                  {/* The read-and-fix view stays conditional: there is nothing
+                      to show when nothing is wrong. Raising, editing and
+                      clearing live in <ProjectFlags> further down, which is
+                      ALWAYS rendered — because "how do I flag this?" had no
+                      answer anywhere in the product, and a control that only
+                      appears once the thing already happened cannot be the
+                      answer. */}
                   {healthSignals.length > 0 && (
                     <div className="mb-5 divide-y divide-border-subtle border-y border-border-subtle">
                       {healthSignals.map((signal) => {
@@ -344,14 +352,29 @@ export function ProjectWorkspaceView({
             id: "context",
             label: "Context",
             content: (
-              <ProjectContextEditor
-                projectId={project.id}
-                projectName={workspaceKey}
-                attrs={attrs}
-                gitUrl={userProject?.gitUrl ?? project.gitUrl ?? null}
-                resources={detail.resources ?? []}
-                readonly={dossier.readonly}
-              />
+              <>
+                <ProjectContextEditor
+                  projectId={project.id}
+                  projectName={workspaceKey}
+                  attrs={attrs}
+                  gitUrl={userProject?.gitUrl ?? project.gitUrl ?? null}
+                  resources={detail.resources ?? []}
+                  readonly={dossier.readonly}
+                />
+                {/* On Context, beside the other things a person WRITES about a
+                    project. The three flag attrs are excluded from the
+                    "Additional context" block by design (a dedicated UI owns
+                    them) — and until now that dedicated UI did not exist, so
+                    the exclusion just meant there was nowhere to raise one. */}
+                <div className="mt-7">
+                  <ProjectFlags
+                    projectId={project.id}
+                    attrs={attrs}
+                    attrMeta={detail.attrMeta}
+                    readonly={dossier.readonly}
+                  />
+                </div>
+              </>
             ),
           },
           {
