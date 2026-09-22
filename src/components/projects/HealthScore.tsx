@@ -35,12 +35,24 @@ function scoreTone(score: number, max: number) {
 export function HealthScoreBar({
   health,
   interactive = false,
+  compact = false,
   projectId,
   userProjectId,
   brief,
 }: {
   health: ProjectHealth;
   interactive?: boolean;
+  /**
+   * List mode: the score alone.
+   *
+   * Principle 1 (type does the work) and 6 (no decoration on a control that
+   * already reads as one). In a list the chip carried a label, a ten-segment
+   * track, the score, a "N to do" pill and a chevron — five things saying what
+   * "7/10" says, on every one of 25 rows, in a cell whose width then depended
+   * on all of them. The full readout still belongs on a project's own page,
+   * where there is one of it.
+   */
+  compact?: boolean;
   /** The project's own description. The AI gap-fill reads this and nothing
    *  else, so with no brief there is nothing to fill from and no button. */
   brief?: string | null;
@@ -191,7 +203,11 @@ export function HealthScoreBar({
     </span>
   );
 
-  const readout = (
+  const readout = compact ? (
+    <span className="ui-health-score">
+      {score}/{health.max}
+    </span>
+  ) : (
     <>
       <span className="ui-health-label">Health</span>
       {bar}
@@ -220,12 +236,16 @@ export function HealthScoreBar({
       >
         {readout}
         {/* The count, not just the ratio: "4 to do" is the sentence a person
-            acts on; "6/10" is one they have to translate first. */}
-        {missing > 0 && <span className="ui-health-missing">{missing} to do</span>}
-        <ChevronDown
-          aria-hidden
-          className={`h-3.5 w-3.5 shrink-0 text-text-muted transition-transform ${open ? "rotate-180" : ""}`}
-        />
+            acts on; "6/10" is one they have to translate first. In a LIST it
+            is the fifth thing in one cell, so compact mode drops it — the
+            panel names every missing point the moment you open it. */}
+        {!compact && missing > 0 && <span className="ui-health-missing">{missing} to do</span>}
+        {!compact && (
+          <ChevronDown
+            aria-hidden
+            className={`h-3.5 w-3.5 shrink-0 text-text-muted transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        )}
       </button>
 
       {open && (

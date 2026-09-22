@@ -1,24 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, ArrowRight } from "lucide-react";
-import { StatusBadge, HealthBadge, getHealthSignals } from "./project-badges";
+import { getHealthSignals } from "./project-badges";
 import type { ProjectGridRow } from "./project-grid-row";
 import { cn } from "@/lib/utils";
 import { deriveProjectLoopReadiness } from "@/lib/project-loop-readiness";
 import { computeProjectHealth } from "@/lib/project-health";
 import { HealthScoreBar } from "./HealthScore";
-import { answer, cleanDescription } from "@/lib/project-display";
+import { answer, cleanDescription, hasAnswer } from "@/lib/project-display";
 import { timeAgo } from "@/lib/dates";
+import { resolveProjectStage } from "@/lib/constants/statuses";
 
 /**
- * THE project row — every project renders through this one shape. The old
- * page bifurcated on a boolean: flagged projects became fat two-column cards,
- * everything else a bare 44px line, so the same object had two incompatible
- * looks and the list read as two unrelated widgets. One row, one grammar:
- * identity + badges on line one, the one context line under it, and a quiet
- * right-hand meta column (health, recency, open feedback) that answers "what
- * moved?" without opening the project.
+ * THE project row.
+ *
+ * Rebuilt 2026-09-22, after George's read of the old one: "they don't look like
+ * integral elements, rather like ones where random subelements are thrown in,
+ * which results in unaligned subelements and generally bad looking stuff."
+ * That was accurate, and it was accretion — every fix through the day had
+ * added a part, and nobody had ever designed the parts together.
+ *
+ * ONE GRAMMAR, and it fits in a sentence: identity on the left, a fixed data
+ * rail on the right, one row height for every project.
+ *
+ * What went, and why:
+ *
+ *   · A BADGE PER FACT. Stage, up to three flags with ages, "Needs path",
+ *     "Team" — a row was between two and seven coloured chips, so every row
+ *     was a different shape and the page read as chip soup. Colour is now
+ *     spent only on flags, the one thing here that is genuinely an alarm.
+ *   · THE SEGMENTED BAR. It had the shape of a meter and the content of a
+ *     checklist; the score says the same thing in four characters.
+ *   · THE CHEVRON. Decoration on a link the entire row already is.
+ *   · THE ARROW before the description, repeated on all 25 rows.
+ *   · CONTENT-SIZED COLUMNS. Measured on prod: the health chip's left edge
+ *     moved 37px between rows and three different row heights (71/79/81px)
+ *     meant nothing lined up vertically either.
+ *
+ * The rail is what makes this a list instead of 25 widgets: fixed column
+ * widths and tabular numbers, so stage / flags / health / last run run in
+ * straight lines down the page.
  */
 export function ProjectRow({
   project,
@@ -32,19 +53,15 @@ export function ProjectRow({
   feedbackOpen?: number;
 }) {
   const { attrs } = project;
-  const status = attrs["status"];
-  // The RAW value, not shortProjectStatus(). That helper returned null for
-  // anything outside a 13-string list, and the caller below rendered nothing —
-  // so a project whose stage read "Early Stage" or "MVP" was indistinguishable
-  // from one that had never set a stage at all. StatusBadge resolves the
-  // vocabulary itself now and marks what it cannot resolve.
-  const statusLabel = status?.trim() ? status : null;
-  const nextStep = answer(attrs["next_step"]);
-  const description = cleanDescription(project.description) ?? answer(attrs["description"]);
   const signals = getHealthSignals(attrs, project.attrMeta);
   const siteDown = Boolean(project.liveUrl) && project.siteOk === false;
-  const flagged = signals.length > 0 || siteDown;
-  const line = nextStep ?? description;
+  const flagCount = signals.length + (siteDown ? 1 : 0);
+  const flagged = flagCount > 0;
+
+  const nextStep = answer(attrs["next_step"]);
+  const description = cleanDescription(project.description) ?? answer(attrs["description"]);
+  const context = nextStep ?? description;
+
   const loopReadiness = deriveProjectLoopReadiness(project);
   const health = computeProjectHealth({
     description: project.description,
@@ -54,130 +71,94 @@ export function ProjectRow({
     attrs,
   });
 
-  // "last run", not "active".
-  //
-  // This is the newest AGENT DISPATCH for the project (prompt_history), and
-  // calling it "active" told the operator he had worked on something he had
-  // not touched in months — printcraft read "active 10h ago" because an
-  // autopilot run fired at 06:00 and failed. Worse, the list is ORDERED by
-  // this, under a subtitle promising "most recently active": the page ranked
-  // his projects by when a robot last ran and used a word that means he did.
-  const recency = lastDispatchAt
-    ? `last run ${timeAgo(new Date(lastDispatchAt).getTime())}`
-    : "never run";
+  const stage = resolveProjectStage(attrs["status"]);
+  // "last run", never "active": this is the newest AGENT dispatch, and calling
+  // it activity told the operator he had worked on something he had not
+  // touched in months.
+  const lastRun = lastDispatchAt ? timeAgo(new Date(lastDispatchAt).getTime()) : null;
+  const lastRunShort = lastRun?.replace(/\s*ago$/, "") ?? "—";
+
+  /** What the flags cell says, in as few characters as carry the meaning. */
+  const flagLabel = flagged ? `${flagCount} flag${flagCount > 1 ? "s" : ""}` : "";
+  /** Every flag's text, so hovering the count answers "which?" without a click. */
+  const flagTitle = [
+    ...signals.map((s) => `${s.label}: ${s.value}`),
+    ...(siteDown ? ["Site is down"] : []),
+  ].join("\n\n");
 
   return (
     <div
       className={cn(
-        "ui-projects-row group relative flex w-full min-h-11 items-center gap-3",
+        "ui-projects-row group relative",
+        // The only colour a row carries. A flagged project gets a rail on its
+        // edge instead of three red chips in its middle.
         flagged && "ui-projects-row-flagged",
       )}
     >
-      <div className="min-w-0 flex-1 text-left">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {/* The name is the link, and its ::after covers the row — so the whole
-              row is still one click target, while the row itself is no longer an
-              <a> and may finally contain controls of its own. A screen reader
-              now announces a link whose text is the project's name, instead of
-              an aria-label bolted onto a wrapper. */}
+      <div className="min-w-0 py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          {/* The name is the link; its ::after covers the row, so the whole
+              row stays one target while the row itself can hold controls. */}
           <Link
             href={`/projects/${project.id}`}
-            className="ui-projects-row-link truncate text-sm font-medium text-text-primary"
+            className="ui-projects-row-link ui-projects-row-name"
           >
             {project.name}
           </Link>
-          {project.readonly && <span className="ui-projects-badge shrink-0">Team</span>}
-          {statusLabel && <StatusBadge value={statusLabel} />}
-          {siteDown && <span className="ui-projects-badge ui-projects-badge-negative">Down</span>}
-          {signals.map((s) => (
-            <HealthBadge key={s.kind} signal={s} />
-          ))}
-          {/* Not desktop-only. "Needs path" means Loki cannot dispatch an agent
-              for this project at all — the most actionable badge on the row,
-              and it was hidden on the viewport where the row is narrowest. */}
+          {project.readonly && (
+            <span className="shrink-0 text-micro uppercase tracking-caps text-text-muted">
+              team
+            </span>
+          )}
           {loopReadiness.state !== "ready" && (
             <span
-              className="ui-projects-badge ui-projects-badge-warning"
+              className="shrink-0 text-micro uppercase tracking-caps text-status-warning"
               title={loopReadiness.description}
             >
               {loopReadiness.label}
             </span>
           )}
         </div>
-        {/* Two lines, not one ellipsis.
 
-            This page's own header says "Decide what needs your attention now",
-            and the next step is the only content on the row that supports that
-            decision — yet it was `truncate`d to a single line showing 21–36% of
-            the sentence, with the remainder available on hover only. A phone
-            has no hover, so on the viewport where the row is narrowest the
-            deciding information was simply unreadable. Measured across all four
-            widths by audit:responsive, which flags prose under 50% visible.
+        {context && <p className="ui-projects-row-context">{context}</p>}
 
-            `truncate` has to come off the PARENT too: it sets
-            `white-space: nowrap`, which would stop the child wrapping no matter
-            what the child says. min-w-0 lets the span shrink inside the flex
-            row instead of overflowing it. */}
-        {line && (
-          <p className="mt-0.5 flex items-start gap-1.5 text-xs text-text-tertiary">
-            {nextStep && (
-              <ArrowRight
-                className="mt-0.5 h-3 w-3 shrink-0 text-status-positive"
-                aria-hidden="true"
-              />
-            )}
-            <span className="line-clamp-2 min-w-0" title={line}>
-              {line}
-            </span>
-          </p>
-        )}
-        {/* The same facts, on the viewport that had none of them.
-
-            The right-hand meta column below is `sm:flex`, so on a phone the row
-            lost health, "active … ago" and the open-feedback count outright.
-            That became indefensible the moment this page started SORTING by
-            recency and saying so in its subtitle: the order was unverifiable on
-            the device where it matters most — you were asked to trust a
-            sequence whose evidence had been hidden.
-
-            A stacked line rather than the desktop column: at 390px a right rail
-            steals the width the project name needs, and the name is what you
-            came to read. `health N/10` is spelled out because a bare "7/10"
-            next to a date is a magic number — the score's own module exists to
-            stop it being one. */}
-        <p className="mt-1 text-micro text-text-muted sm:hidden">
-          {recency}
-          {` · health ${health.score}/${health.max}`}
-          {feedbackOpen ? ` · ${feedbackOpen} feedback` : ""}
+        {/* Mobile: the same four facts, same order, stacked. */}
+        <p className="ui-projects-row-meta">
+          {stage && <span className="uppercase tracking-caps">{stage}</span>}
+          {flagged && <span className="font-medium text-status-warning">{flagLabel}</span>}
+          <span>
+            {health.score}/{health.max}
+          </span>
+          <span>{lastRun ? `run ${lastRunShort}` : "never run"}</span>
+          {feedbackOpen ? <span>{feedbackOpen} feedback</span> : null}
         </p>
       </div>
-      {/* Above the stretched link, so the chip takes its own clicks.
-          `interactive` was always supported by HealthScoreBar — a real button,
-          an aria-expanded disclosure naming each missing point, inline edits,
-          and an AI draft-from-the-brief action. None of it could be used here
-          while the row was an <a>, so the list rendered the dead <span> with a
-          hover title: on touch and to a screen reader, a bare "7/10". */}
-      <div className="ui-projects-row-actions hidden shrink-0 flex-col items-end gap-1 sm:flex">
-        <HealthScoreBar
-          health={health}
-          interactive
-          projectId={project.id}
-          userProjectId={project.userProjectId}
-          /* The CLEANED description, never the raw column: the bulk-import
-             placeholder ("Local repository imported from loki-ui") is not a
-             brief, and the gap-fill would happily draft a mission from it.
-             eslint's no-restricted-syntax rule here caught exactly that. */
-          brief={description}
-        />
-        <span className="text-micro text-text-muted">
-          {recency}
-          {feedbackOpen ? ` · ${feedbackOpen} feedback` : ""}
+
+      {/* The rail. Fixed widths; the health cell is the one control. */}
+      <div className="ui-projects-rail">
+        <span className="ui-projects-rail-stage" title={stage ? undefined : attrs["status"]}>
+          {stage ?? (hasAnswer(attrs["status"]) ? "—" : "")}
+        </span>
+        <span className="ui-projects-rail-flags" title={flagTitle || undefined}>
+          {flagLabel}
+        </span>
+        <span className="ui-projects-rail-health ui-projects-row-actions">
+          <HealthScoreBar
+            health={health}
+            interactive
+            compact
+            projectId={project.id}
+            userProjectId={project.userProjectId}
+            brief={description}
+          />
+        </span>
+        <span
+          className="ui-projects-rail-run"
+          title={lastRun ? `Last agent run ${lastRun}` : "No agent has run here"}
+        >
+          {lastRunShort}
         </span>
       </div>
-      <ChevronRight
-        className="h-4 w-4 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-text-secondary"
-        aria-hidden="true"
-      />
     </div>
   );
 }

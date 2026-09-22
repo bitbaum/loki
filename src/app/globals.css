@@ -10,6 +10,69 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN PRINCIPLES — the grammar, not just the palette.
+   ═══════════════════════════════════════════════════════════════════════════
+
+   This file already held the tokens. What it did not hold was any rule about
+   how to USE them, so every page composed the same colours and sizes
+   differently: one list became a row of five coloured chips per item, another
+   a wall of bordered cards, and the product stopped looking like one product.
+   Tokens without a grammar are a palette, not a design system.
+
+   2026-09-22, George: "they don't look like integral elements, rather like
+   ones where random subelements are thrown in, which results in unaligned
+   subelements and generally bad looking stuff" — and then: "I thought our
+   design was centralized and all pages would be elonesque, including
+   principles."
+
+   These are those principles. They are load-bearing: a component that breaks
+   one is not a style disagreement, it is a component that will make its page
+   look like a different product.
+
+   1. TYPE DOES THE WORK, NOT DECORATION.
+      Hierarchy comes from weight and colour of text, in that order. Before
+      adding a border, a background or an icon, ask whether making the thing
+      one step darker or heavier says it.
+
+   2. COLOUR IS FOR ALARMS. Everything else is greyscale plus the one accent.
+      A page where four things are coloured has nothing coloured. If a row can
+      be wrong, the wrongness gets the colour and nothing else on that row
+      does. Status that is merely INFORMATION — a stage, a count, a date —
+      is text-muted, not a tinted chip.
+
+   3. SPACE SEPARATES. Boxes are a last resort.
+      A border around every item makes a list of cards; a list wants hairlines
+      or nothing at all. Never nest a bordered thing inside a bordered thing.
+
+   4. ONE ROW, ONE HEIGHT.
+      Items in a list are the same height whatever their content: clamp the
+      text instead of letting it push the layout. Variable heights destroy the
+      vertical rhythm that makes a list scannable, and they are what makes a
+      page look assembled rather than composed.
+
+   5. COLUMNS ARE FIXED, NUMBERS ARE TABULAR.
+      Anything repeated down a page — a score, a date, a count — gets a fixed
+      width and `tabular-nums`, so the column has a straight edge. Content-sized
+      cells wobble, and a wobbling column reads as broken before a reader can
+      say why. (Measured here: 37px of jitter across 25 rows.)
+
+   6. NO DECORATION ON A CONTROL THAT ALREADY READS AS ONE.
+      A chevron on a row that is entirely a link says nothing the cursor does
+      not. An icon repeated on all 25 rows carries no information.
+
+   7. EVERY VALUE COMES FROM A TOKEN.
+      No `text-[13px]`, no `min-h-[4.25rem]`, no hex in a className. If the
+      scale lacks what you need, add it HERE and name it — the next person
+      needs the same thing. Enforced by scripts/test/design-principles.ts,
+      which ratchets the count of arbitrary values down and never up.
+
+   8. NOTHING CLAIMS MORE THAN IT KNOWS.
+      A badge implying a vocabulary must have one; a label naming a
+      measurement must name the right one; a value with no source says so.
+      Design honesty is a design principle, not a content one.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -4384,8 +4447,58 @@
     @apply flex flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-base;
     box-shadow: var(--shadow-panel);
   }
+  /* ── The project row, rebuilt ────────────────────────────────────────────
+     One grammar, stated once: IDENTITY on the left, a fixed DATA RAIL on the
+     right, one row height for every project.
+
+     What it replaces, and why each part went:
+       · a badge per fact — stage, three flags with ages, Needs path, Team —
+         so a row was between two and seven coloured chips and every row was a
+         different shape. Colour is now spent ONLY on flags, which are the one
+         thing that is actually an alarm.
+       · a segmented "bar" that looked like a meter and carried a checklist.
+       · a chevron on every row, decorating a link the whole row already is.
+       · an arrow before the description, repeated 25 times.
+       · widths that depended on content, so the right-hand column wobbled
+         37px across the page and no two rows lined up.
+
+     The rail's columns are FIXED, so stage / flags / health / last run form
+     four true columns with a straight edge down the page. That alignment is
+     the whole point: it is what makes 25 rows read as one list rather than 25
+     separate widgets. */
   .ui-projects-row {
-    @apply flex w-full min-h-11 items-center gap-3 border-b border-border-subtle px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-surface-raised/70 active:bg-surface-raised;
+    /* Principle 3 (space separates): a hairline between rows, no card per row.
+       Principle 4 (one height): min-h-16 from the scale, not a bespoke value. */
+    @apply grid min-h-16 w-full items-center gap-x-6 border-b border-border-subtle px-4 text-left transition-colors last:border-b-0 hover:bg-surface-raised/60 active:bg-surface-raised;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .ui-projects-row-name {
+    @apply truncate text-sm font-medium leading-tight text-text-primary;
+  }
+  .ui-projects-row-context {
+    @apply mt-1 truncate text-xs leading-snug text-text-tertiary;
+  }
+  /* The rail. Every cell is a fixed width so the columns align down the page;
+     numbers are tabular so they do not shiver between rows. */
+  .ui-projects-rail {
+    @apply hidden shrink-0 items-center gap-6 text-micro tabular-nums text-text-muted sm:flex;
+  }
+  .ui-projects-rail-stage {
+    @apply w-24 truncate text-right uppercase tracking-caps;
+  }
+  .ui-projects-rail-flags {
+    @apply w-16 text-right font-medium text-status-warning;
+  }
+  .ui-projects-rail-health {
+    @apply w-14 text-right;
+  }
+  .ui-projects-rail-run {
+    @apply w-20 text-right;
+  }
+  /* Mobile keeps the same facts in the same order, stacked under the name —
+     the viewport that used to be given none of them. */
+  .ui-projects-row-meta {
+    @apply mt-1.5 flex flex-wrap items-center gap-x-3 text-micro tabular-nums text-text-muted sm:hidden;
   }
   .ui-projects-row-flagged {
     @apply border-l-2 border-l-status-warning/50 pl-[calc(1rem-2px)];
@@ -4455,12 +4568,6 @@
   }
   /* Named status variants — the negative/warning recipes were hand-composed
      inline in three row/card components before the list unified on ProjectRow. */
-  .ui-projects-badge-negative {
-    @apply border-status-negative/30 bg-status-negative/[0.08] text-status-negative;
-  }
-  .ui-projects-badge-warning {
-    @apply border-status-warning/30 bg-status-warning/[0.08] text-status-warning;
-  }
   .ui-projects-toolbar {
     @apply flex flex-col gap-3 sm:flex-row sm:items-center;
   }
