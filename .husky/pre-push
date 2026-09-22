@@ -168,12 +168,37 @@ _health=$(curl -sf --max-time 2 "$BASE/api/health" 2>/dev/null || true)
 if [ -z "$_health" ]; then
   echo "→ smoke: server not running at $BASE — skipping (start with pnpm run dev or install-app)"
 elif ! printf '%s' "$_health" | grep -q '"app":"loki"'; then
-  # Identify the APP, not the shape of its answer. Every app in the fleet
-  # serves this route from the same template, so `"commit"` is present in all
-  # of them: on 2026-09-22 a Heidi dev server holding :3000 passed this test,
-  # and Loki's 48-route auth smoke ran against it — 23 routes "failing" with
-  # 404 and a blocked push, on a verdict about somebody else's app.
+  # Identify the APP, not the shape of its answer.
+  #
+  # Every app in the fleet serves /api/health from the same template, so
+  # `"commit"` is present in all of them — it identifies a shape, not a
+  # product. On 2026-09-22 a Heidi dev server holding :3000 satisfied that
+  # test, Loki's 48-route auth smoke ran against it, and 23 routes "failed"
+  # with 404 on a verdict about somebody else's app (confirmed by reading
+  # /proc/<pid>/cwd on the process holding the port).
+  #
+  # A Loki older than the commit that added `app` to the payload is skipped
+  # here too. That is the right way to be wrong: a gate that stays quiet
+  # costs a run of the smoke, and one that fails loudly for the wrong reason
+  # costs the next person's trust in every verdict it gives.
   echo "→ smoke: server at $BASE is NOT Loki — skipping (it answered: $(printf '%s' "$_health" | head -c 80))"
+elif printf '%s' "$_health" | grep -q '"state":"unconfigured"'; then
+  # A RUNNING server is not a SMOKEABLE server.
+  #
+  # The check above answers "is this Loki"; this one answers "can it serve
+  # data". A Loki process with no database satisfies every identity test and
+  # 404s every database-backed route, so the hook failed 23 of 48 routes on
+  # changes that could not possibly have caused it (CSS, a copy string, a
+  # sort comparator). Observed twice on 2026-09-22; both pushes went out
+  # --no-verify and CI passed the identical bundle each time.
+  #
+  # That is the worst shape a gate can take: it blocks correct work, names
+  # the wrong cause, and trains you to bypass it — after which it protects
+  # nothing. The health payload already says `schema.state`, so the hook had
+  # the fact it needed and simply did not look.
+  echo "→ smoke: server at $BASE has no database (schema: unconfigured) — skipping"
+  echo "  It answers /api/health but 404s every data route, so smoking it tests"
+  echo "  the server's state, not your change. Fix with: pnpm run db:push"
 else
   echo "→ smoke: Loki server detected at $BASE"
   pnpm run smoke
