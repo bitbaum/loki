@@ -40,7 +40,7 @@ import { logDebug } from "@/db/queries/debug-logs";
 import { dismissActiveAlertsByType, refreshOrInsertActiveAlert } from "@/db/queries/alerts";
 import { getAllDistinctUserIds, getUserProjects } from "@/db/queries/user-projects";
 import { getGithubToken } from "@/lib/github-token";
-import { checkRepo, parseGithubRepo } from "@/lib/github-repo-ref";
+import { canSeePrivateRepos, checkRepo, parseGithubRepo, tokenScopes } from "@/lib/github-repo-ref";
 
 const ALERT_TYPE = "project_repo_missing";
 
@@ -59,6 +59,12 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
+    // Without the `repo` scope a PRIVATE repo answers 404 exactly like a
+    // deleted one, so a sign-in-only token would report every private project
+    // as gone. Ask once per user, and let it downgrade those 404s to
+    // "unchecked" rather than raise an alarm on healthy projects.
+    const canSeePrivate = canSeePrivateRepos(await tokenScopes(token));
+
     const projects = await getUserProjects(userId);
     const gone: Array<{ project: string; slug: string }> = [];
     let sawUnchecked = false;
@@ -72,7 +78,7 @@ export async function GET(req: NextRequest) {
       }
 
       summary.checked++;
-      const status = await checkRepo(ref, token);
+      const status = await checkRepo(ref, token, canSeePrivate);
 
       if (status.state === "ok") {
         summary.healthy++;
