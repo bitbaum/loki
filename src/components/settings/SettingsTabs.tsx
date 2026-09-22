@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { ScrollAffordance } from "@/components/ui/scroll-affordance";
 import { ProfileSettings } from "./ProfileSettings";
 import { AccountSettings } from "./AccountSettings";
@@ -93,6 +93,34 @@ export function SettingsTabs({
   // — a silent dead-end in the new-user funnel.
   const [activeTab, setActiveTab] = useState<TabId>(resolveInitialTab);
 
+  /**
+   * The hash is read ONCE by the lazy initializer above, which covers arriving
+   * from elsewhere but not changing the hash while already here. So
+   * /settings#agent worked from /control and did nothing from /settings —
+   * including browser Back after switching tabs, which moved the URL and left
+   * the page on whatever was open. Every in-app link to a settings section is
+   * therefore a coin flip depending on where the operator happened to be.
+   */
+  useEffect(() => {
+    const onHashChange = () => setActiveTab(resolveInitialTab());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  /**
+   * And the reverse: clicking a tab only moved React state, so the URL still
+   * said whatever it said. The address bar could not be shared, bookmarked or
+   * reloaded onto the section actually being looked at. replaceState rather
+   * than a hash assignment so switching tabs does not stack history entries —
+   * Back should leave Settings, not walk you through every tab you opened.
+   */
+  const selectTab = useCallback((id: TabId) => {
+    setActiveTab(id);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", `#${id}`);
+    }
+  }, []);
+
   return (
     <div className="lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:gap-8">
       {/* Nav: a vertical left rail on lg+ (all 12 sections visible — the old
@@ -107,7 +135,7 @@ export function SettingsTabs({
                 {TABS.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => selectTab(tab.id)}
                     className={`ui-tab ${activeTab === tab.id ? "ui-tab-active" : ""}`}
                   >
                     {tab.label}
@@ -122,7 +150,7 @@ export function SettingsTabs({
           {TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => selectTab(tab.id)}
               className={`ui-settings-navitem ${activeTab === tab.id ? "ui-settings-navitem-active" : ""}`}
             >
               {tab.label}

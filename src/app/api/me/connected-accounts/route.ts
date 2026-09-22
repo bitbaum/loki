@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { accounts } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getOrangeCatLink } from "@/lib/integrations/orangecat-identity";
+import { githubTokenWorks } from "@/lib/github-token";
 
 export async function GET() {
   const userId = await getSessionUserId();
@@ -13,6 +14,9 @@ export async function GET() {
     .select({
       provider: accounts.provider,
       providerAccountId: accounts.providerAccountId,
+      scope: accounts.scope,
+      expiresAt: accounts.expires_at,
+      hasRefresh: accounts.refresh_token,
     })
     .from(accounts)
     .where(eq(accounts.userId, userId));
@@ -43,14 +47,42 @@ export async function GET() {
   const orangeCat = rows.find((r) => r.provider === "orangecat");
   const orangeCatWorks = orangeCat ? Boolean(await getOrangeCatLink(userId)) : false;
 
+  /**
+   * GitHub gets the same question, because the note that used to live here —
+   * "the others are sign-in only" — was false. The GitHub link carries `repo`
+   * scope (full read/write on private repositories) and Loki acts through it
+   * in six places: /api/github/repos, projects/[id]/enrich, bulk-from-github,
+   * project-dossier, github-org-token and reap-evidence. A revoked token
+   * breaks all six silently while this page shows "Connected" in green, which
+   * is exactly the failure the OrangeCat check exists to prevent.
+   */
+  const github = rows.find((r) => r.provider === "github");
+  const githubWorks = github ? await githubTokenWorks(userId) : false;
+
+  /**
+   * Google really IS sign-in only — its scopes are openid/userinfo.email/
+   * userinfo.profile, which grant Loki nothing it can act with. So a dead
+   * Google token breaks nothing and "reconnect" would fix nothing.
+   *
+   * But it must not claim "Connected" either. Measured 2026-09-22: the stored
+   * Google token had expired on 2026-06-29 — three months — and the row was
+   * green. `capability` lets the UI say what a link actually is instead of
+   * implying every row is a live connection.
+   */
+  const SIGN_IN_ONLY = new Set(["google"]);
+
   return NextResponse.json({
-    accounts: rows.map(({ provider, providerAccountId }) => ({
+    accounts: rows.map(({ provider, providerAccountId, scope }) => ({
       provider,
       providerAccountId,
-      // Scoped to OrangeCat: it is the provider Loki holds a capability token
-      // for and acts through. The others are sign-in only — nothing here can
-      // be broken in a way this page could detect or a reconnect would fix.
-      needsReconnect: provider === "orangecat" && !orangeCatWorks,
+      scope: scope ?? null,
+      // What the link is FOR — so the UI can stop implying that a sign-in
+      // record and a live capability token are the same kind of thing.
+      capability: SIGN_IN_ONLY.has(provider) ? ("sign-in" as const) : ("acts" as const),
+      // Only asked of the links Loki actually acts through. A sign-in-only
+      // provider cannot be "broken" in a way a reconnect would repair.
+      needsReconnect:
+        (provider === "orangecat" && !orangeCatWorks) || (provider === "github" && !githubWorks),
     })),
   });
 }
