@@ -55,7 +55,7 @@ const supportTargets = [
   {
     title: "Cato",
     body: "Support the founder and follow the entities being built across both products.",
-    href: ECOSYSTEM_LINKS.mao,
+    href: ECOSYSTEM_LINKS.cato,
     icon: Bitcoin,
   },
 ] as const;

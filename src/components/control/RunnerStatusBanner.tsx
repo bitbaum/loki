@@ -239,7 +239,7 @@ export function RunnerStatusBanner({
               <div className="mt-2 ml-4 space-y-1.5">
                 <p>
                   Mint a token at{" "}
-                  <Link href="/settings" className="text-accent-text underline">
+                  <Link href="/settings#agent" className="text-accent-text underline">
                     /settings → Agent tokens
                   </Link>{" "}
                   and paste this in a terminal:
@@ -257,7 +257,7 @@ export function RunnerStatusBanner({
             </p>
             <p className="text-xs text-text-muted">
               {EXECUTOR_COPY.runnerBanner.reconnectHint}{" "}
-              <Link href="/settings" className="text-accent-text underline">
+              <Link href="/settings#agent" className="text-accent-text underline">
                 {EXECUTOR_COPY.runnerBanner.settingsLink}
               </Link>{" "}
               or{" "}

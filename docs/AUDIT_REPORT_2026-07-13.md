@@ -1,5 +1,19 @@
 # Codebase Audit Report
 
+> **STATUS — historical (added 2026-09-22).** A point-in-time audit of commit
+> `b40686e`. Several of its findings are filed against code that has since been
+> deleted, so they can no longer be acted on as written:
+>
+> - The **Stripe webhook** findings (unhandled DB errors in
+>   `stripe/webhook/route.ts`, "guard the webhook", "flip Stripe live") target
+>   routes removed in #508. There is no `src/app/api/stripe/` and no `stripe`
+>   dependency.
+> - **zellij** was deleted in #630; findings phrased as "types into zellij" or
+>   "zellij tabs" describe a mechanism that no longer exists.
+>
+> Kept for the reasoning and the trail. Do not open work from it without first
+> checking the finding still has a subject.
+
 **Date**: 2026-07-13
 **Auditor**: Claude Code (Opus 4.8, 3 parallel subagents + direct tracing)
 **Branch**: `feat/calendar-drain`

@@ -329,6 +329,7 @@ export function DoneStep({
   launchError,
   copied,
   onLaunch,
+  agentLabel,
   onCopyPrompt,
 }: {
   result: BootstrapResult;
@@ -336,6 +337,7 @@ export function DoneStep({
   launchError: string;
   copied: boolean;
   onLaunch: () => void;
+  agentLabel: string;
   onCopyPrompt: () => void;
 }) {
   return (
@@ -374,7 +376,7 @@ export function DoneStep({
       <div className="flex gap-2 pt-1">
         <button onClick={onLaunch} disabled={launching} className="ui-btn-primary flex-1 gap-1.5">
           {launching ? <Loader2 className="ui-spinner-sm" /> : <Rocket className="h-3.5 w-3.5" />}
-          Launch Claude Code →
+          Launch {agentLabel} →
         </button>
         <button onClick={onCopyPrompt} className="ui-btn-secondary gap-1.5">
           <Copy className="h-3.5 w-3.5" />

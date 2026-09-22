@@ -422,7 +422,7 @@ export const DESKTOP_DOWNLOAD = {
         // Just Works. AppImage stays as a secondary for Arch / Fedora /
         // immutable distros where .deb isn't the right format.
         label: "Download .deb (Ubuntu / Debian / Mint)",
-        note: "Recommended · ~80 MB · installs via package manager",
+        note: "Recommended · installs via package manager",
         // /releases/latest/download/... — GitHub redirects to the current
         // release, so this URL survives future version bumps.
         url: "https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-linux-amd64.deb",
@@ -448,7 +448,7 @@ export const DESKTOP_DOWNLOAD = {
       status: "ready" as const,
       primary: {
         label: "Download .dmg",
-        note: "Apple Silicon · ~98 MB",
+        note: "Apple Silicon",
         url: "https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-mac-arm64.dmg",
       },
       secondary: [
@@ -468,7 +468,7 @@ export const DESKTOP_DOWNLOAD = {
       status: "ready" as const,
       primary: {
         label: "Download installer",
-        note: "x64 · ~81 MB",
+        note: "x64",
         url: "https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-win-x64.exe",
       },
       secondary: [],

@@ -48,7 +48,12 @@ prompts.
 
 ### What is actually blocking it
 
-`prompt_history` has **no `runId`**. The prompt→outcome join is only possible by
+> **Superseded 2026-09-22.** `prompt_history` **has** `runId` — a nullable FK to
+> `orchestration_runs` plus `idx_prompt_history_run_id`, both in
+> `src/db/schema/prompt-history.ts`. The paragraph below describes the state
+> before that shipped; it is kept for the reasoning, not as a current fact.
+
+`prompt_history` had **no `runId`**. The prompt→outcome join was only possible by
 `(userId, projectKey, adapter, intent, time-proximity)`, which is lossy under
 concurrency — and concurrency is our normal operating state.
 
@@ -170,8 +175,9 @@ requested.
    label, and *zero* sentence-level repetition is not an optimisation signal.
    The phase's own kill criterion would fire on cycle one. Revisit at ~1000
    evidence-present runs — stated so it is a threshold, not a silent cap.
-2. **Phase 0 (the `runId` FK) is DEFERRED.** Its only consumer is the parked
-   phase. Keep logging so the corpus grows; add the column when Phase 3 revives.
+2. ~~**Phase 0 (the `runId` FK) is DEFERRED.**~~ **SHIPPED.** The column and its
+   index exist (`src/db/schema/prompt-history.ts`). Phase 3 remains parked, but
+   the corpus is joinable now — do not re-add the column.
 3. **The fix was one prompt change, not a learning loop.** `HANDOFF_FIELD_BLOCK`
    in `config/prompt-library.ts` is now the single canonical handoff shape and
    includes the evidence fields, and `orchestration/evidence-precheck.ts` turns
@@ -202,9 +208,10 @@ was wrong). No phase depends on a later phase being built.
 ### Phase 0 — Make the corpus joinable
 
 **Do:**
-- Add nullable `run_id` to `prompt_history` with an FK to `orchestration_runs`,
-  plus an index. Nullable because lifecycle intents (`hard_stop`,
-  `close_session`) legitimately produce no run.
+- ~~Add nullable `run_id` to `prompt_history` with an FK to
+  `orchestration_runs`, plus an index.~~ **Already done** — see
+  `src/db/schema/prompt-history.ts:34,42`. Nullable because lifecycle intents
+  (`hard_stop`, `close_session`) legitimately produce no run.
 - Reorder `src/app/api/orchestration/run/route.ts` so the run row is created
   first, then the prompt is logged against it. Await the insert.
 - Do the same at `src/lib/inject-core.ts` and
