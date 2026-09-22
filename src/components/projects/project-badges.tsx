@@ -1,6 +1,11 @@
 import { ShieldAlert, AlertTriangle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
+import {
+  PROJECT_STAGE_MEANING,
+  PROJECT_STAGES,
+  resolveProjectStage,
+} from "@/lib/constants/statuses";
 import { signalHasExpired, type AttrProvenance } from "@/lib/project-signals";
 import { HEALTH_SIGNAL_BASE } from "./project-detail-types";
 import type { HealthSignalBase, HealthSignalKind } from "./project-detail-types";
@@ -81,9 +86,23 @@ const STATUS_COLOR_MAP: Record<string, string> = {
 };
 
 export function StatusBadge({ value }: { value: string }) {
-  const cls =
-    STATUS_COLOR_MAP[value.toLowerCase()] ??
-    "bg-surface-raised text-text-tertiary border-border-subtle";
+  /* Resolve to a real stage, or say the value is not one.
+
+     STATUS_COLOR_MAP keyed on 13 strings and `shortProjectStatus` returned
+     null for anything else — so a project whose stage read "Early Stage" or
+     "MVP" showed NO badge at all, indistinguishable from a project that had
+     never set one. That is the shape George called a hard-coded demo: a
+     vocabulary implied by colour, enforced nowhere, silently swallowing what
+     it did not recognise.
+
+     PROJECT_STAGE is the vocabulary now. Legacy values map to what they meant;
+     anything still unrecognised renders the raw text marked as unrecognised,
+     because "this project's stage is a word nobody defined" is a fact the
+     operator should see, not a blank. */
+  const stage = resolveProjectStage(value);
+  const cls = stage
+    ? (STATUS_COLOR_MAP[stage] ?? "bg-surface-raised text-text-tertiary border-border-subtle")
+    : "bg-surface-raised text-text-muted border-border-subtle border-dashed";
   // The badge is inline-flex; truncate on the outer text node won't add
   // an ellipsis because flex layout doesn't apply text-overflow to anonymous
   // children. Wrap the text in a real span so truncate has a block-like
@@ -100,10 +119,20 @@ export function StatusBadge({ value }: { value: string }) {
   return (
     <span
       className={`ui-projects-badge max-w-[180px] overflow-hidden ${cls}`}
-      title={`Stage: ${value}`}
+      title={
+        stage
+          ? `Stage: ${stage} — ${PROJECT_STAGE_MEANING[stage]}${
+              stage !== value.trim().toLowerCase() ? `\n\nStored as: "${value}"` : ""
+            }`
+          : `"${value}" is not one of Loki's stages (${PROJECT_STAGES.join(", ")}). Set a stage on the project to make this meaningful.`
+      }
     >
       <span className="ui-badge-prefix">Stage</span>
-      <span className="truncate">{value}</span>
+      <span className="truncate">{stage ?? value}</span>
+      {/* The badge stops short of claiming a vocabulary it cannot back. A
+          dashed border and a "?" say "this is not a stage Loki knows" — which
+          is information; rendering nothing was not. */}
+      {!stage && <span aria-hidden>?</span>}
     </span>
   );
 }

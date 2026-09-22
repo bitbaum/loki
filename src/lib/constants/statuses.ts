@@ -122,6 +122,103 @@ export const FEEDBACK_SCOPE_VALUES = ["element", "page", "site"] as const;
 export type FeedbackScope = (typeof FEEDBACK_SCOPE_VALUES)[number];
 
 /**
+ * PROJECT STAGE — where a project is in its life.
+ *
+ * This lived for months as the free-text attr `status`, rendered as a "Stage"
+ * badge with a 13-key colour map. Nothing constrained it: two projects could
+ * mean different things by "Development", and a value outside that map made
+ * the badge silently VANISH rather than say anything. Every other vocabulary
+ * in this product is declared in this file; stage simply never joined them,
+ * which is why the page read as a hard-coded demo of a system that did not
+ * exist.
+ *
+ * Ordered by life rather than alphabetically: the order IS the meaning, and a
+ * picker built from it should read as a progression.
+ *
+ * `status` stays the storage key — renaming the attr would orphan every value
+ * an agent has already written, and "Stage" is the word the operator has been
+ * shown for a long time. The word people see is the one worth making true.
+ */
+export const PROJECT_STAGE = {
+  IDEA: "idea",
+  BLUEPRINT: "blueprint",
+  DEVELOPMENT: "development",
+  PRE_LAUNCH: "pre-launch",
+  PRODUCTION: "production",
+  PAUSED: "paused",
+  ARCHIVED: "archived",
+} as const;
+export type ProjectStage = (typeof PROJECT_STAGE)[keyof typeof PROJECT_STAGE];
+
+/** In life order, for pickers and anything rendering the whole set. */
+export const PROJECT_STAGES: readonly ProjectStage[] = [
+  PROJECT_STAGE.IDEA,
+  PROJECT_STAGE.BLUEPRINT,
+  PROJECT_STAGE.DEVELOPMENT,
+  PROJECT_STAGE.PRE_LAUNCH,
+  PROJECT_STAGE.PRODUCTION,
+  PROJECT_STAGE.PAUSED,
+  PROJECT_STAGE.ARCHIVED,
+];
+
+/**
+ * What each stage MEANS. Shown in the picker, so the answer to "what counts as
+ * pre-launch?" sits next to the choice instead of in someone's head.
+ */
+export const PROJECT_STAGE_MEANING: Record<ProjectStage, string> = {
+  idea: "Written down, nothing built yet.",
+  blueprint: "Scoped and planned; work has not started.",
+  development: "Being built. Not usable by anyone else yet.",
+  "pre-launch": "Usable and being readied — not announced.",
+  production: "Live and in real use.",
+  paused: "Deliberately stopped. Not abandoned.",
+  archived: "Finished or dropped. Kept for the record.",
+};
+
+/**
+ * Values written before the vocabulary existed, mapped to what they meant.
+ *
+ * Deliberately NOT a fuzzy normaliser: every entry is a value actually present
+ * in the data. Anything unrecognised STAYS unrecognised, and the UI says so
+ * out loud instead of hiding the badge — a project whose stage nobody can read
+ * is a fact worth showing, not a blank.
+ */
+export const LEGACY_PROJECT_STAGE: Record<string, ProjectStage> = {
+  active: PROJECT_STAGE.PRODUCTION,
+  live: PROJECT_STAGE.PRODUCTION,
+  launched: PROJECT_STAGE.PRODUCTION,
+  prod: PROJECT_STAGE.PRODUCTION,
+  planning: PROJECT_STAGE.BLUEPRINT,
+  early: PROJECT_STAGE.DEVELOPMENT,
+  "early stage": PROJECT_STAGE.DEVELOPMENT,
+  "in-progress": PROJECT_STAGE.DEVELOPMENT,
+  "in progress": PROJECT_STAGE.DEVELOPMENT,
+  building: PROJECT_STAGE.DEVELOPMENT,
+  deprecated: PROJECT_STAGE.ARCHIVED,
+  retired: PROJECT_STAGE.ARCHIVED,
+};
+
+export function isProjectStage(value: unknown): value is ProjectStage {
+  return typeof value === "string" && (PROJECT_STAGES as readonly string[]).includes(value);
+}
+
+/**
+ * The stage a stored value means, or null when nothing can be said.
+ *
+ * Reads the FIRST clause only, because stored values are prose as often as
+ * labels ("Production — payments live, shop pending"). Returning null is a
+ * real answer, not a failure: the caller shows the raw text marked
+ * unrecognised rather than pretending the field is empty.
+ */
+export function resolveProjectStage(raw: string | null | undefined): ProjectStage | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
+  const head = (trimmed.split(/\s[—–-]\s|[,:([]/)[0] ?? trimmed).trim().toLowerCase();
+  if (isProjectStage(head)) return head;
+  return LEGACY_PROJECT_STAGE[head] ?? null;
+}
+
+/**
  * Who filed a feedback row: a real visitor (widget), the AI page reviewer, or
  * the inbox synthesizer (whose rows are aggregate BRIEFs, not reports —
  * the digester must not re-cluster them). Self-asserted via the public write

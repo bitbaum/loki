@@ -21,8 +21,12 @@ export type ProjectsPageFilter = null | "attention" | "next-step" | "team";
 export type ProjectsSort = "priority" | "recent" | "az";
 
 export const PROJECTS_SORTS: ReadonlyArray<{ id: ProjectsSort; label: string; hint: string }> = [
-  { id: "priority", label: "Priority", hint: "Flagged first, then most recently active" },
-  { id: "recent", label: "Recent", hint: "Most recently active first" },
+  { id: "priority", label: "Priority", hint: "Flagged first, then by most recent agent run" },
+  {
+    id: "recent",
+    label: "Recent",
+    hint: "Most recent agent run first — not when you last worked on it",
+  },
   { id: "az", label: "A-Z", hint: "By name" },
 ];
 
