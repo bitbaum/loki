@@ -14,7 +14,6 @@ export type HealthSignalBase = {
   kind: HealthSignalKind;
   key: string;
   label: string;
-  cardLabel: string;
   /** The "nothing is wrong" phrasing, for the health breakdown. Machine-built
    *  from `label` it produced "No broken" / "No open broken recorded." — a
    *  sentence with the noun missing, shown to every reader of a project. The
@@ -40,7 +39,6 @@ export const HEALTH_SIGNAL_BASE: HealthSignalBase[] = [
     kind: "security",
     key: "security_vulnerability",
     label: "Security risk",
-    cardLabel: "Security Risk",
     clearLabel: "No security risks open",
     clearRule: "Passes while no security risk is recorded on this project.",
     badgeCls: "bg-status-negative-subtle text-status-negative border-status-negative/25",
@@ -52,8 +50,7 @@ export const HEALTH_SIGNAL_BASE: HealthSignalBase[] = [
   {
     kind: "broken",
     key: "broken_features",
-    label: "Broken",
-    cardLabel: "Broken Features",
+    label: "Broken features",
     clearLabel: "No broken features",
     clearRule: "Passes while no broken feature is recorded on this project.",
     badgeCls: "bg-status-warning-subtle text-status-warning border-status-warning/25",
@@ -66,7 +63,6 @@ export const HEALTH_SIGNAL_BASE: HealthSignalBase[] = [
     kind: "deployment",
     key: "deployment_issue",
     label: "Deploy issue",
-    cardLabel: "Deployment Issue",
     clearLabel: "No deploy issues open",
     clearRule: "Passes while no deploy issue is recorded on this project.",
     badgeCls: "bg-status-warning-subtle text-status-warning border-status-warning/25",

@@ -99,7 +99,7 @@ export function ProjectFlags({
           return (
             <div key={cfg.key} className="py-3">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className="text-sm font-medium text-text-primary">{cfg.cardLabel}</span>
+                <span className="text-sm font-medium text-text-primary">{cfg.label}</span>
                 {set ? (
                   <span className="text-micro text-text-muted">
                     {meta?.updatedAt
@@ -123,7 +123,7 @@ export function ProjectFlags({
                     rows={3}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    placeholder={`What is wrong? e.g. ${cfg.cardLabel.toLowerCase()} on the checkout page`}
+                    placeholder={`What is wrong? e.g. ${cfg.label.toLowerCase()} on the checkout page`}
                     className="ui-textarea w-full text-sm"
                   />
                   <div className="flex flex-wrap gap-2">

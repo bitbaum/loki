@@ -118,9 +118,15 @@ check("an expired flag reads as expired, not as absent", () => {
   assert(/expired/i.test(code), "an expired flag is indistinguishable from never having one");
 });
 
-check("every signal in the vocabulary has a card label to render", () => {
+check("every signal in the vocabulary has a name to render", () => {
+  // This used to require a `cardLabel` specifically — which pinned the
+  // IMPLEMENTATION (two label fields per signal) rather than the rule (a
+  // signal the operator can raise must have a name). Those two fields had
+  // drifted into "Broken" vs "Broken Features", and collapsing them to one
+  // failed this gate even though it fixed the defect. See
+  // scripts/test/one-name-per-signal.ts for the rule that replaced it.
   for (const s of HEALTH_SIGNAL_BASE) {
-    assert(Boolean(s.cardLabel), `${s.kind} has no cardLabel for the panel heading`);
+    assert(Boolean(s.label?.trim()), `${s.kind} has no name for the panel heading`);
   }
 });
 
