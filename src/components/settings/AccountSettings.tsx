@@ -9,7 +9,12 @@ import { Modal } from "@/components/ui/modal";
 import { useFetch } from "@/hooks/use-fetch";
 import { TOAST_MEDIUM_MS } from "@/lib/constants/timings";
 
-type ConnectedAccount = { provider: string; providerAccountId: string };
+type ConnectedAccount = {
+  provider: string;
+  providerAccountId: string;
+  /** Linked, but the provider has refused the stored token. */
+  needsReconnect?: boolean;
+};
 
 const PROVIDER_META: Record<string, { label: string; icon: React.ElementType }> = {
   github: { label: "GitHub", icon: GitBranch },
@@ -75,7 +80,7 @@ function ConnectedAccountsSection({
       {connectedAccounts.length === 0 && (
         <p className="text-sm text-text-muted">No OAuth providers connected.</p>
       )}
-      {connectedAccounts.map(({ provider }) => {
+      {connectedAccounts.map(({ provider, needsReconnect }) => {
         const meta = PROVIDER_META[provider] ?? { label: provider, icon: Globe };
         const Icon = meta.icon;
         const isOnly = connectedAccounts.length === 1 && !hasPassword;
@@ -86,7 +91,21 @@ function ConnectedAccountsSection({
           >
             <Icon className="h-4 w-4 shrink-0 text-text-secondary" />
             <span className="flex-1 text-sm text-text-primary">{meta.label}</span>
-            <span className="text-xs text-status-positive">Connected</span>
+            {/* Linked is not working. When the provider has refused the stored
+                token, the row says so and offers the ONE action that fixes it
+                — re-running the same consent round-trip. Before this, a broken
+                OrangeCat link read "Connected" in green and offered only
+                Disconnect, which is a dead end wearing a healthy label. */}
+            {needsReconnect ? (
+              <>
+                <span className="text-xs text-status-warning">Needs reconnecting</span>
+                <button onClick={connectOrangeCat} disabled={connecting} className="ui-btn-xs ml-2">
+                  {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Reconnect"}
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-status-positive">Connected</span>
+            )}
             <button
               onClick={() => disconnect(provider)}
               disabled={!!disconnecting || isOnly}

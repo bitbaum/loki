@@ -98,5 +98,23 @@ ok(
   "...pointing at the page where re-linking actually happens",
 );
 
+// 4. The repair is REACHABLE.
+//
+// An alert that points at a page with no way to act on it is a dead end with
+// a notification attached — and that is what this was: a broken OrangeCat link
+// listed as "Connected" in green, with Disconnect as the only button, while
+// every publish silently failed. CLAUDE.md's rule is the general form: anything
+// that pauses a person shows the way forward on the same screen.
+const ROUTE = readFileSync(join(ROOT, "src/app/api/me/connected-accounts/route.ts"), "utf8");
+const SETTINGS = readFileSync(join(ROOT, "src/components/settings/AccountSettings.tsx"), "utf8");
+ok(
+  /needsReconnect: provider === "orangecat" && !refreshToken/.test(ROUTE),
+  "a link whose refresh token OrangeCat refused is reported as needing reconnection",
+);
+ok(
+  /needsReconnect \?/.test(SETTINGS) && /Reconnect/.test(SETTINGS),
+  "...and the row offers Reconnect instead of reading Connected in green",
+);
+
 console.log(`${pass}/${pass + fail} orangecat-link-recovery cases passed`);
 if (fail > 0) process.exit(1);
