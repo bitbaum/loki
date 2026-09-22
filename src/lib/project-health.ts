@@ -200,7 +200,7 @@ export function computeProjectHealth(input: ProjectHealthInput): ProjectHealth {
       detail: hasAnswer(attrs[signal.key])
         ? truncate(attrs[signal.key])
         : `Nothing flagged — this point is lost if one is recorded.`,
-      rule: `Passes while no ${signal.label.toLowerCase()} is recorded on this project.`,
+      rule: signal.clearRule,
       fix: { kind: "clear" as const, attr: signal.key },
     })),
     {

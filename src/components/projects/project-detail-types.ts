@@ -20,6 +20,13 @@ export type HealthSignalBase = {
    *  sentence with the noun missing, shown to every reader of a project. The
    *  plural and the noun differ per signal, so they are written, not derived. */
   clearLabel: string;
+  /** The check's rule, in words, shown under it in the health panel.
+   *  Written per signal for the SAME reason clearLabel is: deriving it from
+   *  `label` produced "Passes while no broken is recorded on this project."
+   *  — a sentence with its noun missing, on every project. clearLabel was
+   *  fixed for that and this field was missed, so the bug survived in the
+   *  line directly beneath the one that had been repaired. */
+  clearRule: string;
   badgeCls: string;
   cardBorder: string;
   cardBg: string;
@@ -35,6 +42,7 @@ export const HEALTH_SIGNAL_BASE: HealthSignalBase[] = [
     label: "Security risk",
     cardLabel: "Security Risk",
     clearLabel: "No security risks open",
+    clearRule: "Passes while no security risk is recorded on this project.",
     badgeCls: "bg-status-negative-subtle text-status-negative border-status-negative/25",
     cardBorder: "border-status-negative/25",
     cardBg: "bg-status-negative-subtle",
@@ -47,6 +55,7 @@ export const HEALTH_SIGNAL_BASE: HealthSignalBase[] = [
     label: "Broken",
     cardLabel: "Broken Features",
     clearLabel: "No broken features",
+    clearRule: "Passes while no broken feature is recorded on this project.",
     badgeCls: "bg-status-warning-subtle text-status-warning border-status-warning/25",
     cardBorder: "border-status-warning/25",
     cardBg: "bg-status-warning-subtle",
@@ -59,6 +68,7 @@ export const HEALTH_SIGNAL_BASE: HealthSignalBase[] = [
     label: "Deploy issue",
     cardLabel: "Deployment Issue",
     clearLabel: "No deploy issues open",
+    clearRule: "Passes while no deploy issue is recorded on this project.",
     badgeCls: "bg-status-warning-subtle text-status-warning border-status-warning/25",
     cardBorder: "border-status-warning/25",
     cardBg: "bg-status-warning-subtle",
