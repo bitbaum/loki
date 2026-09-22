@@ -14,6 +14,14 @@ type ConnectedAccount = {
   providerAccountId: string;
   /** Linked, but the provider has refused the stored token. */
   needsReconnect?: boolean;
+  /** "acts" = Loki holds a capability token and works through it.
+   *  "sign-in" = it only ever proved who you are. The distinction is the
+   *  whole point: a dead sign-in link costs nothing, a dead capability link
+   *  silently breaks features. */
+  capability?: "acts" | "sign-in";
+  /** The granted OAuth scope, shown so the row can say what it actually permits
+   *  rather than asking the operator to trust the word "Connected". */
+  scope?: string | null;
 };
 
 const PROVIDER_META: Record<string, { label: string; icon: React.ElementType }> = {
@@ -44,6 +52,16 @@ function ConnectedAccountsSection({
   // unlocks Publish to OrangeCat — no separate API-key step.
   const showOrangeCatConnect =
     orangecatEnabled && !connectedAccounts.some((a) => a.provider === "orangecat");
+
+  /** Re-run the consent round-trip for whichever provider is broken. It was
+   *  hardwired to OrangeCat, so a GitHub row — now health-checked, because it
+   *  carries `repo` scope — would have offered a button that signed you into
+   *  the wrong provider. */
+  const reconnect = async (provider: string) => {
+    setConnecting(true);
+    setError(null);
+    await signIn(provider, { callbackUrl: "/settings#account" });
+  };
 
   const connectOrangeCat = async () => {
     setConnecting(true);
@@ -80,7 +98,7 @@ function ConnectedAccountsSection({
       {connectedAccounts.length === 0 && (
         <p className="text-sm text-text-muted">No OAuth providers connected.</p>
       )}
-      {connectedAccounts.map(({ provider, needsReconnect }) => {
+      {connectedAccounts.map(({ provider, needsReconnect, capability, scope }) => {
         const meta = PROVIDER_META[provider] ?? { label: provider, icon: Globe };
         const Icon = meta.icon;
         const isOnly = connectedAccounts.length === 1 && !hasPassword;
@@ -99,12 +117,26 @@ function ConnectedAccountsSection({
             {needsReconnect ? (
               <>
                 <span className="text-xs text-status-warning">Needs reconnecting</span>
-                <button onClick={connectOrangeCat} disabled={connecting} className="ui-btn-xs ml-2">
+                <button
+                  onClick={() => reconnect(provider)}
+                  disabled={connecting}
+                  className="ui-btn-xs ml-2"
+                >
                   {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Reconnect"}
                 </button>
               </>
+            ) : capability === "sign-in" ? (
+              /* Not "Connected". Google's scopes are openid/userinfo only, so
+                 it proved who you are once and grants Loki nothing it can act
+                 with. Calling that a live connection is how a token three
+                 months expired sat here in green. */
+              <span className="text-xs text-text-muted" title={scope ?? undefined}>
+                Sign-in only
+              </span>
             ) : (
-              <span className="text-xs text-status-positive">Connected</span>
+              <span className="text-xs text-status-positive" title={scope ?? undefined}>
+                Connected
+              </span>
             )}
             <button
               onClick={() => disconnect(provider)}
@@ -297,13 +329,25 @@ export function AccountSettings({ user, orangecatEnabled }: Props) {
     <section className="ui-settings-section">
       <h2 className="font-medium text-text-primary">Account</h2>
 
-      {/* Email */}
+      {/* Email.
+
+          "Read-only" was the entire explanation, which is a dead end wearing a
+          status badge: true, but it tells you neither why nor what to do. There
+          is genuinely no way to change it — nothing in the codebase writes
+          users.email, the only write to that table is emailVerified — so the
+          honest move is to say where it came from and what the alternative is,
+          not to leave the operator wondering whether they missed a button. */}
       <div className="space-y-1.5">
         <label className="ui-kicker">Email address</label>
         <div className="flex items-center gap-2 rounded-lg border border-border-default bg-surface-raised px-3 py-2.5">
           <span className="flex-1 text-sm text-text-secondary">{user.email ?? "No email set"}</span>
-          <span className="text-xs text-text-muted">Read-only</span>
+          <span className="text-xs text-text-muted">Cannot be changed</span>
         </div>
+        <p className="text-xs text-text-muted">
+          This is the address from the account you first signed in with. Loki has no way to change
+          it — the only route to a different address is a new account. Sign-in links below are
+          separate: adding one does not move your email.
+        </p>
       </div>
 
       {/* Connected OAuth accounts */}

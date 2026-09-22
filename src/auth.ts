@@ -4,7 +4,7 @@ import { ROUTES } from "@/config/auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 // db required here for DrizzleAdapter — not avoidable
 import { db } from "@/db";
 import { users, accounts, sessions, verificationTokens } from "@/db/schema";
@@ -224,6 +224,57 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             existing?.orangecatActorId !== account.providerAccountId
           ) {
             await setUserOrangeCatActorId(message.user.id, account.providerAccountId);
+          }
+
+          // Re-linking must REPLACE the stored credential, not just the session.
+          //
+          // Auth.js writes the OAuth token set through the adapter's
+          // linkAccount(), and linkAccount only runs when the link is NEW. Sign
+          // in again on an account that is already linked and the fresh
+          // access/refresh tokens are simply discarded — the row keeps whatever
+          // it had, including a refresh_token that OrangeCat already refused.
+          //
+          // That made the Settings "Reconnect" button unable to fix the thing it
+          // names. Measured on prod 2026-09-22: the round-trip completed
+          // (callback 200, redirect back to /settings), and the row still had
+          // refresh_token NULL and expires_at five days in the past, so
+          // getOrangeCatLink() still returned null and the row still read "Needs
+          // reconnecting". The only way out was Disconnect-then-Connect, which
+          // is a dead end nobody would guess at.
+          //
+          // Upsert-on-sign-in rather than unlink-then-relink: a delete first
+          // would leave the account unlinked if the round-trip failed halfway.
+          const fresh = account as
+            | {
+                provider?: string;
+                providerAccountId?: string;
+                access_token?: string;
+                refresh_token?: string;
+                expires_at?: number;
+                scope?: string;
+                id_token?: string;
+                token_type?: string;
+              }
+            | undefined;
+          if (fresh?.provider === "orangecat" && fresh.providerAccountId && fresh.access_token) {
+            await db
+              .update(accounts)
+              .set({
+                access_token: fresh.access_token,
+                // Only overwrite the refresh token when the provider sent one —
+                // an OIDC round-trip that omits it must not blank a good one.
+                ...(fresh.refresh_token ? { refresh_token: fresh.refresh_token } : {}),
+                ...(fresh.expires_at !== undefined ? { expires_at: fresh.expires_at } : {}),
+                ...(fresh.scope ? { scope: fresh.scope } : {}),
+                ...(fresh.id_token ? { id_token: fresh.id_token } : {}),
+                ...(fresh.token_type ? { token_type: fresh.token_type } : {}),
+              })
+              .where(
+                and(
+                  eq(accounts.provider, "orangecat"),
+                  eq(accounts.providerAccountId, fresh.providerAccountId),
+                ),
+              );
           }
 
           const memberCount = await getOrgMembershipCount(message.user.id);

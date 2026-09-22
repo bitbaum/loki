@@ -112,8 +112,25 @@ ok(
   "the settings page RESOLVES the link rather than reading a column that may not have been written yet",
 );
 ok(
-  /needsReconnect: provider === "orangecat" && !orangeCatWorks/.test(ROUTE),
+  /provider === "orangecat" && !orangeCatWorks/.test(ROUTE),
   "...and reports health, not the presence of a row",
+);
+// GitHub gets the same treatment, and for a stronger reason than OrangeCat:
+// the link carries `repo` scope and Loki acts through it in six places
+// (/api/github/repos, projects/[id]/enrich, bulk-from-github, project-dossier,
+// github-org-token, reap-evidence). The route used to justify skipping it with
+// "the others are sign-in only", which was simply false — a revoked GitHub
+// token broke all six silently while the row read "Connected" in green.
+ok(
+  /githubTokenWorks\(/.test(ROUTE) && /provider === "github" && !githubWorks/.test(ROUTE),
+  "the GitHub link is health-checked too — it is a capability token, not sign-in",
+);
+// Google really is sign-in only (openid/userinfo scopes grant nothing Loki can
+// act with), so it must NOT claim a live connection either. Measured 2026-09-22:
+// its stored token had expired on 2026-06-29 and the row was still green.
+ok(
+  /capability/.test(ROUTE) && /Sign-in only/.test(SETTINGS),
+  "a sign-in-only link says so instead of reading Connected",
 );
 ok(
   /needsReconnect \?/.test(SETTINGS) && /Reconnect/.test(SETTINGS),
