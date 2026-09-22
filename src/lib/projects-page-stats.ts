@@ -1,6 +1,7 @@
 import type { ProjectGridRow } from "@/components/projects/project-grid-row";
 import { PROJECT_ATTR } from "@/config/project-attrs";
 import { hasAnswer } from "@/lib/project-display";
+import { signalHasExpired } from "@/lib/project-signals";
 
 export type ProjectsPageFilter = null | "attention" | "next-step" | "team";
 
@@ -24,9 +25,18 @@ const ATTENTION_KEYS = [
 ] as const;
 
 export function hasProjectAttention(
-  project: Pick<ProjectGridRow, "attrs" | "liveUrl" | "siteOk">,
+  project: Pick<ProjectGridRow, "attrs" | "liveUrl" | "siteOk" | "attrMeta">,
 ): boolean {
-  return ATTENTION_KEYS.some((k) => Boolean(project.attrs[k])) || isSiteDown(project);
+  // An expired flag is not attention. Same rule the badges use, deliberately
+  // shared rather than reimplemented: if a signal is hidden on the row but
+  // still counted here, the project sorts to the top of the page with nothing
+  // on it explaining why, and the "Site issues" chip counts a flag the reader
+  // cannot see. One predicate, three surfaces.
+  return (
+    ATTENTION_KEYS.some(
+      (k) => Boolean(project.attrs[k]) && !signalHasExpired(project.attrMeta, k),
+    ) || isSiteDown(project)
+  );
 }
 
 export function computeProjectsPageStats(projects: ProjectGridRow[]): ProjectsPageStats {

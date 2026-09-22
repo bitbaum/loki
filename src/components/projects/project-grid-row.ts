@@ -7,6 +7,15 @@ export type ProjectGridRow = {
   description: string | null;
   gitUrl?: string | null;
   attrs: Record<string, string>;
+  /**
+   * Per-attribute provenance: when it was last written, by what, and when it
+   * stops being true. Optional because not every caller loads it — absent
+   * means "not fetched", never "this flag has no age".
+   */
+  attrMeta?: Record<
+    string,
+    { updatedAt: string; source: string | null; validUntil: string | null }
+  >;
   readonly?: boolean;
   dirPath?: string | null;
   agentPref?: string | null;
