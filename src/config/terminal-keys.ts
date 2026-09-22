@@ -126,7 +126,7 @@ export const TERMINAL_ARROW_KEYS: TerminalKeyId[] = ["left", "up", "down", "righ
 /**
  * The lane above it — scrolls horizontally.
  *
- * Grouped by what the keys do, because a flat run of twenty-three keycaps is a
+ * Grouped by what the keys do, because a flat run of twenty-four keycaps is a
  * keyboard and the point of this deck is that it is not one. The labels are
  * also what makes the sideways scroll discoverable: a cut-off word at the right
  * edge reads as "there is more", where a cut-off keycap reads as a bug.
