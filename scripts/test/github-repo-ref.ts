@@ -14,7 +14,12 @@
  * never read as healthy.
  */
 import assert from "node:assert/strict";
-import { checkRepo, parseGithubRepo } from "../../src/lib/github-repo-ref";
+import {
+  canSeePrivateRepos,
+  checkRepo,
+  parseGithubRepo,
+  tokenScopes,
+} from "../../src/lib/github-repo-ref";
 
 // ---- parsing -------------------------------------------------------------
 
@@ -120,9 +125,43 @@ async function main(): Promise<void> {
   );
   assert.equal(malformed.state, "unchecked");
 
+  // A 404 only means "deleted" if the token could have seen a private repo.
+  // Without the `repo` scope the two responses are identical, and calling that
+  // "gone" would raise an alarm on every healthy private project.
+  const goneButBlind = await withFetch(
+    async () => json(404, { message: "Not Found" }),
+    () => checkRepo(ref, "t", false),
+  );
+  assert.equal(goneButBlind.state, "unchecked");
+
+  // Scope reading, and what it licenses.
+  const scoped = await withFetch(
+    async () =>
+      new Response("{}", { status: 200, headers: { "x-oauth-scopes": "repo, user, gist" } }),
+    () => tokenScopes("t"),
+  );
+  assert.deepEqual(scoped, ["repo", "user", "gist"]);
+  assert.equal(canSeePrivateRepos(scoped), true);
+
+  const signInOnly = await withFetch(
+    async () =>
+      new Response("{}", { status: 200, headers: { "x-oauth-scopes": "read:user, user:email" } }),
+    () => tokenScopes("t"),
+  );
+  assert.equal(canSeePrivateRepos(signInOnly), false);
+
+  // No header at all, or a failed call, is not permission to trust a 404.
+  const noHeader = await withFetch(
+    async () => new Response("{}", { status: 200 }),
+    () => tokenScopes("t"),
+  );
+  assert.equal(noHeader, null);
+  assert.equal(canSeePrivateRepos(null), false);
+
   console.log(
     `✓ github repo ref: ${PARSES.length} url form(s) parsed, ` +
-      `moved/gone/unchecked kept distinct across 9 responses`,
+      `moved/gone/unchecked kept distinct, and a 404 is only "gone" when the ` +
+      `token could have seen a private repo`,
   );
 }
 
