@@ -24,6 +24,7 @@ import { getHealthSignals } from "@/components/projects/project-badges";
 import { hasProjectAttention } from "@/lib/projects-page-stats";
 import { signalHasExpired, type AttrProvenance } from "@/lib/project-signals";
 import { PROJECT_ATTR } from "@/config/project-attrs";
+import { timeAgo } from "@/lib/dates";
 import type { ProjectGridRow } from "@/components/projects/project-grid-row";
 
 let failures = 0;
@@ -124,6 +125,16 @@ check("site-down still counts as attention regardless of attrs", () => {
     siteOk: false,
   } as unknown as ProjectGridRow;
   assert(hasProjectAttention(down) === true, "a down site stopped counting");
+});
+
+check("the badge age is terse; the tooltip is the long form", () => {
+  // Looked at on production: "Security risk · 6mo ago" on three flags pushed
+  // evig's third badge onto a second line. The badge is scanned, so it gets
+  // "6mo"; the tooltip is read, so it keeps "Noted 6mo ago by loki-ui · date".
+  const [s] = getHealthSignals(attrs, meta());
+  const badgeAge = timeAgo(new Date(s.updatedAt!).getTime()).replace(/\s*ago$/, "");
+  assert(!/\bago\b/.test(badgeAge), `badge age still carries "ago": ${badgeAge}`);
+  assert(badgeAge.length > 0, "badge age became empty");
 });
 
 console.log(failures === 0 ? "  all good" : `  ${failures} failure(s)`);
