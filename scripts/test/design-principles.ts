@@ -52,9 +52,17 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 /**
- * Arbitrary Tailwind values in component markup: `text-[13px]`, `min-h-[4.25rem]`,
- * `w-[247px]`. Each one is a decision made outside the design system, which is
- * how a system becomes a suggestion.
+ * Arbitrary Tailwind values in component markup.
+ *
+ * CLAUDE.md's four-layer spec already rules on these, and this gate follows it
+ * rather than inventing a stricter one: COLOUR and TYPOGRAPHY arbitraries are
+ * never allowed (there is a token; use it), while LAYOUT arbitraries are
+ * explicitly PERMITTED for one-off constraints with no semantic meaning and are
+ * therefore ratcheted rather than banned.
+ *
+ * An earlier version treated both alike. That was stricter than the documented
+ * policy, and a gate contradicting the spec it claims to enforce is one people
+ * learn to route around.
  *
  * BASELINE, not zero. SIXTEEN existed when this gate was written — an earlier
  * count of "nine" came from a narrower pattern that missed z-, max-w- and
@@ -63,9 +71,13 @@ function walk(dir: string, out: string[] = []): string[] {
  * would mean a sweeping refactor in the same change that introduces the rule,
  * and a gate nobody can pass gets deleted.
  */
-const ARBITRARY_BASELINE = 16;
-const ARBITRARY =
-  /\b(?:text|min-h|max-h|h|w|min-w|max-w|gap|p[xytrbl]?|m[xytrbl]?|top|left|right|bottom|z)-\[[^\]]+\]/g;
+const LAYOUT_ARBITRARY_BASELINE = 16;
+/** Layout only — permitted by the four-layer spec, held at its current count. */
+const LAYOUT_ARBITRARY =
+  /\b(?:min-h|max-h|h|w|min-w|max-w|gap|p[xytrbl]?|m[xytrbl]?|top|left|right|bottom|z)-\[[^\]]+\]/g;
+/** Colour and typography — never permitted, at any count. */
+const VISUAL_ARBITRARY =
+  /\b(?:text|bg|border|shadow|ring|fill|stroke)-\[(?:#|rgb|hsl|oklch|\d)[^\]]*\]/g;
 
 console.log("design-principles:");
 
@@ -87,27 +99,39 @@ check("THE GRAMMAR EXISTS: principles are stated in globals.css", () => {
   }
 });
 
-check("PRINCIPLE 7: arbitrary values never increase", () => {
+check("PRINCIPLE 7: no arbitrary COLOUR or TYPOGRAPHY, at any count", () => {
+  const files = walk(join(ROOT, "src/components"));
+  const offenders: string[] = [];
+  for (const file of files) {
+    const hits = readFileSync(file, "utf8").match(VISUAL_ARBITRARY) ?? [];
+    if (hits.length > 0) offenders.push(`${file.replace(ROOT + "/", "")}: ${hits.join(", ")}`);
+  }
+  assert(
+    offenders.length === 0,
+    `a colour or size was typed instead of using a token:\n    ${offenders.join("\n    ")}`,
+  );
+});
+
+check("PRINCIPLE 7: one-off LAYOUT values are held, never grown", () => {
   const files = walk(join(ROOT, "src/components"));
   const offenders: string[] = [];
   let count = 0;
   for (const file of files) {
-    const hits = readFileSync(file, "utf8").match(ARBITRARY) ?? [];
+    const hits = readFileSync(file, "utf8").match(LAYOUT_ARBITRARY) ?? [];
     if (hits.length > 0) {
       count += hits.length;
       offenders.push(`${file.replace(ROOT + "/", "")}: ${hits.join(", ")}`);
     }
   }
   assert(
-    count <= ARBITRARY_BASELINE,
-    `arbitrary values rose to ${count} (baseline ${ARBITRARY_BASELINE}). ` +
-      `Add the value to globals.css and name it instead:\n    ${offenders.join("\n    ")}`,
+    count <= LAYOUT_ARBITRARY_BASELINE,
+    `one-off layout values rose to ${count} (baseline ${LAYOUT_ARBITRARY_BASELINE}). ` +
+      `The spec permits these for constraints with no semantic meaning — but if it ` +
+      `recurs, name it in globals.css:\n    ${offenders.join("\n    ")}`,
   );
-  // Ratchet: when the count falls, the baseline must come down with it, or the
-  // gate quietly re-permits what was just cleaned up.
   assert(
-    count >= ARBITRARY_BASELINE - 2 || count === 0,
-    `arbitrary values fell to ${count} — lower ARBITRARY_BASELINE to ${count} in this file so the ground gained is held`,
+    count >= LAYOUT_ARBITRARY_BASELINE - 2 || count === 0,
+    `layout arbitraries fell to ${count} — lower LAYOUT_ARBITRARY_BASELINE to ${count} so the ground gained is held`,
   );
 });
 

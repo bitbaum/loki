@@ -3096,6 +3096,25 @@
   .ui-health-chip-interactive {
     @apply transition-colors hover:border-border-default hover:bg-surface-raised;
   }
+  /* In a LIST the chip is not a chip.
+     Principle 3 (space separates, boxes are a last resort) and principle 2
+     (emphasis belongs to alarms): a bordered pill on every row was the only
+     boxed thing in the rail, so it pulled the eye harder than the flag count
+     beside it — the one thing on the page that is actually an alarm. It also
+     kept 8px of column jitter, because a pill's width follows its text.
+     Plain tabular text, full cell width, right-aligned: the column edge is
+     then exact and the number is as quiet as the date next to it. It is still
+     a button and still opens the breakdown. */
+  /* The scroll-affordance chevron sits ON content, so it needs a halo in the
+     page colour to stay legible over text. Named here because CLAUDE.md's
+     four-layer spec forbids `shadow-[var(--*)]` in JSX: a visual decision
+     belongs in this file even when its value is already a token. */
+  .ui-scroll-affordance-glyph {
+    filter: drop-shadow(0 0 4px var(--surface-page));
+  }
+  .ui-health-chip-compact {
+    @apply w-full justify-end rounded-none border-0 bg-transparent px-0 py-0 hover:bg-transparent;
+  }
   .ui-health-label {
     @apply text-micro font-semibold uppercase tracking-caps text-text-tertiary;
   }

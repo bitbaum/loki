@@ -230,7 +230,9 @@ export function HealthScoreBar({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="ui-health-chip ui-health-chip-interactive"
+        className={`ui-health-chip ui-health-chip-interactive${
+          compact ? " ui-health-chip-compact" : ""
+        }`}
         aria-expanded={open}
         aria-label={`Health ${score} of ${health.max}${missing > 0 ? `, ${missing} outstanding` : ""} — show the breakdown`}
       >
