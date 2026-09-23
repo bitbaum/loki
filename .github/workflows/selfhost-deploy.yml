@@ -21,6 +21,11 @@ on:
         description: "Key in scripts/hetzner/apps.conf — SSOT for port, domain, app dir and database"
         required: true
         type: string
+      git-ref:
+        description: "Exact app commit to deploy (for workflow_run callers)"
+        required: false
+        type: string
+        default: ""
       node-version:
         # The FALLBACK when a repo commits no .nvmrc. It must track the box
         # runtime (Node 24 since 2026-08-31) and the fleet's CI default —
@@ -74,6 +79,8 @@ jobs:
 
       - name: Checkout app
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.git-ref || github.sha }}
 
       # Cloned rather than checked out: actions/checkout can only write inside
       # the workspace, and a second repo there would end up inside the app's own
@@ -319,13 +326,13 @@ jobs:
           # GITHUB_WORKFLOW_REF is owner/repo/.github/workflows/x.yml@refs/...
           wf="${GITHUB_WORKFLOW_REF#*/*/}"; wf="${wf%%@*}"
           echo "not counting $wf as CI"
-          CI_GATE_EXCLUDE_PATH="$wf" bash "$TOOLING/ci-gate.sh" "$GITHUB_REPOSITORY" "$GITHUB_SHA"
+          CI_GATE_EXCLUDE_PATH="$wf" bash "$TOOLING/ci-gate.sh" "$GITHUB_REPOSITORY" "${{ inputs.git-ref || github.sha }}"
           rc=$?
           case "$rc" in
             0) echo "proceed=true"  >> "$GITHUB_OUTPUT" ;;
             3) echo "proceed=false" >> "$GITHUB_OUTPUT"
                echo "::notice::commit superseded — a newer push will deploy" ;;
-            *) echo "::error::CI is not green for $GITHUB_SHA — deploy blocked"; exit 1 ;;
+            *) echo "::error::CI is not green for ${{ inputs.git-ref || github.sha }} — deploy blocked"; exit 1 ;;
           esac
 
       - name: Deploy
