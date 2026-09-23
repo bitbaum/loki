@@ -7,7 +7,7 @@ import type { BuilderChannel } from "@/lib/event-stream-types";
 import type { TerminalLaunchProject } from "@/app/api/terminal/context/route";
 
 /**
- * Start an agent from the empty terminal, in place.
+ * Start an agent from the empty session view, in place.
  *
  * The empty state used to end in "go to Loki / go to Control" — the one page
  * whose whole job is the live session sent you elsewhere to create one. This
@@ -80,7 +80,8 @@ export function TerminalLaunch({
   if (startedAs) {
     return (
       <p className="text-center text-xs text-text-muted">
-        Starting {startedAs} in “{projectName}” — the session appears above when it&apos;s up.
+        Starting {startedAs} in “{projectName}” on the selected builder. The project&apos;s default
+        stays unchanged.
       </p>
     );
   }
@@ -105,32 +106,44 @@ export function TerminalLaunch({
   };
 
   return (
-    <div className="mt-2 flex flex-col items-center gap-2">
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        <select
-          className="ui-input-compact"
-          aria-label="Project to start an agent in"
-          value={projectName}
-          onChange={(e) => setProjectOverride(e.target.value)}
-        >
-          {projects.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="ui-input-compact"
-          aria-label="Agent to start"
-          value={agentId}
-          onChange={(e) => setAgentOverride(e.target.value)}
-        >
-          {agents.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.label}
-            </option>
-          ))}
-        </select>
+    <div className="ui-card-shell mt-3 flex w-full max-w-xl flex-col gap-3 p-3 text-left">
+      <div>
+        <h2 className="text-sm font-semibold text-text-primary">Start an agent</h2>
+        <p className="text-xs text-text-muted">Choose a project and agent for this session.</p>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1">
+          <span className="ui-micro-label">Project</span>
+          <select
+            id="terminal-launch-project"
+            className="ui-input-compact"
+            value={projectName}
+            onChange={(e) => setProjectOverride(e.target.value)}
+          >
+            {projects.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="ui-micro-label">Agent</span>
+          <select
+            id="terminal-launch-agent"
+            className="ui-input-compact"
+            value={agentId}
+            onChange={(e) => setAgentOverride(e.target.value)}
+          >
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           className="ui-btn-primary"
@@ -138,8 +151,9 @@ export function TerminalLaunch({
           disabled={busy || !project || !agentId}
         >
           {busy ? <Loader2 className="ui-spinner" /> : <Play className="h-3.5 w-3.5" />}
-          Start here
+          Start agent on {channel === "cloud" ? "Cloud builder" : "your computer"}
         </button>
+        <span className="text-xs text-text-muted">The project&apos;s default stays unchanged.</span>
       </div>
       {error && <p className="ui-error">{error}</p>}
     </div>

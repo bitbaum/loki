@@ -26,7 +26,8 @@
 // - Ownable: clean .com/.app, socials, no major TM conflicts (esp. avoid Disney
 //   "Muppet", heavy existing industrial "Crown fleet", etc.).
 // - Short, memorable slug; works as wordmark + icon; easy to say/spell.
-// - Supports hybrid (local Runner + remote command) story.
+// - Supports shared cloud execution plus optional local Fleet Runner, all
+//   steered through one remote control plane.
 // See docs/branding-design.md for the full rationale, name selection criteria,
 // visual identity rules, and why Loki was selected/stuck with over
 // alternatives (including recent .com-available "shade/shady fleet" proposals
@@ -72,8 +73,8 @@ export const APP_TAGLINE = "run your agent fleet";
 export const MARKETING_TAGLINE = "The operating system for people running real AI agents.";
 export const MARKETING_HERO_PRIMARY = "Run your fleet.";
 export const MARKETING_HERO_SECONDARY = "From anywhere.";
-export const MARKETING_POSITIONING = "Local execution · Remote command · No compromises";
+export const MARKETING_POSITIONING = "Cloud + local builders · One control plane";
 /** Phone-width variant of the positioning badge. The full string needs ~330px
  *  of tracked uppercase and wrapped to two lines inside a pill on every phone,
  *  where a badge that wraps stops reading as a badge. Same claim, two terms. */
-export const MARKETING_POSITIONING_SHORT = "Local execution · Remote command";
+export const MARKETING_POSITIONING_SHORT = "Cloud + local · One control plane";

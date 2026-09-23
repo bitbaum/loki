@@ -125,8 +125,9 @@ export default function FeedbackWidgetDocsPage() {
           <ul className="list-disc pl-6 space-y-2">
             <li>
               <strong>Dispatch fix</strong> — one report → one scoped agent run. Routes through
-              Loki&apos;s <code>injectPrompt</code> SSOT: local Fleet Runner when connected,
-              otherwise the cloud builder. You do not pick a terminal.
+              Loki&apos;s <code>injectPrompt</code> SSOT: the project&apos;s configured builder. An
+              eligible account can use the shared Cloud builder; connect Fleet Runner when the
+              project should run on your computer. You do not pick a terminal.
             </li>
             <li>
               <strong>Dispatch all as one</strong> (2+ new items) — one agent pass covering the

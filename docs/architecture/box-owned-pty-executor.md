@@ -11,7 +11,7 @@
 > reroutes. Fleet Runner 0.8.19 and the box runner own every agent PTY; zellij,
 > `src/lib/zellij.ts`, `src/lib/terminals/*`, `home/worker.ts` and the focus-tab command
 > are deleted. This document and `docs/development/cloud-local-workflows.md` supersede
-> `docs/fleet-runner-pty-ownership.md` and `docs/desktop-app.md`.
+> `docs/fleet-runner-pty-ownership.md` and `docs/archive/desktop-app-migration-plan.md`.
 
 > **Update 2026-06-26 — P1 is live.** `loki-box-runner.service` runs on the box
 > (headless, `tsx scripts/box-runner.ts`, `User=ubuntu`), reusing the desktop runner

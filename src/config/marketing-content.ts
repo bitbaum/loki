@@ -88,12 +88,12 @@ export const INVESTORS = {
   whyNow: [
     "Agent capability has crossed the orchestration threshold. The bottleneck is no longer raw generation. It is human direction.",
     "The most advanced users are already running many agents at once across multiple projects. They need infrastructure built for that reality.",
-    "The winning architecture — local execution plus remote command — is now visible. We are building the most refined version of it.",
+    "The winning architecture combines remote command with a clear choice of execution location. Loki supports the shared cloud builder for eligible accounts and Fleet Runner on your computer.",
     "Open and local models are converging on frontier capability. Whoever controls the orchestration layer will be neutral to model choice.",
     "The same control patterns transfer to physical robotics. The market has not yet appreciated this.",
   ],
   built:
-    "A web command center coordinates fleets of AI agents across projects. A native Fleet Runner desktop app — same React tree as the web, plus tray and OS notifications — runs them in terminals it owns on the operator's machine, watchable from the web. Per-project autonomy controls, reliable handoff systems, queue management, and truthful status surfaces are live and in daily use. Multi-OS installers (Linux, macOS, Windows) ship from a single CI matrix on every release tag.",
+    "A web command center coordinates fleets of AI agents across projects. Eligible accounts can run work on the shared cloud builder; Fleet Runner adds execution on the operator's computer, with sessions visible from the web. Per-project autonomy controls, handoffs, queue management, and truthful status surfaces are live and in daily use. Multi-OS Fleet Runner installers (Linux, macOS, Windows) ship from one CI matrix on every release tag.",
   // Scannable bullets, not a prose wall — the page pairs these with the live
   // fleet snapshot (same real data source as the homepage hero).
   traction: [
@@ -102,7 +102,7 @@ export const INVESTORS = {
     "The homepage hero and this page render the same live snapshot of that fleet — real data, never fabricated numbers.",
     "The bet: the same workflow generalizes to anyone running many agents at once.",
   ],
-  ask: "We are raising to productize the local fleet runner, harden the remote control plane, expand open-model support, and lay groundwork for robotic orchestration.",
+  ask: "We are raising to broaden secure cloud execution, improve Fleet Runner, expand open-model support, and lay groundwork for robotic orchestration.",
 };
 
 export const INVESTOR_DETAILS = {
@@ -174,6 +174,14 @@ export const ROADMAP: {
             "Auto-update through the GitHub release feed, so a running install pulls each new version in the background instead of going stale.",
           ],
         },
+        {
+          title: "OrangeCat project handoff",
+          line: "A signed “Build it with Loki” link carries the public brief into Loki's guided project setup.",
+          details: [
+            "Loki asks for project context before agent work begins. You can choose an existing project instead when the handoff matches one.",
+            "OrangeCat linking is optional. Linking alone does not publish private work; publishing requires a separate owner action.",
+          ],
+        },
       ],
     },
     {
@@ -230,12 +238,12 @@ export const ROADMAP: {
         "Directions we are committed to that are design and strategy work today. Nothing here is presented as available.",
       items: [
         {
-          title: "Cloud agents as a complementary mode",
-          line: "When the local machine is unavailable, parallel cloud agents take over — with explicit handoff, never as the default.",
+          title: "Secure cloud execution for more accounts",
+          line: "Expand isolated cloud builders beyond the eligible-account service while preserving a clear per-project choice of where work runs.",
           details: [
-            "Cloud agents for long-running, highly parallel work that does not fit on one laptop.",
-            "Explicit handoff between local and cloud sessions — the same agent identity continues across substrates.",
-            "Useful for builders running 8–12 agents at once who need extra parallelism or 24-hour availability.",
+            "Cloud builder sessions already run for eligible accounts; per-account sandboxing is the prerequisite for broader availability.",
+            "Keep the project execution setting, session view, and current builder visible so users can tell where a job will run.",
+            "Support additional parallelism and availability without routing work to a different machine silently.",
           ],
         },
         {
@@ -257,10 +265,6 @@ export const ROADMAP: {
           ],
         },
         {
-          title: "Connected products, owner-controlled sharing",
-          line: "Build independently in Loki. Optionally link an OrangeCat profile for public updates and funding, with separate consent before publishing work.",
-        },
-        {
           title: "Stakeholder graph",
           line: "Track each project's surrounding relationships — competitors, collaborators, investors, customers — as typed edges in OrangeCat's entity graph, surfaced on Loki for the agent to act on. Competitors ship first as the most automatable category.",
           essay: {
@@ -269,14 +273,11 @@ export const ROADMAP: {
           },
         },
         {
-          title: "OrangeCat integration — the transaction half",
-          line: "Make it natural to fund what people build and build what people choose to fund, without pretending the full loop is already automated.",
+          title: "Funding-triggered work orders",
+          line: "Connect verified OrangeCat settlements to owner-approved project work, with explicit controls and an audit trail.",
           details: [
-            "Optionally connect an OrangeCat identity through the existing OIDC bridge; Loki also works without an OrangeCat account.",
-            "Typed links connect a Loki project to any OrangeCat entity acting as its origin, public profile, funding page, offering, or community.",
-            "A signed, ten-minute OrangeCat handoff can prefill a Loki project and Loki plan; the owner approves before anything is created or dispatched.",
-            "OrangeCat remains the share, promotion, and Bitcoin funding surface. Loki shows its confirmed funding summary read-only.",
-            "Bitcoin is the first live settlement rail because confirmed transfers can be independently audited. Automatic work orders, escrow, fiat, and privacy coins stay research — none is presented as available today.",
+            "Confirmed Bitcoin funding can already be linked to a Loki project and shown as a read-only summary.",
+            "Automatic work orders, escrow, fiat settlement, and other payment rails are not available yet.",
           ],
         },
         {
@@ -296,8 +297,8 @@ export const ROADMAP: {
     lede: "These do not change as the phases ship. They are constraints we hold across every stage.",
     items: [
       {
-        title: "Local execution is privileged.",
-        body: "When the user's machine can do the work, it should. We do not push everyone into remote sandboxes.",
+        title: "The execution location is visible and chosen.",
+        body: "Projects run on their configured builder. Eligible accounts can use the cloud builder; Fleet Runner runs work on your computer when you choose it.",
       },
       {
         title: "Open and local models are first-class.",
@@ -360,7 +361,7 @@ export const DESKTOP_DOWNLOAD = {
         "Full fleet visibility across all projects",
         "Browse history, projects, and queues",
         "Dispatch commands from any browser or phone",
-        "Read-only without a connected local runner",
+        "Create projects, dispatch work, and steer eligible cloud sessions from the browser",
       ],
     },
     desktop: {
@@ -401,7 +402,7 @@ export const DESKTOP_DOWNLOAD = {
     {
       number: "03",
       title: "Dispatch your first intent",
-      body: "Pick a project on your computer and dispatch an intent. Fleet Runner launches the agent in a terminal session and pings you when it hands off — even if the app is hidden. The terminal session manager ships inside Fleet Runner; you just need at least one agent CLI installed (Claude Code or Grok — see prerequisites below).",
+      body: "Choose a project and its Runs on setting in Control, then dispatch an intent. Eligible accounts can use the cloud builder; other projects can run through Fleet Runner on your computer. Install a supported agent CLI for the builder you choose.",
     },
   ],
 
@@ -483,27 +484,17 @@ export const DESKTOP_DOWNLOAD = {
   prerequisites: {
     title: "What Fleet Runner uses on your computer",
     description:
-      "Fleet Runner doesn't replace the tools you already use — it drives them. Only one thing must exist on your machine for an agent to actually run: a supported agent CLI. Pick whichever AI you prefer; you only need one to start. Each agent runs in a terminal Fleet Runner owns, so there is no terminal multiplexer to install or configure.",
+      "Fleet Runner runs the supported agent CLI you choose; install that agent and sign in with its provider. Eligible accounts can also use the cloud builder. The current agent list appears in Loki and may vary by builder.",
     items: [
       {
-        title: "Claude Code",
-        role: "Anthropic's coding agent",
+        title: "Choose an agent",
+        role: "Claude Code · Codex · Cursor Agent · Antigravity · Grok · OpenClaw",
         required: true,
         whyYouNeedIt:
-          "One supported agent CLI is required — Claude Code is the recommended default. Skip this if you already plan to install Grok below; you only need one.",
-        href: "https://code.claude.com/docs/en/installation",
-        installLabel: "Install Claude Code",
-        command: "npm install -g @anthropic-ai/claude-code",
-      },
-      {
-        title: "Grok Build",
-        role: "xAI's coding agent",
-        required: false,
-        whyYouNeedIt:
-          "Alternative agent CLI. Install instead of Claude Code, or alongside it if you want both available to the fleet.",
-        href: "https://x.ai/cli",
-        installLabel: "Install Grok CLI",
-        command: "curl -fsSL https://x.ai/cli/install.sh | bash",
+          "Install and sign in to at least one supported agent CLI on the computer that will run it. Loki shows which agents are available for each builder.",
+        command: "",
+        href: "",
+        installLabel: "",
       },
     ],
   },
@@ -518,7 +509,7 @@ export const DESKTOP_DOWNLOAD = {
       command:
         "git clone https://github.com/bitbaum/loki.git && cd loki/desktop && npm install && npm run dist:linux  # or dist:mac / dist:win",
     },
-    legacyDaemon: {
+    headlessAgent: {
       label: "Headless CLI agent",
       body: "For CI runners, headless servers, or operators who prefer a pure terminal flow. Fleet Runner is the recommended path; the CLI agent covers machines that can't run a desktop app.",
       command: "curl -fsSL https://loki.orangecat.ch/api/agent/install | node - init",
@@ -527,7 +518,7 @@ export const DESKTOP_DOWNLOAD = {
 
   // "Coming to more surfaces" — kept in case the homepage section wants it.
   future: {
-    desktop: "One-click signed installers with auto-update for macOS, Windows, and Linux.",
+    desktop: "Signed installers for macOS and Windows, reducing first-launch security prompts.",
     mobile:
       "Native iOS and Android apps on the same remote control channel — fleet visibility, queues, and dispatch from your phone.",
   },
@@ -560,9 +551,9 @@ export const PRODUCT_SURFACES = [
   },
   {
     label: "Runner",
-    title: "Execution stays on your machine.",
-    body: "The local runner owns the agent terminals, git, agent launching, and handoff files. Loki coordinates the work without turning your environment into a cloud sandbox.",
-    meta: "Desktop app · CLI agent fallback · agent tokens",
+    title: "Choose the builder for each project.",
+    body: "Eligible accounts can use the shared cloud builder. Fleet Runner runs agents against your computer's checkout and tools when a project is set to run locally.",
+    meta: "Cloud builder · Fleet Runner · per-project routing",
   },
   {
     label: "Beacon",
@@ -589,16 +580,16 @@ export const HOME_PRODUCT_SURFACES = PRODUCT_SURFACES.slice(0, 4);
 
 export const START_PATHS = [
   {
-    title: "Run locally",
-    body: "Install or build the Fleet Runner, connect an agent token, and let your real machine become the authoritative execution surface.",
-    href: "/download",
-    cta: "Download runner",
-  },
-  {
-    title: "Open the control plane",
-    body: "Create an account, add projects, and command agent sessions from the hosted web surface.",
+    title: "Start in the browser",
+    body: "Create a project, set where its work runs, then dispatch and follow agent sessions from Loki. Eligible accounts can start on the cloud builder without an install.",
     href: "/sign-up",
     cta: "Start building",
+  },
+  {
+    title: "Run on your computer",
+    body: "Install Fleet Runner when a project should use your local checkout, tools, and agent sign-in.",
+    href: "/download",
+    cta: "Get Fleet Runner",
   },
   {
     title: "Read the architecture",

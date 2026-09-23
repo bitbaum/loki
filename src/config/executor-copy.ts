@@ -38,7 +38,7 @@ export const EXECUTOR_COPY = {
   thisComputer: "This computer",
 
   /** Cloud = hosted builder channel (private beta until per-tenant sandboxes ship) */
-  cloud: "Cloud",
+  cloud: "Cloud builder",
 
   /**
    * The builder named MID-SENTENCE — "Running now on this computer".
@@ -67,17 +67,17 @@ export const EXECUTOR_COPY = {
   /** Cloud web app always queues; this means a live builder will drain it. */
   queuedWithBuilderOnline: "With builder — starting shortly",
   queuedWithBuilderOnlineLong:
-    "a builder is online and will claim it shortly. Use Control for state, or open Cloud terminal / This computer to watch and type in the agent session. You get a notification when the run finishes.",
+    "a builder is online and will claim it shortly. Use Control for state, or open Terminal → Cloud builder / Your computer to watch and type in the agent session. You get a notification when the run finishes.",
 
   onboarding: {
     stepTitle: "You're ready to build",
     stepDescriptionTeam:
       "Use the web app from anywhere. Connect this computer when you want agents to run your repos and tools.",
     stepDescription: "Same app in your browser or on desktop — one account, one Control page.",
-    intro: `${APP_NAME} runs in your browser. Connect a builder when you want agents to work. Work runs on the cloud builder by default. Choose “This computer” per project (Control → project profile → Runs on) when an agent should run in your own checkout through Fleet Runner.`,
+    intro: `${APP_NAME} runs in your browser. Eligible accounts can run work on the Cloud builder by default. Install Fleet Runner and choose “This computer” in Control → project profile → Runs on when an agent should use your local checkout and tools.`,
     browserPath: {
       title: "Continue in your browser",
-      body: "Create projects, keep strategy and context, and connect a builder before dispatching agent work.",
+      body: "Create projects, keep strategy and context, and dispatch work. Eligible accounts can use the Cloud builder without installing desktop software.",
     },
     desktopPath: {
       title: "Run agents on this computer",
@@ -98,9 +98,9 @@ export const EXECUTOR_COPY = {
     neverSeenTitle: "Connect a builder to run agents",
     offlineTitle: "Builder offline",
     neverSeenBody:
-      "Projects set to “This computer” run through Fleet Runner here; connect it to execute them. Everything else runs on the cloud builder.",
+      "Projects set to “This computer” run through Fleet Runner here; connect it to execute them. Cloud builder access is limited to eligible accounts.",
     offlineBody:
-      "No builder is executing right now. Work stays queued — nothing is lost. Open the desktop app on this computer, or ensure the cloud builder is running.",
+      "No builder is executing right now. Work stays queued — nothing is lost. Open Fleet Runner on this computer; eligible accounts can also use the Cloud builder.",
     reconnectHint: "Using this computer? Open the desktop app from the menu bar. Still stuck?",
     settingsLink: "Settings → Agent tokens",
     downloadLink: "re-install the desktop app",
@@ -129,9 +129,9 @@ export const EXECUTOR_COPY = {
   /** How Loki (and Control) reach the agent CLI — not a separate chat channel. */
   loki: {
     buildChain:
-      "Loki dispatches into the same builder queue as Control. A cloud or desktop builder claims the job, types into the agent terminal (Claude, Codex, …), and you work alongside it on Terminal → Cloud or This computer.",
-    watchCloud: "Cloud terminal",
-    watchThisComputer: "This computer",
+      "Loki dispatches into the same builder queue as Control. A cloud or desktop builder claims the job, types into the agent terminal, and you work alongside it on Terminal → Cloud builder or Your computer.",
+    watchCloud: "Cloud builder terminal",
+    watchThisComputer: "Your computer",
   },
 
   /** Short labels on dispatch / terminal actions — honest before click. */
@@ -173,17 +173,18 @@ export const EXECUTOR_COPY = {
     // point of the page: one shell, and you choose where it runs and how you
     // talk to it. The old subtitle described only typing, which was the single
     // thing the terminal could already do.
-    pageSubtitle: "The live agent session. Type into it the same way you would locally.",
-    cloudLabel: "Cloud",
-    cloudLabelLocalHost: "Cloud (this server)",
-    thisComputerLabel: "This computer",
+    pageSubtitle: "View, start, and steer live agent sessions from one place.",
+    cloudLabel: "Cloud builder",
+    cloudLabelLocalHost: "Cloud builder (this server)",
+    thisComputerLabel: "Your computer",
     cloudHelp:
-      "Agents on the cloud builder (box-runner). Pick a project tab, click to focus, and type — keystrokes go straight to the agent PTY. Ctrl+C, arrows, and paste work.",
-    cloudLoading: "Looking for agents on the cloud builder…",
-    cloudEmpty: "Nothing running on the cloud builder.",
+      "Live sessions on Loki's hosted builder. Select a session, then type to steer that agent.",
+    cloudLoading: "Looking for cloud builder sessions…",
+    cloudEmpty: "No live sessions on the cloud builder.",
     cloudEmptyHint:
-      "Start an agent below, or dispatch from Control (Implement) or Loki. Loki Terminal shows Fleet Runner and cloud builder PTYs — a Kitty or Zellij pane is not a session here.",
-    cloudOfflineHint: "The cloud builder (box-runner on Hetzner) is offline right now.",
+      "Start an agent below to run it on the cloud builder. Future project dispatches follow the project's Runs on setting in Control.",
+    cloudOfflineHint:
+      "The cloud builder is offline. Work sent there will wait until it reconnects.",
     // Connected to the peek stream but no screen frames arrived → the runner is
     // wedged (e.g. its outbound fetch is failing). Honest, actionable — not a
     // black pane labelled "live".
@@ -192,11 +193,12 @@ export const EXECUTOR_COPY = {
     thisComputerStalledHint:
       "Connected, but Fleet Runner on this computer isn't streaming output — it may be stuck. Quit it from the menu bar and reopen.",
     thisComputerHelp:
-      "Interactive view of agents on this computer via the desktop app. Same keystroke path as Cloud — click the terminal and type.",
-    thisComputerEmpty: "Nothing running on this computer.",
+      "Live sessions started by Fleet Runner on this computer. Select a session, then type to steer that agent.",
+    thisComputerEmpty: "No live sessions on this computer.",
     thisComputerEmptyHint:
-      "Start an agent below, or dispatch from Control or Loki. Loki Terminal shows Fleet Runner PTYs on this computer — not Kitty, Zellij, or another OS terminal.",
-    thisComputerOfflineHint: "Connect Fleet Runner on this computer to this account.",
-    thisComputerLoading: "Looking for agents on this computer…",
+      "Start an agent below to run it on your computer. Future project dispatches follow the project's Runs on setting in Control.",
+    thisComputerOfflineHint:
+      "Fleet Runner isn't connected here. Open the desktop app to run this project's work on your computer.",
+    thisComputerLoading: "Looking for sessions on this computer…",
   },
 } as const;

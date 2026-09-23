@@ -119,11 +119,15 @@ check("an open run never claims generation after its PTY is gone", () => {
   assert.equal(presentTerminalRun(view, true).label, "Working · 2 min");
 });
 
-check("empty Terminal names Fleet Runner vs Kitty", () => {
-  assert.match(EXECUTOR_COPY.terminal.cloudEmptyHint, /Kitty/);
-  assert.match(EXECUTOR_COPY.terminal.cloudEmptyHint, /Fleet Runner/);
-  assert.match(EXECUTOR_COPY.terminal.thisComputerEmptyHint, /Kitty/);
-  assert.match(EXECUTOR_COPY.terminal.thisComputerEmptyHint, /Fleet Runner/);
+check("empty Terminal explains session location and project routing", () => {
+  assert.match(EXECUTOR_COPY.terminal.cloudEmptyHint, /cloud builder/i);
+  assert.match(EXECUTOR_COPY.terminal.thisComputerEmptyHint, /your computer/i);
+  assert.match(EXECUTOR_COPY.terminal.cloudEmptyHint, /Runs on/i);
+  assert.match(EXECUTOR_COPY.terminal.thisComputerEmptyHint, /Runs on/i);
+  assert.doesNotMatch(
+    `${EXECUTOR_COPY.terminal.cloudEmptyHint} ${EXECUTOR_COPY.terminal.thisComputerEmptyHint}`,
+    /Kitty|Zellij/i,
+  );
 });
 
 check("quota chooser is all coding agents, never Hermes", () => {

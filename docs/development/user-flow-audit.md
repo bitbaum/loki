@@ -2,9 +2,11 @@
 
 ---
 created_date: 2026-07-04
-last_modified_date: 2026-09-07
-last_modified_summary: Billing section rewritten after the Stripe rail was removed (#508) — CH01-CH04 retired, /pricing CTA behaviour restated against the OrangeCat BTC rail.
+last_modified_date: 2026-09-23
+last_modified_summary: Added a verified build-packaging follow-up from the production Next.js build; current execution and terminal guidance is maintained in cloud-local-workflows.md.
 ---
+
+> **Historical snapshot (2026-07-04):** The grades and percentages below describe the product at that date. They are not current support or readiness claims. See [Cloud vs Local Workflows](cloud-local-workflows.md) for the current execution model.
 
 SSOT for **every user-facing flow implied by the UI**, with a working-status grade per flow. Use this for QA planning, onboarding honesty, and prioritising fixes.
 
@@ -527,6 +529,15 @@ signature-verification and idempotency behaviour is covered by
 ---
 
 ## Maintenance
+
+### Build and deployment follow-up (2026-09-23)
+
+The production `next build` succeeds, but Turbopack reports dynamic filesystem
+access that can trace the whole project into server output. The current warnings
+include `/api/health`, `/api/people/sync/openclaw`, and `/api/projects/[id]`.
+Review those path resolvers and narrow their runtime file access or configure
+tracing explicitly; then compare standalone bundle size and deployment time.
+This is a packaging/deploy-speed risk, not a failed build.
 
 When adding a UI action:
 

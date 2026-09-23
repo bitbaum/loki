@@ -17,7 +17,8 @@ export const AGENT_LABELS: Record<AnyAgentId, string> = {
   claude: "Claude",
   codex: "Codex",
   cursor: "Cursor",
-  gemini: "Gemini",
+  // Kept as an internal adapter ID; the installed product is Antigravity.
+  gemini: "Antigravity",
   grok: "Grok",
   openclaw: "OpenClaw",
 };

@@ -7,7 +7,7 @@
 > are deleted. Superseded by `docs/architecture/box-owned-pty-executor.md` and
 > `docs/development/cloud-local-workflows.md`.
 
-**Status**: Decision record (2026-06-02), shipped. Superseded the zellij-centered execution model in `docs/desktop-app.md`.
+**Status**: Decision record (2026-06-02), shipped. Superseded the zellij-centered execution model in `docs/archive/desktop-app-migration-plan.md`.
 **Date**: 2026-06-02
 **Author trigger**: zellij `async-std/runtime` panic (`WouldBlock`) crashing kitty sessions on large pastes — exposing zellij as both a UX liability and a hard onboarding dependency.
 
@@ -149,7 +149,7 @@ Each phase was ship-on-green: the entire test suite, smoke tests, and home/ self
 
 ## Where This Sits in the Existing Plan
 
-`docs/desktop-app.md` lists phases `desktop-0` through `desktop-6`. Phases 0–3 are done; 4–6 (packaging, installer transition, remote plumbing) are pending. PTY ownership is:
+The original `desktop-0` through `desktop-6` migration plan is preserved in `docs/archive/desktop-app-migration-plan.md`; those phase statuses are historical. Current PTY ownership is:
 
 - **Not** a deferred polish item. Every day it's not shipped, new users hit the zellij wall.
 - **Parallel-shippable** with `desktop-4` / `-5` / `-6`. The packaging and installer work is unrelated to the execution mode.

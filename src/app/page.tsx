@@ -186,7 +186,7 @@ export default async function LandingPage({
             <div>
               <div className="ui-public-eyebrow">PRODUCT</div>
               <h2 className="ui-public-display-lg mt-3 sm:mt-4">
-                One control plane. Local execution.
+                One control plane. Choose the builder.
               </h2>
             </div>
             <p className="ui-public-section-lede md:justify-self-end">

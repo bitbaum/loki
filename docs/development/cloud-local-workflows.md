@@ -8,13 +8,13 @@ last_modified_summary: Cloud is the stored default tier; local is a per-project 
 
 Loki is a **hybrid** product: the hosted web app (cloud control plane) owns auth, the database, and the UI. Agents run via the **builder** — the cloud service on Hetzner (box-runner) and/or the optional desktop app on your computer.
 
-**Which builder runs a project is a stored decision, never a guess.** `pickDispatchChannel(project)` in `src/lib/execution-access.ts` reads the project only: a locus lock (a checkout that exists on one machine stays there; a checkout under the box clone root stays cloud), then the project's `builder_pref` ("Runs on" in Control → project profile), then the cloud floor (`DEFAULT_BUILDER_CHANNEL = "cloud"`). Runner presence and laptop power do not route; a chosen builder that is offline queues the work visibly (`runnerConnected: false`) instead of rerouting it. Every builder runs the agent in a PTY it owns (node-pty) — there is no terminal multiplexer anywhere in the product since Fleet Runner 0.8.19.
+**Which builder runs a project is a stored decision, never a guess.** `pickDispatchChannel(project)` in `src/lib/execution-access.ts` reads the project only: a locus lock (a checkout that exists on one machine stays there; a checkout under the box clone root stays cloud), then the project's `builder_pref` ("Runs on" in Control → project profile), then the cloud floor (`DEFAULT_BUILDER_CHANNEL = "cloud"`). Runner presence and laptop power do not route; a chosen builder that is offline queues the work visibly (`runnerConnected: false`) instead of rerouting it. Every builder runs the agent in a PTY it owns (node-pty).
 
 **Shared cloud execution is restricted.** The always-on box-runner is not a multi-tenant sandbox. Until hosted execution is sandboxed per account, only eligible accounts (`isDefault` or `LOKI_CLOUD_BUILDER_USER_IDS`) may use the shared cloud builder. Everyone else runs through their own Fleet Runner on this computer (`src/lib/execution-access.ts`). Docs and UI must not pretend cloud building is universal.
 
 User-facing copy lives in `src/config/executor-copy.ts`. Internal docs may still say Fleet Runner / box-runner.
 
-> **Flow completeness:** see [user-flow-audit.md](./user-flow-audit.md) for every UI-implied flow and its A/B/C/D grade (~37% fully work in hosted prod without extra runtime).
+> **Historical audit:** [user-flow-audit.md](./user-flow-audit.md) records a July 2026 snapshot. Its percentages and grades are not current product status.
 
 > **Fleet Runner desktop** = optional app on your computer. **box-runner** = the same engine headless on Hetzner. Together they are the **builder**.
 
@@ -53,7 +53,7 @@ The optional **desktop app** is the same queue on your computer. Eligible accoun
 
 ### Reliability
 
-Fleet Runner embeds the `home/` orchestration library (`watcher.ts` + `worker.ts`) and owns execution end-to-end:
+Fleet Runner embeds the `home/` orchestration library and owns execution end-to-end. The old standalone worker and terminal multiplexer are retired:
 
 | Mechanism | What it does |
 |-----------|----------------|
@@ -61,20 +61,20 @@ Fleet Runner embeds the `home/` orchestration library (`watcher.ts` + `worker.ts
 | **Idempotent replay** | On restart the worker replays the JSONL log to rebuild which `runId`s already started; it refuses to double-fire |
 | **Append-only event log** | `~/.loki/events.jsonl` is the single source of truth for crash recovery |
 | **Connection-based presence** | Runner online/offline is the live bridge SSE connection, not a heartbeat (see `runner_presence`). Presence tells you whether queued work will run now; it never selects the builder |
-| **Auto-continue pause sentinel** | `/tmp/loki-auto-continue-<tab>` — respected by the runner's autopilot path |
+| **Auto-continue pause** | `/tmp/loki-auto-continue-<project>` sentinel is applied by the runner; it controls continuation and does not route the project's builder. |
 
 ## Component roles (builder vs web app)
 
 | Component | Runs where | Responsibility |
 |-----------|------------|----------------|
 | **Web app** | Hosted Hetzner box (`loki-app`) or local dev | Auth, Postgres, Control/Loki UI, command queue — **control plane only on prod** (`RUNTIME_AVAILABLE` unset) |
-| **box-runner** | Hetzner box (`loki-box-runner.service`) | Eligible-account cloud builder: polls queue, owned PTY agents, peek-stream for Terminal → Cloud |
-| **Fleet Runner** | Optional — operator's computer (Electron) | Same queue on local machine; Terminal → This computer |
+| **box-runner** | Hetzner box (`loki-box-runner.service`) | Eligible-account cloud builder: polls queue, owned PTY agents, session stream for Terminal → Cloud builder |
+| **Fleet Runner** | Optional — operator's computer (Electron) | Runs project work on your computer; Terminal → Your computer |
 | **Hosted runner (Hermes)** | Optional — per project, `builder_pref = hosted` (Control → profile → Runs on) | No PTY: the task goes straight to Hermes in its own clone on the box, on the providers the box has keys for (Copilot, Gemini, Groq); every task ends in a pull request and the tracked run closes with it, so the outcome reaches the thread that asked. Needs no Claude credential — the unattended path when the box builder has none. |
 | **Hermes runner** | Hetzner sandbox | PR-mode offline dispatches when no builder claims |
 | **`home/` library** | Embedded in desktop runner | Local JSONL event loop; see `home/README.md` |
 
-**Production control flow:** Browser → API → Postgres queue → box-runner (or desktop) → owned PTY → agent CLI. Terminal → Cloud / This computer are **fully interactive** (xterm keystrokes → `tab-inject-raw` → bridge rawkey → runner PTY); output streams via peek-stream SSE.
+**Production control flow:** Browser → API → Postgres queue → eligible cloud builder or Fleet Runner → owned PTY → agent CLI. Terminal session filtering does not change a project's `Runs on` setting; a direct start action names its builder and does not silently rewrite that setting.
 
 Priority stack: `docs/architecture/priority-plan-2026-H2.md`.
 
@@ -111,20 +111,20 @@ Priority stack: `docs/architecture/priority-plan-2026-H2.md`.
 | Run cron job now | Local openclaw |
 | Auto-continue pause from web (cloud) | Queued `auto_continue` command → runner writes `/tmp` sentinel |
 | Push notifications (agent ready) | Browser subscribe + VAPID on server; `/api/push/notify` |
-| **Terminal → My machine** (live agent view) | Fleet Runner owns every agent PTY (0.8.19: no other terminal exists); `/terminal` streams it via peek_start → peek-frame → SSE; peek reads the owned buffer. |
+| **Terminal session view** | `/terminal` streams the selected builder-owned PTY and accepts live input. |
 
 ### Terminal page (`/terminal`)
 
-Two sources behind one view (toggle **Cloud** | **This computer**):
+Two session sources behind one view (toggle **Cloud builder** | **Your computer**). This selector filters the sessions shown; it is not the project execution setting:
 
 | Source | Substrate | When to use |
 |--------|-----------|-------------|
-| **Cloud** | Agent PTYs on Hetzner (box-runner) | Eligible accounts only — Loki and Control dispatches run here when the cloud builder is online |
-| **This computer** | Fleet Runner-owned agent PTYs on your laptop | Live view of agents you dispatched locally; same queue as Cloud — only one builder claims each job |
+| **Cloud builder** | Agent PTYs on Hetzner (box-runner) | Eligible accounts only — project dispatches run here when `Runs on` is set to cloud and the builder is online |
+| **Your computer** | Fleet Runner-owned agent PTYs on your computer | Live view of sessions on the connected machine |
 
-Loki and Control do **not** connect to Terminal directly. They enqueue `pending_commands`; a builder injects into the agent CLI; Terminal is the watch surface (`source=server` or `source=machine`).
+Loki and Control do **not** connect to Terminal directly. They enqueue commands; the configured builder starts/injects into the agent CLI; Terminal is the watch surface (`source=cloud` or `source=machine`).
 
-**This computer** lists the owned PTYs the runner reported in its heartbeat (`/api/control/open-tabs`; locally `listOwnedTabs` in `src/lib/agent-execution/owned.ts`) and streams the selected one via peek APIs. **Cloud** uses server workspaces for the hosted builder.
+**Your computer** lists the owned PTYs Fleet Runner reported through runtime state and streams the selected session. **Cloud builder** lists sessions owned by the hosted runner.
 
 ### Environment-gated (optional features)
 

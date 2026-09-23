@@ -17,7 +17,7 @@ const guides = [
   },
   {
     title: "Install Fleet Runner",
-    body: "Connect the local execution layer that lets agents work in your repositories.",
+    body: "Use the Cloud builder when available, or connect Fleet Runner for work on your computer.",
     href: "/download",
     icon: Download,
   },
@@ -29,7 +29,7 @@ const guides = [
   },
   {
     title: "Architecture",
-    body: "Understand the control plane, local runner, handoffs, and approval boundary.",
+    body: "Understand cloud and local execution, handoffs, and the approval boundary.",
     href: "/whitepaper",
     icon: Network,
   },
@@ -48,8 +48,9 @@ export default function DocsPage() {
         <div className="ui-public-eyebrow">Documentation</div>
         <h1 className="ui-public-page-title mt-3 sm:mt-4">Build with a supervised agent fleet</h1>
         <p className="ui-public-lede mt-4 max-w-2xl sm:mt-6">
-          Start small: connect one machine, one project, and one agent. Loki keeps planning,
-          dispatch, handoffs, and human approval in one operating loop.
+          Start with one project and one agent. Eligible accounts can use the Cloud builder; Fleet
+          Runner is optional when work should run on your computer. Loki keeps planning, dispatch,
+          handoffs, and human approval in one operating loop.
         </p>
         <div className="ui-public-section-gap grid gap-3 sm:grid-cols-2 sm:gap-4">
           {guides.map(({ title, body, href, icon: Icon }) => (

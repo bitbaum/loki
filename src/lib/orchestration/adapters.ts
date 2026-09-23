@@ -52,7 +52,7 @@ export const ADAPTER_DEFINITIONS: Record<AdapterId, AdapterDefinition> = {
   },
   gemini: {
     id: "gemini",
-    label: "Gemini",
+    label: "Antigravity",
     capabilities: createCapabilities({
       launchSession: true,
       injectTask: true,
@@ -60,7 +60,7 @@ export const ADAPTER_DEFINITIONS: Record<AdapterId, AdapterDefinition> = {
       sessionHandoff: true,
       tabInjected: true,
     }),
-    notes: "Local Gemini CLI integration for launched tabs and one-shot Control tasks.",
+    notes: "Local Antigravity CLI integration (legacy internal ID: gemini).",
   },
   grok: {
     id: "grok",

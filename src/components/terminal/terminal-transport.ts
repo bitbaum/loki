@@ -79,8 +79,8 @@ export function workspaceTransport(id: string): TerminalTransport {
 
 /**
  * Fleet Runner machine PTY, viewed via the peek stream — raw-PTY bytes when the
- * agent runs in a Loki-owned PTY (append frames), zellij dump-screen
- * snapshots otherwise (reset+repaint frames). Input/resize ride the rawkey fast
+ * agent runs in a Loki-owned PTY (append frames), snapshots otherwise
+ * (reset+repaint frames). Input/resize ride the rawkey fast
  * lane (/api/control/tab-inject-raw → bridge → runner PTY).
  */
 export function runnerTransport(tab: string, channel?: BuilderChannel): TerminalTransport {
@@ -96,7 +96,7 @@ export function runnerTransport(tab: string, channel?: BuilderChannel): Terminal
       es.addEventListener("frame", (e: MessageEvent) => {
         try {
           const { frame, append } = JSON.parse(e.data) as { frame: string; append?: boolean };
-          if (!append) h.onReset(); // zellij snapshot → clear then full repaint
+          if (!append) h.onReset(); // Snapshot → clear, then repaint the full screen.
           h.onOutput(frame);
         } catch {
           /* ignore malformed frame */
