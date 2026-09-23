@@ -19,9 +19,10 @@ only path to production.
 ## The pipeline
 
 ```
-push to default branch
-  └─ wait for that commit's CI to go green         ci-gate.sh (red → blocked)
-     └─ pull the app's runtime .env from the box    box stays the env SSOT
+CI completes green on the default branch
+  └─ workflow_run deploy handoff carries exact CI SHA
+     └─ confirm/supersede check (no waiting loop)    ci-gate.sh
+        └─ pull the app's runtime .env from the box  box stays the env SSOT
         └─ install (npm/pnpm, per lockfile) + build
            + rsync + atomic swap                    deploy.sh
            └─ localhost health check                deploy.sh (auto-rollback)
@@ -49,20 +50,32 @@ Two properties worth keeping:
    gh secret set HETZNER_SSH_PRIVATE_KEY -R bitbaum/<repo> < ~/.ssh/loki_ci_deploy
    ```
 
-3. Commit this shim to the app repo as `.github/workflows/deploy.yml`:
+3. Commit this shim to the app repo as `.github/workflows/deploy.yml`. Prefer
+   `workflow_run` after the repo's CI workflow succeeds, pass the originating
+   `head_sha` as `git-ref`, and keep `workflow_dispatch` for manual recovery. The
+   shared workflow accepts `git-ref` so the build and deploy use that exact CI
+   commit. See the Heidi and AOZ app shims for examples. For a repo without CI,
+   a direct push trigger remains supported but the reusable workflow must gate it.
+
+   Example for a repo whose CI workflow is named `CI`:
 
    ```yaml
    name: Deploy
 
    on:
-     push:
+     workflow_dispatch: {}
+     workflow_run:
+       workflows: [CI]
+       types: [completed]
        branches: [main]      # use master where that is the default branch
 
    jobs:
      deploy:
+       if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'pull_request')
        uses: bitbaum/loki/.github/workflows/selfhost-deploy.yml@main
        with:
          app: <apps.conf key>
+         git-ref: ${{ github.event.workflow_run.head_sha }}
        secrets:
          HETZNER_SSH_PRIVATE_KEY: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
    ```
@@ -72,7 +85,7 @@ Two properties worth keeping:
    (e.g. `catomean/…`) calling `bitbaum/loki` would otherwise fail with
    "Secret HETZNER_SSH_PRIVATE_KEY is required, but not provided while calling."
 
-   Optional inputs: `node-version` (fallback `24` when the repo has no
+   Optional inputs: `git-ref` (exact app commit; used by workflow_run callers), `node-version` (fallback `24` when the repo has no
    `.nvmrc`), `install-flags` (e.g. `--legacy-peer-deps`), and
    `package-manager` to override lockfile detection (`npm | pnpm | yarn`).
 
