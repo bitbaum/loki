@@ -13,11 +13,11 @@ export const metadata = {
  *  are terminal work — so the split is the first thing the page should say,
  *  not something you infer after reading them. */
 const STEPS = [
-  { n: 1, id: "decide", label: "Decide: web or desktop?", desktop: false },
+  { n: 1, id: "decide", label: "Choose where agents run", desktop: false },
   { n: 2, id: "sign-in", label: "Sign in", desktop: false },
   { n: 3, id: "install-runner", label: "Install Fleet Runner", desktop: true },
   { n: 4, id: "agent-cli", label: "Install an agent CLI", desktop: true },
-  { n: 5, id: "register-project", label: "Register a project", desktop: true },
+  { n: 5, id: "register-project", label: "Create project and set Runs on", desktop: false },
   { n: 6, id: "dispatch", label: "Dispatch your first intent", desktop: false },
   { n: 7, id: "watch", label: "Watch from anywhere", desktop: false },
 ] as const;
@@ -70,30 +70,35 @@ export default function QuickstartPage() {
         </nav>
 
         <section id="decide" className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">1. Decide: web or desktop?</h2>
-          <p>Loki has two surfaces that share the same account and the same data:</p>
+          <h2 className="ui-public-prose-h2">1. Choose where agents run</h2>
+          <p>
+            The web and desktop share your Loki account. The web is the control plane; choose a
+            builder per project:
+          </p>
           <ul className="list-disc pl-6 space-y-2">
             <li>
               <strong>Web</strong> (
               <Link href="/" className="ui-public-link">
                 loki.orangecat.ch
               </Link>
-              ) — works in any browser. Best for monitoring fleets, reviewing handoffs, and
-              dispatching when you&apos;re not at the agent&apos;s machine.
+              ) — create projects, dispatch work, and monitor sessions from any browser. Eligible
+              accounts can run agents on the shared Cloud builder without installing desktop
+              software.
             </li>
             <li>
               <strong>Desktop</strong> (
               <Link href="/download" className="ui-public-link">
                 Fleet Runner
               </Link>
-              ) — required if you want agents to actually run on this machine. Same UI as the web
-              app, plus the local runtime that drives terminals and the OS notifications when runs
-              finish.
+              ) — optional. Install it when a project should run in your local checkout and use
+              tools or provider sign-ins from this computer. It adds native notifications too.
             </li>
           </ul>
           <p>
-            You can start with web and add the desktop app whenever you want local execution.
-            They&apos;ll merge automatically as long as you sign in with the same account.
+            Shared Cloud builder access is currently limited to eligible accounts. If it is not
+            available to you, connect Fleet Runner to run projects on your computer. Loki queues
+            work when the project&apos;s selected builder is offline; it does not silently switch
+            machines.
           </p>
         </section>
 
@@ -114,25 +119,22 @@ export default function QuickstartPage() {
             3. Install Fleet Runner
             <span className="ui-public-step-badge">Needs a computer</span>
           </h2>
+          <p>
+            Skip this step if you have access to the Cloud builder and do not need a local checkout
+            or tools. Fleet Runner is only needed to run work on this computer.
+          </p>
           <ol className="list-decimal pl-6 space-y-3">
             <li>
               Visit{" "}
               <Link href="/download" className="ui-public-link">
                 /download
               </Link>
-              . The page auto-detects your OS.
+              . The page auto-detects your OS and has the current install steps.
             </li>
             <li>
-              <strong>Linux</strong>: download the AppImage, then paste the one-line command on the
-              page to mark it executable and launch. Or grab the .deb if you&apos;re on Ubuntu /
-              Debian.
-              <br />
-              <strong>macOS</strong>: download the .dmg, drag Fleet Runner to Applications. First
-              launch: control-click → Open (one-time Gatekeeper bypass — we aren&apos;t code-signed
-              yet).
-              <br />
-              <strong>Windows</strong>: run the .exe. SmartScreen will warn — click &ldquo;More
-              info&rdquo; → &ldquo;Run anyway&rdquo;.
+              Follow the instructions for your operating system on the download page. Installers are
+              available for Linux, macOS, and Windows; the page explains any first-launch security
+              prompts.
             </li>
             <li>
               Fleet Runner opens to the same Loki interface you saw in the browser. If your browser
@@ -155,64 +157,47 @@ export default function QuickstartPage() {
             <span className="ui-public-step-badge">Needs a computer</span>
           </h2>
           <p>
-            Fleet Runner doesn&apos;t bundle the AI agent itself — it drives whatever agent CLI you
-            install. Pick one:
+            Fleet Runner doesn&apos;t bundle agent CLIs. Install and sign in to the supported agent
+            you want to use on this computer. Loki currently supports Claude Code, Codex, Cursor
+            Agent, Antigravity, Grok, and OpenClaw; availability can differ by builder.
           </p>
-          <ul className="list-disc pl-6 space-y-3">
-            <li>
-              <strong>Claude Code</strong> (Anthropic) — recommended default. Install:{" "}
-              <code className="text-xs">npm install -g @anthropic-ai/claude-code</code>. Sign in
-              once with your Anthropic account.
-            </li>
-            <li>
-              <strong>Grok CLI</strong> (xAI) — alternative. Install:{" "}
-              <code className="text-xs">curl -fsSL https://x.ai/cli/install.sh | bash</code>. Set
-              your <code className="text-xs">XAI_API_KEY</code>.
-            </li>
-          </ul>
           <p>
-            You only need one. Fleet Runner runs it in a terminal it owns — nothing else to install.
+            You only need one agent to start. Use Control or Terminal to see which agents are
+            available on your selected builder and follow that provider&apos;s current installation
+            instructions.
           </p>
         </section>
 
         <section id="register-project" className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">
-            5. Register a project
-            <span className="ui-public-step-badge">Needs a computer</span>
-          </h2>
+          <h2 className="ui-public-prose-h2">5. Create a project and set Runs on</h2>
           <p>
-            In the dashboard, go to <strong>Projects</strong>. Add a project with a name and the
-            absolute path to its directory on your machine. Fleet Runner uses this path to launch
-            the agent in the right working directory.
-          </p>
-          <p>
-            If you have <code className="text-xs">~/.config/agent-projects.conf</code> on disk,
-            projects are picked up from there too — one per line, format:{" "}
-            <code className="text-xs">tab-name|directory|adapter</code>.
+            Create or import a project, then set <strong>Runs on</strong> in Control → project
+            profile. Choose Cloud builder when it is available to your account, or This computer
+            when the checkout and tools are on the connected Fleet Runner. A project&apos;s selected
+            builder determines where dispatches run.
           </p>
         </section>
 
         <section id="dispatch" className="mb-10 space-y-4 sm:mb-12">
           <h2 className="ui-public-prose-h2">6. Dispatch your first intent</h2>
           <p>
-            Go to <strong>Control</strong>. Pick a project. Type a prompt or choose one of the
-            built-in intents (e.g. &ldquo;next_best&rdquo;, &ldquo;quality&rdquo;,
-            &ldquo;deploy_check&rdquo;). Hit dispatch.
+            Go to <strong>Control</strong>, pick a project, type a prompt, and dispatch it. The
+            project&apos;s configured builder claims the work. If that builder is offline, the
+            dispatch stays queued until it reconnects.
           </p>
           <p>
-            Fleet Runner opens a terminal it owns, launches the agent inside, streams it to the
-            Terminal page, and tails its session output. When the agent writes its handoff (per
-            Claude Code&apos;s session.md convention), Fleet Runner ingests it and surfaces an OS
-            notification: <em>&ldquo;agent idle — done: X, next: Y, health: good.&rdquo;</em>
+            The builder starts the agent in a PTY it owns. Open Terminal → Cloud builder or Your
+            computer to view sessions and start a session directly. The Terminal location does not
+            change the project&apos;s future <strong>Runs on</strong> setting.
           </p>
         </section>
 
         <section id="watch" className="mb-10 space-y-4 sm:mb-12">
           <h2 className="ui-public-prose-h2">7. Watch from anywhere</h2>
           <p>
-            The same dashboard works from your phone (web) while a long agent runs on your laptop.
-            Status, handoffs, and the ability to cancel a run are all live — useful when you&apos;re
-            not at the machine.
+            The same dashboard works from your phone while an agent runs on the Cloud builder or
+            Fleet Runner. Control shows run state; Terminal streams live sessions so you can steer
+            the agent remotely.
           </p>
         </section>
 

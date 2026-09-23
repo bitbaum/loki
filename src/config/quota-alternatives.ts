@@ -17,7 +17,7 @@ import { AGENT_FALLBACK_ORDER } from "@/lib/agent-resolution";
 
 /**
  * Names the vendor puts on the product, where they differ from the agent id's
- * generic label. `AGENT_LABELS.gemini` is "Gemini" (the model); the thing an
+ * generic label. `AGENT_LABELS.gemini` is "Antigravity" (legacy internal ID); the thing an
  * operator installs and switches to is called Antigravity.
  */
 const PRODUCT_LABELS: Partial<Record<AnyAgentId, string>> = {

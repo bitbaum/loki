@@ -130,7 +130,7 @@ Ask (in order):
 - `src/config/marketing-content.ts`
 - `pnpm run check:design`
 - Desktop: `desktop/src/main/index.ts` only — there is no renderer (deleted v0.7.4)
-- Docs: this file + `CLAUDE.md` (design system section) + `docs/desktop-app.md` (rebrand notes from the cockpit→loki pass)
+- Docs: this file + `CLAUDE.md` (design system section) + `docs/archive/desktop-app-migration-plan.md` (historical rebrand notes)
 
 The system exists to serve builders who run many projects and many agents at once. Every pixel and every syllable should make that human feel more in control, not less.
 

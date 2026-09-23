@@ -42,10 +42,9 @@ export function TerminalSessionMiss({
         No session named “{requestedTab}” on {sourceLabel}
       </p>
       <p className="ui-term-miss-body">
-        Nothing is attached yet. Loki Terminal lists Fleet Runner and cloud builder PTYs — not a
-        Kitty or Zellij pane. If you just clicked Implement, the cloud builder cold-starts a session
-        when it is online — until then Control says Connect a builder. Pick another running session
-        only if you mean to type there.
+        Nothing is attached yet. This page shows agent sessions started by Loki builders. If you
+        just dispatched work, check its status in Control; a session appears here when the selected
+        builder starts it. Choose another running session only if you mean to type there.
       </p>
 
       {available.length > 0 && (

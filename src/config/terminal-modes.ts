@@ -38,17 +38,17 @@ export type TerminalModeOption<T extends string> = {
 export const TERMINAL_SOURCES: TerminalModeOption<TerminalSource>[] = [
   {
     id: "cloud",
-    label: "Cloud",
-    hint: "Agents running on the cloud builder. Keystrokes go to that PTY.",
+    label: "Cloud builder",
+    hint: "View cloud-builder sessions. Starting directly below will also use the cloud builder; project defaults stay unchanged.",
   },
   {
     id: "machine",
-    label: "This computer",
-    hint: "Agents running under Fleet Runner on your own machine.",
+    label: "Your computer",
+    hint: "View sessions on your computer. Starting directly below will also use your computer; project defaults stay unchanged.",
   },
   {
     id: "shell",
-    label: "Shell",
+    label: "Server shell",
     hint: "A plain bash PTY owned by this server — tabs and splits, no agent.",
   },
 ];

@@ -1,5 +1,5 @@
 /**
- * Gemini adapter — Google's `gemini` CLI.
+ * Antigravity adapter — Google's `gemini` CLI (legacy internal ID).
  *
  * No session lifecycle signals (Gemini CLI is one-shot per invocation).
  * Model is passed via `-m <model>` flag at launch; no persistent config
@@ -15,7 +15,7 @@ import type { AgentAdapter, AgentAvailability, AgentRuntimeConfig } from "./type
 
 export const geminiAdapter: AgentAdapter = {
   id: "gemini",
-  label: "Gemini",
+  label: "Antigravity",
   processMatchers: ["gemini"],
   defaultModel: "auto",
   modelSuggestions: ["auto", "pro", "flash", "flash-lite"],
@@ -34,12 +34,12 @@ export const geminiAdapter: AgentAdapter = {
       return {
         available: false,
         availabilityReason:
-          "Gemini configuration exists, but no Gemini CLI command is installed on PATH.",
+          "Antigravity configuration exists, but its CLI command is not installed on PATH.",
       };
     }
     return {
       available: false,
-      availabilityReason: "Gemini CLI is not installed on this machine.",
+      availabilityReason: "Antigravity CLI is not installed on this machine.",
     };
   },
 

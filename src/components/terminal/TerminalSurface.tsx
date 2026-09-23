@@ -16,7 +16,6 @@ import { useFleetProject } from "@/hooks/use-fleet-project";
 import { resolveTabAttachment, type PtyGeometry } from "@/lib/terminal-viewport";
 import type { BuilderChannel } from "@/lib/event-stream-types";
 import { resolveTerminalSource } from "@/lib/terminal-deep-link";
-import { FAILURE_REMEDY, REMEDY_LABEL } from "@/lib/failure-remedy";
 import {
   TERMINAL_MODE_STORAGE_KEY,
   type TerminalInputMode,
@@ -575,7 +574,7 @@ export function TerminalSurface({
             // repeating a command against an absent target fails identically
             // forever. The old copy said "Retry", so it sent the reader to
             // Control to hunt for a button that is not drawn.
-            `No live agent session for “${initialTab}”. Loki Terminal lists Fleet Runner and cloud PTYs — not a Kitty or Zellij pane. If you just clicked Implement, open Control — Attention offers “${REMEDY_LABEL[FAILURE_REMEDY.START_SESSION]}” when the prompt never started.`
+            `No live session for “${initialTab}”. If you just dispatched work, check its status in Control. Start a session here when you want to launch an agent directly.`
           : null;
       const hint = gatedMessage ?? (offline ? copy.offlineHint : (tabHint ?? copy.emptyHint));
       // `initialTab` is the ATTACHED tab, which is null on exactly this
@@ -601,12 +600,14 @@ export function TerminalSurface({
                 activeProject={emptyStateProject}
                 channel={channel}
               />
-              <div className="mt-2 flex flex-wrap justify-center gap-2">
-                <Link href={controlHref} className="ui-btn-secondary">
-                  Open on Control
-                </Link>
-                <Link href={chatHref} className="ui-btn-secondary">
+              <div className="mt-1 flex flex-wrap justify-center gap-x-1 text-xs text-text-muted">
+                <span>Want help planning first?</span>
+                <Link href={chatHref} className="underline underline-offset-2">
                   Ask Loki
+                </Link>
+                <span aria-hidden="true">·</span>
+                <Link href={controlHref} className="underline underline-offset-2">
+                  Manage the project in Control
                 </Link>
               </div>
             </>

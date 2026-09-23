@@ -203,15 +203,17 @@ export function DesktopDownload() {
                 {item.command && (
                   <code className="ui-public-download-prereq-command">{item.command}</code>
                 )}
-                <a
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ui-public-download-prereq-link"
-                >
-                  {item.installLabel}
-                  <ExternalLink className="ui-public-download-prereq-link-icon" aria-hidden />
-                </a>
+                {item.href && item.installLabel && (
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ui-public-download-prereq-link"
+                  >
+                    {item.installLabel}
+                    <ExternalLink className="ui-public-download-prereq-link-icon" aria-hidden />
+                  </a>
+                )}
               </div>
             ))}
           </div>
@@ -248,13 +250,13 @@ export function DesktopDownload() {
 
               <div className="ui-public-download-dev-block">
                 <div className="ui-public-download-dev-block-title">
-                  {DESKTOP_DOWNLOAD.developer.legacyDaemon.label}
+                  {DESKTOP_DOWNLOAD.developer.headlessAgent.label}
                 </div>
                 <p className="ui-public-download-dev-block-body">
-                  {DESKTOP_DOWNLOAD.developer.legacyDaemon.body}
+                  {DESKTOP_DOWNLOAD.developer.headlessAgent.body}
                 </p>
                 <code className="ui-public-download-dev-command">
-                  {DESKTOP_DOWNLOAD.developer.legacyDaemon.command}
+                  {DESKTOP_DOWNLOAD.developer.headlessAgent.command}
                 </code>
               </div>
             </div>

@@ -1,7 +1,7 @@
 ---
 created_date: 2026-07-01
-last_modified_date: 2026-07-01
-last_modified_summary: Defines the current reliable loop contract for Loki projects and the immediate public-release boundary.
+last_modified_date: 2026-09-23
+last_modified_summary: Updates the execution flow and Terminal wording to the current cloud-builder and Fleet Runner model.
 ---
 
 # Effective Loop Operations
@@ -10,8 +10,8 @@ Loki can run real project loops today when three conditions are true:
 
 1. The project has an executable `user_projects` row with a `dir_path`.
 2. A builder is connected for that user:
-   - founder / allowlisted accounts: Cloud builder can claim `cloud` commands
-   - other accounts: Fleet Runner on this computer must be connected
+   - eligible accounts: the shared Cloud builder can claim `cloud` commands
+   - other accounts or local projects: Fleet Runner on the configured computer must be connected
 3. Fleet/project autopilot is on and the project is not busy, blocked, over the concurrency cap, or already pending.
 
 If any of those are false, the product must say why instead of pretending work started.
@@ -54,12 +54,12 @@ It now uses the same `injectPrompt(next_best)` path as Control and Loki.
 5. Press **Build all** or select projects and press **Build selected**.
 6. Watch:
    - Control for truth state and activity
-   - Terminal Cloud / This computer for the live PTY
+   - Terminal → Cloud builder or Your computer for live sessions; this view selector does not change the project's `Runs on` setting
    - Activity for outcomes and commits
 
 ## Public Release Boundary
 
-This is ready for founder dogfood and controlled beta users who connect Fleet Runner.
+This is ready for founder dogfood and controlled beta users. Eligible accounts can use the shared cloud builder; other execution uses Fleet Runner on the configured computer.
 
 It is not ready for broad public hosted-agent release until Cloud execution is per-tenant sandboxed. The shared box-runner is intentionally private because it owns real filesystem, PTYs, CLI auth, and agent credentials.
 

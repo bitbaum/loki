@@ -43,7 +43,7 @@ work: publishing requires a separate owner choice.
 | --- | --- | --- |
 | Individual builder | One Loki for projects, agents, commitments, and execution memory | Pro subscription (planned) |
 | Team / studio | Shared project state, team visibility, agent dispatch, audit trail | Per-seat team plan (planned) |
-| Agent runtime | Local daemon connects private machines to the hosted control plane | Paid runtime seats / usage tiers (planned) |
+| Agent runtime | Eligible accounts use the shared cloud builder; others can connect Fleet Runner on their computer | Paid runtime seats / usage tiers (planned) |
 | Execution intelligence | Prompt routing, queue reasoning, outcomes, continuation policies | Premium automation tier (planned) |
 | Enterprise / investor diligence | Operating telemetry, governance, security, and project health | Managed deployment / annual contract (planned) |
 
@@ -96,8 +96,8 @@ src/config/              Navigation, prompts, categories, product constants
 src/db/schema/           Drizzle schema SSOT
 src/db/queries/          Data access by domain
 src/lib/                 Runtime, auth, orchestration, formatting, utilities
-home/                    Local-first orchestration self-tests and runtime model
-scripts/                 Daemon, install, smoke, migration, and verification tools
+home/                    Orchestration library and runtime tests
+scripts/                 Build, deployment, smoke, migration, and verification tools
 docs/                    Architecture, business model, cloud/local workflows
 drizzle/                 Generated schema migrations
 packages/agent/          Hosted installer CLI
@@ -154,7 +154,7 @@ on first boot. Against your own Postgres, run `CREATE EXTENSION vector;` first.
 
 On a fresh database, visit `/setup` to create the first user.
 
-### Local Agent Runtime
+### Agent Runtime
 
 Work runs on the cloud builder by default; a project runs on your computer
 when its profile says so ("Runs on" in Control) or when its checkout exists
@@ -166,8 +166,9 @@ connect your machine:
 curl -fsSL https://loki.orangecat.ch/api/agent/install | node - init --base-url https://loki.orangecat.ch
 ```
 
-The runtime requires at least one supported CLI on `PATH`: `claude`,
-`codex`, `gemini`, `agent` (Cursor), `grok`, or `openclaw`.
+The runtime requires at least one supported agent CLI on the selected builder:
+`claude`, `codex`, `gemini` (shown as Antigravity), `agent` (Cursor), `grok`,
+or `openclaw`.
 
 See [docs/development/cloud-local-workflows.md](docs/development/cloud-local-workflows.md)
 for the full matrix of browser-only vs local-runtime workflows.
@@ -186,8 +187,8 @@ for the full matrix of browser-only vs local-runtime workflows.
 
 - Secrets stay out of Git; use `.env.example` as the contract.
 - Production uses direct and pooled Postgres URLs separately.
-- Local daemon access should use per-user `ck_*` agent tokens.
-- Legacy shared daemon tokens require an explicit server-side opt-in flag.
+- Fleet Runner and builder access use per-user `ck_*` agent tokens.
+- Legacy daemon tokens remain accepted only behind an explicit server-side opt-in flag.
 - Private surfaces can be PIN-gated server-side.
 - Dependency audit runs daily and high+ findings block the audit workflow.
 

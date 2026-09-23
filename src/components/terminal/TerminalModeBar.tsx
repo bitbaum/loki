@@ -74,12 +74,15 @@ export function TerminalSourceBar({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       {sourceOptions.length > 1 && (
-        <Segment
-          options={sourceOptions}
-          value={source}
-          onChange={onSourceChange}
-          label="Terminal source"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="ui-micro-label">Sessions and direct starts</span>
+          <Segment
+            options={sourceOptions}
+            value={source}
+            onChange={onSourceChange}
+            label="Sessions and direct starts"
+          />
+        </div>
       )}
       <ExecutorHonestyChip honesty={honesty} />
     </div>
