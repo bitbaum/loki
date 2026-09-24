@@ -4,6 +4,7 @@ import { ROUTES } from "@/config/auth";
 import { APP_NAME } from "@/config/brand";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { PublicNavTrigger } from "@/components/public/PublicNav";
+import { AccountMenu } from "@/components/shell/AccountMenu";
 
 // Right-side nav content for marketing pages. Adapts to session — when signed
 // in, surface a clear "Open {APP_NAME}" entry into the app (uses brand SSOT);
@@ -30,17 +31,30 @@ export async function PublicHeaderActions({
           controls (brand, menu, theme, CTA) do not fit a 390px header: the CTA
           was the one that lost, wrapping to two lines and clipping off the
           right edge. */}
-      <span className="hidden md:block">
-        <ThemeToggle />
-      </span>
+      {/* Signed in, the theme moves into the account menu — the same place it
+          lives inside the app — so the public header and the app header show
+          one control for identity instead of two different answers. */}
+      {!signedIn && (
+        <span className="hidden md:block">
+          <ThemeToggle />
+        </span>
+      )}
       {signedIn ? (
-        <Link href={ROUTES.APP_HOME} className="ui-public-primary-action-compact">
-          {/* "Open Loki →" is ~150px of label. A phone header can spare
-              about 90 — so the phone gets the verb and the desktop keeps the
-              full brand lockup. */}
-          <span className="md:hidden">Open app</span>
-          <span className="hidden md:inline">Open {APP_NAME} →</span>
-        </Link>
+        <>
+          {/* Desktop only. A phone header fits three controls (brand, one
+              action, the drawer), and signed in the one action is now the
+              avatar — who you are and how to sign out. "Open app" is not lost
+              on a phone: the drawer below already leads with it. */}
+          <span className="hidden md:block">
+            <Link href={ROUTES.APP_HOME} className="ui-public-primary-action-compact">
+              Open {APP_NAME} →
+            </Link>
+          </span>
+          {/* The avatar menu the app already renders (AppTopBar), reused —
+              not a second one. Signed in on a public page there was no way to
+              see who you were or to sign out; both lived only inside the app. */}
+          <AccountMenu />
+        </>
       ) : (
         <>
           <Link href={ROUTES.SIGN_IN} className="ui-public-nav-link hidden md:block">
