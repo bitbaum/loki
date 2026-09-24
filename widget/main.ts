@@ -30,8 +30,9 @@ import { isHiddenByVisitor, readVisitorPlacement } from "./visitor-placement";
 import { createLauncher } from "./launcher";
 import { createPicker } from "./picker";
 import { createAttachments } from "./attachments";
+import { createChat } from "./chat";
 import {
-  defaultWidgetSurfaceMode,
+  initialWidgetSurfaceMode,
   parseWidgetSurfaceModes,
   WIDGET_SURFACE_MODE_META,
   type WidgetSurfaceMode,
@@ -65,6 +66,12 @@ interface LokiApi {
    */
   ready: boolean;
   report(input?: ReportInput): void;
+  /**
+   * Open the panel in Chat mode, optionally asking a first question — so a
+   * host page can put its own "Ask about our projects" box on the page and
+   * hand the question to the widget. A no-op on an embed without chat mode.
+   */
+  ask(question?: string): void;
 }
 
 (() => {
@@ -81,7 +88,9 @@ interface LokiApi {
   // attribute still wins (see boot()).
   const bottomOffset = parseInt(script?.getAttribute("data-fc-bottom") ?? "", 10);
   // Modes are captured with the script tag (async scripts lose currentScript later).
-  const modesAttr = script?.getAttribute("data-fc-modes") ?? "report,chat,watch";
+  // Report alone unless the embed lists more: chat is a studio front desk, and
+  // this bundle also runs on pilot sites that never asked for one.
+  const modesAttr = script?.getAttribute("data-fc-modes") ?? "report";
 
   /** Filled by boot() before mount(); the launcher never paints without it. */
   let placement: Placement = { ...DEFAULT_PLACEMENT };
@@ -99,11 +108,17 @@ interface LokiApi {
   // the widget is off, and a queued submission could not land anyway.
   let pendingReport: ReportInput | null = null;
   let liveReport: ((input: ReportInput) => void) | null = null;
+  let pendingAsk: string | null = null;
+  let liveAsk: ((question: string) => void) | null = null;
   const api: LokiApi = {
     ready: false,
     report(input: ReportInput = {}) {
       if (liveReport) liveReport(input);
       else pendingReport = input;
+    },
+    ask(question = "") {
+      if (liveAsk) liveAsk(question);
+      else pendingAsk = question;
     },
   };
   (window as unknown as { Loki?: LokiApi }).Loki = api;
@@ -152,14 +167,18 @@ interface LokiApi {
     // The brand line is what makes this recognisably Loki on a stranger's
     // site — the same mono micro-label Loki's own pages use.
     const brand = h("div", "brand");
-    brand.append(h("span", "dot"), h("span", "mono", "Loki"));
+    const brandName = h("span", "mono", "Loki");
+    brand.append(h("span", "dot"), brandName);
+    // Report's form and Chat's conversation are two views of one panel; the
+    // mode chips swap them. Declared here so syncModes() can reach both.
+    const reportView = h("div", "report-view");
     hdrText.appendChild(brand);
     // Surface modes: Report ships today; Chat / Watch are progressive seams
     // (data-fc-modes="report,chat,watch"). The whole panel is Loki-on-the-site.
     const enabledModes = parseWidgetSurfaceModes(modesAttr);
-    let surfaceMode: WidgetSurfaceMode = enabledModes.includes(defaultWidgetSurfaceMode())
-      ? defaultWidgetSurfaceMode()
-      : enabledModes[0]!;
+    let surfaceMode: WidgetSurfaceMode = initialWidgetSurfaceMode(enabledModes);
+    const chat = enabledModes.includes("chat") ? createChat({ apiBase, token }) : null;
+    const title = h("b");
     const modesRow = h("div", "modes");
     modesRow.setAttribute("role", "tablist");
     modesRow.setAttribute("aria-label", "Loki modes");
@@ -174,6 +193,13 @@ interface LokiApi {
         btn.title = meta.hint;
       }
       modeHint.textContent = WIDGET_SURFACE_MODE_META[surfaceMode].hint;
+      const chatting = surfaceMode === "chat" && chat !== null;
+      title.textContent = chatting ? "What are you looking for?" : "What should change?";
+      reportView.style.display = chatting ? "none" : "";
+      if (chat) chat.el.style.display = chatting ? "" : "none";
+      // In chat the panel is just "Chat" — the Cat and Loki are who is IN it,
+      // and each bubble names its speaker. Report stays Loki's.
+      brandName.textContent = chatting ? "Chat" : "Loki";
     }
     for (const m of enabledModes) {
       const meta = WIDGET_SURFACE_MODE_META[m];
@@ -183,14 +209,15 @@ interface LokiApi {
         if (!WIDGET_SURFACE_MODE_META[m].shipped) return;
         surfaceMode = m;
         syncModes();
+        if (m === "chat") chat?.focus();
+        else textarea.focus();
       });
       modeBtns.set(m, btn);
       modesRow.appendChild(btn);
     }
     hdrText.appendChild(modesRow);
     hdrText.appendChild(modeHint);
-    syncModes();
-    hdrText.appendChild(h("b", undefined, "What should change?"));
+    hdrText.appendChild(title);
     const hdrPage = h("div", "page");
     hdrText.appendChild(hdrPage);
     const closeBtn = h("button", "x", "✕");
@@ -324,8 +351,7 @@ interface LokiApi {
       h("span", "mono", "Ctrl+Enter sends"),
     );
 
-    panel.append(
-      hdr,
+    reportView.append(
       chips,
       hint,
       textarea,
@@ -338,6 +364,9 @@ interface LokiApi {
       errEl,
       keys,
     );
+    panel.append(hdr, reportView);
+    if (chat) panel.append(chat.el);
+    syncModes();
 
     const picker = createPicker({
       root,
@@ -375,7 +404,8 @@ interface LokiApi {
       root.append(backdrop, panel);
       syncChips();
       document.addEventListener("keydown", onKeydown, true);
-      textarea.focus();
+      if (surfaceMode === "chat" && chat) chat.focus();
+      else textarea.focus();
     }
 
     function closePanel() {
@@ -417,10 +447,14 @@ interface LokiApi {
       // standard modal keyboard-trap behaviour and is the single fix that covers
       // every embedding host at once.
       e.stopPropagation();
+      // Chat's own keys: the trap above stops the event before it reaches the
+      // shadow textarea's listeners, so Enter-to-send is handled here.
+      if (chat && surfaceMode === "chat" && e.composedPath().includes(chat.input) && chat.onKey(e))
+        return;
       if (e.key === "Escape") {
         if (picker.isPicking()) picker.stop();
         else closePanel();
-      } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && surfaceMode !== "chat") {
         if (!sendBtn.disabled) void submit();
       }
     }
@@ -497,20 +531,8 @@ interface LokiApi {
         closePanel();
         // Rebuild the form for the next open (success view replaced it).
         panel.textContent = "";
-        panel.append(
-          hdr,
-          chips,
-          hint,
-          textarea,
-          cnt,
-          diagNote,
-          contact,
-          attachRow,
-          shotsContainer,
-          row,
-          errEl,
-          keys,
-        );
+        panel.append(hdr, reportView);
+        if (chat) panel.append(chat.el);
       }, 2200);
     }
 
@@ -533,8 +555,21 @@ interface LokiApi {
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
       }
     };
+    liveAsk = (question: string) => {
+      if (!chat) return;
+      if (!panel.isConnected) openPanel();
+      surfaceMode = "chat";
+      syncModes();
+      chat.focus();
+      if (question.trim()) chat.ask(question);
+    };
     // Only now can a click actually open something — see LokiApi.ready.
     api.ready = true;
+    if (pendingAsk !== null) {
+      const held = pendingAsk;
+      pendingAsk = null;
+      liveAsk(held);
+    }
     if (pendingReport) {
       const held = pendingReport;
       pendingReport = null;

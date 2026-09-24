@@ -229,6 +229,33 @@ input { margin-bottom: 10px; }
 .ok .track { display: inline-flex; margin-top: 14px; border-radius: 9px; padding: 9px 12px;
   background: ${theme.accent}; color: ${ink}; font-size: 12px; font-weight: 650; text-decoration: none; }
 
+/* ---- chat mode: one chat, two residents (the Cat and Loki) ----
+   Bubbles are text only (answers are model output on someone else's site);
+   the links under an answer come from the fleet map, styled as quiet chips so
+   the first recommendation reads as the next step. */
+.chat { display: flex; flex-direction: column; gap: 10px; }
+.chatlog { display: flex; flex-direction: column; gap: 8px; max-height: min(46vh, 380px); overflow-y: auto; padding: 2px; }
+.msg { font-size: 13px; line-height: 1.5; padding: 9px 11px; border-radius: ${rs}; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.bot { background: ${theme.surfaceRaised}; border: 1px solid ${theme.border}; color: ${theme.text}; align-self: flex-start; }
+.msg.user { background: ${theme.accentMuted}; border: 1px solid ${theme.accent}; color: ${theme.text}; align-self: flex-end; }
+.msg.pending { color: ${theme.textTertiary}; }
+.msg .who { display: block; margin-bottom: 3px; font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }
+.msg.from-cat .who { color: ${theme.accent}; }
+.msg .said { display: block; }
+.msg.failed { color: ${theme.error}; background: ${theme.errorSurface}; }
+.chatlinks { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; max-width: 92%; }
+.chatlink { font-size: 12px; font-weight: 500; color: ${theme.text}; text-decoration: none; padding: 6px 10px;
+  border: 1px solid ${theme.borderStrong}; border-radius: ${rc}; background: transparent; }
+.chatlink:first-child { border-color: ${theme.accent}; background: ${theme.accentMuted}; }
+.chatlink:hover { border-color: ${theme.accent}; }
+.starters { display: flex; flex-wrap: wrap; gap: 6px; }
+.starter { font-size: 12px; color: ${theme.textSecondary}; padding: 6px 10px; border: 1px dashed ${theme.borderStrong}; border-radius: ${rc}; text-align: left; }
+.starter:hover { color: ${theme.text}; border-color: ${theme.accent}; }
+.chatform { display: flex; gap: 8px; align-items: flex-end; }
+.chatform .chatinput { min-height: 44px; max-height: 120px; }
+.chatform .go { flex: none; padding: 0 16px; height: 44px; }
+@media (pointer: coarse) { .starter, .chatlink { padding: 11px 12px; } }
+
 /* ---- element picker bar: the same surface, at the top ---- */
 .pickbar {
   position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2147483002;
