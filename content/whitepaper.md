@@ -1,8 +1,8 @@
 ---
 title: The Builder's Operating System
 subtitle: A technical architecture for sustained autonomous execution across many projects simultaneously
-publishedAt: 2026-09-21
-version: 0.3.1
+publishedAt: 2026-09-24
+version: 0.4
 ---
 
 ## The Execution Gap
@@ -109,6 +109,14 @@ Agent hooks are shell functions executed at the start and end of every Claude Co
 - Hard stop: writes closed and sentinel markers
 
 These hooks are installed once and run automatically. The agent does not need to know about Loki. The shell layer is the integration boundary.
+
+### Point At It: The Product Fits the Person
+
+Every product Loki builds or runs carries the same small control. Whatever a person doesn't like, they point at it, and choose one of two things: **change it for me**, or **show me how to get there**.
+
+The first is a change request: an agent reshapes that part of the product and ships it through the same loop as any other fix. The second is a person who couldn't find their way. Often the product already does what they want, so the answer is the path, made findable from where they were standing, and not a new feature. It is never only an explanation, because whoever comes next gets lost at the same spot.
+
+This is where the system is heading: products that are not the same for everyone, but fitted to each person using them, one pointed-at element at a time. Today a change ships for everyone who uses the product. The next step is changes that apply to one person without being imposed on everyone else.
 
 ### The Life OS Layer
 

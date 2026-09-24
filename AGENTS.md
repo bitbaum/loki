@@ -14,6 +14,14 @@ OrangeCat linking is optional. Execution access is defined in
 `src/lib/execution-access.ts`; project identity is not a terminal tab name.
 A queued run or successful agent turn does not prove a deployment.
 
+**Where it goes: the product fits the person.** Whatever someone dislikes in a
+product Loki runs, they point at it (the widget, or an in-place "Change this"
+control via `window.Loki.report({ target })`) and choose *change it for me* or
+*show me how to get there*. Loki builds it, or shows the path and makes it
+findable. Tailoring every product to each person using it is the long-run
+direction. SSOT: `docs/architecture/tailored-experience.md`. Keep what is
+shipped and what is not honest there.
+
 **Loki builds software. It does not make video, music or prose.** That
 neighbour capability lives on OrangeCat (its Studio), and what it can do is
 stated once in `src/config/ecosystem.ts` → `ORANGECAT_CAPABILITIES`, which

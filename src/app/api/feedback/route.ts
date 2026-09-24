@@ -3,6 +3,7 @@ import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_SHORT_MS, RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
 import {
+  FEEDBACK_INTENT_VALUES,
   FEEDBACK_SCOPE_VALUES,
   FEEDBACK_SOURCE,
   FEEDBACK_SOURCE_VALUES,
@@ -46,6 +47,7 @@ const FeedbackBody = z.object({
   url: z.string().max(1000).optional(),
   pageTitle: z.string().max(300).optional(),
   scope: z.enum(FEEDBACK_SCOPE_VALUES).optional(),
+  intent: z.enum(FEEDBACK_INTENT_VALUES).optional(),
   // Who filed it — the widget omits this (→ visitor); the AI reviewer and
   // synthesizer declare themselves. Self-asserted via the public token, so a
   // routing hint, not a trust boundary.
@@ -147,6 +149,7 @@ export async function POST(req: NextRequest) {
     url: data.url ?? null,
     pageTitle: data.pageTitle ?? null,
     scope: data.scope ?? null,
+    intent: data.intent ?? null,
     source: data.source ?? FEEDBACK_SOURCE.VISITOR,
     contentHash,
     screenshots: data.screenshots ?? null,

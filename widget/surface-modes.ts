@@ -3,7 +3,8 @@
  *
  * Product direction: the live-site widget IS Loki-on-the-site — not only a
  * feedback form. Modes grow progressively:
- *   report  — today's form (file → Implement → Watch on captain Feedback)
+ *   report  — point at anything, then Loki changes it or shows the way
+ *             (file → Implement → Watch on captain Feedback; widget/intents.ts)
  *   chat    — conversation with Loki on the host page (seam; not full yet)
  *   watch   — observe how the visitor uses the page and comment (seam)
  *
@@ -19,7 +20,7 @@ export const WIDGET_SURFACE_MODE_META: Record<
 > = {
   report: {
     label: "Report",
-    hint: "File what is wrong — Loki Implement picks it up.",
+    hint: "Point at it — Loki changes it for you, or shows you the way.",
     shipped: true,
   },
   chat: {

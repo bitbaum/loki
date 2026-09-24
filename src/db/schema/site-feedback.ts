@@ -5,6 +5,7 @@ import { widgetTokens } from "./widget-tokens";
 import {
   FEEDBACK_STATUS,
   type FeedbackStatus,
+  type FeedbackIntent,
   type FeedbackScope,
   type FeedbackSource,
 } from "@/lib/constants/statuses";
@@ -50,6 +51,9 @@ export const siteFeedback = pgTable(
     pageTitle: text("page_title"),
     scope: text("scope").$type<FeedbackScope>(),
     selectedElements: jsonb("selected_elements").$type<FeedbackSelectedElement[]>(),
+    /** build = change it for me; guide = show me the way there. Null = build
+     *  (every row filed before the widget asked). */
+    intent: text("intent").$type<FeedbackIntent>(),
     userAgent: text("user_agent"),
     /** Who filed it (visitor | ai_review | synthesizer). Null = legacy row =
      *  visitor. Synthesizer rows are aggregate briefs — excluded from digester

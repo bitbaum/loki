@@ -11,7 +11,21 @@ export type FeedbackPromptFields = {
   page: string | null;
   scope: string | null;
   selectedElements: Array<{ elementType: string; elementText: string; selector: string }> | null;
+  /** build | guide — see FEEDBACK_INTENT_VALUES. Absent/null = build. */
+  intent?: string | null;
 };
+
+// A "show me how" report is a person who could not find their way, not a
+// request for a new feature. Building a new feature is the wrong answer when
+// the path already exists; answering in chat is the wrong answer when the path
+// is buried, because the next person gets lost at the same spot. So the fix is
+// the path itself, made findable from where they were standing.
+const GUIDE_INSTRUCTION =
+  "The reporter asked HOW TO GET THERE, not necessarily for a change. First establish whether the product already does what they want. If it does, the fix is to make that path findable from the element or page they pointed at (a link, a clearer label, a hint, a shortcut) — and put the step-by-step route in your final report so the operator can send it to them. If it does not, build the smallest version that gets them there. Either way, never answer only in prose: the next person gets lost at the same spot.";
+
+function isGuide(feedback: FeedbackPromptFields): boolean {
+  return feedback.intent === "guide";
+}
 
 // "Shipped" must include a PR handed to auto-merge. Told only "shipping is
 // blocked → report the blocker", agents opened their PR, honestly wrote
@@ -52,7 +66,9 @@ export function composeFeedbackFixPrompt(
 ): string {
   const times = feedback.duplicateCount > 1 ? ` (reported ${feedback.duplicateCount}×)` : "";
   const lines = [
-    `Fix this visitor feedback on ${projectName}.${times}`,
+    isGuide(feedback)
+      ? `Show this visitor the way on ${projectName}.${times}`
+      : `Fix this visitor feedback on ${projectName}.${times}`,
     UNTRUSTED_PREAMBLE,
     "",
     ...(note ? [`OPERATOR INSTRUCTION: ${note}`, ""] : []),
@@ -63,6 +79,7 @@ export function composeFeedbackFixPrompt(
   lines.push(...renderElements(feedback));
   lines.push(
     "",
+    ...(isGuide(feedback) ? [GUIDE_INSTRUCTION] : []),
     "Scope: address exactly this feedback — no unrelated refactors.",
     SHIP_INSTRUCTION,
   );
@@ -96,6 +113,7 @@ export function composeFeedbackBatchFixPrompt(
     lines.push(fenceUntrusted("FEEDBACK", f.suggestion));
     lines.push(`Page: ${inlineUntrusted(f.url ?? f.page ?? "unknown", 1000)}`);
     if (f.scope) lines.push(`Scope: ${f.scope}`);
+    if (isGuide(f)) lines.push(`Intent: show me how — ${GUIDE_INSTRUCTION}`);
     lines.push(...renderElements(f));
     lines.push("");
   });

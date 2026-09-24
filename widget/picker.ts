@@ -81,6 +81,8 @@ export type Picker = {
   start(): void;
   stop(): void;
   clearSelection(): void;
+  /** Select an element without picking — the host already knows which one. */
+  preselect(el: Element): void;
   selected(): SelectedEl[];
 };
 
@@ -156,13 +158,22 @@ export function createPicker(opts: {
     e.stopImmediatePropagation();
     const target = targetUnderPoint(e.clientX, e.clientY);
     if (!target) return;
+    toggle(target);
+    syncPickbar();
+  }
+
+  function toggle(target: Element, only: "add" | "toggle" = "toggle") {
     const selector = generateSelector(target);
     const idx = selected.findIndex((s) => s.selector === selector);
     if (idx > -1) {
+      if (only === "add") return;
       selected.splice(idx, 1);
       selectedNodes[idx]?.classList.remove("fcw-selected");
       selectedNodes.splice(idx, 1);
     } else if (selected.length < maxElements) {
+      // The highlight lives in docStyle; a preselect happens without a pick
+      // session, so make sure the sheet is in the document either way.
+      if (!docStyle.isConnected) document.head.appendChild(docStyle);
       selected.push({
         elementType: target.tagName.toLowerCase(),
         elementText: elementLabel(target),
@@ -171,7 +182,6 @@ export function createPicker(opts: {
       selectedNodes.push(target);
       target.classList.add("fcw-selected");
     }
-    syncPickbar();
   }
 
   function syncPickbar() {
@@ -239,6 +249,7 @@ export function createPicker(opts: {
     start: startPicking,
     stop: stopPicking,
     clearSelection,
+    preselect: (el: Element) => toggle(resolvePickTarget(el), "add"),
     selected: () => selected,
   };
 }

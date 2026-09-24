@@ -1,8 +1,8 @@
 # Loki Feedback Widget
 
 **Created:** 2026-07-17  
-**Last modified:** 2026-09-17
-**Last modified summary:** Added reporter claim links, personal tracking, visible submission times, and project-level editor authorization.
+**Last modified:** 2026-09-24
+**Last modified summary:** Intents (Change it for me / Show me how), `report({ target, intent, pick })`, `site_feedback.intent`. Direction: `docs/architecture/tailored-experience.md`.
 
 **Status**: COMPLETE 2026-07-28. Phases 1–4 implemented 2026-07-17 — four
 `feat(feedback):` commits (ingest spine, embed bundle, inbox + dispatch,
@@ -255,6 +255,26 @@ window.Loki?.report({
   turns a self-routing report back into a human triage job.
   (`widget/report-payload.ts`, pinned by `scripts/test/widget-report-payload.ts`.)
 
+Three more fields make "point at the thing you don't like" one tap from
+the thing itself (the direction: `docs/architecture/tailored-experience.md`):
+
+```js
+window.Loki?.report({ target: cardEl });      // preselect it, scope = element
+window.Loki?.report({ intent: "guide" });     // "Show me how" instead of "Change it for me"
+window.Loki?.report({ pick: true });          // open straight into pick mode
+```
+
+- **`target`** goes through the same resolution as a pick (`resolvePickTarget`),
+  so it is labelled and selected exactly as if the visitor had tapped it. Give the
+  surface an `aria-label` and that becomes its name in the inbox.
+- **`intent`** is `build` (default) or `guide`, stored as `site_feedback.intent`.
+  A `guide` row is tagged "Show me how" in the inbox, and Implement tells the
+  agent to find the existing path first and make it findable, not to build
+  something new (`composeFeedbackFixPrompt`). The vocabulary lives in
+  `FEEDBACK_INTENT_VALUES` and is mirrored in `widget/intents.ts`. The two are
+  pinned against each other by `scripts/test/widget-intents.ts`, because a
+  value the route rejects loses the whole report.
+
 Two behaviours worth knowing before you call it:
 
 - **The stub is published synchronously**, before the async boot gate resolves,
@@ -380,6 +400,10 @@ matters):
   (`src/components/feedback/FeedbackItemRow.tsx`) and one actions hook.
 - The Control strip's "Full inbox" deep-links to `/feedback?project=…`; the
   sidebar Feedback item carries a NEW-count badge from `/api/feedback/summary`.
+
+- **Intents (2026-09-24):** the panel asks *Change it for me* / *Show me
+  how* before scope, and the heading and placeholder follow the choice. See
+  above and `docs/architecture/tailored-experience.md`.
 
 ## Out of scope
 

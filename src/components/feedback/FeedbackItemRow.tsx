@@ -160,10 +160,21 @@ export function FeedbackItemRow({
               landing wherever they fit — the project name floating alone
               mid-line above its own status. Splitting them does not change
               what is said, only whether the order survives a narrow screen. */}
-          {(showBadge || agentBadge || f.duplicateCount > 1) && (
+          {(showBadge || agentBadge || f.duplicateCount > 1 || f.intent === "guide") && (
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
               {showBadge && badge}
               {agentBadge && <span className="ui-tag shrink-0">{agentBadge}</span>}
+              {/* A "show me how" report is someone who could not find their
+                  way — Implement makes the path findable instead of building
+                  something new (lib/feedback/compose-dispatch.ts). */}
+              {f.intent === "guide" && (
+                <span
+                  className="ui-tag ui-tag-accent shrink-0"
+                  title="They asked how to get there — the path may already exist"
+                >
+                  Show me how
+                </span>
+              )}
               {f.duplicateCount > 1 && (
                 <span className="ui-badge shrink-0" title={`Reported ${f.duplicateCount} times`}>
                   ×{f.duplicateCount}

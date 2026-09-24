@@ -122,6 +122,16 @@ export const FEEDBACK_SCOPE_VALUES = ["element", "page", "site"] as const;
 export type FeedbackScope = (typeof FEEDBACK_SCOPE_VALUES)[number];
 
 /**
+ * What the reporter wants done: `build` (change the experience for me) or
+ * `guide` (show me the way to what I want — it may already exist). Null on a
+ * row means build, which is all a report meant before intents existed.
+ * Mirrored in widget/intents.ts, which may not import from src/; pinned by
+ * scripts/test/widget-intents.ts.
+ */
+export const FEEDBACK_INTENT_VALUES = ["build", "guide"] as const;
+export type FeedbackIntent = (typeof FEEDBACK_INTENT_VALUES)[number];
+
+/**
  * PROJECT STAGE — where a project is in its life.
  *
  * This lived for months as the free-text attr `status`, rendered as a "Stage"

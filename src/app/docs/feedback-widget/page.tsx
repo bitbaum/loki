@@ -60,13 +60,23 @@ export default function FeedbackWidgetDocsPage() {
         <section className="mb-10 space-y-4 sm:mb-12">
           <h2 className="ui-public-prose-h2">3. What visitors get</h2>
           <p>
-            A small button on every page. Opening it, the visitor picks a scope — <em>Element</em>{" "}
-            (they click the exact thing that&apos;s broken; the widget records its CSS selector and
-            visible text), <em>This page</em>, or <em>Whole site</em> — writes what should be
-            improved, optionally attaches an image (file picker or paste; the widget downscales it
-            client-side so a phone photo never ships megabytes), and optionally leaves a name or
-            email. The widget renders in a Shadow DOM, so your styles and the widget&apos;s
-            can&apos;t interfere with each other.
+            A small button on every page. Opening it, the visitor first says what they want done:{" "}
+            <em>Change it for me</em> (an agent reshapes that part of your product and ships it) or{" "}
+            <em>Show me how</em> (the product may already do what they want and they couldn&apos;t
+            find it, so the fix is making that path findable from where they were standing). Then
+            they pick a scope — <em>Element</em> (they click the exact thing that&apos;s broken; the
+            widget records its CSS selector and visible text), <em>This page</em>, or{" "}
+            <em>Whole site</em> — writes what should be improved, optionally attaches an image (file
+            picker or paste; the widget downscales it client-side so a phone photo never ships
+            megabytes), and optionally leaves a name or email. The widget renders in a Shadow DOM,
+            so your styles and the widget&apos;s can&apos;t interfere with each other.
+          </p>
+          <p>
+            Your own UI can offer the same thing in place. A &ldquo;Change this&rdquo; control
+            inside a card calls <code>window.Loki.report(&#123; target: card &#125;)</code>, and the
+            widget opens with that card already selected, so nobody has to go looking for what they
+            were just reading. <code>report(&#123; pick: true &#125;)</code> opens straight into
+            pick mode, and <code>intent: &quot;guide&quot;</code> preselects <em>Show me how</em>.
           </p>
           <p>
             Repeat reports don&apos;t pile up: the same complaint filed again bumps a counter on the

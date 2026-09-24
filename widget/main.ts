@@ -36,6 +36,13 @@ import {
   WIDGET_SURFACE_MODE_META,
   type WidgetSurfaceMode,
 } from "./surface-modes";
+import {
+  defaultWidgetIntent,
+  isWidgetIntent,
+  WIDGET_INTENT_META,
+  WIDGET_INTENTS,
+  type WidgetIntent,
+} from "./intents";
 
 type Scope = "element" | "page" | "site";
 
@@ -50,6 +57,16 @@ interface ReportInput {
   /** Pre-filled first line so the visitor never faces an empty box. */
   message?: string;
   diagnostics?: ReportDiagnostics;
+  /** Build it, or show the way there. Defaults to build (widget/intents.ts). */
+  intent?: WidgetIntent;
+  /**
+   * The element the report is about, when the host already knows it — e.g. a
+   * "Change this" control inside a card passes the card. Preselected, so the
+   * visitor never has to find the thing they were already looking at.
+   */
+  target?: Element;
+  /** Start in pick mode: the visitor taps the element first, then says why. */
+  pick?: boolean;
 }
 
 interface LokiApi {
@@ -111,6 +128,7 @@ interface LokiApi {
   const mount = (theme: WidgetTheme) => {
     // ---- state ----
     let scope: Scope = "page";
+    let intent: WidgetIntent = defaultWidgetIntent();
     let submitting = false;
 
     // ---- shadow scaffold ----
@@ -190,13 +208,27 @@ interface LokiApi {
     hdrText.appendChild(modesRow);
     hdrText.appendChild(modeHint);
     syncModes();
-    hdrText.appendChild(h("b", undefined, "What should change?"));
+    const heading = h("b", undefined, WIDGET_INTENT_META[intent].heading);
+    hdrText.appendChild(heading);
     const hdrPage = h("div", "page");
     hdrText.appendChild(hdrPage);
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
     hdr.append(hdrText, closeBtn);
+
+    // Intent first: what the visitor wants done decides how they phrase it.
+    const intentRow = h("div", "chips");
+    intentRow.setAttribute("role", "radiogroup");
+    intentRow.setAttribute("aria-label", "What should Loki do?");
+    const intentEls = new Map<WidgetIntent, HTMLButtonElement>();
+    for (const key of WIDGET_INTENTS) {
+      const chip = h("button", "chip", WIDGET_INTENT_META[key].label);
+      chip.setAttribute("role", "radio");
+      chip.addEventListener("click", () => setIntent(key));
+      intentEls.set(key, chip);
+      intentRow.appendChild(chip);
+    }
 
     const chips = h("div", "chips");
     const chipDefs: Array<{ key: Scope; label: string }> = [
@@ -219,7 +251,7 @@ interface LokiApi {
 
     const textarea = h("textarea");
     textarea.maxLength = MAX_LEN;
-    textarea.placeholder = "What should be improved?";
+    textarea.placeholder = WIDGET_INTENT_META[intent].placeholder;
     const cnt = h("div", "cnt", `0/${MAX_LEN}`);
 
     // Diagnostics travel with the submission but stay OUT of the textarea: the
@@ -326,6 +358,7 @@ interface LokiApi {
 
     panel.append(
       hdr,
+      intentRow,
       chips,
       hint,
       textarea,
@@ -357,6 +390,16 @@ interface LokiApi {
     });
 
     // ---- behaviors ----
+    function setIntent(next: WidgetIntent) {
+      intent = next;
+      for (const [key, chip] of intentEls) {
+        chip.classList.toggle("on", key === intent);
+        chip.setAttribute("aria-checked", key === intent ? "true" : "false");
+      }
+      heading.textContent = WIDGET_INTENT_META[intent].heading;
+      textarea.placeholder = WIDGET_INTENT_META[intent].placeholder;
+    }
+
     function syncChips() {
       const selectedCount = picker.selected().length;
       for (const [key, chip] of chipEls) chip.classList.toggle("on", key === scope);
@@ -373,6 +416,7 @@ interface LokiApi {
       fab.style.display = "none";
       hdrPage.textContent = document.title || location.pathname;
       root.append(backdrop, panel);
+      setIntent(intent);
       syncChips();
       document.addEventListener("keydown", onKeydown, true);
       textarea.focus();
@@ -390,6 +434,7 @@ interface LokiApi {
       panel.remove();
       document.removeEventListener("keydown", onKeydown, true);
       scope = "page";
+      intent = defaultWidgetIntent();
       textarea.value = "";
       contact.value = "";
       attachments.reset();
@@ -455,6 +500,7 @@ interface LokiApi {
             url: location.href.slice(0, 1000),
             pageTitle: document.title.slice(0, 300) || undefined,
             scope,
+            intent,
             screenshots: shots.length ? shots : undefined,
             selectedElements: selected.length ? selected : undefined,
           }),
@@ -499,6 +545,7 @@ interface LokiApi {
         panel.textContent = "";
         panel.append(
           hdr,
+          intentRow,
           chips,
           hint,
           textarea,
@@ -522,7 +569,17 @@ interface LokiApi {
         textarea.focus();
         return;
       }
+      if (isWidgetIntent(input.intent)) intent = input.intent;
       openPanel();
+      if (input.target) {
+        picker.preselect(input.target);
+        if (picker.selected().length) scope = "element";
+        syncChips();
+      }
+      if (input.pick) {
+        scope = "element";
+        picker.start();
+      }
       diagnostics = input.diagnostics ?? null;
       syncDiagnostics();
       if (input.message) {

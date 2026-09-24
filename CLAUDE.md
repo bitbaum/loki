@@ -23,6 +23,12 @@ agent fleets from one dashboard — and the same workspace holds the people they
 work with, the commitments they owe, and what they spend. Dark-first,
 mobile-ready, designed for builders who want control without complexity.
 
+The direction: **the product fits the person.** Anything a user dislikes in a
+product Loki runs, they point at and choose "change it for me" or "show me how
+to get there". Loki builds that experience, or shows the path and makes it
+findable. Tailored experiences for each person are where Loki is going. SSOT:
+`docs/architecture/tailored-experience.md`.
+
 Commanding agent fleets is the largest part of that and the reason most people
 arrive, but it is not the whole product, and describing Loki as "the
 engineering plane" made the rest look like clutter that belonged elsewhere.
@@ -152,7 +158,10 @@ widget/            → The embeddable feedback widget customer sites load as
                      (gitignored — built, never committed). main.ts is the UI
                      (Shadow DOM, so host CSS cannot reach it), voice.ts is
                      speak-your-feedback, report-payload.ts is the shared
-                     budgeting the ingest route also relies on.
+                     budgeting the ingest route also relies on, intents.ts is
+                     "Change it for me" / "Show me how" (mirrors
+                     FEEDBACK_INTENT_VALUES; see
+                     docs/architecture/tailored-experience.md).
                      This is the ONLY surface strangers on other people's sites
                      touch, so it earns the same care as src/ — it is covered by
                      `pnpm run lint` and tsc. It cannot see globals.css or

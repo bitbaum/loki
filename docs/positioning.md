@@ -27,6 +27,9 @@ You talk to exactly **one** agent — **Loki**. Under Loki sits a roster of inte
 - **Govern + see across the fleet.** Queues, handoffs, per-project autonomy, one injected bar for "done", live status across every project.
 - **A compounding loop + economy.** A self-improvement loop (frontier digest → cross-model verify → human-gated goals) and the OrangeCat economic layer. No worker tool builds this.
 
+## Where it goes: the product fits the person
+Every product Loki runs carries one control. Whatever you don't like, you point at it and pick **change it for me** or **show me how to get there**. Loki then builds the experience you want, or shows you the path and makes it findable. The end state is products fitted to each person using them, not one shape for everyone. SSOT: `docs/architecture/tailored-experience.md`. Shipped: pointing and both intents (2026-09-24). Not yet: tailoring for one person only, rather than shipping the change to everyone.
+
 ## Strategy in one line
 **Borrow the workers, own the bridge.** Execution and per-agent skills we increasingly *orchestrate* (a Hermes adapter inherits its sandboxed backends + skill loop); cross-fleet verification, governance, and the economy we *build*. Anything a single agent can do for itself, we adopt. Anything only a captain over many agents can do, we own.
 
