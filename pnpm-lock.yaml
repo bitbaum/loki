@@ -20,11 +20,11 @@ importers:
         specifier: ^1.11.3
         version: 1.11.3
       '@bitbaum/ai-kit':
-        specifier: ^1.8.0
-        version: 1.8.0(react@19.2.8)
+        specifier: ^1.11.0
+        version: 1.11.0(react@19.2.8)
       '@bitbaum/mail-kit':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.1.1
+        version: 0.1.1
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -62,8 +62,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       bip-kit:
-        specifier: ^0.2.7
-        version: 0.2.7(katex@0.16.47)(mermaid@11.17.2)(react@19.2.8)(shiki@4.4.3)
+        specifier: ^0.3.1
+        version: 0.3.1(katex@0.16.47)(mermaid@11.17.2)(react@19.2.8)(shiki@4.4.3)
       bs58check:
         specifier: ^4.0.0
         version: 4.0.0
@@ -371,8 +371,8 @@ packages:
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
 
-  '@bitbaum/ai-kit@1.8.0':
-    resolution: {integrity: sha512-R4Snee/IPPJRHGZX65cTd748Bb5flaUS3J8p4bJsP6nwMLiYs9lTbcmj7FIGZL0itz2FnNbtciWKptNV2LU1AA==}
+  '@bitbaum/ai-kit@1.11.0':
+    resolution: {integrity: sha512-WNprP0kydOfxyFz4itnkbc1Khu2R7CP+z4809usXKFukc+xEiooKT1qKnf0RWu0ti4CIFikz3BluoNlF1Di83w==}
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18'
@@ -384,8 +384,8 @@ packages:
     resolution: {integrity: sha512-sDVplKP4jKe0WHCOnW7xk75RC46JsAYqUngcVlctyAs9f1TQqZqbYTfbmyYipYCOaCIHMflnzAneQTbqrQbtBw==}
     engines: {node: '>=20'}
 
-  '@bitbaum/mail-kit@0.1.0':
-    resolution: {integrity: sha512-RbFBDANTUEb2/O2duSXIp+lb8y9ycrdbSTPnvoQ8iZOZsfxQZLseKzgCZumN31q7jRbVNHjQRao0envGWsFJ5Q==}
+  '@bitbaum/mail-kit@0.1.1':
+    resolution: {integrity: sha512-3JfaeuwkI+8TVGeSDrr8/esaWkv2d7UAcNg1Xu5HHu6k3cBzuSaLGhuzHp0KlAJgGa2QEQIqtE7W1+PosKFOjw==}
     engines: {node: '>=20'}
 
   '@braintree/sanitize-url@7.1.2':
@@ -2319,8 +2319,8 @@ packages:
     resolution: {integrity: sha512-RbOBxmLBG8uvFUc15X9+9SFemKcQ0WBuISBVkpuiaUB2qblC8UWlHEjdWVoZ8AdhSwmoEgsiXKfopX0CQxaACQ==}
     engines: {node: '>=22'}
 
-  bip-kit@0.2.7:
-    resolution: {integrity: sha512-oe4f2IXAYuOQ1ocDLg0ET27qpNfb7nOSVobFEbu+xLyvluZ1rLygjOhg4b9tB9CxTKb9R35Bh3RdibVLxFAYkw==}
+  bip-kit@0.3.1:
+    resolution: {integrity: sha512-OnkaJiDCRz0UeMifgI8NHnHoaBWyvpYOgdDIfOcxMiIWDWliVyHU+jg5aYX6zccIH15G5uze1vaGJV1XdRDDJg==}
     engines: {node: '>=20'}
     peerDependencies:
       katex: '>=0.16'
@@ -5209,7 +5209,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@bitbaum/ai-kit@1.8.0(react@19.2.8)':
+  '@bitbaum/ai-kit@1.11.0(react@19.2.8)':
     dependencies:
       ai-forms: 0.1.2(react@19.2.8)
     optionalDependencies:
@@ -5217,7 +5217,7 @@ snapshots:
 
   '@bitbaum/design-tokens@1.1.0': {}
 
-  '@bitbaum/mail-kit@0.1.0': {}
+  '@bitbaum/mail-kit@0.1.1': {}
 
   '@braintree/sanitize-url@7.1.2': {}
 
@@ -6877,7 +6877,7 @@ snapshots:
     dependencies:
       node-addon-api: 8.9.0
 
-  bip-kit@0.2.7(katex@0.16.47)(mermaid@11.17.2)(react@19.2.8)(shiki@4.4.3):
+  bip-kit@0.3.1(katex@0.16.47)(mermaid@11.17.2)(react@19.2.8)(shiki@4.4.3):
     dependencies:
       react: 19.2.8
     optionalDependencies:
