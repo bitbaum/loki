@@ -77,7 +77,7 @@ outside=$(awk -v b="$BLOCK_BEGIN" -v e="$BLOCK_END" '
   printf '%s\n' "$block"
   # Only re-emit the remainder if it has real content, so we do not accumulate
   # blank lines on every redeploy.
-  if printf '%s' "$outside" | grep -q '[^[:space:]]'; then
+  if grep -q '[^[:space:]]' <<<"$outside"; then
     printf '\n%s\n' "$(printf '%s' "$outside" | sed -e 's/[[:space:]]*$//')"
   fi
 } > "$TARGET.tmp"

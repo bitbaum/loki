@@ -22,12 +22,12 @@ for name in dogfood-site-sep10-1201 coldstart-sep10-2339 velokiosk-sep10 \
             factory-sep11-0040 probe-oct01-0930 e2e-probe-sep12 scratch-thing; do
   { echo "$header"; row "$name" client-site prospect; } > "$TMP/reg"
   out=$(run "$TMP/reg" || true)
-  echo "$out" | grep -q "$name" && ok 0 "" || ok 1 "expected $name to be flagged"
+  grep -q "$name" <<<"$out" && ok 0 "" || ok 1 "expected $name to be flagged"
 done
 
 echo "→ it stays quiet on the register we actually keep"
 out=$(run "$REAL" || true)
-echo "$out" | grep -q "^✓" && ok 0 "" || ok 1 "the real register must pass: $out"
+grep -q "^✓" <<<"$out" && ok 0 "" || ok 1 "the real register must pass: $out"
 
 echo "→ a real product is never flagged, whatever its kind or status"
 # camille-boulangerie and sbb-fundbuero are demos that are real work. An earlier
@@ -41,11 +41,11 @@ echo "→ a real product is never flagged, whatever its kind or status"
   row hirnli client-app live
 } > "$TMP/reg"
 out=$(run "$TMP/reg" || true)
-echo "$out" | grep -q "^✓" && ok 0 "" || ok 1 "real products must not be flagged: $out"
+grep -q "^✓" <<<"$out" && ok 0 "" || ok 1 "real products must not be flagged: $out"
 
 echo "→ a missing register is a failure, not a pass"
 out=$(REGISTER="$TMP/nope.conf" bash "$CHECK" 2>&1 || true)
-echo "$out" | grep -qi "missing" && ok 0 "" || ok 1 "a missing register should fail loudly"
+grep -qi "missing" <<<"$out" && ok 0 "" || ok 1 "a missing register should fail loudly"
 
 echo "→ it never writes to the register it reads"
 AFTER="$(md5sum "$REAL" | cut -d" " -f1)"

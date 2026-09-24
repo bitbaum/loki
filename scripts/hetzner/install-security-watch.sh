@@ -116,10 +116,10 @@ done
 # 2) sshd effective config, as sshd itself resolves it (drop-ins included).
 sshd_eff=$(sshd -T 2>/dev/null || true)
 drift=""
-echo "$sshd_eff" | grep -qi "^passwordauthentication no" || drift="$drift password-auth"
-echo "$sshd_eff" | grep -qiE "^permitrootlogin (no|prohibit-password|without-password)" || drift="$drift root-password-login"
-echo "$sshd_eff" | grep -qi "^pubkeyauthentication yes" || drift="$drift no-pubkey"
-echo "$sshd_eff" | grep -qi "^permitemptypasswords no" || drift="$drift empty-passwords"
+grep -qi "^passwordauthentication no" <<<"$sshd_eff" || drift="$drift password-auth"
+grep -qiE "^permitrootlogin (no|prohibit-password|without-password)" <<<"$sshd_eff" || drift="$drift root-password-login"
+grep -qi "^pubkeyauthentication yes" <<<"$sshd_eff" || drift="$drift no-pubkey"
+grep -qi "^permitemptypasswords no" <<<"$sshd_eff" || drift="$drift empty-passwords"
 if [ -n "$drift" ]; then
   alert_transition sec_sshd bad "🔓" "SSHD DRIFT:${drift} — SSH is no longer keys-only. Fix: sudo sshd -T | grep -i auth, restore /etc/ssh/sshd_config.d/10-hardening.conf"
 else

@@ -123,7 +123,7 @@ for t in "${TABLES[@]}"; do
   fi
 
   RESULT=$(psql "$TARGET_URL" -f "$COPY_FILE" 2>&1)
-  if echo "$RESULT" | grep -q "^COPY"; then
+  if grep -q "^COPY" <<<"$RESULT"; then
     ROWS=$(echo "$RESULT" | grep "^COPY" | awk '{print $2}')
     echo "imported $ROWS rows ✓"
     IMPORTED=$((IMPORTED + 1))

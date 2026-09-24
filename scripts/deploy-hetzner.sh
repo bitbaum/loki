@@ -299,7 +299,7 @@ if ! ssh "$HOST" 'set -e
   # Expected auth providers must actually be mounted (not just env-gated in the UI)
   prov=$(curl -s "$base/api/auth/providers")
   for p in github google x-1a email-password; do
-    echo "$prov" | grep -q "\"$p\"" || { echo "  ✗ auth provider missing: $p"; exit 1; }
+    grep -q "\"$p\"" <<<"$prov" || { echo "  ✗ auth provider missing: $p"; exit 1; }
   done
   echo "  ✓ providers mounted: github google x-1a email-password"'; then
   echo "✗ post-deploy verification failed" >&2; rollback_box "post-deploy verification failed (sign-in / health / providers)"; exit 1

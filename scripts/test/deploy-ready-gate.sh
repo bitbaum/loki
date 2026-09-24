@@ -73,7 +73,7 @@ awk -F'|' 'BEGIN{OFS="|"} !/^#/ && NF==12 && ++n==2 {$2=4022} {print}' "$REAL_CO
   > "$TMP/scripts/hetzner/apps.conf"
 OUT=$("$G" 2>&1); RC=$?
 [ "$RC" = 1 ] || fail "a duplicate port must fail (rc=$RC)"
-echo "$OUT" | grep -q "already taken" || fail "a duplicate port must say so: $OUT"
+grep -q "already taken" <<<"$OUT" || fail "a duplicate port must say so: $OUT"
 ok "a duplicate port fails"
 
 # The one that matters: malformed register AND no fleet. CI sees exactly this.
@@ -87,7 +87,7 @@ awk -F'|' 'BEGIN{OFS="|"} !/^#/ && NF==12 && ++n==1 {NF=11} {print}' "$REAL_CONF
   > "$TMP/scripts/hetzner/apps.conf"
 OUT=$("$G" 2>&1); RC=$?
 [ "$RC" = 1 ] || fail "a short row must fail (rc=$RC)"
-echo "$OUT" | grep -q "fields, expected" || fail "a short row must name the field count: $OUT"
+grep -q "fields, expected" <<<"$OUT" || fail "a short row must name the field count: $OUT"
 ok "a row with the wrong field count fails"
 
 G=$(fixture)
@@ -105,15 +105,15 @@ OUT=$("$G" 2>&1); RC=$?
 [ "$RC" = 0 ] || fail "a bare environment must not fail a good register (rc=$RC): $OUT"
 ok "no checkouts on a valid register exits 0 — the CI red this file exists to kill"
 
-echo "$OUT" | grep -q "NOT RUN" \
+grep -q "NOT RUN" <<<"$OUT" \
   || fail "a skipped fleet inspection must SAY so — silence reads as all-clear: $OUT"
 ok "the skip is announced, not silent"
 
-echo "$OUT" | grep -q "register:" \
+grep -q "register:" <<<"$OUT" \
   || fail "the register half must still run when the fleet is absent: $OUT"
 ok "the register is still checked when the fleet is absent"
 
-echo "$OUT" | grep -q "all 15 deployed apps have it" \
+grep -q "all 15 deployed apps have it" <<<"$OUT" \
   && fail "a bare environment must never claim the fleet is verified: $OUT"
 ok "a bare environment never claims the fleet passed"
 
@@ -135,15 +135,15 @@ OUT=$("$G" 2>&1); RC=$?
 [ "$RC" = 1 ] || fail "an app missing CI or CD must fail the gate (rc=$RC): $OUT"
 ok "an app missing CI or CD fails the gate"
 
-echo "$OUT" | grep -q "app-cd-only — deploys unverified" \
+grep -q "app-cd-only — deploys unverified" <<<"$OUT" \
   || fail "the CI-missing app must be named under CI, not CD: $OUT"
 ok "the app with only a Deploy workflow is flagged for missing CI"
 
-echo "$OUT" | grep -q "app-ci-only — a green push here has never once reached the box" \
+grep -q "app-ci-only — a green push here has never once reached the box" <<<"$OUT" \
   || fail "the CD-missing app must be named under CD, not CI: $OUT"
 ok "the app with only a CI workflow is flagged for missing CD (camille's exact shape)"
 
-echo "$OUT" | grep -qE "app-both.*(unverified|never once reached)" \
+grep -qE "app-both.*(unverified|never once reached)" <<<"$OUT" \
   && fail "the fully-provisioned app must not be flagged on either dimension: $OUT"
 ok "an app with both CI and CD is flagged on neither"
 
@@ -155,7 +155,7 @@ sed -i 's#|/home/g/dev/petvity|#|/home/g/dev/petvity-TYPO|#' "$TMP/scripts/hetzn
 if [ -d /home/g/dev/petvity ]; then
   OUT=$("$G" 2>&1); RC=$?
   [ "$RC" = 1 ] || fail "one bad path among present checkouts is drift and must fail (rc=$RC)"
-  echo "$OUT" | grep -q "drift, not a bare" || fail "drift must be named as drift: $OUT"
+  grep -q "drift, not a bare" <<<"$OUT" || fail "drift must be named as drift: $OUT"
   ok "one bad path among present checkouts fails as drift"
 else
   ok "drift case not exercised — the fleet is not checked out here (reported, not skipped silently)"
@@ -175,11 +175,11 @@ sed -i 's#^petvity|\([^|]*\)|\([^|]*\)|/home/g/dev/petvity|#petvity|\1|\2|/home/
 if [ -d /home/g/dev/kivvi ]; then
   OUT=$("$G" 2>&1); RC=$?
   [ "$RC" = 0 ] || fail "a box-side repo_path must NOT fail the gate (rc=$RC): $OUT"
-  echo "$OUT" | grep -q "another host" || fail "it must be announced, not silently dropped: $OUT"
-  echo "$OUT" | grep -q "petvity" || fail "the announcement must name the app: $OUT"
+  grep -q "another host" <<<"$OUT" || fail "it must be announced, not silently dropped: $OUT"
+  grep -q "petvity" <<<"$OUT" || fail "the announcement must name the app: $OUT"
   # Matched against the drift FAILURE line, not the bare word — the
   # announcement itself says "Not drift", which a naive grep reads as a hit.
-  if echo "$OUT" | grep -q "drift, not a bare"; then
+  if grep -q "drift, not a bare" <<<"$OUT"; then
     fail "a path on another host must not be reported as drift: $OUT"
   fi
   ok "a repo_path on another host is announced and does not fail the gate"
@@ -187,7 +187,7 @@ if [ -d /home/g/dev/kivvi ]; then
   # The verdict must speak for what was INSPECTED. Saying "all 16 apps have CI"
   # while one was never looked at is the absence-reads-as-success shape again,
   # just one level up: the count itself does the overclaiming.
-  echo "$OUT" | grep -qE "CI: all [0-9]+ inspected apps have it" \
+  grep -qE "CI: all [0-9]+ inspected apps have it" <<<"$OUT" \
     || fail "the CI verdict must be scoped to inspected apps: $OUT"
   insp=$(echo "$OUT" | sed -nE 's/.*CI: all ([0-9]+) inspected apps have it.*/\1/p')
   tot=$(echo "$OUT" | sed -nE 's/^✓ register: ([0-9]+) entries.*/\1/p')
@@ -220,15 +220,15 @@ OUT=$("$G" 2>&1); RC=$?
 [ "$RC" = 1 ] || fail "migrations behind db=- must FAIL the gate (rc=$RC): $OUT"
 ok "an app shipping migrations while declaring db=- fails the gate"
 
-echo "$OUT" | grep -q "app-silent-schema — migrations in supabase/migrations" \
+grep -q "app-silent-schema — migrations in supabase/migrations" <<<"$OUT" \
   || fail "the offending app and the directory must both be named: $OUT"
 ok "it names the app and where the unapplied migrations are"
 
-echo "$OUT" | grep -q "app-declared" \
+grep -q "app-declared" <<<"$OUT" \
   && fail "an app that DECLARES its database must not be flagged: $OUT"
 ok "declaring a database clears it — the gate is about the lie, not about having SQL"
 
-echo "$OUT" | grep -q "app-no-migrations" \
+grep -q "app-no-migrations" <<<"$OUT" \
   && fail "db=- with no migrations is legitimate and must pass: $OUT"
 ok "db=- with no migrations stays legitimate (4 real apps rely on this)"
 

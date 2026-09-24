@@ -54,7 +54,7 @@ else
   PRESENCE="$(curl -sf --max-time 20 \
     -H "Cookie: __Secure-authjs.session-token=$TOKEN" \
     "$BASE/api/builder/presence" 2>/dev/null || echo '{}')"
-  if echo "$PRESENCE" | grep -qE '"runnerConnected":\s*true'; then
+  if grep -qE '"runnerConnected":\s*true' <<<"$PRESENCE"; then
     RUN_LOKI=1
   fi
 fi

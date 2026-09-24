@@ -78,9 +78,9 @@ out=$(probe); code=$?
 first=$(printf '%s' "$out" | tr -d '\r' | sed -n '1p' | cut -c1-200)
 
 DISABLED_RE='disabled Claude subscription|subscription access|not authorized|unauthori[sz]ed|invalid.*token|token.*(expired|invalid|revoked)|log ?in|authentication'
-if printf '%s' "$out" | grep -qiE "$DISABLED_RE"; then
+if grep -qiE "$DISABLED_RE" <<<"$out"; then
   state=disabled
-elif [ "$code" -eq 0 ] && printf '%s' "$out" | grep -qi 'ok'; then
+elif [ "$code" -eq 0 ] && grep -qi 'ok' <<<"$out"; then
   state=ok
 else
   state=down

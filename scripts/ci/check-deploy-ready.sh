@@ -72,7 +72,7 @@ while IFS= read -r line; do
   [ "$n" = "$FIELDS" ] || bad="$bad\n    $name: $n fields, expected $FIELDS"
   case " $names " in *" $name "*) bad="$bad\n    $name: duplicate name" ;; esac
   names="$names $name"
-  if printf '%s' "$port" | grep -qE '^[0-9]+$'; then
+  if grep -qE '^[0-9]+$' <<<"$port"; then
     case " $ports " in *" $port "*) bad="$bad\n    $name: port $port already taken" ;; esac
     ports="$ports $port"
   else
