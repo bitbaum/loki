@@ -33,7 +33,6 @@ import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { DispatchedNote } from "@/components/projects/ProjectActionButtons";
 import { WidgetPlacementControl } from "@/components/projects/WidgetPlacementControl";
 import { cn } from "@/lib/utils";
-import { ProjectMembersPanel } from "@/components/projects/ProjectMembersPanel";
 
 type WidgetTokenInfo = {
   token: string;
@@ -145,7 +144,6 @@ export function ProjectFeedbackSection({
   }
   return (
     <section className="ui-project-section" aria-labelledby="project-feedback-title">
-      <ProjectMembersPanel projectId={projectId} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-baseline gap-2">
           <h2 id="project-feedback-title" className="text-lg font-semibold text-text-primary">

@@ -8,6 +8,7 @@ import { ProjectFlags } from "./ProjectFlags";
 import { ProjectPlanSection } from "./ProjectPlanSection";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel";
 import { ProjectFeedbackSection } from "./ProjectFeedbackSection";
+import { ProjectMembersPanel } from "./ProjectMembersPanel";
 import { DoneSection, NextSection, NowSection } from "./ProjectDossierSections";
 import { OrangeCatPublishButton } from "./OrangeCatPublishButton";
 import { ProjectPublicListingToggle } from "./ProjectPublicListingToggle";
@@ -455,14 +456,21 @@ export function ProjectWorkspaceView({
                   id: "settings",
                   label: "Settings",
                   content: (
-                    <ProjectSettingsPanel
-                      projectId={project.id}
-                      projectName={project.name}
-                      hasRepo={Boolean(links.repo)}
-                      repoUrl={links.repo}
-                      hasLocalPath={Boolean(userProject?.dirPath)}
-                      liveUrl={userProject?.liveUrl ?? links.prodUrl}
-                    />
+                    <>
+                      {/* Who has access lives in Settings, where every other
+                          product puts it. It used to be a collapsed "Editors"
+                          disclosure inside the Feedback tab, where the owner
+                          looking for "invite someone" did not find it. */}
+                      <ProjectMembersPanel projectId={project.id} />
+                      <ProjectSettingsPanel
+                        projectId={project.id}
+                        projectName={project.name}
+                        hasRepo={Boolean(links.repo)}
+                        repoUrl={links.repo}
+                        hasLocalPath={Boolean(userProject?.dirPath)}
+                        liveUrl={userProject?.liveUrl ?? links.prodUrl}
+                      />
+                    </>
                   ),
                 },
               ]),
