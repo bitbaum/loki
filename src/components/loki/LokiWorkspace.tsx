@@ -14,7 +14,7 @@ import { Drawer } from "@/components/ui/modal";
 import { ThreadRail } from "./ThreadRail";
 import { StartScreen } from "./StartScreen";
 import { Thread } from "./Thread";
-import { Composer } from "./Composer";
+import { LokiComposer } from "./Composer";
 import { SaveContextBar } from "./SaveContextBar";
 import { ProjectFilter } from "./ProjectFilter";
 import type {
@@ -534,7 +534,7 @@ export function LokiWorkspace({
         </div>
       )}
 
-      <Composer
+      <LokiComposer
         // Re-keyed only on a PREFILL, never on the thread id. Keying on
         // `activeId` remounted the composer the moment a first message created
         // the thread — mid-send — silently resetting the model choice and

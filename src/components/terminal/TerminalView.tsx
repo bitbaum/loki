@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, ChevronDown, ChevronUp, Link2, Minus, Plus } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 import type { AgentLifecycle } from "@/lib/agent-execution/types";
@@ -194,6 +194,7 @@ export function TerminalView({
   font: fontProp,
   onLive,
   onGeometry,
+  actions,
   className,
 }: {
   transport: TerminalTransport;
@@ -218,6 +219,9 @@ export function TerminalView({
   onLive?: (state: "connecting" | "live" | "stalled") => void;
   /** Live grid size, for a caller that reports columns elsewhere. */
   onGeometry?: (geometry: PtyGeometry) => void;
+  /** Pane controls owned by the caller (the Loki-panel toggle, expand), shown
+   *  at the end of the status row so the terminal keeps ONE row of chrome. */
+  actions?: ReactNode;
   /** Host div class (bare layout). */
   className?: string;
 }) {
@@ -737,6 +741,7 @@ export function TerminalView({
               {sendOpen ? "Cancel" : "Send a line"}
             </button>
           )}
+          {actions}
         </div>
       </div>
       <div

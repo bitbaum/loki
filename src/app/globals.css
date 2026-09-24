@@ -2576,15 +2576,27 @@
     @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border-subtle bg-surface-raised text-text-secondary transition-colors active:bg-surface-overlay;
   }
 
-  /* Desktop: PTY ~60% / Loki rail ~40%. Phone: PTY fills; rail is a bottom sheet. */
+  /* The PTY takes every column the rail does not. The rail used to be 40% of
+     the row (flex 3:2), so a wider window mostly widened the side panel and
+     the terminal stayed a squeezed box — 79 columns at 1440px. Now the rail
+     is a fixed reading width and only appears where there is room for both
+     (lg+); below that it is a sheet, and on any width it can be closed or the
+     pane expanded to the whole screen. */
   .ui-term-split {
-    @apply flex min-h-0 flex-1 flex-col md:flex-row md:gap-2;
+    @apply flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-2;
   }
   .ui-term-split-pty {
-    @apply min-h-0 min-w-0 flex-1 md:flex-[3];
+    @apply min-h-0 min-w-0 flex-1;
   }
   .ui-term-split-rail {
-    @apply hidden min-h-0 min-w-0 md:flex md:flex-[2];
+    @apply hidden min-h-0 w-80 shrink-0 lg:flex xl:w-96;
+  }
+  /* The Loki-panel / expand controls in the terminal's status row. */
+  .ui-term-pane-btn {
+    @apply inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-1 rounded-md border border-border-subtle px-2 text-micro text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
+  }
+  .ui-term-pane-btn-on {
+    @apply border-border-default bg-surface-overlay text-text-primary;
   }
   .ui-term-loki {
     @apply flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface-raised;
@@ -2599,7 +2611,7 @@
     @apply min-h-0 flex-1 overflow-y-auto px-3 py-2;
   }
   .ui-term-loki-composer {
-    @apply flex shrink-0 flex-col gap-1.5 border-t border-border-subtle p-2;
+    @apply shrink-0 border-t border-border-subtle p-2;
   }
   .ui-term-loki-sheet {
     @apply flex flex-col;
@@ -4796,16 +4808,8 @@
   .ui-control-live-empty p:not(:first-child) {
     @apply mt-1 text-sm text-text-tertiary;
   }
-  .ui-control-live-composer {
-    @apply flex flex-col gap-2 rounded-2xl border border-border-subtle bg-surface-base p-2 sm:flex-row sm:items-center shadow-sm;
-    /* Esthetics: softer round, subtle shadow for elevated 'input cockpit' feel in live command */
-  }
   .ui-control-live-select {
     @apply min-h-9 rounded-lg border border-border-subtle bg-surface-raised px-2.5 text-xs text-text-secondary outline-none transition-colors focus:border-accent-primary sm:w-44;
-  }
-  .ui-control-live-input {
-    @apply min-h-9 min-w-0 flex-1 rounded-xl border border-border-subtle bg-surface-raised px-3 text-sm text-text-primary outline-none transition-all placeholder:text-text-muted focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/30;
-    /* Esthetics polish: rounded-xl for softer command input, subtle focus ring for high-flier keyboard control feel */
   }
   .ui-control-live-table {
     @apply w-full min-w-[40rem] table-fixed border-separate border-spacing-0 text-sm;
@@ -5817,6 +5821,27 @@
   .ui-loki-composer {
     @apply flex flex-col gap-2 rounded-2xl border border-border-subtle bg-surface-base p-3 shadow-sm transition-colors focus-within:border-border-default sm:p-4;
   }
+  /* Same parts, tighter — a side rail or a phone dock. */
+  .ui-loki-composer-compact {
+    @apply gap-1.5 rounded-xl p-2 sm:p-2.5;
+  }
+  /* Mutually exclusive destinations for the same words (Ask / Inject). */
+  .ui-loki-composer-modes {
+    @apply flex flex-wrap items-center gap-1;
+  }
+  .ui-loki-composer-hint {
+    @apply hidden min-w-0 truncate text-micro text-text-muted sm:inline;
+  }
+  .ui-loki-composer-error {
+    @apply flex items-start gap-2 rounded-lg border border-status-negative/30 bg-status-negative-subtle px-2.5 py-1.5 text-xs text-status-negative;
+  }
+  .ui-loki-composer-note {
+    @apply px-1 text-micro text-text-secondary;
+  }
+  /* What the last send actually did (queued / working / failed). */
+  .ui-loki-composer-status {
+    @apply flex items-center gap-2 border-t border-border-subtle pt-2 text-micro text-text-secondary;
+  }
   .ui-loki-composer-scope-row {
     @apply flex min-h-7 flex-wrap items-center gap-1.5;
   }
@@ -6136,7 +6161,6 @@
   .ui-app-footer-cell,
   .ui-loki-suggest-chip,
   .ui-control-live-select,
-  .ui-control-live-input,
   .ui-btn-nextbest,
   .ui-link-subtle-button,
   .ui-link-muted,

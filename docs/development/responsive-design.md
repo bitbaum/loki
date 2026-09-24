@@ -60,7 +60,7 @@ Navigation:
 | Page title | `PageTitle` | Hides when it duplicates `AppTopBar` label |
 | Modals | `Modal` | Bottom-anchored on phones; `--mobile-chrome-bottom` inset |
 | Drawers | `Drawer` + `ui-drawer-body` | Full width; safe-area padding on scroll body |
-| Loki composer | `ui-loki-composer` | Stacks textarea + toolbar row on `<sm` |
+| The composer | `components/composer/Composer` (`ui-loki-composer`, `-compact`) | ONE component for Loki chat, the terminal's Ask/Inject rail, Prompt mode and Control's quick send; stacks textarea + toolbar row on `<sm` |
 | Control project rail | `ui-control-project-list` | Vertical list on phones; horizontal scroll removed |
 | Horizontal filters | `overflow-x-auto ui-scroll-fade-right` | Today, Projects, Events, Prompts chip rows |
 | Touch targets | the `pointer: coarse` floor in `globals.css` | Never restate the 44px number in JSX |
@@ -173,9 +173,10 @@ is in flight. State stays on the page.
 
 ## Voice and pictures
 
-Both dispatch composers (Control's `PromptInput`, `TerminalComposer`) take voice
-(Whisper, already wired) and images/text files by picker or paste via
-`useAttachments`. A screenshot with no text is a valid send — the picture is the
+The shared composer (`components/composer/Composer.tsx` — Loki chat, the
+terminal's Ask/Inject rail and Prompt-mode box, Control's quick send) and
+Control's `PromptInput` take voice (Whisper, already wired) and images/text
+files by picker or paste via `useAttachments`. A screenshot with no text is a valid send — the picture is the
 instruction.
 
 A terminal agent cannot read pixels, so an image is never forwarded: it is
@@ -193,7 +194,9 @@ Below `md` the terminal is three pieces and nothing else: a one-line header (`Te
 
 Typing goes through `TerminalRawComposer`, not the xterm canvas: a real `<textarea>` (with `autoCorrect="off"`) that sends the line on Send, appending `\r` unless the ⏎ chip is toggled off. `liveKeys` (session sheet) hands the keyboard back to xterm and defaults per device — off on a phone, on at desktop widths. `useKeyboardInset` pads the surface by the height `visualViewport` says the soft keyboard is covering, so the deck sits on the keyboard rather than behind it.
 
-**Expand** (`TerminalMobileShell`) switches to `.ui-term-mobile-fullscreen`: fixed `100svh`, hides mobile nav and top bar, body class `fc-terminal-fullscreen` locks scroll — and there the keyboard inset is exact, since `.app-main`'s nav padding is zeroed. Deep link after Loki dispatch: `/terminal?source=machine&tab=<projectKey>`.
+**Expand** (`TerminalMobileShell`, at every width — the phone header's button and the desktop status row's) switches to `.ui-term-mobile-fullscreen`: fixed `100svh`, hides mobile nav and top bar, body class `fc-terminal-fullscreen` locks scroll — and there the keyboard inset is exact, since `.app-main`'s nav padding is zeroed. Esc leaves it, except when the key is typed into the xterm (it interrupts the agent) or a dialog/picker already handled it (`lib/terminal-expand.ts`).
+
+**Width.** The session takes every column the Loki rail does not: the rail is a fixed `w-80`/`xl:w-96` beside it from `lg`, a sheet below `lg`, and can be closed (remembered) from the status row. **The PTY follows the grid:** `TerminalView` fits on mount, on every host resize and on a font step, and publishes the size to the PTY whether or not it captures keystrokes (`lib/terminal-size-sync.ts`). Gating that publish on Type mode is what left a 79-column grid drawing a 120-column PTY. Deep link after Loki dispatch: `/terminal?source=machine&tab=<projectKey>`.
 
 Verified at 320 and 390 CSS px: no horizontal overflow, every keycap ≥44px, and the terminal keeps ~496px of the 844px screen (it had ~150px before).
 

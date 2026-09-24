@@ -89,3 +89,11 @@ export function terminalInputHint(id: TerminalInputMode): string {
 
 /** Persisted so reopening the terminal restores how you were working. */
 export const TERMINAL_MODE_STORAGE_KEY = "loki:terminal-mode";
+
+/** Whether the Loki rail beside the terminal is open (wide screens). Closed,
+ *  the session takes the full row. */
+export const TERMINAL_RAIL_STORAGE_KEY = "loki:terminal-rail";
+
+/** The width at which the Loki rail sits beside the terminal rather than in a
+ *  sheet. Must match `lg:` on `.ui-term-split-rail` in globals.css. */
+export const TERMINAL_RAIL_QUERY = "(min-width: 1024px)";

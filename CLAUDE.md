@@ -73,7 +73,12 @@ src/
 │   │                 new full-width strip. ControlSettingsSheet = autopilot,
 │   │                 refresh, builder detail (settings, not state).
 │   │                 See docs/development/responsive-design.md.
-│   ├── loki/      → LokiWorkspace, Transcript, Composer, ConversationList (chat assistant)
+│   ├── composer/  → Composer — THE composer (text, attach, voice, model,
+│   │                 Send/Stop, optional modes). Loki chat (loki/Composer →
+│   │                 LokiComposer), the terminal's Ask/Inject rail + Prompt box
+│   │                 (terminal/TerminalComposer) and Control's quick send all
+│   │                 render it. Never add a second message box — add a prop.
+│   ├── loki/      → LokiWorkspace, Transcript, LokiComposer, ConversationList (chat assistant)
 │   ├── terminal/  → TerminalSurface (the ONE shell: tab strip + mode bar +
 │   │                 session + composer), TerminalTabStrip, TerminalModeBar,
 │   │                 TerminalComposer, ShellWorkspace (server-owned bash PTYs,

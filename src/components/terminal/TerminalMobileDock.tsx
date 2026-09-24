@@ -47,7 +47,7 @@ export function TerminalMobileDock({
           menu to get the typing box back.
         </p>
       )}
-      {inputMode === "prompt" && <TerminalComposer tab={tab} />}
+      {inputMode === "prompt" && <TerminalComposer tab={tab} density="compact" />}
       {inputMode === "voice" && (
         <div className="flex items-center justify-center">
           <TabVoiceMic tab={tab} channel={channel} compact={immersive} />
