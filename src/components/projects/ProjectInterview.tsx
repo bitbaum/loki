@@ -215,7 +215,28 @@ export function ProjectInterview({
             disabled={saving}
             className="ui-input w-full min-w-0"
             placeholder="Type your answer…"
+            aria-describedby="project-interview-count"
           />
+          {/* The limit, said out loud. `maxLength` stops the keyboard at the cap
+              and says nothing, so an owner writing a considered answer watched
+              typing simply stop — and assumed the page had frozen, or never
+              noticed the sentence they finished was never taken. Measured on
+              Skif, 2026-09-24: all five real answers ran 522–631 characters.
+              Hidden until the answer is well on its way, so a short answer
+              stays a quiet form. */}
+          {draft.length >= INTERVIEW_ANSWER_MAX * 0.6 && (
+            <p
+              id="project-interview-count"
+              aria-live="polite"
+              className={
+                draft.length >= INTERVIEW_ANSWER_MAX ? "ui-char-count-full" : "ui-char-count"
+              }
+            >
+              {draft.length >= INTERVIEW_ANSWER_MAX
+                ? `${INTERVIEW_ANSWER_MAX} of ${INTERVIEW_ANSWER_MAX} — that is the limit. The agent reads this field whole, so keep what matters most.`
+                : `${draft.length} of ${INTERVIEW_ANSWER_MAX}`}
+            </p>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <button
