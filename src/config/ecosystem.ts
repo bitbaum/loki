@@ -18,6 +18,13 @@ function orangeCatPage(path: string): string {
 }
 
 /**
+ * Where a proposal is filed on Solon. It reads `title`, `body`, `category` and
+ * `from` from its query (solon: src/lib/domain/proposal-draft.ts) and keeps
+ * them through sign-in, so a link from here lands pre-filled.
+ */
+export const SOLON_PROPOSE_URL = new URL("/propose", solonOrigin).toString();
+
+/**
  * Public cross-product links live here so navigation, support, and project
  * surfaces cannot drift onto different OrangeCat entities.
  */

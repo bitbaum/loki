@@ -15,6 +15,7 @@ import {
   clampHistory,
   conversationBrief,
   defaultWidgetAgent,
+  handoffHref,
   WIDGET_AGENT_IDS,
   WIDGET_AGENTS,
   type ChatTurn,
@@ -45,10 +46,11 @@ export function createChat(opts: {
   apiBase: string;
   token: string;
   voiceMaxMs: number;
-  getCatUrl(): string | null;
+  /** Where each "link" agent hands off; served by boot. */
+  getHandoff(agent: WidgetAgentId): string | null;
 }): ChatView {
   const { root, apiBase, token } = opts;
-  const transcripts: Record<WidgetAgentId, ChatTurn[]> = { loki: [], cat: [] };
+  const transcripts: Record<WidgetAgentId, ChatTurn[]> = { loki: [], cat: [], solon: [] };
   let agent: WidgetAgentId = defaultWidgetAgent();
   let inflight: AbortController | null = null;
 
@@ -199,18 +201,20 @@ export function createChat(opts: {
     return t;
   }
 
-  /** What the visitor can do with the answer: Loki builds, Cat hands off. */
+  /** The agent's one action on the conversation: Loki builds, Cat and Solon hand off. */
   function actions(): HTMLElement {
     const row = h("div", "next");
-    if (WIDGET_AGENTS[agent].canBuild) {
-      const build = h("button", "build", "Send to Loki to build");
+    const meta = WIDGET_AGENTS[agent];
+    const action = meta.action;
+    if (action.kind === "build") {
+      const build = h("button", "build", action.label);
       build.addEventListener("click", () => void handToBuild(build, row));
       row.appendChild(build);
     } else {
-      const catUrl = opts.getCatUrl();
-      if (catUrl) {
-        const a = h("a", "handoff", "Continue with your Cat on OrangeCat ↗") as HTMLAnchorElement;
-        a.href = catUrl;
+      const base = opts.getHandoff(agent);
+      if (base) {
+        const a = h("a", "handoff", action.label) as HTMLAnchorElement;
+        a.href = handoffHref(base, action.prefill, transcripts[agent], meta.label);
         a.target = "_blank";
         a.rel = "noopener noreferrer";
         row.appendChild(a);
@@ -337,7 +341,7 @@ export function createChat(opts: {
       }
     } catch (err) {
       btn.disabled = false;
-      btn.textContent = "Send to Loki to build";
+      btn.textContent = WIDGET_AGENTS.loki.action.label;
       errEl.textContent = err instanceof Error ? err.message : "Could not send, try again";
     }
   }

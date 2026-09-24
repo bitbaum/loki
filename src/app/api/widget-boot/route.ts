@@ -5,7 +5,7 @@ import { WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
 import { getWidgetTokenByToken, touchWidgetToken } from "@/db/queries/widget-tokens";
 import { normalizeWidgetPlacement, type WidgetPlacement } from "@/config/widget-placement";
 import { PALETTE } from "@/lib/palette";
-import { ORANGECAT_CAPABILITIES } from "@/config/ecosystem";
+import { ORANGECAT_CAPABILITIES, SOLON_PROPOSE_URL } from "@/config/ecosystem";
 
 /**
  * Widget boot: the embed's first call on every page load. Returns whether the
@@ -49,8 +49,11 @@ function bootResponse(active: boolean, status = 200, placement?: WidgetPlacement
           active,
           placement,
           theme: PALETTE.widget,
-          // Where the widget's Cat hands a visitor off to their own Cat.
-          chat: { catUrl: ORANGECAT_CAPABILITIES.catUrl },
+          // Where each chat agent hands off: Cat to the visitor's own Cat,
+          // Solon to a pre-filled proposal. Loki's action is local (ingest).
+          chat: {
+            handoffs: { cat: ORANGECAT_CAPABILITIES.catUrl, solon: SOLON_PROPOSE_URL },
+          },
         }
       : { active },
     {

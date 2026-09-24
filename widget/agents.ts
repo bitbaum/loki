@@ -1,16 +1,24 @@
 /**
  * The agents a visitor can talk to from the widget's Chat mode.
  *
- * One conversation surface, two agents — the same split as the fleet itself:
- *   loki — the execution plane: what should change on this site, and it can
- *          hand the conversation to Loki Implement as a build brief.
- *   cat  — OrangeCat's economic agent: funding, paying, offering, getting paid.
+ * One conversation surface, three agents — one per plane of the fleet:
+ *   loki  — execution: what should change on this site; hands the conversation
+ *           to Loki Implement as a build brief.
+ *   cat   — economy (OrangeCat): funding, paying, offering, getting paid;
+ *           hands off to the visitor's own Cat.
+ *   solon — governance: who decides, and how; turns the conversation into a
+ *           pre-filled proposal on Solon.
+ *
+ * Each agent's "custom version" of the chat lives in its meta below — its
+ * greeting, starters, and above all its ACTION, the one thing the agent can do
+ * with a conversation. Richer agent-specific surfaces (a payment card for Cat,
+ * a vote card for Solon) belong behind that same seam, not in a fork of chat.ts.
  *
  * DOM-free so the Node tests can read it. The server holds the matching
  * personas in src/config/widget-agents.ts; scripts/test/widget-agents.ts fails
  * if the two id lists drift.
  */
-export const WIDGET_AGENT_IDS = ["loki", "cat"] as const;
+export const WIDGET_AGENT_IDS = ["loki", "cat", "solon"] as const;
 export type WidgetAgentId = (typeof WIDGET_AGENT_IDS)[number];
 
 export type WidgetAgentMeta = {
@@ -22,8 +30,13 @@ export type WidgetAgentMeta = {
   placeholder: string;
   /** Tap-to-send starters, so nobody faces an empty box. */
   starters: readonly string[];
-  /** Whether the conversation can be handed to Loki Implement as a brief. */
-  canBuild: boolean;
+  /**
+   * What the visitor can do with the conversation once the agent has answered:
+   *   build — file it with Loki Implement (/api/feedback)
+   *   link  — open the agent's home, served by boot as `handoffs[agent]`; with
+   *           `prefill`, the conversation's gist rides along in the query
+   */
+  action: { kind: "build"; label: string } | { kind: "link"; label: string; prefill: boolean };
 };
 
 export const WIDGET_AGENTS: Record<WidgetAgentId, WidgetAgentMeta> = {
@@ -37,7 +50,7 @@ export const WIDGET_AGENTS: Record<WidgetAgentId, WidgetAgentMeta> = {
       "Make this page easier to use on my phone",
       "I have an idea for a new feature",
     ],
-    canBuild: true,
+    action: { kind: "build", label: "Send to Loki to build" },
   },
   cat: {
     label: "Cat",
@@ -49,7 +62,19 @@ export const WIDGET_AGENTS: Record<WidgetAgentId, WidgetAgentMeta> = {
       "Can I pay in Bitcoin or another way?",
       "I want to offer a service here",
     ],
-    canBuild: false,
+    action: { kind: "link", label: "Continue with your Cat on OrangeCat ↗", prefill: false },
+  },
+  solon: {
+    label: "Solon",
+    role: "Governance agent — propose, vote, decide",
+    greeting: "Something here that should be decided together?",
+    placeholder: "Ask who decides, or draft a proposal…",
+    starters: [
+      "Who decides how this project spends money?",
+      "I want to propose a change to how this works",
+      "How do Bitcoin-signed votes work?",
+    ],
+    action: { kind: "link", label: "Draft this as a proposal on Solon ↗", prefill: true },
   },
 };
 
@@ -75,18 +100,52 @@ export function clampHistory(turns: readonly ChatTurn[]): ChatTurn[] {
 }
 
 /**
- * The conversation as a build brief for Loki Implement: the visitor's own
- * words first (they are the request), then Loki's last reply (its reading of
- * the request). Fits the ingest route's suggestion cap.
+ * The conversation as a brief — a build request for Loki Implement, or a
+ * proposal body for Solon: the visitor's own words first (they are the
+ * request), then the agent's last reply (its reading of it). Fits `maxLen`.
  */
-export function conversationBrief(turns: readonly ChatTurn[], maxLen: number): string {
+export function conversationBrief(
+  turns: readonly ChatTurn[],
+  maxLen: number,
+  agentLabel = "Loki",
+): string {
   const asked = turns.filter((t) => t.role === "user").map((t) => `- ${t.content.trim()}`);
   const lastReply = [...turns]
     .reverse()
     .find((t) => t.role === "assistant")
     ?.content.trim();
-  const parts = ["From a chat with Loki on this page.", "", "Visitor asked:", ...asked];
-  if (lastReply) parts.push("", "Loki's reading:", lastReply);
+  const parts = [`From a chat with ${agentLabel}.`, "", "Visitor asked:", ...asked];
+  if (lastReply) parts.push("", `${agentLabel}'s reading:`, lastReply);
   const text = parts.join("\n");
   return text.length <= maxLen ? text : `${text.slice(0, maxLen - 1)}…`;
+}
+
+/** A proposal title from the visitor's first message: one line, capped. */
+export function proposalTitle(turns: readonly ChatTurn[], maxLen = 120): string {
+  const first =
+    turns
+      .find((t) => t.role === "user")
+      ?.content.trim()
+      .split("\n")[0] ?? "";
+  return first.length <= maxLen ? first : `${first.slice(0, maxLen - 1)}…`;
+}
+
+/**
+ * The handoff URL for a "link" action. With `prefill`, the conversation rides
+ * along as `title` / `body` / `from` — the query Solon's /propose reads
+ * (solon: src/lib/domain/proposal-draft.ts). The body is capped so the whole
+ * URL stays well under what browsers and proxies accept.
+ */
+export function handoffHref(
+  base: string,
+  prefill: boolean,
+  turns: readonly ChatTurn[],
+  agentLabel: string,
+): string {
+  if (!prefill) return base;
+  const url = new URL(base);
+  url.searchParams.set("from", "loki-widget");
+  url.searchParams.set("title", proposalTitle(turns));
+  url.searchParams.set("body", conversationBrief(turns, 1500, agentLabel));
+  return url.toString();
 }

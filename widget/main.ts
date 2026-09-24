@@ -86,8 +86,8 @@ interface LokiApi {
 
   /** Filled by boot() before mount(); the launcher never paints without it. */
   let placement: Placement = { ...DEFAULT_PLACEMENT };
-  /** Where the widget's Cat hands off to the visitor's own Cat; served by boot. */
-  let catUrl: string | null = null;
+  /** Where the chat agents hand off (Cat → OrangeCat, Solon → /propose); served by boot. */
+  let handoffs: Record<string, string> = {};
   /** Where the visitor dragged/parked it, if they did. Their choice outranks
    *  both the operator's and the auto-avoid, and only for them. */
   let visitorOverride: Placement | null = readVisitorPlacement(token);
@@ -213,7 +213,7 @@ interface LokiApi {
       apiBase,
       token,
       voiceMaxMs: VOICE_MAX_MS,
-      getCatUrl: () => catUrl,
+      getHandoff: (agent) => handoffs[agent] ?? null,
     });
     hdrText.append(reportHead, chat.headerControls);
     const closeBtn = h("button", "x", "✕");
@@ -589,14 +589,19 @@ interface LokiApi {
         active?: boolean;
         placement?: unknown;
         theme?: WidgetTheme;
-        chat?: { catUrl?: unknown };
+        chat?: { handoffs?: unknown };
       };
       if (body.active !== true) return;
       // Theme must come from boot — the widget has no fallback palette.
       // If boot doesn't provide colors, the widget doesn't render.
       if (!body.theme) return;
       const theme = body.theme;
-      catUrl = typeof body.chat?.catUrl === "string" ? body.chat.catUrl : null;
+      const served = body.chat?.handoffs;
+      if (served && typeof served === "object") {
+        handoffs = Object.fromEntries(
+          Object.entries(served).filter((e): e is [string, string] => typeof e[1] === "string"),
+        );
+      }
       // Placement arrives with the render verdict, so the launcher paints once
       // in its final corner instead of appearing bottom-right and jumping.
       placement = normalizePlacement(body.placement);

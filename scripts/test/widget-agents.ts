@@ -12,6 +12,7 @@ import {
   clampHistory,
   conversationBrief,
   defaultWidgetAgent,
+  handoffHref,
   isWidgetAgentId,
   WIDGET_AGENT_IDS,
   WIDGET_AGENTS,
@@ -28,9 +29,17 @@ assert.equal(defaultWidgetAgent(), "loki");
 assert.ok(isWidgetAgentId("cat"));
 assert.ok(!isWidgetAgentId("admin"));
 
-// Exactly one agent builds; Cat never claims to change the site.
-assert.equal(WIDGET_AGENTS.loki.canBuild, true);
-assert.equal(WIDGET_AGENTS.cat.canBuild, false);
+// Exactly one agent builds; Cat and Solon hand off, and only Solon pre-fills.
+assert.equal(WIDGET_AGENTS.loki.action.kind, "build");
+assert.deepEqual(
+  WIDGET_AGENT_IDS.filter((id) => WIDGET_AGENTS[id].action.kind === "build"),
+  ["loki"],
+);
+assert.equal(WIDGET_AGENTS.cat.action.kind === "link" && WIDGET_AGENTS.cat.action.prefill, false);
+assert.equal(
+  WIDGET_AGENTS.solon.action.kind === "link" && WIDGET_AGENTS.solon.action.prefill,
+  true,
+);
 for (const id of WIDGET_AGENT_IDS)
   assert.ok(WIDGET_AGENTS[id].starters.length > 0, `${id} has starters`);
 
@@ -41,6 +50,20 @@ assert.match(loki, /Send to Loki to build/);
 const cat = WIDGET_AGENT_PERSONAS.cat({ projectName: "Heidi" });
 assert.match(cat, /cannot send, receive or hold money/);
 assert.doesNotMatch(cat, /donation(?!")/i);
+const solon = WIDGET_AGENT_PERSONAS.solon({ projectName: "Heidi" });
+assert.match(solon, /cannot open a vote, cast one/);
+assert.match(solon, /humans only/);
+
+// Solon handoff: the conversation lands in /propose's title + body.
+const talk: ChatTurn[] = [
+  { role: "user", content: "Should supporters vote on the roadmap?\nI think so." },
+  { role: "assistant", content: "That is an OPERATIONS proposal." },
+];
+const href = new URL(handoffHref("https://solon.example/propose", true, talk, "Solon"));
+assert.equal(href.searchParams.get("title"), "Should supporters vote on the roadmap?");
+assert.match(href.searchParams.get("body") ?? "", /Solon's reading:\nThat is an OPERATIONS/);
+assert.ok(href.toString().length < 8000);
+assert.equal(handoffHref("https://cat.example/", false, talk, "Cat"), "https://cat.example/");
 
 // History: newest turns kept, each clamped.
 const long: ChatTurn[] = Array.from({ length: CHAT_MAX_TURNS + 5 }, (_, i) => ({
