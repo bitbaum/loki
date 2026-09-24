@@ -10,9 +10,9 @@ import {
   TERMINAL_MOBILE_MAX_FONT,
   TERMINAL_TARGET_COLS,
   nextFontSizeForTarget,
-  ptyResizeToPublish,
   type PtyGeometry,
 } from "@/lib/terminal-viewport";
+import { createPtySizeSync, watchTerminalHost } from "@/lib/terminal-size-sync";
 import type { TerminalTransport } from "./terminal-transport";
 
 /**
@@ -197,7 +197,8 @@ export function TerminalView({
   className,
 }: {
   transport: TerminalTransport;
-  /** Capture keystrokes (onData → transport.sendKey) and keep the PTY resized. */
+  /** Capture keystrokes (onData → transport.sendKey). The PTY is resized to
+   *  this view either way — reading a session needs the right width too. */
   interactive?: boolean;
   /** Forward agent lifecycle (workspace substrate). */
   onStatus?: (status: AgentLifecycle) => void;
@@ -242,7 +243,6 @@ export function TerminalView({
   const font = fontProp ?? ownFont;
   const fontOverride = font.size;
   const termRef = useRef<import("@xterm/xterm").Terminal | null>(null);
-  const fitRef = useRef<import("@xterm/addon-fit").FitAddon | null>(null);
   /** Re-runs the mount effect's measure/fit/publish pass from outside it. */
   const resyncRef = useRef<(() => void) | null>(null);
   // Mirrored via effect (never written during render — see the refs rule);
@@ -344,7 +344,6 @@ export function TerminalView({
       const fit = new FitAddon();
       term.loadAddon(fit);
       termRef.current = term;
-      fitRef.current = fit;
       // Clickable URLs that survive wrapping. The stock web-links addon detects
       // per visual row, so a URL wrapped across rows (ink TUIs hard-wrap to the
       // width) is clickable only on row 1 and opens a TRUNCATED link — the
@@ -484,12 +483,6 @@ export function TerminalView({
           })
         : null;
 
-      // ResizeObserver tracks both viewport and container changes — keeps the
-      // remote PTY (interactive substrates) sized to what the viewer sees.
-      // Filtered through ptyResizeToPublish: a collapsed host measures 1 row,
-      // and publishing that reflows the real session an agent is working in.
-      let lastPublished: PtyGeometry | null = null;
-
       /**
        * Shrink the font until TERMINAL_TARGET_COLS fits, or the floor is hit.
        *
@@ -531,23 +524,22 @@ export function TerminalView({
         }
       };
 
-      const syncSize = () => {
-        fitFontToTarget();
-        setGeometry({ cols: term.cols, rows: term.rows });
-        if (!interactive) return;
-        // A narrow viewer adapts ITSELF (font above) rather than reflowing the
-        // session — see the note on TERMINAL_MIN_COLS. ptyResizeToPublish is the
-        // enforcement point; this returns null below the floor, so a phone that
-        // cannot reach 60 columns simply never speaks.
-        const next = ptyResizeToPublish({ cols: term.cols, rows: term.rows }, lastPublished);
-        if (!next) return;
-        lastPublished = next;
-        transport.sendResize(next.cols, next.rows);
-      };
-      const resizeObserver = new ResizeObserver(syncSize);
-      resizeObserver.observe(host);
-      resyncRef.current = syncSize;
-      syncSize();
+      // Fit on mount and on every host resize, and publish the result to the
+      // PTY so the program on the other end re-wraps to what is on screen.
+      // Deliberately NOT gated on `interactive`: a Prompt-mode or phone viewer
+      // captures no keystrokes but still reads the session, and gating the
+      // publish on keystroke capture is what left a 79-column grid drawing a
+      // 120-column PTY (see terminal-size-sync.ts). The floor for what a viewer
+      // may publish lives in ptyResizeToPublish — a phone that cannot reach
+      // TERMINAL_MIN_COLS adapts its own font and stays silent.
+      const sizes = createPtySizeSync({
+        fit: fitFontToTarget,
+        measure: () => ({ cols: term.cols, rows: term.rows }),
+        publish: (cols, rows) => transport.sendResize(cols, rows),
+        onGeometry: setGeometry,
+      });
+      resyncRef.current = sizes.sync;
+      const unwatchHost = watchTerminalHost(host, sizes);
 
       // Scan the rendered buffer for URLs (newest first, capped) and surface them
       // in <LinkBar/>. Debounced: run once output settles, after xterm has laid
@@ -615,12 +607,11 @@ export function TerminalView({
 
       cleanupTerm = () => {
         termRef.current = null;
-        fitRef.current = null;
         resyncRef.current = null;
         if (scanTimer) window.clearTimeout(scanTimer);
         clearStallTimer();
         linkProvider.dispose();
-        resizeObserver.disconnect();
+        unwatchHost();
         inputDisposable?.dispose();
         term.dispose();
       };
@@ -636,22 +627,14 @@ export function TerminalView({
   }, [transport.key, interactive]);
 
   // Apply an operator-chosen size to the live terminal without tearing down the
-  // stream. Clearing the choice hands the grid back to the auto-fit.
+  // stream, then re-fit and publish: a font step changes the column count, and
+  // the PTY has to hear about it like any other resize. Clearing the choice
+  // hands the grid back to the auto-fit.
   useEffect(() => {
     const term = termRef.current;
-    const fit = fitRef.current;
-    if (!term || !fit) return;
-    if (fontOverride === null) {
-      resyncRef.current?.();
-      return;
-    }
-    term.options.fontSize = fontOverride;
-    try {
-      fit.fit();
-    } catch {
-      /* not laid out yet */
-    }
-    setGeometry({ cols: term.cols, rows: term.rows });
+    if (!term) return;
+    if (fontOverride !== null) term.options.fontSize = fontOverride;
+    resyncRef.current?.();
   }, [fontOverride]);
 
   // Tell the font owner what is actually on screen, so a step taken while in
