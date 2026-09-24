@@ -62,10 +62,12 @@ src="$(cat "$CI")"
 #
 # Under `set -o pipefail` that construct is a race: grep -q exits at the first
 # match and closes the pipe, printf takes SIGPIPE, and the pipeline reports
-# FAILURE even though the match SUCCEEDED. It only fires when the payload
-# exceeds the ~4KB pipe buffer and the machine is loaded enough for grep to win,
-# so it presents as a gate that fails once and passes on retry — the worst shape
-# a CI check can have. Use a here-string; it is not a pipeline.
+# FAILURE even though the match SUCCEEDED. It is NOT confined to payloads past
+# the ~4KB pipe buffer, as this comment once said: measured 2026-09-24 at 1,158
+# bytes, 2 false misses in 3,000 (scripts/test/no-grep-q-in-a-pipe.ts). That
+# belief is why 82 other copies outlived the fix here. It presents as a gate
+# that fails once and passes on retry — the worst shape a CI check can have.
+# Use a here-string; it is not a pipeline.
 want() { # want <description> <grep-E pattern>
   if grep -qE "$2"; then ok "$1"; else bad "$1"; fi <<< "$src"
 }
@@ -192,7 +194,7 @@ else
   # the file's own comments explain why this rule exists and must be allowed to
   # name what they forbid, or the rule can only survive by being deleted.
   jsx="$(printf '%s\n' "$page" | sed 's|//.*||' | sed '/^\s*\*/d; /\/\*/,/\*\//d')"
-  if printf '%s\n' "$jsx" | grep -qE 'new-site\.sh|Replace this page'; then
+  if grep -qE 'new-site\.sh|Replace this page' <<<"$jsx"; then
     bad "the day-zero page renders build instructions at the visitor"
   else
     ok "the day-zero page addresses its owner, not its developer"

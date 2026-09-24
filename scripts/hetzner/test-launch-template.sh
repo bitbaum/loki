@@ -70,7 +70,7 @@ check "finds server.js through the app symlink" \
       "$(echo "$resolved" | grep '^WOULD_RUN=' || echo "$resolved")"
 
 # --- 2. Does it skip the node_modules decoy? ---
-if echo "$resolved" | grep -q 'node_modules'; then
+if grep -q 'node_modules' <<<"$resolved"; then
   echo "  ✗ picked a server.js inside node_modules" >&2
   fails=$((fails + 1))
 else
@@ -93,7 +93,7 @@ chmod +x "$work/shared/launch-broken.sh"
 ln -sf "$work/shared/launch-broken.sh" "$work/releases/r1/launch-broken.sh"
 broken="$(PATH="$stub:$PATH" bash "$work/app/launch-broken.sh" 2>&1 || true)"
 
-if echo "$broken" | grep -q '^WOULD_RUN='; then
+if grep -q '^WOULD_RUN=' <<<"$broken"; then
   echo "  ✗ negative control: plain 'pwd' still found server.js —" >&2
   echo "    this test cannot detect the regression it exists for" >&2
   fails=$((fails + 1))

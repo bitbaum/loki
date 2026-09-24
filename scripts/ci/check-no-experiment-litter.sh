@@ -36,7 +36,7 @@ EXPERIMENT_RE='(^(dogfood|coldstart|factory|probe|e2e|scratch|throwaway)-)|(-(ja
 stale=()
 while IFS='|' read -r name rest; do
   case "$name" in ''|'#'*) continue ;; esac
-  if echo "$name" | grep -qEi "$EXPERIMENT_RE"; then
+  if grep -qEi "$EXPERIMENT_RE" <<<"$name"; then
     stale+=("$name")
   fi
 done < "$REGISTER"

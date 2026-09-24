@@ -64,16 +64,16 @@ check() { # name, actual-rc(0=ok)
 
 OUT=$("$TMP/fc-cron.sh" ok 2>&1); RC=$?
 check "success: response body reaches the journal" \
-  "$(echo "$OUT" | grep -q '\"drafted\":3' && echo 0 || echo 1)"
+  "$(grep -q '\"drafted\":3' <<<"$OUT" && echo 0 || echo 1)"
 check "success: the HTTP status line is still its own line (existing greps keep matching)" \
-  "$(echo "$OUT" | grep -q '^fc-cron ok: HTTP 200$' && echo 0 || echo 1)"
+  "$(grep -q '^fc-cron ok: HTTP 200$' <<<"$OUT" && echo 0 || echo 1)"
 check "success: exits 0" "$([ "$RC" -eq 0 ] && echo 0 || echo 1)"
 
 set +e
 OUT=$("$TMP/fc-cron.sh" boom 2>&1); RC=$?
 set -e
 check "failure: the ERROR body reaches the journal (this is the one -f threw away)" \
-  "$(echo "$OUT" | grep -q 'model_not_found' && echo 0 || echo 1)"
+  "$(grep -q 'model_not_found' <<<"$OUT" && echo 0 || echo 1)"
 check "failure: still exits non-zero so systemd marks the unit failed" \
   "$([ "$RC" -ne 0 ] && echo 0 || echo 1)"
 
@@ -109,7 +109,7 @@ kill "$RETRY_SRV" 2>/dev/null
 RETRY_RC=$(cat "$TMP/retry-rc.txt")
 RETRY_OUT=$(cat "$TMP/retry-out.txt")
 check "retries through a transient connection-refused window and succeeds" \
-  "$(echo "$RETRY_OUT" | grep -q '\"drafted\":3' && [ "$RETRY_RC" -eq 0 ] && echo 0 || echo 1)"
+  "$(grep -q '\"drafted\":3' <<<"$RETRY_OUT" && [ "$RETRY_RC" -eq 0 ] && echo 0 || echo 1)"
 
 echo
 echo "  ${pass} passed, ${fail} failed"

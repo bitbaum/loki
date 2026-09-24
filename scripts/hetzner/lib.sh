@@ -62,7 +62,7 @@ app_names() { grep -v '^#' "$MANIFEST" | cut -d'|' -f1; }
 # Pure so it can be tested without the box: the caller supplies what is taken.
 next_free_port() {
   local p="$1" taken="${2:-}"
-  while printf '%s\n' "$taken" | grep -qx "$p"; do
+  while grep -qx "$p" <<<"$taken"; do
     p=$((p + 1))
   done
   printf '%s' "$p"

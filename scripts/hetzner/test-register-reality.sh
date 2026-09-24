@@ -72,7 +72,7 @@ echo "register vs reality"
 reset
 OUT=$(run); RC=$?
 [ "$RC" = 0 ] || fail "a consistent world must pass (rc=$RC): $OUT"
-echo "$OUT" | grep -q "all 2 registered hosts serve themselves" || fail "got: $OUT"
+grep -q "all 2 registered hosts serve themselves" <<<"$OUT" || fail "got: $OUT"
 ok "a register that matches the world passes"
 
 # --- a registered domain that only redirects ------------------------------
@@ -80,8 +80,8 @@ reset
 echo "alpha.orangecat.ch alpha-new.orangecat.ch" > "$REDIRECTS"
 OUT=$(run); RC=$?
 [ "$RC" = 1 ] || fail "a redirecting domain must fail (rc=$RC): $OUT"
-echo "$OUT" | grep -q "alpha" || fail "must name the app: $OUT"
-echo "$OUT" | grep -q "alpha-new.orangecat.ch" || fail "must name where it actually goes: $OUT"
+grep -q "alpha" <<<"$OUT" || fail "must name the app: $OUT"
+grep -q "alpha-new.orangecat.ch" <<<"$OUT" || fail "must name where it actually goes: $OUT"
 ok "a registered host that only redirects goes RED, naming both hosts (aoz's exact shape)"
 
 # --- a vhost with no row ---------------------------------------------------
@@ -89,7 +89,7 @@ reset
 printf 'alpha.caddy\nbeta.caddy\nmystery.caddy\n---PORTS---\n127.0.0.1:4010\n' > "$BOXOUT"
 OUT=$(run); RC=$?
 [ "$RC" = 1 ] || fail "an unbacked vhost must fail (rc=$RC): $OUT"
-echo "$OUT" | grep -q "mystery" || fail "must name the vhost: $OUT"
+grep -q "mystery" <<<"$OUT" || fail "must name the vhost: $OUT"
 ok "a Caddy site with no register row goes RED"
 
 # --- ...unless it is a recorded exception ----------------------------------
@@ -105,7 +105,7 @@ reset
 printf 'alpha.caddy\nbeta.caddy\n---PORTS---\n127.0.0.1:4010\n127.0.0.1:4030\n' > "$BOXOUT"
 OUT=$(run); RC=$?
 [ "$RC" = 1 ] || fail "an unregistered listener must fail (rc=$RC): $OUT"
-echo "$OUT" | grep -q "4030" || fail "must name the port: $OUT"
+grep -q "4030" <<<"$OUT" || fail "must name the port: $OUT"
 ok "an unregistered listener in the app band goes RED (annushka's exact shape)"
 
 reset
@@ -127,8 +127,8 @@ reset
 : > "$BOXOUT"
 OUT=$(run); RC=$?
 [ "$RC" = 0 ] || fail "an unreachable box must not fail the check (rc=$RC): $OUT"
-echo "$OUT" | grep -q "NOT RUN" || fail "must ANNOUNCE that it could not look: $OUT"
-if echo "$OUT" | grep -q "every Caddy site is either registered"; then
+grep -q "NOT RUN" <<<"$OUT" || fail "must ANNOUNCE that it could not look: $OUT"
+if grep -q "every Caddy site is either registered" <<<"$OUT"; then
   fail "must not claim the vhosts passed when it never read them: $OUT"
 fi
 ok "an unreachable box is announced, never reported as clean"
@@ -136,7 +136,7 @@ ok "an unreachable box is announced, never reported as clean"
 reset
 OUT=$(ALLOW_FILE="$ALLOW" bash "$GATE" --no-box --manifest "$CONF" 2>&1); RC=$?
 [ "$RC" = 0 ] || fail "--no-box must pass on a clean register (rc=$RC): $OUT"
-echo "$OUT" | grep -q "SKIPPED" || fail "--no-box must say it skipped: $OUT"
+grep -q "SKIPPED" <<<"$OUT" || fail "--no-box must say it skipped: $OUT"
 ok "--no-box says so out loud"
 
 # --- a redirect still fails even when the box cannot be read ----------------

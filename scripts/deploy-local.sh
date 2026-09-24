@@ -91,7 +91,7 @@ fi
 # user hitting a blank page. Never blocks the deploy — a stale build still beats
 # no restart — so the check is fully isolated behind `|| true`.
 DRIFT_OUT="$(pnpm run --silent check:schema 2>&1 || true)"
-if printf '%s' "$DRIFT_OUT" | grep -q "MISSING"; then
+if grep -q "MISSING" <<<"$DRIFT_OUT"; then
   echo "→ deploy: ⚠ SCHEMA DRIFT DETECTED — on a local/scratch DB run \`npm run db:push\` (drizzle-kit push):"
   printf '%s\n' "$DRIFT_OUT" | sed 's/^/    /'
 fi

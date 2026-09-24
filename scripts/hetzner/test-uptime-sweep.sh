@@ -82,17 +82,17 @@ count="$(printf '%s\n' "$targets" | grep -c . || true)"
   || no "expected 10+ apps from the manifest, got $count"
 
 # The outage that motivated all of this must be in the probe set.
-printf '%s\n' "$targets" | grep -q "^botsmann	botsmann.orangecat.ch	/api/health$" \
+grep -q "^botsmann	botsmann.orangecat.ch	/api/health$" <<<"$targets" \
   && ok "botsmann is probed — the app whose 503 nobody saw" \
   || no "botsmann is missing from the probe set"
 
 # Internal-only apps have no URL to probe; probing '-' would page forever.
-printf '%s\n' "$targets" | grep -qv -- '	-	' \
+grep -qv -- '	-	' <<<"$targets" \
   && ok "no target has '-' as its domain" \
   || no "an internal-only app leaked into the probe set"
 
 # A comma list is one app, not two.
-printf '%s\n' "$targets" | grep -q "^sink	sinktattoo.com	/api/health$" \
+grep -q "^sink	sinktattoo.com	/api/health$" <<<"$targets" \
   && ok "a comma-separated domain list probes only the first (sink)" \
   || no "sink should probe sinktattoo.com, not the www alias too"
 
@@ -116,13 +116,13 @@ fx_targets="$(manifest_targets "$FIXTURE")"
 eq "live-app	live.example.com	/api/health" "$fx_targets" "only the live public app is probed"
 
 fx_skipped="$(manifest_skipped "$FIXTURE")"
-printf '%s\n' "$fx_skipped" | grep -q "^internal	internal-only" \
+grep -q "^internal	internal-only" <<<"$fx_skipped" \
   && ok "an internal-only app is named as not probed, not silently dropped" \
   || no "internal-only app missing from the skip report"
-printf '%s\n' "$fx_skipped" | grep -q "^gone	status=archived" \
+grep -q "^gone	status=archived" <<<"$fx_skipped" \
   && ok "an archived app is named as not probed" \
   || no "archived app missing from the skip report"
-printf '%s\n' "$fx_skipped" | grep -q "^theirs	status=handed-over" \
+grep -q "^theirs	status=handed-over" <<<"$fx_skipped" \
   && ok "a handed-over app is named as not probed" \
   || no "handed-over app missing from the skip report"
 
@@ -134,7 +134,7 @@ echo "the EXTRA_TARGETS hand-list is built to die"
 dupes=""
 while IFS=$'\t' read -r name _domain; do
   [ -n "$name" ] || continue
-  if printf '%s\n' "$targets" | grep -q "^${name}	"; then
+  if grep -q "^${name}	" <<<"$targets"; then
     dupes="${dupes}${name} "
   fi
 done <<<"$(extra_targets)"

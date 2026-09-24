@@ -28,21 +28,21 @@ echo
 echo "port allocation reads the release register too"
 OUT=$(run_dry fresh-site --repo owner/fresh-site); RC=$?
 [ "$RC" = 0 ] || fail "dry-run must succeed (rc=$RC): $OUT"
-echo "$OUT" | grep -q "port 4031" || fail "port must follow the highest in EITHER register (expected 4031): $OUT"
+grep -q "port 4031" <<<"$OUT" || fail "port must follow the highest in EITHER register (expected 4031): $OUT"
 ok "a slug new to both registers gets the port after main's highest, not the durable copy's"
 
 echo
 echo "a slug main already registered is refused until the durable copy catches up"
 OUT=$(run_dry newer-on-main --repo owner/newer-on-main); RC=$?
 [ "$RC" = 1 ] || fail "must refuse (rc=$RC): $OUT"
-echo "$OUT" | grep -q "registered on main but not in the durable register" || fail "must name the cause: $OUT"
+grep -q "registered on main but not in the durable register" <<<"$OUT" || fail "must name the cause: $OUT"
 ok "main-only slug is refused with the cause"
 
 echo
 echo "a hostname served by a main-only row is refused"
 OUT=$(run_dry newer --repo owner/newer); RC=$?
 [ "$RC" = 1 ] || fail "must refuse (rc=$RC): $OUT"
-echo "$OUT" | grep -q "already served by another entry" || fail "must name the conflict: $OUT"
+grep -q "already served by another entry" <<<"$OUT" || fail "must name the conflict: $OUT"
 ok "hostname conflicts are checked across both registers"
 
 echo
