@@ -4,10 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
-import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
-import { dispatchToneDotClass } from "@/lib/dispatch-status";
 import { presentTerminalRun, type TerminalRunView } from "@/lib/terminal-run-view";
-import { TerminalLokiComposer } from "./TerminalLokiComposer";
+import { TerminalComposer } from "./TerminalComposer";
 
 type RunPayload = { ok?: boolean; view: TerminalRunView | null; error?: string };
 
@@ -37,16 +35,7 @@ export function TerminalLokiRail({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comment, setComment] = useState<string | null>(null);
-  const [injectAck, setInjectAck] = useState<{
-    commandId: string | null;
-    runId: string | null;
-  } | null>(null);
   const [switching, setSwitching] = useState(false);
-
-  const liveDispatch = useDispatchLiveStatus(
-    injectAck?.commandId ?? null,
-    injectAck?.runId ?? null,
-  );
 
   const load = useCallback(async () => {
     if (!project && !runId) {
@@ -106,9 +95,6 @@ export function TerminalLokiRail({
     );
   }
 
-  const ptyAck =
-    injectAck &&
-    (ptyLive || view?.lastProgressAt ? "PTY is printing." : "Injected — waiting for PTY bytes.");
   const presented = view ? presentTerminalRun(view, ptyLive) : null;
 
   return (
@@ -164,25 +150,22 @@ export function TerminalLokiRail({
             <MarkdownText text={comment} className="text-xs leading-relaxed text-text-secondary" />
           </div>
         )}
-
-        {injectAck && (
-          <div className="mt-2 flex items-start gap-2 text-micro">
-            <span className={dispatchToneDotClass(liveDispatch?.tone ?? "neutral")} />
-            <span className="min-w-0 text-text-secondary">
-              {liveDispatch?.label ?? "Injected"}
-              {liveDispatch?.detail ? ` — ${liveDispatch.detail}` : ""}
-              {ptyAck ? ` ${ptyAck}` : ""}
-            </span>
-          </div>
-        )}
       </div>
 
-      <TerminalLokiComposer
-        project={project}
-        tab={tab}
-        onInjected={setInjectAck}
-        onComment={setComment}
-      />
+      {/* THE composer, in Ask/Inject form — the same component (and the
+          same attach, voice and model controls) as Loki chat and the
+          Prompt-mode box. It used to be a bare textarea of its own. */}
+      <div className="ui-term-loki-composer">
+        <TerminalComposer
+          project={project}
+          tab={tab}
+          modes={["ask", "inject"]}
+          defaultMode="inject"
+          onComment={setComment}
+          ptyLive={ptyLive || Boolean(view?.lastProgressAt)}
+          density="compact"
+        />
+      </div>
     </aside>
   );
 }

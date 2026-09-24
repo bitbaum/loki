@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type RefObject } from "react";
-import { PanelsTopLeft, RefreshCw, Send, Terminal, Wrench } from "lucide-react";
+import { PanelsTopLeft, RefreshCw, Terminal, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { postJson } from "@/lib/api/fetch";
 import { FEEDBACK_SHORT_MS, REFRESH_AFTER_TAB_ACTION_MS } from "@/lib/constants/timings";
@@ -9,6 +9,7 @@ import type { LiveTabRow } from "./control-presenter";
 import { Modal } from "@/components/ui/modal";
 import { LiveTerminalRows } from "./LiveTerminalRows";
 import { useInsideFleetRunner } from "@/hooks/use-inside-fleet-runner";
+import { TerminalComposer } from "@/components/terminal/TerminalComposer";
 
 export function LiveTerminalPanel({
   rows,
@@ -53,9 +54,6 @@ export function LiveTerminalPanel({
     setPrevInitialTarget(initialTargetTab);
     if (initialTargetTab) setTargetTab(initialTargetTab);
   }
-  const [prompt, setPrompt] = useState("");
-  const [sendingPrompt, setSendingPrompt] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
   const tabOptions = useMemo(() => rows.map((row) => row.tabName), [rows]);
   const hiddenTabCount = Math.max(0, (openTabCount ?? rows.length) - rows.length);
   const effectiveTarget = targetTab || tabOptions[0] || "";
@@ -81,25 +79,6 @@ export function LiveTerminalPanel({
       if (res.ok) setTimeout(onRefresh, FEEDBACK_SHORT_MS);
     } catch {
       /* best effort */
-    }
-  };
-
-  const sendPrompt = async () => {
-    if (!effectiveTarget || !prompt.trim() || sendingPrompt) return;
-    setSendingPrompt(true);
-    setSendError(null);
-    try {
-      const res = await postJson("/api/control/tab-inject", {
-        tab: effectiveTarget,
-        prompt: prompt.trim(),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setPrompt("");
-      setTimeout(onRefresh, REFRESH_AFTER_TAB_ACTION_MS);
-    } catch (err) {
-      setSendError(err instanceof Error ? err.message : "Prompt send failed");
-    } finally {
-      setSendingPrompt(false);
     }
   };
 
@@ -216,45 +195,33 @@ export function LiveTerminalPanel({
         </div>
       ) : (
         <>
-          <div className="ui-control-live-composer">
-            <select
-              value={effectiveTarget}
-              onChange={(event) => setTargetTab(event.target.value)}
-              className="ui-control-live-select"
-              aria-label="Target agent terminal"
-            >
-              {tabOptions.map((tab) => (
-                <option key={tab} value={tab}>
-                  {tab}
-                </option>
-              ))}
-            </select>
-            <input
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                  event.preventDefault();
-                  sendPrompt();
-                }
-              }}
-              className="ui-control-live-input"
-              placeholder="Quick send to any open tab"
-              title="Quick send: types immediately into the selected agent terminal — it needs a running agent there. To start one, or for project-focused dispatch with intent buttons, use Dispatch on the project card above."
-              aria-label="Prompt for selected agent terminal"
+          {/* Quick send to any open tab — THE composer (the same one the
+              terminal and Loki chat use), aimed by the picker above it. It was
+              a one-line input that sent on ⌘Enter and nothing else. */}
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-2 text-micro text-text-tertiary">
+              <span className="shrink-0">Send to</span>
+              <select
+                value={effectiveTarget}
+                onChange={(event) => setTargetTab(event.target.value)}
+                className="ui-control-live-select"
+                aria-label="Target agent terminal"
+              >
+                {tabOptions.map((tab) => (
+                  <option key={tab} value={tab}>
+                    {tab}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <TerminalComposer
+              key={effectiveTarget}
+              tab={effectiveTarget || null}
+              density="compact"
+              injectPlaceholder={`Quick send to ${effectiveTarget} — it needs a running agent there`}
+              onInjected={() => setTimeout(onRefresh, REFRESH_AFTER_TAB_ACTION_MS)}
             />
-            <button
-              type="button"
-              onClick={sendPrompt}
-              disabled={sendingPrompt || !prompt.trim() || !effectiveTarget}
-              className="ui-btn-primary ui-btn-xs gap-1.5"
-              title="Send prompt"
-            >
-              <Send className="h-3.5 w-3.5" />
-              <span>Send</span>
-            </button>
           </div>
-          {sendError && <p className="text-xs text-status-negative">{sendError}</p>}
 
           <LiveTerminalRows
             rows={rows}

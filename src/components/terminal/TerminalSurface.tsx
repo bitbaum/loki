@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, MonitorSmartphone } from "lucide-react";
+import { Loader2, Maximize2, Minimize2, MonitorSmartphone, PanelRight } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
 import { useFetch } from "@/hooks/use-fetch";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { useTerminalFont } from "@/hooks/use-terminal-font";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTerminalDeck } from "@/hooks/use-terminal-deck";
 import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 import { fleetSurfaceHref, rememberFleetProject } from "@/lib/fleet-context";
@@ -18,6 +19,8 @@ import type { BuilderChannel } from "@/lib/event-stream-types";
 import { resolveTerminalSource } from "@/lib/terminal-deep-link";
 import {
   TERMINAL_MODE_STORAGE_KEY,
+  TERMINAL_RAIL_QUERY,
+  TERMINAL_RAIL_STORAGE_KEY,
   type TerminalInputMode,
   type TerminalSource,
 } from "@/config/terminal-modes";
@@ -35,7 +38,6 @@ import { TerminalSessionSheet } from "./TerminalSessionSheet";
 import { TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
 import { Modal } from "@/components/ui/modal";
-import { NARROW_QUERY } from "@/hooks/use-is-narrow";
 import { runnerTransport } from "./terminal-transport";
 import { useTerminalTabs } from "./use-terminal-tabs";
 
@@ -82,6 +84,8 @@ const DEFAULT_MODE: TerminalMode = { source: "cloud", input: "type" };
 // Module-level so their identity is stable across renders — useLocalStorageState
 // keeps them in effect dependency arrays.
 const serializeMode = (mode: TerminalMode) => JSON.stringify(mode);
+const serializeRail = (open: boolean) => (open ? "1" : "0");
+const deserializeRail = (raw: string) => raw !== "0";
 const deserializeMode = (raw: string): TerminalMode => {
   try {
     const parsed = JSON.parse(raw) as Partial<TerminalMode>;
@@ -338,15 +342,26 @@ export function TerminalSurface({
   const deck = useTerminalDeck();
   const keyboardInset = useKeyboardInset();
   const [sheetOpen, setSheetOpen] = useState(false);
-  // Auto-open the Loki sheet only on a phone — desktop already shows the rail.
+  // Auto-open the Loki sheet only where the rail is not beside the session.
   // Reusing one React element in both the split and the modal would unmount it
-  // from the visible desktop pane (the modal is md:hidden).
+  // from the visible desktop pane (the modal is lg:hidden).
   const [lokiSheetOpen, setLokiSheetOpen] = useState(
     () =>
       Boolean(initialRunId) &&
       typeof window !== "undefined" &&
-      window.matchMedia(NARROW_QUERY).matches,
+      !window.matchMedia(TERMINAL_RAIL_QUERY).matches,
   );
+  // The rail beside the session (lg+). Closing it hands its columns to the
+  // terminal; the choice is remembered, like the input mode.
+  const [railOpen, setRailOpen] = useLocalStorageState<boolean>(
+    TERMINAL_RAIL_STORAGE_KEY,
+    true,
+    serializeRail,
+    deserializeRail,
+  );
+  // Whether the rail can sit beside the session at this width at all. Below
+  // it the rail is a sheet, and the toggle opens that instead.
+  const railFits = useMediaQuery(TERMINAL_RAIL_QUERY);
   const [liveState, setLiveState] = useState<TerminalLiveState>("connecting");
   const [geometry, setGeometry] = useState<PtyGeometry | null>(null);
 
@@ -489,6 +504,50 @@ export function TerminalSurface({
         onSwitchAgent={(id) => void switchAgent(id)}
       />
     ) : null;
+
+  // Pane controls, in the terminal's own status row (desktop). Where the rail
+  // cannot sit beside the session (md–lg) the same button opens it as a sheet,
+  // so the panel is one click away at every width instead of only on lg+.
+  const railShown = Boolean(projectKey) && railOpen && railFits && !immersive;
+  const toggleRail = () => {
+    if (railFits) setRailOpen((open) => !open);
+    else setLokiSheetOpen(true);
+  };
+  const paneActions = (
+    <>
+      {projectKey && !immersive && (
+        <button
+          type="button"
+          className={railShown ? "ui-term-pane-btn ui-term-pane-btn-on" : "ui-term-pane-btn"}
+          onClick={toggleRail}
+          aria-pressed={railFits ? railShown : undefined}
+          aria-label={railShown ? "Hide the Loki panel" : "Show the Loki panel"}
+          title={
+            railShown ? "Hide the Loki panel — the terminal takes the width" : "Show the Loki panel"
+          }
+        >
+          <PanelRight className="h-3.5 w-3.5" aria-hidden="true" />
+          Loki
+        </button>
+      )}
+      {onToggleImmersive && (
+        <button
+          type="button"
+          className={immersive ? "ui-term-pane-btn ui-term-pane-btn-on" : "ui-term-pane-btn"}
+          onClick={onToggleImmersive}
+          aria-pressed={immersive}
+          aria-label={immersive ? "Leave full screen (Esc)" : "Expand terminal to full screen"}
+          title={immersive ? "Leave full screen (Esc)" : "Expand to full screen"}
+        >
+          {immersive ? (
+            <Minimize2 className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+        </button>
+      )}
+    </>
+  );
 
   const sheet = sheetOpen ? (
     <TerminalSessionSheet
@@ -648,6 +707,7 @@ export function TerminalSurface({
         font={font}
         onLive={setLiveState}
         onGeometry={setGeometry}
+        actions={paneActions}
       />
     );
   };
@@ -674,7 +734,9 @@ export function TerminalSurface({
       )}
       <div className="ui-term-split">
         <div className="ui-term-split-pty">{body()}</div>
-        {projectKey && (
+        {/* Expanded means the session gets the whole screen — the rail is
+            one click away again on the way out. */}
+        {railShown && (
           <div className="ui-term-split-rail" aria-label="Loki comments and inject">
             {renderLokiRail()}
           </div>
@@ -683,8 +745,11 @@ export function TerminalSurface({
 
       {/* Desktop composers. The phone's live in the dock below, alongside the
           key deck, so there is exactly one stack of controls under the screen
-          rather than a composer here and a keyboard somewhere else. */}
-      {activeTab && inputMode === "prompt" && (
+          rather than a composer here and a keyboard somewhere else. While the
+          Loki rail is beside the session its Inject IS the prompt composer —
+          the same component — so a second copy under the terminal would be
+          two boxes on one screen for one job. */}
+      {activeTab && inputMode === "prompt" && !railShown && (
         <div className="hidden md:block">
           <TerminalComposer tab={activeTab} />
         </div>
@@ -708,7 +773,7 @@ export function TerminalSurface({
 
       {sheet}
       {lokiSheetOpen && projectKey && (
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <Modal
             onClose={() => setLokiSheetOpen(false)}
             position="bottom-mobile"
