@@ -154,6 +154,34 @@ export function avoidOffsetY(
   return offset;
 }
 
+/** How far each step climbs while stepping over a covered page control. */
+export const CONTROL_STEP = 16;
+
+/**
+ * Step the launcher off whatever interactive control it is sitting on.
+ *
+ * `isCovered(offsetY)` is the DOM hit-test, injected so this stays pure. Runs at
+ * EVERY viewport width: it used to be narrow-only, on the theory that desktop
+ * content never reaches the corner — but a chat composer's send button lives
+ * exactly there, and avoidOffsetY stepping over a host's own fixed launcher
+ * lifts us straight onto it. OrangeCat /messages: clicking Send opened the
+ * feedback panel instead, and no message sent for 18 days.
+ *
+ * Returns the first uncovered offset, or `start` when nothing within
+ * MAX_AVOID_SHIFT of `base` is clear — parking somewhere arbitrary beats
+ * nothing only if it is actually clear.
+ */
+export function stepOffControls(
+  start: number,
+  base: number,
+  isCovered: (offsetY: number) => boolean,
+): number {
+  for (let offset = start; offset - base <= MAX_AVOID_SHIFT; offset += CONTROL_STEP) {
+    if (!isCovered(offset)) return offset;
+  }
+  return start;
+}
+
 /**
  * Foreign fixed/sticky elements sharing our corner.
  *
