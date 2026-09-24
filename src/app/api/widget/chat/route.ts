@@ -22,6 +22,7 @@ import {
   linksForReply,
   renderConciergeFacts,
   splitSpeakers,
+  trimToLastSentence,
 } from "@/lib/widget-chat/concierge";
 
 /**
@@ -154,12 +155,14 @@ export async function POST(req: NextRequest) {
         url: data.url,
         title: data.pageTitle,
       }),
-      maxTokens: 700,
+      // Reasoning models spend hidden tokens from this budget before the first
+      // visible word; 700 cut real answers mid-sentence in production.
+      maxTokens: 1600,
       temperature: 0.3,
       timeoutMs: HTTP_TIMEOUT_LONG_MS,
     });
     void recordAiSpend(token.userId, answered.tokens);
-    const reply = stripReasoning(answered.text).trim();
+    const reply = trimToLastSentence(stripReasoning(answered.text).trim());
     if (!reply) throw new Error("empty answer");
     return NextResponse.json(
       { ok: true, reply, messages: splitSpeakers(reply), links: linksForReply(reply, map, base) },

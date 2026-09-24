@@ -24,6 +24,9 @@ export type ConciergeTurn = { role: "user" | "assistant"; content: string };
 export type ConciergeSpeaker = "cat" | "loki" | null;
 export type ConciergeMessage = { speaker: ConciergeSpeaker; text: string };
 
+/** A line that opens a message: "Cat:" / "Loki:", tolerating markdown bold. */
+const SPEAKER_LINE = /^\s*(?:\*\*)?(cat|loki)(?:\*\*)?\s*:\s*(?:\*\*)?\s*/i;
+
 /**
  * The studio's own doors — the things a visitor can DO besides open a product.
  * Not on the map because they are not projects, and needed because "can you
@@ -69,7 +72,7 @@ export const STUDIO_DOORS: ReadonlyArray<{
  */
 export function stageWord(p: Pick<FleetMapEntry, "status" | "owner">): string {
   const base: Record<string, string> = {
-    live: "running, in beta",
+    live: "in beta",
     demo: "a demo with sample data",
     validating: "being validated",
     prospect: "named but not built",
@@ -173,6 +176,8 @@ export function conciergeSystemPrompt(
     "Between them they know every project the studio has. Whoever the question belongs to answers. If both have something genuinely useful, both answer — Cat first when money leads, Loki first otherwise. Never both just to be polite.",
     "Format: every message starts on a new line with 'Cat:' or 'Loki:'. Each speaks as itself in the first person ('I can…'); do not introduce yourselves as a pair or talk about 'the Cat and Loki'.",
     "The job: understand what the visitor needs, then send them to the ONE project or door that fits best — name it, say in a sentence why it fits, and tell them the next step. Offer a second option only if it is genuinely close.",
+    "When the fit is OrangeCat, the Cat recommends itself in the first person ('you can set that up with me on OrangeCat'); when it is Loki, Loki does the same ('sign up and I'll run agents on your code'). Neither talks about itself as 'OrangeCat is…' or 'Loki is…'.",
+    "Prefer what the visitor can use themselves today. The studio waitlist is only for having the studio build something FOR them, and the studio is at capacity — never send someone there when a product fits.",
     "",
     "Rules:",
     "- Answer only from the facts below. If nothing fits, say so plainly and point to the waitlist or the full catalogue. Never invent a feature, price, date, number or project.",
@@ -216,6 +221,12 @@ export function linksForReply(
   appBase: string,
   max = 4,
 ): ConciergeLink[] {
+  // Speaker labels are not mentions: "Loki: Heidi fits." recommends Heidi,
+  // not Loki, and linking the label put the wrong chip first.
+  reply = reply
+    .split("\n")
+    .map((line) => line.replace(SPEAKER_LINE, ""))
+    .join("\n");
   const found: Array<{ at: number; link: ConciergeLink }> = [];
   for (const p of visibleProjects(map)) {
     const terms = [displayName(p), p.name, p.slug].filter((t, i, a) => a.indexOf(t) === i);
@@ -321,8 +332,6 @@ export function fallbackAnswer(
   };
 }
 
-const SPEAKER_LINE = /^\s*(?:\*\*)?(cat|loki)(?:\*\*)?\s*:\s*(?:\*\*)?\s*/i;
-
 /**
  * Split a reply into who said what. A line starting "Cat:" or "Loki:" opens a
  * message; lines after it continue it. Text before any label — a model that
@@ -341,4 +350,18 @@ export function splitSpeakers(reply: string): ConciergeMessage[] {
     }
   }
   return out.map((m) => ({ ...m, text: m.text.trim() })).filter((m) => m.text.length > 0);
+}
+
+/**
+ * Drop a trailing half sentence. A reasoning model spends hidden tokens out of
+ * the same budget, so an answer can stop mid-clause ("…which is running, in")
+ * while every other signal says it finished. Better one sentence fewer than a
+ * visitor reading a thought that breaks off. A reply with no complete sentence
+ * at all is kept as it is — something beats nothing.
+ */
+export function trimToLastSentence(text: string): string {
+  const t = text.trimEnd();
+  if (/[.!?…)"'»”]$/.test(t)) return t;
+  const cut = Math.max(...[". ", "! ", "? ", ".\n", "!\n", "?\n"].map((m) => t.lastIndexOf(m)));
+  return cut > 0 ? t.slice(0, cut + 1) : t;
 }
