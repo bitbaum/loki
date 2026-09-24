@@ -16,6 +16,7 @@ import {
   displayName,
   stem,
   splitSpeakers,
+  trimToLastSentence,
   conciergePrompt,
   conciergeSystemPrompt,
   fallbackAnswer,
@@ -106,7 +107,7 @@ const map: FleetMap = {
 };
 
 // Stage words: beta, never "live"; a pilot, never a client.
-assert.equal(stageWord({ status: "live", owner: "bitbaum" }), "running, in beta");
+assert.equal(stageWord({ status: "live", owner: "bitbaum" }), "in beta");
 assert.match(stageWord({ status: "demo", owner: "aoz" }), /pilot built with aoz/);
 
 const facts = renderConciergeFacts(map);
@@ -174,6 +175,16 @@ assert.ok(
   "no joint persona: it is a chat the two live in",
 );
 assert.match(system, /Do not write URLs yourself/);
+assert.match(
+  system,
+  /recommends itself in the first person/,
+  "an agent that fits recommends itself, not in the third person (seen live)",
+);
+assert.match(
+  system,
+  /never send someone there when a product fits/,
+  "self-serve before the closed waitlist (seen live)",
+);
 assert.match(system, /https:\/\/bitbaum\.example\//);
 
 const prompt = conciergePrompt(
@@ -254,5 +265,33 @@ assert.deepEqual(
   "'Catalogue:' is not the Cat",
 );
 assert.ok(!fallbackAnswer("x", map, BASE).reply.includes("assistant"));
+
+// A speaker label is not a recommendation (seen live: "Loki: Heidi fits." put Loki first).
+assert.deepEqual(
+  linksForReply(
+    "Loki: Heidi fits you.",
+    {
+      ...map,
+      projects: [
+        ...map.projects,
+        entry({
+          slug: "loki",
+          name: "loki",
+          urls: { live: "https://loki.example", repo: null, orangecat: null, solon: null },
+        }),
+      ],
+    },
+    BASE,
+  ).map((l) => l.label),
+  ["Heidi"],
+);
+
+// A reply cut off mid-clause loses the half sentence, never the whole answer (seen live).
+assert.equal(
+  trimToLastSentence("I can help you get paid. OrangeCat settles in Bitcoin, which is running, in"),
+  "I can help you get paid.",
+);
+assert.equal(trimToLastSentence("Heidi fits."), "Heidi fits.");
+assert.equal(trimToLastSentence("no full stop anywhere"), "no full stop anywhere");
 
 console.log("widget-chat-concierge: ok");
