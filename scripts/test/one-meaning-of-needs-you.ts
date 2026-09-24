@@ -45,6 +45,9 @@ const presenter = strip(
 );
 const page = strip(readFileSync(join(ROOT, "src/app/(app)/today/page.tsx"), "utf8"));
 const verdict = strip(readFileSync(join(ROOT, "src/components/today/NeedsYouVerdict.tsx"), "utf8"));
+const hero = strip(
+  readFileSync(join(ROOT, "src/components/control/ControlFleetStatus.tsx"), "utf8"),
+);
 
 let failures = 0;
 function check(name: string, fn: () => void) {
@@ -172,6 +175,20 @@ check("run health drives it too, and cannot double-count one trouble", () => {
   assert(
     both.score === sessionOnly.score,
     `one trouble seen twice scored higher (${both.score} vs ${sessionOnly.score})`,
+  );
+});
+
+check("Control's hero names its SCOPE rather than claiming the whole phrase", () => {
+  // The hero counts ONLY agent attention. While it said the unqualified
+  // "1 project needs you", it contradicted /today's verdict, which also counts
+  // raised flags: Control named loki, the front door named evig, same words.
+  assert(
+    /project's agent needs|projects' agents need/.test(hero),
+    "the Control hero does not say WHOSE need it is counting",
+  );
+  assert(
+    !/"project needs"\s*:\s*"projects need"/.test(hero),
+    "the Control hero claims the unqualified phrase again while counting only agent attention",
   );
 });
 
