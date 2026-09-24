@@ -182,6 +182,34 @@ export function feedbackShippedTemplate(input: {
   return { subject, html, text };
 }
 
+/**
+ * An invitation into one project. The project and inviter names are
+ * user-authored, so they are escaped exactly like the feedback template's.
+ */
+export function projectInviteTemplate(input: {
+  projectName: string;
+  inviterName: string | null;
+  role: "editor" | "viewer";
+  inviteUrl: string;
+  expiresDays: number;
+}) {
+  const subject = mailSubject("project_invite", input.projectName);
+  const who = input.inviterName?.trim() || "A project owner";
+  const can =
+    input.role === "editor"
+      ? "work on it with them: run agents, edit notes and settings"
+      : "follow it: see its runs, feedback and what shipped";
+  const html = emailShell(`
+    <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:${EMAIL_THEME.ink};">You're invited to ${escapeHtml(input.projectName)}</h2>
+    ${p(`${escapeHtml(who)} invited you to ${escapeHtml(input.projectName)} on ${APP_NAME}, so you can ${can}.`)}
+    ${p(`You sign in with your OrangeCat account. If you don't have one yet, you create it on the way. There is no separate ${APP_NAME} password.`)}
+    ${btn(input.inviteUrl, "Accept the invitation")}
+    ${p(`The link works for this email address only, and expires in ${input.expiresDays} days.`)}
+  `);
+  const text = `${who} invited you to ${input.projectName} on ${APP_NAME}, so you can ${can}.\n\nAccept: ${input.inviteUrl}\n\nYou sign in with your OrangeCat account (create one on the way if needed). The link works for this email address only and expires in ${input.expiresDays} days.`;
+  return { subject, html, text };
+}
+
 /** Operator-approved outbound mail — same chrome as every other Loki email. */
 export function operatorMailTemplate(input: { subject: string; body: string }) {
   const subject = mailSubject("operator", input.subject);

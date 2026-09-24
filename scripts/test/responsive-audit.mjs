@@ -241,6 +241,8 @@ export const NOT_MEASURED = {
   "/robots/[id]": "needs an agent id from the audited environment",
   "/a/[token]": "needs a live action token from a dispatched approval",
   "/invite/[token]": "needs a live invitation token",
+  "/invite/project/[token]":
+    "needs a live project invitation token — only its sha-256 is stored, so no fixture can be derived from the DB",
   "/reset-password/[token]": "needs a live password-reset token",
   "/verify-email/[token]": "needs a live email-verification token",
   "/share/project/[token]": "needs a share token minted for one project",
