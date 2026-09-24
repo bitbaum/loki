@@ -50,11 +50,13 @@ surf-your-life|4009|Sun *-*-* 19:00:00|/api/cron/ai-digest|GET
 surf-your-life|4009|*-*-* 03:00:00|/api/cron/embed-backfill|GET
 # sbb-fundbuero has no vercel.json; its schedule SSOT is this row + the app's TODO.md.
 sbb-fundbuero|4016|*-*-* 03:30:00|/api/cron/purge|POST
-# substrata has no vercel.json. Both fire hourly: the sweep route decides from
+# substrata has no vercel.json. All fire hourly: the sweep route decides from
 # research_sweep_settings.everyHours whether a run is due (edited at
 # /account/settings#sweep); filings fetch new EDGAR filings every hour.
 substrata|4022|*-*-* *:17:00|/api/cron/sweep|POST
 substrata|4022|*-*-* *:47:00|/api/cron/filings|POST
+# drafts: AI drafts of events from open sweep leads, five per run, for /review.
+substrata|4022|*-*-* *:32:00|/api/cron/drafts|POST
 REG
 )"
 
