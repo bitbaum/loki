@@ -3080,6 +3080,14 @@
     letter-spacing: var(--tracking-label);
   }
   /* Micro-kicker for compact data cells — 10px caps */
+  /* A field's length, shown once it matters. Muted while there is room; the
+     warning tone only when the cap is actually reached. */
+  .ui-char-count {
+    @apply text-micro tabular-nums text-text-muted;
+  }
+  .ui-char-count-full {
+    @apply text-micro text-status-warning;
+  }
   .ui-micro-label {
     @apply text-micro uppercase tracking-wider text-text-muted;
   }

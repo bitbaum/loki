@@ -9,8 +9,8 @@ import {
   avoidOffsetY,
   cornerEdges,
   CORNERS,
-  MAX_AVOID_SHIFT,
   probeCorner,
+  stepOffControls,
   type Placement,
 } from "./placement";
 
@@ -187,32 +187,27 @@ export function createLauncher(opts: {
     const { y } = cornerEdges(p.corner);
     const own = fab.getBoundingClientRect();
     const foreign = probeCorner(host, own);
-    let offsetY = avoidOffsetY(own, foreign, p.corner, p.offsetY);
-    fab.style[y] = `${offsetY}px`;
+    const afterForeign = avoidOffsetY(own, foreign, p.corner, p.offsetY);
 
-    // Narrow only: step over page content the rectangle scan cannot see,
-    // because ordinary content is not fixed-position.
-    if (window.innerWidth <= 480) {
-      for (let i = 0; i < 10; i++) {
-        const r = fab.getBoundingClientRect();
-        const pts: Array<[number, number]> = [
-          [r.left + 3, r.top + 3],
-          [r.right - 3, r.top + 3],
-          [r.left + 3, r.bottom - 3],
-          [r.right - 3, r.bottom - 3],
-          [(r.left + r.right) / 2, (r.top + r.bottom) / 2],
-        ];
-        const covered = pts.some(([px, py]) =>
-          document
-            .elementsFromPoint(px, py)
-            .some((el) => el !== host && !host.contains(el) && el.closest(INTERACTIVE) !== null),
-        );
-        if (!covered) break;
-        offsetY += 16;
-        if (offsetY - p.offsetY > MAX_AVOID_SHIFT) break;
-        fab.style[y] = `${offsetY}px`;
-      }
-    }
+    // Every width: step over page content the rectangle scan cannot see,
+    // because ordinary content is not fixed-position. See stepOffControls.
+    const isCovered = (offsetY: number) => {
+      fab.style[y] = `${offsetY}px`;
+      const r = fab.getBoundingClientRect();
+      const pts: Array<[number, number]> = [
+        [r.left + 3, r.top + 3],
+        [r.right - 3, r.top + 3],
+        [r.left + 3, r.bottom - 3],
+        [r.right - 3, r.bottom - 3],
+        [(r.left + r.right) / 2, (r.top + r.bottom) / 2],
+      ];
+      return pts.some(([px, py]) =>
+        document
+          .elementsFromPoint(px, py)
+          .some((el) => el !== host && !host.contains(el) && el.closest(INTERACTIVE) !== null),
+      );
+    };
+    fab.style[y] = `${stepOffControls(afterForeign, p.offsetY, isCovered)}px`;
   };
 
   reposition();
@@ -231,6 +226,17 @@ export function createLauncher(opts: {
     },
     { passive: true },
   );
+  // Client-side routing (Next, React Router) swaps the whole page without a
+  // load or a resize, so the corner can gain a send button long after the two
+  // horizons above. Polling the URL is the one signal every router emits; a
+  // pushState patch would be ours meddling with the host's history.
+  let lastHref = location.href;
+  window.setInterval(() => {
+    if (location.href === lastHref) return;
+    lastHref = location.href;
+    window.setTimeout(reposition, 300);
+    window.setTimeout(reposition, 1500);
+  }, 1000);
 
   return { fab, reposition };
 }

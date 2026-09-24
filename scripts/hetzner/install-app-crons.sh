@@ -60,6 +60,12 @@ substrata|4022|*-*-* *:32:00|/api/cron/drafts|POST
 # Science pipeline: papers and grants per bottleneck (OpenAlex, arXiv, NSF, OpenAIRE,
 # USAspending). The route takes the two bottlenecks searched longest ago.
 substrata|4022|*-*-* *:02:00|/api/cron/science|POST
+# Series: BLS producer price indexes mapped to bottlenecks, once a day (BLS
+# publishes monthly; the keyless API allows a few dozen requests a day).
+substrata|4022|*-*-* 06:12:00|/api/cron/series|POST
+# Jobs: open roles from the public Greenhouse/Lever/Ashby boards of directory
+# companies (research/job-boards.json), once a day, one board a second.
+substrata|4022|*-*-* 05:23:00|/api/cron/jobs|POST
 REG
 )"
 

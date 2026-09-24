@@ -21,6 +21,7 @@ import {
   needsInterview,
   planInterview,
   usableAnswers,
+  clampedAnswerFields,
 } from "@/lib/project-interview";
 
 function assert(condition: boolean, message: string): void {
@@ -101,6 +102,26 @@ assert(
   "a long answer is clamped, not rejected",
 );
 assert(!("mission" in usable), "only the fields the interview asks about can be written");
+
+// A clamp is allowed; a SILENT clamp is not. Skif, 2026-09-24: five answers
+// were each cut to exactly 500 characters mid-sentence, and the route said
+// nothing — the build agent would have been briefed from half-sentences.
+const clamped = clampedAnswerFields({
+  [PROJECT_ATTR.CUSTOMERS]: "short and whole",
+  [PROJECT_ATTR.STACK]: "x".repeat(INTERVIEW_ANSWER_MAX + 50),
+  [PROJECT_ATTR.SOLUTION]: "y".repeat(INTERVIEW_ANSWER_MAX),
+} as Record<string, string>);
+assert(
+  clamped.length === 1 && clamped[0] === PROJECT_ATTR.STACK,
+  `the one answer that was cut is named, and only that one (got ${JSON.stringify(clamped)})`,
+);
+assert(
+  clampedAnswerFields({ [PROJECT_ATTR.STACK]: `  ${"z".repeat(INTERVIEW_ANSWER_MAX)}  ` } as Record<
+    string,
+    string
+  >).length === 0,
+  "an answer exactly at the limit once trimmed is kept whole, so it is not reported as cut",
+);
 
 // ── The brief the answers become ────────────────────────────────────────────
 

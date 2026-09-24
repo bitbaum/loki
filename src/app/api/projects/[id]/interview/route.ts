@@ -10,6 +10,7 @@ import { applyProjectProfile } from "@/lib/project-brief";
 import { PROJECT_ATTR } from "@/config/project-attrs";
 import {
   INTERVIEW_ANSWER_MAX,
+  clampedAnswerFields,
   mergeInterviewIntoDescription,
   needsInterview,
   planInterview,
@@ -115,5 +116,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     applied,
     skipped: false,
     remaining: planInterview({ attrs: { ...attrs, ...usable } }).length,
+    // Stored, but not whole: these answers were cut to INTERVIEW_ANSWER_MAX.
+    // Empty in the normal case — the textarea's maxLength means only a direct
+    // API caller can send more — and never silent when it is not.
+    clamped: clampedAnswerFields(dataOrResp.answers as InterviewAnswers),
   });
 }
