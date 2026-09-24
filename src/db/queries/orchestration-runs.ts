@@ -561,11 +561,24 @@ export async function isProjectBusy(
   return !!row;
 }
 
+/**
+ * The latest run per project path, one row each.
+ *
+ * This used to SELECT every run for every path and keep the first per path in
+ * JS. Measured on production 2026-09-24: 699 rows at ~1.26 KB each (~880 KB,
+ * mostly the `summary` JSON) fetched and parsed to keep 32 — on every Control
+ * poll, and since #863 on every /today load. Postgres time was ~2 ms either
+ * way; the cost was transfer and parsing, and it grew with every run ever
+ * recorded. DISTINCT ON returns only the rows the caller keeps.
+ *
+ * Semantics are unchanged: same ordering (started_at DESC, so a NULL
+ * started_at still sorts first, as before) and the first row per path wins.
+ */
 export async function getLatestRunsByProjectPaths(userId: string, projectPaths: string[]) {
   if (projectPaths.length === 0) return new Map<string, typeof orchestrationRuns.$inferSelect>();
 
   const rows = await db
-    .select()
+    .selectDistinctOn([orchestrationRuns.projectPath])
     .from(orchestrationRuns)
     .where(
       and(
@@ -573,15 +586,9 @@ export async function getLatestRunsByProjectPaths(userId: string, projectPaths: 
         inArray(orchestrationRuns.projectPath, projectPaths),
       ),
     )
-    .orderBy(desc(orchestrationRuns.startedAt));
+    .orderBy(orchestrationRuns.projectPath, desc(orchestrationRuns.startedAt));
 
-  const latest = new Map<string, typeof orchestrationRuns.$inferSelect>();
-  for (const row of rows) {
-    if (!latest.has(row.projectPath)) {
-      latest.set(row.projectPath, row);
-    }
-  }
-  return latest;
+  return new Map(rows.map((row) => [row.projectPath, row]));
 }
 
 export async function getProjectOrchestrationRuns(userId: string, projectId: string, limit = 20) {
