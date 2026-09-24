@@ -66,6 +66,9 @@ substrata|4022|*-*-* 06:12:00|/api/cron/series|POST
 # Jobs: open roles from the public Greenhouse/Lever/Ashby boards of directory
 # companies (research/job-boards.json), once a day, one board a second.
 substrata|4022|*-*-* 05:23:00|/api/cron/jobs|POST
+# Producer sourcing: finds sources for unverified producer rows into a review
+# queue (research_source_candidates, migration 004). Four rows per run.
+substrata|4022|*-*-* 00/6:52:00|/api/cron/source|POST
 REG
 )"
 
