@@ -4,13 +4,14 @@
  * Product direction: the live-site widget IS Loki-on-the-site — not only a
  * feedback form. Modes grow progressively:
  *   report  — today's form (file → Implement → Watch on captain Feedback)
- *   chat    — conversation with Loki on the host page (seam; not full yet)
+ *   chat    — conversation on the host page with Loki (development agent) or
+ *             Cat (economic agent); the default. See ./agents.ts
  *   watch   — observe how the visitor uses the page and comment (seam)
  *
  * Keep this file free of DOM so the captain app and the IIFE bundle can share
  * labels/ids without dragging Shadow DOM into Node tests.
  */
-export const WIDGET_SURFACE_MODES = ["report", "chat", "watch"] as const;
+export const WIDGET_SURFACE_MODES = ["chat", "report", "watch"] as const;
 export type WidgetSurfaceMode = (typeof WIDGET_SURFACE_MODES)[number];
 
 export const WIDGET_SURFACE_MODE_META: Record<
@@ -24,8 +25,8 @@ export const WIDGET_SURFACE_MODE_META: Record<
   },
   chat: {
     label: "Chat",
-    hint: "Talk with Loki on this page. Coming next — use Report for now.",
-    shipped: false,
+    hint: "Talk with Loki about this site, or with Cat about funding and payments.",
+    shipped: true,
   },
   watch: {
     label: "Watch",
@@ -35,7 +36,7 @@ export const WIDGET_SURFACE_MODE_META: Record<
 };
 
 export function defaultWidgetSurfaceMode(): WidgetSurfaceMode {
-  return "report";
+  return "chat";
 }
 
 export function parseWidgetSurfaceModes(raw: string | null | undefined): WidgetSurfaceMode[] {

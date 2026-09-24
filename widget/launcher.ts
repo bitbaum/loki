@@ -36,8 +36,8 @@ export function createLauncher(opts: {
   const fab = h("button", "fab");
   const fabIcon = h("span", "fab-icon");
   fabIcon.innerHTML = PENCIL_SVG;
-  fab.append(h("span", "dot"), h("span", "fab-label", "Feedback"), fabIcon);
-  fab.setAttribute("aria-label", "Give feedback");
+  fab.append(h("span", "dot"), h("span", "fab-label", "Ask Loki"), fabIcon);
+  fab.setAttribute("aria-label", "Open Loki — chat or report");
   fab.setAttribute("aria-haspopup", "dialog");
   fab.addEventListener("click", opts.onOpen);
   root.appendChild(fab);

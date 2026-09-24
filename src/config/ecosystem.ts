@@ -98,6 +98,9 @@ export const ORANGECAT_CAPABILITIES = {
   // (src/lib/loki-core.ts), so a dead path here makes the assistant send
   // operators to a 404. /create is the verified surface (200).
   studioUrl: orangeCatPage("/create"),
+  // Where a signed-in person talks to their own Cat. The widget's Cat hands
+  // off here: on a stranger's site it can explain and point, never move money.
+  catUrl: orangeCatPage("/dashboard/cat"),
   lines: [
     'OrangeCat has a Studio that renders video, music, longform writing and artwork, and revises it from plain-language notes ("the middle drags", "colder light") rather than settings.',
     "Video, music and artwork there run on the operator's own AI provider key; writing runs on OrangeCat's free models.",

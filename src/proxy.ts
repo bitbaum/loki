@@ -77,6 +77,8 @@ export const config = {
      *   api/widget/transcribe      – widget speech-to-text; fcw_* token auth + origin allowlist
      *                                in-handler, Groq only. Named exactly, NOT `api/widget/`, so
      *                                a future sibling under that prefix is protected by default
+     *   api/widget/chat            – widget chat with Loki / Cat; same fcw_* token + origin
+     *                                allowlist + per-IP and per-token caps, in-handler
      *   widget\.js                 – the embeddable feedback-widget bundle customer sites load
      *   import-from-local\.sh      – public bash one-liner users curl-pipe into their terminal
      *                                to scan ~/dev and POST detected repos to /api/projects/import-from-local
@@ -88,6 +90,6 @@ export const config = {
      *                                register behind a session is a register with a private copy
      *                                on every consumer. api/fleet/status stays protected.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|u/|share/project/|share/task/|a/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|widget\\.js).+)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|u/|share/project/|share/task/|a/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|widget\\.js).+)",
   ],
 };

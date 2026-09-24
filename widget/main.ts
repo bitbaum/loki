@@ -30,6 +30,7 @@ import { isHiddenByVisitor, readVisitorPlacement } from "./visitor-placement";
 import { createLauncher } from "./launcher";
 import { createPicker } from "./picker";
 import { createAttachments } from "./attachments";
+import { createChat } from "./chat";
 import {
   defaultWidgetSurfaceMode,
   parseWidgetSurfaceModes,
@@ -85,6 +86,8 @@ interface LokiApi {
 
   /** Filled by boot() before mount(); the launcher never paints without it. */
   let placement: Placement = { ...DEFAULT_PLACEMENT };
+  /** Where the widget's Cat hands off to the visitor's own Cat; served by boot. */
+  let catUrl: string | null = null;
   /** Where the visitor dragged/parked it, if they did. Their choice outranks
    *  both the operator's and the auto-avoid, and only for them. */
   let visitorOverride: Placement | null = readVisitorPlacement(token);
@@ -156,7 +159,12 @@ interface LokiApi {
     hdrText.appendChild(brand);
     // Surface modes: Report ships today; Chat / Watch are progressive seams
     // (data-fc-modes="report,chat,watch"). The whole panel is Loki-on-the-site.
-    const enabledModes = parseWidgetSurfaceModes(modesAttr);
+    // Only shipped modes get a control: a disabled tab is a dead end on a
+    // stranger's site, and the seam lives on in surface-modes.ts.
+    const parsedModes = parseWidgetSurfaceModes(modesAttr).filter(
+      (m) => WIDGET_SURFACE_MODE_META[m].shipped,
+    );
+    const enabledModes: WidgetSurfaceMode[] = parsedModes.length ? parsedModes : ["report"];
     let surfaceMode: WidgetSurfaceMode = enabledModes.includes(defaultWidgetSurfaceMode())
       ? defaultWidgetSurfaceMode()
       : enabledModes[0]!;
@@ -174,6 +182,7 @@ interface LokiApi {
         btn.title = meta.hint;
       }
       modeHint.textContent = WIDGET_SURFACE_MODE_META[surfaceMode].hint;
+      layout();
     }
     for (const m of enabledModes) {
       const meta = WIDGET_SURFACE_MODE_META[m];
@@ -183,16 +192,30 @@ interface LokiApi {
         if (!WIDGET_SURFACE_MODE_META[m].shipped) return;
         surfaceMode = m;
         syncModes();
+        focusMode();
       });
       modeBtns.set(m, btn);
       modesRow.appendChild(btn);
     }
-    hdrText.appendChild(modesRow);
-    hdrText.appendChild(modeHint);
-    syncModes();
-    hdrText.appendChild(h("b", undefined, "What should change?"));
+    // Brand and the mode toggle share the top line, like a chat app's title
+    // bar; one mode is no choice, so a single mode shows no toggle at all.
+    const topLine = h("div", "topline");
+    topLine.appendChild(brand);
+    if (enabledModes.length > 1) topLine.appendChild(modesRow);
+    hdrText.appendChild(topLine);
+    // Report's own heading; Chat puts the agent switcher here instead.
+    const reportHead = h("div", "report-head");
+    reportHead.append(modeHint, h("b", undefined, "What should change?"));
     const hdrPage = h("div", "page");
-    hdrText.appendChild(hdrPage);
+    reportHead.appendChild(hdrPage);
+    const chat = createChat({
+      root,
+      apiBase,
+      token,
+      voiceMaxMs: VOICE_MAX_MS,
+      getCatUrl: () => catUrl,
+    });
+    hdrText.append(reportHead, chat.headerControls);
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
@@ -324,8 +347,7 @@ interface LokiApi {
       h("span", "mono", "Ctrl+Enter sends"),
     );
 
-    panel.append(
-      hdr,
+    const reportNodes = [
       chips,
       hint,
       textarea,
@@ -337,7 +359,20 @@ interface LokiApi {
       row,
       errEl,
       keys,
-    );
+    ];
+    /** Put the current mode's body under the shared header. */
+    function layout() {
+      const chatting = surfaceMode === "chat";
+      panel.classList.toggle("chatting", chatting);
+      reportHead.style.display = chatting ? "none" : "";
+      chat.headerControls.style.display = chatting ? "" : "none";
+      panel.replaceChildren(hdr, ...(chatting ? [chat.el] : reportNodes));
+    }
+    function focusMode() {
+      if (surfaceMode === "chat") chat.focus();
+      else textarea.focus();
+    }
+    syncModes();
 
     const picker = createPicker({
       root,
@@ -372,10 +407,13 @@ interface LokiApi {
     function openPanel() {
       fab.style.display = "none";
       hdrPage.textContent = document.title || location.pathname;
+      // Always open on the current mode's body — a report success view left
+      // up for its tracking link must not greet the next open.
+      layout();
       root.append(backdrop, panel);
       syncChips();
       document.addEventListener("keydown", onKeydown, true);
-      textarea.focus();
+      focusMode();
     }
 
     function closePanel() {
@@ -385,6 +423,9 @@ interface LokiApi {
       // else's site, which reads as the page still listening after the visitor
       // dismissed it — and would transcribe audio they chose not to send.
       voice?.cancel();
+      // The chat transcript survives a close — dismissing by accident must not
+      // cost the conversation — but a live answer or recording does not.
+      chat.abandon();
       picker.clearSelection();
       backdrop.remove();
       panel.remove();
@@ -420,6 +461,8 @@ interface LokiApi {
       if (e.key === "Escape") {
         if (picker.isPicking()) picker.stop();
         else closePanel();
+      } else if (surfaceMode === "chat") {
+        chat.handleKey(e);
       } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         if (!sendBtn.disabled) void submit();
       }
@@ -496,21 +539,7 @@ interface LokiApi {
         if (claimUrl) return;
         closePanel();
         // Rebuild the form for the next open (success view replaced it).
-        panel.textContent = "";
-        panel.append(
-          hdr,
-          chips,
-          hint,
-          textarea,
-          cnt,
-          diagNote,
-          contact,
-          attachRow,
-          shotsContainer,
-          row,
-          errEl,
-          keys,
-        );
+        layout();
       }, 2200);
     }
 
@@ -521,6 +550,11 @@ interface LokiApi {
       if (panel.isConnected) {
         textarea.focus();
         return;
+      }
+      // A host calling report() wants the form, whatever the default mode is.
+      if (surfaceMode !== "report" && enabledModes.includes("report")) {
+        surfaceMode = "report";
+        syncModes();
       }
       openPanel();
       diagnostics = input.diagnostics ?? null;
@@ -555,12 +589,14 @@ interface LokiApi {
         active?: boolean;
         placement?: unknown;
         theme?: WidgetTheme;
+        chat?: { catUrl?: unknown };
       };
       if (body.active !== true) return;
       // Theme must come from boot — the widget has no fallback palette.
       // If boot doesn't provide colors, the widget doesn't render.
       if (!body.theme) return;
       const theme = body.theme;
+      catUrl = typeof body.chat?.catUrl === "string" ? body.chat.catUrl : null;
       // Placement arrives with the render verdict, so the launcher paints once
       // in its final corner instead of appearing bottom-right and jumping.
       placement = normalizePlacement(body.placement);

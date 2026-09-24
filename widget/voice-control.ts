@@ -22,12 +22,14 @@ export function createVoiceControl(opts: {
    *  second place to look. Cleared on any non-error state, so a
    *  successful retry visibly clears the previous failure. */
   onError(message: string): void;
+  /** Icon-only at rest (the chat composer); live states still say what is happening. */
+  compact?: boolean;
 }): VoiceControl | null {
   if (!isVoiceSupported()) return null;
 
-  const micBtn = h("button", "mic");
-  const micLabel = h("span", undefined, "Record");
-  micBtn.append(micIcon(), micLabel);
+  const micBtn = h("button", opts.compact ? "mic compact" : "mic");
+  const idleLabel = () => (opts.compact ? [] : [h("span", undefined, "Record")]);
+  micBtn.append(micIcon(), ...idleLabel());
   micBtn.setAttribute("aria-label", "Record your feedback by voice");
 
   const voice = createVoiceRecorder({
@@ -51,7 +53,7 @@ export function createVoiceControl(opts: {
       } else if (state === "requesting") {
         micBtn.append(h("span", undefined, "Allow mic…"));
       } else {
-        micBtn.append(micIcon(), h("span", undefined, "Record"));
+        micBtn.append(micIcon(), ...idleLabel());
         micBtn.setAttribute("aria-label", "Record your feedback by voice");
       }
       opts.onError(state === "error" ? (detail?.error ?? "Microphone failed") : "");

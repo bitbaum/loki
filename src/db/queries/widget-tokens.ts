@@ -49,6 +49,16 @@ export async function getWidgetTokenByToken(token: string): Promise<WidgetToken 
   return row ?? null;
 }
 
+/** The project a widget token belongs to, by name — grounds the widget's chat agents. */
+export async function getWidgetProjectName(projectId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ name: entities.name })
+    .from(entities)
+    .where(eq(entities.id, projectId))
+    .limit(1);
+  return row?.name ?? null;
+}
+
 /**
  * Record a widget boot heartbeat — this is what makes the UI's "Live ✓"
  * observed truth. Throttled to one write per token per minute so a busy
