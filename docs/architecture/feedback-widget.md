@@ -290,6 +290,7 @@ over polling for readiness.
 | `GET /widget.js` | public | The embed bundle. Built by esbuild from `widget/` on `prebuild` into `public/` (gitignored — built, never committed). Served as a plain Next static asset: there is **no** version query and **no** cache-header rule for it (`next.config.ts` sets those for `/sw.js` only), so do not rely on immutable caching. |
 | `POST /api/widget/transcribe` | widget token in form | Speech-to-text for the mic. Same `fcw_*` token and origin allowlist as ingest; per-IP and per-token limits; Groq Whisper only. Deliberately NOT `/api/beacon/transcribe`, which takes no token and would become an anonymous spend endpoint if opened cross-origin. |
 | `OPTIONS /api/widget/transcribe` | public | CORS preflight, reflecting requested headers for the same reason ingest does. |
+| `POST /api/widget/chat` | widget token in body | Chat mode, opt-in per embed (`data-fc-modes="chat,report"`). `{token, message, history?[≤12], url?, pageTitle?}` → `{ok, reply, messages[{speaker: "cat"|"loki"|null, text}], links[{label,url}], degraded?}`. A plain chat the Cat and Loki both live in: whichever the question belongs to answers as itself (both when both have something useful), from the public fleet map (`src/lib/widget-chat/concierge.ts`) and route the visitor to one project or studio door. Links come from the map, never from the model. Charged to the token owner's fair share; when the budget or every vendor refuses it still routes by keyword match (`degraded: true`). Not `askLoki()` — a stranger gets the catalogue, not the operator's agent. |
 | `GET /api/widget-boot` | token in query | Render gate + heartbeat. The remote kill switch: pausing or revoking a token hides the widget on every site without touching their HTML. Also what makes Coverage "Live" observed truth rather than install intent. |
 | `POST /api/feedback` | widget token in body | Ingest. Zod-validate, clamp lengths, resolve token → project (reject revoked), rate limit per IP+token, insert, `jsonOk`. |
 | `OPTIONS /api/feedback` | public | CORS preflight. Echo origin if it passes the token's `origins` allowlist (or any when unset). |
@@ -306,7 +307,7 @@ Gotchas already known:
   (same class as the OC-rail `proxy.ts` lesson).
 - **Rate limiting is already solved — do not write another one.** `src/lib/rate-limit.ts`
   exists and is owned by the shared `limitkit` package (see dotfiles/SHARED.md);
-  `/api/feedback`, `/api/widget-boot` and `/api/widget/transcribe` all use it.
+  `/api/feedback`, `/api/widget-boot`, `/api/widget/transcribe` and `/api/widget/chat` all use it.
   This bullet previously said no limiter existed and told you to port one, which
   is exactly how a fleet grows its fourteenth copy of the same utility.
 - CORS: this is a cross-origin POST from customer sites. `Content-Type: application/json`
