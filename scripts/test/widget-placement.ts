@@ -7,7 +7,9 @@
 // Run: npx tsx scripts/test/widget-placement.ts
 import {
   AVOID_GAP,
+  CONTROL_STEP,
   MAX_AVOID_SHIFT,
+  stepOffControls,
   avoidOffsetY,
   cornerEdges,
   normalizePlacement,
@@ -210,6 +212,23 @@ for (const bad of [{ offsetX: -1 }, { offsetX: 5000 }, { corner: "nope" }, {}, n
     a.corner === b.corner && a.offsetX === b.offsetX && a.offsetY === b.offsetY,
     `server and widget agree on ${JSON.stringify(bad)}`,
   );
+}
+
+// ---- stepOffControls: the launcher must never sit on the host's own controls ----
+// OrangeCat /messages: stepping over the Cat FAB lifted the launcher onto the
+// composer's Send button at desktop width, and a click opened feedback instead.
+{
+  // A send button occupying offsets [60, 100): clear at 100.
+  const sendAt = (o: number) => o >= 60 && o < 100;
+  ok(stepOffControls(72, 16, sendAt) === 104, "steps clear of a covered control");
+  ok(stepOffControls(16, 16, sendAt) === 16, "an uncovered start is left alone");
+  ok(
+    stepOffControls(72, 16, () => true) === 72,
+    "gives up at MAX_AVOID_SHIFT and keeps the start rather than climbing forever",
+  );
+  let calls = 0;
+  stepOffControls(16, 16, () => (calls++, true));
+  ok(calls === Math.floor(MAX_AVOID_SHIFT / CONTROL_STEP) + 1, "the climb is bounded");
 }
 
 console.log(`${pass} passed, ${fail} failed`);
