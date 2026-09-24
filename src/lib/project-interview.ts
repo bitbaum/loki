@@ -139,6 +139,24 @@ export function needsInterview(input: InterviewInput): boolean {
 export type InterviewAnswers = Partial<Record<InterviewFieldId, string>>;
 
 /**
+ * The fields whose answer is longer than we keep — named, so the cut is never
+ * silent.
+ *
+ * Clamping rather than rejecting is deliberate (#799, "no dead ends"): an owner
+ * who wrote too much should not be stopped at the last question. But a clamp
+ * nobody hears about is data loss with good manners. On Skif, 2026-09-24, five
+ * answers saved through this route were each cut to exactly 500 characters
+ * mid-sentence, and those clipped fields are what briefs the build agent. The
+ * route now says which fields it cut, so a caller can shorten and re-save.
+ */
+export function clampedAnswerFields(answers: InterviewAnswers): InterviewFieldId[] {
+  return INTERVIEW_FIELDS.filter((field) => {
+    const raw = answers[field.id];
+    return typeof raw === "string" && raw.trim().length > INTERVIEW_ANSWER_MAX;
+  }).map((field) => field.id);
+}
+
+/**
  * Answers worth storing, trimmed and clamped.
  *
  * Skipped questions arrive absent; a question the owner answered with "n/a" or
