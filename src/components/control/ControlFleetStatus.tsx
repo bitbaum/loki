@@ -228,7 +228,14 @@ export function ControlFleetStatus({
     : needsYou > 0
       ? {
           dot: "ui-dot-warning",
-          text: `${needsYou} ${needsYou === 1 ? "project needs" : "projects need"} you`,
+          // Say WHICH KIND of need. This counted only agent attention
+          // (session or last-run health) but claimed the whole phrase, so it
+          // read as a contradiction of /today's verdict, which counts raised
+          // flags as well: Control said "1 project needs you - loki" while
+          // the front door named evig. /today is now the complete answer
+          // (#863); this page is the fleet, and naming its scope is what
+          // stops the same three words meaning two things.
+          text: `${needsYou} ${needsYou === 1 ? "project's agent needs" : "projects' agents need"} you`,
           sub: attentionNames.join(" · ") + (needsYou > 3 ? ` +${needsYou - 3}` : ""),
         }
       : failedCount > 0
