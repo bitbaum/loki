@@ -62,7 +62,7 @@ export const config = {
      *                                trailing slash keeps GET /api/invitations (list) protected
      *   api/share/task/            – the assignee's read + accept/decline/deliver, by token;
      *                                the path segment keeps every other /api/share child protected
-     *   api/orangecat/             – OrangeCat webhooks (entitlement, events); each verifies its own HMAC
+     *   api/orangecat/             – OrangeCat webhooks (entitlement, events, site, actor-status); each verifies its own HMAC
      *                                signature. One exception, deliberately unsigned:
      *                                api/orangecat/project-link answers "is this OrangeCat project
      *                                being built here" and returns only what /fleet already
