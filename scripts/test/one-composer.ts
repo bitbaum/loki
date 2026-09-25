@@ -89,10 +89,10 @@ const render = (props: Record<string, unknown>) =>
   // Loki chat: attach + model picker (voice renders only where the browser can
   // record, which a server render cannot — its absence here is the SSR default).
   const chat = render({ modelPicker: true });
-  eq(has(chat, "ui-loki-composer-input"), true, "chat renders the shared input");
+  eq(has(chat, "ck-input"), true, "chat renders the shared input");
   eq(has(chat, 'aria-label="Attach a screenshot or file"'), true, "chat can attach");
   eq(has(chat, "ui-loki-model"), true, "chat offers the model picker");
-  eq(has(chat, "ui-loki-composer-modes"), false, "chat has no mode toggle");
+  eq(has(chat, "ck-modes"), false, "chat has no mode toggle");
 
   // The terminal rail: same component, Ask/Inject toggle, attach on.
   const rail = render({
@@ -103,18 +103,18 @@ const render = (props: Record<string, unknown>) =>
     mode: "inject",
     density: "compact",
   });
-  eq(has(rail, "ui-loki-composer-input"), true, "the rail renders the SAME input as chat");
+  eq(has(rail, "ck-input"), true, "the rail renders the SAME input as chat");
   eq(has(rail, 'aria-label="Attach a screenshot or file"'), true, "the rail can attach now");
-  eq(has(rail, "ui-loki-composer-modes"), true, "the rail shows Ask / Inject");
+  eq(has(rail, "ck-modes"), true, "the rail shows Ask / Inject");
   eq(has(rail, 'aria-pressed="true">Inject'), true, "the active mode is pressed");
-  eq(has(rail, "ui-loki-composer-compact"), true, "compact density is a class, not a fork");
+  eq(has(rail, "ck-composer-compact"), true, "compact density is a class, not a fork");
   eq(has(rail, "ui-loki-model"), false, "Inject offers no model picker (the CLI is the session's)");
 
   // A single mode renders no toggle at all.
   eq(
     has(
       render({ modes: [{ id: "inject", label: "Inject" }], mode: "inject" }),
-      "ui-loki-composer-modes",
+      "ck-modes",
     ),
     false,
     "one destination renders no toggle",

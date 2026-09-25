@@ -36,7 +36,7 @@ export const FEEDBACK_WIDGET_EXCLUDED_PREFIXES = [
   // thing the operator is reading, and the terminal has its own composer.
   "/terminal",
   // Same shape as /terminal, and measured rather than assumed: at 390px the
-  // launcher's centre sits ON TOP of `textarea.ui-loki-composer-input` — the
+  // launcher's centre sits ON TOP of the composer's textarea (`.ck-input`) — the
   // box you type into on the page whose whole purpose is typing into it.
   //
   // Not a failure of the widget's avoidance. `INTERACTIVE` already matches

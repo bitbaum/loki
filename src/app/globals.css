@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* The fleet chat (composer, thread, markdown) — behaviour and look; colours
+   mapped to ours in :root below. */
+@import "@bitbaum/chatkit/styles.css";
 
 /* Exclude documentation/config files — they contain example class names that
    confuse the Tailwind scanner and generate invalid CSS (e.g. var(--*)). */
@@ -315,6 +318,28 @@
   --status-negative: oklch(0.5 0.18 25);
   --status-negative-subtle: oklch(0.5 0.18 25 / 8%);
   --status-neutral: oklch(0.58 0 0);
+
+  /* @bitbaum/chatkit — the fleet's one chat reads --ck-*. Its defaults expect
+     design-token HSL triplets; ours are full OKLCH colours under the same
+     names, so map them once here. They are var() references, so they flip
+     with .dark (set on this same element) and need no dark copy. */
+  --ck-bg: var(--surface-base);
+  --ck-raised: var(--surface-raised);
+  --ck-overlay: var(--surface-overlay);
+  --ck-fg: var(--text-primary);
+  --ck-fg-2: var(--text-secondary);
+  --ck-fg-3: var(--text-tertiary);
+  --ck-muted: var(--text-muted);
+  --ck-line: var(--border-subtle);
+  --ck-line-2: var(--border-default);
+  --ck-accent: var(--accent-primary);
+  --ck-on-accent: var(--text-inverted);
+  --ck-accent-soft: var(--accent-muted);
+  --ck-danger: var(--status-negative);
+  --ck-danger-soft: var(--status-negative-subtle);
+  --ck-warning: var(--status-warning);
+  --ck-font: var(--font-sans);
+  --ck-mono: var(--font-mono);
 }
 
 /* ─── Dark mode ───────────────────────────────────────────────────────────── */
@@ -5758,10 +5783,6 @@
     @apply border-t border-border-subtle px-3 pb-1 pt-2 text-xs text-text-muted;
   }
 
-  .ui-loki-attach-note {
-    @apply px-1 text-xs text-status-warning;
-  }
-
   @keyframes ui-loki-dot {
     0%,
     60%,
@@ -5823,23 +5844,8 @@
 
   /* Composer (center pane, bottom). Grok-like: one large command object with
      scope, attachments, tools, suggestions and send all visually connected. */
-  .ui-loki-composer-wrap {
-    @apply flex flex-col gap-2;
-  }
-  .ui-loki-composer {
-    @apply flex flex-col gap-2 rounded-2xl border border-border-subtle bg-surface-base p-3 shadow-sm transition-colors focus-within:border-border-default sm:p-4;
-  }
   /* Same parts, tighter — a side rail or a phone dock. */
-  .ui-loki-composer-compact {
-    @apply gap-1.5 rounded-xl p-2 sm:p-2.5;
-  }
   /* Mutually exclusive destinations for the same words (Ask / Inject). */
-  .ui-loki-composer-modes {
-    @apply flex flex-wrap items-center gap-1;
-  }
-  .ui-loki-composer-hint {
-    @apply hidden min-w-0 truncate text-micro text-text-muted sm:inline;
-  }
   .ui-loki-composer-error {
     @apply flex items-start gap-2 rounded-lg border border-status-negative/30 bg-status-negative-subtle px-2.5 py-1.5 text-xs text-status-negative;
   }
@@ -5856,36 +5862,9 @@
   /* Grows from ONE line. The old rule reserved two rows (min-h-14 on desktop)
      for a box that is empty most of the time. `text-base` is not a style
      choice: iOS zooms the whole page when a focused input is under 16px. */
-  .ui-loki-composer-input {
-    @apply max-h-60 min-h-9 w-full resize-none overflow-y-auto bg-transparent px-1 py-1.5 text-base leading-relaxed text-text-primary placeholder:text-text-muted outline-none;
-  }
-  .ui-loki-composer-actions {
-    @apply flex items-center justify-between gap-2 border-t border-border-subtle pt-2;
-  }
-  .ui-loki-composer-tools {
-    @apply flex min-w-0 flex-wrap items-center gap-1.5;
-  }
-  .ui-loki-composer-submit-row {
-    @apply flex shrink-0 items-center justify-end;
-  }
-  .ui-loki-tool-btn {
-    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-raised text-text-secondary transition-colors hover:border-border-default hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-45;
-  }
-  .ui-loki-tool-btn-rec {
-    @apply border-status-negative bg-status-negative-subtle text-status-negative;
-  }
-  .ui-loki-rec-stop {
-    @apply block h-3 w-3 rounded-sm bg-status-negative;
-  }
-  .ui-loki-send-btn {
-    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-primary text-text-inverted transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-surface-raised disabled:text-text-muted;
-  }
   /* Stop takes the SAME slot as send. Two separate controls would mean the
      button you want moves depending on state, which is how people cancel a
      turn they meant to send. */
-  .ui-loki-send-btn-stop {
-    @apply bg-surface-raised text-text-primary hover:bg-surface-overlay;
-  }
   .ui-loki-suggest-row {
     @apply flex min-w-0 flex-wrap gap-1.5;
   }
@@ -5899,80 +5878,8 @@
   }
   /* Grok-style voice overlay — covers the composer while recording/transcribing:
      a live waveform, elapsed timer, and cancel/confirm. */
-  .ui-voice-bar {
-    @apply absolute inset-0 z-10 flex items-center gap-3 rounded-2xl border border-border-default bg-surface-base px-3 sm:px-4;
-  }
-  .ui-voice-rec-dot {
-    @apply h-2.5 w-2.5 shrink-0 rounded-full bg-status-negative;
-    animation: ui-voice-pulse 1.2s ease-in-out infinite;
-  }
-  .ui-voice-wave {
-    @apply flex flex-1 items-center justify-center gap-1 overflow-hidden;
-    height: 1.75rem;
-  }
-  .ui-voice-wave-bar {
-    @apply w-1 rounded-full bg-accent-primary;
-    height: 100%;
-    transform: scaleY(0.3);
-    transform-origin: center;
-    animation: ui-voice-wave 1s ease-in-out infinite;
-  }
   /* Staggered, uneven delays so the row reads as an organic waveform, not a
      single sine sweep. */
-  .ui-voice-wave-bar:nth-child(1) {
-    animation-delay: -0.9s;
-  }
-  .ui-voice-wave-bar:nth-child(2) {
-    animation-delay: -0.3s;
-  }
-  .ui-voice-wave-bar:nth-child(3) {
-    animation-delay: -0.7s;
-  }
-  .ui-voice-wave-bar:nth-child(4) {
-    animation-delay: -0.1s;
-  }
-  .ui-voice-wave-bar:nth-child(5) {
-    animation-delay: -0.6s;
-  }
-  .ui-voice-wave-bar:nth-child(6) {
-    animation-delay: -0.2s;
-  }
-  .ui-voice-wave-bar:nth-child(7) {
-    animation-delay: -0.8s;
-  }
-  .ui-voice-wave-bar:nth-child(8) {
-    animation-delay: -0.4s;
-  }
-  .ui-voice-wave-bar:nth-child(9) {
-    animation-delay: -0.5s;
-  }
-  .ui-voice-timer {
-    @apply shrink-0 text-sm font-medium text-text-secondary;
-  }
-  .ui-voice-cancel {
-    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary;
-  }
-  .ui-voice-stop {
-    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-status-negative text-white transition-transform active:scale-95;
-  }
-  @keyframes ui-voice-wave {
-    0%,
-    100% {
-      transform: scaleY(0.25);
-    }
-    50% {
-      transform: scaleY(1);
-    }
-  }
-  @keyframes ui-voice-pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.35;
-    }
-  }
 
   /* Composer context — scoped project + quick-action chips. */
   .ui-loki-scope-pill {
@@ -6044,8 +5951,7 @@
 /* ─── Reduced-motion catch-all ────────────────────────────────────────────────
    Respect the OS-level `prefers-reduced-motion` for every remaining animation.
    Individual components guard their own entrances above; this backstop covers
-   the infinite pulses/waves (fleet-live-pulse, ui-voice-pulse/-wave,
-   ui-palette-mic-pulse, sidebar-tooltip-in) so nothing loops for users who
+   the infinite pulses/waves (fleet-live-pulse, ui-palette-mic-pulse, sidebar-tooltip-in) so nothing loops for users who
    asked the platform to reduce motion. Near-zero (not 0) keeps final states. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -6112,8 +6018,6 @@
   .ui-btn-icon,
   .ui-attach-remove,
   .ui-btn-row-action,
-  .ui-loki-tool-btn,
-  .ui-loki-send-btn,
   /* A checkbox is 14px of native control. It cannot grow without looking
      like a different widget, so the LABEL around it carries the hit area —
      which is also what a finger actually lands on. */
