@@ -42,6 +42,7 @@ import {
   waitForPtyOutput,
   explainPtyDispatchFailure,
   detectPtyCapacityFailure,
+  startPtyOutputCapture,
   ptyAgentForTab,
   shouldReplacePtyAgent,
   terminatePty,
@@ -610,6 +611,10 @@ async function handleCommand(
             // Subscribe BEFORE writing so short output bursts cannot happen
             // between injection and verification setup.
             let outputAfterInject = agent === 'claude' ? null : waitForPtyOutput(tab, 8000)
+            // Everything the CLI says from here on — the only place a quota
+            // wall can be, since the wall is its answer to this prompt.
+            const saidSinceInject = startPtyOutputCapture(tab)
+            try {
             injectPty(tab, effPrompt)
             // The moment the prompt reached the agent — reported in the ack so the
             // server stamps delivery HERE, not after the up-to-8s generating check
@@ -679,7 +684,17 @@ async function handleCommand(
                 `${agent} is not authenticated (401 / login required) — the prompt was delivered but the agent can't run. ` +
                 `On the runner host, remove any stale ~/.claude/.credentials.json and set CLAUDE_CODE_OAUTH_TOKEN (claude setup-token).`
             } else {
-              const capacityFailure = detectPtyCapacityFailure(tab, agent as AgentOption)
+              let capacityFailure = detectPtyCapacityFailure(tab, agent as AgentOption, {
+                since: saidSinceInject.text(),
+                prompt: effPrompt,
+              })
+              // Claude reports its own state. A session still generating ~12s
+              // after the submit has not hit a wall, whatever its screen says —
+              // "Approaching usage limit" is a warning it prints WHILE working.
+              if (capacityFailure && agent === 'claude') {
+                const live = claudeLiveSessionForDir(readClaudeLiveSessions(), effDir)
+                if (live && live.status !== 'idle' && live.status !== 'waiting') capacityFailure = null
+              }
               if (capacityFailure) {
                 ok = false
                 verified = false
@@ -693,6 +708,9 @@ async function handleCommand(
               warning = undefined
               error = `${text}, but Loki could not verify generation. ${explainPtyDispatchFailure(tab, agent as AgentOption)}`
               }
+            }
+            } finally {
+              saidSinceInject.stop()
             }
             break
           }

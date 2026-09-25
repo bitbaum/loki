@@ -29,6 +29,18 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.32",
+    tag: "fleet-runner-v0.8.32",
+    date: "2026-09-25T00:00:00Z",
+    highlights: [
+      "A task that mentions rate limits, credits or context windows is no longer mistaken for the agent running out of quota. The runner used to read those words in the prompt it had just typed and close a working run as failed.",
+      "Claude keeps its run while it is still generating, even if its screen shows a usage warning such as \u201capproaching usage limit\u201d.",
+    ],
+    breaking: [],
+    notes:
+      "Quota detection now reads only what the agent printed after the prompt was submitted, ignores lines that are just the prompt echoed back, and defers to Claude's own session status. A run is still closed when the agent really hits a usage wall.",
+  },
+  {
     version: "0.8.31",
     tag: "fleet-runner-v0.8.31",
     date: "2026-09-25T00:00:00Z",

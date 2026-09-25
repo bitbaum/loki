@@ -204,16 +204,59 @@ export function explainPtyDispatchFailure(tab: string, agent: AgentOption): stri
   return `${agent} opened on this computer, but produced no response after Loki submitted the prompt. Open Terminal to see the live CLI; if it is idle, choose another AI provider and Retry.`;
 }
 
+const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]/g;
+const normalizeScreenText = (s: string) => s.replace(ANSI_RE, "").toLowerCase().replace(/\s+/g, " ").trim();
+
 /** A CLI quota wall redraws the terminal, so output volume alone cannot prove
  * generation. Convert the provider's own screen into an exact blocker before
- * the runner acknowledges `generating`. */
-export function capacityFailureFromScreen(screen: string, agent: AgentOption): string | null {
-  if (!looksLikeAgentCapacityIssue(screen)) return null;
+ * the runner acknowledges `generating`.
+ *
+ * `prompt` is what Loki just injected. The CLI echoes it, and a task ABOUT
+ * rate limits, credits or context windows is not a quota wall: on 2026-09-25
+ * a Skif brief asking the agent to adopt limitkit was NACKed as "usage limit
+ * exhausted" while Claude was visibly working on it. A line of the screen that
+ * is only a piece of the prompt is ignored; the wall has to be something the
+ * CLI said. */
+export function capacityFailureFromScreen(
+  screen: string,
+  agent: AgentOption,
+  prompt?: string,
+): string | null {
+  const echoed = prompt ? normalizeScreenText(prompt) : "";
+  const said = screen
+    .replace(ANSI_RE, "")
+    .split(/\r?\n|\r/)
+    .map(normalizeScreenText)
+    // Box-drawing borders and the composer's "> " marker wrap an echoed prompt.
+    .map((line) => line.replace(/^[\s>│┃|]+|[\s│┃|]+$/g, ""))
+    .filter((line) => line && looksLikeAgentCapacityIssue(line))
+    .filter((line) => !(echoed && echoed.includes(line)));
+  if (!said.length) return null;
   return `${agent} cannot generate because its usage limit is exhausted. Switch this project to a provider with available capacity, then Retry.`;
 }
 
-export function detectPtyCapacityFailure(tab: string, agent: AgentOption): string | null {
-  return capacityFailureFromScreen(peekPtyBuffer(tab) ?? "", agent);
+/**
+ * Collect what the PTY prints from NOW on. Start it before injecting: a quota
+ * wall is the CLI's answer to the prompt, so only output after the injection
+ * can be one. Scanning the whole buffer read the boot banner, the previous
+ * turn and the agent's own `cat` of a file mentioning "credit" as a wall.
+ */
+export function startPtyOutputCapture(tab: string): { text: () => string; stop: () => void } {
+  let replaying = true;
+  let buf = "";
+  const unsub = executor.subscribe(runnerWorkspaceId(tab), 0, (e) => {
+    if (!replaying && e.kind === "output" && e.data) buf += e.data;
+  });
+  replaying = false;
+  return { text: () => buf, stop: unsub };
+}
+
+export function detectPtyCapacityFailure(
+  tab: string,
+  agent: AgentOption,
+  opts: { since?: string; prompt?: string } = {},
+): string | null {
+  return capacityFailureFromScreen(opts.since ?? peekPtyBuffer(tab) ?? "", agent, opts.prompt);
 }
 
 /**
