@@ -1,6 +1,6 @@
 {
   "name": "fleet-runner",
-  "version": "0.8.30",
+  "version": "0.8.31",
   "description": "Fleet Runner — the Loki desktop agent runtime: owns the agent terminals on this computer for projects set to run here.",
   "main": "./out/main/index.js",
   "author": {
@@ -94,5 +94,12 @@
     "electron-vite": "^5.0.0",
     "typescript": "^7",
     "vite": "^8.3.0"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.15",
+    "baseline-browser-mapping": "^2.11.0",
+    "browserslist": "^4.28.7",
+    "fast-uri": "^3.1.6",
+    "nanoid": "^3.3.18"
   }
 }
