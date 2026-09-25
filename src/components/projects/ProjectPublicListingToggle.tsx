@@ -60,8 +60,10 @@ export function ProjectPublicListingToggle({
       onClick={toggle}
       disabled={saving}
       className="ui-btn-ghost min-h-11 gap-1.5"
-      // Says what is true now and what a click will do — the button is both the
-      // state and the decision, and a reader must not have to guess which.
+      // Action label is always the verb for what a click does. The current
+      // listing STATE lives in the header status line (ProjectWorkspaceView),
+      // not in this button — "Not listed" / "Listed publicly" dressed as
+      // peers of "Repository" and "Share" made state look like another link.
       title={
         error
           ? `Could not save: ${error}`
@@ -76,7 +78,7 @@ export function ProjectPublicListingToggle({
       ) : (
         <Globe className={listed ? "h-4 w-4 text-accent-text" : "h-4 w-4"} aria-hidden="true" />
       )}
-      {listed ? "Listed publicly" : "List publicly"}
+      {listed ? "Unlist from catalogue" : "List publicly"}
     </button>
   );
 }

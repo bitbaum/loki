@@ -1,3 +1,9 @@
+---
+created_date: 2026-06-15
+last_modified_date: 2026-09-25
+last_modified_summary: Document channel mismatch — box-runner must register bridge presence as cloud (same as box-* heartbeats), or /terminal reports Cloud offline while the box ships work.
+---
+
 # Connection-based runner presence
 
 **Status:** rolling out (additive → cutover)
@@ -31,6 +37,14 @@ web /control reads runner_presence.connected                      (no timer)
 - **Online = an open runner→bridge connection.** Not a heartbeat age.
 - The browser also connects to the bridge, so the runner tags itself
   `?client=runner`; only runner connections move presence.
+- **Channel must match the heartbeat.** The runtime-state pusher keys the
+  snapshot row by `isCloudRunnerVersion(LOKI_RUNNER_VERSION)` (`box-*` →
+  `cloud`). The bridge SSE must use the same channel (`?channel=cloud|local`).
+  `resolveRunnerPresenceChannel()` infers cloud from a `box-*` version when
+  `LOKI_RUNNER_PRESENCE_CHANNEL` is unset; `scripts/box-runner.ts` also forces
+  cloud. If connection says `local` and heartbeats say `cloud`,
+  `applyHeartbeatExpiry` clears both — `/terminal` then shows "Cloud builder
+  offline" while the journal still says connected and is shipping work.
 - Reconnect-safe via a connection **count** (multiple machines / brief overlaps).
 - **Bridge boot resets all counts to 0** — a fresh bridge holds no connections,
   so any stale `connected=true` from a crash is cleared on the next deploy.

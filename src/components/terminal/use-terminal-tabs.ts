@@ -33,14 +33,20 @@ export function useTerminalTabs(channel: BuilderChannel): TerminalTabsState {
     unavailable?: { code: string; message: string };
   }>(`/api/control/open-tabs?channel=${channel}`, 5000);
   const presence = useBuilderPresence();
+  const tabs = data?.tabs ?? [];
   const connected =
     channel === "cloud" ? presence.builderPresence?.cloud : presence.builderPresence?.local;
+  // Presence unknown (still loading) is not offline — claiming "Cloud builder
+  // offline" while the first poll is in flight made the mode bar look stuck.
+  // Live tabs also win: a mis-tagged presence channel must not hide sessions
+  // that open-tabs already returned for this builder.
+  const offline = connected === false && tabs.length === 0;
 
   return {
-    tabs: data?.tabs ?? [],
+    tabs,
     loading,
     gatedMessage: data?.unavailable?.message ?? null,
-    offline: connected === false,
+    offline,
     presence,
   };
 }

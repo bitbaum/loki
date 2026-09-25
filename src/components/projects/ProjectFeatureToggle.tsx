@@ -12,7 +12,9 @@
 // rule that matters: featuring never overrides consent. The showcase query is
 // consent AND featured (db/queries/public-visibility.ts), and the API refuses
 // to feature a project whose owner has not listed it — so this only renders
-// once consent exists, and says why when it does not.
+// once consent exists. Until then this control is absent — listing state lives
+// in the project header status line, not as a second ghost "Not listed" peer
+// of "List publicly".
 //
 // Only the site operator sees it at all; the API enforces the same thing, so
 // hiding it is an affordance rather than the control.
@@ -40,17 +42,11 @@ export function ProjectFeatureToggle({
   const [error, setError] = useState<string | null>(null);
 
   // Nothing to curate until the owner has opted in. Saying so beats a control
-  // that looks available and answers 404.
+  // that looks available and answers 404 — but it is STATE, not an action, so
+  // it must not sit in the action row next to "List publicly" as a second
+  // ghost control that looks clickable. The listing toggle already says that.
   if (!listedPublicly) {
-    return (
-      <span
-        className="ui-btn-ghost min-h-11 gap-1.5 opacity-60"
-        title="The owner has not listed this project publicly, so it cannot be featured. Consent comes first."
-      >
-        <Star className="h-4 w-4" aria-hidden="true" />
-        Not listed
-      </span>
-    );
+    return null;
   }
 
   async function toggle() {

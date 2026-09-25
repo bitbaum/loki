@@ -27,6 +27,12 @@ export type ListingInvitationInput = {
   gitUrl: string | null;
   /** Viewing someone else's project (org peer): never their decision to take. */
   readonly: boolean;
+  /**
+   * Kickoff or an active build is on screen. Asking about the catalogue on top
+   * of "Make it happen" / "Building now" stacks a shop-window question on the
+   * work itself — ask after the build path is idle.
+   */
+  buildBusy?: boolean;
 };
 
 /**
@@ -42,5 +48,6 @@ export function shouldInviteToPublicCatalogue(p: ListingInvitationInput): boolea
   if (p.listedPublicly) return false;
   if (p.dismissedAt) return false;
   if (!p.isActive) return false;
+  if (p.buildBusy) return false;
   return Boolean(p.gitUrl?.trim());
 }

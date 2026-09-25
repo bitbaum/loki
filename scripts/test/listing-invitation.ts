@@ -71,5 +71,14 @@ ok(
   "a project with no live URL is still asked — 'being built' belongs in the catalogue",
 );
 
+ok(
+  !shouldInviteToPublicCatalogue({ ...eligible, buildBusy: true }),
+  "kickoff or an active build: catalogue ask waits until the work path is idle",
+);
+ok(
+  shouldInviteToPublicCatalogue({ ...eligible, buildBusy: false }),
+  "buildBusy false is the same as omitted — still asked",
+);
+
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

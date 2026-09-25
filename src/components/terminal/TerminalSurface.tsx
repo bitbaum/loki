@@ -365,19 +365,29 @@ export function TerminalSurface({
   const [liveState, setLiveState] = useState<TerminalLiveState>("connecting");
   const [geometry, setGeometry] = useState<PtyGeometry | null>(null);
 
-  const honesty = deriveExecutorHonestyLabel(
-    source === "machine"
-      ? {
-          runnerConnected: presence.builderPresence?.local ?? presence.runnerConnected,
-          runtimeAvailable: false,
-          scope: "machine",
-        }
-      : {
-          runnerConnected: presence.runnerConnected,
-          runtimeAvailable: local || presence.runtimeAvailable,
-          scope: "cloud",
-        },
-  );
+  // Scope the chip to THIS source. Using any-builder `runnerConnected` on the
+  // cloud tab labelled a laptop-only online state as "Cloud builder online",
+  // and the inverse (null while presence loads) as "Cloud builder offline"
+  // while the box was shipping. Live tabs are the tie-break when channels
+  // disagree with presence — same rule as useTerminalTabs.offline.
+  const channelOnline =
+    source === "machine" ? presence.builderPresence?.local : presence.builderPresence?.cloud;
+  const honesty =
+    presence.builderPresence == null && tabs.length === 0
+      ? null
+      : deriveExecutorHonestyLabel(
+          source === "machine"
+            ? {
+                runnerConnected: channelOnline ?? (tabs.length > 0 ? true : false),
+                runtimeAvailable: false,
+                scope: "machine",
+              }
+            : {
+                runnerConnected: channelOnline ?? (tabs.length > 0 ? true : false),
+                runtimeAvailable: local || presence.runtimeAvailable,
+                scope: "cloud",
+              },
+        );
 
   // Agent roster derived from context (already fetched above for tab resolution)
   const agents = useMemo(
