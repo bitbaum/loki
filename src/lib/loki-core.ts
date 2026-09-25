@@ -224,7 +224,9 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
   // fails, which would quietly spend the pool they opted out of and hide the
   // one thing they need to hear: that their key stopped working.
   const own = opts?.userId ? await loadOwnModel(opts.userId) : null;
-  if (own && opts?.userId) return askLokiOnOwnModel(message, opts, own, startedAt);
+  if (own && opts?.userId) {
+    return askLokiOnOwnModel(message, { ...opts, userId: opts.userId }, own, startedAt);
+  }
 
   // Ration BEFORE any provider is called, and only for identified users —
   // an anonymous caller has no ledger to charge, and the paths they can reach
