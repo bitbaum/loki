@@ -175,5 +175,62 @@ migration_dirs nonsense /r . >/dev/null 2>&1 \
   || ok "an unknown layout fails loudly rather than reporting no migrations"
 
 
+# ── The app's role can use the tables its migrations create ─────────────────
+# skif, 2026-09-25: "schema applied ✓", 14 tables, and the app's own role could
+# read none of them, because migrations run as postgres. heidi only worked via
+# default privileges someone set by hand; kivvi still cannot read five tables.
+g=$(app_role_default_privileges_sql skif public)
+for want in \
+  "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO skif;" \
+  "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO skif;" \
+  "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO skif;"; do
+  grep -qxF "$want" <<<"$g" && ok "defaults: $want" || no "defaults missing: $want"
+done
+
+# NEVER re-grant existing tables. kivvi's immutable-books spec plans to REVOKE
+# UPDATE, DELETE on its append-only audit log; a GRANT on ALL TABLES every
+# deploy would silently undo that each time. Defaults touch only NEW tables,
+# so a migration's own REVOKE (which runs after its CREATE) still wins.
+grep -q "ON ALL TABLES" <<<"$g" \
+  && no "the access step re-grants EXISTING tables — it would undo a deliberate REVOKE on every deploy" \
+  || ok "existing tables are never re-granted, so a deliberate REVOKE survives deploys"
+grep -qE "GRANT ALL( |$)" <<<"$g" \
+  && no "the default grant is ALL — TRUNCATE, REFERENCES and TRIGGER are not the app's by default" \
+  || ok "the default grant is plain DML, not ALL"
+
+# The defaults must be set BEFORE the migration batch: they only cover tables
+# created after they exist, so setting them afterwards would leave every table
+# of a brand-new app's first deploy unreadable — the exact skif case.
+defaults_at=$(grep -n '^set_app_role_defaults || exit 1$' "$SCRIPT" | cut -d: -f1)
+batch_at=$(grep -n '^run_sql -q < "\$BATCH"$' "$SCRIPT" | cut -d: -f1)
+report_at=$(grep -n '^ensure_app_role_access || exit 1$' "$SCRIPT" | cut -d: -f1)
+{ [ -n "$defaults_at" ] && [ -n "$batch_at" ] && [ -n "$report_at" ] \
+  && [ "$defaults_at" -lt "$batch_at" ] && [ "$batch_at" -lt "$report_at" ]; } \
+  && ok "defaults are set before the migrations run, and access is checked after" \
+  || no "defaults must be set BEFORE the batch (got defaults=$defaults_at batch=$batch_at report=$report_at)"
+
+# The role and schema are interpolated into SQL, so anything that is not a
+# plain identifier is refused rather than quoted.
+for evil in "skif; DROP DATABASE loki" "Skif" "sk-if" "" "skif'--"; do
+  app_role_default_privileges_sql "$evil" public >/dev/null 2>&1 \
+    && no "defaults accepted a non-identifier role: '$evil'" \
+    || ok "defaults refuse the role '$evil'"
+done
+app_role_default_privileges_sql skif "public; DROP SCHEMA public" >/dev/null 2>&1 \
+  && no "defaults accepted a non-identifier schema" \
+  || ok "defaults refuse a non-identifier schema"
+
+q=$(app_role_unreadable_tables_sql skif public)
+grep -qF "has_table_privilege('skif', c.oid, 'SELECT')" <<<"$q" \
+  && ok "the check asks whether the APP role can read, not whether tables exist" \
+  || no "the readability check does not test the app role's privilege"
+grep -qF "c.relname <> '_deploy_schema_history'" <<<"$q" \
+  && ok "the deploy's own ledger is not reported (the app never reads it)" \
+  || no "the ledger table would be reported as unreadable on every app"
+app_role_unreadable_tables_sql "skif'; --" public >/dev/null 2>&1 \
+  && no "the check accepted a non-identifier role" \
+  || ok "the check refuses a non-identifier role"
+
+
 printf 'apply-schema: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
