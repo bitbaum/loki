@@ -142,3 +142,18 @@ export function planSiteCd(input: {
     }),
   };
 }
+
+/**
+ * Is this next_step a message registration itself wrote (a status or its
+ * retry command), rather than something the owner wrote? Only those may be
+ * cleared once the site is live; the owner's own next step is never touched.
+ */
+export function isRegistrationNextStep(value: string | null | undefined): boolean {
+  const v = value?.trim() ?? "";
+  if (!v) return false;
+  return (
+    /^(Live site: |Deployment queued\.|Register CD on the studio box: |Could not start deployment |register-site\.sh failed)/.test(
+      v,
+    ) || / — .*register-site\.sh/.test(v)
+  );
+}

@@ -13,6 +13,7 @@ import {
 import { ENTITY_TYPE } from "@/lib/constants/statuses";
 import { BOOK_ACTION_TYPES } from "@/config/book";
 import { db } from "@/db";
+import { getOpenAgentTurnsByProject } from "./agent-sessions";
 import {
   commitments,
   subscriptions,
@@ -355,13 +356,17 @@ export async function getFleetSummary(userId: string) {
     .from(projectStates)
     .where(eq(projectStates.userId, userId));
 
-  let running = 0;
+  // "Running" is a project with a live agent turn: the same source Control's
+  // "working" reads (getOpenAgentTurns, bounded by OPEN_TURN_TTL_MS). It used
+  // to be "a prompt STARTED within the window", which kept counting an agent
+  // after it died: Today said "2 running" while Control said "1 working" and
+  // no run was open (2026-09-25). One question, one answer.
+  const running = Object.keys(await getOpenAgentTurnsByProject(userId)).length;
   let waiting = 0;
   let degraded = 0;
   for (const r of rows) {
-    if (r.currentPromptStartedAt && r.currentPromptStartedAt > cutoffRunning) {
-      running++;
-    } else if (r.readyAt && r.readyAt > cutoffWaiting) {
+    const promptLive = r.currentPromptStartedAt && r.currentPromptStartedAt > cutoffRunning;
+    if (!promptLive && r.readyAt && r.readyAt > cutoffWaiting) {
       waiting++;
     }
     if (r.sessionHealth) {
