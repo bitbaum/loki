@@ -534,11 +534,14 @@ export function TerminalView({
       // captures no keystrokes but still reads the session, and gating the
       // publish on keystroke capture is what left a 79-column grid drawing a
       // 120-column PTY (see terminal-size-sync.ts). The floor for what a viewer
-      // may publish lives in ptyResizeToPublish — a phone that cannot reach
-      // TERMINAL_MIN_COLS adapts its own font and stays silent.
+      // may publish lives in ptyResizeToPublish. A pane that still fits fewer
+      // than TERMINAL_MIN_COLS (a split, or A+ on a narrow window) is PINNED up
+      // to the floor and publishes that — the host scrolls sideways — because a
+      // grid narrower than the PTY it shows wraps every row mid-token.
       const sizes = createPtySizeSync({
         fit: fitFontToTarget,
         measure: () => ({ cols: term.cols, rows: term.rows }),
+        pin: (cols, rows) => term.resize(cols, rows),
         publish: (cols, rows) => transport.sendResize(cols, rows),
         onGeometry: setGeometry,
       });
@@ -655,7 +658,7 @@ export function TerminalView({
     return (
       <div className={`flex flex-col ${className ?? "h-full w-full"}`}>
         <div className="relative min-h-0 flex-1">
-          <div ref={hostRef} className="h-full w-full" />
+          <div ref={hostRef} className="h-full w-full overflow-x-auto overflow-y-hidden" />
           {stalled && <TerminalStalledOverlay message={stallMessage} />}
         </div>
         <LinkBar links={links} onDismiss={() => setLinks([])} />
@@ -747,7 +750,7 @@ export function TerminalView({
       <div
         className={`relative w-full overflow-hidden rounded-md bg-surface-terminal ${fill ? "min-h-0 flex-1" : compactChrome ? "min-h-0 flex-1" : "h-72"}`}
       >
-        <div ref={hostRef} className="h-full w-full" />
+        <div ref={hostRef} className="h-full w-full overflow-x-auto overflow-y-hidden" />
         {stalled && <TerminalStalledOverlay message={stallMessage} />}
       </div>
       <LinkBar links={links} onDismiss={() => setLinks([])} />

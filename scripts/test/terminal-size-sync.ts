@@ -36,6 +36,10 @@ function fakeTerminal(initial: PtyGeometry) {
       grid.rows = host.rows;
     },
     measure: () => ({ cols: grid.cols, rows: grid.rows }),
+    pin: (cols: number, rows: number) => {
+      grid.cols = cols;
+      grid.rows = rows;
+    },
   };
 }
 
@@ -79,6 +83,7 @@ function fakeWindow() {
   const sizes = createPtySizeSync({
     fit: term.fit,
     measure: term.measure,
+    pin: term.pin,
     publish: (cols, rows) => published.push({ cols, rows }),
     onGeometry: (g) => reported.push(g),
   });
@@ -138,22 +143,66 @@ function fakeWindow() {
       throw new Error("host has no dimensions");
     },
     measure: () => ({ cols: 100, rows: 30 }),
+    pin: () => {},
     publish: (cols, rows) => published.push({ cols, rows }),
   });
   eq(sizes.sync(), null, "a fit that throws is a skipped pass, not a crash");
   eq(published.length, 0, "…and publishes nothing");
 }
 
-// --- the floor still applies to a narrow viewer ------------------------------
+// --- a pane narrower than the floor: grid and PTY must still agree ----------
+// Prod 2026-09-25: a cloud `claude` tab in a 46-column pane (41 after A+). The
+// viewer stayed silent under TERMINAL_MIN_COLS and KEPT its 46-column grid, so
+// the PTY stayed at its spawn size of 120 and every row wrapped mid-token. The
+// grid is now pinned up to the floor and that is what the PTY is told.
 {
+  const term = fakeTerminal({ cols: 46, rows: 30 });
   const published: PtyGeometry[] = [];
+  const reported: PtyGeometry[] = [];
+  const pinned: PtyGeometry[] = [];
   const sizes = createPtySizeSync({
-    fit: () => {},
-    measure: () => ({ cols: TERMINAL_MIN_COLS - 1, rows: 30 }),
+    fit: term.fit,
+    measure: term.measure,
+    pin: (cols, rows) => {
+      pinned.push({ cols, rows });
+      term.pin(cols, rows);
+    },
     publish: (cols, rows) => published.push({ cols, rows }),
+    onGeometry: (g) => reported.push(g),
   });
   sizes.sync();
-  eq(published.length, 0, "below TERMINAL_MIN_COLS the viewer adapts itself and stays silent");
+  eq(
+    pinned,
+    [{ cols: TERMINAL_MIN_COLS, rows: 30 }],
+    "a 46-column pane pins the grid to the floor",
+  );
+  eq(
+    published,
+    [{ cols: TERMINAL_MIN_COLS, rows: 30 }],
+    "…and publishes that same size to the PTY",
+  );
+  eq(term.measure(), published.at(-1), "…so the grid drawn IS the PTY's size");
+  eq(
+    reported.at(-1),
+    { cols: TERMINAL_MIN_COLS, rows: 30 },
+    "…and the chrome reports the real grid",
+  );
+
+  // A+ narrows the fit to 41: still the floor, nothing new to tell the PTY.
+  term.host.cols = 41;
+  sizes.sync();
+  eq(published.length, 1, "a narrower fit under the floor does not re-publish the same size");
+  eq(term.measure().cols, TERMINAL_MIN_COLS, "…but the grid is re-pinned after the re-fit");
+
+  // Widening past the floor needs no pin and publishes the real width.
+  term.host.cols = 96;
+  sizes.sync();
+  eq(
+    published.at(-1),
+    { cols: 96, rows: 30 },
+    "a pane wider than the floor publishes its own width",
+  );
+  eq(pinned.length, 2, "…without pinning");
 }
 
 // --- the one xterm publishes whether or not it captures keystrokes ------------

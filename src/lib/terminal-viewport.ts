@@ -63,6 +63,36 @@ export function ptyResizeToPublish(
 }
 
 /**
+ * Below this a host is not laid out (mid-mount, a hidden panel, a pane being
+ * dragged shut) rather than genuinely narrow: nothing a person reads from is
+ * 20 columns wide. Such a measurement stays silent AND leaves the grid alone.
+ */
+export const TERMINAL_COLLAPSED_COLS = 20;
+
+/**
+ * The grid a viewer must actually draw so that it matches the PTY it drives.
+ *
+ * Observed on prod 2026-09-25: a cloud `claude` tab in a 46-column pane (41
+ * after A+). ptyResizeToPublish stays silent under TERMINAL_MIN_COLS — rightly,
+ * a narrow viewer must not squash the session — but the grid stayed 46 wide
+ * while the PTY kept its spawn size of 120, so every row wrapped mid-token and
+ * the right-aligned status line piled up down the edge. The floor protected the
+ * session and left the one person looking at it reading garbage.
+ *
+ * The floor is not negotiable, so the GRID gives: a real-but-narrow host is
+ * pinned up to TERMINAL_MIN_COLS (the host scrolls sideways) and that is the
+ * size published — the same size the server's clampPtyGeometry would impose
+ * anyway. Grid and PTY then agree by construction. A collapsed host returns
+ * null: publish nothing, pin nothing.
+ */
+export function gridForSession(measured: PtyGeometry): PtyGeometry | null {
+  const { cols, rows } = measured;
+  if (!Number.isFinite(cols) || !Number.isFinite(rows)) return null;
+  if (cols < TERMINAL_COLLAPSED_COLS || rows < TERMINAL_MIN_ROWS) return null;
+  return { cols: Math.max(cols, TERMINAL_MIN_COLS), rows };
+}
+
+/**
  * Server side: floor whatever arrived. A caller that is not this app's terminal
  * (an old bundle, the desktop runner, a script) still cannot squash the tab.
  */
