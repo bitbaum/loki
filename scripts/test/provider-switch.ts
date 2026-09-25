@@ -26,6 +26,7 @@ import {
   rankProviders,
   serializeProviderOrder,
   spentProviders,
+  routeAroundSpent,
 } from "@/lib/provider-switch";
 import { AGENT_FALLBACK_ORDER } from "@/lib/agent-resolution";
 
@@ -278,6 +279,76 @@ check("a scoped answer names the machine it came from", () => {
 check("with no project named, the list is the union and says so", () => {
   const line = describeProviderEvidence({ channel: null, observedAt: null }, true);
   assert.match(line, /across your builders/);
+});
+
+// ── A NEW dispatch does not walk into a known wall (routeAroundSpent) ──────
+// 2026-09-25: Cursor refused a loki run at 10:13:46 ("usage limit is
+// exhausted"); nine seconds later the next Implement launched Cursor again and
+// sat silent for ten minutes. The chooser knew; nothing asked it first.
+const CURSOR_SPENT = { cursor: "Cursor hit a limit 1m ago — it may still be spent." };
+const rankFor = (
+  preferred: string,
+  spent: Record<string, string>,
+  order?: string[],
+  installed?: string[],
+) =>
+  rankProviders({ current: preferred, order: order ?? null, installed: installed ?? null, spent });
+
+check("a preferred agent with no refusal on record is used as-is", () => {
+  const out = routeAroundSpent({ preferred: "cursor", spent: {}, options: rankFor("cursor", {}) });
+  assert.deepEqual(out, { agent: "cursor", rerouted: null });
+});
+
+check(
+  "a spent preferred agent is routed to the next provider that can answer, and says why",
+  () => {
+    const out = routeAroundSpent({
+      preferred: "cursor",
+      spent: CURSOR_SPENT,
+      options: rankFor("cursor", CURSOR_SPENT),
+    });
+    assert.equal(
+      out.agent,
+      AGENT_FALLBACK_ORDER.find((id) => id !== "cursor"),
+    );
+    assert.ok(out.rerouted, "the reroute must be reported, never silent");
+    assert.equal(out.rerouted.from, "cursor");
+    assert.match(out.rerouted.because, /Cursor hit a limit/);
+  },
+);
+
+check("the operator's own ranking decides where it goes", () => {
+  const out = routeAroundSpent({
+    preferred: "cursor",
+    spent: CURSOR_SPENT,
+    options: rankFor("cursor", CURSOR_SPENT, ["grok", "codex", "claude"]),
+  });
+  assert.equal(out.agent, "grok");
+});
+
+check("an alternative that is itself spent or not installed is skipped", () => {
+  const spent = {
+    ...CURSOR_SPENT,
+    claude: "Claude Code hit a limit 5m ago — it may still be spent.",
+  };
+  const out = routeAroundSpent({
+    preferred: "cursor",
+    spent,
+    options: rankFor("cursor", spent, ["claude", "grok", "codex"], ["cursor", "claude", "codex"]),
+  });
+  assert.equal(
+    out.agent,
+    "codex",
+    "claude is spent, grok is not installed — codex is the one that can answer",
+  );
+});
+
+check("when nothing else can answer, it keeps the preferred agent rather than refusing", () => {
+  const spent = Object.fromEntries(
+    AGENT_FALLBACK_ORDER.map((id) => [id, `${id} hit a limit 1m ago — it may still be spent.`]),
+  );
+  const out = routeAroundSpent({ preferred: "cursor", spent, options: rankFor("cursor", spent) });
+  assert.deepEqual(out, { agent: "cursor", rerouted: null });
 });
 
 console.log(`\nprovider-switch: ${passed} checks passed`);

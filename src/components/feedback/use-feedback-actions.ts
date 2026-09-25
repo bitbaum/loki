@@ -46,7 +46,10 @@ export function useFeedbackActions(refetch: () => void) {
         });
         // A clone: `act` still reads the original on failure.
         if (res.ok) {
-          const body = (await res.clone().json().catch(() => null)) as { notice?: unknown } | null;
+          const body = (await res
+            .clone()
+            .json()
+            .catch(() => null)) as { notice?: unknown } | null;
           if (typeof body?.notice === "string") setNotice(body.notice);
         }
         return res;
