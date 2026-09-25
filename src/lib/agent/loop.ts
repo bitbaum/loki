@@ -52,6 +52,7 @@ import {
   type ToolRegistry,
 } from "@/lib/agent/tools/registry";
 import { maxPromptBudgetTokens } from "@/config/chat-models";
+import type { OwnModel } from "@/lib/own-model";
 import type { RetrievedSource } from "@/lib/agent/context";
 import { APP_NAME } from "@/config/brand";
 import { looksLikePlan, ANSWER_ONLY } from "@/lib/loki/plan-as-answer";
@@ -336,6 +337,11 @@ export async function runLokiTurn(input: {
   seed?: LoopSeed;
   /** Injected in tests; defaults to the largest usable link's budget. */
   promptBudgetTokens?: number;
+  /**
+   * The user's own model (src/lib/own-model.ts). Every model call in the turn
+   * runs on it, and prompts are sized for it instead of for the free chain.
+   */
+  own?: OwnModel;
 }): Promise<LoopResult> {
   const registry = input.registry ?? (await defaultRegistry());
   const callModel = input.callModel ?? callModelWithTools;
@@ -344,7 +350,8 @@ export async function runLokiTurn(input: {
   const names = toolNames(registry);
   const ctx = { userId: input.userId, message: input.message };
   const budgetTokens =
-    input.promptBudgetTokens ?? (maxPromptBudgetTokens() || FALLBACK_PROMPT_BUDGET_TOKENS);
+    input.promptBudgetTokens ??
+    (maxPromptBudgetTokens(input.own?.chain) || FALLBACK_PROMPT_BUDGET_TOKENS);
 
   const seed = input.seed ?? (await defaultSeed(input.userId, input.message));
   const directives = seed.directives;
@@ -461,6 +468,7 @@ export async function runLokiTurn(input: {
         lastSystem = system;
         try {
           return await callModel({
+            own: input.own,
             // One label for the whole turn: a round, a plan retry and a repair
             // are the same question being answered, and three lines on the
             // capacity page would read as three features.
@@ -540,6 +548,7 @@ export async function runLokiTurn(input: {
     sink?.reset();
     try {
       const retry = await callModel({
+        own: input.own,
         feature: "loki-chat",
         messages: [
           { role: "system", content: lastSystem },
@@ -596,6 +605,7 @@ export async function runLokiTurn(input: {
     // Repair asks for DELETION, not regeneration — the model is not missing
     // knowledge, it added claims. Tools stay off so it cannot wander further.
     const repaired = await callModel({
+      own: input.own,
       feature: "loki-chat",
       messages: [
         { role: "system", content: systemPrompt(registry, false) },

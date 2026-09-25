@@ -31,6 +31,7 @@
 import { HTTP_TIMEOUT_LONG_MS } from "@/lib/constants/time";
 import { classifyGroqLimit, groqRetryAfterSeconds, humanizeWait } from "@/lib/agent/groq-error";
 import { chainFrom, linkPromptCeilingTokens, type ChatLink } from "@/config/chat-models";
+import { keyForLink, type OwnModel } from "@/lib/own-model";
 import { recordAIHealthFailure, recordAIHealthSuccess } from "@/lib/ai/health";
 import { recordVendorQuota, recordPreflightSkip, recordRefusal } from "@/lib/ai/record-quota";
 import { readSseChunks } from "@/lib/agent/sse-stream";
@@ -276,6 +277,13 @@ export type ModelCallInput = {
    */
   promptTokens?: number;
   /**
+   * The user's own model (see src/lib/own-model.ts). Present = walk ONLY that
+   * chain, with its key from `own.env`, and keep it out of every record Loki
+   * keeps about its OWN vendors: the quota page, refusals, usage, AI health.
+   * A user's Anthropic account running dry is not Loki's Groq pool draining.
+   */
+  own?: OwnModel;
+  /**
    * Present = stream this call and hand prose to the operator as it arrives.
    *
    * Absent = the old buffered behaviour, which every non-interactive caller
@@ -326,12 +334,21 @@ async function callOneLink(
   input: ModelCallInput,
   tools: Array<Record<string, unknown>>,
 ): Promise<ModelTurn> {
-  const key = process.env[link.provider.keyEnv];
-  if (!key) throw new LinkError("other", `${link.provider.keyEnv} not set`);
+  const key = keyForLink(link, input.own);
+  if (!key) {
+    throw new LinkError(
+      "other",
+      input.own ? "your key is not available" : `${link.provider.keyEnv} not set`,
+    );
+  }
 
   const res = await fetch(`${link.provider.baseUrl}/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+      ...(input.own?.extraHeaders ?? {}),
+    },
     body: JSON.stringify({
       model: link.model,
       messages: input.messages,
@@ -355,7 +372,7 @@ async function callOneLink(
   // reading — it corrects a local counter that had drifted optimistic. Never
   // awaited and never able to throw: a telemetry write must not be able to fail
   // an answer the operator is waiting for.
-  recordVendorQuota(res.headers, link);
+  if (!input.own) recordVendorQuota(res.headers, link);
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -376,7 +393,7 @@ async function callOneLink(
       // provider through an outage. A "size" 429 is deliberately excluded — it
       // reports THIS prompt being too big, which is a fact about the prompt and
       // not about how much allowance is left.
-      if (kind !== "size") {
+      if (kind !== "size" && !input.own) {
         recordRefusal(link, body, retryAfter, kind === "daily" ? "tokens" : "requests");
       }
       // Keep the wording the shed ladder greps for — `loop.ts` recognises
@@ -751,7 +768,7 @@ export async function callModelLinkOnce(link: ChatLink, input: ModelCallInput): 
 export async function callModelWithTools(
   input: ModelCallInput & { /** Internal: set after the one bounded wait. */ waited429?: boolean },
 ): Promise<ModelTurn> {
-  const chain = chainFrom(input.model ?? process.env.LOKI_MODEL);
+  const chain = input.own ? input.own.chain : chainFrom(input.model ?? process.env.LOKI_MODEL);
   if (chain.length === 0) {
     const error = new Error("no chat provider configured (set GROQ_API_KEY or OPENROUTER_API_KEY)");
     recordAIHealthFailure(error);
@@ -765,7 +782,9 @@ export async function callModelWithTools(
   const skipped: string[] = [];
   for (const link of chain) {
     if (drained.has(link.provider.id)) continue;
-    if (input.promptTokens !== undefined) {
+    // The budgets below are Loki's FREE-tier windows. A user's own key is sized
+    // by their vendor, which says so itself if a prompt is too big.
+    if (input.promptTokens !== undefined && !input.own) {
       // The CEILING, not the sizing budget: skipping a link that would have
       // answered costs a 25-second detour and one of 50 daily free requests,
       // while trying one that refuses costs a 1-second 429. See
@@ -817,11 +836,14 @@ export async function callModelWithTools(
         }
         // Recorded once per top-level call — a later link answering is the
         // fallback doing its job, not a health problem.
-        recordAIHealthSuccess();
         // What it cost, charged to the caller that asked. Fire-and-forget and
         // caught, like every other write on this path: telemetry must not be
-        // able to fail an answer someone is waiting for.
-        recordUsage(link.provider.id, link.model, input.feature, turn.usageTokens);
+        // able to fail an answer someone is waiting for. Neither applies to a
+        // user's own key — it is their vendor's meter, not Loki's.
+        if (!input.own) {
+          recordAIHealthSuccess();
+          recordUsage(link.provider.id, link.model, input.feature, turn.usageTokens);
+        }
         return turn;
       } catch (e) {
         if (emitted) outer?.reset();
@@ -866,6 +888,6 @@ export async function callModelWithTools(
   // `size` is a request-shape problem, not a vendor outage — recording it as
   // AI-down would make /api/health flap on prompts that are simply too big,
   // which is a caller bug (see loop.ts's shedding), not a chain failure.
-  if (!kinds.has("size")) recordAIHealthFailure(exhausted);
+  if (!kinds.has("size") && !input.own) recordAIHealthFailure(exhausted);
   throw exhausted;
 }

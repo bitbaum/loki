@@ -40,6 +40,13 @@ import {
 import { NO_BASIS } from "@bitbaum/ai-kit/grounding";
 import { rateLimitMessage } from "@/lib/agent/groq-error";
 import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
+import { getOwnModel } from "@/db/queries/user-model-keys";
+import {
+  ownModelFrom,
+  OWN_MODEL_KEY_ENV,
+  OWN_MODEL_SETTINGS_PATH,
+  type OwnModel,
+} from "@/lib/own-model";
 import type { Fact } from "@bitbaum/ai-kit/grounding";
 import { APP_NAME } from "@/config/brand";
 import { ECOSYSTEM, ORANGECAT_CAPABILITIES } from "@/config/ecosystem";
@@ -210,6 +217,17 @@ export type AskLokiOpts = {
  */
 export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskLokiResult> {
   const startedAt = Date.now();
+
+  // A user who brought their own model runs on it: their vendor, their bill.
+  // So none of the free-pool machinery applies — not the ration, not the
+  // spend ledger, and not the fallback to the shared chain when their key
+  // fails, which would quietly spend the pool they opted out of and hide the
+  // one thing they need to hear: that their key stopped working.
+  const own = opts?.userId ? await loadOwnModel(opts.userId) : null;
+  if (own && opts?.userId) {
+    return askLokiOnOwnModel(message, { ...opts, userId: opts.userId }, own, startedAt);
+  }
+
   // Ration BEFORE any provider is called, and only for identified users —
   // an anonymous caller has no ledger to charge, and the paths they can reach
   // do not draw on the rationed pool. The whole turn is gated once, not each
@@ -280,6 +298,79 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
   }
 
   return askLokiViaGateway(message, opts, startedAt);
+}
+
+async function loadOwnModel(userId: string): Promise<OwnModel | null> {
+  try {
+    const config = await getOwnModel(userId);
+    return config ? ownModelFrom(config) : null;
+  } catch (e) {
+    // A read failure means "use the free chain as before", never "no answer".
+    console.error("[loki] own model unavailable:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+/**
+ * A turn on the user's own model: the tool loop only, on their chain.
+ *
+ * Their failure is theirs to see. A revoked key, an empty balance or a model
+ * their account cannot use comes back as a sentence naming their vendor and
+ * what it said — with where to fix it — instead of an answer from somewhere
+ * else that would leave them thinking their key works.
+ */
+async function askLokiOnOwnModel(
+  message: string,
+  opts: AskLokiOpts & { userId: string },
+  own: OwnModel,
+  startedAt: number,
+): Promise<AskLokiResult> {
+  try {
+    const voicePref = await getUserPreferences(opts.userId)
+      .then((p) => p.writingVoice)
+      .catch(() => null);
+    const result = await runLokiTurn({
+      userId: opts.userId,
+      message,
+      voice: voicePref,
+      history: opts.history,
+      onEvent: opts.onEvent,
+      own,
+    });
+    if (!result.text.trim()) {
+      throw new Error("it returned an empty answer");
+    }
+    const provenance: LokiProvenance = {
+      via: "tool-loop",
+      model: `your key: ${own.label}`,
+      durationMs: Date.now() - startedAt,
+      toolsUsed: result.toolsUsed,
+      rounds: result.rounds,
+      retrieved: result.retrieved,
+      grounding: groundingMeta(result.facts.length, result.violations),
+    };
+    logTurn({ ...provenance, userId: opts.userId, textLength: result.text.length });
+    return {
+      status: 200,
+      body: { ok: true, text: result.text, ...provenance, sources: result.sources },
+    };
+  } catch (e) {
+    // Vendors usually mask a key they echo; the ones that don't must not have
+    // it shown, logged or sent back.
+    const key = own.env[OWN_MODEL_KEY_ENV] ?? "";
+    const raw = e instanceof Error ? e.message : String(e);
+    const detail = key ? raw.split(key).join(`…${key.slice(-4)}`) : raw;
+    console.error(`[loki] own model (${own.label}) failed:`, detail);
+    return {
+      status: 502,
+      body: {
+        error:
+          `Your model (${own.label}) didn't answer: ${detail.slice(0, 240)}. ` +
+          "Check the key or pick another model in Settings → AI.",
+        settingsUrl: OWN_MODEL_SETTINGS_PATH,
+      },
+    };
+  }
 }
 
 /** The fallback path: the same grounded seed + gateway/Groq. */
