@@ -154,8 +154,11 @@ export const EXECUTOR_COPY = {
     // own project card is not holding the reaper's dictionary.
     reapedButHandoffWritten:
       "The agent had already saved a handoff when this run was closed, so it counts as partial rather than failed.",
+    // Worded for both closers: the time reaper AND a runner restart (#917)
+    // reach this, and "ran out of time" was false for a session the builder's
+    // restart ended.
     reapedButWorkInRepo:
-      "This run ran out of time, but its work reached the repo — so it counts as partial rather than failed.",
+      "This run ended before it could report back, but its work reached the repo — so it counts as partial rather than failed.",
     // This one IS a failure, so it keeps payload.error. Note what it does NOT
     // claim: the runner's ack says "injected", and what it could not establish
     // is whether the agent picked the prompt up. An earlier draft of this line

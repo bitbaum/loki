@@ -23,6 +23,11 @@ export const RUN_EVENT_KINDS = [
   "blocked", // agent blocked on input / auth / dialog (detail.reason)
   "handoff", // session handoff received (pusher persisted it)
   "closed", // run closed with outcome (closeRunFromSession / reaper)
+  // A closed run's outcome corrected after the fact: the reaper said
+  // timeout, then found a PR it had pushed (reap-evidence). It used to be
+  // a SECOND "closed", so a run's history read "closed, closed" and
+  // looked like two runs ending (2026-09-25).
+  "reclassified",
   "recorded", // changelog entry appended from the handoff
   "promoted", // changelog entry promoted to the OrangeCat wall
 ] as const;

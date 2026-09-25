@@ -122,7 +122,8 @@ export async function correctTimeoutReapsWithRepoEvidence(
         .returning({ id: orchestrationRuns.id });
 
       if (corrected) {
-        void emitRunEvent(run.id, run.userId, "closed", {
+        // A correction, not a second close: the reaper already emitted "closed".
+        void emitRunEvent(run.id, run.userId, "reclassified", {
           outcome: ORCHESTRATION_OUTCOME.PARTIAL,
           by: "reaper-evidence",
           evidence,

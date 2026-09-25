@@ -28,6 +28,7 @@ const KIND_SUMMARY: Record<RunEventKind, string> = {
   blocked: "Agent blocked — needs input",
   handoff: "Agent handed off",
   closed: "Run closed",
+  reclassified: "Outcome corrected from evidence",
   recorded: "Recorded in changelog",
   promoted: "Promoted to OrangeCat",
 };
@@ -43,6 +44,7 @@ const KIND_RANK: Record<RunEventKind, number> = {
   blocked: 55,
   handoff: 70,
   closed: 80,
+  reclassified: 85,
   recorded: 90,
   promoted: 100,
 };
