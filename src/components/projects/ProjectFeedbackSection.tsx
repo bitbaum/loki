@@ -69,7 +69,7 @@ export function ProjectFeedbackSection({
   );
   const [setupOpen, setSetupOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const { busyId, error, setError, dispatchFix, setStatus, feature } = useFeedbackActions(
+  const { busyId, error, setError, notice, dispatchFix, setStatus, feature } = useFeedbackActions(
     feedbackFetch.refetch,
   );
   const [synthesizing, setSynthesizing] = useState(false);
@@ -295,6 +295,7 @@ export function ProjectFeedbackSection({
       )}
 
       {error && <p className="mb-3 ui-error">{error}</p>}
+      {notice && <p className="mb-3 ui-callout-warning">{notice}</p>}
 
       {feedbackFetch.loading ? (
         <div className="flex items-center gap-2 py-6 text-sm text-text-tertiary">

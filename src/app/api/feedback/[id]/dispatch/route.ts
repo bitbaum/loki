@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readIdParam, readJsonBody, jsonError, z } from "@/lib/api/route-helpers";
 import { getApiUserId } from "@/lib/session";
 import { getFeedbackWithProject, setFeedbackStatus } from "@/db/queries/site-feedback";
-import { getOrchestrationRunById } from "@/db/queries/orchestration-runs";
+import { getOrchestrationRunById, mergeRunPayload } from "@/db/queries/orchestration-runs";
 import { injectPrompt } from "@/lib/inject-core";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { composeFeedbackFixPrompt } from "@/lib/feedback/compose-dispatch";
@@ -11,8 +11,10 @@ import { hydrateFeedbackSnapshot } from "@/lib/feedback/attach-work";
 import { getCurrentClaudeSessionForProject } from "@/db/queries/agent-sessions";
 import { DEFAULT_ADAPTER_ID, ORCHESTRATION_ADAPTER_IDS, type AdapterId } from "@/lib/orchestration";
 import { feedbackInjectAccepted } from "@/lib/feedback/dispatch-accept";
-import { isQuotaAlternativeId } from "@/config/quota-alternatives";
-import { updateUserProject } from "@/db/queries/user-projects";
+import { isQuotaAlternativeId, providerLabel } from "@/config/quota-alternatives";
+import { getUserProject, updateUserProject } from "@/db/queries/user-projects";
+import { providerChoiceFor } from "@/lib/provider-choice";
+import { routeAroundSpent } from "@/lib/provider-switch";
 
 /**
  * One-click Implement: queue a scoped agent run via injectPrompt.
@@ -124,7 +126,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await updateUserProject(row.userProjectId, executionUserId, { agentPref: requestedAgent });
   }
 
-  const adapter = resolveImplementAdapter(requestedAgent ?? row.agentPref);
+  // Don't walk into a known wall. When the operator picked nothing this tap,
+  // the preferred agent is checked against what Loki has OBSERVED: a capacity
+  // refusal inside the spent window routes this run to the next provider in
+  // the operator's own ranking — without touching the stored preference, so
+  // the next dispatch after the quota recovers goes back to it. An explicit
+  // `agent` is the operator deciding, and is never second-guessed.
+  const preferred = resolveImplementAdapter(requestedAgent ?? row.agentPref);
+  let adapter: AdapterId = preferred;
+  let rerouted: { from: string; to: string; because: string } | null = null;
+  if (!requestedAgent) {
+    const project = await getUserProject(row.userProjectId, executionUserId).catch(() => null);
+    const choice = project
+      ? await providerChoiceFor(executionUserId, project, { current: preferred }).catch(() => null)
+      : null;
+    if (choice) {
+      const decided = routeAroundSpent({
+        preferred,
+        spent: choice.spent,
+        options: choice.options,
+      });
+      if (decided.rerouted) {
+        adapter = resolveImplementAdapter(decided.agent);
+        rerouted = { from: preferred, to: adapter, because: decided.rerouted.because };
+      }
+    }
+  }
   const currentSession =
     adapter === "claude"
       ? await getCurrentClaudeSessionForProject(
@@ -171,6 +198,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const runId = accepted ? body.runId : undefined;
   if (accepted) {
     await setFeedbackStatus(executionUserId, idOrResp, FEEDBACK_STATUS.DISPATCHED, runId);
+    // The run records where it was MEANT to go and why it did not, so the
+    // ledger can tell "ran on Claude Code" from "was sent to Claude Code
+    // because Cursor was spent" — the second is evidence, the first is not.
+    if (rerouted && runId) {
+      await mergeRunPayload(runId, {
+        reroutedFrom: rerouted.from,
+        reroutedBecause: rerouted.because,
+      }).catch(() => undefined);
+    }
   }
 
   const workLabel = accepted
@@ -188,6 +224,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       sessionId: currentSession?.sessionId ?? null,
       sessionAction: adapter === "claude" ? (currentSession ? "resumed" : "started") : "started",
       workLabel,
+      // Said out loud, not done quietly: the operator chose the other agent.
+      ...(rerouted && {
+        rerouted,
+        notice: `${rerouted.because} This run is on ${providerLabel(rerouted.to)} instead; your default stays ${providerLabel(rerouted.from)}.`,
+      }),
       // Add helpful context for common failures
       ...(status === 404 && {
         hint: "The project may need to be registered on the Projects page, or the agent may need to be started.",

@@ -1,6 +1,6 @@
 import { promptForLane } from "@/lib/orchestration/lane-prompt";
 import { deriveRunTab } from "@/lib/run-tab";
-import { countOpenParallelLanes, setRunSessionTab } from "@/db/queries/orchestration-runs";
+import { countOpenParallelLanes, mergeRunPayload } from "@/db/queries/orchestration-runs";
 
 /**
  * Same-project parallel dispatch: when a project is busy, give the new run its
@@ -69,7 +69,7 @@ export async function planParallelRun(
   // The alias is what the close path matches a pushed handoff on. Without it
   // persisted, a parallel run would finish and never close — worse than
   // waiting its turn — so any failure here keeps the queue.
-  const stamped = await setRunSessionTab(runId, tab).catch((err: unknown) => {
+  const stamped = await mergeRunPayload(runId, { sessionTab: tab }).catch((err: unknown) => {
     console.error("[parallel-run] sessionTab persist failed, keeping the queue:", err);
     return false;
   });

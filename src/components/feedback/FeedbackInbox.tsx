@@ -83,7 +83,7 @@ export function FeedbackInbox() {
   );
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const { busyId, error, dispatchFix, setStatus, feature } = useFeedbackActions(refetch);
+  const { busyId, error, notice, dispatchFix, setStatus, feature } = useFeedbackActions(refetch);
 
   const all = useMemo(() => data?.feedback ?? [], [data]);
   const metrics = data?.metrics ?? null;
@@ -277,6 +277,7 @@ export function FeedbackInbox() {
       )}
 
       {error && <p className="ui-error">{error}</p>}
+      {notice && <p className="ui-callout-warning">{notice}</p>}
       {/* The loop in three numbers. Fleet-wide, so it is hidden under a
           project filter rather than quietly answering a different question. */}
       {!projectFilter && metrics && metrics.total > 0 && (
