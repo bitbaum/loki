@@ -71,7 +71,10 @@ check("the task and its context survive the rewrite", () => {
   const out = promptForLane(injectCorePrompt, lane);
   assert(out.includes("Clamp a report body to three lines"), "the task was lost");
   assert(out.includes("## The operator's goals & deadlines"), "the context was lost");
-  assert(out.trimEnd().endsWith(exitContractFor(LANE_FILE).trimEnd()), "the contract must stay last");
+  assert(
+    out.trimEnd().endsWith(exitContractFor(LANE_FILE).trimEnd()),
+    "the contract must stay last",
+  );
 });
 
 check("a prompt with no contract yet gets exactly one", () => {
