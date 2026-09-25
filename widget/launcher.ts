@@ -6,13 +6,15 @@
 import { h, PENCIL_SVG } from "./dom";
 import { writeVisitorPlacement } from "./visitor-placement";
 import {
-  avoidOffsetY,
+  chooseSlot,
   cornerEdges,
   CORNERS,
-  probeCorner,
-  stepOffControls,
+  slotOrder,
+  withSide,
   type Placement,
+  type Slot,
 } from "./placement";
+import { createHostScanner, readPlaceDirective } from "./host-scan";
 
 export type Launcher = {
   fab: HTMLButtonElement;
@@ -90,7 +92,7 @@ export function createLauncher(opts: {
   function showMenu() {
     // Anchor to the launcher's own corner so the menu opens inward, never
     // off the edge of the viewport.
-    const p = effective();
+    const p = current;
     const { x, y } = cornerEdges(p.corner);
     menu.style.left = menu.style.right = menu.style.top = menu.style.bottom = "";
     menu.style[x] = `${p.offsetX}px`;
@@ -133,7 +135,10 @@ export function createLauncher(opts: {
   // Scroll-fade companion to the narrow-viewport CSS above: the class is
   // toggled on every viewport, but only the ≤480px media query styles it.
   let scrollSettle = 0;
-  window.addEventListener(
+  // Captured on the document, not the window: a bottom sheet or chat log
+  // scrolls on its own and never fires a window scroll, yet it moves what sits
+  // under the launcher just the same.
+  document.addEventListener(
     "scroll",
     () => {
       fab.classList.add("scrolling");
@@ -143,71 +148,81 @@ export function createLauncher(opts: {
         reposition();
       }, 350);
     },
-    { passive: true },
+    { passive: true, capture: true },
   );
 
   // ---- placement engine ----
   //
-  // One routine for every viewport, replacing a mobile-only version that
-  // reset to the base offset above 480px — which is exactly why the launcher
-  // kept sitting on top of desktop chat widgets. Two distinct hazards, both
-  // real, handled in one pass:
-  //
-  //   FOREIGN LAUNCHERS (any viewport). Intercom, Crisp, Tawk, Drift and most
-  //   in-house AI buttons all default to bottom-right, same as us, and our
-  //   near-max z-index means we cover theirs. Measured by rectangle, so it
-  //   works against a vendor we have never heard of.
-  //
-  //   INTERACTIVE CONTROLS (narrow viewports). Content spans the full width,
-  //   so whatever scrolls into the corner sits under the launcher and the FAB
-  //   steals the tap — measured covering the /auth GitHub sign-in button at
-  //   320px. Hit-testing catches this; rectangle-matching alone would not,
-  //   because page content is not fixed-position.
-  const INTERACTIVE = "a,button,input,select,textarea,summary,[role='button']";
+  // One routine for every viewport and every kind of obstacle. Candidate
+  // slots come from placement.slotOrder (preferred corner up its near band,
+  // the mirrored corner, then the rest of each edge); host-scan measures each
+  // one; placement.chooseSlot takes the first that covers nothing, else the
+  // first that covers only a host layer, else hides. The history of why it is
+  // one pass rather than several special cases is in host-scan.ts.
 
   /** The visitor's choice wins over the operator's, and only for them. */
   const effective = (): Placement => opts.getVisitorOverride() ?? opts.getPlacement();
 
-  const applyPlacement = () => {
-    const p = effective();
-    const { x, y } = cornerEdges(p.corner);
-    // Clear both axes first: switching corners must not leave the old edge
-    // set, which would pin the launcher to two opposite sides at once.
-    fab.style.left = fab.style.right = fab.style.top = fab.style.bottom = "";
-    fab.style[x] = `${p.offsetX}px`;
-    fab.style[y] = `${p.offsetY}px`;
+  /** Where the launcher actually is now — the menu anchors to this. */
+  let current: Slot = { ...effective() };
+
+  const place = (slot: Slot) => {
+    const { x, y } = cornerEdges(slot.corner);
+    // Every edge to "auto" first, never "": the shadow stylesheet itself sets
+    // right/bottom, so clearing the inline value let `right:16px` survive a
+    // move to a LEFT corner and the launcher stretched across the whole page
+    // ("Move to other corner" did exactly that until the browser test caught
+    // it). Only the two anchored edges may hold a length.
+    fab.style.left = fab.style.right = fab.style.top = fab.style.bottom = "auto";
+    fab.style[x] = `${slot.offsetX}px`;
+    fab.style[y] = `${slot.offsetY}px`;
+  };
+  const show = (visible: boolean) => {
+    fab.style.visibility = visible ? "" : "hidden";
   };
 
   const reposition = () => {
     if (fab.style.display === "none") return; // panel open — rect is degenerate
     const p = effective();
-    applyPlacement();
-    if (!p.autoAvoid) return;
-
-    const { y } = cornerEdges(p.corner);
-    const own = fab.getBoundingClientRect();
-    const foreign = probeCorner(host, own);
-    const afterForeign = avoidOffsetY(own, foreign, p.corner, p.offsetY);
-
-    // Every width: step over page content the rectangle scan cannot see,
-    // because ordinary content is not fixed-position. See stepOffControls.
-    const isCovered = (offsetY: number) => {
-      fab.style[y] = `${offsetY}px`;
-      const r = fab.getBoundingClientRect();
-      const pts: Array<[number, number]> = [
-        [r.left + 3, r.top + 3],
-        [r.right - 3, r.top + 3],
-        [r.left + 3, r.bottom - 3],
-        [r.right - 3, r.bottom - 3],
-        [(r.left + r.right) / 2, (r.top + r.bottom) / 2],
-      ];
-      return pts.some(([px, py]) =>
-        document
-          .elementsFromPoint(px, py)
-          .some((el) => el !== host && !host.contains(el) && el.closest(INTERACTIVE) !== null),
-      );
+    const directive = readPlaceDirective();
+    if (directive === "hidden") {
+      show(false);
+      return;
+    }
+    const base: Slot = {
+      corner: directive ? withSide(p.corner, directive) : p.corner,
+      offsetX: p.offsetX,
+      offsetY: p.offsetY,
     };
-    fab.style[y] = `${stepOffControls(afterForeign, p.offsetY, isCovered)}px`;
+    place(base);
+    current = base;
+    if (!p.autoAvoid) {
+      show(true);
+      return;
+    }
+    const scanner = createHostScanner(host);
+    const size = fab.getBoundingClientRect();
+    const slots = slotOrder(base, {
+      edgeLength: window.innerHeight,
+      size: size.height,
+      // A side named by the host or chosen by the visitor is kept: the
+      // launcher may climb that edge, never jump across the page.
+      lockSide: directive !== null || opts.getVisitorOverride() !== null,
+    });
+    const pick = chooseSlot(slots, (slot) => {
+      place(slot);
+      return scanner.verdict(fab.getBoundingClientRect());
+    });
+    if (!pick) {
+      // Every slot would sit on a host control. Hidden until the page changes;
+      // the next reposition re-measures.
+      place(base);
+      show(false);
+      return;
+    }
+    place(pick.slot);
+    current = pick.slot;
+    show(true);
   };
 
   reposition();
@@ -237,6 +252,29 @@ export function createLauncher(opts: {
     window.setTimeout(reposition, 300);
     window.setTimeout(reposition, 1500);
   }, 1000);
+
+  // Bottom sheets open, composers mount, cookie bars arrive — none of which
+  // resizes or navigates. Watch the host DOM, throttled to one pass a second:
+  // an animated page mutates constantly and must not keep us measuring.
+  // Mutations inside our own shadow root are invisible to this observer, so
+  // repositioning never feeds itself.
+  const MUTATION_MIN_INTERVAL = 1000;
+  let lastMutationRun = 0;
+  let mutationTimer = 0;
+  new MutationObserver(() => {
+    if (mutationTimer) return;
+    const wait = Math.max(200, MUTATION_MIN_INTERVAL - (Date.now() - lastMutationRun));
+    mutationTimer = window.setTimeout(() => {
+      mutationTimer = 0;
+      lastMutationRun = Date.now();
+      reposition();
+    }, wait);
+  }).observe(document.documentElement, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ["class", "style", "hidden", "open", "data-fc-avoid", "data-fc-place"],
+  });
 
   return { fab, reposition };
 }

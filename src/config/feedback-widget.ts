@@ -5,12 +5,9 @@
  * a comment that gave two reasons. Both were checked, and neither holds:
  *
  *   "the widget FAB would collide with the app shell's mobile nav"
- *      — true when written. The widget now measures its corner and steps out
- *        of the way: rectangle-matching for the desktop Loki FAB (56px at
- *        bottom:28, which the feedback FAB overlapped exactly), and an
- *        interactive hit-test below 480px for the mobile nav, which is
- *        `inset-x-3` and therefore too wide for the rectangle scan to treat as
- *        an obstacle. See widget/placement.ts.
+ *      — true when written. The widget now measures every candidate slot
+ *        and never sits on a host control (the desktop Loki FAB, the mobile
+ *        nav, any bottom sheet) at any width. See widget/README.md.
  *
  *   "in-app feedback already has Loki"
  *      — not true. `insertSiteFeedback` has exactly one caller, the widget's

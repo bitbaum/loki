@@ -94,6 +94,13 @@ jobs:
       - name: Install ripgrep (required by check:design)
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
 
+      # scripts/test/widget-host-avoid-browser.ts proves in a real browser that
+      # the feedback launcher never sits on a host page's controls. It FAILS
+      # under CI when Chromium is missing (it only skips on a laptop without
+      # one), so this step is what lets it run rather than pass vacuously.
+      - name: Install Chromium (widget placement browser test)
+        run: pnpm exec playwright install --with-deps --only-shell chromium
+
       # ONE canonical bundle — the exact `pnpm run verify` you run locally
       # (tsc + lint + check:design + check:desktop + test:unit + test:home +
       # test:ops). CI calls it VERBATIM, so a green local verify can't diverge

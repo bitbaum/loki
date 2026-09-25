@@ -15,8 +15,10 @@ inbox. Hardening learned from the cutover: the OPTIONS preflight reflects
 `Access-Control-Request-Headers`, because customer sites monkey-patch
 window.fetch and stamp extra headers (revampit stamped x-csrf-token) onto the
 widget's cross-origin POST — a hardcoded allowlist silently drops submissions.
-The per-token Origin allowlist in POST remains the security boundary. Embed
-supports `data-fc-bottom` to offset the FAB above a host site's own FAB.
+The per-token Origin allowlist in POST remains the security boundary. Where the
+launcher sits, how it avoids host UI, and the host contract (`data-fc-avoid`,
+`data-fc-place`, legacy `data-fc-bottom`) are documented once, in
+[`widget/README.md`](../../widget/README.md).
 
 ## Captain loop (one-click north star)
 

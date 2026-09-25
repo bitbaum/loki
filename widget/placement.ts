@@ -6,8 +6,8 @@
  * *their* button. This module is the answer to "get off my support widget".
  *
  * Kept separate from main.ts because the interesting parts (which corner, how
- * far to step aside, does this rectangle overlap ours) are pure geometry and
- * can be tested without a browser. Only `probeCorner` touches the DOM.
+ * far to step aside, which slot wins) are pure and testable without a browser.
+ * The DOM measurement lives in host-scan.ts and is injected as a verdict.
  */
 
 export const CORNERS = ["bottom-right", "bottom-left", "top-right", "top-left"] as const;
@@ -27,18 +27,19 @@ export const DEFAULT_PLACEMENT: Placement = {
   autoAvoid: true,
 };
 
-/** Gap left between our launcher and whatever we stepped around. Big enough
- *  that the two read as separate controls rather than one odd stack. */
+/** Gap kept between our launcher and any host control or layer it steps
+ *  around. Big enough that the two read as separate controls rather than one
+ *  odd stack — and part of the measured rectangle, not added afterwards, so a
+ *  slot flush against a button does not count as clear. */
 export const AVOID_GAP = 12;
 
-/** Give up rather than climb the whole viewport. Past this we are no longer
- *  "in the corner" in any meaningful sense, and something on the page is
- *  unusual enough that the visitor's own move/hide is the better answer. */
-export const MAX_AVOID_SHIFT = 260;
+/** Distance between one candidate slot and the next along an edge. */
+export const CLIMB_STEP = 16;
 
-/** Anything at least this big in the corner is a real control, not a stray
- *  pixel or a tracking iframe. Chat launchers are 48–64px. */
-const MIN_FOREIGN_SIZE = 24;
+/** The "near" band of a corner. Every slot this close to the base offset — on
+ *  BOTH sides — is tried before any slot further up an edge: a launcher in the
+ *  opposite corner reads as placed, one halfway up the screen reads as lost. */
+export const NEAR_CLIMB = 260;
 
 /**
  * CSS edge properties for a corner. Returned rather than branched at the call
@@ -104,121 +105,109 @@ export function overlaps(a: Rect, b: Rect): boolean {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }
 
-/**
- * How much further from its anchored edge the launcher must sit to clear
- * everything it collides with.
- *
- * Always moves along the Y axis. Sideways would slide the launcher across the
- * bottom of the page, where it collides with cookie bars and looks misplaced;
- * stacking vertically is what a person expects of two corner buttons and is
- * what every chat vendor's own "offset" setting does.
- *
- * Returns the new offsetY, or the original when nothing is in the way.
- */
-export function avoidOffsetY(
-  own: Rect | DOMRect,
-  foreign: Array<Rect | DOMRect>,
-  corner: Corner,
-  currentOffsetY: number,
-): number {
-  const anchoredTop = corner.startsWith("top");
-  let offset = currentOffsetY;
-  // toRect, never {...own}: a DOMRect spreads to {} — see toRect's note.
-  let box = toRect(own);
-  const obstacles = foreign.map(toRect);
-
-  // Re-check after each shift: stepping over one launcher can land on another
-  // (a site running chat + cookie consent + a back-to-top button). Bounded by
-  // the list length, so no unbounded loop even if rectangles are pathological.
-  for (let i = 0; i < obstacles.length + 1; i++) {
-    // Test against a box inflated by the gap, not the bare one. Strict overlap
-    // alone lets a shift land the launcher exactly flush against the next
-    // obstacle — technically not covering it, visually one indistinguishable
-    // blob of buttons. The gap is the point, so it has to be part of the test.
-    const probe = {
-      left: box.left,
-      right: box.right,
-      top: box.top - AVOID_GAP,
-      bottom: box.bottom + AVOID_GAP,
-    };
-    const hit = obstacles.find((f) => overlaps(probe, f));
-    if (!hit) break;
-    const shift = (anchoredTop ? hit.bottom - box.top : box.bottom - hit.top) + AVOID_GAP;
-    if (shift <= 0) break;
-    const next = offset + shift;
-    if (next - currentOffsetY > MAX_AVOID_SHIFT) return currentOffsetY;
-    offset = next;
-    const dy = anchoredTop ? shift : -shift;
-    box = { left: box.left, right: box.right, top: box.top + dy, bottom: box.bottom + dy };
-  }
-  return offset;
-}
-
-/** How far each step climbs while stepping over a covered page control. */
-export const CONTROL_STEP = 16;
-
-/**
- * Step the launcher off whatever interactive control it is sitting on.
- *
- * `isCovered(offsetY)` is the DOM hit-test, injected so this stays pure. Runs at
- * EVERY viewport width: it used to be narrow-only, on the theory that desktop
- * content never reaches the corner — but a chat composer's send button lives
- * exactly there, and avoidOffsetY stepping over a host's own fixed launcher
- * lifts us straight onto it. OrangeCat /messages: clicking Send opened the
- * feedback panel instead, and no message sent for 18 days.
- *
- * Returns the first uncovered offset, or `start` when nothing within
- * MAX_AVOID_SHIFT of `base` is clear — parking somewhere arbitrary beats
- * nothing only if it is actually clear.
- */
-export function stepOffControls(
-  start: number,
-  base: number,
-  isCovered: (offsetY: number) => boolean,
-): number {
-  for (let offset = start; offset - base <= MAX_AVOID_SHIFT; offset += CONTROL_STEP) {
-    if (!isCovered(offset)) return offset;
-  }
-  return start;
+/** One place the launcher could sit: a corner plus its two edge offsets. */
+export interface Slot {
+  corner: Corner;
+  offsetX: number;
+  offsetY: number;
 }
 
 /**
- * Foreign fixed/sticky elements sharing our corner.
+ * What a slot would cover, best to worst.
  *
- * `ownHost` is excluded by identity rather than by class name, because our own
- * shadow host is a plain div on the customer's page and a name-based check
- * would be defeated by any site that happens to use the same class.
- *
- * Elements are read from the document only — we deliberately do NOT descend
- * into other sites' shadow roots. A closed shadow root cannot be read anyway,
- * and an open one belongs to somebody else's component; the host rectangle is
- * what actually occupies the space, which is all we need.
+ * - `free`: nothing of the host's that matters.
+ * - `surface`: part of a control far bigger than the launcher — a pannable
+ *   map, a canvas, a card that is one big link. Every other part of it still
+ *   works, so covering a corner costs the visitor almost nothing.
+ * - `layer`: a host layer's content — a fixed/sticky bar, a bottom sheet, an
+ *   inner scroll panel. What sits under us there is what the visitor is
+ *   reading, and it scrolls small targets under us.
+ * - `blocked`: an ordinary interactive element, or anything the host marked
+ *   `data-fc-avoid`. Never acceptable: a launcher over a control steals its
+ *   clicks (OrangeCat's Send button, 18 days).
  */
-export function probeCorner(ownHost: Element, ownRect: Rect | DOMRect): Rect[] {
-  const own = toRect(ownRect);
-  const found: Rect[] = [];
-  const seen = new Set<Element>();
-  const all = document.body ? document.body.querySelectorAll<HTMLElement>("*") : [];
-  for (const el of Array.from(all)) {
-    if (el === ownHost || ownHost.contains(el) || seen.has(el)) continue;
-    let cs: CSSStyleDeclaration;
-    try {
-      cs = getComputedStyle(el);
-    } catch {
-      continue;
+export const SLOT_VERDICTS = ["free", "surface", "layer", "blocked"] as const;
+export type SlotVerdict = (typeof SLOT_VERDICTS)[number];
+
+/** `data-fc-place` values a host can declare. */
+export type PlaceDirective = "left" | "right" | "hidden";
+
+/** Move a corner to the side a host or visitor asked for, keeping its edge. */
+export function withSide(corner: Corner, side: "left" | "right"): Corner {
+  return `${corner.startsWith("top") ? "top" : "bottom"}-${side}` as Corner;
+}
+
+/**
+ * Every slot worth trying, best first.
+ *
+ * The order IS the preference, so the chooser can be a plain scan:
+ *   1. the preferred corner, climbing its edge through the near band;
+ *   2. the mirrored corner (same edge, other side), same band — unless the
+ *      side is locked by a host directive or by the visitor's own choice;
+ *   3. the rest of the preferred side's edge, then the mirrored side's.
+ * Climbing stops where the launcher would leave the viewport.
+ */
+export function slotOrder(
+  base: Slot,
+  opts: { edgeLength: number; size: number; lockSide: boolean },
+): Slot[] {
+  const maxOffset = Math.max(base.offsetY, opts.edgeLength - opts.size - base.offsetY);
+  const mirror = withSide(base.corner, base.corner.endsWith("left") ? "right" : "left");
+  const sides: Corner[] = opts.lockSide ? [base.corner] : [base.corner, mirror];
+  const climb = (corner: Corner, from: number, to: number): Slot[] => {
+    const out: Slot[] = [];
+    for (let o = from; o <= to; o += CLIMB_STEP) {
+      out.push({ corner, offsetX: base.offsetX, offsetY: o });
     }
-    if (cs.position !== "fixed" && cs.position !== "sticky") continue;
-    if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) === 0) continue;
-    const r = el.getBoundingClientRect();
-    if (r.width < MIN_FOREIGN_SIZE || r.height < MIN_FOREIGN_SIZE) continue;
-    // A full-width bar (nav, cookie banner spanning the page) is not something
-    // we can step around usefully — moving up just lands on the next one, and
-    // the visitor can still reach a launcher that overlaps a banner edge.
-    if (r.width > window.innerWidth * 0.9) continue;
-    const rect = toRect(r);
-    if (!overlaps(own, rect)) continue;
-    seen.add(el);
-    found.push(rect);
+    return out;
+  };
+  // Snapped to the climb grid, so the far band continues the near one exactly.
+  const nearSteps = Math.floor(Math.min(NEAR_CLIMB, maxOffset - base.offsetY) / CLIMB_STEP);
+  const nearTop = base.offsetY + nearSteps * CLIMB_STEP;
+  const slots: Slot[] = [];
+  for (const c of sides) slots.push(...climb(c, base.offsetY, nearTop));
+  for (const c of sides) slots.push(...climb(c, nearTop + CLIMB_STEP, maxOffset));
+  return slots;
+}
+
+/**
+ * The first free slot; failing that the first of the least-bad kind
+ * (surface, then layer); failing that null, which means "hide". Every slot
+ * would sit on a host control, and a launcher that eats a click is worse than
+ * no launcher — window.Loki.report() still works for a host that wires its
+ * own button.
+ *
+ * `verdict` is the DOM measurement, injected so this stays pure. It runs
+ * lazily and stops at the first free slot, so the common case — nothing in the
+ * corner — costs one measurement.
+ */
+export function chooseSlot(
+  slots: Slot[],
+  verdict: (slot: Slot) => SlotVerdict,
+): { slot: Slot; verdict: Exclude<SlotVerdict, "blocked"> } | null {
+  const rank = (v: SlotVerdict) => SLOT_VERDICTS.indexOf(v);
+  let best: { slot: Slot; verdict: Exclude<SlotVerdict, "blocked"> } | null = null;
+  for (const slot of slots) {
+    const v = verdict(slot);
+    if (v === "free") return { slot, verdict: v };
+    if (v !== "blocked" && (!best || rank(v) < rank(best.verdict))) best = { slot, verdict: v };
   }
-  return found;
+  return best;
+}
+
+/**
+ * Resolve `data-fc-place` declarations, given outermost (<html>) first and
+ * then the page's regions in document order. The last valid one wins, so a
+ * page region overrides a site-wide default on <html>. Unknown values are
+ * ignored rather than guessed at.
+ */
+export function resolvePlaceDirective(
+  values: Array<string | null | undefined>,
+): PlaceDirective | null {
+  let out: PlaceDirective | null = null;
+  for (const raw of values) {
+    const v = (raw ?? "").trim().toLowerCase();
+    if (v === "left" || v === "right" || v === "hidden") out = v;
+  }
+  return out;
 }
