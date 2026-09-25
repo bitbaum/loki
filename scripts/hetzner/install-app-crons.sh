@@ -55,8 +55,8 @@ sbb-fundbuero|4016|*-*-* 03:30:00|/api/cron/purge|POST
 # /account/settings#sweep); filings fetch new EDGAR filings every hour.
 substrata|4022|*-*-* *:17:00|/api/cron/sweep|POST
 substrata|4022|*-*-* *:47:00|/api/cron/filings|POST
-# drafts: AI drafts of events from open sweep leads, five per run, for /review.
-substrata|4022|*-*-* *:32:00|/api/cron/drafts|POST
+# No substrata drafts timer: George 2026-09-25 — no background job may spend
+# free-tier AI. Drafting runs only when a reader asks, on their own key.
 # Science pipeline: papers and grants per bottleneck (OpenAlex, arXiv, NSF, OpenAIRE,
 # USAspending). The route takes the two bottlenecks searched longest ago.
 substrata|4022|*-*-* *:02:00|/api/cron/science|POST
