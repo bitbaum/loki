@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Install the builder-auth watch: an hourly probe that runs Claude Code with
+# Install the builder-auth watch: a daily probe that runs Claude Code with
 # the box-runner's own token and alerts when the answer is "no".
 #
 # Why: the token belongs to whichever Claude account minted it. When the
@@ -37,11 +37,13 @@ ExecStart=/opt/monitoring/builder-auth-check.sh
 UNIT
 ssh "$HOST" "cat > /etc/systemd/system/loki-builder-auth.timer" <<'TIMER'
 [Unit]
-Description=Loki: builder-auth probe (hourly)
+Description=Loki: builder-auth probe (daily)
 [Timer]
-# Hourly: a dead builder costs every dispatch in between, and the probe is
-# one short model call. Alerts fire on the flip only, so hourly is not noisy.
-OnCalendar=hourly
+# Daily, before the working day (2026-09-25; was hourly). Each probe is a real
+# model call on the operator's Claude sign-in, and 24 a day is spend for
+# nothing: the builder takes ~2 dispatches a day, and an account change is a
+# once-a-month event that a morning check catches before the day's work.
+OnCalendar=*-*-* 06:00:00
 RandomizedDelaySec=300
 Persistent=true
 [Install]
