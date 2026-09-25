@@ -9,6 +9,7 @@ import { PrivacySettings } from "./PrivacySettings";
 import { LocationSettings } from "./LocationSettings";
 import { VoiceSettings } from "./VoiceSettings";
 import { AiQuotaSettings } from "./AiQuotaSettings";
+import { OwnModelSettings } from "./OwnModelSettings";
 import { ProviderOrderSettings } from "./ProviderOrderSettings";
 import { AgentTokenSettings } from "./AgentTokenSettings";
 import { BeaconSettings } from "./BeaconSettings";
@@ -63,6 +64,11 @@ const HASH_TO_TAB: Record<string, TabId> = {
   tokens: "agent", // /control's RunnerStatusBanner deep-links to #tokens
   "agent-token": "agent",
   "agent-tokens": "agent",
+  // "Use your own model" links — from the budget refusal, docs, other apps.
+  model: "ai",
+  "own-model": "ai",
+  byok: "ai",
+  keys: "ai",
 };
 
 // Resolve the initial tab from window.location.hash. Pure function so it can
@@ -175,7 +181,13 @@ export function SettingsTabs({
         {activeTab === "notifications" && <NotificationSettings />}
         {activeTab === "appearance" && <AppearanceSettings />}
         {activeTab === "voice" && <VoiceSettings initialPrefs={userPrefs} />}
-        {activeTab === "ai" && <AiQuotaSettings />}
+        {activeTab === "ai" && (
+          <div className="space-y-6">
+            {/* Your own model first: it is the way past the shared pool below. */}
+            <OwnModelSettings />
+            <AiQuotaSettings />
+          </div>
+        )}
         {activeTab === "privacy" && <PrivacySettings />}
         {activeTab === "location" && <LocationSettings initialPrefs={userPrefs} />}
         {activeTab === "agent" && (
