@@ -37,6 +37,7 @@ import { TerminalMobileHeader, type TerminalLiveState } from "./TerminalMobileHe
 import { TerminalSessionSheet } from "./TerminalSessionSheet";
 import { TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
+import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
 import { Modal } from "@/components/ui/modal";
 import { runnerTransport } from "./terminal-transport";
 import { useTerminalTabs } from "./use-terminal-tabs";
@@ -428,7 +429,11 @@ export function TerminalSurface({
       tabs.map((tab) => {
         const ctx = context?.tabs.find((t) => t.tab === tab);
         const badge = ctx?.liveAgents.length ? ctx.liveAgents.join("+") : undefined;
-        const label = ctx?.projectName ?? tab;
+        // A parallel run's tab is `<project>~<runId8>`; read it as its project,
+        // with a marker so two lanes of one project stay distinguishable. The
+        // raw alias stays in the tooltip for whoever needs it.
+        const project = ctx?.projectName ?? baseProjectKey(tab);
+        const label = isDerivedRunTab(tab) ? `${project} · parallel` : project;
         return {
           id: tab,
           label,

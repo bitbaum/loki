@@ -20,6 +20,7 @@ import { correctTimeoutReapsWithRepoEvidence } from "@/lib/orchestration/reap-ev
 import { attachHandoffToReapedPartials } from "@/lib/orchestration/reap-handoff";
 import { emitRunEvent } from "./run-events";
 import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
+import { runLaneOfTab } from "@/lib/run-tab";
 
 export const STALE_RUN_MINUTES = 60;
 
@@ -350,13 +351,20 @@ export async function getOrchestrationRunById(userId: string, id: string) {
 export async function getLatestRunForProjectKey(userId: string, projectKey: string) {
   const key = projectKey.trim();
   if (!key) return null;
+  // A parallel run's tab (`<project>~<runId8>`, lib/run-tab.ts) names its run:
+  // match the base project AND that run, or "latest for the project" answers
+  // with the other lane — or, keyed on the raw alias, with nothing at all.
+  const lane = runLaneOfTab(key);
   const [row] = await db
     .select()
     .from(orchestrationRuns)
     .where(
       and(
         eq(orchestrationRuns.userId, userId),
-        sql`lower(${orchestrationRuns.projectKey}) = lower(${key})`,
+        sql`lower(${orchestrationRuns.projectKey}) = lower(${lane?.project ?? key})`,
+        lane
+          ? sql`replace(${orchestrationRuns.id}::text, '-', '') LIKE ${`${lane.runPrefix}%`}`
+          : undefined,
       ),
     )
     .orderBy(sql`(${orchestrationRuns.finishedAt} IS NULL) DESC`, desc(orchestrationRuns.startedAt))

@@ -29,6 +29,7 @@ import {
 import { getUserProjects } from "@/db/queries/user-projects";
 import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
 import { readAgentPreferences, resolveAgentConfig } from "@/lib/agent-preferences";
+import { baseProjectKey } from "@/lib/run-tab";
 
 export const runtime = "nodejs";
 
@@ -108,8 +109,13 @@ export async function GET(req: Request) {
       : undefined;
   const tabs: TerminalTabContext[] = (snapshot?.openTabs ?? []).map((tab) => {
     const tabPanes = panes.filter((p) => p.tab.toLowerCase() === tab.toLowerCase());
+    // A parallel run's tab is `<project>~<runId8>` (lib/run-tab.ts). Matching
+    // the raw name found no project, so the strip, header and composer showed
+    // "skif~d0a14b69" and the Loki rail said "No run on skif~d0a14b69 yet"
+    // beside an agent nine minutes into its work (2026-09-25).
     const project =
-      byName.get(tab.toLowerCase()) ?? tabPanes.map((p) => projectForCwd(p.cwd)).find(Boolean);
+      byName.get(baseProjectKey(tab).toLowerCase()) ??
+      tabPanes.map((p) => projectForCwd(p.cwd)).find(Boolean);
     const liveAgents = [
       ...new Set(tabPanes.map((p) => p.agentCli).filter((a): a is string => Boolean(a))),
     ];

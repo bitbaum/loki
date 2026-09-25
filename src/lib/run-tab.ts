@@ -32,6 +32,17 @@ export function isDerivedRunTab(tab: string): boolean {
   return tab.includes(RUN_TAB_SEPARATOR);
 }
 
+/** For a derived tab, the project it belongs to and the run-id prefix that
+ *  names its run; null for a plain tab or a suffix that is not a run id (so a
+ *  malformed alias can never widen a query into a wildcard). */
+export function runLaneOfTab(tab: string): { project: string; runPrefix: string } | null {
+  const i = tab.indexOf(RUN_TAB_SEPARATOR);
+  if (i === -1) return null;
+  const runPrefix = tab.slice(i + 1).toLowerCase();
+  if (!/^[0-9a-f]{4,32}$/.test(runPrefix)) return null;
+  return { project: tab.slice(0, i), runPrefix };
+}
+
 /** The base project key for any tab — identity for plain tabs, prefix for
  *  derived ones. Everything that attributes work to a PROJECT (cards,
  *  analytics, busy checks) must aggregate under this. */
