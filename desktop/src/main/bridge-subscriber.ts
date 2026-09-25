@@ -78,6 +78,23 @@ function resolveBridgeUrl(): string {
   return override.length > 0 ? override : BRIDGE_URL
 }
 
+/**
+ * Which presence channel this runner registers on the bridge.
+ *
+ * SSOT with the runtime-state heartbeat: a `box-*` version is the cloud
+ * builder; everything else is this computer. An explicit env overrides both
+ * so a mis-labelled unit can still be corrected without a code change.
+ */
+export function resolveRunnerPresenceChannel(): 'cloud' | 'local' {
+  const env = (process.env.LOKI_RUNNER_PRESENCE_CHANNEL ?? '').trim()
+  if (env === 'cloud' || env === 'local') return env
+  const version = (process.env.LOKI_RUNNER_VERSION ?? '').trim()
+  if (version === 'box' || version.startsWith('box-') || version.startsWith('box/')) {
+    return 'cloud'
+  }
+  return 'local'
+}
+
 // The bridge emits a `: ping` heartbeat every 25s (bridge/src/server.ts). If no
 // bytes at all (data OR ping) arrive within this window, the socket is half-dead
 // — laptop sleep, Wi-Fi flap, or a proxy idle-drop where no FIN/RST reaches us.
@@ -136,10 +153,12 @@ export function startBridgeSubscriber(
     // open the same bridge without this flag and must NOT flip the badge.
     // See docs/architecture/connection-presence.md.
     sseUrl.searchParams.set('client', 'runner')
-    const presenceChannel = (process.env.LOKI_RUNNER_PRESENCE_CHANNEL ?? 'local').trim()
-    if (presenceChannel === 'cloud' || presenceChannel === 'local') {
-      sseUrl.searchParams.set('channel', presenceChannel)
-    }
+    // Channel must match the heartbeat's channel (runtime-state keys off
+    // LOKI_RUNNER_VERSION's box- prefix). Defaulting to "local" while the
+    // box-runner heartbeats as "cloud" made applyHeartbeatExpiry clear BOTH
+    // sides — /terminal then said "Cloud builder offline" while the journal
+    // still said connected and was shipping work. Env wins; otherwise infer.
+    sseUrl.searchParams.set('channel', resolveRunnerPresenceChannel())
 
     // One connection attempt schedules at most one reconnect. Destroying a
     // half-dead socket can fire both 'timeout' and 'error'/'end'; without this

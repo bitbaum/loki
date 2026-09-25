@@ -87,15 +87,6 @@ export function ProjectWorkspaceView({
     commits: dossier.commits,
     nowMs: dossier.builtAtMs,
   });
-  // Ask once, per project, and only when there is something worth showing.
-  // The rule is in lib/ so it is testable without a browser or a database.
-  const inviteToCatalogue = shouldInviteToPublicCatalogue({
-    listedPublicly: userProject?.listedPublicly ?? false,
-    dismissedAt: userProject?.listingPromptDismissedAt ?? null,
-    isActive: userProject?.isActive ?? false,
-    gitUrl: userProject?.gitUrl ?? project.gitUrl ?? null,
-    readonly: dossier.readonly,
-  });
 
   const showKickoff =
     !dossier.readonly &&
@@ -106,6 +97,18 @@ export function ProjectWorkspaceView({
       hasRepo: Boolean(links.repo),
       agentRunning: isBuildActive(buildStatus),
     });
+
+  // Ask once, per project, and only when there is something worth showing.
+  // The rule is in lib/ so it is testable without a browser or a database.
+  // Kickoff / active build owns the page — catalogue consent waits.
+  const inviteToCatalogue = shouldInviteToPublicCatalogue({
+    listedPublicly: userProject?.listedPublicly ?? false,
+    dismissedAt: userProject?.listingPromptDismissedAt ?? null,
+    isActive: userProject?.isActive ?? false,
+    gitUrl: userProject?.gitUrl ?? project.gitUrl ?? null,
+    readonly: dossier.readonly,
+    buildBusy: showKickoff || isBuildActive(buildStatus),
+  });
 
   /**
    * WHAT IS WRONG, ABOVE WHAT IS HAPPENING.
@@ -212,16 +215,22 @@ export function ProjectWorkspaceView({
             health={health}
             readonly={dossier.readonly}
           />
-          {/* One visual tier only: the header offers destinations, not actions,
-              so everything here is a quiet ghost link. The page's real CTA
-              (Make it happen, in the build strip or the kickoff hero) lives in
-              the content flow below — five
-              identical secondary buttons up here made it invisible.
-              That was the stated rule but not the rendered one: LiveUrlField
-              drew a bordered secondary button and OrangeCatPublishButton an
-              unlabelled icon, so on a phone — where the row wraps to two lines
-              — it read as four unrelated controls rather than one set. Both
-              are ghost links with labels now. */}
+          {/* Status facts first, then destinations/actions. Listing used to
+              wear the same ghost-button clothes as Repository and Share, so
+              "Not listed" looked like a sixth link sitting next to its own
+              opposite. Deploy progress also lived inside Register site. */}
+          {!dossier.readonly && (
+            <p className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+              <span className="ui-tag ui-tag-neutral">
+                {userProject?.listedPublicly ? "Listed in catalogue" : "Not in catalogue"}
+              </span>
+              {links.prodUrl ? (
+                <span className="ui-tag ui-tag-positive">Live site set</span>
+              ) : userProject?.gitUrl || project.gitUrl ? (
+                <span className="ui-tag ui-tag-neutral">No live URL yet</span>
+              ) : null}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-1.5">
             <LiveUrlField
               userProjectId={userProject?.id ?? null}

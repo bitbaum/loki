@@ -83,7 +83,7 @@ export function ProjectBuildStatus({
     }
     case "queued": {
       headline = "Starting up";
-      detail = `Sent ${timeAgo(status.sinceMs)}. An agent picks it up within a few minutes.`;
+      detail = `Sent ${timeAgo(status.sinceMs)}. Waiting for a builder to claim it — watch Terminal or Control.`;
       action = (
         <Link
           href={fleetSurfaceHref("control", workspaceKey)}

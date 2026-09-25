@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.33",
+    tag: "fleet-runner-v0.8.33",
+    date: "2026-09-25T00:00:00Z",
+    highlights: [
+      "The cloud builder no longer reports offline while the box runner is connected and shipping work. Bridge presence now uses the same cloud/local channel as the heartbeat, so /terminal and the journal agree.",
+    ],
+    breaking: [],
+    notes:
+      "A box-* runner that registered bridge presence as local made applyHeartbeatExpiry clear both channels. Presence channel is inferred from the runner version (or LOKI_RUNNER_PRESENCE_CHANNEL) so it matches the runtime-state heartbeat.",
+  },
+  {
     version: "0.8.32",
     tag: "fleet-runner-v0.8.32",
     date: "2026-09-25T00:00:00Z",

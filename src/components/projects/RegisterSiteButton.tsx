@@ -48,7 +48,7 @@ export function RegisterSiteButton({
   }
 
   return (
-    <div className="inline-flex max-w-full flex-col gap-1">
+    <>
       <button
         type="button"
         className="ui-btn-ghost min-h-11 gap-1.5"
@@ -63,8 +63,16 @@ export function RegisterSiteButton({
         )}
         {busy ? "Registering…" : "Register site"}
       </button>
-      <SiteDeploymentStatus deployment={deployment} />
-      {error && <span className="ui-error text-xs">{error}</span>}
-    </div>
+      {/* Full-width status under the action row (basis-full in a flex-wrap
+          parent). Nesting the sentence + "Check deployment" inside the same
+          ghost control made Registering… read as a third peer of Repository
+          and Share. */}
+      {(deployment || error) && (
+        <div className="basis-full w-full max-w-xl space-y-1">
+          <SiteDeploymentStatus deployment={deployment} />
+          {error && <span className="ui-error text-xs">{error}</span>}
+        </div>
+      )}
+    </>
   );
 }

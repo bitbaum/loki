@@ -51,6 +51,13 @@ const VERSION = boxRunnerVersion();
 // The pusher reports whatever this env holds (lazily) — publish the derived
 // version so the heartbeat and Settings agree with the log line below.
 process.env.LOKI_RUNNER_VERSION = VERSION;
+// Bridge presence must register as cloud. The systemd unit sets this too, but
+// deploy syncs code without rewriting the unit — if the env is missing, a
+// default of "local" in bridge-subscriber made /terminal say the cloud builder
+// was offline while this process was the one shipping the work.
+if (!process.env.LOKI_RUNNER_PRESENCE_CHANNEL?.trim()) {
+  process.env.LOKI_RUNNER_PRESENCE_CHANNEL = "cloud";
+}
 const WEB = (process.env.LOKI_WEB_URL || "").trim() || APP_URL;
 
 function log(msg: string): void {
