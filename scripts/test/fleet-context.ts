@@ -1,4 +1,4 @@
-import { fleetSurfaceHref, projectFromFleetRoute } from "@/lib/fleet-context";
+import { asFleetProject, fleetSurfaceHref, projectFromFleetRoute } from "@/lib/fleet-context";
 
 const project = "BiasLens alpha";
 if (fleetSurfaceHref("profile", project) !== "/projects?project=BiasLens%20alpha") {
@@ -30,6 +30,19 @@ if (projectFromFleetRoute("/projects", new URLSearchParams("project=BiasLens+alp
 }
 if (projectFromFleetRoute("/projects", new URLSearchParams("open=123")) !== null) {
   throw new Error("catalog must not masquerade as workspace context");
+}
+
+// A parallel run's tab is a lane of a project, never the project: the strip
+// showed "skif~d0a14b69" on every page (2026-09-25).
+if (projectFromFleetRoute("/terminal", new URLSearchParams("tab=skif~d0a14b69")) !== "skif") {
+  throw new Error("a lane tab in the URL must read as its project");
+}
+if (
+  asFleetProject("  Skif~d0a14b69 ") !== "Skif" ||
+  asFleetProject("") !== null ||
+  asFleetProject(null) !== null
+) {
+  throw new Error("asFleetProject must strip the lane and treat blanks as none");
 }
 
 console.log("✓ fleet-context tests passed");

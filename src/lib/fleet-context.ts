@@ -1,3 +1,5 @@
+import { baseProjectKey } from "@/lib/run-tab";
+
 export const FLEET_PROJECT_STORAGE_KEY = "loki:active-project";
 export const FLEET_PROJECT_EVENT = "loki:project-context";
 
@@ -53,6 +55,18 @@ export function injectWatchUrls(
   };
 }
 
+/**
+ * The fleet project is a PROJECT: the one Profile, Chat, Control and Terminal
+ * all show. A parallel run's tab (`<project>~<runId8>`, lib/run-tab.ts) is a
+ * lane of a project, never a project, and remembering it raw put
+ * "skif~d0a14b69" in the workspace strip on every page (2026-09-25). Every
+ * read and write goes through this, so a stale stored alias heals on read.
+ */
+export function asFleetProject(value: string | null | undefined): string | null {
+  const v = value?.trim();
+  return v ? baseProjectKey(v) || null : null;
+}
+
 export function projectFromFleetRoute(pathname: string, search: URLSearchParams): string | null {
   const value =
     pathname === "/projects"
@@ -66,13 +80,13 @@ export function projectFromFleetRoute(pathname: string, search: URLSearchParams)
             : pathname.startsWith("/activity")
               ? search.get("project")
               : null;
-  return value?.trim() || null;
+  return asFleetProject(value);
 }
 
 export function readRememberedFleetProject(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(FLEET_PROJECT_STORAGE_KEY)?.trim() || null;
+    return asFleetProject(window.localStorage.getItem(FLEET_PROJECT_STORAGE_KEY));
   } catch {
     return null;
   }
@@ -80,7 +94,7 @@ export function readRememberedFleetProject(): string | null {
 
 export function rememberFleetProject(project: string | null): void {
   if (typeof window === "undefined") return;
-  const value = project?.trim() || null;
+  const value = asFleetProject(project);
   try {
     if (value) window.localStorage.setItem(FLEET_PROJECT_STORAGE_KEY, value);
     else window.localStorage.removeItem(FLEET_PROJECT_STORAGE_KEY);
