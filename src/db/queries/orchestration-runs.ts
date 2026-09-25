@@ -665,6 +665,11 @@ export async function isProjectBusy(
     // lapses. This check decides inject-directly vs queue, so a floor shorter
     // than the reaper's typed a second prompt into a live agent's PTY.
     laneLifeFloorSql("orchestration_runs"),
+    // A parallel lane (derived tab, own worktree) does not occupy the base
+    // lane — the claim gate already skips it (olderOpenRunSql). Counting it
+    // here made a project with a free base lane look busy, so the next
+    // dispatch forked ANOTHER lane instead of taking the free one.
+    sql`${orchestrationRuns.payload}->>'sessionTab' IS NULL`,
   ];
   if (opts.excludeRunId) {
     // Only runs strictly older than ours (by started_at, then id) block us.
@@ -678,6 +683,56 @@ export async function isProjectBusy(
     .where(and(...conds))
     .limit(1);
   return !!row;
+}
+
+/**
+ * Give a run its parallel lane: add `payload.sessionTab`, touch nothing else.
+ *
+ * A MERGE, not updateOrchestrationRun — that sets `payload` wholesale, so the
+ * old way of stamping the alias (write a fresh payload with sessionTab in it)
+ * dropped every field it did not restate. Among them `notifyOnClose` and
+ * `conversationId`: the two that make a closed run report back to the thread
+ * it came from and to the operator's phone. A parallel run would have
+ * finished in silence. Returns false when no such run exists.
+ */
+export async function setRunSessionTab(runId: string, tab: string): Promise<boolean> {
+  const rows = await db
+    .update(orchestrationRuns)
+    .set({
+      payload: sql`COALESCE(${orchestrationRuns.payload}, '{}'::jsonb) || jsonb_build_object('sessionTab', ${tab}::text)`,
+    })
+    .where(eq(orchestrationRuns.id, runId))
+    .returning({ id: orchestrationRuns.id });
+  return rows.length > 0;
+}
+
+/**
+ * How many PARALLEL lanes (derived-tab runs, each in its own worktree) this
+ * project has open right now, not counting `excludeRunId`.
+ *
+ * Same liveness floor as the base lane (laneLifeFloorSql), so a parallel run
+ * the reaper still considers alive keeps its slot and a wedged one past the
+ * reaper's ceiling stops holding it.
+ */
+export async function countOpenParallelLanes(
+  userId: string,
+  projectKey: string,
+  excludeRunId?: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(orchestrationRuns)
+    .where(
+      and(
+        eq(orchestrationRuns.userId, userId),
+        eq(orchestrationRuns.projectKey, projectKey),
+        isNull(orchestrationRuns.finishedAt),
+        sql`${orchestrationRuns.payload}->>'sessionTab' IS NOT NULL`,
+        laneLifeFloorSql("orchestration_runs"),
+        excludeRunId ? sql`${orchestrationRuns.id} <> ${excludeRunId}` : undefined,
+      ),
+    );
+  return row?.n ?? 0;
 }
 
 /**

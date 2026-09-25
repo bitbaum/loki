@@ -69,7 +69,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
-  const terminalHref = fleetSurfaceHref("terminal", row.projectName, undefined, run?.id);
+  // Same answer as the row's button: a parallel lane's own tab, else the project's.
+  const terminalHref = fleetSurfaceHref(
+    "terminal",
+    run?.payload?.sessionTab ?? row.projectName,
+    undefined,
+    run?.id,
+  );
 
   return NextResponse.json({
     work: {

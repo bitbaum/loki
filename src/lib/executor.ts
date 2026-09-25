@@ -12,6 +12,7 @@ import { DEFAULT_ADAPTER_ID } from "@/lib/orchestration";
 import { enqueueInjectCommand, enqueueDispatchCommand } from "@/db/queries/pending-commands";
 import type { InjectPayload } from "@/db/schema/pending-commands";
 import { resolveQueuedExecution } from "@/lib/execution-access";
+import { planParallelRun } from "@/lib/orchestration/parallel-run";
 
 export type ExecuteResult =
   | { ok: true; mode: "direct" }
@@ -19,7 +20,15 @@ export type ExecuteResult =
   // drain this queued command. false = it will sit in pending_commands until a
   // runner reconnects. Callers MUST surface that so a dispatch to an offline
   // runner is never a silent success (the "queued into the void" bug).
-  | { ok: true; mode: "queued"; commandId: string; runnerConnected: boolean }
+  | {
+      ok: true;
+      mode: "queued";
+      commandId: string;
+      runnerConnected: boolean;
+      /** Set when a busy project got this run its own lane (planParallelRun):
+       *  the derived tab it will run in. Absent = it waits its turn. */
+      parallelTab?: string;
+    }
   | { ok: false; mode: "direct" | "queued"; error: string; code?: string };
 
 /**
@@ -76,13 +85,25 @@ export async function executeInject(
       return { ok: false, mode: "queued", error: decision.message, code: decision.code };
     }
     const channel = decision.channel;
+    // A busy project would make this dispatch wait for the run ahead of it.
+    // When a parallel lane is free, it gets its own tab and worktree instead
+    // and starts now — the case that matters is a person pressing Implement
+    // and watching. Only for a DISPATCH (it has a dir to put a worktree in);
+    // a bare inject types into an existing session and has no lane to fork.
+    const plan =
+      payload.projectBusy && payload.dir && payload.projectKey
+        ? await planParallelRun(userId, payload.runId, {
+            projectKey: payload.projectKey,
+            prompt: payload.prompt,
+          })
+        : null;
     const commandId = payload.dir
       ? await enqueueDispatchCommand(userId, {
-          tab: payload.tab,
+          tab: plan?.tab ?? payload.tab,
           ...(channel ? { channel } : {}),
           dir: payload.dir,
           agent: payload.adapter ?? DEFAULT_ADAPTER_ID,
-          prompt: payload.prompt,
+          prompt: plan?.prompt ?? payload.prompt,
           model: payload.model,
           promptKey: payload.promptKey,
           promptLabel: payload.promptLabel,
@@ -91,7 +112,13 @@ export async function executeInject(
           sessionId: payload.sessionId,
         })
       : await enqueueInjectCommand(userId, channel ? { ...payload, channel } : payload);
-    return { ok: true, mode: "queued", commandId, runnerConnected: decision.runnerConnected };
+    return {
+      ok: true,
+      mode: "queued",
+      commandId,
+      runnerConnected: decision.runnerConnected,
+      ...(plan ? { parallelTab: plan.tab } : {}),
+    };
   } catch (err) {
     return { ok: false, mode: "queued", error: err instanceof Error ? err.message : String(err) };
   }

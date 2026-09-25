@@ -15,10 +15,10 @@ import {
   resolveEffectiveTab,
   stateFile,
   clearHandshakeFiles,
-  sessionHandoffContract,
+  exitContractFor,
 } from "@/lib/agent-config";
 import { FLEET_SESSIONS_DISPLAY_PATH } from "@/lib/session-paths";
-import { deriveRunTab } from "@/lib/run-tab";
+import { planParallelRun, type ParallelRunPlan } from "@/lib/orchestration/parallel-run";
 import {
   ORCHESTRATION_ADAPTER_IDS,
   ORCHESTRATION_TASK_INTENT_IDS,
@@ -68,7 +68,6 @@ import { shouldAnnounceOnClose } from "@/lib/orchestration/notify-close-format";
  *  queueing behind. Requires worktree isolation on the runner (the runner
  *  force-isolates derived tabs, so this can't create shared-checkout races).
  *  Default off — flip after the worktree flag has been dogfooded. */
-const PARALLEL_DISPATCH_ENABLED = process.env.LOKI_PARALLEL_DISPATCH === "true";
 
 const RunOrchestrationBody = z.object({
   projectId: z.string().uuid().nullable().optional(),
@@ -219,7 +218,7 @@ async function dispatchViaCloudQueue(
   // (renderTaskForAdapter does not include it) so every dispatch path lands a
   // handoff. Tilde-relative on purpose: the agent expands HOME, not the server.
   const sessionFileRef = `${FLEET_SESSIONS_DISPLAY_PATH}/${request.projectKey}.md`;
-  const prompt = `${[operatorSection, renderTaskForAdapter(request)].filter(Boolean).join("\n\n")}\n\n## Exit contract (operator requirement)\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
+  const prompt = `${[operatorSection, renderTaskForAdapter(request)].filter(Boolean).join("\n\n")}\n\n${exitContractFor(sessionFileRef)}`;
   const cloudRunId = await createCloudTrackedRun(request, userId, announceOnClose);
   // Enqueue a `dispatch` (not bare `inject`): the runner ensures the tab,
   // launches the agent if none is running, then injects — so "Next best" on
@@ -378,11 +377,17 @@ async function dispatchQueuedBehind(
   const busyMatch = await findRegistryProject(userId, request.projectKey);
   const pinnedChannel = pickDispatchChannel(busyMatch);
 
-  if (PARALLEL_DISPATCH_ENABLED && trackedRunId) {
+  // A parallel lane when one is free (see planParallelRun); otherwise the
+  // queue does its old job and this run waits its turn.
+  const plan = await planParallelRun(userId, trackedRunId, {
+    projectKey: request.projectKey,
+    prompt: resolvedPromptBody,
+  });
+  if (plan && trackedRunId) {
     return await dispatchParallelRun(request, userId, {
       intent,
       trackedRunId,
-      resolvedPromptBody,
+      plan,
       pinnedChannel,
       runnerConnected,
     });
@@ -427,32 +432,19 @@ async function dispatchParallelRun(
   opts: {
     intent: ResolvedIntent;
     trackedRunId: string;
-    resolvedPromptBody: string;
+    plan: ParallelRunPlan;
     pinnedChannel: ReturnType<typeof pickDispatchChannel>;
     runnerConnected: boolean;
   },
 ): Promise<NextResponse> {
-  const { intent, trackedRunId, resolvedPromptBody, pinnedChannel, runnerConnected } = opts;
-  const runTab = deriveRunTab(request.projectKey, trackedRunId);
-  await updateOrchestrationRun(trackedRunId, {
-    payload: {
-      projectId: request.projectId ?? null,
-      projectKey: request.projectKey,
-      projectPath: request.projectPath,
-      model: request.model,
-      sessionTab: runTab,
-    },
-  }).catch((err) => console.error("[orchestration/run] sessionTab persist failed:", err));
-  // The alias gets its own session file — bake the Exit contract with the
-  // DERIVED path so the handoff lands where the close path looks for it.
-  const sessionFileRef = `${FLEET_SESSIONS_DISPLAY_PATH}/${runTab}.md`;
-  const parallelPrompt = `${resolvedPromptBody}\n\n## Exit contract (operator requirement)\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
+  const { intent, trackedRunId, plan, pinnedChannel, runnerConnected } = opts;
+  const runTab = plan.tab;
   const commandId = await enqueueDispatchCommand(userId, {
     tab: runTab,
     channel: pinnedChannel,
     dir: request.projectPath,
     agent: request.adapter,
-    prompt: parallelPrompt,
+    prompt: plan.prompt,
     promptKey: request.intent,
     promptLabel: intent.name,
     model: request.model,

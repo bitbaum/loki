@@ -289,6 +289,28 @@ export function sessionHandoffContract(sessionFilePath: string): string {
   ].join("\n");
 }
 
+/**
+ * The exit contract every dispatch ends with: where the agent must write its
+ * handoff, and in what shape. The run closes only when that file reports
+ * ready, so the path in here IS the run's identity to the close path.
+ *
+ * One builder, because three call sites each typed the heading and sentence
+ * out by hand, and a parallel run must be able to REPLACE the contract rather
+ * than append a second one: a prompt carrying two contracts tells the agent to
+ * write its handoff to the base tab's file too — which closes whatever run
+ * owns the base tab, not this one.
+ */
+export function exitContractFor(sessionFileRef: string): string {
+  return `## Exit contract (operator requirement)\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
+}
+
+/**
+ * Matches the exit contract at the end of a dispatch. The contract is always
+ * the LAST section and runs to the end of the message — every builder above
+ * appends it last — so this consumes from its heading to the end.
+ */
+export const EXIT_CONTRACT_PATTERN = /\n?^##[ \t]*Exit contract\b[\s\S]*$/im;
+
 export function buildPromptWithSession(
   base: string,
   tab: string,

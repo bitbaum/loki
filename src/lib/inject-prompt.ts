@@ -18,7 +18,7 @@ import { buildOperatorContextSection } from "@/lib/dispatch-operator-context";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { PROMPT_TEMPLATES } from "@/config/prompt-library";
 import { getOrchestrationIntent } from "@/lib/orchestration/intents";
-import { sessionHandoffContract } from "@/lib/agent-config";
+import { exitContractFor } from "@/lib/agent-config";
 import { FLEET_SESSIONS_DISPLAY_PATH } from "@/lib/session-paths";
 
 export type AssembleInjectPromptInput = {
@@ -85,7 +85,7 @@ export async function assembleInjectPrompt(
   // HOME; the agent expands it. resolveSessionFile reads case-insensitively,
   // so projectKey casing vs repo-dir casing cannot strand the handoff.
   const sessionFileRef = `${FLEET_SESSIONS_DISPLAY_PATH}/${projectKey}.md`;
-  const exitContract = `## Exit contract (operator requirement)\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
+  const exitContract = exitContractFor(sessionFileRef);
   // Authority framing: without it, a well-aligned agent cannot tell the
   // operator's task from retrieved context — one refused a dispatch as a
   // suspected prompt injection because the exit contract appeared "embedded"
