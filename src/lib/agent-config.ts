@@ -304,12 +304,9 @@ export function exitContractFor(sessionFileRef: string): string {
   return `## Exit contract (operator requirement)\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
 }
 
-/**
- * Matches the exit contract at the end of a dispatch. The contract is always
- * the LAST section and runs to the end of the message — every builder above
- * appends it last — so this consumes from its heading to the end.
- */
-export const EXIT_CONTRACT_PATTERN = /\n?^##[ \t]*Exit contract\b[\s\S]*$/im;
+// The pattern lives in the client-safe orchestration contract: activity-status
+// (rendered in the browser) strips it, and this module imports fs.
+export { EXIT_CONTRACT_PATTERN } from "@/lib/orchestration/contract";
 
 export function buildPromptWithSession(
   base: string,

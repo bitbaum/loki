@@ -297,3 +297,14 @@ export function createCapabilities(
     ...overrides,
   };
 }
+
+/**
+ * Matches the exit contract at the end of a dispatch (agent-config's
+ * exitContractFor builds it). The contract is always the LAST section and runs
+ * to the end of the message, so this consumes from its heading to the end.
+ *
+ * Here, not in agent-config, because activity-status strips it in the BROWSER
+ * and agent-config imports fs: the import from #900 failed the production
+ * build ("Can't resolve 'fs'") while tsc, lint and every test stayed green.
+ */
+export const EXIT_CONTRACT_PATTERN = /\n?^##[ \t]*Exit contract\b[\s\S]*$/im;
