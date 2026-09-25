@@ -119,6 +119,14 @@ jobs:
           psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector;'
           npx drizzle-kit push --force
 
+      # The queue's SQL decides which agent may start and which run is dead.
+      # It has put two prompts into one agent session and dropped queued work
+      # in production, and nothing executed it: every suite in `verify` is
+      # database-free by design. This job already builds a real, migrated
+      # Postgres and used it for nothing — so this is where that SQL is tested.
+      - name: Database tests
+        run: pnpm run test:db
+
       # Merge→live latency (Cato 2026-09-16): full `verify` is ~60m. PRs keep it.
       # Squash merges onto main already passed that gate on the PR — re-running
       # doubles merge→live for no new signal. Fast `verify:main` on those tips;
