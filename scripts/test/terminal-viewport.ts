@@ -5,6 +5,8 @@
 // Run: npx tsx scripts/test/terminal-viewport.ts
 import {
   ptyResizeToPublish,
+  gridForSession,
+  TERMINAL_COLLAPSED_COLS,
   clampPtyGeometry,
   resolveTabAttachment,
   nextFontSizeForTarget,
@@ -44,6 +46,29 @@ eq(ptyResizeToPublish({ cols: 74, rows: 1 }, null), null, "1-row measurement is 
 eq(ptyResizeToPublish({ cols: 8, rows: 20 }, null), null, "hair-thin width is never published");
 eq(ptyResizeToPublish({ cols: 0, rows: 0 }, null), null, "unlaid-out host is never published");
 eq(ptyResizeToPublish({ cols: NaN, rows: NaN }, null), null, "NaN measurement is never published");
+
+// gridForSession: the grid a viewer must draw so it matches the PTY it drives.
+eq(
+  gridForSession({ cols: 46, rows: 30 }),
+  { cols: TERMINAL_MIN_COLS, rows: 30 },
+  "narrow pane pins to the floor",
+);
+eq(gridForSession({ cols: 152, rows: 20 }), { cols: 152, rows: 20 }, "wide pane keeps its fit");
+eq(gridForSession({ cols: 74, rows: 1 }), null, "1-row host is collapsed, not narrow");
+eq(
+  gridForSession({ cols: TERMINAL_COLLAPSED_COLS - 1, rows: 30 }),
+  null,
+  "hair-thin host is collapsed",
+);
+eq(gridForSession({ cols: NaN, rows: 30 }), null, "NaN is collapsed");
+{
+  const g = gridForSession({ cols: 41, rows: 24 })!;
+  eq(
+    clampPtyGeometry(g).clamped,
+    false,
+    "a pinned grid is exactly what the server applies (no clamp)",
+  );
+}
 
 // A real viewport publishes, including the smallest phone-sized one.
 eq(ptyResizeToPublish({ cols: 152, rows: 20 }, null), { cols: 152, rows: 20 }, "desktop publishes");

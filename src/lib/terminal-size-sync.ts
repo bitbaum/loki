@@ -17,8 +17,13 @@
  * So publishing is a property of being attached to a session, not of whether
  * this view also captures keystrokes. The floor in ptyResizeToPublish still
  * decides what a viewer may say (a collapsed host never shrinks the session).
+ *
+ * And the grid never draws a width the PTY was not told (2026-09-25): a pane
+ * narrower than the floor used to stay silent AND keep its narrow grid, so a
+ * 46-column pane showed a 120-column agent. Such a grid is now pinned up to the
+ * floor and that size is published (gridForSession).
  */
-import { ptyResizeToPublish, type PtyGeometry } from "@/lib/terminal-viewport";
+import { gridForSession, ptyResizeToPublish, type PtyGeometry } from "@/lib/terminal-viewport";
 
 export type PtySizeSync = {
   /** Fit the grid to the host, report it, and publish it if it changed. */
@@ -31,6 +36,7 @@ export type PtySizeSync = {
 export function createPtySizeSync({
   fit,
   measure,
+  pin,
   publish,
   onGeometry,
 }: {
@@ -39,6 +45,9 @@ export function createPtySizeSync({
   fit: () => void;
   /** The grid size after fitting (term.cols / term.rows). */
   measure: () => PtyGeometry;
+  /** Force the grid to a size (term.resize) — used when the fitted grid is
+   *  narrower than any size the PTY may be given, so the two still agree. */
+  pin: (cols: number, rows: number) => void;
   /** Send a size to the PTY (transport.sendResize). */
   publish: (cols: number, rows: number) => void;
   onGeometry?: (geometry: PtyGeometry) => void;
@@ -52,8 +61,12 @@ export function createPtySizeSync({
       return null;
     }
     const measured = measure();
-    onGeometry?.(measured);
-    const next = ptyResizeToPublish(measured, lastPublished);
+    const grid = gridForSession(measured);
+    if (grid && (grid.cols !== measured.cols || grid.rows !== measured.rows)) {
+      pin(grid.cols, grid.rows);
+    }
+    onGeometry?.(grid ?? measured);
+    const next = ptyResizeToPublish(grid ?? measured, lastPublished);
     if (!next) return null;
     lastPublished = next;
     publish(next.cols, next.rows);
