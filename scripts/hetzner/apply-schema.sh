@@ -112,6 +112,51 @@ migration_dirs() {
   esac
 }
 
+# ── The app's own role must be able to USE the tables its migrations create ──
+#
+# The host path below runs every migration as the postgres SUPERUSER, so every
+# table it creates is owned by postgres and the app — which connects as its
+# own role, named after its database — gets no rights on it. The deploy prints
+# "schema applied ✓" and the first real query fails with "permission denied".
+#
+# Measured 2026-09-25: skif had 12 migrations applied, 14 tables, and its role
+# could read none of them. heidi only worked because someone had once set these
+# default privileges by hand; nothing recorded that. kivvi's role still cannot
+# read five of its own tables (funds, ledger_heads, posting_groups, ...).
+#
+# DEFAULT PRIVILEGES ONLY, deliberately. They apply to tables created AFTER
+# they are set, never to existing ones, so:
+#   * every future migration's tables are usable by the app from day one;
+#   * a migration that REVOKEs on purpose still wins, because its REVOKE runs
+#     after the CREATE that the default applied to. kivvi's immutable-books spec
+#     plans exactly that (REVOKE UPDATE, DELETE on its append-only audit log);
+#     re-granting ALL on every deploy would silently undo it, so this never
+#     re-grants existing tables. Those are reported instead (see below).
+# Plain DML, not ALL: TRUNCATE, REFERENCES and TRIGGER are not the app's to have
+# by default. Idempotent, so it runs on every deploy.
+app_role_default_privileges_sql() { # <role> <schema>
+  local role="$1" schema="$2"
+  # Interpolated into SQL: accept only a plain lower-case identifier, which is
+  # what apps.conf db names are. Anything else is refused rather than quoted.
+  [[ "$role" =~ ^[a-z_][a-z0-9_]*$ ]] || return 1
+  [[ "$schema" =~ ^[a-z_][a-z0-9_]*$ ]] || return 1
+  cat <<SQL
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA $schema GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO $role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA $schema GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO $role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA $schema GRANT EXECUTE ON FUNCTIONS TO $role;
+SQL
+}
+
+# Existing tables in <schema> that <role> cannot even SELECT, one per line —
+# the deploy ledger excluded, since the app never reads it. SELECT only, not
+# write: a table the app may read but not change can be a deliberate design.
+app_role_unreadable_tables_sql() { # <role> <schema>
+  local role="$1" schema="$2"
+  [[ "$role" =~ ^[a-z_][a-z0-9_]*$ ]] || return 1
+  [[ "$schema" =~ ^[a-z_][a-z0-9_]*$ ]] || return 1
+  printf '%s' "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = '$schema' AND c.relkind IN ('r','p') AND c.relname <> '_deploy_schema_history' AND NOT has_table_privilege('$role', c.oid, 'SELECT') ORDER BY 1;"
+}
+
 if [ -n "${APPLY_SCHEMA_LIB_ONLY:-}" ]; then return 0; fi
 
 # Resolve the migrations dir per app layout. The original hardcoded kivvi's
@@ -188,6 +233,44 @@ run_sql() {
     ssh -o BatchMode=yes "$BOX" "export LC_ALL=C LANG=C; sudo docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 $* -f -"
   else
     ssh -o BatchMode=yes "$BOX" "export LC_ALL=C LANG=C; sudo -u postgres psql -d '$DB' -v ON_ERROR_STOP=1 $* -f -"
+  fi
+}
+
+# Set the app role's default privileges, then say out loud if any EXISTING table
+# is still unreadable. Warns, never refuses: an existing restriction may be a
+# decision, and blocking an app's deploy over its own pre-existing schema would
+# be a wall, not a gate. Host Postgres only — the supabase path grants to
+# PostgREST's roles below. A database with no role of its own name is left
+# alone and said so: guessing which role an app uses is how credentials get shared.
+# Default privileges only cover tables created AFTER they are set, so this runs
+# BEFORE the migration batch. Run after it, a brand-new app's first deploy would
+# create every table first and leave all of them unreadable — the skif case.
+set_app_role_defaults() {
+  [ "$SQL_TARGET" = "host" ] || return 0
+  local role="$DB" has_role defaults
+  has_role=$(printf '%s' "SELECT 1 FROM pg_roles WHERE rolname = '$role';" | run_sql -qtA) || return 1
+  if [ -z "$has_role" ]; then
+    echo "[schema] $NAME: no role named '$role' — default privileges not set (connects as another role?)"
+    return 0
+  fi
+  defaults=$(app_role_default_privileges_sql "$role" "$TARGET_SCHEMA") || {
+    echo "[schema] $NAME: REFUSING — '$role' / '$TARGET_SCHEMA' is not a plain identifier"; return 1; }
+  printf '%s\n' "$defaults" | run_sql -q || return 1
+}
+
+ensure_app_role_access() {
+  [ "$SQL_TARGET" = "host" ] || return 0
+  local role="$DB" has_role unreadable
+  has_role=$(printf '%s' "SELECT 1 FROM pg_roles WHERE rolname = '$role';" | run_sql -qtA) || return 1
+  [ -n "$has_role" ] || return 0
+  unreadable=$(app_role_unreadable_tables_sql "$role" "$TARGET_SCHEMA" | run_sql -qtA) || return 1
+  if [ -n "$unreadable" ]; then
+    echo "[schema] $NAME: ⚠ role '$role' cannot read existing table(s): $(printf '%s' "$unreadable" | tr '\n' ' ')"
+    echo "         Future tables are covered now; these predate that. If the app should use them:"
+    echo "           sudo -u postgres psql -d $DB -c 'GRANT SELECT, INSERT, UPDATE, DELETE ON <table> TO $role'"
+    echo "         Not granted automatically: an existing restriction may be deliberate."
+  else
+    echo "[schema] $NAME: role '$role' can read every table in '$TARGET_SCHEMA' ✓"
   fi
 }
 
@@ -271,7 +354,9 @@ for f in "${MIGS[@]}"; do
   tag=$(basename "$f" .sql)
   grep -qxF "$tag" <<<"$applied" || PENDING+=("$f")
 done
-[ "${#PENDING[@]}" -gt 0 ] || { echo "[schema] $NAME: schema up to date (${#MIGS[@]} migration(s))"; exit 0; }
+# Up to date still runs the access step, so an app deployed before it existed
+# gets its default privileges (and its unreadable tables named) on next deploy.
+[ "${#PENDING[@]}" -gt 0 ] || { echo "[schema] $NAME: schema up to date (${#MIGS[@]} migration(s))"; set_app_role_defaults || exit 1; ensure_app_role_access || exit 1; exit 0; }
 
 # Guard: refuse the whole deploy if any PENDING migration carries a data-loss or
 # table-rewrite statement. Additive drizzle output never does; a hit means the
@@ -331,8 +416,10 @@ BATCH=$(mktemp); trap 'rm -f "$BATCH"' EXIT
 
 pending_names=$(printf '%s ' "${PENDING[@]##*/}")
 echo "[schema] $NAME: applying ${#PENDING[@]} migration(s): $pending_names"
+set_app_role_defaults || exit 1
 run_sql -q < "$BATCH"
 echo "[schema] $NAME: schema applied ✓"
+ensure_app_role_access || exit 1
 
 # Applied is not the same as REACHABLE. PostgREST only serves the schemas named
 # in PGRST_DB_SCHEMAS; anything else answers PGRST205 "Could not find the table"
