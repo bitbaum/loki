@@ -57,6 +57,13 @@ jobs:
       rearm_workflows: "ci.yml"
       # The reconciler. Without this, merges land and never ship (see above).
       deploy_workflow: deploy.yml
+      # What the reconciler treats as LIVE: the box's own answer, not the last
+      # Deploy run's headSha. GitHub labels a workflow_run-triggered run with
+      # main's tip at trigger time, so on 2026-09-25 run 36135832127 shipped
+      # f2f6206 while labelled 4622869, and the sweep believed 4622869 was live
+      # and never dispatched it. An unreachable or malformed answer counts as
+      # not deployed.
+      live_commit_url: https://loki.orangecat.ch/api/health
     secrets:
       # GITHUB_TOKEN cannot merge a PR that touches .github/workflows, so every
       # Dependabot `github_actions` bump stalls forever: the sweep tries, the
