@@ -17,9 +17,14 @@ import { spawn } from "child_process";
 import { GITHUB_API_BASE } from "@/lib/github-api";
 import { HTTP_TIMEOUT_SHORT_MS } from "@/lib/constants/time";
 import { setProjectLiveUrl } from "@/db/queries/atlas";
-import { upsertEntityAttribute } from "@/db/queries/utils";
+import { fetchAttributesByEntityIds, upsertEntityAttribute } from "@/db/queries/utils";
 import { PROJECT_ATTR } from "@/config/project-attrs";
-import { DEPLOY_WORKFLOW_PATH, planSiteCd, type SiteCdPlan } from "@/lib/site-cd";
+import {
+  DEPLOY_WORKFLOW_PATH,
+  isRegistrationNextStep,
+  planSiteCd,
+  type SiteCdPlan,
+} from "@/lib/site-cd";
 import {
   probeRegisterSiteLocally,
   studioDevRoot,
@@ -373,12 +378,27 @@ export async function checkProjectSiteDeployment(
       plan.liveUrl,
     );
   }
-  await upsertEntityAttribute(
-    input.userId,
-    input.entityProjectId,
-    PROJECT_ATTR.NEXT_STEP,
-    status === "live" ? `Live site: ${plan.liveUrl}` : reason,
-  );
+  // next_step is the OWNER's "what should happen next": Control shows it as
+  // "Suggested next" and every dispatch briefs the agent with it. A status is
+  // not a step. This wrote "Live site: <url>" there on success, so Skif's
+  // agents were briefed "next: Live site: https://skif.orangecat.ch" and the
+  // owner's plan was gone (2026-09-25). Only a failure is a next step (the
+  // owner must retry); on success, clear a message registration itself left.
+  if (status === "failed") {
+    await upsertEntityAttribute(
+      input.userId,
+      input.entityProjectId,
+      PROJECT_ATTR.NEXT_STEP,
+      reason,
+    );
+  } else {
+    const current = (await fetchAttributesByEntityIds([input.entityProjectId])).get(
+      input.entityProjectId,
+    )?.[PROJECT_ATTR.NEXT_STEP];
+    if (isRegistrationNextStep(current)) {
+      await upsertEntityAttribute(input.userId, input.entityProjectId, PROJECT_ATTR.NEXT_STEP, "");
+    }
+  }
   const registered = Boolean(run) || inFlight || (dispatch && status !== "failed");
   return {
     plan,
