@@ -29,6 +29,18 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.34",
+    tag: "fleet-runner-v0.8.34",
+    date: "2026-09-25T00:00:00Z",
+    highlights: [
+      "When the runner restarts, runs whose agent was already working are now closed straight away with the reason, instead of showing as still waiting for up to an hour.",
+      "Runs that were only queued are left alone, so the restarted runner still picks them up.",
+    ],
+    breaking: [],
+    notes:
+      "The runner now tells Loki when it started. Every agent session lives inside the runner process, so a session last heard from before that moment has ended. If such a run had already pushed work to the repo, it is recorded as partial rather than failed.",
+  },
+  {
     version: "0.8.33",
     tag: "fleet-runner-v0.8.33",
     date: "2026-09-25T00:00:00Z",

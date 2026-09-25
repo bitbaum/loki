@@ -16,6 +16,8 @@ import { isCloudRunnerVersion } from "@/lib/builder-presence";
 import { closeOpenRunsForProject, closeOpenRunBySessionTab } from "@/lib/orchestration/close-sweep";
 import { isDerivedRunTab } from "@/lib/run-tab";
 import { SESSION_STATUS } from "@/lib/constants/statuses";
+import { closeRunsEndedByRunnerRestart } from "@/db/queries/orchestration-runs";
+import { parseBootedAt } from "@/lib/orchestration/runner-restart";
 
 function sanitizePanes(raw: unknown[]): PaneRecord[] {
   const out: PaneRecord[] = [];
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
     panes?: unknown;
     runnerVersion?: unknown;
     powerSource?: unknown;
+    bootedAt?: unknown;
   };
   try {
     body = await req.json();
@@ -106,6 +109,21 @@ export async function POST(req: NextRequest) {
       ? new Date(body.observedAt)
       : new Date();
 
+  const runnerVersion = typeof body.runnerVersion === "string" ? body.runnerVersion : undefined;
+  const channel = isCloudRunnerVersion(runnerVersion) ? "cloud" : "local";
+
+  // The runner restarted: every agent PTY it owned died with the old process.
+  // Close the runs those sessions were serving now, from the boot time, instead
+  // of leaving them "waiting" until the time reaper an hour later. Precise, not
+  // a heuristic — see lib/orchestration/runner-restart. Idempotent, so the
+  // repeat on every post is a no-op (one cheap probe when nothing is open).
+  const bootedAtMs = parseBootedAt(body.bootedAt, Date.now());
+  if (bootedAtMs != null) {
+    await closeRunsEndedByRunnerRestart(userId, { bootedAtMs, channel }).catch((err) =>
+      console.error("[runtime-state] runner-restart close failed:", err),
+    );
+  }
+
   if (Array.isArray(body.openTabs)) {
     const openTabs = body.openTabs.filter(
       (tab): tab is string => typeof tab === "string" && tab.trim().length > 0,
@@ -116,8 +134,6 @@ export async function POST(req: NextRequest) {
         )
       : undefined;
     const panes = Array.isArray(body.panes) ? sanitizePanes(body.panes) : undefined;
-    const runnerVersion = typeof body.runnerVersion === "string" ? body.runnerVersion : undefined;
-    const channel = isCloudRunnerVersion(runnerVersion) ? "cloud" : "local";
     // Narrowed against the union, not trusted as a string: an unrecognised
     // value must land as UNKNOWN (absent), never be persisted and later read
     // back as if the runner had told us something.
