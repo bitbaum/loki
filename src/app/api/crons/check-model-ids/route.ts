@@ -20,8 +20,7 @@
 //   OK        — every pin present. Logged, so the checker's own silence is
 //               distinguishable from "nothing was ever checked".
 //
-// Schedule: daily 06:30 UTC (scripts/install-hetzner-crons.sh) — ahead of the
-// 08:00 frontier digest, so a dead pin is known before the day's AI work runs.
+// Schedule: daily 06:30 UTC (scripts/install-hetzner-crons.sh).
 
 import { type NextRequest, NextResponse } from "next/server";
 import { requireCronAuth } from "@/lib/cron-auth";
@@ -29,7 +28,7 @@ import { logDebug } from "@/db/queries/debug-logs";
 import { refreshOrInsertActiveAlert } from "@/db/queries/alerts";
 import { getDefaultUser } from "@/db/queries/users";
 import { sendTelegramMessage, selfTelegramTarget } from "@/lib/actions/telegram-send";
-import { checkRegisteredModels, describeRot, fetchCatalog, probeCallable } from "@/lib/model-check";
+import { checkRegisteredModels, describeRot, fetchCatalog } from "@/lib/model-check";
 
 const ALERT_TYPE = "model_rot";
 
@@ -37,7 +36,9 @@ export async function GET(req: NextRequest) {
   const denied = requireCronAuth(req);
   if (denied) return denied;
 
-  const report = await checkRegisteredModels(fetchCatalog, probeCallable);
+  // No callability probe: that is a real completion, and a timer may not spend
+  // the shared free tier. Catalogue reads only (GET /models, no inference).
+  const report = await checkRegisteredModels(fetchCatalog);
   const rotted = report.missing.length;
   const unchecked = report.uncheckedIds.length;
   // A pin the provider still lists but REFUSES to serve on the request we build

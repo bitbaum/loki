@@ -69,7 +69,7 @@ for (const root of ["src/", "home/"]) {
 
 // And a file we know is deep — named, so a future reshuffle that quietly stops
 // covering API routes is loud rather than absorbed by the counts above.
-const sentinel = "src/app/api/crons/frontier-digest/route.ts";
+const sentinel = "src/app/api/crons/reap-stale-runs/route.ts";
 assert.ok(
   matched.includes(sentinel),
   `the pre-commit pathspec does not match ${sentinel} (5 levels deep) — deep routes are unlinted`,

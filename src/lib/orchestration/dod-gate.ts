@@ -2,19 +2,16 @@
 //
 // The agent writes its own handoff (status: ready), so "done" is the agent
 // grading its own homework — the Ralph Wiggum failure mode. When a project
-// declares a definition_of_done, we don't take the agent's word for it: a
-// DIFFERENT model reads the handoff against the stated bar and decides whether
-// it actually holds. If it doesn't, the run closes "partial" with the gap as
-// the next instruction, and autopilot's existing continue-loop keeps going —
-// i.e. don't stop until the objective condition is met.
+// declares a definition_of_done, we don't take the agent's word for it: the
+// handoff is checked against the stated bar (evidence-precheck.ts) and, if it
+// doesn't hold, the run closes "partial" with the gap as the next instruction,
+// and autopilot's existing continue-loop keeps going.
 //
-// Cross-model on purpose: the worker is claude/llama; the judge here is a
-// different lineage (gpt-oss), so its blind spots don't overlap the worker's.
-// Fail-OPEN: if the judge errors, we let the run close as-is rather than wedge
-// the loop — a missed gate is recoverable, a stuck loop is not.
+// There used to be a cross-model judge here (gpt-oss on Groq) for what the
+// precheck could not decide. It was removed on 2026-09-25: it ran on every run
+// close — a page poll, a runner push, a cron sweep — which is never a person
+// asking, and it spent the free tier every app on the box shares.
 
-import { callGroqText } from "@/lib/groq";
-import { safeParseModelJson } from "@/lib/ai/model-json";
 import { ESCALATION_HUMAN_STREAK } from "./escalation-ladder";
 import type { RunClosePatch } from "./close-from-session";
 import type { OrchestrationTaskSummary } from "./contract";
@@ -36,19 +33,7 @@ import type { OrchestrationTaskSummary } from "./contract";
  */
 export const DEFAULT_GOAL_MAX_TURNS = ESCALATION_HUMAN_STREAK;
 
-/** The default cross-model judge — a different lineage from the workers
- *  (claude/llama/grok), so its blind spots don't overlap theirs. Exported so the
- *  close path can record WHO judged in the run's surfaced verdict. */
-export const DOD_JUDGE_MODEL = "openai/gpt-oss-120b";
-const JUDGE_MODEL = DOD_JUDGE_MODEL; // different lineage from the worker
-
 export type DoDVerdict = { met: boolean; gap: string };
-
-const SYSTEM = `You are an exacting reviewer deciding whether a coding agent's work meets a project's stated Definition of Done. You are NOT the agent — you do not trust its self-assessment, you check the evidence in its handoff.
-
-A change is done ONLY if the handoff shows the Definition of Done is actually satisfied (e.g. if it says "tests pass + deploy green", the handoff must evidence both). Missing evidence = not done. Default to NOT met when the handoff is vague or silent on a required check.
-
-Return STRICT JSON only: {"met": <true|false>, "gap": "<if not met, the single most important thing still required, one sentence; else empty>"}`;
 
 /**
  * The fields the judge is shown — i.e. everything that can count as evidence.
@@ -88,34 +73,6 @@ export function summaryForJudge(s: OrchestrationTaskSummary): string {
     .filter(([, v]) => typeof v === "string" && (v as string).trim())
     .map(([label, v]) => `${label}: ${v}`)
     .join("\n");
-}
-
-/** Ask a different-lineage model whether the handoff meets the DoD. Fail-open. */
-export async function verifyDefinitionOfDone(
-  definitionOfDone: string,
-  summary: OrchestrationTaskSummary,
-  opts: { model?: string } = {},
-): Promise<DoDVerdict> {
-  const user = `Definition of Done:\n${definitionOfDone}\n\nAgent's handoff:\n${summaryForJudge(summary)}`;
-  let raw: string;
-  try {
-    raw = await callGroqText(user, {
-      feature: "dod-gate",
-      systemPrompt: SYSTEM,
-      maxTokens: 400,
-      temperature: 0.1,
-      timeoutMs: 20_000,
-      model: opts.model ?? JUDGE_MODEL,
-    });
-  } catch {
-    return { met: true, gap: "" }; // fail-open: don't wedge the loop on a judge error
-  }
-  const parsed = safeParseModelJson<{ met?: unknown; gap?: unknown }>(raw);
-  if (!parsed) return { met: true, gap: "" };
-  return {
-    met: parsed.met !== false,
-    gap: typeof parsed.gap === "string" ? parsed.gap.trim() : "",
-  };
 }
 
 /**

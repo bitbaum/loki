@@ -1,9 +1,8 @@
 // POST /api/activity/digest
 //
 // On-demand LLM-generated exec summary for the activity in a given window.
-// Thin wrapper around lib/digest-generator — the cron at
-// /api/crons/send-digest-emails calls the same generator so the report you
-// see in the UI is identical in shape to the one delivered by email.
+// Thin wrapper around lib/digest-generator. Only a person clicking reaches it;
+// the digest email is built without a model (see crons/send-digest-emails).
 //
 // Cached for 10 minutes by (userId, window, projectKey) so re-opening the
 // page within the cache window doesn't re-burn the LLM call.

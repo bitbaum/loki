@@ -2,8 +2,14 @@
 //
 // Runs daily. Each tick walks every notification_preferences row with
 // cadence != "none", checks whether the user is due (24h / 7d / 30d cutoffs),
-// generates a Groq-summarized digest, and sends the email through Resend.
+// builds the digest from the activity ledger, and sends the email through Resend.
 // Idempotent per user via lastDigestSentAt.
+//
+// No model call. This used to ask Groq to write the report for every due user,
+// every day — a timer spending the free tier that every app on the box shares,
+// with nobody asking (removed 2026-09-25). The email carries the same counts and
+// headline the Activity page leads with; the written report is one click away
+// on that page (POST /api/activity/digest), where a person asks for it.
 //
 // Auth: requireCronAuth — the cron caller sends Authorization: Bearer ${CRON_SECRET}
 // automatically. Local dev with no CRON_SECRET is permitted (see cron-auth.ts).
@@ -12,9 +18,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { logDebug } from "@/db/queries/debug-logs";
 import { getUsersDueForDigest, markDigestSent } from "@/db/queries/notification-preferences";
-import { generateDigest } from "@/lib/digest-generator";
+import { getProjectDigest } from "@/db/queries/digests";
 import { appUrl, digestEmailTemplate, sendEmail } from "@/lib/email";
-import { summarizeActivity } from "@/lib/activity-summary";
+import { activityHeadline, summarizeActivity } from "@/lib/activity-summary";
 import { ensureOwnerWeeklyDigest } from "@/lib/email-owner-digest";
 import { DIGEST_CADENCE_COPY } from "@/config/comms";
 
@@ -39,24 +45,18 @@ export async function GET(req: NextRequest) {
   }> = [];
   const activityUrl = `${appUrl()}/activity`;
 
-  // Serial loop on purpose — Groq calls cost ~1–3s each and we'd rather not
-  // hammer the API or risk a thundering-herd email surge. Cron tick has plenty
-  // of headroom even at a few hundred opted-in users.
+  // Serial loop on purpose — no thundering-herd email surge. The tick has
+  // plenty of headroom even at a few hundred opted-in users.
   for (const row of due) {
     try {
       const window = DIGEST_WINDOW[row.cadence];
       const windowLabel = DIGEST_CADENCE_COPY[row.cadence].windowLabel;
-      const generated = await generateDigest({
-        userId: row.userId,
-        window,
-        project: null,
-        windowLabel,
-      });
+      const digest = await getProjectDigest(row.userId, { window, projectKey: null });
 
       // Skip empty windows so opted-in users don't get a "nothing happened"
       // email every day they were inactive. Still update the lastDigestSentAt
       // so the cadence clock doesn't drift.
-      const hasActivity = generated.digest.events.length > 0;
+      const hasActivity = digest.events.length > 0;
       if (!hasActivity) {
         await markDigestSent(row.userId, startedAt);
         results.push({ userId: row.userId, status: "skipped_empty" });
@@ -65,9 +65,9 @@ export async function GET(req: NextRequest) {
 
       // Same numbers the Activity page leads with, so the email and the page
       // cannot tell different stories about the same window.
-      const summary = summarizeActivity(generated.digest.events);
+      const summary = summarizeActivity(digest.events);
       const { subject, html, text } = digestEmailTemplate({
-        markdown: generated.markdown,
+        markdown: `**Headline:** ${activityHeadline(summary)}\n\nThe full report is on the Activity page — ask Loki to write it up there.`,
         cadenceLabel: row.cadence,
         windowLabel,
         activityUrl,

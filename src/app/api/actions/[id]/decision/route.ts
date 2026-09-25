@@ -16,6 +16,7 @@ import { requirePrivateApiAccessWithBearer } from "@/lib/private-zone-api";
 import { approveAction, rejectAction } from "@/db/queries/actions";
 import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
 import { finalizeApproved } from "@/lib/actions/finalize-approved";
+import { recoverEventPayloadFromText } from "@/lib/actions/calendar-event";
 
 const DecisionBody = z.object({
   decision: z.enum(["approve", "reject"]),
@@ -41,6 +42,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const [action] = await approveAction(idOrResp, userId);
   if (!action) return jsonError("No open draft with that id", 404);
-  const result = await finalizeApproved(userId, action);
+  const result = await finalizeApproved(userId, action, {
+    recoverEvent: recoverEventPayloadFromText,
+  });
   return jsonOk({ id: action.id, status: action.status, result });
 }

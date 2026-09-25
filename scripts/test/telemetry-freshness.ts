@@ -242,9 +242,13 @@ async function main() {
         );
       }
     }
+    // 2, not 3, since 2026-09-25: frontier_digests was demoted ON PURPOSE when
+    // its daily cron was removed (a timer may not spend the shared free AI
+    // tier) — see its entry in telemetry-paths.ts. Lower this again only with
+    // the same kind of stated reason.
     assert.ok(
-      MONITORED_PATHS.length >= 3,
-      "fewer than 3 monitored paths — did a sensor get quietly demoted?",
+      MONITORED_PATHS.length >= 2,
+      "fewer than 2 monitored paths — did a sensor get quietly demoted?",
     );
 
     // Named explicitly: a generic count assertion would still pass if the path

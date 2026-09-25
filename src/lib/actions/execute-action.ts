@@ -7,7 +7,7 @@ import { patchProject } from "@/db/queries/projects";
 import { upsertEntityAttribute } from "@/db/queries/utils";
 import { scheduleProjectProfileReindexByEntityId } from "@/lib/rag/reindex-project-profile";
 
-import { bookCalendarEvent } from "@/lib/actions/calendar-event";
+import { bookCalendarEvent, type EventRecovery } from "@/lib/actions/calendar-event";
 import { notifyActionExecuted } from "@/lib/actions/notify-decision";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { injectPrompt } from "@/lib/inject-core";
@@ -25,6 +25,13 @@ export type ExecuteActionOptions = {
    * business, not the executor's.
    */
   autoApproved?: boolean;
+  /**
+   * How to recover a calendar event's date from free text when the payload has
+   * no structured fields — a model call. Only a caller acting on a person's tap
+   * passes it; a standing rule runs from a cron tick and must not spend the
+   * shared free tier, so it books structured events only.
+   */
+  recoverEvent?: EventRecovery;
 };
 
 export type ExecuteActionResult = {
@@ -243,7 +250,7 @@ export async function executeAction(
           return { executed: false, deferred: true };
         }
 
-        const booked = await bookCalendarEvent(action.payload, action.title);
+        const booked = await bookCalendarEvent(action.payload, action.title, opts.recoverEvent);
         if (!booked.ok) {
           await recordActionAuditEvent(userId, action, "failed", { reason: booked.error });
           return { executed: false, error: booked.error };

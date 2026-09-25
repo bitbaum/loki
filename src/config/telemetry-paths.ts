@@ -110,14 +110,13 @@ export const TELEMETRY_PATHS: TelemetryPath[] = [
   {
     table: "frontier_digests",
     timeColumn: "generated_at",
-    label: "Daily frontier digest",
-    writer: "crons/frontier-digest, daily 08:00 UTC",
-    monitored: true,
-    maxSilenceHours: 48,
+    label: "Frontier digest",
+    writer: "none scheduled — the daily cron was removed 2026-09-25",
+    monitored: false,
     because:
-      "A daily job may miss one run to a transient provider failure without " +
-      "anything being wrong. Two consecutive misses is a pattern, not luck.",
-    writerCrons: ["frontier-digest"],
+      "It was a daily cron that called the free models with nobody asking, and " +
+      "a timer may not spend the shared free tier. Nothing writes this table on " +
+      "a clock any more, so its silence is expected, not a fault.",
   },
 
   // ── Demand-driven: silence is information, not a fault ─────────────────────

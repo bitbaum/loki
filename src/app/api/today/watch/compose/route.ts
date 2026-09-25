@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getApiUserId } from "@/lib/session";
 import { callGroqText } from "@/lib/groq";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
+
+/** Per user per hour. Only a click reaches this (LokiNudge), so a real person
+ *  stays far below it; it caps a stuck client or a script on the free tier. */
+const COMPOSE_PER_HOUR = 20;
 
 // Keep the prose tight — this lands inside a Watch card, not a long-form
 // reply. Two sentences max, no preamble, no hedging.
@@ -49,6 +55,10 @@ export async function POST(req: NextRequest) {
   const userId = await getApiUserId();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!checkRateLimit(`today-watch:${userId}`, COMPOSE_PER_HOUR, RATE_LIMIT_WINDOW_LONG_MS)) {
+    return NextResponse.json({ error: "Too many requests — try again later" }, { status: 429 });
   }
 
   let body: unknown;

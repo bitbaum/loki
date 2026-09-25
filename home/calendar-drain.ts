@@ -39,6 +39,7 @@
 import { APP_URL } from "@/config/brand";
 import {
   bookCalendarEvent,
+  recoverEventPayloadFromText,
   resolveEventTimes,
   buildGogCreateArgs,
 } from "@/lib/actions/calendar-event";
@@ -76,7 +77,9 @@ export async function drainOnce(cfg?: DrainConfig): Promise<{ booked: number; fa
   let booked = 0;
   let failed = 0;
   for (const ev of events ?? []) {
-    const result = await bookCalendarEvent(ev.payload, ev.title);
+    // The drain runs on the operator's own machine and books events a person
+    // approved; recovering an unstructured date there is part of that ask.
+    const result = await bookCalendarEvent(ev.payload, ev.title, recoverEventPayloadFromText);
     const body = result.ok
       ? { id: ev.id, ok: true as const, eventId: result.eventId, htmlLink: result.htmlLink }
       : { id: ev.id, ok: false as const, error: result.error };

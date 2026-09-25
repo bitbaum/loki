@@ -20,7 +20,6 @@ import {
   type ModelProvider,
   type RegisteredModel,
 } from "@/config/model-registry";
-import { supportsReasoningEffort } from "@/lib/groq";
 
 export const MODEL_ENDPOINTS: Record<ModelProvider, { url: string; keyEnv: string }> = {
   groq: { url: "https://api.groq.com/openai/v1/models", keyEnv: "GROQ_API_KEY" },
@@ -82,39 +81,6 @@ export type CallProbe = (
   model: RegisteredModel,
 ) => Promise<{ verdict: CallVerdict; error?: string }>;
 
-export const probeCallable: CallProbe = async (model) => {
-  const { keyEnv } = MODEL_ENDPOINTS[model.provider];
-  const key = process.env[keyEnv];
-  if (!key) return { verdict: "unknown", error: `no ${keyEnv}` };
-  try {
-    const res = await fetch(
-      `${MODEL_ENDPOINTS[model.provider].url.replace(/\/models$/, "")}/chat/completions`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: model.id,
-          max_tokens: 1,
-          messages: [{ role: "user", content: "hi" }],
-          ...(supportsReasoningEffort(model.id) ? { reasoning_effort: "low" } : {}),
-        }),
-        signal: AbortSignal.timeout(20_000),
-      },
-    );
-    if (res.ok) return { verdict: "accepted" };
-    const body = await res.text().catch(() => "");
-    // 400 = the provider understood us and refused the REQUEST — that is the
-    // fault this probe exists for. 429/5xx/401 are conditions of the moment or
-    // of our credentials, and reporting them as rot would invent an outage out
-    // of a rate limit; they are "could not look", exactly as an unreadable
-    // catalogue is.
-    if (res.status === 400) return { verdict: "rejected", error: body.slice(0, 300) };
-    return { verdict: "unknown", error: `HTTP ${res.status}` };
-  } catch (err) {
-    return { verdict: "unknown", error: err instanceof Error ? err.message : "fetch failed" };
-  }
-};
-
 export type ProviderCheck = {
   provider: ModelProvider;
   /** False = catalogue unreadable; `missing` is then meaningless and empty. */
@@ -137,9 +103,11 @@ export type ModelCheckReport = {
 };
 
 /**
- * `probe` defaults to null — OFF. The callability probe is the only part of
- * this module that makes a write-shaped request, so a caller opts into it
- * explicitly rather than acquiring it by importing. That keeps the unit tests
+ * `probe` defaults to null — OFF. A probe sends a real completion, so no
+ * scheduled caller may pass one: the box's keys are free tiers shared by every
+ * app, and a timer may not spend them (2026-09-25 — the cron used to pass a
+ * one-token probe per pinned model, every day, while its header said "zero
+ * tokens"). The seam stays for the unit tests, which pass fakes. That keeps the unit tests
  * network-free by default: a check that silently started calling a paid API
  * from the test suite would be a worse bug than the one it detects.
  */

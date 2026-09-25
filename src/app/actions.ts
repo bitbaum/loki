@@ -17,6 +17,7 @@ import { cancelSubscription } from "@/db/queries/money";
 import { createInteraction } from "@/db/queries/people";
 import { patchGoal } from "@/db/queries/goals";
 import { finalizeApproved } from "@/lib/actions/finalize-approved";
+import { recoverEventPayloadFromText } from "@/lib/actions/calendar-event";
 import type { ExecuteActionResult } from "@/lib/actions/execute-action";
 import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
 import { requirePageUserId } from "@/lib/session";
@@ -32,14 +33,18 @@ export async function handleApprove(id: string): Promise<ExecuteActionResult> {
   if (!action) return { executed: false, error: "not-found" };
   // Caller refreshes when the result is on screen. Immediate revalidate
   // deletes the card before the operator sees where the work went.
-  return finalizeApproved(userId, action);
+  return finalizeApproved(userId, action, { recoverEvent: recoverEventPayloadFromText });
 }
 
 export async function handleApproveAll(ids: string[]): Promise<{ count: number }> {
   const userId = await requirePageUserId();
   const results = await Promise.all(ids.map((id) => approveAction(id, userId)));
   const approved = results.flat();
-  await Promise.all(approved.map((action) => finalizeApproved(userId, action)));
+  await Promise.all(
+    approved.map((action) =>
+      finalizeApproved(userId, action, { recoverEvent: recoverEventPayloadFromText }),
+    ),
+  );
   return { count: approved.length };
 }
 

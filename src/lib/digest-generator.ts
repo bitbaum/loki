@@ -3,9 +3,8 @@
 // both the markdown and the raw stats so callers can compose (email subject
 // line, in-page render, agent context, etc.).
 //
-// Used by:
-//   - /api/activity/digest        — on-demand UI button
-//   - /api/crons/send-digest-emails — daily cron for opted-in users
+// Used by /api/activity/digest only — the on-demand UI button. The daily email
+// cron no longer calls it: a timer may not spend the shared free tier.
 
 import { callGroqText, GROQ_FAST_MODEL } from "@/lib/groq";
 import { getProjectDigest, type ProjectDigest } from "@/db/queries/digests";

@@ -1,6 +1,10 @@
 import { createInteraction } from "@/db/queries/people";
 import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
-import { executeAction, type ExecuteActionResult } from "@/lib/actions/execute-action";
+import {
+  executeAction,
+  type ExecuteActionOptions,
+  type ExecuteActionResult,
+} from "@/lib/actions/execute-action";
 import type { ActionRow } from "@/db/queries/actions";
 import { ACTION_TYPE, type ActionType, INTERACTION_DIRECTION } from "@/lib/constants/statuses";
 
@@ -30,7 +34,7 @@ export type ApprovalSource = "operator" | "standing-rule";
 export async function finalizeApproved(
   userId: string,
   action: ActionRow,
-  opts: { via?: ApprovalSource } = {},
+  opts: { via?: ApprovalSource; recoverEvent?: ExecuteActionOptions["recoverEvent"] } = {},
 ): Promise<ExecuteActionResult> {
   if (action.entityId && INTERACTION_ACTION_TYPES.has(action.type)) {
     await createInteraction(userId, {
@@ -46,5 +50,8 @@ export async function finalizeApproved(
   // tap is a standing rule nobody can review after the fact.
   const via: ApprovalSource = opts.via ?? "operator";
   await recordActionAuditEvent(userId, action, "approved", { meta: { via } });
-  return executeAction(userId, action, { autoApproved: via === "standing-rule" });
+  return executeAction(userId, action, {
+    autoApproved: via === "standing-rule",
+    recoverEvent: opts.recoverEvent,
+  });
 }
