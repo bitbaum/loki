@@ -135,6 +135,37 @@ export function planInterview(input: InterviewInput): InterviewField[] {
   );
 }
 
+/** How each gap reads in a sentence to the owner. */
+const GAP_PHRASE: Record<InterviewFieldId, string> = {
+  [PROJECT_ATTR.CUSTOMERS]: "who it is for",
+  [PROJECT_ATTR.PROBLEM]: "what problem it solves",
+  [PROJECT_ATTR.SOLUTION]: "what it does for them",
+  [PROJECT_ATTR.MISSION]: "why it exists",
+  [PROJECT_ATTR.STACK]: "what the build must use or avoid",
+  [PROJECT_ATTR.DEFINITION_OF_DONE]: "what finished looks like",
+};
+
+const COUNT_WORD = ["No", "One", "Two", "Three", "Four", "Five"];
+
+/**
+ * The invitation above the questions, written from what is actually missing.
+ *
+ * It was one fixed sentence ("It does not say who it is for or what finished
+ * looks like… Five questions"), shown on Skif above a single question about
+ * why it exists: a project that had answered both of those was told it had
+ * not, and asked five things it would then be asked one of.
+ */
+export function interviewIntro(planned: readonly InterviewFieldId[]): string {
+  const gaps = planned.map((id) => GAP_PHRASE[id]);
+  const list =
+    gaps.length <= 1
+      ? (gaps[0] ?? "")
+      : `${gaps.slice(0, -1).join(", ")} or ${gaps[gaps.length - 1]}`;
+  const n = planned.length;
+  const count = `${COUNT_WORD[n] ?? String(n)} question${n === 1 ? "" : "s"}`;
+  return `Your page says what this is. It does not yet say ${list}, and an agent briefed without that builds the wrong thing well. ${count}, skip any of them.`;
+}
+
 /**
  * Is there enough missing that asking is worth interrupting for?
  *

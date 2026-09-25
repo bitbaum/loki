@@ -22,7 +22,11 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Loader2, MessageCircleQuestion, SkipForward } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
-import { INTERVIEW_ANSWER_MAX, type InterviewFieldId } from "@/lib/project-interview";
+import {
+  INTERVIEW_ANSWER_MAX,
+  interviewIntro,
+  type InterviewFieldId,
+} from "@/lib/project-interview";
 
 type Question = {
   id: InterviewFieldId;
@@ -34,10 +38,14 @@ type Question = {
 export function ProjectInterview({
   projectId,
   needed,
+  planned,
   autoStart = false,
   kickoffHref,
 }: {
   projectId: string;
+  /** The fields the interview will ask about, so the invitation names the
+   *  real gap instead of a fixed sentence. Server-computed (planInterview). */
+  planned: InterviewFieldId[];
   /** Server-computed needsInterview — whether there are essential gaps to ask about. */
   needed: boolean;
   /** Arrived from an OrangeCat handoff: open the questions without a click. */
@@ -155,9 +163,7 @@ export function ProjectInterview({
           </h2>
           {!open && (
             <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-              Your public page says what this is. It does not say who it is for or what finished
-              looks like — and an agent briefed without those builds the wrong thing well. Five
-              questions, skip any of them.
+              {interviewIntro(planned)}
             </p>
           )}
         </div>
