@@ -40,6 +40,7 @@ export type InterviewFieldId =
   | typeof PROJECT_ATTR.CUSTOMERS
   | typeof PROJECT_ATTR.PROBLEM
   | typeof PROJECT_ATTR.SOLUTION
+  | typeof PROJECT_ATTR.MISSION
   | typeof PROJECT_ATTR.STACK
   | typeof PROJECT_ATTR.DEFINITION_OF_DONE;
 
@@ -86,6 +87,19 @@ export const INTERVIEW_FIELDS: readonly InterviewField[] = [
     id: PROJECT_ATTR.SOLUTION,
     question: "What does this actually do for them?",
     hint: "The thing they get. Features only if they change the answer.",
+    essential: true,
+  },
+  // Why it exists. The comment on needsInterview always said a project with
+  // "mission, problem and solution written down" is not interrupted, but the
+  // list never asked for a mission, so no project ever got one this way. Skif,
+  // 2026-09-25: every dispatch briefed its agent on a booking app, because the
+  // owner's reason for the project (safety as a basic human need, in every
+  // form a threat can take) had nowhere to go. Asked after the concrete three,
+  // so it is answered in terms of them.
+  {
+    id: PROJECT_ATTR.MISSION,
+    question: "Why does this exist? What should be different in the world because of it?",
+    hint: "The reason behind the product, in your own words. Every agent that works on it is briefed with this.",
     essential: true,
   },
   {

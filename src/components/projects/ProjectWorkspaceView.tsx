@@ -348,34 +348,15 @@ export function ProjectWorkspaceView({
               </>
             ),
           },
-          ...(!dossier.canEditFeedback
-            ? []
-            : [
-                {
-                  id: "feedback",
-                  label: "Feedback",
-                  content: (
-                    <ProjectFeedbackSection projectId={project.id} projectName={project.name} />
-                  ),
-                },
-              ]),
           {
-            id: "plan",
-            label: "Plan",
-            content: (
-              <ProjectPlanSection
-                projectId={project.id}
-                projectName={project.name}
-                attrs={attrs}
-                goalsLocked={detail.goalsLocked}
-                goals={detail.linkedGoals}
-                readonly={dossier.readonly}
-              />
-            ),
-          },
-          {
+            // The project's story: why it exists, who it is for, what it
+            // does. Every dispatch briefs the agent from these fields, so this
+            // is where an owner TELLS the project — and it was "Context", tab 4
+            // of 6, behind Feedback and Plan. George, 2026-09-25, looking for
+            // exactly this on Skif: "where would I tell the story?" The id stays
+            // `context` so #context links keep working.
             id: "context",
-            label: "Context",
+            label: "Story",
             content: (
               <>
                 <ProjectContextEditor
@@ -400,6 +381,31 @@ export function ProjectWorkspaceView({
                   />
                 </div>
               </>
+            ),
+          },
+          ...(!dossier.canEditFeedback
+            ? []
+            : [
+                {
+                  id: "feedback",
+                  label: "Feedback",
+                  content: (
+                    <ProjectFeedbackSection projectId={project.id} projectName={project.name} />
+                  ),
+                },
+              ]),
+          {
+            id: "plan",
+            label: "Plan",
+            content: (
+              <ProjectPlanSection
+                projectId={project.id}
+                projectName={project.name}
+                attrs={attrs}
+                goalsLocked={detail.goalsLocked}
+                goals={detail.linkedGoals}
+                readonly={dossier.readonly}
+              />
             ),
           },
           {

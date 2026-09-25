@@ -32,8 +32,16 @@ function assert(condition: boolean, message: string): void {
 
 const empty = planInterview({ attrs: {} });
 assert(
-  empty.length === INTERVIEW_FIELDS.length && empty.length <= MAX_INTERVIEW_QUESTIONS,
-  "a project with no profile is asked every question, and never more than the cap",
+  empty.length === Math.min(INTERVIEW_FIELDS.length, MAX_INTERVIEW_QUESTIONS),
+  "a project with no profile is asked as much as the cap allows, and never more",
+);
+assert(
+  INTERVIEW_FIELDS.filter((f) => f.essential).every((f) => empty.some((q) => q.id === f.id)),
+  "the cap never pushes an ESSENTIAL question out — only optional ones fall off the end",
+);
+assert(
+  INTERVIEW_FIELDS.some((f) => f.id === PROJECT_ATTR.MISSION && f.essential),
+  "the interview asks why the project exists — Skif's agents were briefed on a booking app for want of it",
 );
 assert(
   empty[0].id === PROJECT_ATTR.CUSTOMERS,
@@ -59,7 +67,9 @@ const placeholder = planInterview({
   },
 });
 assert(
-  placeholder.length === INTERVIEW_FIELDS.length,
+  [PROJECT_ATTR.CUSTOMERS, PROJECT_ATTR.PROBLEM, PROJECT_ATTR.SOLUTION].every((id) =>
+    placeholder.some((q) => q.id === id),
+  ),
   "Unknown / blank / n/a are gaps, not answers — ask about all of them",
 );
 
@@ -72,9 +82,20 @@ assert(
       [PROJECT_ATTR.CUSTOMERS]: "Swiss cafés",
       [PROJECT_ATTR.PROBLEM]: "Bookings arrive by WhatsApp and get lost",
       [PROJECT_ATTR.SOLUTION]: "One inbox that turns messages into bookings",
+      [PROJECT_ATTR.MISSION]: "No café loses a booking to a phone it could not answer",
     },
   }),
-  "the three essential fields answered means no interruption — a missing stack preference is not a reason to stop someone on their way to work",
+  "the essential fields answered means no interruption — a missing stack preference is not a reason to stop someone on their way to work",
+);
+assert(
+  needsInterview({
+    attrs: {
+      [PROJECT_ATTR.CUSTOMERS]: "People in Zürich who want to feel safe",
+      [PROJECT_ATTR.PROBLEM]: "Security firms sell equipment, not outcomes",
+      [PROJECT_ATTR.SOLUTION]: "A calm, qualified Protector, booked in minutes",
+    },
+  }),
+  "customers, problem and solution without a WHY still asks for one — the exact Skif gap",
 );
 assert(
   needsInterview({
@@ -92,7 +113,7 @@ const usable = usableAnswers({
   [PROJECT_ATTR.STACK]: "x".repeat(INTERVIEW_ANSWER_MAX + 50),
   // A key nobody was asked about. This route writes profile attributes, so a
   // hand-rolled POST must not be able to set an arbitrary one through it.
-  mission: "smuggled in",
+  vision: "smuggled in",
 } as Record<string, string>);
 assert(usable[PROJECT_ATTR.CUSTOMERS] === "Swiss cafés with 2–10 staff", "answers are trimmed");
 assert(!(PROJECT_ATTR.PROBLEM in usable), "'n/a' is a skip wearing an answer's clothes");
@@ -101,7 +122,7 @@ assert(
   usable[PROJECT_ATTR.STACK]?.length === INTERVIEW_ANSWER_MAX,
   "a long answer is clamped, not rejected",
 );
-assert(!("mission" in usable), "only the fields the interview asks about can be written");
+assert(!("vision" in usable), "only the fields the interview asks about can be written");
 
 // A clamp is allowed; a SILENT clamp is not. Skif, 2026-09-24: five answers
 // were each cut to exactly 500 characters mid-sentence, and the route said

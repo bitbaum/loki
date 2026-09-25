@@ -6,7 +6,7 @@ import { extractRoadmap } from "@/lib/project-brief";
 import { getProjectCore } from "@/db/queries/projects";
 import { createGoal } from "@/db/queries/goals";
 import { scheduleProjectProfileReindexByEntityId } from "@/lib/rag/reindex-project-profile";
-import { LONG_TEXT_MAX } from "@/lib/constants";
+import { pastedText } from "@/lib/api/pasted-text";
 
 // Spec → build roadmap. The user pastes a product/engineering spec; the model
 // decomposes it into an ordered set of milestones, which we create as project
@@ -15,7 +15,7 @@ import { LONG_TEXT_MAX } from "@/lib/constants";
 // fills the flat profile fields, this creates the roadmap.
 
 const RoadmapBody = z.object({
-  text: z.string().trim().min(10, "Paste the spec — at least a sentence.").max(LONG_TEXT_MAX),
+  text: pastedText("Paste the spec — at least a sentence."),
 });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
