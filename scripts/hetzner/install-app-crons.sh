@@ -58,6 +58,10 @@ substrata|4022|*-*-* *:17:00|/api/cron/sweep|POST
 substrata|4022|*-*-* *:47:00|/api/cron/filings|POST
 # No substrata drafts timer: George 2026-09-25 — no background job may spend
 # free-tier AI. Drafting runs only when a reader asks, on their own key.
+# auto-updates drafts ONLY for readers who opted in, on THEIR stored key and
+# daily cap (substrata lib/auto-updates.ts); nobody opted in = no model call.
+# substrata test/no-free-background-ai.test.ts keeps the free chain out of it.
+substrata|4022|*-*-* *:32:00|/api/cron/auto-updates|POST
 # Science pipeline: papers and grants per bottleneck (OpenAlex, arXiv, NSF, OpenAIRE,
 # USAspending). The route takes the two bottlenecks searched longest ago.
 substrata|4022|*-*-* *:02:00|/api/cron/science|POST
