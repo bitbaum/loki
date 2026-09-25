@@ -71,7 +71,7 @@ import {
   runLokiBusinessPlan,
 } from "@/lib/loki/project-mutations";
 import { formatFleetKickReply, kickFleet } from "@/lib/fleet-kick";
-import { resolveDispatchTargets } from "@/lib/loki/dispatch-targets";
+import { resolveDispatchTargets, shouldAskForProject } from "@/lib/loki/dispatch-targets";
 import { dispatchCommandToProjects, formatMultiDispatchReply } from "@/lib/loki/multi-dispatch";
 import {
   DEFAULT_VISION_QUESTION,
@@ -707,7 +707,7 @@ async function resolveAndAnswer(ctx: TurnContext, emit: Emit): Promise<Conversat
   if (resolution.kind === "command" && dispatchTargets.length > 0) {
     return dispatchResolvedCommand(ctx, resolution, dispatchTargets);
   }
-  if (resolution.needsProject) return needsProjectReply(ctx, resolution);
+  if (shouldAskForProject(resolution, ctx.projectNames)) return needsProjectReply(ctx, resolution);
   return chatReply(ctx, resolution, emit);
 }
 

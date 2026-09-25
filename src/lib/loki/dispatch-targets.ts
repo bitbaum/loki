@@ -24,3 +24,18 @@ export function resolveDispatchTargets(input: {
 
   return [];
 }
+
+/**
+ * Whether to answer with "which project?" chips instead of replying.
+ *
+ * Only when there is something to pick: with no projects the question is a
+ * dead end — the reply promised "pick one below" and the picker, given no
+ * options, rendered nothing, not even its "just answer" button. A workspace
+ * with no projects yet gets an answer.
+ */
+export function shouldAskForProject(
+  resolution: Pick<CommandResolution, "needsProject">,
+  projectNames: readonly string[],
+): boolean {
+  return Boolean(resolution.needsProject) && projectNames.length > 0;
+}

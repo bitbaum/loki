@@ -221,7 +221,10 @@ export function NeedsProjectPicker({
     ? meta.projectOptions.filter((v): v is string => typeof v === "string")
     : [];
   if (!meta?.needsProject) return null;
-  if (!pendingText || options.length === 0) return null;
+  if (!pendingText) return null;
+  // No options (e.g. older messages from before the server stopped asking in
+  // an empty workspace): still offer the way through, never an empty footer.
+  if (options.length === 0 && !onAnswerAnyway) return null;
 
   const needle = query.trim().toLowerCase();
   const shown = needle ? options.filter((name) => name.toLowerCase().includes(needle)) : options;
@@ -237,21 +240,23 @@ export function NeedsProjectPicker({
           aria-label="Filter projects"
         />
       )}
-      <div className="ui-loki-picker-grid">
-        {shown.map((name) => (
-          <button
-            key={name}
-            type="button"
-            className="ui-loki-picker-chip"
-            onClick={() => onPick(name, pendingText)}
-          >
-            {name}
-          </button>
-        ))}
-        {shown.length === 0 && (
-          <p className="text-xs text-text-muted">No project matches “{query}”.</p>
-        )}
-      </div>
+      {options.length > 0 && (
+        <div className="ui-loki-picker-grid">
+          {shown.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className="ui-loki-picker-chip"
+              onClick={() => onPick(name, pendingText)}
+            >
+              {name}
+            </button>
+          ))}
+          {shown.length === 0 && (
+            <p className="text-xs text-text-muted">No project matches “{query}”.</p>
+          )}
+        </div>
+      )}
       {onAnswerAnyway && (
         <button
           type="button"
