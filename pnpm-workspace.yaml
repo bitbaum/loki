@@ -31,6 +31,16 @@ overrides:
   "browserslist@<=4.28.6": ">=4.28.7"
   "js-yaml@>=4.0.0 <4.3.2": ">=4.3.2"
   fast-uri: ^3.1.6
+  # Medium/low transitives with no direct parent to bump (2026-09-25). Each is
+  # the advisory's own first_patched_version, bounded to ONE major: an
+  # open-ended ">=" lets the resolver cross a major, which is an upgrade, not a
+  # patch. esbuild (<=0.24.2, patched 0.25.0) is deliberately absent: on 0.x a
+  # minor bump is a breaking one, and it is dev-only build tooling.
+  hono@4: ^4.13.5
+  baseline-browser-mapping@2: ^2.11.0
+  qs@6: ^6.16.0
+  "@humanfs/node": ^0.16.8
+  postcss-selector-parser@7: ^7.1.3
 
 # pnpm refuses packages published within its minimum-release-age window — a
 # supply-chain guard against a compromised release being installed before
