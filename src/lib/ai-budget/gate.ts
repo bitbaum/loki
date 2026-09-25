@@ -2,6 +2,7 @@ import { fairShare, utcDayElapsed, type ShareDecision } from "@/lib/ai-budget/fa
 import { dayCapacityTokens } from "@/config/chat-models";
 import { humanizeWait } from "@/lib/agent/groq-error";
 import type { DayUsage } from "@/db/queries/ai-spend";
+import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 
 /**
  * The ledger is imported LAZILY, for the same reason `loop.ts` does it: `@/db`
@@ -50,6 +51,13 @@ export type BudgetVerdict =
   { allowed: true } | { allowed: false; message: string; retryAfterSeconds?: number };
 
 /** Turn a refusal into something the operator can act on. */
+/**
+ * The way past the shared pool, offered at the moment it is needed. A refusal
+ * that only says "wait" leaves out the one thing that ends the wait now: the
+ * person's own key, which Loki uses for their chats with no daily limit.
+ */
+const OWN_MODEL_OFFER = `Or [connect your own model](${OWN_MODEL_SETTINGS_PATH}) with a key from any provider you use, and Loki's daily budget no longer applies to your chats.`;
+
 function explain(decision: ShareDecision): string {
   switch (decision.reason) {
     case "paced": {
@@ -57,14 +65,14 @@ function explain(decision: ShareDecision): string {
       // Says WHY there is a wait, not just that there is one — "you are being
       // rationed so someone else can also use this today" is a reason a person
       // accepts; an unexplained refusal reads as breakage.
-      return `You've used your share of today's free AI budget for now. It tops up through the day so everyone gets a turn${wait ? ` — try again in ${wait}` : ""}.`;
+      return `You've used your share of today's free AI budget for now. It tops up through the day so everyone gets a turn${wait ? ` — try again in ${wait}` : ""}. ${OWN_MODEL_OFFER}`;
     }
     case "share-spent":
       // No retry offered: waiting cannot help today, and saying otherwise is the
       // same lie as "try again shortly" on an exhausted daily quota.
-      return "You've used your full share of today's free AI budget. It resets at midnight UTC.";
+      return `You've used your full share of today's free AI budget. It resets at midnight UTC. ${OWN_MODEL_OFFER}`;
     case "no-capacity":
-      return "No AI provider is configured, so there is no budget to draw on.";
+      return `No AI provider is configured on this server. [Connect your own model](${OWN_MODEL_SETTINGS_PATH}) to use Loki now.`;
     case "ok":
       return "";
   }

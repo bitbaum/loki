@@ -83,17 +83,28 @@ export function OwnModelSettings() {
         message: string;
         models: string[];
         suggested: string | null;
-      }>("/api/settings/model/probe", "POST", { vendor: forVendor, ...(key ? { apiKey: key } : {}) });
+      }>("/api/settings/model/probe", "POST", {
+        vendor: forVendor,
+        ...(key ? { apiKey: key } : {}),
+      });
       if (seq !== probeSeq.current) return; // a newer paste has taken over
       if (data.works) {
-        setProbe({ state: "works", message: data.message, models: data.models, suggested: data.suggested });
+        setProbe({
+          state: "works",
+          message: data.message,
+          models: data.models,
+          suggested: data.suggested,
+        });
         setModel(data.suggested ?? "");
       } else {
         setProbe({ state: "refused", message: data.message });
       }
     } catch (e) {
       if (seq === probeSeq.current) {
-        setProbe({ state: "refused", message: e instanceof Error ? e.message : "Couldn't check the key." });
+        setProbe({
+          state: "refused",
+          message: e instanceof Error ? e.message : "Couldn't check the key.",
+        });
       }
     }
   }, []);
@@ -155,9 +166,13 @@ export function OwnModelSettings() {
   }
 
   const info = byokVendor(vendor)!;
-  const changingModelOnly = editing && current !== null && current.vendor === vendor && !apiKey.trim();
+  const changingModelOnly =
+    editing && current !== null && current.vendor === vendor && !apiKey.trim();
   const canSave =
-    !saving && probe.state === "works" && model.trim().length > 0 && (apiKey.trim().length > 0 || changingModelOnly);
+    !saving &&
+    probe.state === "works" &&
+    model.trim().length > 0 &&
+    (apiKey.trim().length > 0 || changingModelOnly);
 
   return (
     <section className="ui-settings-section">
@@ -167,9 +182,9 @@ export function OwnModelSettings() {
           Power Loki with your own model
         </h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Loki runs on free, shared models with a daily limit. Connect a key from any provider below
-          and Loki thinks with the best model your account can use — no daily limit, billed to you by
-          your provider.
+          Loki runs on free, shared models with a daily budget. Connect a key from any provider
+          below and Loki thinks with the best model your account can use instead. Loki&apos;s daily
+          budget no longer applies to your chats; your provider bills you for what you use.
         </p>
       </div>
 
@@ -181,8 +196,8 @@ export function OwnModelSettings() {
 
       {loaded && !available && (
         <p className="ui-callout-warning">
-          Connecting your own model isn&apos;t switched on for this server yet — Loki keeps using its
-          free models.
+          Connecting your own model isn&apos;t switched on for this server yet — Loki keeps using
+          its free models.
         </p>
       )}
 
@@ -195,17 +210,31 @@ export function OwnModelSettings() {
               <span className="break-all">{current.model}</span>
             </p>
             <p className="text-xs text-text-secondary">
-              Your key {current.keyHint} · checked {new Date(current.verifiedAt).toLocaleDateString()}
+              Your key {current.keyHint} · checked{" "}
+              {new Date(current.verifiedAt).toLocaleDateString()}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="ui-btn-secondary text-xs" onClick={() => startConnect(false)}>
+            <button
+              type="button"
+              className="ui-btn-secondary text-xs"
+              onClick={() => startConnect(false)}
+            >
               Change model
             </button>
-            <button type="button" className="ui-btn-ghost text-xs" onClick={() => startConnect(true)}>
+            <button
+              type="button"
+              className="ui-btn-ghost text-xs"
+              onClick={() => startConnect(true)}
+            >
               Replace key
             </button>
-            <button type="button" className="ui-btn-ghost text-xs" onClick={() => void disconnect()} disabled={saving}>
+            <button
+              type="button"
+              className="ui-btn-ghost text-xs"
+              onClick={() => void disconnect()}
+              disabled={saving}
+            >
               Disconnect
             </button>
           </div>
@@ -250,13 +279,16 @@ export function OwnModelSettings() {
               rel="noopener noreferrer"
               className="mb-2 inline-flex items-center gap-1 text-sm text-accent-text underline-offset-2 hover:underline"
             >
-              Get a key from {info.label} <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              Get a key from {info.label}{" "}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
             </a>
             <input
               type="password"
               className="ui-input w-full font-mono"
               placeholder={
-                changingModelOnly ? `Using your saved key ${current?.keyHint}` : `Paste your ${info.label} key${info.keyHint ? ` (${info.keyHint})` : ""}`
+                changingModelOnly
+                  ? `Using your saved key ${current?.keyHint}`
+                  : `Paste your ${info.label} key${info.keyHint ? ` (${info.keyHint})` : ""}`
               }
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
@@ -267,7 +299,8 @@ export function OwnModelSettings() {
             <div className="mt-2 min-h-5 text-sm" aria-live="polite">
               {probe.state === "checking" && (
                 <span className="inline-flex items-center gap-2 text-text-muted">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Checking with {info.label}…
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Checking with{" "}
+                  {info.label}…
                 </span>
               )}
               {probe.state === "works" && (
@@ -319,7 +352,12 @@ export function OwnModelSettings() {
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" className="ui-btn-primary" disabled={!canSave} onClick={() => void save()}>
+            <button
+              type="button"
+              className="ui-btn-primary"
+              disabled={!canSave}
+              onClick={() => void save()}
+            >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
               Use this model
             </button>
@@ -331,8 +369,8 @@ export function OwnModelSettings() {
           </div>
 
           <p className="text-xs text-text-muted">
-            Your key is encrypted before it&apos;s stored and is only used for your own Loki chats. It
-            is never shown again — only its last four characters. Remove it here any time.
+            Your key is encrypted before it&apos;s stored and is only used for your own Loki chats.
+            It is never shown again — only its last four characters. Remove it here any time.
           </p>
         </div>
       )}

@@ -14,8 +14,7 @@ import { appUrl } from "@/lib/email";
  */
 export const OWN_MODEL_KEY_ENV = "BYOK_API_KEY";
 
-/** Where a user connects, changes or removes their model — the AI tab of Settings. */
-export const OWN_MODEL_SETTINGS_PATH = "/settings#ai";
+export { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 
 export type OwnModel = {
   chain: ChatLink[];

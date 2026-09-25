@@ -548,7 +548,7 @@ export async function runLokiTurn(input: {
     sink?.reset();
     try {
       const retry = await callModel({
-            own: input.own,
+        own: input.own,
         feature: "loki-chat",
         messages: [
           { role: "system", content: lastSystem },
@@ -605,7 +605,7 @@ export async function runLokiTurn(input: {
     // Repair asks for DELETION, not regeneration — the model is not missing
     // knowledge, it added claims. Tools stay off so it cannot wander further.
     const repaired = await callModel({
-            own: input.own,
+      own: input.own,
       feature: "loki-chat",
       messages: [
         { role: "system", content: systemPrompt(registry, false) },
