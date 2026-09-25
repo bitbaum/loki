@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApiUserId } from "@/lib/session";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
+import { mergeVisibleProjects } from "@/lib/visible-projects";
 import { getProjectStatesByUserId } from "@/db/queries/project-states";
 import { getRecentOutcomesByProjectKeys } from "@/db/queries/orchestration-runs";
 
@@ -18,7 +19,7 @@ export async function GET() {
     getOrgProjects(userId).catch(() => []),
     getProjectStatesByUserId(userId).catch(() => []),
   ]);
-  const projects = [...own, ...org];
+  const projects = mergeVisibleProjects(own, org);
   const stateByKey = new Map(states.map((s) => [s.projectKey.toLowerCase(), s]));
   const outcomes = await getRecentOutcomesByProjectKeys(
     userId,
