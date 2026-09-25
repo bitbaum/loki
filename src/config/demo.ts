@@ -107,6 +107,10 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   ["/api/agents", "dispatch"],
   ["/api/agent", "credentials"], // mints ck_* tokens
   ["/api/agent-tokens", "credentials"], // mints ck_* tokens the runner authenticates with
+  // Stores a user's own model API key and calls vendors with it. The demo
+  // account is shared: a key saved there would power every visitor's chat on
+  // someone's bill, and the probe would turn the server into a key checker.
+  ["/api/settings", "credentials"],
   ["/api/orchestration", "dispatch"],
   ["/api/inject", "terminal"],
   ["/api/terminal", "terminal"],
