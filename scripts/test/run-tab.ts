@@ -9,7 +9,15 @@
  *
  * Run: npx tsx scripts/test/run-tab.ts
  */
-import { deriveRunTab, baseProjectKey, isDerivedRunTab, RUN_TAB_SEPARATOR } from "@/lib/run-tab";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  deriveRunTab,
+  baseProjectKey,
+  isDerivedRunTab,
+  runLaneOfTab,
+  RUN_TAB_SEPARATOR,
+} from "@/lib/run-tab";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -69,6 +77,36 @@ check("short/odd runIds still produce a usable alias", () => {
 check("alias is filesystem-safe for the session file convention (<tab>.md)", () => {
   const tab = deriveRunTab("kivvi", "0b9c1d2e-3f45");
   assert(!/[/\\\0]/.test(tab), "alias contains path-hostile characters");
+});
+
+check("a lane tab names its project AND its run, so a lookup can find both", () => {
+  // 2026-09-25: the Terminal rail looked up "skif~d0a14b69" as a project key,
+  // found nothing, and said "No run… yet" beside an agent nine minutes in.
+  const runId = "d0a14b69-1234-4abc-9def-001122334455";
+  const lane = runLaneOfTab(deriveRunTab("Skif", runId));
+  assert(lane?.project === "Skif", `lane lost its project: ${JSON.stringify(lane)}`);
+  assert(
+    runId.replace(/-/g, "").startsWith(lane?.runPrefix ?? "✗"),
+    `lane prefix does not match its run: ${JSON.stringify(lane)}`,
+  );
+  assert(runLaneOfTab("Skif") === null, "a plain tab is not a lane");
+});
+
+check("a malformed suffix never becomes a wildcard in a query", () => {
+  for (const bad of ["p~", "p~%", "p~_x", "p~run", "p~' OR 1=1", "p~abc"]) {
+    assert(runLaneOfTab(bad) === null, `"${bad}" was accepted as a run prefix`);
+  }
+});
+
+check("the terminal resolves a lane tab to its project, not to nothing", () => {
+  const route = readFileSync(
+    join(__dirname, "../../src/app/api/terminal/context/route.ts"),
+    "utf8",
+  );
+  assert(
+    /byName\.get\(baseProjectKey\(tab\)/.test(route),
+    "terminal context must match tabs by baseProjectKey — the raw alias matched no project",
+  );
 });
 
 console.log(`\n${passed}/${passed} passed`);
