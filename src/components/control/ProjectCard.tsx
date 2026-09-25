@@ -561,6 +561,60 @@ export function ProjectCard({
         />
       ) : (
         <>
+          <IntentButtonPanel
+            project={project}
+            currentAdapter={currentAdapter}
+            runtimeAvailable={runtimeAvailable}
+            runtimeStateKnown={runtimeStateKnown}
+            runnerSyncStale={runnerSyncStale}
+            isRunning={display.isRunning}
+            autoContinueEnabled={automationMode === "off" ? false : autoContinueEnabled}
+            sending={sending}
+            justSent={justSent}
+            sendError={sendError}
+            onClearSendError={clearSendError}
+            custom={custom}
+            queue={queue}
+            bannerActive={display.isClosed || display.isReady || display.isOrchestrationReady}
+            merging={merging}
+            onToggleAutoContinue={automationMode === "off" ? undefined : toggleAutoContinue}
+            onSendIntent={sendIntent}
+            onSendCustom={sendCustom}
+            onEnqueueCustom={smartEnqueue}
+            onSendText={sendText}
+            onSendFromQueue={handleSendFromQueue}
+            onRemoveFromQueue={removeFromQueue}
+            onReorderInQueue={reorderInQueue}
+            onEditInQueue={editInQueue}
+            onMergeQueue={handleMergeQueue}
+            onMergeItemsInQueue={mergeItemsInQueue}
+            onCustomChange={setCustom}
+            onCustomFocusChange={setCustomFocused}
+            automationStatusLabel={automationStatusLabel}
+            queueBlockedReason={queueBlockedReason}
+          />
+          {/* Idle with no agent running — offer to launch one, whether or not a
+              terminal tab is already open. Previously the launch button was
+              gated on !display.tabOpen, so a "tab open, no agent" project (the
+              common case after an agent exits) got a dead-end text message and
+              NO way to start an agent — and any prompt sent landed in the bare
+              shell. The launch path (/api/agent/launch) is the same regardless
+              of tab state. */}
+          {display.tone === "idle" && !display.isRunning && runtimeStateKnown && onLaunch && (
+            <div className="ui-card-section flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-text-secondary">
+                {display.tabOpen
+                  ? runnerSyncStale
+                    ? "Terminal tab is open, but live status is stale — launch an agent or relaunch Fleet Runner."
+                    : "Terminal tab is open, but no agent is running in it. Launch one to start work."
+                  : "No agent is currently running for this project."}
+              </p>
+              <button onClick={onLaunch} className="ui-btn-primary shrink-0 gap-1.5">
+                <Play className="h-3.5 w-3.5" />
+                Launch agent
+              </button>
+            </div>
+          )}
           <ProjectBanners
             tab={project.tab}
             isClosed={display.isClosed}
@@ -607,61 +661,6 @@ export function ProjectCard({
             <LatestOrchestrationPanel run={latestOrchRun} nowMs={nowS * 1000} />
           )}
 
-          {/* Idle with no agent running — offer to launch one, whether or not a
-              terminal tab is already open. Previously the launch button was
-              gated on !display.tabOpen, so a "tab open, no agent" project (the
-              common case after an agent exits) got a dead-end text message and
-              NO way to start an agent — and any prompt sent landed in the bare
-              shell. The launch path (/api/agent/launch) is the same regardless
-              of tab state. */}
-          {display.tone === "idle" && !display.isRunning && runtimeStateKnown && onLaunch && (
-            <div className="ui-card-section flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-text-secondary">
-                {display.tabOpen
-                  ? runnerSyncStale
-                    ? "Terminal tab is open, but live status is stale — launch an agent or relaunch Fleet Runner."
-                    : "Terminal tab is open, but no agent is running in it. Launch one to start work."
-                  : "No agent is currently running for this project."}
-              </p>
-              <button onClick={onLaunch} className="ui-btn-primary shrink-0 gap-1.5">
-                <Play className="h-3.5 w-3.5" />
-                Launch agent
-              </button>
-            </div>
-          )}
-
-          <IntentButtonPanel
-            project={project}
-            currentAdapter={currentAdapter}
-            runtimeAvailable={runtimeAvailable}
-            runtimeStateKnown={runtimeStateKnown}
-            runnerSyncStale={runnerSyncStale}
-            isRunning={display.isRunning}
-            autoContinueEnabled={automationMode === "off" ? false : autoContinueEnabled}
-            sending={sending}
-            justSent={justSent}
-            sendError={sendError}
-            onClearSendError={clearSendError}
-            custom={custom}
-            queue={queue}
-            bannerActive={display.isClosed || display.isReady || display.isOrchestrationReady}
-            merging={merging}
-            onToggleAutoContinue={automationMode === "off" ? undefined : toggleAutoContinue}
-            onSendIntent={sendIntent}
-            onSendCustom={sendCustom}
-            onEnqueueCustom={smartEnqueue}
-            onSendText={sendText}
-            onSendFromQueue={handleSendFromQueue}
-            onRemoveFromQueue={removeFromQueue}
-            onReorderInQueue={reorderInQueue}
-            onEditInQueue={editInQueue}
-            onMergeQueue={handleMergeQueue}
-            onMergeItemsInQueue={mergeItemsInQueue}
-            onCustomChange={setCustom}
-            onCustomFocusChange={setCustomFocused}
-            automationStatusLabel={automationStatusLabel}
-            queueBlockedReason={queueBlockedReason}
-          />
           <ProjectActivitySection
             activity={project.recentActivity}
             git={project.git}
