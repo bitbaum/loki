@@ -15,7 +15,18 @@ set -euo pipefail
 # generator does not fix the generator.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 if [ -f "$HERE/.env" ]; then set -a; source "$HERE/.env"; set +a; fi
-export NODE_ENV=production PORT=__PORT__ HOSTNAME=127.0.0.1
+# HOSTNAME defaults to loopback; an app sets BIND_HOST in its .env (sourced
+# just above, so it wins) to bind elsewhere. Solon needed BIND_HOST=0.0.0.0
+# (2026-09-25, ~30 min of 500s): Next 16 standalone plus any middleware rewrite
+# (next-intl as-needed: /hire -> /en/hire) behind Caddy's X-Forwarded-Proto:
+# https failed every rewritten page with "Failed to proxy
+# https://localhost:4018/en ... EPROTO". Next builds the rewrite URL with host
+# `localhost` but compares it to an origin built from HOSTNAME, and it
+# normalises 127.0.0.1 -> localhost, so the app cannot fix this in its own
+# code. 0.0.0.0 is safe ONLY because ufw on the box allows 22/80/443 alone:
+# the app ports are not reachable publicly (verified for :4004 and :4018).
+# Open an app port in ufw and this override becomes a public bind.
+export NODE_ENV=production PORT=__PORT__ HOSTNAME="${BIND_HOST:-127.0.0.1}"
 SERVER_JS=$(find "$HERE" -maxdepth 4 -name server.js -not -path "*node_modules*" | head -1)
 if [ -n "$SERVER_JS" ]; then exec /usr/bin/node "$SERVER_JS"; fi
 # Non-Next services define their own entrypoint via START_CMD in .env

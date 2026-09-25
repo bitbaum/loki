@@ -101,6 +101,39 @@ else
   echo "  ✓ negative control: plain 'pwd' fails to find server.js"
 fi
 
+# --- 5. HOSTNAME: loopback by default, BIND_HOST in .env overrides it. ---
+# Run the rendered script for real and read the HOSTNAME the server would be
+# exec'd with — the stub node reports it. Solon 500'd for ~30 min (2026-09-25)
+# on a hard-coded 127.0.0.1 that its .env could not override.
+cat > "$stub/node" <<'STUB'
+#!/usr/bin/env bash
+echo "WOULD_RUN=$1"
+echo "HOSTNAME_SEEN=$HOSTNAME"
+STUB
+chmod +x "$stub/node"
+
+hostname_seen() { # $1 = launch script name inside the release
+  env -u BIND_HOST -u HOSTNAME PATH="$stub:$PATH" bash "$work/app/$1" 2>&1 \
+    | sed -n 's/^HOSTNAME_SEEN=//p'
+}
+
+rm -f "$work/releases/r1/.env"
+check "no BIND_HOST -> HOSTNAME=127.0.0.1" "127.0.0.1" "$(hostname_seen launch-test.sh)"
+
+# On the box release/.env is a symlink to shared/.env; mirror that.
+printf 'BIND_HOST=0.0.0.0\n' > "$work/shared/.env"
+ln -sf "$work/shared/.env" "$work/releases/r1/.env"
+check "BIND_HOST=0.0.0.0 in .env -> HOSTNAME=0.0.0.0" "0.0.0.0" "$(hostname_seen launch-test.sh)"
+
+# Negative control: the pre-fix hard-coded line must IGNORE the override, or
+# the check above cannot tell the fix from the bug.
+sed 's|HOSTNAME="${BIND_HOST:-127.0.0.1}"|HOSTNAME=127.0.0.1|; s|/usr/bin/node|node|' "$TMPL" \
+  | sed "s|__PORT__|4099|g" > "$work/shared/launch-hardcoded.sh"
+ln -sf "$work/shared/launch-hardcoded.sh" "$work/releases/r1/launch-hardcoded.sh"
+check "negative control: hard-coded HOSTNAME ignores BIND_HOST" "127.0.0.1" \
+      "$(hostname_seen launch-hardcoded.sh)"
+rm -f "$work/releases/r1/.env" "$work/shared/.env"
+
 if [ "$fails" -gt 0 ]; then
   echo "launch.sh.tmpl: $fails check(s) FAILED" >&2
   exit 1
