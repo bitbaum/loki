@@ -27,6 +27,9 @@ importers:
       '@bitbaum/ai-kit':
         specifier: ^1.11.0
         version: 1.11.0(react@19.2.8)
+      '@bitbaum/chatkit':
+        specifier: github:bitbaum/chatkit#v0.1.0
+        version: https://codeload.github.com/bitbaum/chatkit/tar.gz/ed759a8516113d40aefee536d993b4fa04ef1e05(react@19.2.8)
       '@bitbaum/mail-kit':
         specifier: ^0.1.1
         version: 0.1.1
@@ -384,6 +387,13 @@ packages:
     peerDependenciesMeta:
       react:
         optional: true
+
+  '@bitbaum/chatkit@https://codeload.github.com/bitbaum/chatkit/tar.gz/ed759a8516113d40aefee536d993b4fa04ef1e05':
+    resolution: {gitHosted: true, integrity: sha512-YCDgVTE2jOPIiWIf+DzIdwAwd1FDqWeqCanchHsWzdLi3odjO9HSDZnvWK6mHZ01TSKMU6IhzJUwgXLqKB1ILg==, tarball: https://codeload.github.com/bitbaum/chatkit/tar.gz/ed759a8516113d40aefee536d993b4fa04ef1e05}
+    version: 0.1.0
+    engines: {node: '>=20'}
+    peerDependencies:
+      react: '>=18'
 
   '@bitbaum/design-tokens@1.1.0':
     resolution: {integrity: sha512-sDVplKP4jKe0WHCOnW7xk75RC46JsAYqUngcVlctyAs9f1TQqZqbYTfbmyYipYCOaCIHMflnzAneQTbqrQbtBw==}
@@ -5217,6 +5227,10 @@ snapshots:
     dependencies:
       ai-forms: 0.1.2(react@19.2.8)
     optionalDependencies:
+      react: 19.2.8
+
+  '@bitbaum/chatkit@https://codeload.github.com/bitbaum/chatkit/tar.gz/ed759a8516113d40aefee536d993b4fa04ef1e05(react@19.2.8)':
+    dependencies:
       react: 19.2.8
 
   '@bitbaum/design-tokens@1.1.0': {}
