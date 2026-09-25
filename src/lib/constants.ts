@@ -49,3 +49,11 @@ export const INVITATION_EXPIRY_DAYS = 7;
  *  pastes, captured prompts). The UI `maxLength` and the API zod `.max` must
  *  agree — both import this so they can't drift. */
 export const LONG_TEXT_MAX = 8_000;
+
+/** Cap for a PASTED document — a concept, a spec, notes — that AI reads into a
+ *  project's profile or roadmap (brief, roadmap, reconcile). Skif's doctrine is
+ *  8.5k characters and its spec 34k; at 8,000 the browser cut the doctrine off
+ *  silently and the server answered "at least a sentence". ~6k tokens, which
+ *  the free chain still takes in one request. Over it, the text is KEPT and the
+ *  person is told, never truncated (see components/ui/char-count.tsx). */
+export const DOC_PASTE_MAX = 24_000;

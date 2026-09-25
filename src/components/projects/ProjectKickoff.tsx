@@ -24,7 +24,8 @@ import { postJson } from "@/lib/api/fetch";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { useSiteDeployment } from "@/hooks/use-site-deployment";
 import { SiteDeploymentStatus } from "./SiteDeploymentStatus";
-import { LONG_TEXT_MAX } from "@/lib/constants";
+import { DOC_PASTE_MAX } from "@/lib/constants";
+import { CharCount } from "@/components/ui/char-count";
 import {
   KICKOFF_STEP_LABEL,
   hasKickoffSource,
@@ -305,11 +306,11 @@ export function ProjectKickoff({
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={5}
-            maxLength={LONG_TEXT_MAX}
             disabled={running}
             placeholder={`What is ${projectName}, who is it for, and what should exist at the end? A paragraph is plenty — everything else is derived from it.`}
             className="ui-input w-full text-base leading-relaxed sm:text-sm"
           />
+          <CharCount length={text.length} max={DOC_PASTE_MAX} />
           {isThinBrief(text) && (
             <p className="text-xs text-text-secondary">
               That is about a sentence. It will run, but the profile and milestones can only be as

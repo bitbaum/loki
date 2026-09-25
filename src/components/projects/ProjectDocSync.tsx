@@ -8,7 +8,8 @@
 import { useState } from "react";
 import { Loader2, RefreshCw, Check, X, Plus } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
-import { LONG_TEXT_MAX } from "@/lib/constants";
+import { DOC_PASTE_MAX } from "@/lib/constants";
+import { CharCount } from "@/components/ui/char-count";
 
 type Update = { key: string; current: string | null; proposed: string };
 type NewAttr = { key: string; label: string; value: string };
@@ -123,17 +124,19 @@ export function ProjectDocSync({
             onChange={(e) => setText(e.target.value)}
             autoFocus
             rows={4}
-            maxLength={LONG_TEXT_MAX}
             placeholder="Paste the updated concept or spec. AI diffs it against the current fields and shows you exactly what would change before anything is saved."
             className="ui-input w-full text-base leading-relaxed sm:text-xs"
             onKeyDown={(e) => {
               if (e.key === "Escape") setOpen(false);
             }}
           />
+          <CharCount length={text.length} max={DOC_PASTE_MAX} />
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={runPreview}
-              disabled={busy !== null || text.trim().length < 10}
+              disabled={
+                busy !== null || text.trim().length < 10 || text.trim().length > DOC_PASTE_MAX
+              }
               className="ui-btn-save ui-tap gap-1.5"
             >
               {busy === "preview" ? (

@@ -9,14 +9,14 @@ import { ENTITY_TYPE } from "@/lib/constants/statuses";
 import { fetchAttributesByEntityIds, upsertEntityAttribute } from "@/db/queries/utils";
 import { patchProject } from "@/db/queries/projects";
 import { reconcileProfile } from "@/lib/project-brief";
-import { LONG_TEXT_MAX } from "@/lib/constants";
+import { pastedText } from "@/lib/api/pasted-text";
 
 // Sync-from-doc. Two phases so nothing is silently overwritten:
 //   POST { text }                    → PREVIEW: diff the doc against current fields,
 //                                       return { updates, newAttributes } (no writes)
 //   POST { apply: { updates, newAttributes } } → APPLY only what the user approved.
 
-const PreviewBody = z.object({ text: z.string().trim().min(10).max(LONG_TEXT_MAX) });
+const PreviewBody = z.object({ text: pastedText("Paste the doc — at least a sentence.") });
 const ApplyBody = z.object({
   apply: z.object({
     updates: z.record(z.string(), z.string().trim().max(500)).default({}),
@@ -72,8 +72,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // ── PREVIEW ────────────────────────────────────────────────────────────────
   const parsed = PreviewBody.safeParse(raw);
+  // The schema's own message: "too long" and "too short" are different
+  // problems, and this used to answer both with "at least a sentence".
   if (!parsed.success)
-    return NextResponse.json({ error: "Paste the doc — at least a sentence." }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Paste the doc — at least a sentence." },
+      { status: 400 },
+    );
 
   const attrs = (await fetchAttributesByEntityIds([id])).get(id) ?? {};
   const currentFields: Record<string, string> = { ...attrs };

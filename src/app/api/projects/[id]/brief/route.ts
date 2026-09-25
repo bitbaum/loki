@@ -4,14 +4,14 @@ import { getSessionUserId } from "@/lib/session";
 import { readIdParam, readJsonBody } from "@/lib/api/route-helpers";
 import { extractProjectProfile, applyProjectProfile } from "@/lib/project-brief";
 import { getProjectCore } from "@/db/queries/projects";
-import { LONG_TEXT_MAX } from "@/lib/constants";
+import { pastedText } from "@/lib/api/pasted-text";
 
 // Free-form project brief → structured profile. The user writes (or dictates)
 // what the project should be in plain language; the model fills description +
 // mission/vision/customers/stack/status/next_step. No forms.
 
 const BriefBody = z.object({
-  text: z.string().trim().min(10, "Tell us a bit more — at least a sentence.").max(LONG_TEXT_MAX),
+  text: pastedText("Tell us a bit more — at least a sentence."),
   // Defaults to false so kickoff can fill attrs from the brief. Description is
   // always the operator's exact text (see below) — onlyMissing still protects
   // attrs the health worklist must not overwrite.
