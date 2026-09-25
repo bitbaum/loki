@@ -485,7 +485,7 @@ fi
 # app wants to be live now, the runner wants to not kill anyone's work.
 #
 # Decoupled, both get what they want. The deploy ends when the app is verified;
-# the box waits as long as it needs (30m cap, not 8) and restarts when the
+# the box waits as long as it needs (up to 6h, and never kills a working agent) and restarts when the
 # runner is genuinely idle. `systemd-run` detaches it into its own cgroup, so it
 # survives this ssh closing and cannot be killed by the restart it performs.
 step "scheduling runner restart"
