@@ -77,6 +77,13 @@ Environment=LOKI_WEB_URL=https://loki.orangecat.ch
 ExecStart=/opt/loki/runner/node_modules/.bin/tsx scripts/box-runner.ts
 Restart=always
 RestartSec=5
+# One OOM-killed child must not take every agent with it. systemd's default
+# (OOMPolicy=stop) stops the WHOLE unit when the kernel OOM-kills any process
+# in it. 2026-09-25 10:53: the box ran out of RAM during a heidi deploy, the
+# kernel killed one chrome-headless an agent was screenshotting with, and the
+# unit went down with every agent session in it (Skif, 13 minutes into a
+# brief). With continue, the victim dies and the agents keep working.
+OOMPolicy=continue
 
 [Install]
 WantedBy=multi-user.target
