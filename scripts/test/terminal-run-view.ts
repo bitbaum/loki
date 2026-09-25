@@ -56,6 +56,37 @@ check("a quota redraw is a blocker, not generation evidence", () => {
   assert.equal(capacityFailureFromScreen("Thinking…", "grok"), null);
 });
 
+// 2026-09-25: a Skif brief asking the agent to adopt limitkit ("rate limit"
+// routes) was NACKed as "usage limit exhausted" 14s in, while Claude was
+// visibly working on it. The echo of our own prompt is not the CLI speaking.
+const brief =
+  "Adopt limitkit so sign-in has a rate limit, show the credit balance on the ops page, " +
+  "and keep the context window small.";
+check("the echoed prompt is not a quota wall", () => {
+  const screen = [
+    "\x1b[2m╭──────────────────────────────────────────╮\x1b[0m",
+    "│ > Adopt limitkit so sign-in has a rate limit, show the credit │",
+    "│ balance on the ops page, and keep the context window small.   │",
+    "╰──────────────────────────────────────────╯",
+    "● Reading the codebase before starting item 1.",
+  ].join("\r\n");
+  assert.equal(capacityFailureFromScreen(screen, "claude", brief), null);
+  // Same screen without knowing the prompt: the old behaviour, a false wall.
+  // This is what proves the prompt filter is doing the work.
+  assert.notEqual(capacityFailureFromScreen(screen, "claude"), null);
+});
+
+check("a real wall after an echoed prompt still blocks", () => {
+  const screen = [
+    "│ > Adopt limitkit so sign-in has a rate limit, show the credit │",
+    "\x1b[31m  ⎿  Claude usage limit reached. Your limit will reset at 9am.\x1b[0m",
+  ].join("\n");
+  assert.match(
+    capacityFailureFromScreen(screen, "claude", brief) ?? "",
+    /usage limit is exhausted/,
+  );
+});
+
 check("Retry replaces a live PTY when the project provider changed", () => {
   assert.equal(shouldReplacePtyAgent("grok", "cursor"), true);
   assert.equal(shouldReplacePtyAgent("cursor", "cursor"), false);
