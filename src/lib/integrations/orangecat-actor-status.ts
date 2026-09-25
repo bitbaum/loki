@@ -73,7 +73,7 @@ export function shapeActorStatus(input: ActorStatusInput): ActorProjectStatus[] 
   // entities.id), which user_projects carries as entityProjectId.
   const feedbackByEntity = new Map(input.feedback.map((f) => [f.projectId, f]));
 
-  return input.projects.slice(0, ACTOR_STATUS_MAX_PROJECTS).map((p) => {
+  const shaped = input.projects.map((p) => {
     const s = stateByKey.get(p.name.toLowerCase());
     const blockReason = s?.sessionBlockReason ?? null;
     const status: ActorProjectState = blockReason
@@ -98,4 +98,29 @@ export function shapeActorStatus(input: ActorStatusInput): ActorProjectStatus[] 
         .map((l) => ({ entityType: l.entityType, entityId: l.entityId })),
     };
   });
+
+  // Cut to the cap only AFTER ordering by what needs the person. The cap used
+  // to take the first 25 in list order, so an account with 37 projects never
+  // showed OrangeCat's Cat its own `orangecat` project — the list order said
+  // nothing about which ones mattered. Stable sort: ties keep list order.
+  return shaped
+    .map((project, index) => ({ project, index }))
+    .sort((a, b) => attention(b.project) - attention(a.project) || a.index - b.index)
+    .slice(0, ACTOR_STATUS_MAX_PROJECTS)
+    .map(({ project }) => project);
+}
+
+/**
+ * How much a project needs its owner right now — waiting on them first, then
+ * new visitor feedback, then work in motion, then projects that exist in the
+ * world (linked to OrangeCat, or live), then the rest.
+ */
+export function attention(p: ActorProjectStatus): number {
+  if (p.status === "blocked") return p.blockReason === "awaiting_user" ? 100 : 80;
+  if (p.feedback.new > 0) return 60 + Math.min(p.feedback.new, 19);
+  if (p.status === "working") return 50;
+  if (p.queueDepth > 0) return 40;
+  if (p.orangecat.length > 0) return 30;
+  if (p.liveUrl) return 20;
+  return 0;
 }
