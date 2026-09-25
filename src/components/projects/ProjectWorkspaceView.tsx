@@ -26,7 +26,7 @@ import { ProjectKickoff } from "./ProjectKickoff";
 import { ProjectInterview } from "./ProjectInterview";
 import { AssistantContextBridge } from "./AssistantContextBridge";
 import { needsKickoff } from "@/lib/project-kickoff";
-import { needsInterview } from "@/lib/project-interview";
+import { needsInterview, planInterview } from "@/lib/project-interview";
 import { kickoffAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
 import { deriveBuildStatus, isBuildActive } from "@/lib/project-build-status";
 import { ProjectBuildStatus } from "./ProjectBuildStatus";
@@ -313,6 +313,7 @@ export function ProjectWorkspaceView({
                   <ProjectInterview
                     projectId={project.id}
                     needed={needsInterview({ attrs })}
+                    planned={planInterview({ attrs }).map((field) => field.id)}
                     autoStart={autoInterview}
                     kickoffHref={kickoffAutoHref(`/projects/${project.id}`)}
                   />

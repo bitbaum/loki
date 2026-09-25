@@ -17,6 +17,7 @@ import {
   INTERVIEW_FIELDS,
   MAX_INTERVIEW_QUESTIONS,
   interviewBrief,
+  interviewIntro,
   mergeInterviewIntoDescription,
   needsInterview,
   planInterview,
@@ -181,6 +182,33 @@ assert(
     "From the owner:",
   ),
   "a project with no description at all still gets a brief",
+);
+
+// ── The invitation names the real gap ───────────────────────────────────────
+// Skif, 2026-09-25: one fixed sentence ("does not say who it is for or what
+// finished looks like… Five questions") above ONE question about why it
+// exists, on a project that had answered both of those.
+const skifIntro = interviewIntro(
+  planInterview({
+    attrs: {
+      [PROJECT_ATTR.CUSTOMERS]: "People in Zürich who want to feel safe",
+      [PROJECT_ATTR.PROBLEM]: "Security firms sell equipment, not outcomes",
+      [PROJECT_ATTR.SOLUTION]: "A calm, qualified Protector, booked in minutes",
+      [PROJECT_ATTR.STACK]: "Fleet stack",
+      [PROJECT_ATTR.DEFINITION_OF_DONE]: "End to end with persisted data",
+    },
+  }).map((f) => f.id),
+);
+assert(/why it exists/.test(skifIntro), `names the one real gap (got: ${skifIntro})`);
+assert(
+  !/who it is for|what finished looks like/.test(skifIntro),
+  `does not claim gaps that are answered (got: ${skifIntro})`,
+);
+assert(/\bOne question\b/.test(skifIntro), `counts the questions it will ask (got: ${skifIntro})`);
+const blankIntro = interviewIntro(planInterview({ attrs: {} }).map((f) => f.id));
+assert(
+  /who it is for/.test(blankIntro) && /Five questions/.test(blankIntro),
+  `a blank project hears the full list and count (got: ${blankIntro})`,
 );
 
 console.log("✓ project interview");
