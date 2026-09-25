@@ -1,5 +1,6 @@
 import { FLEET_SESSIONS_DISPLAY_PATH } from "@/lib/session-paths";
-import { EXIT_CONTRACT_PATTERN, exitContractFor } from "@/lib/agent-config";
+import { exitContractFor } from "@/lib/agent-config";
+import { EXIT_CONTRACT_PATTERN } from "@/lib/exit-contract";
 
 /**
  * The dispatch prompt re-pointed at a parallel lane's own session file.
