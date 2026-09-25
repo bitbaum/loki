@@ -9,7 +9,7 @@ import {
   type FleetKickReplyResult,
 } from "@/lib/fleet-kick-format";
 import { isDevelopAllFleetRequest } from "@/lib/loki-fleet-commands";
-import { resolveDispatchTargets } from "@/lib/loki/dispatch-targets";
+import { resolveDispatchTargets, shouldAskForProject } from "@/lib/loki/dispatch-targets";
 import { deriveProjectLoopReadiness } from "@/lib/project-loop-readiness";
 import {
   shouldDispatchScreenshot,
@@ -60,6 +60,11 @@ function testDispatchTargets() {
     }),
     ["a"],
   );
+
+  // No projects: never ask "which project?" — there is nothing to pick.
+  assert.equal(shouldAskForProject({ needsProject: true }, []), false);
+  assert.equal(shouldAskForProject({ needsProject: true }, ["loki"]), true);
+  assert.equal(shouldAskForProject({ needsProject: false }, ["loki"]), false);
 }
 
 function testScreenshotDispatch() {
