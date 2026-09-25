@@ -142,10 +142,15 @@ export type BookEventResult =
  * GROQ key, or the parse fails — the caller then reports the honest
  * "missing date/time" error instead of booking garbage.
  */
-async function enrichEventPayloadFromText(
+export type EventRecovery = (
   payload: ActionPayload | null | undefined,
   fallbackTitle: string,
-): Promise<ActionPayload | null | undefined> {
+) => Promise<ActionPayload | null | undefined>;
+
+/** Passed IN by callers acting on a person's tap, never reached by default: a
+ *  standing rule executes from a cron tick with nobody asking, and a model call
+ *  there would spend the box's shared free tier (2026-09-25). */
+export const recoverEventPayloadFromText: EventRecovery = async (payload, fallbackTitle) => {
   if (!process.env.GROQ_API_KEY) return payload;
   const text = [payload?.subject, payload?.body, payload?.eventTitle, fallbackTitle]
     .map((v) => (typeof v === "string" ? v.trim() : ""))
@@ -188,7 +193,7 @@ Resolve relative/human/German dates against the current time; output absolute va
   merged.eventLocation ??= pick("eventLocation");
   if (merged.allDay === undefined && obj.allDay === true) merged.allDay = true;
   return merged;
-}
+};
 
 /**
  * Book the event by running gog. Assumes the caller already checked the local
@@ -197,27 +202,31 @@ Resolve relative/human/German dates against the current time; output absolute va
  */
 /**
  * Resolve the `gog calendar create` argv for a payload, recovering structured
- * fields from free text when they're missing (see enrichEventPayloadFromText).
+ * fields from free text when they're missing (see recoverEventPayloadFromText).
  * Exported so a repair/dry-run can inspect what WOULD be booked without running
  * gog. Returns null when the event still can't be resolved.
  */
 export async function resolveGogCreateArgs(
   payload: ActionPayload | null | undefined,
   fallbackTitle: string,
+  recover?: EventRecovery,
 ): Promise<string[] | null> {
   if (buildGogCreateArgs(payload, fallbackTitle)) {
     return buildGogCreateArgs(payload, fallbackTitle);
   }
-  const enriched = await enrichEventPayloadFromText(payload, fallbackTitle).catch(() => payload);
+  if (!recover) return null;
+  const enriched = await recover(payload, fallbackTitle).catch(() => payload);
   return buildGogCreateArgs(enriched, fallbackTitle);
 }
 
 export async function bookCalendarEvent(
   payload: ActionPayload | null | undefined,
   fallbackTitle: string,
+  recover?: EventRecovery,
 ): Promise<BookEventResult> {
-  // Structured fields present → book directly. Missing → recover from free text.
-  const args = await resolveGogCreateArgs(payload, fallbackTitle);
+  // Structured fields present → book directly. Missing → recover from free text,
+  // but only when the caller passed a recovery (see recoverEventPayloadFromText).
+  const args = await resolveGogCreateArgs(payload, fallbackTitle, recover);
   if (!args) return { ok: false, error: "missing title or date/time in event payload" };
 
   const res = await runToolArgs(GOG_BIN, args, 20000);

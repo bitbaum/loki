@@ -19,7 +19,6 @@
  */
 
 import { GROQ_FAST_MODEL, GROQ_WHISPER_MODEL } from "@/lib/groq";
-import { DOD_JUDGE_MODEL } from "@/lib/orchestration/dod-gate";
 import { VERIFIER_PANEL } from "@/lib/frontier/propose";
 
 export type ModelProvider = "groq" | "openrouter";
@@ -54,12 +53,6 @@ export const REGISTERED_MODELS: RegisteredModel[] = [
     provider: "groq",
     kind: "transcribe",
     usedFor: "voice transcription (callGroqTranscribe) — the mic on every composer",
-  },
-  {
-    id: DOD_JUDGE_MODEL,
-    provider: "groq",
-    kind: "chat",
-    usedFor: "Definition-of-Done judge on run close — decides success vs partial",
   },
   ...VERIFIER_PANEL.map((j) => ({
     id: j.model,

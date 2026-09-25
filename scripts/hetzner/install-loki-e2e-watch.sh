@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 #
-# Install the Loki end-to-end watch: every six hours the box asks the live
-# site, as the operator, whether Loki knows the fleet, publishes the map and
-# (when the builder is authenticated) closes the dispatch loop — and alerts on
-# the flip. See loki-e2e-check.sh and scripts/test/loki-loop-e2e.ts.
+# Install the Loki end-to-end check on the box: it asks the live site, as the
+# operator, whether Loki knows the fleet, publishes the map and (when the
+# builder is authenticated) closes the dispatch loop. See loki-e2e-check.sh and
+# scripts/test/loki-loop-e2e.ts.
+#
+# ON DEMAND ONLY — no timer (2026-09-25). Its first leg is a real Loki chat
+# turn and its dispatch leg a real run, so on a six-hourly clock it spent the
+# box's free AI tier four times a day with nobody asking: it was nearly all of
+# Loki's own chat spend. This installer therefore REMOVES the old timer and
+# only copies the checker. Run it when you want the answer:
+#   ssh root@<box> /opt/monitoring/loki-e2e-check.sh --report
 #
 # The checker runs from /opt/loki/runner, which install-box-runner.sh keeps in
 # sync with the repo (src/, scripts/, node_modules), so re-run that first when
@@ -21,10 +28,10 @@ echo "→ loki-e2e-watch: installing checker"
 scp -q "$SRC" "$HOST:$MON/loki-e2e-check.sh"
 ssh "$HOST" "chmod 0755 $MON/loki-e2e-check.sh"
 
-echo "→ loki-e2e-watch: writing unit + timer"
+echo "→ loki-e2e-watch: writing the unit (no timer) and removing any old timer"
 ssh "$HOST" "cat > /etc/systemd/system/loki-e2e.service" <<'UNIT'
 [Unit]
-Description=Loki: end-to-end check of the live site as the operator
+Description=Loki: end-to-end check of the live site as the operator (on demand)
 After=network-online.target loki-app.service
 [Service]
 Type=oneshot
@@ -32,21 +39,5 @@ Type=oneshot
 ExecStart=/opt/monitoring/loki-e2e-check.sh
 TimeoutStartSec=1800
 UNIT
-ssh "$HOST" "cat > /etc/systemd/system/loki-e2e.timer" <<'TIMER'
-[Unit]
-Description=Loki: end-to-end check (every 6h)
-[Timer]
-# Six-hourly: the dispatch leg is a real run on the builder. Often enough that
-# a broken loop is known the same day; rare enough not to crowd real work.
-OnCalendar=*-*-* 01,07,13,19:40:00
-RandomizedDelaySec=300
-Persistent=true
-[Install]
-WantedBy=timers.target
-TIMER
-
-echo "→ loki-e2e-watch: enabling"
-ssh "$HOST" "systemctl daemon-reload && systemctl enable --now loki-e2e.timer && systemctl list-timers loki-e2e --no-pager | tail -2"
-echo "→ loki-e2e-watch: first run (report only, no alerts)"
-ssh "$HOST" "$MON/loki-e2e-check.sh --report" | tail -12
-echo "✓ loki-e2e-watch installed. Manual check: ssh $HOST $MON/loki-e2e-check.sh --report"
+ssh "$HOST" "systemctl disable --now loki-e2e.timer 2>/dev/null || true; rm -f /etc/systemd/system/loki-e2e.timer; systemctl daemon-reload"
+echo "✓ loki-e2e installed, on demand. Run: ssh $HOST $MON/loki-e2e-check.sh --report"

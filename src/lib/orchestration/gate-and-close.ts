@@ -12,11 +12,7 @@
 import { getProjectGoalConfig } from "@/db/queries/project-context";
 import { updateOrchestrationRun } from "@/db/queries/orchestration-runs";
 import { emitRunEvent } from "@/db/queries/run-events";
-import {
-  verifyDefinitionOfDone,
-  applyDoDGate,
-  DOD_JUDGE_MODEL,
-} from "@/lib/orchestration/dod-gate";
+import { applyDoDGate } from "@/lib/orchestration/dod-gate";
 import { precheckEvidence, EVIDENCE_PRECHECK_ID } from "@/lib/orchestration/evidence-precheck";
 import type { RunClosePatch } from "@/lib/orchestration/close-from-session";
 import type { OrchestrationOutcome } from "@/db/schema/orchestration-runs";
@@ -71,7 +67,7 @@ export const closingRuns = new Set<string>();
 /**
  * Close an orchestration run, applying the definition-of-done stop-gate first.
  * When the run would close SUCCESS and the project declares a definition_of_done,
- * a different-lineage model checks the handoff against that bar; if it isn't met,
+ * a deterministic evidence precheck tests the handoff against that bar; if it isn't met,
  * the run closes "partial" with the gap as `next`, so autopilot's continue-loop
  * keeps working instead of stopping on the agent's own say-so (the /goal pattern).
  */
@@ -96,47 +92,53 @@ export async function gateAndCloseRun(
       // and with a groupable gapCode instead of another one-off sentence. Prod
       // 2026-08-07: this is 64.6% of all rejections. Falls through to the judge
       // whenever it cannot decide, so nothing is ever approved by a rule.
+      //
+      // And ONLY deterministic, since 2026-09-25. The model judge that used to
+      // decide the rest ran on every close — a page poll, a runner push, the
+      // hourly sweep — so nobody ever asked for one of its calls, and it spent
+      // the box's free tier that every app shares. When the precheck cannot
+      // decide, the run closes on its own outcome: exactly what the judge's
+      // fail-open path already did whenever it was unavailable.
       const precheck = precheckEvidence(dod, closePatch.summary);
-      const verdict = precheck
-        ? { met: false, gap: precheck.gap }
-        : await verifyDefinitionOfDone(dod, closePatch.summary);
-      // priorPartials = consecutive partial closes so far = how many times the
-      // goal has already re-looped (recentOutcomes is most-recent-first).
-      let priorPartials = 0;
-      for (const o of recentOutcomes) {
-        if (o === ORCHESTRATION_OUTCOME.PARTIAL) priorPartials++;
-        else break;
-      }
-      patch = applyDoDGate(closePatch, verdict, { maxTurns, priorPartials });
-      // The cap stopped the loop → say so out loud. applyDoDGate deliberately
-      // keeps the SUCCESS outcome so the continue-loop halts, which means the
-      // ledger alone would show a success and nobody would learn the goal was
-      // abandoned short of its bar. A cap that only writes itself into `next`
-      // is a silent cap.
-      if (!verdict.met && maxTurns != null && priorPartials >= maxTurns) {
-        void reportCappedGoal({
-          userId,
-          projectKey,
-          attempts: maxTurns,
-          gap: verdict.gap || "the stated bar is not evidenced in the handoff",
-        });
-      }
-      // Record the cross-model verdict on the run so Activity can show that a
-      // DIFFERENT model lineage judged the worker's handoff — the moat made
-      // visible ("worker did it, judge checked it, here's the verdict").
-      patch = {
-        ...patch,
-        summary: {
-          ...patch.summary,
-          verification: {
-            judge: precheck ? EVIDENCE_PRECHECK_ID : DOD_JUDGE_MODEL,
-            worker: workerAdapter,
-            met: verdict.met,
-            gap: verdict.gap || undefined,
-            gapCode: precheck?.gapCode,
+      if (precheck) {
+        const verdict = { met: false, gap: precheck.gap };
+        // priorPartials = consecutive partial closes so far = how many times the
+        // goal has already re-looped (recentOutcomes is most-recent-first).
+        let priorPartials = 0;
+        for (const o of recentOutcomes) {
+          if (o === ORCHESTRATION_OUTCOME.PARTIAL) priorPartials++;
+          else break;
+        }
+        patch = applyDoDGate(closePatch, verdict, { maxTurns, priorPartials });
+        // The cap stopped the loop → say so out loud. applyDoDGate deliberately
+        // keeps the SUCCESS outcome so the continue-loop halts, which means the
+        // ledger alone would show a success and nobody would learn the goal was
+        // abandoned short of its bar. A cap that only writes itself into `next`
+        // is a silent cap.
+        if (!verdict.met && maxTurns != null && priorPartials >= maxTurns) {
+          void reportCappedGoal({
+            userId,
+            projectKey,
+            attempts: maxTurns,
+            gap: verdict.gap || "the stated bar is not evidenced in the handoff",
+          });
+        }
+        // Record the verdict on the run so Activity can show that something other
+        // than the worker checked its handoff, and what it found.
+        patch = {
+          ...patch,
+          summary: {
+            ...patch.summary,
+            verification: {
+              judge: EVIDENCE_PRECHECK_ID,
+              worker: workerAdapter,
+              met: verdict.met,
+              gap: verdict.gap || undefined,
+              gapCode: precheck.gapCode,
+            },
           },
-        },
-      };
+        };
+      }
     }
   }
   await updateOrchestrationRun(runId, patch, userId);

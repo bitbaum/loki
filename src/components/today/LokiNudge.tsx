@@ -38,14 +38,17 @@ function writeCache(key: string, composed: string) {
 
 /**
  * LokiNudge — upgrades a Watch focus from templated context to Loki-composed
- * prose. Server-rendered Watch shows the template line for instant signal,
- * then this component fetches a composed paragraph and replaces the line
- * once it arrives. Cached in localStorage for one hour so the same focus
- * doesn't re-call Groq on every navigation.
+ * prose, WHEN THE PERSON ASKS. The server-rendered template line is the answer
+ * by default; the button spends one model call on a friendlier phrasing.
+ *
+ * It used to fetch on mount: every /today load with a focus item called the
+ * model, and the only person "asking" was the page. The box's AI keys are free
+ * tiers shared by every app, so a render may not spend them (2026-09-25). A
+ * cached composition (one hour, localStorage) still shows without a click —
+ * it was already paid for by one.
  *
  * If the compose endpoint is unavailable (no API key, rate-limited, timeout),
- * this renders nothing — the parent's template prose stays in place. Strict
- * enhancement, never a regression.
+ * the parent's template prose stays in place. Strict enhancement.
  */
 export function LokiNudge({
   kind,
@@ -59,46 +62,46 @@ export function LokiNudge({
   const [composed, setComposed] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
 
+  // Reading the cache is free; only compose() spends a model call.
   useEffect(() => {
-    const key = cacheKey(kind, title, context);
-    const cached = readCache(key);
-    if (cached) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-time (or prop-change) cache hydration; deferred render is fine for this enhancement
-      setComposed(cached);
-      setState("ready");
-      return;
-    }
-
-    let cancelled = false;
-    setState("loading");
-
-    (async () => {
-      try {
-        const res = await postJson("/api/today/watch/compose", { kind, title, context });
-        if (!res.ok) {
-          if (!cancelled) setState("error");
-          return;
-        }
-        const data = (await res.json()) as { composed?: string };
-        if (!data.composed) {
-          if (!cancelled) setState("error");
-          return;
-        }
-        if (cancelled) return;
-        writeCache(key, data.composed);
-        setComposed(data.composed);
-        setState("ready");
-      } catch {
-        if (!cancelled) setState("error");
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    const cached = readCache(cacheKey(kind, title, context));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-time (or prop-change) cache hydration; deferred render is fine for this enhancement
+    setComposed(cached);
+    setState(cached ? "ready" : "idle");
   }, [kind, title, context]);
 
-  if (state === "error" || state === "idle") return null;
+  async function compose() {
+    setState("loading");
+    try {
+      const res = await postJson("/api/today/watch/compose", { kind, title, context });
+      const data = res.ok ? ((await res.json()) as { composed?: string }) : null;
+      if (!data?.composed) {
+        setState("error");
+        return;
+      }
+      writeCache(cacheKey(kind, title, context), data.composed);
+      setComposed(data.composed);
+      setState("ready");
+    } catch {
+      setState("error");
+    }
+  }
+
+  if (state === "error") return null;
+
+  if (state === "idle") {
+    return (
+      <button
+        type="button"
+        onClick={() => void compose()}
+        className="ui-loki-nudge text-left"
+        title="One AI call: Loki rewrites this item as a short suggested next step."
+      >
+        <Sparkles className="h-3.5 w-3.5 shrink-0 text-accent-text" />
+        <span className="ui-loki-nudge-text">Ask Loki for a next step</span>
+      </button>
+    );
+  }
 
   return (
     <div className="ui-loki-nudge">

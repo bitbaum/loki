@@ -4,6 +4,7 @@ import { requirePrivateApiAccess } from "@/lib/private-zone-api";
 import { readIdParam, readJsonBody } from "@/lib/api/route-helpers";
 import { approveAction, rejectAction, getActionById } from "@/db/queries/actions";
 import { executeAction } from "@/lib/actions/execute-action";
+import { recoverEventPayloadFromText } from "@/lib/actions/calendar-event";
 import { isBookActionType } from "@/config/book";
 
 const Body = z.object({
@@ -31,6 +32,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const [approved] = await approveAction(idOrResp, access.userId);
   if (!approved) return NextResponse.json({ error: "Already reviewed" }, { status: 409 });
-  const result = await executeAction(access.userId, approved);
+  const result = await executeAction(access.userId, approved, {
+    recoverEvent: recoverEventPayloadFromText,
+  });
   return NextResponse.json({ ok: result.executed, ...result });
 }

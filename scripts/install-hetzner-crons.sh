@@ -88,7 +88,14 @@ SVC
 # The weekly form was added for the event scout: a digest of what is on in the
 # coming weeks is a planning object, and sending it daily would turn a thing
 # worth opening into a feed worth ignoring.
-declare -A SCHED=( [prune-debug-logs]="03:00" [nudge-idle]="04:00" [prune-agent-tokens]="05:00" [email-canary]="06:00" [check-project-repos]="06:20" [check-model-ids]="06:30" [check-telemetry]="06:45" [check-runner-version]="06:50" [sweep-orphan-alerts]="06:55" [send-digest-emails]="07:00" [frontier-digest]="08:00" [orangecat-promote-backfill]="09:00" [downgrade-expired-plans]="09:30" [propose-checkins]="09:45" [feedback-digest]="10:15" [reset-demo]="04:20" [reap-stale-runs]="*:15" [check-runner-stall]="*:30" [check-pending-approvals]="*:45" [sync-feedback-alerts]="*:10" [check-feedback-needs-you]="*:05" [scout-events]="Thu 08:30" )
+#
+# NO job here may call a model. The box's AI keys are free tiers shared by every
+# app, and a timer spends them with nobody asking (George, 2026-09-25). The
+# frontier digest, feedback digest and event scout were removed for that reason;
+# scripts/test/no-free-background-ai.ts walks every route below and fails if one
+# can reach the model layer. Removing a name here does NOT remove its timer from
+# the box: `systemctl disable --now fc-cron@<name>.timer` and delete the file.
+declare -A SCHED=( [prune-debug-logs]="03:00" [nudge-idle]="04:00" [prune-agent-tokens]="05:00" [email-canary]="06:00" [check-project-repos]="06:20" [check-model-ids]="06:30" [check-telemetry]="06:45" [check-runner-version]="06:50" [sweep-orphan-alerts]="06:55" [send-digest-emails]="07:00" [orangecat-promote-backfill]="09:00" [downgrade-expired-plans]="09:30" [propose-checkins]="09:45" [reset-demo]="04:20" [reap-stale-runs]="*:15" [check-runner-stall]="*:30" [check-pending-approvals]="*:45" [sync-feedback-alerts]="*:10" [check-feedback-needs-you]="*:05" )
 for name in "${!SCHED[@]}"; do
   # "Thu 08:30" carries a space; daily/hourly forms never do. Anything else
   # stays exactly as it was, so adding the weekly shape cannot change when an
