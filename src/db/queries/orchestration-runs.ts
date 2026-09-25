@@ -686,20 +686,25 @@ export async function isProjectBusy(
 }
 
 /**
- * Give a run its parallel lane: add `payload.sessionTab`, touch nothing else.
+ * Add fields to a run's payload, touching nothing else. Returns false when no
+ * such run exists.
  *
- * A MERGE, not updateOrchestrationRun — that sets `payload` wholesale, so the
- * old way of stamping the alias (write a fresh payload with sessionTab in it)
- * dropped every field it did not restate. Among them `notifyOnClose` and
- * `conversationId`: the two that make a closed run report back to the thread
- * it came from and to the operator's phone. A parallel run would have
- * finished in silence. Returns false when no such run exists.
+ * A MERGE, not updateOrchestrationRun — that sets `payload` wholesale, so
+ * stamping one field by writing a fresh payload dropped every field it did not
+ * restate. Among them `notifyOnClose` and `conversationId`: the two that make a
+ * closed run report back to the thread it came from and to the operator's
+ * phone. (Found giving a run its parallel lane: it would have finished in
+ * silence.) Every "add this fact to a run that already exists" goes through
+ * here.
  */
-export async function setRunSessionTab(runId: string, tab: string): Promise<boolean> {
+export async function mergeRunPayload(
+  runId: string,
+  patch: Partial<NonNullable<NewOrchestrationRun["payload"]>>,
+): Promise<boolean> {
   const rows = await db
     .update(orchestrationRuns)
     .set({
-      payload: sql`COALESCE(${orchestrationRuns.payload}, '{}'::jsonb) || jsonb_build_object('sessionTab', ${tab}::text)`,
+      payload: sql`COALESCE(${orchestrationRuns.payload}, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb`,
     })
     .where(eq(orchestrationRuns.id, runId))
     .returning({ id: orchestrationRuns.id });

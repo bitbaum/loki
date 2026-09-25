@@ -12,6 +12,9 @@ import { FEEDBACK_STATUS, type FeedbackStatus } from "@/lib/constants/statuses";
 export function useFeedbackActions(refetch: () => void) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Something the operator should know about a SUCCESSFUL action — e.g. the
+   *  run was started on another provider because theirs was out of quota. */
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function act(id: string, run: () => Promise<Response>, fallback: string) {
     setBusyId(id);
@@ -32,16 +35,25 @@ export function useFeedbackActions(refetch: () => void) {
    * the route records it as the project's preference before dispatching, so
    * the next run does not go back to the agent that just hit a rate limit.
    */
-  const dispatchFix = (id: string, opts: { note?: string; agent?: string } = {}) =>
-    act(
+  const dispatchFix = (id: string, opts: { note?: string; agent?: string } = {}) => {
+    setNotice(null);
+    return act(
       id,
-      () =>
-        postJson(`/api/feedback/${id}/dispatch`, {
+      async () => {
+        const res = await postJson(`/api/feedback/${id}/dispatch`, {
           ...(opts.note ? { note: opts.note } : {}),
           ...(opts.agent ? { agent: opts.agent } : {}),
-        }),
+        });
+        // A clone: `act` still reads the original on failure.
+        if (res.ok) {
+          const body = (await res.clone().json().catch(() => null)) as { notice?: unknown } | null;
+          if (typeof body?.notice === "string") setNotice(body.notice);
+        }
+        return res;
+      },
       "Could not queue the fix",
     );
+  };
 
   const setStatus = (id: string, status: FeedbackStatus) =>
     act(id, () => patchJson(`/api/feedback/${id}`, { status }), "Update failed");
@@ -57,6 +69,7 @@ export function useFeedbackActions(refetch: () => void) {
     busyId,
     error,
     setError,
+    notice,
     act,
     dispatchFix,
     setStatus,

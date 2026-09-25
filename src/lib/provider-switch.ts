@@ -215,6 +215,45 @@ export function nextProvider(options: readonly ProviderOption[]): ProviderOption
   return options.find((o) => o.usable) ?? null;
 }
 
+export type DispatchAgentChoice =
+  | { agent: string; rerouted: null }
+  | { agent: string; rerouted: { from: string; because: string } };
+
+/**
+ * Which agent a NEW dispatch should start, given what Loki has observed.
+ *
+ * Everything above answers "who else could do this" for a run that has
+ * already failed — the chooser is offered AFTER the wall. Nothing asked it
+ * before a dispatch, so Loki sent new work straight into an agent it had just
+ * watched run out: on 2026-09-25 Cursor refused a loki run at 10:13:46 ("usage
+ * limit is exhausted"), and nine seconds later the next Implement launched
+ * Cursor again, sat silent for ten minutes and ended "Needs you".
+ *
+ * So: when the preferred agent is SPENT — a capacity refusal inside
+ * PROVIDER_SPENT_WINDOW_MS, never a probe — and the operator's own ranking
+ * has a provider that can answer, start that one instead and say why. When
+ * nothing better can answer, keep the preferred agent: the evidence may be
+ * stale, and refusing outright would trade a possible run for a certain none.
+ *
+ * Deliberately NOT a preference change. The operator chose that agent; a spent
+ * quota is a passing state, and the next dispatch after it recovers should go
+ * back to it. (An explicit switch in the chooser still persists — that one is
+ * the operator deciding, this is Loki not walking into a known wall.)
+ */
+export function routeAroundSpent(input: {
+  preferred: string;
+  /** id → why it is spent, from `spentProviders`. */
+  spent: Readonly<Record<string, string>>;
+  /** `rankProviders` output with `current` = the preferred agent. */
+  options: readonly ProviderOption[];
+}): DispatchAgentChoice {
+  const because = input.spent[input.preferred];
+  if (!because) return { agent: input.preferred, rerouted: null };
+  const next = nextProvider(input.options);
+  if (!next || next.id === input.preferred) return { agent: input.preferred, rerouted: null };
+  return { agent: next.id, rerouted: { from: input.preferred, because } };
+}
+
 /**
  * Which agent this project would run on right now — the one to EXCLUDE.
  *
