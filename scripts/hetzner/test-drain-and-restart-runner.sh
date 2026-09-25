@@ -82,5 +82,27 @@ got="$(PROC_ROOT="$tmp/proc" session_status 9999)"
   || no "a missing session file produced '$got'"
 rm -rf "$tmp"
 
+# ── The cap never kills. 2026-09-25 09:01: a Skif agent 30 minutes into a
+# multi-hour brief was force-restarted away because a deploy changed runner
+# code. Waiting longer is free; killing work is not recoverable.
+[ "$(drain_decision 0 0 21600)" = restart ] \
+  && ok "nothing working → restart now" \
+  || no "an idle runner is not restarted"
+[ "$(drain_decision 0 99999 21600)" = restart ] \
+  && ok "nothing working past the cap → still restart" \
+  || no "an idle runner past the cap is not restarted"
+[ "$(drain_decision 1 600 21600)" = wait ] \
+  && ok "an agent working inside the cap → wait" \
+  || no "a working agent inside the cap is not waited for"
+[ "$(drain_decision 2 21600 21600)" = leave ] \
+  && ok "agents still working at the cap → leave the runner alone, never kill" \
+  || no "the cap restarts over working agents — the 09:01 kill"
+grep -q 'forced after cap\|restarting anyway' "$SCRIPT" \
+  && no "a forced restart path still exists in the drain" \
+  || ok "the drain has no forced-restart path left"
+[ "$(sed -n 's/^MAX="\${LOKI_RUNNER_DRAIN_SECS:-\([0-9]*\)}"$/\1/p' "$SCRIPT")" -ge 14400 ] 2>/dev/null \
+  && ok "the default wait covers a multi-hour task (≥ 4h)" \
+  || no "the default drain wait is shorter than a real task"
+
 printf 'drain-and-restart-runner: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

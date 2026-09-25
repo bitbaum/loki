@@ -20,9 +20,11 @@ set -uo pipefail
 
 UNIT="loki-box-runner"
 CGROUP="/sys/fs/cgroup/system.slice/${UNIT}.service/cgroup.procs"
-# Generous because it costs nothing now. Still bounded: a runner-code fix must
-# eventually land even if some agent never exits.
-MAX="${LOKI_RUNNER_DRAIN_SECS:-1800}"
+# How long to keep waiting for working agents before giving up on THIS restart.
+# Giving up never kills anyone: the runner keeps its current code and the next
+# deploy (or the next time every agent is idle) lands it. Six hours because a
+# real task runs for hours, and this box deploys several times a day.
+MAX="${LOKI_RUNNER_DRAIN_SECS:-21600}"
 INTERVAL=20
 
 log() { logger -t loki-drain "$*" 2>/dev/null || true; echo "[drain] $*"; }
@@ -58,6 +60,19 @@ session_status() {
   sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([a-z_]*\)".*/\1/p' "$home/.claude/sessions/$1.json" | head -1
 }
 
+# drain_decision <working agents> <waited s> <max s> — restart | wait | leave.
+# Pure, pinned by test-drain-and-restart-runner.sh.
+#
+# There is no "restart anyway". The cap used to force the restart, and on
+# 2026-09-25 it did: a Skif agent 30 minutes into a multi-hour brief was killed
+# at 09:01 because a Loki deploy had changed runner code. Stale runner code is
+# recoverable (the next drain lands it); an agent's half-done work is not.
+drain_decision() {
+  if [ "${1:-0}" -eq 0 ] 2>/dev/null; then echo restart; return; fi
+  if [ "$2" -lt "$3" ]; then echo wait; return; fi
+  echo leave
+}
+
 if [ -n "${DRAIN_LIB_ONLY:-}" ]; then return 0; fi
 
 count_agents() {
@@ -71,29 +86,28 @@ count_agents() {
 }
 
 waited=0
-while [ "$waited" -lt "$MAX" ]; do
+while :; do
   n="$(count_agents)"
-  if [ "${n:-0}" -eq 0 ] 2>/dev/null; then
-    log "no agent working after ${waited}s — restarting to pick up new code (idle sessions resume on their next dispatch)"
-    systemctl restart "$UNIT" && sleep 4
-    if systemctl is-active "$UNIT" >/dev/null 2>&1; then
-      log "✓ ${UNIT} restarted (drained cleanly, no agent killed)"
+  case "$(drain_decision "$n" "$waited" "$MAX")" in
+    restart)
+      log "no agent working after ${waited}s — restarting to pick up new code (idle sessions resume on their next dispatch)"
+      systemctl restart "$UNIT" && sleep 4
+      if systemctl is-active "$UNIT" >/dev/null 2>&1; then
+        log "✓ ${UNIT} restarted (drained cleanly, no agent killed)"
+        exit 0
+      fi
+      log "✗ ${UNIT} did not come back after restart"
+      exit 1
+      ;;
+    wait)
+      log "${n} agent(s) working — deferring restart (${waited}s/${MAX}s)"
+      sleep "$INTERVAL"
+      waited=$((waited + INTERVAL))
+      ;;
+    leave)
+      # Loud on purpose: the runner is now behind the code that was deployed.
+      log "⚠ ${n} agent(s) still working after ${MAX}s — NOT restarting; ${UNIT} keeps its current code until the next deploy or the next idle moment"
       exit 0
-    fi
-    log "✗ ${UNIT} did not come back after restart"
-    exit 1
-  fi
-  log "${n} agent(s) working — deferring restart (${waited}s/${MAX}s)"
-  sleep "$INTERVAL"
-  waited=$((waited + INTERVAL))
+      ;;
+  esac
 done
-
-# Cap reached. Restart anyway: stale runner code is its own outage. Idle
-# sessions no longer hold the drain open, so reaching the cap now means an agent
-# really has been generating (or stuck mid-task) for 30 minutes.
-log "⚠ drain cap ${MAX}s reached — restarting anyway so the runner code lands"
-systemctl restart "$UNIT" && sleep 4
-systemctl is-active "$UNIT" >/dev/null 2>&1 \
-  && { log "✓ ${UNIT} restarted (forced after cap)"; exit 0; }
-log "✗ ${UNIT} did not come back after forced restart"
-exit 1
