@@ -1,22 +1,25 @@
-// The launcher must never cover somebody else's launcher.
+// The launcher must never cover somebody else's control.
 //
 // Every mainstream chat widget defaults to bottom-right, and so do we — with a
-// near-maximum z-index, so we win and hide THEIR control. The avoid geometry is
-// what stops that, and it runs on customer sites we cannot see, so it is pinned
-// here rather than checked by eye once.
+// near-maximum z-index, so we win and hide THEIR control. The slot order and
+// chooser are what stop that, and they run on sites we cannot see, so they are
+// pinned here; the DOM half is pinned in a real browser by
+// widget-host-avoid-browser.ts.
 // Run: npx tsx scripts/test/widget-placement.ts
 import {
-  AVOID_GAP,
-  CONTROL_STEP,
-  MAX_AVOID_SHIFT,
-  stepOffControls,
-  avoidOffsetY,
+  CLIMB_STEP,
+  NEAR_CLIMB,
+  chooseSlot,
   cornerEdges,
+  resolvePlaceDirective,
+  slotOrder,
+  withSide,
   normalizePlacement,
   overlaps,
   toRect,
   DEFAULT_PLACEMENT,
   type Rect,
+  type SlotVerdict,
 } from "../../widget/placement";
 import {
   normalizeWidgetPlacement,
@@ -68,61 +71,9 @@ ok(
   "top-right maps to right/top",
 );
 
-// ---- avoidOffsetY: the case this whole module exists for ----
-// Viewport 900 tall. Our 48px launcher at bottom:16 occupies y 836..884.
-// A chat launcher (60px at bottom:20) occupies y 820..880 — they overlap.
-const own = rect(1376, 836, 48, 48);
-const chat = rect(1360, 820, 60, 60);
-
-ok(overlaps(own, chat), "fixture: the two launchers really do overlap");
-
-const moved = avoidOffsetY(own, [chat], "bottom-right", 16);
-ok(moved > 16, "a colliding chat launcher pushes ours up");
-// own.bottom(884) - chat.top(820) + gap = 64 + 12 = 76
-ok(
-  moved === 16 + (own.bottom - chat.top) + AVOID_GAP,
-  "shift clears the obstacle plus one gap, exactly",
-);
-
-// Verify the moved box genuinely no longer overlaps.
-const shift = moved - 16;
-const movedBox = { ...own, top: own.top - shift, bottom: own.bottom - shift };
-ok(!overlaps(movedBox, chat), "after the shift the rectangles no longer overlap");
-
-ok(avoidOffsetY(own, [], "bottom-right", 16) === 16, "nothing in the way changes nothing");
-ok(
-  avoidOffsetY(own, [rect(0, 0, 40, 40)], "bottom-right", 16) === 16,
-  "a far-away fixed element is ignored",
-);
-
-// Stacking: two obstacles, the second only reachable after clearing the first.
-const second = rect(1360, 700, 60, 60);
-const stacked = avoidOffsetY(own, [chat, second], "bottom-right", 16);
-ok(stacked > moved, "a second obstacle above the first pushes further still");
-const s2 = stacked - 16;
-const box2 = { ...own, top: own.top - s2, bottom: own.bottom - s2 };
-ok(!overlaps(box2, chat) && !overlaps(box2, second), "clears BOTH obstacles");
-
-// Runaway guard: an obstacle taller than the cap must not walk us off-screen.
-const huge = rect(1360, 0, 60, 890);
-ok(
-  avoidOffsetY(own, [huge], "bottom-right", 16) === 16,
-  "an obstacle needing more than MAX_AVOID_SHIFT is abandoned, not chased off-screen",
-);
-ok(MAX_AVOID_SHIFT > 0 && MAX_AVOID_SHIFT < 1000, "the cap is a sane magnitude");
-
-// Top-anchored corners shift the other way.
-const ownTop = rect(1376, 16, 48, 48);
-const chatTop = rect(1360, 40, 60, 60);
-const movedTop = avoidOffsetY(ownTop, [chatTop], "top-right", 16);
-ok(movedTop > 16, "top-anchored launchers also step away");
-const st = movedTop - 16;
-const boxTop = { ...ownTop, top: ownTop.top + st, bottom: ownTop.bottom + st };
-ok(!overlaps(boxTop, chatTop), "top-anchored shift moves DOWN and clears");
-
 // ---- DOMRect shape: the bug every other assertion here missed ----
 //
-// avoidOffsetY used to clone its input with `{...own}`. At runtime `own` is a
+// The old avoidOffsetY cloned its input with `{...own}`. At runtime `own` is a
 // DOMRect from getBoundingClientRect(), whose left/top/right/bottom are GETTERS
 // ON THE PROTOTYPE — not own enumerable properties. The spread produced `{}`,
 // every comparison became `undefined < number` (false), and the function
@@ -152,6 +103,8 @@ function fakeDOMRect(l: number, t: number, w: number, h: number): Rect {
   };
   return Object.create(proto) as Rect;
 }
+const own = rect(1376, 836, 48, 48);
+const chat = rect(1360, 820, 60, 60);
 const ownDom = fakeDOMRect(1376, 836, 48, 48);
 const chatDom = fakeDOMRect(1360, 820, 60, 60);
 
@@ -160,8 +113,8 @@ ok(
   "fixture is faithful: spreading it yields NO own properties, exactly like a real DOMRect",
 );
 ok(
-  avoidOffsetY(ownDom, [chatDom], "bottom-right", 16) === moved,
-  "a getter-backed rect gives the SAME shift as a plain object — the prod bug",
+  overlaps(toRect(ownDom), toRect(chatDom)) === overlaps(own, chat),
+  "a getter-backed rect measures the SAME as a plain object — the prod bug",
 );
 ok(
   toRect(ownDom).bottom === own.bottom && toRect(ownDom).left === own.left,
@@ -214,22 +167,103 @@ for (const bad of [{ offsetX: -1 }, { offsetX: 5000 }, { corner: "nope" }, {}, n
   );
 }
 
-// ---- stepOffControls: the launcher must never sit on the host's own controls ----
-// OrangeCat /messages: stepping over the Cat FAB lifted the launcher onto the
-// composer's Send button at desktop width, and a click opened feedback instead.
+// ---- slotOrder: the order IS the preference ----
 {
-  // A send button occupying offsets [60, 100): clear at 100.
-  const sendAt = (o: number) => o >= 60 && o < 100;
-  ok(stepOffControls(72, 16, sendAt) === 104, "steps clear of a covered control");
-  ok(stepOffControls(16, 16, sendAt) === 16, "an uncovered start is left alone");
+  const base = { corner: "bottom-right" as const, offsetX: 16, offsetY: 16 };
+  const slots = slotOrder(base, { edgeLength: 844, size: 40, lockSide: false });
   ok(
-    stepOffControls(72, 16, () => true) === 72,
-    "gives up at MAX_AVOID_SHIFT and keeps the start rather than climbing forever",
+    slots[0].corner === "bottom-right" && slots[0].offsetY === 16,
+    "the first slot is exactly the configured placement",
   );
-  let calls = 0;
-  stepOffControls(16, 16, () => (calls++, true));
-  ok(calls === Math.floor(MAX_AVOID_SHIFT / CONTROL_STEP) + 1, "the climb is bounded");
+  const firstMirror = slots.findIndex((s) => s.corner === "bottom-left");
+  const firstFar = slots.findIndex((s) => s.offsetY > 16 + NEAR_CLIMB);
+  ok(firstMirror > 0, "the mirrored corner is a candidate when the side is free");
+  ok(firstMirror < firstFar, "the opposite corner is tried BEFORE climbing halfway up the edge");
+  ok(
+    slots.slice(0, firstMirror).every((s) => s.corner === "bottom-right"),
+    "the preferred corner's near band comes first, whole",
+  );
+  ok(
+    slots.every((s) => s.offsetY + 40 + 16 <= 844 || s.offsetY === 16),
+    "no slot leaves the viewport",
+  );
+  ok(
+    slots.every((s) => (s.offsetY - 16) % CLIMB_STEP === 0),
+    "slots sit on the climb grid",
+  );
+  const maxY = Math.max(...slots.map((s) => s.offsetY));
+  ok(maxY > 16 + NEAR_CLIMB, "a whole edge is reachable (a bottom sheet can be half the screen)");
+  const locked = slotOrder(base, { edgeLength: 844, size: 40, lockSide: true });
+  ok(
+    locked.every((s) => s.corner === "bottom-right"),
+    "a locked side (host directive / visitor choice) never jumps across the page",
+  );
+  const tiny = slotOrder(base, { edgeLength: 30, size: 40, lockSide: true });
+  ok(
+    tiny.length === 1 && tiny[0].offsetY === 16,
+    "a viewport shorter than the launcher still yields the base slot",
+  );
+  const top = slotOrder(
+    { corner: "top-left", offsetX: 8, offsetY: 8 },
+    { edgeLength: 600, size: 40, lockSide: false },
+  );
+  ok(
+    top.some((s) => s.corner === "top-right"),
+    "top corners mirror along the top edge",
+  );
 }
+
+// ---- chooseSlot: free beats surface beats layer beats hide ----
+{
+  const slots = slotOrder(
+    { corner: "bottom-right", offsetX: 16, offsetY: 16 },
+    { edgeLength: 844, size: 40, lockSide: false },
+  );
+  // A bottom sheet covering y-offsets < 400 on both sides, with controls
+  // (blocked) in its bottom 100px: the first free slot is above the sheet.
+  const sheet = (s: { offsetY: number }): SlotVerdict =>
+    s.offsetY < 100 ? "blocked" : s.offsetY < 400 ? "layer" : "free";
+  const pick = chooseSlot(slots, sheet);
+  ok(
+    pick !== null && pick.verdict === "free" && pick.slot.offsetY >= 400,
+    "climbs past a sheet to a free slot",
+  );
+  const layerOnly = chooseSlot(slots, (s) => (s.offsetY < 100 ? "blocked" : "layer"));
+  ok(
+    layerOnly !== null && layerOnly.verdict === "layer" && layerOnly.slot.offsetY >= 100,
+    "with no free slot, the first slot that covers only a layer (never a control)",
+  );
+  // substrata /atlas at 390: a sheet (layer) below, a pannable map (surface)
+  // above. The map corner wins even though the sheet slots come first.
+  const atlas = chooseSlot(slots, (s): SlotVerdict =>
+    s.offsetY < 64 ? "blocked" : s.offsetY < 460 ? "layer" : "surface",
+  );
+  ok(
+    atlas?.verdict === "surface" && atlas.slot.offsetY >= 460,
+    "a surface (map) beats a layer (sheet content), whatever the order",
+  );
+  ok(chooseSlot(slots, () => "blocked") === null, "every slot on a control ⇒ hide, never cover it");
+  let calls = 0;
+  chooseSlot(slots, () => (calls++, "free"));
+  ok(calls === 1, "an empty corner costs exactly one measurement");
+  const mirrorWins = chooseSlot(slots, (s) => (s.corner === "bottom-right" ? "blocked" : "free"));
+  ok(
+    mirrorWins?.slot.corner === "bottom-left" && mirrorWins.slot.offsetY === 16,
+    "a blocked corner hands over to the mirrored corner at its base offset",
+  );
+}
+
+// ---- withSide / resolvePlaceDirective: the host contract ----
+ok(withSide("bottom-right", "left") === "bottom-left", "left keeps the bottom edge");
+ok(withSide("top-left", "right") === "top-right", "right keeps the top edge");
+ok(resolvePlaceDirective([null, undefined]) === null, "no declaration, no directive");
+ok(resolvePlaceDirective(["left"]) === "left", "an <html> declaration applies");
+ok(resolvePlaceDirective(["left", "hidden"]) === "hidden", "a region overrides <html>");
+ok(resolvePlaceDirective([" RIGHT "]) === "right", "values are trimmed and case-insensitive");
+ok(
+  resolvePlaceDirective(["hidden", "sideways"]) === "hidden",
+  "an unknown value is ignored, not guessed",
+);
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
