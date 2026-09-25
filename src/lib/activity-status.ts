@@ -9,6 +9,7 @@
 import { getIntentLabel } from "@/config/control-intents";
 import type { StatusTone } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
+import { EXIT_CONTRACT_PATTERN } from "@/lib/agent-config";
 
 type RunStatusInput = {
   state: string | null;
@@ -95,7 +96,7 @@ export function isOperatorEnvelope(text: string): boolean {
  */
 const ENVELOPE_BLOCK_PATTERNS: RegExp[] = [
   // Exit contract is always last and runs to the end of the dispatch.
-  /\n?^##[ \t]*Exit contract\b[\s\S]*$/im,
+  EXIT_CONTRACT_PATTERN,
   // Preamble: the heading plus its one explanatory paragraph (to a blank line).
   /^#[ \t]*Loki operator dispatch\b[^\n]*(?:\n(?!\s*$)[^\n]*)*/im,
   // Heading-delimited background sections. They end at the next heading, or at

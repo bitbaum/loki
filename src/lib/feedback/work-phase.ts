@@ -98,6 +98,12 @@ export type FeedbackWorkView = {
   queueReason?: string | null;
   /** Orchestration run Watch and Terminal share. */
   runId?: string | null;
+  /**
+   * The tab this run's agent is in: its parallel lane's own tab when it got
+   * one, else null (the project's tab). Terminal must open THIS — the
+   * project's tab holds a different agent when the run was given a lane.
+   */
+  terminalTab?: string | null;
   /** pending_commands id when still queued — polls live dispatch status. */
   commandId?: string | null;
   /** When the agent started on it (delivery, else run start). ISO. */
@@ -164,6 +170,8 @@ export type FeedbackRunSnapshot = {
    * Absent means the gate is not the reason this run has not started.
    */
   queuedBehind?: { runId: string; label: string | null; startedAt: string } | null;
+  /** payload.sessionTab — the derived tab of a parallel lane (see parallel-run.ts). */
+  sessionTab?: string | null;
 };
 
 const STARTING_MS = 90_000;
@@ -267,6 +275,7 @@ function withStep(
     stepSummary: inFlight ? step.summary : (view.stepSummary ?? null),
     queueReason: inFlight ? step.detail : (view.queueReason ?? null),
     runId: run.id,
+    terminalTab: run.sessionTab ?? null,
     commandId: run.commandId ?? null,
     // Dig-in gets the queue reason when the row itself stays quiet.
     diagnostic: view.diagnostic ?? (inFlight ? step.detail : null),

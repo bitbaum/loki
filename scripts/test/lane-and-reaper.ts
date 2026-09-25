@@ -47,6 +47,8 @@ if (!target) {
   process.exit(0);
 }
 process.env.DATABASE_URL = target;
+// Parallel lanes are opt-in and read at module load; these scenarios need them on.
+process.env.LOKI_PARALLEL_DISPATCH = "true";
 
 async function main(): Promise<number> {
   const { db } = await import("@/db");
@@ -55,6 +57,8 @@ async function main(): Promise<number> {
     await import("@/db/queries/orchestration-runs");
   const { claimNextPendingCommand, findQueueBlockers } =
     await import("@/db/queries/pending-commands");
+  const { planParallelRun, MAX_PARALLEL_LANES_PER_PROJECT } =
+    await import("@/lib/orchestration/parallel-run");
 
   let passed = 0;
   const failures: string[] = [];
@@ -271,6 +275,118 @@ async function main(): Promise<number> {
       );
     },
   );
+
+  // ── parallel lanes ─────────────────────────────────────────────────────────
+  // A run row with no command yet — the state planParallelRun is called in.
+  async function bareRun(user: string, key: string, createdAgo: number): Promise<string> {
+    const [run] = await db.execute<{ id: string }>(sql`
+      INSERT INTO orchestration_runs (user_id, adapter, intent, state, project_key, project_path, started_at, payload)
+      VALUES (${user}, 'claude', 'custom', 'waiting', ${key}, ${`/tmp/${key}`},
+              NOW() - make_interval(mins => ${createdAgo}), jsonb_build_object('projectKey', ${key}::text))
+      RETURNING id`);
+    return run!.id;
+  }
+  async function laneCommand(
+    user: string,
+    runId: string,
+    key: string,
+    tab: string,
+    executed: boolean,
+  ): Promise<string> {
+    const [cmd] = await db.execute<{ id: string }>(sql`
+      INSERT INTO pending_commands (user_id, type, payload, created_at, claimed_at, executed_at)
+      VALUES (${user}, 'dispatch',
+              jsonb_build_object('runId', ${runId}::text, 'projectKey', ${key}::text,
+                                 'tab', ${tab}::text, 'dir', ${`/tmp/${key}`}::text,
+                                 'agent', 'claude', 'prompt', 'lane test'),
+              NOW(),
+              ${executed ? sql`NOW()` : sql`NULL::timestamptz`},
+              ${executed ? sql`NOW()` : sql`NULL::timestamptz`})
+      RETURNING id`);
+    return cmd!.id;
+  }
+  const plan = (user: string, runId: string, key: string) =>
+    planParallelRun(user, runId, { projectKey: key, prompt: "Do the task." });
+
+  await check("a busy project gives the next run its own lane, which starts at once", async () => {
+    const user = await newUser("parallel");
+    // A holds the base lane: delivered, streaming.
+    await openRun({
+      user,
+      key: "par",
+      createdAgo: 10,
+      deliveredAgo: 9,
+      lastOutputAgo: 1,
+      command: "executed",
+    });
+    const p = await bareRun(user, "par", 1);
+    // What inject-core stamps on a run a person is waiting on: where to report.
+    await db.execute(sql`
+      UPDATE orchestration_runs
+         SET payload = payload || jsonb_build_object('notifyOnClose', true, 'conversationId', 'conv-1')
+       WHERE id = ${p}`);
+
+    const lane = await plan(user, p, "par");
+    assert(lane?.tab.startsWith("par~"), `expected a derived tab for par, got ${lane?.tab}`);
+    const [row] = await db.execute<{
+      tab: string | null;
+      notify: string | null;
+      conv: string | null;
+    }>(sql`
+      SELECT payload->>'sessionTab' AS tab, payload->>'notifyOnClose' AS notify,
+             payload->>'conversationId' AS conv
+        FROM orchestration_runs WHERE id = ${p}`);
+    assert(
+      row!.notify === "true" && row!.conv === "conv-1",
+      "granting a lane dropped notifyOnClose/conversationId — the run would close without telling anyone",
+    );
+    assert(
+      row!.tab === lane.tab,
+      "sessionTab must be persisted — the close path matches the handoff on it",
+    );
+
+    const cmd = await laneCommand(user, p, "par", lane.tab, false);
+    const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(claimed?.id === cmd, "a run in its own lane must not wait behind the base lane");
+  });
+
+  await check(
+    `at most ${MAX_PARALLEL_LANES_PER_PROJECT} parallel lanes per project, then the queue`,
+    async () => {
+      const user = await newUser("cap");
+      await openRun({ user, key: "cap", createdAgo: 10, deliveredAgo: 9, command: "executed" });
+      for (let i = 0; i < MAX_PARALLEL_LANES_PER_PROJECT; i++) {
+        const r = await bareRun(user, "cap", 5 - i);
+        assert(
+          await plan(user, r, "cap"),
+          `lane ${i + 1} of ${MAX_PARALLEL_LANES_PER_PROJECT} should be granted`,
+        );
+      }
+      const extra = await bareRun(user, "cap", 1);
+      assert(
+        (await plan(user, extra, "cap")) === null,
+        "past the cap the run must wait its turn — unbounded lanes throttle the builder and the account at once",
+      );
+    },
+  );
+
+  await check("an open parallel lane does not make the base lane look busy", async () => {
+    const user = await newUser("nohold");
+    // A parallel lane, running.
+    const p = await bareRun(user, "nohold", 30);
+    const lane = await plan(user, p, "nohold");
+    assert(lane, "setup: the lane should be granted");
+    await laneCommand(user, p, "nohold", lane.tab, true);
+    // A base-lane run arrives.
+    const b = await openRun({ user, key: "nohold", createdAgo: 5, command: "waiting" });
+
+    assert(
+      (await isProjectBusy(user, "nohold", { excludeRunId: b.runId })) === false,
+      "isProjectBusy counted the parallel lane — the next dispatch would fork another lane instead of taking the free base lane",
+    );
+    const claimed = await claimNextPendingCommand([user], ["dispatch"], "local");
+    assert(claimed?.id === b.commandId, "the gate must agree: the base lane is free");
+  });
 
   // ── 5. one definition, by construction ─────────────────────────────────────
   await check("the lane rule and its clock are defined once", async () => {

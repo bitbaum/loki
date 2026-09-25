@@ -255,6 +255,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     error?: string;
     fix?: FixShipping;
     commandId?: string;
+    sessionTab?: string;
     hostedDispatchId?: string;
     feedbackAutoRetriedAt?: string;
   } | null;
@@ -273,6 +274,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     summaryDone: (row.summary as { done?: string } | null)?.done ?? null,
     fix: payload?.fix ?? null,
     commandId: payload?.commandId ?? null,
+    sessionTab: payload?.sessionTab ?? null,
     hostedPending: !!payload?.hostedDispatchId,
     feedbackAutoRetriedAt: payload?.feedbackAutoRetriedAt ?? null,
   };
