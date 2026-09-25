@@ -106,6 +106,40 @@ async function main(): Promise<void> {
   assert.equal(many.length, ACTOR_STATUS_MAX_PROJECTS);
   console.log("  ✓ capped at 25 projects");
 
+  // The cap keeps what needs the person, not the first 25 in list order: an
+  // account with 37 projects never showed OrangeCat its own `orangecat` project.
+  const crowd = Array.from({ length: 30 }, (_, i) => ({
+    id: `c${i}`,
+    name: `C${i}`,
+    liveUrl: null,
+    entityProjectId: null,
+  }));
+  const ordered = shapeActorStatus({
+    ...base,
+    projects: crowd,
+    states: [
+      {
+        projectKey: "c29",
+        agentRunning: false,
+        sessionStatus: "ready",
+        sessionBlockReason: "awaiting_user",
+        promptQueue: [],
+        currentPromptLabel: null,
+      },
+    ],
+    outcomes: new Map(),
+    feedback: [],
+    links: [{ projectId: "c28", entityType: "project", entityId: "oc-9" }],
+  });
+  assert.equal(ordered.length, ACTOR_STATUS_MAX_PROJECTS);
+  assert.equal(ordered[0].id, "c29", "a project waiting on its owner leads, even from position 30");
+  assert.ok(
+    ordered.some((p) => p.id === "c28"),
+    "a project linked to OrangeCat survives the cap",
+  );
+  assert.equal(ordered[2].id, "c0", "the rest keep their list order");
+  console.log("  ✓ ordered by attention before the cap");
+
   const now = Date.parse("2026-09-24T12:00:00Z");
   assert.ok(isFreshIssuedAt("2026-09-24T11:57:00Z", now));
   assert.ok(isFreshIssuedAt("2026-09-24T12:02:00Z", now), "small clock skew ahead is fine");
