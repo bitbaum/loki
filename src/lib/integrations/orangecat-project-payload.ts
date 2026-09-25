@@ -1,4 +1,4 @@
-import { cleanDescription } from "@/lib/project-display";
+import { projectHeadline } from "@/lib/project-display";
 
 export type OrangeCatProjectPayload = {
   title: string;
@@ -30,7 +30,7 @@ export function buildOrangeCatProjectPayload(project: {
 }): OrangeCatProjectPayload {
   return {
     title: project.name,
-    description: cleanDescription(project.description) ?? "Built in public with Loki.",
+    description: projectHeadline(project.description) ?? "Built in public with Loki.",
     status: "active",
     ...(project.liveUrl ? { website_url: project.liveUrl } : {}),
   };

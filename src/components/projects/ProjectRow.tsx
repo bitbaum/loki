@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { deriveProjectLoopReadiness } from "@/lib/project-loop-readiness";
 import { computeProjectHealth } from "@/lib/project-health";
 import { HealthScoreBar } from "./HealthScore";
-import { answer, cleanDescription, hasAnswer } from "@/lib/project-display";
+import { answer, hasAnswer, projectHeadline } from "@/lib/project-display";
 import { timeAgo } from "@/lib/dates";
 import { resolveProjectStage } from "@/lib/constants/statuses";
 
@@ -59,7 +59,7 @@ export function ProjectRow({
   const flagged = flagCount > 0;
 
   const nextStep = answer(attrs["next_step"]);
-  const description = cleanDescription(project.description) ?? answer(attrs["description"]);
+  const description = projectHeadline(project.description) ?? answer(attrs["description"]);
   const context = nextStep ?? description;
 
   const loopReadiness = deriveProjectLoopReadiness(project);

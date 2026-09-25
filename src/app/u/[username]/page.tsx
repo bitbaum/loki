@@ -13,7 +13,7 @@ import { getPublicProjects } from "@/db/queries/user-projects";
 import { getRecentOrchestrationRuns } from "@/db/queries/today";
 import { listThoughts } from "@/lib/thoughts-content";
 import { HEALTH_TAG_STYLE } from "@/config/ui";
-import { cleanDescription } from "@/lib/project-display";
+import { projectHeadline } from "@/lib/project-display";
 import { compactRelativeDate } from "@/lib/dates";
 import type { DevLogEntry } from "@/db/schema/user-projects";
 
@@ -98,7 +98,7 @@ export default async function PublicProfilePage({
                 const latest = log.length > 0 ? log[log.length - 1] : null;
                 const healthKey = (latest?.health ?? "").toLowerCase();
                 const healthCls = HEALTH_TAG_STYLE[healthKey];
-                const desc = cleanDescription(project.description);
+                const desc = projectHeadline(project.description);
                 return (
                   <a
                     key={project.id}

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { mergeInterviewIntoDescription } from "@/lib/project-interview";
+import { PROJECT_ATTR } from "@/config/project-attrs";
 import {
   answer,
   cleanDescription,
+  projectHeadline,
   isPublicTestArtifact,
   publicHeroNote,
   summarizeDescription,
@@ -58,6 +61,34 @@ assert.equal(
   answer("Support generics like List<T> in the parser"),
   "Support generics like List<T> in the parser",
   "a real generic-type mention is not mistaken for a placeholder (no bare <word>)",
+);
+
+// A header shows what the project IS, not the owner's interview transcript.
+// Skif, 2026-09-25: "…freedom. From the owner: Who is this for, and who pays…"
+const withBrief = mergeInterviewIntoDescription(
+  "Holistic safety for people and the places they live.",
+  { [PROJECT_ATTR.CUSTOMERS]: "People in Zürich who want a calm person with them" },
+);
+assert.match(withBrief, /From the owner:/, "fixture: the brief really is appended");
+assert.equal(
+  projectHeadline(withBrief),
+  "Holistic safety for people and the places they live.",
+  "the headline stops before the owner's answers",
+);
+assert.equal(
+  projectHeadline("Just a line."),
+  "Just a line.",
+  "no brief: the description is the headline",
+);
+assert.match(
+  projectHeadline(mergeInterviewIntoDescription("", { [PROJECT_ATTR.CUSTOMERS]: "Cafés" })) ?? "",
+  /Cafés/,
+  "only a brief: show it rather than nothing",
+);
+assert.equal(
+  projectHeadline("Local repository imported from loki-ui"),
+  null,
+  "placeholders stay hidden",
 );
 
 console.log("✓ project-display tests passed");
