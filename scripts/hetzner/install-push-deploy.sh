@@ -64,6 +64,19 @@ EOF
   echo "installed: $app ($hook)"
 }
 
+# demo_shares_repo_with_app <name> <kind> <repo> — true when <name> is a demo
+# whose repo_path another, non-demo row also uses. Pure over $MANIFEST.
+demo_shares_repo_with_app() {
+  [ "$2" = demo ] || return 1
+  awk -F'|' -v n="$1" -v r="$3" '
+    /^[[:space:]]*#/ || NF < 8 { next }
+    $1 != n && $4 == r && $8 != "demo" { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$MANIFEST"
+}
+
+if [ -n "${PUSH_DEPLOY_LIB_ONLY:-}" ]; then return 0; fi
+
 apps=("$@")
 if [ ${#apps[@]} -eq 0 ]; then
   mapfile -t apps < <(app_names)
@@ -86,6 +99,15 @@ for app in "${apps[@]}"; do
     continue
   fi
   app_lookup "$app" || continue
+  # A demo that shares its repo with a real app never owns the push hook.
+  # install_hook REPLACES the marked block, so the last row sharing a repo
+  # wins: aoz-demo (appended after aoz-wohnen, same aoz-begleitung checkout)
+  # would have made every push deploy the demo instead of the app. The demo
+  # ships through its own gated job.
+  if demo_shares_repo_with_app "$NAME" "$KIND" "$REPO"; then
+    echo "skip $NAME: demo shares $REPO with a real app, which keeps the push hook"
+    continue
+  fi
   install_hook "$REPO" \
     "env -u CI bash \"\${DEV_ROOT:-\$HOME/dev}/loki/scripts/hetzner/deploy.sh\" $NAME" \
     "$NAME"
