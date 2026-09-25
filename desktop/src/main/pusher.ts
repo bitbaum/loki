@@ -71,6 +71,13 @@ const PUSH_INTERVAL_MS = DAEMON_HEARTBEAT_MS
 
 const BASE_URL = (process.env.LOKI_WEB_URL || '').trim() || APP_URL
 
+// When THIS process started — captured once, at module load. Every agent PTY
+// this runner owns lives and dies with the process, so a boot time newer than
+// a run's last session event is proof that session is gone. The server closes
+// those runs from it instead of leaving them "waiting" for the hourly reaper
+// (src/lib/orchestration/runner-restart.ts).
+const BOOTED_AT = Date.now()
+
 let timer: NodeJS.Timeout | null = null
 let stopped = false
 
@@ -116,6 +123,7 @@ async function pushOnce(): Promise<void> {
         projects,
         panes,
         runnerVersion: runnerVersion(),
+        bootedAt: BOOTED_AT,
         // Rides the heartbeat so it expires with it: a stale "ac" must never
         // vouch for a laptop that has since gone to sleep. Omitted entirely
         // when undeterminable — the server reads absence as UNKNOWN, and

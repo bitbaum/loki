@@ -21,6 +21,12 @@ import { attachHandoffToReapedPartials } from "@/lib/orchestration/reap-handoff"
 import { emitRunEvent } from "./run-events";
 import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
 import { runLaneOfTab } from "@/lib/run-tab";
+import {
+  SESSION_EVENT_KINDS,
+  runnerRestartReason,
+  runsEndedByRestart,
+  type OpenRunRestartFacts,
+} from "@/lib/orchestration/runner-restart";
 
 export const STALE_RUN_MINUTES = 60;
 
@@ -406,6 +412,20 @@ export async function getRunsByIdsForReporter(ids: string[]) {
   return new Map(rows.map((r) => [r.id, r]));
 }
 
+/** The run's project pushed a handoff after the run's working life began —
+ *  evidence the agent worked. Shared by every janitor that closes a run it did
+ *  not see finish (the time reaper, the runner-restart close), so they cannot
+ *  disagree about what counts as work. */
+function handoffAfterRunStartSql() {
+  const effectiveStart = runLifeStartSql("orchestration_runs");
+  return sql`EXISTS (
+    SELECT 1 FROM project_states ps
+    WHERE ps.user_id = ${orchestrationRuns.userId}
+      AND lower(ps.project_key) = lower(${orchestrationRuns.projectKey})
+      AND GREATEST(ps.ready_at, ps.session_updated_at) > ${effectiveStart}
+  )`;
+}
+
 export async function cleanupStaleOrchestrationRuns(userId?: string) {
   // Did this run's project produce a handoff AFTER the run started? project_states
   // holds the box-pushed session state; a ready_at / session_updated_at newer
@@ -422,12 +442,7 @@ export async function cleanupStaleOrchestrationRuns(userId?: string) {
   // run open — so the run was reaped with a partial verdict and a NULL summary,
   // recording a failure whose reason nobody could read. One floor, both paths.
   const effectiveStart = runLifeStartSql("orchestration_runs");
-  const wroteAfterStart = sql`EXISTS (
-    SELECT 1 FROM project_states ps
-    WHERE ps.user_id = ${orchestrationRuns.userId}
-      AND lower(ps.project_key) = lower(${orchestrationRuns.projectKey})
-      AND GREATEST(ps.ready_at, ps.session_updated_at) > ${effectiveStart}
-  )`;
+  const wroteAfterStart = handoffAfterRunStartSql();
   // Alive = a long task, not a dead run. Don't reap it; it closes from its own
   // handoff, or a later tick reaps it once it goes quiet.
   //
@@ -1062,4 +1077,134 @@ export async function stampRunCommandId(
         isNull(orchestrationRuns.finishedAt),
       ),
     );
+}
+
+/**
+ * The facts runsEndedByRestart judges, for every open run of one user. One
+ * query; each correlated subquery runs per OPEN run only, so a user with no
+ * open runs costs a single index probe — which matters because the runner's
+ * runtime-state post (the caller) repeats every few seconds.
+ *
+ * Channel comes from the run's command: the dispatch pins it
+ * (`payload.channel`, see inject-core's pinnedChannel) and the claim filter
+ * only lets that runner take it. A run whose command carried no channel is
+ * returned with `channel: null`, which the rule never matches.
+ */
+export async function listOpenRunRestartFacts(userId: string): Promise<OpenRunRestartFacts[]> {
+  const kinds = sql.join(
+    SESSION_EVENT_KINDS.map((k) => sql`${k}`),
+    sql`, `,
+  );
+  const sessionEvents = sql`FROM run_events e
+      WHERE e.run_id = ${orchestrationRuns.id} AND e.kind IN (${kinds})`;
+  const rows = await db
+    .select({
+      id: orchestrationRuns.id,
+      channel: sql<string | null>`(
+        SELECT pc.payload->>'channel' FROM pending_commands pc
+        WHERE pc.user_id = ${orchestrationRuns.userId}
+          AND pc.payload->>'runId' = ${orchestrationRuns.id}::text
+          AND pc.payload->>'channel' IS NOT NULL
+        ORDER BY pc.created_at DESC LIMIT 1
+      )`,
+      firstMs: sql<
+        number | null
+      >`(SELECT (EXTRACT(EPOCH FROM min(e.created_at)) * 1000)::float8 ${sessionEvents})`,
+      lastMs: sql<
+        number | null
+      >`(SELECT (EXTRACT(EPOCH FROM max(e.created_at)) * 1000)::float8 ${sessionEvents})`,
+      outstanding: sql<boolean>`EXISTS (
+        SELECT 1 FROM pending_commands pc
+        WHERE pc.user_id = ${orchestrationRuns.userId}
+          AND pc.payload->>'runId' = ${orchestrationRuns.id}::text
+          AND pc.executed_at IS NULL
+      )`,
+    })
+    .from(orchestrationRuns)
+    .where(and(eq(orchestrationRuns.userId, userId), isNull(orchestrationRuns.finishedAt)));
+  const ms = (v: unknown): number | null => (v == null ? null : Number(v));
+  return rows.map((r) => ({
+    id: r.id,
+    channel: r.channel ?? null,
+    firstSessionEventAtMs: ms(r.firstMs),
+    lastSessionEventAtMs: ms(r.lastMs),
+    hasOutstandingCommand: r.outstanding === true,
+  }));
+}
+
+/**
+ * Close the runs a runner restart ended (see lib/orchestration/runner-restart).
+ *
+ * Called from the runtime-state post, which repeats every few seconds, so it
+ * is idempotent by construction: the rule only selects open runs, and the
+ * UPDATE re-checks `finished_at IS NULL`, so a repeat — or a race with the
+ * reaper or a handoff close — changes nothing.
+ *
+ * The verdict is the one the time reaper would have written an hour later,
+ * only now, with the true reason and the true end time:
+ *   - `partial` + note when the project had pushed a handoff during the run
+ *     (the agent worked; the same evidence rule as the reaper);
+ *   - otherwise `timeout`, with payload.error naming the restart. `timeout`
+ *     rather than `error` because it is what these runs were recorded as
+ *     before, so no consumer reads them differently — and because it is the
+ *     only verdict correctTimeoutReapsWithRepoEvidence corrects: a run whose
+ *     agent had pushed a branch or PR before it died is upgraded to `partial`
+ *     by the same pass the reaper runs.
+ *
+ * Deliberately does NOT advance the project's escalation ladder: the builder
+ * restarting is an infrastructure event, not evidence the project is stuck.
+ */
+export async function closeRunsEndedByRunnerRestart(
+  userId: string,
+  boot: { bootedAtMs: number; channel: string },
+) {
+  const facts = await listOpenRunRestartFacts(userId);
+  if (facts.length === 0) return [];
+  const ids = runsEndedByRestart(facts, boot);
+  if (ids.length === 0) return [];
+
+  const wroteAfterStart = handoffAfterRunStartSql();
+  const bootedAtIso = new Date(boot.bootedAtMs).toISOString();
+  const reason = runnerRestartReason(boot.bootedAtMs);
+  const closed = await db
+    .update(orchestrationRuns)
+    .set({
+      state: sql`CASE WHEN ${wroteAfterStart} THEN 'done' ELSE 'error' END`,
+      outcome: sql`CASE WHEN ${wroteAfterStart} THEN 'partial' ELSE 'timeout' END`,
+      // The session ended when the runner went down: no later than the boot
+      // (and never in the future), never before the run itself started.
+      finishedAt: sql`GREATEST(${orchestrationRuns.startedAt}, LEAST(NOW(), ${bootedAtIso}::timestamptz))`,
+      payload: sql`CASE
+        WHEN ${wroteAfterStart}
+          THEN jsonb_set(COALESCE(payload, '{}'), '{note}', to_jsonb(${EXECUTOR_COPY.honesty.reapedButHandoffWritten}::text))
+        ELSE jsonb_set(COALESCE(payload, '{}'), '{error}', to_jsonb(${reason}::text))
+      END`,
+    })
+    .where(
+      and(
+        eq(orchestrationRuns.userId, userId),
+        inArray(orchestrationRuns.id, ids),
+        isNull(orchestrationRuns.finishedAt),
+      ),
+    )
+    .returning();
+  if (closed.length === 0) return closed;
+
+  for (const r of closed) {
+    void emitRunEvent(r.id, r.userId, "closed", {
+      outcome: r.outcome ?? ORCHESTRATION_OUTCOME.TIMEOUT,
+      by: "runner-restart",
+      bootedAt: bootedAtIso,
+      channel: boot.channel,
+    });
+    // Announce it like any other close — self-gating on payload.notifyOnClose.
+    void notifyRunClosed(r);
+  }
+  if (closed.some((r) => r.outcome === ORCHESTRATION_OUTCOME.TIMEOUT)) {
+    void correctTimeoutReapsWithRepoEvidence(closed);
+  }
+  if (closed.some((r) => r.outcome === ORCHESTRATION_OUTCOME.PARTIAL && r.summary == null)) {
+    void attachHandoffToReapedPartials(closed);
+  }
+  return closed;
 }
