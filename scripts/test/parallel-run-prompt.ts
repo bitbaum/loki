@@ -24,7 +24,8 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promptForLane } from "@/lib/orchestration/lane-prompt";
-import { exitContractFor, EXIT_CONTRACT_PATTERN } from "@/lib/agent-config";
+import { exitContractFor } from "@/lib/agent-config";
+import { EXIT_CONTRACT_PATTERN } from "@/lib/exit-contract";
 import { deriveRunTab } from "@/lib/run-tab";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -111,8 +112,8 @@ check("the exit contract is built in one place", () => {
       .replace(/^\s*\/\/.*$/gm, "");
   const typed = files.filter((p) => code(p).includes("## Exit contract (operator requirement)"));
   assert(
-    typed.length === 1 && typed[0]!.endsWith("src/lib/agent-config.ts"),
-    `the contract heading must be typed only in agent-config.ts (exitContractFor); found in: ${typed.join(", ")}`,
+    typed.length === 1 && typed[0]!.endsWith("src/lib/exit-contract.ts"),
+    `the contract heading must be typed only in exit-contract.ts (EXIT_CONTRACT_HEADING); found in: ${typed.join(", ")}`,
   );
 });
 

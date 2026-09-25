@@ -20,6 +20,7 @@ import fs from "fs";
 import { homedir } from "node:os";
 import path from "path";
 import { APP_SLUG } from "@/config/brand";
+import { EXIT_CONTRACT_HEADING } from "@/lib/exit-contract";
 import { fleetSessionsDir, legacyClaudeSessionsDir } from "@/lib/session-paths";
 
 // Lazy accessors — evaluated at request time, not module load time.
@@ -301,15 +302,8 @@ export function sessionHandoffContract(sessionFilePath: string): string {
  * owns the base tab, not this one.
  */
 export function exitContractFor(sessionFileRef: string): string {
-  return `## Exit contract (operator requirement)\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
+  return `${EXIT_CONTRACT_HEADING}\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
 }
-
-/**
- * Matches the exit contract at the end of a dispatch. The contract is always
- * the LAST section and runs to the end of the message — every builder above
- * appends it last — so this consumes from its heading to the end.
- */
-export const EXIT_CONTRACT_PATTERN = /\n?^##[ \t]*Exit contract\b[\s\S]*$/im;
 
 export function buildPromptWithSession(
   base: string,

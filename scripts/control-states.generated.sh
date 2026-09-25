@@ -33,9 +33,9 @@ FC_LABEL_TAB_OPEN='Tab open'
 FC_DESCRIPTION_TAB_OPEN='Terminal workspace exists for this project but no agent process is running in it.'
 FC_COUNTER_CATEGORY_TAB_OPEN='idle'
 
-FC_LABEL_OPEN_IDLE='Awaiting input'
-FC_DESCRIPTION_OPEN_IDLE='Agent process detected but no recent lifecycle signal — the agent is at the prompt waiting for your next message.'
-FC_COUNTER_CATEGORY_OPEN_IDLE='waiting'
+FC_LABEL_OPEN_IDLE='Agent idle'
+FC_DESCRIPTION_OPEN_IDLE='Agent process detected but no recent lifecycle signal. It may be at a prompt, stalled, or simply quiet; Loki has no evidence that it asked you a question.'
+FC_COUNTER_CATEGORY_OPEN_IDLE='idle'
 
 FC_LABEL_WORKING='Working'
 FC_DESCRIPTION_WORKING='Agent is mid-turn — actively reading files, calling tools, or writing.'

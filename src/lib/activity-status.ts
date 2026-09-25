@@ -9,7 +9,7 @@
 import { getIntentLabel } from "@/config/control-intents";
 import type { StatusTone } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
-import { EXIT_CONTRACT_PATTERN } from "@/lib/agent-config";
+import { EXIT_CONTRACT_PATTERN } from "@/lib/exit-contract";
 
 type RunStatusInput = {
   state: string | null;
