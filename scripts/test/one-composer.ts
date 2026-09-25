@@ -112,10 +112,7 @@ const render = (props: Record<string, unknown>) =>
 
   // A single mode renders no toggle at all.
   eq(
-    has(
-      render({ modes: [{ id: "inject", label: "Inject" }], mode: "inject" }),
-      "ck-modes",
-    ),
+    has(render({ modes: [{ id: "inject", label: "Inject" }], mode: "inject" }), "ck-modes"),
     false,
     "one destination renders no toggle",
   );
