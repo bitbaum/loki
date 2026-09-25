@@ -46,7 +46,8 @@ revamp-info|4012|*-*-* 09:00:00|/api/cron/deadline-reminder|GET
 revamp-info|4012|Mon *-*-* 08:00:00|/api/cron/data-quality|GET
 surf-your-life|4009|*-*-* 18:00:00|/api/cron/reminders|GET
 surf-your-life|4009|Sun *-*-* 17:00:00|/api/cron/weekly-report|GET
-surf-your-life|4009|Sun *-*-* 19:00:00|/api/cron/ai-digest|GET
+# No surf-your-life ai-digest timer: George 2026-09-25 — no background job may
+# spend the shared free AI pool. The digest is an on-demand staff action now.
 surf-your-life|4009|*-*-* 03:00:00|/api/cron/embed-backfill|GET
 # sbb-fundbuero has no vercel.json; its schedule SSOT is this row + the app's TODO.md.
 sbb-fundbuero|4016|*-*-* 03:30:00|/api/cron/purge|POST
