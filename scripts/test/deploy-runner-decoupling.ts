@@ -77,4 +77,17 @@ check("the drain still has a cap, so a wedged agent cannot freeze runner code fo
   assert(/MAX=/.test(drain) && /cap/.test(drain), "the box-side drain must remain bounded");
 });
 
+check("one OOM-killed child does not stop the runner and every agent in it", () => {
+  // 2026-09-25 10:53: the kernel OOM-killed one chrome-headless inside the
+  // runner's cgroup; systemd's default OOMPolicy=stop then stopped the whole
+  // unit, killing every agent session (Skif, 13 minutes into a brief).
+  const install = readFileSync(join(root, "scripts/hetzner/install-box-runner.sh"), "utf8");
+  const service = install.slice(install.indexOf("[Service]"), install.indexOf("[Install]"));
+  assert(service.length > 0, "install-box-runner.sh must write a [Service] section");
+  assert(
+    /^OOMPolicy=continue$/m.test(service),
+    "the box-runner unit must set OOMPolicy=continue in [Service]",
+  );
+});
+
 console.log(`\n${passed} passed`);
