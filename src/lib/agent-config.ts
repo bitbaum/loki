@@ -305,7 +305,6 @@ export function exitContractFor(sessionFileRef: string): string {
   return `${EXIT_CONTRACT_HEADING}\nBefore stopping, create ${sessionFileRef}.\n${sessionHandoffContract(sessionFileRef)}`;
 }
 
-
 export function buildPromptWithSession(
   base: string,
   tab: string,
