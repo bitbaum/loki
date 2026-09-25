@@ -57,6 +57,7 @@
     "test:tab-match": "npx tsx scripts/test/tab-match.ts",
     "test:agent-comms": "npx tsx scripts/test/agent-comms.ts",
     "test:unit": "npx tsx scripts/test-unit.ts",
+    "test:db": "npx tsx scripts/test/lane-and-reaper.ts",
     "test:ai-forms": "tsx scripts/verify-ai-forms.ts",
     "test:activity-ssot": "node scripts/activity-ssot-check.mjs",
     "dogfood:loki": "node scripts/loki-dogfood.mjs",

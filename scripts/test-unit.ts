@@ -31,6 +31,8 @@ const SKIP: Record<string, string> = {
   "loki-loop-e2e.ts":
     "end-to-end against a real deployment + LOKI_SESSION_TOKEN (pnpm run test:e2e:loki)",
   "rag-retrieval.ts": "needs EMBEDDINGS_BASE_URL (fastembed service)",
+  "lane-and-reaper.ts":
+    "needs a real Postgres it may write to (TEST_DATABASE_URL, or CI) — runs in CI as `pnpm run test:db` after the migrate step",
   // push-notifications.ts was here, excluded as "needs push/web-push env —
   // run manually". It never needed env: every check is a static file read. It
   // was failing because scripts/agent-hook-bridge.sh was deleted on 2026-06-11
