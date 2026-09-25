@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useCallback, useSyncExternalStore, Suspense } from "react";
 import { ScrollAffordance } from "@/components/ui/scroll-affordance";
 import { ProfileSettings } from "./ProfileSettings";
 import { AccountSettings } from "./AccountSettings";
@@ -71,9 +71,8 @@ const HASH_TO_TAB: Record<string, TabId> = {
   keys: "ai",
 };
 
-// Resolve the initial tab from window.location.hash. Pure function so it can
-// run inside a useState lazy initializer — avoids the cascading-render lint
-// hit from a post-mount setState in useEffect.
+// The tab the URL hash names. Pure, so it can be the tab store's client
+// snapshot (see useSyncExternalStore in SettingsTabs).
 function resolveInitialTab(): TabId {
   if (typeof window === "undefined") return "profile";
   const raw = window.location.hash.slice(1).toLowerCase();
@@ -81,6 +80,23 @@ function resolveInitialTab(): TabId {
   const directMatch = TABS.find((t) => t.id === raw);
   if (directMatch) return directMatch.id;
   return HASH_TO_TAB[raw] ?? "profile";
+}
+
+/** Fired when a tab click rewrites the hash with replaceState (no hashchange). */
+const TAB_EVENT = "settings-tab";
+
+function subscribeToTab(onChange: () => void): () => void {
+  window.addEventListener("hashchange", onChange);
+  window.addEventListener(TAB_EVENT, onChange);
+  return () => {
+    window.removeEventListener("hashchange", onChange);
+    window.removeEventListener(TAB_EVENT, onChange);
+  };
+}
+
+/** What the server renders — it cannot see a hash. */
+function serverTab(): TabId {
+  return "profile";
 }
 
 export function SettingsTabs({
@@ -92,39 +108,31 @@ export function SettingsTabs({
   invitations,
   orangecatEnabled,
 }: Props) {
-  // Lazy initializer reads the URL hash once at first render so deep links
-  // like /settings#agent or /settings#tokens (from RunnerStatusBanner's
-  // onboarding link) open the right tab. Without this, the banner landed
-  // the user on Profile and they had to discover the Agent tab themselves
-  // — a silent dead-end in the new-user funnel.
-  const [activeTab, setActiveTab] = useState<TabId>(resolveInitialTab);
-
   /**
-   * The hash is read ONCE by the lazy initializer above, which covers arriving
-   * from elsewhere but not changing the hash while already here. So
-   * /settings#agent worked from /control and did nothing from /settings —
-   * including browser Back after switching tabs, which moved the URL and left
-   * the page on whatever was open. Every in-app link to a settings section is
-   * therefore a coin flip depending on where the operator happened to be.
+   * The open tab IS the URL hash — one source of truth, read through
+   * useSyncExternalStore so server and client agree.
+   *
+   * It used to be `useState(resolveInitialTab)`: the server, which has no
+   * hash, rendered Profile; the browser, reading #ai, rendered AI; React threw
+   * a hydration mismatch on every deep link into Settings and rebuilt the
+   * tree. The store below gives React the server's answer ("profile") while
+   * hydrating and the hash's answer right after, so deep links such as
+   * /settings#agent (RunnerStatusBanner) and /settings#ai (the free-budget
+   * refusal's "connect your own model") open the right tab with no mismatch —
+   * and hash changes while already here (Back, in-app links) still follow.
    */
-  useEffect(() => {
-    const onHashChange = () => setActiveTab(resolveInitialTab());
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
+  const activeTab = useSyncExternalStore(subscribeToTab, resolveInitialTab, serverTab);
 
   /**
-   * And the reverse: clicking a tab only moved React state, so the URL still
-   * said whatever it said. The address bar could not be shared, bookmarked or
-   * reloaded onto the section actually being looked at. replaceState rather
-   * than a hash assignment so switching tabs does not stack history entries —
+   * Clicking a tab writes the hash, so the address bar can be shared,
+   * bookmarked or reloaded onto the section being looked at. replaceState
+   * rather than a hash assignment so switching tabs does not stack history —
    * Back should leave Settings, not walk you through every tab you opened.
+   * replaceState fires no event, so the store is told directly.
    */
   const selectTab = useCallback((id: TabId) => {
-    setActiveTab(id);
-    if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", `#${id}`);
-    }
+    window.history.replaceState(null, "", `#${id}`);
+    window.dispatchEvent(new Event(TAB_EVENT));
   }, []);
 
   return (
