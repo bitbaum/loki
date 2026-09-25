@@ -5,12 +5,34 @@
 // not signal — never show it. Until real descriptions are backfilled, treat the
 // stub as empty so public surfaces stay clean instead of repeating it N times.
 
+/** Heads the owner's interview answers appended to a description (lib/project-interview.ts). */
+export const BRIEF_HEADING = "From the owner:";
+
 const PLACEHOLDER_DESCRIPTIONS = new Set([
   "local repository imported from loki-ui",
   "local repository imported from loki",
   "local repository",
   "imported from loki-ui",
 ]);
+
+/**
+ * What the project IS, for a person reading it: the description without the
+ * owner's interview answers appended under "From the owner:".
+ *
+ * Those answers belong in the brief (kickoff, dispatch prompt and search all
+ * read cleanDescription and must keep them), but on a header, a list row, a
+ * public profile or an OrangeCat listing they read as a transcript: Skif's
+ * header opened "…freedom. From the owner: Who is this for, and who pays for
+ * it? Year one pays per booking…" (2026-09-25). Falls back to the brief itself
+ * when there is no headline before it, so a project never shows nothing.
+ */
+export function projectHeadline(desc: string | null | undefined): string | null {
+  const clean = cleanDescription(desc);
+  if (!clean) return null;
+  const cut = clean.indexOf(BRIEF_HEADING);
+  if (cut <= 0) return clean;
+  return clean.slice(0, cut).trim() || clean;
+}
 
 /** Real description, or null when it's empty / the import placeholder. */
 export function cleanDescription(desc: string | null | undefined): string | null {

@@ -24,13 +24,14 @@ import { computeProjectHealth } from "@/lib/project-health";
 import { FixSignalButton } from "./ProjectActionButtons";
 import { ProjectKickoff } from "./ProjectKickoff";
 import { ProjectInterview } from "./ProjectInterview";
+import { ProjectShareMenu } from "./ProjectShareMenu";
 import { AssistantContextBridge } from "./AssistantContextBridge";
 import { needsKickoff } from "@/lib/project-kickoff";
 import { needsInterview, planInterview } from "@/lib/project-interview";
 import { kickoffAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
 import { deriveBuildStatus, isBuildActive } from "@/lib/project-build-status";
 import { ProjectBuildStatus } from "./ProjectBuildStatus";
-import { answer, cleanDescription } from "@/lib/project-display";
+import { answer, cleanDescription, projectHeadline } from "@/lib/project-display";
 import { formatBtc } from "@/lib/format";
 
 export function ProjectWorkspaceView({
@@ -210,26 +211,19 @@ export function ProjectWorkspaceView({
             userProjectId={userProject?.id ?? null}
             name={project.name}
             workspaceKey={workspaceKey}
-            description={cleanDescription(project.description)}
+            description={projectHeadline(project.description)}
             status={attrs.status ?? null}
             health={health}
             readonly={dossier.readonly}
           />
-          {/* Status facts first, then destinations/actions. Listing used to
-              wear the same ghost-button clothes as Repository and Share, so
-              "Not listed" looked like a sixth link sitting next to its own
-              opposite. Deploy progress also lived inside Register site. */}
-          {!dossier.readonly && (
-            <p className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
-              <span className="ui-tag ui-tag-neutral">
-                {userProject?.listedPublicly ? "Listed in catalogue" : "Not in catalogue"}
-              </span>
-              {links.prodUrl ? (
-                <span className="ui-tag ui-tag-positive">Live site set</span>
-              ) : userProject?.gitUrl || project.gitUrl ? (
-                <span className="ui-tag ui-tag-neutral">No live URL yet</span>
-              ) : null}
-            </p>
+          {/* The row holds what an owner opens every day — the live site and the
+              repository — and ONE door for taking the project public. Four
+              such doors used to sit here as peers (List publicly, Publish,
+              Govern, Share) with nothing saying how they differ; George read
+              the row as a Frankenstein (2026-09-25). The "Live site set" chip
+              went too: the Live link says the same thing, and does something. */}
+          {!dossier.readonly && !links.prodUrl && (userProject?.gitUrl || project.gitUrl) && (
+            <p className="text-sm text-text-secondary">No live URL yet.</p>
           )}
           <div className="flex flex-wrap items-center gap-1.5">
             <LiveUrlField
@@ -254,21 +248,6 @@ export function ProjectWorkspaceView({
                 <GitBranch className="h-4 w-4" aria-hidden="true" /> Repository
               </a>
             )}
-            {!dossier.readonly && (
-              <ProjectPublicListingToggle
-                projectId={project.id}
-                listedPublicly={userProject?.listedPublicly ?? false}
-              />
-            )}
-            {viewerIsSiteOperator && (
-              <ProjectFeatureToggle
-                projectId={project.id}
-                featured={Boolean(userProject?.featuredAt)}
-                listedPublicly={userProject?.listedPublicly ?? false}
-              />
-            )}
-            {!dossier.readonly && <OrangeCatPublishButton projectId={project.id} />}
-            {!dossier.readonly && <SolonFoundButton projectId={project.id} />}
             {primaryOrangeCatLink && (
               <a
                 href={primaryOrangeCatLink.publicUrl}
@@ -282,8 +261,57 @@ export function ProjectWorkspaceView({
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden />
               </a>
             )}
-            {shareAction}
           </div>
+          {!dossier.readonly && (
+            <ProjectShareMenu
+              destinations={[
+                {
+                  key: "link",
+                  title: "A link to send",
+                  explain:
+                    "A read-only page for someone without an account. You choose what it shows.",
+                  control: shareAction ?? null,
+                },
+                {
+                  key: "catalogue",
+                  title: userProject?.listedPublicly
+                    ? "Listed in Loki's catalogue"
+                    : "Loki's catalogue",
+                  explain: userProject?.listedPublicly
+                    ? "Shown on the public fleet page, credited to you."
+                    : "Not listed. Listing shows it on the public fleet page, credited to you.",
+                  control: (
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <ProjectPublicListingToggle
+                        projectId={project.id}
+                        listedPublicly={userProject?.listedPublicly ?? false}
+                      />
+                      {viewerIsSiteOperator && (
+                        <ProjectFeatureToggle
+                          projectId={project.id}
+                          featured={Boolean(userProject?.featuredAt)}
+                          listedPublicly={userProject?.listedPublicly ?? false}
+                        />
+                      )}
+                    </span>
+                  ),
+                },
+                {
+                  key: "orangecat",
+                  title: "OrangeCat",
+                  explain: "A public page where people can follow, share and fund it.",
+                  control: <OrangeCatPublishButton projectId={project.id} />,
+                },
+                {
+                  key: "solon",
+                  title: "Solon",
+                  explain:
+                    "Found it as a venture others govern with you. Signed with your own wallet, so Loki hands you over.",
+                  control: <SolonFoundButton projectId={project.id} />,
+                },
+              ]}
+            />
+          )}
         </div>
       </header>
 

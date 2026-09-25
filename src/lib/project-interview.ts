@@ -24,7 +24,7 @@
  */
 
 import { PROJECT_ATTR } from "@/config/project-attrs";
-import { hasAnswer } from "@/lib/project-display";
+import { BRIEF_HEADING, hasAnswer } from "@/lib/project-display";
 
 /** Longest answer we keep, matching the profile field limit in project-brief. */
 export const INTERVIEW_ANSWER_MAX = 500;
@@ -240,11 +240,12 @@ export function interviewBrief(answers: InterviewAnswers): string {
     const value = usable[field.id];
     return value ? [`${field.question}\n${value}`] : [];
   });
-  return lines.length > 0 ? `From the owner:\n\n${lines.join("\n\n")}` : "";
+  return lines.length > 0 ? `${BRIEF_HEADING}\n\n${lines.join("\n\n")}` : "";
 }
 
 /** Marker for the appended block, so a second interview replaces it rather than stacking. */
-const BRIEF_HEADING = "From the owner:";
+// The heading lives in project-display (which already owns hasAnswer), so the
+// dependency stays one-way.
 
 /**
  * The project's new description: what it already said, plus the interview.
