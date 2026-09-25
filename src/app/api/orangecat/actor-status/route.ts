@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getUserByOrangeCatActorId } from "@/db/queries/users";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
+import { mergeVisibleProjects } from "@/lib/visible-projects";
 import { getProjectStatesByUserId } from "@/db/queries/project-states";
 import { getRecentOutcomesByProjectKeys } from "@/db/queries/orchestration-runs";
 import { listFeedbackSummary } from "@/db/queries/site-feedback";
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
       listFeedbackSummary(user.id).catch(() => []),
       getOrangeCatLinksForUser(user.id).catch(() => []),
     ]);
-    const projects = [...own, ...org];
+    const projects = mergeVisibleProjects(own, org);
     const outcomes = await getRecentOutcomesByProjectKeys(
       user.id,
       projects.map((p) => p.name),
