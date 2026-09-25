@@ -11,9 +11,8 @@ import {
   type RunnerChannel,
 } from "@/db/schema/pending-commands";
 import { eq, isNull, isNotNull, and, inArray, notInArray, desc, sql } from "drizzle-orm";
-import type { SQL } from "drizzle-orm";
 import type { FailedCommand } from "@/lib/control-types";
-import { STALE_RUN_MINUTES } from "./orchestration-runs";
+import { olderOpenRunSql } from "./orchestration-runs";
 import { requireNotDemo } from "@/lib/demo-guard";
 
 export async function getCommandById(id: string) {
@@ -81,9 +80,9 @@ export async function getRunnerExecutionStall(userId: string, graceSeconds = 120
  * (not mere existence) is what avoids deadlock: every queued dispatch opens its
  * own run, so "any other open run = busy" would have them block each other;
  * "oldest wins" drains them in order. Commands with no projectKey/runId
- * (peek, lifecycle — which open no run) are never blocked. The
- * started_at floor mirrors cleanupStaleOrchestrationRuns so a crashed run
- * can't wedge a project past STALE_RUN_MINUTES.
+ * (peek, lifecycle — which open no run) are never blocked. The lane rule
+ * itself — olderOpenRunSql, with the reaper's own clock and ceiling — lives
+ * beside the reaper in orchestration-runs.ts, so the two cannot drift.
  *
  * An older open run blocks until it CLOSES (finished_at), not until its
  * prompt is delivered — releasing on delivery merged two dispatches into one
@@ -91,43 +90,6 @@ export async function getRunnerExecutionStall(userId: string, graceSeconds = 120
  * parallel worktree-per-agent) own an isolated tab, so they neither block
  * base-tab commands nor wait on them.
  */
-/**
- * The runs that hold a project's lane, as ONE definition.
- *
- * `fifoEligibilitySql` (the gate) and `findQueueBlockers` (what the UI shows a
- * person) have to mean the same thing by "busy", or the product ends up
- * withholding a command for one reason and explaining it with another — which
- * is exactly what it did: a dispatch queued correctly behind an older run was
- * reported as "Retry — or Open Terminal for why it never started", sending the
- * operator to check a Fleet Runner that was working perfectly (2026-09-17).
- *
- * So both callers compose this fragment and neither restates the rule. The
- * caller passes its own run's identity as SQL, because the gate reads it out
- * of a command payload while the lookup reads it off the run row.
- */
-function olderOpenRunSql(ownTuple: SQL, userId: SQL, projectKey: SQL) {
-  return sql`
-      SELECT 1 FROM orchestration_runs r
-      WHERE r.user_id = ${userId}
-        AND r.project_key = ${projectKey}
-        AND r.finished_at IS NULL
-        AND r.started_at > NOW() - INTERVAL '1 minute' * ${STALE_RUN_MINUTES}
-        AND r.payload->>'sessionTab' IS NULL
-        -- Orphan open runs must not block the queue: a run with NO pending
-        -- command row at all was never enqueued (or its command was deleted) —
-        -- that was the "Install queued → empty Terminal" wedge. But a run
-        -- whose command was EXECUTED is an agent session that owns the tab:
-        -- it must keep blocking until the run CLOSES (finished_at) or goes
-        -- stale via the started_at floor above. Releasing on ack (executed_at)
-        -- reintroduced the documented merged-sessions regression: dispatch B's
-        -- prompt typed into A's still-working PTY.
-        AND EXISTS (
-          SELECT 1 FROM pending_commands pc
-          WHERE pc.user_id = r.user_id
-            AND pc.payload->>'runId' = r.id::text
-        )
-        AND (r.started_at, r.id) < ${ownTuple}`;
-}
 
 /** What is ahead of these runs in their project's lane, if anything. */
 export type QueueBlocker = {

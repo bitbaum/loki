@@ -1,5 +1,6 @@
 import type { FixShipping } from "@/lib/feedback/fix-shipping";
 import { and, desc, eq, gt, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { ORCH_STATE, type OrchestrationState } from "@/lib/orchestration/contract";
@@ -29,6 +30,88 @@ export const STALE_RUN_MINUTES = 60;
  * "still running" claim is far more likely a wedged process than progress.
  */
 export const MAX_RUN_HOURS = 12;
+
+/** The table names a lane/clock fragment may be rendered against. A closed
+ *  union, not a string: the alias goes into SQL raw, so it must never be
+ *  anything a caller computed. */
+type RunAlias = "r" | "own" | "orchestration_runs";
+
+/**
+ * When a run's working life began: the moment its prompt reached an agent.
+ *
+ * `started_at` is when the ROW was created, which for a queued dispatch can be
+ * most of an hour before any agent sees it. Every timer that measured a run's
+ * life from there charged it for time it spent waiting in line — and three
+ * different timers did, each written separately: the reaper's staleness
+ * window, the reaper's absolute ceiling, and the lane floor in the claim gate.
+ *
+ * Measured on 2026-09-17: a feedback fix queued at 16:01 behind a Next Best
+ * Task, was delivered at 16:48, streamed output until 17:08, went quiet for a
+ * moment and was reaped at 17:15 — 47 of its 60 minutes spent waiting its
+ * turn. The same pair also showed the lane floor releasing on a timer: the
+ * run ahead crossed `started_at + 60 min` at 16:48:37 while still open, and
+ * two seconds later the next prompt was "injected to running claude (pty)" —
+ * typed into the session it was supposed to wait for.
+ *
+ * So there is one clock, rendered here, and every timer reads it. The closer
+ * already used this floor (runEffectiveStartMs); now the reaper and the gate
+ * do too. An undelivered run falls back to `started_at`, so a run no builder
+ * ever claims is still bounded.
+ */
+export function runLifeStartSql(alias: RunAlias) {
+  const t = sql.raw(alias);
+  return sql`COALESCE((${t}.payload->>'deliveredAt')::timestamptz, ${t}.started_at)`;
+}
+
+/**
+ * An open run keeps holding its project's lane until the reaper's own
+ * absolute ceiling — never less.
+ *
+ * The gate used to release a lane at STALE_RUN_MINUTES, written to "mirror"
+ * the reaper so a crashed run could not wedge a project. The mirror broke when
+ * the reaper learned to shelter a live agent for up to MAX_RUN_HOURS: from
+ * then on, any agent turn longer than an hour let the next dispatch into the
+ * same tab. The reaper is what decides a run is dead; the gate waits for its
+ * verdict (finished_at), and only past the point where the reaper would
+ * certainly have reaped it does the gate stop waiting.
+ */
+export function laneLifeFloorSql(alias: RunAlias) {
+  return sql`${runLifeStartSql(alias)} > NOW() - make_interval(hours => ${MAX_RUN_HOURS})`;
+}
+
+/**
+ * The runs that hold a project's lane ahead of a given run, as ONE definition.
+ *
+ * Composed by the claim gate (fifoEligibilitySql), by findQueueBlockers (what
+ * the UI tells a person), and by the reaper (a run waiting its turn is not
+ * stale), so the decision the queue makes, the sentence a person reads, and
+ * the reaper's verdict cannot drift apart. The caller passes its own run's
+ * identity as SQL, because the gate reads it out of a command payload while
+ * the reaper and the lookup read it off the run row.
+ */
+export function olderOpenRunSql(ownTuple: SQL, userId: SQL, projectKey: SQL) {
+  return sql`
+      SELECT 1 FROM orchestration_runs r
+      WHERE r.user_id = ${userId}
+        AND r.project_key = ${projectKey}
+        AND r.finished_at IS NULL
+        AND ${laneLifeFloorSql("r")}
+        AND r.payload->>'sessionTab' IS NULL
+        -- Orphan open runs must not block the queue: a run with NO pending
+        -- command row at all was never enqueued (or its command was deleted) —
+        -- that was the "Install queued → empty Terminal" wedge. But a run
+        -- whose command was EXECUTED is an agent session that owns the tab:
+        -- it must keep blocking until the run CLOSES (finished_at). Releasing
+        -- on ack (executed_at), or on a timer shorter than the reaper's, is
+        -- the documented merged-sessions regression: dispatch B's prompt typed
+        -- into A's still-working PTY.
+        AND EXISTS (
+          SELECT 1 FROM pending_commands pc
+          WHERE pc.user_id = r.user_id
+            AND pc.payload->>'runId' = r.id::text
+        )
+        AND (r.started_at, r.id) < ${ownTuple}`;
+}
 
 export async function createOrchestrationRun(run: NewOrchestrationRun) {
   const [created] = await db.insert(orchestrationRuns).values(run).returning();
@@ -330,7 +413,7 @@ export async function cleanupStaleOrchestrationRuns(userId?: string) {
   // (→ 'partial') while closeRunFromSession rightly judged it stale and left the
   // run open — so the run was reaped with a partial verdict and a NULL summary,
   // recording a failure whose reason nobody could read. One floor, both paths.
-  const effectiveStart = sql`COALESCE((${orchestrationRuns.payload}->>'deliveredAt')::timestamptz, ${orchestrationRuns.startedAt})`;
+  const effectiveStart = runLifeStartSql("orchestration_runs");
   const wroteAfterStart = sql`EXISTS (
     SELECT 1 FROM project_states ps
     WHERE ps.user_id = ${orchestrationRuns.userId}
@@ -384,11 +467,29 @@ export async function cleanupStaleOrchestrationRuns(userId?: string) {
     // writes a ready handoff (tab closed, process killed), the run would
     // otherwise linger open forever — reap it like a dead runner.
     inArray(orchestrationRuns.state, [ORCH_STATE.WAITING, ORCH_STATE.RUNNING]),
-    lt(orchestrationRuns.startedAt, new Date(Date.now() - STALE_RUN_MINUTES * 60 * 1000)),
+    // Stale by its WORKING life, not its age: a run that waited an hour in
+    // line was not an hour into its work (see runLifeStartSql).
+    sql`${effectiveStart} < NOW() - INTERVAL '1 minute' * ${STALE_RUN_MINUTES}`,
+    // A run still waiting its turn is not stale at all — it has not been
+    // allowed to start. The gate is withholding its command because an older
+    // run holds the lane; reaping it here stamped `timeout` on work that never
+    // got a chance, and then the command purge (which follows the run) dropped
+    // the job itself — the 2026-08-24 "four of five feedback fixes lost" class,
+    // reached by a different road. Bounded, not a shelter forever: the lane
+    // holder is itself reaped by the rules above, and the gate stops honouring
+    // it past MAX_RUN_HOURS.
+    sql`NOT (
+      (${orchestrationRuns.payload}->>'deliveredAt') IS NULL
+      AND EXISTS (${olderOpenRunSql(
+        sql`(orchestration_runs.started_at, orchestration_runs.id)`,
+        sql`orchestration_runs.user_id`,
+        sql`orchestration_runs.project_key`,
+      )})
+    )`,
     // Live agents are spared — but only up to a hard ceiling, so a wedged
     // process that keeps its heartbeat alive can't hold a run open forever,
     // and never when the runner has already said this run never started.
-    sql`(NOT ${liveNow} OR ${runNeverStarted} OR ${orchestrationRuns.startedAt} < NOW() - ${sql.raw(`INTERVAL '${MAX_RUN_HOURS} hours'`)})`,
+    sql`(NOT ${liveNow} OR ${runNeverStarted} OR ${effectiveStart} < NOW() - make_interval(hours => ${MAX_RUN_HOURS}))`,
   );
   const reaped = await db
     .update(orchestrationRuns)
@@ -417,7 +518,20 @@ export async function cleanupStaleOrchestrationRuns(userId?: string) {
         ELSE 'timeout' END`,
       // Truthful duration: the run ended at the timeout threshold, not when the
       // janitor noticed. (Stamping reap-time once produced "51h" durations.)
-      finishedAt: sql`${orchestrationRuns.startedAt} + make_interval(mins => ${STALE_RUN_MINUTES})`,
+      // Two corrections, both from the same 2026-09-17 pair of runs. The
+      // threshold is measured from the run's working life, like the window
+      // that triggers it. And it is never EARLIER than the last output the
+      // runner saw: the run ahead was stamped finished at 16:48:37 while its
+      // own heartbeat reported output at 16:48:14 and it was not reaped until
+      // 17:15 — a backdated close that made the overlap with the next run
+      // invisible in the ledger. Capped at NOW() so it can never be future.
+      finishedAt: sql`LEAST(
+        NOW(),
+        GREATEST(
+          ${effectiveStart} + make_interval(mins => ${STALE_RUN_MINUTES}),
+          (${orchestrationRuns.payload}->>'lastProgressAt')::timestamptz
+        )
+      )`,
       // A `partial` run did not fail, so its explanation goes to `note`
       // (neutral) and a real timeout keeps `error` (red). Both used to land in
       // `error`, which is how a success ended up styled as a failure and
@@ -532,9 +646,10 @@ export async function listOpenRuns(minAgeMinutes = 5) {
  * have queued dispatches block each other forever; "oldest open run wins" lets
  * them drain in creation order. The (started_at, id) tuple compare also
  * self-excludes (a run is never older than itself) and breaks the sub-µs
- * started_at tie deterministically. The stale-window floor mirrors
- * cleanupStaleOrchestrationRuns so a crashed run can't wedge a project past
- * STALE_RUN_MINUTES. With no excludeRunId, ANY open run counts as busy.
+ * started_at tie deterministically. The floor is laneLifeFloorSql — the
+ * reaper's own ceiling, so a crashed run cannot wedge a project forever and a
+ * live one is never treated as gone while the reaper still shelters it. With
+ * no excludeRunId, ANY open run counts as busy.
  */
 export async function isProjectBusy(
   userId: string,
@@ -545,7 +660,11 @@ export async function isProjectBusy(
     eq(orchestrationRuns.userId, userId),
     eq(orchestrationRuns.projectKey, projectKey),
     isNull(orchestrationRuns.finishedAt),
-    sql`${orchestrationRuns.startedAt} > NOW() - INTERVAL '1 minute' * ${STALE_RUN_MINUTES}`,
+    // The same floor the claim gate applies (laneLifeFloorSql): a run stays
+    // busy until the reaper closes it, not until a shorter timer of our own
+    // lapses. This check decides inject-directly vs queue, so a floor shorter
+    // than the reaper's typed a second prompt into a live agent's PTY.
+    laneLifeFloorSql("orchestration_runs"),
   ];
   if (opts.excludeRunId) {
     // Only runs strictly older than ours (by started_at, then id) block us.
