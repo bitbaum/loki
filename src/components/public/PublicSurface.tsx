@@ -27,10 +27,7 @@ export function PublicSurface({
       <div aria-hidden className="ui-public-backdrop" />
       <nav className="ui-public-nav">
         <div className="ui-public-nav-brand-row">
-          <Link
-            href={homeHref}
-            className="ui-public-nav-home"
-          >
+          <Link href={homeHref} className="ui-public-nav-home">
             <BrandMark responsive />
           </Link>
           {/* Desktop mega-menu only. Below `lg` the same PUBLIC_NAV renders in
