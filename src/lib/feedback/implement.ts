@@ -112,6 +112,7 @@ export async function implementFeedback(
         body: {
           error:
             "Already on this — Watch the terminal, or wait for Telegram when it needs you / stalls.",
+          alreadyRunning: true,
         },
       };
     }

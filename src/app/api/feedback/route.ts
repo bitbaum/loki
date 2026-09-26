@@ -133,23 +133,33 @@ export async function POST(req: NextRequest) {
     return corsError("Too many submissions, try again later", 429);
   }
 
+  // The owner's own note, proven by the pass: same project, and the pass was
+  // issued to the person who owns it. Anything else is an ordinary visitor.
+  const pass = data.ownerPass ? verifyOwnerPass(data.ownerPass) : null;
+  const fromOwner = !!pass && pass.projectId === token.projectId && pass.userId === token.userId;
+
   // Dedupe at ingest: the same complaint filed again bumps the existing open
   // row's duplicate_count instead of creating a new row — volume signal kept,
   // inbox noise dropped. Idempotent for the visitor (they still see success).
   const contentHash = feedbackContentHash(data.suggestion, data.page ?? null);
   const bumped = await bumpDuplicateFeedback(token.projectId, contentHash);
   if (bumped) {
+    // The owner saying the same thing again means "do it": a failed attempt
+    // starts again, one already running answers "already on it". Answering as
+    // a visitor here also made the widget drop a perfectly good pass.
+    if (fromOwner) {
+      const build = await startOwnerBuild(token.userId, token.projectId, bumped);
+      return NextResponse.json(
+        { ok: true, owner: true, duplicateOf: bumped, ...build },
+        { headers: CORS_HEADERS },
+      );
+    }
     const claim = createFeedbackClaimToken(bumped);
     return NextResponse.json(
       { ok: true, duplicateOf: bumped, claimUrl: `${appUrl()}/claim-feedback?token=${claim}` },
       { headers: CORS_HEADERS },
     );
   }
-
-  // The owner's own note, proven by the pass: same project, and the pass was
-  // issued to the person who owns it. Anything else is an ordinary visitor.
-  const pass = data.ownerPass ? verifyOwnerPass(data.ownerPass) : null;
-  const fromOwner = !!pass && pass.projectId === token.projectId && pass.userId === token.userId;
 
   const created = await insertSiteFeedback({
     projectId: token.projectId,
@@ -204,6 +214,9 @@ async function startOwnerBuild(
   try {
     const { status, body } = await implementFeedback(ownerUserId, feedbackId);
     if (status < 400 && typeof body.runId === "string") return { building: true };
+    // 409 from a run that is queued or working: the note is already being
+    // built, which is exactly what the owner wants to hear.
+    if (status === 409 && body.alreadyRunning === true) return { building: true };
     const reason = typeof body.error === "string" ? body.error : null;
     return {
       building: false,

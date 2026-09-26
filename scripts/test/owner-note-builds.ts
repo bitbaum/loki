@@ -57,6 +57,18 @@ assert.match(
 assert.match(ingest, /pass\.projectId === token\.projectId && pass\.userId === token\.userId/);
 assert.match(ingest, /implementFeedback\(ownerUserId, feedbackId\)/, "owner notes start the fix");
 
+// The owner repeating a note retries it; it must not answer as a visitor, or
+// the widget drops a good pass. So the pass is checked BEFORE dedupe.
+assert.ok(
+  ingest.indexOf("const fromOwner") < ingest.indexOf("bumpDuplicateFeedback("),
+  "owner check precedes dedupe",
+);
+assert.match(ingest, /startOwnerBuild\(token\.userId, token\.projectId, bumped\)/);
+assert.match(
+  ingest,
+  /status === 409 && body\.alreadyRunning === true\) return \{ building: true \}/,
+);
+
 // Owner notes merge themselves unless the project explicitly turned that off.
 assert.equal(effectiveAutoShip(null, FEEDBACK_SOURCE.OWNER), true);
 assert.equal(effectiveAutoShip(undefined, FEEDBACK_SOURCE.OWNER), true);
