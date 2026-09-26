@@ -315,6 +315,17 @@ else
   say "could not set the secret (gh auth?) — CD will not reach the box until it is set."
 fi
 
+# The address, too: on the org's Free plan a PRIVATE repo cannot see the org
+# variable HETZNER_IP, so its Deploy fails even with the key (Farmhouse,
+# 2026-09-26). Same repo-level fix as register-site.sh; non-fatal like above.
+if [ "$DRY" = 1 ]; then
+  say "DRY  gh variable set HETZNER_IP --repo $GH_OWNER/$SLUG --body $HETZNER_IP"
+elif gh variable set HETZNER_IP --repo "$GH_OWNER/$SLUG" --body "$HETZNER_IP" 2>/dev/null; then
+  say "HETZNER_IP set on $GH_OWNER/$SLUG"
+else
+  say "could not set HETZNER_IP — a private repo's Deploy will fail until it is set."
+fi
+
 # ------------------------------------------------------------------- register
 echo "→ register"
 LINE="$SLUG|$PORT|$SLUG.$BASE_DOMAIN|$REPO_DIR|.|-|$OWNER|$KIND|$STATUS|$PLAN|$PRICE|$(date -u +%Y-%m-%d)"

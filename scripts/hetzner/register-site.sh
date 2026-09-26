@@ -350,6 +350,23 @@ fi
 
 [ "$DRY" = 1 ] || [ "$SECRET_OK" = 1 ] || { echo "ERROR: deploy secret was not installed" >&2; exit 1; }
 
+# ------------------------------------------------------------- ci variable
+# The deploy also needs HETZNER_IP. It exists as an ORG variable, and on the
+# org's Free plan GitHub gives org secrets and variables to PUBLIC repos only.
+# Loki provisions repos private by default, so a private site got the key
+# above but no address: Farmhouse (2026-09-26) failed every Deploy with "org
+# variable HETZNER_IP is unset". Setting it on the repo works for both
+# visibilities. The value is the box address from _box-env.sh, not a secret.
+echo "→ ci variable"
+if [ "$DRY" = 1 ]; then
+  say "DRY  gh variable set HETZNER_IP --repo $GH_REPO --body $HETZNER_IP"
+elif gh variable set HETZNER_IP --repo "$GH_REPO" --body "$HETZNER_IP" 2>/dev/null; then
+  say "HETZNER_IP set on $GH_REPO"
+else
+  echo "ERROR: could not set HETZNER_IP on $GH_REPO — a private repo cannot see the org variable, so its Deploy would fail" >&2
+  exit 1
+fi
+
 # ------------------------------------------------------------------- register
 echo "→ register"
 if [ "$ALREADY" = 1 ]; then
