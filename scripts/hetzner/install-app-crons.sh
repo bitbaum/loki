@@ -78,6 +78,14 @@ substrata|4022|*-*-* 00/6:52:00|/api/cron/source|POST
 # OpenFIGI) and USGS table rows, and stores the scorecard behind /data/quality
 # (research_quality_checks/_runs, migration 014). No AI: HTTP and string matching.
 substrata|4022|*-*-* 01/6:41:00|/api/cron/quality|POST
+# Demo reset on PRODUCTION (aoz-wohnen). Not a truncate: since
+# bitbaum/aoz-begleitung#272 the route runs a SCOPED reset — it deletes only rows
+# with demo resident codes, DEMO- unit codes, or listings authored by a demo
+# staff account (plus their FK dependents), and refuses unless
+# DEMO_ACCESS_ENABLED=true. Real residents, units and listings are never
+# touched. The only non-demo app allowed this path: test-demo-instance.sh names
+# it explicitly, and any other one still fails the build.
+aoz-wohnen|4008|*-*-* 04:05:00|/api/cron/reset-demo|POST
 REG
 )"
 
