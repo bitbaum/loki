@@ -37,6 +37,10 @@ for st in busy running generating waiting; do
     || no "a Claude that is '$st' would be killed mid-task"
 done
 
+[ "$(busy claude dialog)" = free ] \
+  && ok "a Claude showing a dialog over an empty composer does not hold the restart" \
+  || no "a dialog holds every runner update for the whole cap (Farmhouse, 2026-09-26)"
+
 [ "$(busy claude "")" = busy ] \
   && ok "a Claude with no readable status is treated as working" \
   || no "a Claude with no status file is assumed idle — unknown must not mean idle"
@@ -76,6 +80,21 @@ got="$(PROC_ROOT="$tmp/proc" session_status 5151)"
 [ "$got" = idle ] \
   && ok "an idle session reads as idle" \
   || no "session_status returned '$got' for an idle session"
+mkdir -p "$tmp/proc/6161" "$tmp/proc/7171"
+printf 'HOME=%s\0' "$tmp/home" > "$tmp/proc/6161/environ"
+printf 'HOME=%s\0' "$tmp/home" > "$tmp/proc/7171/environ"
+printf '{"pid":6161,"status":"waiting","updatedAt":1,"waitingFor":"dialog open"}' \
+  > "$tmp/home/.claude/sessions/6161.json"
+printf '{"pid":7171,"status":"waiting","updatedAt":1,"waitingFor":"permission"}' \
+  > "$tmp/home/.claude/sessions/7171.json"
+got="$(PROC_ROOT="$tmp/proc" session_status 6161)"
+[ "$got" = dialog ] \
+  && ok "a session waiting on a dialog reads as 'dialog'" \
+  || no "session_status returned '$got' for a dialog"
+got="$(PROC_ROOT="$tmp/proc" session_status 7171)"
+[ "$got" = waiting ] && [ "$(busy claude "$got")" = busy ] \
+  && ok "a session waiting on a permission prompt is still work" \
+  || no "a permission prompt mid-task read as '$got'"
 got="$(PROC_ROOT="$tmp/proc" session_status 9999)"
 [ -z "$got" ] && [ "$(busy claude "$got")" = busy ] \
   && ok "a pid with no environ or session file reads as unknown, so busy" \
