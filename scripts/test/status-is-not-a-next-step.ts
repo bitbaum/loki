@@ -29,10 +29,32 @@ for (const own of [
 ]) {
   assert(isRegistrationNextStep(own), `registration's own message not recognised: ${own}`);
 }
+// Every sentence the deployment code can hand back as a reason is recognised —
+// collected from the source, so adding one without teaching the matcher fails.
+{
+  const src = ["src/lib/site-cd-deployment.ts", "src/lib/site-cd-register.ts"]
+    .map((f) => readFileSync(join(__dirname, "../..", f), "utf8"))
+    .join("\n");
+  const sentences = [
+    ...src.matchAll(
+      /reason(?:\s*[:=]|:\s*\w+\s*\?)\s*\n?\s*["`]((?:Deployment|No deployment|The deploy workflow|A deployment|Starting deployment)[^"`$]*)/g,
+    ),
+    ...src.matchAll(/:\s*"((?:Deployment|No deployment|The deploy workflow|A deployment)[^"]*)"/g),
+  ].map((m) => m[1]!);
+  assert(sentences.length >= 6, `expected the deployment reasons, found ${sentences.length}`);
+  for (const own of sentences) {
+    assert(
+      isRegistrationNextStep(own),
+      `registration writes this but would never clear it: ${own}`,
+    );
+  }
+}
+
 // The owner's words are never mistaken for it, so they are never cleared.
 for (const owner of [
   "Book the specialists your Safety Plan suggests",
   "Ship the live site redesign",
+  "Deploy the booking page to production",
   "",
   null,
   undefined,

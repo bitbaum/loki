@@ -184,8 +184,14 @@ jobs:
     needs: check
     if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    # contents: read is not optional. A job-level permissions block turns
+    # everything it does not list OFF, and on a PRIVATE repo a token without
+    # contents cannot even check out its own code: "Repository not found",
+    # CI red on main, and the fleet sweep never ships a red main — so a new
+    # private site stopped one step before going live (probe-loop, 2026-09-26).
     permissions:
       actions: write
+      contents: read
     steps:
       - uses: actions/checkout@v7
       - name: Dispatch Deploy now that main is green — unless the push already did
