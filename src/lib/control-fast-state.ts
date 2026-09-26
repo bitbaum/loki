@@ -124,7 +124,20 @@ export type ClaudeLiveSession = {
   status: string;
   /** Epoch seconds of the last status flip. */
   statusUpdatedAtS: number;
+  /** What a "waiting" session waits for, in the CLI's own words ("dialog open"). */
+  waitingFor?: string;
 };
+
+/**
+ * Claude is showing a dialog (an onboarding question, a settings prompt) over
+ * its composer. Anything typed into the session answers the dialog instead of
+ * reaching the agent: Farmhouse sat on "Teach auto mode about your
+ * environment?" and swallowed the owner's note while the widget said "On it"
+ * (2026-09-26). The CLI says so itself, so this reads its words, not the screen.
+ */
+export function claudeDialogOpen(s: ClaudeLiveSession | null): boolean {
+  return !!s && s.status === "waiting" && /dialog/i.test(s.waitingFor ?? "");
+}
 
 /**
  * Claude Code (>= 2.x) writes live per-PID session status to
@@ -157,6 +170,8 @@ export function readClaudeLiveSessions(): Map<string, ClaudeLiveSession> {
         cwd?: string;
         status?: string;
         statusUpdatedAt?: number;
+        updatedAt?: number;
+        waitingFor?: string;
       };
       if (!raw.pid || !raw.cwd || typeof raw.status !== "string") continue;
       if (!fs.existsSync(`/proc/${raw.pid}`)) continue; // stale file, dead agent
@@ -164,7 +179,9 @@ export function readClaudeLiveSessions(): Map<string, ClaudeLiveSession> {
         pid: raw.pid,
         cwd: raw.cwd,
         status: raw.status,
-        statusUpdatedAtS: Math.floor((raw.statusUpdatedAt ?? 0) / 1000),
+        // Current CLIs write `updatedAt`; older ones `statusUpdatedAt`.
+        statusUpdatedAtS: Math.floor((raw.statusUpdatedAt ?? raw.updatedAt ?? 0) / 1000),
+        ...(typeof raw.waitingFor === "string" && { waitingFor: raw.waitingFor }),
       };
       const prev = byCwd.get(raw.cwd);
       if (!prev || entry.statusUpdatedAtS > prev.statusUpdatedAtS) byCwd.set(raw.cwd, entry);

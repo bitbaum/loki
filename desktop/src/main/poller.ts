@@ -32,7 +32,11 @@ import { startRunProgress } from './run-progress'
 import { getAgentInstallCommand, listAgentRegistry, type AgentOption } from '@/lib/agent-registry'
 import { executor } from '@/lib/agent-execution'
 import { resolveRunnerWorkspaceDir } from '@/lib/agent-execution/box-workspace-path'
-import { readClaudeLiveSessions, claudeLiveSessionForDir } from '@/lib/control-fast-state'
+import {
+  readClaudeLiveSessions,
+  claudeLiveSessionForDir,
+  claudeDialogOpen,
+} from '@/lib/control-fast-state'
 import {
   runnerWorkspaceId,
   isPtyBacked,
@@ -53,7 +57,6 @@ import {
 } from './pty-runtime'
 import { pushNow } from './pusher'
 import { trackRunUsage } from './usage-reporter'
-import { claudeProjectSlug } from '@/lib/usage/claude-transcript-usage'
 import { startBridgeSubscriber } from './bridge-subscriber'
 import {
   WORKTREE_DISPATCH_ENABLED,
@@ -548,6 +551,17 @@ async function handleCommand(
           await terminatePty(tab)
           ptyAlreadyLive = false
         }
+        // A live Claude session showing a dialog would answer it with our
+        // prompt. Escape closes it; if Claude still says a dialog is open, a
+        // fresh session (resumed by id) is the only way to reach the composer.
+        if (ptyAlreadyLive && agent === 'claude') {
+          const liveDir = resolveRunnerWorkspaceDir(tab, worktreeByTab.get(tab)?.launchDir ?? dir)
+          if (!(await dismissClaudeDialog(tab, liveDir))) {
+            console.warn(`[poller] ${tab}: claude is stuck on a dialog; starting a fresh session`)
+            await terminatePty(tab)
+            ptyAlreadyLive = false
+          }
+        }
         let effDir = ptyAlreadyLive ? (worktreeByTab.get(tab)?.launchDir ?? dir) : dir
         let effPrompt = prompt
         // Derived run-tabs ("<project>~<runId8>", same-project parallel dispatch)
@@ -631,7 +645,7 @@ async function handleCommand(
             // as the fallback for agents that don't write live status files.
             verified = outputAfterInject
               ? await outputAfterInject
-              : await waitForAgentGenerating(effDir, tab, 8000)
+              : await waitForAgentGenerating(resolveRunnerWorkspaceDir(tab, effDir), tab, 8000)
             if (!verified) {
               // Most likely failure: the prompt is SITTING in the composer
               // unsubmitted (paste landed, Enter got swallowed). A bare Enter
@@ -641,7 +655,7 @@ async function handleCommand(
               writeRawKey(tab, '\r')
               verified = outputAfterInject
                 ? await outputAfterInject
-                : await waitForAgentGenerating(effDir, tab, 6000)
+                : await waitForAgentGenerating(resolveRunnerWorkspaceDir(tab, effDir), tab, 6000)
             }
             if (!verified) {
               // Composer was actually empty (boot dialog ate the paste) —
@@ -650,7 +664,7 @@ async function handleCommand(
               injectPty(tab, effPrompt)
               verified = outputAfterInject
                 ? await outputAfterInject
-                : await waitForAgentGenerating(effDir, tab, 8000)
+                : await waitForAgentGenerating(resolveRunnerWorkspaceDir(tab, effDir), tab, 8000)
             }
             ok = true
             workspaceId = runnerWorkspaceId(tab)
@@ -692,7 +706,10 @@ async function handleCommand(
               // after the submit has not hit a wall, whatever its screen says —
               // "Approaching usage limit" is a warning it prints WHILE working.
               if (capacityFailure && agent === 'claude') {
-                const live = claudeLiveSessionForDir(readClaudeLiveSessions(), effDir)
+                const live = claudeLiveSessionForDir(
+                  readClaudeLiveSessions(),
+                  resolveRunnerWorkspaceDir(tab, effDir),
+                )
                 if (live && live.status !== 'idle' && live.status !== 'waiting') capacityFailure = null
               }
               if (capacityFailure) {
@@ -858,4 +875,14 @@ export function formatTrayTooltip(s: PollerStatus): string {
     case 'error':
       return `${head} · ${s.lastError ?? 'error'}`
   }
+}
+
+/** Close a dialog Claude reports over its composer. True once none is open. */
+async function dismissClaudeDialog(tab: string, dir: string): Promise<boolean> {
+  for (let i = 0; i < 2; i++) {
+    if (!claudeDialogOpen(claudeLiveSessionForDir(readClaudeLiveSessions(), dir))) return true
+    writeRawKey(tab, '\x1b')
+    await asleep(1500)
+  }
+  return !claudeDialogOpen(claudeLiveSessionForDir(readClaudeLiveSessions(), dir))
 }
