@@ -4,7 +4,8 @@
  *
  * Economics: one PR lookup plus, once merged, one workflow-runs lookup, per
  * run, at most every REFRESH_MS while the state can still change, never
- * again once it is terminal. The inbox calls this for the handful of rows
+ * again once it is terminal. A deploy_failed verdict adds one workflow-runs
+ * listing, at most every DEPLOY_FAILED_RECHECK_MS for 30 days after the merge. The inbox calls this for the handful of rows
  * sitting in "needs verify"; a fleet with fifty such rows costs fifty small
  * GitHub calls a minute at worst.
  */
@@ -14,6 +15,8 @@ import { stampRunFix } from "@/db/queries/orchestration-runs";
 import { decideAutoShip, prOpenedByRun, prPredatesRun } from "@/lib/feedback/auto-ship";
 import {
   deriveShippingFromPr,
+  healDeployFailed,
+  pickDeployRun,
   FIX_SHIP_STATE,
   fixNeedsRefresh,
   resolveFixPrRef,
@@ -73,6 +76,7 @@ async function fetchPr(ref: PrRef, token: string): Promise<GithubPrDetail | null
   if (!res.ok) return null;
   const raw = (await res.json()) as Partial<GithubPrDetail> & {
     head?: { sha?: string };
+    base?: { ref?: string };
     created_at?: string;
   };
   const j = raw;
@@ -88,6 +92,7 @@ async function fetchPr(ref: PrRef, token: string): Promise<GithubPrDetail | null
     mergeable: typeof j.mergeable === "boolean" ? j.mergeable : null,
     headSha: typeof raw.head?.sha === "string" ? raw.head.sha : null,
     createdAt: typeof raw.created_at === "string" ? raw.created_at : null,
+    baseRef: typeof raw.base?.ref === "string" ? raw.base.ref : null,
   };
 }
 
@@ -165,13 +170,67 @@ async function fetchRunsForSha(
     ghInit(token),
   );
   if (!res.ok) return null;
-  const j = (await res.json()) as { workflow_runs?: Array<Partial<GithubWorkflowRun>> };
-  return (j.workflow_runs ?? []).map((r) => ({
-    name: typeof r.name === "string" ? r.name : null,
-    status: typeof r.status === "string" ? r.status : null,
-    conclusion: typeof r.conclusion === "string" ? r.conclusion : null,
-    html_url: typeof r.html_url === "string" ? r.html_url : null,
-  }));
+  return readRuns(await res.json());
+}
+
+/** GitHub's workflow-runs listing → the fields the ledger reads. */
+function readRuns(body: unknown): GithubWorkflowRun[] {
+  const j = body as { workflow_runs?: Array<Record<string, unknown>> } | null;
+  const str = (v: unknown) => (typeof v === "string" ? v : null);
+  return (j?.workflow_runs ?? []).map((r) => {
+    const hc = r.head_commit as { message?: unknown; timestamp?: unknown } | null | undefined;
+    return {
+      name: str(r.name),
+      status: str(r.status),
+      conclusion: str(r.conclusion),
+      html_url: str(r.html_url),
+      workflow_id: typeof r.workflow_id === "number" ? r.workflow_id : null,
+      head_branch: str(r.head_branch),
+      head_sha: str(r.head_sha),
+      event: str(r.event),
+      created_at: str(r.created_at),
+      head_commit: hc ? { message: str(hc.message), timestamp: str(hc.timestamp) } : null,
+    };
+  });
+}
+
+/**
+ * The deploy workflow's most recent runs, on EVERY branch. Deliberately no
+ * `branch=` (or `status=`) filter: GitHub sometimes answers filtered run
+ * listings from a stale index (fleet#146), and a stale answer here would keep
+ * a healed fix reading "deploy failed". pickLaterBaseDeploy filters on
+ * head_branch itself.
+ */
+async function fetchRecentWorkflowRuns(
+  ref: PrRef,
+  workflowId: number,
+  token: string,
+): Promise<GithubWorkflowRun[] | null> {
+  const res = await fetch(
+    `${GITHUB_API_BASE}/repos/${ref.owner}/${ref.repo}/actions/workflows/${workflowId}/runs?per_page=30&exclude_pull_requests=true`,
+    ghInit(token),
+  );
+  if (!res.ok) return null;
+  return readRuns(await res.json());
+}
+
+/**
+ * The merge commit's own deploy failed: has a later deploy of the base branch
+ * shipped it since? One extra call, made only for a DEPLOY_FAILED verdict —
+ * which fixNeedsRefresh re-checks at most every DEPLOY_FAILED_RECHECK_MS.
+ */
+async function healFromLaterDeploy(
+  fix: FixShipping,
+  pr: GithubPrDetail,
+  mergeRuns: GithubWorkflowRun[] | null,
+  ref: PrRef,
+  token: string,
+): Promise<FixShipping> {
+  if (fix.state !== FIX_SHIP_STATE.DEPLOY_FAILED || !pr.baseRef) return fix;
+  const own = mergeRuns ? pickDeployRun(mergeRuns) : null;
+  if (!own?.workflow_id) return fix;
+  const runs = await fetchRecentWorkflowRuns(ref, own.workflow_id, token).catch(() => null);
+  return healDeployFailed(fix, { baseBranch: pr.baseRef, workflowId: own.workflow_id, runs });
 }
 
 /** Where the PR is named — resolveFixPrRef is the SSOT, shared with the
@@ -252,7 +311,13 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
             pr.merged_at && pr.merge_commit_sha
               ? await fetchRunsForSha(ref, pr.merge_commit_sha, picked.token)
               : null;
-          fix = deriveShippingFromPr(pr, runs, checkedAt);
+          fix = await healFromLaterDeploy(
+            deriveShippingFromPr(pr, runs, checkedAt),
+            pr,
+            runs,
+            ref,
+            picked.token,
+          );
           // Opted in? Then Loki presses merge on THIS pull request —
           // the one its own dispatch produced — and nothing else. Deciding is
           // pure (auto-ship.ts); this only supplies GitHub's facts and acts.

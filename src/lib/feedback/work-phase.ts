@@ -678,6 +678,15 @@ function shippingView(run: FeedbackRunSnapshot): Omit<FeedbackWorkView, "waiting
         detail: `Merged, but ${fix.deploy?.name ?? "the deploy"} failed on the merge commit. The live page still shows the old version.`,
       };
     case FIX_SHIP_STATE.DEPLOYED:
+      // Honest about HOW it went live: its own deploy failed, and a later
+      // deploy of the base branch (which contains the merge) shipped it.
+      if (fix.liveVia === "later_deploy")
+        return {
+          ...base,
+          label: "Live · confirm",
+          detail: `${fix.ownDeploy?.name ?? "The deploy"} failed on the merge commit; a later deploy shipped it.${partial ? " The agent reported only partial success — worth a closer look." : ""}`,
+          checkLive: true,
+        };
       if (fix.shippedByFleet)
         return {
           ...base,

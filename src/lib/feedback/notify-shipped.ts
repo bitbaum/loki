@@ -13,8 +13,12 @@
  * deploy that fails after an automatic merge is the single worst state this
  * system can produce, and until now it was silent.
  *
- * Fires on a TRANSITION only, so each fix announces at most once: the ledger's
- * deployed and deploy_failed states are terminal and never recomputed.
+ * Fires on a TRANSITION only, so each fix announces each state at most once.
+ * deployed is terminal. deploy_failed is not: a later deploy of the base branch
+ * heals it into deployed (healDeployFailed), which announces "live" ONCE — on
+ * purpose, because the operator was already told it failed and is owed the
+ * correction. It can never re-announce "deploy failed": healing only moves
+ * away from that state, and deployed is never recomputed.
  */
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -66,8 +70,11 @@ export async function notifyFixShipped(input: {
       : `${projectName} · a merged fix failed to deploy`;
     // Say who merged it. "Loki merged this while you were away" is the
     // fact an operator needs to trust — or switch off — automatic shipping.
+    const viaLater = input.fix.liveVia === "later_deploy";
     const body = live
-      ? `${byFleet ? "Merged automatically and deployed" : "Merged and deployed"}. Check it and confirm: ${what}`
+      ? viaLater
+        ? `Its own deploy failed, but a later deploy of the site shipped it. Check it and confirm: ${what}`
+        : `${byFleet ? "Merged automatically and deployed" : "Merged and deployed"}. Check it and confirm: ${what}`
       : `${input.fix.deploy?.name ?? "The deploy"} failed on the merge commit, so the site still shows the old version. ${what}`;
 
     const [pushResult] = await Promise.all([
