@@ -8,6 +8,8 @@ import { ROUTES } from "@/config/auth";
 import { isInterviewAuto, isKickoffAuto } from "@/lib/integrations/orangecat-handoff-mode";
 import { isSiteOperator } from "@/db/queries/users";
 import { createOwnerPass } from "@/lib/feedback/owner-pass";
+import { getUserProjectByEntityId } from "@/db/queries/user-projects";
+import { reconcileSiteLiveUrl } from "@/lib/site-live-reconcile";
 
 export const metadata = { title: "Project" };
 
@@ -31,6 +33,16 @@ export default async function ProjectPage({
   // operator's call, not the project owner's — and the operator features other
   // tenants' work, so this is asked about the VIEWER rather than the dossier.
   const viewerIsSiteOperator = await isSiteOperator(session.user.id).catch(() => false);
+
+  // The owner looking at a project with a repository but no live URL is the
+  // moment to ask again whether its site went live since registration. Not
+  // awaited: the page never waits on GitHub; the next load shows the answer.
+  if (dossier.ownerId === session.user.id) {
+    const up = await getUserProjectByEntityId(session.user.id, id).catch(() => null);
+    if (up && !up.liveUrl && up.gitUrl) {
+      void reconcileSiteLiveUrl(session.user.id, id, up.id).catch(() => undefined);
+    }
+  }
 
   const share =
     dossier.ownerId === session.user.id

@@ -11,6 +11,9 @@ export type FeedbackPromptFields = {
   page: string | null;
   scope: string | null;
   selectedElements: Array<{ elementType: string; elementText: string; selector: string }> | null;
+  /** `owner` = the project's owner, proven by their pass: a request to build,
+   *  not a stranger's report. Still fenced as text from a browser. */
+  source?: string | null;
 };
 
 // "Shipped" must include a PR handed to auto-merge. Told only "shipping is
@@ -51,8 +54,12 @@ export function composeFeedbackFixPrompt(
   note?: string,
 ): string {
   const times = feedback.duplicateCount > 1 ? ` (reported ${feedback.duplicateCount}×)` : "";
+  const heading =
+    feedback.source === "owner"
+      ? `The owner of ${projectName} asked for this change while looking at their live site. Make it.`
+      : `Fix this visitor feedback on ${projectName}.${times}`;
   const lines = [
-    `Fix this visitor feedback on ${projectName}.${times}`,
+    heading,
     UNTRUSTED_PREAMBLE,
     "",
     ...(note ? [`OPERATOR INSTRUCTION: ${note}`, ""] : []),

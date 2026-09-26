@@ -29,6 +29,18 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.35",
+    tag: "fleet-runner-v0.8.35",
+    date: "2026-09-26T00:00:00Z",
+    highlights: [
+      "A Claude session showing a dialog is cleared before work is sent into it, so the prompt reaches the agent instead of answering the dialog.",
+      "If the dialog will not close, the runner starts a fresh session rather than failing the run.",
+    ],
+    breaking: [],
+    notes:
+      "Claude Code reports an open dialog itself (status waiting, 'dialog open'); the runner reads that instead of guessing from the screen. On the cloud builder the runner also now looks up Claude's session by the folder the agent really runs in, so its check that the agent started working is no longer a guess.",
+  },
+  {
     version: "0.8.34",
     tag: "fleet-runner-v0.8.34",
     date: "2026-09-25T00:00:00Z",

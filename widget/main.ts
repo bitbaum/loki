@@ -200,7 +200,12 @@ interface LokiApi {
         btn.disabled = !meta.shipped;
         btn.title = meta.hint;
       }
-      modeHint.textContent = WIDGET_SURFACE_MODE_META[surfaceMode].hint;
+      // The owner is not filing a report for someone else to triage: what they
+      // say here is built and shipped, and the hint says exactly that.
+      modeHint.textContent =
+        ownerPass && surfaceMode === "report"
+          ? "Your site: what you say here gets built and goes live."
+          : WIDGET_SURFACE_MODE_META[surfaceMode].hint;
       const chatting = surfaceMode === "chat" && chat !== null;
       title.textContent = chatting ? "What are you looking for?" : "What should change?";
       reportView.style.display = chatting ? "none" : "";
@@ -279,6 +284,8 @@ interface LokiApi {
     const contact = h("input");
     contact.type = "text";
     contact.placeholder = "Name / email (optional)";
+    // Loki already knows who the owner is; asking them for an email is noise.
+    if (ownerPass) contact.style.display = "none";
     contact.autocomplete = "off";
     // Same cap the ingest route enforces, so the field stops accepting text at
     // the limit instead of taking it and losing the whole report on submit.

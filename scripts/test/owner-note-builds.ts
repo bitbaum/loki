@@ -16,6 +16,7 @@ import {
   OWNER_PASS_HASH_KEY,
 } from "../../src/lib/feedback/owner-pass";
 import { effectiveAutoShip } from "../../src/lib/feedback/auto-ship";
+import { composeFeedbackFixPrompt } from "../../src/lib/feedback/compose-dispatch";
 import { hashWithoutPass, passFromHash } from "../../widget/owner-pass";
 import { FEEDBACK_SELF_ASSERTED_SOURCES, FEEDBACK_SOURCE } from "../../src/lib/constants/statuses";
 
@@ -86,5 +87,20 @@ assert.match(
   page,
   /dossier\.ownerId === session\.user\.id \? createOwnerPass\(id, session\.user\.id\) : null/,
 );
+
+// The agent is told the owner asked for it — a request to build, not a report.
+const ownerFields = {
+  suggestion: "Add a Back to top link",
+  duplicateCount: 1,
+  url: "https://farmhouse.orangecat.ch/",
+  page: "/",
+  scope: null,
+  selectedElements: null,
+};
+assert.match(
+  composeFeedbackFixPrompt({ ...ownerFields, source: "owner" }, "Farmhouse"),
+  /^The owner of Farmhouse asked for this change/,
+);
+assert.match(composeFeedbackFixPrompt(ownerFields, "Farmhouse"), /^Fix this visitor feedback/);
 
 console.log("owner-note-builds: ok");
