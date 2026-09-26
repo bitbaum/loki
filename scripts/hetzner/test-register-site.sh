@@ -58,6 +58,14 @@ grep -q 'gh variable set HETZNER_IP --repo' "$HERE/new-site.sh" \
 ok "register-site and new-site both set HETZNER_IP on the repo"
 
 echo
+echo "a port something already listens on is skipped, even if no register row claims it"
+# annushka's API held 4030 with no row; probe-loop2 got 4030 and crash-looped.
+OUT=$(BOX_LISTENING_PORTS="22 443 4031 4032" run_dry fresh-site3 --repo owner/fresh-site3)
+grep -q "port 4033" <<<"$OUT" || fail "must skip ports in use on the box (expected 4033): $OUT"
+grep -q "port 4031 is already in use on the box" <<<"$OUT" || fail "must say why a port was skipped: $OUT"
+ok "ports in use on the box are skipped, and the skip is said out loud"
+
+echo
 echo "sync-infra's unit heredoc is unquoted, so a backtick anywhere in it would run here"
 grep -q '`' "$HERE/sync-infra.sh" && fail "sync-infra.sh contains a backtick (command substitution inside the unit heredoc)"
 ok "sync-infra.sh has no backticks"

@@ -55,6 +55,13 @@ on:
   push:
     branches: [main]
 
+# The shared deploy refuses a commit whose CI is red by reading this commit's
+# workflow runs. On a PRIVATE repo the org's default token cannot read Actions,
+# so the gate saw "API unreachable" and passed every deploy (2026-09-26).
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   deploy:
     uses: ${owner}/loki/.github/workflows/selfhost-deploy.yml@main

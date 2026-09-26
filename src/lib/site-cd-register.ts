@@ -98,11 +98,19 @@ export async function ensureDeployWorkflow(
   if (existing.ok) {
     const file = existing.json as { content?: string; sha?: string } | null;
     const raw = Buffer.from(file?.content ?? "", "base64").toString("utf8");
-    if (raw.includes("secrets: inherit") && yaml.includes("HETZNER_SSH_PRIVATE_KEY")) {
+    // Upgrade the two shapes that break deploys: the legacy `secrets: inherit`
+    // (cross-owner key), and a shim that does not grant `actions: read` — on
+    // a private repo its CI gate cannot see CI and passes every deploy.
+    const legacySecrets =
+      raw.includes("secrets: inherit") && yaml.includes("HETZNER_SSH_PRIVATE_KEY");
+    const blindGate = !raw.includes("actions: read") && yaml.includes("actions: read");
+    if (legacySecrets || blindGate) {
       const put = await ghJson(token, `/repos/${owner}/${repo}/contents/${pathEnc}`, {
         method: "PUT",
         body: JSON.stringify({
-          message: `fix: pass HETZNER_SSH_PRIVATE_KEY explicitly for cross-owner deploy`,
+          message: blindGate
+            ? `fix: let the deploy's CI gate read this repo's workflow runs`
+            : `fix: pass HETZNER_SSH_PRIVATE_KEY explicitly for cross-owner deploy`,
           content: Buffer.from(yaml, "utf8").toString("base64"),
           sha: file?.sha,
           branch: "main",
