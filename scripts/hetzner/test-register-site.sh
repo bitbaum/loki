@@ -46,6 +46,18 @@ grep -q "already served by another entry" <<<"$OUT" || fail "must name the confl
 ok "hostname conflicts are checked across both registers"
 
 echo
+echo "a private repo gets the box address too, not only the key"
+# Free-plan orgs give org variables to PUBLIC repos only; Loki provisions
+# private by default. Farmhouse (2026-09-26) had the key and no HETZNER_IP,
+# so every Deploy failed. Registration must set it on the repo.
+OUT=$(run_dry fresh-site2 --repo owner/fresh-site2)
+grep -q "gh variable set HETZNER_IP --repo owner/fresh-site2" <<<"$OUT" \
+  || fail "registration must set HETZNER_IP on the repo: $OUT"
+grep -q 'gh variable set HETZNER_IP --repo' "$HERE/new-site.sh" \
+  || fail "new-site.sh must set HETZNER_IP on the repo too"
+ok "register-site and new-site both set HETZNER_IP on the repo"
+
+echo
 echo "sync-infra's unit heredoc is unquoted, so a backtick anywhere in it would run here"
 grep -q '`' "$HERE/sync-infra.sh" && fail "sync-infra.sh contains a backtick (command substitution inside the unit heredoc)"
 ok "sync-infra.sh has no backticks"
