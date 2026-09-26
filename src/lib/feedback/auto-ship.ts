@@ -150,9 +150,11 @@ export function decideAutoShip(input: AutoShipInput): AutoShipDecision {
  *
  * Pure, and exported, because the rule that matters is the STATUS FILTER and
  * that lived in a loop nothing could test. Without it, resolving the broken row
- * did not lift the pause — a deploy_failed ledger is terminal, so the project
+ * did not lift the pause — a deploy_failed ledger was terminal, so the project
  * stayed paused forever with no action in the product that could end it. A
- * pause nobody can lift is a dead end, not a safety feature.
+ * pause nobody can lift is a dead end, not a safety feature. (The ledger now
+ * also heals itself once a later deploy ships the merge — healDeployFailed —
+ * which lifts the pause without anyone touching the row.)
  */
 export function projectsPausedByBrokenDeploy(
   items: ReadonlyArray<{ projectId: string; status: string }>,

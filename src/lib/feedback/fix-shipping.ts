@@ -30,7 +30,12 @@ export const FIX_SHIP_STATE = {
   DEPLOYING: "deploying",
   /** Merged and a deploy-like workflow succeeded on the merge commit. */
   DEPLOYED: "deployed",
-  /** Merged and the deploy-like workflow failed on the merge commit. */
+  /**
+   * Merged and the deploy-like workflow failed on the merge commit, and no
+   * later deploy of the base branch has shipped it since. NOT terminal: every
+   * later successful deploy of that branch contains the merge, so this heals
+   * into DEPLOYED (see healDeployFailed) — within DEPLOY_FAILED_HEAL_WINDOW_MS.
+   */
   DEPLOY_FAILED: "deploy_failed",
 } as const;
 export type FixShipState = (typeof FIX_SHIP_STATE)[keyof typeof FIX_SHIP_STATE];
@@ -46,6 +51,14 @@ export type FixShipping = {
   };
   push?: { url: string; title: string };
   deploy?: { url: string | null; name: string; conclusion: string | null; status: string | null };
+  /**
+   * Set when the merge commit's OWN deploy failed and a later deploy of the
+   * base branch shipped the change instead. `deploy` is then that later run and
+   * `ownDeploy` the failed one, so a reader can say "went live with a later
+   * deploy" rather than pretending the merge deployed by itself.
+   */
+  liveVia?: "later_deploy";
+  ownDeploy?: { url: string | null; name: string; conclusion: string | null };
   /** ISO — when GitHub was last asked. */
   checkedAt: string;
   /** No GitHub token / API failure: the state is what the handoff claimed, unverified. */
@@ -65,6 +78,22 @@ export type FixShipping = {
 
 /** How long a non-terminal ledger entry is trusted before GitHub is asked again. */
 export const FIX_REFRESH_MS = 60_000;
+
+/**
+ * A DEPLOY_FAILED ledger is re-checked this rarely. It changes only when a
+ * later deploy of the base branch succeeds, and asking costs three GitHub
+ * calls, so it gets a slower clock than the states that move within minutes.
+ */
+export const DEPLOY_FAILED_RECHECK_MS = 15 * 60_000;
+
+/**
+ * …and only this long after the merge. It used to be terminal, which froze PR
+ * #540's rows at "deploy failed" for two weeks while dozens of later deploys of
+ * main shipped the merge — and, because an open deploy_failed row pauses the
+ * project's automatic shipping, froze that too. A month is far past the point
+ * where a healthy repo has deployed again; after it the verdict stands.
+ */
+export const DEPLOY_FAILED_HEAL_WINDOW_MS = 30 * 24 * 60 * 60_000;
 
 /**
  * Should GitHub be asked again?
@@ -98,6 +127,14 @@ export function fixNeedsRefresh(
   if (expectedPrUrl && !cached.pr) return true;
   if (isFixShipTerminal(cached.state)) return false;
   const t = Date.parse(cached.checkedAt);
+  if (cached.state === FIX_SHIP_STATE.DEPLOY_FAILED) {
+    // Bounded both ways: a slow clock, and a horizon measured from the merge
+    // (from the last check when the merge time was never recorded).
+    const merged = Date.parse(cached.pr?.mergedAt ?? "");
+    const since = Number.isFinite(merged) ? merged : t;
+    if (Number.isFinite(since) && now - since > DEPLOY_FAILED_HEAL_WINDOW_MS) return false;
+    return !Number.isFinite(t) || now - t > DEPLOY_FAILED_RECHECK_MS;
+  }
   return !Number.isFinite(t) || now - t > FIX_REFRESH_MS;
 }
 
@@ -133,13 +170,11 @@ export function shipAnnouncementFor(
   return null;
 }
 
-/** States that never change again — no point asking GitHub. */
+/** States that never change again — no point asking GitHub. DEPLOY_FAILED is
+ *  not one: a later deploy of the base branch heals it, on its own bounded
+ *  clock in fixNeedsRefresh. */
 export function isFixShipTerminal(state: FixShipState): boolean {
-  return (
-    state === FIX_SHIP_STATE.DEPLOYED ||
-    state === FIX_SHIP_STATE.PR_CLOSED ||
-    state === FIX_SHIP_STATE.DEPLOY_FAILED
-  );
+  return state === FIX_SHIP_STATE.DEPLOYED || state === FIX_SHIP_STATE.PR_CLOSED;
 }
 
 export type PrRef = { owner: string; repo: string; number: number; url: string };
@@ -262,6 +297,8 @@ export type GithubPrDetail = {
   /** When GitHub says the pull request was opened. The only hard evidence that
    *  ties a pull request to the run that supposedly produced it. */
   createdAt?: string | null;
+  /** The branch it merged into (`base.ref`) — whose later deploys carry it. */
+  baseRef?: string | null;
 };
 /** GitHub's workflow run object, only the fields the ledger reads. */
 export type GithubWorkflowRun = {
@@ -269,6 +306,13 @@ export type GithubWorkflowRun = {
   status: string | null; // queued | in_progress | completed
   conclusion: string | null; // success | failure | cancelled | …
   html_url: string | null;
+  /** Read only when healing a DEPLOY_FAILED verdict (pickLaterBaseDeploy). */
+  workflow_id?: number | null;
+  head_branch?: string | null;
+  head_sha?: string | null;
+  event?: string | null;
+  created_at?: string | null;
+  head_commit?: { message?: string | null; timestamp?: string | null } | null;
 };
 
 const DEPLOY_NAME = /deploy|ship|release|publish/i;
@@ -322,6 +366,110 @@ export function deriveShippingFromPr(
     return { ...base, deploy: d, state: FIX_SHIP_STATE.DEPLOYING };
   if (deploy.conclusion === "skipped") return { ...base, deploy: d, state: FIX_SHIP_STATE.MERGED };
   return { ...base, deploy: d, state: FIX_SHIP_STATE.DEPLOY_FAILED };
+}
+
+/**
+ * Pure: the later successful deploy of the base branch that shipped a merge
+ * whose own deploy failed, or null.
+ *
+ * `runs` is a page of the deploy workflow's runs listed WITHOUT GitHub's
+ * `branch=` filter — branch-filtered listings are sometimes answered from a
+ * stale index (fleet#146) — so the branch is filtered here, on `head_branch`.
+ *
+ * A run counts only when all of these hold:
+ *  - it succeeded, on the base branch, and is not a pull-request run;
+ *  - it is the same workflow as the failed one, when that is known;
+ *  - it is not the merge commit's own run (those were already judged);
+ *  - it was created AFTER the merge — a success before the merge shipped the
+ *    old version, which is exactly what the failed verdict says is live;
+ *  - its head commit is dated at or after the merge. The branch's history past
+ *    the merge contains it; an earlier-dated commit may be a CI commit that
+ *    predates the merge and finished late. Rejecting one can only keep a true
+ *    "deploy failed", never invent a false "live".
+ * And no run after the merge may ship a commit that REVERTS this pull request —
+ * a cheap check over data already fetched, not a full history scan.
+ * The latest qualifying run wins: it is the one serving now.
+ */
+export function pickLaterBaseDeploy(input: {
+  mergedAt: string | null | undefined;
+  mergeSha: string | null | undefined;
+  baseBranch: string | null | undefined;
+  prNumber: number;
+  workflowId?: number | null;
+  runs: readonly GithubWorkflowRun[];
+}): GithubWorkflowRun | null {
+  const merged = Date.parse(input.mergedAt ?? "");
+  if (!Number.isFinite(merged) || !input.baseBranch) return null;
+  const after = input.runs.filter((r) => {
+    if (r.head_branch !== input.baseBranch) return false;
+    if (r.event === "pull_request" || r.event === "pull_request_target") return false;
+    if (input.workflowId != null && r.workflow_id != null && r.workflow_id !== input.workflowId)
+      return false;
+    const created = Date.parse(r.created_at ?? "");
+    return Number.isFinite(created) && created > merged;
+  });
+  if (after.some((r) => revertsPr(r.head_commit?.message, input.prNumber))) return null;
+  const shipped = after.filter((r) => {
+    if (r.status !== "completed" || r.conclusion !== "success") return false;
+    if (input.mergeSha && r.head_sha === input.mergeSha) return false;
+    const committed = Date.parse(r.head_commit?.timestamp ?? "");
+    return Number.isFinite(committed) && committed >= merged;
+  });
+  if (!shipped.length) return null;
+  return shipped.reduce((a, b) =>
+    Date.parse(b.created_at ?? "") > Date.parse(a.created_at ?? "") ? b : a,
+  );
+}
+
+/** Does this commit message revert pull request #n? GitHub's revert button
+ *  writes `Revert "<title> (#n)"`; a hand-written one usually names the number. */
+export function revertsPr(message: string | null | undefined, prNumber: number): boolean {
+  const m = message ?? "";
+  return /^revert\b/i.test(m) && new RegExp(`#${prNumber}(?!\\d)`).test(m);
+}
+
+/**
+ * Pure: a DEPLOY_FAILED ledger becomes DEPLOYED once a later deploy of the base
+ * branch shipped the merge. Anything else passes through unchanged.
+ */
+export function healDeployFailed(
+  fix: FixShipping,
+  input: {
+    baseBranch: string | null | undefined;
+    workflowId?: number | null;
+    runs: readonly GithubWorkflowRun[] | null;
+  },
+): FixShipping {
+  if (fix.state !== FIX_SHIP_STATE.DEPLOY_FAILED || !fix.pr || !input.runs) return fix;
+  const later = pickLaterBaseDeploy({
+    mergedAt: fix.pr.mergedAt,
+    mergeSha: fix.pr.mergeSha,
+    baseBranch: input.baseBranch,
+    prNumber: fix.pr.number,
+    workflowId: input.workflowId,
+    runs: input.runs,
+  });
+  if (!later) return fix;
+  return {
+    ...fix,
+    state: FIX_SHIP_STATE.DEPLOYED,
+    liveVia: "later_deploy",
+    ...(fix.deploy
+      ? {
+          ownDeploy: {
+            url: fix.deploy.url,
+            name: fix.deploy.name,
+            conclusion: fix.deploy.conclusion,
+          },
+        }
+      : {}),
+    deploy: {
+      url: later.html_url,
+      name: later.name ?? fix.deploy?.name ?? "deploy",
+      conclusion: later.conclusion,
+      status: later.status,
+    },
+  };
 }
 
 /**

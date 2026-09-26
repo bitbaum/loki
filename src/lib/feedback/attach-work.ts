@@ -109,7 +109,7 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
   // ledgers already cached on their runs — no extra state to keep in sync.
   //
   // Only rows still OPEN count. Resolving a row is the operator saying they
-  // have dealt with it, and a deploy_failed ledger is terminal — so counting
+  // have dealt with it, and a deploy_failed ledger was terminal — so counting
   // resolved and archived rows meant one bad deploy paused a project's
   // automatic shipping forever, with no action in the product that could lift
   // it. A pause nobody can end is not a safety feature, it is a dead end.
