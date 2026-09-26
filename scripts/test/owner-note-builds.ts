@@ -16,6 +16,7 @@ import {
   OWNER_PASS_HASH_KEY,
 } from "../../src/lib/feedback/owner-pass";
 import { effectiveAutoShip } from "../../src/lib/feedback/auto-ship";
+import { hashWithoutPass, passFromHash } from "../../widget/owner-pass";
 import { FEEDBACK_SELF_ASSERTED_SOURCES, FEEDBACK_SOURCE } from "../../src/lib/constants/statuses";
 
 // Read when a pass is signed, not at import.
@@ -68,5 +69,22 @@ assert.match(attach, /autoShip: effectiveAutoShip\(project\?\.autoShip, item\.so
 const route = readFileSync("src/app/api/feedback/[id]/dispatch/route.ts", "utf8");
 assert.match(route, /implementFeedback\(userId, idOrResp/);
 assert.ok(!route.includes("injectPrompt"), "the route must not keep its own copy");
+
+// The widget lifts the pass out of the fragment and leaves the rest intact, so
+// a link copied from the address bar afterwards does not carry it.
+assert.equal(passFromHash(new URL(url).hash), pass);
+assert.equal(passFromHash("#section-2"), null);
+assert.equal(hashWithoutPass(`#${OWNER_PASS_HASH_KEY}=abc`), "");
+assert.equal(hashWithoutPass(`#tab=plan&${OWNER_PASS_HASH_KEY}=abc`), "#tab=plan");
+const widget = readFileSync("widget/main.ts", "utf8");
+assert.match(widget, /ownerPass: ownerPass \?\? undefined/, "the widget sends the pass");
+assert.match(widget, /if \(ownerState\.arrived\) pendingReport = \{\}/, "arriving opens the note");
+
+// Loki hands the pass only to the owner, on the Live link.
+const page = readFileSync("src/app/(app)/projects/[id]/page.tsx", "utf8");
+assert.match(
+  page,
+  /dossier\.ownerId === session\.user\.id \? createOwnerPass\(id, session\.user\.id\) : null/,
+);
 
 console.log("owner-note-builds: ok");

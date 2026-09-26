@@ -7,6 +7,7 @@ import { ProjectSharePanel } from "@/components/projects/ProjectSharePanel";
 import { ROUTES } from "@/config/auth";
 import { isInterviewAuto, isKickoffAuto } from "@/lib/integrations/orangecat-handoff-mode";
 import { isSiteOperator } from "@/db/queries/users";
+import { createOwnerPass } from "@/lib/feedback/owner-pass";
 
 export const metadata = { title: "Project" };
 
@@ -54,6 +55,8 @@ export default async function ProjectPage({
       autoKickoff={isKickoffAuto(kickoff)}
       autoInterview={isInterviewAuto(interview)}
       viewerIsSiteOperator={viewerIsSiteOperator}
+      // Only the owner gets a pass: it is what makes their widget notes build.
+      ownerPass={dossier.ownerId === session.user.id ? createOwnerPass(id, session.user.id) : null}
       shareAction={
         !dossier.readonly ? (
           <ProjectSharePanel projectId={id} initialShare={shareForClient} />

@@ -40,6 +40,7 @@ export function ProjectWorkspaceView({
   autoKickoff = false,
   autoInterview = false,
   viewerIsSiteOperator = false,
+  ownerPass = null,
 }: {
   dossier: ProjectDossier;
   shareAction?: React.ReactNode;
@@ -49,6 +50,8 @@ export function ProjectWorkspaceView({
   autoInterview?: boolean;
   /** Viewer runs this Loki instance, so they may curate its landing page. */
   viewerIsSiteOperator?: boolean;
+  /** Signed server-side for the project's owner only (feedback/owner-pass.ts). */
+  ownerPass?: string | null;
 }) {
   const { detail, userProject } = dossier;
   const project = detail.project;
@@ -230,6 +233,7 @@ export function ProjectWorkspaceView({
               userProjectId={userProject?.id ?? null}
               liveUrl={links.prodUrl}
               readonly={dossier.readonly}
+              ownerPass={ownerPass}
             />
             {!dossier.readonly && (
               <RegisterSiteButton

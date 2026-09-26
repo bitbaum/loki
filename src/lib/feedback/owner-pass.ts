@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { OWNER_PASS_HASH_KEY, ownerSiteUrl } from "../../../widget/owner-pass";
 
 /**
  * The owner's pass for their own site's widget.
@@ -46,11 +47,5 @@ export function verifyOwnerPass(
   return a.length === b.length && timingSafeEqual(a, b) ? { projectId, userId } : null;
 }
 
-/** The fragment key the widget reads. One name, used by link and widget. */
-export const OWNER_PASS_HASH_KEY = "loki-owner";
-
-/** The owner's link to their own site: the live URL with the pass in the fragment. */
-export function ownerSiteUrl(liveUrl: string, pass: string): string {
-  const base = liveUrl.split("#")[0];
-  return `${base}#${OWNER_PASS_HASH_KEY}=${encodeURIComponent(pass)}`;
-}
+// The fragment key and the link shape are defined once, on the widget's side.
+export { OWNER_PASS_HASH_KEY, ownerSiteUrl };
