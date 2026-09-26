@@ -42,12 +42,18 @@ log() { logger -t loki-drain "$*" 2>/dev/null || true; echo "[drain] $*"; }
 # is at an empty composer, safe to restart. Anything else, generating or
 # "waiting" on a permission prompt mid-task, is work. An agent that keeps no
 # status file, or whose file cannot be read, is busy: unknown is not idle.
+#
+# "dialog" (session_status's word for waiting + waitingFor "dialog open") is
+# not work either: Claude is showing a dialog over an empty composer, holding
+# nothing a restart could lose. 2026-09-26: Farmhouse sat on "Teach auto mode
+# about your environment?" and held every runner update for the whole cap —
+# including the one that teaches the runner to clear such dialogs.
 agent_is_busy() { # <comm> <status or empty>
   case "$1" in
     claude|hermes|codex|cursor-agent|grok) ;;
     *) return 1 ;;
   esac
-  [ "$1" = claude ] && [ "$2" = idle ] && return 1
+  [ "$1" = claude ] && { [ "$2" = idle ] || [ "$2" = dialog ]; } && return 1
   return 0
 }
 
@@ -57,7 +63,13 @@ session_status() {
   local home
   home="$({ tr '\0' '\n' < "${PROC_ROOT:-/proc}/$1/environ"; } 2>/dev/null | sed -n 's/^HOME=//p' | head -1)"
   [ -n "$home" ] && [ -r "$home/.claude/sessions/$1.json" ] || return 0
-  sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([a-z_]*\)".*/\1/p' "$home/.claude/sessions/$1.json" | head -1
+  local f="$home/.claude/sessions/$1.json" st
+  st="$(sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([a-z_]*\)".*/\1/p' "$f" | head -1)"
+  if [ "$st" = waiting ] && grep -q '"waitingFor"[[:space:]]*:[[:space:]]*"[^"]*dialog' "$f"; then
+    echo dialog
+  else
+    echo "$st"
+  fi
 }
 
 # drain_decision <working agents> <waited s> <max s> — restart | wait | leave.
