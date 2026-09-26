@@ -6,6 +6,7 @@ import { PanelLeft, SquarePen } from "lucide-react";
 import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
 import { resolveLokiProjectSelection } from "@/lib/loki/project-selection";
+import { conversationIdFromParam } from "@/lib/loki/conversation-param";
 import { rememberFleetProject } from "@/lib/fleet-context";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
 import { useBuilderPresence } from "@/hooks/use-builder-presence";
@@ -84,7 +85,14 @@ export function LokiWorkspace({
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectionInitialized, setSelectionInitialized] = useState(false);
 
-  const [activeId, setActiveId] = useState<string | null>(null);
+  // The open thread lives in the URL (?c=) beside ?project=, so Back returns to
+  // it. In state only, dispatching and then navigating back to /loki landed on
+  // an empty composer while the thread's follow-up chips still showed
+  // (feedback b8a97aef). A plain sidebar visit carries no ?c= and stays the
+  // start page.
+  const [activeId, setActiveId] = useState<string | null>(() =>
+    conversationIdFromParam(searchParams.get("c")),
+  );
   const [messages, setMessages] = useState<LokiMessage[]>([]);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -202,12 +210,15 @@ export function LokiWorkspace({
 
     const params = new URLSearchParams(searchParams.toString());
     const current = params.get("project")?.trim() || null;
-    if (current === project) return;
+    const currentConvo = params.get("c") || null;
+    if (current === project && currentConvo === activeId) return;
     if (project) params.set("project", project);
     else params.delete("project");
+    if (activeId) params.set("c", activeId);
+    else params.delete("c");
     const query = params.toString();
     router.replace(query ? `/loki?${query}` : "/loki", { scroll: false });
-  }, [router, searchParams, selectedProjects, selectionInitialized]);
+  }, [router, searchParams, selectedProjects, selectionInitialized, activeId]);
 
   /**
    * The thread THIS send just created, which must not be mistaken for a
@@ -252,7 +263,11 @@ export function LokiWorkspace({
         if (current) setMessages(d.messages);
       })
       .catch(() => {
-        if (current) setError("Could not load this conversation.");
+        // Usually a stale ?c= (deleted thread): land on the start page rather
+        // than an empty pane that still claims a thread is open.
+        if (!current) return;
+        setError("Could not load this conversation.");
+        setActiveId(null);
       })
       .finally(() => {
         if (current) setTranscriptLoading(false);
