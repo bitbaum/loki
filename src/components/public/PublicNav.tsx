@@ -35,7 +35,7 @@ export function PublicNav() {
   }, []);
 
   return (
-    <div className="hidden items-center gap-1 md:flex">
+    <div className="hidden items-center gap-1 xl:flex">
       {PUBLIC_NAV.map((entry) => {
         if (entry.kind === "menu") {
           return (
@@ -99,7 +99,7 @@ export function PublicNavTrigger({ signedIn = false }: { signedIn?: boolean }) {
     <>
       <button
         type="button"
-        className="ui-public-nav-toggle md:hidden"
+        className="ui-public-nav-toggle xl:hidden"
         onClick={() => setOpen(true)}
         aria-label="Open navigation"
         aria-expanded={open}

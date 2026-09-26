@@ -780,18 +780,30 @@
      top. `py-2.5` keeps the phone bar at 56px so it costs 6% of an 844px
      screen instead of the 220px the stacked wordmark used to eat. */
   .ui-public-nav {
-    @apply sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-border-subtle bg-background/85 px-4 py-2.5 backdrop-blur-md sm:px-10 sm:py-5;
+    @apply sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-border-subtle bg-background/85 px-4 py-2.5 backdrop-blur-md sm:px-10 sm:py-4;
+  }
+  /* The public header's controls are 44px at EVERY pointer, not only under
+     the pointer:coarse floor below: the fleet nav contract (rule 3) holds the
+     marketing nav to 44px whatever is pointing at it, and this bar has the
+     room — the row pays for it out of its own padding (sm:py-5 → sm:py-4), so
+     the header is the same height it was. The dense app UI keeps its compact
+     mouse sizing; this is the public front door only. */
+  .ui-public-nav-home {
+    @apply inline-flex min-h-11 min-w-0 items-center rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-border-interactive;
+  }
+  .ui-public-nav .ui-theme-cycle-btn {
+    @apply min-h-11 min-w-11;
   }
   .ui-public-nav-action {
     @apply rounded-full border border-border-default px-5 py-2 text-sm font-medium text-text-tertiary transition-all hover:border-border-strong hover:text-text-secondary;
   }
   .ui-public-nav-link {
-    @apply rounded-lg px-4 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary;
+    @apply inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-4 text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
   /* Mega-menu trigger button — looks like a nav link, but with a chevron and
      hover/expanded affordances. */
   .ui-public-nav-trigger {
-    @apply inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary;
+    @apply inline-flex min-h-11 items-center gap-1.5 rounded-lg px-4 text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
   /* Dropdown panel anchored to the trigger — grid of label + description per
      destination. */
