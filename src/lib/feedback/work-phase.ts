@@ -236,13 +236,14 @@ export function deriveFeedbackWork(
   run: FeedbackRunSnapshot | null,
   now: number = Date.now(),
 ): FeedbackWorkView {
-  const view = withStep(derivePhase(status, run, now), run);
+  const view = withStep(derivePhase(status, run, now), run, now);
   return { ...view, waitingOn: waitingOnFor(view) };
 }
 
 function withStep(
   view: Omit<FeedbackWorkView, "waitingOn">,
   run: FeedbackRunSnapshot | null,
+  now: number,
 ): Omit<FeedbackWorkView, "waitingOn"> {
   if (!run) return view;
   const step = summarizeRunStep({
@@ -256,6 +257,7 @@ function withStep(
     channel: run.builderChannel ?? null,
     localOnline: run.localOnline,
     cloudOnline: run.cloudOnline,
+    now,
   });
   // derivePhase sets watchable only when a PTY exists; that becomes terminalReady.
   // We then widen watchable so Queued/Stuck still offer the Watch panel.

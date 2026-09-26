@@ -9,6 +9,7 @@
  */
 import type { RunEventKind } from "@/db/schema/run-events";
 import type { BuilderChannel } from "@/lib/constants/statuses";
+import { isRunProgressFresh } from "@/lib/run-progress";
 
 export type RunStepSnapshot = {
   kind: RunEventKind | "waiting_builder" | "hosted_queued" | "starting";
@@ -73,6 +74,7 @@ export function summarizeRunStep(input: {
    * When set, the command is unclaimed BY DESIGN and no runner is at fault.
    */
   queuedBehind?: { label: string | null } | null;
+  now?: number;
 }): RunStepSnapshot {
   if (input.blocked === "auth") {
     return {
@@ -82,6 +84,16 @@ export function summarizeRunStep(input: {
     };
   }
   if (input.lastProgressAt) {
+    // Output once is not output now. A run whose builder went quiet an hour
+    // ago printed "Agent is working" beside "Needs you: Open Fleet Runner" —
+    // one row, two opposite claims (run ccaf19cf, 2026-09-25).
+    if (!isRunProgressFresh(input.lastProgressAt, input.now)) {
+      return {
+        kind: "progress",
+        summary: "Agent went quiet",
+        detail: null,
+      };
+    }
     return {
       kind: "progress",
       summary: KIND_SUMMARY.progress,
