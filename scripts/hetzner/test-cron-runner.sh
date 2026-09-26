@@ -27,7 +27,11 @@ trap 'rm -rf "$TMP"; [ -n "${SRV:-}" ] && kill "$SRV" 2>/dev/null' EXIT
 sed -n "/<<'SH'\$/,/^SH\$/p" "$SRC" | sed '1d;$d' > "$TMP/fc-cron.sh"
 [ -s "$TMP/fc-cron.sh" ] || { echo "FAIL: could not extract fc-cron.sh"; exit 1; }
 
-PORT=4997
+# Free ports, not fixed ones: several sessions run verify on one machine at
+# once, and two runs sharing 4997/4998 answered each other's jobs — the retry
+# case failed twice in a day (2026-09-26) on files a colliding run never wrote.
+free_port() { python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()'; }
+PORT=$(free_port)
 printf 'CRON_SECRET=testsecret\n' > "$TMP/.env"
 sed -i "s#ENV_FILE=/opt/loki/app/.env#ENV_FILE=$TMP/.env#" "$TMP/fc-cron.sh"
 sed -i "s#http://127.0.0.1:4002#http://127.0.0.1:$PORT#" "$TMP/fc-cron.sh"
@@ -87,10 +91,12 @@ check "the runner never discards the body to /dev/null" \
 # refused, curl exit 7) when the job starts, then the app comes up mid-retry.
 # This is the exact failure that paged the operator for check-runner-stall
 # while loki-app.service was mid-restart and self-resolved a tick later.
-RETRY_PORT=4998
+RETRY_PORT=$(free_port)
 sed "s#http://127.0.0.1:$PORT#http://127.0.0.1:$RETRY_PORT#" "$TMP/fc-cron.sh" > "$TMP/fc-cron-retry.sh"
 chmod +x "$TMP/fc-cron-retry.sh"
-("$TMP/fc-cron-retry.sh" ok > "$TMP/retry-out.txt" 2>&1; echo $? > "$TMP/retry-rc.txt") &
+# set +e: the subshell inherits errexit, and a failing job must still record
+# its exit code — a missing rc file reads as a test crash, not a verdict.
+(set +e; "$TMP/fc-cron-retry.sh" ok > "$TMP/retry-out.txt" 2>&1; echo $? > "$TMP/retry-rc.txt") &
 RETRY_PID=$!
 sleep 0.3
 python3 - "$RETRY_PORT" <<'PY' &
@@ -104,7 +110,7 @@ class H(http.server.BaseHTTPRequestHandler):
 http.server.HTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()
 PY
 RETRY_SRV=$!
-wait "$RETRY_PID"
+wait "$RETRY_PID" || true
 kill "$RETRY_SRV" 2>/dev/null
 RETRY_RC=$(cat "$TMP/retry-rc.txt")
 RETRY_OUT=$(cat "$TMP/retry-out.txt")

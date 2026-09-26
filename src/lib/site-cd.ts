@@ -151,8 +151,14 @@ export function planSiteCd(input: {
 export function isRegistrationNextStep(value: string | null | undefined): boolean {
   const v = value?.trim() ?? "";
   if (!v) return false;
+  // Every sentence registration can write, including the deployment verdicts
+  // from site-cd-deployment.ts. That file's "Deployment failed. Check the
+  // deployment log…" was missing, so Farmhouse kept telling its owner the
+  // deploy had failed long after the site was live (2026-09-26).
+  // status-is-not-a-next-step.ts collects the sentences from the source, so a
+  // new one cannot be written without being recognised here.
   return (
-    /^(Live site: |Deployment queued\.|Register CD on the studio box: |Could not start deployment |register-site\.sh failed)/.test(
+    /^(Live site: |Deployment (queued|failed|completed|is running)|A deployment is starting|Starting deployment\.|No deployment exists for the current main commit|The deploy workflow is missing from the repository|Register CD on the studio box: |Could not start deployment |register-site\.sh failed)/.test(
       v,
     ) || / — .*register-site\.sh/.test(v)
   );
