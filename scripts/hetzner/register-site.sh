@@ -191,8 +191,24 @@ else
   REPO_DIR="$DEV_ROOT/$SLUG"
   PORT=$(cat $(registers) | grep -v '^#' | cut -d'|' -f2 | grep -E '^[0-9]+$' | sort -n | tail -1)
   PORT=$((PORT + 1))
+  # The register does not know every service on the box. annushka's enquiry
+  # API has listened on 4030 for days without a row, so probe-loop2 was handed
+  # 4030, crash-looped on EADDRINUSE and every deploy rolled back
+  # (2026-09-26). Skip any port something already listens on.
+  # BOX_LISTENING_PORTS (space-separated) replaces the live read in tests.
+  if [ -n "${BOX_LISTENING_PORTS+x}" ]; then
+    in_use="$(printf '%s\n' $BOX_LISTENING_PORTS)"
+  elif [ "$DRY" != 1 ]; then
+    in_use="$(box "ss -Htln" 2>/dev/null | awk '{print $4}' | sed 's/.*://' | sort -un)"
+  else
+    in_use=""
+  fi
+  while [ -n "$in_use" ] && grep -qx "$PORT" <<<"$in_use"; do
+    say "port $PORT is already in use on the box (a service outside the register) — skipping it"
+    PORT=$((PORT + 1))
+  done
 fi
-say "port $PORT$([ "$ALREADY" = 1 ] && echo ' (existing)' || echo ' (next after the highest in either register)')"
+say "port $PORT$([ "$ALREADY" = 1 ] && echo ' (existing)' || echo ' (next free after the highest in either register)')"
 say "host $SLUG.$BASE_DOMAIN"
 say "repo $GH_REPO  ->  $REPO_DIR"
 say "manifest $MANIFEST"
@@ -257,6 +273,13 @@ on:
   workflow_dispatch: {}
   push:
     branches: [main]
+
+# The shared deploy refuses a commit whose CI is red by reading this commit's
+# workflow runs. On a PRIVATE repo the org's default token cannot read Actions,
+# so the gate saw "API unreachable" and passed every deploy (2026-09-26).
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   deploy:

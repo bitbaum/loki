@@ -119,9 +119,24 @@ start=$(date +%s)
 while :; do
   now=$(date +%s); elapsed=$((now - start))
 
-  runs=$(gh api "repos/$NWO/actions/runs?head_sha=$SHA&per_page=100" --paginate \
-    --jq '.workflow_runs[]' 2>/dev/null | jq -s '.') \
-    || { echo "[ci-gate] $NWO@$SHA: API unreachable — passing open (network, not verdict)"; exit 0; }
+  err_file=$(mktemp)
+  if ! runs=$(gh api "repos/$NWO/actions/runs?head_sha=$SHA&per_page=100" --paginate \
+    --jq '.workflow_runs[]' 2>"$err_file" | jq -s '.'); then
+    err=$(cat "$err_file"); rm -f "$err_file"
+    # A refusal is not a network blip. On a PRIVATE repo whose deploy.yml does
+    # not grant `actions: read`, this call is refused on every deploy, and
+    # reading that as "network, passing open" meant the gate never gated a
+    # private site (farmhouse, 2026-09-26). Still open — a deploy is not held
+    # hostage to a token scope — but loudly, with the fix.
+    if grep -qiE 'HTTP 40[34]|not accessible|Not Found' <<<"$err"; then
+      echo "::warning::CI gate cannot read $NWO's workflow runs (token lacks actions: read) — this deploy is NOT gated on CI. Fix: add 'permissions: { contents: read, actions: read }' to the repo's deploy.yml."
+      echo "[ci-gate] $NWO@$SHA: runs not readable ($(head -1 <<<"$err")) — passing open, UNGATED"
+    else
+      echo "[ci-gate] $NWO@$SHA: API unreachable — passing open (network, not verdict)"
+    fi
+    exit 0
+  fi
+  rm -f "$err_file"
 
   read -r verdict total <<<"$(printf '%s' "$runs" | ci_verdict "$EXCLUDE_PATH")"
 
