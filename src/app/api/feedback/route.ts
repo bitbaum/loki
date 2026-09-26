@@ -4,8 +4,8 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_SHORT_MS, RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
 import {
   FEEDBACK_SCOPE_VALUES,
+  FEEDBACK_SELF_ASSERTED_SOURCES,
   FEEDBACK_SOURCE,
-  FEEDBACK_SOURCE_VALUES,
   WIDGET_TOKEN_STATUS,
 } from "@/lib/constants/statuses";
 import { getWidgetTokenByToken } from "@/db/queries/widget-tokens";
@@ -14,6 +14,12 @@ import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
 import { createFeedbackClaimToken } from "@/lib/feedback/claim-token";
 import { appUrl } from "@/lib/email";
+import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
+import { implementFeedback } from "@/lib/feedback/implement";
+
+/** Owner notes start an agent each; this bounds what a leaked pass can spend. */
+const OWNER_BUILDS_PER_DAY = 40;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Public ingest for the embeddable feedback widget (docs/architecture/
@@ -49,7 +55,10 @@ const FeedbackBody = z.object({
   // Who filed it — the widget omits this (→ visitor); the AI reviewer and
   // synthesizer declare themselves. Self-asserted via the public token, so a
   // routing hint, not a trust boundary.
-  source: z.enum(FEEDBACK_SOURCE_VALUES).optional(),
+  source: z.enum(FEEDBACK_SELF_ASSERTED_SOURCES).optional(),
+  /** The owner's signed pass (feedback/owner-pass.ts), which the widget picked
+   *  up from Loki's "Open your site" link. Verified below, never trusted. */
+  ownerPass: z.string().max(300).optional(),
   /** Visitor-attached images, client-downscaled by the widget. Data URLs only;
    *  the char cap bounds storage per image (~450 KB each). */
   screenshots: z
@@ -137,6 +146,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // The owner's own note, proven by the pass: same project, and the pass was
+  // issued to the person who owns it. Anything else is an ordinary visitor.
+  const pass = data.ownerPass ? verifyOwnerPass(data.ownerPass) : null;
+  const fromOwner = !!pass && pass.projectId === token.projectId && pass.userId === token.userId;
+
   const created = await insertSiteFeedback({
     projectId: token.projectId,
     userId: token.userId,
@@ -147,7 +161,7 @@ export async function POST(req: NextRequest) {
     url: data.url ?? null,
     pageTitle: data.pageTitle ?? null,
     scope: data.scope ?? null,
-    source: data.source ?? FEEDBACK_SOURCE.VISITOR,
+    source: fromOwner ? FEEDBACK_SOURCE.OWNER : (data.source ?? FEEDBACK_SOURCE.VISITOR),
     contentHash,
     screenshots: data.screenshots ?? null,
     selectedElements: data.selectedElements ?? null,
@@ -160,9 +174,47 @@ export async function POST(req: NextRequest) {
   // Duplicate bumps above stay silent — the row announced when first filed.
   void notifyFeedbackReceived(created);
 
+  // The owner said what to change; saying it IS the decision. Start the fix
+  // now, through the same path as the Implement button, and tell the widget
+  // how it went so the owner is never left guessing. A refusal is reported,
+  // not hidden: the note is stored either way and waits in the inbox.
+  if (fromOwner) {
+    const build = await startOwnerBuild(token.userId, token.projectId, created.id);
+    return NextResponse.json({ ok: true, owner: true, ...build }, { headers: CORS_HEADERS });
+  }
+
   const claim = createFeedbackClaimToken(created.id);
   return NextResponse.json(
     { ok: true, claimUrl: `${appUrl()}/claim-feedback?token=${claim}` },
     { headers: CORS_HEADERS },
   );
+}
+
+async function startOwnerBuild(
+  ownerUserId: string,
+  projectId: string,
+  feedbackId: string,
+): Promise<{ building: boolean; buildNote?: string }> {
+  if (!checkRateLimit(`feedback:owner-build:${projectId}`, OWNER_BUILDS_PER_DAY, DAY_MS)) {
+    return {
+      building: false,
+      buildNote: "Saved. You have sent a lot today, so this one waits in Loki for you to start.",
+    };
+  }
+  try {
+    const { status, body } = await implementFeedback(ownerUserId, feedbackId);
+    if (status < 400 && typeof body.runId === "string") return { building: true };
+    const reason = typeof body.error === "string" ? body.error : null;
+    return {
+      building: false,
+      buildNote: reason
+        ? `Saved, but it could not start: ${reason}`
+        : "Saved, but it could not start yet. It waits in Loki under Feedback.",
+    };
+  } catch {
+    return {
+      building: false,
+      buildNote: "Saved, but it could not start yet. It waits in Loki under Feedback.",
+    };
+  }
 }

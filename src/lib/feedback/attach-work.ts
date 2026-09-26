@@ -26,7 +26,7 @@ import {
   shipAnnouncementFor,
   type FixShipping,
 } from "@/lib/feedback/fix-shipping";
-import { projectsPausedByBrokenDeploy } from "@/lib/feedback/auto-ship";
+import { effectiveAutoShip, projectsPausedByBrokenDeploy } from "@/lib/feedback/auto-ship";
 import { notifyFixShipped } from "@/lib/feedback/notify-shipped";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import {
@@ -154,7 +154,7 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
           // field silently disables the whole feature. It shipped omitted once
           // (2026-09-11) — the switch saved, the row read "PR #1 · open", and
           // nothing ever decided. The gate test pins the wiring, not just the rule.
-          autoShip: project?.autoShip ?? null,
+          autoShip: effectiveAutoShip(project?.autoShip, item.source),
           deployBroken: brokenProjects.has(item.projectId),
         });
         refreshed.set(run.id, fix);

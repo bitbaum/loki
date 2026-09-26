@@ -20,6 +20,7 @@
  * live in their own modules alongside it.
  */
 
+import { forgetOwnerPass, takeOwnerPass } from "./owner-pass";
 import { buildSuggestion, formatDiagnostics, type ReportDiagnostics } from "./report-payload";
 import { mergeTranscript } from "./voice";
 import { createVoiceControl } from "./voice-control";
@@ -82,6 +83,10 @@ interface LokiApi {
     return;
   }
   const apiBase = script?.src ? new URL(script.src).origin : "";
+  // The owner, arriving from Loki's "Open your site" link or returning with the
+  // pass kept from it. Their notes start the fix instead of waiting in an inbox.
+  const ownerState = takeOwnerPass(token);
+  let ownerPass = ownerState.pass;
   // Legacy escape hatch, kept working: px from the bottom edge, set in the
   // customer's own HTML. Superseded by the placement served from boot, which an
   // operator can change without touching their site — but an explicitly set
@@ -122,6 +127,9 @@ interface LokiApi {
     },
   };
   (window as unknown as { Loki?: LokiApi }).Loki = api;
+  // Arriving from the owner link: open straight to the note, so "look at my
+  // site and say what to change" is one step, not a hunt for the button.
+  if (ownerState.arrived) pendingReport = {};
 
   const mount = (theme: WidgetTheme) => {
     // ---- state ----
@@ -246,7 +254,9 @@ interface LokiApi {
 
     const textarea = h("textarea");
     textarea.maxLength = MAX_LEN;
-    textarea.placeholder = "What should be improved?";
+    textarea.placeholder = ownerPass
+      ? "Say or type what to change. It gets built."
+      : "What should be improved?";
     const cnt = h("div", "cnt", `0/${MAX_LEN}`);
 
     // Diagnostics travel with the submission but stay OUT of the textarea: the
@@ -491,20 +501,68 @@ interface LokiApi {
             scope,
             screenshots: shots.length ? shots : undefined,
             selectedElements: selected.length ? selected : undefined,
+            ownerPass: ownerPass ?? undefined,
           }),
         });
         if (!res.ok) {
           const body = (await res.json().catch(() => null)) as { error?: string } | null;
           throw new Error(body?.error ?? `Request failed (${res.status})`);
         }
-        const body = (await res.json()) as { claimUrl?: string };
-        showSuccess(body.claimUrl ?? null);
+        const body = (await res.json()) as {
+          claimUrl?: string;
+          owner?: boolean;
+          building?: boolean;
+          buildNote?: string;
+        };
+        if (ownerPass && !body.owner) {
+          // Expired or revoked: stop presenting it, and read as a visitor.
+          forgetOwnerPass(token);
+          ownerPass = null;
+        }
+        if (body.owner) showOwnerSuccess(body.building === true, body.buildNote ?? null);
+        else showSuccess(body.claimUrl ?? null);
       } catch (err) {
         submitting = false;
         sendBtn.disabled = false;
         sendBtn.textContent = "Send";
         errEl.textContent = err instanceof Error ? err.message : "Could not send, try again";
       }
+    }
+
+    function resetForm() {
+      panel.textContent = "";
+      panel.append(hdr, reportView);
+      if (chat) panel.append(chat.el);
+      textarea.value = "";
+      cnt.textContent = `0/${MAX_LEN}`;
+      submitting = false;
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Send";
+    }
+
+    /** The owner's note: say what happens now, then let them say the next one. */
+    function showOwnerSuccess(building: boolean, note: string | null) {
+      panel.textContent = "";
+      const ok = h("div", "ok");
+      ok.append(
+        h("div", "tick", building ? "✓" : "!"),
+        h("p", undefined, building ? "On it. An agent is building this now." : "Saved."),
+        h(
+          "div",
+          "sub",
+          building
+            ? "It goes live on this site by itself. Loki tells you when it is."
+            : (note ?? "It waits in Loki under Feedback."),
+        ),
+      );
+      const more = h("button", "track", "Say something else") as HTMLButtonElement;
+      more.type = "button";
+      more.addEventListener("click", () => {
+        resetForm();
+        textarea.focus();
+      });
+      ok.append(more);
+      panel.appendChild(ok);
     }
 
     function showSuccess(claimUrl: string | null) {

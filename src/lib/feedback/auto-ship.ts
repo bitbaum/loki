@@ -18,6 +18,7 @@
  * This module is the decision, with no I/O, so every condition below is
  * testable without GitHub.
  */
+import { FEEDBACK_SOURCE } from "@/lib/constants/statuses";
 import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
 
 export const AUTO_SHIP_HOLD = {
@@ -122,6 +123,24 @@ export function prPredatesRun(
 
 /** GitHub conclusions that mean "this check is not a reason to stop". */
 const PASSING = new Set(["success", "neutral", "skipped"]);
+
+/**
+ * Whether this row's fix may merge itself.
+ *
+ * The project's switch decides, with one addition: a note the OWNER sent from
+ * their own site (source `owner`, proven by the owner pass) already carries the
+ * decision — they said what to change, on the live page, on purpose. Waiting
+ * for them to come back and press merge on their own words was the step that
+ * made "say it on the site" not work. An explicit OFF still wins: `false` is
+ * someone having chosen, `null` is nobody having chosen.
+ */
+export function effectiveAutoShip(
+  projectAutoShip: boolean | null | undefined,
+  feedbackSource: string | null | undefined,
+): boolean | null {
+  if (projectAutoShip === true || projectAutoShip === false) return projectAutoShip;
+  return feedbackSource === FEEDBACK_SOURCE.OWNER ? true : null;
+}
 
 export function decideAutoShip(input: AutoShipInput): AutoShipDecision {
   if (input.autoShip !== true) return { merge: false, hold: AUTO_SHIP_HOLD.NOT_ENABLED };

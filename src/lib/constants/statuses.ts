@@ -225,13 +225,18 @@ export function resolveProjectStage(raw: string | null | undefined): ProjectStag
  * token, so treat as a routing hint, not a trust boundary; worst case a
  * visitor mislabels their own report.
  */
-export const FEEDBACK_SOURCE_VALUES = ["visitor", "ai_review", "synthesizer"] as const;
+export const FEEDBACK_SOURCE_VALUES = ["visitor", "ai_review", "synthesizer", "owner"] as const;
 export type FeedbackSource = (typeof FEEDBACK_SOURCE_VALUES)[number];
 export const FEEDBACK_SOURCE = {
   VISITOR: "visitor",
   AI_REVIEW: "ai_review",
   SYNTHESIZER: "synthesizer",
+  /** The project's owner, proven by a signed owner pass (feedback/owner-pass.ts)
+   *  — the one source ingest never accepts as a self-assertion. */
+  OWNER: "owner",
 } as const satisfies Record<string, FeedbackSource>;
+/** What a widget POST may claim for itself. `owner` is earned, never asserted. */
+export const FEEDBACK_SELF_ASSERTED_SOURCES = ["visitor", "ai_review", "synthesizer"] as const;
 
 /**
  * Widget-token remote state. The embed's boot call gates rendering on ACTIVE,

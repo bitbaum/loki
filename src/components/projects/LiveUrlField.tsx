@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Globe, Pencil, X } from "lucide-react";
+import { ownerSiteUrl } from "../../../widget/owner-pass";
 
 /**
  * The one place a captain sets where this project lives on the public web.
@@ -11,10 +12,14 @@ export function LiveUrlField({
   userProjectId,
   liveUrl,
   readonly,
+  ownerPass = null,
 }: {
   userProjectId: string | null;
   liveUrl: string | null;
   readonly: boolean;
+  /** The owner's signed pass. The Live link then opens the site with the
+   *  widget ready, and what the owner says there gets built. */
+  ownerPass?: string | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(liveUrl ?? "");
@@ -105,10 +110,15 @@ export function LiveUrlField({
     return (
       <span className="inline-flex items-center gap-1">
         <a
-          href={current}
+          href={ownerPass ? ownerSiteUrl(current, ownerPass) : current}
           target="_blank"
           rel="noreferrer"
           className="ui-btn-ghost min-h-11 gap-1.5"
+          title={
+            ownerPass
+              ? "Open your site. Say what to change in the widget; it gets built."
+              : undefined
+          }
         >
           <Globe className="h-4 w-4" aria-hidden="true" /> Live
         </a>
