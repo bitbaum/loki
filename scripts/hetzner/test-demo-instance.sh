@@ -60,15 +60,22 @@ reset_apps="$(grep -v '^#' <<<"$registry" | awk -F'|' '$4 ~ /reset-demo/ {print 
 # None registered is fine: aoz-demo was retired 2026-09-26 (the demo moved back
 # onto aoz.orangecat.ch). What must hold is that no NON-demo app carries it.
 ok "reset-demo jobs read (${reset_apps:-none registered})"
+# Production apps whose reset-demo route is SCOPED — it deletes only invented
+# demo rows and never truncates. Each entry is a deliberate, reviewed decision
+# naming where that scoping lives; the list is not a way to silence this gate.
+#   aoz-wohnen — bitbaum/aoz-begleitung#272, resetDemoData(db, { scope: 'scoped' }),
+#                gated on DEMO_ACCESS_ENABLED=true (George, 2026-09-26)
+SCOPED_RESET_APPS="aoz-wohnen"
 for app in $reset_apps; do
   kind="$(awk -F'|' -v n="$app" '!/^#/ && $1 == n {print $8}' "$HERE/apps.conf")"
-  [ "$kind" = demo ] \
-    && ok "reset-demo on '$app' — kind demo in apps.conf" \
-    || no "reset-demo registered on '$app' (kind '${kind:-missing}'): it would truncate a real app's database"
+  if [ "$kind" = demo ]; then
+    ok "reset-demo on '$app' — kind demo in apps.conf"
+  elif [[ " $SCOPED_RESET_APPS " == *" $app "* ]]; then
+    ok "reset-demo on '$app' — a production app with a reviewed, scoped reset"
+  else
+    no "reset-demo registered on '$app' (kind '${kind:-missing}'): it could delete a real app's data"
+  fi
 done
-grep -v '^#' <<<"$registry" | grep -q '^aoz-wohnen|.*reset-demo' \
-  && no "aoz-wohnen carries the reset route" \
-  || ok "aoz-wohnen never carries the reset route"
 
 printf 'demo-instance: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
