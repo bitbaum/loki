@@ -41,6 +41,7 @@ import {
   renderFacts,
   buildGroundedContext,
 } from "@bitbaum/ai-kit/grounding";
+import { byokChain } from "@bitbaum/ai-kit/byok";
 
 let passed = 0;
 const check = (label: string, fn: () => void) => {
@@ -82,6 +83,22 @@ const OPENROUTER = {
       or > groq * 2,
       `OpenRouter carries 128k–1M contexts; budgeting it like Groq (${groq}) starves it: got ${or}`,
     );
+  });
+
+  check("a reader's OWN Groq key is not held to Loki's free-tier minute window", () => {
+    // Built by the real producer, so the own-key marker is ai-kit's, not ours.
+    const [own] = byokChain({
+      vendor: "groq",
+      model: "openai/gpt-oss-120b",
+      apiKey: "gsk_not_a_real_key_1234",
+    }).chain;
+    assert.equal(own.provider.id, "groq");
+    assert.equal(
+      linkPromptBudgetTokens(own),
+      linkPromptBudgetTokens(OPENROUTER),
+      "their key's limits are their account's; sizing to the free pool only cut their context",
+    );
+    assert.ok(linkPromptCeilingTokens(own) > linkPromptCeilingTokens(GROQ));
   });
 
   check("the loop sizes against the LARGEST usable link", () => {

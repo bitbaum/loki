@@ -29,6 +29,7 @@ import {
   dayCapacityTokens as capacityOf,
   usableChain,
   chainFrom as chainFromLinks,
+  isOwnKeyLink,
   type Provider,
   type Link,
 } from "@bitbaum/ai-kit";
@@ -120,9 +121,19 @@ function envInt(name: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
+/**
+ * Held to Groq's FREE-tier minute window. A reader's own Groq key is not: its
+ * limits are whatever their account has (paid tiers run far past 8000/min),
+ * and sizing their prompts to Loki's free pool only cut the context of the
+ * person who brought the stronger key.
+ */
+function onGroqFreeTier(link: ChatLink): boolean {
+  return link.provider.id === "groq" && !isOwnKeyLink(link);
+}
+
 /** Tokens one PROMPT may carry on this link (the reply reserve already deducted). */
 export function linkPromptBudgetTokens(link: ChatLink): number {
-  if (link.provider.id === "groq") {
+  if (onGroqFreeTier(link)) {
     const tpm = envInt("LOKI_GROQ_TPM", GROQ_TPM_DEFAULT);
     return Math.max(0, Math.floor(tpm * HEADROOM) - REPLY_RESERVE_TOKENS);
   }
@@ -155,7 +166,7 @@ export function linkPromptBudgetTokens(link: ChatLink): number {
  * in it: floor(8000 * 0.85) - 1400 = 5400 where the honest bound is 6600.
  */
 export function linkPromptCeilingTokens(link: ChatLink): number {
-  if (link.provider.id === "groq") {
+  if (onGroqFreeTier(link)) {
     const tpm = envInt("LOKI_GROQ_TPM", GROQ_TPM_DEFAULT);
     return Math.max(0, tpm - REPLY_RESERVE_TOKENS);
   }
