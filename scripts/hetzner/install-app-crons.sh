@@ -74,6 +74,10 @@ substrata|4022|*-*-* 05:23:00|/api/cron/jobs|POST
 # Producer sourcing: finds sources for unverified producer rows into a review
 # queue (research_source_candidates, migration 004). Four rows per run.
 substrata|4022|*-*-* 00/6:52:00|/api/cron/source|POST
+# Data quality: re-opens a rotating slice of source links, quotes, tickers (SEC,
+# OpenFIGI) and USGS table rows, and stores the scorecard behind /data/quality
+# (research_quality_checks/_runs, migration 014). No AI: HTTP and string matching.
+substrata|4022|*-*-* 01/6:41:00|/api/cron/quality|POST
 # Demo reset: truncates the no-account AOZ demo back to its invented seed,
 # nightly. DEMO ONLY: the route truncates the database, so it must never be
 # registered for aoz-wohnen (it also refuses without DEMO_INSTANCE=true, and
