@@ -74,7 +74,8 @@ export const TELEMETRY_PATHS: TelemetryPath[] = [
     table: "debug_logs",
     timeColumn: "created_at",
     label: "Cron heartbeat",
-    writer: "every cron route via logDebug() — five run hourly (:10, :15, :25, :30, :45) and one every 15 minutes (:05)",
+    writer:
+      "every cron route via logDebug() — five run hourly (:10, :15, :25, :30, :45) and one every 15 minutes (:05)",
     monitored: true,
     maxSilenceHours: 12,
     because:
