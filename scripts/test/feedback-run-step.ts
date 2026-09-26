@@ -214,3 +214,42 @@ assert.equal(orphanView.phase, FEEDBACK_WORK_PHASE.STUCK);
 assert.match(orphanView.detail ?? "", /never started/i);
 
 console.log("  ✓ a dispatch waiting its turn is named, not blamed");
+
+// A run that streamed once and then went quiet must not read "Agent is
+// working" beside the phase's "Needs you" (run ccaf19cf, 2026-09-25: the
+// laptop went offline at 17:21, the row still said working an hour later).
+{
+  const now = Date.parse("2026-09-25T18:00:00Z");
+  const base = {
+    latestKind: "progress" as const,
+    deliveredAt: "2026-09-25T17:11:00Z",
+    channel: "local" as const,
+    localOnline: false,
+    cloudOnline: true,
+    now,
+  };
+  const quiet = summarizeRunStep({ ...base, lastProgressAt: "2026-09-25T17:21:00Z" });
+  assert.equal(quiet.summary, "Agent went quiet");
+  const fresh = summarizeRunStep({ ...base, lastProgressAt: "2026-09-25T17:58:00Z" });
+  assert.equal(fresh.summary, "Agent is working");
+
+  const view = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    {
+      id: "ccaf19cf-0000-0000-0000-000000000000",
+      state: ORCH_STATE.WAITING,
+      outcome: null,
+      startedAt: new Date("2026-09-25T17:10:00Z"),
+      deliveredAt: base.deliveredAt,
+      lastProgressAt: "2026-09-25T17:21:00Z",
+      latestEventKind: "progress",
+      builderChannel: "local",
+      builderOffline: true,
+      localOnline: false,
+      cloudOnline: true,
+    } as Parameters<typeof deriveFeedbackWork>[1],
+    now,
+  );
+  assert.equal(view.label, "Needs you");
+  assert.notEqual(view.stepSummary, "Agent is working");
+}
