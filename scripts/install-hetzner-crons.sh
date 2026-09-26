@@ -95,7 +95,7 @@ SVC
 # scripts/test/no-free-background-ai.ts walks every route below and fails if one
 # can reach the model layer. Removing a name here does NOT remove its timer from
 # the box: `systemctl disable --now fc-cron@<name>.timer` and delete the file.
-declare -A SCHED=( [prune-debug-logs]="03:00" [nudge-idle]="04:00" [prune-agent-tokens]="05:00" [email-canary]="06:00" [check-project-repos]="06:20" [check-model-ids]="06:30" [check-telemetry]="06:45" [check-runner-version]="06:50" [sweep-orphan-alerts]="06:55" [send-digest-emails]="07:00" [orangecat-promote-backfill]="09:00" [downgrade-expired-plans]="09:30" [propose-checkins]="09:45" [reset-demo]="04:20" [reap-stale-runs]="*:15" [check-runner-stall]="*:30" [check-pending-approvals]="*:45" [sync-feedback-alerts]="*:10" [check-feedback-needs-you]="*:05" )
+declare -A SCHED=( [prune-debug-logs]="03:00" [nudge-idle]="04:00" [prune-agent-tokens]="05:00" [email-canary]="06:00" [check-project-repos]="06:20" [check-model-ids]="06:30" [check-telemetry]="06:45" [check-runner-version]="06:50" [sweep-orphan-alerts]="06:55" [send-digest-emails]="07:00" [orangecat-promote-backfill]="09:00" [downgrade-expired-plans]="09:30" [propose-checkins]="09:45" [reset-demo]="04:20" [reap-stale-runs]="*:15" [check-runner-stall]="*:30" [check-pending-approvals]="*:45" [sync-feedback-alerts]="*:10" [check-feedback-needs-you]="*:05" [check-site-live]="*:25" )
 for name in "${!SCHED[@]}"; do
   # "Thu 08:30" carries a space; daily/hourly forms never do. Anything else
   # stays exactly as it was, so adding the weekly shape cannot change when an
