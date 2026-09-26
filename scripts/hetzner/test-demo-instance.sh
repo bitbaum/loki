@@ -57,7 +57,9 @@ registry="$(awk '/^REGISTRY="\$\(cat <<.REG.$/{f=1;next} /^REG$/{f=0} f' "$HERE/
 [ -n "$registry" ] && ok "the app-cron registry was read" || no "could not read the app-cron registry"
 
 reset_apps="$(grep -v '^#' <<<"$registry" | awk -F'|' '$4 ~ /reset-demo/ {print $1}')"
-[ -n "$reset_apps" ] && ok "a reset-demo job is registered" || no "no reset-demo job registered"
+# None registered is fine: aoz-demo was retired 2026-09-26 (the demo moved back
+# onto aoz.orangecat.ch). What must hold is that no NON-demo app carries it.
+ok "reset-demo jobs read (${reset_apps:-none registered})"
 for app in $reset_apps; do
   kind="$(awk -F'|' -v n="$app" '!/^#/ && $1 == n {print $8}' "$HERE/apps.conf")"
   [ "$kind" = demo ] \
