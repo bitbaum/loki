@@ -335,6 +335,28 @@ jobs:
             *) echo "::error::CI is not green for ${{ inputs.git-ref || github.sha }} — deploy blocked"; exit 1 ;;
           esac
 
+      # Look at the live page as a visitor on a phone does, BEFORE this deploy,
+      # so the step after it can say whether the change made the page worse.
+      # A green deploy used to prove only that the site answered 200; on
+      # autopilot nobody else looks. GitHub's runners ship Chrome, so this
+      # installs only the playwright client, never a browser. Never blocks: a
+      # page that cannot be read here just means there is nothing to compare.
+      - name: Look at the live page before the deploy
+        if: steps.gate.outputs.proceed == 'true' && steps.app.outputs.domain != '-'
+        continue-on-error: true
+        env:
+          DOMAIN: ${{ steps.app.outputs.domain }}
+          TOOLING: ${{ steps.app.outputs.tooling }}
+        run: |
+          set -uo pipefail
+          dir="$RUNNER_TEMP/page-check"
+          mkdir -p "$dir"
+          cp "$TOOLING/page-check.mjs" "$TOOLING/page-check-compare.mjs" "$dir/"
+          cd "$dir"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --no-save --silent --no-audit --no-fund playwright@1.63.0 > /dev/null 2>&1 \
+            || echo "::warning::could not install the page checker; this deploy is not compared"
+          CHROME_PATH="$(command -v google-chrome || command -v chromium || true)" \
+            node page-check.mjs "https://$DOMAIN/" before.json before.png || true
       - name: Deploy
         if: steps.gate.outputs.proceed == 'true'
         env:
@@ -385,3 +407,49 @@ jobs:
             echo "::error::https://$DOMAIN returned $code after the deploy"
           fi
           exit 1
+      # The same look AFTER the deploy. If the change made the page worse on a
+      # phone — it stopped loading, scrolls sideways, throws new errors, broke
+      # images, lost most of its text — roll back to the previous release and
+      # fail the deploy with the reasons. Loki's fix ledger reads that as a
+      # failed deploy of the fix and tells the owner the site still shows the
+      # old version, which is then true. Only what the change ADDED counts:
+      # page-check-compare.mjs, pinned by scripts/test/page-check-compare.ts.
+      - name: Compare the live page with before
+        if: steps.gate.outputs.proceed == 'true' && steps.app.outputs.domain != '-'
+        env:
+          DOMAIN: ${{ steps.app.outputs.domain }}
+          TOOLING: ${{ steps.app.outputs.tooling }}
+          HETZNER_IP: ${{ steps.app.outputs.ip }}
+        run: |
+          set -uo pipefail
+          dir="$RUNNER_TEMP/page-check"
+          if [ ! -f "$dir/page-check.mjs" ] || [ ! -d "$dir/node_modules/playwright" ]; then
+            echo "::warning::the page checker did not install; this deploy was not compared"
+            exit 0
+          fi
+          cd "$dir"
+          CHROME_PATH="$(command -v google-chrome || command -v chromium || true)" \
+            node page-check.mjs "https://$DOMAIN/" after.json after.png || true
+          node page-check-compare.mjs before.json after.json > verdict.txt
+          rc=$?
+          cat verdict.txt
+          if [ "$rc" -eq 2 ]; then
+            echo "::error::This change made https://$DOMAIN/ worse on a phone. Rolling back to the previous version."
+            sed -n 's/^WORSE: /::error::/p' verdict.txt
+            bash "$TOOLING/rollback.sh" "${{ inputs.app }}" \
+              || echo "::error::rollback FAILED — the worse version may still be live"
+            exit 1
+          fi
+          [ "$rc" -eq 0 ] || echo "::warning::could not compare the page (exit $rc); this deploy was not judged"
+          exit 0
+      - name: Keep what the phone saw
+        if: always() && steps.gate.outputs.proceed == 'true' && steps.app.outputs.domain != '-'
+        uses: actions/upload-artifact@v4
+        with:
+          name: page-check-${{ inputs.app }}
+          path: |
+            ${{ runner.temp }}/page-check/*.png
+            ${{ runner.temp }}/page-check/*.json
+            ${{ runner.temp }}/page-check/verdict.txt
+          if-no-files-found: ignore
+          retention-days: 14
