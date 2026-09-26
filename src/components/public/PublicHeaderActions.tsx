@@ -27,7 +27,7 @@ export async function PublicHeaderActions({
 
   return (
     <div className="flex min-w-0 items-center gap-2">
-      {/* Theme cycle and "Sign in" move into the drawer below `lg`. Four
+      {/* Theme cycle and "Sign in" move into the drawer below `xl`. Four
           controls (brand, menu, theme, CTA) do not fit a 390px header: the CTA
           was the one that lost, wrapping to two lines and clipping off the
           right edge. */}
@@ -35,7 +35,7 @@ export async function PublicHeaderActions({
           lives inside the app — so the public header and the app header show
           one control for identity instead of two different answers. */}
       {!signedIn && (
-        <span className="hidden lg:block">
+        <span className="hidden xl:block">
           <ThemeToggle />
         </span>
       )}
@@ -45,7 +45,7 @@ export async function PublicHeaderActions({
               action, the drawer), and signed in the one action is now the
               avatar — who you are and how to sign out. "Open app" is not lost
               on a phone: the drawer below already leads with it. */}
-          <span className="hidden lg:block">
+          <span className="hidden xl:block">
             <Link href={ROUTES.APP_HOME} className="ui-public-primary-action-compact">
               Open {APP_NAME} →
             </Link>
@@ -57,7 +57,7 @@ export async function PublicHeaderActions({
         </>
       ) : (
         <>
-          <Link href={ROUTES.SIGN_IN} className="ui-public-nav-link hidden lg:inline-flex">
+          <Link href={ROUTES.SIGN_IN} className="ui-public-nav-link hidden xl:inline-flex">
             Sign in
           </Link>
           <Link href={ROUTES.SIGN_UP} className="ui-public-primary-action-compact">

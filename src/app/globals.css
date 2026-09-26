@@ -798,7 +798,7 @@
     @apply rounded-full border border-border-default px-5 py-2 text-sm font-medium text-text-tertiary transition-all hover:border-border-strong hover:text-text-secondary;
   }
   .ui-public-nav-link {
-    @apply inline-flex min-h-11 items-center rounded-lg px-4 text-sm text-text-secondary transition-colors hover:text-text-primary;
+    @apply inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-4 text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
   /* Mega-menu trigger button — looks like a nav link, but with a chevron and
      hover/expanded affordances. */

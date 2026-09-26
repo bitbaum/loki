@@ -30,7 +30,7 @@ export function PublicSurface({
           <Link href={homeHref} className="ui-public-nav-home">
             <BrandMark responsive />
           </Link>
-          {/* Desktop mega-menu only. Below `lg` the same PUBLIC_NAV renders in
+          {/* Desktop mega-menu only. Below `xl` the same PUBLIC_NAV renders in
               the drawer PublicHeaderActions mounts — it owns the session the
               drawer's CTA needs, and this shell is pulled into client bundles
               by AuthShell so it cannot read one itself. */}
