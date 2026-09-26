@@ -78,11 +78,6 @@ substrata|4022|*-*-* 00/6:52:00|/api/cron/source|POST
 # OpenFIGI) and USGS table rows, and stores the scorecard behind /data/quality
 # (research_quality_checks/_runs, migration 014). No AI: HTTP and string matching.
 substrata|4022|*-*-* 01/6:41:00|/api/cron/quality|POST
-# Demo reset: truncates the no-account AOZ demo back to its invented seed,
-# nightly. DEMO ONLY: the route truncates the database, so it must never be
-# registered for aoz-wohnen (it also refuses without DEMO_INSTANCE=true, and
-# test-demo-instance.sh pins that only a demo-kind app carries this path).
-aoz-demo|4028|*-*-* 04:05:00|/api/cron/reset-demo|POST
 REG
 )"
 
