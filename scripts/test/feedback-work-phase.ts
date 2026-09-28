@@ -361,7 +361,8 @@ for (const prompt of [
     }),
     now,
   );
-  assert.match(stalledCloudOffline.detail ?? "", /box-runner/);
+  // Names the cloud builder in the operator's words, not the process name.
+  assert.match(stalledCloudOffline.detail ?? "", /cloud builder is offline/);
 
   // Delivered and no heartbeat yet: Starting (Queued), never fake Working.
   const fresh = deriveFeedbackWork(

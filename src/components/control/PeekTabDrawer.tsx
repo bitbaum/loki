@@ -10,6 +10,7 @@ import { Drawer } from "@/components/ui/modal";
 import { TerminalView } from "../terminal/TerminalView";
 import { runnerTransport } from "../terminal/terminal-transport";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { peekTabOnce } from "@/lib/peek-tab-client";
 
 // Per-project drawer with three views of one project:
 //   • activity  — the unified activity SSOT timeline (default): every prompt,
@@ -54,66 +55,14 @@ export function PeekTabDrawer({
     });
   };
 
-  // Pure fetcher: resolves with the captured content, or null when a newer
-  // request superseded this one. It never touches state itself — callers apply
-  // the result from a .then callback, so effects can start it without setting
-  // state synchronously.
-  const fetchRemotePeek = async (seq: number): Promise<string | null> => {
-    const enqueue = await fetch("/api/control/peek-tab", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tab }),
-    });
-    if (!enqueue.ok) {
-      const body = await enqueue.json().catch(() => ({}));
-      throw new Error(body.error || `Peek request failed (${enqueue.status})`);
-    }
-    const { peekId } = (await enqueue.json()) as { peekId?: string };
-    if (!peekId) throw new Error("Peek request did not return an id");
-
-    const deadline = Date.now() + 45_000;
-    while (Date.now() < deadline) {
-      if (seq !== requestSeq.current) return null;
-      const poll = await fetch(`/api/control/peek-tab/${peekId}`, { cache: "no-store" });
-      if (!poll.ok) {
-        const body = await poll.json().catch(() => ({}));
-        throw new Error(body.error || `Peek poll failed (${poll.status})`);
-      }
-      const body = (await poll.json()) as {
-        status: "pending" | "done" | "error";
-        content?: string;
-        error?: string;
-      };
-      if (body.status === "done") {
-        return body.content ?? "";
-      }
-      if (body.status === "error") {
-        throw new Error(body.error || "Peek failed");
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-    throw new Error("Fleet Runner did not claim the peek request within 45s — is it running?");
-  };
-
   // Starts a capture without touching state synchronously — every setState
   // lives in a promise callback, so the snapshot effect can call this directly.
   const runPeek = () => {
     const seq = requestSeq.current + 1;
     requestSeq.current = seq;
-    const bridge = window.fleetRunner;
-    const work =
-      typeof bridge?.peekTab === "function"
-        ? bridge.peekTab(tab).then((result) => {
-            if (seq !== requestSeq.current) return;
-            if (result.ok) {
-              applyContent(result.content);
-            } else {
-              setError(result.error || "Peek failed");
-            }
-          })
-        : fetchRemotePeek(seq).then((peeked) => {
-            if (peeked !== null && seq === requestSeq.current) applyContent(peeked);
-          });
+    const work = peekTabOnce(tab, () => seq === requestSeq.current).then((peeked) => {
+      if (peeked !== null && seq === requestSeq.current) applyContent(peeked);
+    });
     return work
       .catch((e: unknown) => {
         if (seq !== requestSeq.current) return;

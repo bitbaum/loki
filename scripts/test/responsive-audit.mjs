@@ -236,6 +236,7 @@ export const NOT_MEASURED = {
   // what it would take, so "needs an id" is a decision on record rather than
   // the silent exclusion every "[" used to get.
   "/projects/[id]": "needs a project id from the audited environment's database",
+  "/projects/[id]/watch": "needs a project id (with a run) from the audited environment's database",
   "/atlas/[projectId]": "needs a project id from the audited environment's database",
   "/people/[id]": "needs a person id from the private zone",
   "/robots/[id]": "needs an agent id from the audited environment",

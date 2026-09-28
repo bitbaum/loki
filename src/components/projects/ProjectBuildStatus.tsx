@@ -15,7 +15,6 @@
 import Link from "next/link";
 import { Rocket } from "lucide-react";
 import type { BuildStatus } from "@/lib/project-build-status";
-import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { timeAgo, formatDurationMinutes } from "@/lib/dates";
 import { MakeItHappenButton } from "./ProjectActionButtons";
 
@@ -72,10 +71,7 @@ export function ProjectBuildStatus({
         .join(" · ");
       if (!detail) detail = "An agent is working on this project.";
       action = (
-        <Link
-          href={fleetSurfaceHref("terminal", workspaceKey)}
-          className="ui-btn-secondary min-h-11 gap-2"
-        >
+        <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11 gap-2">
           <Rocket className="h-4 w-4" aria-hidden="true" /> Watch it work
         </Link>
       );
@@ -83,13 +79,10 @@ export function ProjectBuildStatus({
     }
     case "queued": {
       headline = "Starting up";
-      detail = `Sent ${timeAgo(status.sinceMs)}. Waiting for a builder to claim it — watch Terminal or Control.`;
+      detail = `Sent ${timeAgo(status.sinceMs)}. Waiting for a builder to claim it.`;
       action = (
-        <Link
-          href={fleetSurfaceHref("control", workspaceKey)}
-          className="ui-btn-secondary min-h-11"
-        >
-          Follow in Control
+        <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11">
+          Watch it start
         </Link>
       );
       break;
