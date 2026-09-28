@@ -32,7 +32,6 @@ import {
   planKickoff,
 } from "@/lib/project-kickoff";
 import {
-  anyKickoffRunning,
   clearKickoffRun,
   startKickoff,
   useKickoffRun,
@@ -94,15 +93,17 @@ export function ProjectKickoff({
     if (kickoff?.deployment) setDeployment(kickoff.deployment);
   }, [kickoff?.deployment, setDeployment]);
 
-  // A reload stops the run (the browser owns the requests). Say so first.
+  // The server runs the steps; when it settles, bring the page (profile,
+  // repo, build status) in line with what landed. Keyed on the transition so
+  // a run discovered already-finished does not refresh on every visit.
+  const wasRunning = useRef(false);
   useEffect(() => {
-    if (!running) return;
-    const warn = (e: BeforeUnloadEvent) => {
-      if (anyKickoffRunning()) e.preventDefault();
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [running]);
+    if (running) wasRunning.current = true;
+    else if (wasRunning.current && finished) {
+      wasRunning.current = false;
+      router.refresh();
+    }
+  }, [running, finished, router]);
 
   const source = text.trim() || null;
   const plan = planKickoff({
@@ -119,15 +120,8 @@ export function ProjectKickoff({
   const ready = !requiresSource || hasKickoffSource(source);
 
   function run() {
-    // Bring the page in line with what landed (profile, repo) without
-    // unmounting this card — its step list is where the run is reported.
-    void startKickoff(projectId, {
-      names: [workspaceKey, projectName],
-      plan,
-      source,
-      visibility,
-      onSettled: () => router.refresh(),
-    });
+    // The server runs it; this card only watches (lib/kickoff-run).
+    void startKickoff(projectId, { names: [workspaceKey, projectName], plan, source, visibility });
   }
 
   // Auto-start fires once, and only when a press would have been allowed. A
@@ -290,8 +284,8 @@ export function ProjectKickoff({
       {running && (
         <p className="flex items-center gap-2 text-xs text-text-secondary">
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
-          Working — usually a minute or two. You can open Terminal or Control meanwhile; this keeps
-          going and is here when you come back.
+          Working — usually a minute or two. It runs on Loki, not in this page: lock your phone,
+          close the tab or open Terminal — it keeps going and is here when you come back.
         </p>
       )}
 
@@ -397,7 +391,7 @@ function KickoffNextStep({
     <div className="space-y-2 border-t border-border-subtle pt-3">
       <p className="text-sm font-medium text-text-primary">
         {interrupted
-          ? "This was stopped by a page reload before it finished."
+          ? "Loki restarted before this finished (usually an update going out)."
           : "No agent was started yet."}
       </p>
       <p className="text-xs leading-relaxed text-text-secondary">

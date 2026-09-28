@@ -50,7 +50,15 @@ export async function isPrivateZoneConfigured(userId: string): Promise<boolean> 
 export async function isPrivateZoneUnlocked(userId: string): Promise<boolean> {
   // No PIN configured → no gate, always "unlocked".
   if (!(await isPrivateZoneConfigured(userId))) return true;
-  const jar = await cookies();
+  // Outside a request (a server-run kickoff continuing after its response)
+  // there is no cookie jar to read, and "no proof of unlock" is locked — the
+  // same answer as a missing cookie, never an exception that fails the caller.
+  let jar: Awaited<ReturnType<typeof cookies>>;
+  try {
+    jar = await cookies();
+  } catch {
+    return false;
+  }
   const token = jar.get(PRIVATE_ZONE_COOKIE)?.value ?? jar.get(LEGACY_PRIVATE_ZONE_COOKIE)?.value;
   if (!token) return false;
   return verifyPrivateZoneCookieValue(token, userId);
