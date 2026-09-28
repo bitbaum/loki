@@ -111,6 +111,7 @@ export function LokiWorkspace({
   const dispatchHonesty = deriveExecutorHonestyLabel({
     runnerConnected: builderPresence.runnerConnected,
     runtimeAvailable: builderPresence.runtimeAvailable,
+    presence: builderPresence.builderPresence,
   });
 
   useEffect(() => {

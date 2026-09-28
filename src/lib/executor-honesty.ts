@@ -25,6 +25,13 @@ export type ExecutorHonestyInput = {
    * third mode, and says nothing about WHICH builder it describes.
    */
   scope?: "cloud" | "machine";
+  /**
+   * Which builders are connected, for unscoped surfaces (Loki chat). A bare
+   * "Builder online" there sat beside a Terminal showing the cloud builder
+   * grey — both true, since only the laptop was up, but it read as a
+   * contradiction and left the person guessing where their work would run.
+   */
+  presence?: { cloud: boolean; local: boolean } | null;
 };
 
 /** SSOT for short honesty chips on Control / Loki / Terminal actions. */
@@ -57,7 +64,7 @@ export function deriveExecutorHonestyLabel(
           ? EXECUTOR_COPY.builder.localComputerOnline
           : input.scope === "cloud"
             ? EXECUTOR_COPY.builder.cloudOnline
-            : EXECUTOR_COPY.honesty.builderStarting,
+            : namedOnline(input.presence),
       title: EXECUTOR_COPY.queuedWithBuilderOnlineLong,
     };
   }
@@ -78,4 +85,15 @@ export function deriveExecutorHonestyLabel(
     label: EXECUTOR_COPY.honesty.queued,
     title: EXECUTOR_COPY.queuedWhenOfflineLong,
   };
+}
+
+/**
+ * Name the builder when only one is up — that is the case that read as a
+ * contradiction. Both up keeps the short generic label: nothing to reconcile,
+ * and the composer row has no room for "Cloud + this computer online".
+ */
+function namedOnline(presence: ExecutorHonestyInput["presence"]): string {
+  if (presence?.cloud && !presence.local) return EXECUTOR_COPY.builder.cloudOnline;
+  if (presence?.local && !presence.cloud) return EXECUTOR_COPY.builder.localComputerOnline;
+  return EXECUTOR_COPY.honesty.builderStarting;
 }

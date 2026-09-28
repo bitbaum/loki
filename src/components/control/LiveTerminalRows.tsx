@@ -198,7 +198,15 @@ export function LiveTerminalRows({ rows, highlightTab, closeTab, onFocusProject 
         ))}
       </div>
 
-      {peekTab && <PeekTabDrawer tab={peekTab} onClose={() => setPeekTab(null)} />}
+      {peekTab && (
+        <PeekTabDrawer
+          tab={peekTab}
+          onClose={() => setPeekTab(null)}
+          // "Not running" is the one state that positively knows there is no
+          // PTY; everything else (offline = unknown) still tries to stream.
+          agentRunning={rows.find((r) => r.tabName === peekTab)?.stateKey !== "not_running"}
+        />
+      )}
     </>
   );
 }

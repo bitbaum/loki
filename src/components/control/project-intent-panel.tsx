@@ -163,6 +163,7 @@ export function IntentButtonPanel({
   const dispatchHonesty = deriveExecutorHonestyLabel({
     runnerConnected: builderPresence.runnerConnected,
     runtimeAvailable: runtimeAvailable || builderPresence.runtimeAvailable,
+    presence: builderPresence.builderPresence,
   });
 
   const {
