@@ -1,8 +1,8 @@
 # Building in Public kit — studio SSOT
 
 **created_date:** 2026-08-20  
-**last_modified_date:** 2026-08-21  
-**last_modified_summary:** bip-kit published (npm + public GitHub); Loki consumes `bip-kit`; AOZ second consumer; local packages/bip superseded.
+**last_modified_date:** 2026-09-28  
+**last_modified_summary:** Roadmap and changelog are repository files read into the fleet map; every site renders the map. See building-in-public-records.md.
 
 ---
 
@@ -33,7 +33,7 @@ The reusable kit is **[`bip-kit`](https://github.com/bitbaum/bip-kit)** on npm �
 
 Long-form markdown uses blocks from `bip-kit` (`parseContentBlocks`): headings, lists, quotes, paragraphs, GFM tables, Mermaid fences, images, allowlisted YouTube/Vimeo embeds.
 
-Roadmap and changelog are structured data (`RoadmapDoc`, `ChangelogEntry` in the package).
+Roadmap and changelog are records: `ROADMAP.md` and `CHANGELOG.md` at the repository root, read into the fleet map (`/api/fleet/map`) and rendered on every site through `bip-kit`'s `loadDevelopmentProfile` / `DevelopmentPage` (or the site's own markup over the same data). Never a local copy in a config file. Contract and audit: [building-in-public-records.md](./building-in-public-records.md).
 
 ## Status
 
@@ -44,6 +44,8 @@ Roadmap and changelog are structured data (`RoadmapDoc`, `ChangelogEntry` in the
 | **1c** | Extract + publish `bip-kit`; FC depends on npm | Done |
 | **1d** | Second studio consumer (AOZ) on `bip-kit` | In progress |
 | **2** | Public GitHub + npm | Done — https://github.com/bitbaum/bip-kit |
+| **3** | Roadmap + changelog as repository records on every site, via the fleet map | Done 2026-09-28 (Heidi keeps deliberate bilingual local docs; evig keeps its changelog UI) |
+| **3** | Roadmap + changelog as repository records on every site, via the fleet map | Done 2026-09-28 (Heidi keeps deliberate bilingual local docs; evig keeps its changelog UI) |
 
 ## Funnel
 
@@ -52,6 +54,9 @@ Studio sites look excellent → `bip-kit` stars/PRs → hosted upgrade via Orang
 ## Related
 
 - [content-publishing-ssot.md](./content-publishing-ssot.md)
+- [building-in-public-records.md](./building-in-public-records.md) — the file contract and who complies
+- Publishing procedure (voice, frontmatter, checks, shipping): `orangecat/.claude/skills/publish-article/SKILL.md`
+- Publishing procedure (voice, frontmatter, checks, shipping): 
 - `docs/thoughts-style-guide.md`
 - npm: `bip-kit`
 - FC: `src/lib/thoughts-content.ts` (re-exports), `scripts/test/bip-seam.ts`

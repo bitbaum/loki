@@ -23,7 +23,8 @@ const FOOTER_GROUPS = [
       { label: "Download", href: "/download" },
       { label: "Sign in", href: "/sign-in" },
       { label: "Roadmap", href: "/roadmap" },
-      { label: "Changelog", href: "/releases" },
+      { label: "Changelog", href: "/changelog" },
+      { label: "Releases", href: "/releases" },
     ],
   },
   {
