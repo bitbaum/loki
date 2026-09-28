@@ -112,7 +112,7 @@ function KickoffInProgress({ run, tab }: { run: KickoffRun; tab: string }) {
   } else {
     title = "The agent has not been started";
     body = run.interrupted
-      ? "Setup was stopped by a page reload. Open the project to pick up where it left off."
+      ? "Loki restarted mid-setup. Everything done so far is saved — open the project to pick up where it left off."
       : "A setup step did not complete. The project page says which one and has Try again.";
   }
 

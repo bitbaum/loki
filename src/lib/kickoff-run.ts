@@ -1,84 +1,60 @@
 "use client";
 
 /**
- * The "Make it happen" run, held OUTSIDE the component that shows it.
+ * The page's view of a "Make it happen" run. The server does the work.
  *
- * It used to live in ProjectKickoff's useState. The run takes a minute or two
- * (two model calls, a GitHub repository, CD registration, a dispatch), and a
- * person who has just pressed the biggest button on the page naturally goes to
- * look at Terminal or Control while it works. Leaving unmounted the card: the
- * steps kept running in the background, but coming back showed a fresh "Make it
- * happen" as if nothing had been pressed, and no other page knew a run existed.
- * That is exactly the "is it doing anything?" feeling the button exists to end.
+ * History, because each step fixed the last one's blind spot:
+ *   1. The run lived in ProjectKickoff's useState — leaving the page to watch
+ *      Terminal unmounted the card and coming back showed a fresh button.
+ *   2. It moved to a module store here, which survived in-app navigation but
+ *      still DROVE the steps from the browser — and a phone suspends a tab the
+ *      moment the screen locks, stopping the setup halfway.
+ *   3. Now the server runs it (lib/kickoff/server-runs) and this module only
+ *      starts it and watches: a locked phone, a closed tab, a second device
+ *      all see the same live run, and the steps keep going regardless.
  *
- * So the run is a module-level store keyed by project. Every surface that cares
- * (the kickoff card, the Terminal's empty state) subscribes to the same object,
- * the run survives in-app navigation because nothing owns it, and its last
- * state is mirrored to sessionStorage so a reload says what happened instead of
- * forgetting. A reload DOES stop a run mid-way (the browser owns the requests);
- * that is reported as "interrupted", never silently as done.
+ * Every surface that cares (the kickoff card, the Terminal's empty state)
+ * subscribes to the same store. The last snapshot is mirrored to
+ * sessionStorage so a reload paints instantly, then the server is asked what
+ * is actually true.
  */
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { postJson } from "@/lib/api/fetch";
 import type { KickoffStepId } from "@/lib/project-kickoff";
-import type { SiteDeployment } from "@/hooks/use-site-deployment";
+import {
+  initialKickoffRun,
+  type KickoffRunState,
+  type KickoffStepRun,
+  type KickoffStepState,
+  type KickoffDispatchOutcome,
+} from "@/lib/kickoff/orchestrate";
 
-export type KickoffStepState = "pending" | "running" | "done" | "failed";
-export type KickoffStepRun = { id: KickoffStepId; state: KickoffStepState; note?: string };
-
-/** Where the agent ended up, so the card can send people to the right page. */
-export type KickoffDispatchOutcome = "running" | "queued-offline" | "not-sent" | "failed";
-
-export type KickoffRun = {
-  projectId: string;
-  /** How other surfaces name this project — Terminal only knows the tab. */
-  names: string[];
-  steps: KickoffStepRun[];
-  running: boolean;
-  finished: boolean;
-  /** The page was reloaded while this was running — the tail never ran. */
-  interrupted?: boolean;
-  startedAt: number;
-  dispatch?: KickoffDispatchOutcome;
-  deployment?: SiteDeployment;
-};
+export type KickoffRun = KickoffRunState;
+export type { KickoffStepRun, KickoffStepState, KickoffDispatchOutcome };
 
 const STORAGE_PREFIX = "loki:kickoff:";
+const POLL_MS = 1500;
 const runs = new Map<string, KickoffRun>();
 const listeners = new Set<() => void>();
-
-function storageKey(projectId: string) {
-  return `${STORAGE_PREFIX}${projectId}`;
-}
+const polling = new Set<string>();
+const checked = new Set<string>();
 
 function persist(run: KickoffRun) {
   try {
-    sessionStorage.setItem(storageKey(run.projectId), JSON.stringify(run));
+    sessionStorage.setItem(`${STORAGE_PREFIX}${run.projectId}`, JSON.stringify(run));
   } catch {
     // Private mode / quota — the in-memory run still works for this visit.
   }
 }
 
-/** A run found in storage but not in memory was cut off by a reload. */
 function restore(projectId: string): KickoffRun | null {
   try {
-    const raw = sessionStorage.getItem(storageKey(projectId));
+    const raw = sessionStorage.getItem(`${STORAGE_PREFIX}${projectId}`);
     if (!raw) return null;
     const saved = JSON.parse(raw) as KickoffRun;
     saved.names ??= [];
-    if (!saved.running) return saved;
-    return {
-      ...saved,
-      running: false,
-      finished: true,
-      interrupted: true,
-      steps: saved.steps.map((s) =>
-        s.state === "running" || s.state === "pending"
-          ? { ...s, state: "failed", note: "Stopped — the page was reloaded before this step ran." }
-          : s,
-      ),
-    };
+    return saved;
   } catch {
     return null;
   }
@@ -90,9 +66,9 @@ function set(run: KickoffRun) {
   for (const l of listeners) l();
 }
 
-function update(projectId: string, patch: (run: KickoffRun) => KickoffRun) {
-  const current = runs.get(projectId);
-  if (current) set(patch(current));
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 export function getKickoffRun(projectId: string): KickoffRun | null {
@@ -109,20 +85,104 @@ export function getKickoffRun(projectId: string): KickoffRun | null {
 export function clearKickoffRun(projectId: string) {
   runs.delete(projectId);
   try {
-    sessionStorage.removeItem(storageKey(projectId));
+    sessionStorage.removeItem(`${STORAGE_PREFIX}${projectId}`);
   } catch {
     // ignore
   }
   for (const l of listeners) l();
 }
 
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+/**
+ * The server has no record of a run this page last saw running: the server
+ * restarted mid-run (a deploy). Everything that landed is in the database;
+ * only the progress list is gone, so say that rather than spin forever.
+ */
+function markLost(run: KickoffRun): KickoffRun {
+  return {
+    ...run,
+    running: false,
+    finished: true,
+    interrupted: true,
+    steps: run.steps.map((s) =>
+      s.state === "running" || s.state === "pending"
+        ? { ...s, state: "failed", note: "Stopped — Loki restarted before this step finished." }
+        : s,
+    ),
+  };
 }
 
-/** Live view of one project's kickoff; null when none has run this session. */
+async function fetchServerRun(projectId: string): Promise<KickoffRun | null | undefined> {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/kickoff`, { cache: "no-store" });
+    if (!res.ok) return undefined;
+    const body = (await res.json()) as { run?: KickoffRun | null };
+    return body.run ?? null;
+  } catch {
+    return undefined; // offline / suspended — keep what we have and retry
+  }
+}
+
+/** Mirror the server's run until it settles. One live poller per project. */
+const generation = new Map<string, number>();
+const settledCallbacks = new Map<string, () => void>();
+
+function watch(projectId: string, onSettled?: () => void, restart = false) {
+  if (onSettled) settledCallbacks.set(projectId, onSettled);
+  if (polling.has(projectId) && !restart) return;
+  polling.add(projectId);
+  // A restart supersedes the old loop instead of running beside it.
+  const mine = (generation.get(projectId) ?? 0) + 1;
+  generation.set(projectId, mine);
+  const stop = () => {
+    polling.delete(projectId);
+    const cb = settledCallbacks.get(projectId);
+    settledCallbacks.delete(projectId);
+    cb?.();
+  };
+  const tick = async () => {
+    if (generation.get(projectId) !== mine) return;
+    const server = await fetchServerRun(projectId);
+    if (generation.get(projectId) !== mine) return;
+    const local = runs.get(projectId);
+    if (server) set({ ...server, names: [...new Set([...(local?.names ?? []), ...server.names])] });
+    else if (server === null && local?.running) set(markLost(local));
+    const now = runs.get(projectId);
+    if (!now || !now.running) return stop();
+    // A suspended tab stops timers; the visibility listener below resumes it.
+    setTimeout(() => void tick(), POLL_MS);
+  };
+  void tick();
+}
+
+if (typeof document !== "undefined") {
+  // Coming back to the tab after the phone slept: refresh at once rather than
+  // on the next timer, which the browser may have frozen.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    for (const run of runs.values()) if (run.running) watch(run.projectId, undefined, true);
+  });
+}
+
+/** Ask the server once whether this project has a run we don't know about. */
+function discover(projectId: string) {
+  if (checked.has(projectId)) return;
+  checked.add(projectId);
+  void fetchServerRun(projectId).then((server) => {
+    const local = getKickoffRun(projectId);
+    if (server) {
+      set({ ...server, names: [...new Set([...(local?.names ?? []), ...server.names])] });
+      if (server.running) watch(projectId);
+    } else if (server === null && local?.running) {
+      set(markLost(local));
+    }
+  });
+}
+
+/** Live view of one project's kickoff; null when there is none to show. */
 export function useKickoffRun(projectId: string | null): KickoffRun | null {
+  useEffect(() => {
+    if (projectId) discover(projectId);
+  }, [projectId]);
   return useSyncExternalStore(
     subscribe,
     () => (projectId ? getKickoffRun(projectId) : null),
@@ -135,24 +195,19 @@ function matchesTab(run: KickoffRun, tab: string): boolean {
   return run.names.some((n) => n.trim().toLowerCase() === want);
 }
 
-/** Restore every run this browser tab has seen, so a lookup by name works after a reload. */
-function restoreAll() {
-  try {
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (key?.startsWith(STORAGE_PREFIX)) getKickoffRun(key.slice(STORAGE_PREFIX.length));
-    }
-  } catch {
-    // ignore
-  }
-}
-
 let restoredAll = false;
 function getKickoffRunForTab(tab: string | null): KickoffRun | null {
   if (!tab || typeof window === "undefined") return null;
   if (!restoredAll) {
     restoredAll = true;
-    restoreAll();
+    try {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key?.startsWith(STORAGE_PREFIX)) getKickoffRun(key.slice(STORAGE_PREFIX.length));
+      }
+    } catch {
+      // ignore
+    }
   }
   let found: KickoffRun | null = null;
   for (const run of runs.values()) {
@@ -161,8 +216,27 @@ function getKickoffRunForTab(tab: string | null): KickoffRun | null {
   return found;
 }
 
+const checkedTabs = new Set<string>();
+function discoverTab(tab: string) {
+  const key = tab.trim().toLowerCase();
+  if (checkedTabs.has(key)) return;
+  checkedTabs.add(key);
+  void fetch(`/api/projects/kickoff?tab=${encodeURIComponent(tab)}`, { cache: "no-store" })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((body: { run?: KickoffRun | null } | null) => {
+      const server = body?.run;
+      if (!server) return;
+      set(server);
+      if (server.running) watch(server.projectId);
+    })
+    .catch(() => undefined);
+}
+
 /** The kickoff for a project named by its Terminal tab / workspace key, if any. */
 export function useKickoffRunForTab(tab: string | null): KickoffRun | null {
+  useEffect(() => {
+    if (tab) discoverTab(tab);
+  }, [tab]);
   return useSyncExternalStore(
     subscribe,
     () => getKickoffRunForTab(tab),
@@ -170,75 +244,9 @@ export function useKickoffRunForTab(tab: string | null): KickoffRun | null {
   );
 }
 
-/** Any kickoff still running — so a page can warn before a reload stops it. */
-export function anyKickoffRunning(): boolean {
-  for (const run of runs.values()) if (run.running) return true;
-  return false;
-}
-
-function mark(projectId: string, id: KickoffStepId, state: KickoffStepState, note?: string) {
-  update(projectId, (run) => ({
-    ...run,
-    steps: run.steps.map((s) => (s.id === id ? { ...s, state, note } : s)),
-  }));
-}
-
-/** POST a step's route; returns its JSON body, or null with the step marked failed. */
-async function step(
-  projectId: string,
-  id: KickoffStepId,
-  path: string,
-  body: Record<string, unknown>,
-): Promise<Record<string, unknown> | null> {
-  mark(projectId, id, "running");
-  try {
-    const res = await postJson(`/api/projects/${projectId}/${path}`, body);
-    const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok || !json.ok) {
-      mark(
-        projectId,
-        id,
-        "failed",
-        typeof json.error === "string" ? json.error : `HTTP ${res.status}`,
-      );
-      return null;
-    }
-    return json;
-  } catch {
-    mark(projectId, id, "failed", "Network error — check your connection and try again.");
-    return null;
-  }
-}
-
-type CdResponse = SiteDeployment & {
-  ok?: boolean;
-  predictedLiveUrl?: string;
-  error?: string;
-};
-
-async function registerCd(projectId: string, repoName: string, template: string | undefined) {
-  try {
-    const cdRes = await postJson(`/api/projects/${projectId}/register-cd`, {
-      template:
-        template === "bare" || template === "nextjs-tailwind" ? template : "nextjs-tailwind",
-    });
-    const cd = (await cdRes.json()) as CdResponse;
-    if (!cdRes.ok || !cd.ok) return cd.error ? `${repoName} · site deploy: ${cd.error}` : repoName;
-    update(projectId, (run) => ({ ...run, deployment: cd }));
-    if (cd.registered && cd.liveUrl) return `${repoName} · live ${cd.liveUrl}`;
-    const why = cd.reason?.trim();
-    const cmd = cd.command?.trim();
-    if (why || cmd) return `${repoName} · ${why && cmd ? `${why} — ${cmd}` : why || cmd}`;
-    if (cd.predictedLiveUrl) return `${repoName} · site will be ${cd.predictedLiveUrl}`;
-    return repoName;
-  } catch {
-    return `${repoName} · site deploy skipped (network)`;
-  }
-}
-
 /**
- * Run the plan. Resolves when every step has landed or failed; the store is
- * the result, so callers only need `onSettled` to refresh server data.
+ * Ask the server to run the plan, then watch it. Resolves once the request is
+ * accepted — the steps run on the server whether or not this page stays open.
  */
 export async function startKickoff(
   projectId: string,
@@ -251,104 +259,37 @@ export async function startKickoff(
   },
 ): Promise<void> {
   if (runs.get(projectId)?.running) return;
-  const { plan, source, visibility } = opts;
-  set({
-    projectId,
-    names: opts.names.filter(Boolean),
-    steps: plan.map((id) => ({ id, state: "pending" })),
-    running: true,
-    finished: false,
-    startedAt: Date.now(),
-  });
-
-  const finish = (dispatch?: KickoffDispatchOutcome) => {
-    update(projectId, (run) => ({ ...run, running: false, finished: true, dispatch }));
-    opts.onSettled?.();
-  };
-
-  // Profile and milestones read the same text and don't depend on each other.
-  // Run them together — serialising two model calls is waiting for nothing.
-  await Promise.all(
-    plan
-      .filter((id) => id === "profile" || id === "milestones")
-      .map(async (id) => {
-        const json = await step(projectId, id, id === "profile" ? "brief" : "roadmap", {
-          text: source,
-        });
-        if (!json) return;
-        if (id === "profile") {
-          const count = Object.keys((json.applied as object) ?? {}).length;
-          mark(projectId, id, "done", `${count} field${count === 1 ? "" : "s"} filled`);
-        } else {
-          const created = (json.created as string[]) ?? [];
-          mark(
-            projectId,
-            id,
-            "done",
-            `${created.length} milestone${created.length === 1 ? "" : "s"}`,
-          );
-        }
-      }),
-  );
-
-  // Repo second: "auto" resolves the starter from the stack the profile step
-  // just wrote, so this only picks well once that has landed.
-  if (plan.includes("repo")) {
-    const json = await step(projectId, "repo", "provision", { template: "auto", visibility });
-    if (!json) {
-      // No repository — do not dispatch. An agent with nowhere to write code is
-      // worse than a paused kickoff; Try again resumes from here.
-      mark(projectId, "dispatch", "failed", "Not started — the repository step has to land first.");
-      return finish("not-sent");
-    }
-    if (json.templateSeeded === false) {
-      // The repo exists but is bare: nothing to deploy, nothing to build on.
-      // Try again re-seeds the same repo (provision detects the bare repo).
-      mark(
-        projectId,
-        "repo",
-        "failed",
-        "Repository created, but the starter files were not written. Try again to add them.",
-      );
-      mark(projectId, "dispatch", "failed", "Not started — waiting on the starter files.");
-      return finish("not-sent");
-    }
-    const repo = json.repo as { full_name?: string } | undefined;
-    const template = typeof json.template === "string" ? json.template : undefined;
-    // Same flow, next beat: wire Hetzner CD (or return the one box command).
-    mark(projectId, "repo", "running", "Repository created — connecting the site deploy…");
-    const note = await registerCd(projectId, repo?.full_name ?? "Repository created", template);
-    mark(projectId, "repo", "done", note);
+  const { names, plan, source, visibility } = opts;
+  // Paint the steps at once; the server's snapshot replaces this in ~a second.
+  set(initialKickoffRun({ projectId, names, plan, source, visibility }));
+  try {
+    const res = await postJson(`/api/projects/${projectId}/kickoff`, {
+      plan,
+      source,
+      visibility,
+      names,
+    });
+    const body = (await res.json().catch(() => ({}))) as { run?: KickoffRun; error?: string };
+    if (!res.ok || !body.run) throw new Error(body.error ?? `HTTP ${res.status}`);
+    set({ ...body.run, names: [...new Set([...names, ...body.run.names])] });
+    watch(projectId, opts.onSettled);
+  } catch (e) {
+    const current = runs.get(projectId);
+    if (!current) return;
+    const reason = e instanceof Error && !/fetch|network/i.test(e.message) ? e.message : null;
+    set({
+      ...current,
+      running: false,
+      finished: true,
+      steps: current.steps.map((s, i) =>
+        i === 0
+          ? {
+              ...s,
+              state: "failed",
+              note: reason ?? "Couldn't reach Loki — check your connection and try again.",
+            }
+          : s,
+      ),
+    });
   }
-
-  // Dispatch last. The prompt is composed server-side from whatever landed —
-  // including the brief, which the profile step saves even when the model fails.
-  const dispatched = await step(projectId, "dispatch", "dispatch", { kind: "kickoff" });
-  if (!dispatched) return finish("failed");
-
-  // `ok: true` is not the same as "an agent is working". injectPrompt answers
-  // ok when it REFUSED because the user was mid-keystroke in the target tab,
-  // and when it queued a command with no builder connected to collect it.
-  if (dispatched.blocked) {
-    mark(projectId, "dispatch", "failed", "Not sent — you were typing in that session. Try again.");
-    return finish("not-sent");
-  }
-  if (dispatched.warning === "runner-offline") {
-    mark(
-      projectId,
-      "dispatch",
-      "done",
-      "Queued — no builder is online yet, so the agent starts the moment one connects.",
-    );
-    return finish("queued-offline");
-  }
-  mark(
-    projectId,
-    "dispatch",
-    "done",
-    dispatched.mode === "direct"
-      ? "Agent is working now."
-      : "Sent to the builder — the session opens in Terminal within a minute.",
-  );
-  finish("running");
 }

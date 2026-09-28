@@ -58,13 +58,35 @@ for (const file of [
   );
   assert(/<CharCount\b/.test(src), `${file} must show how much of the limit is used`);
 }
-for (const route of ["brief", "roadmap", "reconcile"]) {
+// brief and roadmap moved their bodies to lib/kickoff/steps (the server-run
+// kickoff calls the same code), so the schema is checked where it now lives and
+// the route is checked for using it.
+const steps = readFileSync(join(root, "src/lib/kickoff/steps.ts"), "utf8");
+for (const [route, schema] of [
+  ["brief", "BriefBody"],
+  ["roadmap", "RoadmapBody"],
+] as const) {
   const src = readFileSync(join(root, `src/app/api/projects/[id]/${route}/route.ts`), "utf8");
   assert(
-    /pastedText\(/.test(src),
-    `the ${route} route validates with the shared pastedText schema`,
+    new RegExp(`${schema} = z\\.object\\(\\{\\s*text: pastedText\\(`).test(steps),
+    `the ${route} schema validates with the shared pastedText schema`,
+  );
+  assert(
+    new RegExp(`readJsonBody\\(req, ${schema}\\)`).test(src),
+    `the ${route} route uses ${schema}`,
   );
 }
+{
+  const src = readFileSync(join(root, "src/app/api/projects/[id]/reconcile/route.ts"), "utf8");
+  assert(
+    /pastedText\(/.test(src),
+    "the reconcile route validates with the shared pastedText schema",
+  );
+}
+// The kickoff route carries the brief to the server run; it must not cut it
+// shorter than the steps it feeds would accept.
+const kickoffRoute = readFileSync(join(root, "src/app/api/projects/[id]/kickoff/route.ts"), "utf8");
+assert(/DOC_PASTE_MAX/.test(kickoffRoute), "the kickoff route caps the brief at DOC_PASTE_MAX");
 // reconcile parses by hand, and it was the one answering every failure with a
 // fixed "at least a sentence". It must pass the schema's own message through.
 const reconcile = readFileSync(join(root, "src/app/api/projects/[id]/reconcile/route.ts"), "utf8");
