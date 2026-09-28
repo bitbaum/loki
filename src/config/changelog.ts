@@ -29,6 +29,18 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.36",
+    tag: "fleet-runner-v0.8.36",
+    date: "2026-09-28T00:00:00Z",
+    highlights: [
+      "A Claude that is working is no longer reported as having produced no response when the project folder is reached through a symlink or written with a trailing slash.",
+      "A freshly launched Claude has any opening dialog closed before the prompt goes in, so the prompt reaches the agent instead of answering the dialog.",
+      "When a dispatch fails for no known reason, the error now quotes the last lines the agent's screen showed.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.35",
     tag: "fleet-runner-v0.8.35",
     date: "2026-09-26T00:00:00Z",
