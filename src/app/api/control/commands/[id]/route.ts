@@ -9,6 +9,7 @@ import {
 import { emitRunEvent } from "@/db/queries/run-events";
 import { getApiUserId } from "@/lib/session";
 import { deriveDispatchLiveStatus, type CommandLiveInput } from "@/lib/dispatch-status";
+import { autoReimplementAfterRunnerNack } from "@/lib/feedback/auto-reimplement";
 
 // GET /api/control/commands/:id — live dispatch status the transcript footer
 // polls so a dispatch shows queued → picked up → ran/failed instead of a frozen
@@ -90,6 +91,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // The prompt never landed — the run can't produce a handoff. Close it
         // now so it doesn't head-of-line block the project's queued dispatches.
         await closeRunUndelivered(runId, userId, error ?? "runner error").catch(() => {});
+        // A feedback run refused at its last step (usage limit, no
+        // generation) gets the second attempt a person would have made —
+        // routed around the spent provider. Once; never for a failure that
+        // needs a person (auth, missing workspace).
+        const run = await getOrchestrationRunById(userId, runId).catch(() => null);
+        void autoReimplementAfterRunnerNack(userId, runId, error, run?.payload ?? null);
       } else {
         // verified:true = post-prompt generation confirmed → generating hop.
         // verified:false / warning = inject-no-generate → blocked (Needs you).

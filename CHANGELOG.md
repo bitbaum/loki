@@ -9,6 +9,13 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 ## 2026-09-28
 
 ### Added
+- **A refused feedback run retries itself.** When the runner refuses a
+  feedback run at its last step — the agent answered with a usage-limit wall,
+  or opened and never started generating — Loki makes the second attempt a
+  person would have made, routed around the spent provider, once. The row
+  says "Retried automatically" while the second run moves. Failures that need
+  a person (dead credentials, a workspace missing on the builder) still stop
+  and say so.
 - **Watch the fix.** A shipped feedback item's button opens the live page and
   walks you through the change: a cursor moves to each part, a caption says
   why it is there, and links that stay on the page are really clicked. A step
