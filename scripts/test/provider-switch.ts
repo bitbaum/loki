@@ -126,6 +126,35 @@ check("a provider observed out of quota is excluded, and says so", () => {
   assert.equal(nextProvider(options)?.id, "grok");
 });
 
+check("an agent that opened and never answered is routed around, like a spent one", () => {
+  // Petvity, 2026-09-28: Claude took the prompt and stayed silent, and Loki's
+  // automatic retry went straight back to Claude and failed the same way.
+  const now = Date.parse("2026-09-28T19:30:00Z");
+  const spent = spentProviders(
+    [
+      {
+        adapter: "claude",
+        error:
+          "Dispatch failed before the prompt reached the agent: launched claude (pty) + injected, but Loki could not verify generation. claude opened on this computer, but produced no response after Loki submitted the prompt.",
+        startedAt: new Date(now - 60_000),
+      },
+    ],
+    now,
+  );
+  assert.match(spent.claude ?? "", /opened but never answered/);
+  const options = rankProviders({ current: "claude", order: ["claude", "codex"], spent });
+  const out = routeAroundSpent({ preferred: "claude", spent, options });
+  assert.equal(out.agent, "codex");
+  assert.ok(out.rerouted, "the retry must say it moved");
+});
+
+check("a run that failed for another reason does not remove its provider", () => {
+  const spent = spentProviders([
+    { adapter: "codex", error: "build failed: tests red", startedAt: new Date() },
+  ]);
+  assert.equal(spent.codex, undefined);
+});
+
 check("usable providers sort ahead of the ones that cannot answer", () => {
   const options = rankProviders({ current: "claude", installed: ["grok"] });
   const firstUnusable = options.findIndex((o) => !o.usable);

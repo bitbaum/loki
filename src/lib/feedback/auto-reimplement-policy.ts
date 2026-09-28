@@ -1,4 +1,4 @@
-import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
+import { looksLikeAgentCapacityIssue, looksLikeAgentNoAnswer } from "@/lib/agent-resolution";
 
 /**
  * The pure half of feedback/auto-reimplement.ts: which runner refusals earn
@@ -13,8 +13,6 @@ const PROTOCOL_RE =
   /payload missing|payload field|does not handle command type|must be (?:a string|an object)/i;
 const WORKSPACE_RE =
   /not materializable|does not exist (?:here|on this machine)|no cloneable|nothing was launched here/i;
-const NO_GENERATION_RE =
-  /could not verify generation|produced no response|waiting for workspace trust|inject did not stick|never started generating/i;
 
 export type AutoReimplementDecision =
   | { retry: true; because: string }
@@ -38,8 +36,15 @@ export function decideAutoReimplement(
   if (looksLikeAgentCapacityIssue(text)) {
     return { retry: true, because: "the agent hit its usage limit" };
   }
-  if (NO_GENERATION_RE.test(text)) {
-    return { retry: true, because: "the agent opened but never started generating" };
+  if (looksLikeAgentNoAnswer(text)) {
+    // The retry goes through implementFeedback → routeAroundSpent, which now
+    // counts this as the provider being unable to answer — so the second
+    // attempt runs on the next provider in the operator's order, not on the
+    // agent that just stayed silent.
+    return {
+      retry: true,
+      because: "the agent opened but never answered, so it runs on the next provider",
+    };
   }
   if (PROTOCOL_RE.test(text)) return { retry: false, reason: "not-retryable" };
   // Anything else the runner refused with is worth exactly one more attempt on

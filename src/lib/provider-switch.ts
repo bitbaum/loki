@@ -50,7 +50,11 @@ import {
   providerLabel,
   type QuotaAlternativeId,
 } from "@/config/quota-alternatives";
-import { AGENT_FALLBACK_ORDER, looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
+import {
+  AGENT_FALLBACK_ORDER,
+  looksLikeAgentCapacityIssue,
+  looksLikeAgentNoAnswer,
+} from "@/lib/agent-resolution";
 import { timeAgo } from "@/lib/dates";
 
 /** How long a capacity wall keeps a provider out of the chooser. */
@@ -103,7 +107,9 @@ export function describeProviderEvidence(
 
 export const PROVIDER_BLOCK_NOTE: Record<ProviderBlock, string> = {
   "not-installed": "not installed",
-  spent: "out of quota",
+  // Covers both kinds of evidence spentProviders reads: a named limit, and an
+  // agent that opened and never answered. The row's own reason says which.
+  spent: "not answering",
 };
 
 export type ProviderOption = {
@@ -282,11 +288,15 @@ export type ProviderRunEvidence = {
 };
 
 /**
- * Providers with a capacity wall inside the window, and the moment they hit it.
+ * Providers that could not answer inside the window, and when.
  *
- * Reads runs we already record. A run that failed for any OTHER reason is not
- * evidence about quota and must not remove a provider from the chooser —
- * "Codex crashed on a bad path once" is not "Codex has no quota".
+ * Reads runs we already record. Two kinds of failure count: a capacity wall,
+ * and an agent that opened, took the prompt and never produced a word — the
+ * second names no limit but is the same evidence that this agent cannot
+ * answer right now, and ignoring it sent Loki's automatic retry straight back
+ * to the silent agent (Petvity, 2026-09-28, twice in a row). A run that failed
+ * for any OTHER reason is not evidence about the provider and must not remove
+ * it — "Codex crashed on a bad path once" is not "Codex cannot answer".
  */
 export function spentProviders(
   runs: readonly ProviderRunEvidence[],
@@ -298,11 +308,15 @@ export function spentProviders(
     if (!isQuotaAlternativeId(run.adapter)) continue;
     if (out[run.adapter]) continue;
     const error = run.error?.trim();
-    if (!error || !looksLikeAgentCapacityIssue(error)) continue;
+    if (!error) continue;
+    const capacity = looksLikeAgentCapacityIssue(error);
+    if (!capacity && !looksLikeAgentNoAnswer(error)) continue;
     const at = run.startedAt instanceof Date ? run.startedAt.getTime() : Date.parse(run.startedAt);
     if (!Number.isFinite(at) || nowMs - at > windowMs) continue;
-    out[run.adapter] =
-      `${providerLabel(run.adapter)} hit a limit ${minutesAgo(nowMs - at)} — it may still be spent.`;
+    const ago = minutesAgo(nowMs - at);
+    out[run.adapter] = capacity
+      ? `${providerLabel(run.adapter)} hit a limit ${ago} — it may still be spent.`
+      : `${providerLabel(run.adapter)} opened but never answered ${ago} — it may still be stuck.`;
   }
   return out;
 }

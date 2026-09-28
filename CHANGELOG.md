@@ -51,6 +51,12 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   page, or the whole site. Every suggestion has a "Request this" button (#950).
 
 ### Fixed
+- **A silent agent is routed around, not retried into.** When an agent opened,
+  took the prompt and never answered, Loki's automatic retry went straight back
+  to the same agent and failed the same way (Petvity, twice in a row). That
+  silence now counts as the provider being unable to answer, so the retry runs
+  on the next provider in your order, and the row says "The agent opened but
+  never answered" instead of telling you to check that the builder is online.
 - **The Feedback inbox is one surface again, and a project link by id works.**
   Landing from "Implement" on `/feedback?project=<id>` printed "Nothing
   waiting on you for 5936f8fb-…" — the page filtered by project name and

@@ -30,6 +30,21 @@ export function looksLikeAgentCapacityIssue(text: string): boolean {
   return CAPACITY_ISSUE_RE.test(text);
 }
 
+/**
+ * The agent CLI opened and took the prompt, then never produced a word — the
+ * runner's "could not verify generation" / "produced no response" refusal.
+ * No limit was named, but the evidence is the same kind: this agent cannot
+ * answer right now (a silent quota wall, a login or trust screen, a wedged
+ * CLI). Petvity, 2026-09-28: Claude did this on the first attempt AND on
+ * Loki's own retry, because the retry went straight back to Claude.
+ */
+const NO_ANSWER_RE =
+  /could not verify generation|produced no response|never started generating|inject did not stick|waiting for workspace trust/i;
+
+export function looksLikeAgentNoAnswer(text: string): boolean {
+  return NO_ANSWER_RE.test(text);
+}
+
 /** Ordered list of agent IDs we believe are active for this project. */
 export function resolveDetectedAgentIds(project: ProjectState, liveTab?: string): string[] {
   const tab = liveTab ?? project.liveTab ?? project.tab;

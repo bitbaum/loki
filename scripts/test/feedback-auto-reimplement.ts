@@ -24,7 +24,7 @@ assert.deepEqual(decideAutoReimplement(CAPACITY, null), {
 });
 assert.deepEqual(decideAutoReimplement(NO_GEN, {}), {
   retry: true,
-  because: "the agent opened but never started generating",
+  because: "the agent opened but never answered, so it runs on the next provider",
 });
 assert.equal(decideAutoReimplement(AUTH, null).retry, false, "dead credentials need a person");
 assert.equal((decideAutoReimplement(AUTH, null) as { reason: string }).reason, "needs-auth");
