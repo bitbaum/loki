@@ -40,13 +40,19 @@ import { createAttachments } from "./attachments";
 import { createChat } from "./chat";
 import { createAdvise } from "./advise";
 import {
+  createModeTabs,
+  createScopeChips,
+  ownerSuccessView,
+  showHideToast,
+  visitorSuccessView,
+  type Scope,
+} from "./panel-views";
+import {
   initialWidgetSurfaceMode,
   parseWidgetSurfaceModes,
   WIDGET_SURFACE_MODE_META,
   type WidgetSurfaceMode,
 } from "./surface-modes";
-
-type Scope = "element" | "page" | "site";
 
 const MAX_LEN = 2000;
 const MAX_ELEMENTS = 10;
@@ -169,9 +175,7 @@ interface LokiApi {
       if (liveAsk) liveAsk(question);
       else pendingAsk = question;
     },
-    show() {
-      unhide();
-    },
+    show: unhide,
   };
   (window as unknown as { Loki?: LokiApi }).Loki = api;
   // Arriving from the owner link: open straight to the note, so "look at my
@@ -249,21 +253,7 @@ interface LokiApi {
       writeVisitorPlacement(token, { hidden: true });
       fab.style.display = "none";
       toast?.remove();
-      toast = h("div", "toast");
-      toast.setAttribute("role", "status");
-      const undo = h("button", "toast-undo", "Undo");
-      undo.addEventListener("click", () => api.show());
-      toast.append(
-        h(
-          "span",
-          undefined,
-          "Loki is hidden on this site. Add #loki to the address to bring it back.",
-        ),
-        undo,
-      );
-      root.appendChild(toast);
-      const shown = toast;
-      window.setTimeout(() => shown.remove(), 10_000);
+      toast = showHideToast(root, () => api.show());
     }
     liveShow = () => {
       toast?.remove();
@@ -308,25 +298,20 @@ interface LokiApi {
     /** The scope chips sit above both Report and Ask: "about what?" is one question. */
     const scopeBox = h("div", "scope");
     const title = h("b");
-    const modesRow = h("div", "modes");
-    modesRow.setAttribute("role", "tablist");
-    modesRow.setAttribute("aria-label", "Loki modes");
-    const modeHint = h("div", "mode-hint");
-    const modeBtns = new Map<WidgetSurfaceMode, HTMLButtonElement>();
+    const tabs = createModeTabs(enabledModes, WIDGET_SURFACE_MODE_META, (m) => {
+      surfaceMode = m;
+      syncModes();
+      focusMode();
+    });
     function syncModes() {
-      for (const [m, btn] of modeBtns) {
-        const meta = WIDGET_SURFACE_MODE_META[m];
-        btn.classList.toggle("on", m === surfaceMode);
-        btn.setAttribute("aria-selected", m === surfaceMode ? "true" : "false");
-        btn.disabled = !meta.shipped;
-        btn.title = meta.hint;
-      }
       // The owner is not filing a report for someone else to triage: what they
       // say here is built and shipped, and the hint says exactly that.
-      modeHint.textContent =
+      tabs.sync(
+        surfaceMode,
         ownerPass && surfaceMode === "report"
           ? "Your site: what you say here gets built and goes live."
-          : WIDGET_SURFACE_MODE_META[surfaceMode].hint;
+          : WIDGET_SURFACE_MODE_META[surfaceMode].hint,
+      );
       const chatting = surfaceMode === "chat" && chat !== null;
       const asking = surfaceMode === "ask" && advise !== null;
       title.textContent = chatting
@@ -342,48 +327,19 @@ interface LokiApi {
       // and each bubble names its speaker. Report stays Loki's.
       brandName.textContent = chatting ? "Chat" : "Loki";
     }
-    for (const m of enabledModes) {
-      const meta = WIDGET_SURFACE_MODE_META[m];
-      const btn = h("button", "mode", meta.label);
-      btn.setAttribute("role", "tab");
-      btn.addEventListener("click", () => {
-        if (!WIDGET_SURFACE_MODE_META[m].shipped) return;
-        surfaceMode = m;
-        syncModes();
-        focusMode();
-      });
-      modeBtns.set(m, btn);
-      modesRow.appendChild(btn);
-    }
-    hdrText.appendChild(modesRow);
-    hdrText.appendChild(modeHint);
-    hdrText.appendChild(title);
     const hdrPage = h("div", "page");
-    hdrText.appendChild(hdrPage);
+    hdrText.append(tabs.row, tabs.hint, title, hdrPage);
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
     hdr.append(hdrText, closeBtn);
 
-    const chips = h("div", "chips");
-    const chipDefs: Array<{ key: Scope; label: string }> = [
-      { key: "element", label: "An element" },
-      { key: "page", label: "This page" },
-      { key: "site", label: "Whole site" },
-    ];
-    const chipEls = new Map<Scope, HTMLButtonElement>();
-    for (const def of chipDefs) {
-      const chip = h("button", "chip", def.label);
-      chip.addEventListener("click", () => {
-        scope = def.key;
-        if (def.key === "element") picker.start();
-        syncChips();
-        advise?.refresh();
-      });
-      chipEls.set(def.key, chip);
-      chips.appendChild(chip);
-    }
-    const hint = h("div", "hint");
+    const scopeChips = createScopeChips((picked) => {
+      scope = picked;
+      if (picked === "element") picker.start();
+      syncChips();
+      advise?.refresh();
+    });
 
     const textarea = h("textarea");
     textarea.maxLength = MAX_LEN;
@@ -391,6 +347,11 @@ interface LokiApi {
       ? "Say or type what to change. It gets built."
       : "What should be improved?";
     const cnt = h("div", "cnt", `0/${MAX_LEN}`);
+    /** The counter and the Send button both follow the text. */
+    function syncCount() {
+      cnt.textContent = `${textarea.value.length}/${MAX_LEN}`;
+      sendBtn.disabled = !textarea.value.trim();
+    }
 
     // Diagnostics travel with the submission but stay OUT of the textarea: the
     // visitor should see a clean sentence they can edit, not a wall of context
@@ -404,10 +365,7 @@ interface LokiApi {
       diagNote.title = text;
     }
     syncDiagnostics();
-    textarea.addEventListener("input", () => {
-      cnt.textContent = `${textarea.value.length}/${MAX_LEN}`;
-      sendBtn.disabled = !textarea.value.trim();
-    });
+    textarea.addEventListener("input", syncCount);
 
     const contact = h("input");
     contact.type = "text";
@@ -449,8 +407,7 @@ interface LokiApi {
       maxMs: VOICE_MAX_MS,
       onTranscript: (text) => {
         textarea.value = mergeTranscript(textarea.value, text, MAX_LEN);
-        cnt.textContent = `${textarea.value.length}/${MAX_LEN}`;
-        sendBtn.disabled = !textarea.value.trim();
+        syncCount();
         textarea.focus();
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
       },
@@ -500,7 +457,7 @@ interface LokiApi {
     const hideLink = h("button", "hide-link", "Hide this button on this site");
     hideLink.addEventListener("click", hideForVisitor);
 
-    scopeBox.append(chips, hint);
+    scopeBox.append(scopeChips.chips, scopeChips.hint);
     reportView.append(
       textarea,
       cnt,
@@ -536,8 +493,7 @@ interface LokiApi {
       syncModes();
       const current = textarea.value.trim();
       textarea.value = (current ? `${current}\n${text}` : text).slice(0, MAX_LEN);
-      cnt.textContent = `${textarea.value.length}/${MAX_LEN}`;
-      sendBtn.disabled = !textarea.value.trim();
+      syncCount();
       textarea.focus();
       textarea.setSelectionRange(textarea.value.length, textarea.value.length);
     }
@@ -561,15 +517,7 @@ interface LokiApi {
 
     // ---- behaviors ----
     function syncChips() {
-      const selectedCount = picker.selected().length;
-      for (const [key, chip] of chipEls) chip.classList.toggle("on", key === scope);
-      hint.textContent =
-        scope === "element"
-          ? selectedCount
-            ? `${selectedCount} element${selectedCount > 1 ? "s" : ""} selected`
-            : "Pick the element the feedback is about"
-          : "";
-      hint.style.display = hint.textContent ? "block" : "none";
+      scopeChips.sync(scope, picker.selected().length);
     }
 
     function openPanel() {
@@ -708,48 +656,19 @@ interface LokiApi {
       sendBtn.textContent = "Send";
     }
 
-    /** The owner's note: say what happens now, then let them say the next one. */
     function showOwnerSuccess(building: boolean, note: string | null) {
       panel.textContent = "";
-      const ok = h("div", "ok");
-      ok.append(
-        h("div", "tick", building ? "✓" : "!"),
-        h("p", undefined, building ? "On it. An agent is building this now." : "Saved."),
-        h(
-          "div",
-          "sub",
-          building
-            ? "It goes live on this site by itself. Loki tells you when it is."
-            : (note ?? "It waits in Loki under Feedback."),
-        ),
+      panel.appendChild(
+        ownerSuccessView(building, note, () => {
+          resetForm();
+          textarea.focus();
+        }),
       );
-      const more = h("button", "track", "Say something else") as HTMLButtonElement;
-      more.type = "button";
-      more.addEventListener("click", () => {
-        resetForm();
-        textarea.focus();
-      });
-      ok.append(more);
-      panel.appendChild(ok);
     }
 
     function showSuccess(claimUrl: string | null) {
       panel.textContent = "";
-      const ok = h("div", "ok");
-      const tick = h("div", "tick", "✓");
-      ok.append(
-        tick,
-        h("p", undefined, "Sent. Thank you."),
-        h("div", "sub", "Track what happens next in Loki."),
-      );
-      if (claimUrl) {
-        const track = h("a", "track", "Track this feedback →") as HTMLAnchorElement;
-        track.href = claimUrl;
-        track.target = "_blank";
-        track.rel = "noopener noreferrer";
-        ok.append(track);
-      }
-      panel.appendChild(ok);
+      panel.appendChild(visitorSuccessView(claimUrl));
       setTimeout(() => {
         // Keep the success view open while the tracking invitation is visible.
         // A visitor should never have to race a disappearing confirmation.
@@ -773,8 +692,7 @@ interface LokiApi {
       syncDiagnostics();
       if (input.message) {
         textarea.value = input.message.slice(0, MAX_LEN);
-        cnt.textContent = `${textarea.value.length}/${MAX_LEN}`;
-        sendBtn.disabled = !textarea.value.trim();
+        syncCount();
         // Caret at the end: the visitor adds detail, never clears boilerplate.
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
       }
