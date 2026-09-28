@@ -2,7 +2,131 @@
 
 Notable, user-facing changes. Older history lives in the git log (conventional commits).
 
-**Last modified:** 2026-08-14 - the terminal can finally say which agent is in which tab, and Fleet Runner 0.8.12 carries it to your own machine.
+This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
+`/changelog` renders it, and every fleet site does the same with its own
+CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
+
+## 2026-09-28
+
+### Added
+- **A refused feedback run retries itself.** When the runner refuses a
+  feedback run at its last step — the agent answered with a usage-limit wall,
+  or opened and never started generating — Loki makes the second attempt a
+  person would have made, routed around the spent provider, once. The row
+  says "Retried automatically" while the second run moves. Failures that need
+  a person (dead credentials, a workspace missing on the builder) still stop
+  and say so.
+- **Watch the fix.** A shipped feedback item's button opens the live page and
+  walks you through the change: a cursor moves to each part, a caption says
+  why it is there, and links that stay on the page are really clicked. A step
+  the walkthrough cannot show says so on screen and is filed back as a report
+  on the project, so a fix that is not really live comes back into the loop
+  (#951).
+- **Roadmap and changelog come from the repository.** `ROADMAP.md` and
+  `CHANGELOG.md` at a project's root are read into the fleet map, and every
+  fleet site's `/roadmap` and `/changelog` render that record. Audited the
+  same day: the map's roadmaps were mostly one machine-seeded placeholder per
+  project with no steps done, its changelogs were run notes, four sites kept
+  local copies instead, and two had no pages at all.
+- **Ask Loki for a second opinion** in the widget: "is this right, should it
+  change, how would you make the site better?" — about a picked element, the
+  page, or the whole site. Every suggestion has a "Request this" button (#950).
+
+### Fixed
+- **A green "Live" chip no longer opens the website.** It read as "watch it
+  live" and landed on a homepage with no idea where to look. The chip is now a
+  status ("Shipped · confirm") and the button beside it is the walkthrough
+  (#951).
+- **Failed runs say why.** Instead of the word "Retry" printed above a Retry
+  button, a failed row gives one plain sentence from the run's error: out of
+  quota, could not open the repository, ran too long, no session, crashed
+  (#951).
+- **Hiding the widget is visible and reversible.** The choice is offered in the
+  panel, says how to undo it, and `#loki`, `Loki.show()` and the host's own
+  Report control all bring it back (#950).
+
+## 2026-09-26
+
+### Added
+- **Say what to change on your own site, and it gets built.** Loki's "Open
+  your site" link carries an owner pass; a note left through the widget on
+  your own site starts the fix instead of waiting in the inbox (#937).
+- **Every site deploy looks at the page on a phone before and after,** and
+  rolls back if it got worse (#943).
+
+### Fixed
+- **New sites skip ports something already listens on;** a private site's
+  deploy is actually gated on its CI instead of passing open (#946, #948).
+- **Quiet runs stop claiming "working".** A run shows Working only with
+  evidence of a live agent producing output (#935).
+- **A Claude dialog no longer holds runner updates;** repeating an owner note
+  retries it (#939).
+- **Header controls are 44px at every pointer** on the public pages (#934).
+
+## 2026-09-25
+
+### Added
+- **Power Loki with your own model:** paste a key in Settings and Loki uses your
+  best model for its own chat (#921).
+- **Implement starts in its own lane** instead of waiting behind the project's
+  open run, and it no longer walks into an agent Loki just watched run out of
+  quota (#900, #909).
+- **A project's story leads:** Loki asks why the project exists, and a pasted
+  document is never cut (#906).
+- **The composer is one component** across chat, terminal and Control (#899).
+
+### Fixed
+- **A deploy never kills a working agent:** the drain waits up to six hours,
+  then leaves the old code running (#902). One OOM-killed child no longer
+  stops the runner and every agent in it (#908). A runner restart closes the
+  runs its sessions were serving (#917).
+- **The widget launcher finds a free slot on every host page** and never sits
+  on the page's own controls (#918, #882).
+- **The project header says what the project is,** with truthful cloud
+  presence and one door to take it public (#912, #915).
+- **A deploy-failed fix heals** once a later deploy of main ships it (#932).
+
+## 2026-09-24
+
+### Added
+- **Chat mode in the widget:** a chat the Cat and Loki both live in, on any
+  site that opts in (#879).
+- **Invite anyone into a project by email,** account or not (#872).
+- **Signed actor-status read for Cat** on OrangeCat (#886).
+
+### Fixed
+- **Terminal panes follow the grid,** with an expandable full-width pane and one
+  composer (#887).
+- **Public pages show who is signed in** and let them sign out (#870).
+
+## 2026-09-22
+
+### Added
+- **The front door says what needs you.** Today leads with the one thing
+  waiting on a person, and "needs you" means the same thing everywhere (#855,
+  #863).
+- **Project flags:** raise, edit and clear a flag; flags say how old they are
+  and expire (#833, #847).
+- **Repository moves are noticed and fixed without asking** (#860).
+- **Stage is a real vocabulary,** and "active" stops meaning "a row exists"
+  (#843).
+
+### Fixed
+- **A project page leads with what is wrong,** not with what the machine is
+  doing; the health panel is readable and shows the problem it was opened for
+  (#836, #837, #861).
+- **The OrangeCat link said "Connected" when only a row existed;** it now says
+  whether the link works and offers a way back (#841, #842).
+- **The account page said things that were not true** (#850, #853).
+- **The backfill starved every project past the first few** (#854, #856).
+
+## 2026-08-15 to 2026-09-21
+
+Ninety-odd merges. The ones a person would have noticed: the feedback widget
+grew a fix ledger that follows a pull request to merge and deploy; hosted
+(Hermes) runs became a per-project "Runs on" choice; project dossiers gained
+shareable public links; and the public pages moved onto the shared design
+tokens. Each is in the git log under its own PR.
 
 ## 2026-08-14
 

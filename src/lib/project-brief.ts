@@ -9,7 +9,7 @@ import { syncUserProjectDescription } from "@/db/queries/user-projects";
 import { scheduleProjectProfileReindexByEntityId } from "@/lib/rag/reindex-project-profile";
 import { PROJECT_AI_FILL_KEYS } from "@/config/project-attrs";
 import { hasAnswer } from "@/lib/project-display";
-import { parseModelJson } from "@/lib/ai/model-json";
+import { parseModelJson, safeParseModelJson, salvageTruncatedObject } from "@/lib/ai/model-json";
 
 /**
  * AI-powered project profile extraction — the "no forms" path.
@@ -129,7 +129,13 @@ export async function extractProjectProfile(
       raw = await callGroqText(prompt, {
         feature: "project-brief",
         systemPrompt: SYSTEM_PROMPT,
-        maxTokens: 900,
+        // The fast model is a REASONING model: its hidden thinking is billed
+        // against this same ceiling. Twenty keys at up to 400 chars is ~2k
+        // tokens of JSON on its own, so the old 900 cut a rich brief off
+        // mid-object — every time, not intermittently — and the kickoff showed
+        // "Could not extract a profile" to exactly the people who wrote the
+        // most. Salvage below still keeps what landed if a reply runs long.
+        maxTokens: 3000,
         temperature: 0.2,
         timeoutMs: 25_000,
       });
@@ -140,7 +146,11 @@ export async function extractProjectProfile(
       await new Promise((r) => setTimeout(r, 20_000));
     }
   }
-  const parsed = ExtractedProfileSchema.safeParse(clampFields(parseModelJson(raw)));
+  // Every key is optional, so a reply cut off by the ceiling still carries
+  // real answers in its completed members; keep those instead of failing all.
+  const json = safeParseModelJson(raw) ?? salvageTruncatedObject(raw);
+  if (json === null) throw new Error("model returned no JSON object");
+  const parsed = ExtractedProfileSchema.safeParse(clampFields(json));
   if (!parsed.success)
     throw new Error(
       `model output failed validation: ${parsed.error.issues[0]?.message ?? "unknown"}`,
@@ -293,7 +303,8 @@ export async function extractRoadmap(projectName: string, sourceText: string): P
       raw = await callGroqText(prompt, {
         feature: "project-brief",
         systemPrompt: ROADMAP_SYSTEM,
-        maxTokens: 1200,
+        // Reasoning tokens share this ceiling — see extractProjectProfile.
+        maxTokens: 2500,
         temperature: 0.2,
         timeoutMs: 25_000,
       });

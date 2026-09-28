@@ -258,6 +258,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     sessionTab?: string;
     hostedDispatchId?: string;
     feedbackAutoRetriedAt?: string;
+    autoRetriedBecause?: string;
   } | null;
   return {
     id: row.id,
@@ -277,6 +278,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     sessionTab: payload?.sessionTab ?? null,
     hostedPending: !!payload?.hostedDispatchId,
     feedbackAutoRetriedAt: payload?.feedbackAutoRetriedAt ?? null,
+    autoRetriedBecause: payload?.autoRetriedBecause ?? null,
   };
 }
 

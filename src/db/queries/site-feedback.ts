@@ -439,3 +439,32 @@ export async function setFeedbackStatus(
     .returning();
   return updated ?? null;
 }
+
+/** The feedback item a run was dispatched for, if it was one. Owner-scoped. */
+export async function getFeedbackByRunId(
+  userId: string,
+  runId: string,
+): Promise<SiteFeedback | null> {
+  const [row] = await db
+    .select()
+    .from(siteFeedback)
+    .where(and(eq(siteFeedback.userId, userId), eq(siteFeedback.dispatchedRunId, runId)))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * One feedback row by id, with no signed-in user — ONLY for callers that
+ * already proved a right to it with a signed token (the fix walkthrough).
+ */
+export async function getFeedbackForTour(
+  id: string,
+): Promise<{ feedback: SiteFeedback; projectName: string } | null> {
+  const [row] = await db
+    .select({ feedback: siteFeedback, projectName: entities.name })
+    .from(siteFeedback)
+    .innerJoin(entities, eq(siteFeedback.projectId, entities.id))
+    .where(eq(siteFeedback.id, id))
+    .limit(1);
+  return row ?? null;
+}

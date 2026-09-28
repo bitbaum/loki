@@ -15,7 +15,12 @@
  *
  * Run: npx tsx scripts/test/model-json.ts
  */
-import { extractJson, parseModelJson, safeParseModelJson } from "@/lib/ai/model-json";
+import {
+  extractJson,
+  parseModelJson,
+  safeParseModelJson,
+  salvageTruncatedObject,
+} from "@/lib/ai/model-json";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -135,6 +140,36 @@ check("parseModelJson throws where safeParseModelJson returns null", () => {
     threw = true;
   }
   assert(threw, "parseModelJson swallowed an unreadable reply");
+});
+
+// ------------------------------------------------------ truncation salvage
+
+check("salvage: a profile cut off mid-value keeps every finished member", () => {
+  const raw = `{"mission":"Keep sublets legal","stack":"Next.js, Postgres","problem":{"a":"b, c"},"vision":"Every Zurich subl`;
+  const got = salvageTruncatedObject<Record<string, unknown>>(raw);
+  assert(got !== null, "salvaged nothing");
+  assert(got!.mission === "Keep sublets legal", "lost mission");
+  assert(got!.stack === "Next.js, Postgres", "a comma inside a value moved the cut");
+  assert(typeof got!.problem === "object", "lost the nested member");
+  assert(!("vision" in got!), "kept a half-written value");
+});
+
+check("salvage: a fenced, reasoning-prefixed truncation still reads", () => {
+  const raw = '<think>{ignore}</think>```json\n{"a":"x","b":"y","c":"tr';
+  const got = salvageTruncatedObject<Record<string, string>>(raw);
+  assert(
+    got?.a === "x" && got?.b === "y" && !("c" in got),
+    `wrong salvage: ${JSON.stringify(got)}`,
+  );
+});
+
+check("salvage: nothing complete means null, never an empty object", () => {
+  assert(salvageTruncatedObject(`{"mission":"half`) === null, "invented an answer");
+  assert(salvageTruncatedObject("no json") === null, "read prose as JSON");
+});
+
+check("salvage is opt-in: safeParseModelJson still rejects truncation", () => {
+  assert(safeParseModelJson(`{"a":"x","b":"tr`) === null, "strict reader started salvaging");
 });
 
 console.log(`\n✓ model-json tests passed (${passed} assertions)`);

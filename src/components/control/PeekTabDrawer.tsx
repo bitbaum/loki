@@ -162,15 +162,18 @@ export function PeekTabDrawer({ tab, onClose }: { tab: string; onClose: () => vo
 
   return (
     <Drawer onClose={onClose} size="xl">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-5 py-3">
-        <div className="min-w-0 flex items-center gap-2">
+      {/* Wraps instead of squeezing: in Snapshot mode the controls alone are
+          wider than a phone, and a shrink-0 row crushed the title block to
+          zero width so its subtitle painted over the Activity button. */}
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border-subtle px-4 py-3 sm:px-5">
+        <div className="flex min-w-0 flex-1 basis-40 items-center gap-2">
           <Eye className="h-4 w-4 text-accent-text" />
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-text-primary">{tab}</h2>
-            <p className="text-micro text-text-tertiary">{subtitle}</p>
+            <p className="truncate text-micro text-text-tertiary">{subtitle}</p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {VIEWS.map((v) => (
             <button
               key={v.id}

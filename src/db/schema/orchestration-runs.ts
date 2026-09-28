@@ -45,6 +45,12 @@ export type OrchestrationRunPayload = {
   reroutedFrom?: string;
   /** Why it was rerouted — the observed refusal, in words. */
   reroutedBecause?: string;
+  /** This run is Loki's own second attempt at a feedback item, after the run
+   *  named here was refused by the runner (feedback/auto-reimplement.ts). A
+   *  run carrying this is never retried again — that is the loop guard. */
+  priorRunId?: string;
+  /** Why the first attempt failed, in the words the row shows. */
+  autoRetriedBecause?: string;
   /** ISO time the runner ack'd the prompt as actually typed into the session
    *  (stampRunDelivered). The close paths use it as the handoff-freshness
    *  floor so a handoff from before delivery can never close this run. */

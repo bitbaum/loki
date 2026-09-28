@@ -1,5 +1,6 @@
 import type { RegisterRow } from "./build";
 import { PUBLIC_IDENTITY_ATTRS, type PublicIdentityAttr } from "@/config/project-attrs";
+import type { RepoRecords } from "./repo-records";
 
 /**
  * The fleet MAP: the register (what exists, where it runs, where the code is)
@@ -50,6 +51,17 @@ export type FleetMapEntry = {
   identity: MapIdentity;
   roadmap: MapRoadmapItem[];
   changelog: MapChangelogEntry[];
+  /**
+   * Where each record came from, so a reader (and the fleet page) can say
+   * "written in the repository" or "not written anywhere" instead of showing
+   * the same empty list for both. `goals` / `dev_log` are Loki's own rows;
+   * `repo` is ROADMAP.md / CHANGELOG.md in the project's repository.
+   */
+  records: {
+    roadmap: "goals" | "repo" | null;
+    changelog: "dev_log" | "repo" | null;
+    source: { roadmap: string | null; changelog: string | null };
+  };
   /** The project's own declared next step, from its dev log. */
   next: string | null;
   now: {
@@ -107,6 +119,8 @@ export type MapProfile = {
     targetDate?: string | null;
     milestones?: Array<{ title: string; done?: boolean }> | null;
   }> | null;
+  /** ROADMAP.md / CHANGELOG.md from the project's repository, when it has them. */
+  repo?: RepoRecords | null;
 };
 
 /**
@@ -130,6 +144,9 @@ export type MapMilestone = { title: string; done: boolean };
 
 export type MapRoadmapItem = {
   title: string;
+  /** One line written for readers, from ROADMAP.md. Null for goal rows: their
+   *  descriptions are engineering notes (see publicRoadmap). */
+  line: string | null;
   status: string | null;
   progress: number | null;
   targetDate: string | null;
@@ -214,7 +231,17 @@ export function publicIdentity(profile: MapProfile | undefined): MapIdentity {
  * nothing ever does.
  */
 export function publicRoadmap(profile: MapProfile | undefined): MapRoadmapItem[] {
-  return (profile?.goals ?? [])
+  // The repository file first, then Loki's goal rows. Read in production on
+  // 2026-09-28: 19 of 34 projects had goals, and nearly every one was a
+  // single machine-seeded placeholder ("Make <x> development and verification
+  // public", 0 of 3 steps done) — scaffolding, not a roadmap. ROADMAP.md is
+  // written by a person, reviewed in the same pull request as the change it
+  // describes, and public because the repository is; where it exists it is
+  // the record. Goals stay the record for projects that have no file.
+  const fromFile = profile?.repo?.roadmap ?? [];
+  const fromRepo = fromFile.some((g) => prose(g.title));
+  const source = fromRepo ? (profile?.repo?.source.roadmap ?? null) : null;
+  return (fromRepo ? fromFile : (profile?.goals ?? []))
     .filter((g) => prose(g.title))
     .map((g) => {
       const steps = (g.milestones ?? [])
@@ -222,6 +249,7 @@ export function publicRoadmap(profile: MapProfile | undefined): MapRoadmapItem[]
         .filter((m): m is MapMilestone => !!m.title);
       return {
         title: g.title.trim(),
+        line: fromRepo ? prose((g as { line?: string | null }).line) : null,
         status: prose(g.status),
         progress: typeof g.progress === "number" ? g.progress : null,
         targetDate: g.targetDate ? g.targetDate.slice(0, 10) : null,
@@ -229,9 +257,23 @@ export function publicRoadmap(profile: MapProfile | undefined): MapRoadmapItem[]
         // roadmap nobody can infer: four steps with no state next to "0%
         // recorded progress" says less than the row it came from.
         milestones: steps.filter((m) => !sourcePointer(m.title)),
-        source: steps.map((m) => sourcePointer(m.title)).find((u) => u) ?? null,
+        source: steps.map((m) => sourcePointer(m.title)).find((u) => u) ?? source,
       };
     });
+}
+
+/** Which producer a project's roadmap and changelog actually came from. */
+export function recordSources(profile: MapProfile | undefined): FleetMapEntry["records"] {
+  const hasGoals = (profile?.goals ?? []).some((g) => prose(g.title));
+  const hasLog = (profile?.devLog ?? []).some(
+    (e) => e?.date && prose(e.done) && !isRunBookkeeping(e.done ?? ""),
+  );
+  const repo = profile?.repo ?? null;
+  return {
+    roadmap: repo?.roadmap.length ? "repo" : hasGoals ? "goals" : null,
+    changelog: repo?.changelog.length ? "repo" : hasLog ? "dev_log" : null,
+    source: { roadmap: repo?.source.roadmap ?? null, changelog: repo?.source.changelog ?? null },
+  };
 }
 
 /**
@@ -261,12 +303,17 @@ function sourcePointer(title: string): string | null {
  * consumer that wants everything has the project page.
  */
 export function publicChangelog(profile: MapProfile | undefined, limit = 20): MapChangelogEntry[] {
-  return (profile?.devLog ?? [])
+  const rows = (profile?.devLog ?? [])
     .filter((e) => e?.date && prose(e.done))
     .filter((e) => !isRunBookkeeping(e.done ?? ""))
-    .map((e) => ({ date: e.date.slice(0, 10), done: (e.done ?? "").trim() }))
-    .sort((a, b) => (a.date < b.date ? 1 : -1))
-    .slice(0, limit);
+    .map((e) => ({ date: e.date.slice(0, 10), done: (e.done ?? "").trim() }));
+  // CHANGELOG.md is what the project's people write; the dev log is what
+  // Loki's own runs write (commit records, "unified handlers, removed lint
+  // warnings"). The file is the record where it exists, the dev log where it
+  // does not — the same rule as the roadmap, for the same reason.
+  const fromFile = profile?.repo?.changelog ?? [];
+  const entries = fromFile.length ? fromFile : rows;
+  return [...entries].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, limit);
 }
 
 /**
@@ -327,6 +374,7 @@ export function buildFleetMap(
       identity: publicIdentity(profile),
       roadmap: publicRoadmap(profile),
       changelog: publicChangelog(profile),
+      records: recordSources(profile),
       next: log?.next?.trim() || null,
       now: {
         openRuns: act?.openRuns ?? 0,

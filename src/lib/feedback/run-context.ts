@@ -72,10 +72,12 @@ export function applyRunContext(
     commandId?: string;
     hostedDispatchId?: string;
     feedbackAutoRetriedAt?: string;
+    autoRetriedBecause?: string;
   } | null;
   if (!snap.commandId && payload?.commandId) snap.commandId = payload.commandId;
   if (payload?.hostedDispatchId) snap.hostedPending = true;
   snap.feedbackAutoRetriedAt = payload?.feedbackAutoRetriedAt ?? null;
+  snap.autoRetriedBecause = payload?.autoRetriedBecause ?? null;
 
   snap.localOnline = ctx.presence.local;
   snap.cloudOnline = ctx.presence.cloud;
