@@ -206,8 +206,8 @@ export function ProjectWorkspaceView({
 
           A project's name and what it is outrank links to elsewhere, so they
           get the full measure and the links get a quiet row underneath. */}
-      <header className="border-b border-border-subtle pb-6">
-        <div className="flex flex-col gap-5">
+      <header className="border-b border-border-subtle pb-4 sm:pb-6">
+        <div className="flex flex-col gap-3 sm:gap-5">
           <ProjectWorkspaceHeader
             projectId={project.id}
             userProjectId={userProject?.id ?? null}
@@ -248,7 +248,10 @@ export function ProjectWorkspaceView({
                 rel="noreferrer"
                 className="ui-btn-ghost min-h-11 gap-1.5"
               >
-                <GitBranch className="h-4 w-4" aria-hidden="true" /> Repository
+                <GitBranch className="h-4 w-4" aria-hidden="true" />
+                {/* Short on phones so Live · Repo · Share fit one row. */}
+                <span className="sm:hidden">Repo</span>
+                <span className="hidden sm:inline">Repository</span>
               </a>
             )}
             {primaryOrangeCatLink && (

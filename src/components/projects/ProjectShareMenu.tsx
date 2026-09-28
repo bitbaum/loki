@@ -41,7 +41,8 @@ export function ProjectShareMenu({ destinations }: { destinations: ShareDestinat
         onClick={() => setOpen((v) => !v)}
       >
         <Share2 className="h-4 w-4" aria-hidden="true" />
-        Share &amp; publish
+        <span className="sm:hidden">Share</span>
+        <span className="hidden sm:inline">Share &amp; publish</span>
         <ChevronDown
           className={
             open ? "h-4 w-4 rotate-180 transition-transform" : "h-4 w-4 transition-transform"
