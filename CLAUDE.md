@@ -345,6 +345,8 @@ fleet-wide; its permanent home is bitbaum/fleet `AGENTS.md`.
 
 See `docs/development/cloud-local-workflows.md` — SSOT for which workflows run in the browser vs require a builder (owned agent PTYs, agent CLIs), and for the stored routing rule.
 
+See `docs/development/mcp.md` — how AI apps (claude.ai / ChatGPT connectors, Claude Code, Cursor) connect to Loki's MCP server at `/api/mcp`, its OrangeCat OAuth, and which scope each tool needs (values SSOT in `src/config/mcp.ts`).
+
 See `docs/development/responsive-design.md` — SSOT for mobile chrome tokens, shell layout, viewport-height panes, and responsive component patterns. All pages must work at 320px+ without horizontal scroll.
 
 That rule now has a check behind it. `pnpm run audit:responsive` drives the

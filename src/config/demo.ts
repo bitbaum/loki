@@ -182,6 +182,10 @@ export const DEMO_HANDLER_ENFORCED: ReadonlyArray<readonly [string, DemoDenialRe
   ["/api/auth/forgot-password", "credentials", "src/app/api/auth/forgot-password/route.ts"],
   ["/api/auth/reset-password", "credentials", "src/app/api/auth/reset-password/route.ts"],
   ["/api/beacon/transcribe", "spend", "src/app/api/beacon/transcribe/route.ts"],
+  // The MCP server: every act tool dispatches, books or approves, and ask_loki
+  // spends a model turn. Matcher-excluded because a connector's first request
+  // carries no token by design (see src/proxy.ts).
+  ["/api/mcp", "dispatch", "src/app/api/mcp/route.ts"],
 ] as const;
 
 /**

@@ -94,7 +94,22 @@ export const config = {
      *                                the bitbaum showcase and the footer derive from it, and a
      *                                register behind a session is a register with a private copy
      *                                on every consumer. api/fleet/status stays protected.
+     *   api/mcp                    – the MCP server AI apps connect to (docs/development/mcp.md).
+     *                                It authenticates in-handler (resolveMcpCaller: a ck_* token
+     *                                or an OrangeCat JWT minted for this resource), and it MUST
+     *                                be reachable without one: a connector's first request has
+     *                                no token on purpose, and the 401 + WWW-Authenticate the
+     *                                handler returns is how the client discovers OrangeCat. The
+     *                                session middleware would answer that with a bare 401 and
+     *                                no challenge, and let an OrangeCat JWT through to nowhere.
+     *                                A bare prefix like the widget entries: a future api/mcp*
+     *                                sibling is public by this line and must guard itself —
+     *                                scripts/test/api-route-auth.ts fails any route that does not.
+     *   \.well-known/oauth-protected-resource
+     *                              – RFC 9728 metadata naming OrangeCat as the authorization
+     *                                server for api/mcp. It describes how to GET a credential,
+     *                                so it cannot require one.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|u/|share/project/|share/task/|a/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|api/widget/advise|api/widget/tour|widget\\.js).+)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|u/|share/project/|share/task/|a/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|api/widget/advise|api/widget/tour|api/mcp|\\.well-known/oauth-protected-resource|widget\\.js).+)",
   ],
 };

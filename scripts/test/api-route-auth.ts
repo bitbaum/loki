@@ -52,6 +52,7 @@ const GUARDS = [
   "getBearerUserId", // ck_* runner/agent token, src/lib/runner-auth.ts
   "validateAgentToken",
   "getWidgetTokenByToken", // fcw_* write-only widget token
+  "resolveMcpCaller", // /api/mcp — a ck_* token or an OrangeCat JWT minted for Loki, src/lib/mcp/auth.ts
   "verifyTourToken", // signed, expiring "Watch the fix" ticket for ONE feedback item, src/lib/feedback/tour-token.ts
   // Signed webhooks from other services
   "WEBHOOK_SECRET",
@@ -208,6 +209,9 @@ const SELF_AUTH_MARKERS = [
   "verifySolonSignature",
   "stripe.webhooks.constructEvent",
   "requireCronAuth",
+  // The MCP door: authenticates in-handler AND must be reached without a
+  // session, because a connector's first request carries no token on purpose.
+  "resolveMcpCaller",
 ];
 
 const matcherExclusion = readFileSync(join(REPO, "src", "proxy.ts"), "utf8").match(

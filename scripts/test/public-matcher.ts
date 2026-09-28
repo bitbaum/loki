@@ -64,6 +64,11 @@ for (const p of [
   "/api/health",
   "/api/invitations/abc",
   "/blog/some-post",
+  // The MCP server authenticates itself; its 401 challenge is how a connector
+  // finds OrangeCat, so the middleware must not answer first.
+  "/api/mcp",
+  "/.well-known/oauth-protected-resource",
+  "/.well-known/oauth-protected-resource/api/mcp",
 ]) {
   check(`${p} stays public`, !isProtected(p));
 }
@@ -80,6 +85,9 @@ for (const p of [
   "/agent",
   "/activity",
   "/about",
+  // The MCP exemption is for that endpoint, not for its neighbours.
+  "/api/me",
+  "/api/memory",
 ]) {
   check(`${p} still requires a session`, isProtected(p));
 }
@@ -87,6 +95,11 @@ for (const p of [
 for (const p of ["/today", "/control", "/people", "/settings"]) {
   check(`${p} still requires a session`, isProtected(p));
 }
+// Only the RFC 9728 document is public under .well-known, not the directory.
+check(
+  "/.well-known/something-else still requires a session",
+  isProtected("/.well-known/something-else"),
+);
 // A bare "/a" is not an action link and must not ride the exemption.
 check("/a (no token) still requires a session", isProtected("/a"));
 
