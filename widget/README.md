@@ -28,6 +28,22 @@ links, buttons, forms, a picked element's markup and computed style; for
 `/api/widget/advise`, charged to the token owner's AI budget. It sees no
 pixels and is told to say so.
 
+## "Watch the fix" — the walkthrough
+
+When a fix has shipped, Loki's feedback row offers **Watch the fix**. It opens
+the live page with `#loki-tour=<token>` (a signed, 24-hour ticket for that one
+report, carried in the fragment so the site's server never sees it). This
+bundle reads a numbered outline of the visible page, asks `/api/widget/tour`
+for a script, and plays it: a cursor glides to each element, a caption says
+why, and in-page controls (an `#anchor` link, a disclosure, a plain button)
+are really clicked — anything that would navigate away or submit is only
+pointed at. A step it cannot show is said out loud ("Oops — …, it has been
+flagged") and reported back; Loki files it as an AI-review item on the
+project, so a fix that is not really live comes back into the loop. Nothing
+for a host to install: every site with the widget gets it. Code:
+`widget/tour.ts`, `src/app/api/widget/tour/route.ts`,
+`src/lib/feedback/tour-plan.ts`.
+
 ## Where the launcher sits
 
 Nothing to configure for the common case. On load, on resize, after any scroll

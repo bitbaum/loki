@@ -26,6 +26,7 @@ import { SYNTHESIZE_MIN_ITEMS } from "@/lib/feedback/compose-dispatch";
 import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-phase";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
+import { WatchFixButton } from "@/components/feedback/WatchFixButton";
 import { FeedbackWorkBadge } from "@/components/feedback/FeedbackWorkBadge";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
@@ -635,15 +636,7 @@ function FeedbackTriage({
                 {needsVerify ? (
                   <>
                     {work.checkLive && liveHref ? (
-                      <a
-                        href={liveHref}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="ui-btn-save ui-btn-sm"
-                        title="Open the live page and confirm the visitor's point is fixed"
-                      >
-                        Check live
-                      </a>
+                      <WatchFixButton feedbackId={f.id} liveHref={liveHref} size="sm" />
                     ) : work.ship?.pr ? (
                       <a
                         href={work.ship.pr.url}

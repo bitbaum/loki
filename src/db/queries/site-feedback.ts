@@ -439,3 +439,19 @@ export async function setFeedbackStatus(
     .returning();
   return updated ?? null;
 }
+
+/**
+ * One feedback row by id, with no signed-in user — ONLY for callers that
+ * already proved a right to it with a signed token (the fix walkthrough).
+ */
+export async function getFeedbackForTour(
+  id: string,
+): Promise<{ feedback: SiteFeedback; projectName: string } | null> {
+  const [row] = await db
+    .select({ feedback: siteFeedback, projectName: entities.name })
+    .from(siteFeedback)
+    .innerJoin(entities, eq(siteFeedback.projectId, entities.id))
+    .where(eq(siteFeedback.id, id))
+    .limit(1);
+  return row ?? null;
+}

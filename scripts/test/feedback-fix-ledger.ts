@@ -228,7 +228,7 @@ const GIT = "https://github.com/bitbaum/dogfood-site-sep10-1201";
     ...base,
     fix: { state: FIX_SHIP_STATE.DEPLOYED, pr, checkedAt: at },
   });
-  assert.equal(live.label, "Live · confirm");
+  assert.equal(live.label, "Shipped · confirm");
   assert.equal(live.checkLive, true);
   const none = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, {
     ...base,
@@ -348,7 +348,7 @@ console.log("feedback-waiting-on: ok");
     fix: { state: FIX_SHIP_STATE.DEPLOYED, pr, checkedAt: at },
   };
   const partialLive = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, run);
-  assert.equal(partialLive.label, "Live · confirm", "the badge never carries (partial)");
+  assert.equal(partialLive.label, "Shipped · confirm", "the badge never carries (partial)");
   assert.match(
     partialLive.detail ?? "",
     /partial success/,
@@ -359,7 +359,7 @@ console.log("feedback-waiting-on: ok");
     ...run,
     outcome: ORCHESTRATION_OUTCOME.SUCCESS,
   });
-  assert.equal(cleanLive.label, "Live · confirm");
+  assert.equal(cleanLive.label, "Shipped · confirm");
   assert.equal(cleanLive.detail, null, "a clean deployed row says nothing its buttons already say");
 }
 
