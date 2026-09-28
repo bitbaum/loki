@@ -19,6 +19,11 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
 fi
 
 cd "$CLAUDE_PROJECT_DIR"
+
+# Cloud sessions start from a shallow clone with no tags, and the pre-push
+# gate's desktop-release-drift check needs the fleet-runner-v* tags to say
+# anything (it fails UNCHECKED without them, blocking every push).
+git fetch -q --tags origin || true
 DEPS_DIR="${CLAUDE_PROJECT_DIR}/../.fleet-git-deps"
 mkdir -p "$DEPS_DIR"
 
