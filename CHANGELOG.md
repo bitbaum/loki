@@ -9,6 +9,12 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 ## 2026-09-28
 
 ### Added
+- **An owner's own report starts the fix.** Tracking a report you left on your
+  own site tells Loki who you are — the one thing the anonymous widget could
+  not — and the fix starts on the spot, landing you in the Feedback inbox
+  where Watch lives. On My feedback, a report on a project you own carries
+  "Implement" and "Open in Feedback" instead of "waiting for the maintainer";
+  everyone else is told nothing more is needed from them.
 - **A builder can actually dispatch.** A collaborator with the builder role
   ("can run agents") was refused with "Project not found" the moment they
   pressed a dispatch button, because dispatch looked the project up by its

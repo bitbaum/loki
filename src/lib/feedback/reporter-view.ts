@@ -70,7 +70,8 @@ export function reporterStatusFor(
       return {
         label: "Received",
         tone: "neutral",
-        detail: "Filed and waiting for the maintainer to pick it up.",
+        detail:
+          "Filed and waiting for the maintainer to pick it up. Nothing more is needed from you; this page updates as it moves.",
         action: null,
       };
 

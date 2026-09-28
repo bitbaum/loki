@@ -7,6 +7,8 @@ import { reporterToneClass } from "@/lib/feedback/reporter-view";
 import { PageLayout } from "@/components/ui/page-layout";
 import { FeedbackReportText } from "@/components/feedback/FeedbackReportText";
 import { ReportedTime } from "@/components/feedback/ReportedTime";
+import { OwnerFeedbackActions } from "@/components/feedback/OwnerFeedbackActions";
+import { getProjectAccess } from "@/db/queries/project-access";
 
 export const metadata = { title: "My feedback" };
 
@@ -27,6 +29,16 @@ export const metadata = { title: "My feedback" };
 export default async function MyFeedbackPage() {
   const userId = await requirePageUserId();
   const rows = await attachReporterView(await listReporterFeedback(userId));
+  // The reporter who is ALSO the project's owner gets the owner's way forward
+  // on the same screen. Access is the same question the inbox asks; asked
+  // once per project, not per row.
+  const projectIds = [...new Set(rows.map((r) => r.projectId))];
+  const access = await Promise.all(
+    projectIds.map(
+      async (id) => [id, (await getProjectAccess(userId, id))?.canEdit === true] as const,
+    ),
+  );
+  const canEdit = new Map(access);
 
   return (
     <PageLayout
@@ -67,6 +79,13 @@ export default async function MyFeedbackPage() {
                   {row.status.action.label}
                   <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 </a>
+              )}
+              {canEdit.get(row.projectId) && (
+                <OwnerFeedbackActions
+                  feedbackId={row.id}
+                  projectId={row.projectId}
+                  canStart={row.canStart}
+                />
               )}
             </article>
           ))}

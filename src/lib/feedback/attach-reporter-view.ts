@@ -20,13 +20,19 @@
  */
 import { getRunsByIdsForReporter } from "@/db/queries/orchestration-runs";
 import { runToFeedbackSnapshot } from "@/lib/feedback/attach-work";
-import { deriveFeedbackWork } from "@/lib/feedback/work-phase";
+import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-phase";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { reporterStatusFor, type ReporterStatus } from "@/lib/feedback/reporter-view";
 import type { UserFeedbackListItem } from "@/db/queries/site-feedback";
 
 export type ReporterFeedbackRow = {
   id: string;
+  /** The project's entity id — a handle, so the page can ask whether the
+   *  viewer happens to own it (an owner reading their own report gets a way
+   *  forward that a stranger does not). */
+  projectId: string;
+  /** No run has been started for it yet: an owner may start one from here. */
+  canStart: boolean;
   projectName: string;
   suggestion: string;
   createdAt: Date;
@@ -53,6 +59,8 @@ export async function attachReporterView(
     const liveHref = livePageHref(item.liveUrl, item.url, item.page);
     return {
       id: item.id,
+      projectId: item.projectId,
+      canStart: work.phase === FEEDBACK_WORK_PHASE.NOT_STARTED,
       projectName: item.projectName,
       suggestion: item.suggestion,
       createdAt: item.createdAt,
