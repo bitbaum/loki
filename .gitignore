@@ -3,7 +3,12 @@ node_modules
 .env
 .env.local
 .env*.local
-.claude/
+# Agent scratch under .claude/ stays local, but the shared session-start hook and
+# settings are part of the repo: they are what makes Claude Code on the web able
+# to install this project's GitHub-hosted dependencies at all.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 *.tsbuildinfo
 .playwright-mcp/
 .tmp/
