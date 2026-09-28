@@ -20,7 +20,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Check, Loader2, Rocket, Zap } from "lucide-react";
-import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { useSiteDeployment } from "@/hooks/use-site-deployment";
 import { SiteDeploymentStatus } from "./SiteDeploymentStatus";
 import { DOC_PASTE_MAX } from "@/lib/constants";
@@ -327,7 +326,7 @@ export function ProjectKickoff({
           outcome={kickoff.dispatch}
           interrupted={kickoff.interrupted}
           failures={failures.length}
-          workspaceKey={workspaceKey}
+          projectId={projectId}
           onRetry={run}
           onDismiss={() => clearKickoffRun(projectId)}
         />
@@ -356,14 +355,14 @@ function KickoffNextStep({
   outcome,
   interrupted,
   failures,
-  workspaceKey,
+  projectId,
   onRetry,
   onDismiss,
 }: {
   outcome: KickoffRun["dispatch"];
   interrupted?: boolean;
   failures: number;
-  workspaceKey: string;
+  projectId: string;
   onRetry: () => void;
   onDismiss: () => void;
 }) {
@@ -378,11 +377,8 @@ function KickoffNextStep({
       <div className="space-y-2 border-t border-border-subtle pt-3">
         <p className="text-sm font-medium text-text-primary">An agent is on it.</p>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={fleetSurfaceHref("terminal", workspaceKey)} className="ui-btn-primary gap-2">
+          <Link href={`/projects/${projectId}/watch`} className="ui-btn-primary gap-2">
             <Rocket className="h-4 w-4" aria-hidden="true" /> Watch it work
-          </Link>
-          <Link href={fleetSurfaceHref("control", workspaceKey)} className="ui-btn-secondary">
-            Activity in Control
           </Link>
           {dismiss}
         </div>
@@ -409,8 +405,8 @@ function KickoffNextStep({
           <Link href="/download" className="ui-btn-primary">
             Connect your computer
           </Link>
-          <Link href={fleetSurfaceHref("control", workspaceKey)} className="ui-btn-secondary">
-            Follow in Control
+          <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary">
+            Watch for it
           </Link>
           {dismiss}
         </div>

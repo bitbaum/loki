@@ -232,7 +232,7 @@ export function hasPostPromptGeneration(
 function builderOfflineAsk(localQueue: boolean): string {
   return localQueue
     ? "Open Fleet Runner on This computer — or use cloud builder, then Retry"
-    : "Reconnect cloud box-runner (always-on) — or Retry";
+    : "The cloud builder is offline — the work waits and starts when it reconnects, or Retry";
 }
 
 export function deriveFeedbackWork(
