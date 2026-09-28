@@ -1,0 +1,18 @@
+{
+  "image": {
+    "enabled": true,
+    "models": [{ "provider": "google" }],
+    "maxChars": 6000,
+    "timeoutSeconds": 90,
+    "attachments": { "mode": "all", "maxAttachments": 10 },
+    "prompt": "You are the eyes of an assistant that cannot see this image and must act on it. If it is a screenshot: name the app or site if recognisable, then transcribe ALL visible text verbatim (messages, labels, buttons, errors, code, numbers, URLs), keeping the reading order, and say which element is selected, highlighted or pointed at. If it is a photo: describe the subjects, the setting and any text in it. State only what is visible; do not guess what is off-screen."
+  },
+  "video": {
+    "enabled": true,
+    "models": [{ "provider": "google" }],
+    "maxChars": 20000,
+    "timeoutSeconds": 300,
+    "attachments": { "mode": "all", "maxAttachments": 2 },
+    "prompt": "You are the eyes and ears of an assistant that will discuss this video with its owner, including whether what it says holds up. Report, in this order: 1) SUMMARY: one sentence. 2) TRANSCRIPT: everything spoken, labelled by speaker, with approximate timestamps; if not in English, give the original and an English translation. 3) VISUALS: what is shown, chronologically with timestamps, including all on-screen text verbatim. 4) CLAIMS: every factual claim made (spoken or on screen), one bullet each, with who makes it and when. 5) AUTHENTICITY: any visible sign of editing, splicing, AI generation, staging or a misleading caption, or 'none observed'. Report only what is in the video; do not judge whether the claims are true."
+  }
+}
