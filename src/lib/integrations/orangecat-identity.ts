@@ -40,9 +40,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, users } from "@/db/schema";
 import { refreshOrInsertActiveAlert } from "@/db/queries/alerts";
-import { ORANGECAT_BASE_FALLBACK } from "./orangecat";
-
-const ISSUER = process.env.ORANGECAT_OAUTH_ISSUER ?? ORANGECAT_BASE_FALLBACK;
+import { ORANGECAT_OAUTH_ISSUER as ISSUER } from "@/config/orangecat";
 /** Refresh when less than this many seconds of validity remain. */
 const EXPIRY_SLACK_SECS = 60;
 

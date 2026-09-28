@@ -210,6 +210,14 @@ export type AskLokiOpts = {
    * emitting, which is the truth about what it is doing.
    */
   onEvent?: (event: LokiTurnEvent) => void;
+  /**
+   * The asker may talk to Loki but not act through it — an MCP client granted
+   * `loki.chat` without `loki.act`. The tool loop runs without its propose
+   * tools, and the gateway fallback is skipped: that path is the OpenClaw
+   * agent, whose own skills dispatch and approve with the operator's full
+   * token, so a chat-only grant must not be able to reach it by asking.
+   */
+  readOnly?: boolean;
 };
 
 /**
@@ -259,6 +267,7 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
         voice: voicePref,
         history: opts?.history,
         onEvent: opts?.onEvent,
+        readOnly: opts?.readOnly,
       });
       // Booked whether or not the turn produced usable text: the tokens were
       // spent either way, and only charging for successes would let a run of
@@ -335,6 +344,7 @@ async function askLokiOnOwnModel(
       voice: voicePref,
       history: opts.history,
       onEvent: opts.onEvent,
+      readOnly: opts.readOnly,
       own,
     });
     if (!result.text.trim()) {
@@ -481,7 +491,7 @@ async function askLokiViaGateway(
     return { status: 200, body: { ok: true, text, ...provenance } };
   };
 
-  if (isGatewayConfigured()) {
+  if (isGatewayConfigured() && !opts?.readOnly) {
     const v = voice?.trim();
     const prefaced = v
       ? `[Voice for this reply — ${v}]\n\n${contextualMessage}`

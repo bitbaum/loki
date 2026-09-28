@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requirePrivateApiAccessWithBearer } from "@/lib/private-zone-api";
 import { readJsonBody } from "@/lib/api/route-helpers";
 import { enqueueAction } from "@/lib/actions/enqueue-action";
+import { enqueueReport } from "@/lib/actions/enqueue-report";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
 
 const ProposeActionBody = z.object({
@@ -60,23 +61,11 @@ export async function POST(req: NextRequest) {
   );
 
   // Re-proposal of an already-pending title dedupes (partial unique index).
-  if (outcome.result === "deduped") {
+  // What each outcome may truthfully be CALLED lives in enqueue-report.ts,
+  // shared with the MCP server's loki_book.
+  const report = enqueueReport(outcome);
+  if (report.deduped) {
     return NextResponse.json({ ok: true, deduped: true }, { status: 200 });
   }
-
-  // The caller is usually a chat agent about to tell the operator what
-  // happened, so the response has to let it say the TRUE thing. `status`
-  // separates "queued for your yes" from "done under your standing rule";
-  // reporting either as the other is the over-claim the queue exists to stop.
-  return NextResponse.json(
-    {
-      ok: true,
-      action: outcome.action,
-      status: outcome.result === "auto" ? "auto-approved" : "awaiting-approval",
-      ...(outcome.result === "auto"
-        ? { executed: outcome.execution.executed, deferred: outcome.execution.deferred ?? false }
-        : { reason: outcome.reason }),
-    },
-    { status: 201 },
-  );
+  return NextResponse.json({ ok: true, ...report }, { status: 201 });
 }
