@@ -51,6 +51,14 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   page, or the whole site. Every suggestion has a "Request this" button (#950).
 
 ### Fixed
+- **A working Claude is no longer reported as silent.** Loki decides whether
+  a dispatched Claude started by reading Claude's own status file for the
+  project folder. When the runner and Claude spelled that folder differently
+  (a symlink, a trailing slash) the file was never found and a working Claude
+  was reported as "produced no response". The folder is now compared by its
+  real path. A freshly launched Claude also has any opening dialog closed
+  before the prompt goes in, as a running one already did, and a failure with
+  no known cause now quotes the last lines Claude's screen showed.
 - **A silent agent is routed around, not retried into.** When an agent opened,
   took the prompt and never answered, Loki's automatic retry went straight back
   to the same agent and failed the same way (Petvity, twice in a row). That

@@ -192,14 +192,33 @@ export function readClaudeLiveSessions(): Map<string, ClaudeLiveSession> {
   return byCwd;
 }
 
+/**
+ * The same folder, spelled one way. Claude records its cwd as the kernel
+ * reports it (symlinks resolved, no trailing slash); the runner holds the path
+ * it was handed. When the two spell one folder differently, the lookup below
+ * found no session, the dispatch check fell back to a guess, and a Claude that
+ * was working was reported as having "produced no response".
+ */
+function canonicalDir(p: string): string {
+  const trimmed = p.length > 1 ? p.replace(/\/+$/, "") : p;
+  try {
+    return fs.realpathSync(trimmed);
+  } catch {
+    return trimmed;
+  }
+}
+
 /** Newest live Claude session running in `dir` (or a subdirectory of it). */
 export function claudeLiveSessionForDir(
   sessions: Map<string, ClaudeLiveSession>,
   dir: string,
 ): ClaudeLiveSession | null {
+  const want = [...new Set([dir.replace(/\/+$/, "") || dir, canonicalDir(dir)])];
   let best: ClaudeLiveSession | null = null;
-  for (const [cwd, s] of sessions) {
-    if (cwd !== dir && !cwd.startsWith(`${dir}/`)) continue;
+  for (const [rawCwd, s] of sessions) {
+    const cwds = [...new Set([rawCwd, canonicalDir(rawCwd)])];
+    const inside = cwds.some((cwd) => want.some((d) => cwd === d || cwd.startsWith(`${d}/`)));
+    if (!inside) continue;
     if (!best || s.statusUpdatedAtS > best.statusUpdatedAtS) best = s;
   }
   return best;

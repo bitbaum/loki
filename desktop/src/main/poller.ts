@@ -619,6 +619,13 @@ async function handleCommand(
             launched = true
             // Wait for the agent to show life, then settle before pasting.
             if (await waitForPtyReady(tab, 15000)) await asleep(1800)
+            // A fresh Claude can open on a dialog too ("Teach auto mode about
+            // your environment?", 2026-09-26) — the live-session path above
+            // closed those, the launch path did not, so the prompt answered
+            // the dialog and the run was reported as Claude not responding.
+            if (agent === 'claude') {
+              await dismissClaudeDialog(tab, resolveRunnerWorkspaceDir(tab, effDir))
+            }
           }
           {
             // Non-Claude CLIs do not expose Claude's session-status files.
