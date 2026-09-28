@@ -42,9 +42,45 @@ const MEMBER_CAPABILITIES: Record<ProjectRole, ProjectCapabilities> = {
   // An editor works the project but never changes who else can reach it.
   // Membership is the owner's decision about their own tenant.
   editor: { canEdit: true, canManageMembers: false },
+  // The client is who the project is for. They follow it and see every fix,
+  // and they are the person the builder answers to — but they do not spend
+  // the owner's runner. Same capabilities as a viewer; a different name,
+  // because a roster that cannot say who is paying is not a roster.
+  client: { canEdit: false, canManageMembers: false },
   // A viewer reads. This is the role a reporter is given on a project they
   // filed against, so "can look at the fix, cannot dispatch another one".
   viewer: { canEdit: false, canManageMembers: false },
+};
+
+/**
+ * What each role is called and does, in the words the roster shows. One
+ * table, read by the members panel and the invite email, so the label a
+ * person is invited under is the label they see once inside.
+ */
+export const ROLE_LABELS: Record<
+  "owner" | ProjectRole,
+  { label: string; help: string; /** "…so you can {can}" in the invitation. */ can: string }
+> = {
+  owner: {
+    label: "Owner",
+    help: "Owner: runs the project in their own tenant and decides who else can reach it.",
+    can: "run it as your own",
+  },
+  editor: {
+    label: "Builder",
+    help: "Builder: can run agents, triage and implement feedback, edit notes and settings.",
+    can: "work on it with them: run agents, edit notes and settings",
+  },
+  client: {
+    label: "Client",
+    help: "Client: the person the project is for — follows it and every fix, cannot dispatch work.",
+    can: "follow it as its client: see every run, every fix and what shipped, and say what you need next",
+  },
+  viewer: {
+    label: "Viewer",
+    help: "Viewer: can follow the project and its feedback, but cannot dispatch work.",
+    can: "follow it: see its runs, feedback and what shipped",
+  },
 };
 
 export function capabilitiesForRole(role: "owner" | ProjectRole): ProjectCapabilities {

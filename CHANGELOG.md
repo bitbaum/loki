@@ -9,6 +9,18 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 ## 2026-09-28
 
 ### Added
+- **A builder can actually dispatch.** A collaborator with the builder role
+  ("can run agents") was refused with "Project not found" the moment they
+  pressed a dispatch button, because dispatch looked the project up by its
+  owner. It now asks who may edit; the work still runs in the owner's tenant.
+- **Client is a role.** The roster can now say who the project is FOR: a
+  client follows the project and every fix and is who the builder answers to,
+  without being able to spend the owner's runner. Editors are shown as
+  "Builder".
+- **Hand a project over.** The owner can hand a project to any member from the
+  members panel; it runs in the new owner's tenant from then on and the old
+  owner keeps a builder's seat. The studio's hand-over to a client is this
+  button.
 - **A refused feedback run retries itself.** When the runner refuses a
   feedback run at its last step — the agent answered with a usage-limit wall,
   or opened and never started generating — Loki makes the second attempt a

@@ -224,3 +224,53 @@ export async function acceptProjectInvitation(
     return { projectId: spent.projectId };
   });
 }
+
+export type TransferRefusal = "not_owner" | "not_a_member" | "same_person";
+
+/**
+ * Hand a project to one of its members.
+ *
+ * Ownership is the user_projects row (the tenant the work runs in), so a
+ * transfer moves that row to the new owner, gives the old owner a builder's
+ * seat so they are not locked out of what they just handed over, and drops
+ * the new owner's membership row (an owner is not also a member). One
+ * transaction: a project is never ownerless, and never has two owners.
+ * The studio's hand-over to a client is this call.
+ */
+export async function transferProjectOwnership(
+  projectId: string,
+  fromUserId: string,
+  toUserId: string,
+): Promise<{ ok: true } | { ok: false; refusal: TransferRefusal }> {
+  if (fromUserId === toUserId) return { ok: false, refusal: "same_person" };
+  const access = await getProjectAccess(fromUserId, projectId);
+  if (!access || access.role !== "owner") return { ok: false, refusal: "not_owner" };
+  const [member] = await db
+    .select({ id: projectMemberships.id })
+    .from(projectMemberships)
+    .where(
+      and(eq(projectMemberships.projectId, projectId), eq(projectMemberships.userId, toUserId)),
+    )
+    .limit(1);
+  if (!member) return { ok: false, refusal: "not_a_member" };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(userProjects)
+      .set({ userId: toUserId })
+      .where(and(eq(userProjects.entityProjectId, projectId), eq(userProjects.userId, fromUserId)));
+    await tx
+      .delete(projectMemberships)
+      .where(
+        and(eq(projectMemberships.projectId, projectId), eq(projectMemberships.userId, toUserId)),
+      );
+    await tx
+      .insert(projectMemberships)
+      .values({ projectId, userId: fromUserId, role: "editor" })
+      .onConflictDoUpdate({
+        target: [projectMemberships.projectId, projectMemberships.userId],
+        set: { role: "editor", updatedAt: new Date() },
+      });
+  });
+  return { ok: true };
+}
