@@ -14,6 +14,7 @@
  * prompt — is not Done. "dispatched" alone is not a user-facing word either.
  */
 import { explainRunFailure } from "@/lib/feedback/failure-reason";
+import { autoRetryNotice } from "@/lib/feedback/auto-reimplement-policy";
 import { FEEDBACK_STATUS, type FeedbackStatus } from "@/lib/constants/statuses";
 import { ORCH_STATE, type OrchestrationState } from "@/lib/orchestration/contract";
 import { ORCHESTRATION_OUTCOME } from "@/lib/orchestration/contract";
@@ -156,6 +157,8 @@ export type FeedbackRunSnapshot = {
   commandId?: string | null;
   /** One auto-retry already spent — see retry-queued.ts. */
   feedbackAutoRetriedAt?: string | null;
+  /** This run is Loki's own second attempt; why the first failed (auto-reimplement.ts). */
+  autoRetriedBecause?: string | null;
   /**
    * The builder that owns this queue is offline. Channel-aware: a local-queued
    * job with Fleet Runner down is offline even when the cloud builder is up.
@@ -238,7 +241,15 @@ export function deriveFeedbackWork(
   now: number = Date.now(),
 ): FeedbackWorkView {
   const view = withStep(derivePhase(status, run, now), run, now);
-  return { ...view, waitingOn: waitingOnFor(view) };
+  // A run that is Loki's own retry says so while it moves: the owner who saw
+  // "Failed" and did nothing should read that nothing was needed.
+  const retried =
+    run?.autoRetriedBecause &&
+    (view.phase === FEEDBACK_WORK_PHASE.QUEUED || view.phase === FEEDBACK_WORK_PHASE.WORKING) &&
+    !view.detail
+      ? { ...view, detail: autoRetryNotice(run.autoRetriedBecause) }
+      : view;
+  return { ...retried, waitingOn: waitingOnFor(retried) };
 }
 
 function withStep(
