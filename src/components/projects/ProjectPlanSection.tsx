@@ -17,15 +17,12 @@ export function ProjectPlanSection({
   projectName,
   attrs,
   goals,
-  goalsLocked,
   readonly,
 }: {
   projectId: string;
   projectName: string;
   attrs: Record<string, string>;
   goals: LinkedGoal[];
-  /** Goals withheld by the private-zone PIN — say so instead of "none". */
-  goalsLocked?: boolean;
   readonly: boolean;
 }) {
   const router = useRouter();
@@ -155,22 +152,7 @@ export function ProjectPlanSection({
             })}
           </div>
         ) : (
-          <p className="py-4 text-sm text-text-muted">
-            {goalsLocked ? (
-              <>
-                Milestones are behind your PIN — hidden, not missing.{" "}
-                <Link
-                  href="/unlock"
-                  className="text-accent-text underline-offset-2 hover:underline"
-                >
-                  Unlock for the roadmap
-                </Link>{" "}
-                if you want them here. Starting and shipping still work without it.
-              </>
-            ) : (
-              "No goals are linked to this project."
-            )}
-          </p>
+          <p className="py-4 text-sm text-text-muted">No goals are linked to this project.</p>
         )}
       </section>
     </section>

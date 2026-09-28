@@ -197,33 +197,6 @@ ok(
   "a description with no roadmap still dispatches, aimed at first-runnable",
 );
 
-// ── A locked private zone is optional, never a refuse ───────────────────────
-// linkedGoals comes back `[]` when the PIN is set. That used to 409 the
-// kickoff. OrangeCat → public site must start from the brief alone; unlock
-// only adds roadmap detail.
-{
-  const locked = { ...dossier({ goals: [] }) };
-  (locked.detail as unknown as { goalsLocked: boolean }).goalsLocked = true;
-  const lockedResult = composeDispatchPrompt("kickoff", undefined, locked);
-  eq(lockedResult.error, undefined, "a locked zone does not refuse kickoff");
-  ok(
-    /first working, runnable state/.test(lockedResult.prompt ?? ""),
-    "locked with no visible goals aims at first runnable from the brief",
-  );
-  ok(
-    /private zone locked/.test(lockedResult.prompt ?? ""),
-    "locked prompt tells the agent not to invent a conflicting roadmap",
-  );
-  const lockedButVisible = { ...dossier({ goals: [{ title: "Map picker" }] }) };
-  (lockedButVisible.detail as unknown as { goalsLocked: boolean }).goalsLocked = true;
-  ok(
-    /YOUR TARGET THIS RUN: Map picker/.test(
-      composeDispatchPrompt("kickoff", undefined, lockedButVisible).prompt ?? "",
-    ),
-    "if a target is visible anyway, the lock does not block the dispatch",
-  );
-}
-
 // ── next_step prefers the freshest handoff ──────────────────────────────────
 
 ok(

@@ -64,13 +64,6 @@ export type KickoffSetupInput = {
   attrs: Record<string, string>;
   goalCount: number;
   hasRepo: boolean;
-  /**
-   * Goals are hidden behind the private-zone PIN, so `goalCount` is unknown
-   * rather than zero. getProjectDetail returns `[]` when locked; believing that
-   * offered to "plan the milestones" for Zeitkastli, which already had five —
-   * and one press would have written a second roadmap on top of the first.
-   */
-  goalsLocked?: boolean;
 };
 
 /** The setup steps this project is still missing (never includes dispatch). */
@@ -79,8 +72,7 @@ export function missingKickoffSetup(input: KickoffSetupInput): KickoffStepId[] {
   // hasAnswer, not truthiness: a field holding "Unknown" is a field the
   // extractor could not fill, so the profile step is exactly what it needs.
   if (KICKOFF_CORE_PROFILE_KEYS.some((key) => !hasAnswer(input.attrs[key]))) steps.push("profile");
-  // Only "no goals" earns this step — never "goals I am not allowed to see".
-  if (!input.goalsLocked && input.goalCount === 0) steps.push("milestones");
+  if (input.goalCount === 0) steps.push("milestones");
   if (!input.hasRepo) steps.push("repo");
   return steps;
 }
@@ -94,24 +86,6 @@ export function missingKickoffSetup(input: KickoffSetupInput): KickoffStepId[] {
 export function planKickoff(input: KickoffSetupInput & { wantRepo: boolean }): KickoffStepId[] {
   const setup = missingKickoffSetup(input).filter((step) => step !== "repo" || input.wantRepo);
   return [...setup, "dispatch"];
-}
-
-/** Why a kickoff cannot run right now — checked BEFORE the first step. */
-export type KickoffBlock = "goals-locked"; // retained for call sites; never returned
-
-/**
- * Private-zone PIN must not block starting a project.
- *
- * Goals/milestones may live behind the PIN for people who use that zone.
- * Many builders never want that zone at all — OrangeCat → Loki → a public
- * site should still run on the project brief alone. When goals are locked we
- * skip inventing a second roadmap (see missingKickoffSetup) and brief the agent
- * from the description/profile. Unlock is optional enrichment, not a gate.
- *
- * Kept as a function so the hero and tests share one answer: never blocked.
- */
-export function kickoffBlockedReason(_input: { goalsLocked?: boolean }): KickoffBlock | null {
-  return null;
 }
 
 /** Is there enough written down to brief an agent with? */

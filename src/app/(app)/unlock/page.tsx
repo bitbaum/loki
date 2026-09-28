@@ -72,7 +72,7 @@ export default async function UnlockPage({ searchParams }: { searchParams: Searc
     },
     {
       label: "Goals",
-      description: "Active goals, milestones, progress.",
+      description: "Your personal goals. A project's roadmap always shows on its own page.",
       count: stats.goals,
       unit: "goals",
     },

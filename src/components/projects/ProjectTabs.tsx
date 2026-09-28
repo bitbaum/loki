@@ -61,6 +61,10 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
 
   const select = (id: string) => {
     setActive(id);
+    // A tab picked near the clipped edge scrolls fully into view.
+    document
+      .getElementById(`tab-${id}`)
+      ?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
     // replaceState, not a hash assignment: setting location.hash would scroll
     // the viewport to an element that no longer exists as an anchor, and would
     // stack a history entry per tab click so Back walks tabs instead of leaving.
@@ -82,11 +86,7 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
 
   return (
     <>
-      <div
-        role="tablist"
-        aria-label="Project sections"
-        className="sticky top-0 z-20 -mx-4 flex gap-1 overflow-x-auto border-y border-border-subtle bg-surface-page/95 px-4 py-2 backdrop-blur-sm sm:mx-0 sm:px-0"
-      >
+      <div role="tablist" aria-label="Project sections" className="ui-tabbar">
         {tabs.map((tab, i) => (
           <button
             key={tab.id}
@@ -99,7 +99,7 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
             onClick={() => select(tab.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
             className={cn(
-              "ui-tap inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+              "ui-tap inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors sm:px-3",
               active === tab.id
                 ? "bg-surface-raised text-text-primary"
                 : "text-text-secondary hover:bg-surface-raised hover:text-text-primary",

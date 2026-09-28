@@ -61,10 +61,8 @@ export function composeDispatchPrompt(
       (a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0),
     );
     const target = milestones.find((goal) => (goal.progress ?? 0) < 100) ?? null;
-    // Private-zone PIN may hide goals. That must not refuse a kickoff: many
-    // builders never use the private zone. Brief from the project description
-    // and profile; if a roadmap is visible, aim at the next open milestone.
-    // Optional unlock only adds roadmap detail — it is not consent to start.
+    // Brief from the project description and profile; when a roadmap exists,
+    // aim at the next open milestone.
     if (!description && !target) {
       return { error: "Describe the project first — there is nothing to brief an agent with." };
     }
@@ -98,9 +96,7 @@ export function composeDispatchPrompt(
         profile.length > 0 ? `\n${profile.join("\n")}` : "",
         roadmap.length > 0
           ? `\nBUILD ROADMAP (tracked as this project's goals):\n${roadmap.join("\n")}`
-          : dossier.detail.goalsLocked
-            ? "\nBUILD ROADMAP: not visible (private zone locked). Use the brief and profile only — do not invent a conflicting roadmap."
-            : "",
+          : "",
         target
           ? `\nYOUR TARGET THIS RUN: ${target.title}${target.description ? `\n${target.description}` : ""}`
           : "\nYOUR TARGET THIS RUN: get the project to its first working, runnable state (a real site or app the person can open).",
