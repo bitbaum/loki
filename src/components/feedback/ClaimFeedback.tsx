@@ -15,7 +15,17 @@ export function ClaimFeedback({ token, signedIn }: { token: string; signedIn: bo
     void (async () => {
       const response = await postJson("/api/feedback/claim", { token });
       if (response.ok) {
-        router.replace("/my-feedback");
+        const body = (await response.json().catch(() => null)) as {
+          owner?: boolean;
+          projectId?: string;
+        } | null;
+        // An owner's own report: the fix has just been started (or refused
+        // with a reason on the row), so land where Watch and Retry are.
+        router.replace(
+          body?.owner && body.projectId
+            ? `/feedback?project=${encodeURIComponent(body.projectId)}`
+            : "/my-feedback",
+        );
         return;
       }
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
