@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import {
   capabilitiesForRole,
   OWNER_CAPABILITIES,
+  ROLE_LABELS,
   type ProjectCapabilities,
 } from "@/lib/project-capabilities";
 import { PROJECT_ROLE_VALUES } from "@/db/schema/project-memberships";
@@ -48,6 +49,27 @@ check("a viewer reads and nothing more", () => {
   const viewer = capabilitiesForRole("viewer");
   assert.equal(viewer.canEdit, false, "a reporter must not be able to dispatch work");
   assert.equal(viewer.canManageMembers, false);
+});
+
+// The client is who the project is for. They see everything a viewer sees and
+// are named as the client on the roster; they do not spend the owner's runner.
+check("a client follows and is named, but does not dispatch", () => {
+  const client = capabilitiesForRole("client");
+  assert.equal(client.canEdit, false, "the client is not the builder");
+  assert.equal(client.canManageMembers, false);
+  assert.equal(ROLE_LABELS.client.label, "Client");
+});
+
+check("every role has a label and a help line the roster can show", () => {
+  for (const role of ["owner", ...PROJECT_ROLE_VALUES] as const) {
+    assert.ok(ROLE_LABELS[role].label.length > 1, `${role} needs a label`);
+    assert.ok(ROLE_LABELS[role].help.startsWith(ROLE_LABELS[role].label), `${role} help names it`);
+  }
+  assert.equal(
+    ROLE_LABELS.editor.label,
+    "Builder",
+    "the stored value stays editor; the word is Builder",
+  );
 });
 
 check("NOBODY but the owner can manage members", () => {

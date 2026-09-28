@@ -1,4 +1,6 @@
 import { conventionalFrom, fromAddress, isMailConfigured, sendMail } from "@bitbaum/mail-kit";
+import { ROLE_LABELS } from "@/lib/project-capabilities";
+import type { ProjectRole } from "@/db/schema/project-memberships";
 import { ROUTES } from "@/config/auth";
 import { APP_NAME, APP_TAGLINE, LOCAL_DEV_URL } from "@/config/brand";
 import { EMAIL_THEME, mailSubject } from "@/config/comms";
@@ -189,16 +191,15 @@ export function feedbackShippedTemplate(input: {
 export function projectInviteTemplate(input: {
   projectName: string;
   inviterName: string | null;
-  role: "editor" | "viewer";
+  role: ProjectRole;
   inviteUrl: string;
   expiresDays: number;
 }) {
   const subject = mailSubject("project_invite", input.projectName);
   const who = input.inviterName?.trim() || "A project owner";
-  const can =
-    input.role === "editor"
-      ? "work on it with them: run agents, edit notes and settings"
-      : "follow it: see its runs, feedback and what shipped";
+  // The same sentence the roster shows for the role, so the label a person is
+  // invited under is the label they find inside.
+  const can = ROLE_LABELS[input.role].can;
   const html = emailShell(`
     <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:${EMAIL_THEME.ink};">You're invited to ${escapeHtml(input.projectName)}</h2>
     ${p(`${escapeHtml(who)} invited you to ${escapeHtml(input.projectName)} on ${APP_NAME}, so you can ${can}.`)}

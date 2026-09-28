@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { deleteJson, postJson, throwApiError } from "@/lib/api/fetch";
+import { PROJECT_ROLE_VALUES, type ProjectRole } from "@/db/schema/project-memberships";
+import { ROLE_LABELS } from "@/lib/project-capabilities";
 
-type Role = "editor" | "viewer";
+type Role = ProjectRole;
 
 type Member = {
   userId: string;
@@ -25,11 +27,6 @@ type MembersResponse = {
   invitations: PendingInvite[];
   canManage: boolean;
   role: string;
-};
-
-const ROLE_HELP: Record<Role, string> = {
-  editor: "Editor: can run agents, triage and implement feedback, edit notes and settings.",
-  viewer: "Viewer: can follow the project and its feedback, but cannot dispatch work.",
 };
 
 /**
@@ -104,6 +101,32 @@ export function ProjectMembersPanel({ projectId }: { projectId: string }) {
     }
     members.refetch();
   }
+  // Ownership is the tenant the work runs in, so this is the one action here
+  // that changes whose runner the project uses. The confirm names that; the
+  // old owner keeps a builder's seat, so nothing is lost by saying yes.
+  async function handOver(member: Member) {
+    const who = member.name || member.email || "this person";
+    if (
+      !window.confirm(
+        `Hand this project over to ${who}? It will run in their tenant from now on; you keep a builder's seat.`,
+      )
+    )
+      return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const response = await postJson(`/api/projects/${projectId}/transfer`, {
+        userId: member.userId,
+      });
+      if (!response.ok) await throwApiError(response, "Could not hand over");
+      setMessage(`Handed over to ${who}. You now hold a builder's seat.`);
+      await members.refetch();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not hand over");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function withdraw(invitationId: string) {
     const response = await deleteJson(`/api/projects/${projectId}/members`, { invitationId });
@@ -143,8 +166,11 @@ export function ProjectMembersPanel({ projectId }: { projectId: string }) {
           onChange={(e) => setRole(e.target.value as Role)}
           aria-label="Role"
         >
-          <option value="editor">Editor</option>
-          <option value="viewer">Viewer</option>
+          {PROJECT_ROLE_VALUES.map((r) => (
+            <option key={r} value={r}>
+              {ROLE_LABELS[r].label}
+            </option>
+          ))}
         </select>
         <button
           className="ui-btn-primary"
@@ -155,7 +181,7 @@ export function ProjectMembersPanel({ projectId }: { projectId: string }) {
           {busy ? "Inviting…" : "Invite"}
         </button>
       </div>
-      <p className="mt-1 text-xs text-text-tertiary">{ROLE_HELP[role]}</p>
+      <p className="mt-1 text-xs text-text-tertiary">{ROLE_LABELS[role].help}</p>
 
       {message && <p className="mt-2 text-xs text-text-secondary">{message}</p>}
       {link && (
@@ -179,15 +205,20 @@ export function ProjectMembersPanel({ projectId }: { projectId: string }) {
           className="mt-2 flex items-center justify-between gap-3 text-xs text-text-secondary"
         >
           <span>
-            {member.name || member.email || "Loki user"} · {member.role}
+            {member.name || member.email || "Loki user"} · {ROLE_LABELS[member.role].label}
           </span>
-          <button
-            type="button"
-            className="ui-btn-ghost"
-            onClick={() => void removeMember(member.userId)}
-          >
-            Remove
-          </button>
+          <span className="flex gap-1">
+            <button type="button" className="ui-btn-ghost" onClick={() => void handOver(member)}>
+              Hand over
+            </button>
+            <button
+              type="button"
+              className="ui-btn-ghost"
+              onClick={() => void removeMember(member.userId)}
+            >
+              Remove
+            </button>
+          </span>
         </div>
       ))}
       {data.invitations.map((inv) => (
@@ -196,7 +227,7 @@ export function ProjectMembersPanel({ projectId }: { projectId: string }) {
           className="mt-2 flex items-center justify-between gap-3 text-xs text-text-tertiary"
         >
           <span>
-            {inv.email} · {inv.role} · invited, not yet joined
+            {inv.email} · {ROLE_LABELS[inv.role].label} · invited, not yet joined
           </span>
           <button type="button" className="ui-btn-ghost" onClick={() => void withdraw(inv.id)}>
             Withdraw

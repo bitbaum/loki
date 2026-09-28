@@ -16,6 +16,7 @@ import { getProjectCore, patchProject } from "@/db/queries/projects";
 import { getUserProjectByEntityId, updateUserProject } from "@/db/queries/user-projects";
 import { fetchAttributesByEntityIds } from "@/db/queries/utils";
 import { createGoal } from "@/db/queries/goals";
+import { getProjectAccess } from "@/db/queries/project-access";
 import { getProjectDossierByOwner } from "@/db/queries/project-dossier";
 import { PROJECT_ATTR } from "@/config/project-attrs";
 import {
@@ -380,8 +381,20 @@ export async function dispatchStep(
   id: string,
   input: z.infer<typeof DispatchBody>,
 ): Promise<StepResult> {
-  // Owner-only: dispatching work is a write, org peers see the page read-only.
-  const dossier = await getProjectDossierByOwner(userId, id);
+  // Anyone with canEdit may dispatch — the owner and every builder. Until
+  // 2026-09-28 this looked the project up BY OWNER, so a builder whose role
+  // said "can run agents" got "Project not found" the moment they tried. The
+  // work still runs in the OWNER's tenant (project-capabilities.ts): a builder
+  // receives the capability, never the owner's runner credentials.
+  const access = await getProjectAccess(userId, id);
+  if (!access) return json({ error: "Project not found" }, 404);
+  if (!access.canEdit) {
+    return json(
+      { error: `A ${access.role} can follow this project but not dispatch work on it` },
+      403,
+    );
+  }
+  const dossier = await getProjectDossierByOwner(access.ownerUserId, id);
   if (!dossier) return json({ error: "Project not found" }, 404);
 
   const composed = composeDispatchPrompt(input.kind, input.signalKey, dossier);
@@ -394,6 +407,6 @@ export async function dispatchStep(
       allowHostedFallback: false,
       customPrompt: composed.prompt,
     },
-    userId,
+    access.ownerUserId,
   );
 }

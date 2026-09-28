@@ -2,7 +2,15 @@ import { index, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-co
 import { entities } from "./entities";
 import { users } from "./users";
 
-export const PROJECT_ROLE_VALUES = ["editor", "viewer"] as const;
+/**
+ * editor — builds: dispatches agents, triages feedback, edits notes.
+ * client — the person the project is FOR: follows it, sees the fixes, is who
+ *          the builder answers to. Reads like a viewer; named so the roster says
+ *          who is paying and who is building.
+ * viewer — follows. The role a reporter is given on a project they filed against.
+ * Ownership is not a role here: it is the user_projects row.
+ */
+export const PROJECT_ROLE_VALUES = ["editor", "client", "viewer"] as const;
 export type ProjectRole = (typeof PROJECT_ROLE_VALUES)[number];
 
 /** Explicit per-project access. Ownership remains canonical on user_projects;
