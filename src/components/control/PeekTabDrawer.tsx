@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Eye, RefreshCw, X } from "lucide-react";
+import Link from "next/link";
+import { Eye, Loader2, RefreshCw, X } from "lucide-react";
+import { fleetSurfaceHref } from "@/lib/fleet-context";
+import { useKickoffRunForTab } from "@/lib/kickoff-run";
+import { KICKOFF_STEP_LABEL } from "@/lib/project-kickoff";
 import { Drawer } from "@/components/ui/modal";
 import { TerminalView } from "../terminal/TerminalView";
 import { runnerTransport } from "../terminal/terminal-transport";
@@ -19,7 +23,20 @@ import { ActivityTimeline } from "./ActivityTimeline";
 
 type View = "activity" | "live" | "snapshot";
 
-export function PeekTabDrawer({ tab, onClose }: { tab: string; onClose: () => void }) {
+/** The runner's own words when there is no PTY for the tab (agent-execution/owned). */
+const NO_AGENT_RE = /^No running agent for /;
+
+export function PeekTabDrawer({
+  tab,
+  onClose,
+  agentRunning = true,
+}: {
+  tab: string;
+  onClose: () => void;
+  /** False when Control already knows nothing is running for this tab — the
+   *  Live and Snapshot views then say so instead of streaming an empty box. */
+  agentRunning?: boolean;
+}) {
   const [view, setView] = useState<View>("activity");
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -129,10 +146,12 @@ export function PeekTabDrawer({ tab, onClose }: { tab: string; onClose: () => vo
   }
 
   useEffect(() => {
-    if (view !== "snapshot") return; // live streams via TerminalView; activity reads the DB
+    // live streams via TerminalView; activity reads the DB; nothing to capture
+    // when Control already knows no agent is running.
+    if (view !== "snapshot" || !agentRunning) return;
     void runPeek();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runPeek is recreated each render; tab/view are its real inputs
-  }, [tab, view]);
+  }, [tab, view, agentRunning]);
 
   useEffect(() => {
     if (!autoRefresh || view !== "snapshot") return;
@@ -218,6 +237,8 @@ export function PeekTabDrawer({ tab, onClose }: { tab: string; onClose: () => vo
           <div className="h-full p-3">
             <ActivityTimeline tab={tab} />
           </div>
+        ) : !agentRunning || (content !== null && NO_AGENT_RE.test(content.trim())) ? (
+          <NoAgentState tab={tab} />
         ) : view === "live" ? (
           <div className="p-3">
             <TerminalView transport={runnerTransport(tab, "local")} interactive fill />
@@ -242,5 +263,53 @@ export function PeekTabDrawer({ tab, onClose }: { tab: string; onClose: () => vo
         )}
       </div>
     </Drawer>
+  );
+}
+
+/**
+ * Live and Snapshot with no agent behind them used to be an empty grey box and
+ * a raw runner line ("No running agent for …") — true, but a dead end that
+ * reads as "broken". Say what is known and give the one next action; if a
+ * kickoff is setting this project up right now, show that instead.
+ */
+function NoAgentState({ tab }: { tab: string }) {
+  const kickoff = useKickoffRunForTab(tab);
+  const current = kickoff?.running ? kickoff.steps.find((s) => s.state === "running") : null;
+
+  if (kickoff?.running) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm">
+        <Loader2 className="h-5 w-5 animate-spin text-text-secondary" aria-hidden="true" />
+        <p className="font-medium text-text-secondary">Setting up — the agent starts next</p>
+        <p className="max-w-sm text-text-muted">
+          {current ? `${KICKOFF_STEP_LABEL[current.id]}… ` : ""}Its terminal appears here as soon as
+          it starts.
+        </p>
+      </div>
+    );
+  }
+
+  const queued = kickoff?.dispatch === "queued-offline";
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm">
+      <p className="font-medium text-text-secondary">
+        {queued ? "Queued — waiting for a builder" : "No agent is running for this project"}
+      </p>
+      <p className="max-w-sm text-text-muted">
+        {queued
+          ? "The work is saved and starts by itself the moment the cloud builder or your computer comes online."
+          : "Nothing to watch yet. Start one from the project — its terminal shows up here while it works."}
+      </p>
+      <div className="mt-2 flex flex-wrap justify-center gap-2">
+        <Link href={fleetSurfaceHref("profile", tab)} className="ui-btn-primary ui-btn-xs">
+          {queued ? "Open the project" : "Start it from the project"}
+        </Link>
+        {queued && (
+          <Link href="/download" className="ui-btn-ghost ui-btn-xs">
+            Connect your computer
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }

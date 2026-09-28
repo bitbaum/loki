@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Loader2, RefreshCw } from "lucide-react";
+import { fleetSurfaceHref } from "@/lib/fleet-context";
+import { useKickoffRunForTab } from "@/lib/kickoff-run";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/dates";
 import { STATUS_DOT_CLASS, formatActivityTime } from "@/components/activity/activity-shared";
@@ -108,12 +111,7 @@ export function ActivityTimeline({ tab }: { tab: string }) {
           <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Loading activity…
         </div>
       ) : events.length === 0 ? (
-        <div className="flex h-full flex-col items-center justify-center gap-1 text-center text-sm text-text-tertiary">
-          <p className="font-medium text-text-secondary">No activity yet</p>
-          <p className="text-text-muted">
-            Dispatch a prompt to this project and it&apos;ll show up here.
-          </p>
-        </div>
+        <EmptyActivity tab={tab} />
       ) : (
         <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">
           {events.map((ev) => (
@@ -158,6 +156,38 @@ export function ActivityTimeline({ tab }: { tab: string }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * An empty timeline is either "nothing has happened" or "it is being set up
+ * right now and the first prompt has not gone out yet". The old copy said
+ * "Dispatch a prompt" in both cases, with nothing to press — to someone who
+ * had just pressed Make it happen, that read as "it didn't work".
+ */
+function EmptyActivity({ tab }: { tab: string }) {
+  const kickoff = useKickoffRunForTab(tab);
+  if (kickoff?.running) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm">
+        <Loader2 className="h-4 w-4 animate-spin text-text-secondary" aria-hidden />
+        <p className="font-medium text-text-primary">Setting up this project</p>
+        <p className="max-w-sm text-text-tertiary">
+          The agent&apos;s first prompt shows up here as soon as setup hands it over.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm">
+      <p className="font-medium text-text-primary">No activity yet</p>
+      <p className="max-w-sm text-text-tertiary">
+        Every prompt, run and result for this project lands here once an agent starts.
+      </p>
+      <Link href={fleetSurfaceHref("profile", tab)} className="ui-btn-secondary ui-btn-xs mt-1">
+        Start it from the project
+      </Link>
     </div>
   );
 }
