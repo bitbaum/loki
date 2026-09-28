@@ -50,6 +50,21 @@ export async function getWidgetTokenByToken(token: string): Promise<WidgetToken 
 }
 
 /**
+ * The project a widget belongs to, as the widget's Ask mode may describe it to
+ * a model: its name and the description its owner wrote. Nothing private.
+ */
+export async function getWidgetProjectBrief(
+  projectId: string,
+): Promise<{ name: string; description: string | null } | null> {
+  const [row] = await db
+    .select({ name: entities.name, description: entities.description })
+    .from(entities)
+    .where(eq(entities.id, projectId))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
  * Record a widget boot heartbeat — this is what makes the UI's "Live ✓"
  * observed truth. Throttled to one write per token per minute so a busy
  * customer page doesn't turn every view into an UPDATE.

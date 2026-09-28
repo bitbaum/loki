@@ -255,6 +255,26 @@ input { margin-bottom: 10px; }
 .chatform .chatinput { min-height: 44px; max-height: 120px; }
 .chatform .go { flex: none; padding: 0 16px; height: 44px; }
 @media (pointer: coarse) { .starter, .chatlink { padding: 11px 12px; } }
+/* ---- ask mode: advice, then each recommended change one tap from a request ---- */
+.msg.from-loki .who { color: ${theme.accent}; }
+.changes { display: flex; flex-direction: column; gap: 6px; align-self: stretch; padding: 10px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; }
+.changes-title { font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }
+.change { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.change-text { font-size: 12px; line-height: 1.45; color: ${theme.text}; min-width: 0; overflow-wrap: anywhere; }
+.change-send { flex: none; font-size: 11px; font-weight: 600; color: ${theme.text}; padding: 5px 9px; border: 1px solid ${theme.accent}; border-radius: ${rc}; background: ${theme.accentMuted}; }
+.change-send:hover { background: ${theme.accent}; color: ${ink}; }
+@media (pointer: coarse) { .change-send { padding: 11px 12px; } }
+/* ---- hiding: offered in the panel, and always says how to undo it ---- */
+.hide-link { display: block; margin: 10px auto 0; font-size: 11px; color: ${theme.textMuted}; text-decoration: underline; text-underline-offset: 2px; }
+.hide-link:hover { color: ${theme.textSecondary}; }
+@media (pointer: coarse) { .hide-link { padding: 12px 8px; } }
+.toast {
+  position: fixed; z-index: 2147483003; right: 16px; bottom: 16px; max-width: min(360px, calc(100vw - 32px));
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  background: ${theme.surface}; color: ${theme.text}; font-size: 12px; line-height: 1.4;
+  border: 1px solid ${theme.borderDark}; border-radius: ${rs}; box-shadow: 0 8px 32px rgba(0,0,0,.5);
+}
+.toast-undo { flex: none; font-size: 12px; font-weight: 600; color: ${theme.text}; padding: 6px 10px; border: 1px solid ${theme.borderStrong}; border-radius: ${rc}; }
 
 /* ---- element picker bar: the same surface, at the top ---- */
 .pickbar {

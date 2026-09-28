@@ -19,7 +19,7 @@ export function readVisitorPlacement(token: string): Placement | null {
     // `hidden` is stored as a placement with a marker so one key covers both
     // "moved it" and "dismissed it".
     if (parsed && typeof parsed === "object" && (parsed as { hidden?: boolean }).hidden) {
-      return { ...DEFAULT_PLACEMENT, autoAvoid: false, offsetX: -1 };
+      return readHiddenMarker();
     }
     return normalizePlacement(parsed);
   } catch {
@@ -39,7 +39,37 @@ export function writeVisitorPlacement(
   }
 }
 
+/** The in-memory form of "the visitor hid this" (see isHiddenByVisitor). */
+export function readHiddenMarker(): Placement {
+  return { ...DEFAULT_PLACEMENT, autoAvoid: false, offsetX: -1 };
+}
+
 /** offsetX === -1 is the in-memory marker for "visitor hid this". */
 export function isHiddenByVisitor(p: Placement | null): boolean {
   return !!p && p.offsetX === -1;
+}
+
+/** The fragment that brings a hidden launcher back: `https://site/page#loki`. */
+export const RESTORE_HASH = "loki";
+
+/**
+ * Did this visit ask for the launcher back? Reads `#loki` (alone or among other
+ * `&`-joined fragment parts), then removes it from the address bar so a copied
+ * link does not carry it. A fragment never reaches any server, so this works on
+ * every host without a deploy.
+ */
+export function restoreRequested(): boolean {
+  const parts = location.hash.replace(/^#/, "").split("&");
+  if (!parts.includes(RESTORE_HASH)) return false;
+  const kept = parts.filter((p) => p && p !== RESTORE_HASH);
+  try {
+    history.replaceState(
+      history.state,
+      "",
+      location.pathname + location.search + (kept.length ? `#${kept.join("&")}` : ""),
+    );
+  } catch {
+    /* sandboxed frame — the fragment just stays */
+  }
+  return true;
 }
