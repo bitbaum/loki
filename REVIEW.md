@@ -32,3 +32,35 @@ ONLY loki's scars.
 - `npm run test:unit` green (auto-discovers `scripts/test/*.ts`); CI green on PR.
 - Diff updates CLAUDE.md/docs if it changes documented structure/behavior.
 - Second fix of the same bug class ships the rule/test that ends the class.
+
+## Definition of done for a page (a scar, 2026-09-28)
+
+A PR that adds a link to a page is not done until the target page has been
+RENDERED with what that link carries and LOOKED AT at 390px. Not the source
+read, not the types checked: the pixels.
+
+What happened: #959 sent an owner from My feedback to `/feedback?project=<id>`.
+The inbox filtered by project NAME, so the page printed "Nothing waiting on
+you for 5936f8fb-7239-…" at the person who had just pressed Implement — on a
+page whose chips, stat cards and section heads were each drawn in a different
+style. Every check was green. The owner found it on his phone.
+
+Two rules, both mechanical:
+
+1. **A link carries what the target reads.** Before wiring `href` to
+   `?param=`, open the target and read how it consumes that param (name vs
+   id, slug vs uuid). If the two disagree, the target resolves both, and the
+   PR says so. Never trust that a page "takes a project".
+2. **Render before claiming.** `node scripts/preview/build-feedback-preview.mjs`
+   renders the real `/feedback` inbox with fixture rows at phone and desktop
+   widths, in both themes, for every `?project=` shape, and fails on
+   horizontal overflow or a console error. Run it and OPEN the PNGs in
+   `.tmp/feedback-preview/` — the tool cannot see ugly, only broken. A new
+   surface that has no harness gets one in the same PR (copy that script:
+   esbuild + shims for `next/link` and `next/navigation`, `globals.css`
+   through `@tailwindcss/postcss`, a mocked `fetch`); the harness does not need
+   a database or a session, which is exactly why "I could not test it in the
+   sandbox" is not a reason.
+
+The same sentence, from the person who found it: "before you say that
+something is done, why would you not go through it and test it?"

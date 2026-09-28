@@ -51,6 +51,19 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   page, or the whole site. Every suggestion has a "Request this" button (#950).
 
 ### Fixed
+- **The Feedback inbox is one surface again, and a project link by id works.**
+  Landing from "Implement" on `/feedback?project=<id>` printed "Nothing
+  waiting on you for 5936f8fb-…" — the page filtered by project name and
+  showed the reader the id. The filter now accepts a name or an id, an empty
+  project view says what is shipped and offers "Show all projects" / "Open
+  <project>", the three stat cards became one quiet line, project and source
+  filters share the Control inbox's chip, sections use the inbox primitives,
+  and a failed row has one primary button (Retry) with Watch beside it. A
+  render harness (`scripts/preview/`) now screenshots the page at phone and
+  desktop widths in both themes before it ships.
+- **Any refused feedback run gets one automatic second attempt** — not only
+  the usage-limit and no-generation cases. Only commands the runner could not
+  read, dead credentials and a missing workspace still stop and say so.
 - **A green "Live" chip no longer opens the website.** It read as "watch it
   live" and landed on a homepage with no idea where to look. The chip is now a
   status ("Shipped · confirm") and the button beside it is the walkthrough

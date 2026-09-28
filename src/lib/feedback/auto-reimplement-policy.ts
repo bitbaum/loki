@@ -6,7 +6,11 @@ import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
  * work-phase.ts (which is pure and unit-tested without a database) can read
  * it, and the policy is testable on its own.
  */
-const AUTH_RE = /not authenticated|\b401\b|login required|not logged in|setup-token/i;
+const AUTH_RE =
+  /not authenticated|\b401\b|login required|not logged in|setup-token|rejected token|mint a new one/i;
+/** The runner could not even read the command — a second copy reads the same. */
+const PROTOCOL_RE =
+  /payload missing|payload field|does not handle command type|must be (?:a string|an object)/i;
 const WORKSPACE_RE =
   /not materializable|does not exist (?:here|on this machine)|no cloneable|nothing was launched here/i;
 const NO_GENERATION_RE =
@@ -37,7 +41,11 @@ export function decideAutoReimplement(
   if (NO_GENERATION_RE.test(text)) {
     return { retry: true, because: "the agent opened but never started generating" };
   }
-  return { retry: false, reason: "not-retryable" };
+  if (PROTOCOL_RE.test(text)) return { retry: false, reason: "not-retryable" };
+  // Anything else the runner refused with is worth exactly one more attempt on
+  // a provider with quota: the cost is one dispatch, the guard is the stamp,
+  // and the alternative is a "Failed" row nobody is looking at.
+  return { retry: true, because: "the first attempt was refused by the builder" };
 }
 
 /** One sentence for the row: what happened and that Loki already acted on it. */
