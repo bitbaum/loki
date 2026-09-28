@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Loader2, MessagesSquare } from "lucide-react";
+import { AlertTriangle, Inbox, Loader2, MessagesSquare } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { compactDurationHours } from "@/lib/dates";
 import { FEEDBACK_SOURCE, FEEDBACK_STATUS, type FeedbackStatus } from "@/lib/constants/statuses";
 import { WAITING_ON } from "@/lib/feedback/work-phase";
-import { StatRow } from "@/components/ui/stat-row";
-import { StatCard } from "@/components/ui/card";
 import type { FeedbackLoopMetrics, UserFeedbackListItem } from "@/db/queries/site-feedback";
 import type { FeedbackWorkView } from "@/lib/feedback/work-phase";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -78,15 +76,28 @@ export function FeedbackInbox() {
     metrics: FeedbackLoopMetrics | null;
   }>("/api/feedback/inbox");
   const searchParams = useSearchParams();
-  const [projectFilter, setProjectFilter] = useState<string | null>(() =>
-    searchParams.get("project"),
-  );
+  // `?project=` is a name or an entity id — both are handed out as links
+  // (My feedback and the claim page know only the id). Resolved against the
+  // data once it is here; a value that matches nothing filters nothing,
+  // instead of printing an id at the reader (2026-09-28: "Nothing waiting on
+  // you for 5936f8fb-…").
+  const requestedProject = searchParams.get("project");
+  const [projectFilter, setProjectFilter] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const { busyId, error, notice, dispatchFix, setStatus, feature } = useFeedbackActions(refetch);
 
   const all = useMemo(() => data?.feedback ?? [], [data]);
   const metrics = data?.metrics ?? null;
+
+  useEffect(() => {
+    if (!requestedProject || all.length === 0) return;
+    const match = all.find(
+      (f) => f.projectName === requestedProject || f.projectId === requestedProject,
+    );
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resolving a URL param against fetched data
+    setProjectFilter(match ? match.projectName : null);
+  }, [requestedProject, all]);
 
   // Same honesty poll as the project section: while any fix is in flight,
   // keep the phases fresh.
@@ -103,10 +114,10 @@ export function FeedbackInbox() {
   // Project chips come from the data itself — a project appears here exactly
   // when it has feedback, with its open count.
   const projects = useMemo(() => {
-    const byName = new Map<string, { name: string; open: number }>();
+    const byName = new Map<string, { name: string; id: string; open: number }>();
     for (const f of all) {
       if (f.status === FEEDBACK_STATUS.ARCHIVED) continue;
-      const entry = byName.get(f.projectName) ?? { name: f.projectName, open: 0 };
+      const entry = byName.get(f.projectName) ?? { name: f.projectName, id: f.projectId, open: 0 };
       if (f.status === FEEDBACK_STATUS.NEW || f.status === FEEDBACK_STATUS.DISPATCHED)
         entry.open += 1;
       byName.set(f.projectName, entry);
@@ -184,143 +195,116 @@ export function FeedbackInbox() {
   // is named once in the heading and the rows stop repeating it.
   const sourcesPresent = new Set(all.map((f) => f.source ?? FEEDBACK_SOURCE.VISITOR));
   const showProjectChips = projects.length > 1;
-  // One project in the whole inbox: naming it on every row is the same noise
-  // as naming it in a filter nobody can change.
   const hideProject = !!projectFilter || projects.length <= 1;
   const showSourceChips = sourcesPresent.size > 1;
   const nothingWaiting = needsYou.length === 0 && underWay.length === 0;
+  const current = projectFilter ? projects.find((p) => p.name === projectFilter) : null;
 
   return (
-    <div className="space-y-6">
-      {(showProjectChips || showSourceChips || projectFilter) && (
-        <div className="space-y-2">
-          {/* TWO dimensions, two rows. They used to share one `flex-wrap`
-              block with a divider between them — and that divider is
-              `hidden sm:block`, so on a phone the project chips and the source
-              chips ran together across four wrapped rows with nothing to
-              separate them: "All sources" landed mid-line beside "orangecat",
-              and the filters ate the top 210px of a 390px screen before any
-              report was visible.
-
-              `ui-filter-chip-row` is the primitive the rest of the app already
-              uses for exactly this (People, Prompts, Goals, Events): one
-              scrolling line below sm, wrapping from sm up. Feedback had rolled
-              its own. Two rows instead of four, and each row is one thing. */}
-          <div
-            className="ui-filter-chip-row ui-scroll-fade-right items-center gap-2"
-            role="group"
-            aria-label="Filter reports by project"
-          >
-            {projectFilter && !showProjectChips ? (
-              <button
-                type="button"
-                onClick={() => setProjectFilter(null)}
-                className="ui-projects-filter-chip ui-projects-filter-chip-active"
-                title="Show every project"
-              >
-                {projectFilter}
-                <span aria-hidden="true">×</span>
-              </button>
-            ) : null}
-            {showProjectChips && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setProjectFilter(null)}
-                  className={cn(
-                    "ui-projects-filter-chip",
-                    projectFilter === null && "ui-projects-filter-chip-active",
-                  )}
+    <div className="space-y-5">
+      {/* One chip primitive for both filter rows — the Control inbox's
+          (`ui-inbox-project`): a 36px pill that never wraps, in a row that
+          scrolls sideways on a phone. This page used to draw its project
+          chips in one style and its source chips in another, and let a chip
+          wrap into two lines ("All / projects") when the row got tight. */}
+      {(showProjectChips || showSourceChips) && (
+        <div className="space-y-1.5">
+          {showProjectChips && (
+            <div
+              className="ui-inbox-projects ui-scroll-fade-right"
+              role="group"
+              aria-label="Filter reports by project"
+            >
+              <FilterChip active={projectFilter === null} onClick={() => setProjectFilter(null)}>
+                All projects
+              </FilterChip>
+              {projects.map((p) => (
+                <FilterChip
+                  key={p.name}
+                  active={projectFilter === p.name}
+                  onClick={() => setProjectFilter((v) => (v === p.name ? null : p.name))}
+                  count={p.open}
                 >
-                  All projects
-                </button>
-                {projects.map((p) => (
-                  <button
-                    key={p.name}
-                    type="button"
-                    onClick={() => setProjectFilter((v) => (v === p.name ? null : p.name))}
-                    className={cn(
-                      "ui-projects-filter-chip",
-                      projectFilter === p.name && "ui-projects-filter-chip-active",
-                    )}
-                  >
-                    {p.name}
-                    {p.open > 0 && <span className="ui-projects-filter-count">{p.open}</span>}
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
-          {/* The row break is the separator now, at every width — the old
-              vertical rule only existed from sm up. */}
-          <div
-            className="ui-filter-chip-row ui-scroll-fade-right items-center gap-2"
-            role="group"
-            aria-label="Filter reports by source"
-          >
-            {showSourceChips &&
-              SOURCE_FILTERS.filter((s) => s.key === null || sourcesPresent.has(s.key)).map((s) => (
-                <button
-                  key={s.label}
-                  type="button"
-                  onClick={() => setSourceFilter(s.key)}
-                  className={cn(
-                    "ui-projects-filter-chip",
-                    sourceFilter === s.key && "ui-projects-filter-chip-active",
-                  )}
-                >
-                  {s.label}
-                </button>
+                  {p.name}
+                </FilterChip>
               ))}
-          </div>
+            </div>
+          )}
+          {showSourceChips && (
+            <div
+              className="ui-inbox-projects ui-scroll-fade-right"
+              role="group"
+              aria-label="Filter reports by source"
+            >
+              {SOURCE_FILTERS.filter((s) => s.key === null || sourcesPresent.has(s.key)).map(
+                (s) => (
+                  <FilterChip
+                    key={s.label}
+                    active={sourceFilter === s.key}
+                    onClick={() => setSourceFilter(s.key)}
+                  >
+                    {s.label}
+                  </FilterChip>
+                ),
+              )}
+            </div>
+          )}
         </div>
+      )}
+
+      {/* The loop in one quiet line, fleet-wide — three bordered cards holding
+          three numbers were the loudest thing on a page whose job is the rows
+          under them. Hidden under a project filter rather than quietly
+          answering a different question. */}
+      {!projectFilter && metrics && metrics.total > 0 && (
+        <p className="text-xs text-text-tertiary">{metricsLine(metrics)}</p>
+      )}
+      {/* Under a project filter the subject is named in words, not only by
+          which chip is outlined: the rows below drop their project chip. */}
+      {current && !nothingWaiting && (
+        <p className="text-xs text-text-tertiary">
+          Showing {current.name}
+          {current.open > 0 ? ` · ${current.open} open` : ""} ·{" "}
+          <button type="button" onClick={() => setProjectFilter(null)} className="ui-link-muted">
+            All projects
+          </button>
+        </p>
       )}
 
       {error && <p className="ui-error">{error}</p>}
       {notice && <p className="ui-callout-warning">{notice}</p>}
-      {/* The loop in three numbers. Fleet-wide, so it is hidden under a
-          project filter rather than quietly answering a different question. */}
-      {!projectFilter && metrics && metrics.total > 0 && (
-        <StatRow>
-          {/* The sub-line names the ARCHIVED remainder as well as the open
-              count, because otherwise the three cards do not add up and the
-              reader is left to wonder which number is wrong. Prod on
-              2026-09-20: "68 reports \u00b7 29 still open" next to "32 shipped",
-              and 29 + 32 = 61. The other seven were archived — filed away
-              rather than fixed — and no card admitted that state existed. */}
-          <StatCard label="Reports" value={String(metrics.total)} sub={reportsSubLine(metrics)} />
-          <StatCard
-            label="Shipped"
-            value={String(metrics.resolved)}
-            sub={
-              metrics.resolved30d > 0
-                ? `${metrics.resolved30d} in the last 30 days`
-                : "none in the last 30 days"
-            }
-          />
-          {/* "Report → fix" overstated it: resolved_at is stamped when the
-              operator presses Confirm, so the number is dominated by how long
-              they took to look, not by how fast the loop shipped. Name what is
-              actually measured. */}
-          <StatCard
-            label="Report → confirmed"
-            value={
-              metrics.medianResolutionHours != null
-                ? compactDurationHours(metrics.medianResolutionHours)
-                : "—"
-            }
-            sub={metrics.medianResolutionHours != null ? "median" : "nothing confirmed yet"}
-          />
-        </StatRow>
-      )}
 
-      {/* One sentence when the answer is "nothing" — three headed sections each
-          saying it was the noise. Sections render only when they hold rows. */}
+      {/* When the answer is "nothing", say so AND say what to do next: the
+          same screen must carry the way forward (a bare "Nothing waiting on
+          you for <project>." left the owner asking what to do — 2026-09-28). */}
       {nothingWaiting && (
-        <p className="text-sm text-text-tertiary">
-          Nothing waiting on you
-          {projectFilter ? ` for ${projectFilter}` : ""}.
-        </p>
+        <EmptyState
+          icon={Inbox}
+          title="Nothing waiting on you"
+          size="sm"
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              {projectFilter && (
+                <button
+                  type="button"
+                  onClick={() => setProjectFilter(null)}
+                  className="ui-btn-secondary"
+                >
+                  Show all projects
+                </button>
+              )}
+              {current && (
+                <Link href={`/projects/${current.id}`} className="ui-btn-secondary">
+                  Open {current.name}
+                </Link>
+              )}
+            </div>
+          }
+        >
+          {projectFilter
+            ? `${projectFilter} has ${shipped.length} shipped and nothing open.`
+            : "Every report is either shipped or with an agent. New ones appear here as they arrive."}
+        </EmptyState>
       )}
 
       {needsYou.length > 0 && (
@@ -340,15 +324,7 @@ export function FeedbackInbox() {
       )}
 
       {underWay.length > 0 && (
-        <InboxSection
-          title="Under way"
-          count={underWay.length}
-          aside={
-            underWay.some((f) => f.work.phase === "queued")
-              ? "Watch for progress — Telegram if it stalls"
-              : "moving on its own — Watch if you want to see"
-          }
-        >
+        <InboxSection title="Under way" count={underWay.length} note="moving on its own">
           {underWay.map((f) => (
             <Row
               key={f.id}
@@ -364,18 +340,7 @@ export function FeedbackInbox() {
       )}
 
       {shipped.length > 0 && (
-        <InboxSection
-          title="Shipped"
-          count={shipped.length}
-          aside={
-            metrics &&
-            metrics.resolved > 0 &&
-            metrics.medianResolutionHours != null &&
-            !projectFilter
-              ? `median ${compactDurationHours(metrics.medianResolutionHours)} report→fix`
-              : undefined
-          }
-        >
+        <InboxSection title="Shipped" count={shipped.length}>
           {shipped.map((f) => (
             <Row
               key={f.id}
@@ -395,24 +360,26 @@ export function FeedbackInbox() {
           <button
             type="button"
             onClick={() => setShowArchived((v) => !v)}
-            className="text-xs text-text-muted underline-offset-2 hover:underline"
+            className="ui-link-muted"
             aria-expanded={showArchived}
           >
             {showArchived ? "Hide archived" : `Show archived (${archived.length})`}
           </button>
           {showArchived && (
-            <div className="mt-2 divide-y divide-border-subtle opacity-70">
-              {archived.map((f) => (
-                <Row
-                  key={f.id}
-                  f={f}
-                  busyId={busyId}
-                  dispatchFix={dispatchFix}
-                  setStatus={setStatus}
-                  feature={feature}
-                  hideProject={hideProject}
-                />
-              ))}
+            <div className="mt-2 opacity-70">
+              <InboxSection title="Archived" count={archived.length}>
+                {archived.map((f) => (
+                  <Row
+                    key={f.id}
+                    f={f}
+                    busyId={busyId}
+                    dispatchFix={dispatchFix}
+                    setStatus={setStatus}
+                    feature={feature}
+                    hideProject={hideProject}
+                  />
+                ))}
+              </InboxSection>
             </div>
           )}
         </div>
@@ -421,26 +388,72 @@ export function FeedbackInbox() {
   );
 }
 
+/** The fleet-wide loop as one sentence. Pure; pinned by feedback-numbers-add-up. */
+export function metricsLine(m: FeedbackLoopMetrics): string {
+  const parts = [
+    `${m.total} reports`,
+    m.open > 0 ? `${m.open} open` : null,
+    `${m.resolved} shipped${m.resolved30d > 0 ? ` (${m.resolved30d} in the last 30 days)` : ""}`,
+    m.archived > 0 ? `${m.archived} archived` : null,
+    m.medianResolutionHours != null
+      ? `${compactDurationHours(m.medianResolutionHours)} median to confirmed`
+      : null,
+  ].filter((p): p is string => p !== null);
+  return parts.join(" · ");
+}
+
+function FilterChip({
+  active,
+  onClick,
+  count,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  // A chip row scrolls sideways on a phone; a filter set from the URL must
+  // not leave its own chip out of sight (rendered at 390px: "All projects"
+  // in view, "petvity" three chips off the right edge).
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [active]);
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn("ui-inbox-project whitespace-nowrap", active && "ui-inbox-project-active")}
+    >
+      {children}
+      {count != null && count > 0 && <span className="ui-inbox-project-count">{count}</span>}
+    </button>
+  );
+}
+
 function InboxSection({
   title,
   count,
-  aside,
+  note,
   children,
 }: {
   title: string;
   count: number;
-  /** A quiet fact for the right edge of the heading, e.g. the median report→fix. */
-  aside?: string;
+  /** A quiet fact for the heading's right edge. */
+  note?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section aria-label={title}>
-      <h2 className="mb-1 flex items-baseline gap-2 text-sm font-semibold text-text-primary">
-        {title}
-        <span className="ui-badge">{count}</span>
-        {aside && <span className="ml-auto text-xs font-normal text-text-muted">{aside}</span>}
-      </h2>
-      <div className="divide-y divide-border-subtle">{children}</div>
+    <section className="ui-inbox" aria-label={title}>
+      <header className="ui-inbox-head">
+        <h2 className="ui-inbox-title">{title}</h2>
+        {note && <span className="ui-inbox-group-note">{note}</span>}
+        <span className="ui-inbox-total">{count}</span>
+      </header>
+      <div className="ui-inbox-group-body ui-inbox-list">{children}</div>
     </section>
   );
 }

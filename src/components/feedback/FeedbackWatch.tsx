@@ -25,11 +25,22 @@ type WatchPayload = {
  * `variant="button"` is the rail control; when open, render `<FeedbackWatchPanel/>`
  * under the row (full width).
  */
-export function FeedbackWatchButton({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+export function FeedbackWatchButton({
+  open,
+  onToggle,
+  primary = true,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  /** The row's ONE filled button. Watch is it while the run is live; on a
+   *  failed row the provider switch is, and a second filled button beside it
+   *  read as two primaries (2026-09-28). */
+  primary?: boolean;
+}) {
   return (
     <button
       type="button"
-      className="ui-btn-save gap-1"
+      className={primary ? "ui-btn-save gap-1" : "ui-btn-secondary gap-1"}
       aria-expanded={open}
       onClick={onToggle}
       title="Show what the agent is doing"

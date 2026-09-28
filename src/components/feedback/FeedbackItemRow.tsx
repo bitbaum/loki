@@ -312,7 +312,11 @@ export function FeedbackItemRow({
             work.phase === FEEDBACK_WORK_PHASE.FAILED ? (
             <>
               {showWatch && (
-                <FeedbackWatchButton open={watchOpen} onToggle={() => setWatchOpen((v) => !v)} />
+                <FeedbackWatchButton
+                  open={watchOpen}
+                  onToggle={() => setWatchOpen((v) => !v)}
+                  primary={false}
+                />
               )}
               {/* A run that needs you is most often a run that ran out of
                   quota, and the fix is a different provider — not the same one

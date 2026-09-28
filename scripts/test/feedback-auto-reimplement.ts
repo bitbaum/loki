@@ -32,9 +32,23 @@ assert.equal(
   (decideAutoReimplement(WORKSPACE, null) as { reason: string }).reason,
   "needs-workspace",
 );
+assert.deepEqual(
+  decideAutoReimplement("runner error", null),
+  { retry: true, because: "the first attempt was refused by the builder" },
+  "an unclassified refusal earns exactly one more attempt",
+);
 assert.equal(
-  (decideAutoReimplement("runner error", null) as { reason: string }).reason,
+  (
+    decideAutoReimplement("dispatch payload missing required string tab", null) as {
+      reason: string;
+    }
+  ).reason,
   "not-retryable",
+  "a command the runner could not read reads the same twice",
+);
+assert.equal(
+  (decideAutoReimplement("Bridge rejected token (HTTP 401)", null) as { reason: string }).reason,
+  "needs-auth",
 );
 assert.equal((decideAutoReimplement("", null) as { reason: string }).reason, "no-error");
 assert.equal(

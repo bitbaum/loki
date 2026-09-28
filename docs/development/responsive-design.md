@@ -130,6 +130,22 @@ Before shipping UI changes, verify at **375×667** and **320×568**:
 
 Run `pnpm run smoke` with dev server up for route health; Playwright viewport tests are planned but not yet in CI.
 
+### Rendering a page without a server: `scripts/preview/`
+
+`node scripts/preview/build-feedback-preview.mjs` renders the real
+`FeedbackInbox` component in headless Chromium with fixture rows
+(`feedback-inbox.fixture.ts`) — no database, no session, no dev server. It
+bundles the component with esbuild (shimming `next/link` and
+`next/navigation`), compiles `globals.css` through `@tailwindcss/postcss`,
+mocks `fetch` for the inbox API, and screenshots 390×844 and 1280×900 in dark
+and light for `?project=` empty, by name and by id. It fails on horizontal
+overflow or a console error and writes PNGs to `.tmp/feedback-preview/`.
+
+It exists because a page shipped that nobody had rendered (`/feedback?project=
+<uuid>`, 2026-09-28; see REVIEW.md → "Definition of done for a page"). Copy
+the script for any other page that needs the same proof; the PNGs are the
+artefact to look at before saying a page is done.
+
 ## Control page (`/control`)
 
 Control's failure mode was never one bad component — it was **twelve sibling
