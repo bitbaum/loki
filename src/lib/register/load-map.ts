@@ -9,6 +9,7 @@ import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { buildFleetRegister, canonicalSlug, repoFromGitUrl } from "@/lib/register/build";
 import { solonClaims } from "@/lib/register/solon";
+import { loadRepoRecords } from "@/lib/register/repo-records";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
 import {
   buildFleetMap,
@@ -104,9 +105,14 @@ export async function loadFleetMap(): Promise<FleetMap | null> {
     goalsByEntity.set(g.entityId, list);
   }
 
+  // ROADMAP.md / CHANGELOG.md from each public repository, fetched in
+  // parallel and cached ten minutes in-process (repo-records.ts). A repo
+  // without them, or a private one, simply contributes nothing.
+  const repoRecords = await Promise.all(projects.map((p) => loadRepoRecords(p.gitUrl)));
+
   const profiles = new Map<string, MapProfile>();
   const keyToSlug = new Map<string, string>();
-  for (const p of projects) {
+  projects.forEach((p, i) => {
     const slug = canonicalSlug(p.slug || repoFromGitUrl(p.gitUrl) || p.name);
     const eid = p.entityProjectId;
     profiles.set(slug, {
@@ -114,10 +120,11 @@ export async function loadFleetMap(): Promise<FleetMap | null> {
       devLog: p.devLog,
       identity: eid ? (identityByEntity.get(eid) ?? null) : null,
       goals: eid ? (goalsByEntity.get(eid) ?? null) : null,
+      repo: repoRecords[i],
     });
     keyToSlug.set(p.name, slug);
     keyToSlug.set(slug, slug);
-  }
+  });
 
   const keys = [...keyToSlug.keys()];
   const activity = new Map<string, MapActivity>();

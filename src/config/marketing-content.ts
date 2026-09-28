@@ -129,11 +129,17 @@ export type RoadmapBucket = {
   items: RoadmapItem[];
 };
 
+// The roadmap ITEMS are not here. They are ROADMAP.md at the repository root,
+// read into the fleet map (src/lib/register/repo-records.ts) and rendered by
+// /roadmap from there — the same record every fleet site shows. This object
+// keeps only the page's framing: the lede, the throughlines and the closer.
+// The buckets that used to live here went stale twice (finished work listed
+// as forthcoming, see the git history of this file); a record next to the
+// code, reviewed in the same PR as the change, is the fix.
 export const ROADMAP: {
   eyebrow: string;
   title: string;
   lede: string;
-  buckets: RoadmapBucket[];
   throughlines: {
     eyebrow: string;
     title: string;
@@ -145,152 +151,6 @@ export const ROADMAP: {
   eyebrow: "PRODUCT DIRECTION",
   title: "Roadmap",
   lede: "Building the operating system for people running serious AI agent operations — and for the robotic fleets that come next.",
-  buckets: [
-    {
-      title: "Shipping now",
-      summary:
-        "Live in production. The system already coordinates real fleets across real projects.",
-      items: [
-        {
-          title: "Fleet command center",
-          line: "The web control plane coordinates fleets of AI agents across projects, with one-button autopilot: pause all, or build all.",
-          details: [
-            "Agents drain each project's queue, then pick the next-best task.",
-            "Per-project pause / resume / direct-send semantics with per-project autopilot overrides.",
-            "Reliable handoff system between agent sessions, with truthful card status surfaces.",
-            "Multi-user SaaS foundation — GitHub OAuth, organizations, team invites, agent tokens.",
-          ],
-        },
-        {
-          title: "Fleet Runner desktop app",
-          line: "One local execution path: the desktop app owns the agent terminals, agent launching, and state sync — the same React tree the web serves.",
-          details: [
-            "Tray icon, OS notifications on agent idle, and an embedded session watcher for fire-and-walk-away dispatch.",
-            "The legacy bash runner was retired by deletion — one path, not two.",
-            "Multi-OS release pipeline: one tag push produces installers for Linux, macOS and Windows from a shared CI matrix.",
-            // Moved up from "Next", where it was listed as forthcoming while
-            // already running: `build.publish` is the GitHub provider, and the
-            // latest-*.yml update feeds publish with every release.
-            "Auto-update through the GitHub release feed, so a running install pulls each new version in the background instead of going stale.",
-          ],
-        },
-        {
-          title: "OrangeCat project handoff",
-          line: "A signed “Build it with Loki” link carries the public brief into Loki's guided project setup.",
-          details: [
-            "Loki asks for project context before agent work begins. You can choose an existing project instead when the handoff matches one.",
-            "OrangeCat linking is optional. Linking alone does not publish private work; publishing requires a separate owner action.",
-          ],
-        },
-      ],
-    },
-    {
-      title: "Next",
-      summary:
-        "Concrete engineering, in sequence: distribution first, then the remote control channel, then mobile on top of it.",
-      items: [
-        {
-          // Two of the four details here had already SHIPPED, and one of them
-          // contradicted a "Shipping now" bullet on this same page ("one tag
-          // push produces installers for Linux, macOS and Windows"). Checked
-          // against release fleet-runner-v0.8.29: mac .dmg/.zip, win .exe and
-          // both Linux artefacts all publish, and `build.publish` is exactly
-          // the GitHub provider this promised. A roadmap that lists finished
-          // work as forthcoming makes the product look less built than it is,
-          // and it is the same untrue-copy problem as any other.
-          //
-          // What is genuinely outstanding is the SIGNING — no CSC_LINK /
-          // APPLE_ID secret exists at repo or org level, and desktop-release.yml
-          // says so itself: "empty when the secret is unset -> unsigned build,
-          // exactly as today". That is what the first detail now claims.
-          title: "Signed installers and native channels",
-          line: "Make Fleet Runner trivial to install on every platform — including for builders who never open a terminal.",
-          details: [
-            "Apple-signed and notarized macOS builds, and a signed Windows .exe, so the first launch stops needing a Gatekeeper or SmartScreen detour. The builds themselves already ship on every tagged release.",
-            "Native package channels where they exist — Homebrew tap for macOS, winget for Windows, .deb apt repo for Linux.",
-            "Headless CLI agent install path for servers, CI runners, and operators who prefer a pure terminal flow.",
-          ],
-        },
-        {
-          title: "Remote control channel",
-          line: "Web and mobile become genuine remote control surfaces — not eventually-consistent dashboards.",
-          details: [
-            "The local app opens an authenticated outbound WebSocket to the control plane when remote control is enabled; commands flow surface → backend → that user's specific local app.",
-            "Falls back to the existing queue when the local app is offline.",
-            "Scoped credentials via the existing agent token system. Outbound-only connections — easy to firewall.",
-            "All execution of dangerous actions stays on the user's machine. The backend never sees raw file contents unless the user explicitly shares them.",
-          ],
-        },
-        {
-          title: "Mobile fleet control",
-          line: "Native iOS and Android apps on the remote control channel — optimized for steering and approval, not authoring.",
-          details: [
-            "Push notifications for Beacon mode and Mission checkpoints.",
-            "Swipe actions for approving or rejecting agent outputs at the moments that actually need a human.",
-            "Voice capture for the autopilot intent ladder — direct the fleet while walking.",
-          ],
-        },
-      ],
-    },
-    {
-      title: "Research",
-      summary:
-        "Directions we are committed to that are design and strategy work today. Nothing here is presented as available.",
-      items: [
-        {
-          title: "Secure cloud execution for more accounts",
-          line: "Expand isolated cloud builders beyond the eligible-account service while preserving a clear per-project choice of where work runs.",
-          details: [
-            "Cloud builder sessions already run for eligible accounts; per-account sandboxing is the prerequisite for broader availability.",
-            "Keep the project execution setting, session view, and current builder visible so users can tell where a job will run.",
-            "Support additional parallelism and availability without routing work to a different machine silently.",
-          ],
-        },
-        {
-          title: "The fleet learns from its own runs",
-          line: "The same evidence that decides whether a run was done should decide how the next one is briefed — with a human gate on every learned change.",
-          details: [
-            "Every dispatch is stored with the exact prompt that produced it and the graded outcome it earned — one joinable record instead of two disconnected logs.",
-            "Prompt improvements are proposed from real run history and reviewed by a human before they land.",
-            "Per-project lessons carry forward as references the agent may consult, never as rules it must obey; every learned change stays in version control.",
-            "The judge that grades a run is a different model lineage from the agent that did the work — an unsupervised self-grading harness learns to game its own scoring, so the human gate is the feature, not the friction.",
-          ],
-        },
-        {
-          title: "Team and multi-machine surfaces",
-          line: "Same control plane, multiple operators, multiple machines — shared fleet views, per-operator permissions, per-project autonomy ceilings.",
-          details: [
-            "Coordination when several people steer the same fleet without stepping on each other.",
-            "Multi-machine orchestration for power users running across desktop, laptop, and remote box.",
-          ],
-        },
-        {
-          title: "Stakeholder graph",
-          line: "Track each project's surrounding relationships — competitors, collaborators, investors, customers — as typed edges in OrangeCat's entity graph, surfaced on Loki for the agent to act on. Competitors ship first as the most automatable category.",
-          essay: {
-            label: "Read the essay: Where Stakeholders Live",
-            href: "/thoughts/where-stakeholders-live",
-          },
-        },
-        {
-          title: "Funding-triggered work orders",
-          line: "Connect verified OrangeCat settlements to owner-approved project work, with explicit controls and an audit trail.",
-          details: [
-            "Confirmed Bitcoin funding can already be linked to a Loki project and shown as a read-only summary.",
-            "Automatic work orders, escrow, fiat settlement, and other payment rails are not available yet.",
-          ],
-        },
-        {
-          title: "Physical robotic fleets",
-          line: "The same control patterns — autonomy dial, handoff, queues, visibility, override — applied to a different execution substrate. Not a separate product line bolted on later.",
-          details: [
-            "Per-fleet autonomy — the same dial: Manual → Queue → Beacon → Continuous → Mission.",
-            "The person who today directs a fleet of agents building software is developing the muscles that will let them direct a fleet of robots building physical things.",
-          ],
-        },
-      ],
-    },
-  ],
   throughlines: {
     eyebrow: "WHAT STAYS CONSTANT",
     title: "Throughlines",
