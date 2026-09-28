@@ -46,6 +46,7 @@ import { verifyAnswer, buildRepairPrompt, type Violation } from "@bitbaum/ai-kit
 import { buildLokiContext } from "@/lib/agent/grounded-context";
 import { callModelWithTools, type ChatMessage, type ToolCall } from "@/lib/agent/llm";
 import {
+  readOnlyRegistry,
   renderToolCatalog,
   toOpenAITools,
   toolNames,
@@ -329,6 +330,11 @@ export async function runLokiTurn(input: {
   /** Prior turns of this conversation, oldest first. Trimmed here. */
   history?: ChatMessage[];
   registry?: ToolRegistry;
+  /**
+   * Drop every `propose` tool for this turn (see readOnlyRegistry). Set when
+   * the asker was granted conversation but not action.
+   */
+  readOnly?: boolean;
   /** Injected in tests; defaults to the real provider call. */
   callModel?: ModelCaller;
   /** Present when someone is watching: stream the turn instead of buffering it. */
@@ -343,7 +349,8 @@ export async function runLokiTurn(input: {
    */
   own?: OwnModel;
 }): Promise<LoopResult> {
-  const registry = input.registry ?? (await defaultRegistry());
+  const fullRegistry = input.registry ?? (await defaultRegistry());
+  const registry = input.readOnly ? readOnlyRegistry(fullRegistry) : fullRegistry;
   const callModel = input.callModel ?? callModelWithTools;
   // The model may call ANY tool in the registry — this is the accepted set, and
   // it is deliberately not narrowed alongside the advertised one.

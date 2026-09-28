@@ -91,6 +91,22 @@ export function defineTool<S extends z.ZodTypeAny>(def: {
 }
 
 /**
+ * The same registry with every `propose` tool removed.
+ *
+ * For a turn asked on behalf of someone who was granted conversation but not
+ * action — an MCP client holding `loki.chat` without `loki.act`. A propose tool
+ * only drafts, but a standing approval can execute that draft the same
+ * second, so "may talk" must not quietly include "may book". Filtering the
+ * registry is what makes the tool uncallable, not merely unadvertised: the
+ * loop accepts exactly the names in the registry it is given.
+ */
+export function readOnlyRegistry(registry: ToolRegistry): ToolRegistry {
+  return Object.fromEntries(
+    Object.entries(registry).filter(([, t]) => t.kind === "read"),
+  ) as ToolRegistry;
+}
+
+/**
  * Render the tool catalog for the model.
  *
  * Each entry carries a COPYABLE example call, not a prose description of the

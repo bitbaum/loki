@@ -8,15 +8,14 @@
  *
  * The IRON RULE holds unchanged: draft → approved → executed via the same
  * finalizeApproved SSOT the page uses — approval here is still the operator's
- * explicit word, just spoken in chat instead of clicked in the UI.
+ * explicit word, just spoken in chat instead of clicked in the UI. The
+ * decision itself lives in lib/actions/decide-action.ts, shared with the MCP
+ * server's loki_decide.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { readIdParam, readJsonBody, jsonOk, jsonError, z } from "@/lib/api/route-helpers";
 import { requirePrivateApiAccessWithBearer } from "@/lib/private-zone-api";
-import { approveAction, rejectAction } from "@/db/queries/actions";
-import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
-import { finalizeApproved } from "@/lib/actions/finalize-approved";
-import { recoverEventPayloadFromText } from "@/lib/actions/calendar-event";
+import { decideAction } from "@/lib/actions/decide-action";
 
 const DecisionBody = z.object({
   decision: z.enum(["approve", "reject"]),
@@ -33,17 +32,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const dataOrResp = await readJsonBody(req, DecisionBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
 
-  if (dataOrResp.decision === "reject") {
-    const [action] = await rejectAction(idOrResp, userId);
-    if (!action) return jsonError("No open draft with that id", 404);
-    await recordActionAuditEvent(userId, action, "rejected");
-    return jsonOk({ id: action.id, status: action.status });
-  }
-
-  const [action] = await approveAction(idOrResp, userId);
-  if (!action) return jsonError("No open draft with that id", 404);
-  const result = await finalizeApproved(userId, action, {
-    recoverEvent: recoverEventPayloadFromText,
+  const outcome = await decideAction(userId, idOrResp, dataOrResp.decision);
+  if (!outcome.found) return jsonError("No open draft with that id", 404);
+  return jsonOk({
+    id: outcome.id,
+    status: outcome.status,
+    ...(outcome.result !== undefined ? { result: outcome.result } : {}),
   });
-  return jsonOk({ id: action.id, status: action.status, result });
 }

@@ -24,10 +24,7 @@ import { eq } from "drizzle-orm";
 import type { OrangeCatClient, OrangeCatError } from "@orangecat/sdk";
 import { db } from "@/db";
 import { subscriptions } from "@/db/schema";
-
-/** SSOT fallback for the OrangeCat origin when the env override is unset
- *  (ORANGECAT_API_BASE / ORANGECAT_OAUTH_ISSUER). */
-export const ORANGECAT_BASE_FALLBACK = "https://orangecat.ch";
+import { ORANGECAT_BASE_FALLBACK } from "@/config/orangecat";
 
 /** SSOT for the OrangeCat origin Loki calls (env override, else fallback).
  *  Every FC→OC integration imports this instead of re-deriving it. */
