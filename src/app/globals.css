@@ -3973,6 +3973,38 @@
     @apply inline-flex shrink-0 items-center rounded-full border border-status-positive/30 bg-status-positive-subtle px-2 py-0.5 text-micro font-medium text-status-positive;
   }
 
+  /* Exactly three lines of relaxed text (3 × 1.625em), for blocks whose child
+     produces no line boxes (a full-width button), where line-clamp does
+     nothing. A fixed rem height sliced the fourth line through its letters. */
+  .ui-clamp-3-lines {
+    @apply relative overflow-hidden;
+    max-height: 4.875em;
+    /* The child may render a size up from this wrapper, so the cut can land
+       inside a line; fade the last line out rather than slicing it. */
+    mask-image: linear-gradient(to bottom, black 55%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent);
+  }
+
+  /* Section tab bar (project page). Scrolls sideways on phones when the tabs
+     outnumber the width — without a visible scrollbar (it drew a grey rail
+     under the tabs), and with a right-edge fade so a half-cut last tab reads as
+     "more this way" instead of as a clipping bug. */
+  .ui-tabbar {
+    @apply sticky top-0 z-20 -mx-4 flex gap-0.5 overflow-x-auto border-y border-border-subtle bg-surface-page/95 px-4 py-2 backdrop-blur-sm sm:mx-0 sm:gap-1 sm:px-0;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+  }
+  .ui-tabbar::-webkit-scrollbar {
+    display: none;
+  }
+  @media (min-width: 640px) {
+    .ui-tabbar {
+      mask-image: none;
+      -webkit-mask-image: none;
+    }
+  }
+
   /* Mobile-only right-edge fade — visual hint that a horizontally-scrolling row has more content off-screen.
      Applied to scroll containers; vanishes at sm: when the row wraps naturally. */
   .ui-scroll-fade-right {

@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Check, Loader2, Lock, Rocket, Zap } from "lucide-react";
+import { AlertCircle, Check, Loader2, Rocket, Zap } from "lucide-react";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { useSiteDeployment } from "@/hooks/use-site-deployment";
 import { SiteDeploymentStatus } from "./SiteDeploymentStatus";
@@ -46,10 +46,11 @@ export function ProjectKickoff({
   description,
   attrs,
   goalCount,
-  goalsLocked,
   hasRepo,
   needed,
   autoStart = false,
+  interviewHref = null,
+  firstTarget = null,
 }: {
   projectId: string;
   projectName: string;
@@ -58,8 +59,6 @@ export function ProjectKickoff({
   description: string | null;
   attrs: Record<string, string>;
   goalCount: number;
-  /** Goals hidden by the private-zone PIN — unknown, not zero. */
-  goalsLocked?: boolean;
   hasRepo: boolean;
   /** Server-computed needsKickoff. Once a run has started this card stays put
    *  regardless: the refresh that follows a successful kickoff flips `needed`
@@ -69,6 +68,10 @@ export function ProjectKickoff({
   /** Start on mount when the plan can run — the OrangeCat one-click path. The
    *  same run() the button calls: no second orchestrator. */
   autoStart?: boolean;
+  /** Where the optional "answer a few questions first" link goes; null hides it. */
+  interviewHref?: string | null;
+  /** The next open milestone — what the agent aims at first. */
+  firstTarget?: string | null;
 }) {
   const router = useRouter();
   // Seeded with the project's own description, and editable from here. It used
@@ -78,8 +81,16 @@ export function ProjectKickoff({
   // the database. Everything below is derived from this text, so this text is
   // the thing to put in front of the person, not behind a length check.
   const [text, setText] = useState(description ?? "");
+  // Shown once, not twice: the header already prints the description, so a
+  // brief that is there and substantial starts as a short preview with Edit.
+  // The textarea opens straight away only when there is little or nothing to
+  // start from — that is when writing IS the next step.
+  const [editingBrief, setEditingBrief] = useState(
+    !hasKickoffSource(description) || isThinBrief(description),
+  );
   const [wantRepo, setWantRepo] = useState(true);
   const [visibility, setVisibility] = useState<"private" | "public">("private");
+  const [repoOptionsOpen, setRepoOptionsOpen] = useState(false);
   const { deployment, setDeployment } = useSiteDeployment(projectId);
   // The run lives in lib/kickoff-run, not here: it must outlive this card when
   // the person goes to watch Terminal or Control mid-run, and be here again,
@@ -109,7 +120,6 @@ export function ProjectKickoff({
   const plan = planKickoff({
     attrs,
     goalCount,
-    goalsLocked,
     hasRepo,
     wantRepo: !hasRepo && wantRepo,
   });
@@ -149,33 +159,38 @@ export function ProjectKickoff({
         </h2>
         {!steps && (
           <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-            One click does the setup:{" "}
-            {plan.map((id) => KICKOFF_STEP_LABEL[id].toLowerCase()).join(", ")}. You can edit
-            anything it writes afterwards.
+            One tap sets it up — {plan.map((id) => KICKOFF_STEP_LABEL[id].toLowerCase()).join(", ")}
+            . Everything it writes stays editable.
+          </p>
+        )}
+        {!steps && firstTarget && (
+          <p className="mt-2 text-sm text-text-primary">
+            <span className="text-text-secondary">First target: </span>
+            {firstTarget}
           </p>
         )}
       </div>
 
-      {/* Refuse up front. The old code ran the plan, created a real GitHub
-          repository, and only then hit the dispatch refusal — leaving an empty
-          repo and no agent. Nothing here is knowable only at the end. */}
-      {/* Soft tip only — private PIN must never gate Make it happen. */}
-      {!steps && goalsLocked && (
-        <div className="space-y-1.5 rounded-lg border border-border-subtle bg-surface-raised p-3">
-          <p className="text-sm leading-relaxed text-text-secondary">
-            Milestones are behind your PIN. Starting still works from this brief — unlock only if
-            you want the agent to follow a richer roadmap.
-          </p>
-          <Link href="/unlock" className="ui-btn-secondary gap-2 text-sm">
-            <Lock className="h-4 w-4" aria-hidden="true" /> Unlock for roadmap
-          </Link>
+      {!steps && !editingBrief && (
+        <div className="rounded-lg border border-border-subtle bg-surface-raised p-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="ui-micro-label">Brief</span>
+            <button
+              type="button"
+              onClick={() => setEditingBrief(true)}
+              className="ui-btn-ghost ui-btn-xs"
+            >
+              Edit
+            </button>
+          </div>
+          <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-text-secondary">{text}</p>
         </div>
       )}
 
-      {!steps && (
+      {!steps && editingBrief && (
         <div className="space-y-1.5">
           <label htmlFor="project-kickoff-brief" className="ui-micro-label">
-            The brief — everything below is written from this
+            The brief — everything is written from this
           </label>
           <textarea
             id="project-kickoff-brief"
@@ -189,30 +204,46 @@ export function ProjectKickoff({
           <CharCount length={text.length} max={DOC_PASTE_MAX} />
           {isThinBrief(text) && (
             <p className="text-xs text-text-secondary">
-              That is about a sentence. It will run, but the profile and milestones can only be as
-              specific as this is — say who it is for and what should exist at the end.
+              That is about a sentence. It will run, but the result can only be as specific as this
+              is — say who it is for and what should exist at the end.
             </p>
           )}
         </div>
       )}
 
-      {!steps && !hasRepo && (
+      {/* The repository choice used to be a bordered box of checkbox, select
+          and a two-sentence explanation — the most visible thing on the card
+          after the button, for a default almost nobody changes. One line says
+          what will happen; Change opens the controls. */}
+      {!steps && !hasRepo && !repoOptionsOpen && (
+        <p className="text-xs text-text-secondary">
+          {wantRepo
+            ? `Also creates a ${visibility} GitHub repository for the code.`
+            : "No repository — an agent can plan, but has nowhere to write code."}{" "}
+          <button
+            type="button"
+            onClick={() => setRepoOptionsOpen(true)}
+            className="font-medium text-text-primary underline-offset-2 hover:underline"
+          >
+            Change
+          </button>
+        </p>
+      )}
+      {!steps && !hasRepo && repoOptionsOpen && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border-subtle bg-surface-raised p-3">
-          <label className="flex items-center gap-2 text-sm text-text-secondary">
+          <label className="flex min-h-11 items-center gap-2 text-sm text-text-secondary">
             <input
               type="checkbox"
               checked={wantRepo}
-              disabled={running}
               onChange={(e) => setWantRepo(e.target.checked)}
               className="h-5 w-5 shrink-0"
             />
-            Create the GitHub repository too
+            Create the GitHub repository
           </label>
           {wantRepo && (
             <select
               className="ui-input-compact"
               value={visibility}
-              disabled={running}
               onChange={(e) => setVisibility(e.target.value as "private" | "public")}
               aria-label="Repository visibility"
             >
@@ -220,11 +251,6 @@ export function ProjectKickoff({
               <option value="public">Public</option>
             </select>
           )}
-          <span className="text-xs text-text-secondary">
-            {wantRepo
-              ? "Create a starter repository. Eligible cloud accounts also get automatic site deployment; other accounts connect their own builder."
-              : "Skipped — an agent can still plan, but it has nowhere to write code."}
-          </span>
         </div>
       )}
 
@@ -242,6 +268,11 @@ export function ProjectKickoff({
             <span className="text-xs text-text-secondary">
               Write a sentence about the project first — that is the whole brief.
             </span>
+          )}
+          {ready && interviewHref && (
+            <Link href={interviewHref} className="ui-btn-ghost text-sm">
+              Sharpen it first: 5 quick questions
+            </Link>
           )}
         </div>
       )}

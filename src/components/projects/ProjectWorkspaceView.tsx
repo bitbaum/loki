@@ -97,7 +97,6 @@ export function ProjectWorkspaceView({
     needsKickoff({
       attrs,
       goalCount: detail.linkedGoals.length,
-      goalsLocked: detail.goalsLocked,
       hasRepo: Boolean(links.repo),
       agentRunning: isBuildActive(buildStatus),
     });
@@ -207,8 +206,8 @@ export function ProjectWorkspaceView({
 
           A project's name and what it is outrank links to elsewhere, so they
           get the full measure and the links get a quiet row underneath. */}
-      <header className="border-b border-border-subtle pb-6">
-        <div className="flex flex-col gap-5">
+      <header className="border-b border-border-subtle pb-4 sm:pb-6">
+        <div className="flex flex-col gap-3 sm:gap-5">
           <ProjectWorkspaceHeader
             projectId={project.id}
             userProjectId={userProject?.id ?? null}
@@ -249,7 +248,10 @@ export function ProjectWorkspaceView({
                 rel="noreferrer"
                 className="ui-btn-ghost min-h-11 gap-1.5"
               >
-                <GitBranch className="h-4 w-4" aria-hidden="true" /> Repository
+                <GitBranch className="h-4 w-4" aria-hidden="true" />
+                {/* Short on phones so Live · Repo · Share fit one row. */}
+                <span className="sm:hidden">Repo</span>
+                <span className="hidden sm:inline">Repository</span>
               </a>
             )}
             {primaryOrangeCatLink && (
@@ -265,57 +267,57 @@ export function ProjectWorkspaceView({
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden />
               </a>
             )}
-          </div>
-          {!dossier.readonly && (
-            <ProjectShareMenu
-              destinations={[
-                {
-                  key: "link",
-                  title: "A link to send",
-                  explain:
-                    "A read-only page for someone without an account. You choose what it shows.",
-                  control: shareAction ?? null,
-                },
-                {
-                  key: "catalogue",
-                  title: userProject?.listedPublicly
-                    ? "Listed in Loki's catalogue"
-                    : "Loki's catalogue",
-                  explain: userProject?.listedPublicly
-                    ? "Shown on the public fleet page, credited to you."
-                    : "Not listed. Listing shows it on the public fleet page, credited to you.",
-                  control: (
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      <ProjectPublicListingToggle
-                        projectId={project.id}
-                        listedPublicly={userProject?.listedPublicly ?? false}
-                      />
-                      {viewerIsSiteOperator && (
-                        <ProjectFeatureToggle
+            {!dossier.readonly && (
+              <ProjectShareMenu
+                destinations={[
+                  {
+                    key: "link",
+                    title: "A link to send",
+                    explain:
+                      "A read-only page for someone without an account. You choose what it shows.",
+                    control: shareAction ?? null,
+                  },
+                  {
+                    key: "catalogue",
+                    title: userProject?.listedPublicly
+                      ? "Listed in Loki's catalogue"
+                      : "Loki's catalogue",
+                    explain: userProject?.listedPublicly
+                      ? "Shown on the public fleet page, credited to you."
+                      : "Not listed. Listing shows it on the public fleet page, credited to you.",
+                    control: (
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <ProjectPublicListingToggle
                           projectId={project.id}
-                          featured={Boolean(userProject?.featuredAt)}
                           listedPublicly={userProject?.listedPublicly ?? false}
                         />
-                      )}
-                    </span>
-                  ),
-                },
-                {
-                  key: "orangecat",
-                  title: "OrangeCat",
-                  explain: "A public page where people can follow, share and fund it.",
-                  control: <OrangeCatPublishButton projectId={project.id} />,
-                },
-                {
-                  key: "solon",
-                  title: "Solon",
-                  explain:
-                    "Found it as a venture others govern with you. Signed with your own wallet, so Loki hands you over.",
-                  control: <SolonFoundButton projectId={project.id} />,
-                },
-              ]}
-            />
-          )}
+                        {viewerIsSiteOperator && (
+                          <ProjectFeatureToggle
+                            projectId={project.id}
+                            featured={Boolean(userProject?.featuredAt)}
+                            listedPublicly={userProject?.listedPublicly ?? false}
+                          />
+                        )}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "orangecat",
+                    title: "OrangeCat",
+                    explain: "A public page where people can follow, share and fund it.",
+                    control: <OrangeCatPublishButton projectId={project.id} />,
+                  },
+                  {
+                    key: "solon",
+                    title: "Solon",
+                    explain:
+                      "Found it as a venture others govern with you. Signed with your own wallet, so Loki hands you over.",
+                    control: <SolonFoundButton projectId={project.id} />,
+                  },
+                ]}
+              />
+            )}
+          </div>
         </div>
       </header>
 
@@ -350,7 +352,12 @@ export function ProjectWorkspaceView({
                 {/* Before the kickoff, not beside it: every step below reads the
                     profile, so the questions are worth asking first. It renders
                     only while essential fields are still blank. */}
-                {!dossier.readonly && (
+                {/* One card, one primary button. The interview used to render
+                    as its own orange-buttoned card directly above the kickoff,
+                    so the first thing on the page was two competing "start
+                    here"s. While the kickoff is the hero, the questions are an
+                    optional link inside it (?interview=1 opens them here). */}
+                {!dossier.readonly && (!showKickoff || autoInterview) && (
                   <ProjectInterview
                     projectId={project.id}
                     needed={needsInterview({ attrs })}
@@ -359,7 +366,7 @@ export function ProjectWorkspaceView({
                     kickoffHref={kickoffAutoHref(`/projects/${project.id}`)}
                   />
                 )}
-                {!dossier.readonly && (
+                {!dossier.readonly && !autoInterview && (
                   <ProjectKickoff
                     projectId={project.id}
                     projectName={project.name}
@@ -367,26 +374,41 @@ export function ProjectWorkspaceView({
                     description={cleanDescription(project.description)}
                     attrs={attrs}
                     goalCount={detail.linkedGoals.length}
-                    goalsLocked={detail.goalsLocked}
                     hasRepo={Boolean(links.repo)}
                     needed={showKickoff}
                     autoStart={autoKickoff}
+                    interviewHref={
+                      needsInterview({ attrs }) ? `/projects/${project.id}?interview=1` : null
+                    }
+                    firstTarget={
+                      detail.linkedGoals
+                        .slice()
+                        .sort(
+                          (a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0),
+                        )
+                        .find((g) => (g.progress ?? 0) < 100)?.title ?? null
+                    }
                   />
                 )}
-                <section className="scroll-mt-28" aria-labelledby="project-overview-title">
-                  <h2 id="project-overview-title" className="sr-only">
-                    Overview
-                  </h2>
-                  <div className="grid gap-5 lg:grid-cols-2">
-                    <NowSection dossier={dossier} interactive={false} showBrief={false} />
-                    <NextSection
-                      dossier={dossier}
-                      interactive={false}
-                      showGoals={false}
-                      ownerView={!dossier.readonly}
-                    />
-                  </div>
-                </section>
+                {/* Before anything is built, "No live agent" and "Advance: X"
+                    only restate the kickoff card (which now names the first
+                    target itself). They earn their place once work exists. */}
+                {!showKickoff && (
+                  <section className="scroll-mt-28" aria-labelledby="project-overview-title">
+                    <h2 id="project-overview-title" className="sr-only">
+                      Overview
+                    </h2>
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      <NowSection dossier={dossier} interactive={false} showBrief={false} />
+                      <NextSection
+                        dossier={dossier}
+                        interactive={false}
+                        showGoals={false}
+                        ownerView={!dossier.readonly}
+                      />
+                    </div>
+                  </section>
+                )}
               </>
             ),
           },
@@ -444,7 +466,6 @@ export function ProjectWorkspaceView({
                 projectId={project.id}
                 projectName={project.name}
                 attrs={attrs}
-                goalsLocked={detail.goalsLocked}
                 goals={detail.linkedGoals}
                 readonly={dossier.readonly}
               />

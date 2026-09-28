@@ -12,7 +12,6 @@ import {
   planKickoff,
   hasKickoffSource,
   isThinBrief,
-  kickoffBlockedReason,
   KICKOFF_THIN_DESCRIPTION,
 } from "@/lib/project-kickoff";
 import {
@@ -135,69 +134,21 @@ eq(
   "the Zeitkastli case: a placeholder stack still needs the profile step",
 );
 
-// ── Hidden is not empty ─────────────────────────────────────────────────────
-// Zeitkastli, live on prod 2026-08-05: getProjectDetail returns linkedGoals
-// []` whenever the private zone is PIN-locked, so a project with five
-// milestones read as a project with none. The page said "No goals are linked to
-// this project" and the hero offered to plan the milestones — one press would
-// have written a second roadmap on top of the first.
+// ── The roadmap is not behind the PIN ────────────────────────────────────────
+// It used to be: getProjectDetail returned [] for goals whenever the private
+// zone was locked, so every consumer carried a "goalsLocked" branch to avoid
+// reading hidden as empty. Goals are the project's plan and are always
+// visible now, so zero really is zero and earns the milestones step.
 eq(
-  missingKickoffSetup({ attrs: FULL_ATTRS, goalCount: 0, hasRepo: true, goalsLocked: true }),
-  [],
-  "locked goals are unknown, not missing — never plan milestones over a roadmap we cannot see",
-);
-eq(
-  missingKickoffSetup({ attrs: FULL_ATTRS, goalCount: 0, hasRepo: true, goalsLocked: false }),
+  missingKickoffSetup({ attrs: FULL_ATTRS, goalCount: 0, hasRepo: true }),
   ["milestones"],
-  "genuinely zero goals still earns the milestones step",
+  "zero goals earns the milestones step",
 );
 eq(
-  needsKickoff({
-    attrs: FULL_ATTRS,
-    goalCount: 0,
-    hasRepo: true,
-    goalsLocked: true,
-    agentRunning: false,
-  }),
-  false,
-  "a set-up project does not sprout a kickoff hero just because the zone is locked",
+  missingKickoffSetup({ attrs: FULL_ATTRS, goalCount: 3, hasRepo: true }),
+  [],
+  "an existing roadmap is never planned over",
 );
-eq(
-  planKickoff({
-    attrs: FULL_ATTRS,
-    goalCount: 0,
-    hasRepo: true,
-    goalsLocked: true,
-    wantRepo: true,
-  }),
-  ["dispatch"],
-  "locked + otherwise complete means there is nothing to set up, only work to do",
-);
-// Locking must never SUPPRESS a step that is genuinely needed for another reason.
-eq(
-  missingKickoffSetup({ attrs: {}, goalCount: 0, hasRepo: false, goalsLocked: true }),
-  ["profile", "repo"],
-  "the lock hides only the milestones question — profile and repo still answer for themselves",
-);
-
-// ── Private PIN must not gate Make it happen ────────────────────────────────
-// Observed on OrangeCat → Loki dogfood: a person who never wants a
-// private zone still hits Unlock before a public site can start. That was
-// wrong. Locked milestones skip inventing a roadmap; the brief + profile are
-// enough. Unlock is optional enrichment, never a hard gate.
-eq(kickoffBlockedReason({ goalsLocked: true }), null, "a locked zone does not block the run");
-eq(kickoffBlockedReason({ goalsLocked: false }), null, "an unlocked zone does not block");
-eq(kickoffBlockedReason({}), null, "absent means unlocked — never block by default");
-// Hero and dispatch must agree: locked never means refuse. Dispatch briefs from
-// description when goals are hidden (composeDispatchPrompt), so the hero may
-// always start when a brief exists.
-for (const goalsLocked of [true, false]) {
-  eq(
-    kickoffBlockedReason({ goalsLocked }),
-    null,
-    `hero can start whether or not the zone is locked (goalsLocked=${goalsLocked})`,
-  );
-}
 
 // ── Thin briefs are flagged, never blocked ──────────────────────────────────
 // Zeitkastli's original description was one sentence. It cleared the 10-char

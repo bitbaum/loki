@@ -17,15 +17,12 @@ export function ProjectPlanSection({
   projectName,
   attrs,
   goals,
-  goalsLocked,
   readonly,
 }: {
   projectId: string;
   projectName: string;
   attrs: Record<string, string>;
   goals: LinkedGoal[];
-  /** Goals withheld by the private-zone PIN — say so instead of "none". */
-  goalsLocked?: boolean;
   readonly: boolean;
 }) {
   const router = useRouter();
@@ -35,17 +32,101 @@ export function ProjectPlanSection({
   const maxTurns =
     Number.isFinite(rawMaxTurns) && rawMaxTurns > 0 ? Math.min(rawMaxTurns, 20) : null;
   const nextStep = answer(attrs.next_step);
+  // Build order, not progress order: creation order is the order the roadmap
+  // was written in, and "1, 2, 3" must mean the same thing on every visit.
+  const roadmap = [...goals].sort(
+    (a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0),
+  );
+  const doneCount = roadmap.filter((g) => (g.progress ?? 0) >= 100).length;
+  const nextGoalId = roadmap.find((g) => (g.progress ?? 0) < 100)?.id ?? null;
 
   return (
     <section className="ui-project-section" aria-labelledby="project-plan-title">
       <div className="flex items-center gap-2">
         <Target className="h-4 w-4 text-accent-text" aria-hidden="true" />
         <h2 id="project-plan-title" className="text-lg font-semibold text-text-primary">
-          Plan and finish line
+          Plan
         </h2>
       </div>
 
-      <div className="mt-5 grid gap-7 lg:grid-cols-2">
+      {/* The roadmap first. It was the last block on this tab, under an empty
+          "Next action" and a "Completion contract" — the plan itself, the thing
+          a person opens Plan to see, was the one part you had to scroll for. */}
+      <section className="mt-5">
+        <div className="flex min-h-11 items-center justify-between gap-3 border-b border-border-subtle">
+          <h3 className="text-sm font-medium text-text-primary">
+            Roadmap
+            {roadmap.length > 0 && (
+              <span className="ml-2 font-normal text-text-tertiary">
+                {doneCount} of {roadmap.length} done
+              </span>
+            )}
+          </h3>
+          <Link
+            href="/goals"
+            className="inline-flex min-h-11 items-center gap-1 text-sm text-accent-text hover:underline"
+          >
+            Edit in Goals <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        </div>
+        {roadmap.length > 0 ? (
+          <ol className="divide-y divide-border-subtle">
+            {roadmap.map((goal, i) => {
+              const openMilestones = Array.isArray(goal.milestones)
+                ? goal.milestones.filter((milestone) => !milestone.done).slice(0, 3)
+                : [];
+              const done = (goal.progress ?? 0) >= 100;
+              return (
+                <li key={goal.id} className="py-4">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h4
+                      className={
+                        done
+                          ? "text-sm font-medium text-text-tertiary"
+                          : "text-sm font-medium text-text-primary"
+                      }
+                    >
+                      <span className="mr-2 tabular-nums text-text-muted">{i + 1}.</span>
+                      {goal.title}
+                      {goal.id === nextGoalId && (
+                        <span className="ui-tag ui-tag-neutral ml-2 align-middle">Next</span>
+                      )}
+                    </h4>
+                    <span className="shrink-0 text-xs tabular-nums text-text-muted">
+                      {done ? "Done" : `${goal.progress ?? 0}%`}
+                    </span>
+                  </div>
+                  {goal.description && !done && (
+                    <p className="mt-1 text-sm leading-relaxed text-text-secondary">
+                      {goal.description}
+                    </p>
+                  )}
+                  {!done && (
+                    <div className="mt-2">
+                      <GoalProgressBar value={goal.progress ?? 0} />
+                    </div>
+                  )}
+                  {openMilestones.length > 0 && (
+                    <ul className="mt-2 space-y-1 text-xs text-text-tertiary">
+                      {openMilestones.map((milestone) => (
+                        <li key={`${milestone.title}:${milestone.date ?? ""}`}>
+                          • {milestone.title}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <p className="py-4 text-sm text-text-muted">
+            No roadmap yet. Make it happen writes one from the brief.
+          </p>
+        )}
+      </section>
+
+      <div className="mt-7 grid gap-7 lg:grid-cols-2">
         <section>
           <h3 className="ui-projects-section-label mb-1">Next action</h3>
           <div className="border-y border-border-subtle">
@@ -89,7 +170,7 @@ export function ProjectPlanSection({
         </section>
 
         <section>
-          <h3 className="ui-projects-section-label mb-1">Completion contract</h3>
+          <h3 className="ui-projects-section-label mb-1">When a run counts as done</h3>
           <dl className="border-y border-border-subtle py-3">
             {readonly ? (
               <div>
@@ -108,71 +189,6 @@ export function ProjectPlanSection({
           </dl>
         </section>
       </div>
-
-      <section className="mt-7">
-        <div className="flex min-h-11 items-center justify-between gap-3 border-b border-border-subtle">
-          <h3 className="text-sm font-medium text-text-primary">Goals</h3>
-          <Link
-            href="/goals"
-            className="inline-flex min-h-11 items-center gap-1 text-sm text-accent-text hover:underline"
-          >
-            Manage goals <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </Link>
-        </div>
-        {goals.length > 0 ? (
-          <div className="divide-y divide-border-subtle">
-            {goals.map((goal) => {
-              const openMilestones = Array.isArray(goal.milestones)
-                ? goal.milestones.filter((milestone) => !milestone.done).slice(0, 3)
-                : [];
-              return (
-                <article key={goal.id} className="py-4">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <h4 className="text-sm font-medium text-text-primary">{goal.title}</h4>
-                    <span className="shrink-0 text-xs tabular-nums text-text-muted">
-                      {goal.progress ?? 0}%
-                    </span>
-                  </div>
-                  {goal.description && (
-                    <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-                      {goal.description}
-                    </p>
-                  )}
-                  <div className="mt-2">
-                    <GoalProgressBar value={goal.progress ?? 0} />
-                  </div>
-                  {openMilestones.length > 0 && (
-                    <ul className="mt-2 space-y-1 text-xs text-text-tertiary">
-                      {openMilestones.map((milestone) => (
-                        <li key={`${milestone.title}:${milestone.date ?? ""}`}>
-                          • {milestone.title}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="py-4 text-sm text-text-muted">
-            {goalsLocked ? (
-              <>
-                Milestones are behind your PIN — hidden, not missing.{" "}
-                <Link
-                  href="/unlock"
-                  className="text-accent-text underline-offset-2 hover:underline"
-                >
-                  Unlock for the roadmap
-                </Link>{" "}
-                if you want them here. Starting and shipping still work without it.
-              </>
-            ) : (
-              "No goals are linked to this project."
-            )}
-          </p>
-        )}
-      </section>
     </section>
   );
 }

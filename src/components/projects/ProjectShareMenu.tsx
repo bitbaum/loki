@@ -28,8 +28,11 @@ export function ProjectShareMenu({ destinations }: { destinations: ShareDestinat
   const panelId = useId();
   const shown = destinations.filter((d) => d.control);
   if (shown.length === 0) return null;
+  // `contents`: the button sits inline in the header's link row (it used to
+  // take a whole row of its own on phones, under Live and Repository), and the
+  // panel breaks onto its own full-width line with basis-full.
   return (
-    <div className="w-full">
+    <div className="contents">
       <button
         type="button"
         className="ui-btn-ghost min-h-11 gap-1.5"
@@ -38,7 +41,8 @@ export function ProjectShareMenu({ destinations }: { destinations: ShareDestinat
         onClick={() => setOpen((v) => !v)}
       >
         <Share2 className="h-4 w-4" aria-hidden="true" />
-        Share &amp; publish
+        <span className="sm:hidden">Share</span>
+        <span className="hidden sm:inline">Share &amp; publish</span>
         <ChevronDown
           className={
             open ? "h-4 w-4 rotate-180 transition-transform" : "h-4 w-4 transition-transform"
@@ -47,7 +51,7 @@ export function ProjectShareMenu({ destinations }: { destinations: ShareDestinat
         />
       </button>
       {open && (
-        <ul id={panelId} className="ui-card-shell mt-2 divide-y divide-border-subtle">
+        <ul id={panelId} className="ui-card-shell mt-1 basis-full divide-y divide-border-subtle">
           {shown.map((d) => (
             <li
               key={d.key}

@@ -19,7 +19,6 @@ import { excludeSmokeDispatchesSql } from "./smoke-filter";
 import { attrValuesFromMeta, fetchAttributesWithMetaByEntityIds, getOrgPeerIds } from "./utils";
 import { findProjectEntityByName } from "./project-merge";
 import { z } from "zod";
-import { isPrivateZoneLocked } from "@/lib/private-zone";
 import { AUTO_INJECT_MODE_VALUES, type AutoInjectMode } from "@/config/beacon";
 
 export const RECENT_INTERACTION_LIMIT = 5;
@@ -483,27 +482,30 @@ export async function getProjectDetail(userId: string, id: string) {
 
   if (!project) return null;
 
-  const privateLocked = await isPrivateZoneLocked(userId);
-  const goalsPromise = privateLocked
-    ? Promise.resolve([])
-    : db
-        .select({
-          id: goals.id,
-          title: goals.title,
-          description: goals.description,
-          status: goals.status,
-          progress: goals.progress,
-          targetDate: goals.targetDate,
-          milestones: goals.milestones,
-          createdAt: goals.createdAt,
-        })
-        .from(goals)
-        .where(and(eq(goals.entityId, id), eq(goals.userId, userId)))
-        // Progress orders the list, creation breaks ties: a generated roadmap
-        // is all-zero on day one, and without the tiebreaker its build order
-        // came back in whatever order the DB felt like — so "milestone 1" was
-        // not reproducibly milestone 1.
-        .orderBy(desc(goals.progress), asc(goals.createdAt));
+  // A project's goals are its roadmap, and they are NOT behind the private-
+  // zone PIN. They used to be: the PIN was built for personal life (people,
+  // money, habits), and project milestones were swept in with it — so the one
+  // plan an operator most needs to see, and to watch progress against, was the
+  // thing the project page hid. Public shares already showed it for anyone
+  // without a PIN; the lock only ever hid it from the owner.
+  const goalsPromise = db
+    .select({
+      id: goals.id,
+      title: goals.title,
+      description: goals.description,
+      status: goals.status,
+      progress: goals.progress,
+      targetDate: goals.targetDate,
+      milestones: goals.milestones,
+      createdAt: goals.createdAt,
+    })
+    .from(goals)
+    .where(and(eq(goals.entityId, id), eq(goals.userId, userId)))
+    // Progress orders the list, creation breaks ties: a generated roadmap
+    // is all-zero on day one, and without the tiebreaker its build order
+    // came back in whatever order the DB felt like — so "milestone 1" was
+    // not reproducibly milestone 1.
+    .orderBy(desc(goals.progress), asc(goals.createdAt));
 
   // Meta, not the flat map: the project page's Flags panel needs to say when
   // each flag was written and by what. Same single query either way.
@@ -563,10 +565,6 @@ export async function getProjectDetail(userId: string, id: string) {
       occurredAt: i.occurredAt,
     })),
     linkedGoals,
-    // An empty list means "no goals"; this flag means "goals exist or not, you
-    // are not being shown them". Callers that decide something from goal count
-    // (the kickoff plan, the roadmap dispatch) must not read locked as empty.
-    goalsLocked: privateLocked,
     devLog: userProject?.devLog ?? null,
     resources: userProject?.resources ?? [],
     notes: userProject?.notes ?? null,

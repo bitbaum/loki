@@ -113,7 +113,9 @@ export function ProjectWorkspaceHeader({
       <div
         className={cn(
           "mt-2 max-w-3xl text-sm leading-relaxed text-text-secondary sm:text-base",
-          !descExpanded && isLongDescription && "relative max-h-24 overflow-hidden",
+          // Exactly three lines (3 × leading-relaxed 1.625em). A fixed 6rem cut
+          // the fourth line through the middle of its letters on phones.
+          !descExpanded && isLongDescription && "ui-clamp-3-lines",
         )}
       >
         <DescriptionEditor
