@@ -100,7 +100,7 @@ png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 
 open(sys.argv[1], "wb").write(png)
 PY
 image_out=$(as_openclaw "openclaw infer image describe --file $STAGE/red.png" 2>&1 || true)
-if printf '%s' "$image_out" | grep -qi "red"; then
+if grep -qi "red" <<<"$image_out"; then
   echo "  image: described a red test square as red"
 else
   ssh "$HOST" "rm -rf $STAGE"
@@ -114,7 +114,7 @@ fi
 if ssh "$HOST" "command -v ffmpeg >/dev/null"; then
   ssh "$HOST" "ffmpeg -loglevel error -f lavfi -i color=c=blue:s=160x120:d=2 -pix_fmt yuv420p $STAGE/blue.mp4 && chmod 644 $STAGE/blue.mp4"
   video_out=$(as_openclaw "openclaw infer video describe --file $STAGE/blue.mp4" 2>&1 || true)
-  if printf '%s' "$video_out" | grep -qi "blue"; then
+  if grep -qi "blue" <<<"$video_out"; then
     echo "  video: described a blue test clip as blue"
   else
     ssh "$HOST" "rm -rf $STAGE"
