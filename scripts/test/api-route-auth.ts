@@ -52,6 +52,7 @@ const GUARDS = [
   "getBearerUserId", // ck_* runner/agent token, src/lib/runner-auth.ts
   "validateAgentToken",
   "getWidgetTokenByToken", // fcw_* write-only widget token
+  "verifyTourToken", // signed, expiring "Watch the fix" ticket for ONE feedback item, src/lib/feedback/tour-token.ts
   // Signed webhooks from other services
   "WEBHOOK_SECRET",
   "readSignedOrangeCatBody", // the OrangeCat HMAC door — verifies WEBHOOK_SECRET

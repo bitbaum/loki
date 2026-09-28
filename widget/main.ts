@@ -21,6 +21,7 @@
  */
 
 import { forgetOwnerPass, takeOwnerPass } from "./owner-pass";
+import { startTourFromFragment } from "./tour";
 import { buildSuggestion, formatDiagnostics, type ReportDiagnostics } from "./report-payload";
 import { mergeTranscript } from "./voice";
 import { createVoiceControl } from "./voice-control";
@@ -108,6 +109,8 @@ interface LokiApi {
     return;
   }
   const apiBase = script?.src ? new URL(script.src).origin : "";
+  // "Watch the fix" runs apart from the launcher: a hidden button still tours.
+  startTourFromFragment(apiBase);
   // The owner, arriving from Loki's "Open your site" link or returning with the
   // pass kept from it. Their notes start the fix instead of waiting in an inbox.
   const ownerState = takeOwnerPass(token);

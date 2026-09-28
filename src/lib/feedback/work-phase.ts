@@ -13,6 +13,7 @@
  * stamp / merged PR). An agent run finishing — or injectPrompt delivering a
  * prompt — is not Done. "dispatched" alone is not a user-facing word either.
  */
+import { explainRunFailure } from "@/lib/feedback/failure-reason";
 import { FEEDBACK_STATUS, type FeedbackStatus } from "@/lib/constants/statuses";
 import { ORCH_STATE, type OrchestrationState } from "@/lib/orchestration/contract";
 import { ORCHESTRATION_OUTCOME } from "@/lib/orchestration/contract";
@@ -348,7 +349,7 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
       label: "Not running",
-      detail: "Retry",
+      detail: "The run record is missing — Retry starts it again.",
     };
   }
 
@@ -362,7 +363,7 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.FAILED,
       label: "Never started",
-      detail: "Retry",
+      detail: explainRunFailure(run.error),
       diagnostic: run.error?.slice(0, 400) ?? null,
     };
   }
@@ -376,7 +377,7 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.FAILED,
       label: "Failed",
-      detail: "Retry",
+      detail: explainRunFailure(run.error),
       diagnostic: run.error?.slice(0, 400) ?? null,
     };
   }
@@ -398,7 +399,7 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.FAILED,
       label: "Failed",
-      detail: "Retry",
+      detail: explainRunFailure(run.error),
       diagnostic: run.error?.slice(0, 400) ?? null,
     };
   }
@@ -685,23 +686,25 @@ function shippingView(run: FeedbackRunSnapshot): Omit<FeedbackWorkView, "waiting
       if (fix.liveVia === "later_deploy")
         return {
           ...base,
-          label: "Live · confirm",
+          label: "Shipped · confirm",
           detail: `${fix.ownDeploy?.name ?? "The deploy"} failed on the merge commit; a later deploy shipped it.${partial ? " The agent reported only partial success — worth a closer look." : ""}`,
           checkLive: true,
         };
       if (fix.shippedByFleet)
         return {
           ...base,
-          label: "Live · confirm",
+          label: "Shipped · confirm",
           detail: `Loki merged this and the site deployed.${partial ? " The agent reported only partial success — worth a closer look." : ""}`,
           checkLive: true,
         };
       return {
         ...base,
-        // No sentence: the badge says Live, and the two buttons under it say
-        // "Check live" and "Confirm". Repeating that as prose printed the same
+        // No sentence: the badge says Shipped, and the buttons under it say
+        // "Watch the fix" and "Confirm". Repeating that as prose printed the same
         // 18 words on every deployed row — the noise this page keeps growing.
-        label: "Live · confirm",
+        // "Shipped", not "Live": a green "Live" read as "watch it live" and
+        // sent the owner to a homepage expecting to see work (2026-09-28).
+        label: "Shipped · confirm",
         detail: partial ? "The agent reported only partial success — worth a closer look." : null,
         checkLive: true,
       };

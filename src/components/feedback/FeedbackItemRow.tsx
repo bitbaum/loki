@@ -11,6 +11,7 @@ import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import { FeedbackReportText } from "@/components/feedback/FeedbackReportText";
 import { FeedbackWorkBadge } from "@/components/feedback/FeedbackWorkBadge";
 import { FeedbackWatchButton, FeedbackWatchPanel } from "@/components/feedback/FeedbackWatch";
+import { WatchFixButton } from "@/components/feedback/WatchFixButton";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
@@ -137,19 +138,10 @@ export function FeedbackItemRow({
   // The badge is the status; a "Not started" chip on every untouched report
   // said nothing the Implement button did not.
   const showBadge = work.phase !== FEEDBACK_WORK_PHASE.NOT_STARTED;
-  const badge = showCheckLive ? (
-    <a
-      href={liveHref!}
-      target="_blank"
-      rel="noreferrer"
-      className="shrink-0"
-      title="Open the reported page"
-    >
-      <FeedbackWorkBadge work={work} />
-    </a>
-  ) : (
-    <FeedbackWorkBadge work={work} />
-  );
+  // The badge is a status, never a link. It used to open the live site, and a
+  // green "Live" chip that navigates reads as "watch it live" — the owner
+  // tapped it expecting to see the work and got a homepage (2026-09-28).
+  const badge = <FeedbackWorkBadge work={work} />;
 
   return (
     <div className="flex flex-col gap-2 py-3">
@@ -242,7 +234,7 @@ export function FeedbackItemRow({
           )}
           {f.hasScreenshots && <ScreenshotsThumbnails feedbackId={f.id} />}
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           {work.phase === FEEDBACK_WORK_PHASE.NOT_STARTED && !runnable ? (
             <>
               <Link
@@ -356,15 +348,20 @@ export function FeedbackItemRow({
           ) : work.phase === FEEDBACK_WORK_PHASE.NEEDS_VERIFY ? (
             <>
               {showCheckLive ? (
-                <a
-                  href={liveHref!}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="ui-btn-save gap-1"
-                  title="Open the live page and confirm the visitor's point is fixed"
-                >
-                  Check live
-                </a>
+                <>
+                  <WatchFixButton feedbackId={f.id} liveHref={liveHref!} />
+                  {ship?.pr && (
+                    <a
+                      href={ship.pr.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ui-btn-secondary gap-1"
+                      title={ship.pr.title}
+                    >
+                      What changed
+                    </a>
+                  )}
+                </>
               ) : ship?.pr ? (
                 <a
                   href={ship.pr.url}
