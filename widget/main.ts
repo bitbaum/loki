@@ -27,19 +27,32 @@ import { createVoiceControl } from "./voice-control";
 import { DEFAULT_PLACEMENT, normalizePlacement, type Placement } from "./placement";
 import { buildDocCSS, buildShadowCSS, type WidgetTheme } from "./theme";
 import { CAMERA_SVG, h } from "./dom";
-import { isHiddenByVisitor, readVisitorPlacement } from "./visitor-placement";
+import {
+  isHiddenByVisitor,
+  readHiddenMarker,
+  readVisitorPlacement,
+  restoreRequested,
+  writeVisitorPlacement,
+} from "./visitor-placement";
 import { createLauncher } from "./launcher";
 import { createPicker } from "./picker";
 import { createAttachments } from "./attachments";
 import { createChat } from "./chat";
+import { createAdvise } from "./advise";
+import {
+  createModeTabs,
+  createScopeChips,
+  ownerSuccessView,
+  showHideToast,
+  visitorSuccessView,
+  type Scope,
+} from "./panel-views";
 import {
   initialWidgetSurfaceMode,
   parseWidgetSurfaceModes,
   WIDGET_SURFACE_MODE_META,
   type WidgetSurfaceMode,
 } from "./surface-modes";
-
-type Scope = "element" | "page" | "site";
 
 const MAX_LEN = 2000;
 const MAX_ELEMENTS = 10;
@@ -73,10 +86,22 @@ interface LokiApi {
    * hand the question to the widget. A no-op on an embed without chat mode.
    */
   ask(question?: string): void;
+  /**
+   * Bring the launcher back for a visitor who hid it on this site. The same
+   * thing happens when the address carries `#loki`, and when a host calls
+   * report() or ask() — an explicit request from the page outranks a hidden
+   * button, or the host's own "Report" control would silently do nothing.
+   */
+  show(): void;
 }
 
 (() => {
-  const script = document.currentScript as HTMLScriptElement | null;
+  // document.currentScript is null for a `type="module"` tag and for some tag
+  // managers' injection; before this fallback such an install rendered nothing
+  // and said so only in the console. The attribute is the contract, so find it.
+  const script =
+    (document.currentScript as HTMLScriptElement | null) ??
+    document.querySelector<HTMLScriptElement>('script[src*="widget.js"][data-fc-project]');
   const token = script?.getAttribute("data-fc-project") ?? "";
   if (!token) {
     console.warn("[loki-widget] missing data-fc-project attribute");
@@ -93,16 +118,24 @@ interface LokiApi {
   // attribute still wins (see boot()).
   const bottomOffset = parseInt(script?.getAttribute("data-fc-bottom") ?? "", 10);
   // Modes are captured with the script tag (async scripts lose currentScript later).
-  // Report alone unless the embed lists more: chat is a studio front desk, and
+  // No attribute means the default pair, Request a change + Ask Loki — both are
+  // about improving THIS site. Chat stays opt-in: it is a studio front desk, and
   // this bundle also runs on pilot sites that never asked for one.
-  const modesAttr = script?.getAttribute("data-fc-modes") ?? "report";
+  const modesAttr = script?.getAttribute("data-fc-modes") ?? null;
 
   /** Filled by boot() before mount(); the launcher never paints without it. */
   let placement: Placement = { ...DEFAULT_PLACEMENT };
   /** Where the visitor dragged/parked it, if they did. Their choice outranks
    *  both the operator's and the auto-avoid, and only for them. */
   let visitorOverride: Placement | null = readVisitorPlacement(token);
-  if (document.getElementById("loki-feedback-host")) return;
+  // One widget per page, however many tags a site ends up with (a snippet in
+  // the template AND one from a tag manager rendered two launchers). Boot is
+  // async, so the host element alone cannot say "someone is already coming";
+  // the flag covers that window and is cleared if the boot decides not to
+  // render, so an SPA that removes and re-adds the tag still gets its widget.
+  const w = window as unknown as { __lokiWidgetBooting?: boolean };
+  if (document.getElementById("loki-feedback-host") || w.__lokiWidgetBooting) return;
+  w.__lokiWidgetBooting = true;
 
   // Publish the programmatic entry point SYNCHRONOUSLY, before the async boot
   // gate decides whether to render. A host page that calls report() from an
@@ -115,21 +148,63 @@ interface LokiApi {
   let liveReport: ((input: ReportInput) => void) | null = null;
   let pendingAsk: string | null = null;
   let liveAsk: ((question: string) => void) | null = null;
+  /** Set once boot says render, even if the visitor hid the launcher — so an
+   *  explicit report()/ask()/show() can still mount it. */
+  let bootedTheme: WidgetTheme | null = null;
+  let mounted = false;
+  /** Set by mount(): bring back a launcher hidden during this page view. */
+  let liveShow: (() => void) | null = null;
+  /** Show a widget the visitor had hidden, because something asked for it —
+   *  mounting it first if it was hidden before this page loaded. */
+  const unhide = () => {
+    if (!isHiddenByVisitor(visitorOverride)) return;
+    visitorOverride = null;
+    writeVisitorPlacement(token, null);
+    if (liveShow) liveShow();
+    else if (bootedTheme && !mounted) mountWhenReady(bootedTheme);
+  };
   const api: LokiApi = {
     ready: false,
     report(input: ReportInput = {}) {
+      unhide();
       if (liveReport) liveReport(input);
       else pendingReport = input;
     },
     ask(question = "") {
+      unhide();
       if (liveAsk) liveAsk(question);
       else pendingAsk = question;
     },
+    show: unhide,
   };
   (window as unknown as { Loki?: LokiApi }).Loki = api;
   // Arriving from the owner link: open straight to the note, so "look at my
   // site and say what to change" is one step, not a hunt for the button.
   if (ownerState.arrived) pendingReport = {};
+  // The owner arriving from their link, or anyone opening the page with
+  // `#loki`, gets the launcher back even if this browser hid it earlier. Without
+  // this, "Hide on this site" was permanent: nothing on the page could undo it.
+  if (ownerState.arrived || restoreRequested()) {
+    visitorOverride = null;
+    writeVisitorPlacement(token, null);
+  }
+
+  // Typing #loki onto a page that is already open is a hash change, not a load.
+  window.addEventListener("hashchange", () => {
+    if (restoreRequested()) api.show();
+  });
+
+  const mountWhenReady = (theme: WidgetTheme) => {
+    if (mounted) return;
+    mounted = true;
+    const go = () => {
+      w.__lokiWidgetBooting = false;
+      if (document.getElementById("loki-feedback-host")) return;
+      mount(theme);
+    };
+    if (document.body) go();
+    else document.addEventListener("DOMContentLoaded", go);
+  };
 
   const mount = (theme: WidgetTheme) => {
     // ---- state ----
@@ -158,8 +233,33 @@ interface LokiApi {
         visitorOverride = value;
       },
       onOpen: openPanel,
+      onHide: hideForVisitor,
     });
     const fab = launcher.fab;
+    /** The launcher's resting display: none while the visitor has it hidden. */
+    const fabRest = () => (isHiddenByVisitor(visitorOverride) ? "none" : "");
+
+    // ---- hiding, and getting it back ----
+    //
+    // Hiding used to live only behind a long-press / right-click on the
+    // launcher, and it was one-way: the launcher was removed, the choice stored,
+    // and nothing on any page could bring it back — not even the host's own
+    // "Report" control. Now it is offered in the panel too, it says how to undo
+    // it, and #loki, Loki.show(), report() and ask() all restore it.
+    let toast: HTMLElement | null = null;
+    function hideForVisitor() {
+      if (panel.isConnected) closePanel();
+      visitorOverride = readHiddenMarker();
+      writeVisitorPlacement(token, { hidden: true });
+      fab.style.display = "none";
+      toast?.remove();
+      toast = showHideToast(root, () => api.show());
+    }
+    liveShow = () => {
+      toast?.remove();
+      if (!panel.isConnected) fab.style.display = "";
+      launcher.reposition();
+    };
 
     // ---- panel (built once, shown on demand) ----
     const backdrop = h("div", "backdrop");
@@ -186,76 +286,60 @@ interface LokiApi {
     const enabledModes = parseWidgetSurfaceModes(modesAttr);
     let surfaceMode: WidgetSurfaceMode = initialWidgetSurfaceMode(enabledModes);
     const chat = enabledModes.includes("chat") ? createChat({ apiBase, token }) : null;
+    const advise = enabledModes.includes("ask")
+      ? createAdvise({
+          apiBase,
+          token,
+          getScope: () => scope,
+          getSelected: () => picker.selected(),
+          onRequest: requestFromAdvice,
+        })
+      : null;
+    /** The scope chips sit above both Report and Ask: "about what?" is one question. */
+    const scopeBox = h("div", "scope");
     const title = h("b");
-    const modesRow = h("div", "modes");
-    modesRow.setAttribute("role", "tablist");
-    modesRow.setAttribute("aria-label", "Loki modes");
-    const modeHint = h("div", "mode-hint");
-    const modeBtns = new Map<WidgetSurfaceMode, HTMLButtonElement>();
+    const tabs = createModeTabs(enabledModes, WIDGET_SURFACE_MODE_META, (m) => {
+      surfaceMode = m;
+      syncModes();
+      focusMode();
+    });
     function syncModes() {
-      for (const [m, btn] of modeBtns) {
-        const meta = WIDGET_SURFACE_MODE_META[m];
-        btn.classList.toggle("on", m === surfaceMode);
-        btn.setAttribute("aria-selected", m === surfaceMode ? "true" : "false");
-        btn.disabled = !meta.shipped;
-        btn.title = meta.hint;
-      }
       // The owner is not filing a report for someone else to triage: what they
       // say here is built and shipped, and the hint says exactly that.
-      modeHint.textContent =
+      tabs.sync(
+        surfaceMode,
         ownerPass && surfaceMode === "report"
           ? "Your site: what you say here gets built and goes live."
-          : WIDGET_SURFACE_MODE_META[surfaceMode].hint;
+          : WIDGET_SURFACE_MODE_META[surfaceMode].hint,
+      );
       const chatting = surfaceMode === "chat" && chat !== null;
-      title.textContent = chatting ? "What are you looking for?" : "What should change?";
-      reportView.style.display = chatting ? "none" : "";
+      const asking = surfaceMode === "ask" && advise !== null;
+      title.textContent = chatting
+        ? "What are you looking for?"
+        : asking
+          ? "What would you like a second opinion on?"
+          : "What should change?";
+      reportView.style.display = chatting || asking ? "none" : "";
+      scopeBox.style.display = chatting ? "none" : "";
       if (chat) chat.el.style.display = chatting ? "" : "none";
+      if (advise) advise.el.style.display = asking ? "" : "none";
       // In chat the panel is just "Chat" — the Cat and Loki are who is IN it,
       // and each bubble names its speaker. Report stays Loki's.
       brandName.textContent = chatting ? "Chat" : "Loki";
     }
-    for (const m of enabledModes) {
-      const meta = WIDGET_SURFACE_MODE_META[m];
-      const btn = h("button", "mode", meta.label);
-      btn.setAttribute("role", "tab");
-      btn.addEventListener("click", () => {
-        if (!WIDGET_SURFACE_MODE_META[m].shipped) return;
-        surfaceMode = m;
-        syncModes();
-        if (m === "chat") chat?.focus();
-        else textarea.focus();
-      });
-      modeBtns.set(m, btn);
-      modesRow.appendChild(btn);
-    }
-    hdrText.appendChild(modesRow);
-    hdrText.appendChild(modeHint);
-    hdrText.appendChild(title);
     const hdrPage = h("div", "page");
-    hdrText.appendChild(hdrPage);
+    hdrText.append(tabs.row, tabs.hint, title, hdrPage);
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
     hdr.append(hdrText, closeBtn);
 
-    const chips = h("div", "chips");
-    const chipDefs: Array<{ key: Scope; label: string }> = [
-      { key: "element", label: "An element" },
-      { key: "page", label: "This page" },
-      { key: "site", label: "Whole site" },
-    ];
-    const chipEls = new Map<Scope, HTMLButtonElement>();
-    for (const def of chipDefs) {
-      const chip = h("button", "chip", def.label);
-      chip.addEventListener("click", () => {
-        scope = def.key;
-        if (def.key === "element") picker.start();
-        syncChips();
-      });
-      chipEls.set(def.key, chip);
-      chips.appendChild(chip);
-    }
-    const hint = h("div", "hint");
+    const scopeChips = createScopeChips((picked) => {
+      scope = picked;
+      if (picked === "element") picker.start();
+      syncChips();
+      advise?.refresh();
+    });
 
     const textarea = h("textarea");
     textarea.maxLength = MAX_LEN;
@@ -263,6 +347,11 @@ interface LokiApi {
       ? "Say or type what to change. It gets built."
       : "What should be improved?";
     const cnt = h("div", "cnt", `0/${MAX_LEN}`);
+    /** The counter and the Send button both follow the text. */
+    function syncCount() {
+      cnt.textContent = `${textarea.value.length}/${MAX_LEN}`;
+      sendBtn.disabled = !textarea.value.trim();
+    }
 
     // Diagnostics travel with the submission but stay OUT of the textarea: the
     // visitor should see a clean sentence they can edit, not a wall of context
@@ -276,10 +365,7 @@ interface LokiApi {
       diagNote.title = text;
     }
     syncDiagnostics();
-    textarea.addEventListener("input", () => {
-      cnt.textContent = `${textarea.value.length}/${MAX_LEN}`;
-      sendBtn.disabled = !textarea.value.trim();
-    });
+    textarea.addEventListener("input", syncCount);
 
     const contact = h("input");
     contact.type = "text";
@@ -321,8 +407,7 @@ interface LokiApi {
       maxMs: VOICE_MAX_MS,
       onTranscript: (text) => {
         textarea.value = mergeTranscript(textarea.value, text, MAX_LEN);
-        cnt.textContent = `${textarea.value.length}/${MAX_LEN}`;
-        sendBtn.disabled = !textarea.value.trim();
+        syncCount();
         textarea.focus();
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
       },
@@ -367,10 +452,13 @@ interface LokiApi {
       h("span", "sep", "·"),
       h("span", "mono", "Ctrl+Enter sends"),
     );
+    // Visible, not only behind a long-press: a visitor who does not want the
+    // button should not have to know a gesture to get rid of it.
+    const hideLink = h("button", "hide-link", "Hide this button on this site");
+    hideLink.addEventListener("click", hideForVisitor);
 
+    scopeBox.append(scopeChips.chips, scopeChips.hint);
     reportView.append(
-      chips,
-      hint,
       textarea,
       cnt,
       diagNote,
@@ -381,9 +469,34 @@ interface LokiApi {
       errEl,
       keys,
     );
-    panel.append(hdr, reportView);
-    if (chat) panel.append(chat.el);
+    /** (Re)build the panel's children — the success views replace them. */
+    function assemblePanel() {
+      panel.textContent = "";
+      panel.append(hdr, scopeBox, reportView);
+      if (advise) panel.append(advise.el);
+      if (chat) panel.append(chat.el);
+      panel.append(hideLink);
+    }
+    assemblePanel();
     syncModes();
+
+    function focusMode() {
+      if (surfaceMode === "chat" && chat) chat.focus();
+      else if (surfaceMode === "ask" && advise) advise.focus();
+      else textarea.focus();
+    }
+
+    /** A change Loki recommended (or a question it could not answer) becomes a
+     *  request: Report, prefilled, with the same scope and picked elements. */
+    function requestFromAdvice(text: string) {
+      surfaceMode = "report";
+      syncModes();
+      const current = textarea.value.trim();
+      textarea.value = (current ? `${current}\n${text}` : text).slice(0, MAX_LEN);
+      syncCount();
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
 
     const picker = createPicker({
       root,
@@ -404,15 +517,7 @@ interface LokiApi {
 
     // ---- behaviors ----
     function syncChips() {
-      const selectedCount = picker.selected().length;
-      for (const [key, chip] of chipEls) chip.classList.toggle("on", key === scope);
-      hint.textContent =
-        scope === "element"
-          ? selectedCount
-            ? `${selectedCount} element${selectedCount > 1 ? "s" : ""} selected`
-            : "Pick the element the feedback is about"
-          : "";
-      hint.style.display = hint.textContent ? "block" : "none";
+      scopeChips.sync(scope, picker.selected().length);
     }
 
     function openPanel() {
@@ -421,8 +526,7 @@ interface LokiApi {
       root.append(backdrop, panel);
       syncChips();
       document.addEventListener("keydown", onKeydown, true);
-      if (surfaceMode === "chat" && chat) chat.focus();
-      else textarea.focus();
+      focusMode();
     }
 
     function closePanel() {
@@ -448,7 +552,7 @@ interface LokiApi {
       sendBtn.disabled = true;
       submitting = false;
       sendBtn.textContent = "Send";
-      fab.style.display = "";
+      fab.style.display = fabRest();
     }
 
     function onKeydown(e: KeyboardEvent) {
@@ -468,10 +572,17 @@ interface LokiApi {
       // shadow textarea's listeners, so Enter-to-send is handled here.
       if (chat && surfaceMode === "chat" && e.composedPath().includes(chat.input) && chat.onKey(e))
         return;
+      if (
+        advise &&
+        surfaceMode === "ask" &&
+        e.composedPath().includes(advise.input) &&
+        advise.onKey(e)
+      )
+        return;
       if (e.key === "Escape") {
         if (picker.isPicking()) picker.stop();
         else closePanel();
-      } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && surfaceMode !== "chat") {
+      } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && surfaceMode === "report") {
         if (!sendBtn.disabled) void submit();
       }
     }
@@ -537,9 +648,7 @@ interface LokiApi {
     }
 
     function resetForm() {
-      panel.textContent = "";
-      panel.append(hdr, reportView);
-      if (chat) panel.append(chat.el);
+      assemblePanel();
       textarea.value = "";
       cnt.textContent = `0/${MAX_LEN}`;
       submitting = false;
@@ -547,57 +656,26 @@ interface LokiApi {
       sendBtn.textContent = "Send";
     }
 
-    /** The owner's note: say what happens now, then let them say the next one. */
     function showOwnerSuccess(building: boolean, note: string | null) {
       panel.textContent = "";
-      const ok = h("div", "ok");
-      ok.append(
-        h("div", "tick", building ? "✓" : "!"),
-        h("p", undefined, building ? "On it. An agent is building this now." : "Saved."),
-        h(
-          "div",
-          "sub",
-          building
-            ? "It goes live on this site by itself. Loki tells you when it is."
-            : (note ?? "It waits in Loki under Feedback."),
-        ),
+      panel.appendChild(
+        ownerSuccessView(building, note, () => {
+          resetForm();
+          textarea.focus();
+        }),
       );
-      const more = h("button", "track", "Say something else") as HTMLButtonElement;
-      more.type = "button";
-      more.addEventListener("click", () => {
-        resetForm();
-        textarea.focus();
-      });
-      ok.append(more);
-      panel.appendChild(ok);
     }
 
     function showSuccess(claimUrl: string | null) {
       panel.textContent = "";
-      const ok = h("div", "ok");
-      const tick = h("div", "tick", "✓");
-      ok.append(
-        tick,
-        h("p", undefined, "Sent. Thank you."),
-        h("div", "sub", "Track what happens next in Loki."),
-      );
-      if (claimUrl) {
-        const track = h("a", "track", "Track this feedback →") as HTMLAnchorElement;
-        track.href = claimUrl;
-        track.target = "_blank";
-        track.rel = "noopener noreferrer";
-        ok.append(track);
-      }
-      panel.appendChild(ok);
+      panel.appendChild(visitorSuccessView(claimUrl));
       setTimeout(() => {
         // Keep the success view open while the tracking invitation is visible.
         // A visitor should never have to race a disappearing confirmation.
         if (claimUrl) return;
         closePanel();
         // Rebuild the form for the next open (success view replaced it).
-        panel.textContent = "";
-        panel.append(hdr, reportView);
-        if (chat) panel.append(chat.el);
+        assemblePanel();
       }, 2200);
     }
 
@@ -614,19 +692,20 @@ interface LokiApi {
       syncDiagnostics();
       if (input.message) {
         textarea.value = input.message.slice(0, MAX_LEN);
-        cnt.textContent = `${textarea.value.length}/${MAX_LEN}`;
-        sendBtn.disabled = !textarea.value.trim();
+        syncCount();
         // Caret at the end: the visitor adds detail, never clears boilerplate.
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
       }
     };
+    // ask() goes to the studio front desk where a site has one, else to Ask.
     liveAsk = (question: string) => {
-      if (!chat) return;
+      const target = chat ?? advise;
+      if (!target) return;
       if (!panel.isConnected) openPanel();
-      surfaceMode = "chat";
+      surfaceMode = chat ? "chat" : "ask";
       syncModes();
-      chat.focus();
-      if (question.trim()) chat.ask(question);
+      target.focus();
+      if (question.trim()) target.ask(question);
     };
     // Only now can a click actually open something — see LokiApi.ready.
     api.ready = true;
@@ -656,10 +735,12 @@ interface LokiApi {
         placement?: unknown;
         theme?: WidgetTheme;
       };
-      if (body.active !== true) return;
       // Theme must come from boot — the widget has no fallback palette.
       // If boot doesn't provide colors, the widget doesn't render.
-      if (!body.theme) return;
+      if (body.active !== true || !body.theme) {
+        w.__lokiWidgetBooting = false;
+        return;
+      }
       const theme = body.theme;
       // Placement arrives with the render verdict, so the launcher paints once
       // in its final corner instead of appearing bottom-right and jumping.
@@ -669,13 +750,21 @@ interface LokiApi {
       // page, and silently overriding it would move a launcher they had already
       // positioned by hand.
       if (Number.isFinite(bottomOffset)) placement.offsetY = bottomOffset;
-      // A visitor who dismissed the widget on this site gets no widget, without
-      // a round trip to ask. Checked after boot so a revoked token still short-
-      // circuits first — the operator's kill switch outranks the preference.
-      if (isHiddenByVisitor(visitorOverride)) return;
-      if (document.body) mount(theme);
-      else document.addEventListener("DOMContentLoaded", () => mount(theme));
+      bootedTheme = theme;
+      // A report()/ask() made before boot finished is an explicit request.
+      if (pendingReport || pendingAsk !== null) unhide();
+      // A visitor who dismissed the widget on this site gets no launcher.
+      // Checked after boot so a revoked token still short-circuits first — the
+      // operator's kill switch outranks the preference. The API stays usable:
+      // report()/ask()/show() from the host page bring the widget back.
+      if (isHiddenByVisitor(visitorOverride)) {
+        api.ready = true;
+        w.__lokiWidgetBooting = false;
+        return;
+      }
+      mountWhenReady(theme);
     } catch {
+      w.__lokiWidgetBooting = false;
       return;
     }
   };

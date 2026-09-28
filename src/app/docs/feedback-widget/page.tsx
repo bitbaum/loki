@@ -78,6 +78,22 @@ export default function FeedbackWidgetDocsPage() {
             describing a bug by thumb is where most reports die. The transcript lands in the same
             box, editable, and the visitor still presses Send.
           </p>
+          <p>
+            <strong>Ask Loki before asking for a change.</strong> Most people you build a site for
+            are not web professionals, and cannot tell a mistake from a convention. The panel&apos;s{" "}
+            <em>Ask Loki</em> tab gives them a second opinion on the element they picked, the page,
+            or the whole site — why something is the way it is, whether it should change, how the
+            site could be better. It may well answer &ldquo;leave it&rdquo;; every change it does
+            recommend has <em>Request this</em>, which turns it into an ordinary report. Loki reads
+            an outline of the page in the visitor&apos;s browser (no screenshots), and the answers
+            are charged to your AI budget. It is on by default;{" "}
+            <code>data-fc-modes=&quot;report&quot;</code> on the script tag turns it off.
+          </p>
+          <p>
+            <strong>Visitors can hide it.</strong> <em>Hide this button on this site</em> at the
+            foot of the panel hides it for that visitor only, with an Undo. Opening any page with{" "}
+            <code>#loki</code> at the end of the address brings it back.
+          </p>
           <p className="ui-public-callout">
             <strong>The mic needs your site&apos;s permission.</strong> If your site sends a{" "}
             <code>Permissions-Policy</code> header with <code>microphone=()</code> — an empty

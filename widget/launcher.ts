@@ -31,6 +31,9 @@ export function createLauncher(opts: {
   getVisitorOverride(): Placement | null;
   setVisitorOverride(value: Placement | null): void;
   onOpen(): void;
+  /** The visitor chose "Hide on this site" — the panel owns what happens next
+   *  (store it, remove the launcher, say how to get it back). */
+  onHide(): void;
 }): Launcher {
   const { root, host, token } = opts;
 
@@ -72,9 +75,8 @@ export function createLauncher(opts: {
   const hideBtn = h("button", "fabmenu-item", "Hide on this site");
   hideBtn.setAttribute("role", "menuitem");
   hideBtn.addEventListener("click", () => {
-    writeVisitorPlacement(token, { hidden: true });
     hideMenu();
-    host.remove();
+    opts.onHide();
   });
 
   const resetBtn = h("button", "fabmenu-item", "Reset position");
