@@ -129,3 +129,51 @@ export function parseModelJson<T = unknown>(raw: string): T {
   if (parsed === null) throw new Error("model returned no JSON object");
   return parsed;
 }
+
+/**
+ * Read a flat JSON object the token ceiling cut off mid-answer, keeping every
+ * top-level member that was written in full.
+ *
+ * Only for callers whose answer is a bag of OPTIONAL keys — a profile with
+ * twenty independent fields is still useful with fourteen of them, while an
+ * answer whose meaning depends on being whole (a verdict, a plan) must keep
+ * treating truncation as failure. That is why this is its own export and
+ * `safeParseModelJson` does not fall back to it.
+ *
+ * The cut is made at the last comma between members at depth 1, outside any
+ * string, so a value is either kept entire or dropped entire — never trimmed.
+ */
+export function salvageTruncatedObject<T = Record<string, unknown>>(raw: string): T | null {
+  const text = stripReasoning(raw);
+  const fenceOpen = text.match(/```(?:json)?\s*/i);
+  const body = fenceOpen ? text.slice((fenceOpen.index ?? 0) + fenceOpen[0].length) : text;
+  const start = body.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let lastMemberEnd = -1;
+  for (let i = start; i < body.length; i++) {
+    const ch = body[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{" || ch === "[") depth++;
+    else if (ch === "}" || ch === "]") depth--;
+    else if (ch === "," && depth === 1) lastMemberEnd = i;
+  }
+  if (lastMemberEnd === -1) return null;
+  try {
+    const parsed = JSON.parse(`${body.slice(start, lastMemberEnd)}}`) as unknown;
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as T)
+      : null;
+  } catch {
+    return null;
+  }
+}

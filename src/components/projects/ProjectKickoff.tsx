@@ -20,7 +20,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Check, Loader2, Lock, Rocket, Zap } from "lucide-react";
-import { postJson } from "@/lib/api/fetch";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { useSiteDeployment } from "@/hooks/use-site-deployment";
 import { SiteDeploymentStatus } from "./SiteDeploymentStatus";
@@ -31,11 +30,15 @@ import {
   hasKickoffSource,
   isThinBrief,
   planKickoff,
-  type KickoffStepId,
 } from "@/lib/project-kickoff";
-
-type StepState = "pending" | "running" | "done" | "failed";
-type StepRun = { id: KickoffStepId; state: StepState; note?: string };
+import {
+  anyKickoffRunning,
+  clearKickoffRun,
+  startKickoff,
+  useKickoffRun,
+  type KickoffRun,
+  type KickoffStepState,
+} from "@/lib/kickoff-run";
 
 export function ProjectKickoff({
   projectId,
@@ -78,10 +81,28 @@ export function ProjectKickoff({
   const [text, setText] = useState(description ?? "");
   const [wantRepo, setWantRepo] = useState(true);
   const [visibility, setVisibility] = useState<"private" | "public">("private");
-  const [steps, setSteps] = useState<StepRun[] | null>(null);
-  const [running, setRunning] = useState(false);
-  const [finished, setFinished] = useState(false);
   const { deployment, setDeployment } = useSiteDeployment(projectId);
+  // The run lives in lib/kickoff-run, not here: it must outlive this card when
+  // the person goes to watch Terminal or Control mid-run, and be here again,
+  // live, when they come back.
+  const kickoff = useKickoffRun(projectId);
+  const steps = kickoff?.steps ?? null;
+  const running = kickoff?.running ?? false;
+  const finished = kickoff?.finished ?? false;
+
+  useEffect(() => {
+    if (kickoff?.deployment) setDeployment(kickoff.deployment);
+  }, [kickoff?.deployment, setDeployment]);
+
+  // A reload stops the run (the browser owns the requests). Say so first.
+  useEffect(() => {
+    if (!running) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      if (anyKickoffRunning()) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [running]);
 
   const source = text.trim() || null;
   const plan = planKickoff({
@@ -97,154 +118,16 @@ export function ProjectKickoff({
   const requiresSource = plan.includes("profile") || plan.includes("milestones");
   const ready = !requiresSource || hasKickoffSource(source);
 
-  function mark(id: KickoffStepId, state: StepState, note?: string) {
-    setSteps((prev) => (prev ?? []).map((s) => (s.id === id ? { ...s, state, note } : s)));
-  }
-
-  /** POST a step's route; returns its JSON body, or null with the step marked failed. */
-  async function step(
-    id: KickoffStepId,
-    path: string,
-    body: Record<string, unknown>,
-  ): Promise<Record<string, unknown> | null> {
-    mark(id, "running");
-    try {
-      const res = await postJson(`/api/projects/${projectId}/${path}`, body);
-      const json = (await res.json()) as Record<string, unknown>;
-      if (!res.ok || !json.ok) {
-        mark(id, "failed", typeof json.error === "string" ? json.error : `HTTP ${res.status}`);
-        return null;
-      }
-      return json;
-    } catch {
-      mark(id, "failed", "Network error");
-      return null;
-    }
-  }
-
-  async function run() {
-    setRunning(true);
-    setFinished(false);
-    setSteps(plan.map((id) => ({ id, state: "pending" })));
-
-    // Profile and milestones read the same text and don't depend on each other.
-    // Run them together — serialising two 25s model calls is 25s of nothing.
-    await Promise.all(
-      plan
-        .filter((id) => id === "profile" || id === "milestones")
-        .map(async (id) => {
-          const json = await step(id, id === "profile" ? "brief" : "roadmap", { text: source });
-          if (!json) return;
-          if (id === "profile") {
-            const count = Object.keys((json.applied as object) ?? {}).length;
-            mark(id, "done", `${count} field${count === 1 ? "" : "s"} filled`);
-          } else {
-            const created = (json.created as string[]) ?? [];
-            mark(id, "done", `${created.length} milestone${created.length === 1 ? "" : "s"}`);
-          }
-        }),
-    );
-
-    // Repo second: "auto" resolves the starter from the stack the profile step
-    // just wrote, so this only picks well once that has landed.
-    if (plan.includes("repo")) {
-      const json = await step("repo", "provision", { template: "auto", visibility });
-      if (!json) {
-        // Repository setup failed — do not dispatch. An agent with nowhere to
-        // write code is worse than a paused kickoff; the operator can fix the
-        // repo step and Try again.
-        setRunning(false);
-        setFinished(true);
-        router.refresh();
-        return;
-      }
-      if (json.templateSeeded === false) {
-        // The repo exists but is bare: nothing to deploy, nothing for an agent
-        // to build on. Registering CD here would only produce a failed Deploy.
-        // Try again re-seeds the same repo (provision detects the bare repo).
-        mark(
-          "repo",
-          "failed",
-          "Repository created, but the starter files were not written. Try again to add them.",
-        );
-        setRunning(false);
-        setFinished(true);
-        router.refresh();
-        return;
-      }
-      const repo = json.repo as { full_name?: string } | undefined;
-      const template = typeof json.template === "string" ? json.template : undefined;
-      // Same flow, next beat: wire Hetzner CD (or return the one box command).
-      // Provision alone left dogfood projects with a repo and no public URL.
-      let siteNote = repo?.full_name ?? "created";
-      try {
-        const cdRes = await postJson(`/api/projects/${projectId}/register-cd`, {
-          template:
-            template === "bare" || template === "nextjs-tailwind" ? template : "nextjs-tailwind",
-        });
-        const cd = (await cdRes.json()) as {
-          ok?: boolean;
-          registered?: boolean;
-          liveUrl?: string | null;
-          deploymentStatus?: "pending" | "failed" | "live";
-          deploymentUrl?: string | null;
-          predictedLiveUrl?: string;
-          command?: string | null;
-          reason?: string | null;
-          gate?: string | null;
-          error?: string;
-        };
-        if (cdRes.ok && cd.ok) {
-          setDeployment(cd);
-          if (cd.registered && cd.liveUrl) {
-            siteNote = `${repo?.full_name ?? "repo"} · live ${cd.liveUrl}`;
-          } else if (cd.reason || cd.command) {
-            // Dogfood #551 showed only the command — silent about eligible vs
-            // missing key. Always surface the reason string from register.
-            const why = cd.reason?.trim();
-            const cmd = cd.command?.trim();
-            siteNote =
-              why && cmd
-                ? `${repo?.full_name ?? "repo"} · ${why} — ${cmd}`
-                : `${repo?.full_name ?? "repo"} · ${why || cmd}`;
-          } else if (cd.predictedLiveUrl) {
-            siteNote = `${repo?.full_name ?? "repo"} · intended ${cd.predictedLiveUrl}`;
-          }
-        } else if (cd.error) {
-          siteNote = `${repo?.full_name ?? "repo"} · CD: ${cd.error}`;
-        }
-      } catch {
-        siteNote = `${repo?.full_name ?? "repo"} · CD register skipped (network)`;
-      }
-      mark("repo", "done", siteNote);
-    }
-
-    // Dispatch last when setup that was planned actually landed. The prompt is
-    // composed server-side from whatever actually landed above.
-    const dispatched = await step("dispatch", "dispatch", { kind: "kickoff" });
-    if (dispatched) {
-      // `ok: true` is not the same as "an agent is working". injectPrompt
-      // answers 200/ok when it REFUSED because the user was mid-keystroke in
-      // the target tab, and when it queued a command with no runner connected
-      // to collect it. Both are flagged on purpose ("so the UI can warn instead
-      // of pretending it's running"), and this card exists to report what
-      // actually landed — so neither gets laundered into "agent working".
-      if (dispatched.blocked) {
-        // Nothing was sent; "Try again" is the useful affordance, not "Watch it work".
-        mark("dispatch", "failed", "not sent — you were typing in that tab");
-      } else if (dispatched.warning === "runner-offline") {
-        mark("dispatch", "done", "queued — starts when a runner connects");
-      } else {
-        mark("dispatch", "done", "request accepted — follow progress in Control");
-      }
-    }
-
-    setRunning(false);
-    setFinished(true);
-    // Bring the page in line with what just landed (profile, milestones, repo)
-    // without unmounting this card — the result summary and the link to watch
-    // it work are the only place the run is reported.
-    router.refresh();
+  function run() {
+    // Bring the page in line with what landed (profile, repo) without
+    // unmounting this card — its step list is where the run is reported.
+    void startKickoff(projectId, {
+      names: [workspaceKey, projectName],
+      plan,
+      source,
+      visibility,
+      onSettled: () => router.refresh(),
+    });
   }
 
   // Auto-start fires once, and only when a press would have been allowed. A
@@ -260,7 +143,6 @@ export function ProjectKickoff({
   }, [autoStart, needed, ready, running, steps]);
 
   const failures = (steps ?? []).filter((s) => s.state === "failed");
-  const dispatchOk = (steps ?? []).some((s) => s.id === "dispatch" && s.state === "done");
 
   if (!needed && !steps) return null;
 
@@ -352,20 +234,15 @@ export function ProjectKickoff({
         </div>
       )}
 
-      {!finished && (
+      {!steps && (
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={run}
-            disabled={running || !ready}
+            disabled={!ready}
             className="ui-btn-primary gap-2 px-5 py-3 text-base"
           >
-            {running ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Zap className="h-4 w-4" aria-hidden="true" />
-            )}
-            {running ? "Making it happen…" : "Make it happen"}
+            <Zap className="h-4 w-4" aria-hidden="true" /> Make it happen
           </button>
           {!ready && (
             <span className="text-xs text-text-secondary">
@@ -376,56 +253,65 @@ export function ProjectKickoff({
       )}
 
       {steps && (
-        <ol className="space-y-1.5 border-t border-border-subtle pt-3">
+        <ol className="space-y-2.5 border-t border-border-subtle pt-3" aria-live="polite">
           {steps.map((s) => (
-            <li key={s.id} className="flex items-center gap-2 text-sm">
-              <StepIcon state={s.state} />
-              <span className={s.state === "failed" ? "text-text-secondary" : "text-text-primary"}>
-                {KICKOFF_STEP_LABEL[s.id]}
+            <li key={s.id} className="flex items-start gap-2.5 text-sm">
+              <span className="mt-0.5">
+                <StepIcon state={s.state} />
               </span>
-              {s.note && (
+              {/* Label above note, never beside it: side by side, a phone
+                  squeezed both into two narrow columns ("Filling the /
+                  profile" next to a wrapped error) and neither read. */}
+              <span className="min-w-0 flex-1">
                 <span
                   className={
-                    s.state === "failed" ? "ui-error text-xs" : "text-xs text-text-secondary"
+                    s.state === "pending" ? "block text-text-tertiary" : "block text-text-primary"
                   }
                 >
-                  {s.note}
+                  {KICKOFF_STEP_LABEL[s.id]}
                 </span>
-              )}
+                {s.note && (
+                  <span
+                    className={
+                      s.state === "failed"
+                        ? "ui-error block text-xs wrap-anywhere"
+                        : "block text-xs text-text-secondary wrap-anywhere"
+                    }
+                  >
+                    {s.note}
+                  </span>
+                )}
+              </span>
             </li>
           ))}
         </ol>
       )}
 
+      {running && (
+        <p className="flex items-center gap-2 text-xs text-text-secondary">
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
+          Working — usually a minute or two. You can open Terminal or Control meanwhile; this keeps
+          going and is here when you come back.
+        </p>
+      )}
+
       <SiteDeploymentStatus deployment={deployment} />
 
-      {finished && (
-        <div className="space-y-2 border-t border-border-subtle pt-3">
-          {dispatchOk ? (
-            <Link
-              href={fleetSurfaceHref("terminal", workspaceKey)}
-              className="ui-btn-primary gap-2"
-            >
-              <Rocket className="h-4 w-4" aria-hidden="true" /> Watch it work
-            </Link>
-          ) : (
-            <button type="button" onClick={run} className="ui-btn-secondary gap-2">
-              Try again
-            </button>
-          )}
-          {failures.length > 0 && (
-            <p className="text-xs text-text-secondary">
-              {failures.length} step{failures.length === 1 ? "" : "s"} did not complete — everything
-              above them landed and is editable on this page.
-            </p>
-          )}
-        </div>
+      {finished && kickoff && (
+        <KickoffNextStep
+          outcome={kickoff.dispatch}
+          interrupted={kickoff.interrupted}
+          failures={failures.length}
+          workspaceKey={workspaceKey}
+          onRetry={run}
+          onDismiss={() => clearKickoffRun(projectId)}
+        />
       )}
     </section>
   );
 }
 
-function StepIcon({ state }: { state: StepState }) {
+function StepIcon({ state }: { state: KickoffStepState }) {
   if (state === "running")
     return (
       <Loader2 className="h-4 w-4 shrink-0 animate-spin text-accent-text" aria-hidden="true" />
@@ -435,4 +321,94 @@ function StepIcon({ state }: { state: StepState }) {
   if (state === "failed")
     return <AlertCircle className="h-4 w-4 shrink-0 text-status-negative" aria-hidden="true" />;
   return <span className="ui-dot ui-dot-neutral mx-1.5 shrink-0" aria-hidden="true" />;
+}
+
+/**
+ * One next action, chosen by where the agent actually went — never a generic
+ * "Watch it work" into a Terminal that has nothing to show yet.
+ */
+function KickoffNextStep({
+  outcome,
+  interrupted,
+  failures,
+  workspaceKey,
+  onRetry,
+  onDismiss,
+}: {
+  outcome: KickoffRun["dispatch"];
+  interrupted?: boolean;
+  failures: number;
+  workspaceKey: string;
+  onRetry: () => void;
+  onDismiss: () => void;
+}) {
+  const dismiss = (
+    <button type="button" onClick={onDismiss} className="ui-btn-ghost ui-btn-xs">
+      Hide this
+    </button>
+  );
+
+  if (outcome === "running") {
+    return (
+      <div className="space-y-2 border-t border-border-subtle pt-3">
+        <p className="text-sm font-medium text-text-primary">An agent is on it.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={fleetSurfaceHref("terminal", workspaceKey)} className="ui-btn-primary gap-2">
+            <Rocket className="h-4 w-4" aria-hidden="true" /> Watch it work
+          </Link>
+          <Link href={fleetSurfaceHref("control", workspaceKey)} className="ui-btn-secondary">
+            Activity in Control
+          </Link>
+          {dismiss}
+        </div>
+        {failures > 0 && (
+          <p className="text-xs text-text-secondary">
+            Anything marked above can be filled in later on this page — it does not stop the agent.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (outcome === "queued-offline") {
+    return (
+      <div className="space-y-2 border-t border-border-subtle pt-3">
+        <p className="text-sm font-medium text-text-primary">
+          Your agent is queued, waiting for a builder.
+        </p>
+        <p className="text-xs leading-relaxed text-text-secondary">
+          No builder is connected right now, so nothing is running yet — the work is saved and
+          starts by itself the moment the cloud builder or your computer comes online.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/download" className="ui-btn-primary">
+            Connect your computer
+          </Link>
+          <Link href={fleetSurfaceHref("control", workspaceKey)} className="ui-btn-secondary">
+            Follow in Control
+          </Link>
+          {dismiss}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 border-t border-border-subtle pt-3">
+      <p className="text-sm font-medium text-text-primary">
+        {interrupted
+          ? "This was stopped by a page reload before it finished."
+          : "No agent was started yet."}
+      </p>
+      <p className="text-xs leading-relaxed text-text-secondary">
+        Everything marked done above is saved. Trying again only redoes what is missing.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={onRetry} className="ui-btn-primary gap-2">
+          <Zap className="h-4 w-4" aria-hidden="true" /> Try again
+        </button>
+        {dismiss}
+      </div>
+    </div>
+  );
 }

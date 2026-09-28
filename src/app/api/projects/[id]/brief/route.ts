@@ -30,28 +30,48 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const project = await getProjectCore(userId, idOrResp);
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Save the brief BEFORE asking the model. The kickoff agent is briefed from
+  // the description, so a model outage used to cost the operator their text
+  // AND the agent: the extraction threw, nothing was written, and the dispatch
+  // two steps later refused with "Describe the project first". The text the
+  // person wrote is the one thing on this request that cannot fail to be true.
+  const saved = await applyProjectProfile(
+    userId,
+    idOrResp,
+    { description: dataOrResp.text },
+    { onlyMissing: dataOrResp.onlyMissing },
+  );
+  if (saved === null) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   let profile;
   try {
     profile = await extractProjectProfile(project.name, dataOrResp.text);
   } catch (e) {
+    console.error("[brief] profile extraction failed:", e instanceof Error ? e.message : e);
     return NextResponse.json(
       {
-        error: "Could not extract a profile from that text. Try again in a moment.",
+        error:
+          "Your brief is saved, but the AI could not fill the profile fields right now. The agent can still start from the brief.",
+        briefSaved: true,
         details: e instanceof Error ? e.message : String(e),
       },
       { status: 502 },
     );
   }
 
-  // The operator's edited text IS the brief. Attrs may be model-filled; never
-  // overwrite that exact wording with a regenerated 1–2 sentence paraphrase.
-  profile = { ...profile, description: dataOrResp.text };
+  // The operator's edited text IS the brief, and it is already saved above.
+  // Attrs may be model-filled; the model's 1–2 sentence paraphrase of the
+  // description is dropped so it can never overwrite that exact wording.
+  const attrsOnly: typeof profile = { ...profile, description: undefined };
 
-  const applied = await applyProjectProfile(userId, idOrResp, profile, {
+  const applied = await applyProjectProfile(userId, idOrResp, attrsOnly, {
     onlyMissing: dataOrResp.onlyMissing,
   });
   if (applied === null) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (Object.keys(applied).length === 0) {
+  // The up-front save already counted the description under onlyMissing (the
+  // second apply sees it occupied), so report both writes as one.
+  const all = { ...saved, ...applied };
+  if (Object.keys(all).length === 0) {
     return NextResponse.json(
       {
         error: dataOrResp.onlyMissing
@@ -61,5 +81,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { status: 422 },
     );
   }
-  return NextResponse.json({ ok: true, applied });
+  return NextResponse.json({ ok: true, applied: all });
 }
