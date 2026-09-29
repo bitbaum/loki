@@ -35,6 +35,8 @@ export function ProviderSwitch({
   compact,
   hint = "Runs this again on the provider you pick, and remembers it for this project.",
   onSwitch,
+  primary = false,
+  fallback = null,
 }: {
   /** user_projects id — scopes "current" so the spent agent is never offered. */
   projectId: string | null;
@@ -44,6 +46,10 @@ export function ProviderSwitch({
   /** What picking one will do, in the caller's own terms. */
   hint?: string;
   onSwitch: (agentId: string) => void;
+  /** The page's ONE action (Watch after a quota wall): the accent button. */
+  primary?: boolean;
+  /** What to show when no other provider can answer, instead of nothing. */
+  fallback?: React.ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { data, loading } = useFetch<ProviderSwitchResponse>(
@@ -61,9 +67,10 @@ export function ProviderSwitch({
       </span>
     );
   }
-  if (!next) return null;
+  if (!next) return <>{fallback}</>;
 
-  const btnClass = compact ? "ui-btn-save ui-btn-sm gap-1.5" : "ui-btn-save gap-1.5";
+  const base = primary ? "ui-btn-primary" : "ui-btn-save";
+  const btnClass = compact ? `${base} ui-btn-sm gap-1.5` : `${base} gap-1.5`;
   return (
     <span className="relative inline-flex items-center">
       <button

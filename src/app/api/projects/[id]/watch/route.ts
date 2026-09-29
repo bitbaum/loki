@@ -17,6 +17,8 @@ import { buildTerminalRunView } from "@/lib/terminal-run-view";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { getServerKickoff } from "@/lib/kickoff/server-runs";
 import { buildWatchTimeline } from "@/lib/project-watch";
+import { getUserProjectByEntityId } from "@/db/queries/user-projects";
+import { providerLabel } from "@/config/quota-alternatives";
 
 /**
  * GET /api/projects/[id]/watch — the latest run of a project as a readable
@@ -71,7 +73,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     error: snap?.error ?? null,
   });
 
-  const promptText = promptRow?.resolvedPrompt ?? promptRow?.customPrompt ?? null;
+  // What was ASKED, not the dispatch envelope around it: resolved_prompt is
+  // wrapped in Loki's operator preamble ("# Loki operator dispatch…"), which
+  // is what the first real Watch showed a person as "You asked".
+  const promptText = promptRow?.customPrompt ?? promptRow?.resolvedPrompt ?? null;
   const items = buildWatchTimeline({
     prompt: promptText ? { text: promptText, at: promptRow!.dispatchedAt } : null,
     events,
@@ -84,6 +89,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   const tab = run.payload?.sessionTab ?? project.name;
+  const up = await getUserProjectByEntityId(userId, idOrResp).catch(() => null);
+  const failed = Boolean(run.finishedAt) && (view.phase === "failed" || view.stalled);
   return NextResponse.json(
     {
       ok: true,
@@ -104,8 +111,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         stalled: view.stalled,
         terminalReady: view.terminalReady,
         lastProgressAt: view.lastProgressAt,
+        error: run.payload?.error ?? snap?.error ?? null,
       },
       tab,
+      provider: {
+        current: run.adapter,
+        currentLabel: providerLabel(run.adapter),
+        reroutedFrom: run.payload?.reroutedFrom ?? null,
+        reroutedFromLabel: run.payload?.reroutedFrom
+          ? providerLabel(run.payload.reroutedFrom)
+          : null,
+        autoRetriedBecause: run.payload?.autoRetriedBecause ?? null,
+        quotaDeath: view.quotaDeath,
+      },
+      // The one tap: a finished run that did not deliver can be sent again.
+      canRetry: failed,
+      userProjectId: up?.id ?? null,
       terminalHref: fleetSurfaceHref("terminal", tab, undefined, run.id),
     },
     { headers: { "Cache-Control": "no-store" } },
