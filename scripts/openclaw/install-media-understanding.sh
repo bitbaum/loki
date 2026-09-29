@@ -48,11 +48,24 @@ STAGE="/tmp/openclaw-media-$$"
 IMAGE_JSON=$(node -e 'process.stdout.write(JSON.stringify(require(process.argv[1]).image))' "$PWD/$SRC")
 VIDEO_JSON=$(node -e 'process.stdout.write(JSON.stringify(require(process.argv[1]).video))' "$PWD/$SRC")
 
-# Every remote step runs as the openclaw user with a login shell: that is the
-# user whose ~/.openclaw the gateway reads, and whose PATH has the CLI. The
-# runtime dir is set so `gateway restart` can reach the user's systemd.
+# Every remote step runs as the openclaw user: that is the user whose
+# ~/.openclaw the gateway reads. The runtime dir is set so `gateway restart`
+# can reach the user's systemd.
+#
+# The CLI is NOT on that user's login-shell PATH — the first run from GitHub
+# Actions (2026-09-29) died on `openclaw: command not found` after the key
+# check had passed. It is installed under nvm, which only an interactive
+# .bashrc puts on PATH. So each step first sources .bashrc (tolerating its
+# early return for non-interactive shells), then falls back to the places a
+# global npm install lands, and refuses loudly if none has the binary.
+OC_FIND_CLI='[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc" >/dev/null 2>&1 || true
+command -v openclaw >/dev/null 2>&1 || for d in "$HOME"/.nvm/versions/node/*/bin "$HOME"/.npm-global/bin "$HOME"/.local/bin /usr/local/bin; do
+  [ -x "$d/openclaw" ] && PATH="$d:$PATH" && break
+done
+command -v openclaw >/dev/null 2>&1 || { echo "✗ no openclaw CLI on PATH for the openclaw user (looked in nvm, ~/.npm-global, ~/.local/bin, /usr/local/bin)" >&2; exit 127; }'
 as_openclaw() {
-  ssh "$HOST" "sudo -iu openclaw env XDG_RUNTIME_DIR=/run/user/\$(id -u openclaw) bash -lc $(printf '%q' "$1")"
+  ssh "$HOST" "sudo -iu openclaw env XDG_RUNTIME_DIR=/run/user/\$(id -u openclaw) bash -lc $(printf '%q' "$OC_FIND_CLI
+$1")"
 }
 
 echo "→ checking the gateway can reach Gemini"
