@@ -19,7 +19,15 @@ Remaining: Part B detect-and-suggest surfaces (OC-side "Build this with
 Loki" link now has a target), settings "Connect OrangeCat" for existing
 users, embeds, and a periodic promote backfill/reconcile job (promote is currently
 fire-and-forget only).
-**Last updated:** 2026-07-02 (was 2026-06-16, reconciled with both agent tabs — corrected spine)
+**2026-09-29 (orangecat ADR-0009, step D7):** sign-up goes through OrangeCat.
+The sign-up page's OrangeCat button opens OrangeCat's own create-account screen
+(`prompt=create`, `src/lib/auth/orangecat-sign-in.ts`); the Loki password form
+waits behind one line ("Prefer a password just for Loki?"). A signed-in person
+whose account is not yet linked sees one calm banner with one click, "Connect
+OrangeCat" (`components/shell/OrangeCatConnectBanner.tsx`), the same round-trip
+Settings → Account offers. Loki sessions stay Loki's own; the OrangeCat link is
+what OrangeCat governs, and a refused refresh already marks it broken.
+**Last updated:** 2026-09-29 (was 2026-07-02)
 **Scope:** Loki ↔ OrangeCat. Touches both repos.
 **Companion spec:** `docs/architecture/PLATFORM_AND_COLLABORATION.md` (OrangeCat
 repo — the platform/serving side: publish bus, embed routes, OIDC provider internals).

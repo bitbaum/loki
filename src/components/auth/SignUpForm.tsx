@@ -29,6 +29,10 @@ export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // The password form is kept for people who want one, but it is no longer
+  // the default: a new account is an OrangeCat account (one across the
+  // stack), so the form waits behind a single line until asked for.
+  const [showPassword, setShowPassword] = useState(!hasAnyOAuth(oauthFlags));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,12 +81,25 @@ export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
             much "sign up" buttons as the form below. */}
         {hasAnyOAuth(oauthFlags) && (
           <>
-            <OAuthButtons flags={oauthFlags} callbackUrl={safeCallback} />
-            <AuthDivider label="or with email" />
+            <OAuthButtons flags={oauthFlags} callbackUrl={safeCallback} intent="sign-up" />
+            {showPassword ? (
+              <AuthDivider label="or with a password" />
+            ) : (
+              <p className="pt-2 text-center text-sm text-text-muted">
+                Prefer a password just for Loki?{" "}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(true)}
+                  className="text-text-secondary underline hover:text-text-primary"
+                >
+                  Create one
+                </button>
+              </p>
+            )}
           </>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className={showPassword ? "space-y-4" : "hidden"}>
           <CreateAccountFields
             name={name}
             onName={setName}
