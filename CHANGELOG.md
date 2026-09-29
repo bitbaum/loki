@@ -6,6 +6,28 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-09-29
+
+### Changed
+- **Nothing runs on your quota unasked.** Every agent run Loki used to start
+  on its own — a refused feedback run retried, a refused project run retried
+  on another provider, a queued Implement re-sent by the cron — is now off
+  unless the box sets `LOKI_AUTO_DISPATCH=1`. A failed row stays Failed with
+  its Retry and provider buttons; the choice to spend Claude, Codex or Gemini
+  is yours each time. Runs you start yourself are unchanged.
+
+### Fixed
+- **The feedback button no longer parks on a line of words.** On Loki's own
+  sign-in page at phone width the bottom band is all buttons, and the first
+  slot up the edge without a control was the "or sign in" divider, so the
+  launcher sat on it. Words now count as occupied: the launcher prefers an
+  empty slot, still takes words over any control, and a sign-in fixture in
+  the browser test pins it. Verified live afterwards: the one free spot on
+  that page was the divider rule beside those words, straddling the card's
+  edge, so Loki's own auth pages (sign-in, sign-up, invites, setup) now
+  carry no launcher at all — the person there has nothing to report yet,
+  and it returns on the next page.
+
 ## 2026-09-28
 
 ### Added
@@ -51,6 +73,20 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   page, or the whole site. Every suggestion has a "Request this" button (#950).
 
 ### Fixed
+- **A working Claude is no longer reported as silent.** Loki decides whether
+  a dispatched Claude started by reading Claude's own status file for the
+  project folder. When the runner and Claude spelled that folder differently
+  (a symlink, a trailing slash) the file was never found and a working Claude
+  was reported as "produced no response". The folder is now compared by its
+  real path. A freshly launched Claude also has any opening dialog closed
+  before the prompt goes in, as a running one already did, and a failure with
+  no known cause now quotes the last lines Claude's screen showed.
+- **A silent agent is routed around, not retried into.** When an agent opened,
+  took the prompt and never answered, Loki's automatic retry went straight back
+  to the same agent and failed the same way (Petvity, twice in a row). That
+  silence now counts as the provider being unable to answer, so the retry runs
+  on the next provider in your order, and the row says "The agent opened but
+  never answered" instead of telling you to check that the builder is online.
 - **The Feedback inbox is one surface again, and a project link by id works.**
   Landing from "Implement" on `/feedback?project=<id>` printed "Nothing
   waiting on you for 5936f8fb-…" — the page filtered by project name and

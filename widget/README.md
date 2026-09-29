@@ -59,9 +59,10 @@ Each slot is hit-tested over the launcher plus a 12px gap and judged:
 
 | verdict | what is under it | used |
 |---|---|---|
-| free | nothing of yours that matters (in-flow text, background) | first one wins |
-| surface | a corner of a control ≥ 25% of the viewport — a pannable map, a canvas, a card-sized link | only if no slot is free |
-| layer | a fixed/sticky bar, a bottom sheet, an inner scroll panel (anything < 60% of the viewport) | only if no free or surface slot |
+| free | nothing of yours that matters (background, margin) | first one wins |
+| text | in-flow words — nothing to click, but someone is reading them | only if no slot is free |
+| surface | a corner of a control ≥ 25% of the viewport — a pannable map, a canvas, a card-sized link | only if no free or text slot |
+| layer | a fixed/sticky bar, a bottom sheet, an inner scroll panel (anything < 60% of the viewport) | only if nothing better |
 | blocked | any control a visitor could click — links, buttons, inputs, `[role=button]`, `[tabindex]`, iframes, `cursor:pointer` — or anything marked `data-fc-avoid` | never |
 
 If every slot is blocked the launcher **hides** until the page changes; a

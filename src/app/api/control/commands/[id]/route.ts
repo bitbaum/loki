@@ -10,6 +10,7 @@ import { emitRunEvent } from "@/db/queries/run-events";
 import { getApiUserId } from "@/lib/session";
 import { deriveDispatchLiveStatus, type CommandLiveInput } from "@/lib/dispatch-status";
 import { autoReimplementAfterRunnerNack } from "@/lib/feedback/auto-reimplement";
+import { autoRetryProjectRunAfterNack } from "@/lib/project-retry";
 
 // GET /api/control/commands/:id — live dispatch status the transcript footer
 // polls so a dispatch shows queued → picked up → ran/failed instead of a frozen
@@ -96,7 +97,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // routed around the spent provider. Once; never for a failure that
         // needs a person (auth, missing workspace).
         const run = await getOrchestrationRunById(userId, runId).catch(() => null);
-        void autoReimplementAfterRunnerNack(userId, runId, error, run?.payload ?? null);
+        // Any other project run (Make it happen, a profile dispatch) gets the
+        // same one second attempt, on a provider that can answer.
+        void autoReimplementAfterRunnerNack(userId, runId, error, run?.payload ?? null).then((r) =>
+          r.reason === "not-feedback"
+            ? autoRetryProjectRunAfterNack(userId, runId, error, run?.payload ?? null)
+            : undefined,
+        );
       } else {
         // verified:true = post-prompt generation confirmed → generating hop.
         // verified:false / warning = inject-no-generate → blocked (Needs you).

@@ -3973,15 +3973,60 @@
     @apply inline-flex shrink-0 items-center rounded-full border border-status-positive/30 bg-status-positive-subtle px-2 py-0.5 text-micro font-medium text-status-positive;
   }
 
-  /* Watch it work — a run as a readable thread (ProjectWatch). */
-  .ui-watch-avatar {
-    @apply mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-raised text-text-secondary;
+  /* Watch it work — a run as a conversation, drawn like the AI chats people
+     already read: the person's message right in a soft bubble, answers left
+     as plain text under a small name, mechanical hops folded into one line. */
+  .ui-chat-user {
+    @apply max-w-[88%] rounded-2xl rounded-br-md bg-surface-raised px-4 py-3 text-sm leading-relaxed text-text-primary sm:text-base;
   }
-  .ui-watch-bubble {
-    @apply rounded-xl border border-border-subtle bg-surface-base px-3.5 py-3;
+  .ui-chat-more {
+    @apply mt-1 text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary;
+  }
+  .ui-chat-meta {
+    @apply text-xs text-text-muted;
+  }
+  .ui-chat-avatar {
+    @apply mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-muted text-accent-text;
+  }
+  .ui-chat-avatar-agent {
+    @apply mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-raised text-text-secondary;
+  }
+  .ui-chat-body {
+    @apply space-y-2 text-sm leading-relaxed text-text-primary sm:text-base;
+  }
+  .ui-chat-activity {
+    @apply inline-flex min-h-9 max-w-full items-center gap-2 rounded-full border border-border-subtle px-3 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
+  }
+  .ui-chat-link {
+    @apply inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary;
+  }
+  .ui-chat-typing {
+    @apply inline-flex shrink-0 items-center gap-1;
+  }
+  .ui-chat-typing > span {
+    @apply h-1.5 w-1.5 rounded-full bg-text-tertiary;
+    animation: ui-chat-typing 1.2s ease-in-out infinite;
+  }
+  .ui-chat-typing > span:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .ui-chat-typing > span:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  @keyframes ui-chat-typing {
+    0%,
+    60%,
+    100% {
+      opacity: 0.3;
+      transform: translateY(0);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
   }
   .ui-watch-tail {
-    @apply max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black p-3 font-mono text-micro leading-relaxed text-white;
+    @apply mt-1 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-surface-raised p-3 font-mono text-xs leading-relaxed text-text-secondary;
   }
 
   /* Exactly three lines of relaxed text (3 × 1.625em), for blocks whose child

@@ -27,7 +27,7 @@ import { routeAroundSpent } from "@/lib/provider-switch";
 /** Adapters Implement may start. openclaw is orchestration-listed but not launchable. */
 const IMPLEMENT_ADAPTERS = ORCHESTRATION_ADAPTER_IDS.filter((id) => id !== "openclaw");
 
-function resolveImplementAdapter(agentPref: string | null | undefined): AdapterId {
+export function resolveImplementAdapter(agentPref: string | null | undefined): AdapterId {
   // UI may say Antigravity; orchestration id is still gemini.
   const pref = agentPref === "antigravity" || agentPref === "agy" ? "gemini" : agentPref;
   if (pref && (IMPLEMENT_ADAPTERS as readonly string[]).includes(pref)) {

@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import {
+  orangecatAuthorizationParams,
+  orangecatButtonLabel,
+  type OrangeCatIntent,
+} from "@/lib/auth/orangecat-sign-in";
 import { AuthSecondaryButton } from "@/components/auth/AuthShell";
 
 function GithubIcon() {
@@ -77,15 +82,22 @@ export function hasAnyOAuth(flags: OAuthEnabledFlags): boolean {
 export function OAuthButtons({
   flags,
   callbackUrl,
+  intent = "sign-in",
 }: {
   flags: OAuthEnabledFlags;
   callbackUrl: string;
+  /** "sign-up" opens OrangeCat on its create-account screen (prompt=create). */
+  intent?: OrangeCatIntent;
 }) {
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
 
   async function handleOAuth(provider: string) {
     setOauthLoading(provider);
-    await signIn(provider, { callbackUrl });
+    await signIn(
+      provider,
+      { callbackUrl },
+      provider === "orangecat" ? orangecatAuthorizationParams(intent) : undefined,
+    );
   }
 
   if (!hasAnyOAuth(flags)) return null;
@@ -100,7 +112,7 @@ export function OAuthButtons({
           className="ui-auth-oauth-primary gap-2.5"
         >
           <OrangeCatIcon />
-          {oauthLoading === "orangecat" ? "Redirecting…" : "Continue with OrangeCat"}
+          {oauthLoading === "orangecat" ? "Redirecting…" : orangecatButtonLabel(intent)}
         </AuthSecondaryButton>
       )}
       {flags.githubEnabled && (

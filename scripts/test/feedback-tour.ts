@@ -100,6 +100,13 @@ const outline = [
   assert.match(explainRunFailure("429 Too Many Requests"), /quota/);
   assert.match(explainRunFailure("fatal: could not read from remote repository"), /repository/);
   assert.match(explainRunFailure("inject failed: tab not found"), /session/);
+  // The agent opened and took the prompt: "check the builder is online" is the
+  // wrong next move, and the row must say the agent was the one that went quiet.
+  const silent = explainRunFailure(
+    "Dispatch failed before the prompt reached the agent: launched claude (pty) + injected, but Loki could not verify generation. claude opened on this computer, but produced no response after Loki submitted the prompt.",
+  );
+  assert.match(silent, /never answered/);
+  assert.doesNotMatch(silent, /builder is online/);
 }
 
 console.log("feedback-tour: ok");

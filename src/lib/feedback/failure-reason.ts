@@ -29,6 +29,19 @@ export function explainRunFailure(error: string | null | undefined): string {
     )
   )
     return "The agent ran out of quota — switch provider, or Retry once it resets.";
+  // Before the generic "never reached" line: the runner says the agent DID
+  // open and take the prompt, and that it was the agent that stayed silent.
+  // "Check the builder is online" was the wrong next move for that.
+  if (
+    has(
+      text,
+      "could not verify generation",
+      "produced no response",
+      "never started generating",
+      "inject did not stick",
+    )
+  )
+    return "The agent opened but never answered — Retry runs it on the next provider.";
   if (has(text, "dispatch failed before the prompt reached the agent"))
     return "It never reached an agent — Retry, or check the builder is online.";
   if (

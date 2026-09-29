@@ -33,6 +33,10 @@ import { injectPrompt } from "@/lib/inject-core";
 import { HEALTH_SIGNAL_BASE } from "@/components/projects/project-detail-types";
 import { PROJECT_DISPATCH_KINDS } from "@/lib/project-dispatch";
 import { composeDispatchPrompt } from "@/lib/project-dispatch-prompt";
+import { providerChoiceFor } from "@/lib/provider-choice";
+import { routeAroundSpent } from "@/lib/provider-switch";
+import { resolveImplementAdapter } from "@/lib/feedback/implement";
+import { mergeRunPayload } from "@/db/queries/orchestration-runs";
 
 /**
  * The project setup steps, callable without an HTTP request.
@@ -400,13 +404,39 @@ export async function dispatchStep(
   const composed = composeDispatchPrompt(input.kind, input.signalKey, dossier);
   if (composed.error) return json({ error: composed.error }, 409);
 
-  return injectPrompt(
+  // Don't walk into a known wall: the same pre-dispatch check Feedback's
+  // Implement makes. A provider observed out of quota inside the spent window
+  // is skipped for the next one in the operator's order, for this run only —
+  // the stored preference is untouched, so it comes back once quota recovers.
+  const owner = access.ownerUserId;
+  const up = dossier.userProject;
+  const preferred = resolveImplementAdapter(up?.agentPref);
+  let adapter = preferred;
+  let reroutedFrom: string | null = null;
+  if (up) {
+    const choice = await providerChoiceFor(owner, up, { current: preferred }).catch(() => null);
+    if (choice) {
+      const decided = routeAroundSpent({ preferred, spent: choice.spent, options: choice.options });
+      if (decided.rerouted) {
+        adapter = resolveImplementAdapter(decided.agent);
+        reroutedFrom = preferred;
+      }
+    }
+  }
+
+  const result = await injectPrompt(
     {
       tab: dossier.detail.project.name,
       projectId: id,
       allowHostedFallback: false,
       customPrompt: composed.prompt,
+      adapter,
     },
-    access.ownerUserId,
+    owner,
   );
+  const runId = typeof result.body.runId === "string" ? result.body.runId : null;
+  if (runId && reroutedFrom) {
+    await mergeRunPayload(runId, { reroutedFrom }).catch(() => undefined);
+  }
+  return result;
 }

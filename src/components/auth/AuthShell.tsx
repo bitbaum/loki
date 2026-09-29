@@ -101,7 +101,11 @@ export function AuthShell({
 }) {
   return (
     <PublicSurface right={navRight} showNav={false}>
-      <main className="ui-auth-main">
+      {/* No feedback launcher on an auth wall: every slot near its corner is
+          a button, and the one free spot at 390px was the divider rule beside
+          "or sign in" (seen live, 2026-09-29). The person here has nothing to
+          report yet; the launcher returns on every page after this one. */}
+      <main className="ui-auth-main" data-fc-place="hidden">
         <div className="ui-auth-container">{children}</div>
       </main>
     </PublicSurface>

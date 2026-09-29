@@ -12,6 +12,7 @@ import { RefreshOnFocus } from "@/components/shared/RefreshOnFocus";
 import { FleetRunnerAutoMint } from "@/components/desktop/FleetRunnerAutoMint";
 import { UpdateBanner } from "@/components/desktop/UpdateBanner";
 import { EmailVerificationBanner } from "@/components/shell/EmailVerificationBanner";
+import { OrangeCatConnectBanner } from "@/components/shell/OrangeCatConnectBanner";
 import { DemoBanner } from "@/components/shell/DemoBanner";
 import { FleetSurfaceGuide } from "@/components/shell/FleetSurfaceGuide";
 import {
@@ -21,7 +22,14 @@ import {
 } from "@/hooks/use-command-palette";
 import { SIDEBAR_COLLAPSE_STORAGE_KEY } from "@/config/shell";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  orangecatEnabled = false,
+}: {
+  children: React.ReactNode;
+  /** Whether the OrangeCat provider is configured (server fact from the layout). */
+  orangecatEnabled?: boolean;
+}) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const paletteApi = useCommandPaletteState();
@@ -60,6 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <AppTopBar onOpenSessions={() => setSessionsOpen(true)} />
           <DemoBanner />
           <EmailVerificationBanner />
+          <OrangeCatConnectBanner enabled={orangecatEnabled} />
           <FleetSurfaceGuide />
           <main className="app-main">{children}</main>
           <AppFooter />

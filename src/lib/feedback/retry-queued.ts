@@ -26,6 +26,7 @@ import { feedbackInjectAccepted } from "@/lib/feedback/dispatch-accept";
 import { DEFAULT_ADAPTER_ID, ORCHESTRATION_ADAPTER_IDS, type AdapterId } from "@/lib/orchestration";
 import { getCurrentClaudeSessionForProject } from "@/db/queries/agent-sessions";
 import { logDebug } from "@/db/queries/debug-logs";
+import { autoDispatchEnabled } from "@/lib/auto-dispatch";
 
 const IMPLEMENT_ADAPTERS = ORCHESTRATION_ADAPTER_IDS.filter((id) => id !== "openclaw");
 
@@ -42,6 +43,10 @@ export async function autoRetryStuckFeedbackQueues(): Promise<{
   retried: number;
   skipped: number;
 }> {
+  // Off by default — see src/lib/auto-dispatch.ts. A queued Implement nobody
+  // claimed stays on the row as Stuck with Retry; the cron still raises the
+  // Telegram flag for it.
+  if (!autoDispatchEnabled()) return { users: 0, retried: 0, skipped: 0 };
   const users = await getFleetAutopilotUserIds();
   let retried = 0;
   let skipped = 0;

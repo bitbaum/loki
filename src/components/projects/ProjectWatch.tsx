@@ -1,27 +1,40 @@
 "use client";
 
 /**
- * Watch it work — one project's run as a readable thread, live.
+ * Watch it work — one project's run as a live conversation.
  *
- * You → what the agent was asked. Loki → each hop, in words, collapsed so a
- * hundred heartbeats read as one "working" line. Screen → the last lines the
- * agent printed, refreshed while it works. Agent → what it says it did and
- * what comes next. One next action at the bottom, chosen by the phase — never
- * a raw terminal as the first thing a person sees on a phone.
+ * You asked (right) → Loki narrates, one folded activity line for the
+ * mechanical hops → the agent's screen while it works → the agent's own
+ * summary when it is done. When a run cannot go on, Loki says why in one
+ * sentence and the way forward is ONE tap in the same message ("Try Codex"),
+ * never a status card that names a problem and stops (2026-09-29).
  *
- * The data is lib/project-watch (pure) behind /api/projects/[id]/watch; the
- * screen tail is the same capture Control's peek drawer uses.
+ * Data: lib/project-watch (pure) behind /api/projects/[id]/watch; the retry is
+ * /api/projects/[id]/watch/retry over lib/project-retry, the same path Loki
+ * takes by itself when a builder refuses a run.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bot, Check, Loader2, SquareTerminal, User } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { timeAgo } from "@/lib/dates";
+import { Loader2, RotateCcw, SquareTerminal } from "lucide-react";
+import { postJson } from "@/lib/api/fetch";
 import { peekTabOnce } from "@/lib/peek-tab-client";
-import { tailForWatch, type WatchItem } from "@/lib/project-watch";
+import {
+  humanizeRunFailure,
+  latestActivityLine,
+  tailForWatch,
+  type WatchItem,
+} from "@/lib/project-watch";
 import { KICKOFF_STEP_LABEL } from "@/lib/project-kickoff";
 import type { KickoffRunState } from "@/lib/kickoff/orchestrate";
+import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
+import {
+  ActivityGroup,
+  AssistantMessage,
+  ScreenFold,
+  TypingDots,
+  UserMessage,
+} from "./project-watch-parts";
 
 type WatchPayload = {
   project: { name: string };
@@ -36,7 +49,18 @@ type WatchPayload = {
     stalled: boolean;
     terminalReady: boolean;
     lastProgressAt: string | null;
+    error: string | null;
   } | null;
+  provider?: {
+    current: string;
+    currentLabel: string;
+    reroutedFrom: string | null;
+    reroutedFromLabel: string | null;
+    autoRetriedBecause: string | null;
+    quotaDeath: boolean;
+  };
+  canRetry?: boolean;
+  userProjectId?: string | null;
   tab?: string;
   terminalHref?: string;
 };
@@ -55,14 +79,14 @@ export function ProjectWatch({
   const [data, setData] = useState<WatchPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tail, setTail] = useState<string[] | null>(null);
-  const [showAllSteps, setShowAllSteps] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const live = Boolean(data?.run?.live || data?.kickoff?.running);
+  const live = Boolean(data?.run?.live || data?.kickoff?.running || retrying);
   const working = data?.status?.phase === "working" && data.status.terminalReady;
 
-  // Every setState lives in a promise callback, so the effects below can start
-  // a load directly (the same shape as ActivityTimeline).
+  // Every setState lives in a promise callback, so effects can start a load.
   const load = useCallback(
     () =>
       fetch(`/api/projects/${projectId}/watch`, { cache: "no-store" })
@@ -89,7 +113,7 @@ export function ProjectWatch({
     };
   }, [load, live]);
 
-  // The screen tail, only while an agent is actually producing output.
+  // The agent's screen, only while it is actually producing output.
   const tab = data?.tab ?? null;
   useEffect(() => {
     if (!working || !tab) return;
@@ -106,264 +130,213 @@ export function ProjectWatch({
     };
   }, [working, tab]);
 
-  // Follow the thread as it grows, like a chat.
+  // Follow the conversation as it grows.
   const itemCount = data?.items.length ?? 0;
   useEffect(() => {
     if (live) bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [itemCount, live]);
 
+  const retry = (agent?: string) => {
+    setRetrying(true);
+    setRetryError(null);
+    postJson(`/api/projects/${projectId}/watch/retry`, agent ? { agent } : {})
+      .then(async (res) => {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+        return load();
+      })
+      .catch((e: unknown) => setRetryError(e instanceof Error ? e.message : "Retry failed"))
+      .finally(() => setRetrying(false));
+  };
+
+  const tryAgain = (primary: boolean) => (
+    <button
+      type="button"
+      onClick={() => retry()}
+      disabled={retrying}
+      className={primary ? "ui-btn-primary gap-1.5" : "ui-btn-secondary gap-1.5"}
+    >
+      {retrying ? <Loader2 className="ui-spinner-xs" /> : <RotateCcw className="h-3.5 w-3.5" />}
+      Try again
+    </button>
+  );
+
   if (!data && !error) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-text-secondary">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading the run…
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading…
       </div>
     );
   }
-
   if (error && !data) {
     return (
-      <div className="ui-card-shell space-y-3 p-4">
-        <p className="text-sm text-text-primary">Couldn&apos;t load the run.</p>
-        <p className="text-xs text-text-secondary">{error}</p>
-        <button type="button" onClick={() => void load()} className="ui-btn-secondary">
+      <AssistantMessage who="Loki">
+        <p>I couldn&apos;t load this run. {error}</p>
+        <button type="button" onClick={() => void load()} className="ui-btn-secondary mt-2">
           Try again
         </button>
-      </div>
+      </AssistantMessage>
     );
   }
 
-  const payload = data!;
-  // Older steps fold away once there are enough to be noise: you, the agent
-  // and the latest four steps stay. Folding one step away just adds a button.
-  const stepTotal = payload.items.filter((i) => i.type === "step").length;
-  const hiddenSteps = showAllSteps || stepTotal <= 6 ? 0 : stepTotal - 4;
-  const youItems = payload.items.filter((i) => i.type === "you");
-  const restItems = payload.items.filter(
-    (item, i) =>
-      item.type !== "you" &&
-      (item.type !== "step" ||
-        payload.items.slice(0, i + 1).filter((x) => x.type === "step").length > hiddenSteps),
-  );
+  const p = data!;
+  const you = p.items.filter((i) => i.type === "you");
+  const steps = p.items.filter((i): i is Extract<WatchItem, { type: "step" }> => i.type === "step");
+  const agentMsgs = p.items.filter((i) => i.type === "agent");
+  const status = p.status;
+  const provider = p.provider;
+  const failed = Boolean(p.canRetry);
+  const runLive = Boolean(p.run?.live);
 
   return (
-    <div className="space-y-4">
-      {payload.kickoff?.running && <SetupCard kickoff={payload.kickoff} />}
+    <div className="space-y-6" aria-live="polite">
+      {p.kickoff?.running && <SetupMessage kickoff={p.kickoff} />}
 
-      {!payload.run && !payload.kickoff?.running && (
-        <div className="ui-card-shell space-y-3 p-4">
-          <p className="text-sm font-medium text-text-primary">Nothing has been started yet.</p>
-          <p className="text-sm text-text-secondary">
-            Start it from the project — the conversation shows up here as soon as an agent picks it
-            up.
-          </p>
-          <Link href={profileHref} className="ui-btn-primary">
-            Go to Make it happen
+      {!p.run && !p.kickoff?.running && (
+        <AssistantMessage who="Loki">
+          <p>Nothing is running for this project yet.</p>
+          <Link href={profileHref} className="ui-btn-primary mt-3">
+            Make it happen
           </Link>
-        </div>
+        </AssistantMessage>
       )}
 
-      {payload.run && (
-        <ol className="space-y-3" aria-live="polite">
-          {youItems.map((item, i) => (
-            <WatchRow key={`you-${item.at}-${i}`} item={item} />
-          ))}
-          {hiddenSteps > 0 && (
-            <li className="pl-1">
-              <button
-                type="button"
-                onClick={() => setShowAllSteps(true)}
-                className="ui-btn-ghost ui-btn-xs"
-              >
-                Show {hiddenSteps} earlier steps
-              </button>
-            </li>
-          )}
-          {restItems.map((item, i) => (
-            <WatchRow key={`${item.type}-${item.at}-${i}`} item={item} />
-          ))}
-        </ol>
+      {you.map((m, i) => (
+        <UserMessage key={`you-${i}`} text={m.text} at={m.at} />
+      ))}
+
+      {p.run && provider?.autoRetriedBecause && (
+        <AssistantMessage who="Loki">
+          <p>
+            {provider.reroutedFrom
+              ? `The first try stopped because ${provider.autoRetriedBecause}, so I sent it again on ${provider.currentLabel}.`
+              : `The first try stopped because ${provider.autoRetriedBecause}, so I sent it again.`}
+          </p>
+        </AssistantMessage>
+      )}
+      {p.run && provider?.reroutedFrom && !provider.autoRetriedBecause && (
+        <AssistantMessage who="Loki">
+          <p>
+            Switched to {provider.currentLabel} —{" "}
+            {provider.reroutedFromLabel ?? "the previous provider"} was out of usage.
+          </p>
+        </AssistantMessage>
       )}
 
-      {payload.run && payload.status && (
-        <StatusCard
-          status={payload.status}
-          live={payload.run.live}
-          tail={working ? tail : null}
-          terminalHref={payload.terminalHref ?? null}
+      {p.run && status && (
+        <ActivityGroup
+          steps={steps}
+          live={runLive && !status.stalled}
+          summary={failed ? "Stopped" : runLive ? status.label : "Finished"}
         />
+      )}
+
+      {agentMsgs.map((m, i) =>
+        m.type === "agent" ? (
+          <AssistantMessage
+            key={`agent-${i}`}
+            who={provider?.currentLabel ?? "Agent"}
+            at={m.at}
+            agent
+          >
+            {m.done && <p className="whitespace-pre-wrap wrap-anywhere">{m.done}</p>}
+            {m.next && (
+              <p className="text-text-secondary">
+                <span className="font-medium text-text-primary">Next: </span>
+                {m.next}
+              </p>
+            )}
+          </AssistantMessage>
+        ) : null,
+      )}
+
+      {p.run && status && runLive && !failed && (
+        <AssistantMessage who={provider?.currentLabel ?? "Agent"} agent>
+          <div className="flex items-start gap-3">
+            <span className="pt-2.5">
+              <TypingDots />
+            </span>
+            <span className="min-w-0 text-text-secondary wrap-anywhere">
+              {status.stalled
+                ? status.nextAction
+                : ((working && tail && latestActivityLine(tail)) ?? status.label)}
+            </span>
+          </div>
+          {working && tail && tail.length > 0 && <ScreenFold lines={tail} />}
+          {p.terminalHref && status.terminalReady && (
+            <Link href={p.terminalHref} className="ui-chat-link">
+              <SquareTerminal className="h-3.5 w-3.5" aria-hidden="true" /> Open the full terminal
+            </Link>
+          )}
+        </AssistantMessage>
+      )}
+
+      {p.run && status && failed && (
+        <AssistantMessage who="Loki">
+          <p>
+            {humanizeRunFailure(
+              status.error,
+              provider?.currentLabel ?? "The agent",
+              Boolean(provider?.quotaDeath),
+            )}{" "}
+            {provider?.quotaDeath
+              ? "Pick up where it left off on another provider:"
+              : "Send it again:"}
+          </p>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {provider?.quotaDeath ? (
+              // A usage wall: the next provider is the answer. Re-running the
+              // spent one only appears when nothing else can answer.
+              <ProviderSwitch
+                projectId={p.userProjectId ?? null}
+                busy={retrying}
+                primary
+                hint="Sends the same request to the provider you pick, and remembers it for this project."
+                onSwitch={(agent) => retry(agent)}
+                fallback={tryAgain(true)}
+              />
+            ) : (
+              <>
+                {tryAgain(true)}
+                <ProviderSwitch
+                  projectId={p.userProjectId ?? null}
+                  busy={retrying}
+                  hint="Sends the same request to the provider you pick, and remembers it for this project."
+                  onSwitch={(agent) => retry(agent)}
+                />
+              </>
+            )}
+          </div>
+          {retryError && <p className="ui-error text-xs">{retryError}</p>}
+        </AssistantMessage>
+      )}
+
+      {p.run && !runLive && !failed && agentMsgs.length === 0 && status && (
+        <AssistantMessage who="Loki">
+          <p>
+            {status.label}. {status.nextAction}
+          </p>
+        </AssistantMessage>
       )}
       <div ref={bottomRef} />
     </div>
   );
 }
 
-function WatchRow({ item }: { item: WatchItem }) {
-  if (item.type === "you") return <YouBubble text={item.text} at={item.at} />;
-  if (item.type === "agent") {
-    return (
-      <li className="flex gap-2.5">
-        <span className="ui-watch-avatar" aria-hidden="true">
-          <Bot className="h-4 w-4" />
-        </span>
-        <div className="ui-watch-bubble min-w-0 flex-1">
-          <p className="ui-micro-label">Agent · {timeAgo(new Date(item.at).getTime())}</p>
-          {item.done && (
-            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-text-primary wrap-anywhere">
-              {item.done}
-            </p>
-          )}
-          {item.next && (
-            <p className="mt-2 text-sm text-text-secondary wrap-anywhere">
-              <span className="font-medium text-text-primary">Next: </span>
-              {item.next}
-            </p>
-          )}
-          {item.commit && (
-            <p className="mt-2 text-xs text-text-tertiary wrap-anywhere">{item.commit}</p>
-          )}
-        </div>
-      </li>
-    );
-  }
+function SetupMessage({ kickoff }: { kickoff: KickoffRunState }) {
+  const current = kickoff.steps.find((s) => s.state === "running");
+  const done = kickoff.steps.filter((s) => s.state === "done").length;
   return (
-    <li className="flex items-start gap-2.5 pl-1 text-sm">
-      <span
-        className={cn(
-          "ui-dot mt-1.5 shrink-0",
-          item.tone === "warning" ? "ui-dot-warning" : "ui-dot-neutral",
-        )}
-        aria-hidden="true"
-      />
-      <span className="min-w-0 flex-1">
-        <span className={item.tone === "warning" ? "text-status-warning" : "text-text-secondary"}>
-          {item.text}
-        </span>
-        <span className="ml-2 text-xs text-text-muted">{timeAgo(new Date(item.at).getTime())}</span>
-      </span>
-    </li>
-  );
-}
-
-function YouBubble({ text, at }: { text: string; at: string }) {
-  const [open, setOpen] = useState(false);
-  const long = text.length > 280;
-  return (
-    <li className="flex gap-2.5">
-      <span className="ui-watch-avatar" aria-hidden="true">
-        <User className="h-4 w-4" />
-      </span>
-      <div className="ui-watch-bubble min-w-0 flex-1">
-        <p className="ui-micro-label">You asked · {timeAgo(new Date(at).getTime())}</p>
-        <p
-          className={cn(
-            "mt-1 whitespace-pre-wrap text-sm leading-relaxed text-text-primary wrap-anywhere",
-            long && !open && "line-clamp-4",
-          )}
-        >
-          {text}
-        </p>
-        {long && (
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="mt-1 text-xs font-medium text-text-tertiary hover:text-text-secondary"
-          >
-            {open ? "Show less" : "Show the full brief"}
-          </button>
-        )}
-      </div>
-    </li>
-  );
-}
-
-function StatusCard({
-  status,
-  live,
-  tail,
-  terminalHref,
-}: {
-  status: NonNullable<WatchPayload["status"]>;
-  live: boolean;
-  tail: string[] | null;
-  terminalHref: string | null;
-}) {
-  const working = status.phase === "working";
-  return (
-    <section className="ui-card-shell space-y-3 p-4" aria-label="Right now">
-      <div className="flex items-center gap-2">
-        {live && !status.stalled ? (
-          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-accent-text" aria-hidden="true" />
-        ) : !live ? (
-          <Check className="h-4 w-4 shrink-0 text-status-positive" aria-hidden="true" />
-        ) : (
-          <span className="ui-dot ui-dot-warning shrink-0" aria-hidden="true" />
-        )}
-        <p className="text-sm font-medium text-text-primary">{status.label}</p>
-        {status.lastProgressAt && live && (
-          <span className="ml-auto shrink-0 text-xs text-text-muted">
-            active {timeAgo(new Date(status.lastProgressAt).getTime())}
+    <AssistantMessage who="Loki">
+      <div className="flex items-center gap-3">
+        <TypingDots />
+        <span>
+          {current ? `${KICKOFF_STEP_LABEL[current.id]}…` : "Setting up…"}
+          <span className="ml-2 text-text-muted">
+            {done} of {kickoff.steps.length}
           </span>
-        )}
+        </span>
       </div>
-      <p className="text-sm text-text-secondary">{status.nextAction}</p>
-
-      {working && (
-        <div>
-          <p className="ui-micro-label mb-1">On the agent&apos;s screen</p>
-          <pre className="ui-watch-tail">
-            {tail === null
-              ? "Reading the screen…"
-              : tail.length === 0
-                ? "Nothing printed yet."
-                : tail.join("\n")}
-          </pre>
-        </div>
-      )}
-
-      {/* Only when there is a session to open — offering a terminal while the
-          builder is offline sends someone to a blank screen. */}
-      {terminalHref && status.terminalReady && (
-        <Link href={terminalHref} className="ui-btn-secondary gap-2">
-          <SquareTerminal className="h-4 w-4" aria-hidden="true" />
-          {status.stalled ? "Open the terminal to answer it" : "Open the full terminal"}
-        </Link>
-      )}
-    </section>
-  );
-}
-
-function SetupCard({ kickoff }: { kickoff: KickoffRunState }) {
-  return (
-    <section className="ui-card-shell space-y-2 p-4" aria-label="Setting up">
-      <p className="flex items-center gap-2 text-sm font-medium text-text-primary">
-        <Loader2 className="h-4 w-4 animate-spin text-accent-text" aria-hidden="true" />
-        Setting up — the agent starts next
-      </p>
-      <ol className="space-y-1.5">
-        {kickoff.steps.map((s) => (
-          <li key={s.id} className="flex items-center gap-2 text-sm">
-            {s.state === "done" ? (
-              <Check className="h-4 w-4 shrink-0 text-status-positive" aria-hidden="true" />
-            ) : s.state === "running" ? (
-              <Loader2
-                className="h-4 w-4 shrink-0 animate-spin text-accent-text"
-                aria-hidden="true"
-              />
-            ) : (
-              <span
-                className={cn(
-                  "ui-dot mx-1.5 shrink-0",
-                  s.state === "failed" ? "ui-dot-negative" : "ui-dot-neutral",
-                )}
-                aria-hidden="true"
-              />
-            )}
-            <span className={s.state === "pending" ? "text-text-tertiary" : "text-text-primary"}>
-              {KICKOFF_STEP_LABEL[s.id]}
-            </span>
-          </li>
-        ))}
-      </ol>
-    </section>
+    </AssistantMessage>
   );
 }

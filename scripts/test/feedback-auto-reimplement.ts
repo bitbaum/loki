@@ -6,6 +6,13 @@ import {
   autoRetryNotice,
 } from "../../src/lib/feedback/auto-reimplement-policy";
 import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "../../src/lib/feedback/work-phase";
+import { autoDispatchEnabledIn } from "../../src/lib/auto-dispatch";
+
+// Nothing runs on the operator's quota unasked unless the box says so, exactly.
+assert.equal(autoDispatchEnabledIn({}), false, "default is off");
+assert.equal(autoDispatchEnabledIn({ LOKI_AUTO_DISPATCH: "true" }), false, "only the literal 1");
+assert.equal(autoDispatchEnabledIn({ LOKI_AUTO_DISPATCH: "0" }), false);
+assert.equal(autoDispatchEnabledIn({ LOKI_AUTO_DISPATCH: "1" }), true);
 import { FEEDBACK_STATUS } from "../../src/lib/constants/statuses";
 import { ORCH_STATE } from "../../src/lib/orchestration/contract";
 
@@ -24,7 +31,7 @@ assert.deepEqual(decideAutoReimplement(CAPACITY, null), {
 });
 assert.deepEqual(decideAutoReimplement(NO_GEN, {}), {
   retry: true,
-  because: "the agent opened but never started generating",
+  because: "the agent opened but never answered, so it runs on the next provider",
 });
 assert.equal(decideAutoReimplement(AUTH, null).retry, false, "dead credentials need a person");
 assert.equal((decideAutoReimplement(AUTH, null) as { reason: string }).reason, "needs-auth");

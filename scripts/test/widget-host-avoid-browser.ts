@@ -151,6 +151,37 @@ async function main() {
       await close();
     }
 
+    // 1b. REGRESSION (loki /sign-in at 390): the bottom band is all buttons, and
+    //     the first slot up the edge that holds no control is a centred line of
+    //     words ("or sign in"). Words are not free: the launcher must climb past
+    //     them to the empty space above, and never sit on the line.
+    {
+      const html = page(
+        `<h1 style="text-align:center;margin:24px 0 0">Welcome back</h1>
+         <p style="text-align:center;margin:8px 0 0">Sign in to your account.</p>
+         <div style="height:160px"></div>
+         <p id="divider" style="text-align:center;margin:0 0 8px">or sign in with your email address instead</p>
+         <div style="background:#f4f4f4;padding:16px;min-height:100vh">
+           ${["OrangeCat", "GitHub", "Google", "X", "Apple", "Microsoft", "Slack", "Discord"]
+             .map(
+               (t) =>
+                 `<button style="display:block;width:100%;height:48px;margin:0 0 12px">Continue with ${t}</button>`,
+             )
+             .join("")}
+           <input style="display:block;width:100%;height:48px;margin:0 0 12px" placeholder="Email">
+           <input style="display:block;width:100%;height:48px;margin:0 0 12px" placeholder="Password">
+           <button id="submit" style="display:block;width:100%;height:48px">Sign in</button>
+         </div>`,
+      );
+      const { p, close } = await open(browser, html, 390, 844, js);
+      const f = await fab(p);
+      const divider = await box(p, "#divider");
+      ok(!!f && f.visible, "sign-in: launcher still shown (empty space exists above the words)");
+      ok(!!f && !overlap(f, divider), "sign-in: launcher does NOT sit on the line of words");
+      ok(await clickReaches(p, "button"), "sign-in: the first provider button receives its click");
+      await close();
+    }
+
     // 2. REGRESSION (substrata /atlas at 390): a full-width bottom sheet with a
     //    scrolling body and a control in its corner. The old engine ignored any
     //    layer wider than 90% of the viewport and parked on the sheet's text.

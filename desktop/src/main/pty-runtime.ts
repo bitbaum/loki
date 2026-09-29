@@ -201,7 +201,27 @@ export function explainPtyDispatchFailure(tab: string, agent: AgentOption): stri
   if (/not (?:logged|signed) in|login required|authentication required|unauthorized|\b401\b/.test(screen)) {
     return `${agent} is not logged in on this computer. Open Terminal, run ${agent === "cursor" ? "cursor-agent login" : `${agent} login`}, then Retry.`;
   }
-  return `${agent} opened on this computer, but produced no response after Loki submitted the prompt. Open Terminal to see the live CLI; if it is idle, choose another AI provider and Retry.`;
+  const seen = screenExcerpt(peekPtyBuffer(tab) ?? "");
+  return (
+    `${agent} opened on this computer, but produced no response after Loki submitted the prompt. Open Terminal to see the live CLI; if it is idle, choose another AI provider and Retry.` +
+    (seen ? ` Its screen ended with: “${seen}”` : "")
+  );
+}
+
+/**
+ * The last few lines the CLI actually drew, as one short quote — so a failure
+ * that names no known cause still says what the agent was showing, instead of
+ * leaving the person to guess (Petvity, 2026-09-28: "produced no response"
+ * twice, while Claude was logged in and far from any limit).
+ */
+export function screenExcerpt(raw: string, maxLines = 6, maxChars = 320): string {
+  const lines = raw
+    .replace(ANSI_RE, "")
+    .split(/\r?\n|\r/)
+    .map((line) => line.replace(/[─━│┃╭╮╰╯┌┐└┘├┤┬┴┼═║]+/g, " ").replace(/\s+/g, " ").trim())
+    .filter((line) => line.length > 1);
+  const tail = lines.slice(-maxLines).join(" / ");
+  return tail.length > maxChars ? `…${tail.slice(-maxChars)}` : tail;
 }
 
 const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]/g;
