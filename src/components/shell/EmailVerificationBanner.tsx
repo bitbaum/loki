@@ -8,21 +8,11 @@ import { MailWarning, X } from "lucide-react";
 import { ROUTES } from "@/config/auth";
 import { COMMS_COPY } from "@/config/comms";
 import { postJson } from "@/lib/api/fetch";
+import { isBannerFreeRoute } from "@/config/banners";
 
 // localStorage (not sessionStorage): an OPTIONAL reminder that the user chose to
 // dismiss shouldn't reappear in every new tab. Dismiss once, gone for good.
 const DISMISS_KEY = "loki-verify-email-dismiss";
-
-/**
- * Routes where the viewport IS the working surface, so an optional reminder
- * may not take a slice of it.
- *
- * On a 844px phone these pages already give ~150-270px to fixed chrome; this
- * banner took another 74px to say something explicitly not required, which can
- * wait for any other page. Suppressed here, not removed: it still shows
- * everywhere else, and dismissing it there still silences it for good.
- */
-const WORKSPACE_ROUTES = ["/terminal", "/control"];
 
 /** Optional verification reminder — email is not required to use the app. One
  *  calm line so it never outranks the actual page content beneath it. */
@@ -41,9 +31,7 @@ export function EmailVerificationBanner() {
   const [sent, setSent] = useState(false);
 
   if (status !== "authenticated" || dismissed) return null;
-  if (pathname && WORKSPACE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))) {
-    return null;
-  }
+  if (isBannerFreeRoute(pathname)) return null;
 
   const email = session?.user?.email;
   const verified = session?.user?.emailVerified;
