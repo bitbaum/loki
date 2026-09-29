@@ -63,9 +63,14 @@ command -v openclaw >/dev/null 2>&1 || for d in "$HOME"/.nvm/versions/node/*/bin
   [ -x "$d/openclaw" ] && PATH="$d:$PATH" && break
 done
 command -v openclaw >/dev/null 2>&1 || { echo "✗ no openclaw CLI on PATH for the openclaw user (looked in nvm, ~/.npm-global, ~/.local/bin, /usr/local/bin)" >&2; exit 127; }'
+# The script travels on STDIN, not as an argument. `sudo -i` re-joins and
+# re-parses its argument string through the target user's shell, so a
+# multi-line command with quotes and braces arrives broken (the second run
+# from GitHub Actions died on "unexpected end of file from `{'"). A script
+# read by `bash -s` is never re-parsed by anything in between.
 as_openclaw() {
-  ssh "$HOST" "sudo -iu openclaw env XDG_RUNTIME_DIR=/run/user/\$(id -u openclaw) bash -lc $(printf '%q' "$OC_FIND_CLI
-$1")"
+  printf '%s\n%s\n' "$OC_FIND_CLI" "$1" \
+    | ssh "$HOST" "sudo -iu openclaw env XDG_RUNTIME_DIR=/run/user/\$(id -u openclaw) bash -ls"
 }
 
 echo "→ checking the gateway can reach Gemini"
