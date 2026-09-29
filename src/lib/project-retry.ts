@@ -17,6 +17,7 @@ import { isQuotaAlternativeId, providerLabel } from "@/config/quota-alternatives
 import { resolveImplementAdapter } from "@/lib/feedback/implement";
 import { decideAutoReimplement } from "@/lib/feedback/auto-reimplement-policy";
 import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
+import { AUTO_DISPATCH_OFF_REASON, autoDispatchEnabled } from "@/lib/auto-dispatch";
 
 /**
  * Run a project's failed request again — on a provider that can answer.
@@ -145,6 +146,9 @@ export async function autoRetryProjectRunAfterNack(
   runPayload: { priorRunId?: unknown; feedbackAutoRetriedAt?: unknown } | null | undefined,
 ): Promise<{ retried: boolean; reason?: string }> {
   try {
+    // Off by default — see src/lib/auto-dispatch.ts. The Watch page keeps
+    // Failed with the one-tap provider button; nothing runs unasked.
+    if (!autoDispatchEnabled()) return { retried: false, reason: AUTO_DISPATCH_OFF_REASON };
     const decision = decideAutoReimplement(error, runPayload);
     if (!decision.retry) return { retried: false, reason: decision.reason };
     if (await getFeedbackByRunId(userId, runId).catch(() => null)) {
