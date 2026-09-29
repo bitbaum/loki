@@ -1,0 +1,69 @@
+# Teach the Telegram agent to see — from GitHub, without a laptop.
+#
+# scripts/openclaw/install-media-understanding.sh is the only way the media
+# config in this repo reaches the box, and it needs two things a sandboxed
+# agent session cannot supply: SSH to bitbaum and a Gemini key. This workflow
+# has both. It reuses exactly the SSH setup deploy.yml uses (HETZNER_SSH_KEY,
+# HETZNER_IP), so nothing new has to be provisioned for the connection.
+#
+# The key comes from the first of:
+#   1. the repo secret GEMINI_API_KEY (Settings → Secrets → Actions), or
+#   2. the GEMINI_API_KEY already in OrangeCat's env on the same box
+#      (/opt/orangecat/app/.env — OrangeCat's free-vendor chain uses it).
+# It is written to the openclaw user's ~/.openclaw/.env only if that file
+# does not already carry one, and never printed.
+#
+# Run it from the Actions tab, or:  gh workflow run openclaw-media.yml
+name: OpenClaw media understanding
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: openclaw-media
+  cancel-in-progress: false
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Put a Gemini key where the gateway reads env
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          # Only fills the gap. A key already there wins, whatever its source.
+          ssh "root@$HETZNER_IP" 'grep -qsE "^(export )?(GEMINI_API_KEY|GOOGLE_API_KEY)=.+" /home/openclaw/.openclaw/.env' \
+            && { echo "the openclaw user already has a Google key"; exit 0; }
+          key="$GEMINI_API_KEY"
+          if [ -z "$key" ]; then
+            key=$(ssh "root@$HETZNER_IP" 'grep -m1 -oP "^GEMINI_API_KEY=\K.*" /opt/orangecat/app/.env 2>/dev/null | tr -d "\"\r"' || true)
+            [ -n "$key" ] && echo "using the Gemini key from OrangeCat's env on the box"
+          fi
+          if [ -z "$key" ]; then
+            echo "::error::no Gemini key: add the repo secret GEMINI_API_KEY (free at https://aistudio.google.com/apikey) and re-run"
+            exit 1
+          fi
+          # Written via stdin so the key never appears in a process list.
+          printf 'GEMINI_API_KEY=%s\n' "$key" | ssh "root@$HETZNER_IP" \
+            'install -d -m 700 -o openclaw -g openclaw /home/openclaw/.openclaw
+             cat >> /home/openclaw/.openclaw/.env
+             chown openclaw:openclaw /home/openclaw/.openclaw/.env
+             chmod 600 /home/openclaw/.openclaw/.env'
+          echo "key installed"
+
+      - name: Install and prove media understanding
+        run: bash scripts/openclaw/install-media-understanding.sh "root@$HETZNER_IP"
