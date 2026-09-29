@@ -6,6 +6,16 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-09-29
+
+### Changed
+- **Nothing runs on your quota unasked.** Every agent run Loki used to start
+  on its own — a refused feedback run retried, a refused project run retried
+  on another provider, a queued Implement re-sent by the cron — is now off
+  unless the box sets `LOKI_AUTO_DISPATCH=1`. A failed row stays Failed with
+  its Retry and provider buttons; the choice to spend Claude, Codex or Gemini
+  is yours each time. Runs you start yourself are unchanged.
+
 ## 2026-09-28
 
 ### Added

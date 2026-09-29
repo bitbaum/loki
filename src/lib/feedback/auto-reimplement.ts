@@ -3,6 +3,7 @@ import { mergeRunPayload, stampFeedbackAutoRetried } from "@/db/queries/orchestr
 import { logDebug } from "@/db/queries/debug-logs";
 import { implementFeedback } from "@/lib/feedback/implement";
 import { decideAutoReimplement } from "@/lib/feedback/auto-reimplement-policy";
+import { AUTO_DISPATCH_OFF_REASON, autoDispatchEnabled } from "@/lib/auto-dispatch";
 
 export { decideAutoReimplement, autoRetryNotice } from "@/lib/feedback/auto-reimplement-policy";
 export type { AutoReimplementDecision } from "@/lib/feedback/auto-reimplement-policy";
@@ -39,6 +40,9 @@ export async function autoReimplementAfterRunnerNack(
   runPayload: { priorRunId?: unknown; feedbackAutoRetriedAt?: unknown } | null | undefined,
 ): Promise<{ retried: boolean; reason?: string; newRunId?: string }> {
   try {
+    // Off by default: a retry spends the operator's quota on a decision
+    // nobody made (src/lib/auto-dispatch.ts). The row keeps Failed + Retry.
+    if (!autoDispatchEnabled()) return { retried: false, reason: AUTO_DISPATCH_OFF_REASON };
     const decision = decideAutoReimplement(error, runPayload);
     if (!decision.retry) return { retried: false, reason: decision.reason };
     const feedback = await getFeedbackByRunId(userId, runId);
