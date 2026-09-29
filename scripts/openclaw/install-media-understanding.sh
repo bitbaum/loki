@@ -104,10 +104,25 @@ echo "→ restarting the gateway"
 # what actually supervises the gateway, in the order a hardened co-located
 # install is likely to use. Every branch says what it did; the failure branch
 # prints what it found, so the next attempt starts from facts, not guesses.
+#
+# The unit is matched by what it RUNS, not by a name prefix: the fourth run
+# restarted `ivy-health-deep.service`, a health probe that merely shares the
+# `ivy` prefix, and then waited on a port nothing was listening to. So this
+# prints what it finds — units, the gateway process, its listening sockets —
+# before touching anything, and the health check below trusts the socket
+# list over an assumed port.
 ssh "$HOST" bash -s <<'SH'
 set -u
-unit=$(systemctl list-units --all --type=service --no-legend --plain 2>/dev/null \
-  | awk '{print $1}' | grep -iE '^(openclaw|ivy)' | head -1)
+echo "  units mentioning openclaw/ivy: $(grep -lsE 'openclaw|ivy' /etc/systemd/system/*.service /lib/systemd/system/*.service 2>/dev/null | xargs -rn1 basename | tr '\n' ' ')"
+echo "  gateway process: $(pgrep -u openclaw -af 'gateway' 2>/dev/null | head -3 | tr '\n' ';' || echo none)"
+echo "  listening (openclaw's node): $(ss -ltnp 2>/dev/null | grep -E 'users:\(\("(node|openclaw)' | awk '{print $4}' | tr '\n' ' ')"
+unit=""
+for f in /etc/systemd/system/*.service /lib/systemd/system/*.service; do
+  [ -f "$f" ] || continue
+  grep -qE 'openclaw|ivy' "$f" 2>/dev/null && grep -qi 'gateway' "$f" && { unit=$(basename "$f"); break; }
+done
+[ -n "$unit" ] || unit=$(systemctl list-units --all --type=service --no-legend --plain 2>/dev/null \
+  | awk '{print $1}' | grep -iE '^(openclaw|ivy).*gateway' | head -1)
 if [ -n "$unit" ]; then
   systemctl restart "$unit" && echo "  restarted system unit $unit" && exit 0
 fi
@@ -134,12 +149,18 @@ pgrep -u openclaw -af 'openclaw|gateway' 2>/dev/null | sed 's/^/    process: /' 
 exit 1
 SH
 
-# Up means answering HTTP on its port — the one fact every supervisor shape
-# shares — not a systemd status the CLI may be unable to read.
+# Up means the gateway process is back and listening — the one fact every
+# supervisor shape shares — not a systemd status the CLI may be unable to
+# read. Answering HTTP on the default :18789 is the strongest signal; a
+# gateway process with any listening socket is accepted too, since the box
+# may bind another port, and the socket list is printed so the next reader
+# knows which.
 for i in $(seq 1 15); do
   code=$(ssh "$HOST" "curl -s -o /dev/null -m 3 -w '%{http_code}' http://127.0.0.1:18789/" 2>/dev/null || true)
   case "$code" in [1-5][0-9][0-9]) echo "  gateway is up (HTTP $code on :18789)"; break ;; esac
-  [ "$i" -eq 15 ] && { echo "✗ the gateway did not come back on :18789 within 45s"; exit 1; }
+  socks=$(ssh "$HOST" 'p=$(pgrep -u openclaw -f gateway 2>/dev/null | head -1); [ -n "$p" ] && ss -ltnp 2>/dev/null | grep "pid=$p," | awk "{print \$4}" | tr "\n" " "' 2>/dev/null || true)
+  if [ -n "${socks// /}" ]; then echo "  gateway is up (process listening on $socks — not :18789)"; break; fi
+  [ "$i" -eq 15 ] && { echo "✗ the gateway did not come back within 45s: nothing on :18789 and no listening gateway process"; exit 1; }
   sleep 3
 done
 
