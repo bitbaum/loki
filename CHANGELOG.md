@@ -22,7 +22,11 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   slot up the edge without a control was the "or sign in" divider, so the
   launcher sat on it. Words now count as occupied: the launcher prefers an
   empty slot, still takes words over any control, and a sign-in fixture in
-  the browser test pins it.
+  the browser test pins it. Verified live afterwards: the one free spot on
+  that page was the divider rule beside those words, straddling the card's
+  edge, so Loki's own auth pages (sign-in, sign-up, invites, setup) now
+  carry no launcher at all — the person there has nothing to report yet,
+  and it returns on the next page.
 
 ## 2026-09-28
 
