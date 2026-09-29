@@ -115,7 +115,13 @@ export interface Slot {
 /**
  * What a slot would cover, best to worst.
  *
- * - `free`: nothing of the host's that matters.
+ * - `free`: nothing of the host's that matters — background, margin.
+ * - `text`: in-flow words. Nothing to click, but the visitor is reading them,
+ *   and a launcher parked on the middle of a line reads as broken. Loki's own
+ *   sign-in page at 390px: every slot on the bottom band was a button, and the
+ *   first "free" slot up the edge was the "or sign in" divider — the launcher
+ *   sat on the words (2026-09-29). An empty slot is preferred; words are
+ *   still better than any control.
  * - `surface`: part of a control far bigger than the launcher — a pannable
  *   map, a canvas, a card that is one big link. Every other part of it still
  *   works, so covering a corner costs the visitor almost nothing.
@@ -126,7 +132,7 @@ export interface Slot {
  *   `data-fc-avoid`. Never acceptable: a launcher over a control steals its
  *   clicks (OrangeCat's Send button, 18 days).
  */
-export const SLOT_VERDICTS = ["free", "surface", "layer", "blocked"] as const;
+export const SLOT_VERDICTS = ["free", "text", "surface", "layer", "blocked"] as const;
 export type SlotVerdict = (typeof SLOT_VERDICTS)[number];
 
 /** `data-fc-place` values a host can declare. */

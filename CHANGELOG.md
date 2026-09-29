@@ -16,6 +16,14 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   its Retry and provider buttons; the choice to spend Claude, Codex or Gemini
   is yours each time. Runs you start yourself are unchanged.
 
+### Fixed
+- **The feedback button no longer parks on a line of words.** On Loki's own
+  sign-in page at phone width the bottom band is all buttons, and the first
+  slot up the edge without a control was the "or sign in" divider, so the
+  launcher sat on it. Words now count as occupied: the launcher prefers an
+  empty slot, still takes words over any control, and a sign-in fixture in
+  the browser test pins it.
+
 ## 2026-09-28
 
 ### Added
