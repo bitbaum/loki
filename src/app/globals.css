@@ -4026,7 +4026,7 @@
     }
   }
   .ui-watch-tail {
-    @apply max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black p-3 font-mono text-micro leading-relaxed text-white;
+    @apply mt-1 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-surface-raised p-3 font-mono text-xs leading-relaxed text-text-secondary;
   }
 
   /* Exactly three lines of relaxed text (3 × 1.625em), for blocks whose child

@@ -160,3 +160,30 @@ export function tailForWatch(screen: string, lines = 12): string[] {
     .filter((l) => l.trim().length > 0)
     .slice(-lines);
 }
+
+// Lines a coding CLI draws around its work rather than as it: the input box,
+// key hints, permission-mode banners, model/usage footers.
+const CHROME_LINE =
+  /^\s*>|for shortcuts|esc to (interrupt|cancel)|bypass permissions|auto-accept|accept edits|shift\+tab|ctrl\+|context left|tokens? used|^\s*\?\s/i;
+const LEADING_GLYPHS = /^[\s✻✽✶✳✢✦·⏺●○◐◓◑◒⎿└*•+\-⠀-⣿]+/u;
+
+/**
+ * The one line that says what the agent is doing right now ("Writing
+ * src/app/page.tsx"), read bottom-up from the tail and cleaned of spinner
+ * glyphs and "(12s · esc to interrupt)" suffixes. Watch headlines it as plain
+ * text and folds the raw screen behind a tap, the way Claude and ChatGPT show
+ * one live step instead of a terminal. Null when nothing readable is on screen.
+ */
+export function latestActivityLine(tail: string[]): string | null {
+  for (let i = tail.length - 1; i >= 0; i--) {
+    const raw = tail[i]!;
+    const cleaned = raw
+      .replace(/\s*\([^)]*(esc to|tokens|\d+s)[^)]*\)\s*$/i, "")
+      .replace(LEADING_GLYPHS, "")
+      .trim();
+    if (!/[A-Za-z]{2}/.test(cleaned)) continue;
+    if (CHROME_LINE.test(cleaned)) continue;
+    return cleaned.length > 120 ? `${cleaned.slice(0, 117)}…` : cleaned;
+  }
+  return null;
+}

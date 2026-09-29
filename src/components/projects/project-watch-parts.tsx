@@ -118,6 +118,31 @@ export function ActivityGroup({
   );
 }
 
+/**
+ * The agent's raw screen, folded — the live line above already says what it
+ * is doing; this is for the person who wants to see it for themselves.
+ */
+export function ScreenFold({ lines }: { lines: string[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="ui-chat-link"
+      >
+        {open ? "Hide screen" : "Show screen"}
+        <ChevronDown
+          className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
+          aria-hidden="true"
+        />
+      </button>
+      {open && <pre className="ui-watch-tail">{lines.join("\n")}</pre>}
+    </div>
+  );
+}
+
 /** Three breathing dots — the universal "it is typing" signal. */
 export function TypingDots() {
   return (

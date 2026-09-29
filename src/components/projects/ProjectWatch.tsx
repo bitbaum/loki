@@ -19,11 +19,22 @@ import Link from "next/link";
 import { Loader2, RotateCcw, SquareTerminal } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { peekTabOnce } from "@/lib/peek-tab-client";
-import { humanizeRunFailure, tailForWatch, type WatchItem } from "@/lib/project-watch";
+import {
+  humanizeRunFailure,
+  latestActivityLine,
+  tailForWatch,
+  type WatchItem,
+} from "@/lib/project-watch";
 import { KICKOFF_STEP_LABEL } from "@/lib/project-kickoff";
 import type { KickoffRunState } from "@/lib/kickoff/orchestrate";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
-import { ActivityGroup, AssistantMessage, TypingDots, UserMessage } from "./project-watch-parts";
+import {
+  ActivityGroup,
+  AssistantMessage,
+  ScreenFold,
+  TypingDots,
+  UserMessage,
+} from "./project-watch-parts";
 
 type WatchPayload = {
   project: { name: string };
@@ -245,19 +256,13 @@ export function ProjectWatch({
             <span className="pt-2.5">
               <TypingDots />
             </span>
-            <span className="text-text-secondary">
-              {status.stalled ? status.nextAction : status.label}
+            <span className="min-w-0 text-text-secondary wrap-anywhere">
+              {status.stalled
+                ? status.nextAction
+                : ((working && tail && latestActivityLine(tail)) ?? status.label)}
             </span>
           </div>
-          {working && (
-            <pre className="ui-watch-tail">
-              {tail === null
-                ? "Reading the screen…"
-                : tail.length
-                  ? tail.join("\n")
-                  : "Nothing printed yet."}
-            </pre>
-          )}
+          {working && tail && tail.length > 0 && <ScreenFold lines={tail} />}
           {p.terminalHref && status.terminalReady && (
             <Link href={p.terminalHref} className="ui-chat-link">
               <SquareTerminal className="h-3.5 w-3.5" aria-hidden="true" /> Open the full terminal

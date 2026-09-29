@@ -12,7 +12,12 @@
  *
  * Run: npx tsx scripts/test/project-watch.ts
  */
-import { buildWatchTimeline, humanizeRunFailure, tailForWatch } from "@/lib/project-watch";
+import {
+  buildWatchTimeline,
+  humanizeRunFailure,
+  latestActivityLine,
+  tailForWatch,
+} from "@/lib/project-watch";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -143,6 +148,25 @@ check("the screen tail is words: no escapes, no borders, no blank lines", () => 
     tailForWatch(Array.from({ length: 40 }, (_, i) => `line ${i}`).join("\n"), 12).length === 12,
     "not capped",
   );
+});
+
+check("the live line is what the agent is doing, not the CLI around it", () => {
+  const tail = tailForWatch(
+    [
+      "⏺ Update(src/app/page.tsx)",
+      "  ⎿  Updated src/app/page.tsx with 12 additions",
+      "✻ Writing the lease checker… (34s · ↑ 1.2k tokens · esc to interrupt)",
+      "╭──────────────╮",
+      "│ >            │",
+      "╰──────────────╯",
+      "  ⏵⏵ bypass permissions on (shift+tab to cycle)",
+    ].join("\n"),
+  );
+  assert(
+    latestActivityLine(tail) === "Writing the lease checker…",
+    `got ${latestActivityLine(tail)}`,
+  );
+  assert(latestActivityLine(["│ > │", "   ", "? for shortcuts"]) === null, "chrome became a line");
 });
 
 console.log(`\n✓ project-watch: ${passed} passed`);
