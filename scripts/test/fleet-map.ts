@@ -60,9 +60,9 @@ const rows: RegisterRow[] = [
     solon: null,
   },
   {
-    slug: "townsism",
-    name: "Townsism",
-    description: "The social layer",
+    slug: "next-idea",
+    name: "Next Idea",
+    description: "Not built yet",
     repo: null,
     site: null,
     loki: { id: "3", liveUrl: null },
@@ -93,7 +93,7 @@ check("pillars come first, then products, clients, demos, the rest", () => {
   const map = buildFleetMap(rows, new Map(), new Map(), new Date("2026-09-14T00:00:00Z"));
   assert.deepEqual(
     map.projects.map((p) => p.slug),
-    ["loki", "orangecat", "kivvi", "aoz-demo", "townsism"],
+    ["loki", "orangecat", "kivvi", "aoz-demo", "next-idea"],
   );
   assert.equal(map.pillars.length, PILLARS.length);
   assert.equal(map.generatedAt, "2026-09-14T00:00:00.000Z");
@@ -140,7 +140,7 @@ check("summary counts live, clients and in-flight honestly", () => {
 check("a client site is owned by the client, not by us", () => {
   const map = buildFleetMap(rows, new Map(), new Map());
   assert.equal(map.projects.find((p) => p.slug === "kivvi")!.owner, "kivvi");
-  assert.equal(map.projects.find((p) => p.slug === "townsism")!.status, "not live");
+  assert.equal(map.projects.find((p) => p.slug === "next-idea")!.status, "not live");
 });
 
 check("no hosting row but a live URL counts as live; a timestamped dev log speaks in days", () => {
