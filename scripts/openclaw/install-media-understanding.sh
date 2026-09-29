@@ -96,11 +96,52 @@ as_openclaw "openclaw config validate" \
   || { echo "✗ openclaw.json no longer validates — restore it from openclaw.json.bak before the gateway restarts"; exit 1; }
 
 echo "→ restarting the gateway"
-as_openclaw "openclaw gateway restart"
-sleep 5
-as_openclaw "openclaw gateway status" >/dev/null \
-  || { echo "✗ the gateway did not come back — check: sudo -iu openclaw openclaw gateway status"; exit 1; }
-echo "  gateway is up"
+# Not `openclaw gateway restart`. Under `sudo -iu openclaw` the CLI reaches
+# for `systemctl --machine openclaw@ --user`, which needs the openclaw user's
+# own systemd manager to be running — and on the box it is not (the third run
+# from GitHub Actions: "Failed to connect to user scope bus via machine
+# transport: Connection refused"). So the restart is done as root, by finding
+# what actually supervises the gateway, in the order a hardened co-located
+# install is likely to use. Every branch says what it did; the failure branch
+# prints what it found, so the next attempt starts from facts, not guesses.
+ssh "$HOST" bash -s <<'SH'
+set -u
+unit=$(systemctl list-units --all --type=service --no-legend --plain 2>/dev/null \
+  | awk '{print $1}' | grep -iE '^(openclaw|ivy)' | head -1)
+if [ -n "$unit" ]; then
+  systemctl restart "$unit" && echo "  restarted system unit $unit" && exit 0
+fi
+uid=$(id -u openclaw)
+if [ -S "/run/user/$uid/bus" ]; then
+  systemctl --machine openclaw@ --user restart openclaw-gateway \
+    && echo "  restarted user unit openclaw-gateway" && exit 0
+fi
+uunit=$(ls /home/openclaw/.config/systemd/user/*.service 2>/dev/null | head -1)
+if [ -n "$uunit" ]; then
+  # A user unit exists but its manager is not running: the install forgot
+  # `loginctl enable-linger`, which is also why the gateway would not survive
+  # a reboot. Enabling it is the fix the CLI's own installer intends.
+  loginctl enable-linger openclaw && sleep 3 \
+    && systemctl --machine openclaw@ --user restart "$(basename "$uunit")" \
+    && echo "  enabled linger and restarted user unit $(basename "$uunit")" && exit 0
+fi
+echo "✗ could not find how the gateway is supervised. What is there:" >&2
+systemctl list-units --all --type=service --no-legend --plain 2>/dev/null | grep -iE 'claw|ivy|gateway' | sed 's/^/    unit: /' >&2 \
+  || echo "    no systemd unit named like openclaw / ivy / gateway" >&2
+ls /home/openclaw/.config/systemd/user/ 2>/dev/null | sed 's/^/    user unit file: /' >&2
+pgrep -u openclaw -af 'openclaw|gateway' 2>/dev/null | sed 's/^/    process: /' >&2 \
+  || echo "    no openclaw process running as the openclaw user" >&2
+exit 1
+SH
+
+# Up means answering HTTP on its port — the one fact every supervisor shape
+# shares — not a systemd status the CLI may be unable to read.
+for i in $(seq 1 15); do
+  code=$(ssh "$HOST" "curl -s -o /dev/null -m 3 -w '%{http_code}' http://127.0.0.1:18789/" 2>/dev/null || true)
+  case "$code" in [1-5][0-9][0-9]) echo "  gateway is up (HTTP $code on :18789)"; break ;; esac
+  [ "$i" -eq 15 ] && { echo "✗ the gateway did not come back on :18789 within 45s"; exit 1; }
+  sleep 3
+done
 
 echo "→ proving it sees"
 # The check that matters: run the real describe path as the real user and
