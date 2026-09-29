@@ -66,8 +66,39 @@ const SURFACE_AREA = 0.25;
  *  sit between them. */
 const GRID = 4;
 
-/** Index into SLOT_VERDICTS: 0 free, 1 surface, 2 layer, 3 blocked. */
-type Weight = 0 | 1 | 2 | 3;
+/** Index into SLOT_VERDICTS: 0 free, 1 text, 2 surface, 3 layer, 4 blocked. */
+type Weight = 0 | 1 | 2 | 3 | 4;
+const TEXT: Weight = 1;
+const SURFACE: Weight = 2;
+const LAYER: Weight = 3;
+const BLOCKED: Weight = 4;
+
+/**
+ * Are there words under this point? The caret APIs snap to the NEAREST text,
+ * so a hit is only counted when the point lies inside one of that text node's
+ * own line boxes — otherwise every margin next to a paragraph would read as
+ * text. Whitespace-only nodes are not words.
+ */
+function textAt(x: number, y: number): boolean {
+  const doc = document as Document & {
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node } | null;
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+  };
+  let node: Node | null = null;
+  try {
+    if (doc.caretPositionFromPoint) node = doc.caretPositionFromPoint(x, y)?.offsetNode ?? null;
+    else if (doc.caretRangeFromPoint) node = doc.caretRangeFromPoint(x, y)?.startContainer ?? null;
+  } catch {
+    return false;
+  }
+  if (!node || node.nodeType !== Node.TEXT_NODE || !(node.textContent ?? "").trim()) return false;
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  for (const r of Array.from(range.getClientRects())) {
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
+  }
+  return false;
+}
 
 interface HostScanner {
   /** Verdict for the launcher occupying `rect` (viewport coordinates). */
@@ -101,7 +132,7 @@ export function createHostScanner(ownHost: Element): HostScanner {
       const scrolls =
         (cs.overflowY === "auto" || cs.overflowY === "scroll") &&
         el.scrollHeight > el.clientHeight + 1;
-      if (small && (positioned || scrolls)) w = 2;
+      if (small && (positioned || scrolls)) w = LAYER;
     }
     layerCache.set(el, w);
     return w;
@@ -129,7 +160,7 @@ export function createHostScanner(ownHost: Element): HostScanner {
       .elementsFromPoint(x, y)
       .find((el) => el !== ownHost && !ownHost.contains(el));
     if (!under) return 0;
-    if (under.closest("[data-fc-avoid]")) return 3;
+    if (under.closest("[data-fc-avoid]")) return BLOCKED;
     let w: Weight = 0;
     let control = under.closest(INTERACTIVE);
     // A clickable div announces itself only through its cursor.
@@ -141,12 +172,13 @@ export function createHostScanner(ownHost: Element): HostScanner {
       }
     }
     if (control) {
-      if (!isSurface(control)) return 3;
-      w = 1;
+      if (!isSurface(control)) return BLOCKED;
+      w = SURFACE;
     }
-    for (let el: Element | null = under; el && w < 2; el = el.parentElement) {
-      if (layerWeight(el) === 2) w = 2;
+    for (let el: Element | null = under; el && w < LAYER; el = el.parentElement) {
+      if (layerWeight(el) === LAYER) w = LAYER;
     }
+    if (w === 0 && textAt(x, y)) w = TEXT;
     return w;
   }
 
@@ -162,16 +194,27 @@ export function createHostScanner(ownHost: Element): HostScanner {
       // Declared avoid regions by rectangle too: elementsFromPoint skips
       // pointer-events:none, and a host may mark exactly such an overlay.
       if (avoidRects.some((a) => overlaps(probe, a))) return "blocked";
+      // The launcher is parked on the candidate slot while it is measured.
+      // elementsFromPoint is filtered by hand; the caret hit-test that finds
+      // words under us cannot be, so our host steps out of hit-testing for
+      // the scan (pointer-events inherits into the shadow tree).
+      const own = ownHost as HTMLElement;
+      const prevPointer = own.style.pointerEvents;
+      own.style.pointerEvents = "none";
       let worst = 0;
-      for (let i = 0; i < GRID; i++) {
-        for (let j = 0; j < GRID; j++) {
-          const x = probe.left + ((probe.right - probe.left) * (i + 0.5)) / GRID;
-          const y = probe.top + ((probe.bottom - probe.top) * (j + 0.5)) / GRID;
-          if (x < 0 || y < 0 || x >= vw || y >= vh) continue;
-          const w = weightAt(x, y);
-          if (w === 3) return "blocked";
-          if (w > worst) worst = w;
+      try {
+        for (let i = 0; i < GRID; i++) {
+          for (let j = 0; j < GRID; j++) {
+            const x = probe.left + ((probe.right - probe.left) * (i + 0.5)) / GRID;
+            const y = probe.top + ((probe.bottom - probe.top) * (j + 0.5)) / GRID;
+            if (x < 0 || y < 0 || x >= vw || y >= vh) continue;
+            const w = weightAt(x, y);
+            if (w === BLOCKED) return "blocked";
+            if (w > worst) worst = w;
+          }
         }
+      } finally {
+        own.style.pointerEvents = prevPointer;
       }
       return SLOT_VERDICTS[worst];
     },
