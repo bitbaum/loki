@@ -1,6 +1,6 @@
-import fs from "fs";
 import path from "path";
-import { parseContentBlocks, parseFrontmatter, type ContentBlock } from "bip-kit";
+import { parseContentBlocks, type ContentBlock } from "bip-kit";
+import { readCollection } from "bip-kit/node";
 
 const THOUGHTS_DIR = path.join(process.cwd(), "content", "thoughts");
 
@@ -17,50 +17,43 @@ export type ThoughtMeta = {
 };
 
 /**
- * The block union, frontmatter, and body parser live in `bip-kit` — the
- * open-source extract of exactly this file's former inline parser. This repo
- * dogfoods the package; the alias keeps the Thoughts UI's vocabulary.
+ * The block union, frontmatter, body parser and folder reader live in
+ * `bip-kit` — the open-source extract of exactly this file's former inline
+ * parser. This repo dogfoods the package; the alias keeps the Thoughts UI's
+ * vocabulary.
  */
 export type ThoughtBlock = ContentBlock;
 
-// bip-kit ≥0.2 frontmatter values can be YAML arrays (`tags: [a, b]`). All
-// current essays use scalar values; these two helpers accept both shapes so
-// an essay written either way lists correctly.
+// bip-kit frontmatter values can be YAML arrays (`key: [a, b]`); a scalar
+// field written that way still reads as one string.
 function metaStr(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) return value.join(", ");
   return value;
 }
 
-function metaTags(value: string | string[] | undefined): string[] {
-  const parts = Array.isArray(value) ? value : (value ?? "").split(",");
-  return parts.map((s) => s.trim()).filter(Boolean);
-}
-
+/**
+ * Every essay, newest first. bip-kit reads the folder: frontmatter, the
+ * normalized body, and a `publishedAt:` that is not YYYY-MM-DD fails the
+ * build naming the file. What stays here is Loki's own vocabulary.
+ */
 export function listThoughts(): Array<ThoughtMeta & { body: string }> {
-  if (!fs.existsSync(THOUGHTS_DIR)) return [];
-  return fs
-    .readdirSync(THOUGHTS_DIR)
-    .filter((f) => f.endsWith(".md"))
-    .map((f) => {
-      const slug = f.replace(/\.md$/, "");
-      const raw = fs.readFileSync(path.join(THOUGHTS_DIR, f), "utf-8");
-      const { meta, body } = parseFrontmatter(raw);
-      return {
-        slug,
-        title: metaStr(meta.title) ?? slug,
-        // Six early essays carried their one-liner under `subtitle:` — the
-        // renderer ignored it and they listed as bare titles. Honor it.
-        summary: metaStr(meta.summary) ?? metaStr(meta.subtitle) ?? "",
-        excerpt: metaStr(meta.excerpt) ?? metaStr(meta.subtitle) ?? "",
-        publishedAt: metaStr(meta.publishedAt) ?? "",
-        tags: metaTags(meta.tags),
-        featured: (metaStr(meta.featured) ?? "false") === "true",
-        author: metaStr(meta.author) ?? "Loki",
-        readingTimeMin: Number(metaStr(meta.readingTimeMin) ?? "6"),
-        body,
-      };
-    })
-    .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
+  return readCollection(THOUGHTS_DIR).map((entry) => {
+    const { meta } = entry;
+    return {
+      slug: entry.slug,
+      title: entry.title,
+      // Six early essays carried their one-liner under `subtitle:` — the
+      // renderer ignored it and they listed as bare titles. Honor it.
+      summary: metaStr(meta.summary) ?? metaStr(meta.subtitle) ?? "",
+      excerpt: metaStr(meta.excerpt) ?? metaStr(meta.subtitle) ?? "",
+      publishedAt: entry.date,
+      tags: entry.tags,
+      featured: (metaStr(meta.featured) ?? "false") === "true",
+      author: entry.author ?? "Loki",
+      readingTimeMin: Number(metaStr(meta.readingTimeMin) ?? entry.readingMinutes),
+      body: entry.body,
+    };
+  });
 }
 
 export function getThought(slug: string) {
