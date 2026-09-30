@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
+import { appUrl } from "@/lib/email";
 import { getApiUserId } from "@/lib/session";
 import { StudioStaffAction } from "@/config/studio";
+import { studioReviewOriginAllowed } from "@/lib/studio/access";
 import { readStudioBody } from "@/lib/studio/body";
 import { studioResponse, studioError, studioFailure } from "@/lib/studio/http";
 import { getStudioReview, mutateStudioReview } from "@/db/queries/studio-requests";
@@ -26,8 +28,7 @@ export async function POST(request: NextRequest, context: Context) {
   if (!userId) return studioError(request, "Unauthorized", 401);
   const { id } = await context.params;
   if (!z.uuid().safeParse(id).success) return studioError(request, "Invalid request id.", 400);
-  const origin = request.headers.get("origin");
-  if (origin && origin !== request.nextUrl.origin)
+  if (!studioReviewOriginAllowed(request, appUrl()))
     return studioError(request, "This origin is not allowed.", 403);
   try {
     const parsed = StudioStaffAction.safeParse(await readStudioBody(request));

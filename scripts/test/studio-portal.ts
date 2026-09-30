@@ -8,6 +8,7 @@ import {
   studioBearer,
   studioHeaders,
   studioOriginAllowed,
+  studioReviewOriginAllowed,
 } from "../../src/lib/studio/access";
 import { readStudioBody, StudioBodyTooLarge } from "../../src/lib/studio/body";
 import {
@@ -60,6 +61,11 @@ async function main() {
   assert.ok(studioOriginAllowed(origin, true));
   assert.equal(studioHeaders(origin).get("Access-Control-Allow-Origin"), COMMISSION.studioOrigin);
   assert.equal(studioHeaders(origin).get("Access-Control-Allow-Credentials"), null);
+  const proxied = new Request("http://0.0.0.0:3000/api/studio-review", {
+    headers: { Origin: "https://loki.orangecat.ch" },
+  });
+  assert.ok(studioReviewOriginAllowed(proxied, "https://loki.orangecat.ch"));
+  assert.equal(studioReviewOriginAllowed(proxied, "https://other.ch"), false);
   const foreign = new Request("https://loki.orangecat.ch", {
     headers: { Origin: "https://other.ch" },
   });

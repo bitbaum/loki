@@ -31,3 +31,15 @@ export function studioHeaders(request: Request): Headers {
   }
   return headers;
 }
+
+/** Compare browser writes with the canonical external app origin, not the
+ * internal bind address supplied by the reverse proxy. */
+export function studioReviewOriginAllowed(request: Request, publicBaseUrl: string): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+  try {
+    return origin === new URL(publicBaseUrl).origin;
+  } catch {
+    return false;
+  }
+}

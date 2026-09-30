@@ -99,7 +99,7 @@ export function StudioRequests({
         )}
         {requests.map((r) => (
           <button
-            key={r.id}
+            key={r.partnerName ?? r.changes.slice(0, 60)}
             type="button"
             className="ui-card-shell w-full space-y-2 p-4 text-left"
             aria-pressed={id === r.id}
@@ -110,7 +110,7 @@ export function StudioRequests({
             }}
           >
             <span className="block break-words font-medium text-text-primary">
-              {r.kind === "partner" ? "Partner application" : r.website}
+              {r.kind === "partner" ? (r.partnerName ?? r.changes.slice(0, 70)) : r.website}
             </span>
             <span className="block text-sm text-text-secondary">
               {STUDIO_STATUS[r.status][0]}
@@ -297,7 +297,7 @@ export function StudioRequests({
                           )
                           .map((r) => (
                             <option key={r.id} value={r.id}>
-                              {r.id}
+                              {r.partnerName ?? r.changes.slice(0, 60)}
                             </option>
                           ))}
                       </select>

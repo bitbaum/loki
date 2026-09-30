@@ -404,6 +404,10 @@ export async function mutateStudioReview(
         body = input.body;
         break;
       case "set_status":
+        if (row.kind === "partner" && row.partnerApprovedAt)
+          throw new StudioConflict(
+            "Use the partner decision to withdraw approval or keep this application approved.",
+          );
         if (row.kind === "partner" && input.status === "in_progress")
           throw new StudioConflict("Use course review and partner approval for this application.");
         patch.status = input.status;
