@@ -13,6 +13,19 @@ export const StudioContract = z.object({
     shape: z.string().min(1).max(200),
     what: z.string().min(1).max(1500),
   }),
+  course: z
+    .object({
+      version: z.string().min(1).max(80),
+      title: z.string().min(1).max(200),
+      pilot: z.boolean(),
+      modules: z
+        .array(
+          z.object({ id: z.string().regex(/^[a-z-]{1,80}$/), title: z.string().min(1).max(200) }),
+        )
+        .min(1)
+        .max(12),
+    })
+    .optional(),
   feedbackToken: z.string().startsWith("fcw_").max(100),
 });
 export type StudioCommissionContract = z.infer<typeof StudioContract>;

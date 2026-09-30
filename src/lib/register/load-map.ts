@@ -7,7 +7,12 @@ import { PUBLIC_IDENTITY_ATTRS } from "@/config/project-attrs";
 import { getPubliclyListedProjects, getUserProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
-import { buildFleetRegister, canonicalSlug, repoFromGitUrl } from "@/lib/register/build";
+import {
+  buildFleetRegister,
+  canonicalSlug,
+  repoFromGitUrl,
+  repoForProjectRecords,
+} from "@/lib/register/build";
 import { solonClaims } from "@/lib/register/solon";
 import { loadRepoRecords } from "@/lib/register/repo-records";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
@@ -108,7 +113,9 @@ export async function loadFleetMap(): Promise<FleetMap | null> {
   // ROADMAP.md / CHANGELOG.md from each public repository, fetched in
   // parallel and cached ten minutes in-process (repo-records.ts). A repo
   // without them, or a private one, simply contributes nothing.
-  const repoRecords = await Promise.all(projects.map((p) => loadRepoRecords(p.gitUrl)));
+  const repoRecords = await Promise.all(
+    projects.map((p) => loadRepoRecords(repoForProjectRecords(p, rows))),
+  );
 
   const profiles = new Map<string, MapProfile>();
   const keyToSlug = new Map<string, string>();

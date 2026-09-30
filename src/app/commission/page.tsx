@@ -1,26 +1,23 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { COMMISSION } from "@/config/commission";
 import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { WebsiteCommissionForm } from "@/components/public/WebsiteCommissionForm";
-import { getStudioCommission } from "@/lib/studio-commission";
-
 export const metadata: Metadata = {
   title: "Change an existing website — Loki",
   description:
-    "Enter a website address and describe your changes. Build a new version with Loki, or send a request to the Bitbaum studio.",
+    "Enter a website address and describe your changes. Build a new version yourself with Loki, the free independent tool.",
 };
-
 export default async function CommissionPage({
   searchParams,
 }: {
   searchParams: Promise<{ package?: string }>;
 }) {
-  const [session, contract, params] = await Promise.all([
-    auth(),
-    getStudioCommission(),
-    searchParams,
-  ]);
+  const params = await searchParams;
+  if (params.package) redirect(`${COMMISSION.studioHireUrl}#website`);
+  const session = await auth();
   return (
     <PublicSurface right={<PublicHeaderActions />}>
       <main className="ui-public-container py-10 sm:py-14">
@@ -28,16 +25,10 @@ export default async function CommissionPage({
           <div>
             <h1 className="ui-public-display-md">What should your website do next?</h1>
             <p className="mt-3 text-base text-text-secondary">
-              Paste its address and tell us what you want to change.
+              Paste its address and describe what you want to change. Build it yourself with Loki.
             </p>
           </div>
-          <WebsiteCommissionForm
-            signedIn={Boolean(session?.user)}
-            requestedPackage={Boolean(params.package)}
-            studio={
-              contract ? { offer: contract.offer, availability: contract.availability } : null
-            }
-          />
+          <WebsiteCommissionForm signedIn={Boolean(session?.user)} />
         </div>
       </main>
     </PublicSurface>

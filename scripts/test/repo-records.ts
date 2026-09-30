@@ -1,3 +1,4 @@
+import { repoForProjectRecords, type RegisterRow } from "../../src/lib/register/build";
 // ROADMAP.md / CHANGELOG.md in a project's repository become its canonical
 // roadmap and changelog on the fleet map — unless Loki's own rows exist.
 import assert from "node:assert/strict";
@@ -172,3 +173,24 @@ async function fetchCases() {
 }
 
 fetchCases().then(() => console.log("repo-records: ok"));
+
+const registered = [
+  {
+    slug: "bitbaum",
+    name: "bitbaum",
+    repo: "https://github.com/bitbaum/bitbaum",
+    loki: { id: "studio-project", liveUrl: null },
+  },
+] as RegisterRow[];
+assert.equal(
+  repoForProjectRecords({ id: "studio-project", gitUrl: null }, registered),
+  registered[0].repo,
+);
+assert.equal(repoForProjectRecords({ id: "other-tenant-project", gitUrl: null }, registered), null);
+assert.equal(
+  repoForProjectRecords(
+    { id: "studio-project", gitUrl: "https://github.com/bitbaum/loki" },
+    registered,
+  ),
+  "https://github.com/bitbaum/loki",
+);

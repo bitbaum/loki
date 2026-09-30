@@ -63,8 +63,8 @@ The builder pays their model vendor directly and pays Loki for the platform; eve
 - [ ] A metered pool (wholesale tokens sold inside a plan) once the numbers say so
 
 ### Partner track
-Learner, then candidate (build one real project), then partner (a tenant on the box, allowed to register client sites). Approval and revenue-share rules are decided on Solon; payouts flow through OrangeCat.
-- [ ] `partner_status` on the account and a `partner_applications` record with the reason, shown either way
+Bitbaum owns the systems design course and partner approval. Loki supplies scoped application and assigned-delivery infrastructure; qualification does not enrol a partner in the whole ecosystem. OrangeCat or Solon handoffs remain optional and require their own purpose and consent.
+- [x] Request-scoped application evidence, separate course review and studio approval with visible reasons; Bitbaum owns the course and public profile consent
 - [ ] The candidate build is an ordinary project with an approval control in Control
 - [ ] Self-serve "Go live" for a tenant's site through the existing runner channel
 - [ ] The not-approved path: the docs and scripts to run the stack yourself
@@ -100,9 +100,9 @@ Reviews, walkthrough scripts, second opinions and briefs on an open-weight model
 - [ ] Cost per shipped fix published alongside the capacity numbers
 
 ### The academy
-A systems-design course whose only exercise is the candidate build, whose textbook is the fleet's own agent-facing docs, and whose last module is how to run the stack yourself.
-- [ ] `/academy` with enrolment creating a learner record
-- [ ] Five modules: the three planes, the feedback loop, tokens to `ui-*`, shipping, running it yourself
+The studio-owned transferable course is developed in Bitbaum. Loki provides optional building tools and the application evidence API; course content and teaching priorities remain in the studio roadmap.
+- [x] Bitbaum hosts the initial `/academy/` lesson and capstone rubric; its portal records evidence without requiring a Loki account
+- [ ] Follow Bitbaum’s course expansion and assessment calibration after the first pilot reviews
 
 ### Secure cloud execution for more accounts
 Isolated cloud builders beyond the eligible-account service, with the per-project choice of where work runs kept visible.

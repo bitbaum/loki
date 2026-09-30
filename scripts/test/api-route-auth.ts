@@ -51,6 +51,7 @@ const GUARDS = [
   // Machine callers
   "getBearerUserId", // ck_* runner/agent token, src/lib/runner-auth.ts
   "validateAgentToken",
+  "studioBearer", // spt_* capability for exactly one Bitbaum portal request
   "getWidgetTokenByToken", // fcw_* write-only widget token
   "resolveMcpCaller", // /api/mcp — a ck_* token or an OrangeCat JWT minted for Loki, src/lib/mcp/auth.ts
   "verifyTourToken", // signed, expiring "Watch the fix" ticket for ONE feedback item, src/lib/feedback/tour-token.ts
@@ -71,6 +72,12 @@ const GUARDS = [
  * nobody re-examined.
  */
 const PUBLIC: Record<string, string> = {
+  "studio-intake":
+    "Public write-only Bitbaum brief intake. Fixed contract chooses the owner; strict input, exact origin and rate limit. No read capability returned beyond the caller-created request.",
+  "studio-partners":
+    "Public directory of studio-approved, consenting, published partners with real availability. Explicit profile allowlist, never application evidence or contact details.",
+  commission:
+    "Compatibility 410 directing legacy paid-intake clients to Bitbaum; no database or side effects.",
   // — Sign-in and account recovery. Public by definition: the caller has no
   //   session yet, which is the entire reason they are here.
   "auth/[...nextauth]": "NextAuth's own handler — owns the session it would otherwise check",

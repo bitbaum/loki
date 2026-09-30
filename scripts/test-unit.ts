@@ -59,6 +59,7 @@ const SKIP: Record<string, string> = {
  */
 const SKIP_UNLESS_ENV: Record<string, string> = {
   "orangecat-entitlement-e2e.ts": "DATABASE_URL",
+  "studio-portal-e2e.ts": "DATABASE_URL",
 };
 
 for (const [file, envVar] of Object.entries(SKIP_UNLESS_ENV)) {
