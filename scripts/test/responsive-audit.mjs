@@ -161,6 +161,7 @@ const PAGES = [
  */
 const PUBLIC_PAGES = [
   "/",
+  "/commission",
   "/fleet",
   "/pricing",
   "/download",
