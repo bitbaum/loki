@@ -366,6 +366,7 @@ export async function listStudioRequests(userId: string) {
     changes: row.changes,
     status: row.status,
     revoked: row.accessRevoked,
+    partnerName: row.kind === "partner" ? (row.proposedProfile?.name ?? null) : null,
     updatedAt: row.updatedAt.toISOString(),
   }));
 }

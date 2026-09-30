@@ -205,6 +205,13 @@ async function main() {
       action: "approve_partner",
       body: "Studio review approved this test partner after the course pass.",
     });
+    await assert.rejects(
+      staff(application.id, {
+        action: "set_status",
+        status: "closed",
+        body: "Generic closure must not bypass the explicit partner decision.",
+      }),
+    );
     assert.equal((await studioPartnerDirectory(owners[0])).length, 0);
     await staff(application.id, { action: "publish_profile" });
     assert.equal((await studioPartnerDirectory(owners[0])).length, 1);

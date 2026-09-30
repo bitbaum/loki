@@ -99,7 +99,7 @@ export function StudioRequests({
         )}
         {requests.map((r) => (
           <button
-            key={r.partnerName ?? r.changes.slice(0, 60)}
+            key={r.id}
             type="button"
             className="ui-card-shell w-full space-y-2 p-4 text-left"
             aria-pressed={id === r.id}
@@ -189,30 +189,32 @@ export function StudioRequests({
                 {label("body", "Reply visible in this request", true)}
                 {send("Send reply")}
               </form>
-              <form
-                className="space-y-3"
-                onSubmit={(e) =>
-                  void submit(e, {
-                    action: "set_status",
-                    status: value(e.currentTarget, "status"),
-                    body: value(e.currentTarget, "body"),
-                  })
-                }
-              >
-                <label className="block space-y-2 text-sm text-text-secondary">
-                  Next status
-                  <select name="status" className="ui-input w-full">
-                    <option value="review">Under review</option>
-                    <option value="needs_information">More information needed</option>
-                    {view.kind === "website" && (
-                      <option value="in_progress">Work in progress</option>
-                    )}
-                    <option value="closed">Closed</option>
-                  </select>
-                </label>
-                {label("body", "Reason and next action", true)}
-                {send("Record next step")}
-              </form>
+              {!view.partner?.approved && (
+                <form
+                  className="space-y-3"
+                  onSubmit={(e) =>
+                    void submit(e, {
+                      action: "set_status",
+                      status: value(e.currentTarget, "status"),
+                      body: value(e.currentTarget, "body"),
+                    })
+                  }
+                >
+                  <label className="block space-y-2 text-sm text-text-secondary">
+                    Next status
+                    <select name="status" className="ui-input w-full">
+                      <option value="review">Under review</option>
+                      <option value="needs_information">More information needed</option>
+                      {view.kind === "website" && (
+                        <option value="in_progress">Work in progress</option>
+                      )}
+                      <option value="closed">Closed</option>
+                    </select>
+                  </label>
+                  {label("body", "Reason and next action", true)}
+                  {send("Record next step")}
+                </form>
+              )}
             </section>
             {view.kind === "website" && !view.revoked && (
               <>
