@@ -1,184 +1,103 @@
 "use client";
-
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { COMMISSION } from "@/config/commission";
 import { ROUTES } from "@/config/auth";
-import type { StudioCommissionContract } from "@/lib/studio-commission";
-
-type StudioView = Pick<StudioCommissionContract, "offer" | "availability">;
-type Mode = "build" | "studio";
-type Draft = { website: string; changes: string; contact: string; mode: Mode; requestId: string };
-
-export function WebsiteCommissionForm({
-  signedIn,
-  studio,
-  requestedPackage,
-}: {
-  signedIn: boolean;
-  studio: StudioView | null;
-  requestedPackage: boolean;
-}) {
+type Draft = { website: string; changes: string; requestId: string };
+export function WebsiteCommissionForm({ signedIn }: { signedIn: boolean }) {
   const router = useRouter();
   const [website, setWebsite] = useState("");
   const [changes, setChanges] = useState("");
-  const [contact, setContact] = useState("");
-  const [company, setCompany] = useState("");
-  const [mode, setMode] = useState<Mode>(requestedPackage ? "studio" : "build");
   const [ready, setReady] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState<{ claimPath?: string; closed: boolean } | null>(null);
   const requestId = useRef("");
-
   useEffect(() => {
-    // Restore external browser storage after hydration; server HTML remains
-    // deterministic and submission waits until recovery has completed.
     const frame = requestAnimationFrame(() => {
       try {
-        const raw = sessionStorage.getItem(COMMISSION.draftKey);
+        const handoff = location.hash.startsWith("#brief=");
+        const raw = handoff
+          ? decodeURIComponent(location.hash.slice(7))
+          : sessionStorage.getItem(COMMISSION.draftKey);
         const draft: Partial<Draft> | null = raw ? (JSON.parse(raw) as Partial<Draft>) : null;
         if (draft) {
-          setWebsite(String(draft.website ?? "").slice(0, COMMISSION.maxWebsite));
-          setChanges(String(draft.changes ?? "").slice(0, COMMISSION.maxChanges));
-          setContact(String(draft.contact ?? "").slice(0, 200));
-          if (!requestedPackage && (draft.mode === "studio" || draft.mode === "build"))
-            setMode(draft.mode);
-          if (typeof draft.requestId === "string") requestId.current = draft.requestId;
+          if (typeof draft.website === "string")
+            setWebsite(draft.website.slice(0, COMMISSION.maxWebsite));
+          if (typeof draft.changes === "string")
+            setChanges(draft.changes.slice(0, COMMISSION.maxChanges));
+          if (
+            !handoff &&
+            typeof draft.requestId === "string" &&
+            /^[a-f\d-]{36}$/.test(draft.requestId)
+          )
+            requestId.current = draft.requestId;
         }
+        if (handoff) history.replaceState(null, "", location.pathname + location.search);
       } catch {
-        /* Private browsing can disable storage; the form still works. */
+        /* Storage is optional. */
       }
       setReady(true);
     });
     return () => cancelAnimationFrame(frame);
-  }, [requestedPackage]);
-
+  }, []);
   useEffect(() => {
-    if (!ready || saved) return;
+    if (!ready) return;
     try {
       sessionStorage.setItem(
         COMMISSION.draftKey,
-        JSON.stringify({ website, changes, contact, mode, requestId: requestId.current }),
+        JSON.stringify({ website, changes, requestId: requestId.current }),
       );
     } catch {
-      /* Best-effort recovery, never a condition on submitting. */
+      /* optional */
     }
-  }, [website, changes, contact, mode, ready, saved]);
-
-  function editWebsite(value: string) {
-    requestId.current = "";
-    setWebsite(value);
-  }
-  function editChanges(value: string) {
-    requestId.current = "";
-    setChanges(value);
-  }
-
+  }, [website, changes, ready]);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (sending) return;
     setError("");
     requestId.current ||= crypto.randomUUID();
-    const draft: Draft = { website, changes, contact, mode, requestId: requestId.current };
     try {
-      sessionStorage.setItem(COMMISSION.draftKey, JSON.stringify(draft));
+      sessionStorage.setItem(
+        COMMISSION.draftKey,
+        JSON.stringify({ website, changes, requestId: requestId.current }),
+      );
     } catch {
       /* optional */
     }
-    if (mode === "build" && !signedIn) {
+    if (!signedIn) {
       router.push(`${ROUTES.SIGN_IN}?callbackUrl=${encodeURIComponent(COMMISSION.path)}`);
-      return;
-    }
-    if (mode === "studio" && !studio) {
-      setError("Current studio terms are unavailable. Try reloading; your brief is saved.");
       return;
     }
     setSending(true);
     try {
-      const response = await fetch(
-        mode === "build" ? COMMISSION.buildPath : COMMISSION.submitPath,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            mode === "build"
-              ? { website, changes, requestId: requestId.current }
-              : {
-                  website,
-                  changes,
-                  requestId: requestId.current,
-                  contact: contact.trim(),
-                  company,
-                  offerId: studio!.offer.id,
-                },
-          ),
-        },
-      );
+      const response = await fetch(COMMISSION.buildPath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ website, changes, requestId: requestId.current }),
+      });
       const body = (await response.json()) as {
         ok?: boolean;
         error?: string;
         projectPath?: string;
-        claimPath?: string;
-        availability?: { state: string };
       };
       if (!response.ok || !body.ok)
         throw new Error(
-          body.error ?? "The request did not go through. Your brief is still here; try again.",
+          body.error ?? "Your brief is still here. Try again to resume this request.",
         );
-      if (mode === "build") {
-        if (!body.projectPath || !/^\/projects\/[\da-f-]+\/watch$/.test(body.projectPath))
-          throw new Error("The project response was incomplete. Try again to resume this request.");
-        try {
-          sessionStorage.removeItem(COMMISSION.draftKey);
-        } catch {
-          /* optional */
-        }
-        router.push(body.projectPath);
-      } else {
-        setSaved({
-          claimPath: body.claimPath?.startsWith("/claim-feedback?token=")
-            ? body.claimPath
-            : undefined,
-          closed: body.availability?.state === "closed",
-        });
-        try {
-          sessionStorage.removeItem(COMMISSION.draftKey);
-        } catch {
-          /* optional */
-        }
+      if (!body.projectPath || !/^\/projects\/[\da-f-]+\/watch$/.test(body.projectPath))
+        throw new Error("The response was incomplete. Retry to resume this request.");
+      try {
+        sessionStorage.removeItem(COMMISSION.draftKey);
+      } catch {
+        /* optional */
       }
+      router.push(body.projectPath);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The request did not go through. Try again.");
+      setError(err instanceof Error ? err.message : "Try again; your brief is still here.");
     } finally {
       setSending(false);
     }
   }
-
-  if (saved)
-    return (
-      <section className="ui-card-shell space-y-4 p-5 sm:p-6" aria-live="polite">
-        <h2 className="text-xl font-semibold text-text-primary">Your request is saved</h2>
-        <p className="text-text-secondary">
-          {saved.closed
-            ? "The studio has your website and changes on its waitlist."
-            : "The studio has your website and changes for review."}{" "}
-          Scope and timing are agreed before work starts.
-        </p>
-        {saved.claimPath && (
-          <Link href={saved.claimPath} className="ui-btn-primary">
-            Track this request
-          </Link>
-        )}
-        <p className="text-sm text-text-muted">
-          {contact.trim()
-            ? `The reply address is ${contact.trim()}.`
-            : "You can attach this request to your account to follow its progress."}
-        </p>
-      </section>
-    );
-
   return (
     <form
       onSubmit={(event) => void submit(event)}
@@ -199,7 +118,10 @@ export function WebsiteCommissionForm({
           maxLength={COMMISSION.maxWebsite}
           required
           value={website}
-          onChange={(event) => editWebsite(event.target.value)}
+          onChange={(e) => {
+            requestId.current = "";
+            setWebsite(e.target.value);
+          }}
         />
       </div>
       <div className="space-y-2">
@@ -210,109 +132,50 @@ export function WebsiteCommissionForm({
           id="commission-changes"
           className="ui-input min-h-36 w-full resize-y text-base"
           rows={5}
-          placeholder="Make booking easier on phones and add a page for our services…"
           maxLength={COMMISSION.maxChanges}
           required
           value={changes}
-          onChange={(event) => editChanges(event.target.value)}
+          onChange={(e) => {
+            requestId.current = "";
+            setChanges(e.target.value);
+          }}
         />
         <p className="text-sm text-text-muted">
-          Your own words are enough. You can add details in the project later.
+          Your own words are enough. Add details in the project later.
         </p>
       </div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Who should build it?">
-        <button
-          type="button"
-          className={mode === "build" ? "ui-btn-primary" : "ui-btn-ghost"}
-          aria-pressed={mode === "build"}
-          onClick={() => setMode("build")}
-        >
-          Build with Loki
-        </button>
-        <button
-          type="button"
-          className={mode === "studio" ? "ui-btn-primary" : "ui-btn-ghost"}
-          aria-pressed={mode === "studio"}
-          onClick={() => setMode("studio")}
-        >
-          Ask the Bitbaum studio
-        </button>
-      </div>
-      {mode === "build" ? (
-        <p className="text-sm text-text-secondary">
-          Creates a private project and starts the build on a separate version. Follow the
-          agent&apos;s progress and review the result in your project. Source access or a connected
-          builder may be needed.
-        </p>
-      ) : studio ? (
-        <div className="space-y-3">
-          <p className="font-medium text-text-primary">
-            {studio.offer.name} · {studio.offer.price} · {studio.offer.shape}
-          </p>
-          <p className="text-sm text-text-secondary">{studio.offer.what}</p>
-          <p className="text-sm text-text-secondary">{studio.availability.line}</p>
-          <p className="text-sm text-text-muted">
-            Sending is free. The studio confirms the scope in writing before work starts; additional
-            development is quoted separately.
-          </p>
-          <details>
-            <summary className="ui-btn-ghost w-fit">Add a reply address (optional)</summary>
-            <label htmlFor="commission-contact" className="mt-3 block text-sm text-text-secondary">
-              Email for the studio&apos;s reply
-            </label>
-            <input
-              id="commission-contact"
-              className="ui-input mt-2 w-full text-base"
-              type="email"
-              autoComplete="email"
-              maxLength={200}
-              value={contact}
-              onChange={(event) => setContact(event.target.value)}
-            />
-          </details>
-        </div>
-      ) : (
-        <p className="text-sm text-text-secondary">
-          Current studio terms could not be loaded.{" "}
-          <a className="text-accent-text underline" href={COMMISSION.studioHireUrl}>
-            See the published rates and waitlist
-          </a>
-          , or build with Loki.
-        </p>
-      )}
-      <div className="hidden" aria-hidden="true">
-        <label htmlFor="commission-company">Company website verification</label>
-        <input
-          id="commission-company"
-          tabIndex={-1}
-          autoComplete="off"
-          value={company}
-          onChange={(event) => setCompany(event.target.value)}
-        />
-      </div>
+      <p className="text-sm text-text-secondary">
+        Loki is a free, independent tool. This creates a private project and prepares a separate
+        version for review. Source access, a connected builder or your own provider resources may be
+        needed.
+      </p>
       {error && (
-        <p role="alert" className="text-sm text-status-warning">
+        <p role="alert" className="ui-error">
           {error}
         </p>
       )}
       <button
         type="submit"
         className="ui-btn-primary min-h-11 w-full sm:w-auto"
-        disabled={sending || !ready || (mode === "studio" && !studio)}
+        disabled={sending || !ready}
       >
-        {sending
-          ? "Saving your brief…"
-          : mode === "build"
-            ? "Build a new version"
-            : studio?.availability.state === "closed"
-              ? "Send to the studio waitlist"
-              : "Send to the studio"}
+        {sending ? "Creating your project…" : "Build a new version"}
       </button>
-      {mode === "build" && !signedIn && (
+      {!signedIn && (
         <p className="text-sm text-text-muted">
           Sign in next. Your brief stays here through sign-in.
         </p>
       )}
+      <p className="text-sm text-text-secondary">
+        Prefer to hire someone?{" "}
+        <a
+          className="text-accent-text underline"
+          href={`${COMMISSION.studioHireUrl}#brief=${encodeURIComponent(JSON.stringify({ website, changes }))}`}
+        >
+          Take this brief to the Bitbaum studio
+        </a>
+        .
+      </p>
     </form>
   );
 }

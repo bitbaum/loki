@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { PageLayout } from "@/components/ui/page-layout";
 import { CardSkeleton } from "@/components/ui/card";
@@ -15,7 +16,15 @@ export const metadata = { title: "Feedback" };
 export default async function FeedbackPage() {
   await requirePageUserId();
   return (
-    <PageLayout title="Feedback" maxWidth="max-w-5xl">
+    <PageLayout
+      title="Feedback"
+      maxWidth="max-w-5xl"
+      right={
+        <Link href="/feedback/studio" className="ui-btn-secondary">
+          Studio requests
+        </Link>
+      }
+    >
       <Suspense fallback={<CardSkeleton />}>
         <FeedbackInbox />
       </Suspense>

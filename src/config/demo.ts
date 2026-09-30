@@ -102,6 +102,7 @@ export const DEMO_DENIAL_COPY: Record<DemoDenialReason, string> = {
  * feel administrative?".
  */
 export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialReason]> = [
+  ["/api/studio-review", "content"],
   // — reaches the box ————————————————————————————————————————————————
   ["/api/control", "dispatch"],
   ["/api/agents", "dispatch"],
@@ -222,6 +223,9 @@ export const DEMO_DENIED_GET_PREFIXES: ReadonlyArray<readonly [string, DemoDenia
  * test turns that silence into a red build.
  */
 export const DEMO_SAFE_FAMILIES: readonly string[] = [
+  "studio-intake", // Public fixed-owner write; query rejects a demo owner.
+  "studio-portal", // Guest request capability; query rejects a demo owner.
+  "studio-partners", // Public consented directory.
   "activity",
   "alerts",
   "beacon-settings",
