@@ -118,6 +118,11 @@ export const PUBLIC_NAV: PublicNavEntry[] = [
       {
         title: "Use",
         items: [
+          {
+            label: "Change a website",
+            href: "/commission",
+            description: "Start with its address and the changes you want.",
+          },
           // "Linux app" outlived its truth: mac and Windows builds have shipped
           // from the same CI matrix since v0.8.11.
           {

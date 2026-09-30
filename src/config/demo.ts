@@ -112,6 +112,7 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   // someone's bill, and the probe would turn the server into a key checker.
   ["/api/settings", "credentials"],
   ["/api/orchestration", "dispatch"],
+  ["/api/projects/from-website", "dispatch"],
   ["/api/inject", "terminal"],
   ["/api/terminal", "terminal"],
   ["/api/command", "terminal"],
@@ -172,7 +173,7 @@ export const DEMO_PARTIAL_PREFIXES: Readonly<Record<string, string>> = {
  * Otherwise this table becomes a comment that documents protection nobody wrote.
  *
  * Not listed, deliberately: /api/system exposes only a GET of host stats — no
- * mutation to deny, and reading uptime costs nothing. /api/newsletter, /api/feedback and /api/widget-boot
+ * mutation to deny, and reading uptime costs nothing. /api/newsletter, /api/feedback, /api/commission and /api/widget-boot
  * are public endpoints any anonymous visitor may already call, so gating the
  * demo account specifically would protect nothing. /api/stripe/webhook,
  * /api/orangecat/* and /api/solon/* verify their own HMAC signatures and are not
@@ -227,6 +228,7 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
   "builder",
   "calendar",
   "commitments",
+  "commission", // Public write-only studio intake, the same token-backed door as feedback.
   "crew",
   "crons",
   "debug-log",

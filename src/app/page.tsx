@@ -22,6 +22,7 @@ import {
 import { ROUTES } from "@/config/auth";
 import { isFleetRunnerRequest } from "@/lib/fleet-runner";
 import { landingRedirect } from "@/lib/landing-destination";
+import { COMMISSION } from "@/config/commission";
 
 export default async function LandingPage({
   searchParams,
@@ -98,6 +99,9 @@ export default async function LandingPage({
           <p className="ui-public-hero-lede">{MARKETING_TAGLINE}</p>
 
           <div className="ui-public-hero-actions mx-auto">
+            <Link href={COMMISSION.path} className="ui-public-cta-ghost">
+              Change an existing website
+            </Link>
             <Link href={signedIn ? ROUTES.APP_HOME : ROUTES.SIGN_UP} className="ui-public-cta">
               {signedIn ? `Open ${APP_NAME}` : "Start building"}
             </Link>

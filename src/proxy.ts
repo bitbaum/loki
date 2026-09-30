@@ -70,6 +70,9 @@ export const config = {
      *                                withholds an unknown id, so there is nothing for a signature
      *                                to protect.
      *   api/solon/                 – Solon governance webhooks (decision.finalized); verifies its own HMAC signature
+     *   commission, api/commission – public website-change intake; validated,
+     *                                rate-limited, write-only studio inbox. Building
+     *                                still requires a session at api/projects/from-website.
      *   api/newsletter             – public email-capture (zod + rate-limited in-handler)
      *   api/feedback               – public widget ingest (fcw_* token auth + CORS); the
      *                                PATCH triage sub-route enforces session auth in-handler
@@ -110,6 +113,6 @@ export const config = {
      *                                server for api/mcp. It describes how to GET a credential,
      *                                so it cannot require one.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|u/|share/project/|share/task/|a/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|api/widget/advise|api/widget/tour|api/mcp|\\.well-known/oauth-protected-resource|widget\\.js).+)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|commission(?:/|$)|u/|share/project/|share/task/|a/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/commission(?:/|$)|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|api/widget/advise|api/widget/tour|api/mcp|\\.well-known/oauth-protected-resource|widget\\.js).+)",
   ],
 };
