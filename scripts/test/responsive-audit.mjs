@@ -125,6 +125,7 @@ const PAGES = [
   // /feedback is where an operator spends the triage half of their day, and its
   // per-row action cluster is the densest control group in the app.
   "/feedback",
+  "/feedback/studio",
   "/robots",
   // Authenticated, and both were reachable and unmeasured. /my-feedback is
   // the REPORTER's view — the one feedback surface whose reader may be a

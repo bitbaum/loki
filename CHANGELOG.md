@@ -6,6 +6,13 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-09-30 — Scoped Bitbaum portal infrastructure
+
+- Keep Loki's website brief free self-service; redirect legacy paid-intake links to Bitbaum, preserving explicit brief handoffs through sign-in.
+- Add bounded Bitbaum request capabilities, versioned preview acceptance, revocation and assigned-partner delivery without project or execution access.
+- Add studio-owned course evidence review, separate partner approval and consenting profile publication. The pilot course and commercial offer remain owned by Bitbaum.
+- Resolve missing profile repository URLs from the existing project-ID register join so canonical studio development records can be read.
+
 ## 2026-09-30
 
 ### Fixed

@@ -272,3 +272,12 @@ export function summarize(rows: RegisterRow[]) {
     solon: rows.filter((r) => r.solon).length,
   };
 }
+
+/** Registered repository fallback for a profile lacking gitUrl. Join by the
+ * actual Loki project ID; display names must not update or enrol another tenant. */
+export function repoForProjectRecords(
+  project: { id: string; gitUrl: string | null },
+  rows: RegisterRow[],
+): string | null {
+  return project.gitUrl || rows.find((row) => row.loki?.id === project.id)?.repo || null;
+}
