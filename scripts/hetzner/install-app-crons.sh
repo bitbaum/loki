@@ -78,6 +78,10 @@ substrata|4022|*-*-* 00/6:52:00|/api/cron/source|POST
 # OpenFIGI) and USGS table rows, and stores the scorecard behind /data/quality
 # (research_quality_checks/_runs, migration 014). No AI: HTTP and string matching.
 substrata|4022|*-*-* 01/6:41:00|/api/cron/quality|POST
+# solon has no vercel.json. Daily Places import: the route fetches the public
+# registers whose cadence names the day (solon src/lib/places/schedule.ts) and
+# calls no model.
+solon|4018|*-*-* 04:30:00|/api/cron/places|POST
 REG
 )"
 
