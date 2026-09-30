@@ -1,6 +1,6 @@
 /**
- * Loki tokens → bip-kit's --bp-* theming contract, for /thoughts only
- * (this file is imported by the essay route, not by globals.css).
+ * Loki tokens → bip-kit's --bp-* theming contract, for the essays and the
+ * whitepaper (imported by those routes, not by globals.css).
  *
  * Every value is a var() reference into the design-token SSOT
  * (src/app/globals.css), so both themes are covered by ONE mapping — the
