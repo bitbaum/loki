@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { DocContents } from "@/components/public/DocContents";
+import { normalizeMarkdown, parseFrontmatter } from "bip-kit";
 import { parseThoughtBlocks } from "@/lib/thoughts-content";
 import { ROUTES } from "@/config/auth";
 import { APP_NAME } from "@/config/brand";
@@ -14,21 +15,6 @@ export const metadata: Metadata = {
   description:
     "A technical architecture for sustained autonomous execution across many projects simultaneously.",
 };
-
-function parseFrontmatter(raw: string): { meta: Record<string, string>; body: string } {
-  if (!raw.startsWith("---\n")) return { meta: {}, body: raw };
-  const end = raw.indexOf("\n---\n", 4);
-  if (end === -1) return { meta: {}, body: raw };
-  const header = raw.slice(4, end);
-  const body = raw.slice(end + 5);
-  const meta: Record<string, string> = {};
-  for (const line of header.split("\n")) {
-    const idx = line.indexOf(":");
-    if (idx <= 0) continue;
-    meta[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
-  }
-  return { meta, body };
-}
 
 function renderInline(text: string): string {
   return text
@@ -49,11 +35,15 @@ function slugify(text: string): string {
 export default function WhitepaperPage() {
   const raw = fs.readFileSync(path.join(process.cwd(), "content", "whitepaper.md"), "utf-8");
   const { meta, body } = parseFrontmatter(raw);
-  const blocks = parseThoughtBlocks(body);
-  const title = meta.title ?? "Whitepaper";
-  const subtitle = meta.subtitle ?? "";
-  const version = meta.version ?? "0.1";
-  const publishedAt = meta.publishedAt ?? "";
+  const blocks = parseThoughtBlocks(normalizeMarkdown(body));
+  const field = (key: string) => {
+    const value = meta[key];
+    return Array.isArray(value) ? value.join(", ") : value;
+  };
+  const title = field("title") ?? "Whitepaper";
+  const subtitle = field("subtitle") ?? "";
+  const version = field("version") ?? "0.1";
+  const publishedAt = field("publishedAt") ?? "";
   const toc = blocks.flatMap((block) =>
     block.type === "h2" ? [{ text: block.text, id: slugify(block.text) }] : [],
   );

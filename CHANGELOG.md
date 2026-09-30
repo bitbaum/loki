@@ -6,6 +6,12 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-09-30
+
+### Fixed
+- **Every essay's reading time is its own.** Five essays in Thoughts showed
+  "6 min" whatever their length; they now show the time their text takes.
+
 ## 2026-09-29
 
 ### Changed
