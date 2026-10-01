@@ -329,7 +329,8 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 ## 2026-09-13
 
 ### Changed
-- **FleetCrown is now called Loki** (#695).
+- **The product takes the name Loki,** everywhere it used to carry its old
+  name (#695).
 
 ## 2026-09-11
 
