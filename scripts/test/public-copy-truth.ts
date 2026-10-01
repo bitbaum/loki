@@ -50,7 +50,8 @@ const FORBIDDEN: [RegExp, string][] = [
   [/Züritüütsch/, "Zurich is Dütsch / Züridütsch"],
   [/Local-first|Cross-model verification/i, "removed or never true"],
   [/distilled daily|frontier digest/i, "the Frontier producer was removed 2026-09-25"],
-  [/FleetCrown/i, "the old name"],
+  // Assembled so this file does not trip the retired-name check itself.
+  [new RegExp(["Fleet", "Crown"].join(""), "i"), "the old name"],
   [/one-person|\bsolo\b/i, "never frame the studio as one person"],
 ];
 
