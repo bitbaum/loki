@@ -83,9 +83,18 @@ Optional intro prose.
 Rules:
 - A `##` heading containing an ISO date (`YYYY-MM-DD`) starts an entry; text
   before the first dated heading is ignored.
-- All bullet lines under it (any `###` sub-sections) become the entry's `done`
-  text: bullets joined with newlines, markdown emphasis stripped, `**Title.**`
-  kept as plain text. Sub-bullets are dropped. Cap ~700 chars per entry.
+- Every bullet under it (any `###` sub-sections) becomes one line of the
+  entry's `done` text, WHOLE: a bullet's wrapped continuation lines are joined
+  to it, markdown emphasis is stripped, `**Title.**` is kept as plain text.
+  Prose paragraphs count as items too, so an entry written without bullets is
+  not dropped. Sub-bullets are dropped. No length cap and no entry cap in the
+  parser (until 2026-10-01 it kept only each bullet's first line, cut entries
+  at 700 characters and kept 40 entries — the public page ended sentences
+  mid-word). The map's `changelog` field still publishes the newest 20 as
+  `{date, done}`; the parsed record also carries `title` and `sections`
+  (sub-headings with their items) for a page that renders the structure, as
+  Loki's own `/changelog` does. Write every bullet as a full sentence:
+  `scripts/test/changelog-own-file.ts` fails on Loki's file otherwise.
 - Newest first in the file (the map re-sorts anyway).
 - User-facing: what a reader can now do / what was wrong, never commit slang.
   Fixes get the same weight as features. Numbers are the ones in the commits.
