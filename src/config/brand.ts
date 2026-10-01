@@ -38,9 +38,14 @@
 export const APP_NAME = "Loki";
 export const APP_SLUG = "loki";
 export const APP_DOMAIN = "loki.orangecat.ch";
-export const APP_KICKER = "Personal Systems";
+// Was "Personal Systems" — the life-OS kicker that outlived the pivot and sat
+// beside the logo on every page. Fleet rule: everything is beta; say so where
+// the name is (2026-10-01 copy sweep).
+export const APP_KICKER = "Beta";
+/** The one sentence that describes Loki — meta description, OG/Twitter alt,
+ *  manifest. The hero says the same thing at length; keep them one claim. */
 export const APP_DESCRIPTION =
-  "Command your agents, projects, and personal systems from one workspace.";
+  "Describe a website or app in plain words. AI coding agents build it, put it online, and keep improving it.";
 
 // Helpers — never hardcode these patterns in components.
 export const APP_URL = `https://${APP_DOMAIN}`;
@@ -67,14 +72,21 @@ export const BRIDGE_URL = `https://${BRIDGE_DOMAIN}/sse`;
  *  the compact sibling of MARKETING_TAGLINE below. Was "your life operating
  *  system", which survived the life-OS → agent-fleet pivot and kept shipping
  *  the old product's promise on every public profile and social card. */
-export const APP_TAGLINE = "run your agent fleet";
+export const APP_TAGLINE = "describe it, agents build it";
 
-// Marketing / Positioning (SSOT for public copy)
-export const MARKETING_TAGLINE = "The operating system for people running real AI agents.";
-export const MARKETING_HERO_PRIMARY = "Run your fleet.";
-export const MARKETING_HERO_SECONDARY = "From anywhere.";
-export const MARKETING_POSITIONING = "Cloud + local builders · One control plane";
-/** Phone-width variant of the positioning badge. The full string needs ~330px
- *  of tracked uppercase and wrapped to two lines inside a pill on every phone,
- *  where a badge that wraps stops reading as a badge. Same claim, two terms. */
-export const MARKETING_POSITIONING_SHORT = "Cloud + local · One control plane";
+// Marketing / Positioning (SSOT for public copy).
+//
+// Rewritten 2026-10-01. The old hero ("Run your fleet. From anywhere. The
+// operating system for people running real AI agents.") spoke only to people
+// who ALREADY run many agents, in words ("fleet", "control plane", "builder")
+// a first-time visitor cannot parse — while the product's actual first flow is
+// a person describing something and agents building, shipping and improving
+// it. Plain words first; the vocabulary lives on /how-it-works.
+export const MARKETING_TAGLINE =
+  "Describe a website or app in plain words. AI coding agents build it, put it online, and keep changing it whenever you say what should be different.";
+export const MARKETING_HERO_PRIMARY = "Describe it.";
+export const MARKETING_HERO_SECONDARY = "Agents build it.";
+export const MARKETING_POSITIONING = "Beta · Free while in beta · Open source";
+/** Phone-width variant of the positioning badge — a badge that wraps stops
+ *  reading as a badge. Same claim, fewer words. */
+export const MARKETING_POSITIONING_SHORT = "Beta · Free · Open source";

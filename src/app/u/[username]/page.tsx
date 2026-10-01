@@ -216,7 +216,7 @@ export default async function PublicProfilePage({
             href={ROUTES.SIGN_UP}
             className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-text-primary transition-opacity hover:opacity-80"
           >
-            Build your own command center
+            Start your own project on Loki
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </footer>

@@ -10,7 +10,14 @@ import {
 } from "@/db/queries/public-fleet";
 import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
-import { HOME_PRODUCT_SURFACES, START_PATHS, HOME_HERO_CONSOLE } from "@/config/marketing-content";
+import {
+  HOME_AUDIENCES,
+  HOME_HERO_CONSOLE,
+  HOME_PRODUCT_SURFACES,
+  HOME_SAFETY_NOTE,
+  HOME_STEPS,
+  WHERE_IT_RUNS,
+} from "@/config/marketing-content";
 import {
   APP_NAME,
   MARKETING_TAGLINE,
@@ -98,28 +105,24 @@ export default async function LandingPage({
 
           <p className="ui-public-hero-lede">{MARKETING_TAGLINE}</p>
 
+          {/* One primary action. Three equal buttons used to compete here
+              ("Change an existing website", "Start building", "Download
+              runner") and the download — a desktop binary — led on phones,
+              where it is a dead end. The download lives in "Where the work
+              runs" below and in the nav. */}
           <div className="ui-public-hero-actions mx-auto">
-            <Link href={COMMISSION.path} className="ui-public-cta-ghost">
-              Change an existing website
-            </Link>
             <Link href={signedIn ? ROUTES.APP_HOME : ROUTES.SIGN_UP} className="ui-public-cta">
-              {signedIn ? `Open ${APP_NAME}` : "Start building"}
+              {signedIn ? `Open ${APP_NAME}` : "Start a project"}
             </Link>
-            {/* "Download runner" is a dead end on a phone — Fleet Runner is a
-                desktop binary (.deb / .dmg / .exe) and there is nothing a
-                phone visitor can do with that link but lose their place. They
-                get the tour instead; the download keeps its place from `sm`
-                up, where the visitor is plausibly on the machine that would
-                run it. */}
-            <Link href="/docs/quickstart" className="ui-public-cta-ghost sm:hidden">
-              See how it works
+            <Link href={COMMISSION.path} className="ui-public-cta-ghost">
+              Change a website you have
             </Link>
-            {!insideRunner && (
-              <Link href="/download" className="ui-public-cta-ghost hidden sm:inline-flex">
-                Download runner
-              </Link>
-            )}
           </div>
+          <p className="ui-public-meta mt-4">
+            <Link href="/how-it-works" className="ui-public-link">
+              How it works →
+            </Link>
+          </p>
 
           {/* Hero product visual — a REAL snapshot of the FLEET, fetched
               server-side: the showcase tier (owner consented AND operator
@@ -133,7 +136,7 @@ export default async function LandingPage({
                 <span
                   className={`ui-public-hero-console-live${fleet.isLive ? "" : " ui-public-hero-console-live-idle"}`}
                 >
-                  {fleet.isLive ? "Live" : "Fleet"}
+                  {fleet.isLive ? HOME_HERO_CONSOLE.busy : HOME_HERO_CONSOLE.idle}
                 </span>
               </div>
               {fleet.projects.length > 0 && (
@@ -184,21 +187,100 @@ export default async function LandingPage({
         </div>
       </div>
 
+      {/* 1 — How it works, in a newcomer's words. */}
+      <div className="ui-public-band ui-public-section" id="how">
+        <div className="ui-public-container">
+          <div className="text-center">
+            <div className="ui-public-eyebrow">HOW IT WORKS</div>
+            <h2 className="ui-public-display-lg mt-3 sm:mt-4">
+              From a sentence to a working site.
+            </h2>
+          </div>
+          <div className="ui-public-section-gap ui-public-howto">
+            {HOME_STEPS.map((step) => (
+              <section key={step.number} className="ui-public-howto-step">
+                <span className="ui-public-howto-num" aria-hidden="true">
+                  {step.number}
+                </span>
+                <h3 className="ui-public-howto-title">{step.title}</h3>
+                <p className="ui-public-howto-body">{step.body}</p>
+              </section>
+            ))}
+          </div>
+          <p className="ui-public-howto-note">{HOME_SAFETY_NOTE}</p>
+        </div>
+      </div>
+
+      {/* 2 — Proof: real fixes that shipped because someone asked. */}
+      {shipped.entries.length > 0 && (
+        <div className="ui-public-section">
+          <div className="ui-public-container">
+            <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr] md:items-end md:gap-10">
+              <div>
+                <div className="ui-public-eyebrow">FIXED BECAUSE SOMEONE ASKED</div>
+                <h2 className="ui-public-display-md mt-3 sm:mt-4">Notes in, fixes out.</h2>
+              </div>
+              <p className="ui-public-section-lede md:justify-self-end">
+                Real notes left through the Loki button on a site, fixed by an agent and put online
+                {shipped.resolvedCount > 0 && ` — ${shipped.resolvedCount} so far`}.
+              </p>
+            </div>
+            <div className="ui-public-section-gap grid gap-3 sm:grid-cols-3 sm:gap-4">
+              {shipped.entries.map((entry) => (
+                <section
+                  key={`${entry.project}-${entry.resolvedAt}`}
+                  className="ui-public-surface-card !min-h-0"
+                >
+                  <div className="ui-public-surface-card-label">{entry.project}</div>
+                  <p className="ui-public-surface-card-body">“{entry.excerpt}”</p>
+                  <div className="ui-public-surface-card-meta">
+                    <span className="ui-public-surface-card-meta-chip">
+                      {entry.page ? `${entry.page} · ` : ""}fixed{" "}
+                      {new Date(entry.resolvedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3 — Who it is for: three doors instead of one pitch. */}
+      <div className="ui-public-section">
+        <div className="ui-public-container">
+          <div className="text-center">
+            <div className="ui-public-eyebrow">WHO IT IS FOR</div>
+            <h2 className="ui-public-display-lg mt-3 sm:mt-4">Start where you are.</h2>
+          </div>
+          <div className="ui-public-section-gap grid gap-3 sm:gap-4 md:grid-cols-3">
+            {HOME_AUDIENCES.map((door) => (
+              <Link key={door.title} href={door.href} className="ui-public-start-card">
+                <h3 className="ui-public-start-card-title">{door.title}</h3>
+                <p className="ui-public-start-card-body">{door.body}</p>
+                <span className="ui-public-start-card-link">{door.cta} →</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 4 — What is inside, for a visitor who wants a look first. */}
       <div className="ui-public-band ui-public-section">
         <div className="ui-public-container">
           <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr] md:items-end md:gap-10">
             <div>
-              <div className="ui-public-eyebrow">PRODUCT</div>
-              <h2 className="ui-public-display-lg mt-3 sm:mt-4">
-                One control plane. Choose the builder.
-              </h2>
+              <div className="ui-public-eyebrow">INSIDE {APP_NAME.toUpperCase()}</div>
+              <h2 className="ui-public-display-lg mt-3 sm:mt-4">You stay in charge.</h2>
             </div>
             <p className="ui-public-section-lede md:justify-self-end">
-              {APP_NAME} is built for operators already running multiple AI agents across multiple
-              projects. It makes the work visible, steerable, and recoverable.
+              {APP_NAME} doesn&rsquo;t write code itself. It runs the AI coding agents that do — and
+              shows you what they are doing, what they changed, and what went online.
             </p>
           </div>
-
           <div className="ui-public-section-gap grid gap-3 sm:grid-cols-2 sm:gap-4">
             {HOME_PRODUCT_SURFACES.map((surface) => (
               <section key={surface.label} className="ui-public-surface-card">
@@ -215,83 +297,35 @@ export default async function LandingPage({
               </section>
             ))}
           </div>
+          <p className="ui-public-meta mt-6 text-center sm:mt-8">
+            <Link href="/compare" className="ui-public-link">
+              How Loki compares with Claude Code, Codex, Lovable and others →
+            </Link>
+          </p>
         </div>
       </div>
 
-      {shipped.entries.length > 0 && (
-        <div className="ui-public-section">
-          <div className="ui-public-container">
-            <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr] md:items-end md:gap-10">
-              <div>
-                <div className="ui-public-eyebrow">SHIPPED BECAUSE A VISITOR ASKED</div>
-                <h2 className="ui-public-display-md mt-3 sm:mt-4">
-                  The feedback loop, in production.
-                </h2>
-              </div>
-              <p className="ui-public-section-lede md:justify-self-end">
-                Real reports from the feedback widget, fixed by the fleet and deployed
-                {shipped.resolvedCount > 0 && ` — ${shipped.resolvedCount} resolved so far`}.
-              </p>
-            </div>
-            <div className="ui-public-section-gap grid gap-3 sm:grid-cols-3 sm:gap-4">
-              {shipped.entries.map((entry) => (
-                <section
-                  key={`${entry.project}-${entry.resolvedAt}`}
-                  className="ui-public-surface-card !min-h-0"
-                >
-                  <div className="ui-public-surface-card-label">{entry.project}</div>
-                  <p className="ui-public-surface-card-body">“{entry.excerpt}”</p>
-                  <div className="ui-public-surface-card-meta">
-                    <span className="ui-public-surface-card-meta-chip">
-                      {entry.page ? `${entry.page} · ` : ""}shipped{" "}
-                      {new Date(entry.resolvedAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                  </div>
-                </section>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* 5 — Where the work runs, honest about who can use the cloud. */}
       <div className="ui-public-section">
         <div className="ui-public-container">
-          <div className="text-center">
-            <div className="ui-public-eyebrow">GET STARTED</div>
-            <h2 className="ui-public-display-lg mt-3 sm:mt-4">Not another coding agent.</h2>
-            <p className="ui-public-section-lede mx-auto mt-4">
-              Most tools help you write code faster in one file or one project. Loki is for running
-              real agent operations at fleet scale — choose your entry point.
-            </p>
+          <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr] md:items-end md:gap-10">
+            <div>
+              <div className="ui-public-eyebrow">{WHERE_IT_RUNS.eyebrow}</div>
+              <h2 className="ui-public-display-md mt-3 sm:mt-4">{WHERE_IT_RUNS.title}</h2>
+            </div>
+            <p className="ui-public-section-lede md:justify-self-end">{WHERE_IT_RUNS.lede}</p>
           </div>
-
-          <div className="ui-public-section-gap grid gap-3 sm:gap-4 md:grid-cols-3">
-            {START_PATHS.filter((path) => !(insideRunner && path.href === "/download")).map(
-              (path) => (
-                /* The card itself is the link. A 44px text link inside a 260px
-                 card is a needle to hit with a thumb; the whole surface is the
-                 target now, and the arrow row is just its label.
-
-                 order-last below `md`: "Run locally" leads on desktop, where
-                 the visitor is plausibly sitting at the machine that would run
-                 the agents. On a phone it is the one entry point they cannot
-                 take, and leading three choices with it makes the list open on
-                 a dead end. The hosted control plane goes first there; the
-                 grid restores config order at `md`. */
-                <Link
-                  key={path.title}
-                  href={path.href}
-                  className={`ui-public-start-card${path.href === "/download" ? " order-last md:order-none" : ""}`}
-                >
-                  <h3 className="ui-public-start-card-title">{path.title}</h3>
-                  <p className="ui-public-start-card-body">{path.body}</p>
-                  <span className="ui-public-start-card-link">{path.cta} →</span>
+          <div className="ui-public-section-gap grid gap-3 sm:grid-cols-2 sm:gap-4">
+            {WHERE_IT_RUNS.options
+              .filter((option) => !(insideRunner && option.cta.href === "/download"))
+              .map((option) => (
+                <Link key={option.label} href={option.cta.href} className="ui-public-start-card">
+                  <div className="ui-public-surface-card-label">{option.label}</div>
+                  <h3 className="ui-public-start-card-title mt-2">{option.title}</h3>
+                  <p className="ui-public-start-card-body">{option.body}</p>
+                  <span className="ui-public-start-card-link">{option.cta.label} →</span>
                 </Link>
-              ),
-            )}
+              ))}
           </div>
         </div>
       </div>
@@ -301,9 +335,11 @@ export default async function LandingPage({
           href={signedIn ? ROUTES.APP_HOME : ROUTES.SIGN_UP}
           className="ui-public-cta-lg w-full sm:w-auto"
         >
-          {signedIn ? `Open ${APP_NAME}` : "Begin"}
+          {signedIn ? `Open ${APP_NAME}` : "Start a project"}
         </Link>
-        <p className="ui-public-meta mt-4">For builders running real agent operations.</p>
+        <p className="ui-public-meta mt-4">
+          Free while {APP_NAME} is in beta. Open source under the MIT licence.
+        </p>
       </div>
     </PublicSurface>
   );

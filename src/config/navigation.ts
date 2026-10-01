@@ -16,7 +16,6 @@ import {
   Settings,
   Brain,
   Compass,
-  Anchor,
   Map,
   TrendingUp,
   FileText,
@@ -237,21 +236,13 @@ export const NAV = {
     active: true,
     mobile: false,
   },
-  mission: {
-    id: "mission",
-    label: "Mission",
-    description: "Why we exist",
-    href: "/mission",
+  // /mission and /philosophy merged into /why (2026-10-01).
+  why: {
+    id: "why",
+    label: "Why Loki",
+    description: "What it is for, and the rules it keeps",
+    href: "/why",
     icon: Compass,
-    active: true,
-    mobile: false,
-  },
-  philosophy: {
-    id: "philosophy",
-    label: "Philosophy",
-    description: "Principles we build by",
-    href: "/philosophy",
-    icon: Anchor,
     active: true,
     mobile: false,
   },
@@ -386,8 +377,7 @@ export const ACCOUNT_NAV_ITEMS: NavItem[] = [NAV.settings, NAV.download];
 // Public surface. Not in the sidebar; kept here so the command palette can
 // reach them and so there is one list to render the public nav from.
 export const SITE_NAV_ITEMS: NavItem[] = [
-  NAV.mission,
-  NAV.philosophy,
+  NAV.why,
   NAV.roadmap,
   NAV.thoughts,
   NAV.whitepaper,

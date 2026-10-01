@@ -24,16 +24,18 @@ const FOOTER_GROUPS = [
       { label: "Sign in", href: "/sign-in" },
       { label: "Roadmap", href: "/roadmap" },
       { label: "Changelog", href: "/changelog" },
-      { label: "Releases", href: "/releases" },
+      { label: "Fleet Runner releases", href: "/releases" },
     ],
   },
   {
     heading: "Learn",
     links: [
+      { label: "How it works", href: "/how-it-works" },
+      { label: "Compare", href: "/compare" },
+      { label: "Why Loki", href: "/why" },
       { label: "Docs", href: "/docs" },
       { label: "Whitepaper", href: "/whitepaper" },
       { label: "Thoughts", href: "/thoughts" },
-      { label: "Frontier", href: "/frontier" },
       { label: "Investors", href: "/investors" },
     ],
   },
@@ -58,6 +60,7 @@ const FOOTER_GROUPS = [
     links: [
       { label: "OrangeCat — Economy", href: ECOSYSTEM.orangeCat.siteUrl, external: true },
       { label: "Solon — Governance", href: ECOSYSTEM.solon.siteUrl, external: true },
+      { label: "bitbaum — Studio", href: "https://bitbaum.orangecat.ch/hire/", external: true },
       { label: "Loki on OrangeCat", href: ECOSYSTEM_LINKS.loki, external: true },
     ],
   },
@@ -128,7 +131,7 @@ export function PublicFooter() {
           changes. The tenants' own catalogue is one line below. */}
       <details className="ui-public-footer-fleet">
         <summary className="ui-public-footer-fleet-summary">
-          Built by the studio — {FLEET_SITES.length} more sites
+          Built by bitbaum, the studio — {FLEET_SITES.length} more sites
         </summary>
         <div className="mt-3">
           <Link href="/fleet" className="ui-public-link-standalone text-sm">

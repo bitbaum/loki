@@ -46,7 +46,9 @@ export const ECOSYSTEM = {
   },
   support: {
     lightningAddress:
-      process.env.NEXT_PUBLIC_ECOSYSTEM_LIGHTNING_ADDRESS ?? "orangecat@getalby.com",
+      // getalby's lnurlp for "orangecat" answers 404 (checked 2026-10-01);
+      // coinos answers 200 and is the address OrangeCat itself publishes.
+      process.env.NEXT_PUBLIC_ECOSYSTEM_LIGHTNING_ADDRESS ?? "orangecat@coinos.io",
     bitcoinAddress:
       process.env.NEXT_PUBLIC_ECOSYSTEM_BITCOIN_ADDRESS ??
       "bc1q3hh4yklcmwtpnqmxyksw36yedg7zyfy6tzzqwz",

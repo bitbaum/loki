@@ -2045,6 +2045,49 @@
   }
   /* The whole card is the tap target on a phone, so it is an <a>, not a card
      with a small text link inside it that a thumb has to find. */
+  /* Homepage "how it works": three numbered steps a newcomer reads left to
+     right (top to bottom on a phone). The number is large and faint so the
+     sentence, not the digit, carries the step. */
+  .ui-public-howto {
+    @apply grid gap-3 sm:gap-4 md:grid-cols-3;
+  }
+  .ui-public-howto-step {
+    @apply flex flex-col rounded-2xl border border-border-subtle bg-surface-base p-5 text-left sm:p-6;
+  }
+  .ui-public-howto-num {
+    @apply font-mono text-3xl font-semibold text-text-muted sm:text-4xl;
+  }
+  .ui-public-howto-title {
+    @apply mt-4 text-lg font-semibold text-text-primary sm:mt-6 sm:text-xl;
+  }
+  .ui-public-howto-body {
+    @apply mt-2.5 text-sm leading-relaxed text-text-secondary;
+    text-wrap: pretty;
+  }
+  .ui-public-howto-note {
+    @apply mx-auto mt-6 max-w-2xl text-center text-sm leading-relaxed text-text-tertiary sm:mt-8;
+    text-wrap: pretty;
+  }
+  /* Comparison table (/compare). Scrolls inside its own box on a phone so the
+     page never scrolls sideways. */
+  .ui-public-compare-wrap {
+    @apply -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0;
+  }
+  .ui-public-compare {
+    @apply w-full min-w-[640px] border-collapse text-left text-sm;
+  }
+  .ui-public-compare th {
+    @apply border-b border-border-default px-3 py-2.5 text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+  }
+  .ui-public-compare td {
+    @apply border-b border-border-subtle px-3 py-3 align-top leading-relaxed text-text-secondary;
+  }
+  .ui-public-compare td:first-child {
+    @apply font-medium text-text-primary;
+  }
+  .ui-public-compare-group td {
+    @apply pt-6 text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+  }
   .ui-public-start-card {
     @apply flex flex-col rounded-2xl border border-border-subtle bg-surface-base p-5 text-left transition-colors hover:border-border-default active:border-border-default sm:min-h-[260px] sm:p-6;
   }
