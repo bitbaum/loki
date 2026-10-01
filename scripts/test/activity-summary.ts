@@ -169,6 +169,11 @@ check("reports a real swing with its direction", () => {
   assert.equal(computeMomentum(5, 20).label, "75% quieter than last window");
 });
 
+check("a huge swing is told as counts, not '967% busier'", () => {
+  assert.equal(computeMomentum(64, 6).label, "up from 6 the window before");
+  assert.equal(computeMomentum(30, 10).label, "200% busier than last window");
+});
+
 check("no previous activity is not '+100%'", () => {
   assert.equal(computeMomentum(9, 0).label, "first activity after a quiet window");
   assert.equal(computeMomentum(9, 0).deltaPct, null);

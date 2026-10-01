@@ -112,6 +112,7 @@ export type ActivityMomentum = {
  */
 const MOMENTUM_MIN_BASE = 3;
 const MOMENTUM_MIN_SWING_PCT = 15;
+const MOMENTUM_COUNTS_ABOVE_PCT = 200;
 
 export function computeMomentum(current: number, previous: number): ActivityMomentum {
   if (previous === 0 && current === 0) {
@@ -139,6 +140,12 @@ export function computeMomentum(current: number, previous: number): ActivityMome
 
   if (Math.abs(deltaPct) < MOMENTUM_MIN_SWING_PCT) {
     return { current, previous, deltaPct, label: "about the same as last window" };
+  }
+  // Past a tripling, a percentage stops reading as a quantity ("967% busier",
+  // live 2026-10-01) and starts reading as noise. The two counts are the
+  // same fact in words a person can check against the feed below.
+  if (deltaPct > MOMENTUM_COUNTS_ABOVE_PCT) {
+    return { current, previous, deltaPct, label: `up from ${previous} the window before` };
   }
   return {
     current,
