@@ -12,7 +12,6 @@ import type { StudioCommissionContract } from "@/lib/studio-commission";
 import { requireNotDemo } from "@/lib/demo-guard";
 import { studioHash, studioKeyMatches } from "@/lib/studio/access";
 import { studioView } from "@/lib/studio/projection";
-import { notifyStudioActivity } from "@/lib/studio/notify";
 import {
   StudioConflict,
   validateCourseEvidence,
@@ -104,7 +103,9 @@ export async function createStudioRequest(
       );
     return { id: row.id, status: row.status, fresh };
   }
-  const { fresh, ...saved } = await db.transaction(async (tx) => {
+  // `fresh` is the row when this call created it, null for a replayed
+  // receipt — the route announces the former and keeps it out of the response.
+  return db.transaction(async (tx) => {
     const [previous] = await tx
       .select()
       .from(requests)
@@ -185,10 +186,6 @@ export async function createStudioRequest(
     );
     return receipt(created, created);
   });
-  // Persist first, announce second: a replayed receipt was announced when it
-  // was first saved, and a notify hiccup can never fail the ingest.
-  if (fresh) void notifyStudioActivity(fresh, "received", fresh.changes);
-  return saved;
 }
 
 export async function getStudioPortal(id: string, key: string) {
@@ -222,13 +219,17 @@ export async function mutateStudioPortal(
   input: StudioGuestInput,
   contract: StudioCommissionContract | null = null,
 ) {
-  const done = await db.transaction(
-    async (tx): Promise<false | "replay" | { row: StudioRequest; body: string }> => {
+  // What happened, for the route to announce: nothing (no access), a replay
+  // (announced when first applied), or the action with the row it changed.
+  return db.transaction(
+    async (
+      tx,
+    ): Promise<false | { replay: true } | { replay: false; row: StudioRequest; body: string }> => {
       const [row] = await tx.select().from(requests).where(eq(requests.id, id)).for("update");
       if (!accessible(row, key)) return false;
       await requireNotDemo(row.userId, "content");
       const hash = eventHash(input);
-      if (await replay(tx, row, input.mutationId, hash)) return "replay";
+      if (await replay(tx, row, input.mutationId, hash)) return { replay: true };
       const patch: Partial<typeof requests.$inferInsert> = { updatedAt: new Date() };
       let body = "";
       let version: number | null = null;
@@ -353,12 +354,9 @@ export async function mutateStudioPortal(
         version,
         visible,
       );
-      return { row, body };
+      return { replay: false, row, body };
     },
   );
-  if (done === false) return false;
-  if (done !== "replay") void notifyStudioActivity(done.row, input.action, done.body);
-  return true;
 }
 
 export async function listStudioRequests(userId: string) {
