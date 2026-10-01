@@ -22,6 +22,7 @@ import {
   linksForReply,
   renderConciergeFacts,
   splitSpeakers,
+  stripMeta,
   trimToLastSentence,
 } from "@/lib/widget-chat/concierge";
 
@@ -162,7 +163,7 @@ export async function POST(req: NextRequest) {
       timeoutMs: HTTP_TIMEOUT_LONG_MS,
     });
     void recordAiSpend(token.userId, answered.tokens);
-    const reply = trimToLastSentence(stripReasoning(answered.text).trim());
+    const reply = trimToLastSentence(stripMeta(stripReasoning(answered.text)));
     if (!reply) throw new Error("empty answer");
     return NextResponse.json(
       { ok: true, reply, messages: splitSpeakers(reply), links: linksForReply(reply, map, base) },

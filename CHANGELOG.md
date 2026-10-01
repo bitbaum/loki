@@ -6,6 +6,17 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-01 — The studio hears every request
+
+- **A studio brief, a partner application or a reply on one now reaches a
+  person.** Each one announces itself the way feedback does: a push, a Telegram
+  message and an alert pointing at the review view. Until now the request was
+  saved and nobody was told, which is the opposite of "a person will reply".
+- **The website chat no longer narrates its own rules.** A fallback model had
+  answered a visitor with "Stage used: beta. No URLs written." under the real
+  answer; those lines are dropped before the reply is shown.
+- **A paused widget token cannot transcribe voice** any more than it can chat.
+
 ## 2026-09-30 — Studio requests move to bitbaum
 
 - **Asking Loki to change your website stays free and self-service.** Old

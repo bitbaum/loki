@@ -11,6 +11,7 @@ import {
   studioFailure,
 } from "@/lib/studio/http";
 import { createStudioRequest } from "@/db/queries/studio-requests";
+import { notifyStudioActivity } from "@/lib/studio/notify";
 export const OPTIONS = studioPreflight;
 /** Public write-only intake. Owner is fixed by the studio contract, never by caller input. */
 export async function POST(request: NextRequest) {
@@ -25,7 +26,11 @@ export async function POST(request: NextRequest) {
     if (parsed.data.company)
       return studioError(request, "This request could not be accepted.", 400);
     const { token, contract } = await studioContext();
-    return studioResponse(request, await createStudioRequest(token, contract, parsed.data));
+    const { fresh, ...saved } = await createStudioRequest(token, contract, parsed.data);
+    // Persist first, announce second: a replayed receipt was announced when it
+    // was first saved, and a notify hiccup can never fail the ingest.
+    if (fresh) void notifyStudioActivity(fresh, "received", fresh.changes);
+    return studioResponse(request, saved);
   } catch (error) {
     return studioFailure(request, error);
   }

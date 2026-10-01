@@ -96,13 +96,15 @@ export async function createStudioRequest(
   const accessKeyHash = studioHash(input.accessKey);
   const { accessKey: _key, company: _company, ...brief } = input;
   const intakeHash = eventHash(brief);
-  function receipt(row: StudioRequest) {
+  function receipt(row: StudioRequest, fresh: StudioRequest | null = null) {
     if (row.accessRevoked || row.intakeHash !== intakeHash || row.accessKeyHash !== accessKeyHash)
       throw new StudioConflict(
         "This request identifier was already used. Open your saved portal link, or start a new request.",
       );
-    return { id: row.id, status: row.status };
+    return { id: row.id, status: row.status, fresh };
   }
+  // `fresh` is the row when this call created it, null for a replayed
+  // receipt — the route announces the former and keeps it out of the response.
   return db.transaction(async (tx) => {
     const [previous] = await tx
       .select()
@@ -182,7 +184,7 @@ export async function createStudioRequest(
         ? "Application saved. Submit the pilot course evidence for studio review."
         : "Brief saved. Sending this request does not book work or approve a price.",
     );
-    return receipt(created);
+    return receipt(created, created);
   });
 }
 
@@ -217,138 +219,144 @@ export async function mutateStudioPortal(
   input: StudioGuestInput,
   contract: StudioCommissionContract | null = null,
 ) {
-  return db.transaction(async (tx) => {
-    const [row] = await tx.select().from(requests).where(eq(requests.id, id)).for("update");
-    if (!accessible(row, key)) return false;
-    await requireNotDemo(row.userId, "content");
-    const hash = eventHash(input);
-    if (await replay(tx, row, input.mutationId, hash)) return true;
-    const patch: Partial<typeof requests.$inferInsert> = { updatedAt: new Date() };
-    let body = "";
-    let version: number | null = null;
-    let visible = true;
-    switch (input.action) {
-      case "message":
-        body = input.body;
-        break;
-      case "accept_preview":
-        requireCurrentPreview(row, input.version);
-        Object.assign(patch, {
-          approvedVersion: input.version,
-          previewAcceptedAt: new Date(),
-          status: "accepted",
-        });
-        body =
-          "Accepted this preview and its stated scope. Production publication is agreed separately.";
-        version = input.version;
-        break;
-      case "request_changes":
-        requireCurrentPreview(row, input.version);
-        Object.assign(patch, {
-          approvedVersion: null,
-          previewAcceptedAt: null,
-          status: "changes_requested",
-        });
-        body = input.body;
-        version = input.version;
-        break;
-      case "submit_assessment":
-        if (row.kind !== "partner" || row.partnerApprovedAt)
-          throw new StudioConflict(
-            "Course evidence can be submitted from an unapproved partner application.",
-          );
-        validateCourseEvidence(input.assessment, contract);
-        Object.assign(patch, {
-          assessment: input.assessment,
-          coursePassedAt: null,
-          partnerApprovedAt: null,
-          profilePublishedAt: null,
-          status: "course_submitted",
-        });
-        body = "Submitted revised capstone evidence for review.";
-        break;
-      case "propose_profile":
-        if (row.kind !== "partner")
-          throw new StudioConflict("Only partner applications have a public profile.");
-        Object.assign(patch, {
-          proposedProfile: input.profile,
-          profileConsentAt: new Date(),
-          profilePublishedAt: null,
-        });
-        body =
-          "Proposed a public profile with consent to publication. Studio review is still required.";
-        break;
-      case "set_availability":
-        if (
-          row.kind !== "partner" ||
-          !row.partnerApprovedAt ||
-          !row.coursePassedAt ||
-          !row.proposedProfile
-        )
-          throw new StudioConflict("An approved partner profile is required first.");
-        patch.proposedProfile = { ...row.proposedProfile, availability: input.availability };
-        body = `Availability changed to ${input.availability}.`;
-        break;
-      case "deliver_assignment": {
-        if (row.kind !== "partner" || !row.partnerApprovedAt || !row.coursePassedAt)
-          throw new StudioConflict("Only an approved partner may deliver assigned work.");
-        const [assignment] = await tx
-          .select()
-          .from(requests)
-          .where(
-            and(
-              owned(row.userId, input.requestId),
-              eq(requests.partnerId, row.id),
-              eq(requests.accessRevoked, false),
-            ),
-          )
-          .for("update");
-        if (!assignment || assignment.kind !== "website" || assignment.status === "closed")
-          throw new StudioConflict("This brief is not assigned to you or is closed.", 404);
-        requireDeliveryVersion(assignment.deliveryVersion, input.expectedVersion);
-        const nextVersion = assignment.deliveryVersion + 1;
-        await tx
-          .update(requests)
-          .set({
-            previewUrl: input.previewUrl,
-            scope: input.scope,
-            deliverySummary: input.summary,
-            deliveryVersion: nextVersion,
+  // What happened, for the route to announce: nothing (no access), a replay
+  // (announced when first applied), or the action with the row it changed.
+  return db.transaction(
+    async (
+      tx,
+    ): Promise<false | { replay: true } | { replay: false; row: StudioRequest; body: string }> => {
+      const [row] = await tx.select().from(requests).where(eq(requests.id, id)).for("update");
+      if (!accessible(row, key)) return false;
+      await requireNotDemo(row.userId, "content");
+      const hash = eventHash(input);
+      if (await replay(tx, row, input.mutationId, hash)) return { replay: true };
+      const patch: Partial<typeof requests.$inferInsert> = { updatedAt: new Date() };
+      let body = "";
+      let version: number | null = null;
+      let visible = true;
+      switch (input.action) {
+        case "message":
+          body = input.body;
+          break;
+        case "accept_preview":
+          requireCurrentPreview(row, input.version);
+          Object.assign(patch, {
+            approvedVersion: input.version,
+            previewAcceptedAt: new Date(),
+            status: "accepted",
+          });
+          body =
+            "Accepted this preview and its stated scope. Production publication is agreed separately.";
+          version = input.version;
+          break;
+        case "request_changes":
+          requireCurrentPreview(row, input.version);
+          Object.assign(patch, {
             approvedVersion: null,
             previewAcceptedAt: null,
-            status: "ready_for_review",
-            updatedAt: new Date(),
-          })
-          .where(owned(row.userId, assignment.id));
-        await record(
-          tx,
-          assignment,
-          input.mutationId,
-          hash,
-          "partner",
-          "publish_preview",
-          input.summary,
-          nextVersion,
-        );
-        body = "Assigned preview delivered.";
-        visible = false;
-        break;
+            status: "changes_requested",
+          });
+          body = input.body;
+          version = input.version;
+          break;
+        case "submit_assessment":
+          if (row.kind !== "partner" || row.partnerApprovedAt)
+            throw new StudioConflict(
+              "Course evidence can be submitted from an unapproved partner application.",
+            );
+          validateCourseEvidence(input.assessment, contract);
+          Object.assign(patch, {
+            assessment: input.assessment,
+            coursePassedAt: null,
+            partnerApprovedAt: null,
+            profilePublishedAt: null,
+            status: "course_submitted",
+          });
+          body = "Submitted revised capstone evidence for review.";
+          break;
+        case "propose_profile":
+          if (row.kind !== "partner")
+            throw new StudioConflict("Only partner applications have a public profile.");
+          Object.assign(patch, {
+            proposedProfile: input.profile,
+            profileConsentAt: new Date(),
+            profilePublishedAt: null,
+          });
+          body =
+            "Proposed a public profile with consent to publication. Studio review is still required.";
+          break;
+        case "set_availability":
+          if (
+            row.kind !== "partner" ||
+            !row.partnerApprovedAt ||
+            !row.coursePassedAt ||
+            !row.proposedProfile
+          )
+            throw new StudioConflict("An approved partner profile is required first.");
+          patch.proposedProfile = { ...row.proposedProfile, availability: input.availability };
+          body = `Availability changed to ${input.availability}.`;
+          break;
+        case "deliver_assignment": {
+          if (row.kind !== "partner" || !row.partnerApprovedAt || !row.coursePassedAt)
+            throw new StudioConflict("Only an approved partner may deliver assigned work.");
+          const [assignment] = await tx
+            .select()
+            .from(requests)
+            .where(
+              and(
+                owned(row.userId, input.requestId),
+                eq(requests.partnerId, row.id),
+                eq(requests.accessRevoked, false),
+              ),
+            )
+            .for("update");
+          if (!assignment || assignment.kind !== "website" || assignment.status === "closed")
+            throw new StudioConflict("This brief is not assigned to you or is closed.", 404);
+          requireDeliveryVersion(assignment.deliveryVersion, input.expectedVersion);
+          const nextVersion = assignment.deliveryVersion + 1;
+          await tx
+            .update(requests)
+            .set({
+              previewUrl: input.previewUrl,
+              scope: input.scope,
+              deliverySummary: input.summary,
+              deliveryVersion: nextVersion,
+              approvedVersion: null,
+              previewAcceptedAt: null,
+              status: "ready_for_review",
+              updatedAt: new Date(),
+            })
+            .where(owned(row.userId, assignment.id));
+          await record(
+            tx,
+            assignment,
+            input.mutationId,
+            hash,
+            "partner",
+            "publish_preview",
+            input.summary,
+            nextVersion,
+          );
+          body = "Assigned preview delivered.";
+          visible = false;
+          break;
+        }
       }
-    }
-    await tx.update(requests).set(patch).where(owned(row.userId, row.id));
-    await record(
-      tx,
-      row,
-      input.mutationId,
-      hash,
-      row.kind === "partner" ? "partner" : "customer",
-      input.action,
-      body,
-      version,
-      visible,
-    );
-    return true;
-  });
+      await tx.update(requests).set(patch).where(owned(row.userId, row.id));
+      await record(
+        tx,
+        row,
+        input.mutationId,
+        hash,
+        row.kind === "partner" ? "partner" : "customer",
+        input.action,
+        body,
+        version,
+        visible,
+      );
+      return { replay: false, row, body };
+    },
+  );
 }
 
 export async function listStudioRequests(userId: string) {

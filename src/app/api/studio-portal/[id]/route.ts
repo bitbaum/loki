@@ -11,6 +11,7 @@ import {
   studioFailure,
 } from "@/lib/studio/http";
 import { getStudioPortal, mutateStudioPortal } from "@/db/queries/studio-requests";
+import { notifyStudioActivity } from "@/lib/studio/notify";
 import { getStudioCommission } from "@/lib/studio-commission";
 export const OPTIONS = studioPreflight;
 type Context = { params: Promise<{ id: string }> };
@@ -54,9 +55,9 @@ export async function POST(request: NextRequest, context: Context) {
     const contract =
       parsed.data.action === "submit_assessment" ? await getStudioCommission() : null;
     const saved = await mutateStudioPortal(id, key, parsed.data, contract);
-    return saved
-      ? studioResponse(request, {})
-      : studioError(request, "This portal link is unavailable.", 404);
+    if (!saved) return studioError(request, "This portal link is unavailable.", 404);
+    if (!saved.replay) void notifyStudioActivity(saved.row, parsed.data.action, saved.body);
+    return studioResponse(request, {});
   } catch (error) {
     return studioFailure(request, error);
   }
