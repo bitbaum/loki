@@ -288,7 +288,7 @@ if ! ssh "$HOST" 'set -e
   base=http://127.0.0.1:4002
   code=000
   for i in $(seq 1 20); do
-    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$base/sign-in" || echo 000)
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$base/sign-in") || true; code=${code:0:3}
     [ "$code" = 200 ] && break
     sleep 1
   done

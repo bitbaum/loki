@@ -124,8 +124,14 @@ check() {  # label url   (targets.conf 3rd field is ignored — redirects are fo
   # responding, not an outage. UP on a 2xx/3xx final status; DOWN on unreachable
   # (000) or a 4xx/5xx error — incl. loki /api/health returning 503 when
   # the env guardrail finds a config issue.
-  code=$(curl -sL -o /dev/null -m 15 -w "%{http_code}" "$url" 2>/dev/null || echo 000)
-  local now="up"; { [ "$code" = "000" ] || [ "$code" -ge 400 ] 2>/dev/null; } && now="down"
+  # UP only on a proven 2xx/3xx. curl prints "000" itself when it fails, and
+  # the old `|| echo 000` appended a SECOND one: a timeout read "000000",
+  # which is neither "000" nor a number, so the site counted as UP. A hung app
+  # behind Caddy (502 after 20s, past curl's 15s) was therefore never paged:
+  # loki.orangecat.ch was down ~06:00-07:53 on 2026-10-01 with no alert.
+  code=$(curl -sL -o /dev/null -m 15 -w "%{http_code}" "$url" 2>/dev/null) || true
+  code=${code:0:3}; [[ "$code" =~ ^[0-9]{3}$ ]] || code=000
+  local now="down"; { [ "$code" -ge 200 ] && [ "$code" -lt 400 ]; } && now="up"
   local prev="up"; [ -f "$sf" ] && prev=$(cat "$sf")
   if [ "$now" != "$prev" ]; then
     if [ "$now" = "down" ]; then

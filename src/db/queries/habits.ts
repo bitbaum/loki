@@ -1,7 +1,7 @@
 import { HABIT_HISTORY_DAYS } from "@/lib/constants";
 import { db } from "@/db";
 import { habits, habitCompletions } from "@/db/schema";
-import { eq, and, inArray, sql, desc } from "drizzle-orm";
+import { eq, and, gte, inArray, sql, desc } from "drizzle-orm";
 import { HABIT_FREQUENCY, type HabitFrequency, isHabitScheduled } from "@/lib/constants/statuses";
 import { toLocalDateStr } from "@/lib/dates";
 import { z } from "zod";
@@ -90,7 +90,7 @@ export async function getTodayHabits(userId: string): Promise<HabitWithStatus[]>
       and(
         eq(habitCompletions.userId, userId),
         inArray(habitCompletions.habitId, habitIds),
-        sql`${habitCompletions.completedDate} >= ${sinceStr}`,
+        gte(habitCompletions.completedDate, sinceStr),
       ),
     );
 
@@ -199,7 +199,7 @@ export async function getAllHabitsWithHistory(
           habitCompletions.habitId,
           allHabits.map((h) => h.id),
         ),
-        sql`${habitCompletions.completedDate} >= ${sinceStr}`,
+        gte(habitCompletions.completedDate, sinceStr),
       ),
     );
 
