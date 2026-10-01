@@ -5,38 +5,39 @@ import { PublicSurface } from "@/components/public/PublicSurface";
 
 export const metadata = {
   title: "Documentation",
-  description: "Install Loki, connect a runner, and operate agents safely.",
+  description:
+    "Start with Loki: create an account, choose where agents run, and turn an idea into a project.",
 };
 
 const guides = [
   {
     title: "Quickstart",
-    body: "Go from a new account to your first supervised agent dispatch.",
+    body: "From a new account to an idea turned into a repository and a site.",
     href: "/docs/quickstart",
     icon: BookOpen,
   },
   {
     title: "Install Fleet Runner",
-    body: "Use the Cloud builder when available, or connect Fleet Runner for work on your computer.",
+    body: "The desktop app that lets agents work on your own computer. Linux, Windows and Apple Silicon Macs.",
     href: "/download",
     icon: Download,
   },
   {
     title: "Feedback widget",
-    body: "Put a feedback button on any site you run — reports become dispatchable fleet work.",
+    body: "Put a feedback button on any site you run — what visitors report becomes work for an agent.",
     href: "/docs/feedback-widget",
     icon: MessageSquare,
   },
   {
-    title: "Architecture",
-    body: "Understand cloud and local execution, handoffs, and the approval boundary.",
+    title: "How Loki works",
+    body: "The whitepaper: where agents run, how work is handed over, and what needs your approval.",
     href: "/whitepaper",
     icon: Network,
   },
   {
-    title: "Operating safely",
-    body: "Keep humans in control while Loki plans and agents execute scoped work.",
-    href: "/philosophy",
+    title: "What runs without you",
+    body: "What a visitor can and cannot set off, and how to pause or revoke the widget.",
+    href: "/docs/feedback-widget#security",
     icon: ShieldCheck,
   },
 ] as const;
@@ -46,11 +47,11 @@ export default function DocsPage() {
     <PublicSurface right={<PublicHeaderActions />}>
       <main className="ui-public-container-wide py-12 sm:py-20 lg:py-28">
         <div className="ui-public-eyebrow">Documentation</div>
-        <h1 className="ui-public-page-title mt-3 sm:mt-4">Build with a supervised agent fleet</h1>
+        <h1 className="ui-public-page-title mt-3 sm:mt-4">Build with agents you supervise</h1>
         <p className="ui-public-lede mt-4 max-w-2xl sm:mt-6">
-          Start with one project and one agent. Eligible accounts can use the Cloud builder; Fleet
-          Runner is optional when work should run on your computer. Loki keeps planning, dispatch,
-          handoffs, and human approval in one operating loop.
+          Start with one project and one agent. Agents run on Loki&apos;s cloud builder if your
+          account has it, or on your own computer with the Fleet Runner app. Planning, handing out
+          work, checking it and approving it all happen in one place.
         </p>
         <div className="ui-public-section-gap grid gap-3 sm:grid-cols-2 sm:gap-4">
           {guides.map(({ title, body, href, icon: Icon }) => (

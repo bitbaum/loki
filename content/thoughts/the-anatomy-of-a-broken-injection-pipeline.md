@@ -3,6 +3,7 @@ title: The Anatomy of a Broken Injection Pipeline
 summary: A deep technical dissection of how Loki, Beacon, and Zellij connect to form a prompt-injection system — and the five structural bugs that make it unreliable when it looks like it should just work.
 excerpt: When you build a system that straddles a terminal multiplexer, a web server, a desktop UI toolkit, and an AI agent, coordination is the hard part. Here is precisely where it goes wrong.
 publishedAt: 2026-05-08
+supersededBy: /whitepaper
 tags: architecture,systems,beacon,zellij,debugging
 featured: true
 author: g

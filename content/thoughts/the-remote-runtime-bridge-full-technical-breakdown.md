@@ -3,6 +3,7 @@ title: The Remote Runtime Bridge — Full Technical Breakdown
 summary: A precise engineering account of how remote→local agent injection now works, what is still broken, and what the architecture needs next to become a genuinely useful mobile-first control plane.
 excerpt: The daemon fix was twelve lines of bash. The gap it closed was a year of architecture work. Here is the complete technical picture — what works, what is silently broken, and what to build next.
 publishedAt: 2026-05-16
+supersededBy: /whitepaper
 tags: architecture,daemon,zellij,runtime,mobile,engineering,deep-dive
 featured: true
 author: g

@@ -14,6 +14,8 @@ export type ThoughtMeta = {
   featured: boolean;
   author: string;
   readingTimeMin: number;
+  /** Internal path to the current description, when this essay is history. */
+  supersededBy?: string;
 };
 
 /**
@@ -51,6 +53,7 @@ export function listThoughts(): Array<ThoughtMeta & { body: string }> {
       featured: (metaStr(meta.featured) ?? "false") === "true",
       author: entry.author ?? "Loki",
       readingTimeMin: Number(metaStr(meta.readingTimeMin) ?? entry.readingMinutes),
+      supersededBy: metaStr(meta.supersededBy),
       body: entry.body,
     };
   });

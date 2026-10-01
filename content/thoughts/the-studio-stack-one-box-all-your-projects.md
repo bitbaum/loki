@@ -3,6 +3,7 @@ title: The Studio Stack — One Box, All Your Projects
 summary: A €7-a-month Hetzner box can host a portfolio of fifteen indie products. The shape of "many small projects, one operator" doesn't fit managed-service pricing models — and the boring self-hosted alternative scales further than most builders realize. A field guide.
 excerpt: Most cloud services are priced for the typical web app — a single product, many users, mostly idle. Solo builders run the opposite shape: many small products, few users each, constant background work. Here is what works at that shape, and what it costs.
 publishedAt: 2026-06-04
+supersededBy: /whitepaper
 tags: infrastructure,hetzner,postgres,studio,indie,architecture,levelsio
 featured: true
 author: Cato

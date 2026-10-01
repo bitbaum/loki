@@ -3,6 +3,7 @@ title: "The Dispatch Intelligence Problem: Why Blind Autocontinue Breaks the Flo
 summary: A first-principles analysis of why mechanical queue drain undermines project momentum, what it would mean for Loki to dispatch intelligently, and the path toward embedding a genuine strategist in the loop.
 excerpt: The queue is a backlog. The next best step is a forecast. Blindly draining one while ignoring the other is not automation — it is slot machine pressing. Loki needs a dispatch layer that can read context and decide.
 publishedAt: 2026-05-14
+supersededBy: /whitepaper
 tags: architecture,autoprompting,queue,orchestration,ai,dispatch,intelligence
 featured: true
 author: g

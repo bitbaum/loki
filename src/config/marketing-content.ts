@@ -204,12 +204,12 @@ export const DESKTOP_DOWNLOAD = {
   // Top-level back-compat fields (used by /download page metadata + homepage).
   eyebrow: "DESKTOP APP",
   title: "Get Fleet Runner",
-  lede: "Loki runs in your browser as a full control plane. Fleet Runner is the optional desktop app that lets agents act on your computer — open files, run commands, drive terminal sessions — while you stay in command from the web or your phone.",
+  lede: "Loki runs in your browser. Fleet Runner is the desktop app that lets agents work on your own computer — open files, run commands, use the terminal — while you follow along from the web or your phone. You need it unless your account has Loki's cloud builder.",
 
   hero: {
     eyebrow: "DESKTOP APP",
     title: "Get Fleet Runner",
-    lede: "Loki runs in your browser as a full control plane. Fleet Runner is the optional desktop app that lets agents act on your computer — open files, run commands, drive terminal sessions — while you stay in command from the web or your phone.",
+    lede: "Loki runs in your browser. Fleet Runner is the desktop app that lets agents work on your own computer — open files, run commands, use the terminal — while you follow along from the web or your phone. You need it unless your account has Loki's cloud builder.",
   },
 
   // Web vs. desktop — answers "do I need this?" in plain language.
@@ -221,20 +221,20 @@ export const DESKTOP_DOWNLOAD = {
         "Full fleet visibility across all projects",
         "Browse history, projects, and queues",
         "Dispatch commands from any browser or phone",
-        "Create projects, dispatch work, and steer eligible cloud sessions from the browser",
+        "Create projects, hand out work, and follow cloud builder sessions where your account has it",
       ],
     },
     desktop: {
       label: "Desktop (Fleet Runner)",
       tagline: "Adds local execution",
       bullets: [
-        "Actually runs agents on your machine",
+        "Runs agents on your own computer",
         "Runs agents in terminals it owns, plus handoffs",
         "Native notifications when an agent finishes",
         "Keeps working after you close your browser",
       ],
     },
-    note: "You can start with the web today and add Fleet Runner whenever you want agents to actually do work on your machine.",
+    note: "You can start on the web today. If your account does not have the cloud builder, add Fleet Runner so agents have a computer to work on.",
   },
 
   // Three steps that answer "what happens after I click download?"
@@ -257,12 +257,12 @@ export const DESKTOP_DOWNLOAD = {
     {
       number: "02",
       title: "Sign in — once",
-      body: 'Use the same Loki account you signed up with on the web. The desktop app opens straight to your dashboard. From the web, you can also click "Open in Fleet Runner" to log the desktop app in without copy-pasting a token. From v0.3.0 onward, Fleet Runner checks for updates on launch and downloads them in the background — you\'ll never have to manually re-download.',
+      body: 'Use the same Loki account you signed up with on the web. The desktop app opens straight to your dashboard. From the web, you can also click "Open in Fleet Runner" to log the desktop app in without copy-pasting a token. Fleet Runner checks for updates on launch and downloads them in the background — you\'ll never have to manually re-download.',
     },
     {
       number: "03",
-      title: "Dispatch your first intent",
-      body: "Choose a project and its Runs on setting in Control, then dispatch an intent. Eligible accounts can use the cloud builder; other projects can run through Fleet Runner on your computer. Install a supported agent CLI for the builder you choose.",
+      title: "Give it your first piece of work",
+      body: "In Control, set the project's Runs on to This computer, then write what you want done and send it. Fleet Runner needs at least one agent installed and signed in on this computer.",
     },
   ],
 
@@ -309,7 +309,7 @@ export const DESKTOP_DOWNLOAD = {
       status: "ready" as const,
       primary: {
         label: "Download .dmg",
-        note: "Apple Silicon",
+        note: "Apple Silicon (M1 or newer) · no Intel build yet",
         url: "https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-mac-arm64.dmg",
       },
       secondary: [
@@ -344,11 +344,11 @@ export const DESKTOP_DOWNLOAD = {
   prerequisites: {
     title: "What Fleet Runner uses on your computer",
     description:
-      "Fleet Runner runs the supported agent CLI you choose; install that agent and sign in with its provider. Eligible accounts can also use the cloud builder. The current agent list appears in Loki and may vary by builder.",
+      "Fleet Runner runs the agent you choose; install that agent and sign in with its provider. The current agent list appears in Loki and may vary by builder.",
     items: [
       {
         title: "Choose an agent",
-        role: "Claude Code · Codex · Cursor Agent · Antigravity · Grok · OpenClaw",
+        role: "Claude Code · Codex · Cursor · Antigravity · Grok",
         required: true,
         whyYouNeedIt:
           "Install and sign in to at least one supported agent CLI on the computer that will run it. Loki shows which agents are available for each builder.",
@@ -365,7 +365,7 @@ export const DESKTOP_DOWNLOAD = {
     description: "Build the desktop app yourself, or run the headless CLI agent instead.",
     buildFromSource: {
       label: "Build the desktop app from source",
-      body: "Clone and build a native package for your machine. Useful if you're contributing, want a development build, or are on a platform we don't ship binaries for yet.",
+      body: "Clone and build a native package for your machine. Useful if you're contributing, want a development build, or are on a platform we don't ship binaries for yet, such as an Intel Mac.",
       command:
         "git clone https://github.com/bitbaum/loki.git && cd loki/desktop && npm install && npm run dist:linux  # or dist:mac / dist:win",
     },

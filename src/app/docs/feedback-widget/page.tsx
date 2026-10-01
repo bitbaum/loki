@@ -5,7 +5,7 @@ import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 export const metadata = {
   title: "Feedback widget",
   description:
-    "Put a feedback button on any site you run. Reports land in a per-project inbox, one click dispatches an agent to fix them, and shipped fixes notify the reporter.",
+    "Put a feedback button on any site you run. Reports land in your inbox, one click hands them to an agent, and the person who reported hears back when the fix ships.",
 };
 
 export default function FeedbackWidgetDocsPage() {
@@ -14,26 +14,27 @@ export default function FeedbackWidgetDocsPage() {
       <main className="ui-public-prose mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-16">
         <h1 className="ui-public-title mb-2">Feedback widget</h1>
         <p className="ui-public-meta mb-8 sm:mb-12">
-          One script tag on any site you run. Visitor reports become dispatchable fleet work, and
-          shipped fixes close the loop automatically.
+          One line of code on any site you run. What visitors report becomes work you can hand to an
+          agent, and they hear back when it is fixed.
         </p>
 
         <section className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">1. Enable it on a project</h2>
+          <h2 className="ui-public-prose-h2">1. Turn it on for a project</h2>
           <p>
-            Open the project&apos;s page in Loki, scroll to <strong>Visitor feedback</strong>, and
-            click <strong>Enable &amp; install via agent</strong> (or from Control, use the fleet
-            coverage strip). That mints a project token and dispatches an agent to embed the
-            snippet. Prefer that one click over copy-paste unless you are wiring a site by hand.
+            Open the project in Loki, find its feedback section and press{" "}
+            <strong>Widget setup</strong>. Then choose <strong>Enable &amp; install</strong>, which
+            creates the project&apos;s key and asks an agent to add the line to your site, or{" "}
+            <strong>Enable only</strong> if you will add it yourself. Next.js sites started from
+            Loki&apos;s starter already have it.
           </p>
           <pre className="ui-public-code-block ui-public-code-pre">
             <code>{`<script src="https://loki.orangecat.ch/widget.js"
         data-fc-project="fcw_…" async></script>`}</code>
           </pre>
           <p>
-            The token is public by design and <strong>write-only</strong> — it can submit feedback
-            for this one project and read nothing. Origins are allowlisted from your project&apos;s
-            production URL; submissions from other origins are rejected.
+            The key in that line is public on purpose and can only <strong>send</strong>: it files
+            feedback for this one project and can read nothing. Only your project&apos;s own web
+            address may use it; reports sent from anywhere else are turned away.
           </p>
         </section>
 
@@ -41,157 +42,200 @@ export default function FeedbackWidgetDocsPage() {
           <h2 className="ui-public-prose-h2">2. Install it — two ways</h2>
           <ul className="list-disc pl-6 space-y-2">
             <li>
-              <strong>Copy snippet</strong> — paste it into your site&apos;s base template or root
-              layout, before <code>&lt;/body&gt;</code>. Any framework, any stack.
+              <strong>Copy snippet</strong> — paste the line into your site&apos;s main template,
+              before <code>&lt;/body&gt;</code>. It works with any framework.
             </li>
             <li>
-              <strong>Install via agent</strong> — for repo-linked projects, one click dispatches an
-              agent that adds the snippet to your codebase, verifies the page loads cleanly, and
-              ships it the way your repo ships changes. It will not add a second embed if one
-              already exists. <strong>Remove via agent</strong> is the symmetric operation.
+              <strong>Install via agent</strong> — for projects with a repository, an agent adds the
+              line to your code, checks the page still loads, and ships it the way your project
+              ships changes. It will not add a second copy if one is already there.{" "}
+              <strong>Remove via agent</strong> takes it out again.
+            </li>
+          </ul>
+        </section>
+
+        <section id="placement" className="mb-10 space-y-4 sm:mb-12">
+          <h2 className="ui-public-prose-h2">3. Where the button sits</h2>
+          <p>
+            Nothing to set up in the usual case. The button looks for a free corner each time the
+            page loads, scrolls or changes, and stays off anything a visitor could click — your
+            links, buttons, form fields, chat bubbles and bottom bars. If every spot is taken, it
+            hides until there is room, because a button that steals a click is worse than none.
+          </p>
+          <p>For the cases it cannot see, mark your page:</p>
+          <ul className="list-disc pl-6 space-y-2">
+            <li>
+              <code>data-fc-avoid</code> on any element — the button never covers it.
+            </li>
+            <li>
+              <code>data-fc-place=&quot;left&quot;</code> or <code>&quot;right&quot;</code> on{" "}
+              <code>&lt;html&gt;</code> or on part of a page — keep the button on that side.
+            </li>
+            <li>
+              <code>data-fc-place=&quot;hidden&quot;</code> — no button while that part of the page
+              is showing, for example on a checkout or a full-screen editor.
             </li>
           </ul>
           <p>
-            If your site already has its own floating button in the bottom-right corner, add{" "}
-            <code>data-fc-bottom=&quot;88&quot;</code> to stack the feedback button above it.
+            The older <code>data-fc-bottom=&quot;88&quot;</code> on the script line still works and
+            lifts the button by that many pixels.
           </p>
         </section>
 
         <section className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">3. What visitors get</h2>
+          <h2 className="ui-public-prose-h2">4. What visitors get</h2>
           <p>
-            A small button on every page. Opening it, the visitor picks a scope — <em>Element</em>{" "}
-            (they click the exact thing that&apos;s broken; the widget records its CSS selector and
-            visible text), <em>This page</em>, or <em>Whole site</em> — writes what should be
-            improved, optionally attaches an image (file picker or paste; the widget downscales it
-            client-side so a phone photo never ships megabytes), and optionally leaves a name or
-            email. The widget renders in a Shadow DOM, so your styles and the widget&apos;s
-            can&apos;t interfere with each other.
+            A small button on every page. Opening it, the visitor picks what they mean —{" "}
+            <em>Element</em> (they click the exact thing that is wrong, and the widget notes which
+            one), <em>This page</em>, or <em>Whole site</em> — writes what should be better, can add
+            a picture (it is shrunk in their browser, so a phone photo never uploads megabytes), and
+            can leave a name or email. The widget is sealed off from your page, so your styles and
+            its styles cannot interfere.
           </p>
           <p>
-            Repeat reports don&apos;t pile up: the same complaint filed again bumps a counter on the
-            existing inbox row (shown as <em>×N</em>) instead of creating a duplicate — the volume
-            signal survives, the noise doesn&apos;t.
+            The same complaint sent twice does not pile up: it adds to a counter on the existing
+            report (shown as <em>×N</em>), so you still see how many people hit it.
           </p>
           <p>
-            They can also <strong>speak instead of typing</strong> — useful on a phone, where
-            describing a bug by thumb is where most reports die. The transcript lands in the same
-            box, editable, and the visitor still presses Send.
+            Visitors can <strong>speak instead of typing</strong> — useful on a phone. What they say
+            appears as text they can edit, and they still press Send.
           </p>
           <p>
             <strong>Ask Loki before asking for a change.</strong> Most people you build a site for
-            are not web professionals, and cannot tell a mistake from a convention. The panel&apos;s{" "}
+            are not web professionals and cannot tell a mistake from a convention. The{" "}
             <em>Ask Loki</em> tab gives them a second opinion on the element they picked, the page,
-            or the whole site — why something is the way it is, whether it should change, how the
-            site could be better. It may well answer &ldquo;leave it&rdquo;; every change it does
-            recommend has <em>Request this</em>, which turns it into an ordinary report. Loki reads
-            an outline of the page in the visitor&apos;s browser (no screenshots), and the answers
-            are charged to your AI budget. It is on by default;{" "}
-            <code>data-fc-modes=&quot;report&quot;</code> on the script tag turns it off.
+            or the whole site — why something is the way it is, whether it should change. It may
+            well say &ldquo;leave it&rdquo;; every change it does suggest has <em>Request this</em>,
+            which turns it into an ordinary report. Loki reads an outline of the page — headings,
+            words, links, buttons — not a picture of it, and says so. Answers are charged to your AI
+            budget. It is on by default; <code>data-fc-modes=&quot;report&quot;</code> on the script
+            line turns it off.
+          </p>
+          <p>
+            <strong>Chat</strong> is a third tab, off by default. It is a front desk that points
+            visitors to the right project. Turn it on with{" "}
+            <code>data-fc-modes=&quot;report,ask,chat&quot;</code>.
           </p>
           <p>
             <strong>Visitors can hide it.</strong> <em>Hide this button on this site</em> at the
             foot of the panel hides it for that visitor only, with an Undo. Opening any page with{" "}
             <code>#loki</code> at the end of the address brings it back.
           </p>
+          <p>
+            <strong>Visitors can follow their report.</strong> Someone who signs in to Loki sees
+            every report they have sent, and where its fix stands, on{" "}
+            <Link href="/my-feedback" className="ui-public-link">
+              My feedback
+            </Link>
+            .
+          </p>
           <p className="ui-public-callout">
-            <strong>The mic needs your site&apos;s permission.</strong> If your site sends a{" "}
-            <code>Permissions-Policy</code> header with <code>microphone=()</code> — an empty
-            allowlist, which several security presets ship by default — browsers block the
-            microphone for every origin including your own, and never show a permission prompt. The
-            widget detects this and simply doesn&apos;t offer the button, rather than showing one
-            that can only fail. To enable it, allow your own origin:{" "}
-            <code>Permissions-Policy: microphone=(self)</code>. Everything else in the widget works
-            regardless.
+            <strong>The microphone needs your site&apos;s permission.</strong> If your site sends a{" "}
+            <code>Permissions-Policy</code> header with <code>microphone=()</code> — which several
+            security presets do by default — browsers block the microphone everywhere on your site
+            and never ask. The widget notices and does not show the button, rather than one that can
+            only fail. To allow it, send <code>Permissions-Policy: microphone=(self)</code>.
+            Everything else works either way.
           </p>
         </section>
 
         <section className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">4. Remote control — no deploys</h2>
+          <h2 className="ui-public-prose-h2">5. Change it without redeploying</h2>
           <p>
-            The snippet is a pointer; all behavior is server-side. On every page load the widget
-            asks Loki whether to render, and that call doubles as a heartbeat:
+            The line on your site only points at Loki; everything else is decided on Loki&apos;s
+            side. Each time a page loads, the widget asks Loki whether to show itself, and that same
+            call tells Loki the widget is really running:
           </p>
           <ul className="list-disc pl-6 space-y-2">
             <li>
-              <strong>Live status is observed truth</strong> — the setup card shows{" "}
-              <em>Live on your-site.com · last seen …</em> only once the boot call has actually
-              arrived from your site.
+              The setup card only says the widget is running on your site once that call has
+              actually arrived from it — not just because the line is in your code.
             </li>
             <li>
-              <strong>Pause / Resume</strong> — hides or shows the widget on your live site within
-              ~30 seconds, without touching your code.
+              <strong>Pause / Resume</strong> hides or shows the widget on your site within about 30
+              seconds, without touching your code.
             </li>
             <li>
-              <strong>Rotate</strong> mints a new token (the old snippet stops working);{" "}
-              <strong>Disable</strong> revokes it entirely.
+              <strong>Rotate</strong> makes a new key (the old line stops working);{" "}
+              <strong>Disable</strong> switches it off for good.
             </li>
           </ul>
         </section>
 
         <section className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">5. From report to fix</h2>
+          <h2 className="ui-public-prose-h2">6. From report to fix</h2>
           <p>
-            Submissions land in the project&apos;s <strong>Visitor feedback</strong> inbox, and the{" "}
-            <Link href="/control" className="ui-public-link">
-              Control
+            Reports land in the project&apos;s inbox and in{" "}
+            <Link href="/feedback" className="ui-public-link">
+              Feedback
             </Link>{" "}
-            page shows a fleet-wide strip of projects with new reports. Per row:
+            (after you sign in), which shows every project&apos;s reports in one list and what stage
+            each fix is at. On the project you have:
           </p>
           <ul className="list-disc pl-6 space-y-2">
             <li>
-              <strong>Dispatch fix</strong> — one report → one scoped agent run. Routes through
-              Loki&apos;s <code>injectPrompt</code> SSOT: the project&apos;s configured builder. An
-              eligible account can use the shared Cloud builder; connect Fleet Runner when the
-              project should run on your computer. You do not pick a terminal.
+              <strong>Implement</strong> — one report becomes one agent run, on whichever builder
+              the project runs on. You do not pick a terminal.
             </li>
             <li>
-              <strong>Dispatch all as one</strong> (2+ new items) — one agent pass covering the
-              whole pile. Prefer this when you want a single coherent fix run now.
+              <strong>Implement all as one</strong> (two or more new reports) — one agent run that
+              covers the whole pile, when you want a single fix now.
             </li>
             <li>
-              <strong>Synthesize themes</strong> (3+ new items) — an agent clusters the pile into
-              structured briefs filed back into the same inbox; you then Dispatch the brief. Use
-              when volume is high and themes help before fixing.
+              <strong>Synthesize</strong> (three or more new reports) — an agent groups them into a
+              few clear briefs, filed back into the same inbox, which you then implement. Nothing
+              does this on a schedule; it runs when you press it.
             </li>
             <li>
-              <strong>AI review</strong> — an agent opens any page of your site in a headless
-              browser (desktop + mobile) and files findings into the same inbox.
-            </li>
-            <li>
-              A <strong>daily digest</strong> clusters busy inboxes into themes and files each as a
-              draft on{" "}
-              <Link href="/approvals" className="ui-public-link">
-                Approvals
-              </Link>{" "}
-              — with the exact agent prompt included, so you review precisely what would run.
+              <strong>AI review</strong> — an agent opens a page of your site in a browser, at
+              desktop and phone size, and files what it finds into the same inbox.
             </li>
           </ul>
+        </section>
+
+        <section id="owner-notes" className="mb-10 space-y-4 sm:mb-12">
+          <h2 className="ui-public-prose-h2">7. Your own notes start the work</h2>
           <p>
-            <strong>Nothing auto-executes.</strong> Visitor text is untrusted input; it reaches an
-            agent only after your explicit click. The approval gate is a security boundary, not a
-            formality.
+            When you open your site from the project in Loki, the widget knows it is you. A note you
+            leave that way starts an agent on it straight away, with no second click — say what to
+            change and it gets built. To keep a leaked link from running up costs, this is capped at
+            40 a day per project; past that, notes wait in Loki for you to start them.
+          </p>
+          <p>
+            <strong>What a visitor writes never runs by itself.</strong> Their text could say
+            anything, so it reaches an agent only after you press Implement. That click is a safety
+            boundary, not a formality.
           </p>
         </section>
 
         <section className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">6. You close the loop</h2>
+          <h2 className="ui-public-prose-h2">8. You close the loop</h2>
           <p>
-            Every dispatched report remembers its run, so you can see what shipped against it.
-            Resolving is deliberately a human act — a green run is not proof the reporter&apos;s
-            problem went away. When you mark a report resolved, any visitor who left an email gets a
-            short note that their feedback shipped. Reporters who hear back report again; that is
-            the point.
+            Every report remembers the run that worked on it, so you can see what shipped against
+            it. Once a fix is out, <strong>Watch the fix</strong> opens your page and plays a short
+            walkthrough: a pointer moves to each changed part and a caption says what changed. If a
+            step cannot be shown, it says so and files that back into your inbox, so a fix that did
+            not really land comes back to you.
+          </p>
+          <p>
+            Marking a report resolved is your call — a finished run is not proof the problem went
+            away. When you do, any visitor who left an email gets a short note that their feedback
+            shipped. People who hear back report again; that is the point.
           </p>
         </section>
 
-        <section className="mb-10 space-y-4 sm:mb-12">
+        <section id="security" className="mb-10 space-y-4 sm:mb-12">
           <h2 className="ui-public-prose-h2">Security model</h2>
           <ul className="list-disc pl-6 space-y-2">
-            <li>Token is write-only and scoped to one project; reading requires your session.</li>
-            <li>Origin allowlist enforced on submission; rate limits per IP and per token.</li>
-            <li>Pause / rotate / revoke take effect on the live site without customer deploys.</li>
-            <li>Human approval gates every agent dispatch that involves visitor text.</li>
+            <li>
+              The key can only send feedback for one project; reading anything needs your sign-in.
+            </li>
+            <li>Only your project&apos;s own address may use the key; sending is rate-limited.</li>
+            <li>Pause, rotate and disable take effect on your site without a deploy.</li>
+            <li>
+              Visitor text reaches an agent only after you click. Only your own notes, left while
+              signed in as the owner, start work by themselves — at most 40 a day per project.
+            </li>
           </ul>
         </section>
 

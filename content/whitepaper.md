@@ -1,8 +1,8 @@
 ---
 title: The Builder's Operating System
 subtitle: A technical architecture for sustained autonomous execution across many projects simultaneously
-publishedAt: 2026-09-21
-version: 0.3.1
+publishedAt: 2026-10-01
+version: 0.3.2
 ---
 
 ## The Execution Gap
@@ -50,23 +50,23 @@ Each iteration is one cycle. Loki is built to make this cycle as tight as possib
 3. The operator sees the ready state and the proposed next action
 4. With one tap or keystroke, the next iteration begins
 
-Auto-continue removes the operator from steps 2–4 entirely for routine continuation. The operator re-enters only when the loop requires judgment: a design decision, an ambiguous requirement, a broken test.
+Autopilot — a per-project on/off switch — removes the operator from steps 2–4 entirely for routine continuation. The operator re-enters only when the loop requires judgment: a design decision, an ambiguous requirement, a broken test.
 
 This is not automation for its own sake. It is a division of labor: the agent handles execution, the operator handles judgment. Loki is the interface between them.
 
 ## Architecture
 
-Loki is a hosted control plane (a Next.js application) plus a runner that owns the agents. The runner is the always-on cloud builder by default, or the Fleet Runner desktop app on your own machine when you choose that for a project. The control plane never touches a terminal of yours; it talks to runners.
+Loki is a hosted control plane (a Next.js application) plus a runner that owns the agents. The runner is the always-on cloud builder for accounts that have access to it, or the Fleet Runner desktop app on your own machine — which is the only option for accounts without cloud access, and a choice per project for everyone else. The control plane never touches a terminal of yours; it talks to runners.
 
 ### State Propagation
 
-Agent state flows from the terminal to the UI through a layered propagation mechanism:
+Agent state flows from the runner to the UI; the web application never reads files on your machine.
 
-The agent writes structured session files to `/tmp` on completion. These files contain the session handoff: what was done, what comes next, health indicators, test status, open tasks. The files follow a naming convention: `agent-ready-<tab>`, `agent-session-<tab>`, `agent-current-prompt-<tab>`.
+At the end of a turn the agent writes a structured handoff for its project to `~/.loki/sessions/<project>.md`: what was done, what comes next, health indicators, test status, open tasks. The file is keyed by project, not by a terminal tab. The runner watches that directory, folds each change into the project's state, and also reads the agent CLI's own live status (for Claude Code, the session status file it maintains) so that a working agent is not mistaken for a silent one.
 
-The Loki SSE stream reads these files at 2-second intervals and emits diff-patched updates to all connected clients. Only changed projects trigger events, keeping bandwidth minimal.
+The runner pushes that runtime state to Loki over outbound HTTPS. Loki fans changes out to every open browser over a server-sent event stream, and only changed projects trigger events, keeping bandwidth minimal.
 
-On the client, a React hook consumes the SSE stream and maintains the full project state map. Render cycles are bounded: only components tied to changed projects re-render.
+On the client, a React hook consumes the stream and maintains the full project state map. Render cycles are bounded: only components tied to changed projects re-render.
 
 ### Agent Execution: The Runner Owns the Process
 
@@ -80,7 +80,7 @@ Because the runner owns the buffer, large prompts are written with backpressure;
 
 ### Where a Project Runs Is a Decision, Not a Guess
 
-Every project has a stored answer to "Runs on": the always-on cloud builder (the default) or the Fleet Runner on your own machine. A checkout that only exists on your laptop stays local; a checkout that lives on the cloud builder stays there. Nothing about who is currently online changes that answer. If the builder you chose is offline, the work queues and the UI says so — it is never quietly rerouted to a different machine.
+Every project has a stored answer to "Runs on": the always-on cloud builder (the default for accounts that have access to it) or the Fleet Runner on your own machine. A checkout that only exists on your laptop stays local; a checkout that lives on the cloud builder stays there. Nothing about who is currently online changes that answer. If the builder you chose is offline, the work queues and the UI says so — it is never quietly rerouted to a different machine.
 
 ### Remote Access: The Command Queue
 
@@ -92,27 +92,21 @@ Phone → Cloud control plane → pending_commands → Runner-owned PTY → Agen
 
 No open ports. No SSH tunnels. No VPN. A runner on your machine makes outbound HTTPS requests only.
 
-### Dispatch Intelligence
+### What Autopilot Sends
 
-When auto-continue fires, Loki does not blindly send "next task." It routes intelligently.
+When autopilot fires, Loki does not compose a new instruction with a model. It sends the head of the project's prompt queue if there is one, and otherwise a fixed "next best step" prompt that asks the agent to continue from its own handoff. An earlier version asked a model to choose between the two; that router was removed in June 2026 because a fixed rule is predictable and costs nothing.
 
-If a prompt queue exists, Loki asks the dispatch router — a Groq inference call on the session handoff and queue contents — whether to drain the queue or run the agent's own judgment. The router returns an action (`queue` or `nextbest`) with a reasoning string that appears in the UI.
-
-The queue drain itself respects health gates: if the session reports critical health or failing tests, queue items are bypassed and the agent is forced into recovery mode. A broken project should fix itself, not accept new tasks that compound the damage.
+Health gates run first and win: an agent that declares itself working or blocked is never interrupted; an open question for a human holds the loop until it is answered; three runs in a row that change nothing stop the loop until something changes; and a streak of failed runs trips a brake that hands the project back to a person. A broken project should be fixed, not handed new tasks that compound the damage.
 
 ### Session Lifecycle Signaling
 
-Agent hooks are shell functions executed at the start and end of every Claude Code session. They translate terminal events into Loki state signals:
+Because the runner starts every agent in a terminal it owns, it sees the session's whole lifecycle directly — start, output, exit, crash — and records each as an event. Nothing has to be installed into your shell, and the same mechanism works for every supported agent (Claude Code, Codex, Cursor, Antigravity, Grok), not only one.
 
-- Session start: clears ready marker, writes current-prompt sentinel
-- Session end: writes session handoff file, sets ready marker, pings Loki
-- Hard stop: writes closed and sentinel markers
+The agent's part of the contract is the handoff file described above. The agent does not need to know about Loki beyond writing it; the runner is the integration boundary.
 
-These hooks are installed once and run automatically. The agent does not need to know about Loki. The shell layer is the integration boundary.
+### Beside the Agents
 
-### The Life OS Layer
-
-Agent orchestration is the fleet management half of Loki. The other half is personal operating surface.
+Agent orchestration is the largest part of Loki, but not all of it. The same workspace holds the rest of an operator's work: Today, People, Crew (the humans you hand work to), Money, Goals and Habits.
 
 Goals, habits, people, subscriptions, and commitments are tracked in the same interface as project and agent state. This is not an accident of feature creep. It reflects a truth about how serious builders work: the project is not separate from the life. Deadlines exist because of constraints. Habits determine momentum. People are collaborators and stakeholders.
 
@@ -120,17 +114,17 @@ Loki makes this visible together so operators can reason about their actual situ
 
 ## Subscription Tiers
 
-Loki is a hosted SaaS product with four levels: a free tier and three paid tiers. Only the free tier is purchasable today — the three paid tiers are published without prices while the billing rail is finished, and /pricing shows them as such.
+Loki is a hosted product with four levels: a free tier and three paid tiers. The paid tiers are published without prices, nothing is charged until prices are announced, and /pricing shows them as such. The only difference the product enforces between tiers is how many projects you can have; every feature is on every plan.
 
-**Free** — for commanding your first projects. The full captain dashboard with your own runner and agent keys, limited in project count — enough to see the whole loop working before paying anything.
+**Free** — for your first projects. Everything in Loki, with your own agent sign-ins and keys, limited to 3 projects — enough to see the whole loop working.
 
-**Personal** — for solo builders managing up to 5 projects. Cloud builder by default, your own machine via Fleet Runner when you want it, remote access from anywhere. Full project/agent/life OS features. Designed for the individual operator who wants to run the full system without self-hosting.
+**Personal** — for one builder managing up to 5 projects.
 
-**Pro** — for power builders running many projects at once, with no project ceiling. Faster dispatch inference, extended prompt history, priority support, and direct access to new features in beta. Intended for builders where Loki is an operational dependency.
+**Pro** — for builders running many projects at once, with no project ceiling.
 
-**Team** — for small groups sharing a fleet. Multi-user project state, shared prompt queues, and team-level dashboards. Built for pairs and small studios who want a shared execution surface without enterprise overhead.
+**Team** — for groups sharing a fleet: no project ceiling, plus shared projects and roles.
 
-Self-hosted deployment remains fully supported for operators who prefer to run Loki on their own infrastructure. The architecture is designed to run on a single machine with PostgreSQL.
+Because Loki is MIT-licensed, running it on your own infrastructure is possible — the architecture runs on a single machine with PostgreSQL — but a self-hosting guide does not exist yet.
 
 ## The Standard
 

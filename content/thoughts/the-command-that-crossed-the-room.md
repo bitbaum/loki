@@ -3,6 +3,7 @@ title: The Command That Crossed the Room
 summary: How Loki gained the ability to command your local AI agents from anywhere in the world — and why a single silent bug had been blocking it from working.
 excerpt: You open Loki on your phone, type a message, press Send. Seven seconds later, your AI agent at home starts working on exactly what you told it. This is what that required.
 publishedAt: 2026-05-16
+supersededBy: /whitepaper
 tags: architecture,daemon,remote,zellij,breakthrough,mobile
 featured: true
 author: g

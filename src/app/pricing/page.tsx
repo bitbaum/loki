@@ -17,7 +17,8 @@ import {
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "Command your fleet of AI agents. Free to start; paid plans add room to scale.",
+  description:
+    "Loki is free while prices are not announced. Paid plans will add room for more projects.",
 };
 
 /**
@@ -63,10 +64,13 @@ export default async function PricingPage() {
       <main className="ui-public-container py-12 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
           <div className="ui-public-eyebrow">Pricing</div>
-          <h1 className="ui-public-display-md mt-3 sm:mt-4">Pay for the captain, not the crew.</h1>
+          <h1 className="ui-public-display-md mt-3 sm:mt-4">
+            Your agents, your keys. Loki is free for now.
+          </h1>
           <p className="ui-public-section-lede mx-auto mt-4 sm:mt-5">
-            The agents run on your machine with your own keys. Loki is the one place you command,
-            watch, verify, and govern all of them. Start free — scale when your fleet does.
+            Your agents run on your own computer with the Fleet Runner app, or on Loki&apos;s cloud
+            builder where your account has it. Loki is the one place you start, watch and check
+            their work. The plans differ only in how many projects you can have.
           </p>
         </div>
 
@@ -78,10 +82,7 @@ export default async function PricingPage() {
                 key={plan.key}
                 className={`ui-public-price-card${plan.featured ? " ui-public-price-card-featured" : ""}`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-lg font-semibold text-text-primary">{plan.name}</h2>
-                  {plan.featured && <span className="ui-public-price-badge">Recommended</span>}
-                </div>
+                <h2 className="text-lg font-semibold text-text-primary">{plan.name}</h2>
 
                 <div className="mt-4 flex items-baseline gap-1.5">
                   {plan.priceMonthly === null ? (
@@ -133,7 +134,7 @@ export default async function PricingPage() {
           {PRICING_BILLING_NOTE}
         </p>
 
-        {/* Every plan includes the captain layer — stated once, honestly, rather
+        {/* Every plan includes everything — stated once, honestly, rather
             than faked as per-tier gates the product doesn't enforce. */}
         <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-border-subtle bg-surface-base p-5 sm:mt-16 sm:p-8">
           <div className="ui-public-eyebrow">Every plan includes</div>

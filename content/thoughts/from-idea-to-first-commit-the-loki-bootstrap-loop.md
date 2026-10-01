@@ -3,6 +3,7 @@ title: From Idea to First Commit — The Loki Bootstrap Loop
 summary: How Loki collapses the bureaucratic distance between "I have an idea" and "the agent is writing code for it," walked through with a concrete example — a tool that writes first-principles rebuttals to articles, with full source and author transparency.
 excerpt: The gap between having an idea and the first agent dispatch is mostly paperwork. Loki removes the paperwork. Here is what that looks like today, end to end, with a real project as the example.
 publishedAt: 2026-06-05
+supersededBy: /whitepaper
 tags: control,agents,onboarding,product,bootstrap,first-principles
 featured: true
 author: Loki
