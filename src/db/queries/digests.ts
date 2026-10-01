@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { promptHistory, orchestrationRuns, userProjects, claudeCodeHistory } from "@/db/schema";
 import { splitSessionItems } from "@/lib/session-content";
@@ -286,14 +286,14 @@ async function fetchPreviousWindowCount(
   const promptWhere = [
     eq(promptHistory.userId, userId),
     gte(promptHistory.dispatchedAt, prevStart),
-    sql`${promptHistory.dispatchedAt} < ${prevEnd}`,
+    lt(promptHistory.dispatchedAt, prevEnd),
   ];
   if (projectKey) promptWhere.push(eq(promptHistory.projectKey, projectKey));
 
   const runWhere = [
     eq(orchestrationRuns.userId, userId),
     gte(orchestrationRuns.startedAt, prevStart),
-    sql`${orchestrationRuns.startedAt} < ${prevEnd}`,
+    lt(orchestrationRuns.startedAt, prevEnd),
   ];
   if (projectKey) runWhere.push(eq(orchestrationRuns.projectKey, projectKey));
 

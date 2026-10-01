@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agentSessions, type AgentSessionRow } from "@/db/schema";
 import { OPEN_TURN_TTL_MS, bucketTurnsByProject } from "@/lib/agent-turns";
@@ -156,7 +156,9 @@ export async function closeStaleAgentTurns(now = new Date()): Promise<number> {
   const rows = await db
     .update(agentSessions)
     .set({ endedAt: sql`${agentSessions.startedAt}`, updatedAt: new Date() })
-    .where(and(isNull(agentSessions.endedAt), sql`${agentSessions.startedAt} < ${cutoff}`))
+    // lt(), not a raw sql`< ${cutoff}`: postgres-js cannot serialise a Date in a
+    // raw fragment, so this threw ERR_INVALID_ARG_TYPE on every hourly reap.
+    .where(and(isNull(agentSessions.endedAt), lt(agentSessions.startedAt, cutoff)))
     .returning({ id: agentSessions.id });
   return rows.length;
 }

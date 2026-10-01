@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { calendarBusy, type NewCalendarBusyRow } from "@/db/schema";
-import { and, eq, gte, lt, lte, desc, sql } from "drizzle-orm";
+import { and, eq, gt, gte, lt, lte, desc, sql } from "drizzle-orm";
 import type { BusyBlock } from "@/lib/calendar/busy";
 
 /**
@@ -108,7 +108,7 @@ export async function getBusyAround(
           // after our start. Half-open on both sides, so back-to-back blocks
           // are not collisions.
           lt(calendarBusy.startsAt, end),
-          sql`${calendarBusy.endsAt} > ${start}`,
+          gt(calendarBusy.endsAt, start),
         ),
       )
       .orderBy(calendarBusy.startsAt),

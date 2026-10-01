@@ -394,7 +394,7 @@ jobs:
           fi
 
           for attempt in $(seq 1 10); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "https://$DOMAIN/" || echo 000)
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "https://$DOMAIN/") || true; code=${code:0:3}
             if [ "$code" -ge 200 ] 2>/dev/null && [ "$code" -lt 400 ]; then
               echo "https://$DOMAIN → $code (attempt $attempt)"
               exit 0

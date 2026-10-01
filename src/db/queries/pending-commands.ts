@@ -10,7 +10,7 @@ import {
   type LaunchAgentPayload,
   type RunnerChannel,
 } from "@/db/schema/pending-commands";
-import { eq, isNull, isNotNull, and, inArray, notInArray, desc, sql } from "drizzle-orm";
+import { eq, gte, isNull, isNotNull, and, inArray, notInArray, desc, sql } from "drizzle-orm";
 import type { FailedCommand } from "@/lib/control-types";
 import { olderOpenRunSql } from "./orchestration-runs";
 import { requireNotDemo } from "@/lib/demo-guard";
@@ -339,7 +339,7 @@ export async function countRecentNewSiteCommands(userId: string, since: Date): P
       and(
         eq(pendingCommands.userId, userId),
         eq(pendingCommands.type, "hosted_new_site"),
-        sql`${pendingCommands.createdAt} >= ${since}`,
+        gte(pendingCommands.createdAt, since),
       ),
     );
   return row?.n ?? 0;
