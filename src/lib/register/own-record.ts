@@ -27,12 +27,13 @@ export const ROADMAP_GROUPS: ReadonlyArray<{ status: string; title: string; summ
   {
     status: "in progress",
     title: "Now",
-    summary: "In production or being built this quarter. Ticked steps are live.",
+    summary: "Being built now. Ticked steps are done and in use.",
   },
   {
     status: "planned",
     title: "Next",
-    summary: "Concrete engineering, in sequence. Nothing here is available yet.",
+    summary:
+      "Concrete engineering, in sequence. Ticked steps are done; the rest is not available yet.",
   },
   {
     status: "later",

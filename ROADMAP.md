@@ -4,9 +4,19 @@ Where Loki is going, in order. This file is the canonical roadmap: the fleet
 map (`/api/fleet/map`) reads it, `/roadmap` renders it, and the same record is
 what every other fleet site shows for its own project. Format:
 `docs/architecture/building-in-public-records.md`. Nothing is dated; the order
-carries the argument. Nothing here claims what is not true.
+carries the argument. Nothing here claims what is not true. "Now" holds only
+work that is actually moving; finished items live under "Shipped".
 
 ## Now
+
+### Partner track
+bitbaum owns the systems design course and partner approval. Loki supplies scoped application and assigned-delivery infrastructure; qualification does not enrol a partner in the whole ecosystem. OrangeCat or Solon handoffs remain optional and require their own purpose and consent.
+- [x] Request-scoped application evidence, separate course review and studio approval with visible reasons; bitbaum owns the course and public profile consent
+- [ ] The candidate build is an ordinary project with an approval control in Control
+- [ ] Self-serve "Go live" for a tenant's site through the existing runner channel
+- [ ] The not-approved path: the docs and scripts to run the stack yourself
+
+## Next
 
 ### Capacity you can read
 The numbers that decide when the next wall is hit, published on the System page and in this file, so "when do we need more" is a reading, not a guess.
@@ -22,34 +32,6 @@ One Linux user, one clone root, one runner service and one credential file per b
 - [ ] Eligibility reads the tenant record instead of an environment allowlist
 - [ ] Per-tenant CPU, memory and network limits
 
-### Fleet command center
-The web control plane coordinates fleets of AI agents across projects, with one-button autopilot: pause all, or build all.
-- [x] Agents drain each project's queue, then pick the next-best task
-- [x] Per-project pause / resume / direct-send, with per-project autopilot overrides
-- [x] Handoff between agent sessions with truthful status on every card
-- [x] Multi-user foundation: GitHub OAuth, organizations, team invites, agent tokens
-
-### Fleet Runner desktop app
-The desktop app owns the agent terminals, agent launching and state sync on your computer — the same React tree the web serves.
-- [x] Tray icon, OS notifications on agent idle, embedded session watcher
-- [x] One tag push produces installers for Linux, macOS and Windows
-- [x] Auto-update through the GitHub release feed
-
-### The feedback loop, end to end
-A visitor's note on any fleet site becomes a pull request, a deploy, and a walkthrough of the change on the live page.
-- [x] One script tag puts a feedback button on any site; reports land in a per-project inbox
-- [x] One click dispatches an agent; the fix ledger follows the PR to merge and deploy
-- [x] The owner's own note starts the build straight from the site
-- [x] "Watch the fix": a narrated cursor walks the owner through the change on the live page; a step it cannot show is filed back as a report
-- [x] Failed runs say why in one sentence
-
-### OrangeCat project handoff
-A signed "Build it with Loki" link carries a public brief into Loki's guided project setup.
-- [x] Loki asks for project context before agent work begins
-- [x] Linking is optional and never publishes private work by itself
-
-## Next
-
 ### One box becomes a pool
 Runners on several boxes claim from the one queue; each site knows which box serves it.
 - [ ] `new-site.sh --host`, and a register that records the host per site
@@ -58,34 +40,28 @@ Runners on several boxes claim from the one queue; each site knows which box ser
 
 ### Bring your own key, metered by default
 The builder pays their model vendor directly and pays Loki for the platform; every run records the tokens it spent, per tenant, from day one.
+- [x] Loki's own chat runs on your key when you paste one in Settings
 - [ ] Tokens per run per tenant recorded and shown on the run
 - [ ] BYOK as the default execution path for new accounts
 - [ ] A metered pool (wholesale tokens sold inside a plan) once the numbers say so
 
-### Partner track
-Bitbaum owns the systems design course and partner approval. Loki supplies scoped application and assigned-delivery infrastructure; qualification does not enrol a partner in the whole ecosystem. OrangeCat or Solon handoffs remain optional and require their own purpose and consent.
-- [x] Request-scoped application evidence, separate course review and studio approval with visible reasons; Bitbaum owns the course and public profile consent
-- [ ] The candidate build is an ordinary project with an approval control in Control
-- [ ] Self-serve "Go live" for a tenant's site through the existing runner channel
-- [ ] The not-approved path: the docs and scripts to run the stack yourself
-
 ### Signed installers and native channels
 Make Fleet Runner trivial to install on every platform, including for builders who never open a terminal.
+- [x] Headless CLI install path for servers and CI runners
 - [ ] Apple-signed and notarized macOS builds, and a signed Windows executable
 - [ ] Homebrew tap, winget, and a .deb apt repository
-- [ ] Headless CLI install path for servers and CI runners
 
 ### Remote control channel
 Web and mobile become genuine remote control surfaces, not eventually-consistent dashboards.
+- [x] When your computer is offline, its work waits in a visible queue instead of going somewhere else
 - [ ] The local app opens an authenticated outbound WebSocket when remote control is on
-- [ ] Falls back to the existing queue when the local app is offline
 - [ ] Scoped credentials through the existing agent token system
 
 ### Mobile fleet control
 Native iOS and Android apps on the remote control channel, made for steering and approval rather than authoring.
-- [ ] Push notifications for Beacon mode and Mission checkpoints
+- [ ] Push notifications when an agent needs you
 - [ ] Swipe to approve or reject agent output where a human is actually needed
-- [ ] Voice capture for the autopilot intent ladder
+- [ ] Voice capture for commands and approvals
 
 ## Later
 
@@ -100,9 +76,9 @@ Reviews, walkthrough scripts, second opinions and briefs on an open-weight model
 - [ ] Cost per shipped fix published alongside the capacity numbers
 
 ### The academy
-The studio-owned transferable course is developed in Bitbaum. Loki provides optional building tools and the application evidence API; course content and teaching priorities remain in the studio roadmap.
-- [x] Bitbaum hosts the initial `/academy/` lesson and capstone rubric; its portal records evidence without requiring a Loki account
-- [ ] Follow Bitbaum’s course expansion and assessment calibration after the first pilot reviews
+The studio-owned transferable course is developed in bitbaum. Loki provides optional building tools and the application evidence API; course content and teaching priorities remain in the studio roadmap.
+- [x] bitbaum hosts the initial `/academy/` lesson and capstone rubric; its portal records evidence without requiring a Loki account
+- [ ] Follow bitbaum's course expansion and assessment calibration after the first pilot reviews
 
 ### Secure cloud execution for more accounts
 Isolated cloud builders beyond the eligible-account service, with the per-project choice of where work runs kept visible.
@@ -130,5 +106,60 @@ Verified OrangeCat settlements connected to owner-approved project work, with ex
 - [ ] Automatic work orders, escrow and other rails
 
 ### Physical robotic fleets
-The same control patterns — autonomy dial, handoff, queues, visibility, override — on a different execution substrate.
-- [ ] Per-fleet autonomy on the same dial: Manual → Queue → Beacon → Continuous → Mission
+The same control patterns — an on/off autopilot, approvals, handoff, queues, visibility, override — on a different execution substrate.
+- [ ] Per-fleet autopilot behind the same approval gate
+
+## Shipped
+
+### Change a website from its address
+Enter an existing website and say what should change, in plain words. The brief survives signing in and becomes one project, and sending it starts the build.
+
+### Message Loki from any AI app
+Loki is an MCP server: claude.ai, ChatGPT, Claude Code and Cursor can ask it questions, list projects and approvals, and — with a separate permission — act. It signs in with your OrangeCat account or an agent token.
+
+### Watch it work
+A project's run as a readable thread: what the agent was asked, each step it took, what it is doing right now in one line, and its handoff at the end.
+
+### One account through OrangeCat
+Sign up with OrangeCat and the same account opens OrangeCat, Loki and Solon. An existing Loki account links to it with one click; GitHub, Google, X and email sign-in still work.
+
+### Roles, hand-over and invites
+Invite anyone into a project by email, with or without an account. A builder can run agents, a client follows the work, and the owner can hand the whole project to another member.
+
+### Approvals from Telegram
+Decide on Loki's proposed actions with one tap in Telegram, and give standing approval to small, reversible ones such as an event in your own calendar.
+
+### Found a Solon organization from a project
+Loki prepares the link with the project filled in; the owner signs with their own wallet on Solon, and the project is attributed to that organization only with their consent.
+
+### Take a site down
+A site Loki built can be taken offline, put behind a password, or removed. The plan shows exactly what will happen before the button exists, and the permanent options are typed, not clicked.
+
+### Crew
+Hand work to people, not only agents. An assignment is a draft until you hand it over; the person answers through a link with no account, and a fee can be set in bitcoin, payable to their own OrangeCat profile.
+
+### Fleet command center
+The web control plane coordinates fleets of AI agents across projects, with one-button autopilot: pause all, or build all.
+- [x] Agents drain each project's queue, then pick the next-best task
+- [x] Per-project pause / resume / direct-send, with per-project autopilot overrides
+- [x] Handoff between agent sessions with truthful status on every card
+- [x] Multi-user foundation: sign-in through OrangeCat (or GitHub, Google, X, email), organizations, team invites, agent tokens
+
+### Fleet Runner desktop app
+The desktop app owns the agent terminals, agent launching and state sync on your computer — the same React tree the web serves.
+- [x] Tray icon, OS notifications on agent idle, embedded session watcher
+- [x] One tag push produces installers for Linux, macOS (Apple silicon) and Windows
+- [x] Auto-update through the GitHub release feed
+
+### The feedback loop, end to end
+A visitor's note on any fleet site becomes a pull request, a deploy, and a walkthrough of the change on the live page.
+- [x] One script tag puts a feedback button on any site; reports land in a per-project inbox
+- [x] One click dispatches an agent; the fix ledger follows the PR to merge and deploy
+- [x] The owner's own note starts the build straight from the site
+- [x] "Watch the fix": a narrated cursor walks the owner through the change on the live page; a step it cannot show is filed back as a report
+- [x] Failed runs say why in one sentence
+
+### OrangeCat project handoff
+A signed "Build it with Loki" link carries a public brief into Loki's guided project setup.
+- [x] Loki asks for project context before agent work begins
+- [x] Linking is optional and never publishes private work by itself
