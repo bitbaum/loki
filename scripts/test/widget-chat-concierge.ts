@@ -16,6 +16,7 @@ import {
   displayName,
   stem,
   splitSpeakers,
+  stripMeta,
   trimToLastSentence,
   conciergePrompt,
   conciergeSystemPrompt,
@@ -293,5 +294,35 @@ assert.equal(
 );
 assert.equal(trimToLastSentence("Heidi fits."), "Heidi fits.");
 assert.equal(trimToLastSentence("no full stop anywhere"), "no full stop anywhere");
+
+// A fallback model narrated its own rule-check into the answer (seen live on
+// bitbaum, 2026-10-01): the checklist goes, the answer stays, word for word.
+const leaked = [
+  "Loki: Sounds like a course site. Start with me — describe it and I will build it, OrangeCat.",
+  "",
+  "Stage used: beta.",
+  "No URLs written.",
+  'Loki first because building leads ("I want to build something cool...").',
+].join("\n");
+assert.equal(
+  stripMeta(leaked),
+  "Loki: Sounds like a course site. Start with me — describe it and I will build it, OrangeCat.",
+);
+assert.deepEqual(
+  splitSpeakers(stripMeta(leaked)).map((m) => m.speaker),
+  ["loki"],
+);
+assert.equal(
+  stripMeta("- Stage: pilot\n- URLs: none\nCat: Heidi is a pilot."),
+  "Cat: Heidi is a pilot.",
+);
+// An answer that merely talks about stages, links or who answers is not meta.
+for (const keep of [
+  "Loki: Heidi is in beta, and the link below opens it.",
+  "Cat: I answer first here because money leads your question.",
+  "Loki: No URLs are needed; tap the chip for the catalogue.",
+  "Format your request as a sentence or two and I will build it.",
+])
+  assert.equal(stripMeta(keep), keep);
 
 console.log("widget-chat-concierge: ok");

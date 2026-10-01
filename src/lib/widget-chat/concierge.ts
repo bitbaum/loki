@@ -185,6 +185,7 @@ export function conciergeSystemPrompt(
     "- Do not promise payments, revenue shares or start dates.",
     "- Use each project's exact name so the visitor gets a link to it. Do not write URLs yourself; the links are attached for you.",
     "- Be warm and brief: two to five sentences in total, plain text, no markdown headings or tables. Reply in the visitor's language.",
+    "- The answer is only what the visitor reads. Never write notes about these rules, a checklist of what you did, the stage word you used, whether you wrote URLs, or why one of you spoke first.",
     "- If they want to report a problem with this page, tell them to switch to the Report tab.",
     page.url ? `\nThe visitor is on: ${page.title ? `${page.title} — ` : ""}${page.url}` : "",
     "",
@@ -330,6 +331,25 @@ export function fallbackAnswer(
     reply: `A full answer isn't available right now, but going by your words, look at ${list}.`,
     links: scored.map((s) => ({ label: displayName(s.p), url: projectUrl(s.p, appBase) })),
   };
+}
+
+/**
+ * Lines that are not an answer but the model checking its own homework —
+ * seen live from a fallback model: "Stage used: beta." / "No URLs written." /
+ * "Loki first because building leads." They end in a full stop, so the
+ * sentence trimmer keeps them, and they fold into the last speaker's bubble.
+ * Dropped line by line; a line that is part of an answer never looks like one.
+ */
+const META_LINE =
+  /^\s*[-*•]?\s*(?:\(?\s*)?(?:stage(?: word)?(?: used)?\s*[:=]|(?:no |zero )?urls?\s+(?:written|typed|included|given)|urls?\s*[:=]\s*(?:none|no)|links?\s*[:=]\s*(?:none|attached|no)|(?:cat|loki|both)\s+(?:first|only|speaks?|answers?)\s+(?:because|since|as)\b|format\s*[:=]|rules?\s+(?:followed|checked|applied)|(?:self[- ]?)?check(?:list)?\s*[:=]|note to self\b|(?:sentences?|sentence count)\s*[:=]\s*\d)/i;
+
+export function stripMeta(reply: string): string {
+  return reply
+    .split("\n")
+    .filter((line) => !META_LINE.test(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**

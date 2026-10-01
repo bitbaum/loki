@@ -75,6 +75,10 @@ export const ALERT_TYPES = {
     label: "New feedback needs triage",
     producer: "src/lib/feedback/notify-new.ts",
   },
+  studio_request: {
+    label: "A studio request or partner application needs a person",
+    producer: "src/lib/studio/notify.ts",
+  },
   fix_live: {
     label: "A visitor's fix reached the live site",
     producer: "src/lib/feedback/notify-shipped.ts",

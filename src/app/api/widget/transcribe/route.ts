@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_SHORT_MS, RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
 import { getWidgetTokenByToken } from "@/db/queries/widget-tokens";
+import { WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
 import { transcribeWithGroq } from "@/lib/transcribe";
 
 /**
@@ -84,6 +85,9 @@ export async function POST(req: NextRequest) {
   // read, transcription is a paid network call.
   const token = await getWidgetTokenByToken(tokenValue);
   if (!token) return corsError("Unknown or revoked widget token", 403);
+  if (token.status !== WIDGET_TOKEN_STATUS.ACTIVE) {
+    return corsError("This assistant is paused for this site", 403);
+  }
 
   const origin = req.headers.get("origin");
   if (token.origins?.length && (!origin || !token.origins.includes(origin))) {
