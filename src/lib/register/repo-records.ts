@@ -21,7 +21,24 @@ import type { MapProfile } from "./map";
 
 /** A goal-shaped row plus the one line the file's author wrote under the title. */
 export type RepoRoadmapItem = NonNullable<MapProfile["goals"]>[number] & { line: string | null };
-export type RepoChangelogEntry = { date: string; done: string };
+/** One bullet (or prose paragraph) of an entry, whole: every continuation line joined. */
+export type RepoChangelogItem = {
+  /** The `**Bold lead.**` a bullet opens with, when it has one. */
+  lead: string | null;
+  /** The rest of the bullet, as plain text. */
+  text: string;
+};
+/** A `###` sub-section of an entry (Added / Fixed / Changed); `heading` null before the first. */
+export type RepoChangelogSection = { heading: string | null; items: RepoChangelogItem[] };
+export type RepoChangelogEntry = {
+  date: string;
+  /** Whatever the heading says besides the date ("Scoped portal", "0.8.0"), or null. */
+  title: string | null;
+  /** Every item as one line of plain text, newline-separated — the map's shape. */
+  done: string;
+  /** The same items with their sub-headings, for a page that renders the structure. */
+  sections: RepoChangelogSection[];
+};
 
 export type RepoRecords = {
   roadmap: RepoRoadmapItem[];
@@ -29,9 +46,6 @@ export type RepoRecords = {
   /** Blob URLs of the files that produced them, for provenance links. */
   source: { roadmap: string | null; changelog: string | null };
 };
-
-const ENTRY_MAX_CHARS = 700;
-const CHANGELOG_MAX_ENTRIES = 40;
 
 /** Bucket heading → the status word the map publishes. Anything else is used verbatim. */
 function statusForBucket(title: string): string {
@@ -104,39 +118,126 @@ export function parseRoadmapMarkdown(md: string): RepoRoadmapItem[] {
   return items;
 }
 
+/** "2026-07-03 (c)" → null; "2026-09-30 — Scoped portal" → "Scoped portal"; "[0.8.0] - 2026-08-14" → "0.8.0". */
+function entryTitle(heading: string, date: string): string | null {
+  const rest = plainText(heading.replace(date, " "))
+    .replace(/[[\]]/g, "")
+    .replace(/^[\s—–:·-]+|[\s—–:·-]+$/g, "")
+    .replace(/^\([a-z]\)$/i, "")
+    .trim();
+  return rest || null;
+}
+
+/** A whole bullet's markdown → its bold lead (if it opens with one) and the rest, as plain text. */
+function toItem(raw: string): RepoChangelogItem | null {
+  const md = raw.replace(/\s+/g, " ").trim();
+  // A lead is bold that ends at a word boundary: "**Prompts is a grid**, and"
+  // is emphasis inside a sentence, not a lead, and splitting it would print
+  // "grid , and".
+  const bold = /^(\*\*|__)(.+?)\1(?:\s+(.*))?$/.exec(md);
+  const lead = bold ? plainText(bold[2]) || null : null;
+  const text = plainText(bold ? (bold[3] ?? "") : md);
+  return lead || text ? { lead, text } : null;
+}
+
+function itemLine(item: RepoChangelogItem): string {
+  return [item.lead, item.text].filter(Boolean).join(" ");
+}
+
+/**
+ * CHANGELOG.md → dated entries, newest first, nothing dropped.
+ *
+ * Every bullet is kept WHOLE. Entries are written as wrapped markdown — a
+ * bullet's second line is indented under its first — and this parser used to
+ * keep only the line carrying the dash, so the public page printed "Five
+ * essays in Thoughts showed" and stopped. It also dropped `###` sub-headings,
+ * dropped any entry written as prose instead of bullets (a month-long summary
+ * vanished, so the page jumped from August 14 to September 22), cut each
+ * entry at 700 characters, and kept only the newest 40 entries. None of that
+ * is the parser's call: the file's author decides what is in the record.
+ * scripts/test/changelog-own-file.ts holds Loki's own file to this.
+ *
+ * Nested bullets remain detail on the line above them and are dropped.
+ */
 export function parseChangelogMarkdown(md: string): RepoChangelogEntry[] {
   const entries: RepoChangelogEntry[] = [];
-  let current: { date: string; lines: string[] } | null = null;
+  type OpenSection = { heading: string | null; items: string[] };
+  let current: { date: string; title: string | null; sections: OpenSection[] } | null = null;
+  // What the last non-blank line belonged to: a top-level bullet (its
+  // continuations join it), a nested bullet (dropped, with its continuations),
+  // or a prose paragraph (consecutive lines join).
+  let mode = null as "bullet" | "nested" | "prose" | null;
+  let afterBlank = false;
+
+  const lastSection = (sections: OpenSection[]): OpenSection => {
+    if (sections.length === 0) sections.push({ heading: null, items: [] });
+    return sections[sections.length - 1];
+  };
+  const open = <M extends "bullet" | "prose">(sections: OpenSection[], text: string, as: M): M => {
+    lastSection(sections).items.push(text);
+    return as;
+  };
+  const append = (sections: OpenSection[], text: string) => {
+    const items = lastSection(sections).items;
+    if (items.length === 0) items.push(text);
+    else items[items.length - 1] += ` ${text}`;
+  };
   const flush = () => {
     if (!current) return;
-    const done = current.lines.join("\n").trim();
-    if (done) {
-      entries.push({
-        date: current.date,
-        done: done.length > ENTRY_MAX_CHARS ? `${done.slice(0, ENTRY_MAX_CHARS - 1)}…` : done,
-      });
-    }
+    const sections = current.sections
+      .map((s) => ({
+        heading: s.heading,
+        items: s.items.map(toItem).filter((i): i is RepoChangelogItem => i !== null),
+      }))
+      .filter((s) => s.items.length > 0);
+    const done = sections.flatMap((s) => s.items.map(itemLine)).join("\n");
+    if (done) entries.push({ date: current.date, title: current.title, done, sections });
     current = null;
   };
+
   for (const raw of md.split(/\r?\n/)) {
     const line = raw.trimEnd();
     const heading = /^##\s+(.+)$/.exec(line);
     if (heading) {
       flush();
       const date = /(\d{4}-\d{2}-\d{2})/.exec(heading[1]);
-      current = date ? { date: date[1], lines: [] } : null;
+      current = date
+        ? { date: date[1], title: entryTitle(heading[1], date[1]), sections: [] }
+        : null;
+      mode = null;
+      afterBlank = false;
       continue;
     }
     if (!current) continue;
-    // Top-level bullets only: a nested bullet is detail on the line above it.
-    const bullet = /^[-*]\s+(.+)$/.exec(line);
-    if (bullet) {
-      const text = plainText(bullet[1]);
-      if (text) current.lines.push(text);
+    const sections = current.sections;
+    if (!line.trim()) {
+      afterBlank = true;
+      if (mode === "prose") mode = null;
+      continue;
     }
+    const sub = /^#{3,6}\s+(.+?)\s*#*\s*$/.exec(line);
+    if (sub) {
+      sections.push({ heading: plainText(sub[1]) || null, items: [] });
+      mode = null;
+    } else if (/^(?:[-*+]|\d+[.)])\s+/.test(line)) {
+      mode = open(sections, line.replace(/^(?:[-*+]|\d+[.)])\s+/, ""), "bullet");
+    } else if (/^\s+(?:[-*+]|\d+[.)])\s+/.test(line)) {
+      // A nested bullet is detail on the line above it.
+      if (mode === "bullet" || mode === "nested") mode = "nested";
+    } else if (/^\s/.test(line)) {
+      if (mode === "bullet" || mode === "prose") append(sections, line.trim());
+      else if (mode !== "nested") mode = open(sections, line.trim(), "prose");
+    } else {
+      const text = line.replace(/^>\s?/, "");
+      // Unindented text right under a bullet is markdown's lazy continuation.
+      if ((mode === "bullet" && !afterBlank) || mode === "prose") append(sections, text);
+      else mode = open(sections, text, "prose");
+    }
+    afterBlank = false;
   }
   flush();
-  return entries.sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, CHANGELOG_MAX_ENTRIES);
+  // Stable sort: same-day entries keep the file's order.
+  return entries.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
 /** `https://github.com/owner/repo(.git)` → `owner/repo`, else null. */

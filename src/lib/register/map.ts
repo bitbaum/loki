@@ -311,7 +311,9 @@ export function publicChangelog(profile: MapProfile | undefined, limit = 20): Ma
   // Loki's own runs write (commit records, "unified handlers, removed lint
   // warnings"). The file is the record where it exists, the dev log where it
   // does not — the same rule as the roadmap, for the same reason.
-  const fromFile = profile?.repo?.changelog ?? [];
+  // The map publishes the flat {date, done} shape; the structured sections
+  // are for the producer's own /changelog page, not every consumer's payload.
+  const fromFile = (profile?.repo?.changelog ?? []).map((e) => ({ date: e.date, done: e.done }));
   const entries = fromFile.length ? fromFile : rows;
   return [...entries].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, limit);
 }

@@ -6,14 +6,26 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
-## 2026-09-30 — Scoped Bitbaum portal infrastructure
+## 2026-09-30 — Studio requests move to bitbaum
 
-- Keep Loki's website brief free self-service; redirect legacy paid-intake links to Bitbaum, preserving explicit brief handoffs through sign-in.
-- Add bounded Bitbaum request capabilities, versioned preview acceptance, revocation and assigned-partner delivery without project or execution access.
-- Add studio-owned course evidence review, separate partner approval and consenting profile publication. The pilot course and commercial offer remain owned by Bitbaum.
-- Resolve missing profile repository URLs from the existing project-ID register join so canonical studio development records can be read.
+- **Asking Loki to change your website stays free and self-service.** Old
+  links to the paid request form now lead to the bitbaum studio, and a brief
+  you already wrote is carried through sign-in.
+- **A studio request gets its own private link.** Someone who asks the
+  bitbaum studio for work can follow that one request, accept a specific
+  preview version, and receive the delivery from the partner assigned to it,
+  without getting access to anything else in Loki.
+- **Course evidence and partner approval are separate steps** that the studio
+  reviews, and a partner's public profile is published only with their
+  consent. The pilot course and the commercial offer belong to bitbaum (#995).
 
 ## 2026-09-30
+
+### Added
+- **Change a website from its address.** Enter an existing website and say,
+  in plain words, what should change. Your brief survives signing in, becomes
+  one project, and the build starts; the brief tells the agent to keep what
+  already works, test on phone and desktop, and show you a preview (#987).
 
 ### Fixed
 - **Every essay's reading time is its own.** Five essays in Thoughts showed
@@ -21,12 +33,26 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-09-29
 
+### Added
+- **Sign up with OrangeCat.** Creating a Loki account now creates an
+  OrangeCat account, the one account that also opens OrangeCat and Solon. A
+  Loki-only password is still there if you prefer one, and an existing account
+  sees one "Connect OrangeCat" button that links the two (#977).
+- **Watch reads like a chat.** Your request sits on one side, the agent's
+  answer on the other, and while it works one plain line says what it is doing
+  right now; the raw screen folds away behind "Show screen" (#975, #976).
+- **When an agent is out of quota, the next one is one tap away.** Watch
+  offers "Try" with the next agent that still has quota, and a new run skips an
+  agent that just ran out (#975).
+- **The Telegram agent understands screenshots and videos** you send it
+  (#965, #982–#986).
+
 ### Changed
 - **Nothing runs on your quota unasked.** Every agent run Loki used to start
   on its own — a refused feedback run retried, a refused project run retried
   on another provider, a queued Implement re-sent by the cron — is now off
   unless the box sets `LOKI_AUTO_DISPATCH=1`. A failed row stays Failed with
-  its Retry and provider buttons; the choice to spend Claude, Codex or Gemini
+  its Retry and provider buttons; the choice to spend Claude, Codex or Antigravity
   is yours each time. Runs you start yourself are unchanged.
 
 ### Fixed
@@ -60,15 +86,16 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   "Builder".
 - **Hand a project over.** The owner can hand a project to any member from the
   members panel; it runs in the new owner's tenant from then on and the old
-  owner keeps a builder's seat. The studio's hand-over to a client is this
-  button.
+  owner keeps a builder's seat. This is the button the studio uses to hand a
+  finished project to the person it was built for.
 - **A refused feedback run retries itself.** When the runner refuses a
   feedback run at its last step — the agent answered with a usage-limit wall,
   or opened and never started generating — Loki makes the second attempt a
   person would have made, routed around the spent provider, once. The row
   says "Retried automatically" while the second run moves. Failures that need
   a person (dead credentials, a workspace missing on the builder) still stop
-  and say so.
+  and say so. *Superseded the next day: automatic retries are off by default
+  since 2026-09-29, so a failed run waits for you to press Retry (#978).*
 - **Watch the fix.** A shipped feedback item's button opens the live page and
   walks you through the change: a cursor moves to each part, a caption says
   why it is there, and links that stay on the page are really clicked. A step
@@ -84,6 +111,23 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **Ask Loki for a second opinion** in the widget: "is this right, should it
   change, how would you make the site better?" — about a picked element, the
   page, or the whole site. Every suggestion has a "Request this" button (#950).
+- **Message Loki from any AI app.** Loki now works as a connector for
+  claude.ai, ChatGPT, Claude Code and Cursor: you can ask it questions, see
+  your projects and waiting approvals, and, with a separate permission, approve
+  or start work. You sign in with your OrangeCat account (#965).
+- **Watch it work.** Each project has a page that shows its latest run as a
+  readable thread: what the agent was asked, each step it took, the last lines
+  on its screen, and its handoff at the end (#963).
+- **"Make it happen" keeps going without you.** Setting up a project now runs
+  on the server, so locking your phone or leaving the page no longer stops it,
+  pressing twice never starts a second agent, and your brief is saved even if
+  the AI model fails (#954, #956).
+- **A project's own roadmap is no longer behind the PIN.** The PIN now covers
+  only personal goals. Before anything is built, the project page shows one
+  card with one button, and the Plan tab leads with the roadmap (#962).
+- **Control never shows an empty box.** A project with no agent running says
+  so in words, with one next step, and the builder chip names which machine is
+  online (#957).
 
 ### Fixed
 - **A working Claude is no longer reported as silent.** Loki decides whether
@@ -113,6 +157,7 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **Any refused feedback run gets one automatic second attempt** — not only
   the usage-limit and no-generation cases. Only commands the runner could not
   read, dead credentials and a missing workspace still stop and say so.
+  *Superseded on 2026-09-29: automatic retries are now off by default (#978).*
 - **A green "Live" chip no longer opens the website.** It read as "watch it
   live" and landed on a homepage with no idea where to look. The chip is now a
   status ("Shipped · confirm") and the button beside it is the walkthrough
@@ -142,6 +187,9 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **A Claude dialog no longer holds runner updates;** repeating an owner note
   retries it (#939).
 - **Header controls are 44px at every pointer** on the public pages (#934).
+- **Your own Groq key gets your own limits.** Loki's chat used to trim the
+  context it sent to fit the shared free tier even when you had pasted your
+  own Groq key; it now uses the room your key actually has (#945).
 
 ## 2026-09-25
 
@@ -165,6 +213,17 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **The project header says what the project is,** with truthful cloud
   presence and one door to take it public (#912, #915).
 - **A deploy-failed fix heals** once a later deploy of main ships it (#932).
+- **Today and Control agree on what is running,** and setting up a site no
+  longer overwrites the next step you wrote for the project (#924).
+- **Loki answers instead of asking "which project?"** when you have no
+  projects yet (#925).
+
+### Removed
+- **Nothing in the background spends the shared free AI allowance.** The
+  daily Frontier digest, the daily feedback digest, the weekly events scout
+  and the second-model check on finished runs are gone; the daily email is
+  now built from the record without a model, and the written report stays one
+  button away (#897).
 
 ## 2026-09-24
 
@@ -179,9 +238,21 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   composer (#887).
 - **Public pages show who is signed in** and let them sign out (#870).
 
+## 2026-09-23
+
+### Changed
+- **The terminal says where an agent will run** — "Cloud builder" or "Your
+  computer" — and starting one there no longer changes the project's default.
+  The download, quickstart and handoff pages now describe the same two choices
+  (#866).
+
 ## 2026-09-22
 
 ### Added
+- **Loki can look further before it answers.** A question that needs several
+  lookups gets up to five rounds of them instead of two, and Loki stops early
+  rather than repeating the same lookup or proposing the same action twice
+  (#865).
 - **The front door says what needs you.** Today leads with the one thing
   waiting on a person, and "needs you" means the same thing everywhere (#855,
   #863).
@@ -200,13 +271,123 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **The account page said things that were not true** (#850, #853).
 - **The backfill starved every project past the first few** (#854, #856).
 
-## 2026-08-15 to 2026-09-21
+## 2026-09-20
 
-Ninety-odd merges. The ones a person would have noticed: the feedback widget
-grew a fix ledger that follows a pull request to merge and deploy; hosted
-(Hermes) runs became a per-project "Runs on" choice; project dossiers gained
-shareable public links; and the public pages moved onto the shared design
-tokens. Each is in the git log under its own PR.
+### Added
+- **Loki asks before it builds from one sentence.** A project that arrives
+  from OrangeCat's "Build it with Loki" button gets five short questions — who
+  it is for, what they do today, what it does for them, what it must use, what
+  makes the first version worth shipping. Every question can be skipped, and
+  your answers are stored in your own words (#799).
+
+### Changed
+- **The menu follows the work.** Three sections, each answering one
+  question: Now (what needs me?), Fleet (what is my fleet doing?) and Command
+  (how do I act on it?); private pages stay behind the PIN, and the catch-all
+  "More" menu is gone (#797).
+
+## 2026-09-18
+
+### Changed
+- **Loki is open source again, under the MIT licence.** It had been under a
+  restrictive licence since June; the Terms now say the same thing. The name
+  and logo are not covered by the licence (#791).
+- **Control says what a dispatch will do before you send it:** which agent,
+  which model, which machine, and what the last run on that project cost
+  (#794).
+
+## 2026-09-17
+
+### Added
+- **Found a Solon organization from a project.** Loki prepares the link with
+  the project filled in; you sign with your own wallet on Solon, and the
+  project is attributed to that organization only with your consent (#759).
+- **Approve from Telegram with one tap,** and give standing approval to small
+  things that are easy to undo, such as an event in your own calendar (#761).
+- **Switch to an agent that still has quota in one tap,** and the choice is
+  remembered for the next run instead of going back to the agent that ran out
+  (#757).
+
+## 2026-09-15
+
+### Added
+- **A third AI provider for Loki's chat.** Google's Gemini joins Groq and
+  OpenRouter, and it is the only one of the three that Loki does not share
+  with other apps, so it is less likely to run out when they do (#714).
+- **A project can run on the hosted runner,** which needs no Claude account
+  of yours and ends every task in a pull request (#718).
+- **Every registered project has a public page** with its purpose, roadmap
+  and changelog (#737).
+
+## 2026-09-14
+
+### Added
+- **A public map of every project** the studio runs: what it is for, whether
+  it is up, and what last moved. Loki reads the same map when you ask about
+  the fleet (#698).
+
+## 2026-09-13
+
+### Changed
+- **The product takes the name Loki,** everywhere it used to carry its old
+  name (#695).
+
+## 2026-09-11
+
+### Added
+- **A site can be taken down.** Take it offline, put it behind a password, or
+  remove it, and take its OrangeCat listing back down. The plan
+  shows exactly what will happen before the button appears, and the permanent
+  options must be typed, not clicked (#657, #661, #667).
+- **The feedback inbox follows each fix to the live site.** A fix ledger
+  tracks a report from the agent's pull request through merge and deploy, and
+  the inbox is grouped by who is waiting on whom (#639).
+- **Ship fixes automatically, per project, if you opt in.** Loki merges only
+  the pull request its own run opened, once its checks pass (#656).
+- **Loki's chat shows its work:** answers stream in, there is a Stop button,
+  and each lookup appears as it runs, with what it found (#665).
+- **A new site merges its own green pull requests,** so a fix reaches the
+  live site without anyone clicking merge (#612).
+- **"Build it with Loki" on OrangeCat builds on arrival** instead of stopping
+  at a second form (#618).
+
+### Changed
+- **Where a project runs is a setting you choose,** not a guess. Cloud is the
+  default, "This computer" is a per-project choice, and when your computer is
+  offline its work waits in a visible queue instead of going elsewhere (#615).
+- **Fleet Runner runs every agent itself,** in terminals it owns; the old
+  terminal multiplexer it used to drive is gone (#624, #630).
+
+## 2026-09-02
+
+### Added
+- **Speak your feedback.** Visitors can now talk to the feedback button
+  instead of typing (#462).
+
+## 2026-08-26
+
+### Added
+- **Crew: hand work to people, not only agents.** An assignment is a draft
+  until you hand it over; the person answers through a link with no account,
+  and a fee can be set in bitcoin, payable to their own OrangeCat profile
+  (#391).
+
+## 2026-08-23
+
+### Added
+- **Feedback gets its own inbox.** Every project's reports in one place,
+  grouped by what needs you, what is in progress and what shipped, with a
+  notice when new feedback arrives (#335).
+
+## 2026-08-15
+
+### Added
+- **Try Loki without an account.** A sandboxed demo lets you create projects
+  and move around freely, while anything that would leave the demo is refused
+  (#290).
+- **The free AI allowance is shared fairly.** Each active person gets a share
+  of the day's free tier, so the first busy user cannot spend it all before
+  lunch (#303).
 
 ## 2026-08-14
 
@@ -297,6 +478,38 @@ tokens. Each is in the git log under its own PR.
   repeating signal to learn from) and the schema change that would have fed it
   is deferred, since its only consumer is parked. One read-only query replaced a
   migration, a dispatch-path refactor, and an optimiser build.
+
+## 2026-07-31 — Feedback: honest attribution, image attach, the loop made visible
+
+- Every dispatch now gets its own attributed run: a second dispatch to a busy
+  project waits until the current run finishes, so summaries, outcomes and
+  "your feedback shipped" emails can never credit the wrong work.
+- Visitors can attach an image to a report (file picker or paste); it shows
+  as a thumbnail in the inbox.
+- Repeat reports collapse into one row with a ×N counter.
+- Reports filed by agents (AI review findings, synthesized briefs) are marked
+  as such, and a visitor's text is always treated as data, never as an
+  instruction to the agent.
+- The loop in numbers: how many reports were resolved, and the median time
+  from report to fix, on each inbox.
+- Resolved reports you choose to feature appear on the landing page, with
+  real excerpts only you curate.
+
+## 2026-07-29 — Feedback widget: visitor reports become fleet work
+
+- One script tag puts a feedback button on any site you run. Visitors point
+  at the exact element that is broken; reports land in a per-project inbox.
+- One click dispatches an agent to fix a report, with an optional instruction
+  of yours added to the prompt.
+- Pause, resume, rotate or revoke the widget from Loki, and the site follows
+  within seconds; its connection status comes from a real heartbeat.
+- Installing and removing the widget is one click too: an agent adds or
+  removes the embed in your repository through your normal review flow.
+- Synthesize groups new reports into briefs, and nothing executes without
+  your approval. (A daily digest also filed themes for approval; it was
+  removed on 2026-09-25.)
+- When a dispatched fix deploys, the report resolves itself, and a visitor
+  who left an email hears that their feedback shipped.
 
 ## 2026-07-23
 
@@ -649,7 +862,7 @@ tokens. Each is in the git log under its own PR.
 - **Retired `swiss-longevity-hub`.** Merged into `surf-your-life` (renamed product);
   removed from `scripts/hetzner/apps.conf`; dropped orphaned `swiss_longevity_hub`
   Postgres database on the box. Prod fleet: **18** projects.
-- **`Bitbaum` runtime linked.** `user_projects` row now points at `/home/g/dev/bitbaum`
+- **`bitbaum` runtime linked.** `user_projects` row now points at `/home/g/dev/bitbaum`
   for Fleet Runner dispatch.
 
 ## 2026-06-27 (k)
@@ -657,7 +870,7 @@ tokens. Each is in the git log under its own PR.
 ### Fixed
 - **`applyProjectProfile` batch writes.** Attribute upserts run in one transaction
   (fixes ETIMEDOUT when enriching prod over a remote DB connection).
-- **Prod backfill complete.** petvity, sbb-lost-found, and Bitbaum now have full
+- **Prod backfill complete.** petvity, sbb-lost-found, and bitbaum now have full
   build-contract profiles; 20/32 projects indexed with architecture attrs.
 
 ## 2026-06-27 (j)

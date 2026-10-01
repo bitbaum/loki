@@ -233,7 +233,7 @@ export const ROADMAP: {
 } = {
   eyebrow: "PRODUCT DIRECTION",
   title: "Roadmap",
-  lede: "Building the operating system for people running serious AI agent operations — and for the robotic fleets that come next.",
+  lede: "What Loki is building, in order: what is being worked on now, what comes next, what comes later — and what has already shipped.",
   throughlines: {
     eyebrow: "WHAT STAYS CONSTANT",
     title: "Throughlines",
@@ -244,8 +244,9 @@ export const ROADMAP: {
         body: "Projects run on their configured builder. Eligible accounts can use the cloud builder; Fleet Runner runs work on your computer when you choose it.",
       },
       {
-        title: "Open and local models are first-class.",
-        body: "Frontier subscriptions are often the best tool. But the infrastructure does not require them — the user points their fleet at whatever model serves their goals best.",
+        // Same correction as PHILOSOPHY above: no local-model path exists.
+        title: "Open-weight models, not one vendor.",
+        body: "Open-weight models — llama, qwen and gpt-oss — run Loki's own chat today, and you can bring your own key. Running them on your own machine is the direction; there is no local path yet.",
       },
       {
         title: "Autonomy is a user-controlled switch.",
@@ -262,7 +263,7 @@ export const ROADMAP: {
     ],
   },
   closer:
-    "This is the public-facing roadmap. Detailed engineering plans, deadlines, and sequencing live in internal documents and the architecture reference post.",
+    "Nothing here is dated; the order carries the argument, and every change to it is a reviewed commit.",
 };
 
 // Shared final CTA used at the bottom of every marketing page
