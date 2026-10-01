@@ -24,7 +24,7 @@ const FOOTER_GROUPS = [
       { label: "Sign in", href: "/sign-in" },
       { label: "Roadmap", href: "/roadmap" },
       { label: "Changelog", href: "/changelog" },
-      { label: "Releases", href: "/releases" },
+      { label: "Fleet Runner releases", href: "/releases" },
     ],
   },
   {
