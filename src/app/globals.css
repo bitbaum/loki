@@ -5119,6 +5119,38 @@
     @apply my-1 h-px bg-border-subtle;
   }
 
+  /* ── Page refactor batch D: /system proposals ───────────────────────────
+     One line per proposal (title + score); the rationale, judges, sources and
+     the accept/dismiss gate open on tap. Seventeen expanded proposals were
+     over half of /system on a phone. */
+  .ui-proposal-lede {
+    @apply mb-3 text-xs leading-relaxed text-text-tertiary;
+  }
+  .ui-proposal-list {
+    @apply divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle;
+  }
+  .ui-proposal-row {
+    @apply bg-surface-base;
+  }
+  .ui-proposal-summary {
+    @apply flex min-h-11 cursor-pointer list-none items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-raised;
+    &::-webkit-details-marker {
+      display: none;
+    }
+  }
+  .ui-proposal-title {
+    @apply min-w-0 flex-1 text-sm font-medium leading-snug text-text-primary;
+  }
+  .ui-proposal-body {
+    @apply space-y-3 px-3 pb-4 pt-1;
+  }
+  .ui-proposal-judge {
+    @apply rounded border border-border-subtle px-1.5 py-0.5 font-mono text-micro text-text-secondary;
+  }
+  .ui-proposal-source {
+    @apply inline-flex items-center gap-1 font-mono text-micro uppercase tracking-wider text-text-muted hover:text-text-secondary;
+  }
+
   /* ── Activity hero ───────────────────────────────────────────────────────
      The answer, before the evidence. One sentence, one picture, three numbers
      that are also destinations. */
