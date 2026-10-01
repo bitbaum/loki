@@ -2,10 +2,10 @@ import { Bell, AlertTriangle, Info, AlertCircle, ArrowRight, CheckCircle2 } from
 import { Card, CardHeader } from "@/components/ui/card";
 import { getActiveAlerts } from "@/db/queries/alerts";
 import { requirePageUserId } from "@/lib/session";
-import { isPrivateZoneLocked } from "@/lib/private-zone";
-import { DismissAlertButton } from "./DismissAlertButton";
+import { DismissAlertButton } from "@/components/today/DismissAlertButton";
 import Link from "next/link";
 import { ALERT_SEVERITY } from "@/lib/constants/statuses";
+import { isSystemAlertType } from "@/config/alert-types";
 
 const SEVERITY_CONFIG = {
   urgent: {
@@ -28,22 +28,24 @@ const SEVERITY_CONFIG = {
   },
 } as const;
 
-export async function AlertsCard() {
+/**
+ * The builder's alarms — telemetry, runners, repositories, model ids — on
+ * /system. /today used to render every alert here at full length; it now lists
+ * the operator's alerts as one-line rows and links these in a single line,
+ * because a front door that opens on `npm run check:models` is not one.
+ * Which alert is which is the registry's `audience` (config/alert-types).
+ */
+export async function SystemAlertsCard() {
   const userId = await requirePageUserId();
-  // Alerts can include contact names ("Andreas needs attention"), goal titles,
-  // and money amounts. Hide entirely when the private zone is locked.
-  if (await isPrivateZoneLocked(userId)) {
-    return null;
-  }
-  const items = await getActiveAlerts(userId);
+  const items = (await getActiveAlerts(userId)).filter((a) => isSystemAlertType(a.type));
 
   if (items.length === 0) {
     return (
-      <div id="alerts" className="md:col-span-2">
+      <div id="system-alerts">
         <Card>
           <CardHeader
             icon={Bell}
-            title="Alerts"
+            title="System alerts"
             right={<span className="text-xs text-status-positive font-medium">All clear</span>}
           />
           <div className="flex items-center gap-2 text-sm text-text-muted">
@@ -58,11 +60,11 @@ export async function AlertsCard() {
   const urgentCount = items.filter((a) => a.severity === ALERT_SEVERITY.URGENT).length;
 
   return (
-    <div id="alerts" className="md:col-span-2">
+    <div id="system-alerts">
       <Card>
         <CardHeader
           icon={Bell}
-          title="Alerts"
+          title="System alerts"
           right={
             urgentCount > 0 ? (
               <span className="text-xs md:text-sm text-status-negative font-medium">

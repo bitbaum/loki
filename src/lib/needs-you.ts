@@ -77,6 +77,8 @@ export type NeedsYouItem = {
   /** Shown on expand — names, or an alert's full text. */
   detail?: string[];
   urgent?: boolean;
+  /** An alert row can be dismissed where it is read. */
+  dismissAlertId?: string;
   /** How many things this one line stands for (an "N people" row is N). */
   weight: number;
 };
@@ -98,7 +100,13 @@ export function composeNeedsYou(input: NeedsYouInputs): { items: NeedsYouItem[];
   }
 
   for (const p of input.projects) {
-    items.push({ key: `project:${p.id}`, label: p.name, reason: p.reason, href: p.href, weight: 1 });
+    items.push({
+      key: `project:${p.id}`,
+      label: p.name,
+      reason: p.reason,
+      href: p.href,
+      weight: 1,
+    });
   }
 
   const a = input.approvals;
@@ -168,6 +176,7 @@ function alertItem(alert: NeedsYouAlert): NeedsYouItem {
     href: alert.href,
     detail: alert.description ? [alert.description] : undefined,
     urgent: alert.urgent,
+    dismissAlertId: alert.id,
     weight: 1,
   };
 }

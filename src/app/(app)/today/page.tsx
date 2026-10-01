@@ -4,8 +4,6 @@ import { NAV } from "@/config/navigation";
 import { CardSkeleton } from "@/components/ui/card";
 import { Greeting } from "@/components/today/Greeting";
 import { SummaryBar, SummaryBarSkeleton } from "@/components/today/SummaryBar";
-import { ActionQueueCard } from "@/components/today/ActionQueueCard";
-import { AlertsCard } from "@/components/today/AlertsCard";
 import { GoalsDueCard } from "@/components/today/GoalsDueCard";
 import { EventsDueCard } from "@/components/today/EventsDueCard";
 import { CalendarCard } from "@/components/today/CalendarCard";
@@ -34,6 +32,7 @@ import { getProjectStatesByUserId } from "@/db/queries/project-states";
 import { getLatestRunsByProjectPaths } from "@/db/queries/orchestration-runs";
 import { hasAnswer } from "@/lib/project-display";
 import { NeedsYouVerdict, type FlaggedProject } from "@/components/today/NeedsYouVerdict";
+import { loadNeedsYouExtras } from "@/lib/needs-you-server";
 import { FIRST_RUN } from "@/lib/constants/today";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { AutoRefresh } from "@/components/shared/AutoRefresh";
@@ -151,11 +150,15 @@ async function loadTodayInputs() {
   const flaggedHrefs = new Set(flagged.map((f) => f.href));
   const needsYou = [...flagged, ...blocked.filter((b) => !b.href || !flaggedHrefs.has(b.href))];
 
-  return { name, userId, projects, orgProjects, flagged: needsYou };
+  // Approvals and alerts join the same list — they used to be two more cards
+  // below it, each with its own count and its own wall of detail.
+  const extras = await step("loadNeedsYouExtras", () => loadNeedsYouExtras(userId));
+
+  return { name, userId, projects, orgProjects, flagged: needsYou, extras };
 }
 
 export default async function TodayPage() {
-  const { name, userId, projects, orgProjects, flagged } = await loadTodayInputs();
+  const { name, userId, projects, orgProjects, flagged, extras } = await loadTodayInputs();
   const isFirstRun = projects.length === 0 && orgProjects.length === 0;
   return (
     <PullToRefresh>
@@ -209,7 +212,12 @@ export default async function TodayPage() {
                 VOLUME instead of NEED makes you go three clicks away to learn
                 whether you are free, and Control and Activity then answered it
                 differently from each other. */}
-            <NeedsYouVerdict flagged={flagged} />
+            <NeedsYouVerdict
+              flagged={flagged}
+              approvals={extras.approvals}
+              alerts={extras.alerts}
+              systemAlertCount={extras.systemAlertCount}
+            />
 
             <Suspense fallback={null}>
               <LockedZoneBanner />
@@ -221,21 +229,13 @@ export default async function TodayPage() {
               <TodayWatch />
             </Streamed>
 
-            {/* Decisions first — the only cards that ask the reader for
-                something. On a 390px phone the ordering here is the difference
-                between one thumb-scroll and four, so read-only recap must never
-                climb above this block. */}
-            <CardRow>
-              <Streamed>
-                <StickyNoteCard />
-              </Streamed>
-              <Streamed>
-                <ActionQueueCard />
-              </Streamed>
-              <Streamed>
-                <AlertsCard />
-              </Streamed>
-            </CardRow>
+            {/* Approvals and alerts are lines in the verdict above, not cards
+                here: each card repeated the verdict's question with its own
+                count and its own wall of detail. The sticky note stays — it is
+                the one card you write into. */}
+            <Streamed>
+              <StickyNoteCard />
+            </Streamed>
 
             {/* Today itself — the two cards that are only true right now. */}
             <CardRow>
