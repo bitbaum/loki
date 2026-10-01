@@ -1582,68 +1582,8 @@
   .ui-public-doc-footer-note {
     @apply mb-8 text-sm text-text-muted;
   }
-  /* Frontier digest — daily AI/robotics digest list on the public surface. */
-  .ui-frontier-lede {
-    @apply mb-10 border-b border-border-subtle pb-8;
-  }
-  .ui-frontier-headline {
-    @apply mb-3 text-2xl font-semibold tracking-tight text-text-primary;
-    letter-spacing: -0.02em;
-  }
-  .ui-frontier-intro {
-    @apply text-base leading-relaxed text-text-secondary;
-  }
-  .ui-frontier-list {
-    @apply space-y-2.5;
-  }
-  /* Lead pick — the day's #1, given room so the digest reads as ranked
-     editorial judgment, not a flat list. */
-  .ui-frontier-lead {
-    @apply block rounded-2xl border border-border-default bg-surface-raised p-6 transition-colors hover:border-border-interactive sm:p-7;
-  }
-  .ui-frontier-lead-rank {
-    @apply mb-3 font-mono text-micro uppercase tracking-widest text-accent-text;
-  }
-  .ui-frontier-lead-title {
-    @apply mb-2 text-xl font-semibold leading-tight tracking-tight text-text-primary sm:text-2xl;
-    letter-spacing: -0.02em;
-  }
-  .ui-frontier-lead-summary {
-    @apply text-base leading-relaxed text-text-secondary;
-  }
-  /* Ranked rows — a mono rank numeral gutter beside the item. */
-  .ui-frontier-item {
-    @apply flex gap-4 rounded-xl border border-border-subtle bg-surface-raised p-4 transition-colors hover:border-border-interactive;
-  }
-  .ui-frontier-rank {
-    @apply shrink-0 pt-0.5 font-mono text-sm tabular-nums text-text-muted;
-  }
-  .ui-frontier-item-body {
-    @apply min-w-0 flex-1;
-  }
-  .ui-frontier-item-meta-row {
-    @apply mb-2 flex flex-wrap items-center gap-2;
-  }
-  .ui-frontier-cat {
-    @apply rounded-full border border-border-subtle px-2 py-0.5 font-mono text-micro uppercase tracking-wider text-text-muted;
-  }
-  .ui-frontier-item-source {
-    @apply font-mono text-micro uppercase tracking-widest text-text-muted;
-  }
-  .ui-frontier-item-title {
-    @apply mb-1.5 text-base font-semibold leading-snug text-text-primary;
-  }
-  .ui-frontier-item-summary {
-    @apply text-sm leading-relaxed text-text-secondary;
-  }
-  .ui-frontier-empty {
-    @apply rounded-xl border border-border-subtle bg-surface-raised p-8 text-center;
-  }
-  .ui-frontier-credit {
-    @apply mt-10 border-t border-border-subtle pt-6 font-mono text-micro uppercase tracking-widest text-text-muted;
-  }
   /* Marketing surface — display + CTA primitives shared by the landing page
-     and the /mission, /philosophy, /investors, /roadmap subpages. Theme-aware:
+     and the /why, /how-it-works, /compare, /investors, /roadmap subpages. Theme-aware:
      every colour resolves through theme tokens that flip with .dark. */
   .ui-public-eyebrow {
     @apply text-[11px] uppercase tracking-[0.14em] text-text-tertiary sm:text-xs sm:tracking-[0.18em];
