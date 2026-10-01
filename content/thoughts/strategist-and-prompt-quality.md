@@ -3,6 +3,7 @@ title: Prompt Intelligence — Why Plumbing Was Not Enough
 summary: A migration from "infrastructure-only auto-inject" to a strategist that composes context-aware prompts. Closes the gap between the queue, the agent, and the user's actual intent.
 excerpt: We spent thirty commits making the queue durable, the status field model-agnostic, and the daemon honest. None of that made the injected prompt smarter. This is the work that does.
 publishedAt: 2026-05-20
+supersededBy: /whitepaper
 tags: agents,prompts,orchestration,strategist,architecture
 featured: false
 author: g

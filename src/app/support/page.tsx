@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Bitcoin, BookOpen, Bot, Bug, Cat, Mail } from "lucide-react";
+import { ArrowUpRight, BookOpen, Bot, Bug, Cat, Mail } from "lucide-react";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { PublicSurface } from "@/components/public/PublicSurface";
 import { ECOSYSTEM_LINKS } from "@/config/ecosystem";
@@ -15,7 +15,7 @@ export const metadata = {
 const helpChannels = [
   {
     title: "Documentation",
-    body: "Install Fleet Runner, connect your machines, and operate your fleet — setup and troubleshooting guides.",
+    body: "Create an account, choose where your agents run, start a project, and add the feedback button to your site.",
     href: "/docs",
     cta: "Read the docs",
     external: false,
@@ -52,12 +52,10 @@ const supportTargets = [
     href: ECOSYSTEM_LINKS.orangeCat,
     icon: Cat,
   },
-  {
-    title: "Cato",
-    body: "Support the founder and follow the entities being built across both products.",
-    href: ECOSYSTEM_LINKS.cato,
-    icon: Bitcoin,
-  },
+  // There used to be a third card, "Cato — Support the founder", whose link
+  // was OrangeCat's home page (ecosystem.ts: the real profile handle is not
+  // verifiable). A card that promises a profile and opens a home page is a
+  // dead end; it comes back when the handle exists.
 ] as const;
 
 export default function SupportPage() {
@@ -107,11 +105,12 @@ export default function SupportPage() {
         <section className="mt-12 border-t border-border-subtle pt-10 sm:mt-20 sm:pt-12">
           <h2 className="ui-public-display-md">Fund the work</h2>
           <p className="ui-public-body-lg mt-3 max-w-2xl sm:mt-4">
-            OrangeCat is the public funding surface for both sibling products. Choose what you want
-            to support, then pay the entity directly in Bitcoin. An OrangeCat account is not
-            required to scan a payment request.
+            Loki is one of three parts: OrangeCat handles money, Loki gets the work done, and Solon
+            is where decisions are made. OrangeCat is where Loki and OrangeCat take funding. Choose
+            what you want to support, then pay it directly in Bitcoin. You do not need an OrangeCat
+            account to pay a payment request.
           </p>
-          <div className="mt-8 grid gap-3 sm:mt-10 sm:gap-4 md:grid-cols-3">
+          <div className="mt-8 grid gap-3 sm:mt-10 sm:gap-4 md:grid-cols-2">
             {supportTargets.map(({ title, body, href, icon: Icon }) => (
               <a
                 key={title}
@@ -138,15 +137,8 @@ export default function SupportPage() {
           <p className="ui-public-body-lg mt-3 max-w-3xl sm:mt-4">
             Bitcoin gives contributors a public, independently verifiable settlement record while
             remaining non-custodial. Fiat rails expose activity to banks without giving the public
-            the same audit trail, and privacy coins deliberately hide it. Both remain research
-            topics on the roadmap; neither is presented as available now.
+            the same audit trail, and privacy coins deliberately hide it. Neither is offered today.
           </p>
-          <Link
-            href="/roadmap"
-            className="ui-public-link mt-4 inline-flex min-h-11 items-center sm:mt-6"
-          >
-            Read the roadmap →
-          </Link>
         </section>
       </main>
     </PublicSurface>

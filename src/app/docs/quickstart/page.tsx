@@ -5,33 +5,40 @@ import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 
 export const metadata = {
   title: "Quickstart",
-  description: "From zero to dispatching your first agent in 5 minutes.",
+  description:
+    "Create an account, choose where your agents run, and turn an idea into a repository and a site.",
 };
 
-/** The seven steps, split by the device each one actually needs. The homepage
- *  sends phone visitors here ("See how it works"), and three of these steps
- *  are terminal work — so the split is the first thing the page should say,
- *  not something you infer after reading them. */
+/** The steps, split by the device each one actually needs. The homepage sends
+ *  phone visitors here ("See how it works"), and two of these steps are
+ *  computer work — so the split is the first thing the page should say, not
+ *  something you infer after reading them. The note under the list reads its
+ *  step numbers from this table, so they cannot drift apart again (it once said
+ *  "Steps 3–5" while only 3–4 were marked). */
 const STEPS = [
-  { n: 1, id: "decide", label: "Choose where agents run", desktop: false },
-  { n: 2, id: "sign-in", label: "Sign in", desktop: false },
+  { n: 1, id: "sign-in", label: "Create your account", desktop: false },
+  { n: 2, id: "decide", label: "Choose where agents run", desktop: false },
   { n: 3, id: "install-runner", label: "Install Fleet Runner", desktop: true },
-  { n: 4, id: "agent-cli", label: "Install an agent CLI", desktop: true },
-  { n: 5, id: "register-project", label: "Create project and set Runs on", desktop: false },
-  { n: 6, id: "dispatch", label: "Dispatch your first intent", desktop: false },
+  { n: 4, id: "agent-cli", label: "Install an agent", desktop: true },
+  { n: 5, id: "idea", label: "Start from an idea", desktop: false },
+  { n: 6, id: "dispatch", label: "Give an existing project work", desktop: false },
   { n: 7, id: "watch", label: "Watch from anywhere", desktop: false },
 ] as const;
 
 export default function QuickstartPage() {
   const anywhere = STEPS.filter((s) => !s.desktop);
   const needsComputer = STEPS.filter((s) => s.desktop);
+  const first = needsComputer[0]?.n;
+  const last = needsComputer[needsComputer.length - 1]?.n;
+  const computerSteps = first === last ? `${first}` : `${first}–${last}`;
 
   return (
     <PublicSurface right={<PublicHeaderActions />}>
       <main className="ui-public-prose mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-16">
         <h1 className="ui-public-title mb-2">Quickstart</h1>
         <p className="ui-public-meta mb-6 sm:mb-8">
-          From zero to dispatching your first agent in 5 minutes.
+          Create an account, choose where your agents run, and turn an idea into a repository and a
+          site.
         </p>
 
         <nav className="ui-public-steps" aria-label="Steps by device">
@@ -63,54 +70,50 @@ export default function QuickstartPage() {
               ))}
             </div>
             <p className="mt-2 text-xs text-text-muted">
-              Reading this on a phone? Steps 3&ndash;5 are terminal work. Do 1&ndash;2 now, then
-              pick these up at your machine.
+              Reading this on a phone? Steps {computerSteps} need a computer, and only if your
+              agents will run on it. Everything else works from here.
             </p>
           </div>
         </nav>
 
-        <section id="decide" className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">1. Choose where agents run</h2>
+        <section id="sign-in" className="mb-10 space-y-4 sm:mb-12">
+          <h2 className="ui-public-prose-h2">1. Create your account</h2>
           <p>
-            The web and desktop share your Loki account. The web is the control plane; choose a
+            Go to{" "}
+            <Link href="/sign-up" className="ui-public-link">
+              /sign-up
+            </Link>{" "}
+            and choose <strong>Create an account with OrangeCat</strong>. One OrangeCat account
+            signs you in to OrangeCat, Loki and Solon. You can also continue with GitHub, Google or
+            X, or set a password just for Loki. After that you land on your dashboard.
+          </p>
+        </section>
+
+        <section id="decide" className="mb-10 space-y-4 sm:mb-12">
+          <h2 className="ui-public-prose-h2">2. Choose where agents run</h2>
+          <p>
+            Loki itself runs in your browser. The agents that write the code run on a{" "}
+            <em>builder</em>: a computer that is switched on and signed in to them. You choose the
             builder per project:
           </p>
           <ul className="list-disc pl-6 space-y-2">
             <li>
-              <strong>Web</strong> (
-              <Link href="/" className="ui-public-link">
-                loki.orangecat.ch
-              </Link>
-              ) — create projects, dispatch work, and monitor sessions from any browser. Eligible
-              accounts can run agents on the shared Cloud builder without installing desktop
-              software.
+              <strong>Cloud builder</strong> — Loki&apos;s own always-on server. Nothing to install.
+              It is open to some accounts for now; if yours has it, you can skip steps{" "}
+              {computerSteps}.
             </li>
             <li>
-              <strong>Desktop</strong> (
+              <strong>This computer</strong> — your own machine, through the{" "}
               <Link href="/download" className="ui-public-link">
                 Fleet Runner
-              </Link>
-              ) — optional. Install it when a project should run in your local checkout and use
-              tools or provider sign-ins from this computer. It adds native notifications too.
+              </Link>{" "}
+              app. You need it when your account does not have the cloud builder, or when the work
+              should use files, tools or sign-ins that are on your computer.
             </li>
           </ul>
           <p>
-            Shared Cloud builder access is currently limited to eligible accounts. If it is not
-            available to you, connect Fleet Runner to run projects on your computer. Loki queues
-            work when the project&apos;s selected builder is offline; it does not silently switch
-            machines.
-          </p>
-        </section>
-
-        <section id="sign-in" className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">2. Sign in</h2>
-          <p>
-            Visit{" "}
-            <Link href="/sign-in" className="ui-public-link">
-              /sign-in
-            </Link>{" "}
-            and sign in with GitHub. First time only: GitHub asks you to authorize Loki. After that
-            you land on the dashboard.
+            If a project&apos;s builder is offline, its work waits in a queue you can see. Loki
+            never moves work to another machine on its own.
           </p>
         </section>
 
@@ -119,85 +122,109 @@ export default function QuickstartPage() {
             3. Install Fleet Runner
             <span className="ui-public-step-badge">Needs a computer</span>
           </h2>
-          <p>
-            Skip this step if you have access to the Cloud builder and do not need a local checkout
-            or tools. Fleet Runner is only needed to run work on this computer.
-          </p>
           <ol className="list-decimal pl-6 space-y-3">
             <li>
-              Visit{" "}
+              Open{" "}
               <Link href="/download" className="ui-public-link">
                 /download
               </Link>
-              . The page auto-detects your OS and has the current install steps.
+              . It detects your system and shows the current install steps, including any security
+              prompt you will see on first launch. There are builds for Linux, Windows and Apple
+              Silicon Macs.
             </li>
             <li>
-              Follow the instructions for your operating system on the download page. Installers are
-              available for Linux, macOS, and Windows; the page explains any first-launch security
-              prompts.
-            </li>
-            <li>
-              Fleet Runner opens to the same Loki interface you saw in the browser. If your browser
-              is signed in, the desktop app is signed in automatically (it shares cookies).
-            </li>
-            <li>
-              Alternatively, from{" "}
-              <Link href="/sign-in" className="ui-public-link">
-                /sign-in
-              </Link>{" "}
-              → Settings → Agent tokens, click <em>Open in Fleet Runner</em> to deep-link an auth
-              token into the desktop app without copy-paste.
+              Sign in once inside the app. Or, in Loki in your browser, open Settings → Agent tokens
+              and press <em>Open in Fleet Runner</em> to sign the app in without copying anything.
             </li>
           </ol>
         </section>
 
         <section id="agent-cli" className="mb-10 space-y-4 sm:mb-12">
           <h2 className="ui-public-prose-h2">
-            4. Install an agent CLI
+            4. Install an agent
             <span className="ui-public-step-badge">Needs a computer</span>
           </h2>
           <p>
-            Fleet Runner doesn&apos;t bundle agent CLIs. Install and sign in to the supported agent
-            you want to use on this computer. Loki currently supports Claude Code, Codex, Cursor
-            Agent, Antigravity, Grok, and OpenClaw; availability can differ by builder.
+            Fleet Runner does not include the agents themselves. Install one and sign in to it on
+            this computer, following that provider&apos;s own instructions. Loki works with Claude
+            Code, Codex, Cursor, Antigravity and Grok. One is enough to start.
           </p>
           <p>
-            You only need one agent to start. Use Control or Terminal to see which agents are
-            available on your selected builder and follow that provider&apos;s current installation
-            instructions.
+            Control and Terminal show which agents each builder can use, because that can differ
+            from one builder to the next.
           </p>
         </section>
 
-        <section id="register-project" className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">5. Create a project and set Runs on</h2>
+        <section id="idea" className="mb-10 space-y-4 sm:mb-12">
+          <h2 className="ui-public-prose-h2">5. Start from an idea</h2>
+          <p>This is the shortest way from a sentence to a working project.</p>
+          <ol className="list-decimal pl-6 space-y-3">
+            <li>
+              <strong>Describe it.</strong> On Projects, press <em>Add Project</em>, give it a name
+              and say in a sentence or two what it is for. Loki can fill in the rest of the profile
+              from what you wrote.
+            </li>
+            <li>
+              <strong>Answer a few questions — or don&apos;t.</strong> Loki may ask up to five short
+              questions about what your description left open. Every one can be skipped, and you can
+              skip straight to the build.
+            </li>
+            <li>
+              <strong>Press Make it happen.</strong> Loki runs four steps in order and shows each
+              one as it goes: filling the profile, planning the milestones, creating the repository,
+              and putting an agent on it. It keeps going if you lock your phone or leave the page.
+            </li>
+            <li>
+              <strong>Your code gets a home.</strong> The repository is created in the{" "}
+              <a
+                href="https://github.com/bitbaum"
+                className="ui-public-link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                bitbaum organisation on GitHub
+              </a>
+              , not in a personal account. You choose a starter: Next.js, Python with FastAPI, Hono
+              on Cloudflare Workers, plain HTML, or an empty repository.
+            </li>
+            <li>
+              <strong>Your site goes up.</strong> For the Next.js and empty starters, Loki can put
+              the site at <code>&lt;name&gt;.orangecat.ch</code> and update it after every change.
+              When it cannot set that up for your account, it tells you and gives you the one
+              command that does — it never claims a site that is not there. Sites from the other
+              starters are hosted wherever you choose.
+            </li>
+          </ol>
           <p>
-            Create or import a project, then set <strong>Runs on</strong> in Control → project
-            profile. Choose Cloud builder when it is available to your account, or This computer
-            when the checkout and tools are on the connected Fleet Runner. A project&apos;s selected
-            builder determines where dispatches run.
+            Already have a website you want changed? Start from{" "}
+            <Link href="/commission" className="ui-public-link">
+              /commission
+            </Link>{" "}
+            instead: paste its address and say in plain words what should change.
           </p>
         </section>
 
         <section id="dispatch" className="mb-10 space-y-4 sm:mb-12">
-          <h2 className="ui-public-prose-h2">6. Dispatch your first intent</h2>
+          <h2 className="ui-public-prose-h2">6. Give an existing project work</h2>
           <p>
-            Go to <strong>Control</strong>, pick a project, type a prompt, and dispatch it. The
-            project&apos;s configured builder claims the work. If that builder is offline, the
-            dispatch stays queued until it reconnects.
+            For a project that already has a repository, set <strong>Runs on</strong> in Control →
+            the project&apos;s profile: Cloud builder if your account has it, or This computer. Then
+            pick the project in Control, write what you want done, and send it. If that builder is
+            offline, the request waits in the queue until it is back.
           </p>
           <p>
-            The builder starts the agent in a PTY it owns. Open Terminal → Cloud builder or Your
-            computer to view sessions and start a session directly. The Terminal location does not
-            change the project&apos;s future <strong>Runs on</strong> setting.
+            To work in a session yourself, open Terminal and choose Cloud builder or Your computer.
+            That choice does not change where the project&apos;s own work runs.
           </p>
         </section>
 
         <section id="watch" className="mb-10 space-y-4 sm:mb-12">
           <h2 className="ui-public-prose-h2">7. Watch from anywhere</h2>
           <p>
-            The same dashboard works from your phone while an agent runs on the Cloud builder or
-            Fleet Runner. Control shows run state; Terminal streams live sessions so you can steer
-            the agent remotely.
+            The same dashboard works on your phone while an agent runs. On a project, press{" "}
+            <em>Watch it work</em> to follow the run as a readable thread: what the agent was asked,
+            the steps it takes, and what it hands back. Control shows where every project stands,
+            and Terminal shows the live session if you want to step in.
           </p>
         </section>
 
@@ -225,7 +252,7 @@ export default function QuickstartPage() {
               <Link href="/whitepaper" className="ui-public-link">
                 Whitepaper
               </Link>{" "}
-              — the bigger architecture and product thesis.
+              — how Loki works underneath, in more depth.
             </li>
           </ul>
         </section>

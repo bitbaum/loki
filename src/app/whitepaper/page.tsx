@@ -56,10 +56,11 @@ export default function WhitepaperPage() {
         <div className="ui-public-doc-footer">
           <p className="ui-public-doc-footer-title">Ready to close the execution gap?</p>
           <p className="ui-public-doc-footer-note">
-            Start using {APP_NAME} as your builder operating system.
+            Create an account and give {APP_NAME} your first project. It is free while prices are
+            not announced.
           </p>
           <div className="mx-auto flex max-w-sm flex-col gap-2.5 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
-            <Link href={ROUTES.SIGN_IN} className="ui-public-cta w-full sm:w-auto">
+            <Link href={ROUTES.SIGN_UP} className="ui-public-cta w-full sm:w-auto">
               Get started →
             </Link>
             <Link href="/" className="ui-public-cta-ghost w-full sm:w-auto">

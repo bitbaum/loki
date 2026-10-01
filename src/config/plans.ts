@@ -29,12 +29,12 @@ export type PricingPlan = {
    * Draw this tier louder than the others. The SELLER's emphasis — never a
    * claim about what other people bought.
    *
-   * It used to render as "Most popular". Loki has 7 users and 0 on any paid
-   * plan (checked 2026-09-20), and every paid tier reads "Price to be
-   * announced", so nothing has ever been bought and no tier can be the
-   * popular one. The page's own header promises honesty about billing state —
-   * "a paid CTA only appears when a rail can actually take the money, never a
-   * dead Buy button" — and this was the one line that broke it.
+   * It used to render as "Most popular", then "Recommended" on Pro. Loki has
+   * 7 users and 0 on any paid plan (checked 2026-09-20), every paid tier reads
+   * "Price to be announced", and Pro differs from Personal only in the project
+   * ceiling — so neither badge was true. While prices are unannounced the only
+   * tier a person can actually start is Free, so that is the one drawn louder,
+   * and no badge is rendered at all.
    */
   featured?: boolean;
 };
@@ -47,13 +47,14 @@ export const PRICING_PLANS: PricingPlan[] = [
     key: "free",
     name: "Free",
     priceMonthly: 0,
-    tagline: "Command your first projects and see the whole fleet.",
+    tagline: "Start your first projects and see everything your agents do.",
     highlights: [
       projectLimitLabel("free"),
-      "The full captain dashboard",
-      "Bring your own runner + agent keys",
+      "Everything in Loki — nothing held back",
+      "Use your own agent sign-ins and keys",
     ],
     cta: "Start free",
+    featured: true,
   },
   {
     key: "personal",
@@ -78,7 +79,6 @@ export const PRICING_PLANS: PricingPlan[] = [
       "No ceiling as your fleet grows",
     ],
     cta: "Choose Pro",
-    featured: true,
   },
   {
     key: "team",
@@ -101,19 +101,26 @@ export const PRICING_ANNOUNCED = PRICING_PLANS.some(
 
 // Paid plans bill annually (the checkout route wires the annual price id); the
 // figure shown is the per-month equivalent. Stated plainly under the grid.
-// While prices are to-be-announced the note says so instead.
+// While prices are to-be-announced the note says so instead — and says plainly
+// that Loki is free until then (#995 kept self-service free).
 export const PRICING_BILLING_NOTE = PRICING_ANNOUNCED
-  ? "Prices are per month, billed annually. Start free — every plan runs on your own machine or box with your own agent keys, so you only pay Loki for the captain layer."
-  : "Pricing is being finalized and will be announced before anything is charged. Start free — every plan runs on your own machine or box with your own agent keys, so you only ever pay Loki for the captain layer.";
+  ? "Prices are per month, billed annually. Your agents run with your own sign-ins and keys, so Loki never bills you for what they use."
+  : "Loki is free while prices are not announced. Nothing is charged until they are, and every feature below is on every plan.";
 
-// Available on EVERY plan (all shipped today) — the captain layer itself. Listed
-// once, honestly, instead of scattered as per-tier gates the code doesn't apply.
+// Available on EVERY plan (all shipped today). Listed once, honestly, instead of
+// scattered as per-tier gates the code doesn't apply.
+//
+// Guarded by scripts/test/plans-copy-truth.ts. Three lines that used to be here
+// were false and must not come back: "Local-first execution on … your own
+// always-on box" (the always-on box is Loki's shared cloud builder, for
+// eligible accounts only), "Cross-model verification" (the cross-model judge
+// was removed 2026-09-25, see lib/orchestration/dod-gate.ts) and OpenClaw in
+// the agent list (it is a system gateway, not an agent anyone picks).
 export const PRICING_INCLUDED: string[] = [
-  "One identity — Loki — over every agent (Claude, Grok, Codex, Cursor, OpenClaw)",
-  "Feedback widget on every site you run — visitor reports become dispatchable fleet work, and the visitor hears back when you resolve it",
-  "Live fleet dashboard: Control, Today, Projects, Activity",
-  "Local-first execution on your laptop or your own always-on box",
-  "Cross-model verification — a definition-of-done gate a single agent can't do",
-  "Cross-project fleet memory, autopilot loops, and the prompt library",
-  "Bring your own agent keys — your compute, your cost, your control",
+  "One assistant — Loki — over the agents you already use: Claude, Codex, Cursor, Antigravity and Grok",
+  "A feedback button for every site you run — what visitors report becomes work you can hand to an agent, and the visitor hears back when it is fixed",
+  "Fleet dashboard: Control, Today, Projects, Activity",
+  "Agents run on your own computer with the Fleet Runner app, or on Loki's cloud builder where your account has it",
+  "Give a project a definition of done, and a run is checked against it before it counts as done",
+  "Memory across projects, autopilot, and the prompt library",
 ];

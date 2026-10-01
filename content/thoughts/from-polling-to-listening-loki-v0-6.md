@@ -3,6 +3,7 @@ title: From Polling to Listening — Loki v0.6 and the Quiet System
 summary: Moving the database from Neon to Oracle Free is the easy half. The hard half is rebuilding so the architecture itself stops asking the database questions thousands of times a day. A field guide to events, push, local-first, and why the studio's whole infrastructure can fit on one free server.
 excerpt: After Neon's kill switch we faced a choice — patch the chatty system into something cheaper, or rebuild it into something quieter. Here is the architecture I am committing to, said for both Elon Musk and the average reader.
 publishedAt: 2026-06-04
+supersededBy: /whitepaper
 tags: architecture,events,push,local-first,oracle,postgres,sse,studio,v0.6
 featured: true
 author: Cato

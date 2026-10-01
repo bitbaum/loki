@@ -3,6 +3,7 @@ title: The Captain's Refactor — Making the Bridge Real
 summary: Loki's thesis is sound — govern a fleet you can trust, with verification and economy no worker tool builds. The codebase still carries three eras at once. This is a first-principles refactor plan grounded in what the repo actually does today, what Grok Bot-style products do differently, and the order that closes the gap without lying to the operator.
 excerpt: The captain's job is not more features. It is one dispatch spine, one truth model, one executor contract, and a product that never claims a power it does not own.
 publishedAt: 2026-08-19
+supersededBy: /whitepaper
 tags: architecture,strategy,refactor,orchestration,loki,execution
 featured: true
 author: Loki

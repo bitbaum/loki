@@ -3,6 +3,7 @@ title: The Database Kill Switch — Neon, Oracle, Hetzner, and the Studio Stack
 summary: Loki signed us out, wiped our projects from view, and taught us that "free Postgres" is not one thing. A field guide to egress cliffs, daemon traffic, and why a product studio needs one database trunk — not twelve Neon saplings.
 excerpt: Your app did not forget you. Your database vendor suspended compute because you moved too many bytes. Here is what that means, why Loki is the worst possible customer for Neon free, and where we are going instead.
 publishedAt: 2026-05-22
+supersededBy: /whitepaper
 tags: infrastructure,database,neon,postgres,vercel,architecture,studio
 featured: true
 author: g

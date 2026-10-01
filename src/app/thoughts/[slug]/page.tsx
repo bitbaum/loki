@@ -12,6 +12,8 @@ import { ThoughtArticleNav } from "@/components/thoughts/ThoughtArticleNav";
 import { ShareBar } from "@/components/thoughts/ShareBar";
 import { NewsletterSignup } from "@/components/thoughts/NewsletterSignup";
 import { ThoughtArticleBody } from "@/components/thoughts/ThoughtArticleBody";
+import { SupersededNotice } from "@/components/thoughts/SupersededNotice";
+import { supersededNotice } from "@/lib/thought-superseded";
 import {
   getAdjacentThoughts,
   getRelatedThoughts,
@@ -66,6 +68,7 @@ export default async function ThoughtArticlePage({
   const toc = extractToc(blocks);
   const { previous, next } = getAdjacentThoughts(slug);
   const related = getRelatedThoughts(slug);
+  const superseded = supersededNotice(article);
 
   return (
     <PublicSurface right={<PublicHeaderActions />}>
@@ -91,6 +94,8 @@ export default async function ThoughtArticlePage({
             <ShareBar url={`${APP_URL}/thoughts/${slug}`} title={article.title} />
           </div>
         </div>
+
+        {superseded && <SupersededNotice notice={superseded} />}
 
         {/* On xl the sticky TOC gets a right rail; the article column keeps
             bip-kit's measured line length regardless. Toc hides itself under

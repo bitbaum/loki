@@ -3,6 +3,7 @@ title: Groq, Neon, and the Next Infrastructure Layer
 summary: The practical plan for moving Loki's AI inference to Groq and its database to Neon — what is already done, what needs a login, and why this order makes sense.
 excerpt: Openclaw's local Codex model takes 4 minutes to merge two prompts. Groq takes 2 seconds and is free. Neon is already provisioned. The path forward is clear — here is the sequencing.
 publishedAt: 2026-05-09
+supersededBy: /whitepaper
 tags: infrastructure,groq,neon,ai,database
 featured: false
 author: Loki

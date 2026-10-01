@@ -13,7 +13,7 @@ but serious users still need a trustworthy command center. Loki provides the
 state, queues, handoffs, guardrails, and business context around that capacity.
 
 Production: https://loki.orangecat.ch
-**Status:** live, pre-1.0. Hosted on **Hetzner**.
+**Status:** beta, pre-1.0. Free while prices are not announced. Hosted on **Hetzner**.
 
 ## What It Does
 
@@ -22,8 +22,8 @@ Production: https://loki.orangecat.ch
   and team state; an eligible cloud builder or connected Fleet Runner owns workspaces, shell, git, and agent CLIs.
 - **Project execution memory**: per-project handoffs, queues, recent outcomes,
   lifecycle signals, git state, and saved context are visible in one place.
-- **Builder life OS**: goals, people, habits, events, money, prompts, and
-  thoughts live beside the work system rather than in disconnected apps.
+- **Beside the agents**: Today, people, crew (humans you hand work to), goals,
+  habits, events and money live in the same workspace as the projects.
 - **Economy-aware**: Loki pulls open demand from sibling product OrangeCat and
   searches the economy by meaning (OrangeCat embeds the query server-side), so
   finding what already exists and building what's missing is one flow.
@@ -44,7 +44,7 @@ work: publishing requires a separate owner choice.
 | Individual builder | One Loki for projects, agents, commitments, and execution memory | Pro subscription (planned) |
 | Team / studio | Shared project state, team visibility, agent dispatch, audit trail | Per-seat team plan (planned) |
 | Agent runtime | Eligible accounts use the shared cloud builder; others can connect Fleet Runner on their computer | Paid runtime seats / usage tiers (planned) |
-| Execution intelligence | Prompt routing, queue reasoning, outcomes, continuation policies | Premium automation tier (planned) |
+| Execution intelligence | Queue drain, health gates, outcomes, continuation policies | Premium automation tier (planned) |
 | Enterprise / investor diligence | Operating telemetry, governance, security, and project health | Managed deployment / annual contract (planned) |
 
 See [docs/business-model.md](docs/business-model.md) for positioning,
@@ -79,11 +79,11 @@ Key design rules:
 
 - **Next.js 16.2.6** App Router, React 19, TypeScript strict
 - **PostgreSQL 17** with Drizzle ORM and schema-inferred types
-- **NextAuth v5** with GitHub OAuth and local owner-key support for private
-  installs
+- **NextAuth v5**: OrangeCat (OIDC, the primary account), GitHub, Google and X
+  OAuth, plus email/password and local owner-key support for private installs
 - **Tailwind CSS 4** with a tokenized dark-first design system
 - **Builder-owned agent sessions** for terminal runtime control
-- **Self-hosted on Hetzner** (`bitbaum` box, Caddy + systemd) — production deploys via `scripts/deploy-hetzner.sh` (build → rsync → restart); cron jobs run on the box
+- **Self-hosted on Hetzner** (`bitbaum` box, Caddy + systemd) — production deploys run in the Deploy workflow (`.github/workflows/deploy.yml`) after CI is green on `main`, which calls `scripts/deploy-hetzner.sh`; cron jobs run on the box
 - **Husky + GitHub Actions** for type, lint, and audit checks
 
 ## Repository Map
@@ -112,16 +112,17 @@ Every change should preserve:
   local verify means green CI. Its step list lives in `package.json`
   (`scripts.verify`); this file deliberately does not restate it.
 - `pnpm run build`
+- `pnpm run smoke`
 
 This used to enumerate an ad-hoc subset of test scripts. Every such list
 drifts from the real gate — three docs ended up teaching three different,
 all-weaker bars — so the rule is now: name the gate, never its contents.
-- `pnpm run smoke`
 
 CI runs type/lint/design/self-test checks on pushes and pull requests. A
 scheduled audit workflow fails on high or critical dependency vulnerabilities.
-Production deploys to the Hetzner box run via `scripts/deploy-hetzner.sh`
-(build → rsync → restart `loki-app`).
+Production deploys to the Hetzner box run in the Deploy workflow after CI is
+green on `main` (or when the auto-merge sweep reconciles it), which calls
+`scripts/deploy-hetzner.sh` (rsync → restart `loki-app`).
 
 ## Local Development
 

@@ -2012,9 +2012,6 @@
     @apply border-accent-primary;
     box-shadow: var(--shadow-panel-strong);
   }
-  .ui-public-price-badge {
-    @apply inline-flex items-center rounded-full border border-accent-primary px-2.5 py-0.5 text-micro uppercase tracking-[0.15em] text-accent-text;
-  }
   .ui-public-price-amount {
     @apply font-heading text-4xl font-semibold text-text-primary;
   }

@@ -3,6 +3,7 @@ title: From Localhost to a Portable Loki
 summary: A product and engineering blueprint for evolving Loki from a local agent dashboard into a mobile, collaborative control plane for human-machine creation.
 excerpt: The tunnel is not the product. The product is a control plane: humans direct intent, enrolled runtime nodes execute, and every meaningful change becomes reviewable from anywhere.
 publishedAt: 2026-05-14
+supersededBy: /whitepaper
 tags: architecture,agents,control-plane,runtime,collaboration,mobile
 featured: true
 author: g
