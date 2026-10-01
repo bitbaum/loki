@@ -32,6 +32,8 @@ export const config = {
      *   docs, blog, changelog,     – public marketing surface (docs subsumes docs/quickstart)
      *   support
      *   frontier                   – daily AI/robotics frontier digest (public)
+     *   why, how-it-works, compare – public marketing pages (mission, philosophy and
+     *                                frontier now only redirect, and stay public so they can)
      *   mission, philosophy,       – public marketing pages
      *   investors, roadmap, pricing
      *   u/                         – public user profiles (/u/[username])
@@ -113,6 +115,6 @@ export const config = {
      *                                server for api/mcp. It describes how to GET a credential,
      *                                so it cannot require one.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|commission(?:/|$)|u/|share/project/|share/task/|a/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/studio-intake(?:/|$)|api/studio-partners(?:/|$)|api/studio-portal/|api/commission(?:/|$)|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|api/widget/advise|api/widget/tour|api/mcp|\\.well-known/oauth-protected-resource|widget\\.js).+)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|why|how-it-works|compare|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|commission(?:/|$)|u/|share/project/|share/task/|a/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/studio-intake(?:/|$)|api/studio-partners(?:/|$)|api/studio-portal/|api/commission(?:/|$)|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|api/widget/advise|api/widget/tour|api/mcp|\\.well-known/oauth-protected-resource|widget\\.js).+)",
   ],
 };

@@ -38,7 +38,7 @@ export const FLEET_SITE_COPY: Readonly<Record<string, { name: string; blurb: str
     name: "Vita",
     blurb: "Metabolische Psychiatrie und systemische Longevity, Zürich.",
   },
-  heidi: { name: "Heidi", blurb: "Züritüütsch verstehen, dann wie ein Local texten. Im Aufbau." },
+  heidi: { name: "Heidi", blurb: "Schweizerdeutsch verstehen. Wir fangen mit Zürichdeutsch an." },
   substrata: {
     name: "Substrata",
     blurb: "Open research on the physical chokepoints between here and a singularity.",

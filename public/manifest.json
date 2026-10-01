@@ -1,7 +1,7 @@
 {
   "name": "Loki",
   "short_name": "Loki",
-  "description": "Command your agents, projects, and personal systems from one workspace.",
+  "description": "Describe a website or app in plain words. AI coding agents build it, put it online, and keep improving it.",
   "start_url": "/control",
   "scope": "/",
   "display": "standalone",

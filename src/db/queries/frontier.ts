@@ -33,16 +33,6 @@ export async function upsertFrontierDigest(row: NewFrontierDigestRow): Promise<F
   return saved;
 }
 
-/** The most recent published digest (what /frontier renders), or null. */
-export async function getLatestFrontierDigest(): Promise<FrontierDigestRow | null> {
-  const [row] = await db
-    .select()
-    .from(frontierDigests)
-    .orderBy(desc(frontierDigests.digestDate))
-    .limit(1);
-  return row ?? null;
-}
-
 // ─── Self-improvement proposals ──────────────────────────────────────────────
 
 /** Who/what the self-improvement loop drafts proposals for: the owner of the

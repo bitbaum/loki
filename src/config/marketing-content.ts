@@ -8,7 +8,90 @@ import { APP_DOMAIN } from "./brand";
 // getHeroFleetSnapshot(); we never ship fabricated fleet data. This holds only
 // the constant label text used by the console header.
 export const HOME_HERO_CONSOLE = {
-  label: "Fleet Command",
+  label: "On Loki right now",
+  /** The badge when an agent is working. Never "Live" — fleet rule: nothing is
+   *  Live, everything is beta. */
+  busy: "Agent working",
+  idle: "Beta",
+} as const;
+
+// ── Homepage: the three steps ───────────────────────────────────────────────
+// The product's actual first flow, in a newcomer's words. Every claim here is
+// checked: Make it happen (src/lib/project-kickoff.ts), the live site at
+// <name>.orangecat.ch (site-cd.ts), owner notes that build themselves
+// (api/feedback/route.ts, #937), and the before/after phone check with
+// rollback on every site deploy (selfhost-deploy.yml, #943).
+export const HOME_STEPS = [
+  {
+    number: "01",
+    title: "Describe it",
+    body: "Write a sentence or two about what you want — a website, a tool, a change to a site you already have. Loki may ask up to five short questions. Skip any of them.",
+  },
+  {
+    number: "02",
+    title: "Agents build it and put it online",
+    body: "Loki sets up the project, puts an AI coding agent to work, checks the result and publishes it — a website gets its own address, like yourname.orangecat.ch.",
+  },
+  {
+    number: "03",
+    title: "Say what to change",
+    body: "Open your site, tap the Loki button and say or type what should be different. An agent makes the change and it goes online by itself. Visitors can leave notes too — those wait for your OK.",
+  },
+] as const;
+
+export const HOME_SAFETY_NOTE =
+  "Every change to a site is checked on a phone-sized screen before and after it goes online. If it made the page worse, Loki puts the previous version back.";
+
+// ── Homepage: who it is for ─────────────────────────────────────────────────
+// Three doors instead of one pitch. Loki's flows serve all three; the old page
+// addressed only the last.
+export const HOME_AUDIENCES = [
+  {
+    title: "You have an idea",
+    body: "No code needed. Describe what you want, answer a few questions, and follow along as it is built.",
+    href: "/sign-up",
+    cta: "Start a project",
+  },
+  {
+    title: "You have a website to change",
+    body: "Paste its address and say what should be different. Loki turns that into a plan for an agent — free.",
+    href: "/commission",
+    cta: "Change a website",
+  },
+  {
+    title: "You already work with AI agents",
+    body: "Run Claude Code, Codex, Cursor, Antigravity and Grok across all your projects from one place — on the cloud builder or your own computer.",
+    href: "/how-it-works",
+    cta: "How it works",
+  },
+] as const;
+
+// ── Homepage: where the work runs ───────────────────────────────────────────
+// Honest about eligibility: the cloud builder and repositories in the bitbaum
+// GitHub organisation are fleet infrastructure, allowed for the founder and an
+// explicit allowlist only (src/lib/execution-access.ts
+// isFleetInfrastructureAllowed). Everyone else connects Fleet Runner.
+export const WHERE_IT_RUNS = {
+  eyebrow: "WHERE THE WORK RUNS",
+  title: "In the cloud, or on your own computer.",
+  lede: "Loki itself runs in your browser and on your phone. The agents need a computer to work on — you choose which one, per project.",
+  options: [
+    {
+      label: "Cloud builder",
+      title: "Nothing to install",
+      body: "An always-on server does the work, even while your laptop is closed. During the beta it is open to invited accounts.",
+      cta: {
+        label: "Ask for cloud access",
+        href: "mailto:cato@orangecat.ch?subject=Loki%20cloud%20access",
+      },
+    },
+    {
+      label: "Your computer",
+      title: "Fleet Runner, a free desktop app",
+      body: "Agents work on your machine, with your files and your own agent subscriptions. Linux, Windows and Apple-silicon Macs.",
+      cta: { label: "Get Fleet Runner", href: "/download" },
+    },
+  ],
 } as const;
 
 // Mission — one striking statement, minimal elaboration
@@ -17,9 +100,9 @@ export const MISSION = {
   title: "Mission",
   statement: "Direct the creation of everything you can imagine.",
   paragraphs: [
-    "We are building the control plane for the age of autonomous creation. Today, one person commands a fleet of AI agents building software. Tomorrow, the same person commands fleets of robots building the physical world.",
+    "Today, a person can describe what they want and have AI agents build it, ship it and keep improving it. Loki is where that happens — one project or forty. Tomorrow, we intend the same kind of direction to reach machines that build in the physical world.",
     "The leverage shifts from companies to individuals. The bottleneck moves from raw capability to human direction.",
-    "We are deliberately building in support for open and local models. The future of creation will not be gated behind closed frontier subscriptions.",
+    "Open-weight models already run Loki's own chat. The future of creation should not be gated behind closed frontier subscriptions — running models locally is where this is going.",
   ],
 };
 
@@ -27,7 +110,7 @@ export const MISSION = {
 export const PHILOSOPHY = {
   eyebrow: "PRINCIPLES",
   title: "Principles",
-  lede: "The constraints we use when building the control layer for the age of autonomous creation — from software agents today to robot fleets in the future.",
+  lede: "The constraints we hold while building Loki — the place where AI agents do your work and you stay in charge of it.",
   values: [
     {
       name: "Choose where agents run.",
@@ -37,12 +120,12 @@ export const PHILOSOPHY = {
     {
       name: "Humans in the loop, by default.",
       description:
-        "You decide how much the system decides. Per project. Per moment. Autonomy is a dial — not a switch you flip once and forget.",
+        "You decide how much the system decides. Autopilot is a switch you hold — per project, and one button pauses everything. Anything risky waits for your approval, which you can give from your phone.",
     },
     {
       name: "Software today. Robots tomorrow.",
       description:
-        "The same control patterns that orchestrate agents will orchestrate robots. We are building the abstraction layer for both.",
+        "The same patterns that direct software agents should one day direct machines. Today Loki builds software; we design it so that step is possible.",
     },
     {
       name: "Open models, first class.",
@@ -82,27 +165,27 @@ export const PHILOSOPHY = {
 // Investors — sharp thesis, declarative bullets
 export const INVESTORS = {
   eyebrow: "FOR INVESTORS",
-  headline: "The control layer for the age of autonomous creation.",
+  headline: "Where AI agents do the work — and people stay in charge.",
   thesis:
-    "One person commanding a fleet of agents is the new unit of leverage. We are building the operating system for that future — and for the robotic fleets that will follow.",
+    "One person directing many agents is the new unit of leverage. Loki is where that person describes the work, the agents build and ship it, and every change stays visible and reversible.",
   whyNow: [
     "Agent capability has crossed the orchestration threshold. The bottleneck is no longer raw generation. It is human direction.",
-    "The most advanced users are already running many agents at once across multiple projects. They need infrastructure built for that reality.",
+    "People are already running several agents at once across several projects — and people who never wrote code want the same result. Both need one place to direct, check and ship the work.",
     "The winning architecture combines remote command with a clear choice of execution location. Loki supports the shared cloud builder for eligible accounts and Fleet Runner on your computer.",
-    "Open and local models are converging on frontier capability. Whoever controls the orchestration layer will be neutral to model choice.",
+    "Open-weight models keep closing the gap on frontier capability. A layer that runs many vendors' agents is neutral to which model wins.",
     "The same control patterns transfer to physical robotics. The market has not yet appreciated this.",
   ],
   built:
-    "A web command center coordinates fleets of AI agents across projects. Eligible accounts can run work on the shared cloud builder; Fleet Runner adds execution on the operator's computer, with sessions visible from the web. Per-project autonomy controls, handoffs, queue management, and truthful status surfaces are live and in daily use. Multi-OS Fleet Runner installers (Linux, macOS, Windows) ship from one CI matrix on every release tag.",
+    "A web workspace runs AI coding agents (Claude Code, Codex, Cursor, Antigravity, Grok) across many projects: from a plain description to a repository, a deployed site and a feedback loop that turns notes on that site into the next change. Invited accounts run on the shared cloud builder; Fleet Runner runs agents on the operator's own computer (Linux, Windows, Apple-silicon macOS). Every site deploy is checked on a phone-sized screen and rolled back if it got worse. Beta, in daily use.",
   // Scannable bullets, not a prose wall — the page pairs these with the live
   // fleet snapshot (same real data source as the homepage hero).
   traction: [
-    "Loki runs its creator's entire operation — a live fleet of projects dispatched, monitored, and governed daily through the product itself.",
+    "Loki builds and ships its creator's own projects — the studio's sites, OrangeCat and Solon among them — every day, through the product itself.",
     "We use Loki in our own work and verify changes against real workflows; a successful agent run alone does not prove a live result.",
-    "The homepage hero and this page render the same live snapshot of that fleet — real data, never fabricated numbers.",
+    "The homepage and this page show the same snapshot of projects whose owners chose to show them — real data, never fabricated numbers.",
     "The bet: the same workflow generalizes to anyone running many agents at once.",
   ],
-  ask: "We are raising to broaden secure cloud execution, improve Fleet Runner, expand open-model support, and lay groundwork for robotic orchestration.",
+  ask: "We are raising to open the cloud builder to everyone who signs up, with each account isolated, to improve Fleet Runner, and to broaden open-model support.",
 };
 
 export const INVESTOR_DETAILS = {
@@ -184,9 +267,9 @@ export const ROADMAP: {
 
 // Shared final CTA used at the bottom of every marketing page
 export const FINAL_CTA = {
-  title: "Begin.",
-  note: "For builders running real agent operations.",
-  cta: "Start building",
+  title: "Start a project.",
+  note: "Free while Loki is in beta. Open source under the MIT licence.",
+  cta: "Start a project",
 };
 
 // Download / install section for the desktop Fleet Runner (the optional local app).
@@ -396,68 +479,39 @@ export type DesktopDownloadPlatform =
   | (DesktopDownloadPlatformShape & { status: "ready" })
   | (DesktopDownloadPlatformShape & { status: "comingSoon" });
 
+// What is inside, for a visitor who wants a look before signing up. The first
+// four render on the homepage. "Beacon" (a tier of the autonomy ladder removed
+// 2026-06-11) used to be one of them; the feedback loop — the most-shipped
+// area of 2026-09 — was cut. Plain words; the names are the ones in the app.
 export const PRODUCT_SURFACES = [
   {
+    label: "Feedback",
+    title: "Your site collects its own to-do list.",
+    body: "A small Loki button sits on every site Loki builds. Notes from you start a fix right away; notes from visitors wait for your OK. Whoever left an email hears back when it is fixed.",
+    meta: "Feedback button · fixes · replies",
+  },
+  {
+    label: "Watch",
+    title: "See every step the agent takes.",
+    body: "Follow a run as a readable thread — what was asked, what the agent is doing, what it changed and where it went live. Step in and type yourself when you want to.",
+    meta: "Live view · terminal · hand-off notes",
+  },
+  {
     label: "Loki",
-    title: "Say what you want. It runs.",
-    body: "One conversational composer turns plain language into action — “code review for kivvi” dispatches it into that project; a question gets answered. The system picks the project and the path, so you hold less in your head.",
-    meta: "Natural language · auto-routing · voice",
+    title: "Ask in plain words.",
+    body: "Chat with Loki by text or voice. Ask what is happening, or say what you want done — it finds the right project and starts the work. You can also reach it from Claude, ChatGPT or Cursor.",
+    meta: "Chat · voice · works from other AI apps",
   },
   {
     label: "Control",
-    title: "See the whole fleet at once.",
-    body: "Every project, active agent, queue item, and handoff sits in one operating view instead of disappearing into terminal tabs.",
-    meta: "Live sessions · autonomy levels · dispatch",
-  },
-  {
-    label: "Runner",
-    title: "Choose the builder for each project.",
-    body: "Eligible accounts can use the shared cloud builder. Fleet Runner runs agents against your computer's checkout and tools when a project is set to run locally.",
-    meta: "Cloud builder · Fleet Runner · per-project routing",
-  },
-  {
-    label: "Beacon",
-    title: "Human judgment appears at the right moments.",
-    body: "Fleet-wide play/pause with per-project queues and overrides — each project asks for oversight only when the next decision actually needs you.",
-    meta: "Approvals · voice intent · remote command",
-  },
-  {
-    label: "Terminal",
-    title: "Watch and drive any agent live.",
-    body: "An embedded terminal per project — see exactly what the cloud builder or your local runner is typing, and type into it yourself when the moment calls for hands on the wheel.",
-    meta: "Live PTY · cloud + local · per-project tabs",
-  },
-  {
-    label: "Feedback",
-    title: "Your visitors file the work.",
-    body: "One script tag puts a feedback button on any site you run. Reports land in a per-project inbox, one click dispatches an agent to fix them, and when the fix ships the reporter gets an email.",
-    meta: "Embeddable widget · agent dispatch · closed loop",
+    title: "Every project in one place.",
+    body: "What is running, what is waiting for you and what just shipped, across all your projects. Pause everything with one button.",
+    meta: "Projects · approvals · autopilot on/off",
   },
 ] as const;
 
-/** Homepage shows the four surfaces a first-time visitor needs. The rest live in-product. */
+/** Homepage shows the four surfaces a first-time visitor needs. */
 export const HOME_PRODUCT_SURFACES = PRODUCT_SURFACES.slice(0, 4);
-
-export const START_PATHS = [
-  {
-    title: "Start in the browser",
-    body: "Create a project, set where its work runs, then dispatch and follow agent sessions from Loki. Eligible accounts can start on the cloud builder without an install.",
-    href: "/sign-up",
-    cta: "Start building",
-  },
-  {
-    title: "Run on your computer",
-    body: "Install Fleet Runner when a project should use your local checkout, tools, and agent sign-in.",
-    href: "/download",
-    cta: "Get Fleet Runner",
-  },
-  {
-    title: "Read the architecture",
-    body: "Understand the local-runner, remote-control, queue, and handoff design before committing your workflow to it.",
-    href: "/whitepaper",
-    cta: "View whitepaper",
-  },
-] as const;
 
 // Kept as a re-export for existing imports. New public integration surfaces
 // should import from config/ecosystem directly.

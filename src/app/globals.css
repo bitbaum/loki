@@ -1582,68 +1582,8 @@
   .ui-public-doc-footer-note {
     @apply mb-8 text-sm text-text-muted;
   }
-  /* Frontier digest — daily AI/robotics digest list on the public surface. */
-  .ui-frontier-lede {
-    @apply mb-10 border-b border-border-subtle pb-8;
-  }
-  .ui-frontier-headline {
-    @apply mb-3 text-2xl font-semibold tracking-tight text-text-primary;
-    letter-spacing: -0.02em;
-  }
-  .ui-frontier-intro {
-    @apply text-base leading-relaxed text-text-secondary;
-  }
-  .ui-frontier-list {
-    @apply space-y-2.5;
-  }
-  /* Lead pick — the day's #1, given room so the digest reads as ranked
-     editorial judgment, not a flat list. */
-  .ui-frontier-lead {
-    @apply block rounded-2xl border border-border-default bg-surface-raised p-6 transition-colors hover:border-border-interactive sm:p-7;
-  }
-  .ui-frontier-lead-rank {
-    @apply mb-3 font-mono text-micro uppercase tracking-widest text-accent-text;
-  }
-  .ui-frontier-lead-title {
-    @apply mb-2 text-xl font-semibold leading-tight tracking-tight text-text-primary sm:text-2xl;
-    letter-spacing: -0.02em;
-  }
-  .ui-frontier-lead-summary {
-    @apply text-base leading-relaxed text-text-secondary;
-  }
-  /* Ranked rows — a mono rank numeral gutter beside the item. */
-  .ui-frontier-item {
-    @apply flex gap-4 rounded-xl border border-border-subtle bg-surface-raised p-4 transition-colors hover:border-border-interactive;
-  }
-  .ui-frontier-rank {
-    @apply shrink-0 pt-0.5 font-mono text-sm tabular-nums text-text-muted;
-  }
-  .ui-frontier-item-body {
-    @apply min-w-0 flex-1;
-  }
-  .ui-frontier-item-meta-row {
-    @apply mb-2 flex flex-wrap items-center gap-2;
-  }
-  .ui-frontier-cat {
-    @apply rounded-full border border-border-subtle px-2 py-0.5 font-mono text-micro uppercase tracking-wider text-text-muted;
-  }
-  .ui-frontier-item-source {
-    @apply font-mono text-micro uppercase tracking-widest text-text-muted;
-  }
-  .ui-frontier-item-title {
-    @apply mb-1.5 text-base font-semibold leading-snug text-text-primary;
-  }
-  .ui-frontier-item-summary {
-    @apply text-sm leading-relaxed text-text-secondary;
-  }
-  .ui-frontier-empty {
-    @apply rounded-xl border border-border-subtle bg-surface-raised p-8 text-center;
-  }
-  .ui-frontier-credit {
-    @apply mt-10 border-t border-border-subtle pt-6 font-mono text-micro uppercase tracking-widest text-text-muted;
-  }
   /* Marketing surface — display + CTA primitives shared by the landing page
-     and the /mission, /philosophy, /investors, /roadmap subpages. Theme-aware:
+     and the /why, /how-it-works, /compare, /investors, /roadmap subpages. Theme-aware:
      every colour resolves through theme tokens that flip with .dark. */
   .ui-public-eyebrow {
     @apply text-[11px] uppercase tracking-[0.14em] text-text-tertiary sm:text-xs sm:tracking-[0.18em];
@@ -2045,6 +1985,49 @@
   }
   /* The whole card is the tap target on a phone, so it is an <a>, not a card
      with a small text link inside it that a thumb has to find. */
+  /* Homepage "how it works": three numbered steps a newcomer reads left to
+     right (top to bottom on a phone). The number is large and faint so the
+     sentence, not the digit, carries the step. */
+  .ui-public-howto {
+    @apply grid gap-3 sm:gap-4 md:grid-cols-3;
+  }
+  .ui-public-howto-step {
+    @apply flex flex-col rounded-2xl border border-border-subtle bg-surface-base p-5 text-left sm:p-6;
+  }
+  .ui-public-howto-num {
+    @apply font-mono text-3xl font-semibold text-text-muted sm:text-4xl;
+  }
+  .ui-public-howto-title {
+    @apply mt-4 text-lg font-semibold text-text-primary sm:mt-6 sm:text-xl;
+  }
+  .ui-public-howto-body {
+    @apply mt-2.5 text-sm leading-relaxed text-text-secondary;
+    text-wrap: pretty;
+  }
+  .ui-public-howto-note {
+    @apply mx-auto mt-6 max-w-2xl text-center text-sm leading-relaxed text-text-tertiary sm:mt-8;
+    text-wrap: pretty;
+  }
+  /* Comparison table (/compare). Scrolls inside its own box on a phone so the
+     page never scrolls sideways. */
+  .ui-public-compare-wrap {
+    @apply -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0;
+  }
+  .ui-public-compare {
+    @apply w-full min-w-[640px] border-collapse text-left text-sm;
+  }
+  .ui-public-compare th {
+    @apply border-b border-border-default px-3 py-2.5 text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+  }
+  .ui-public-compare td {
+    @apply border-b border-border-subtle px-3 py-3 align-top leading-relaxed text-text-secondary;
+  }
+  .ui-public-compare td:first-child {
+    @apply font-medium text-text-primary;
+  }
+  .ui-public-compare-group td {
+    @apply pt-6 text-micro font-semibold uppercase tracking-caps text-text-tertiary;
+  }
   .ui-public-start-card {
     @apply flex flex-col rounded-2xl border border-border-subtle bg-surface-base p-5 text-left transition-colors hover:border-border-default active:border-border-default sm:min-h-[260px] sm:p-6;
   }

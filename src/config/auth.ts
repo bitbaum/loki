@@ -90,51 +90,61 @@ export const PUBLIC_NAV: PublicNavEntry[] = [
   {
     kind: "menu",
     label: "Product",
+    // Rebuilt 2026-10-01. "Start" answers "what is this and how do I begin",
+    // "Learn" holds the depth. Frontier left (its producer was removed
+    // 2026-09-25 and the page had frozen); Mission and Philosophy merged into
+    // /why, which said the same three things twice and contradicted itself.
     sections: [
       {
-        title: "Understand",
+        title: "Start",
         items: [
-          { label: "Mission", href: "/mission", description: "Why Loki exists" },
           {
-            label: "Philosophy",
-            href: "/philosophy",
-            description: "The principles behind the product",
+            label: "How it works",
+            href: "/how-it-works",
+            description: "From a sentence to a working site — and under the hood",
           },
-          { label: "Roadmap", href: "/roadmap", description: "What works now and what comes next" },
-          { label: "Changelog", href: "/changelog", description: "What changed, dated" },
           {
-            label: "The fleet",
-            href: "/fleet",
-            description: "Every project the studio runs, and where each one lives",
+            label: "Compare",
+            href: "/compare",
+            description: "Loki next to Claude Code, Codex, Lovable and others",
           },
-          { label: "Docs", href: "/docs", description: "Install, connect, and operate your fleet" },
           {
-            label: "Whitepaper",
-            href: "/whitepaper",
-            description: "Architecture and product thesis",
+            label: "Change a website",
+            href: "/commission",
+            description: "Start with its address and the changes you want",
+          },
+          { label: "Pricing", href: "/pricing", description: "Free while Loki is in beta" },
+          {
+            label: "Download",
+            href: "/download",
+            description: "Fleet Runner for Linux, Windows and Apple-silicon Macs",
           },
         ],
       },
       {
-        title: "Use",
+        title: "Learn",
         items: [
           {
-            label: "Change a website",
-            href: "/commission",
-            description: "Start with its address and the changes you want.",
+            label: "Why Loki",
+            href: "/why",
+            description: "What it is for, and the rules it keeps",
           },
-          // "Linux app" outlived its truth: mac and Windows builds have shipped
-          // from the same CI matrix since v0.8.11.
           {
-            label: "Download",
-            href: "/download",
-            description: "Fleet Runner for Mac, Windows, and Linux",
+            label: "Docs",
+            href: "/docs",
+            description: "Set up, connect agents, add the feedback button",
           },
-          { label: "Pricing", href: "/pricing", description: "Plans for operators and teams" },
           {
-            label: "Frontier",
-            href: "/frontier",
-            description: "Daily AI & robotics frontier digest",
+            label: "Built with Loki",
+            href: "/fleet",
+            description: "Projects whose owners chose to show them",
+          },
+          { label: "Roadmap", href: "/roadmap", description: "What works now and what comes next" },
+          { label: "Changelog", href: "/changelog", description: "What changed, dated" },
+          {
+            label: "Whitepaper",
+            href: "/whitepaper",
+            description: "The full technical design",
           },
         ],
       },
@@ -166,5 +176,13 @@ export const PUBLIC_NAV: PublicNavEntry[] = [
     label: "Solon",
     href: "https://solon.orangecat.ch",
     description: "The governance pillar of the stack — Bitcoin-signed proposals and votes.",
+  },
+  {
+    // Since #995 paid, done-for-you work belongs to the studio, and nothing in
+    // Loki's nav reached its door.
+    kind: "external",
+    label: "bitbaum",
+    href: "https://bitbaum.orangecat.ch/hire/",
+    description: "The studio — have it built for you.",
   },
 ];

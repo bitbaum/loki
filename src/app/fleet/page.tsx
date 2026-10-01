@@ -124,12 +124,16 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
   return (
     <PublicSurface right={<PublicHeaderActions />}>
       <div className="ui-public-container-mid py-12 sm:py-20 lg:py-24">
-        <div className="ui-public-eyebrow">The fleet</div>
+        <div className="ui-public-eyebrow">Built with Loki</div>
         <h1 className="ui-public-page-title mt-3 sm:mt-4">Every project, and where it lives.</h1>
+        {/* "client work" broke the rule that bitbaum has no clients — its
+            sites are Pilots and Concepts — and "each one is built and shipped
+            by agents" overclaimed: some rows were never built through Loki,
+            they are only registered in it. */}
         <p className="ui-public-lede mt-4 max-w-2xl sm:mt-6">
-          Projects their owners chose to show — products, client work, demos, and the ones still
-          only named. Each one is built and shipped by agents its owner commands from Loki. Search
-          it, narrow it, and send anyone the view you end up with.
+          Projects their owners chose to show — products, pilots, concepts, demos, and the ones
+          still only named. Each one is registered in Loki. Search it, narrow it, and send anyone
+          the view you end up with.
         </p>
         <div className="ui-public-surface-card-meta">
           <span className="ui-public-surface-card-meta-chip">{s.projects} projects</span>

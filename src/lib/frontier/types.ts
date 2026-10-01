@@ -10,13 +10,6 @@
  *  so it can't be hallucinated). Rendered as a chip on the public digest. */
 export type FrontierCategory = "research" | "robotics" | "ml" | "community";
 
-export const FRONTIER_CATEGORY_LABEL: Record<FrontierCategory, string> = {
-  research: "AI research",
-  robotics: "Robotics",
-  ml: "ML / systems",
-  community: "Industry",
-};
-
 /** One curated item in a published digest. title/url/source/category always
  *  come from the real fetched feed; only `summary` is LLM-authored. */
 export type FrontierItem = {

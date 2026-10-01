@@ -6,7 +6,7 @@ import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { WebsiteCommissionForm } from "@/components/public/WebsiteCommissionForm";
 export const metadata: Metadata = {
-  title: "Change an existing website — Loki",
+  title: "Change an existing website",
   description:
     "Enter a website address and describe your changes. Build a new version yourself with Loki, the free independent tool.",
 };
