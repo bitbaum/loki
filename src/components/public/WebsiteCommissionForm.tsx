@@ -172,7 +172,7 @@ export function WebsiteCommissionForm({ signedIn }: { signedIn: boolean }) {
           className="text-accent-text underline"
           href={`${COMMISSION.studioHireUrl}#brief=${encodeURIComponent(JSON.stringify({ website, changes }))}`}
         >
-          Take this brief to the Bitbaum studio
+          Take this brief to the bitbaum studio
         </a>
         .
       </p>

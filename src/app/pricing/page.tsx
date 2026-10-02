@@ -59,6 +59,11 @@ export default async function PricingPage() {
       : { href: ROUTES.SIGN_UP, label: "Start free" };
   }
 
+  // A plan with a price (Free included) can be started today; one without is
+  // announced, not sold — no checkout rail may sell it yet.
+  const available = PRICING_PLANS.filter((p) => p.priceMonthly !== null);
+  const later = PRICING_PLANS.filter((p) => p.priceMonthly === null);
+
   return (
     <PublicSurface right={<PublicHeaderActions />}>
       <main className="ui-public-container py-12 sm:py-20">
@@ -74,8 +79,12 @@ export default async function PricingPage() {
           </p>
         </div>
 
-        <div className="ui-public-section-gap grid gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-          {PRICING_PLANS.map((plan) => {
+        {/* What exists today gets a card and the one button; the plans that have
+            no price yet get one line each. Four equal cards, three of them
+            "Price to be announced · Start free", asked the reader to compare
+            options that are not on sale (2026-10-01). */}
+        <div className="ui-public-section-gap mx-auto grid max-w-md gap-3">
+          {available.map((plan) => {
             const cta = ctaFor(plan);
             return (
               <div
@@ -129,6 +138,32 @@ export default async function PricingPage() {
             );
           })}
         </div>
+
+        {later.length > 0 && (
+          <section className="mx-auto mt-8 max-w-2xl sm:mt-12" aria-labelledby="later-plans">
+            <h2 id="later-plans" className="ui-public-eyebrow text-center">
+              Later plans — price to be announced
+            </h2>
+            <ul className="mt-4 divide-y divide-border-subtle rounded-2xl border border-border-subtle">
+              {later.map((plan) => (
+                <li
+                  key={plan.key}
+                  className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-baseline sm:gap-4"
+                >
+                  <span className="shrink-0 font-semibold text-text-primary sm:w-24">
+                    {plan.name}
+                  </span>
+                  <span className="text-sm text-text-secondary">
+                    {plan.tagline}
+                    {plan.highlights[0] && (
+                      <span className="text-text-tertiary"> · {plan.highlights[0]}</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <p className="mx-auto mt-6 max-w-3xl text-center text-sm text-text-secondary sm:mt-8">
           {PRICING_BILLING_NOTE}

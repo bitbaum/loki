@@ -86,7 +86,7 @@ export function PromptCard({
               haptic();
               openRun();
             }}
-            className="ui-btn-primary inline-flex min-h-11 items-center gap-1.5 text-sm"
+            className="ui-btn-secondary inline-flex min-h-11 items-center gap-1.5 text-sm"
           >
             <Zap className="h-4 w-4" /> Run
           </button>

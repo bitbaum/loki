@@ -26,6 +26,7 @@ import {
   fleetListFor,
   groupOf,
   isDayZero,
+  kindLabel,
   GROUP_LABEL,
   GROUP_OPTIONS,
   SORT_LABEL,
@@ -161,7 +162,7 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
             type="search"
             name="q"
             defaultValue={query.q}
-            placeholder="Search name, address, description, client…"
+            placeholder="Search name, address, description…"
             aria-label="Search the fleet"
             className="ui-fleet-search-input"
           />
@@ -204,13 +205,13 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
                 active={on("kind", k)}
                 count={result.counts.kind?.[k]}
               >
-                {k}
+                {kindLabel(k)}
               </Chip>
             ))}
           </FacetRow>
 
           {ownerOptions.length > 0 && (
-            <FacetRow label="For">
+            <FacetRow label="With">
               {ownerOptions.map((o) => (
                 <Chip
                   key={o}
@@ -334,7 +335,7 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
               <li className="ui-public-fleet-stat">
                 <span className="ui-public-fleet-stat-num-accent">{money.engagements}</span>
                 <span className="ui-public-fleet-stat-label">
-                  live engagements
+                  pilots running
                   {money.clients.length > 0 && <> — {money.clients.join(", ")}</>}
                 </span>
               </li>
@@ -466,11 +467,15 @@ function Row({
               {/* A day-zero address answers 200 with six to seventeen kilobytes
                   of scaffold. Saying so is the difference between a reader
                   trusting this list and concluding a third of it is broken. */}
-              {isDayZero(r) ? <span className="ui-fleet-dayzero">day-zero page</span> : r.site.kind}
+              {isDayZero(r) ? (
+                <span className="ui-fleet-dayzero">day-zero page</span>
+              ) : (
+                kindLabel(r.site.kind)
+              )}
               {" · "}
               {r.site.status}
               {r.site.owner !== "bitbaum" && r.site.owner !== "-" && (
-                <span className="ui-public-fleet-nowrap"> · for {r.site.owner}</span>
+                <span className="ui-public-fleet-nowrap"> · with {r.site.owner}</span>
               )}
               {r.site.since !== "-" && (
                 <span className="ui-public-fleet-nowrap"> · since {r.site.since}</span>
@@ -483,22 +488,33 @@ function Row({
           </span>
         )}
       </div>
-      <div className="ui-public-fleet-presence">
-        <Presence label="Loki" href={projectHref} present={!!r.loki} flatReason="sign in to open" />
-        <Presence
-          label="OrangeCat"
-          href={
-            r.orangecat && orangecatLive.has(r.orangecat.projectId)
-              ? `https://orangecat.ch/projects/${r.orangecat.projectId}`
-              : null
-          }
-          external
-          present={!!r.orangecat}
-        />
-        {/* Solon publishes no per-organisation page — only `GET /api/orgs/<slug>`,
-            which is how this register knows the organisation exists. */}
-        <Presence label="Solon" href={null} present={!!r.solon} unknown={!solonChecked} />
-      </div>
+      {/* Only where the project IS. Every row carried all three names with the
+          absent ones dimmed — 32 rows of "Loki OrangeCat Solon" that a reader
+          had to decode by shade. Being in Loki is true of every row on this
+          page, so it shows only as a link for someone who can open it; the
+          gaps are still one tap away under Filters → Missing. */}
+      {(projectHref || r.orangecat || r.solon || !solonChecked) && (
+        <div className="ui-public-fleet-presence">
+          {projectHref && <Presence label="Loki" href={projectHref} present />}
+          {r.orangecat && (
+            <Presence
+              label="OrangeCat"
+              href={
+                orangecatLive.has(r.orangecat.projectId)
+                  ? `https://orangecat.ch/projects/${r.orangecat.projectId}`
+                  : null
+              }
+              external
+              present
+            />
+          )}
+          {/* Solon publishes no per-organisation page — only `GET /api/orgs/<slug>`,
+              which is how this register knows the organisation exists. */}
+          {(r.solon || !solonChecked) && (
+            <Presence label="Solon" href={null} present={!!r.solon} unknown={!solonChecked} />
+          )}
+        </div>
+      )}
     </li>
   );
 }

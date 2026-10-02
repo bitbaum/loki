@@ -12,6 +12,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { publicPagePaths } from "../../src/lib/public-pages";
 import { COMPARE_GROUPS } from "../../src/config/compare";
 import { ECOSYSTEM } from "../../src/config/ecosystem";
+import { KIND_OPTIONS, kindLabel } from "../../src/config/fleet-list";
 
 const PUBLIC_COPY = [
   "src/config/brand.ts",
@@ -61,6 +62,25 @@ for (const file of PUBLIC_COPY) {
     const hit = text.match(re);
     assert.equal(hit, null, `${file}: "${hit?.[0]}" in public copy — ${why}`);
   }
+}
+
+// The commission form names the studio; it is spelled bitbaum, lowercase.
+for (const file of [
+  "src/components/public/WebsiteCommissionForm.tsx",
+  "src/app/commission/page.tsx",
+]) {
+  const hit = stringsOf(readFileSync(file, "utf8")).match(/\bBitbaum\b/);
+  assert.equal(hit, null, `${file}: "Bitbaum" — the studio is spelled bitbaum`);
+}
+
+// /fleet shows the apps.conf kind to strangers. "client-app" is a provisioning
+// fact; the public word is pilot — every label, and nothing else on the page.
+for (const kind of KIND_OPTIONS) {
+  assert.doesNotMatch(kindLabel(kind), /client/i, `kind "${kind}" shows as "${kindLabel(kind)}"`);
+}
+{
+  const hit = stringsOf(readFileSync("src/app/fleet/page.tsx", "utf8")).match(/\bclients?\b/i);
+  assert.equal(hit, null, `src/app/fleet/page.tsx: "${hit?.[0]}" — bitbaum has no clients`);
 }
 
 // Jargon a newcomer cannot parse stays off the pages a newcomer lands on.

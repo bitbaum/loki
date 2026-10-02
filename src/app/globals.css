@@ -1421,7 +1421,7 @@
     @apply bg-surface-raised ring-1 ring-border-interactive;
   }
   .ui-public-fleet-row {
-    @apply -mx-3 grid grid-cols-1 gap-x-6 gap-y-2 rounded-lg px-3 py-3.5 transition-colors sm:grid-cols-[minmax(0,18rem)_minmax(0,1.15fr)_auto] sm:items-baseline;
+    @apply -mx-3 grid grid-cols-1 gap-x-6 gap-y-1 rounded-lg px-3 py-3 transition-colors sm:grid-cols-[minmax(0,18rem)_minmax(0,1.15fr)_auto] sm:items-baseline sm:gap-y-2 sm:py-3.5;
   }
   .ui-public-fleet-row:hover {
     @apply bg-surface-raised;
@@ -1930,6 +1930,19 @@
   }
   .ui-public-milestone-mark[data-done="true"] {
     @apply border-border-strong bg-surface-raised;
+  }
+  /* Page refactor, public batch (2026-10-02): a roadmap item's steps, and the
+     whole Shipped group, fold behind one line. */
+  .ui-roadmap-steps-summary {
+    @apply inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-sm text-text-tertiary transition-colors hover:text-text-secondary;
+  }
+  .ui-roadmap-steps-summary::before {
+    content: "▸";
+    @apply text-micro transition-transform;
+  }
+  .ui-roadmap-steps[open] > .ui-roadmap-steps-summary::before,
+  .ui-roadmap-shipped[open] > .ui-roadmap-steps-summary::before {
+    @apply rotate-90;
   }
   .ui-public-band {
     @apply border-t border-border-default bg-surface-page;

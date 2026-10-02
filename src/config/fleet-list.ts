@@ -38,6 +38,23 @@ export function isDayZero(r: RegisterRow): boolean {
 }
 
 export const KIND_OPTIONS = ["product", "client-app", "client-site", "demo"] as const;
+
+/**
+ * The public word for each apps.conf kind. "client-app" / "client-site" are
+ * PROVISIONING facts (a site run for someone else); bitbaum has no clients —
+ * publicly those are pilots. The raw kind stays the filter value so links and
+ * the register API keep working; only what a reader sees changes.
+ */
+export const KIND_LABEL: Record<string, string> = {
+  product: "product",
+  "client-app": "pilot",
+  "client-site": "pilot site",
+  demo: "demo",
+};
+
+export function kindLabel(kind: string): string {
+  return KIND_LABEL[kind] ?? kind;
+}
 export const STATUS_OPTIONS = ["live", "validating", "prospect", "unverified", "demo"] as const;
 
 export const SORT_LABEL: Record<string, string> = {
@@ -67,9 +84,9 @@ export const FLEET_LIST: ListSpec<RegisterRow> = {
       value: (r) => r.site?.status ?? "",
       options: [...STATUS_OPTIONS],
     },
-    // Who it is for, as a facet: "show me the client work" is the first question
-    // anyone asks a studio's project list. Options are supplied at call time
-    // because the set of clients is data, not a constant.
+    // Who it is with, as a facet: "show me the pilots with X" is the first
+    // question anyone asks a studio's project list. Options are supplied at call
+    // time because the set of partners is data, not a constant.
     { key: "owner", kind: "many", value: (r) => r.site?.owner ?? "" },
     // The gap-finding facets. These are why the register is a to-do list read
     // sideways, and until now the only way to use it was to scan 38 rows.
