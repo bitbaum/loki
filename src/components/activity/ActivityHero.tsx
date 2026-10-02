@@ -11,6 +11,7 @@ import { activityHeadline } from "@/lib/activity-summary";
 import type { DigestWindow } from "@/db/queries/digests";
 import { ActivityPulse } from "./ActivityPulse";
 import { RANGE_LABEL, activityHref } from "./activity-shared";
+import { NEEDS_YOU_LABELS } from "@/lib/needs-you";
 
 /**
  * The answer, before the evidence.
@@ -46,7 +47,7 @@ export function ActivityHero({
   }[] = [
     {
       id: "attention",
-      label: "Needs you",
+      label: NEEDS_YOU_LABELS.runs,
       value: summary.attention,
       Icon: AlertTriangle,
       tone: "alert",

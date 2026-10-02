@@ -4,6 +4,7 @@ import type { ActivityEvent } from "@/lib/activity-events";
 import type { DigestWindow } from "@/db/queries/digests";
 import { ActivityRetryButton } from "./ActivityRetryButton";
 import { activityHref, formatClockTime } from "./activity-shared";
+import { NEEDS_YOU_LABELS } from "@/lib/needs-you";
 
 /** Past this, the card stops being a triage list and becomes another feed. */
 const MAX_SHOWN = 3;
@@ -36,7 +37,7 @@ export function NeedsYouCard({
     <section className="ui-needs-you">
       <h2 className="ui-needs-you-title">
         <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-        Needs you
+        {NEEDS_YOU_LABELS.runs}
       </h2>
 
       <ul className="ui-needs-you-list">

@@ -4861,6 +4861,10 @@
     @apply flex w-full shrink-0 gap-3 rounded-2xl px-3 py-3 text-left transition-all hover:bg-surface-overlay hover:-translate-x-px;
     /* High-flier esthetics: softer rounding, lift on hover for tactile 'rail' in command workspace */
   }
+  /* Page refactor, batch A (2026-10-01): the one row idle projects fold behind. */
+  .ui-control-quiet-toggle {
+    @apply flex min-h-11 w-full shrink-0 items-center gap-2 rounded-2xl px-3 text-left text-xs text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary;
+  }
   /* Dim non-selected rows in the rail when SOMETHING is selected. Pre-fix
      the list looked like 20 identical rows above an expanded card — users
      thought the card was a duplicate row. The dim + bold-accent-on-selected

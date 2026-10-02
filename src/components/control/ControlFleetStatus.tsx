@@ -41,7 +41,7 @@ const COUNT_SCOPE_TITLE =
  * A narrow number that presents as a total is the thing to fix, and until the
  * runner can read the live-session registry, saying so is the fix available.
  */
-const COUNT_SCOPE_SHORT = "Loki-dispatched only";
+const COUNT_SCOPE_SHORT = "Counts only agents Loki started";
 
 type Props = {
   dashboard: ControlDashboardState | null;
