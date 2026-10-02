@@ -2229,6 +2229,19 @@
     @apply mb-3 grid gap-3 md:grid-cols-2;
   }
   /* The web-vs-desktop comparison, folded below the download (2026-10-02). */
+  /* /change (2026-10-02): what was said, shown back as the brief to build. */
+  .ui-change-brief {
+    @apply space-y-3 rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-5;
+  }
+  .ui-change-brief-row {
+    @apply flex min-h-11 items-center gap-2;
+  }
+  .ui-change-brief-site {
+    @apply min-w-0 truncate text-sm font-medium text-text-primary;
+  }
+  .ui-change-brief-label {
+    @apply block text-xs font-medium uppercase tracking-caps text-text-tertiary;
+  }
   .ui-public-download-compare-fold {
     @apply mt-10;
   }

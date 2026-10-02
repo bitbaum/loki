@@ -197,8 +197,8 @@ export default function QuickstartPage() {
           </ol>
           <p>
             Already have a website you want changed? Start from{" "}
-            <Link href="/commission" className="ui-public-link">
-              /commission
+            <Link href="/change" className="ui-public-link">
+              /change
             </Link>{" "}
             instead: paste its address and say in plain words what should change.
           </p>

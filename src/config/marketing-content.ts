@@ -54,8 +54,8 @@ export const HOME_AUDIENCES = [
   },
   {
     title: "You have a website to change",
-    body: "Paste its address and say what should be different. Loki turns that into a plan for an agent — free.",
-    href: "/commission",
+    body: "Say which site and what should be different — type it or just speak. Loki turns it into a brief for an agent — free.",
+    href: "/change",
     cta: "Change a website",
   },
   {

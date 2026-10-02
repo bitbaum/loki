@@ -110,8 +110,8 @@ export const PUBLIC_NAV: PublicNavEntry[] = [
           },
           {
             label: "Change a website",
-            href: "/commission",
-            description: "Start with its address and the changes you want",
+            href: "/change",
+            description: "Say which site and what should change — typed or spoken",
           },
           { label: "Pricing", href: "/pricing", description: "Free while Loki is in beta" },
           {
