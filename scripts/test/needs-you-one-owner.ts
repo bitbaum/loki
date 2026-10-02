@@ -12,6 +12,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { composeNeedsYou, NEEDS_YOU_LABELS, type NeedsYouInputs } from "@/lib/needs-you";
+import { ALERT_TYPE_IDS, alertRestatesListedSource } from "@/config/alert-types";
 
 let failed = 0;
 function check(name: string, ok: boolean, detail = ""): void {
@@ -85,6 +86,28 @@ console.log("needs-you-one-owner:");
     systemAlertCount: 3,
   });
   check("nothing to do reads as zero even with system alarms", items.length === 0 && total === 0);
+}
+
+// An alert that only announces a source the list composes directly is not a
+// second row. Live 2026-10-02: "22 things need you" carried "7 actions are
+// waiting for your approval" beside the seven approvals, and "36 feedback items
+// need triage" beside "6 to triage".
+{
+  check(
+    "the approvals and new-feedback alerts are marked as restating a listed source",
+    alertRestatesListedSource("pending_approvals") && alertRestatesListedSource("new_feedback"),
+  );
+  check(
+    "alerts that report something new are not swallowed",
+    ["run_escalation", "goal_capped", "fix_deploy_failed", "studio_request"].every(
+      (t) => ALERT_TYPE_IDS.includes(t as never) && !alertRestatesListedSource(t),
+    ),
+  );
+  const server = readFileSync(join(__dirname, "../../src/lib/needs-you-server.ts"), "utf8");
+  check(
+    "the front door filters restating alerts out of its rows",
+    /alertRestatesListedSource\(a\.type\)/.test(server),
+  );
 }
 
 // Only the front door may SAY "N things need you"; the others use their own words.

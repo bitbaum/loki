@@ -1,7 +1,7 @@
 import { getPendingActions } from "@/db/queries/actions";
 import { getActiveAlerts } from "@/db/queries/alerts";
 import { isPrivateZoneLocked } from "@/lib/private-zone";
-import { isSystemAlertType } from "@/config/alert-types";
+import { alertRestatesListedSource, isSystemAlertType } from "@/config/alert-types";
 import { CHECKIN_TITLE_PREFIX } from "@/lib/actions/checkin-proposal";
 import { ALERT_SEVERITY } from "@/lib/constants/statuses";
 import type { NeedsYouAlert, NeedsYouApprovals } from "@/lib/needs-you";
@@ -26,7 +26,11 @@ export async function loadNeedsYouExtras(userId: string): Promise<{
   ]);
 
   const systemAlertCount = active.filter((a) => isSystemAlertType(a.type)).length;
-  const operator = active.filter((a) => !isSystemAlertType(a.type));
+  // An alert that only announces approvals or feedback triage is already a row
+  // here (those sources are composed directly) — listing it too counted once twice.
+  const operator = active.filter(
+    (a) => !isSystemAlertType(a.type) && !alertRestatesListedSource(a.type),
+  );
 
   const checkins = pending.filter((a) => a.title.startsWith(CHECKIN_TITLE_PREFIX));
   const others = pending.filter((a) => !a.title.startsWith(CHECKIN_TITLE_PREFIX));
