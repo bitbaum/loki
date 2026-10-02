@@ -4707,8 +4707,10 @@
   .ui-projects-row-name {
     @apply truncate text-sm font-medium leading-tight text-text-primary;
   }
+  /* Two lines, not one: a single-line ellipsis showed 12–40% of each sentence
+     and the rest was hover-only, which a phone cannot do (audit 2026-10-01). */
   .ui-projects-row-context {
-    @apply mt-1 truncate text-xs leading-snug text-text-tertiary;
+    @apply mt-1 line-clamp-2 text-xs leading-snug text-text-tertiary;
   }
   /* The rail. Every cell is a fixed width so the columns align down the page;
      numbers are tabular so they do not shiver between rows. */
