@@ -13,6 +13,7 @@ import type { FeedbackWorkView } from "@/lib/feedback/work-phase";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FeedbackItemRow } from "@/components/feedback/FeedbackItemRow";
 import { useFeedbackActions } from "@/components/feedback/use-feedback-actions";
+import { foldSameFailures, SHIPPED_SHOWN } from "@/lib/feedback/inbox-groups";
 import { cn } from "@/lib/utils";
 
 type InboxItem = UserFeedbackListItem & { work: FeedbackWorkView };
@@ -85,6 +86,7 @@ export function FeedbackInbox() {
   const [projectFilter, setProjectFilter] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [showAllShipped, setShowAllShipped] = useState(false);
   const { busyId, error, notice, dispatchFix, setStatus, feature } = useFeedbackActions(refetch);
 
   const all = useMemo(() => data?.feedback ?? [], [data]);
@@ -142,6 +144,7 @@ export function FeedbackInbox() {
   const underWay = active.filter(
     (f) => f.status !== FEEDBACK_STATUS.RESOLVED && f.work.waitingOn === WAITING_ON.MACHINE,
   );
+  const needsYouFolded = foldSameFailures(needsYou);
   const shipped = filtered.filter((f) => f.status === FEEDBACK_STATUS.RESOLVED);
   const archived = filtered.filter((f) => f.status === FEEDBACK_STATUS.ARCHIVED);
 
@@ -309,7 +312,7 @@ export function FeedbackInbox() {
 
       {needsYou.length > 0 && (
         <InboxSection title="Needs you" count={needsYou.length}>
-          {needsYou.map((f) => (
+          {needsYouFolded.rows.map((f) => (
             <Row
               key={f.id}
               f={f}
@@ -319,6 +322,31 @@ export function FeedbackInbox() {
               feature={feature}
               hideProject={hideProject}
             />
+          ))}
+          {/* Failures that share one reason fold into one line that says the
+              reason once; each report is still its own row, one tap away, with
+              its own Retry — there is deliberately no "retry all": one tap
+              starting dozens of agent runs is a decision, not a default. */}
+          {needsYouFolded.folds.map((fold) => (
+            <details key={fold.cause} className="ui-inbox-fold">
+              <summary className="ui-inbox-fold-summary">
+                <span className="ui-inbox-fold-count">
+                  {fold.items.length} fixes failed the same way
+                </span>
+                <span className="ui-inbox-fold-cause">{fold.cause}</span>
+              </summary>
+              {fold.items.map((f) => (
+                <Row
+                  key={f.id}
+                  f={f}
+                  busyId={busyId}
+                  dispatchFix={dispatchFix}
+                  setStatus={setStatus}
+                  feature={feature}
+                  hideProject={hideProject}
+                />
+              ))}
+            </details>
           ))}
         </InboxSection>
       )}
@@ -341,7 +369,9 @@ export function FeedbackInbox() {
 
       {shipped.length > 0 && (
         <InboxSection title="Shipped" count={shipped.length}>
-          {shipped.map((f) => (
+          {/* Nothing here asks for a decision, so the newest few stand for the
+              rest — all 36 rendered in full were most of a 17,000px page. */}
+          {(showAllShipped ? shipped : shipped.slice(0, SHIPPED_SHOWN)).map((f) => (
             <Row
               key={f.id}
               f={f}
@@ -352,6 +382,16 @@ export function FeedbackInbox() {
               hideProject={hideProject}
             />
           ))}
+          {shipped.length > SHIPPED_SHOWN && (
+            <button
+              type="button"
+              onClick={() => setShowAllShipped((v) => !v)}
+              aria-expanded={showAllShipped}
+              className="ui-inbox-fold-summary"
+            >
+              {showAllShipped ? "Show fewer" : `Show all ${shipped.length} shipped`}
+            </button>
+          )}
         </InboxSection>
       )}
 
