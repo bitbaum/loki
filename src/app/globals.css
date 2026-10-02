@@ -940,6 +940,16 @@
      surface (see CLAUDE.md). */
   /* Standalone dark page (x.ai/build/changelog is on near-black, not the light
      marketing surface). Own minimal nav so the whole page reads dark. */
+  /* Page refactor (2026-10-02): an older changelog month, folded to its line. */
+  .ui-changelog-month-summary {
+    @apply flex min-h-11 cursor-pointer list-none flex-wrap items-baseline justify-between gap-x-4 gap-y-1;
+  }
+  .ui-changelog-month-summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-changelog-month[open] > .ui-changelog-month-summary {
+    @apply mb-2;
+  }
   .ui-changelog-root {
     @apply min-h-screen bg-black text-white;
   }
