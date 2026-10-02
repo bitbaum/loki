@@ -309,7 +309,9 @@ export function GoalCard({
                       className={`h-3.5 w-3.5 shrink-0 transition-transform ${showMilestones ? "rotate-180" : ""}`}
                       aria-hidden
                     />
-                    {milestoneDone}/{milestoneTotal} milestones
+                    <span className="shrink-0 whitespace-nowrap">
+                      {milestoneDone}/{milestoneTotal} milestones
+                    </span>
                     {!showMilestones && nextMilestone && (
                       <span className="ui-goal-milestones-next">
                         {" "}
