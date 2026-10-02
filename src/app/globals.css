@@ -2219,6 +2219,16 @@
   .ui-public-download-compare {
     @apply mb-3 grid gap-3 md:grid-cols-2;
   }
+  /* The web-vs-desktop comparison, folded below the download (2026-10-02). */
+  .ui-public-download-compare-fold {
+    @apply mt-10;
+  }
+  .ui-public-download-compare-fold > summary {
+    @apply list-none cursor-pointer;
+  }
+  .ui-public-download-compare-fold > summary::-webkit-details-marker {
+    display: none;
+  }
   .ui-public-download-compare-card {
     @apply rounded-2xl border border-white/12 bg-white/[0.06] p-6 text-left;
   }
@@ -2242,7 +2252,7 @@
     @apply absolute left-0 text-white/40;
   }
   .ui-public-download-compare-note {
-    @apply mb-10 mt-3 text-center text-xs leading-relaxed text-white/45 max-w-2xl mx-auto;
+    @apply mb-10 mt-3 text-center text-sm leading-relaxed text-white/55 max-w-2xl mx-auto;
   }
 
   .ui-public-download-platform-soon {
@@ -2318,17 +2328,17 @@
     @apply text-sm font-medium text-white;
   }
   .ui-public-download-step-body {
-    @apply mt-2 text-xs leading-relaxed text-white/55;
+    @apply mt-2 text-sm leading-relaxed text-white/65;
   }
 
   .ui-public-download-prereqs-title {
     @apply mb-2 text-center text-base font-medium text-white;
   }
   .ui-public-download-prereqs-desc {
-    @apply mx-auto mb-6 max-w-xl text-center text-xs leading-relaxed text-white/50;
+    @apply mx-auto mb-6 max-w-xl text-center text-sm leading-relaxed text-white/60;
   }
   .ui-public-download-prereqs-grid {
-    @apply grid gap-3 md:grid-cols-3;
+    @apply grid gap-3 grid-cols-[repeat(auto-fit,minmax(16rem,1fr))];
   }
   .ui-public-download-prereq-head {
     @apply mb-3 flex items-start justify-between gap-3;
@@ -2340,7 +2350,7 @@
     @apply rounded-full border border-white/15 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[1px] text-white/45;
   }
   .ui-public-download-prereq-why {
-    @apply mb-3 text-xs leading-relaxed text-white/55;
+    @apply mb-3 text-sm leading-relaxed text-white/65;
   }
   .ui-public-download-prereq-command {
     @apply mb-3 block whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white/65;

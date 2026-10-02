@@ -87,40 +87,11 @@ export function DesktopDownload() {
       <div className="mx-auto max-w-[960px] px-6">
         <div className="text-center mb-12">
           <div className="ui-public-download-eyebrow">{DESKTOP_DOWNLOAD.hero.eyebrow}</div>
-          <h2 className="ui-public-download-title">{DESKTOP_DOWNLOAD.hero.title}</h2>
+          {/* The page's one h1 — it was an h2, so /download had no title at
+              all to a screen reader or a search engine (audit 2026-10-01). */}
+          <h1 className="ui-public-download-title">{DESKTOP_DOWNLOAD.hero.title}</h1>
           <p className="ui-public-download-lede">{DESKTOP_DOWNLOAD.hero.lede}</p>
         </div>
-
-        {/* Web vs desktop — answers "do I need this?" before any download CTA */}
-        <div className="ui-public-download-compare">
-          <div className="ui-public-download-compare-card">
-            <div className="ui-public-download-compare-label">
-              {DESKTOP_DOWNLOAD.comparison.web.label}
-            </div>
-            <div className="ui-public-download-compare-tagline">
-              {DESKTOP_DOWNLOAD.comparison.web.tagline}
-            </div>
-            <ul className="ui-public-download-compare-list">
-              {DESKTOP_DOWNLOAD.comparison.web.bullets.map((b) => (
-                <li key={b}>{b}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="ui-public-download-compare-card ui-public-download-compare-card-emphasis">
-            <div className="ui-public-download-compare-label">
-              {DESKTOP_DOWNLOAD.comparison.desktop.label}
-            </div>
-            <div className="ui-public-download-compare-tagline">
-              {DESKTOP_DOWNLOAD.comparison.desktop.tagline}
-            </div>
-            <ul className="ui-public-download-compare-list">
-              {DESKTOP_DOWNLOAD.comparison.desktop.bullets.map((b) => (
-                <li key={b}>{b}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        <p className="ui-public-download-compare-note">{DESKTOP_DOWNLOAD.comparison.note}</p>
 
         {detected.handheld && <HandheldHandoff />}
 
@@ -135,6 +106,10 @@ export function DesktopDownload() {
           </button>
         )}
 
+        {/* The download comes first: a person who opened /download came for
+            the button. The "do I need this?" comparison used to stand between
+            them and it; the hero's lede already answers it in one sentence,
+            and the side-by-side is one tap away below. */}
         {showInstall && (
           <>
             {/* Platform switcher */}
@@ -158,6 +133,42 @@ export function DesktopDownload() {
             )}
           </>
         )}
+
+        <details className="ui-public-download-compare-fold">
+          <summary className="ui-public-download-reveal">
+            Do I need Fleet Runner?
+            <ChevronDown className="h-4 w-4" aria-hidden />
+          </summary>
+          <div className="ui-public-download-compare">
+            <div className="ui-public-download-compare-card">
+              <div className="ui-public-download-compare-label">
+                {DESKTOP_DOWNLOAD.comparison.web.label}
+              </div>
+              <div className="ui-public-download-compare-tagline">
+                {DESKTOP_DOWNLOAD.comparison.web.tagline}
+              </div>
+              <ul className="ui-public-download-compare-list">
+                {DESKTOP_DOWNLOAD.comparison.web.bullets.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="ui-public-download-compare-card ui-public-download-compare-card-emphasis">
+              <div className="ui-public-download-compare-label">
+                {DESKTOP_DOWNLOAD.comparison.desktop.label}
+              </div>
+              <div className="ui-public-download-compare-tagline">
+                {DESKTOP_DOWNLOAD.comparison.desktop.tagline}
+              </div>
+              <ul className="ui-public-download-compare-list">
+                {DESKTOP_DOWNLOAD.comparison.desktop.bullets.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <p className="ui-public-download-compare-note">{DESKTOP_DOWNLOAD.comparison.note}</p>
+        </details>
 
         {/* 3-step "what happens next" — only relevant once a CTA is in view */}
         <div className="ui-public-download-steps">
