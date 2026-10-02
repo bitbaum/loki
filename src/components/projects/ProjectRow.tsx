@@ -122,14 +122,20 @@ export function ProjectRow({
 
         {context && <p className="ui-projects-row-context">{context}</p>}
 
-        {/* Mobile: the same four facts, same order, stacked. */}
+        {/* Mobile: the same four facts, same order, stacked — in words. The
+            desktop rail has column headings; here "3 flags · 7/10 · run 1mo"
+            had none, and read as a code (audit 2026-10-01). */}
         <p className="ui-projects-row-meta">
           {stage && <span className="uppercase tracking-caps">{stage}</span>}
-          {flagged && <span className="font-medium text-status-warning">{flagLabel}</span>}
+          {flagged && (
+            <span className="font-medium text-status-warning">
+              {flagCount} {flagCount === 1 ? "issue" : "issues"}
+            </span>
+          )}
           <span>
-            {health.score}/{health.max}
+            health {health.score}/{health.max}
           </span>
-          <span>{lastRun ? `run ${lastRunShort}` : "never run"}</span>
+          <span>{lastRun ? `last run ${lastRun}` : "never run"}</span>
           {feedbackOpen ? <span>{feedbackOpen} feedback</span> : null}
         </p>
       </div>
