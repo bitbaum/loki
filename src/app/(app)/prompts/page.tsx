@@ -2,6 +2,7 @@ import { PageLayout } from "@/components/ui/page-layout";
 import { NAV } from "@/config/navigation";
 import { PROMPT_TEMPLATES } from "@/config/prompt-library";
 import { PromptLibraryClient } from "@/components/prompts/PromptLibraryClient";
+import { collapseDuplicates } from "@/lib/prompt-duplicates";
 import { requirePageUserId } from "@/lib/session";
 import { getProjects, getOrgEntityProjects } from "@/db/queries/projects";
 import { listPromptsForUser } from "@/db/queries/prompts";
@@ -37,9 +38,13 @@ export default async function PromptsPage() {
     updatedAt: p.updatedAt.toISOString(),
   }));
 
+  // Count prompts the way the section below shows them — one per distinct
+  // name + body. Counting rows said "8 custom" over a section that said
+  // "2 saved" (2026-10-01): same prompts, two numbers.
+  const customCount = collapseDuplicates(userPrompts).visible.length;
   const subtitle =
-    userPrompts.length > 0
-      ? `${PROMPT_TEMPLATES.length} Loki defaults · ${userPrompts.length} custom`
+    customCount > 0
+      ? `${PROMPT_TEMPLATES.length} Loki defaults · ${customCount} custom`
       : `${PROMPT_TEMPLATES.length} templates · fleet control, security, engineering, design, business`;
 
   return (

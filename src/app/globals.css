@@ -3841,9 +3841,6 @@
     @apply flex w-full items-center justify-center gap-2 rounded-lg bg-accent-primary px-4 py-3 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover disabled:bg-surface-raised disabled:text-text-muted disabled:cursor-not-allowed;
   }
   /* Large card-level CTA buttons (control panel intent / action rows) */
-  .ui-btn-lg {
-    @apply rounded-xl bg-accent-primary px-4 py-3 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover disabled:bg-surface-raised disabled:text-text-muted disabled:cursor-not-allowed;
-  }
   /* Compact ready-banner action buttons (py-2.5 vs py-3 for lg) */
   .ui-btn-ready-primary {
     @apply inline-flex items-center rounded-lg bg-accent-warm px-3 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-warm-hover;
