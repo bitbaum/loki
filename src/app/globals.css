@@ -4407,6 +4407,23 @@
   .ui-inbox-group-note {
     @apply shrink-0 text-nano text-text-muted;
   }
+  /* Page refactor, batch B: reports that failed for one reason, folded under
+     that reason; and the "show all shipped" line. */
+  .ui-inbox-fold {
+    @apply border-t border-border-subtle;
+  }
+  .ui-inbox-fold-summary {
+    @apply flex min-h-11 w-full cursor-pointer list-none flex-col justify-center gap-0.5 px-4 py-2 text-left text-xs text-text-tertiary transition-colors hover:text-text-secondary;
+  }
+  .ui-inbox-fold-count {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-inbox-fold-cause {
+    @apply line-clamp-2 text-text-tertiary;
+  }
+  .ui-inbox-fold[open] > .ui-inbox-fold-summary {
+    @apply border-b border-border-subtle;
+  }
   .ui-inbox-project-state {
     @apply text-nano text-text-muted;
   }
