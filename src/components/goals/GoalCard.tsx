@@ -1,7 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Target, CheckCircle, Loader2, FolderKanban, Plus, Repeat2, Check, X } from "lucide-react";
+import {
+  Target,
+  CheckCircle,
+  ChevronDown,
+  Loader2,
+  FolderKanban,
+  Plus,
+  Repeat2,
+  Check,
+  X,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { GoalWithChildren } from "@/db/queries/goals";
 import { useGoalCard } from "@/hooks/use-goal-card";
@@ -38,9 +49,28 @@ function GoalChildrenSection({
   onSetAddingChild: (v: boolean) => void;
   onSetChildTitle: (v: string) => void;
 }) {
-  const showSection = goal.children.length > 0 || (!isClosed && addingChild);
+  // Sub-goals fold behind one line, like milestones: every nested card rendered
+  // open was most of /goals' 20,000px. Adding one opens the list.
+  const [open, setOpen] = useState(false);
+  const childCount = goal.children.length;
+  const showChildren = open || addingChild;
+  const showSection = (childCount > 0 && showChildren) || (!isClosed && addingChild);
   return (
     <>
+      {childCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={showChildren}
+          className="ui-goal-children-toggle"
+        >
+          <ChevronDown
+            className={`h-3.5 w-3.5 shrink-0 transition-transform ${showChildren ? "rotate-180" : ""}`}
+            aria-hidden
+          />
+          {childCount} {childCount === 1 ? "sub-goal" : "sub-goals"}
+        </button>
+      )}
       {showSection && (
         <div className="mt-2 ml-6 pl-5 border-l-2 border-status-positive/20 space-y-2">
           {goal.children.map((child) => (
@@ -153,6 +183,8 @@ export function GoalCard({
   const milestoneDone = milestones.filter((m) => m.done).length;
   const milestoneTotal = milestones.length;
   const hasMilestones = milestoneTotal > 0;
+  const [showMilestones, setShowMilestones] = useState(false);
+  const nextMilestone = milestones.find((m) => !m.done);
   const controlPrompt = goal.entityName
     ? [
         `Goal: ${displayTitle}`,
@@ -263,25 +295,44 @@ export function GoalCard({
 
             {(milestoneTotal > 0 || !isClosed) && (
               <div className="mt-2 space-y-1.5">
-                {milestones.map((m, i) => (
-                  <MilestoneRow
-                    key={i}
-                    milestone={m}
-                    goalId={goal.id}
-                    allMilestones={milestones}
-                    index={i}
-                    onUpdate={(updated, prog) => {
-                      setMilestones(updated);
-                      setProgress(prog);
-                    }}
-                  />
-                ))}
+                {/* Collapsed by default: 48 goals each rendering every
+                    milestone made /goals 20,000px on a phone (2026-10-01). The
+                    count is the toggle, so the list is one tap away. */}
                 {milestoneTotal > 0 && (
-                  <div className="text-xs text-text-tertiary mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowMilestones((v) => !v)}
+                    aria-expanded={showMilestones}
+                    className="ui-goal-milestones-toggle"
+                  >
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform ${showMilestones ? "rotate-180" : ""}`}
+                      aria-hidden
+                    />
                     {milestoneDone}/{milestoneTotal} milestones
-                  </div>
+                    {!showMilestones && nextMilestone && (
+                      <span className="ui-goal-milestones-next">
+                        {" "}
+                        · next: {nextMilestone.title}
+                      </span>
+                    )}
+                  </button>
                 )}
-                {!isClosed && (
+                {showMilestones &&
+                  milestones.map((m, i) => (
+                    <MilestoneRow
+                      key={i}
+                      milestone={m}
+                      goalId={goal.id}
+                      allMilestones={milestones}
+                      index={i}
+                      onUpdate={(updated, prog) => {
+                        setMilestones(updated);
+                        setProgress(prog);
+                      }}
+                    />
+                  ))}
+                {!isClosed && (milestoneTotal === 0 || showMilestones) && (
                   <AddMilestoneInline
                     goalId={goal.id}
                     milestones={milestones}
