@@ -5256,6 +5256,20 @@
   .ui-needs-you-more {
     @apply inline-flex min-h-11 items-center gap-1.5 text-xs font-medium text-status-negative transition-opacity hover:opacity-80;
   }
+  /* Page refactor, batch B (2026-10-02): runs that failed for the same cause,
+     one compact line each under the cause they share. */
+  .ui-needs-you-runs {
+    @apply divide-y divide-status-negative/15;
+  }
+  .ui-needs-you-run {
+    @apply flex flex-wrap items-center gap-x-3;
+  }
+  .ui-needs-you-run-project {
+    @apply min-w-0 truncate text-sm font-medium text-text-primary;
+  }
+  .ui-needs-you-run-actions {
+    @apply ml-auto flex items-center gap-x-4;
+  }
 
   /* ── Activity feed ───────────────────────────────────────────────────────
      One unit of work per row, readable top-down at any width. The old feed put
@@ -5327,6 +5341,16 @@
   }
   .ui-activity-day {
     @apply mb-1 px-1 text-micro font-semibold uppercase tracking-wider text-text-muted;
+  }
+  /* Page refactor, batch B: a day's bare "sent" rows, folded into one line. */
+  .ui-activity-fold-summary {
+    @apply flex min-h-11 cursor-pointer list-none flex-wrap items-center gap-x-2 px-1 text-xs text-text-tertiary transition-colors hover:text-text-secondary;
+  }
+  .ui-activity-fold-who {
+    @apply min-w-0 truncate text-text-muted;
+  }
+  .ui-activity-fold[open] > .ui-activity-fold-summary {
+    @apply text-text-secondary;
   }
   /* Triage tabs. Horizontally scrollable on a phone instead of wrapping into
      two rows that push the feed below the fold. */

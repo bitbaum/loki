@@ -39,13 +39,19 @@ export function StatusStrip({
             key={s.key}
             href={activityHref({ window: digestWindow, project: s.key, filter })}
             className={cn(
-              "ui-chip-filter inline-flex items-center gap-1.5",
+              // max-w-full + a truncating label: a long project name
+              // ("Zurich Sublet Compliance & Concierge Service") pushed the
+              // chip past the card and the whole page scrolled sideways.
+              "ui-chip-filter inline-flex max-w-full items-center gap-1.5",
               projectKey === s.key && "ui-chip-filter-active",
             )}
             title={statusTooltip(s)}
           >
-            <span className={cn("h-2 w-2 rounded-full", STATUS_DOT_CLASS[s.worst])} aria-hidden />
-            {s.label}
+            <span
+              className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT_CLASS[s.worst])}
+              aria-hidden
+            />
+            <span className="min-w-0 truncate">{s.label}</span>
             <span className="text-text-tertiary">{s.total}</span>
           </Link>
         ))}
@@ -66,7 +72,10 @@ export function StatusStrip({
               <Link
                 key={p.key}
                 href={activityHref({ window: digestWindow, project: p.key, filter })}
-                className={cn("ui-chip-filter", projectKey === p.key && "ui-chip-filter-active")}
+                className={cn(
+                  "ui-chip-filter max-w-full truncate",
+                  projectKey === p.key && "ui-chip-filter-active",
+                )}
               >
                 {p.label}
               </Link>

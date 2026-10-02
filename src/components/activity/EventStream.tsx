@@ -9,6 +9,7 @@ import {
   type ActivityFilter,
 } from "@/lib/activity-events";
 import type { DigestWindow } from "@/db/queries/digests";
+import { projectTally, splitBareDispatches } from "@/lib/activity-grouping";
 import { ActivityEventRow } from "./ActivityEventRow";
 import { activityHref, formatDayHeading } from "./activity-shared";
 
@@ -99,16 +100,37 @@ export function EventStream({
         </p>
       ) : (
         <div className="space-y-4">
-          {groups.map((group) => (
-            <section key={group.day}>
-              <h3 className="ui-activity-day">{formatDayHeading(group.day)}</h3>
-              <ul className="ui-activity-list">
-                {group.events.map((event) => (
-                  <ActivityEventRow key={event.id} event={event} />
-                ))}
-              </ul>
-            </section>
-          ))}
+          {groups.map((group) => {
+            // Rows that only say "sent" fold into one line per day — live
+            // 2026-10-01 there were 64 of them, and the rows that said something
+            // were lost between them. They stay one tap away.
+            const { rows, bare } = splitBareDispatches(group.events);
+            return (
+              <section key={group.day}>
+                <h3 className="ui-activity-day">{formatDayHeading(group.day)}</h3>
+                <ul className="ui-activity-list">
+                  {rows.map((event) => (
+                    <ActivityEventRow key={event.id} event={event} />
+                  ))}
+                  {bare.length > 0 && (
+                    <li>
+                      <details className="ui-activity-fold">
+                        <summary className="ui-activity-fold-summary">
+                          <span>{bare.length} sent, nothing recorded yet</span>{" "}
+                          <span className="ui-activity-fold-who">{projectTally(bare)}</span>
+                        </summary>
+                        <ul className="ui-activity-list">
+                          {bare.map((event) => (
+                            <ActivityEventRow key={event.id} event={event} />
+                          ))}
+                        </ul>
+                      </details>
+                    </li>
+                  )}
+                </ul>
+              </section>
+            );
+          })}
         </div>
       )}
     </Card>
