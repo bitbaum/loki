@@ -14,6 +14,8 @@ export const metadata = {
 };
 
 const RELEASES_GH_BASE = "https://github.com/bitbaum/loki-releases/releases/tag";
+/** How many of the current line's releases read in full before the rest fold. */
+const CURRENT_LINE_SHOWN = 5;
 
 type FleetRunnerRelease = (typeof FLEET_RUNNER_RELEASES)[number];
 
@@ -137,9 +139,28 @@ export default function ReleasesPage() {
 
           <div className="ui-changelog-feed">
             <h2 className="ui-changelog-title">Every version</h2>
-            {currentLine.map((release, idx) => (
+            {currentLine.slice(0, CURRENT_LINE_SHOWN).map((release, idx) => (
               <ReleaseArticle key={release.tag} release={release} isLatest={idx === 0} />
             ))}
+            {/* The current line folds too, after its newest few: v0.8 alone had
+                36 patch releases, all open, and made this page 21,000px on a
+                phone (2026-10-01) — the same burial the older lines were
+                folded to fix. */}
+            {currentLine.length > CURRENT_LINE_SHOWN && (
+              <details className="ui-changelog-archive scroll-mt-24">
+                <summary className="ui-changelog-archive-summary">
+                  {currentLine.length - CURRENT_LINE_SHOWN} earlier v
+                  {minorOf(currentLine[0].version)}.x releases
+                  <span className="ui-changelog-archive-range">
+                    {longDate(currentLine[currentLine.length - 1].date)} –{" "}
+                    {longDate(currentLine[CURRENT_LINE_SHOWN].date)}
+                  </span>
+                </summary>
+                {currentLine.slice(CURRENT_LINE_SHOWN).map((release) => (
+                  <ReleaseArticle key={release.tag} release={release} isLatest={false} />
+                ))}
+              </details>
+            )}
 
             {/* Everything below the current minor line collapses — 20+ expanded
               patch entries buried the page; the archive stays one click (and

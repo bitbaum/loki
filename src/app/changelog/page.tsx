@@ -116,13 +116,14 @@ export default async function ChangelogPage() {
           <p className="ui-public-section-lede">No changes have been recorded yet.</p>
         ) : (
           <div className="space-y-14 sm:space-y-20">
-            {months.map((month) => (
-              <section
+            {months.map((month, monthIndex) => (
+              <ChangelogMonth
                 key={month.key}
                 id={`m-${month.key}`}
-                className="border-t border-border-subtle pt-10 sm:pt-16"
+                label={monthLabel(month.key)}
+                count={month.entries.length}
+                open={monthIndex === 0}
               >
-                <h2 className="ui-public-display-md">{monthLabel(month.key)}</h2>
                 <ol className="mt-8 space-y-10 sm:mt-12 sm:space-y-14">
                   {month.entries.map((entry, i) => (
                     <li key={`${entry.date}-${i}`} className="max-w-2xl">
@@ -159,7 +160,7 @@ export default async function ChangelogPage() {
                     </li>
                   ))}
                 </ol>
-              </section>
+              </ChangelogMonth>
             ))}
           </div>
         )}
@@ -179,5 +180,45 @@ export default async function ChangelogPage() {
         )}
       </div>
     </PublicSurface>
+  );
+}
+
+/**
+ * The newest month reads in full; every older month folds behind one line that
+ * says how much is in it. All 56 entries open on a phone made this page
+ * 43,000px tall (2026-10-01) — the record was complete and unreadable. Nothing
+ * is dropped: the jump links land on each month's line, one tap opens it.
+ */
+function ChangelogMonth({
+  id,
+  label,
+  count,
+  open,
+  children,
+}: {
+  id: string;
+  label: string;
+  count: number;
+  open: boolean;
+  children: ReactNode;
+}) {
+  if (open) {
+    return (
+      <section id={id} className="border-t border-border-subtle pt-10 sm:pt-16">
+        <h2 className="ui-public-display-md">{label}</h2>
+        {children}
+      </section>
+    );
+  }
+  return (
+    <details id={id} className="ui-changelog-month border-t border-border-subtle pt-8 sm:pt-12">
+      <summary className="ui-changelog-month-summary">
+        <h2 className="ui-public-display-md">{label}</h2>
+        <span className="ui-public-meta">
+          {count} {count === 1 ? "entry" : "entries"}
+        </span>
+      </summary>
+      {children}
+    </details>
   );
 }
