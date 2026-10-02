@@ -10,6 +10,7 @@ import { FleetDoctorCard } from "@/components/system/FleetDoctorCard";
 import { FrontierProposalsCard } from "@/components/system/FrontierProposalsCard";
 import { RecentControlAuditCard } from "@/components/system/RecentControlAuditCard";
 import { GlobalAutoContinueCard } from "@/components/system/GlobalAutoContinueCard";
+import { SystemAlertsCard } from "@/components/system/SystemAlertsCard";
 import { CardSkeleton } from "@/components/ui/card";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { AutoRefresh } from "@/components/shared/AutoRefresh";
@@ -46,6 +47,10 @@ export default async function SystemPage() {
   return (
     <PullToRefresh>
       <PageLayout title="System">
+        {/* The builder's alarms live here, in full; /today links them in one line. */}
+        <Suspense fallback={<CardSkeleton />}>
+          <SystemAlertsCard />
+        </Suspense>
         <SystemStats />
         {/* Directly under the host stats: when disk/RAM are tight, the next
             question is always "can I upgrade yet?" */}

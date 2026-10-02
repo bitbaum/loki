@@ -4651,7 +4651,33 @@
     @apply flex min-h-11 flex-wrap items-baseline gap-x-2 text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
   .ui-verdict-reason {
-    @apply truncate text-xs text-text-tertiary;
+    @apply min-w-0 basis-full text-xs text-text-tertiary sm:basis-auto;
+  }
+  /* Page refactor, batch A (2026-10-01): the verdict is now Today's ONE list.
+     One line per item; a line with more behind it opens in place. */
+  .ui-verdict-label {
+    @apply min-w-0 font-medium text-text-primary;
+  }
+  .ui-verdict-expand > summary {
+    @apply cursor-pointer list-none;
+  }
+  .ui-verdict-expand > summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-verdict-chevron {
+    @apply ml-auto h-3.5 w-3.5 shrink-0 self-center text-text-muted transition-transform;
+  }
+  .ui-verdict-expand[open] .ui-verdict-chevron {
+    @apply rotate-90;
+  }
+  .ui-verdict-detail {
+    @apply mb-2 space-y-2 border-l border-border-subtle pl-3 text-sm text-text-secondary;
+  }
+  .ui-verdict-open {
+    @apply inline-flex min-h-11 items-center gap-1 text-sm font-medium text-accent-text hover:opacity-80;
+  }
+  .ui-verdict-system {
+    @apply mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm text-text-tertiary transition-colors hover:text-text-primary;
   }
   .ui-projects-row {
     /* Principle 3 (space separates): a hairline between rows, no card per row.
@@ -4834,6 +4860,10 @@
   .ui-control-project-row {
     @apply flex w-full shrink-0 gap-3 rounded-2xl px-3 py-3 text-left transition-all hover:bg-surface-overlay hover:-translate-x-px;
     /* High-flier esthetics: softer rounding, lift on hover for tactile 'rail' in command workspace */
+  }
+  /* Page refactor, batch A (2026-10-01): the one row idle projects fold behind. */
+  .ui-control-quiet-toggle {
+    @apply flex min-h-11 w-full shrink-0 items-center gap-2 rounded-2xl px-3 text-left text-xs text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary;
   }
   /* Dim non-selected rows in the rail when SOMETHING is selected. Pre-fix
      the list looked like 20 identical rows above an expanded card — users

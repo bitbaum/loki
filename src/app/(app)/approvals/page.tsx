@@ -12,6 +12,7 @@ import {
   STANDING_APPROVAL_OPTIONS,
   sanitizeStandingApprovals,
 } from "@/lib/actions/standing-approval";
+import { approvalsSentence } from "@/lib/needs-you";
 
 export const metadata = { title: "Approvals" };
 
@@ -40,7 +41,7 @@ export default async function ApprovalsPage() {
               <div className="text-sm md:text-base font-medium">
                 {pendingCount === 0
                   ? "The queue is behind your private-zone PIN."
-                  : `${pendingCount} proposed action${pendingCount === 1 ? "" : "s"} waiting for your review.`}
+                  : `${approvalsSentence(pendingCount)}.`}
               </div>
               <p className="text-xs md:text-sm text-text-secondary mt-1">
                 Proposals can reference people and other private data, so they stay hidden until you

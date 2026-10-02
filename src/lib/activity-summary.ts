@@ -9,6 +9,7 @@
 
 import type { ActivityEvent } from "@/lib/activity-events";
 import { eventNeedsAttention, eventIsQueued } from "@/lib/activity-events";
+import { runsNeedYouSentence } from "@/lib/needs-you";
 
 // ─── Headline KPIs ───────────────────────────────────────────────────────────
 
@@ -239,7 +240,8 @@ export function activityHeadline(summary: ActivitySummary): string {
   const { shipped, attention, running, queued, projects } = summary;
 
   if (attention > 0) {
-    const subject = attention === 1 ? "1 thing needs you" : `${attention} things need you`;
+    // Runs, not things: the front door owns "N things need you" (lib/needs-you).
+    const subject = runsNeedYouSentence(attention);
     if (shipped > 0) {
       return `${subject} — and ${shipped} ${shipped === 1 ? "task" : "tasks"} shipped anyway.`;
     }

@@ -36,63 +36,85 @@ export type AlertTypeSpec = {
   label: string;
   /** Repo-relative file that raises it. Asserted to exist AND contain the id. */
   producer: string;
+  /**
+   * Who acts on it. `system` alarms are the builder's (telemetry, runners,
+   * repositories, model ids): /system lists them and /today links them in one
+   * line. `operator` alerts are things the person decides, and /today lists
+   * them. Today rendered all of them as equal cards — repo paths and
+   * `npm run check:models` above "reach out to 6 people".
+   */
+  audience: "system" | "operator";
 };
 
 export const ALERT_TYPES = {
   telemetry_stale: {
     label: "A telemetry path stopped recording",
+    audience: "system",
     producer: "src/app/api/crons/check-telemetry/route.ts",
   },
   runner_version_stale: {
     label: "A machine is running a Fleet Runner we replaced",
+    audience: "system",
     producer: "src/app/api/crons/check-runner-version/route.ts",
   },
   project_repo_missing: {
     label: "A project points at a repository GitHub cannot find",
+    audience: "system",
     producer: "src/app/api/crons/check-project-repos/route.ts",
   },
   model_rot: {
     label: "A pinned AI model id no longer exists upstream",
+    audience: "system",
     producer: "src/app/api/crons/check-model-ids/route.ts",
   },
   runner_stall: {
     label: "A queued command is not being executed",
+    audience: "system",
     producer: "src/app/api/crons/check-runner-stall/route.ts",
   },
   pending_approvals: {
     label: "Actions are waiting for the operator",
+    audience: "operator",
     producer: "src/app/api/crons/check-pending-approvals/route.ts",
   },
   run_escalation: {
     label: "A project's escalation ladder reached the human rung",
+    audience: "operator",
     producer: "src/db/queries/run-escalations.ts",
   },
   goal_capped: {
     label: "A goal stopped after too many attempts",
+    audience: "operator",
     producer: "src/lib/orchestration/gate-and-close.ts",
   },
   new_feedback: {
     label: "New feedback needs triage",
+    audience: "operator",
     producer: "src/lib/feedback/notify-new.ts",
   },
   studio_request: {
     label: "A studio request or partner application needs a person",
+    audience: "operator",
     producer: "src/lib/studio/notify.ts",
   },
   fix_live: {
     label: "A visitor's fix reached the live site",
+    audience: "operator",
     producer: "src/lib/feedback/notify-shipped.ts",
   },
   fix_deploy_failed: {
     label: "A merged fix failed to deploy — the site still shows the old version",
+    audience: "operator",
     producer: "src/lib/feedback/notify-shipped.ts",
   },
   feedback_needs_you: {
     label: "Feedback work stalled or needs Check live",
+    audience: "operator",
     producer: "src/lib/feedback/notify-needs-you.ts",
   },
   orangecat_link_broken: {
     label: "OrangeCat rejected the account's token — publishing is paused",
+    audience: "system",
     producer: "src/lib/integrations/orangecat-identity.ts",
   },
 } as const satisfies Record<string, AlertTypeSpec>;
@@ -100,6 +122,11 @@ export const ALERT_TYPES = {
 export type AlertType = keyof typeof ALERT_TYPES;
 
 export const ALERT_TYPE_IDS = Object.keys(ALERT_TYPES) as AlertType[];
+
+/** The alert types /system owns. Anything not registered is treated as operator. */
+export function isSystemAlertType(type: string): boolean {
+  return isRegisteredAlertType(type) && ALERT_TYPES[type].audience === "system";
+}
 
 export function isRegisteredAlertType(type: string): type is AlertType {
   return Object.prototype.hasOwnProperty.call(ALERT_TYPES, type);

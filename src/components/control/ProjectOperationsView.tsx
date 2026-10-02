@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { compactRelativeDate } from "@/lib/dates";
 import { postJson } from "@/lib/api/fetch";
@@ -166,6 +166,21 @@ export function ProjectOperationsView({
 
   const bulkKeys = useMemo(() => Array.from(bulkSelected), [bulkSelected]);
 
+  /* QUIET PROJECTS FOLD AWAY.
+     Measured on production 2026-10-01: 27 rows, 24 of them the same two words —
+     "PAUSED · Not running" — so the three projects that were doing something
+     sat inside a list that was almost entirely the absence of activity. Under
+     the default sort, an idle project with nothing flagged (and not the one you
+     have open) goes behind ONE row that says how many there are. Searching or
+     choosing another sort is asking to see everything, so both show all rows. */
+  const [showQuiet, setShowQuiet] = useState(false);
+  const isQuiet = (snapshot: ProjectOperationsSnapshot) =>
+    isIdle(snapshot) && !snapshot.attentionReason && snapshot.project.tab !== selected?.project.tab;
+  const foldQuiet = sort === "priority" && !normalizedQuery;
+  const shownSnapshots =
+    foldQuiet && !showQuiet ? visibleSnapshots.filter((s) => !isQuiet(s)) : visibleSnapshots;
+  const quietCount = foldQuiet ? visibleSnapshots.filter(isQuiet).length : 0;
+
   const toggleBulk = (tab: string) => {
     setBulkSelected((prev) => {
       const next = new Set(prev);
@@ -312,7 +327,7 @@ export function ProjectOperationsView({
           {visibleSnapshots.length === 0 && (
             <p className="px-3 py-4 text-sm text-text-muted">No projects match “{query.trim()}”.</p>
           )}
-          {visibleSnapshots.map((snapshot) => {
+          {shownSnapshots.map((snapshot) => {
             const active = snapshot.project.tab === selected.project.tab;
             const stateDef = STATE_DEFINITIONS[snapshot.phase];
             const dotClass = stateDef.dotClass;
@@ -388,6 +403,25 @@ export function ProjectOperationsView({
               </div>
             );
           })}
+          {quietCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowQuiet((v) => !v)}
+              aria-expanded={showQuiet}
+              className="ui-control-quiet-toggle"
+            >
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 transition-transform",
+                  showQuiet && "rotate-180",
+                )}
+                aria-hidden
+              />
+              {showQuiet
+                ? "Hide idle projects"
+                : `${quietCount} idle ${quietCount === 1 ? "project" : "projects"} — nothing running, nothing flagged`}
+            </button>
+          )}
         </div>
       </aside>
 

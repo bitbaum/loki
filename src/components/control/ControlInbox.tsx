@@ -32,6 +32,7 @@ import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import type { WidgetCoverageItem } from "@/db/queries/widget-tokens";
 import { FAILURE_REMEDY, REMEDY_LABEL } from "@/lib/failure-remedy";
+import { NEEDS_YOU_LABELS } from "@/lib/needs-you";
 
 /**
  * One inbox for every small thing that wants doing.
@@ -111,10 +112,10 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
   if (total === 0) {
     if (settling || !loadFailed) return null;
     return (
-      <section className="ui-inbox" aria-label="Needs you">
+      <section className="ui-inbox" aria-label={NEEDS_YOU_LABELS.review}>
         <header className="ui-inbox-head">
           <AlertTriangle className="h-4 w-4 shrink-0 text-status-negative" aria-hidden="true" />
-          <h2 className="ui-inbox-title">Needs you</h2>
+          <h2 className="ui-inbox-title">{NEEDS_YOU_LABELS.review}</h2>
         </header>
         <div className="ui-inbox-group px-4 py-3">
           <p className="ui-inbox-row-blocked" role="status">
@@ -131,10 +132,10 @@ export function ControlInbox({ inbox }: { inbox: ControlInboxState }) {
   const toggle = (id: GroupId) => setOpenGroup((cur) => (cur === id ? null : id));
 
   return (
-    <section className="ui-inbox" aria-label="Needs you">
+    <section className="ui-inbox" aria-label={NEEDS_YOU_LABELS.review}>
       <header className="ui-inbox-head">
         <Inbox className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />
-        <h2 className="ui-inbox-title">Needs you</h2>
+        <h2 className="ui-inbox-title">{NEEDS_YOU_LABELS.review}</h2>
         <span className="ui-inbox-total">{total}</span>
       </header>
 

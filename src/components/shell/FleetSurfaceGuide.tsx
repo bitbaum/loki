@@ -48,9 +48,12 @@ export function FleetSurfaceGuide() {
   return (
     <nav
       aria-label="Project workspace views"
-      className="mx-3 mt-2 flex max-w-6xl shrink-0 items-center gap-2 overflow-hidden sm:mx-4 xl:mx-auto xl:w-full"
+      className="mx-3 mt-2 flex max-w-6xl shrink-0 flex-wrap items-center gap-x-2 gap-y-1 sm:mx-4 xl:mx-auto xl:w-full"
     >
-      <div className="inline-flex max-w-full items-center rounded-lg border border-border-subtle bg-surface-base p-1">
+      {/* Wraps instead of clipping: at 320px the four tabs fill the row and
+          `overflow-hidden` cut the project name to "Bitbau" — the one word
+          that says which project these four views are of. */}
+      <div className="inline-flex max-w-full items-center overflow-x-auto rounded-lg border border-border-subtle bg-surface-base p-1">
         {FLEET_SURFACES.map((s, i) => {
           const active = i === currentIndex;
           const Icon = ICONS[s.id];
@@ -59,7 +62,7 @@ export function FleetSurfaceGuide() {
               key={s.href}
               href={fleetSurfaceHref(s.id, project)}
               className={cn(
-                "ui-tap inline-flex items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors sm:px-3",
+                "ui-tap inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors sm:px-3",
                 active
                   ? "bg-surface-raised text-text-primary shadow-sm"
                   : "text-text-tertiary hover:text-text-secondary",
@@ -73,7 +76,7 @@ export function FleetSurfaceGuide() {
         })}
       </div>
       {project && (
-        <span className="min-w-0 truncate text-xs text-text-tertiary" title={project}>
+        <span className="min-w-0 max-w-full truncate text-xs text-text-tertiary" title={project}>
           {project}
         </span>
       )}

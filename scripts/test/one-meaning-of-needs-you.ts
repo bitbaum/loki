@@ -44,7 +44,12 @@ const presenter = strip(
   readFileSync(join(ROOT, "src/components/control/control-presenter.ts"), "utf8"),
 );
 const page = strip(readFileSync(join(ROOT, "src/app/(app)/today/page.tsx"), "utf8"));
-const verdict = strip(readFileSync(join(ROOT, "src/components/today/NeedsYouVerdict.tsx"), "utf8"));
+// The verdict renders what lib/needs-you composes, so its rules live in both.
+const verdict = strip(
+  ["src/components/today/NeedsYouVerdict.tsx", "src/lib/needs-you.ts"]
+    .map((f) => readFileSync(join(ROOT, f), "utf8"))
+    .join("\n"),
+);
 const hero = strip(
   readFileSync(join(ROOT, "src/components/control/ControlFleetStatus.tsx"), "utf8"),
 );
@@ -131,7 +136,7 @@ check("a project that is BOTH flagged and blocked is listed once", () => {
 check("RULE 3: a row with no destination is named, never linked to a 404", () => {
   assert(/href:\s*string\s*\|\s*null/.test(verdict), "the verdict row cannot express 'no link'");
   assert(
-    /p\.href\s*\?/.test(verdict),
+    /(p|item)\.href\s*(\?|&&)/.test(verdict),
     "the verdict links unconditionally — a project with no entity row gets a 404",
   );
   assert(

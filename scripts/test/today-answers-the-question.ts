@@ -31,7 +31,12 @@ const ROOT = process.cwd();
 const strip = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
-const verdict = strip(readFileSync(join(ROOT, "src/components/today/NeedsYouVerdict.tsx"), "utf8"));
+// The verdict renders what lib/needs-you composes, so its rules live in both.
+const verdict = strip(
+  ["src/components/today/NeedsYouVerdict.tsx", "src/lib/needs-you.ts"]
+    .map((f) => readFileSync(join(ROOT, f), "utf8"))
+    .join("\n"),
+);
 const page = strip(readFileSync(join(ROOT, "src/app/(app)/today/page.tsx"), "utf8"));
 const css = readFileSync(join(ROOT, "src/app/globals.css"), "utf8");
 
