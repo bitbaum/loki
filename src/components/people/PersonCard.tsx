@@ -141,100 +141,100 @@ export function PersonCard({
   }
 
   return (
+    // One row per person: a 2,749-person book drawn as tall cards (name, a
+    // second row of actions, generous padding) showed about five people per
+    // phone screen and ran to 9,000px for a fraction of the list (2026-10-01).
     <div className="ui-card-shell group w-full transition-colors hover:bg-surface-raised">
-      <button onClick={onClick} className="w-full p-4 text-left md:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
+      <div className="flex items-center gap-2 pr-2">
+        <button onClick={onClick} className="min-w-0 flex-1 px-3 py-2.5 text-left">
+          <div className="flex min-w-0 items-center gap-2.5">
             <span
-              className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${HEALTH_DOT_COLOR[person.health]}`}
+              className={`h-2 w-2 shrink-0 rounded-full ${HEALTH_DOT_COLOR[person.health]}`}
               title={`${person.health}${person.lastInteraction ? ` — last ${formatDistanceToNow(person.lastInteraction, { addSuffix: true })}` : ""}`}
             />
             <div className="min-w-0">
-              <div
-                className="truncate text-lg font-medium text-text-primary md:text-xl"
-                title={person.name}
-              >
+              <div className="truncate text-sm font-medium text-text-primary" title={person.name}>
                 {person.name}
               </div>
-              {(profession || location || aliasHint) && (
-                <div
-                  className="mt-1 truncate text-base text-text-secondary"
+              <div className="flex min-w-0 items-center gap-x-1.5 text-xs text-text-tertiary">
+                <span
+                  className="truncate"
                   title={[profession, location, aliasHint].filter(Boolean).join(" · ")}
                 >
-                  {[profession, location, aliasHint].filter(Boolean).join(" · ")}
-                </div>
-              )}
-              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-tertiary">
-                {person.lastInteraction && (
-                  <span>
-                    {formatDistanceToNow(person.lastInteraction, { addSuffix: true })}
-                    {person.interactionCount > 0 && ` · ${person.interactionCount} msgs`}
-                  </span>
-                )}
+                  {[
+                    profession,
+                    location,
+                    person.lastInteraction
+                      ? formatDistanceToNow(person.lastInteraction, { addSuffix: true })
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
                 {person.relationCount > 0 && (
-                  <span className="flex items-center gap-1 text-accent-text">
-                    <Link2 className="h-3 w-3" />
+                  <span className="flex shrink-0 items-center gap-0.5 text-accent-text">
+                    <Link2 className="h-3 w-3" aria-hidden />
                     {person.relationCount}
                   </span>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex shrink-0 gap-2 pt-1">
-            {channels.map((ch) => {
-              const config = CHANNEL_CONFIG[ch];
-              if (!config) return null;
-              const Icon = config.icon;
-              return (
-                <span key={ch} title={config.label}>
-                  <Icon className={`h-4 w-4 ${config.color} md:h-5 md:w-5`} />
-                </span>
-              );
-            })}
-          </div>
+        </button>
+        <div className="hidden shrink-0 gap-1.5 sm:flex">
+          {channels.map((ch) => {
+            const config = CHANNEL_CONFIG[ch];
+            if (!config) return null;
+            const Icon = config.icon;
+            return (
+              <span key={ch} title={config.label}>
+                <Icon className={`h-4 w-4 ${config.color}`} />
+              </span>
+            );
+          })}
         </div>
-      </button>
 
-      {!logOpen && (
-        <div className="flex items-center justify-between px-4 pb-4">
-          <button
-            onClick={submitQuick}
-            disabled={quickSaving || quickDone}
-            className="opacity-100 transition-opacity sm:opacity-70 sm:group-hover:opacity-100 ui-btn-chip disabled:opacity-40"
-            title={`Log outbound via ${quickChannel}`}
-          >
-            {quickDone ? (
-              <>
-                <Check className="h-3 w-3 text-status-positive" /> Logged
-              </>
-            ) : quickSaving ? (
-              <>
-                <Loader2 className="ui-spinner-xs" /> …
-              </>
-            ) : (
-              <>Log talk</>
-            )}
-          </button>
-          {/* "Log talk" is the one-tap action and stays; the other two are the
+        {!logOpen && (
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              onClick={submitQuick}
+              disabled={quickSaving || quickDone}
+              className="opacity-100 transition-opacity sm:opacity-70 sm:group-hover:opacity-100 ui-btn-chip disabled:opacity-40"
+              title={`Log outbound via ${quickChannel}`}
+            >
+              {quickDone ? (
+                <>
+                  <Check className="h-3 w-3 text-status-positive" /> Logged
+                </>
+              ) : quickSaving ? (
+                <>
+                  <Loader2 className="ui-spinner-xs" /> …
+                </>
+              ) : (
+                <>Log talk</>
+              )}
+            </button>
+            {/* "Log talk" is the one-tap action and stays; the other two are the
               same job at other fidelities — a detailed log, or handing the
               person to Loki — so they sit behind one trigger. Three controls
               per card, across 2,749 cards, is a lot of deciding for a list you
               scroll. The log form still opens in the CARD, not in the menu, so
               closing the menu on choose is the right behaviour here. */}
-          <RowActions label={`More actions for ${person.name}`}>
-            <LokiDispatchButton
-              prompt={lokiPrompt}
-              title="Ask Loki about this person"
-              label="Ask Loki about this person"
-              className="ui-menu-item"
-            />
-            <button onClick={openLog} className="ui-menu-item" role="menuitem">
-              <Plus className="h-3 w-3 shrink-0" />
-              Log with details
-            </button>
-          </RowActions>
-        </div>
-      )}
+            <RowActions label={`More actions for ${person.name}`}>
+              <LokiDispatchButton
+                prompt={lokiPrompt}
+                title="Ask Loki about this person"
+                label="Ask Loki about this person"
+                className="ui-menu-item"
+              />
+              <button onClick={openLog} className="ui-menu-item" role="menuitem">
+                <Plus className="h-3 w-3 shrink-0" />
+                Log with details
+              </button>
+            </RowActions>
+          </div>
+        )}
+      </div>
 
       {logOpen && (
         <div

@@ -3841,9 +3841,6 @@
     @apply flex w-full items-center justify-center gap-2 rounded-lg bg-accent-primary px-4 py-3 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover disabled:bg-surface-raised disabled:text-text-muted disabled:cursor-not-allowed;
   }
   /* Large card-level CTA buttons (control panel intent / action rows) */
-  .ui-btn-lg {
-    @apply rounded-xl bg-accent-primary px-4 py-3 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover disabled:bg-surface-raised disabled:text-text-muted disabled:cursor-not-allowed;
-  }
   /* Compact ready-banner action buttons (py-2.5 vs py-3 for lg) */
   .ui-btn-ready-primary {
     @apply inline-flex items-center rounded-lg bg-accent-warm px-3 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-warm-hover;
@@ -5150,6 +5147,38 @@
   }
   .ui-menu-separator {
     @apply my-1 h-px bg-border-subtle;
+  }
+
+  /* ── Page refactor batch D: /system proposals ───────────────────────────
+     One line per proposal (title + score); the rationale, judges, sources and
+     the accept/dismiss gate open on tap. Seventeen expanded proposals were
+     over half of /system on a phone. */
+  .ui-proposal-lede {
+    @apply mb-3 text-xs leading-relaxed text-text-tertiary;
+  }
+  .ui-proposal-list {
+    @apply divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle;
+  }
+  .ui-proposal-row {
+    @apply bg-surface-base;
+  }
+  .ui-proposal-summary {
+    @apply flex min-h-11 cursor-pointer list-none items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-raised;
+    &::-webkit-details-marker {
+      display: none;
+    }
+  }
+  .ui-proposal-title {
+    @apply min-w-0 flex-1 text-sm font-medium leading-snug text-text-primary;
+  }
+  .ui-proposal-body {
+    @apply space-y-3 px-3 pb-4 pt-1;
+  }
+  .ui-proposal-judge {
+    @apply rounded border border-border-subtle px-1.5 py-0.5 font-mono text-micro text-text-secondary;
+  }
+  .ui-proposal-source {
+    @apply inline-flex items-center gap-1 font-mono text-micro uppercase tracking-wider text-text-muted hover:text-text-secondary;
   }
 
   /* ── Activity hero ───────────────────────────────────────────────────────

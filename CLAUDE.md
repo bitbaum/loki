@@ -214,7 +214,7 @@ Every recurring visual pattern is a named `ui-*` class in `@layer components`. T
 ```
 Panels:    ui-panel, ui-card-shell, ui-card-shell-raised, ui-settings-section
 Buttons:   ui-btn-primary, ui-btn-secondary, ui-btn-ghost, ui-btn-chip,
-           ui-btn-icon, ui-btn-xs, ui-btn-save, ui-btn-submit, ui-btn-lg,
+           ui-btn-icon, ui-btn-xs, ui-btn-save, ui-btn-submit,
            ui-btn-ready-primary, ui-btn-ready-action, ui-btn-ready-more,
            ui-btn-confirm, ui-btn-danger, ui-btn-overlay
 Inputs:    ui-input, ui-input-compact, ui-input-tight, ui-input-inline

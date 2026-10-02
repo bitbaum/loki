@@ -16,7 +16,7 @@
  *
  * Run: npx tsx scripts/test/prompt-duplicates.ts
  */
-import { collapseDuplicates, dupeKey } from "@/components/prompts/UserPromptsSection";
+import { collapseDuplicates, dupeKey } from "@/lib/prompt-duplicates";
 import type { UserPromptCard } from "@/components/prompts/UserPromptsSection";
 
 let failures = 0;

@@ -61,9 +61,6 @@ export default async function SystemPage() {
           </Suspense>
         )}
         <FleetDoctorCard />
-        <Suspense fallback={<CardSkeleton />}>
-          <FrontierProposalsCard userId={userId} />
-        </Suspense>
         <GlobalAutoContinueCard />
         <ScheduledJobsCard initialJobs={jobs} />
         <Suspense fallback={<CardSkeleton />}>
@@ -74,6 +71,10 @@ export default async function SystemPage() {
         </Suspense>
         <Suspense fallback={<CardSkeleton />}>
           <RecentControlAuditCard userId={userId} />
+        </Suspense>
+        {/* Last: a reading queue of ideas, not machine health. */}
+        <Suspense fallback={<CardSkeleton />}>
+          <FrontierProposalsCard userId={userId} />
         </Suspense>
         <AutoRefresh intervalMs={REFRESH_CADENCE.system} />
       </PageLayout>
