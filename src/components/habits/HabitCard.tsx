@@ -181,21 +181,25 @@ export function HabitCard({
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-            {(Object.values(HABIT_FREQUENCY) as HabitFrequency[]).map((f) => (
-              <button
-                key={f}
-                onClick={() => handleFrequencyChange(f)}
-                disabled={savingFreq}
-                className={
-                  frequency === f
-                    ? "ui-chip-filter-active text-xs px-2 py-0.5 disabled:opacity-50"
-                    : "ui-chip-filter text-xs px-2 py-0.5 disabled:opacity-50"
-                }
-              >
-                {f}
-              </button>
-            ))}
+          {/* One control that shows the CHOSEN frequency. Three chips side by
+              side read as three tags, all of them true (2026-10-01). */}
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <label className="sr-only" htmlFor={`habit-freq-${habit.id}`}>
+              How often
+            </label>
+            <select
+              id={`habit-freq-${habit.id}`}
+              value={frequency}
+              onChange={(e) => handleFrequencyChange(e.target.value as HabitFrequency)}
+              disabled={savingFreq}
+              className="ui-input-tight w-auto text-xs disabled:opacity-50"
+            >
+              {(Object.values(HABIT_FREQUENCY) as HabitFrequency[]).map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
             {savingFreq && <Loader2 className="h-3 w-3 animate-spin text-text-muted" />}
           </div>
 
@@ -230,17 +234,17 @@ export function HabitCard({
           <button
             onClick={handleToggleActive}
             disabled={togglingActive}
-            title={active ? "Deactivate habit" : "Activate habit"}
-            className="mt-0.5 p-1.5 rounded transition-colors hover:bg-surface-raised text-text-muted hover:text-text-secondary disabled:opacity-50"
+            title={active ? "Pause this habit" : "Resume this habit"}
+            className="ui-btn-xs mt-0.5 disabled:opacity-50"
           >
+            {/* Said as the action it takes: a bare green "on" read as a stray
+                status word nobody could act on. */}
             {togglingActive ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : active ? (
+              "Pause"
             ) : (
-              <span
-                className={`text-xs font-mono ${active ? "text-status-positive" : "text-text-muted"}`}
-              >
-                {active ? "on" : "off"}
-              </span>
+              "Resume"
             )}
           </button>
 

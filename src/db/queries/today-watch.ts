@@ -10,6 +10,8 @@ import {
 import { HEALTH_FADING_DAYS } from "@/lib/constants/people";
 import { DAY_MS } from "@/lib/constants/time";
 import { getTodayHabits } from "@/db/queries/habits";
+import { chargesDueBy } from "@/lib/subscription-due";
+import { SUB_STATUS } from "@/lib/constants/statuses";
 
 // A streak this long carries real psychological momentum — surfacing the
 // possibility of breaking it is the kind of nudge the Watch exists for.
@@ -69,7 +71,7 @@ export async function getTodayWatch(userId: string): Promise<WatchData> {
   const [
     overdueCommitmentRows,
     overdueGoalRows,
-    imminentBillRows,
+    billRows,
     imminentEventRows,
     staleContactRows,
     stalledGoalRows,
@@ -116,17 +118,17 @@ export async function getTodayWatch(userId: string): Promise<WatchData> {
         name: subscriptions.name,
         amount: subscriptions.amount,
         currency: subscriptions.currency,
-        nextBilling: subscriptions.nextDue,
+        nextDue: subscriptions.nextDue,
+        frequency: subscriptions.frequency,
       })
       .from(subscriptions)
       .where(
         and(
           eq(subscriptions.userId, userId),
+          eq(subscriptions.status, SUB_STATUS.ACTIVE),
           isNotNull(subscriptions.nextDue),
-          lte(subscriptions.nextDue, imminentBy),
         ),
-      )
-      .orderBy(asc(subscriptions.nextDue)),
+      ),
 
     db
       .select({ id: events.id, name: events.name, deadline: events.deadline })
@@ -185,6 +187,15 @@ export async function getTodayWatch(userId: string): Promise<WatchData> {
     name: string;
     last_interaction: string | null;
   }>;
+  // Imminent means the NEXT charge lands within the window — not that a stored
+  // date has passed (a renewed subscription is not a bill due today).
+  const imminentBillRows = chargesDueBy(billRows, imminentBy, now).map((b) => ({
+    id: b.id,
+    name: b.name,
+    amount: b.amount,
+    currency: b.currency,
+    nextBilling: b.nextCharge,
+  }));
   const habitsAtRisk = todayHabits
     .filter((h) => !h.doneToday && h.streak >= HABIT_STREAK_THRESHOLD)
     .sort((a, b) => b.streak - a.streak);

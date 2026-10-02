@@ -14,7 +14,8 @@ import {
 } from "@/db/queries/money";
 import { requirePageUserId } from "@/lib/session";
 import { getUserById } from "@/db/queries/users";
-import { format, isPast } from "date-fns";
+import { format } from "date-fns";
+import { nextChargeDate, subscriptionDue } from "@/lib/subscription-due";
 import { formatMoney } from "@/lib/format";
 import { ORANGECAT_INTEGRATION as INTEGRATION } from "@/config/marketing-content";
 
@@ -27,11 +28,13 @@ const STATUS_STYLE: Record<SubStatus, string> = {
 };
 
 function SubRow({ sub }: { sub: Awaited<ReturnType<typeof getAllSubscriptions>>[number] }) {
-  const isOverdue = sub.nextDue && isPast(new Date(sub.nextDue));
   const verifyUrl = SUBSCRIPTION_META[sub.name]?.verifyUrl;
   const statusStyle =
     STATUS_STYLE[sub.status ?? SUB_STATUS.ACTIVE] ?? STATUS_STYLE[SUB_STATUS.ACTIVE];
   const isCancelled = sub.status === SUB_STATUS.CANCELLED;
+  // A past stored date on a recurring charge means it renewed, not that it is
+  // owed — every active row used to read "Overdue <months ago>" in red.
+  const due = subscriptionDue(sub.nextDue, sub.frequency, { cancelled: isCancelled });
 
   return (
     <div className={`flex items-center justify-between py-1 ${isCancelled ? "opacity-40" : ""}`}>
@@ -101,10 +104,11 @@ function SubRow({ sub }: { sub: Awaited<ReturnType<typeof getAllSubscriptions>>[
             <span className="text-text-tertiary">— {sub.currency}</span>
           )}
         </div>
-        {sub.nextDue && !isCancelled && (
-          <div className={`text-sm ${isOverdue ? "text-status-negative" : "text-text-secondary"}`}>
-            {isOverdue ? "Overdue" : "Due"} {format(new Date(sub.nextDue), "d MMM")}
-          </div>
+        {due.kind === "due" && (
+          <div className="text-sm text-text-secondary">Next {format(due.date, "d MMM")}</div>
+        )}
+        {due.kind === "charged" && (
+          <div className="text-sm text-text-tertiary">Charged {format(due.date, "d MMM")}</div>
         )}
       </div>
     </div>
@@ -176,11 +180,13 @@ export default async function MoneyPage() {
     burn.totalGbp > 0 ? formatMoney(burn.totalGbp, "GBP") : null,
   ].filter(Boolean) as string[];
   // The soonest charge still ahead of us — what a person opens a money page to
-  // find out. Anything already past shows as "Overdue" on its own row.
+  // find out. Read through the same rule as the rows, so a subscription whose
+  // stored date has passed counts by the charge it renews on.
   const nextCharge =
     visibleSubs
-      .filter((s) => s.nextDue && !isPast(s.nextDue))
-      .sort((a, b) => a.nextDue!.getTime() - b.nextDue!.getTime())[0] ?? null;
+      .map((s) => ({ name: s.name, date: nextChargeDate(subscriptionDue(s.nextDue, s.frequency)) }))
+      .filter((s): s is { name: string; date: Date } => s.date !== null)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())[0] ?? null;
 
   return (
     // The header action is suppressed while the list is empty: the empty state
@@ -219,7 +225,7 @@ export default async function MoneyPage() {
           />
           <StatCard
             label="Next charge"
-            value={nextCharge ? format(nextCharge.nextDue!, "d MMM") : "—"}
+            value={nextCharge ? format(nextCharge.date, "d MMM") : "—"}
             sub={nextCharge ? nextCharge.name : "no due dates set"}
           />
           {/* "Non-CHF /mo" was the third tile, and it printed the very same

@@ -4871,6 +4871,39 @@
     /* High-flier esthetics: softer rounding, lift on hover for tactile 'rail' in command workspace */
   }
   /* Page refactor, batch A (2026-10-01): the one row idle projects fold behind. */
+  /* Page refactor, batch C (2026-10-02): a goal's milestones and sub-goals
+     fold behind their own count. */
+  .ui-goal-milestones-toggle {
+    @apply flex min-h-11 w-full min-w-0 items-center gap-1.5 text-left text-xs text-text-tertiary transition-colors hover:text-text-secondary;
+  }
+  .ui-goal-milestones-next {
+    @apply min-w-0 truncate text-text-muted;
+  }
+  /* Habit heatmap cells — distinct on the card's own ground in both themes. */
+  .ui-habit-cell {
+    @apply inline-block h-5 w-5 shrink-0 rounded;
+  }
+  .ui-habit-cell-done {
+    @apply bg-status-positive/60;
+  }
+  .ui-habit-cell-missed {
+    @apply border border-border-default bg-surface-overlay;
+  }
+  .ui-habit-cell-off {
+    @apply border border-dashed border-border-subtle;
+  }
+  .ui-habit-cell-today {
+    @apply ring-2 ring-border-interactive;
+  }
+  .ui-habit-legend {
+    @apply flex flex-wrap items-center gap-x-1.5 gap-y-1 text-micro text-text-muted;
+  }
+  .ui-habit-legend > .ui-habit-cell {
+    @apply ml-2 h-3 w-3 first:ml-0;
+  }
+  .ui-goal-children-toggle {
+    @apply ml-6 flex min-h-11 items-center gap-1.5 pl-5 text-xs text-text-tertiary transition-colors hover:text-text-secondary;
+  }
   .ui-control-quiet-toggle {
     @apply flex min-h-11 w-full shrink-0 items-center gap-2 rounded-2xl px-3 text-left text-xs text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary;
   }
