@@ -3,6 +3,11 @@ title: The Builder's Operating System
 subtitle: A technical architecture for sustained autonomous execution across many projects simultaneously
 publishedAt: 2026-10-01
 version: 0.3.2
+summary:
+  - Loki is where you direct AI coding agents across many projects — it shows what each one is doing and what is waiting for you.
+  - Agents run in terminals a runner owns, on Loki's cloud builder or on your own computer with Fleet Runner; which one is a stored choice per project, never a guess.
+  - You send work from any device through a queue; a runner only ever makes outbound connections.
+  - Autopilot is an on/off switch behind health gates — it continues routine work and stops for anything that needs judgment.
 ---
 
 ## The Execution Gap

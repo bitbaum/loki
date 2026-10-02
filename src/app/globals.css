@@ -1601,6 +1601,15 @@
   .ui-public-code-pre {
     @apply whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-text-secondary sm:whitespace-pre sm:text-sm;
   }
+  /* Whitepaper (2026-10-02): the short version above the long one, and
+     diagrams that wrap instead of running off a phone's edge. */
+  .ui-whitepaper-summary {
+    @apply mb-8 rounded-2xl border border-border-subtle bg-surface-base p-5 sm:p-6;
+  }
+  .ui-whitepaper-body pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
   .ui-public-doc-footer {
     @apply mt-14 border-t border-border-subtle pt-10 text-center sm:mt-24 sm:pt-16;
   }
