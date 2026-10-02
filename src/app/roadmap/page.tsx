@@ -61,45 +61,52 @@ export default async function RoadmapPage() {
             >
               <h2 className="ui-public-display-md">{g.title}</h2>
               {g.summary && <p className="ui-public-section-lede mt-3 sm:mt-4">{g.summary}</p>}
-              <div className="mt-8 space-y-8 sm:mt-12 sm:space-y-10">
+              {/* Scannable first: every item is its title and one line, and its
+                  steps open on tap. Shipped folds whole — it is the record, not
+                  the plan. Rendered open, the page was 12,800px on a phone and
+                  read as one undifferentiated column (2026-10-01). */}
+              <RoadmapItems shipped={g.status === "done"} count={g.items.length}>
                 {g.items.map((item, i) => (
                   <div key={`${item.title}-${i}`} className="max-w-2xl">
                     <div className="ui-public-prose-strong text-lg">{item.title}</div>
                     {item.line && <p className="ui-public-prose-muted mt-2">{item.line}</p>}
-                    {(item.targetDate || item.milestones.length > 0) && (
-                      <p className="ui-public-meta mt-2">
-                        {[
-                          item.milestones.length > 0
-                            ? `${item.milestones.filter((m) => m.done).length}/${item.milestones.length} steps done`
-                            : null,
-                          item.targetDate ? `target ${item.targetDate}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
+                    {item.milestones.length === 0 && item.targetDate && (
+                      <p className="ui-public-meta mt-2">target {item.targetDate}</p>
                     )}
                     {item.milestones.length > 0 && (
-                      <ul className="mt-3 space-y-2">
-                        {item.milestones.map((m) => (
-                          <li className="flex gap-2.5" key={m.title}>
-                            <span
-                              className="ui-public-milestone-mark"
-                              data-done={m.done ? "true" : "false"}
-                              aria-hidden
-                            >
-                              {m.done ? <Check className="h-3 w-3" /> : null}
-                            </span>
-                            <span className="ui-public-prose-muted min-w-0">
-                              {m.title}
-                              <span className="sr-only">{m.done ? " — done" : " — not done"}</span>
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+                      <details className="ui-roadmap-steps mt-2">
+                        <summary className="ui-roadmap-steps-summary">
+                          {[
+                            `${item.milestones.filter((m) => m.done).length}/${item.milestones.length} steps done`,
+                            item.targetDate ? `target ${item.targetDate}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </summary>
+                        <ul className="mt-3 space-y-2">
+                          {item.milestones.map((m) => (
+                            <li className="flex gap-2.5" key={m.title}>
+                              <span
+                                className="ui-public-milestone-mark"
+                                data-done={m.done ? "true" : "false"}
+                                aria-hidden
+                              >
+                                {m.done ? <Check className="h-3 w-3" /> : null}
+                              </span>
+                              <span className="ui-public-prose-muted min-w-0">
+                                {m.title}
+                                <span className="sr-only">
+                                  {m.done ? " — done" : " — not done"}
+                                </span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     )}
                   </div>
                 ))}
-              </div>
+              </RoadmapItems>
             </section>
           ))
         )}
@@ -155,5 +162,27 @@ export default async function RoadmapPage() {
 
       <FinalCta />
     </PublicSurface>
+  );
+}
+
+/** A group's items: open for the plan, folded behind one line for what shipped. */
+function RoadmapItems({
+  shipped,
+  count,
+  children,
+}: {
+  shipped: boolean;
+  count: number;
+  children: React.ReactNode;
+}) {
+  const list = <div className="mt-8 space-y-8 sm:mt-12 sm:space-y-10">{children}</div>;
+  if (!shipped) return list;
+  return (
+    <details className="ui-roadmap-shipped mt-6">
+      <summary className="ui-roadmap-steps-summary">
+        Show all {count} shipped {count === 1 ? "item" : "items"}
+      </summary>
+      {list}
+    </details>
   );
 }

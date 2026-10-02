@@ -80,7 +80,7 @@ export default function ComparePage() {
                     <td>
                       <a
                         href={row.source}
-                        className="ui-public-link"
+                        className="ui-public-link inline-flex"
                         target="_blank"
                         rel="noreferrer"
                       >

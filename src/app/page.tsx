@@ -119,7 +119,7 @@ export default async function LandingPage({
             </Link>
           </div>
           <p className="ui-public-meta mt-4">
-            <Link href="/how-it-works" className="ui-public-link">
+            <Link href="/how-it-works" className="ui-public-link-standalone">
               How it works →
             </Link>
           </p>
@@ -298,7 +298,7 @@ export default async function LandingPage({
             ))}
           </div>
           <p className="ui-public-meta mt-6 text-center sm:mt-8">
-            <Link href="/compare" className="ui-public-link">
+            <Link href="/compare" className="ui-public-link-standalone">
               How Loki compares with Claude Code, Codex, Lovable and others →
             </Link>
           </p>
