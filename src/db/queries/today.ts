@@ -12,6 +12,7 @@ import {
 } from "@/lib/constants/today";
 import { ENTITY_TYPE } from "@/lib/constants/statuses";
 import { BOOK_ACTION_TYPES } from "@/config/book";
+import { chargesDueBy } from "@/lib/subscription-due";
 import { db } from "@/db";
 import { getOpenAgentTurnsByProject } from "./agent-sessions";
 import {
@@ -182,17 +183,13 @@ export async function getUpcomingSubscriptions(userId: string, days = SUBSCRIPTI
   const future = new Date();
   future.setDate(future.getDate() + days);
 
-  return db
+  // The window is applied to the NEXT charge, not the stored date: a recurring
+  // subscription whose stored date has passed renewed, it is not due today.
+  const active = await db
     .select()
     .from(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.userId, userId),
-        eq(subscriptions.status, SUB_STATUS.ACTIVE),
-        lte(subscriptions.nextDue, future),
-      ),
-    )
-    .orderBy(subscriptions.nextDue);
+    .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, SUB_STATUS.ACTIVE)));
+  return chargesDueBy(active, future);
 }
 
 export async function getTodaySummary(userId: string) {

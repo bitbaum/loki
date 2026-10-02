@@ -18,7 +18,10 @@ async function SubscriptionsCardInner() {
       <CardHeader icon={CreditCard} title="Upcoming Bills" />
       <div className="space-y-2.5">
         {items.map((item) => {
-          const overdue = !!item.nextDue && startOfDay(new Date(item.nextDue)) < today;
+          // `nextCharge` is already rolled past a stale stored date, so a
+          // subscription that renewed is never shown as overdue (it used to be,
+          // on every row). Only a charge due before today reads that way.
+          const overdue = startOfDay(item.nextCharge) < today;
           return (
             <div key={item.id} className="flex items-center justify-between">
               <div>
@@ -29,7 +32,7 @@ async function SubscriptionsCardInner() {
                   className={`text-xs md:text-sm ${overdue ? "text-status-negative/70" : "text-text-tertiary"}`}
                 >
                   {item.vendor}
-                  {item.nextDue ? ` · ${format(new Date(item.nextDue), "d MMM")}` : ""}
+                  {` · ${format(item.nextCharge, "d MMM")}`}
                   {overdue && " · overdue"}
                 </div>
               </div>
