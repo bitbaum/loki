@@ -64,11 +64,8 @@ for (const file of PUBLIC_COPY) {
   }
 }
 
-// The commission form names the studio; it is spelled bitbaum, lowercase.
-for (const file of [
-  "src/components/public/WebsiteCommissionForm.tsx",
-  "src/app/commission/page.tsx",
-]) {
+// The website-change page names the studio; it is spelled bitbaum, lowercase.
+for (const file of ["src/components/public/WebsiteChangeBrief.tsx", "src/app/change/page.tsx"]) {
   const hit = stringsOf(readFileSync(file, "utf8")).match(/\bBitbaum\b/);
   assert.equal(hit, null, `${file}: "Bitbaum" — the studio is spelled bitbaum`);
 }

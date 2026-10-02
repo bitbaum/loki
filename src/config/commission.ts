@@ -1,6 +1,6 @@
 /** Bitbaum owns engagement terms. Loki consumes the published view. */
 export const COMMISSION = {
-  path: "/commission",
+  path: "/change",
   submitPath: "/api/commission",
   buildPath: "/api/projects/from-website",
   studioOrigin: "https://bitbaum.orangecat.ch",

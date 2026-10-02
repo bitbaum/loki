@@ -161,7 +161,7 @@ const PAGES = [
  */
 const PUBLIC_PAGES = [
   "/",
-  "/commission",
+  "/change",
   "/fleet",
   "/pricing",
   "/download",
@@ -228,6 +228,7 @@ export const NOT_MEASURED = {
   "/blog": "307 to /thoughts, renders nothing",
   "/frontier": "retired — 308 to /thoughts, renders nothing",
   "/mission": "308 to /why, renders nothing",
+  "/commission": "308 to /change, renders nothing",
   "/philosophy": "308 to /why, renders nothing",
   "/sign-out": "an action, not a page",
   "/onboarding": "first-run flow: needs a brand-new account to render its real state",
