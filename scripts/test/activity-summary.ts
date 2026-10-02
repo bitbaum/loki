@@ -126,7 +126,8 @@ const base = {
 
 check("failures lead, always", () => {
   const line = activityHeadline({ ...base, attention: 2, shipped: 5, projects: 3 });
-  assert.ok(line.startsWith("2 things need you"), line);
+  // "runs", not "things": only the front door says "N things need you".
+  assert.ok(line.startsWith("2 runs need you"), line);
 });
 
 check("a window with failures never opens by celebrating", () => {
@@ -145,7 +146,7 @@ check("singulars read correctly", () => {
     activityHeadline({ ...base, shipped: 1, projects: 1 }),
     "1 task shipped on one project.",
   );
-  assert.equal(activityHeadline({ ...base, attention: 1 }), "1 thing needs you.");
+  assert.equal(activityHeadline({ ...base, attention: 1 }), "1 run needs you.");
   assert.equal(activityHeadline({ ...base, running: 1 }), "1 agent is working right now.");
 });
 
