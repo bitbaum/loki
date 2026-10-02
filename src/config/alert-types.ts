@@ -44,6 +44,14 @@ export type AlertTypeSpec = {
    * `npm run check:models` above "reach out to 6 people".
    */
   audience: "system" | "operator";
+  /**
+   * Set when the alert is a notification ABOUT a source the front door already
+   * lists (lib/needs-you composes approvals and feedback triage directly).
+   * Listing both counted one thing twice: live 2026-10-02 Today said "22 things
+   * need you" with "7 actions are waiting for your approval" beside the seven
+   * approvals, and "36 feedback items need triage" beside "6 to triage".
+   */
+  restates?: "approvals" | "feedback";
 };
 
 export const ALERT_TYPES = {
@@ -75,6 +83,7 @@ export const ALERT_TYPES = {
   pending_approvals: {
     label: "Actions are waiting for the operator",
     audience: "operator",
+    restates: "approvals",
     producer: "src/app/api/crons/check-pending-approvals/route.ts",
   },
   run_escalation: {
@@ -90,6 +99,7 @@ export const ALERT_TYPES = {
   new_feedback: {
     label: "New feedback needs triage",
     audience: "operator",
+    restates: "feedback",
     producer: "src/lib/feedback/notify-new.ts",
   },
   studio_request: {
@@ -122,6 +132,13 @@ export const ALERT_TYPES = {
 export type AlertType = keyof typeof ALERT_TYPES;
 
 export const ALERT_TYPE_IDS = Object.keys(ALERT_TYPES) as AlertType[];
+
+/** An alert that only notifies about a source the front door already lists. */
+export function alertRestatesListedSource(type: string): boolean {
+  if (!isRegisteredAlertType(type)) return false;
+  const spec: AlertTypeSpec = ALERT_TYPES[type];
+  return spec.restates !== undefined;
+}
 
 /** The alert types /system owns. Anything not registered is treated as operator. */
 export function isSystemAlertType(type: string): boolean {
