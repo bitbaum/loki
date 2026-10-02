@@ -94,6 +94,7 @@ export const ALERT_TYPES = {
   },
   studio_request: {
     label: "A studio request or partner application needs a person",
+    audience: "operator",
     producer: "src/lib/studio/notify.ts",
   },
   fix_live: {
