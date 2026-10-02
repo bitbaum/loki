@@ -4,6 +4,9 @@
 /* The fleet chat (composer, thread, markdown) — behaviour and look; colours
    mapped to ours in :root below. */
 @import "@bitbaum/chatkit/styles.css";
+/* The fleet account menu (avatar, identity, sign-out) — behaviour and look;
+   colours mapped to ours in :root below, exactly as chatkit's are. */
+@import "@bitbaum/accountkit/styles.css";
 
 /* Exclude documentation/config files — they contain example class names that
    confuse the Tailwind scanner and generate invalid CSS (e.g. var(--*)). */
@@ -340,6 +343,21 @@
   --ck-warning: var(--status-warning);
   --ck-font: var(--font-sans);
   --ck-mono: var(--font-mono);
+
+  /* @bitbaum/accountkit — the fleet's one account menu reads --acct-*. Same
+     reason and same shape as --ck-* above: its defaults expect HSL triplets,
+     ours are OKLCH, and var() references flip with .dark on their own. */
+  --acct-panel: var(--surface-raised);
+  --acct-hover: var(--surface-overlay);
+  --acct-trigger-bg: var(--surface-base);
+  --acct-fg: var(--text-primary);
+  --acct-fg-2: var(--text-secondary);
+  --acct-fg-3: var(--text-tertiary);
+  --acct-line: var(--border-subtle);
+  --acct-line-2: var(--border-interactive);
+  --acct-focus: var(--accent-primary);
+  --acct-danger: var(--status-negative);
+  --acct-font: var(--font-sans);
 }
 
 /* ─── Dark mode ───────────────────────────────────────────────────────────── */
@@ -4473,35 +4491,9 @@
     @apply inline-flex min-h-9 items-center text-xs text-text-secondary underline decoration-border-subtle underline-offset-2 transition-colors hover:decoration-current;
   }
 
-  /* ── Account menu ─────────────────────────────────────────────────────────
-     Identity dropdown in the app top bar: who is signed in, their settings,
-     appearance, the private-zone lock, and sign out. The trigger is the ONLY
-     bordered control in `ui-app-topbar-right` — that weight used to belong to
-     the theme toggle, which is a preference, not an identity. */
-  .ui-account-trigger {
-    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-default bg-surface-base text-xs font-semibold uppercase tracking-caps text-text-secondary transition-colors hover:border-border-interactive hover:bg-surface-raised hover:text-text-primary;
-  }
-  .ui-account-panel {
-    @apply fixed right-2 top-14 z-50 w-[min(16rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised py-1 shadow-panel-strong;
-  }
-  .ui-account-identity {
-    @apply border-b border-border-subtle px-3 pb-2.5 pt-2;
-  }
-  .ui-account-name {
-    @apply truncate text-sm font-semibold text-text-primary;
-  }
-  .ui-account-email {
-    @apply truncate text-xs text-text-tertiary;
-  }
-  .ui-account-group {
-    @apply border-b border-border-subtle py-1 last:border-b-0;
-  }
-  .ui-account-row {
-    @apply flex w-full min-h-11 items-center gap-2.5 px-3 text-sm text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary;
-  }
-  .ui-account-row-static {
-    @apply flex w-full min-h-11 items-center gap-2.5 px-3 text-sm text-text-secondary;
-  }
+  /* The account menu's styles live in @bitbaum/accountkit (imported at the
+     top, colours mapped in :root). The .ui-account-* rules that were here
+     drew Loki's own copy, which the shared menu replaced. */
 
   /* ── Notification panel ───────────────────────────────────────────────────
      Dropdown panel from the bell icon showing alerts that need the operator. */
