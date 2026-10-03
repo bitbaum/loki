@@ -289,7 +289,7 @@ export default async function MoneyPage() {
 
       {commitments.length > 0 && (
         <Card>
-          <CardHeader icon={AlertCircle} title="Financial Commitments" />
+          <CardHeader icon={AlertCircle} title="Financial commitments" />
           <div className="space-y-2">
             {commitments.map((c) => (
               <div key={c.id} className="flex items-center justify-between py-1">
