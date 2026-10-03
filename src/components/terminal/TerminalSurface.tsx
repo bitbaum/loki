@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, Maximize2, Minimize2, MonitorSmartphone, PanelRight } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
@@ -364,6 +364,8 @@ export function TerminalSurface({
   // it the rail is a sheet, and the toggle opens that instead.
   const railFits = useMediaQuery(TERMINAL_RAIL_QUERY);
   const [liveState, setLiveState] = useState<TerminalLiveState>("connecting");
+  // The attached session's rendered screen, for the rail's AI summary.
+  const readScreenRef = useRef<((rows: number) => string[]) | null>(null);
   const [geometry, setGeometry] = useState<PtyGeometry | null>(null);
 
   // Scope the chip to THIS source. Using any-builder `runnerConnected` on the
@@ -517,6 +519,7 @@ export function TerminalSurface({
         projectId={tabContext?.projectId ?? null}
         canSwitchAgent={!agentSwitchDisabledReason}
         onSwitchAgent={(id) => void switchAgent(id)}
+        readScreenRef={readScreenRef}
       />
     ) : null;
 
@@ -725,6 +728,7 @@ export function TerminalSurface({
         onLive={setLiveState}
         onGeometry={setGeometry}
         actions={paneActions}
+        readScreenRef={readScreenRef}
       />
     );
   };
