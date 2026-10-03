@@ -429,13 +429,13 @@ function RowContext({
     );
   if (pageLabel)
     parts.push(
-      <span key="pg" className="max-w-[12rem] truncate">
+      <span key="pg" className="max-w-48 truncate">
         {pageLabel}
       </span>,
     );
   if (who)
     parts.push(
-      <span key="w" className="max-w-[10rem] truncate" title={f.contact ?? undefined}>
+      <span key="w" className="max-w-40 truncate" title={f.contact ?? undefined}>
         {who}
       </span>,
     );
