@@ -110,15 +110,15 @@ assert.deepEqual(
 const workspace = readFileSync("src/components/loki/LokiWorkspace.tsx", "utf8");
 assert.match(
   workspace,
-  /if \(sending && !dispatchOnly\) \{\s*setQueue/,
+  /if \(sending && !dispatchOnly\) \{\s*queue\.add/,
   "a send while running is queued",
 );
 assert.match(
   workspace,
-  /if \(sending \|\| stream\.error \|\| queue\.length === 0\) return;/,
-  "flushed only when the turn ended cleanly",
+  /if \(landed\) \{\s*const next = queue\.takeNext\(\)/,
+  "drained after a turn lands, never from an effect",
 );
-assert.match(workspace, /className="ui-loki-queue-item"/, "queued messages are shown");
+assert.match(workspace, /<QueuedMessages items=\{queue\.items\}/, "queued messages are shown");
 assert.match(
   workspace,
   /<LokiComposer[\s\S]*?\n\s+queue\n/,

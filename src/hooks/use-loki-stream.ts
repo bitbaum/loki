@@ -48,7 +48,8 @@ export type UseLokiStream = {
   error: string | null;
   /** True when the operator stopped the last turn themselves. */
   stopped: boolean;
-  send: (url: string, body: unknown) => Promise<void>;
+  /** Resolves true when a persisted turn landed; false on error or stop. */
+  send: (url: string, body: unknown) => Promise<boolean>;
   stop: () => void;
   clearError: () => void;
 };
@@ -179,10 +180,12 @@ export function useLokiStream({
         // The stream ended without delivering a turn. Silence is not an answer:
         // say so rather than leaving a spinner that never resolves.
         if (!landed) throw new Error("Loki stopped responding before finishing this turn.");
+        return true;
       } catch (e) {
         if (controller.signal.aborted) setStopped(true);
         else setError(e instanceof Error ? e.message : "Message failed.");
         setLive(null);
+        return false;
       } finally {
         setSending(false);
         abortRef.current = null;
