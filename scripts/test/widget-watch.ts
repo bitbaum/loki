@@ -40,7 +40,7 @@ check(() => {
     describeRequest("post", "https://orangecat.ch/api/projects?token=secret", 500),
     "POST /api/projects → 500",
   );
-  assert.equal(describeRequest("get", "/api/x", null), "GET /api/x → no response");
+  assert.equal(describeRequest("get", "/shop/x", null), "GET /shop/x → no response");
   assert.equal(isFailedRequest(500), true);
   assert.equal(isFailedRequest(null), true);
   assert.equal(isFailedRequest(404), false);

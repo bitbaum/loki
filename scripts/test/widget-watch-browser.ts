@@ -23,7 +23,7 @@ const SITE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
 <meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
 <main><h1>Shop</h1><input id="email" placeholder="Your email">
 <button id="buy">Buy now</button></main>
-<script>document.getElementById("buy").onclick = () => fetch("/api/checkout?token=secret", { method: "POST" });</script>
+<script>document.getElementById("buy").onclick = () => fetch("/shop/checkout?token=secret", { method: "POST" });</script>
 <script src="${ORIGIN}/widget.js" data-fc-project="fcw_fixture" async></script></body></html>`;
 
 type Report = { suggestion: string; ownerPass?: string };
@@ -51,7 +51,7 @@ async function open(browser: Browser, js: string, hash: string) {
       reports.push(JSON.parse(route.request().postData() ?? "{}") as Report);
       return json({ ok: true, owner: true, building: true });
     }
-    if (url.pathname === "/api/checkout") return json({ error: "boom" }, 500);
+    if (url.pathname === "/shop/checkout") return json({ error: "boom" }, 500);
     return route.fulfill({ body: SITE, contentType: "text/html" });
   });
   await p.goto(`${ORIGIN}/${hash}`);
@@ -115,7 +115,7 @@ async function main() {
     await s.p.waitForTimeout(600);
     ok(s.reports.length === 1, `one report for one cause (got ${s.reports.length})`);
     const r = s.reports[0]?.suggestion ?? "";
-    ok(r.includes("POST /api/checkout → 500"), "the report names the failed request");
+    ok(r.includes("POST /shop/checkout → 500"), "the report names the failed request");
     ok(r.includes("button “Buy now”"), "the report carries the tap that led there");
     ok(!r.includes("me@example.com"), "what was typed never leaves the page");
     ok(!r.includes("token=secret"), "query strings never leave the page");
