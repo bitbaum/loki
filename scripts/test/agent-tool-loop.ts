@@ -210,6 +210,39 @@ async function main() {
     assert.equal(r.rounds, 2, "one gather round then one answer round");
   }
 
+  // ── 5b. What the model says on the way to a tool is kept, in order ─────────
+  // A gathering round's prose used to be discarded by the next round's reset.
+  // It is the narration the operator reads between groups of work (the
+  // Claude Code rhythm: a sentence, a collapsed group of commands, a sentence),
+  // so it is kept as a note and streamed as one — and the final answer is
+  // still the only text verified and returned as `text`.
+  {
+    const model = scriptedModel([
+      {
+        text: "Checking who Elena is first.",
+        toolCalls: [{ id: "1", name: "search_people", args: { query: "Elena" } }],
+      },
+      { text: "Elena Weber SINGA Switzerland — whatsapp +41774730093 [F1]." },
+    ]);
+    const events: Array<{ type: string }> = [];
+    const r = await runLokiTurn({
+      userId: "u1",
+      message: "who is Elena?",
+      registry: STUB_REGISTRY,
+      callModel: model.fn,
+      seed: SEED,
+      onEvent: (e) => events.push(e),
+    });
+    assert.deepEqual(r.work, [
+      { kind: "note", text: "Checking who Elena is first." },
+      { kind: "tool", name: "search_people", phase: "end", facts: 1 },
+    ]);
+    assert.equal(r.text, "Elena Weber SINGA Switzerland — whatsapp +41774730093 [F1].");
+    const noteAt = events.findIndex((e) => e.type === "note");
+    const toolAt = events.findIndex((e) => e.type === "tool");
+    assert.ok(noteAt !== -1 && noteAt < toolAt, "the note is streamed before the tools it led to");
+  }
+
   // ── 6. An invented attribute is caught even when the tool ran ────────────────
   // The whole point of routing tools through Facts: calling the right tool does
   // not license adding a field the record never had.

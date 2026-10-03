@@ -5945,6 +5945,9 @@
   .ui-loki-trail {
     @apply mb-2 flex flex-col gap-1;
   }
+  .ui-loki-trail-group {
+    @apply flex flex-col gap-1;
+  }
   .ui-loki-trail-summary {
     @apply inline-flex h-8 max-w-full items-center gap-1.5 self-start rounded-lg px-1.5 text-xs text-text-muted transition-colors hover:text-text-secondary disabled:cursor-default disabled:hover:text-text-muted;
   }
@@ -5965,6 +5968,12 @@
   }
   .ui-loki-trail-count {
     @apply shrink-0 text-micro text-text-muted;
+  }
+  /* A note is Loki thinking aloud between groups of tools — read like prose,
+     in the answer's size so the thread keeps one rhythm, but in the trail's
+     voice so it is never mistaken for the answer. */
+  .ui-loki-trail-note {
+    @apply text-sm leading-relaxed text-text-secondary;
   }
 
   /* ── A failed turn ────────────────────────────────────────────────────────

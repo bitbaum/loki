@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { readEventStream } from "@/lib/api/read-event-stream";
 import type { LokiStatusLabel, LokiStreamEvent, WireMessage } from "@/lib/loki/stream";
+import { applyNote, applyToolStep, type WorkStep } from "@/lib/loki/work";
 
 /** One tool the turn ran, as the operator sees it happen. */
 export type LiveTool = {
@@ -21,11 +22,15 @@ export type LiveTool = {
 export type LiveTurn = {
   preview: string;
   tools: LiveTool[];
+  /** The turn's work in order — notes said while gathering and tools run —
+   *  the same list the server persists (lib/loki/work.ts), so the thread
+   *  reads identically live and reopened. */
+  work: WorkStep[];
   status: LokiStatusLabel | null;
   round: number;
 };
 
-const EMPTY: LiveTurn = { preview: "", tools: [], status: null, round: 0 };
+const EMPTY: LiveTurn = { preview: "", tools: [], work: [], status: null, round: 0 };
 
 export type UseLokiStream = {
   /** The turn in flight, or null. */
@@ -106,6 +111,15 @@ export function useLokiStream({
               preview = "";
               setLive((prev) => ({ ...(prev ?? EMPTY), preview }));
               break;
+            case "note":
+              // The prose of a gathering round moves from the preview into the
+              // trail, where it stays — the `reset` that follows clears only
+              // the preview.
+              setLive((prev) => {
+                const base = prev ?? EMPTY;
+                return { ...base, work: applyNote(base.work, event.text) };
+              });
+              break;
             case "round":
               setLive((prev) => ({ ...(prev ?? EMPTY), round: event.round }));
               break;
@@ -124,7 +138,16 @@ export function useLokiStream({
                     : idx === -1
                       ? [...base.tools, next]
                       : base.tools.map((t, i) => (i === idx ? next : t));
-                return { ...base, tools };
+                return {
+                  ...base,
+                  tools,
+                  work: applyToolStep(base.work, {
+                    kind: "tool",
+                    name: event.name,
+                    phase: event.phase,
+                    facts: event.facts,
+                  }),
+                };
               });
               break;
             case "status":

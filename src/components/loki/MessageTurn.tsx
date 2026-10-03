@@ -3,7 +3,9 @@
 import { Check, Copy, RotateCcw } from "lucide-react";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { useClipboard } from "@/hooks/use-clipboard";
+import { readWork } from "@/lib/loki/work";
 import { ProvenanceFooter } from "./ProvenanceFooter";
+import { WorkTrail } from "./WorkTrail";
 import {
   DispatchFooter,
   NeedsProjectPicker,
@@ -55,9 +57,16 @@ export function MessageTurn({
   // happening and do.
   const kind = message.kind && message.kind !== "chat" ? KIND_LABEL[message.kind] : null;
 
+  // What the turn did, above what it said — collapsed, the way it was live
+  // once the answer landed. Reopening a thread used to show an answer that
+  // had apparently cost nothing.
+  const work = readWork(message.meta);
+
   return (
     <div className="ui-loki-turn group/turn">
       {kind && <span className="ui-loki-kind">{kind}</span>}
+
+      {work.length > 0 && <WorkTrail work={work} live={false} />}
 
       <div className="ui-loki-answer">
         <MarkdownText

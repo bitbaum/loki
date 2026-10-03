@@ -73,7 +73,7 @@ export function Thread({
   useLayoutEffect(() => {
     if (!following) return;
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length, live?.preview, live?.tools.length, live?.status, sending, following]);
+  }, [messages.length, live?.preview, live?.work.length, live?.status, sending, following]);
 
   // A new turn always re-arms following: sending a message is an unambiguous
   // statement that you want to see the reply.
@@ -114,7 +114,7 @@ export function Thread({
 
           {live && (
             <div className="ui-loki-turn">
-              <WorkTrail tools={live.tools} live />
+              <WorkTrail work={live.work} live />
               {live.preview ? (
                 <div className="ui-loki-answer">
                   <MarkdownText text={live.preview} className="space-y-2" />
