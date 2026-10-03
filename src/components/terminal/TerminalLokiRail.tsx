@@ -1,19 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MutableRefObject } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Loader2 } from "lucide-react";
-import { MarkdownText } from "@/components/ui/markdown-text";
+import { ArrowUpRight, Loader2, Sparkles } from "lucide-react";
+import { ChatThread } from "@bitbaum/chatkit/react";
+import { useSessionAsk } from "@/hooks/use-session-ask";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { presentTerminalRun, type TerminalRunView } from "@/lib/terminal-run-view";
+import { screenText } from "@/lib/terminal-screen";
+import {
+  SUMMARY_MAX_CHARS,
+  SUMMARY_REQUEST,
+  SUMMARY_WINDOW_ROWS,
+  screenAttachment,
+  splitActions,
+  summaryPrompt,
+} from "@/lib/terminal-summary";
 import { TerminalComposer } from "./TerminalComposer";
 
 type RunPayload = { ok?: boolean; view: TerminalRunView | null; error?: string };
 
 /**
  * Right-rail commentary for Terminal: phase / stall / next action from the
- * same run Watch follows, plus Ask vs Inject into this session.
+ * same run Watch follows, an AI summary of what the session shows with its
+ * next steps one tap from Inject, and Ask vs Inject into this session — the
+ * conversation in chatkit's thread, like every chat in the fleet.
  */
 export function TerminalLokiRail({
   project,
@@ -23,6 +35,7 @@ export function TerminalLokiRail({
   projectId,
   canSwitchAgent,
   onSwitchAgent,
+  readScreenRef,
 }: {
   project: string | null;
   tab: string | null;
@@ -32,11 +45,14 @@ export function TerminalLokiRail({
   projectId: string | null;
   canSwitchAgent: boolean;
   onSwitchAgent: (agentId: string) => void;
+  /** Reads the session's rendered screen; empty when no session is mounted. */
+  readScreenRef?: MutableRefObject<((rows: number) => string[]) | null>;
 }) {
   const [view, setView] = useState<TerminalRunView | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [comment, setComment] = useState<string | null>(null);
+  const session = useSessionAsk(project);
+  const [draft, setDraft] = useState<{ text: string; nonce: number } | null>(null);
   const [switching, setSwitching] = useState(false);
 
   const load = useCallback(async () => {
@@ -84,6 +100,17 @@ export function TerminalLokiRail({
     }
   };
 
+  const screenLines = () => readScreenRef?.current?.(SUMMARY_WINDOW_ROWS) ?? [];
+  const summarize = () => {
+    if (!project) return;
+    const screen = screenText(screenLines(), SUMMARY_MAX_CHARS);
+    const run = view ? presentTerminalRun(view, ptyLive) : null;
+    void session.ask(summaryPrompt(project), {
+      attachments: [screenAttachment(screen || "(the terminal is empty)", run)],
+      shown: SUMMARY_REQUEST,
+    });
+  };
+
   if (!project) {
     return (
       <aside className="ui-term-loki">
@@ -105,6 +132,16 @@ export function TerminalLokiRail({
         <h2 className="ui-term-loki-title">Loki</h2>
         <div className="flex items-center gap-2">
           {presented && <span className="ui-badge">{presented.label}</span>}
+          <button
+            type="button"
+            onClick={summarize}
+            disabled={session.sending}
+            title="Summarize what this session shows, with next steps you can send"
+            className="ui-term-pane-btn"
+          >
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            Summarize
+          </button>
           <Link
             href={fleetSurfaceHref("chat", project)}
             className="inline-flex items-center gap-0.5 text-micro text-text-secondary underline-offset-2 hover:text-text-primary hover:underline"
@@ -154,14 +191,43 @@ export function TerminalLokiRail({
             />
           </div>
         )}
-
-        {comment && (
-          <div className="mt-3">
-            <p className="ui-micro-label">Loki</p>
-            <MarkdownText text={comment} className="text-xs leading-relaxed text-text-secondary" />
-          </div>
-        )}
       </div>
+
+      {/* The conversation, in the fleet's thread: Ask answers and summaries
+          stay readable (it used to show only the latest answer). A summary's
+          "→" lines become chips that put the step into Inject to check and send. */}
+      {(session.messages.length > 0 || session.live) && (
+        <div className="ui-term-loki-thread">
+          <ChatThread
+            messages={session.messages.map((m) =>
+              m.role === "assistant" ? { ...m, content: splitActions(m.content).body } : m,
+            )}
+            live={session.live ? { text: session.live.preview } : null}
+            stopped={session.stopped}
+            onStop={session.stop}
+            renderFooter={(m) => {
+              const original = session.messages.find((x) => x.id === m.id);
+              const actions = original ? splitActions(original.content).actions : [];
+              if (!actions.length) return null;
+              return (
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Next steps">
+                  {actions.map((action) => (
+                    <button
+                      key={action}
+                      type="button"
+                      onClick={() => setDraft({ text: action, nonce: Date.now() })}
+                      title="Put this in Inject to check and send"
+                      className="ui-chip-toggle-compact text-left"
+                    >
+                      {action}
+                    </button>
+                  ))}
+                </div>
+              );
+            }}
+          />
+        </div>
+      )}
 
       {/* THE composer, in Ask/Inject form — the same component (and the
           same attach, voice and model controls) as Loki chat and the
@@ -172,7 +238,8 @@ export function TerminalLokiRail({
           tab={tab}
           modes={["ask", "inject"]}
           defaultMode="inject"
-          onComment={setComment}
+          ask={session}
+          draft={draft}
           ptyLive={ptyLive || Boolean(view?.lastProgressAt)}
           density="compact"
         />
