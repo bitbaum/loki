@@ -4500,22 +4500,12 @@
   .ui-inbox-group-note {
     @apply shrink-0 text-nano text-text-muted;
   }
-  /* Page refactor, batch B: reports that failed for one reason, folded under
-     that reason; and the "show all shipped" line. */
-  .ui-inbox-fold {
-    @apply border-t border-border-subtle;
-  }
-  .ui-inbox-fold-summary {
-    @apply flex min-h-11 w-full cursor-pointer list-none flex-col justify-center gap-0.5 px-4 py-2 text-left text-xs text-text-tertiary transition-colors hover:text-text-secondary;
-  }
+  /* The text of a fold of reports that failed for one reason (.ui-fb-fold). */
   .ui-inbox-fold-count {
     @apply text-sm font-medium text-text-primary;
   }
   .ui-inbox-fold-cause {
     @apply line-clamp-2 text-text-tertiary;
-  }
-  .ui-inbox-fold[open] > .ui-inbox-fold-summary {
-    @apply border-b border-border-subtle;
   }
   .ui-inbox-project-state {
     @apply text-nano text-text-muted;
@@ -4581,6 +4571,116 @@
   }
   .ui-inbox-more {
     @apply inline-flex min-h-9 items-center text-xs text-text-secondary underline decoration-border-subtle underline-offset-2 transition-colors hover:decoration-current;
+  }
+
+  /* ── /feedback: one inbox, not a pile of parts ─────────────────────────────
+     Reported from a phone on 2026-10-03: "a bunch of random elements". It was:
+     a lone bordered "Studio requests" button, two rows of pills, a sentence
+     restating the chip you had just tapped, three bordered cards with grey
+     headers, and rows whose buttons came in three heights and two fills, with
+     the row's own status floating between them in a different place each time.
+
+     The page now has ONE structure, top to bottom:
+       lens    — Needs you · Under way · Shipped. Which question you are asking.
+       filters — one line: projects (scroll) + source + Studio requests.
+       list    — one panel; every row is context → message → why → actions.
+     Every button in a row's action bar is one height. The bar's labelled
+     buttons are the decision; the icon buttons (note, resolve, archive) sit
+     at its trailing edge, so the decision lines up down the page. */
+  .ui-fb-lens {
+    @apply grid grid-cols-3 gap-1 rounded-xl border border-border-subtle bg-surface-raised p-1;
+  }
+  .ui-fb-lens-tab {
+    @apply flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-center text-xs text-text-tertiary transition-colors hover:text-text-secondary sm:flex-row sm:gap-2 sm:text-sm;
+  }
+  .ui-fb-lens-tab[aria-selected="true"] {
+    @apply bg-surface-base text-text-primary;
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .ui-fb-lens-label {
+    @apply truncate font-medium;
+  }
+  .ui-fb-lens-count {
+    @apply text-base font-semibold tabular-nums text-text-primary sm:text-sm;
+  }
+  /* The one number on the page that is a debt: only "Needs you" earns a tint,
+     and only while it is above zero. */
+  .ui-fb-lens-count-due {
+    color: var(--status-warning);
+  }
+  .ui-fb-lens-hint {
+    @apply mt-2 text-xs text-text-tertiary;
+  }
+  .ui-fb-filters {
+    @apply space-y-2;
+  }
+  .ui-fb-filterline {
+    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-text-tertiary;
+  }
+  .ui-fb-filterline-tools {
+    @apply ml-auto flex items-center gap-3;
+  }
+  .ui-fb-select {
+    @apply min-h-9 rounded-lg border border-border-subtle bg-surface-base px-2 text-xs text-text-secondary;
+  }
+  .ui-fb-list {
+    @apply divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised;
+  }
+  .ui-fb-list > * {
+    @apply px-4;
+  }
+  .ui-fb-row {
+    @apply flex flex-col gap-1.5 py-4;
+  }
+  /* FeedbackReportText's "more" toggle: a flex-col child stretches, which
+     centred its label under the message. */
+  .ui-fb-row > button {
+    @apply self-start;
+  }
+  .ui-fb-row-context {
+    @apply flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-text-tertiary;
+  }
+  .ui-fb-row-context-sep {
+    @apply text-text-muted;
+  }
+  .ui-fb-row-project {
+    @apply font-medium text-text-secondary underline-offset-2 hover:underline;
+  }
+  .ui-fb-row-why {
+    @apply text-xs leading-snug text-text-secondary;
+  }
+  .ui-fb-row-why-quiet {
+    @apply text-xs leading-snug text-text-muted;
+  }
+  .ui-fb-row-actions {
+    @apply mt-1.5 flex flex-wrap items-center gap-1.5;
+  }
+  .ui-fb-row-utility {
+    @apply ml-auto flex items-center gap-0.5;
+  }
+  /* One height for every control in the bar, whatever component drew it
+     (WatchFixButton, ProviderSwitch and the Watch toggle each pick their own
+     variant). Variant stays theirs; size is the bar's. */
+  .ui-fb-row-actions :is(.ui-btn-save, .ui-btn-secondary, .ui-btn-primary) {
+    @apply min-h-9 gap-1.5 rounded-lg px-3 py-1.5 text-xs;
+  }
+  .ui-fb-row-actions .ui-btn-icon {
+    @apply h-9 w-9 p-0;
+  }
+  .ui-fb-fold {
+    @apply py-1;
+  }
+  .ui-fb-fold > summary {
+    @apply flex min-h-11 cursor-pointer list-none flex-col justify-center gap-0.5 py-2 text-xs text-text-tertiary;
+  }
+  .ui-fb-fold[open] > summary {
+    @apply border-b border-border-subtle;
+  }
+  .ui-fb-fold > .ui-fb-row + .ui-fb-row {
+    @apply border-t border-border-subtle;
+  }
+  .ui-fb-more {
+    @apply flex min-h-11 w-full items-center text-xs text-text-tertiary transition-colors hover:text-text-secondary;
   }
 
   /* The account menu's styles live in @bitbaum/accountkit (imported at the

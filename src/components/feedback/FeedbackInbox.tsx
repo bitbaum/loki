@@ -31,11 +31,13 @@ const SOURCE_FILTERS = [
  * this page owns the ironing-out loop: every report across the fleet, what
  * phase its fix is in, and the next action, without opening a project first.
  *
- * Three groups, keyed on WHO IS BLOCKED (work.waitingOn), never on DB status:
+ * Three lenses, keyed on WHO IS BLOCKED (work.waitingOn), never on DB status:
  * Needs you (your move — triage, retry, or look at a fix that is live), Under
  * way (an agent is generating, a green pull request is merging, a deploy is
- * running — nothing for you to do), Shipped (resolved). Archived stays behind a
- * toggle. Status could not answer the page's one question: `dispatched` covers
+ * running — nothing for you to do), Shipped (resolved). One lens shows at a
+ * time, as one list — they used to stack as three bordered cards with grey
+ * headers, which on a phone read as three unrelated widgets (2026-10-03).
+ * Archived stays behind a toggle. Status could not answer the page's one question: `dispatched` covers
  * both an agent mid-run and a fix that deployed an hour ago.
  */
 /**
@@ -87,6 +89,7 @@ export function FeedbackInbox() {
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [showAllShipped, setShowAllShipped] = useState(false);
+  const [chosenLens, setChosenLens] = useState<Lens | null>(null);
   const { busyId, error, notice, dispatchFix, setStatus, feature } = useFeedbackActions(refetch);
 
   const all = useMemo(() => data?.feedback ?? [], [data]);
@@ -192,211 +195,177 @@ export function FeedbackInbox() {
     );
   }
 
-  // Filters earn their row only when they can change what is shown: one
-  // project needs no project chips, one source needs no source chips. On a
-  // project-scoped view (?project=…) the project is the page's subject, so it
-  // is named once in the heading and the rows stop repeating it.
+  // Filters earn their place only when they can change what is shown: one
+  // project needs no project chips, one source needs no source picker. On a
+  // project-scoped view (?project=…) the project is named once in the filter
+  // line and the rows stop repeating it.
   const sourcesPresent = new Set(all.map((f) => f.source ?? FEEDBACK_SOURCE.VISITOR));
   const showProjectChips = projects.length > 1;
   const hideProject = !!projectFilter || projects.length <= 1;
-  const showSourceChips = sourcesPresent.size > 1;
-  const nothingWaiting = needsYou.length === 0 && underWay.length === 0;
+  const showSourcePicker = sourcesPresent.size > 1;
   const current = projectFilter ? projects.find((p) => p.name === projectFilter) : null;
+  const counts: Record<Lens, number> = {
+    [LENS.NEEDS_YOU]: needsYou.length,
+    [LENS.UNDER_WAY]: underWay.length,
+    [LENS.SHIPPED]: shipped.length,
+  };
+  // The lens follows the work unless the reader chose one: open on the first
+  // view that holds something, so an empty "Needs you" never greets a page
+  // whose agents are busy.
+  const lens: Lens = chosenLens ?? defaultLens(counts);
+  const rowProps = { busyId, dispatchFix, setStatus, feature, hideProject };
 
   return (
-    <div className="space-y-5">
-      {/* One chip primitive for both filter rows — the Control inbox's
-          (`ui-inbox-project`): a 36px pill that never wraps, in a row that
-          scrolls sideways on a phone. This page used to draw its project
-          chips in one style and its source chips in another, and let a chip
-          wrap into two lines ("All / projects") when the row got tight. */}
-      {(showProjectChips || showSourceChips) && (
-        <div className="space-y-1.5">
-          {showProjectChips && (
-            <div
-              className="ui-inbox-projects ui-scroll-fade-right"
-              role="group"
-              aria-label="Filter reports by project"
-            >
-              <FilterChip active={projectFilter === null} onClick={() => setProjectFilter(null)}>
-                All projects
+    <div className="space-y-4">
+      <div className="ui-fb-filters">
+        {showProjectChips && (
+          <div
+            className="ui-inbox-projects ui-scroll-fade-right mb-0"
+            role="group"
+            aria-label="Filter reports by project"
+          >
+            <FilterChip active={projectFilter === null} onClick={() => setProjectFilter(null)}>
+              All projects
+            </FilterChip>
+            {projects.map((p) => (
+              <FilterChip
+                key={p.name}
+                active={projectFilter === p.name}
+                onClick={() => setProjectFilter((v) => (v === p.name ? null : p.name))}
+                count={p.open}
+              >
+                {p.name}
               </FilterChip>
-              {projects.map((p) => (
-                <FilterChip
-                  key={p.name}
-                  active={projectFilter === p.name}
-                  onClick={() => setProjectFilter((v) => (v === p.name ? null : p.name))}
-                  count={p.open}
-                >
-                  {p.name}
-                </FilterChip>
-              ))}
-            </div>
-          )}
-          {showSourceChips && (
-            <div
-              className="ui-inbox-projects ui-scroll-fade-right"
-              role="group"
-              aria-label="Filter reports by source"
-            >
-              {SOURCE_FILTERS.filter((s) => s.key === null || sourcesPresent.has(s.key)).map(
-                (s) => (
-                  <FilterChip
-                    key={s.label}
-                    active={sourceFilter === s.key}
-                    onClick={() => setSourceFilter(s.key)}
-                  >
-                    {s.label}
-                  </FilterChip>
-                ),
-              )}
-            </div>
-          )}
+            ))}
+          </div>
+        )}
+        {/* One quiet line: what you are looking at, how to narrow it, and the
+            sibling page. The loop's numbers live here instead of in cards; the
+            Studio requests link lives here instead of in a lone bordered
+            button above everything. */}
+        <div className="ui-fb-filterline">
+          <span className="min-w-0">
+            {current
+              ? `${current.name} · ${current.open > 0 ? `${current.open} open` : "nothing open"}`
+              : metrics && metrics.total > 0
+                ? metricsLine(metrics)
+                : null}
+          </span>
+          <span className="ui-fb-filterline-tools">
+            {showSourcePicker && (
+              <select
+                value={sourceFilter ?? ""}
+                onChange={(e) => setSourceFilter(e.target.value || null)}
+                className="ui-fb-select"
+                aria-label="Filter reports by source"
+              >
+                {SOURCE_FILTERS.filter((s) => s.key === null || sourcesPresent.has(s.key)).map(
+                  (s) => (
+                    <option key={s.label} value={s.key ?? ""}>
+                      {s.label}
+                    </option>
+                  ),
+                )}
+              </select>
+            )}
+            <Link href="/feedback/studio" className="ui-link-muted whitespace-nowrap">
+              Studio requests →
+            </Link>
+          </span>
         </div>
-      )}
+      </div>
 
-      {/* The loop in one quiet line, fleet-wide — three bordered cards holding
-          three numbers were the loudest thing on a page whose job is the rows
-          under them. Hidden under a project filter rather than quietly
-          answering a different question. */}
-      {!projectFilter && metrics && metrics.total > 0 && (
-        <p className="text-xs text-text-tertiary">{metricsLine(metrics)}</p>
-      )}
-      {/* Under a project filter the subject is named in words, not only by
-          which chip is outlined: the rows below drop their project chip. */}
-      {current && !nothingWaiting && (
-        <p className="text-xs text-text-tertiary">
-          Showing {current.name}
-          {current.open > 0 ? ` · ${current.open} open` : ""} ·{" "}
-          <button type="button" onClick={() => setProjectFilter(null)} className="ui-link-muted">
-            All projects
-          </button>
-        </p>
-      )}
+      <div>
+        <div className="ui-fb-lens" role="tablist" aria-label="Which reports">
+          {LENSES.map((l) => (
+            <button
+              key={l.key}
+              type="button"
+              role="tab"
+              aria-selected={lens === l.key}
+              onClick={() => setChosenLens(l.key)}
+              className="ui-fb-lens-tab"
+            >
+              <span
+                className={cn(
+                  "ui-fb-lens-count",
+                  l.key === LENS.NEEDS_YOU && counts[l.key] > 0 && "ui-fb-lens-count-due",
+                )}
+              >
+                {counts[l.key]}
+              </span>
+              <span className="ui-fb-lens-label">{l.label}</span>
+            </button>
+          ))}
+        </div>
+        <p className="ui-fb-lens-hint">{LENSES.find((l) => l.key === lens)!.hint}</p>
+      </div>
 
       {error && <p className="ui-error">{error}</p>}
       {notice && <p className="ui-callout-warning">{notice}</p>}
 
-      {/* When the answer is "nothing", say so AND say what to do next: the
-          same screen must carry the way forward (a bare "Nothing waiting on
-          you for <project>." left the owner asking what to do — 2026-09-28). */}
-      {nothingWaiting && (
-        <EmptyState
-          icon={Inbox}
-          title="Nothing waiting on you"
-          size="sm"
-          action={
-            <div className="flex flex-wrap justify-center gap-2">
-              {projectFilter && (
-                <button
-                  type="button"
-                  onClick={() => setProjectFilter(null)}
-                  className="ui-btn-secondary"
-                >
-                  Show all projects
-                </button>
-              )}
-              {current && (
-                <Link href={`/projects/${current.id}`} className="ui-btn-secondary">
-                  Open {current.name}
-                </Link>
-              )}
-            </div>
-          }
-        >
-          {projectFilter
-            ? `${projectFilter} has ${shipped.length} shipped and nothing open.`
-            : "Every report is either shipped or with an agent. New ones appear here as they arrive."}
-        </EmptyState>
-      )}
-
-      {needsYou.length > 0 && (
-        <InboxSection title="Needs you" count={needsYou.length}>
+      {counts[lens] === 0 ? (
+        <LensEmpty
+          lens={lens}
+          counts={counts}
+          projectName={projectFilter}
+          projectId={current?.id ?? null}
+          onLens={setChosenLens}
+          onAllProjects={() => setProjectFilter(null)}
+        />
+      ) : lens === LENS.NEEDS_YOU ? (
+        <div className="ui-fb-list">
           {needsYouFolded.rows.map((f) => (
-            <Row
-              key={f.id}
-              f={f}
-              busyId={busyId}
-              dispatchFix={dispatchFix}
-              setStatus={setStatus}
-              feature={feature}
-              hideProject={hideProject}
-            />
+            <Row key={f.id} f={f} {...rowProps} />
           ))}
           {/* Failures that share one reason fold into one line that says the
               reason once; each report is still its own row, one tap away, with
               its own Retry — there is deliberately no "retry all": one tap
               starting dozens of agent runs is a decision, not a default. */}
           {needsYouFolded.folds.map((fold) => (
-            <details key={fold.cause} className="ui-inbox-fold">
-              <summary className="ui-inbox-fold-summary">
+            <details key={fold.cause} className="ui-fb-fold">
+              <summary>
                 <span className="ui-inbox-fold-count">
                   {fold.items.length} fixes failed the same way
                 </span>
                 <span className="ui-inbox-fold-cause">{fold.cause}</span>
               </summary>
               {fold.items.map((f) => (
-                <Row
-                  key={f.id}
-                  f={f}
-                  busyId={busyId}
-                  dispatchFix={dispatchFix}
-                  setStatus={setStatus}
-                  feature={feature}
-                  hideProject={hideProject}
-                />
+                <Row key={f.id} f={f} {...rowProps} />
               ))}
             </details>
           ))}
-        </InboxSection>
-      )}
-
-      {underWay.length > 0 && (
-        <InboxSection title="Under way" count={underWay.length} note="moving on its own">
+        </div>
+      ) : lens === LENS.UNDER_WAY ? (
+        <div className="ui-fb-list">
           {underWay.map((f) => (
-            <Row
-              key={f.id}
-              f={f}
-              busyId={busyId}
-              dispatchFix={dispatchFix}
-              setStatus={setStatus}
-              feature={feature}
-              hideProject={hideProject}
-            />
+            <Row key={f.id} f={f} {...rowProps} />
           ))}
-        </InboxSection>
-      )}
-
-      {shipped.length > 0 && (
-        <InboxSection title="Shipped" count={shipped.length}>
+        </div>
+      ) : (
+        <div className="ui-fb-list">
           {/* Nothing here asks for a decision, so the newest few stand for the
               rest — all 36 rendered in full were most of a 17,000px page. */}
           {(showAllShipped ? shipped : shipped.slice(0, SHIPPED_SHOWN)).map((f) => (
-            <Row
-              key={f.id}
-              f={f}
-              busyId={busyId}
-              dispatchFix={dispatchFix}
-              setStatus={setStatus}
-              feature={feature}
-              hideProject={hideProject}
-            />
+            <Row key={f.id} f={f} {...rowProps} />
           ))}
           {shipped.length > SHIPPED_SHOWN && (
             <button
               type="button"
               onClick={() => setShowAllShipped((v) => !v)}
               aria-expanded={showAllShipped}
-              className="ui-inbox-fold-summary"
+              className="ui-fb-more"
             >
               {showAllShipped ? "Show fewer" : `Show all ${shipped.length} shipped`}
             </button>
           )}
-        </InboxSection>
+        </div>
       )}
 
+      {/* Archived is not a lens: it is filed away, not a question you ask the
+          inbox. It stays one quiet toggle under whichever list is showing. */}
       {archived.length > 0 && (
-        <div>
+        <div className="space-y-2">
           <button
             type="button"
             onClick={() => setShowArchived((v) => !v)}
@@ -406,25 +375,108 @@ export function FeedbackInbox() {
             {showArchived ? "Hide archived" : `Show archived (${archived.length})`}
           </button>
           {showArchived && (
-            <div className="mt-2 opacity-70">
-              <InboxSection title="Archived" count={archived.length}>
-                {archived.map((f) => (
-                  <Row
-                    key={f.id}
-                    f={f}
-                    busyId={busyId}
-                    dispatchFix={dispatchFix}
-                    setStatus={setStatus}
-                    feature={feature}
-                    hideProject={hideProject}
-                  />
-                ))}
-              </InboxSection>
+            <div className="ui-fb-list opacity-70" aria-label="Archived">
+              {archived.map((f) => (
+                <Row key={f.id} f={f} {...rowProps} />
+              ))}
             </div>
           )}
         </div>
       )}
     </div>
+  );
+}
+
+const LENS = { NEEDS_YOU: "needs-you", UNDER_WAY: "under-way", SHIPPED: "shipped" } as const;
+type Lens = (typeof LENS)[keyof typeof LENS];
+
+/** Order is the loop's order: your move → moving on its own → done. */
+const LENSES: { key: Lens; label: string; hint: string }[] = [
+  {
+    key: LENS.NEEDS_YOU,
+    label: "Needs you",
+    hint: "Your move — implement, retry, or confirm a fix that is live.",
+  },
+  {
+    key: LENS.UNDER_WAY,
+    label: "Under way",
+    hint: "Agents and deploys at work. Nothing for you to do — Telegram when there is.",
+  },
+  {
+    key: LENS.SHIPPED,
+    label: "Shipped",
+    hint: "Confirmed fixes. Star one to feature it on the public strip.",
+  },
+];
+
+/** The first lens that holds something; Needs you when all are empty. Pure. */
+export function defaultLens(counts: Record<Lens, number>): Lens {
+  return LENSES.find((l) => counts[l.key] > 0)?.key ?? LENS.NEEDS_YOU;
+}
+
+/**
+ * An empty lens says so AND names the way forward on the same screen (a bare
+ * "Nothing waiting on you for <project>." left the owner asking what to do —
+ * 2026-09-28): the next lens that has something, or the whole fleet.
+ */
+function LensEmpty({
+  lens,
+  counts,
+  projectName,
+  projectId,
+  onLens,
+  onAllProjects,
+}: {
+  lens: Lens;
+  counts: Record<Lens, number>;
+  projectName: string | null;
+  projectId: string | null;
+  onLens: (l: Lens) => void;
+  onAllProjects: () => void;
+}) {
+  const elsewhere = LENSES.filter((l) => l.key !== lens && counts[l.key] > 0);
+  const title =
+    lens === LENS.NEEDS_YOU
+      ? "Nothing waiting on you"
+      : lens === LENS.UNDER_WAY
+        ? "Nothing under way"
+        : "Nothing shipped yet";
+  return (
+    <EmptyState
+      icon={Inbox}
+      title={title}
+      size="sm"
+      action={
+        <div className="flex flex-wrap justify-center gap-2">
+          {elsewhere.map((l) => (
+            <button
+              key={l.key}
+              type="button"
+              onClick={() => onLens(l.key)}
+              className="ui-btn-secondary ui-btn-sm"
+            >
+              {l.label} ({counts[l.key]})
+            </button>
+          ))}
+          {projectName && (
+            <button type="button" onClick={onAllProjects} className="ui-btn-secondary ui-btn-sm">
+              All projects
+            </button>
+          )}
+          {projectName && projectId && (
+            <Link href={`/projects/${projectId}`} className="ui-btn-secondary ui-btn-sm">
+              Open {projectName}
+            </Link>
+          )}
+        </div>
+      }
+    >
+      {lens === LENS.NEEDS_YOU
+        ? "Every report is either shipped or with an agent. New ones appear here as they arrive."
+        : lens === LENS.UNDER_WAY
+          ? "No agent or deploy is working on a report right now."
+          : "Fixes you confirm land here."}
+    </EmptyState>
   );
 }
 
@@ -471,30 +523,6 @@ function FilterChip({
       {children}
       {count != null && count > 0 && <span className="ui-inbox-project-count">{count}</span>}
     </button>
-  );
-}
-
-function InboxSection({
-  title,
-  count,
-  note,
-  children,
-}: {
-  title: string;
-  count: number;
-  /** A quiet fact for the heading's right edge. */
-  note?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="ui-inbox" aria-label={title}>
-      <header className="ui-inbox-head">
-        <h2 className="ui-inbox-title">{title}</h2>
-        {note && <span className="ui-inbox-group-note">{note}</span>}
-        <span className="ui-inbox-total">{count}</span>
-      </header>
-      <div className="ui-inbox-group-body ui-inbox-list">{children}</div>
-    </section>
   );
 }
 
