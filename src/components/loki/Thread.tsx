@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, Loader2, Square } from "lucide-react";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
@@ -38,6 +38,7 @@ export function Thread({
   onPickProject,
   onAnswerAnyway,
   onRetry,
+  tail,
 }: {
   messages: LokiMessage[];
   /** The turn in flight, or null. */
@@ -50,6 +51,8 @@ export function Thread({
   onPickProject?: (project: string, pendingText: string) => void;
   onAnswerAnyway?: (pendingText: string) => void;
   onRetry?: () => void;
+  /** Rendered after the last turn, inside the scroll (e.g. "save to project"). */
+  tail?: ReactNode;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -145,6 +148,8 @@ export function Thread({
               Stopped. Nothing was saved — send it again to retry.
             </p>
           )}
+
+          {!live && tail}
 
           <div ref={endRef} />
         </div>

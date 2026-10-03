@@ -1,5 +1,6 @@
 "use client";
 
+import { TopbarSlot } from "./TopbarSlot";
 import { Search, LayoutPanelLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCommandPalette } from "@/hooks/use-command-palette";
@@ -57,6 +58,7 @@ export function AppTopBar({
 
   return (
     <header className="ui-app-topbar">
+      <TopbarSlot />
       {/* Mobile-only page title — bottom nav already tells "where", but a
           glance up should confirm it. md+ users see the full sidebar so the
           title is redundant there. */}

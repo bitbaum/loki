@@ -2924,6 +2924,21 @@
   body.fc-overlay-open {
     overflow: hidden;
   }
+  /* An open conversation owns the phone (useImmersiveChat): the page's own
+     ThreadHeader replaces the app top bar and the bottom tabs. md+ untouched. */
+  @media (max-width: 47.99rem) {
+    body.fc-chat-immersive .ui-mobile-nav,
+    body.fc-chat-immersive .ui-app-topbar {
+      display: none;
+    }
+    body.fc-chat-immersive .app-main {
+      padding-bottom: 0;
+    }
+    body.fc-chat-immersive .ui-loki-page {
+      @apply px-3 pt-0 pb-0;
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    }
+  }
   .ui-term-mobile-fullscreen {
     @apply fixed inset-0 z-[80] flex flex-col bg-surface-page p-3;
     height: 100svh;
@@ -4021,6 +4036,14 @@
   }
   .ui-executor-honesty-positive {
     @apply inline-flex shrink-0 items-center rounded-full border border-status-positive/30 bg-status-positive-subtle px-2 py-0.5 text-micro font-medium text-status-positive;
+  }
+  /* Dot-only below sm (ExecutorHonestyChip compact): the colour carries the
+     state, the title and screen-reader text carry the words. */
+  .ui-executor-honesty-compact {
+    @apply gap-1.5 max-sm:border-0 max-sm:bg-transparent max-sm:px-1;
+  }
+  .ui-executor-honesty-dot {
+    @apply h-2 w-2 shrink-0 rounded-full bg-current;
   }
 
   /* Watch it work — a run as a conversation, drawn like the AI chats people
@@ -5713,6 +5736,15 @@
   .ui-loki-main {
     @apply flex min-h-0 min-w-0 flex-1 flex-col;
   }
+  /* Phone thread header: back · title/scope · menu. One line, like a texting
+     app; hidden from md, where the shell's chrome stays. */
+  .ui-loki-thread-header {
+    @apply sticky top-0 z-20 -mx-3 flex shrink-0 items-center gap-1 bg-surface-page px-1 md:hidden;
+    padding-top: env(safe-area-inset-top);
+  }
+  .ui-loki-thread-header-title {
+    @apply flex min-w-0 flex-1 flex-col items-center px-1 py-1 text-center leading-tight;
+  }
   /* One reveal control where a whole duplicate toolbar used to sit. */
   .ui-loki-topbar {
     @apply flex shrink-0 items-center gap-0.5;
@@ -5744,29 +5776,34 @@
   .ui-loki-start {
     @apply flex min-h-0 shrink flex-col gap-2 overflow-y-auto;
   }
+  .ui-loki-start-inbox {
+    @apply max-sm:flex-1;
+  }
   .ui-loki-start-title {
     @apply px-1 text-lg font-medium text-text-primary sm:text-xl;
   }
   .ui-loki-start-list {
-    @apply flex flex-col gap-1;
+    @apply flex flex-col;
   }
+  /* Messages-list rows: no boxes, a round initial, title + time on one line,
+     the project under it. Boxing every row read as a form, not a list. */
   .ui-loki-start-row {
-    @apply flex min-h-11 w-full items-center gap-3 rounded-xl border border-border-subtle bg-surface-base px-3 py-2 text-left transition-colors hover:border-border-default hover:bg-surface-raised;
+    @apply flex min-h-16 w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition-colors hover:bg-surface-raised;
   }
-  .ui-loki-start-row-icon {
-    @apply h-4 w-4 shrink-0 text-text-muted;
+  .ui-loki-start-avatar {
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-raised text-base font-semibold text-text-secondary;
   }
   .ui-loki-start-row-text {
-    @apply flex min-w-0 flex-1 flex-col;
+    @apply flex min-w-0 flex-1 flex-col gap-0.5;
   }
   .ui-loki-start-row-title {
-    @apply truncate text-sm text-text-primary;
+    @apply min-w-0 flex-1 truncate text-base font-medium text-text-primary sm:text-sm;
+  }
+  .ui-loki-start-row-time {
+    @apply shrink-0 text-xs text-text-muted;
   }
   .ui-loki-start-row-meta {
-    @apply flex min-w-0 items-center gap-2 text-xs text-text-muted;
-  }
-  .ui-loki-start-row-go {
-    @apply h-4 w-4 shrink-0 text-text-muted;
+    @apply truncate text-sm text-text-tertiary sm:text-xs;
   }
   .ui-loki-start-more {
     @apply min-h-11 self-start rounded-lg px-1 text-xs text-text-tertiary transition-colors hover:text-text-primary;
@@ -5831,7 +5868,7 @@
 
   /* Message bubbles (center pane). */
   .ui-loki-bubble {
-    @apply rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words;
+    @apply rounded-3xl px-4 py-2.5 text-base leading-relaxed whitespace-pre-wrap break-words sm:text-sm;
     /* Roomy on phones, tighter on desktop — bubbles read as chat, not full-width
        blocks. Direct CSS (not an arbitrary Tailwind value) keeps it responsive. */
     max-width: 90%;
@@ -5841,8 +5878,10 @@
       max-width: 75%;
     }
   }
+  /* Neutral, like a sent message in any texting app — the accent belongs to
+     the one control you press (send), not to every line you have written. */
   .ui-loki-bubble-user {
-    @apply self-end bg-accent-muted text-text-primary;
+    @apply self-end bg-surface-raised text-text-primary;
   }
   /* The answer is not a bubble.
      A user aside is short and already known to its author, so it gets a pill.
@@ -5851,8 +5890,9 @@
      column it needs. It gets the full measure and the primary text colour;
      the old rule had answers a shade quieter than the question that prompted
      them. */
+  /* 16px on phones: answers are read at arm's length; 14px is a desktop size. */
   .ui-loki-answer {
-    @apply w-full text-sm leading-relaxed break-words text-text-primary;
+    @apply w-full text-base leading-relaxed break-words text-text-primary sm:text-sm;
   }
   /* Collapsed trigger for the save-to-project-context bar. Quiet by default so
      the transcript keeps the vertical space; expands to the full picker. */
@@ -5888,7 +5928,7 @@
   /* The way back down once you have scrolled away. Floats over the thread so
      it costs no layout, and only exists while you are actually adrift. */
   .ui-loki-jump {
-    @apply absolute bottom-3 left-1/2 inline-flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border border-border-default bg-surface-overlay text-text-secondary shadow-panel transition-colors hover:text-text-primary;
+    @apply absolute bottom-3 left-1/2 inline-flex h-11 w-11 -translate-x-1/2 items-center justify-center rounded-full border border-border-default bg-surface-overlay text-text-secondary shadow-panel transition-colors hover:text-text-primary;
   }
 
   /* ── One turn ─────────────────────────────────────────────────────────────*/
@@ -5908,8 +5948,14 @@
       @apply opacity-100;
     }
   }
+  /* Icon-only on phones (the label stays for screen readers), so it needs the
+     full 44px target there instead of a 32px pill. */
   .ui-loki-turn-action {
-    @apply inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary;
+    @apply inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary max-sm:h-11 max-sm:w-11 max-sm:justify-center max-sm:px-0;
+  }
+  /* Scope pill and "Project" button: same quiet pill as the model picker. */
+  .ui-loki-scope-btn {
+    @apply inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-full px-3 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
   }
 
   /* ── The turn in flight ───────────────────────────────────────────────────*/
@@ -6118,9 +6164,6 @@
   .ui-loki-composer-status {
     @apply flex items-center gap-2 border-t border-border-subtle pt-2 text-micro text-text-secondary;
   }
-  .ui-loki-composer-scope-row {
-    @apply flex min-h-7 flex-wrap items-center gap-1.5;
-  }
   /* Grows from ONE line. The old rule reserved two rows (min-h-14 on desktop)
      for a box that is empty most of the time. `text-base` is not a style
      choice: iOS zooms the whole page when a focused input is under 16px. */
@@ -6144,8 +6187,10 @@
      single sine sweep. */
 
   /* Composer context — scoped project + quick-action chips. */
+  /* The scope a message is aimed at — a quiet pill beside the model, like a
+     recipient chip. Tap the name to change it, × to drop it. */
   .ui-loki-scope-pill {
-    @apply inline-flex max-w-44 items-center gap-1 rounded-full border border-accent-primary/30 bg-accent-muted px-2.5 py-1 text-xs font-medium text-accent-text;
+    @apply inline-flex min-h-9 max-w-36 items-center gap-1 rounded-full bg-surface-raised pl-3 text-sm font-medium text-text-primary;
   }
   .ui-loki-scope-remove {
     @apply -mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-accent-text/70 transition-colors hover:bg-accent-primary/15 hover:text-accent-text;
@@ -6437,4 +6482,61 @@
     min-height: 0;
     min-width: 0;
   }
+}
+
+/* ── Loki chat's composer: overrides of @bitbaum/chatkit ─────────────────────
+   UNLAYERED on purpose. chatkit's stylesheet is imported unlayered, and
+   unlayered CSS beats anything inside @layer components whatever its
+   specificity — so an override written up there silently does nothing.
+
+   Texting-app shape: one rounded card, words first, one row of round
+   controls — attach · model · scope on the left, mic beside send on the
+   right. chatkit renders the mic inside its tools group, so the group is
+   flattened (display: contents) and the mic is pushed right with `order`.
+   Scoped to Loki chat; the terminal's composer keeps chatkit's defaults. */
+.ui-loki-stage .ck-composer {
+  gap: 0.25rem;
+  border-radius: 1.5rem;
+  padding: 0.625rem 0.625rem 0.5rem 0.75rem;
+  box-shadow: var(--shadow-panel);
+}
+.ui-loki-stage .ck-icon-btn {
+  border-color: transparent;
+  background: var(--surface-raised);
+}
+.ui-loki-stage .ck-actions {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 0.375rem;
+}
+.ui-loki-stage .ck-tools {
+  display: contents;
+}
+.ui-loki-stage .ck-mic {
+  order: 2;
+  margin-left: auto;
+}
+.ui-loki-stage .ck-submit {
+  order: 3;
+}
+/* Narrow phones: the send button must never be the thing that is pushed off.
+   The model picker and the scope pill give up width first (they truncate);
+   attach, mic and send are fixed 44px targets. */
+.ui-loki-stage .ck-actions > .ck-tools > * {
+  flex-shrink: 0;
+}
+.ui-loki-stage .ck-tools > .relative,
+.ui-loki-stage .ck-tools > .ui-loki-scope-pill,
+.ui-loki-stage .ck-tools > .ui-loki-scope-btn {
+  flex-shrink: 1;
+  min-width: 0;
+}
+.ui-loki-stage .ui-loki-model-trigger {
+  max-width: 100%;
+}
+.ui-loki-stage .ck-submit {
+  gap: 0.25rem;
+}
+.ui-loki-stage .ck-tools > .ui-loki-scope-pill {
+  min-width: 5rem;
 }

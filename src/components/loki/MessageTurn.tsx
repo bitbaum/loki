@@ -90,7 +90,7 @@ export function MessageTurn({
           ) : (
             <Copy className="h-3.5 w-3.5" aria-hidden />
           )}
-          <span>{copied ? "Copied" : "Copy"}</span>
+          <span className="max-sm:sr-only">{copied ? "Copied" : "Copy"}</span>
         </button>
         {onRetry && (
           <button
@@ -100,7 +100,7 @@ export function MessageTurn({
             aria-label="Ask again"
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-            <span>Try again</span>
+            <span className="max-sm:sr-only">Try again</span>
           </button>
         )}
       </div>

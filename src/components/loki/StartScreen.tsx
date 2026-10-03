@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowUpRight, MessagesSquare } from "lucide-react";
 import { shortTimeAgo } from "@/lib/dates";
 import type { ConversationSummary } from "./types";
 
-/** Threads offered before deferring to the rail. Four is what fits above a
- *  docked composer on a 320px phone without pushing the input out of reach. */
-const RESUME_LIMIT = 4;
+/** Threads listed before "All chats". The list scrolls above the docked
+ *  composer, so this is a reading budget, not a fit-on-screen limit. */
+const RESUME_LIMIT = 8;
 
 /**
  * What a fresh /loki shows.
@@ -47,9 +46,11 @@ export function StartScreen({
   if (loading && conversations.length === 0) return null;
 
   return (
-    <div className="ui-loki-start">
+    // With chats to list, the list reads top-down like a messages inbox; with
+    // none, the one-line greeting stays down by the composer it introduces.
+    <div className={recent.length > 0 ? "ui-loki-start ui-loki-start-inbox" : "ui-loki-start"}>
       <h1 className="ui-loki-start-title">
-        {recent.length > 0 ? "Pick up where you left off" : "What are we working on?"}
+        {recent.length > 0 ? "Chats" : "What are we working on?"}
       </h1>
 
       {recent.length > 0 && (
@@ -61,17 +62,22 @@ export function StartScreen({
                 className="ui-loki-start-row"
                 onClick={() => onResume(convo.id)}
               >
-                <MessagesSquare className="ui-loki-start-row-icon" aria-hidden />
+                {/* Like a contact in a messages list: who (the project) at a
+                    glance, then the thread, then when. */}
+                <span className="ui-loki-start-avatar" aria-hidden>
+                  {(convo.projectKeys[0] ?? convo.title).slice(0, 1).toUpperCase()}
+                </span>
                 <span className="ui-loki-start-row-text">
-                  <span className="ui-loki-start-row-title">{convo.title}</span>
+                  <span className="flex min-w-0 items-baseline gap-2">
+                    <span className="ui-loki-start-row-title">{convo.title}</span>
+                    <span className="ui-loki-start-row-time">
+                      {shortTimeAgo(Date.parse(convo.updatedAt))}
+                    </span>
+                  </span>
                   <span className="ui-loki-start-row-meta">
-                    {convo.projectKeys.length > 0 && (
-                      <span className="truncate">{convo.projectKeys.join(" · ")}</span>
-                    )}
-                    <span className="shrink-0">{shortTimeAgo(Date.parse(convo.updatedAt))}</span>
+                    {convo.projectKeys.length > 0 ? convo.projectKeys.join(" · ") : "No project"}
                   </span>
                 </span>
-                <ArrowUpRight className="ui-loki-start-row-go" aria-hidden />
               </button>
             </li>
           ))}
