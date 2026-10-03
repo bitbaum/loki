@@ -6,6 +6,7 @@ import { TerminalKeyDeck } from "./TerminalKeyDeck";
 import { TerminalRawComposer } from "./TerminalRawComposer";
 import { TerminalComposer } from "./TerminalComposer";
 import { TabVoiceMic } from "./TabVoiceMic";
+import { TerminalInputSwitch } from "./TerminalInputSwitch";
 
 /**
  * Everything below the screen: the keys, then the way you write.
@@ -20,6 +21,8 @@ export function TerminalMobileDock({
   tab,
   channel,
   inputMode,
+  onInputModeChange,
+  onOpenChat,
   onKey,
   liveKeys,
   immersive,
@@ -27,6 +30,9 @@ export function TerminalMobileDock({
   tab: string;
   channel: BuilderChannel;
   inputMode: TerminalInputMode;
+  onInputModeChange: (mode: TerminalInputMode) => void;
+  /** Opens the Loki chat sheet; omitted when there is no project. */
+  onOpenChat?: () => void;
   /** Verbatim bytes into the session. */
   onKey: (bytes: string) => void;
   /** When on, xterm has the keyboard and the typing box would fight it for
@@ -37,6 +43,14 @@ export function TerminalMobileDock({
   return (
     <div className="ui-term-dock md:hidden">
       <TerminalKeyDeck onKey={onKey} />
+
+      {/* Beside the input, not only in the session sheet: Prompt is where a
+          screenshot is attached and where you talk, so it is one tap away. */}
+      <TerminalInputSwitch
+        inputMode={inputMode}
+        onInputModeChange={onInputModeChange}
+        onOpenChat={onOpenChat}
+      />
 
       {inputMode === "type" && !liveKeys && (
         <TerminalRawComposer onSend={onKey} sessionLabel={tab} />
