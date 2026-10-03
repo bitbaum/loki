@@ -1,4 +1,5 @@
 import type { RegisterRow } from "./build";
+import { orangeCatProjectUrl } from "@/config/orangecat";
 import { PUBLIC_IDENTITY_ATTRS, type PublicIdentityAttr } from "@/config/project-attrs";
 import type { RepoRecords } from "./repo-records";
 
@@ -190,7 +191,7 @@ export function layerFor(row: RegisterRow): MapLayer {
 }
 
 function orangecatUrl(row: RegisterRow): string | null {
-  return row.orangecat ? `https://orangecat.ch/projects/${row.orangecat.projectId}` : null;
+  return row.orangecat ? orangeCatProjectUrl(row.orangecat.projectId) : null;
 }
 
 function solonUrl(row: RegisterRow): string | null {
