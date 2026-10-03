@@ -17,6 +17,9 @@ import {
   describeControl,
   describeRequest,
   isFailedRequest,
+  nextTapStreak,
+  trailDiagnostics,
+  type TapStreak,
   isNoiseError,
   pushTrail,
   type Failure,
@@ -59,9 +62,12 @@ export function installWatch(opts: {
     if (!opts.isActive()) return;
     trail = pushTrail(trail, { at: Date.now(), kind, text });
   };
+  let streak: TapStreak = null;
   const fail = (failure: Failure) => {
     if (!opts.isActive()) return;
-    add(failure.kind === "request" ? "request" : "error", failure.text);
+    // A dead tap is already in the trail as the tap itself.
+    if (failure.kind !== "dead-tap")
+      add(failure.kind === "request" ? "request" : "error", failure.text);
     opts.onFailure(failure, trail);
   };
 
@@ -70,6 +76,7 @@ export function installWatch(opts: {
   const notePage = () => {
     if (location.pathname === lastPath) return;
     lastPath = location.pathname;
+    streak = null;
     add("page", location.pathname);
   };
   for (const name of ["pushState", "replaceState"] as const) {
@@ -90,21 +97,23 @@ export function installWatch(opts: {
       const el =
         target?.closest("button,a,[role=button],input,select,textarea,label,summary") ?? target;
       if (!el) return;
-      add(
-        "tap",
-        describeControl({
-          tag: el.tagName,
-          role: el.getAttribute("role"),
-          type: el.getAttribute("type"),
-          label: el.getAttribute("aria-label"),
-          // Text of a control, never the value of a field.
-          text:
-            el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
-              ? null
-              : el.textContent,
-          placeholder: el.getAttribute("placeholder"),
-        }),
-      );
+      const tap = describeControl({
+        tag: el.tagName,
+        role: el.getAttribute("role"),
+        type: el.getAttribute("type"),
+        label: el.getAttribute("aria-label"),
+        // Text of a control, never the value of a field.
+        text:
+          el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+            ? null
+            : el.textContent,
+        placeholder: el.getAttribute("placeholder"),
+      });
+      add("tap", tap);
+      if (!opts.isActive()) return;
+      const next = nextTapStreak(streak, tap, Date.now());
+      streak = next.streak;
+      if (next.dead) fail({ kind: "dead-tap", text: tap });
     },
     true,
   );
@@ -123,6 +132,8 @@ export function installWatch(opts: {
 
   const onRequest = (method: string, url: string, status: number | null) => {
     if (opts.isOwnRequest(new URL(url, location.href).href)) return;
+    // The page answered the tap, so the button was not dead.
+    streak = null;
     const text = describeRequest(method, url, status);
     if (isFailedRequest(status)) fail({ kind: "request", text });
     else if (!/^GET /.test(text)) add("request", text);
@@ -132,6 +143,8 @@ export function installWatch(opts: {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+    // A request leaving is the page responding — even a slow one is not dead.
+    if (!opts.isOwnRequest(new URL(url, location.href).href)) streak = null;
     try {
       const res = await originalFetch(input, init);
       onRequest(method, url, res.status);
@@ -151,6 +164,7 @@ export function installWatch(opts: {
     ...rest: unknown[]
   ) {
     this.__lokiReq = [method, String(url)];
+    if (!opts.isOwnRequest(new URL(String(url), location.href).href)) streak = null;
     this.addEventListener("loadend", () => {
       const [m, u] = this.__lokiReq ?? ["GET", ""];
       onRequest(m, u, this.status === 0 ? null : this.status);
@@ -177,6 +191,7 @@ export function createWatchPill(
   root: ShadowRoot,
   theme: WidgetTheme,
   onTogglePause: () => void,
+  onReport: () => void,
 ): { set: (state: WatchPillState) => void } {
   const style = h("style");
   style.textContent = `
@@ -192,6 +207,7 @@ export function createWatchPill(
 .watch-pill.alert .wdot { background: ${theme.error}; box-shadow: 0 0 0 3px ${theme.errorSurface}; }
 .watch-pill .wtext { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .watch-pill .wtext a { color: inherit; text-decoration: underline; }
+.watch-pill .wbtn + .wbtn { margin-left: -4px; }
 .watch-pill .wbtn { flex: none; min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid ${theme.border}; color: ${theme.textSecondary}; font-size: 11px; }
 @keyframes wpulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .watch-pill .wdot { animation: none; } }
@@ -201,9 +217,13 @@ export function createWatchPill(
   pill.setAttribute("aria-live", "polite");
   const dot = h("span", "wdot");
   const text = h("span", "wtext");
+  // Not everything wrong throws an error: Report opens the note with the same
+  // trail attached, for "this looks wrong" that no listener can see.
+  const report = h("button", "wbtn", "Report");
+  report.addEventListener("click", onReport);
   const btn = h("button", "wbtn");
   btn.addEventListener("click", onTogglePause);
-  pill.append(dot, text, btn);
+  pill.append(dot, text, report, btn);
   root.append(style, pill);
 
   const set = (state: WatchPillState) => {
@@ -216,6 +236,7 @@ export function createWatchPill(
     // The words fit a phone; what exactly broke is one hover away.
     pill.title = "what" in state ? state.what : "";
     btn.textContent = state.kind === "paused" ? "Resume" : "Pause";
+    report.style.display = state.kind === "paused" ? "none" : "";
     switch (state.kind) {
       case "watching":
         text.textContent = "Loki is watching";
@@ -268,11 +289,25 @@ export function startWatchMode(opts: {
   let paused = readWatchPaused(opts.token);
   const sent = new Set<string>();
   let reverting: ReturnType<typeof setTimeout> | null = null;
-  const pill = createWatchPill(opts.root, opts.theme, () => {
-    paused = !paused;
-    writeWatchPaused(opts.token, paused);
-    pill.set({ kind: paused ? "paused" : "watching" });
-  });
+  let recorder: { trail: () => TrailEntry[] } | null = null;
+  const pill = createWatchPill(
+    opts.root,
+    opts.theme,
+    () => {
+      paused = !paused;
+      writeWatchPaused(opts.token, paused);
+      pill.set({ kind: paused ? "paused" : "watching" });
+    },
+    () => {
+      const loki = (window as unknown as { Loki?: { report: (i: object) => void } }).Loki;
+      loki?.report({
+        diagnostics: {
+          "filed by": "Loki watch mode (Report)",
+          ...trailDiagnostics(recorder?.trail() ?? [], Date.now()),
+        },
+      });
+    },
+  );
   if (paused) pill.set({ kind: "paused" });
 
   const report = async (failure: Failure, trail: TrailEntry[]) => {
@@ -307,7 +342,7 @@ export function startWatchMode(opts: {
     }
   };
 
-  installWatch({
+  recorder = installWatch({
     host: opts.host,
     isOwnRequest: (url) =>
       url.startsWith(`${opts.apiBase}/api/feedback`) ||

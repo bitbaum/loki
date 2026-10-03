@@ -18,7 +18,7 @@ import type { ReportDiagnostics } from "./report-payload";
 
 export type TrailKind = "tap" | "page" | "request" | "error";
 export type TrailEntry = { at: number; kind: TrailKind; text: string };
-export type Failure = { kind: "error" | "request"; text: string };
+export type Failure = { kind: "error" | "request" | "dead-tap"; text: string };
 
 /** The last this-many things — enough to reproduce, small enough to read. */
 export const TRAIL_MAX = 20;
@@ -94,12 +94,48 @@ export function watchReport(
   const message =
     f.kind === "request"
       ? `While I was using this page a request failed: ${f.text}. Fix it so this works.`
-      : `While I was using this page it hit an error: ${f.text}. Fix it so this works.`;
-  const diagnostics: ReportDiagnostics = { "filed by": "Loki watch mode", failure: f.text };
-  const recent = trail.slice(-12);
-  recent.forEach((e, i) => {
-    const ago = Math.max(0, Math.round((now - e.at) / 1000));
-    diagnostics[`step ${i + 1}`] = `${e.kind} ${e.text} (${ago}s ago)`;
-  });
+      : f.kind === "dead-tap"
+        ? `I tapped ${f.text} three times and nothing happened. Make it do what it says.`
+        : `While I was using this page it hit an error: ${f.text}. Fix it so this works.`;
+  const diagnostics: ReportDiagnostics = {
+    "filed by": "Loki watch mode",
+    failure: f.text,
+    ...trailDiagnostics(trail, now),
+  };
   return { message, diagnostics };
+}
+
+/** The trail as numbered report lines, newest twelve, with how long ago. */
+export function trailDiagnostics(trail: TrailEntry[], now: number): ReportDiagnostics {
+  const out: ReportDiagnostics = {};
+  trail.slice(-12).forEach((e, i) => {
+    const ago = Math.max(0, Math.round((now - e.at) / 1000));
+    out[`step ${i + 1}`] = `${e.kind} ${e.text} (${ago}s ago)`;
+  });
+  return out;
+}
+
+/**
+ * A button that does nothing. Nothing throws, nothing fails — the person just
+ * taps it again, and again. Three taps on the same button or link within the
+ * window, with no page change and no request in between, is that.
+ */
+export const DEAD_TAP_COUNT = 3;
+export const DEAD_TAP_WINDOW_MS = 5_000;
+
+export type TapStreak = { text: string; count: number; since: number } | null;
+
+/** Fold a tap into the streak; `dead` is true on the tap that completes it. */
+export function nextTapStreak(
+  streak: TapStreak,
+  text: string,
+  now: number,
+): { streak: TapStreak; dead: boolean } {
+  // Fields get tapped to focus them; only something meant to DO a thing counts.
+  if (!/^(button|link)\b/.test(text)) return { streak: null, dead: false };
+  const same = streak && streak.text === text && now - streak.since <= DEAD_TAP_WINDOW_MS;
+  const next = same ? { ...streak, count: streak.count + 1 } : { text, count: 1, since: now };
+  return next.count >= DEAD_TAP_COUNT
+    ? { streak: null, dead: true }
+    : { streak: next, dead: false };
 }
