@@ -22,8 +22,8 @@ export function buildAnswerReport({
   question,
   answer,
 }: {
-  note: string | null | undefined;
-  question: string | null | undefined;
+  note?: string | null;
+  question?: string | null;
   answer: string;
 }): string {
   const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
