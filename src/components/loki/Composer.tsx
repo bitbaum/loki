@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { FolderKanban, Plus, X } from "lucide-react";
 import {
@@ -11,6 +11,7 @@ import {
 import { ExecutorHonestyChip } from "@/components/executor/ExecutorHonestyChip";
 import type { ExecutorHonestyLabel } from "@/lib/executor-honesty";
 import { Composer } from "@/components/composer/Composer";
+import { readLokiDraft, writeLokiDraft } from "@/lib/loki/draft";
 import type { Attachment, LokiProject, ModelChoice } from "./types";
 
 const IMAGE_ONLY_DEFAULT = "What's wrong here and what should we change?";
@@ -43,6 +44,8 @@ export function LokiComposer({
   onOpenProjects,
   dispatchHonesty = null,
   showStarters = true,
+  draftKey,
+  queue = false,
 }: {
   disabled: boolean;
   sending: boolean;
@@ -64,8 +67,27 @@ export function LokiComposer({
   /** Openers belong on an empty thread. Mid-conversation they re-offer a
    *  decision already made, and on a phone they ate a third of the transcript. */
   showStarters?: boolean;
+  /** Where the draft is mirrored so a discarded tab gives it back (see
+   *  lib/loki/draft.ts). Omit and the draft lives in memory only. */
+  draftKey?: string;
+  /** Take the next message while a turn runs (the workspace queues it). */
+  queue?: boolean;
 }) {
-  const [text, setText] = useState(defaultText);
+  const [text, setTextState] = useState(defaultText);
+  // Restore once, on the client, after the server-rendered empty box: reading
+  // storage in the initializer would hydrate a different value than the
+  // server sent. A prefill (defaultText) is a deliberate newer intent and
+  // wins over whatever was left behind.
+  useEffect(() => {
+    if (!draftKey || defaultText) return;
+    const saved = readLokiDraft(draftKey);
+    if (saved) setTextState(saved); // eslint-disable-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+  const setText = (next: string) => {
+    setTextState(next);
+    if (draftKey) writeLokiDraft(draftKey, next);
+  };
   const [model, setModel] = useState<string | undefined>(undefined);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -202,6 +224,7 @@ export function LokiComposer({
       sending={sending}
       onStop={onStop}
       attachmentOnlyText={IMAGE_ONLY_DEFAULT}
+      queue={queue}
       modelPicker
       above={suggestions}
       tools={scope}

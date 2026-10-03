@@ -19,7 +19,11 @@ const execFileAsync = promisify(execFile);
 // and every call bills the Groq Whisper API or spawns ffmpeg + python3 Whisper.
 // Without these guards it is an open cost-drain / CPU-exhaustion vector. Cap the
 // upload and rate-limit per IP.
-const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // ~10 min of Opus; far above any real clip
+// A mic take is a few hundred KB. A voice memo from a phone's recorder is
+// ~1 MB a minute, and an hour-long one is a real clip now that the composer
+// takes recordings as files (chatkit MAX_AUDIO_FILE_BYTES, the same number).
+// Past Groq's ~25 MB request cap, lib/transcribe downmixes and segments.
+const MAX_AUDIO_BYTES = 120 * 1024 * 1024;
 const RATE_LIMIT = 20; // transcriptions
 const RATE_WINDOW_MS = 60_000; // per minute per IP
 
@@ -165,7 +169,7 @@ export async function POST(req: NextRequest) {
   const audio = form.get("audio") as File | null;
   if (!audio) return NextResponse.json({ error: "No audio" }, { status: 400 });
   if (audio.size > MAX_AUDIO_BYTES) {
-    return NextResponse.json({ error: "Audio too large (max 10 MB)." }, { status: 413 });
+    return NextResponse.json({ error: "Recording too large (max 120 MB)." }, { status: 413 });
   }
 
   const { whisperModel: model, provider } = await readTranscriptionSettings();

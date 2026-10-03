@@ -399,13 +399,8 @@ export function TerminalSurface({
   );
   const tabContext = context?.tabs.find((t) => t.tab === activeTab) ?? null;
   const activeAgentId = tabContext?.agentPref ?? context?.agents.defaultAgent ?? null;
-  const {
-    view,
-    chatAvailable,
-    showChat,
-    showTerminal,
-    toggle: toggleView,
-  } = useTerminalView(activeAgentId);
+  const termView = useTerminalView(activeAgentId);
+  const { view, chatAvailable } = termView;
   const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
 
   const [switchingAgent, setSwitchingAgent] = useState(false);
@@ -513,7 +508,7 @@ export function TerminalSurface({
       immersive={immersive}
       onToggleImmersive={onToggleImmersive ?? (() => {})}
       view={view}
-      onToggleView={activeTab && chatAvailable ? toggleView : undefined}
+      onToggleView={activeTab && chatAvailable ? termView.toggle : undefined}
     />
   );
 
@@ -541,20 +536,22 @@ export function TerminalSurface({
   };
   const paneActions = (
     <>
-      {chatAvailable && <ChatViewButton onClick={showChat} />}
+      {chatAvailable && <ChatViewButton onClick={termView.showChat} />}
       {projectKey && !immersive && (
         <button
           type="button"
           className={railShown ? "ui-term-pane-btn ui-term-pane-btn-on" : "ui-term-pane-btn"}
           onClick={toggleRail}
           aria-pressed={railFits ? railShown : undefined}
-          aria-label={railShown ? "Hide the Loki panel" : "Show the Loki panel"}
+          aria-label={railShown ? "Hide the Loki chat panel" : "Show the Loki chat panel"}
           title={
-            railShown ? "Hide the Loki panel — the terminal takes the width" : "Show the Loki panel"
+            railShown
+              ? "Hide the chat panel — the terminal takes the width"
+              : "Chat with Loki about this project and run"
           }
         >
           <PanelRight className="h-3.5 w-3.5" aria-hidden="true" />
-          Loki
+          Chat
         </button>
       )}
       {onToggleImmersive && (
@@ -724,7 +721,7 @@ export function TerminalSurface({
           tab={activeTab}
           channel={channel}
           onKey={sendKey}
-          onShowTerminal={showTerminal}
+          onShowTerminal={termView.showTerminal}
         />
       );
     }
@@ -803,6 +800,8 @@ export function TerminalSurface({
           tab={activeTab}
           channel={channel}
           inputMode={inputMode}
+          onInputModeChange={setInputMode}
+          onOpenChat={projectKey ? () => setLokiSheetOpen(true) : undefined}
           onKey={sendKey}
           liveKeys={deck.liveKeys}
           immersive={immersive}

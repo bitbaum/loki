@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { orangeCatProjectUrl } from "@/config/orangecat";
 import { Cat } from "lucide-react";
 
 type PublishState =
@@ -141,7 +142,7 @@ export function OrangeCatPublishButton({ projectId }: { projectId: string }) {
     return (
       <span className="inline-flex flex-wrap items-center gap-1.5">
         <a
-          href={`https://orangecat.ch/projects/${state.orangecatProjectId}`}
+          href={orangeCatProjectUrl(state.orangecatProjectId)}
           target="_blank"
           rel="noreferrer"
           className="ui-btn-ghost min-h-11 gap-1.5"

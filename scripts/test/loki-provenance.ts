@@ -35,6 +35,10 @@ const CLEAN: LokiProvenance = {
   model: "loki/groq/openai/gpt-oss-120b",
   durationMs: 2340,
   toolsUsed: ["list_runs"],
+  work: [
+    { kind: "note", text: "Two runs failed overnight — reading them." },
+    { kind: "tool", name: "list_runs", phase: "end", facts: 7 },
+  ],
   rounds: 2,
   retrieved: [
     { source: "feedback", count: 5 },
@@ -175,3 +179,36 @@ const FLAGGED: LokiProvenance = {
 }
 
 console.log(`✓ loki provenance: ${passed} checks passed`);
+
+// ── The work trail round-trips through persistence ───────────────────────────
+// A reopened thread must show what the turn did, exactly as it showed live.
+// Only finished steps are records; a `start` left over from a dead stream is
+// dropped, and a note with nothing in it is not a note.
+check("work survives pick → persist → read, finished steps only", () => {
+  const persisted = pickProvenance({
+    ...CLEAN,
+    work: [
+      ...CLEAN.work,
+      { kind: "tool", name: "search_people", phase: "start" },
+      { kind: "note", text: "   " },
+      { kind: "tool", name: "list_goals", phase: "fail" },
+      { bogus: true },
+    ],
+  } as unknown as Record<string, unknown>);
+  assert.ok(PROVENANCE_KEYS.includes("work"), "work is a provenance key");
+  const back = readProvenance(persisted);
+  assert.ok(back);
+  assert.deepEqual(back!.work, [
+    { kind: "note", text: "Two runs failed overnight — reading them." },
+    { kind: "tool", name: "list_runs", phase: "end", facts: 7 },
+    { kind: "tool", name: "list_goals", phase: "fail" },
+  ]);
+});
+check("a message from before work existed reads as an answer that showed no work", () => {
+  const legacy = pickProvenance({ ...CLEAN, work: undefined } as unknown as Record<
+    string,
+    unknown
+  >);
+  assert.deepEqual(readProvenance(legacy)!.work, []);
+});
+console.log(`loki-provenance: ${passed} checks`);

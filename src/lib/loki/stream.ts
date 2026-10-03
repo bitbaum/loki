@@ -27,6 +27,8 @@
  * every round, so prose from an earlier round is superseded, not continued.
  */
 import type { ConversationMessage } from "@/db/schema/conversations";
+import type { WorkStep } from "@/lib/loki/work";
+export type { WorkStep };
 
 /** A persisted turn as it goes over the wire (dates serialize to ISO strings). */
 export type WireMessage = Omit<ConversationMessage, "createdAt" | "meta"> & {
@@ -41,8 +43,19 @@ export type LokiStreamEvent =
   | { type: "delta"; text: string }
   /** Discard the preview so far — a round boundary, or a link that died mid-answer. */
   | { type: "reset" }
+  /** What the model said in a gathering round. Not superseded by the `reset`
+   *  that follows — it moves from the preview into the work trail as a note
+   *  (lib/loki/work.ts), the narration between groups of tools. */
+  | { type: "note"; text: string }
   /** One tool, as it runs. `facts` is how many records it actually returned. */
-  | { type: "tool"; name: string; phase: "start" | "end" | "fail"; facts?: number }
+  | {
+      type: "tool";
+      name: string;
+      phase: "start" | "end" | "fail";
+      facts?: number;
+      /** The call's arguments as one line (lib/loki/work.ts describeArgs). */
+      detail?: string;
+    }
   /** Named waiting — what the turn is doing while no prose is arriving. */
   | { type: "status"; label: LokiStatusLabel }
   /** The authoritative persisted turn. Replaces the preview; ends the stream. */

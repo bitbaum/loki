@@ -16,7 +16,7 @@ import { repoSlug } from "@/lib/github-provision";
 // The reserved list and the slug grammar are shared with the hosted runner
 // provisioning door; re-exported here so this module stays the one import for
 // everything live-site CD needs.
-import { RESERVED_SITE_SLUGS, SLUG_RE, isValidSiteSlug } from "@/lib/site-slug";
+import { MAX_SLUG_LENGTH, RESERVED_SITE_SLUGS, SLUG_RE, isValidSiteSlug } from "@/lib/site-slug";
 
 export { RESERVED_SITE_SLUGS, isValidSiteSlug };
 
@@ -30,9 +30,32 @@ export function workflowOwner(): string {
   return (process.env.LOKI_WORKFLOW_OWNER ?? "bitbaum").trim() || "bitbaum";
 }
 
-/** DNS-safe slug for orangecat.ch — same rules as new-site.sh / repoSlug. */
+/** 8 hex chars of FNV-1a — stable across calls, no Node crypto (pure module). */
+function shortHash(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+/**
+ * DNS-safe slug for orangecat.ch — same rules as new-site.sh / repoSlug.
+ *
+ * A name longer than one DNS label (63) keeps its head and gains a hash of the
+ * full name, so it stays unique and is re-derived identically on every call.
+ * Without this, every website-refresh project on a domain longer than 22
+ * characters (`<host>-refresh-<32 hex>`) was refused as "not DNS-safe" before
+ * deploy.yml was seeded, and kickoff dispatched an agent to a repo that could
+ * never deploy (derhochhinhousepartyrenner-ch-refresh-…, 2026-10-03).
+ */
 export function siteCdSlug(name: string): string {
-  return repoSlug(name);
+  const slug = repoSlug(name);
+  if (slug.length <= MAX_SLUG_LENGTH) return slug;
+  const hash = shortHash(slug);
+  const head = slug.slice(0, MAX_SLUG_LENGTH - hash.length - 1).replace(/[^a-z0-9]+$/, "");
+  return `${head}-${hash}`;
 }
 
 export function siteCdLiveUrl(slug: string): string {

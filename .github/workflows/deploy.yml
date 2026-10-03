@@ -128,6 +128,13 @@ jobs:
           # Public by design — it is compiled into the client bundle and handed
           # to every browser that subscribes. A repo variable, not a secret.
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+          # Declared in .env.example (the env contract), so an operator may set
+          # them; inlined here from repo variables so the browser and the box
+          # agree. Empty when unset — every reader treats "" as unset (||).
+          NEXT_PUBLIC_APP_DOMAIN: ${{ vars.NEXT_PUBLIC_APP_DOMAIN }}
+          NEXT_PUBLIC_LOKI_BRIDGE_URL: ${{ vars.NEXT_PUBLIC_LOKI_BRIDGE_URL }}
+          NEXT_PUBLIC_ECOSYSTEM_BITCOIN_ADDRESS: ${{ vars.NEXT_PUBLIC_ECOSYSTEM_BITCOIN_ADDRESS }}
+          NEXT_PUBLIC_ECOSYSTEM_LIGHTNING_ADDRESS: ${{ vars.NEXT_PUBLIC_ECOSYSTEM_LIGHTNING_ADDRESS }}
         run: |
           pnpm run build
           pnpm -C bridge run build

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { ArrowLeft, FolderKanban, History, MoreVertical, SquarePen } from "lucide-react";
+import { ArrowLeft, FolderKanban, History, MoreVertical, PanelLeft, SquarePen } from "lucide-react";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 
 /**
@@ -98,5 +98,47 @@ export function ThreadHeader({
         )}
       </div>
     </header>
+  );
+}
+
+/**
+ * The chat's own two controls outside a thread: reveal the chats (pin the rail
+ * on a wide screen, open the drawer on a phone) and, on a phone, start a new
+ * chat without opening the drawer first. One reveal control where a whole
+ * duplicate toolbar used to sit.
+ */
+export function LokiTopbarButtons({
+  pinned,
+  onTogglePinned,
+  onOpenChats,
+  onNewChat,
+}: {
+  pinned: boolean;
+  onTogglePinned: () => void;
+  onOpenChats: () => void;
+  onNewChat: () => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className="ui-loki-topbar-btn"
+        onClick={() =>
+          window.matchMedia("(min-width: 768px)").matches ? onTogglePinned() : onOpenChats()
+        }
+        aria-label={pinned ? "Hide chats" : "Show chats"}
+        aria-pressed={pinned}
+      >
+        <PanelLeft className="h-4 w-4" aria-hidden />
+      </button>
+      <button
+        type="button"
+        className="ui-loki-topbar-btn md:hidden"
+        onClick={onNewChat}
+        aria-label="New chat"
+      >
+        <SquarePen className="h-4 w-4" aria-hidden />
+      </button>
+    </>
   );
 }

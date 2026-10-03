@@ -37,7 +37,10 @@
 
 export const APP_NAME = "Loki";
 export const APP_SLUG = "loki";
-export const APP_DOMAIN = "loki.orangecat.ch";
+// Overridable so a copy of this repo serves its own name: NEXT_PUBLIC_ so the
+// client bundle agrees with the server. `loki.orangecat.ch` is only bitbaum's.
+// scripts/_brand.sh mirrors the fallback for shell; set APP_DOMAIN there too.
+export const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "loki.orangecat.ch";
 // Was "Personal Systems" — the life-OS kicker that outlived the pivot and sat
 // beside the logo on every page. Fleet rule: everything is beta; say so where
 // the name is (2026-10-01 copy sweep).

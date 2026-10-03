@@ -1,9 +1,12 @@
 "use client";
 
-import { Check, Copy, RotateCcw } from "lucide-react";
+import { Check, Copy, RotateCcw, Square, Volume2 } from "lucide-react";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { useClipboard } from "@/hooks/use-clipboard";
+import { useSpeech } from "@/hooks/use-speech";
+import { readWork } from "@/lib/loki/work";
 import { ProvenanceFooter } from "./ProvenanceFooter";
+import { WorkTrail } from "./WorkTrail";
 import {
   DispatchFooter,
   NeedsProjectPicker,
@@ -41,6 +44,7 @@ export function MessageTurn({
   onRetry?: () => void;
 }) {
   const { copied, copy } = useClipboard();
+  const speech = useSpeech();
 
   if (message.role === "user") {
     return (
@@ -55,9 +59,16 @@ export function MessageTurn({
   // happening and do.
   const kind = message.kind && message.kind !== "chat" ? KIND_LABEL[message.kind] : null;
 
+  // What the turn did, above what it said — collapsed, the way it was live
+  // once the answer landed. Reopening a thread used to show an answer that
+  // had apparently cost nothing.
+  const work = readWork(message.meta);
+
   return (
     <div className="ui-loki-turn group/turn">
       {kind && <span className="ui-loki-kind">{kind}</span>}
+
+      {work.length > 0 && <WorkTrail work={work} live={false} />}
 
       <div className="ui-loki-answer">
         <MarkdownText
@@ -92,6 +103,22 @@ export function MessageTurn({
           )}
           <span className="max-sm:sr-only">{copied ? "Copied" : "Copy"}</span>
         </button>
+        {speech.supported && (
+          <button
+            type="button"
+            className="ui-loki-turn-action"
+            onClick={() => speech.toggle(message.content)}
+            aria-label={speech.speaking ? "Stop reading" : "Read aloud"}
+            aria-pressed={speech.speaking}
+          >
+            {speech.speaking ? (
+              <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
+            ) : (
+              <Volume2 className="h-3.5 w-3.5" aria-hidden />
+            )}
+            <span className="max-sm:sr-only">{speech.speaking ? "Stop" : "Listen"}</span>
+          </button>
+        )}
         {onRetry && (
           <button
             type="button"

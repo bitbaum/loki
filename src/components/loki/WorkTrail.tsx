@@ -2,62 +2,74 @@
 
 import { Check, ChevronRight, Loader2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { MarkdownText } from "@/components/ui/markdown-text";
 import { toolLabel } from "@/config/loki-tool-labels";
-import type { LiveTool } from "@/hooks/use-loki-stream";
+import { groupWork, summarizeTools, type WorkStep, type WorkTool } from "@/lib/loki/work";
 
 /**
- * What Loki actually did to answer — the tools it ran, as it runs them.
+ * What Loki actually did to answer — said and run, in order.
  *
- * This is the part the old surface threw away. `runLokiTurn` has always
+ * This is the part the old surface threw away twice. `runLokiTurn` has always
  * returned `toolsUsed`, carrying the comment "surfaced so the UI can show
  * work", and no caller ever surfaced it: a turn that searched your people,
  * read your projects and queried the knowledge graph rendered as one static
- * "Loki is thinking" line for as long as it took.
+ * "Loki is thinking" line for as long as it took. And what the model SAID in a
+ * gathering round — "Found it, checking who owns them" — was discarded at the
+ * next round's reset, so the operator never read the thinking at all.
  *
- * Collapsed to a single summary line once the answer arrives, because by then
- * the answer is the thing being read and the trail is provenance you open when
- * you doubt it.
+ * The rhythm is the one the operator already reads all day in the Claude Code
+ * app: a sentence, a collapsed group of commands with a chevron, a sentence,
+ * the answer. Live, the current group is open and its running step spins. Once
+ * the answer lands every group collapses to one line — by then the answer is
+ * the thing being read and the work is provenance you open when you doubt it.
+ * The same component renders a live turn and a reopened one, from the same
+ * list, so nothing changes between watching it and coming back to it.
  */
 export function WorkTrail({
-  tools,
-  /** True while the turn is still running — keeps the trail open and live. */
+  work,
+  /** True while the turn is still running — keeps the last group open. */
   live,
 }: {
-  tools: LiveTool[];
+  work: WorkStep[];
   live: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  if (tools.length === 0) return null;
-
-  // A running turn shows its work; a finished one offers it.
-  const expanded = live || open;
-  const failed = tools.filter((t) => t.phase === "fail").length;
-  const records = tools.reduce((n, t) => n + (t.facts ?? 0), 0);
-
-  const summary = live
-    ? (toolLabel(tools[tools.length - 1].name, tools[tools.length - 1].phase) ?? "Working")
-    : [
-        `${tools.length} ${tools.length === 1 ? "step" : "steps"}`,
-        // "0 records" is a real and useful answer — it is how an operator
-        // learns the tool ran and their data is genuinely empty, rather than
-        // assuming it never ran.
-        `${records} ${records === 1 ? "record" : "records"}`,
-        failed > 0 ? `${failed} failed` : null,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-
+  const segments = groupWork(work);
+  if (segments.length === 0) return null;
+  const lastIndex = segments.length - 1;
   return (
     <div className="ui-loki-trail">
+      {segments.map((segment, i) =>
+        segment.kind === "note" ? (
+          <div key={`note-${i}`} className="ui-loki-trail-note">
+            <MarkdownText text={segment.text} className="space-y-2" />
+          </div>
+        ) : (
+          <ToolGroup key={`tools-${i}`} tools={segment.tools} live={live && i === lastIndex} />
+        ),
+      )}
+    </div>
+  );
+}
+
+function ToolGroup({ tools, live }: { tools: WorkTool[]; live: boolean }) {
+  const [open, setOpen] = useState(false);
+  // A running group shows its work; a finished one offers it.
+  const expanded = live || open;
+  const running = tools.find((t) => t.phase === "start");
+  const summary =
+    live && running ? (toolLabel(running.name, "start") ?? "Working") : summarizeTools(tools);
+
+  return (
+    <div className="ui-loki-trail-group">
       <button
         type="button"
         className="ui-loki-trail-summary"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={expanded}
-        // While live the trail is not a disclosure — it is the status line.
+        // While live the group is not a disclosure — it is the status line.
         disabled={live}
       >
-        {live ? (
+        {live && running ? (
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
         ) : (
           <ChevronRight
@@ -82,6 +94,7 @@ export function WorkTrail({
                 <Check className="ui-loki-trail-icon text-status-positive" aria-hidden />
               )}
               <span className="truncate">{toolLabel(tool.name, tool.phase)}</span>
+              {tool.detail && <span className="ui-loki-trail-detail">{tool.detail}</span>}
               {tool.phase === "end" && (
                 <span className="ui-loki-trail-count">
                   {tool.facts ?? 0} {(tool.facts ?? 0) === 1 ? "record" : "records"}

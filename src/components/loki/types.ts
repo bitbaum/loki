@@ -4,6 +4,9 @@ import type { Conversation, ConversationMessage } from "@/db/schema/conversation
  *  ISO strings over the wire). */
 export type ConversationSummary = Pick<Conversation, "id" | "title" | "projectKeys"> & {
   updatedAt: string;
+  /** The thread's last message, cut short — where it stopped. Absent on
+   *  rows from before the rail showed it. */
+  preview?: string;
 };
 
 /** A transcript message as it arrives over the wire (createdAt is an ISO

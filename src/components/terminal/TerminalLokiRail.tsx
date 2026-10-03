@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, Loader2 } from "lucide-react";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
+import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { presentTerminalRun, type TerminalRunView } from "@/lib/terminal-run-view";
 import { TerminalComposer } from "./TerminalComposer";
 
@@ -101,7 +103,16 @@ export function TerminalLokiRail({
     <aside className="ui-term-loki">
       <header className="ui-term-loki-head">
         <h2 className="ui-term-loki-title">Loki</h2>
-        {presented && <span className="ui-badge">{presented.label}</span>}
+        <div className="flex items-center gap-2">
+          {presented && <span className="ui-badge">{presented.label}</span>}
+          <Link
+            href={fleetSurfaceHref("chat", project)}
+            className="inline-flex items-center gap-0.5 text-micro text-text-secondary underline-offset-2 hover:text-text-primary hover:underline"
+          >
+            Full chat
+            <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+          </Link>
+        </div>
       </header>
 
       <div className="ui-term-loki-body">

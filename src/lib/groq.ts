@@ -357,7 +357,12 @@ export async function callGroqText(prompt: string, options: GroqOptions): Promis
   return (await callTextDetailed(prompt, options)).text;
 }
 
-export async function callGroqTranscribe(audio: Blob, mimeType = "audio/webm"): Promise<string> {
+export async function callGroqTranscribe(
+  audio: Blob,
+  mimeType = "audio/webm",
+  // A mic take answers in seconds; a twenty-minute memo segment does not.
+  timeoutMs = HTTP_TIMEOUT_LONG_MS,
+): Promise<string> {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error("GROQ_API_KEY not set");
 
@@ -370,7 +375,7 @@ export async function callGroqTranscribe(audio: Blob, mimeType = "audio/webm"): 
     method: "POST",
     headers: { Authorization: `Bearer ${key}` },
     body: form,
-    signal: AbortSignal.timeout(HTTP_TIMEOUT_LONG_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   // transcribe-quota: Whisper is Groq-direct with no second vendor, but it

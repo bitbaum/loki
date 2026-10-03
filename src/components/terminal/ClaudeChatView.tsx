@@ -283,7 +283,9 @@ export function ChatViewButton({ onClick }: { onClick: () => void }) {
       title="Read this Claude session as a conversation"
     >
       <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
-      Chat
+      {/* Not "Chat": that word is the Loki panel about this project (the
+          button beside it). This shows the CLAUDE session itself as messages. */}
+      Conversation
     </button>
   );
 }

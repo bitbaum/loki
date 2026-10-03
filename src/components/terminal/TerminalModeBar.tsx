@@ -4,7 +4,6 @@ import { useState } from "react";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  TERMINAL_INPUT_MODES,
   TERMINAL_SOURCES,
   terminalInputHint,
   type TerminalInputMode,
@@ -13,9 +12,10 @@ import {
 import { AgentSwitcherPopover, type AgentEntry } from "@/components/control/agent-switcher-popover";
 import { ExecutorHonestyChip } from "@/components/executor/ExecutorHonestyChip";
 import type { ExecutorHonestyLabel } from "@/lib/executor-honesty";
+import { TerminalInputSwitch } from "./TerminalInputSwitch";
 
-/** One segmented control. Kept local — three call sites in this file, and the
- *  chip classes it composes are already the design-system SSOT. */
+/** One segmented control. Kept local — the chip classes it composes are
+ *  already the design-system SSOT. Input mode has its own (TerminalInputSwitch). */
 function Segment<T extends string>({
   options,
   value,
@@ -157,12 +157,7 @@ export function TerminalSessionBar({
           )}
         </div>
 
-        <Segment
-          options={TERMINAL_INPUT_MODES}
-          value={inputMode}
-          onChange={onInputModeChange}
-          label="Input mode"
-        />
+        <TerminalInputSwitch inputMode={inputMode} onInputModeChange={onInputModeChange} />
       </div>
 
       {/* One line of consequence for the selected input mode. Replaces the

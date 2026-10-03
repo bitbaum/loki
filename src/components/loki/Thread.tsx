@@ -28,6 +28,21 @@ const FOLLOW_THRESHOLD_PX = 120;
  * 2. **A way back down.** Once you have scrolled away, following again is a
  *    button, not a guess.
  */
+/** "2m 3s" since the turn was sent. A turn that has run for two minutes
+ *  should say so: without the number, forty seconds and four minutes read as
+ *  the same three dots, and the operator cannot tell patience from a hang. */
+function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!since) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [since]);
+  if (!since) return null;
+  const s = Math.max(0, Math.floor((now - since) / 1000));
+  return <span>{s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`}</span>;
+}
+
 export function Thread({
   messages,
   live,
@@ -76,7 +91,7 @@ export function Thread({
   useLayoutEffect(() => {
     if (!following) return;
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length, live?.preview, live?.tools.length, live?.status, sending, following]);
+  }, [messages.length, live?.preview, live?.work.length, live?.status, sending, following]);
 
   // A new turn always re-arms following: sending a message is an unambiguous
   // statement that you want to see the reply.
@@ -117,7 +132,7 @@ export function Thread({
 
           {live && (
             <div className="ui-loki-turn">
-              <WorkTrail tools={live.tools} live />
+              <WorkTrail work={live.work} live />
               {live.preview ? (
                 <div className="ui-loki-answer">
                   <MarkdownText text={live.preview} className="space-y-2" />
@@ -129,6 +144,8 @@ export function Thread({
                     <span />
                     <span />
                   </span>
+                  <Elapsed since={live.startedAt} />
+                  <span aria-hidden>·</span>
                   {live.status ? LOKI_STATUS_COPY[live.status] : "Working on it"}
                 </p>
               )}

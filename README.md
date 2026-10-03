@@ -174,6 +174,34 @@ or `openclaw`.
 See [docs/development/cloud-local-workflows.md](docs/development/cloud-local-workflows.md)
 for the full matrix of browser-only vs local-runtime workflows.
 
+## Run your own copy
+
+Loki is MIT. A copy runs anywhere Docker runs, and nothing points at bitbaum's
+infrastructure that an environment variable cannot repoint.
+
+```bash
+git clone https://github.com/bitbaum/loki && cd loki
+cp .env.example .env.local        # fill DATABASE_URL, AUTH_SECRET, AUTH_TRUST_HOST=true
+docker compose up -d              # pgvector Postgres, schema, the app on :3000
+```
+
+Then open `/setup` to create the first user. From there:
+
+- **Your hostname**: `NEXT_PUBLIC_APP_DOMAIN` (and `NEXTAUTH_URL`). Callbacks,
+  emails and copy build on it (`src/config/brand.ts`); `loki.orangecat.ch` is
+  only the fallback.
+- **OrangeCat is optional**: `NEXT_PUBLIC_ORANGECAT_URL` points links at your
+  own copy or stays unset; sign-in works with GitHub or e-mail alone.
+- **Agents run on your machine** via the Fleet Runner (`desktop/`) or on any
+  box you give the runner script; the Hetzner builder is bitbaum's, not a
+  requirement.
+- **The contract is `.env.example`**: every variable `src/` reads is named
+  there with the file that reads it, and `scripts/test/env-example-covers-src.ts`
+  fails CI when one is not. A feature whose key is empty is off, not broken.
+
+The Loki name and visual identity are not part of the licence; a copy should
+carry its own (`src/config/brand.ts` is one file).
+
 ## Important Docs
 
 - [Business model](docs/business-model.md)

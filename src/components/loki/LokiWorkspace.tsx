@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PanelLeft, SquarePen } from "lucide-react";
 import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
 import { resolveLokiProjectSelection } from "@/lib/loki/project-selection";
 import { conversationIdFromParam } from "@/lib/loki/conversation-param";
+import { useSendQueue } from "@/hooks/use-send-queue";
+import { useDispatchOutcome } from "@/hooks/use-dispatch-outcome";
+import { QueuedMessages } from "./QueuedMessages";
+import { clearLokiDraft, lokiDraftKey } from "@/lib/loki/draft";
 import { rememberFleetProject } from "@/lib/fleet-context";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
 import { useBuilderPresence } from "@/hooks/use-builder-presence";
@@ -20,7 +23,7 @@ import { SaveContextBar } from "./SaveContextBar";
 import { TopbarPortal } from "@/components/shell/TopbarSlot";
 import { useImmersiveChat } from "@/hooks/use-immersive-chat";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { ThreadHeader } from "./ThreadHeader";
+import { LokiTopbarButtons, ThreadHeader } from "./ThreadHeader";
 import { ProjectFilter } from "./ProjectFilter";
 import type {
   Attachment,
@@ -282,28 +285,7 @@ export function LokiWorkspace({
     };
   }, [activeId, justCreatedId]);
 
-  // A dispatch is a job that finishes after the reply. Its outcome is written
-  // back into this thread by the server when the run closes
-  // (lib/orchestration/run-outcome-post.ts); while the newest turn is still a
-  // dispatch, re-read the thread so that outcome shows up without a reload.
-  // Stops the moment any later turn exists — the outcome itself ends it.
-  const awaitingOutcome =
-    activeId !== null && messages.length > 0 && messages[messages.length - 1]?.kind === "dispatch";
-  useEffect(() => {
-    if (!awaitingOutcome || !activeId) return;
-    let current = true;
-    const tick = () =>
-      getJson<{ messages: LokiMessage[] }>(`/api/conversations/${activeId}`)
-        .then((d) => {
-          if (current && d.messages.length > messages.length) setMessages(d.messages);
-        })
-        .catch(() => undefined);
-    const timer = window.setInterval(tick, 20_000);
-    return () => {
-      current = false;
-      window.clearInterval(timer);
-    };
-  }, [awaitingOutcome, activeId, messages.length]);
+  useDispatchOutcome(activeId, messages, setMessages);
 
   /**
    * The persisted turn arriving off the stream.
@@ -342,6 +324,14 @@ export function LokiWorkspace({
 
   const stream = useLokiStream({ onMessage: handleMessage });
   const sending = stream.sending;
+
+  // Typed while a turn ran; sent, in order, when it ends (hooks/use-send-queue).
+  const queue = useSendQueue<{
+    text: string;
+    choice: ModelChoice;
+    attachments: Attachment[];
+    chatOnly?: boolean;
+  }>();
 
   // Client-side project filter over the full list (deselect = show all).
   const visibleConversations = useMemo(() => {
@@ -413,8 +403,19 @@ export function LokiWorkspace({
     const scopedProjects = opts.selectedProjectsOverride ?? selectedProjects;
     const dispatchOnly = opts.dispatchOnly ?? false;
     const chatOnly = opts.chatOnly ?? false;
+    if (sending && !dispatchOnly) {
+      queue.add({ text, choice, attachments, chatOnly });
+      clearLokiDraft(lokiDraftKey(activeId));
+      return;
+    }
     setError(null);
     setLastSent({ text, choice });
+    // The draft is leaving the composer. Clear it under the key it was written
+    // in NOW: a first message creates the thread and moves the composer to
+    // that thread's key, so the composer's own clear-after-send would miss
+    // the start-page draft and the next visit to /loki would offer an
+    // already-sent message back.
+    clearLokiDraft(lokiDraftKey(activeId));
 
     // Ensure a thread exists; a fresh page send creates one implicitly.
     const convoId = activeId ?? (await createConversation());
@@ -437,7 +438,7 @@ export function LokiWorkspace({
       ]);
     }
 
-    await stream.send(`/api/conversations/${convoId}/messages`, {
+    const landed = await stream.send(`/api/conversations/${convoId}/messages`, {
       text,
       selectedProjects: scopedProjects,
       ...(dispatchOnly ? { dispatchOnly: true } : {}),
@@ -447,6 +448,13 @@ export function LokiWorkspace({
       ...(choice.model ? { model: choice.model } : {}),
       ...(attachments.length > 0 ? { attachments } : {}),
     });
+    // The turn landed: the next queued message goes, through this same
+    // function. A failed or stopped turn leaves the queue standing behind the
+    // error and its Try again.
+    if (landed) {
+      const next = queue.takeNext();
+      if (next) void send(next.text, next.choice, next.attachments, { chatOnly: next.chatOnly });
+    }
   };
 
   /**
@@ -568,6 +576,8 @@ export function LokiWorkspace({
         </div>
       )}
 
+      <QueuedMessages items={queue.items} onRemove={queue.remove} />
+
       <LokiComposer
         // Re-keyed only on a PREFILL, never on the thread id. Keying on
         // `activeId` remounted the composer the moment a first message created
@@ -575,6 +585,7 @@ export function LokiWorkspace({
         // discarding anything still staged.
         key={composerPrefill ? `prefill:${composerPrefill}` : "composer"}
         defaultText={composerPrefill ?? ""}
+        draftKey={lokiDraftKey(activeId)}
         selectedProjects={selectedProjects}
         projectCount={projects.length}
         selectedGoal={selectedGoal}
@@ -582,6 +593,7 @@ export function LokiWorkspace({
         onOpenProjects={() => setFilterOpen(true)}
         disabled={false}
         sending={sending}
+        queue
         onStop={stream.stop}
         showStarters={isStart}
         dispatchHonesty={dispatchHonesty}
@@ -596,6 +608,7 @@ export function LokiWorkspace({
     <ThreadRail
       conversations={visibleConversations}
       activeId={activeId}
+      busyId={sending ? activeId : null}
       loading={convosLoading}
       error={convosError}
       onRetry={() => void reloadConversations()}
@@ -647,36 +660,13 @@ export function LokiWorkspace({
     </>
   );
 
-  // ONE reveal control (plus New chat on phones) where a whole duplicate
-  // toolbar used to sit — see the note at its render site.
   const topbarButtons = (
-    <>
-      <button
-        type="button"
-        className="ui-loki-topbar-btn"
-        onClick={() => {
-          if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-            setHistoryPinned((open) => !open);
-            return;
-          }
-          setHistoryOpen(true);
-        }}
-        aria-label={historyPinned ? "Hide chats" : "Show chats"}
-        aria-pressed={historyPinned}
-      >
-        <PanelLeft className="h-4 w-4" aria-hidden />
-      </button>
-      {/* On a phone the rail is a drawer, so starting a chat has to be
-              reachable without opening it first. */}
-      <button
-        type="button"
-        className="ui-loki-topbar-btn md:hidden"
-        onClick={startNewConversation}
-        aria-label="New chat"
-      >
-        <SquarePen className="h-4 w-4" aria-hidden />
-      </button>
-    </>
+    <LokiTopbarButtons
+      pinned={historyPinned}
+      onTogglePinned={() => setHistoryPinned((open) => !open)}
+      onOpenChats={() => setHistoryOpen(true)}
+      onNewChat={startNewConversation}
+    />
   );
 
   return (
