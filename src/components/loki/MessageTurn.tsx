@@ -9,6 +9,7 @@ import {
   DispatchFooter,
   NeedsProjectPicker,
   QueuedActionFooter,
+  RunOnProjectOffer,
   citationsFrom,
   KIND_LABEL,
 } from "./footers";
@@ -31,8 +32,12 @@ export function MessageTurn({
   onPickProject,
   onAnswerAnyway,
   onRetry,
+  question = null,
 }: {
   message: LokiMessage;
+  /** The user message this answer replies to — carried into a thumbs-down
+   *  report so it reads on its own in the feedback inbox. */
+  question?: string | null;
   onPickProject?: (project: string, pendingText: string) => void;
   onAnswerAnyway?: (pendingText: string) => void;
   /** Only passed for the last assistant turn — retrying an older one would
@@ -81,8 +86,11 @@ export function MessageTurn({
       {message.kind === "dispatch" && <DispatchFooter meta={message.meta} />}
       {message.kind === "chat" && <ProvenanceFooter meta={message.meta} />}
       {message.kind === "chat" && <QueuedActionFooter meta={message.meta} />}
+      {message.kind === "chat" && onPickProject && (
+        <RunOnProjectOffer meta={message.meta} onPick={onPickProject} />
+      )}
 
-      <AnswerActions text={message.content} onRetry={onRetry} />
+      <AnswerActions text={message.content} onRetry={onRetry} report={{ question }} />
     </div>
   );
 }

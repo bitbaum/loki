@@ -6138,8 +6138,14 @@
     @apply sticky top-0 z-20 -mx-3 flex shrink-0 items-center gap-1 bg-surface-page px-1 md:hidden;
     padding-top: env(safe-area-inset-top);
   }
+  /* Stretch, not center: a centred flex child is as wide as its text, so
+     `truncate` never engaged and a long title ran across the back arrow and
+     off both edges of the phone. */
   .ui-loki-thread-header-title {
-    @apply flex min-w-0 flex-1 flex-col items-center px-1 py-1 text-center leading-tight;
+    @apply flex min-w-0 flex-1 flex-col items-stretch px-1 py-1 text-center leading-tight;
+  }
+  .ui-loki-thread-header-title > span {
+    @apply block min-w-0 max-w-full;
   }
   /* One reveal control where a whole duplicate toolbar used to sit. */
   .ui-loki-topbar {
@@ -6211,11 +6217,16 @@
   .ui-loki-picker {
     @apply mt-2 flex max-w-full flex-col gap-2;
   }
+  /* Small wrapping chips, not a grid of tiles: seventeen projects as 44px
+     two-column tiles were a full phone screen of buttons under one message. */
   .ui-loki-picker-grid {
-    @apply grid grid-cols-2 gap-1.5 sm:grid-cols-3;
+    @apply flex flex-wrap gap-1.5;
   }
   .ui-loki-picker-chip {
-    @apply flex min-h-11 items-center justify-center truncate rounded-xl border border-border-subtle bg-surface-base px-2 text-xs text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
+    @apply inline-flex min-h-9 max-w-full items-center truncate rounded-full border border-border-subtle bg-surface-base px-3 text-xs text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
+  }
+  .ui-loki-run-offer {
+    @apply mt-1 flex flex-col gap-1;
   }
   .ui-loki-picker-answer {
     @apply inline-flex min-h-11 items-center gap-1.5 self-start rounded-full px-2 text-xs text-text-tertiary transition-colors hover:text-text-primary;
@@ -6397,6 +6408,17 @@
      row, as in the reference chat — it is a different mode, not a tool. */
   .ui-loki-talk {
     @apply inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-text-primary px-3 text-xs font-medium text-surface-page transition-opacity hover:opacity-90 disabled:opacity-40;
+  }
+  /* Thumbs-down's small form under an answer (ReportAnswer), and the line
+     that replaces it once the report is filed. */
+  .ui-loki-report {
+    @apply mt-2 flex max-w-xl flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised p-3;
+  }
+  .ui-loki-report-label {
+    @apply text-sm text-text-secondary;
+  }
+  .ui-loki-report-done {
+    @apply mt-1 flex items-center gap-2 text-sm text-text-secondary;
   }
   .ui-loki-followups {
     @apply mt-1 flex flex-col;

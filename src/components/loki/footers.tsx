@@ -270,3 +270,37 @@ export function NeedsProjectPicker({
     </div>
   );
 }
+
+/**
+ * Under an answer whose message also read like work to do: one quiet line,
+ * closed. Tapping it opens the project list; picking one sends the same words
+ * to that project. It replaced a turn that stopped and asked "which project?"
+ * before answering anything — a form where a reply should have been.
+ */
+export function RunOnProjectOffer({
+  meta,
+  onPick,
+}: {
+  meta: Record<string, unknown> | null;
+  onPick: (project: string, pendingText: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!meta?.runOffer || typeof meta.pendingText !== "string") return null;
+  const unknown = typeof meta.unknownProject === "string" ? meta.unknownProject : null;
+  return (
+    <div className="ui-loki-run-offer">
+      <button
+        type="button"
+        className="ui-loki-picker-answer"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <TerminalSquare className="h-3.5 w-3.5" aria-hidden="true" />
+        {unknown
+          ? `No project called “${unknown}” — run this on another…`
+          : "Run this on a project…"}
+      </button>
+      {open && <NeedsProjectPicker meta={{ ...meta, needsProject: true }} onPick={onPick} />}
+    </div>
+  );
+}

@@ -140,10 +140,18 @@ export function Thread({
             of stranding it at the top of the pane; it is inert once the content
             is tall enough to scroll. */}
         <div className="ui-loki-thread-inner">
-          {messages.map((m) => (
+          {messages.map((m, i) => (
             <MessageTurn
               key={m.id}
               message={m}
+              question={
+                m.role === "assistant"
+                  ? (messages
+                      .slice(0, i)
+                      .reverse()
+                      .find((p) => p.role === "user")?.content ?? null)
+                  : null
+              }
               onPickProject={onPickProject}
               onAnswerAnyway={onAnswerAnyway}
               onRetry={onRetry && m.id === lastAssistant?.id ? onRetry : undefined}
