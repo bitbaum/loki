@@ -106,6 +106,35 @@ async function main() {
     assert(!calls.includes("dispatch"), "dispatched with no repository");
     assert(run.steps[1]!.state === "failed", "dispatch left pending forever");
     assert(run.dispatch === "not-sent", `wrong outcome: ${run.dispatch}`);
+    assert(!run.needsGithub, "flagged GitHub for a refusal that did not say so");
+  });
+
+  await check("no GitHub account offers the button, and still dispatches nothing", async () => {
+    const { call, calls } = script({
+      provision: {
+        status: 400,
+        body: { error: "No GitHub account linked. Sign in with GitHub first.", hasGithub: false },
+      },
+    });
+    const run = await runKickoffPlan({ ...base, plan: ["repo", "dispatch"] }, call, () => {});
+    assert(run.needsGithub === true, "the card cannot offer Connect GitHub");
+    assert(!calls.includes("dispatch"), "dispatched with no repository");
+    assert(run.dispatch === "not-sent", `wrong outcome: ${run.dispatch}`);
+  });
+
+  await check("a refused builder offers Connect your computer, never 'queued'", async () => {
+    const { call } = script({
+      dispatch: {
+        status: 403,
+        body: {
+          error: "Injection failed: Cloud builder access is private for this account.",
+          code: "cloud-builder-private",
+        },
+      },
+    });
+    const run = await runKickoffPlan({ ...base, plan: ["dispatch"] }, call, () => {});
+    assert(run.needsBuilder === true, "the card cannot offer Connect your computer");
+    assert(run.dispatch === "failed", `a refusal laundered as ${run.dispatch}`);
   });
 
   await check("a step that throws is reported, the run still settles", async () => {

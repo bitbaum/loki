@@ -24,6 +24,8 @@ import { useSiteDeployment } from "@/hooks/use-site-deployment";
 import { SiteDeploymentStatus } from "./SiteDeploymentStatus";
 import { DOC_PASTE_MAX } from "@/lib/constants";
 import { CharCount } from "@/components/ui/char-count";
+import { LinkGithubButton } from "@/components/onboarding/LinkGithubButton";
+import { kickoffAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
 import {
   KICKOFF_STEP_LABEL,
   hasKickoffSource,
@@ -325,6 +327,8 @@ export function ProjectKickoff({
         <KickoffNextStep
           outcome={kickoff.dispatch}
           interrupted={kickoff.interrupted}
+          needsGithub={kickoff.needsGithub}
+          needsBuilder={kickoff.needsBuilder}
           failures={failures.length}
           projectId={projectId}
           onRetry={run}
@@ -354,6 +358,8 @@ function StepIcon({ state }: { state: KickoffStepState }) {
 function KickoffNextStep({
   outcome,
   interrupted,
+  needsGithub,
+  needsBuilder,
   failures,
   projectId,
   onRetry,
@@ -361,6 +367,8 @@ function KickoffNextStep({
 }: {
   outcome: KickoffRun["dispatch"];
   interrupted?: boolean;
+  needsGithub?: boolean;
+  needsBuilder?: boolean;
   failures: number;
   projectId: string;
   onRetry: () => void;
@@ -371,6 +379,26 @@ function KickoffNextStep({
       Hide this
     </button>
   );
+
+  if (needsGithub) {
+    // The one fix, as the one button: connecting GitHub returns here with
+    // ?kickoff=auto, so the build resumes by itself from the step that stopped.
+    return (
+      <div className="space-y-2 border-t border-border-subtle pt-3">
+        <p className="text-sm font-medium text-text-primary">
+          Connect GitHub and the build carries on.
+        </p>
+        <p className="text-xs leading-relaxed text-text-secondary">
+          The code for this project lives in a GitHub repository. Connect your account and you come
+          straight back here — everything above is saved, and the build picks up where it stopped.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <LinkGithubButton callbackUrl={kickoffAutoHref(`/projects/${projectId}`)} />
+          {dismiss}
+        </div>
+      </div>
+    );
+  }
 
   if (outcome === "running") {
     return (
@@ -387,6 +415,32 @@ function KickoffNextStep({
             Anything marked above can be filled in later on this page — it does not stop the agent.
           </p>
         )}
+      </div>
+    );
+  }
+
+  if (needsBuilder) {
+    // Refused, not queued: nothing waits anywhere, so the copy must not say it
+    // starts by itself. The way forward is the person's own computer.
+    return (
+      <div className="space-y-2 border-t border-border-subtle pt-3">
+        <p className="text-sm font-medium text-text-primary">
+          Connect your computer to start the build.
+        </p>
+        <p className="text-xs leading-relaxed text-text-secondary">
+          Loki&apos;s shared cloud builder is not open to every account yet, so the agent runs on
+          your own computer. Install Fleet Runner, then press Try again here — everything above is
+          saved.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/download" className="ui-btn-primary">
+            Connect your computer
+          </Link>
+          <button type="button" onClick={onRetry} className="ui-btn-secondary gap-2">
+            <Zap className="h-4 w-4" aria-hidden="true" /> Try again
+          </button>
+          {dismiss}
+        </div>
       </div>
     );
   }
