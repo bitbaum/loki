@@ -49,6 +49,24 @@ function ok(cond: unknown, msg: string) {
 
 eq(siteCdSlug("Time Capsule"), "time-capsule", "slug from display name");
 eq(siteCdLiveUrl("time-capsule"), "https://time-capsule.orangecat.ch", "predicted live URL");
+
+// A website-refresh project name is `<host>-refresh-<32 hex>`: up to 73 chars,
+// past the 63-char DNS label. It must still plan, not be refused.
+const longName = "derhochhinhousepartyrenner-ch-refresh-68e1f4947961419d9e7c46f68e180a45";
+const longSlug = siteCdSlug(longName);
+ok(longSlug.length <= 63, `long name fits one DNS label (${longSlug.length})`);
+ok(isValidSiteSlug(longSlug), "long name yields a valid slug");
+ok(
+  longSlug.startsWith("derhochhinhousepartyrenner-ch-refresh-"),
+  "long slug keeps its readable head",
+);
+eq(siteCdSlug(longName), longSlug, "long slug is stable across calls");
+ok(siteCdSlug(`${longName}0`) !== longSlug, "names sharing the head still get distinct slugs");
+ok(
+  planSiteCd({ projectName: longName, repoFullName: `bitbaum/${longName}` }).ok,
+  "a long project name plans CD instead of failing invalid-slug",
+);
+eq(siteCdSlug("x".repeat(63)), "x".repeat(63), "a name at exactly 63 is left alone");
 ok(isValidSiteSlug("time-capsule"), "valid slug");
 ok(!isValidSiteSlug("loki"), "loki reserved");
 ok(RESERVED_SITE_SLUGS.has("loki"), "reserved set includes control plane");
