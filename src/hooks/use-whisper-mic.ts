@@ -9,7 +9,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 // Whisper → result) before the average user assumes failure and retries.
 const TRANSCRIPTION_MAX_STALENESS_MS = 45_000;
 
-async function pollTranscriptionResult(
+export async function pollTranscriptionResult(
   id: string,
   recordingStoppedAt: number,
 ): Promise<string | null> {

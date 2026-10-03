@@ -6353,6 +6353,60 @@
   .ui-loki-turn-action {
     @apply inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary max-sm:h-11 max-sm:w-11 max-sm:justify-center max-sm:px-0;
   }
+  /* Suggested follow-ups under the newest answer: quiet rows, each a full
+     44px tap target, read as "what you might say next" rather than buttons
+     competing with the answer above them. */
+  /* Hands-free voice chat (VoiceConversation): a full screen with one circle.
+     The circle's fill says whose turn it is — the accent while it listens to
+     you, neutral while it thinks or speaks — and its scale follows your voice
+     (set inline, a measured value, not a design decision). */
+  .ui-voice {
+    @apply flex h-full flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))];
+  }
+  .ui-voice-top {
+    @apply flex justify-end;
+  }
+  .ui-voice-end {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-primary;
+  }
+  .ui-voice-stage {
+    @apply flex flex-1 flex-col items-center justify-center gap-3 text-center;
+  }
+  .ui-voice-orb {
+    @apply mb-4 inline-flex h-36 w-36 items-center justify-center rounded-full border border-border-default bg-surface-raised text-text-secondary transition-transform duration-100 disabled:cursor-default;
+  }
+  .ui-voice-orb-listening {
+    @apply border-transparent bg-accent-primary text-text-inverted;
+  }
+  .ui-voice-orb-speaking {
+    @apply animate-pulse text-text-primary;
+  }
+  .ui-voice-label {
+    @apply text-lg font-medium text-text-primary;
+  }
+  .ui-voice-hint {
+    @apply max-w-xs text-sm text-text-tertiary;
+  }
+  .ui-voice-heard {
+    @apply mt-2 line-clamp-3 max-w-sm text-sm text-text-secondary;
+  }
+  .ui-voice-bottom {
+    @apply flex justify-center;
+  }
+  /* The composer's way into it: a filled pill, the one loud control in the
+     row, as in the reference chat — it is a different mode, not a tool. */
+  .ui-loki-talk {
+    @apply inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-text-primary px-3 text-xs font-medium text-surface-page transition-opacity hover:opacity-90 disabled:opacity-40;
+  }
+  .ui-loki-followups {
+    @apply mt-1 flex flex-col;
+  }
+  .ui-loki-followup {
+    @apply flex min-h-11 w-full items-center gap-3 rounded-lg px-1 py-2 text-left text-sm leading-snug text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
+  }
+  .ui-loki-followup svg {
+    @apply text-text-muted;
+  }
   /* Scope pill and "Project" button: same quiet pill as the model picker. */
   .ui-loki-scope-btn {
     @apply inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-full px-3 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
