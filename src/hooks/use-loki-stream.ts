@@ -28,9 +28,18 @@ export type LiveTurn = {
   work: WorkStep[];
   status: LokiStatusLabel | null;
   round: number;
+  /** When the turn was sent (ms epoch), for the elapsed counter. */
+  startedAt: number;
 };
 
-const EMPTY: LiveTurn = { preview: "", tools: [], work: [], status: null, round: 0 };
+const EMPTY: LiveTurn = {
+  preview: "",
+  tools: [],
+  work: [],
+  status: null,
+  round: 0,
+  startedAt: 0,
+};
 
 export type UseLokiStream = {
   /** The turn in flight, or null. */
@@ -79,7 +88,7 @@ export function useLokiStream({
       setSending(true);
       setStopped(false);
       setError(null);
-      setLive({ ...EMPTY });
+      setLive({ ...EMPTY, startedAt: Date.now() });
 
       // Accumulated outside React state: deltas arrive far faster than renders,
       // and reading the previous value out of a setState callback for every

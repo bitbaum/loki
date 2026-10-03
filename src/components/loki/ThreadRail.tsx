@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Search, SquarePen, Trash2 } from "lucide-react";
+import { Loader2, Plus, Search, SquarePen, Trash2 } from "lucide-react";
 import { LokiPaneBody } from "./LokiPaneBody";
 import { shortTimeAgo } from "@/lib/dates";
 import { groupConversations, visibleConversationGroups } from "@/lib/loki/conversation-groups";
@@ -28,6 +28,7 @@ export function ThreadRail({
   loading,
   error,
   onRetry,
+  busyId = null,
   onSelect,
   onNew,
   onDelete,
@@ -37,6 +38,8 @@ export function ThreadRail({
   loading: boolean;
   error?: string | null;
   onRetry?: () => void;
+  /** The thread with a turn in flight, so the rail shows it working. */
+  busyId?: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
@@ -110,7 +113,16 @@ export function ThreadRail({
                       onClick={() => onSelect(c.id)}
                       className={`ui-loki-convo pr-10 ${c.id === activeId ? "ui-loki-convo-active" : ""}`}
                     >
-                      <div className="ui-loki-convo-title">{c.title}</div>
+                      <div className="ui-loki-convo-title">
+                        {c.id === busyId && (
+                          <Loader2
+                            className="mr-1.5 inline h-3.5 w-3.5 animate-spin align-[-2px]"
+                            aria-label="Working"
+                          />
+                        )}
+                        {c.title}
+                      </div>
+                      {c.preview && <div className="ui-loki-convo-preview">{c.preview}</div>}
                       <div className="ui-loki-convo-meta">
                         {[
                           c.projectKeys.join(", "),

@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, Copy, RotateCcw } from "lucide-react";
+import { Check, Copy, RotateCcw, Square, Volume2 } from "lucide-react";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { useClipboard } from "@/hooks/use-clipboard";
+import { useSpeech } from "@/hooks/use-speech";
 import { readWork } from "@/lib/loki/work";
 import { ProvenanceFooter } from "./ProvenanceFooter";
 import { WorkTrail } from "./WorkTrail";
@@ -43,6 +44,7 @@ export function MessageTurn({
   onRetry?: () => void;
 }) {
   const { copied, copy } = useClipboard();
+  const speech = useSpeech();
 
   if (message.role === "user") {
     return (
@@ -101,6 +103,22 @@ export function MessageTurn({
           )}
           <span>{copied ? "Copied" : "Copy"}</span>
         </button>
+        {speech.supported && (
+          <button
+            type="button"
+            className="ui-loki-turn-action"
+            onClick={() => speech.toggle(message.content)}
+            aria-label={speech.speaking ? "Stop reading" : "Read aloud"}
+            aria-pressed={speech.speaking}
+          >
+            {speech.speaking ? (
+              <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
+            ) : (
+              <Volume2 className="h-3.5 w-3.5" aria-hidden />
+            )}
+            <span>{speech.speaking ? "Stop" : "Listen"}</span>
+          </button>
+        )}
         {onRetry && (
           <button
             type="button"

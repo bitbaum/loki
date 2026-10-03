@@ -647,6 +647,7 @@ export function LokiWorkspace({
     <ThreadRail
       conversations={visibleConversations}
       activeId={activeId}
+      busyId={sending ? activeId : null}
       loading={convosLoading}
       error={convosError}
       onRetry={() => void reloadConversations()}

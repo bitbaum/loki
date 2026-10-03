@@ -5802,6 +5802,10 @@
   .ui-loki-convo-title {
     @apply line-clamp-2 font-medium;
   }
+  /* Where the thread stopped — its last line, one line. */
+  .ui-loki-convo-preview {
+    @apply mt-0.5 truncate text-xs text-text-secondary;
+  }
   .ui-loki-convo-meta {
     @apply mt-0.5 truncate text-xs text-text-tertiary;
   }
