@@ -38,6 +38,7 @@ import {
 import { createLauncher } from "./launcher";
 import { createPicker } from "./picker";
 import { createAttachments } from "./attachments";
+import { startWatchMode } from "./watch";
 import { createChat } from "./chat";
 import { createAdvise } from "./advise";
 import {
@@ -710,6 +711,9 @@ interface LokiApi {
       target.focus();
       if (question.trim()) target.ask(question);
     };
+    // The owner, here through Loki's link: watch mode, with its pill on screen
+    // the whole time it records (widget/watch.ts).
+    if (ownerPass) startWatchMode({ root, host, theme, token, apiBase, pass: () => ownerPass });
     // Only now can a click actually open something — see LokiApi.ready.
     api.ready = true;
     if (pendingAsk !== null) {
@@ -768,7 +772,6 @@ interface LokiApi {
       mountWhenReady(theme);
     } catch {
       w.__lokiWidgetBooting = false;
-      return;
     }
   };
   void boot();
