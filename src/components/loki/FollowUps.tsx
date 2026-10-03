@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { CornerDownRight } from "lucide-react";
 
 /**
- * Suggested next questions under the newest answer; a tap sends one as your
+ * Suggested next steps under the newest answer — the first is Loki's
+ * recommendation, the others alternatives; a tap sends one as your
  * next message. Fetched once per answer (keyed by its id) and shown only when
  * the model had something specific to offer — no placeholder rows, no
  * spinner: suggestions are a nicety, and a loading state for a nicety is
@@ -47,11 +48,20 @@ export function FollowUps({
   if (items.length === 0) return null;
   return (
     <ul className="ui-loki-followups" aria-label="Suggested follow-ups">
-      {items.map((text) => (
+      {items.map((text, i) => (
         <li key={text}>
-          <button type="button" className="ui-loki-followup" onClick={() => onPick(text)}>
+          {/* The first is the recommendation (see lib/loki/follow-ups.ts), so
+              "what do I do next?" always has an answer under the answer. */}
+          <button
+            type="button"
+            className={i === 0 ? "ui-loki-followup ui-loki-followup-next" : "ui-loki-followup"}
+            onClick={() => onPick(text)}
+          >
             <CornerDownRight className="h-4 w-4 shrink-0" aria-hidden />
-            <span className="min-w-0">{text}</span>
+            <span className="min-w-0">
+              {i === 0 && <span className="ui-loki-followup-tag">Next</span>}
+              {text}
+            </span>
           </button>
         </li>
       ))}

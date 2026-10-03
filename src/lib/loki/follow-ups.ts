@@ -3,6 +3,10 @@
  * reference chat shows. One cheap call to the fast model after a turn lands;
  * nothing here is stored, and nothing is sent until the person taps one.
  *
+ * The FIRST suggestion is the recommended next step, the rest alternatives —
+ * the owner's standing ask is that every answer ends with "what do I do next",
+ * and FollowUps marks the first row as the recommendation.
+ *
  * Pure (prompt in, list out), so the part that breaks — reading whatever the
  * model actually returned — is pinned by scripts/test/loki-follow-ups.ts.
  */
@@ -19,6 +23,7 @@ export const FOLLOW_UP_SYSTEM_PROMPT = [
   `Reply with exactly ${FOLLOW_UPS_MAX} short follow-up requests, one per line, nothing else.`,
   "Write each as the user would type it (first person or imperative), in the user's language,",
   `under ${FOLLOW_UP_MAX_CHARS - 20} characters, specific to this exchange. No numbering, no quotes.`,
+  "Put first the one step you would recommend they take next; the others are alternatives.",
 ].join(" ");
 
 export function buildFollowUpPrompt(question: string, answer: string): string {

@@ -6429,6 +6429,14 @@
   .ui-loki-followup svg {
     @apply text-text-muted;
   }
+  /* The recommended next step: the same row, in the reading colour, with a
+     one-word tag — the answer to "what do I do next?" without a new widget. */
+  .ui-loki-followup-next {
+    @apply text-text-primary;
+  }
+  .ui-loki-followup-tag {
+    @apply mr-2 inline-flex rounded-full border border-border-default px-1.5 py-px align-middle text-micro font-medium uppercase tracking-wide text-text-secondary;
+  }
   /* Scope pill and "Project" button: same quiet pill as the model picker. */
   .ui-loki-scope-btn {
     @apply inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-full px-3 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
