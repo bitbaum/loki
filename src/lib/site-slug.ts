@@ -66,6 +66,9 @@ export const RESERVED_SITE_SLUGS = new Set([
  */
 export const SLUG_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
+/** The DNS label limit SLUG_RE encodes. */
+export const MAX_SLUG_LENGTH = 63;
+
 /** Well-formed AND not spoken for. */
 export function isValidSiteSlug(slug: string): boolean {
   return SLUG_RE.test(slug) && !RESERVED_SITE_SLUGS.has(slug);
