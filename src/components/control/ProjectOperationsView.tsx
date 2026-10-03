@@ -12,6 +12,7 @@ import { STATE_DEFINITIONS, type ProjectStateKey } from "@/lib/control-states";
 import type { AutoInjectMode } from "@/config/beacon";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectAutopilotToggle } from "./ProjectAutopilotToggle";
+import { SendTaskModal } from "./SendTaskModal";
 
 type CardBaseProps = Omit<Parameters<typeof ProjectCard>[0], "snapshot" | "isOnlyReady">;
 type ProjectRailSort = "priority" | "recent" | "az";
@@ -86,6 +87,7 @@ export function ProjectOperationsView({
   const [sort, setSort] = useState<ProjectRailSort>("priority");
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [sendTaskOpen, setSendTaskOpen] = useState(false);
   const sourceSnapshots = useMemo(() => snapshots ?? [], [snapshots]);
 
   // Counter categories are sourced from STATE_DEFINITIONS via the SSOT, so
@@ -238,6 +240,13 @@ export function ProjectOperationsView({
 
   return (
     <section id="control-projects" className="ui-control-workspace scroll-mt-24">
+      {sendTaskOpen && (
+        <SendTaskModal
+          projects={bulkKeys}
+          onClose={() => setSendTaskOpen(false)}
+          onSent={(message) => onBulkNotice?.(message)}
+        />
+      )}
       {/* ONE PANE AT A TIME ON A PHONE.
           Both panes are full-width and stacked below `lg`, so whichever sits
           second is off-screen. Ordering them was tried both ways and neither
@@ -303,6 +312,16 @@ export function ProjectOperationsView({
                 className="ui-btn-primary px-2.5 py-1 text-xs"
               >
                 Build selected
+              </button>
+              {/* One task written once for every selected project — the way a
+                  change spanning two repos (OrangeCat + Loki) gets sent. */}
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={() => setSendTaskOpen(true)}
+                className="ui-btn-secondary px-2.5 py-1 text-xs"
+              >
+                Send a task
               </button>
               <button
                 type="button"
