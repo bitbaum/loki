@@ -219,6 +219,10 @@ export type AskLokiOpts = {
    * token, so a chat-only grant must not be able to reach it by asking.
    */
   readOnly?: boolean;
+  /** Where the free chain starts (the composer's model picker). Until this
+   *  existed the picker's choice reached dispatched agents but never the chat
+   *  turn itself, which always started at LOKI_MODEL. */
+  model?: string;
 };
 
 /**
@@ -276,6 +280,7 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
         onEvent: opts?.onEvent,
         readOnly: opts?.readOnly,
         operator,
+        model: opts?.model,
       });
       // Booked whether or not the turn produced usable text: the tokens were
       // spent either way, and only charging for successes would let a run of

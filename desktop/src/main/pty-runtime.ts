@@ -20,6 +20,14 @@ import { ensureGrokWorkspaceTrusted } from "./grok-prep";
 import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
 
 const agentByTab = new Map<string, AgentOption>();
+/** The directory each tab's agent was actually launched in (after box
+ *  workspace resolution) — where Claude Code writes its session log. */
+const dirByTab = new Map<string, string>();
+
+/** The launch cwd of this tab's live agent, or null when none was launched. */
+export function ptyDirForTab(tab: string): string | null {
+  return dirByTab.get(tab.toLowerCase()) ?? null;
+}
 
 /**
  * Stable runner-local workspace id for a project tab. The runner has no server
@@ -104,6 +112,7 @@ export async function launchAgentPty(
     workspaceId: runnerWorkspaceId(tab),
   });
   agentByTab.set(tab, agent);
+  dirByTab.set(tab.toLowerCase(), effectiveDir);
 }
 
 export function ptyAgentForTab(tab: string): AgentOption | null {

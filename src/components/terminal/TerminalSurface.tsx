@@ -40,6 +40,8 @@ import { TerminalLokiRail } from "./TerminalLokiRail";
 import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
 import { Modal } from "@/components/ui/modal";
 import { runnerTransport } from "./terminal-transport";
+import { ChatViewButton, ClaudeChatView } from "./ClaudeChatView";
+import { useTerminalView } from "./use-terminal-view";
 import { useTerminalTabs } from "./use-terminal-tabs";
 
 /** Per-source copy. Cloud and machine differ only in wording, so the strings
@@ -397,6 +399,13 @@ export function TerminalSurface({
   );
   const tabContext = context?.tabs.find((t) => t.tab === activeTab) ?? null;
   const activeAgentId = tabContext?.agentPref ?? context?.agents.defaultAgent ?? null;
+  const {
+    view,
+    chatAvailable,
+    showChat,
+    showTerminal,
+    toggle: toggleView,
+  } = useTerminalView(activeAgentId);
   const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
 
   const [switchingAgent, setSwitchingAgent] = useState(false);
@@ -503,6 +512,8 @@ export function TerminalSurface({
       onOpenLoki={projectKey ? () => setLokiSheetOpen(true) : undefined}
       immersive={immersive}
       onToggleImmersive={onToggleImmersive ?? (() => {})}
+      view={view}
+      onToggleView={activeTab && chatAvailable ? toggleView : undefined}
     />
   );
 
@@ -530,6 +541,7 @@ export function TerminalSurface({
   };
   const paneActions = (
     <>
+      {chatAvailable && <ChatViewButton onClick={showChat} />}
       {projectKey && !immersive && (
         <button
           type="button"
@@ -705,6 +717,17 @@ export function TerminalSurface({
         </div>
       );
     }
+    if (view === "chat") {
+      return (
+        <ClaudeChatView
+          key={`chat:${channel}:${activeTab}`}
+          tab={activeTab}
+          channel={channel}
+          onKey={sendKey}
+          onShowTerminal={showTerminal}
+        />
+      );
+    }
     return (
       <TerminalView
         key={`${channel}:${activeTab}`}
@@ -764,18 +787,18 @@ export function TerminalSurface({
           Loki rail is beside the session its Inject IS the prompt composer —
           the same component — so a second copy under the terminal would be
           two boxes on one screen for one job. */}
-      {activeTab && inputMode === "prompt" && !railShown && (
+      {activeTab && view === "terminal" && inputMode === "prompt" && !railShown && (
         <div className="hidden md:block">
           <TerminalComposer tab={activeTab} />
         </div>
       )}
-      {activeTab && inputMode === "voice" && (
+      {activeTab && view === "terminal" && inputMode === "voice" && (
         <div className="hidden shrink-0 items-center md:flex">
           <TabVoiceMic tab={activeTab} channel={channel} compact={immersive} />
         </div>
       )}
 
-      {activeTab && (
+      {activeTab && view === "terminal" && (
         <TerminalMobileDock
           tab={activeTab}
           channel={channel}

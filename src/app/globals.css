@@ -5736,6 +5736,84 @@
   .ui-loki-main {
     @apply flex min-h-0 min-w-0 flex-1 flex-col;
   }
+  /* ── Claude Code chat view (/terminal, ClaudeChatView) ─────────────────────
+     The live session as a conversation. Reuses Loki chat's thread, bubble and
+     answer styles so the two read as one product; only what Loki chat does
+     not have — folded tool runs and the approval bar — is defined here. */
+  .ui-claude-chat {
+    @apply relative flex h-full min-h-0 flex-col;
+  }
+  .ui-claude-chat-inner {
+    @apply mx-auto w-full max-w-3xl px-1 sm:px-3;
+  }
+  .ui-claude-chat-empty {
+    @apply flex flex-col items-center justify-center gap-3 py-16 text-center;
+  }
+  .ui-claude-chat-dock {
+    @apply mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 pt-1;
+  }
+  /* "Ran 3 commands ›" — the work log folded to one quiet line. */
+  .ui-claude-tools {
+    @apply flex flex-col;
+  }
+  .ui-claude-tools-summary {
+    @apply inline-flex min-h-11 max-w-full items-center gap-1.5 self-start rounded-lg px-1 text-sm text-text-tertiary transition-colors hover:text-text-secondary;
+  }
+  .ui-claude-tools-failed {
+    @apply rounded-full bg-status-negative-subtle px-1.5 text-micro font-medium text-status-negative;
+  }
+  .ui-claude-tools-list {
+    @apply ml-1 flex flex-col border-l border-border-subtle pl-3;
+  }
+  .ui-claude-tool {
+    @apply flex min-h-11 w-full min-w-0 items-center gap-2 text-left text-xs disabled:cursor-default;
+  }
+  .ui-claude-tool-dot {
+    @apply h-1.5 w-1.5 shrink-0 rounded-full;
+  }
+  .ui-claude-tool-running {
+    @apply animate-pulse bg-status-warning;
+  }
+  .ui-claude-tool-done {
+    @apply bg-status-positive;
+  }
+  .ui-claude-tool-error {
+    @apply bg-status-negative;
+  }
+  .ui-claude-tool-result {
+    @apply mb-2 max-h-60 overflow-auto rounded-lg bg-surface-raised p-2 font-mono text-micro leading-relaxed whitespace-pre-wrap break-words text-text-secondary;
+  }
+  /* What Claude is doing right now — a slowly turning mark in the accent,
+     the one moving thing on screen, so "is it still working?" is answered
+     without reading a word. */
+  .ui-claude-live {
+    @apply flex min-w-0 items-center gap-2 px-2 text-sm font-medium text-accent-text;
+  }
+  .ui-claude-live-mark {
+    @apply inline-block shrink-0 text-base leading-none;
+    animation: ui-claude-turn 2.4s linear infinite;
+  }
+  @keyframes ui-claude-turn {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ui-claude-live-mark {
+      animation: none;
+    }
+  }
+  /* Claude asks before an unlisted tool; answer with a tap, not a digit. */
+  .ui-claude-approve {
+    @apply flex items-center gap-1.5 rounded-2xl border border-status-warning/30 bg-status-warning-subtle py-1 pr-1 pl-3;
+  }
+  .ui-claude-approve-yes {
+    @apply inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-accent-primary px-3 text-sm font-medium text-text-inverted;
+  }
+  .ui-claude-approve-btn {
+    @apply inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full px-2 text-sm text-text-secondary hover:bg-surface-raised;
+  }
+
   /* Phone thread header: back · title/scope · menu. One line, like a texting
      app; hidden from md, where the shell's chrome stays. */
   .ui-loki-thread-header {
@@ -6057,14 +6135,26 @@
     @apply rotate-180;
   }
   .ui-loki-model-menu {
-    @apply absolute bottom-full z-50 mb-2 max-h-80 w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-border-default bg-surface-overlay py-1.5 shadow-panel-strong;
+    @apply absolute bottom-full z-50 mb-2 max-h-96 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-border-default bg-surface-overlay p-1.5 shadow-panel-strong;
+  }
+  /* The choices as one rounded card with hairline rows — the grouped-list
+     shape a phone settings sheet uses, so the sheet reads as native. */
+  .ui-loki-model-card {
+    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl bg-surface-base;
+  }
+  .ui-loki-model-sheet-head {
+    @apply flex shrink-0 items-center px-2 pt-1 pb-2;
+  }
+  .ui-loki-model-sheet-body {
+    @apply flex min-h-0 flex-col gap-2 overflow-y-auto px-3;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
   /* `min-h`, not `h`: a locked row carries a title AND the reason it is
      locked, and a fixed 44px clips the second line. 44px is the tap floor, so
      a minimum of it is already compliant — this is the one row here where the
      floor and the natural height genuinely differ. */
   .ui-loki-model-row {
-    @apply flex w-full min-h-11 items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-surface-raised;
+    @apply flex w-full min-h-14 items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-raised disabled:cursor-not-allowed;
   }
   /* Real but unreachable. Listed and disabled with the reason, never hidden
      (which answers "why can't I pick it" with silence) and never fake-enabled
@@ -6076,19 +6166,16 @@
     @apply flex min-w-0 flex-1 flex-col;
   }
   .ui-loki-model-row-title {
-    @apply truncate text-sm text-text-primary;
+    @apply truncate text-base text-text-primary sm:text-sm;
   }
   .ui-loki-model-row-sub {
-    @apply truncate text-xs text-text-muted;
+    @apply line-clamp-2 text-sm text-text-tertiary sm:text-xs;
   }
   .ui-loki-model-check {
-    @apply h-4 w-4 shrink-0 text-text-muted;
-  }
-  .ui-loki-model-group {
-    @apply mt-1 px-3 py-1 text-micro uppercase tracking-wider text-text-muted;
+    @apply h-5 w-5 shrink-0 text-accent-text;
   }
   .ui-loki-model-note {
-    @apply border-t border-border-subtle px-3 pb-1 pt-2 text-xs text-text-muted;
+    @apply px-3 pb-1 pt-2 text-xs leading-relaxed text-text-muted;
   }
 
   @keyframes ui-loki-dot {
@@ -6494,49 +6581,49 @@
    right. chatkit renders the mic inside its tools group, so the group is
    flattened (display: contents) and the mic is pushed right with `order`.
    Scoped to Loki chat; the terminal's composer keeps chatkit's defaults. */
-.ui-loki-stage .ck-composer {
+:is(.ui-loki-stage, .ui-claude-chat) .ck-composer {
   gap: 0.25rem;
   border-radius: 1.5rem;
   padding: 0.625rem 0.625rem 0.5rem 0.75rem;
   box-shadow: var(--shadow-panel);
 }
-.ui-loki-stage .ck-icon-btn {
+:is(.ui-loki-stage, .ui-claude-chat) .ck-icon-btn {
   border-color: transparent;
   background: var(--surface-raised);
 }
-.ui-loki-stage .ck-actions {
+:is(.ui-loki-stage, .ui-claude-chat) .ck-actions {
   flex-wrap: nowrap;
   justify-content: flex-start;
   gap: 0.375rem;
 }
-.ui-loki-stage .ck-tools {
+:is(.ui-loki-stage, .ui-claude-chat) .ck-tools {
   display: contents;
 }
-.ui-loki-stage .ck-mic {
+:is(.ui-loki-stage, .ui-claude-chat) .ck-mic {
   order: 2;
   margin-left: auto;
 }
-.ui-loki-stage .ck-submit {
+:is(.ui-loki-stage, .ui-claude-chat) .ck-submit {
   order: 3;
 }
 /* Narrow phones: the send button must never be the thing that is pushed off.
    The model picker and the scope pill give up width first (they truncate);
    attach, mic and send are fixed 44px targets. */
-.ui-loki-stage .ck-actions > .ck-tools > * {
+:is(.ui-loki-stage, .ui-claude-chat) .ck-actions > .ck-tools > * {
   flex-shrink: 0;
 }
-.ui-loki-stage .ck-tools > .relative,
-.ui-loki-stage .ck-tools > .ui-loki-scope-pill,
-.ui-loki-stage .ck-tools > .ui-loki-scope-btn {
+:is(.ui-loki-stage, .ui-claude-chat) .ck-tools > .relative,
+:is(.ui-loki-stage, .ui-claude-chat) .ck-tools > .ui-loki-scope-pill,
+:is(.ui-loki-stage, .ui-claude-chat) .ck-tools > .ui-loki-scope-btn {
   flex-shrink: 1;
   min-width: 0;
 }
-.ui-loki-stage .ui-loki-model-trigger {
+:is(.ui-loki-stage, .ui-claude-chat) .ui-loki-model-trigger {
   max-width: 100%;
 }
-.ui-loki-stage .ck-submit {
+:is(.ui-loki-stage, .ui-claude-chat) .ck-submit {
   gap: 0.25rem;
 }
-.ui-loki-stage .ck-tools > .ui-loki-scope-pill {
+:is(.ui-loki-stage, .ui-claude-chat) .ck-tools > .ui-loki-scope-pill {
   min-width: 5rem;
 }

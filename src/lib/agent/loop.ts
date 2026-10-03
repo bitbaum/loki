@@ -342,6 +342,11 @@ export async function runLokiTurn(input: {
    * caller that forgets to say gets the safe registry, not the operator's.
    */
   operator?: boolean;
+  /**
+   * Where the free chain STARTS for this turn (the composer's model picker).
+   * Ignored when the user brought their own model. Undefined = LOKI_MODEL.
+   */
+  model?: string;
   /** Injected in tests; defaults to the real provider call. */
   callModel?: ModelCaller;
   /** Present when someone is watching: stream the turn instead of buffering it. */
@@ -484,6 +489,7 @@ export async function runLokiTurn(input: {
         try {
           return await callModel({
             own: input.own,
+            model: input.model,
             // One label for the whole turn: a round, a plan retry and a repair
             // are the same question being answered, and three lines on the
             // capacity page would read as three features.
@@ -564,6 +570,7 @@ export async function runLokiTurn(input: {
     try {
       const retry = await callModel({
         own: input.own,
+        model: input.model,
         feature: "loki-chat",
         messages: [
           { role: "system", content: lastSystem },
@@ -621,6 +628,7 @@ export async function runLokiTurn(input: {
     // knowledge, it added claims. Tools stay off so it cannot wander further.
     const repaired = await callModel({
       own: input.own,
+      model: input.model,
       feature: "loki-chat",
       messages: [
         { role: "system", content: systemPrompt(registry, false) },

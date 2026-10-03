@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronDown, Maximize2, MessagesSquare, Minimize2 } from "lucide-react";
+import {
+  ChevronDown,
+  Maximize2,
+  MessageCircle,
+  MessagesSquare,
+  Minimize2,
+  TerminalSquare,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type TerminalLiveState = "live" | "connecting" | "stalled" | "idle";
@@ -40,6 +47,8 @@ export function TerminalMobileHeader({
   onOpenLoki,
   immersive,
   onToggleImmersive,
+  view,
+  onToggleView,
 }: {
   title: string;
   agent?: string | null;
@@ -49,6 +58,9 @@ export function TerminalMobileHeader({
   onOpenLoki?: () => void;
   immersive: boolean;
   onToggleImmersive: () => void;
+  /** Chat ↔ raw terminal, when the session's agent supports the chat view. */
+  view?: "chat" | "terminal";
+  onToggleView?: () => void;
 }) {
   return (
     <div className="ui-term-mhead">
@@ -69,6 +81,20 @@ export function TerminalMobileHeader({
         <ChevronDown className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
       </button>
 
+      {onToggleView && (
+        <button
+          type="button"
+          className="ui-term-mhead-icon"
+          onClick={onToggleView}
+          aria-label={view === "chat" ? "Show the raw terminal" : "Show as chat"}
+        >
+          {view === "chat" ? (
+            <TerminalSquare className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <MessageCircle className="h-4 w-4" aria-hidden="true" />
+          )}
+        </button>
+      )}
       {onOpenLoki && (
         <button
           type="button"

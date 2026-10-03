@@ -29,6 +29,18 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.37",
+    tag: "fleet-runner-v0.8.37",
+    date: "2026-10-03T00:00:00Z",
+    highlights: [
+      "While you watch a Claude session in Loki, the runner also sends the conversation itself, so the terminal page can show it as a chat on your phone.",
+      "Only what Claude has written since the last check is read, and nothing is sent when nobody is watching.",
+    ],
+    breaking: [],
+    notes:
+      "Claude Code keeps every session in a log file. The runner follows the newest log for the folder the agent runs in and posts messages and tool calls to Loki, which renders them as a conversation beside the raw terminal.",
+  },
+  {
     version: "0.8.36",
     tag: "fleet-runner-v0.8.36",
     date: "2026-09-28T00:00:00Z",
