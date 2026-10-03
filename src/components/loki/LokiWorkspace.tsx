@@ -8,6 +8,7 @@ import { useLokiStream } from "@/hooks/use-loki-stream";
 import { resolveLokiProjectSelection } from "@/lib/loki/project-selection";
 import { conversationIdFromParam } from "@/lib/loki/conversation-param";
 import { useSendQueue } from "@/hooks/use-send-queue";
+import { useDispatchOutcome } from "@/hooks/use-dispatch-outcome";
 import { QueuedMessages } from "./QueuedMessages";
 import { clearLokiDraft, lokiDraftKey } from "@/lib/loki/draft";
 import { rememberFleetProject } from "@/lib/fleet-context";
@@ -281,28 +282,7 @@ export function LokiWorkspace({
     };
   }, [activeId, justCreatedId]);
 
-  // A dispatch is a job that finishes after the reply. Its outcome is written
-  // back into this thread by the server when the run closes
-  // (lib/orchestration/run-outcome-post.ts); while the newest turn is still a
-  // dispatch, re-read the thread so that outcome shows up without a reload.
-  // Stops the moment any later turn exists — the outcome itself ends it.
-  const awaitingOutcome =
-    activeId !== null && messages.length > 0 && messages[messages.length - 1]?.kind === "dispatch";
-  useEffect(() => {
-    if (!awaitingOutcome || !activeId) return;
-    let current = true;
-    const tick = () =>
-      getJson<{ messages: LokiMessage[] }>(`/api/conversations/${activeId}`)
-        .then((d) => {
-          if (current && d.messages.length > messages.length) setMessages(d.messages);
-        })
-        .catch(() => undefined);
-    const timer = window.setInterval(tick, 20_000);
-    return () => {
-      current = false;
-      window.clearInterval(timer);
-    };
-  }, [awaitingOutcome, activeId, messages.length]);
+  useDispatchOutcome(activeId, messages, setMessages);
 
   /**
    * The persisted turn arriving off the stream.
