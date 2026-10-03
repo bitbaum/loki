@@ -14,6 +14,18 @@
  *  (ORANGECAT_API_BASE / ORANGECAT_OAUTH_ISSUER). */
 export const ORANGECAT_BASE_FALLBACK = "https://orangecat.ch";
 
+/** The public OrangeCat origin for links a person clicks (nav, project
+ *  pages). NEXT_PUBLIC_ so the client bundle agrees with the server. */
+export const ORANGECAT_PUBLIC_ORIGIN = (
+  process.env.NEXT_PUBLIC_ORANGECAT_URL ?? ORANGECAT_BASE_FALLBACK
+).replace(/\/+$/, "");
+
+/** A project's public page on OrangeCat. Was the literal
+ *  `https://orangecat.ch/projects/…` in three components. */
+export function orangeCatProjectUrl(projectId: string): string {
+  return `${ORANGECAT_PUBLIC_ORIGIN}/projects/${encodeURIComponent(projectId)}`;
+}
+
 /**
  * The OrangeCat authorization server — the `iss` every OrangeCat token carries,
  * and the origin its OIDC discovery and JWKS hang off. "Login with OrangeCat",

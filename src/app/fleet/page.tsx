@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { orangeCatProjectUrl } from "@/config/orangecat";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -501,7 +502,7 @@ function Row({
               label="OrangeCat"
               href={
                 orangecatLive.has(r.orangecat.projectId)
-                  ? `https://orangecat.ch/projects/${r.orangecat.projectId}`
+                  ? orangeCatProjectUrl(r.orangecat.projectId)
                   : null
               }
               external
