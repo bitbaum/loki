@@ -63,6 +63,13 @@ export type ToolDef<S extends z.ZodTypeAny = z.ZodTypeAny> = {
   params: S;
   /** A copyable example call. See CATALOG note on why this is not optional. */
   example: string;
+  /**
+   * Reaches something that belongs to the person who runs this Loki instance
+   * (users.is_default) rather than to the asker — their OpenClaw agent and its
+   * memory of their private threads. Dropped from every other user's turn by
+   * withoutOperatorTools; see that function for why filtering, not a check.
+   */
+  operatorOnly?: boolean;
   handler: (args: z.infer<S>, ctx: ToolContext) => Promise<ToolResult>;
 };
 
@@ -85,6 +92,7 @@ export function defineTool<S extends z.ZodTypeAny>(def: {
   description: string;
   params: S;
   example: string;
+  operatorOnly?: boolean;
   handler: (args: z.infer<S>, ctx: ToolContext) => Promise<ToolResult>;
 }): ToolDef {
   return def as unknown as ToolDef;
@@ -103,6 +111,22 @@ export function defineTool<S extends z.ZodTypeAny>(def: {
 export function readOnlyRegistry(registry: ToolRegistry): ToolRegistry {
   return Object.fromEntries(
     Object.entries(registry).filter(([, t]) => t.kind === "read"),
+  ) as ToolRegistry;
+}
+
+/**
+ * The same registry without the operator's private tools.
+ *
+ * Loki is multi-user, but a few tools reach things that are the instance
+ * operator's own: `ask_openclaw` talks to their OpenClaw agent with their
+ * gateway token, and that agent remembers their Telegram and WhatsApp
+ * threads. Before this, any signed-in account could ask Loki a question that
+ * routed there. Like readOnlyRegistry, removal is what makes the tool
+ * uncallable — the loop accepts exactly the names in the registry it gets.
+ */
+export function withoutOperatorTools(registry: ToolRegistry): ToolRegistry {
+  return Object.fromEntries(
+    Object.entries(registry).filter(([, t]) => !t.operatorOnly),
   ) as ToolRegistry;
 }
 

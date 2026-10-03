@@ -27,6 +27,7 @@ import { askGatewayAgent, isGatewayConfigured } from "@/lib/openclaw-gateway";
 import { callGroqText, GROQ_FAST_MODEL } from "@/lib/groq";
 import { normaliseCitations, stripReasoning } from "@/lib/agent/llm";
 import { getUserPreferences } from "@/db/queries/user-preferences";
+import { isSiteOperator } from "@/db/queries/users";
 import { buildGroundedTurn, directiveEvidence, type RetrievedSource } from "@/lib/agent/context";
 import { runLokiTurn, type LokiTurnEvent } from "@/lib/agent/loop";
 import type { ChatMessage } from "@/lib/agent/llm";
@@ -231,9 +232,15 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
   // spend ledger, and not the fallback to the shared chain when their key
   // fails, which would quietly spend the pool they opted out of and hide the
   // one thing they need to hear: that their key stopped working.
+  // Resolved here from the database, never accepted from the caller: whether
+  // this turn may reach the operator's own OpenClaw agent (the ask_openclaw
+  // tool, and the gateway fallback below) is a fact about the account, and
+  // an option a route could set would be a way to claim it.
+  const operator = await isOperatorTurn(opts?.userId);
+
   const own = opts?.userId ? await loadOwnModel(opts.userId) : null;
   if (own && opts?.userId) {
-    return askLokiOnOwnModel(message, { ...opts, userId: opts.userId }, own, startedAt);
+    return askLokiOnOwnModel(message, { ...opts, userId: opts.userId }, own, startedAt, operator);
   }
 
   // Ration BEFORE any provider is called, and only for identified users —
@@ -268,6 +275,7 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
         history: opts?.history,
         onEvent: opts?.onEvent,
         readOnly: opts?.readOnly,
+        operator,
       });
       // Booked whether or not the turn produced usable text: the tokens were
       // spent either way, and only charging for successes would let a run of
@@ -306,7 +314,22 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
     }
   }
 
-  return askLokiViaGateway(message, opts, startedAt);
+  return askLokiViaGateway(message, opts, startedAt, operator);
+}
+
+/**
+ * Does this turn belong to the person who runs this Loki instance?
+ *
+ * The OpenClaw gateway is that person's own agent: it connects with their
+ * token at `operator.write` scope and remembers their Telegram and WhatsApp
+ * threads. Loki is multi-user, so every other account must be kept off it —
+ * before this, any signed-in user whose tool loop stumbled fell through to
+ * the gateway, and any user could call ask_openclaw outright. Fails closed:
+ * no user, or a database error, is "not the operator".
+ */
+async function isOperatorTurn(userId: string | undefined): Promise<boolean> {
+  if (!userId) return false;
+  return isSiteOperator(userId).catch(() => false);
 }
 
 async function loadOwnModel(userId: string): Promise<OwnModel | null> {
@@ -333,6 +356,7 @@ async function askLokiOnOwnModel(
   opts: AskLokiOpts & { userId: string },
   own: OwnModel,
   startedAt: number,
+  operator: boolean,
 ): Promise<AskLokiResult> {
   try {
     const voicePref = await getUserPreferences(opts.userId)
@@ -345,6 +369,7 @@ async function askLokiOnOwnModel(
       history: opts.history,
       onEvent: opts.onEvent,
       readOnly: opts.readOnly,
+      operator,
       own,
     });
     if (!result.text.trim()) {
@@ -388,6 +413,7 @@ async function askLokiViaGateway(
   message: string,
   opts: AskLokiOpts | undefined,
   startedAt: number,
+  operator: boolean,
 ): Promise<AskLokiResult> {
   // Arriving here means the tool loop did not produce the answer — and it may
   // have streamed prose before giving up. That text is void: this path answers
@@ -491,7 +517,9 @@ async function askLokiViaGateway(
     return { status: 200, body: { ok: true, text, ...provenance } };
   };
 
-  if (isGatewayConfigured() && !opts?.readOnly) {
+  // Only the operator's turns may reach their own agent (see isOperatorTurn);
+  // everyone else falls through to the shared Groq path below.
+  if (isGatewayConfigured() && !opts?.readOnly && operator) {
     const v = voice?.trim();
     const prefaced = v
       ? `[Voice for this reply — ${v}]\n\n${contextualMessage}`

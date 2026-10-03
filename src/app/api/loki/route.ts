@@ -3,6 +3,7 @@ import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { getApiUserId } from "@/lib/session";
 import { askLoki } from "@/lib/loki-core";
 import { getProjectContext } from "@/db/queries/project-context";
+import { isSiteOperator } from "@/db/queries/users";
 import { enqueueProposalFromMessage } from "@/lib/actions/enqueue-proposal";
 
 const AskLokiBody = z.object({
@@ -53,8 +54,18 @@ export async function POST(req: NextRequest) {
   // Unset (multi-tenant default) → a stable per-user web thread. The Loki *page* keeps
   // its own per-conversation threads regardless (same agent + memory).
   // userId also resolves the caller's writing-voice preference.
+  //
+  // The personal key is the OPERATOR's session — their Telegram/WhatsApp thread
+  // — so it applies to the operator's account only. It used to apply to every
+  // signed-in user, which on a box with open sign-up put strangers' questions
+  // (and the answers drawn from the operator's memory) into the operator's
+  // private conversation. Everyone else keeps their own per-user thread.
   let message = dataOrResp.message;
-  let sessionKey = process.env.LOKI_PERSONAL_SESSION_KEY?.trim() || `agent:main:web:ask:${userId}`;
+  const personalKey = process.env.LOKI_PERSONAL_SESSION_KEY?.trim();
+  let sessionKey =
+    personalKey && (await isSiteOperator(userId).catch(() => false))
+      ? personalKey
+      : `agent:main:web:ask:${userId}`;
 
   // Project-scoped discussion: a per-project thread, with the project's brief +
   // goals prefaced so Loki reasons as a partner on THIS project (not the generic

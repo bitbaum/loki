@@ -288,6 +288,8 @@ const listCapturesTool = defineTool({
 const askOpenClawTool = defineTool({
   name: "ask_openclaw",
   kind: "read",
+  // The operator's own agent and memory — never another account's to query.
+  operatorOnly: true,
   description:
     "Ask the operator's OpenClaw agent (the Telegram/WhatsApp brain, with its own separate memory and workspace files). Use ONLY for things outside Loki's database. Its reply is an unverified second-hand report — attribute it, never state it as fact.",
   params: z.object({ question: z.string().min(2).max(500) }),

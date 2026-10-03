@@ -47,6 +47,7 @@ import { buildLokiContext } from "@/lib/agent/grounded-context";
 import { callModelWithTools, type ChatMessage, type ToolCall } from "@/lib/agent/llm";
 import {
   readOnlyRegistry,
+  withoutOperatorTools,
   renderToolCatalog,
   toOpenAITools,
   toolNames,
@@ -335,6 +336,12 @@ export async function runLokiTurn(input: {
    * the asker was granted conversation but not action.
    */
   readOnly?: boolean;
+  /**
+   * The asker runs this Loki instance (users.is_default). Anything else —
+   * including undefined — drops the operator-only tools: fail closed, so a new
+   * caller that forgets to say gets the safe registry, not the operator's.
+   */
+  operator?: boolean;
   /** Injected in tests; defaults to the real provider call. */
   callModel?: ModelCaller;
   /** Present when someone is watching: stream the turn instead of buffering it. */
@@ -350,7 +357,8 @@ export async function runLokiTurn(input: {
   own?: OwnModel;
 }): Promise<LoopResult> {
   const fullRegistry = input.registry ?? (await defaultRegistry());
-  const registry = input.readOnly ? readOnlyRegistry(fullRegistry) : fullRegistry;
+  const scoped = input.operator === true ? fullRegistry : withoutOperatorTools(fullRegistry);
+  const registry = input.readOnly ? readOnlyRegistry(scoped) : scoped;
   const callModel = input.callModel ?? callModelWithTools;
   // The model may call ANY tool in the registry — this is the accepted set, and
   // it is deliberately not narrowed alongside the advertised one.
