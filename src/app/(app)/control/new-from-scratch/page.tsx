@@ -14,6 +14,7 @@ import { Loader2, GitBranch, Check, Copy } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
 import { TEMPLATES, type TemplateId } from "@/lib/project-templates";
 import { setDraft } from "@/lib/draft-storage";
+import { LinkGithubButton } from "@/components/onboarding/LinkGithubButton";
 
 type CreateResponse = {
   ok: boolean;
@@ -72,6 +73,7 @@ function NewFromScratchForm() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CreateResponse | null>(null);
   const [error, setError] = useState("");
+  const [needsGithub, setNeedsGithub] = useState(false);
   const [copied, setCopied] = useState<"ssh" | "https" | "task" | null>(null);
 
   function startBuilding(firstTask: string, projectName: string) {
@@ -88,6 +90,7 @@ function NewFromScratchForm() {
     if (!name.trim()) return;
     setSubmitting(true);
     setError("");
+    setNeedsGithub(false);
     try {
       const res = await fetch("/api/projects/create-with-github", {
         method: "POST",
@@ -108,10 +111,9 @@ function NewFromScratchForm() {
             : body.error
           : `Failed (HTTP ${res.status})`;
         setError(msg);
-        if (body.hasGithub === false) {
-          // No GitHub linked — surface a path to connect.
-          setError(`${msg} Go to /control/import to connect GitHub first.`);
-        }
+        // No GitHub linked: the fix is one button that returns here, not a
+        // sentence naming another page to go and find.
+        setNeedsGithub(body.hasGithub === false);
         setSubmitting(false);
         return;
       }
@@ -336,6 +338,7 @@ function NewFromScratchForm() {
             now live in the page header, where they are said once. */}
         <div className="ui-card-shell space-y-5 p-5 sm:p-6">
           {error && <div className="ui-error p-3 rounded-md text-sm">{error}</div>}
+          {needsGithub && <LinkGithubButton callbackUrl="/control/new-from-scratch" />}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

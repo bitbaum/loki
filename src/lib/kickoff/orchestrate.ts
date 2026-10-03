@@ -29,6 +29,18 @@ export type KickoffRunState = {
   finishedAt?: number;
   dispatch?: KickoffDispatchOutcome;
   deployment?: SiteDeployment;
+  /**
+   * A step was refused because no GitHub account is linked. Carried as a flag,
+   * not read out of the note text, so the card can offer the one button that
+   * fixes it instead of a sentence telling the person to go find it.
+   */
+  needsGithub?: boolean;
+  /**
+   * The agent was refused because this account has no builder it may use: the
+   * shared cloud builder is private to eligible accounts, so the way forward is
+   * the person's own computer (Fleet Runner), offered as a button.
+   */
+  needsBuilder?: boolean;
 };
 
 /** A step's route answer: status + JSON body, or a thrown transport error. */
@@ -92,6 +104,10 @@ export async function runKickoffPlan(
       const res = await call(path, body);
       if (res.status >= 400 || !res.body.ok) {
         const error = res.body.error;
+        if (res.body.hasGithub === false) set({ ...run, needsGithub: true });
+        if (res.body.code === "cloud-builder-private" || res.body.code === "builder-required") {
+          set({ ...run, needsBuilder: true });
+        }
         mark(id, "failed", typeof error === "string" ? error : `HTTP ${res.status}`);
         return null;
       }
