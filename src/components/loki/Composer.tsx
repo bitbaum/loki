@@ -93,7 +93,11 @@ export function LokiComposer({
 
   const scopedProject = selectedProjects.length === 1 ? selectedProjects[0] : null;
   const allChips = composerChips({ projectCount, selectedProjects, selectedGoal });
+  // Starters belong on an empty thread. Mid-conversation the project chips
+  // (Move forward / Review / Fix tests) stay one tap away on wider screens, but
+  // on a phone they were a full row taken from the transcript every turn.
   const chips = showStarters || selectedProjects.length > 0 ? allChips : [];
+  const chipsPhoneHidden = !showStarters;
 
   const runChip = (chip: LokiComposerChip) => {
     if (disabled || sending) return;
@@ -128,7 +132,9 @@ export function LokiComposer({
 
   const suggestions =
     !text.trim() && chips.length > 0 ? (
-      <div className="ui-loki-suggest-row">
+      <div
+        className={chipsPhoneHidden ? "ui-loki-suggest-row max-md:hidden" : "ui-loki-suggest-row"}
+      >
         {chips.map((chip) => {
           const title =
             chip.kind === "href"
@@ -156,16 +162,30 @@ export function LokiComposer({
       </div>
     ) : null;
 
-  const scopeRow = showScopeRow ? (
-    <div className="ui-loki-composer-scope-row">
+  // Scope sits INLINE with attach / mic / model, not in a header row of its
+  // own: on a phone that row was a whole line spent on one pill and a "+".
+  // Tapping the pill opens the picker; the "+" is kept only from md up.
+  const scope = showScopeRow ? (
+    <>
       {offersProjectButton && (
-        <button type="button" className="ui-btn-chip" onClick={onOpenProjects}>
-          <FolderKanban className="h-3.5 w-3.5" /> Project
+        <button type="button" className="ui-loki-scope-btn" onClick={onOpenProjects}>
+          <FolderKanban className="h-4 w-4" aria-hidden /> Project
         </button>
       )}
       {selectedProjects.map((project) => (
         <span key={project} className="ui-loki-scope-pill">
-          <span className="truncate">{project}</span>
+          {onOpenProjects ? (
+            <button
+              type="button"
+              className="truncate"
+              onClick={onOpenProjects}
+              title="Change project scope"
+            >
+              {project}
+            </button>
+          ) : (
+            <span className="truncate">{project}</span>
+          )}
           {onRemoveProject && (
             <button
               type="button"
@@ -181,7 +201,7 @@ export function LokiComposer({
       {selectedProjects.length > 0 && onOpenProjects && (
         <button
           type="button"
-          className="ui-loki-scope-add"
+          className="ui-loki-scope-add max-md:hidden"
           onClick={onOpenProjects}
           aria-label="Change project scope"
           title="Change project scope"
@@ -189,7 +209,7 @@ export function LokiComposer({
           <Plus className="h-3.5 w-3.5" />
         </button>
       )}
-    </div>
+    </>
   ) : null;
 
   return (
@@ -207,9 +227,11 @@ export function LokiComposer({
       queue={queue}
       modelPicker
       above={suggestions}
-      header={scopeRow}
+      tools={scope}
       trailing={
-        selectedProjects.length > 0 ? <ExecutorHonestyChip honesty={dispatchHonesty} /> : null
+        selectedProjects.length > 0 ? (
+          <ExecutorHonestyChip honesty={dispatchHonesty} compact />
+        ) : null
       }
       onSend={(outgoing, choice, attachments) => onSend(outgoing, choice, attachments)}
     />

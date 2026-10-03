@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PanelLeft, SquarePen } from "lucide-react";
 import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
 import { resolveLokiProjectSelection } from "@/lib/loki/project-selection";
@@ -21,6 +20,10 @@ import { StartScreen } from "./StartScreen";
 import { Thread } from "./Thread";
 import { LokiComposer } from "./Composer";
 import { SaveContextBar } from "./SaveContextBar";
+import { TopbarPortal } from "@/components/shell/TopbarSlot";
+import { useImmersiveChat } from "@/hooks/use-immersive-chat";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { LokiTopbarButtons, ThreadHeader } from "./ThreadHeader";
 import { ProjectFilter } from "./ProjectFilter";
 import type {
   Attachment,
@@ -500,13 +503,23 @@ export function LokiWorkspace({
       : null;
 
   const isStart = messages.length === 0 && !transcriptLoading && !sending && !activeId;
+  // A conversation on screen takes the whole phone (useImmersiveChat): its own
+  // header, no app top bar, no bottom tabs. The start screen keeps the shell.
+  const inThread = !isStart;
+  useImmersiveChat(inThread);
+  // The rail is `md:flex` — pinned or not, a phone never shows it. Treating
+  // "pinned" as "visible" hid the recent chats on every phone (the pin
+  // defaults to on), so Back from a thread landed on an empty screen.
+  const wide = useMediaQuery("(min-width: 768px)");
+  const threadTitle =
+    (activeId && conversations.find((c) => c.id === activeId)?.title) || "New chat";
 
   const chatBody = (
     <>
       {isStart && (
         <StartScreen
           conversations={conversations}
-          railVisible={historyPinned}
+          railVisible={historyPinned && wide}
           loading={convosLoading}
           onResume={(id) => setActiveId(id)}
           onBrowseAll={() => {
@@ -529,15 +542,19 @@ export function LokiWorkspace({
         onPickProject={dispatchWithProject}
         onAnswerAnyway={answerWithoutProject}
         onRetry={lastSent ? retryLast : undefined}
+        // Inside the scroll, after the last turn: it is an action ON the
+        // exchange, and as a fixed row between thread and composer it took a
+        // permanent line of a phone screen from the conversation.
+        tail={
+          messages.length > 0 ? (
+            <SaveContextBar
+              projects={projects}
+              messages={messages}
+              selectedProject={selectedProjects[0] ?? null}
+            />
+          ) : null
+        }
       />
-
-      {messages.length > 0 && (
-        <SaveContextBar
-          projects={projects}
-          messages={messages}
-          selectedProject={selectedProjects[0] ?? null}
-        />
-      )}
 
       {/* A turn that failed says so where the answer would have been, with the
           way out next to it — not as a detached line above the input. */}
@@ -643,6 +660,15 @@ export function LokiWorkspace({
     </>
   );
 
+  const topbarButtons = (
+    <LokiTopbarButtons
+      pinned={historyPinned}
+      onTogglePinned={() => setHistoryPinned((open) => !open)}
+      onOpenChats={() => setHistoryOpen(true)}
+      onNewChat={startNewConversation}
+    />
+  );
+
   return (
     <div
       className={historyPinned ? "ui-loki-workspace ui-loki-workspace-split" : "ui-loki-workspace"}
@@ -664,36 +690,21 @@ export function LokiWorkspace({
           It is hidden entirely when the rail is already pinned open on a wide
           screen, because a toggle for something you are looking at is noise.
         */}
-        <div className="ui-loki-topbar">
-          <button
-            type="button"
-            className="ui-loki-topbar-btn"
-            onClick={() => {
-              if (
-                typeof window !== "undefined" &&
-                window.matchMedia("(min-width: 768px)").matches
-              ) {
-                setHistoryPinned((open) => !open);
-                return;
-              }
-              setHistoryOpen(true);
-            }}
-            aria-label={historyPinned ? "Hide chats" : "Show chats"}
-            aria-pressed={historyPinned}
-          >
-            <PanelLeft className="h-4 w-4" aria-hidden />
-          </button>
-          {/* On a phone the rail is a drawer, so starting a chat has to be
-              reachable without opening it first. */}
-          <button
-            type="button"
-            className="ui-loki-topbar-btn md:hidden"
-            onClick={startNewConversation}
-            aria-label="New chat"
-          >
-            <SquarePen className="h-4 w-4" aria-hidden />
-          </button>
-        </div>
+        {/* Phones: the same two buttons live in the app top bar's empty left
+            half (TopbarPortal) instead of a second header row under it. */}
+        {inThread ? (
+          <ThreadHeader
+            title={threadTitle}
+            projects={selectedProjects}
+            onBack={startNewConversation}
+            onOpenChats={() => setHistoryOpen(true)}
+            onNewChat={startNewConversation}
+            onOpenProjects={() => setFilterOpen(true)}
+          />
+        ) : (
+          <TopbarPortal>{topbarButtons}</TopbarPortal>
+        )}
+        <div className="ui-loki-topbar max-md:hidden">{topbarButtons}</div>
 
         <section
           className={

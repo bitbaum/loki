@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
 import { APP_SLUG } from "@/config/brand";
 import type { BuilderChannel } from "@/lib/constants/statuses";
+import { mergeTranscriptItems, type TranscriptItem } from "@/lib/claude-transcript";
 
 // Global singleton keyed on globalThis — survives Next.js hot-reload in dev.
 const KEY = `$$${APP_SLUG}_sse_bus`;
@@ -72,4 +73,72 @@ export function removePeekViewer(
   }
   peekViewers.set(key, n);
   return false;
+}
+
+// ── Claude Code conversation fanout ─────────────────────────────────────────
+// The runner tails the session log (desktop/src/main/transcript-streamer.ts)
+// and POSTs structured items to /api/control/transcript-frame; viewers of
+// /api/control/transcript-stream receive them. Unlike the PTY frames, the
+// conversation is small and keyed by id, so the server keeps the latest copy
+// per (user, tab): a viewer who joins — or a phone that reconnects after the
+// screen slept — paints the conversation at once instead of waiting for the
+// runner's next snapshot. Same single-instance caveat as the frames above.
+export type TranscriptFrame = {
+  reset: boolean;
+  sessionId: string | null;
+  items: TranscriptItem[];
+  at: number;
+};
+
+export function transcriptChannel(
+  userId: string,
+  tab: string,
+  channel?: PeekBuilderChannel,
+): string {
+  return `transcript:${channel ?? "any"}:${userId}:${tab.toLowerCase()}`;
+}
+
+const TKEY = `$$${APP_SLUG}_transcripts`;
+if (!(globalThis as Record<string, unknown>)[TKEY]) {
+  (globalThis as Record<string, unknown>)[TKEY] = new Map<string, TranscriptFrame>();
+}
+const lastTranscripts = (globalThis as Record<string, unknown>)[TKEY] as Map<
+  string,
+  TranscriptFrame
+>;
+/** Items kept per conversation — the tail a phone scrolls back through. */
+const KEEP_ITEMS = 400;
+
+function remember(key: string, frame: TranscriptFrame): void {
+  const prior = frame.reset ? undefined : lastTranscripts.get(key);
+  const items = prior ? mergeTranscriptItems(prior.items, frame.items) : frame.items;
+  lastTranscripts.set(key, {
+    reset: true,
+    sessionId: frame.sessionId ?? prior?.sessionId ?? null,
+    items: items.slice(-KEEP_ITEMS),
+    at: frame.at,
+  });
+}
+
+export function emitTranscriptFrame(
+  userId: string,
+  tab: string,
+  frame: TranscriptFrame,
+  channel?: PeekBuilderChannel,
+): void {
+  const keys = [transcriptChannel(userId, tab, channel)];
+  if (channel) keys.push(transcriptChannel(userId, tab));
+  for (const key of keys) {
+    remember(key, frame);
+    sseBus.emit(key, frame);
+  }
+}
+
+/** The latest full conversation for a viewer that has just joined. */
+export function lastTranscript(
+  userId: string,
+  tab: string,
+  channel?: PeekBuilderChannel,
+): TranscriptFrame | null {
+  return lastTranscripts.get(transcriptChannel(userId, tab, channel)) ?? null;
 }

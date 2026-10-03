@@ -87,6 +87,21 @@ export function terminalInputHint(id: TerminalInputMode): string {
   return TERMINAL_INPUT_MODES.find((m) => m.id === id)?.hint ?? "";
 }
 
+/**
+ * How the session is SHOWN — orthogonal to source and input. `chat` reads
+ * Claude Code's own session log and renders it as a conversation (the phone
+ * default: 80-column TUI cells are not readable at arm's length); `terminal`
+ * is the raw PTY. Same session, same keystrokes, either way.
+ */
+export type TerminalViewMode = "chat" | "terminal";
+
+export const TERMINAL_VIEW_STORAGE_KEY = "loki:terminal-view";
+
+/** Only Claude Code writes the session log the chat view reads. */
+export function chatViewSupported(agentId: string | null | undefined): boolean {
+  return !agentId || agentId === "claude";
+}
+
 /** Persisted so reopening the terminal restores how you were working. */
 export const TERMINAL_MODE_STORAGE_KEY = "loki:terminal-mode";
 

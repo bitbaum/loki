@@ -151,7 +151,10 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
           tab: opts.projectKey,
           promptKey: opts.intentId!,
           adapter: opts.agent,
-          model: opts.model,
+          // No `model`: the composer's picker lists LOKI's chat chain (Groq /
+          // OpenRouter ids). Handing one to a project agent made Claude Code
+          // launch with a model name it does not have; the agent keeps its
+          // project's own model preference instead.
           // A person typed this: tell them how it ended, in this thread.
           notifyOnClose: true,
           conversationId: opts.conversationId,
@@ -160,7 +163,6 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
           tab: opts.projectKey,
           customPrompt: opts.prompt + opts.attachmentSuffix,
           adapter: opts.agent,
-          model: opts.model,
           notifyOnClose: true,
           conversationId: opts.conversationId,
         },
@@ -632,6 +634,7 @@ async function chatReply(
         ? `agent:main:web:ask:${ctx.userId}`
         : `agent:main:web:conv:${ctx.conversationId}`,
       userId: ctx.userId,
+      model: ctx.model,
       // The thread so far, so the primary path has the same continuity the
       // gateway's session memory used to give only the fallback. Trimmed by
       // the loop; only role + content cross this seam.

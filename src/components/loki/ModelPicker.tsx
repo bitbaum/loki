@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Lock, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Lock, Sparkles, X } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { getJson } from "@/lib/api/fetch";
-import type { LokiModelOption, LokiModelsResponse } from "@/lib/loki/models";
+import { describeChatModel, type LokiModelsResponse } from "@/lib/loki/models";
 
 /**
  * Which model starts the turn.
@@ -36,6 +38,7 @@ export function ModelPicker({
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<LokiModelsResponse | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const phone = useMediaQuery("(max-width: 767px)");
 
   // Fetched on first open, not on mount: most turns never touch this control,
   // and the composer should not cost a request to render.
@@ -70,15 +73,56 @@ export function ModelPicker({
     };
   }, [open]);
 
-  const byProvider = new Map<string, LokiModelOption[]>();
-  for (const option of data?.options ?? []) {
-    byProvider.set(option.provider, [...(byProvider.get(option.provider) ?? []), option]);
-  }
-
   const pick = (model: string | undefined) => {
     onChange(model);
     setOpen(false);
   };
+
+  const current = value ? describeChatModel(value).name : "Auto";
+
+  // One list, two containers: a popover above the composer on a laptop, a
+  // bottom sheet on a phone (where a popover is a cramped box under a thumb).
+  const list = (
+    <>
+      <div className="ui-loki-model-card" role="listbox" aria-label="Model">
+        <ModelRow
+          name="Auto"
+          blurb={
+            data?.autoStartsAt
+              ? `Best available right now — ${describeChatModel(data.autoStartsAt).name}`
+              : "Best available right now"
+          }
+          selected={value === undefined}
+          onPick={() => pick(undefined)}
+        />
+        {data === null && <p className="ui-loki-model-note">Loading models…</p>}
+        {(data?.options ?? []).map((option) => {
+          const { name, blurb } = describeChatModel(option.id);
+          return (
+            <ModelRow
+              key={`${option.provider}/${option.id}`}
+              name={name}
+              blurb={
+                option.usable
+                  ? `${blurb} · ${providerName(option.provider)}`
+                  : `Not set up on this server — ${providerName(option.provider)} has no key`
+              }
+              title={option.reason}
+              selected={value === option.id}
+              locked={!option.usable}
+              onPick={() => pick(option.id)}
+            />
+          );
+        })}
+      </div>
+      {data !== null && (
+        <p className="ui-loki-model-note">
+          Loki starts with your pick. If it is busy or out of budget, the next one answers — your
+          turn never just fails.
+        </p>
+      )}
+    </>
+  );
 
   return (
     <div ref={rootRef} className="relative">
@@ -89,81 +133,92 @@ export function ModelPicker({
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={value ? `Starts at ${value}` : "Auto — best available model"}
+        title={value ? `Starts at ${current}` : "Auto — best available model"}
       >
         <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <span className="truncate">{value ?? "Auto"}</span>
+        <span className="truncate">{current}</span>
         <ChevronDown
           className={open ? "ui-loki-model-caret ui-loki-model-caret-open" : "ui-loki-model-caret"}
           aria-hidden
         />
       </button>
 
-      {open && (
-        <div className="ui-loki-model-menu" role="listbox">
-          <button
-            type="button"
-            className="ui-loki-model-row"
-            onClick={() => pick(undefined)}
-            role="option"
-            aria-selected={value === undefined}
-          >
-            <span className="ui-loki-model-row-text">
-              <span className="ui-loki-model-row-title">Auto</span>
-              <span className="ui-loki-model-row-sub">
-                {data?.autoStartsAt
-                  ? `Best available — starts at ${data.autoStartsAt}`
-                  : "Best available model"}
-              </span>
-            </span>
-            {value === undefined && <Check className="ui-loki-model-check" aria-hidden />}
-          </button>
-
-          {data === null && <p className="ui-loki-model-note">Loading models…</p>}
-
-          {[...byProvider.entries()].map(([provider, options]) => (
-            <div key={provider}>
-              <div className="ui-loki-model-group">{provider}</div>
-              {options.map((option) =>
-                option.usable ? (
-                  <button
-                    key={`${provider}/${option.id}`}
-                    type="button"
-                    className="ui-loki-model-row"
-                    onClick={() => pick(option.id)}
-                    role="option"
-                    aria-selected={value === option.id}
-                  >
-                    <span className="ui-loki-model-row-text">
-                      <span className="ui-loki-model-row-title">{option.label}</span>
-                    </span>
-                    {value === option.id && <Check className="ui-loki-model-check" aria-hidden />}
-                  </button>
-                ) : (
-                  <div
-                    key={`${provider}/${option.id}`}
-                    className="ui-loki-model-row ui-loki-model-row-locked"
-                    title={option.reason}
-                  >
-                    <span className="ui-loki-model-row-text">
-                      <span className="ui-loki-model-row-title">{option.label}</span>
-                      <span className="ui-loki-model-row-sub">{option.reason}</span>
-                    </span>
-                    <Lock className="ui-loki-model-check" aria-hidden />
-                  </div>
-                ),
-              )}
-            </div>
-          ))}
-
-          {data !== null && (
-            <p className="ui-loki-model-note">
-              A choice sets where the chain <em>starts</em>. If that model is busy or out of budget,
-              Loki still falls through to the next one.
-            </p>
-          )}
-        </div>
+      {open && !phone && <div className="ui-loki-model-menu">{list}</div>}
+      {open && phone && (
+        <Modal
+          onClose={() => setOpen(false)}
+          position="bottom-mobile"
+          padded={false}
+          className="ui-sheet"
+        >
+          <div className="ui-sheet-grip" aria-hidden />
+          <div className="ui-loki-model-sheet-head">
+            <button
+              type="button"
+              className="ui-loki-topbar-btn"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+            <h2 className="flex-1 text-center text-base font-semibold text-text-primary">
+              Choose a model
+            </h2>
+            <span className="w-11" aria-hidden />
+          </div>
+          <div className="ui-loki-model-sheet-body">{list}</div>
+        </Modal>
       )}
     </div>
   );
+}
+
+/** One choice: the name, one line on what it is for, a check when chosen. */
+function ModelRow({
+  name,
+  blurb,
+  selected,
+  locked = false,
+  onPick,
+  title,
+}: {
+  name: string;
+  blurb: string;
+  /** The precise reason on hover (e.g. which env var is missing). */
+  title?: string;
+  selected: boolean;
+  locked?: boolean;
+  onPick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={locked ? "ui-loki-model-row ui-loki-model-row-locked" : "ui-loki-model-row"}
+      onClick={locked ? undefined : onPick}
+      disabled={locked}
+      role="option"
+      aria-selected={selected}
+      title={title}
+    >
+      <span className="ui-loki-model-row-text">
+        <span className="ui-loki-model-row-title">{name}</span>
+        <span className="ui-loki-model-row-sub">{blurb}</span>
+      </span>
+      {locked ? (
+        <Lock className="ui-loki-model-check" aria-hidden />
+      ) : (
+        selected && <Check className="ui-loki-model-check" aria-hidden />
+      )}
+    </button>
+  );
+}
+
+/** "groq" → "Groq", "openrouter" → "OpenRouter". */
+function providerName(id: string): string {
+  const known: Record<string, string> = {
+    groq: "Groq",
+    openrouter: "OpenRouter",
+    openai: "OpenAI",
+  };
+  return known[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
 }
