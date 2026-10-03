@@ -1950,18 +1950,236 @@
   .ui-public-milestone-mark[data-done="true"] {
     @apply border-border-strong bg-surface-raised;
   }
-  /* Page refactor, public batch (2026-10-02): a roadmap item's steps, and the
-     whole Shipped group, fold behind one line. */
-  .ui-roadmap-steps-summary {
-    @apply inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-sm text-text-tertiary transition-colors hover:text-text-secondary;
+  /* ── Roadmap as a journey (/roadmap, RoadmapJourney) ─────────────────────
+     A road down the page: a solid line behind us, a beacon where we are,
+     a dashed line ahead. Markers sit ON the line; cards hang to its right.
+     Colour carries phase and nothing else: positive = shipped, the warm
+     accent = being built (the one place it earns its use), neutral = next,
+     faint = later. */
+  .ui-journey {
+    @apply flex flex-col gap-10 sm:gap-14;
   }
-  .ui-roadmap-steps-summary::before {
-    content: "▸";
-    @apply text-micro transition-transform;
+  .ui-journey-headline {
+    @apply flex flex-col gap-4 rounded-3xl border border-border-subtle bg-surface-base p-5 sm:p-8;
   }
-  .ui-roadmap-steps[open] > .ui-roadmap-steps-summary::before,
-  .ui-roadmap-shipped[open] > .ui-roadmap-steps-summary::before {
-    @apply rotate-90;
+  .ui-journey-percent {
+    @apply font-semibold leading-none text-text-primary tabular-nums;
+    font-size: clamp(3rem, 14vw, 5.5rem);
+  }
+  .ui-journey-percent-label {
+    @apply text-base text-text-secondary sm:text-lg;
+  }
+  .ui-journey-bar {
+    @apply flex h-3 w-full gap-1 overflow-hidden rounded-full;
+  }
+  .ui-journey-bar-seg {
+    @apply h-full basis-0 rounded-full;
+    animation: ui-journey-grow 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    transform-origin: left;
+  }
+  .ui-journey-bar-seg[data-phase="shipped"] {
+    @apply bg-status-positive;
+  }
+  .ui-journey-bar-seg[data-phase="now"] {
+    background: var(--accent-warm);
+  }
+  .ui-journey-bar-seg[data-phase="next"] {
+    @apply bg-text-tertiary;
+  }
+  .ui-journey-bar-seg[data-phase="later"] {
+    @apply bg-border-default;
+  }
+  .ui-journey-legend {
+    @apply flex flex-wrap gap-x-4 gap-y-1;
+  }
+  .ui-journey-legend-item {
+    @apply inline-flex min-h-11 items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary;
+  }
+  .ui-journey-legend-dot {
+    @apply h-2.5 w-2.5 rounded-full;
+  }
+  .ui-journey-legend-item[data-phase="shipped"] .ui-journey-legend-dot {
+    @apply bg-status-positive;
+  }
+  .ui-journey-legend-item[data-phase="now"] .ui-journey-legend-dot {
+    background: var(--accent-warm);
+  }
+  .ui-journey-legend-item[data-phase="next"] .ui-journey-legend-dot {
+    @apply bg-text-tertiary;
+  }
+  .ui-journey-legend-item[data-phase="later"] .ui-journey-legend-dot {
+    @apply bg-border-default;
+  }
+  .ui-journey-steps-total {
+    @apply text-sm text-text-tertiary;
+  }
+  /* The road itself: each stop draws the segment of line below its marker,
+     solid until "you are here", dashed after it. */
+  .ui-journey-track {
+    @apply relative flex flex-col;
+  }
+  .ui-journey-stop {
+    @apply relative flex scroll-mt-24 gap-4 pb-8 sm:gap-6 sm:pb-12;
+  }
+  .ui-journey-stop::before {
+    content: "";
+    @apply absolute top-12 bottom-0 left-6 w-0.5 -translate-x-1/2 bg-status-positive/50;
+  }
+  .ui-journey-stop:last-child::before {
+    @apply hidden;
+  }
+  .ui-journey-stop[data-phase="now"]::before {
+    background: linear-gradient(var(--accent-warm), var(--border-default));
+  }
+  .ui-journey-stop[data-phase="next"]::before,
+  .ui-journey-stop[data-phase="later"]::before {
+    @apply w-0 border-l-2 border-dashed border-border-default bg-transparent;
+  }
+  .ui-journey-marker {
+    @apply relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-page;
+  }
+  .ui-journey-stop[data-phase="shipped"] .ui-journey-marker {
+    @apply bg-status-positive text-text-inverted;
+  }
+  .ui-journey-stop[data-phase="later"] .ui-journey-marker {
+    @apply mx-3 mt-3 h-6 w-6 border-2 border-dashed border-border-default;
+  }
+  /* The beacon: the one moving thing on the page, at the one place that is
+     happening now. */
+  .ui-journey-stop[data-here] .ui-journey-marker::after {
+    content: "";
+    @apply absolute inset-0 rounded-full border-2;
+    border-color: var(--accent-warm);
+    animation: ui-journey-beacon 2.2s ease-out infinite;
+  }
+  .ui-journey-ring {
+    @apply h-12 w-12;
+  }
+  .ui-journey-ring-track {
+    fill: none;
+    stroke: var(--border-subtle);
+    stroke-width: 4;
+  }
+  .ui-journey-ring-fill {
+    fill: none;
+    stroke: var(--text-tertiary);
+    stroke-width: 4;
+    stroke-linecap: round;
+    animation: ui-journey-ring-in 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .ui-journey-stop[data-phase="now"] .ui-journey-ring-fill {
+    stroke: var(--accent-warm);
+  }
+  .ui-journey-ring-text {
+    @apply font-semibold tabular-nums;
+    fill: var(--text-secondary);
+    font-size: 11px;
+  }
+  .ui-journey-card {
+    @apply flex min-w-0 flex-1 flex-col gap-2 rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-6;
+  }
+  .ui-journey-stop[data-here] .ui-journey-card {
+    border-color: oklch(from var(--accent-warm) l c h / 45%);
+    box-shadow: var(--shadow-panel);
+  }
+  .ui-journey-card-quiet {
+    @apply border-transparent bg-transparent p-0 pt-2.5 sm:p-0 sm:pt-2.5;
+  }
+  /* The one warm thing on the page, where the work is happening. */
+  .ui-journey-here {
+    @apply inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+    background: oklch(from var(--accent-warm) l c h / 14%);
+    color: var(--accent-warm);
+  }
+  .ui-journey-kicker {
+    @apply text-xs font-medium uppercase tracking-wider text-text-tertiary;
+  }
+  .ui-journey-title {
+    @apply text-lg font-semibold text-text-primary sm:text-xl;
+    overflow-wrap: anywhere;
+  }
+  .ui-journey-line {
+    @apply text-text-secondary;
+    overflow-wrap: anywhere;
+  }
+  .ui-journey-prose-strong {
+    @apply font-medium text-text-primary;
+  }
+  .ui-journey-next {
+    @apply text-sm text-text-secondary;
+  }
+  .ui-journey-next-label {
+    @apply mr-1 rounded-md bg-surface-raised px-1.5 py-0.5 text-xs font-medium text-text-primary;
+  }
+  .ui-journey-summary {
+    @apply flex min-h-11 cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-1;
+  }
+  .ui-journey-summary::-webkit-details-marker {
+    display: none;
+  }
+  .ui-journey-hint {
+    @apply text-sm text-text-tertiary;
+  }
+  .ui-journey-summary-inline {
+    @apply inline-flex min-h-11 cursor-pointer list-none items-center text-sm text-text-tertiary transition-colors hover:text-text-secondary;
+  }
+  .ui-journey-steps[open] > .ui-journey-summary-inline,
+  .ui-journey-card-quiet[open] .ui-journey-hint {
+    @apply text-text-secondary;
+  }
+  .ui-journey-step-list {
+    @apply mt-1 flex flex-col gap-2;
+  }
+  .ui-journey-step-list > li {
+    @apply flex gap-2.5 text-sm text-text-secondary;
+  }
+  .ui-journey-step-list > li[data-done] {
+    @apply text-text-tertiary line-through decoration-text-muted/60;
+  }
+  .ui-journey-step-mark {
+    @apply mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border-default;
+  }
+  .ui-journey-step-list > li[data-done] .ui-journey-step-mark {
+    @apply border-status-positive bg-status-positive text-text-inverted;
+  }
+  .ui-journey-shipped-list {
+    @apply mt-3 flex flex-col gap-2;
+  }
+  .ui-journey-shipped-list > li {
+    @apply flex items-start gap-2 text-sm text-text-secondary;
+  }
+  .ui-journey-shipped-list svg {
+    @apply mt-0.5 text-status-positive;
+  }
+  .ui-journey-horizon {
+    @apply mt-3 flex flex-col gap-3;
+  }
+  @keyframes ui-journey-beacon {
+    0% {
+      opacity: 0.8;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.8);
+    }
+  }
+  @keyframes ui-journey-grow {
+    from {
+      transform: scaleX(0);
+    }
+  }
+  @keyframes ui-journey-ring-in {
+    from {
+      stroke-dasharray: 0 200;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ui-journey-bar-seg,
+    .ui-journey-ring-fill,
+    .ui-journey-stop[data-here] .ui-journey-marker::after {
+      animation: none;
+    }
   }
   .ui-public-band {
     @apply border-t border-border-default bg-surface-page;
