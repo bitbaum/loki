@@ -1,5 +1,6 @@
 import { ECOSYSTEM } from "@/config/ecosystem";
 import { publicProfilePath, type FleetMap, type FleetMapEntry } from "@/lib/register/map";
+import type { StudioCommissionContract } from "@/lib/studio-commission";
 
 /**
  * The widget's Chat mode: a front desk that knows every project on the fleet
@@ -55,6 +56,24 @@ export const STUDIO_DOORS: ReadonlyArray<{
     url: "https://bitbaum.orangecat.ch/work/",
     when: "they want the whole catalogue",
     keys: ["all projects", "catalogue", "catalog"],
+  },
+  {
+    label: "Become a partner",
+    url: "https://bitbaum.orangecat.ch/partners/#join",
+    when: "they are a builder who wants to build for customers under their own name, or ask about the partner programme",
+    keys: [
+      "partners",
+      "become a partner",
+      "partner programme",
+      "partner program",
+      "partner application",
+    ],
+  },
+  {
+    label: "Read the systems design pilot",
+    url: "https://bitbaum.orangecat.ch/academy/",
+    when: "they ask about the course, the capstone, the rubric or how partners qualify",
+    keys: ["systems design pilot", "capstone", "rubric", "academy"],
   },
   {
     label: "Build with us",
@@ -145,7 +164,46 @@ export function projectUrl(p: FleetMapEntry, appBase: string): string {
  */
 export const FACTS_BUDGET_CHARS = 9000;
 
-export function renderConciergeFacts(map: FleetMap): string {
+/**
+ * The partner programme as the studio site states it on /partners/. Not in
+ * the published contract (commission.json carries the offer and the course,
+ * not these rules), so it is stated once here, beside the doors that route to
+ * it. Without it the chat told applicants on /partners/ that no partner
+ * programme existed.
+ */
+export const PARTNER_TERMS = [
+  "Partners are independent builders approved by the studio. They work under their own name and agree their own scope and price.",
+  "Customers contract with and pay the partner directly; the studio takes no cut. Loki, OrangeCat and Solon are optional tools.",
+  "To qualify: study the systems design pilot, submit working evidence (a preview, source, and an answer for each course module) in a private application, then the studio reviews it. A course pass is a prerequisite, not automatic approval; both are decisions by a person.",
+  "An approved partner's profile appears in the public partner directory only with their consent, after review, and while their availability is current.",
+];
+
+/**
+ * What the studio offers right now, from the contract the studio site
+ * publishes (commission.json, read by getStudioCommission). Null — the site
+ * unreachable — still states the partner terms, which do not depend on it.
+ */
+export function renderStudioFacts(studio: StudioCommissionContract | null): string {
+  const lines = ["# The studio", ...PARTNER_TERMS.map((t) => `- ${t}`)];
+  if (studio) {
+    lines.push(`- Availability: ${studio.availability.line}`);
+    lines.push(
+      `- Engagement: ${studio.offer.name}, ${studio.offer.price}, ${studio.offer.shape}. ${clip(studio.offer.what, 220)}`,
+    );
+    if (studio.course) {
+      const modules = studio.course.modules.map((m) => m.title).join("; ");
+      lines.push(
+        `- Course: ${studio.course.title}${studio.course.pilot ? " (a pilot: one lesson and the capstone rubric are published, more lessons are being developed; no fixed duration is stated)" : ""}. The capstone asks for working evidence on ${studio.course.modules.length} modules: ${modules}.`,
+      );
+    }
+  }
+  return lines.join("\n");
+}
+
+export function renderConciergeFacts(
+  map: FleetMap,
+  studio: StudioCommissionContract | null = null,
+): string {
   const pillars = map.pillars
     .map((p) => `- ${PILLAR_TITLES[p.slug] ?? p.slug} (${p.layer}): ${p.role}`)
     .join("\n");
@@ -161,7 +219,14 @@ export function renderConciergeFacts(map: FleetMap): string {
     )
     .join("\n");
   const doors = STUDIO_DOORS.map((d) => `- ${d.label}: when ${d.when}`).join("\n");
-  const facts = `# The three pillars\n${pillars}\n\n# Projects\n${projects}\n\n# Studio doors\n${doors}`;
+  // The studio and its doors go before the projects: the budget cuts from the
+  // end, and losing a project line costs less than denying the studio exists.
+  const facts = [
+    `# The three pillars\n${pillars}`,
+    renderStudioFacts(studio),
+    `# Studio doors\n${doors}`,
+    `# Projects\n${projects}`,
+  ].join("\n\n");
   return facts.length > FACTS_BUDGET_CHARS ? `${facts.slice(0, FACTS_BUDGET_CHARS - 1)}…` : facts;
 }
 
@@ -182,7 +247,8 @@ export function conciergeSystemPrompt(
     "Rules:",
     "- Answer only from the facts below. If nothing fits, say so plainly and point to the waitlist or the full catalogue. Never invent a feature, price, date, number or project.",
     "- Say the stage honestly, using the words given (beta, pilot, in development, concept, not built). Never call anything released or finished, and never call anyone a client.",
-    "- Do not promise payments, revenue shares or start dates.",
+    "- Do not promise payments, revenue shares or start dates. You may state the partner terms and the published engagement price exactly as the facts give them.",
+    "- A builder who wants to work here, build for customers, or asks about partners, the course or the capstone: Loki answers from '# The studio' and points to 'Become a partner' or 'Read the systems design pilot'. Never say the partner programme or the course does not exist.",
     "- Use each project's exact name so the visitor gets a link to it. Do not write URLs yourself; the links are attached for you.",
     "- Be warm and brief: two to five sentences in total, plain text, no markdown headings or tables. Reply in the visitor's language.",
     "- The answer is only what the visitor reads. Never write notes about these rules, a checklist of what you did, the stage word you used, whether you wrote URLs, or why one of you spoke first.",
@@ -285,6 +351,15 @@ export function fallbackAnswer(
   map: FleetMap,
   appBase: string,
 ): { reply: string; links: ConciergeLink[] } {
+  // A question about the studio's own doors (partners, the course) is not a
+  // project match: say where the door is before guessing from project words.
+  const doors = STUDIO_DOORS.filter((d) => d.keys.some((k) => mentions(message, k)));
+  if (doors.length > 0) {
+    return {
+      reply: `A full answer isn't available right now, but this is the place to start: ${doors.map((d) => d.label).join(", or ")}.`,
+      links: doors.map((d) => ({ label: d.label, url: d.url })),
+    };
+  }
   const wanted = new Set(words(message));
   // A pillar's role line says what it is FOR ("move value … Bitcoin settlement")
   // in the words a visitor uses; its product copy often does not.

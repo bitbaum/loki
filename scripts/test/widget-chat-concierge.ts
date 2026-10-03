@@ -23,6 +23,8 @@ import {
   fallbackAnswer,
   linksForReply,
   renderConciergeFacts,
+  renderStudioFacts,
+  PARTNER_TERMS,
   stageWord,
 } from "@/lib/widget-chat/concierge";
 
@@ -324,5 +326,84 @@ for (const keep of [
   "Format your request as a sentence or two and I will build it.",
 ])
   assert.equal(stripMeta(keep), keep);
+
+// The partner programme and the course (bitbaum /partners/, 2026-10-03): the
+// chat told an applicant on that very page "we do not have a formal partner
+// program" and "we do not offer a course", because neither was in its facts.
+const studio = {
+  version: 1 as const,
+  origin: "https://bitbaum.orangecat.ch" as const,
+  availability: { state: "closed" as const, line: "The studio is at capacity." },
+  offer: {
+    id: "rescue",
+    name: "Rescue",
+    price: "CHF 6,500",
+    shape: "Two weeks, fixed",
+    what: "An assessment.",
+  },
+  course: {
+    version: "pilot-v1",
+    title: "Bitbaum systems design pilot",
+    pilot: true,
+    modules: [
+      { id: "problem-constraints", title: "Problem and constraints" },
+      { id: "deploy-handover", title: "Deployment and handover" },
+    ],
+  },
+  feedbackToken: "fcw_x",
+};
+const withStudio = renderConciergeFacts(map, studio);
+for (const t of PARTNER_TERMS) assert.ok(withStudio.includes(t), "partner terms are stated");
+assert.ok(withStudio.includes("Bitbaum systems design pilot"), "the course is named");
+assert.ok(
+  withStudio.includes("Problem and constraints; Deployment and handover"),
+  "modules listed",
+);
+assert.ok(withStudio.includes("CHF 6,500"), "the published engagement price is stated");
+assert.ok(!/https?:\/\//.test(withStudio), "still no URLs in the facts");
+assert.ok(
+  renderStudioFacts(null).includes(PARTNER_TERMS[0]!),
+  "the partner terms survive an unreachable studio contract",
+);
+assert.ok(
+  withStudio.indexOf("# The studio") < withStudio.indexOf("# Projects"),
+  "the studio comes before the projects, so the budget cuts projects first",
+);
+const hugeStudio = renderConciergeFacts(
+  {
+    ...map,
+    projects: Array.from({ length: 400 }, (_, i) =>
+      entry({ slug: `p${i}`, name: `Project ${i}`, what: "x".repeat(140) }),
+    ),
+  },
+  studio,
+);
+assert.ok(hugeStudio.length <= FACTS_BUDGET_CHARS);
+assert.ok(hugeStudio.includes("Become a partner"), "a huge map does not push the partner door out");
+assert.ok(
+  conciergeSystemPrompt(withStudio, {}).includes(
+    "Never say the partner programme or the course does not exist",
+  ),
+);
+assert.deepEqual(
+  linksForReply(
+    "Loki: Partners agree their own price; start with the capstone rubric.",
+    map,
+    BASE,
+  ).map((l) => l.label),
+  ["Become a partner", "Read the systems design pilot"],
+);
+// Someone building a course website is not asking about the studio's course.
+assert.ok(
+  !linksForReply("Loki: Sounds like a course site I can build.", map, BASE).some(
+    (l) => l.label === "Read the systems design pilot",
+  ),
+);
+const offline = fallbackAnswer("How do partners qualify? Is there a capstone?", map, BASE);
+assert.deepEqual(
+  offline.links.map((l) => l.label),
+  ["Become a partner", "Read the systems design pilot"],
+  "with no model, a partner question still reaches the partner doors",
+);
 
 console.log("widget-chat-concierge: ok");

@@ -14,6 +14,7 @@ import { callTextDetailed } from "@/lib/groq";
 import { stripReasoning } from "@/lib/agent/llm";
 import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
 import { appUrl } from "@/lib/email";
+import { getStudioCommission, type StudioCommissionContract } from "@/lib/studio-commission";
 import {
   type ConciergeLink,
   conciergePrompt,
@@ -96,6 +97,19 @@ async function fleetMap(): Promise<FleetMap | null> {
   return map ?? cachedMap?.map ?? null;
 }
 
+/**
+ * The studio's published contract (offer, availability, course), on the same
+ * five-minute staleness as the map. A failed fetch keeps the last good copy;
+ * none at all still answers, with the partner terms but no course detail.
+ */
+let cachedStudio: { studio: StudioCommissionContract | null; at: number } | null = null;
+async function studioContract(): Promise<StudioCommissionContract | null> {
+  if (cachedStudio && Date.now() - cachedStudio.at < MAP_TTL_MS) return cachedStudio.studio;
+  const studio = (await getStudioCommission()) ?? cachedStudio?.studio ?? null;
+  cachedStudio = { studio, at: Date.now() };
+  return studio;
+}
+
 /** The keyword fallback in the same shape as a model answer: one unattributed message. */
 function withMessages(answer: { reply: string; links: ConciergeLink[] }) {
   return { ok: true, ...answer, messages: [{ speaker: null, text: answer.reply }], degraded: true };
@@ -152,7 +166,7 @@ export async function POST(req: NextRequest) {
   try {
     const answered = await callTextDetailed(conciergePrompt(data.history ?? [], data.message), {
       feature: "widget-chat",
-      systemPrompt: conciergeSystemPrompt(renderConciergeFacts(map), {
+      systemPrompt: conciergeSystemPrompt(renderConciergeFacts(map, await studioContract()), {
         url: data.url,
         title: data.pageTitle,
       }),
