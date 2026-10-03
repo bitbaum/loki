@@ -121,7 +121,7 @@ export default async function MemoryPage() {
           {/* Recently added entities — with per-entity forget (data controls) */}
           <Card>
             <div className="flex items-center justify-between">
-              <CardHeader icon={Zap} title="Recently Added" />
+              <CardHeader icon={Zap} title="Recently added" />
               <ForgetAllMemory />
             </div>
             <MemoryEntityList
@@ -136,7 +136,7 @@ export default async function MemoryPage() {
 
           {/* Recent interactions */}
           <Card>
-            <CardHeader icon={Clock} title="Recent Activity" />
+            <CardHeader icon={Clock} title="Recent activity" />
             {activity.length === 0 ? (
               <EmptyState>No interactions logged yet</EmptyState>
             ) : (
@@ -173,7 +173,7 @@ export default async function MemoryPage() {
 
         {/* Entity distribution */}
         <Card>
-          <CardHeader icon={Database} title="Entity Distribution" />
+          <CardHeader icon={Database} title="What it knows, by kind" />
           <div className="space-y-3">
             {stats.entityTypes.map((row) => {
               const pct = Math.round((Number(row.count) / stats.totalEntities) * 100);
