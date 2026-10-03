@@ -28,6 +28,21 @@ links, buttons, forms, a picked element's markup and computed style; for
 `/api/widget/advise`, charged to the token owner's AI budget. It sees no
 pixels and is told to say so.
 
+## Watch mode — the owner's site fixes itself
+
+Open your site from Loki (**Open your site** on the project page). That link
+carries the owner pass, and from then on, in that browser, a pill at the top
+of the page says **Loki is watching**. While it does, the widget keeps a short
+trail — pages, taps (by the control's label, never what was typed), the site's
+own non-GET requests — and when the page breaks (an uncaught error, a request
+that fails with a 5xx or never answers) it files a report with that trail. The
+owner pass makes the report a build, so the pill turns into **Something broke
+— Loki is fixing it · Follow**. One report per distinct cause, at most three
+per page load. **Pause** on the pill stops recording until **Resume**;
+visitors without the pass get no pill and no recording.
+Code: `widget/watch.ts` (page), `widget/watch-trail.ts` (pure, tested);
+proven in a browser by `scripts/test/widget-watch-browser.ts`.
+
 ## "Watch the fix" — the walkthrough
 
 When a fix has shipped, Loki's feedback row offers **Watch the fix**. It opens

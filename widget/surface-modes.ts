@@ -15,7 +15,11 @@
  *             visitor to the right project. OPT-IN: the
  *             same bundle runs on pilot sites that never asked for a studio
  *             front desk, so an embed gets chat only by listing it.
- *   watch   — observe how the visitor uses the page and comment (seam)
+ *   watch   — not a panel tab. Watch mode ships as an OWNER feature
+ *             (widget/watch.ts): it switches on by itself when the owner
+ *             arrives through Loki's "Open your site" link, shows a "Loki is
+ *             watching" pill the whole time it records, and files a fix when
+ *             something on the page breaks. Visitors are never watched.
  *
  * Keep this file free of DOM so the captain app and the IIFE bundle can share
  * labels/ids without dragging Shadow DOM into Node tests.

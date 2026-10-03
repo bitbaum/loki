@@ -6,6 +6,23 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-03 — Your site fixes itself while you use it
+
+- **Watch mode.** Open your site from Loki ("Open your site") and a pill at
+  the top says **Loki is watching**. When something on the page breaks — an
+  error, or a request that fails — Loki files it with the steps that led
+  there and starts the fix; the pill says **Loki is fixing it**, with a link
+  to follow. What you type is never recorded, **Pause** stops it, and
+  visitors are never watched.
+- **Loki's chat answers first.** A message that sounds like work no longer
+  gets "Which project?" over a wall of buttons — it gets an answer, with
+  "Run this on a project…" underneath for when you meant it.
+- **Talk, follow-ups and 👎.** A hands-free voice conversation, suggested next
+  questions under an answer, and a thumbs-down that files the bad answer as
+  feedback.
+- **The feedback inbox is one view:** Needs you · Under way · Shipped, with
+  every report laid out the same way.
+
 ## 2026-10-01 — The studio hears every request
 
 - **A studio brief, a partner application or a reply on one now reaches a
