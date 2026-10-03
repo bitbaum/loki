@@ -16,6 +16,8 @@
  * the spans — because "looked checked" is worse than "visibly unchecked".
  */
 
+import { readWork, type WorkStep } from "@/lib/loki/work";
+
 export type LokiVia = "tool-loop" | "gateway" | "groq-fallback";
 
 export type LokiRetrieved = { source: string; count: number };
@@ -32,6 +34,9 @@ export type LokiProvenance = {
   model: string;
   durationMs: number;
   toolsUsed: string[];
+  /** The work in turn order — notes and tools (lib/loki/work.ts). Older
+   *  messages have none and render the answer alone. */
+  work: WorkStep[];
   rounds: number;
   retrieved: LokiRetrieved[];
   grounding: LokiGrounding;
@@ -43,6 +48,7 @@ export const PROVENANCE_KEYS = [
   "model",
   "durationMs",
   "toolsUsed",
+  "work",
   "rounds",
   "retrieved",
   "grounding",
@@ -89,6 +95,7 @@ export function readProvenance(
     toolsUsed: Array.isArray(meta.toolsUsed)
       ? meta.toolsUsed.filter((t): t is string => typeof t === "string")
       : [],
+    work: readWork(meta),
     rounds: typeof meta.rounds === "number" ? meta.rounds : 0,
     retrieved: Array.isArray(meta.retrieved)
       ? meta.retrieved

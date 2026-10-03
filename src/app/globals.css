@@ -5802,6 +5802,10 @@
   .ui-loki-convo-title {
     @apply line-clamp-2 font-medium;
   }
+  /* Where the thread stopped — its last line, one line. */
+  .ui-loki-convo-preview {
+    @apply mt-0.5 truncate text-xs text-text-secondary;
+  }
   .ui-loki-convo-meta {
     @apply mt-0.5 truncate text-xs text-text-tertiary;
   }
@@ -5945,6 +5949,9 @@
   .ui-loki-trail {
     @apply mb-2 flex flex-col gap-1;
   }
+  .ui-loki-trail-group {
+    @apply flex flex-col gap-1;
+  }
   .ui-loki-trail-summary {
     @apply inline-flex h-8 max-w-full items-center gap-1.5 self-start rounded-lg px-1.5 text-xs text-text-muted transition-colors hover:text-text-secondary disabled:cursor-default disabled:hover:text-text-muted;
   }
@@ -5963,8 +5970,19 @@
   .ui-loki-trail-icon {
     @apply h-3 w-3 shrink-0;
   }
+  /* The command under a step: what was asked of the tool, in the code face,
+     cut to one line. The record count stays the thing that reads first. */
+  .ui-loki-trail-detail {
+    @apply min-w-0 truncate font-mono text-micro text-text-muted;
+  }
   .ui-loki-trail-count {
     @apply shrink-0 text-micro text-text-muted;
+  }
+  /* A note is Loki thinking aloud between groups of tools — read like prose,
+     in the answer's size so the thread keeps one rhythm, but in the trail's
+     voice so it is never mistaken for the answer. */
+  .ui-loki-trail-note {
+    @apply text-sm leading-relaxed text-text-secondary;
   }
 
   /* ── A failed turn ────────────────────────────────────────────────────────
@@ -6144,6 +6162,18 @@
      single sine sweep. */
 
   /* Composer context — scoped project + quick-action chips. */
+  /* ── Queued messages ──────────────────────────────────────────────────────
+     Typed while a turn ran; sent, in order, when it ends. Shown so the
+     operator knows the words were taken, with a way to take them back. */
+  .ui-loki-queue {
+    @apply flex flex-wrap items-center gap-1.5 px-1 text-xs text-text-muted;
+  }
+  .ui-loki-queue-item {
+    @apply inline-flex max-w-full items-center gap-1 rounded-full border border-border-subtle bg-surface-raised py-0.5 pl-2.5 pr-1 text-xs text-text-secondary;
+  }
+  .ui-loki-queue-remove {
+    @apply inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-primary;
+  }
   .ui-loki-scope-pill {
     @apply inline-flex max-w-44 items-center gap-1 rounded-full border border-accent-primary/30 bg-accent-muted px-2.5 py-1 text-xs font-medium text-accent-text;
   }

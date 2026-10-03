@@ -4,7 +4,7 @@
  * another's thread). Messages are reached only through a conversation the
  * caller owns, so message writes verify ownership first.
  */
-import { and, desc, eq, asc } from "drizzle-orm";
+import { and, desc, eq, asc, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   conversations,
@@ -35,13 +35,24 @@ export function deriveConversationTitle(text: string): string | null {
 export async function listConversations(
   userId: string,
   opts: { projectKeys?: string[] } = {},
-): Promise<Pick<Conversation, "id" | "title" | "projectKeys" | "updatedAt">[]> {
+): Promise<
+  (Pick<Conversation, "id" | "title" | "projectKeys" | "updatedAt"> & { preview: string })[]
+> {
+  // The last line of each thread, for the rail: a title says what a thread is
+  // about, the last message says where it stopped — which is what decides
+  // whether to reopen it. One correlated subquery, no second round trip.
+  const preview = sql<string>`coalesce((
+    select left(m.content, 160) from conversation_messages m
+    where m.conversation_id = ${conversations.id}
+    order by m.created_at desc limit 1
+  ), '')`;
   const rows = await db
     .select({
       id: conversations.id,
       title: conversations.title,
       projectKeys: conversations.projectKeys,
       updatedAt: conversations.updatedAt,
+      preview,
     })
     .from(conversations)
     .innerJoin(conversationMessages, eq(conversationMessages.conversationId, conversations.id))

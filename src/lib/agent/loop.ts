@@ -34,6 +34,7 @@
  * "answer with what you have" rather than to an error.
  */
 import { assignFactIds, renderFacts, type Fact } from "@bitbaum/ai-kit/grounding";
+import { describeArgs, type WorkStep } from "@/lib/loki/work";
 import {
   trimFactsToBudget,
   mergeFactsWithCap,
@@ -99,6 +100,7 @@ const FALLBACK_PROMPT_BUDGET_TOKENS = 24_000;
  * env-independent tier (no GROQ_API_KEY, no DB) and still covers the logic.
  */
 export type ModelCaller = typeof callModelWithTools;
+export type { WorkStep } from "@/lib/loki/work";
 
 /**
  * What a watching operator is told while the turn runs.
@@ -118,11 +120,14 @@ export type LokiTurnEvent =
   | { type: "round"; round: number }
   | { type: "delta"; text: string }
   | { type: "reset" }
-  | { type: "tool"; name: string; phase: "start" }
-  | { type: "tool"; name: string; phase: "end"; facts: number }
+  /** What the model said in a gathering round, kept as a working note (see
+   *  lib/loki/work.ts) rather than discarded by the `reset` that follows. */
+  | { type: "note"; text: string }
+  | { type: "tool"; name: string; phase: "start"; detail?: string }
+  | { type: "tool"; name: string; phase: "end"; facts: number; detail?: string }
   // A failed tool is its own state, never "returned nothing" — the same
   // distinction the model is given in the note it receives.
-  | { type: "tool"; name: string; phase: "fail" }
+  | { type: "tool"; name: string; phase: "fail"; detail?: string }
   | { type: "status"; label: "verifying" };
 
 /** A citation the UI can resolve — what [F8] or [D1] actually refers to. */
@@ -155,6 +160,10 @@ export type LoopResult = {
   violations: Violation[];
   /** Tool names actually executed, in order — surfaced so the UI can show work. */
   toolsUsed: string[];
+  /** The work in turn order — notes said while gathering and the tools run,
+   *  with their outcomes. Persisted with the answer so a reopened thread shows
+   *  what it cost, the way it showed live. */
+  work: WorkStep[];
   /** What the seed retrieved before the first call, per source. */
   retrieved: RetrievedSource[];
   rounds: number;
@@ -250,6 +259,7 @@ async function runToolCalls(
   ctx: { userId: string; message: string },
   attempted: Set<string>,
   emit: (event: LokiTurnEvent) => void = () => {},
+  work: WorkStep[] = [],
 ): Promise<{ facts: Fact[]; messages: ChatMessage[]; used: string[] }> {
   const facts: Fact[] = [];
   const messages: ChatMessage[] = [];
@@ -291,11 +301,14 @@ async function runToolCalls(
     }
     attempted.add(key);
     used.push(call.name);
-    emit({ type: "tool", name: call.name, phase: "start" });
+    const detail = describeArgs(parsed.data);
+    emit({ type: "tool", name: call.name, phase: "start", detail });
     try {
       const result = await tool.handler(parsed.data, ctx);
       facts.push(...result.facts);
-      emit({ type: "tool", name: call.name, phase: "end", facts: result.facts.length });
+      const facts_ = result.facts.length;
+      emit({ type: "tool", name: call.name, phase: "end", facts: facts_, detail });
+      work.push({ kind: "tool", name: call.name, phase: "end", facts: facts_, detail });
       messages.push({
         role: "user",
         content:
@@ -306,7 +319,8 @@ async function runToolCalls(
     } catch (e) {
       // A failed tool must read as "unknown", never as "none" — otherwise the
       // model reports an outage as an empty result and the operator believes it.
-      emit({ type: "tool", name: call.name, phase: "fail" });
+      emit({ type: "tool", name: call.name, phase: "fail", detail });
+      work.push({ kind: "tool", name: call.name, phase: "fail", detail });
       messages.push({
         role: "user",
         content: `[tool ${call.name}] FAILED (${e instanceof Error ? e.message.slice(0, 80) : "error"}). Treat this as unknown, not as empty.`,
@@ -384,6 +398,7 @@ export async function runLokiTurn(input: {
   let facts: Fact[] = assignFactIds(seed.facts.slice(0, MAX_FACTS));
   const conversation: ChatMessage[] = [];
   const used: string[] = [];
+  const work: WorkStep[] = [];
   let text = "";
   let model = "";
   // The exact prompt the last round sent, kept so a reply that turns out to be
@@ -507,7 +522,17 @@ export async function runLokiTurn(input: {
 
     if (turn.toolCalls.length === 0 || lastRound) break;
 
-    const executed = await runToolCalls(turn.toolCalls, registry, ctx, attempted, emit);
+    // A gathering round's prose is the model thinking aloud — "Found it,
+    // checking who owns them" — on its way to calling tools. It is superseded
+    // as an ANSWER (the next round replaces `text`) but it is not nothing: it
+    // is the narration the operator reads between groups of work, and the
+    // one thing a static spinner never gave them. Kept as a note, in order.
+    if (turn.text.trim()) {
+      work.push({ kind: "note", text: turn.text.trim() });
+      emit({ type: "note", text: turn.text.trim() });
+    }
+
+    const executed = await runToolCalls(turn.toolCalls, registry, ctx, attempted, emit, work);
     used.push(...executed.used);
     // Repeating only previously attempted calls is a loop. Invalid arguments
     // still get another chance to be repaired within the round budget.
@@ -685,6 +710,7 @@ export async function runLokiTurn(input: {
     sources,
     violations,
     toolsUsed: used,
+    work,
     retrieved,
     rounds,
     model,

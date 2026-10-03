@@ -33,6 +33,8 @@ export type ComposerProps = {
   onStop?: () => void;
   /** What an attachments-only send says. Omit and an empty text cannot send. */
   attachmentOnlyText?: string;
+  /** Take the next message while a turn runs; the caller sends it after. */
+  queue?: boolean;
   attach?: boolean;
   voice?: boolean;
   /** Offer the Loki model picker (chat turns). Off where the model is the
