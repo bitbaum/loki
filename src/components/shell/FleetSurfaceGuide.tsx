@@ -45,10 +45,18 @@ export function FleetSurfaceGuide() {
   // lacks is not a shortcut; it is a fifth nav system charging rent.
   if (!project) return null;
 
+  // On a phone, /terminal's own one-line header already names the session and
+  // the project; the strip above it was a second and third row of chrome
+  // before the conversation, and repeated the project name a line below.
+  const phoneHidden = pathname === "/terminal" || pathname.startsWith("/terminal/");
+
   return (
     <nav
       aria-label="Project workspace views"
-      className="mx-3 mt-2 flex max-w-6xl shrink-0 flex-wrap items-center gap-x-2 gap-y-1 sm:mx-4 xl:mx-auto xl:w-full"
+      className={cn(
+        phoneHidden && "max-md:hidden",
+        "mx-3 mt-2 flex max-w-6xl shrink-0 flex-wrap items-center gap-x-2 gap-y-1 sm:mx-4 xl:mx-auto xl:w-full",
+      )}
     >
       {/* Wraps instead of clipping: at 320px the four tabs fill the row and
           `overflow-hidden` cut the project name to "Bitbau" — the one word

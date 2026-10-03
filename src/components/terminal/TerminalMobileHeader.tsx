@@ -77,7 +77,10 @@ export function TerminalMobileHeader({
           title={STATE_LABEL[state]}
         />
         <span className="ui-term-mhead-title">{title}</span>
-        {agent && <span className="ui-term-mhead-agent">{agent}</span>}
+        {/* In the conversation view the composer already says who you are
+            writing to ("Message Claude…"); the chip cost the session name
+            its width — it read "derho…" on a 390px phone. */}
+        {agent && view !== "chat" && <span className="ui-term-mhead-agent">{agent}</span>}
         <ChevronDown className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
       </button>
 
@@ -102,10 +105,12 @@ export function TerminalMobileHeader({
           type="button"
           className="ui-term-mhead-icon w-auto gap-1 px-3 text-xs font-medium"
           onClick={onOpenLoki}
-          aria-label="Chat with Loki about this project and run"
+          aria-label="Ask Loki about this project and run"
         >
           <MessagesSquare className="h-4 w-4" aria-hidden="true" />
-          Chat
+          {/* "Loki", not "Chat": beside a conversation with Claude, a second
+              button called Chat read as the same thing twice. */}
+          Loki
         </button>
       )}
       <button

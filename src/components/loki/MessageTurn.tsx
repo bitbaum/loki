@@ -1,10 +1,8 @@
 "use client";
 
-import { Check, Copy, RotateCcw, Square, Volume2 } from "lucide-react";
 import { MarkdownText } from "@/components/ui/markdown-text";
-import { useClipboard } from "@/hooks/use-clipboard";
-import { useSpeech } from "@/hooks/use-speech";
 import { readWork } from "@/lib/loki/work";
+import { AnswerActions } from "./AnswerActions";
 import { ProvenanceFooter } from "./ProvenanceFooter";
 import { WorkTrail } from "./WorkTrail";
 import {
@@ -25,10 +23,8 @@ import type { LokiMessage } from "./types";
  * container, because it is the thing being READ. Boxing both sides equally
  * makes a long answer look like a quotation of itself.
  *
- * Actions sit under the answer and stay quiet until the turn is hovered or
- * focused. Copy is unconditional — the single most common thing anyone does
- * with an answer, and until now the only way to get one out of Loki was to
- * select it by hand.
+ * Actions sit under the answer (AnswerActions) and stay quiet until the turn
+ * is hovered or focused; on a touch screen they are always there.
  */
 export function MessageTurn({
   message,
@@ -43,9 +39,6 @@ export function MessageTurn({
    *  fork the thread, which this transcript has no way to represent. */
   onRetry?: () => void;
 }) {
-  const { copied, copy } = useClipboard();
-  const speech = useSpeech();
-
   if (message.role === "user") {
     return (
       <div className="ui-loki-turn-user">
@@ -89,48 +82,7 @@ export function MessageTurn({
       {message.kind === "chat" && <ProvenanceFooter meta={message.meta} />}
       {message.kind === "chat" && <QueuedActionFooter meta={message.meta} />}
 
-      <div className="ui-loki-turn-actions">
-        <button
-          type="button"
-          className="ui-loki-turn-action"
-          onClick={() => copy(message.content)}
-          aria-label={copied ? "Copied" : "Copy answer"}
-        >
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-status-positive" aria-hidden />
-          ) : (
-            <Copy className="h-3.5 w-3.5" aria-hidden />
-          )}
-          <span className="max-sm:sr-only">{copied ? "Copied" : "Copy"}</span>
-        </button>
-        {speech.supported && (
-          <button
-            type="button"
-            className="ui-loki-turn-action"
-            onClick={() => speech.toggle(message.content)}
-            aria-label={speech.speaking ? "Stop reading" : "Read aloud"}
-            aria-pressed={speech.speaking}
-          >
-            {speech.speaking ? (
-              <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
-            ) : (
-              <Volume2 className="h-3.5 w-3.5" aria-hidden />
-            )}
-            <span className="max-sm:sr-only">{speech.speaking ? "Stop" : "Listen"}</span>
-          </button>
-        )}
-        {onRetry && (
-          <button
-            type="button"
-            className="ui-loki-turn-action"
-            onClick={onRetry}
-            aria-label="Ask again"
-          >
-            <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-            <span className="max-sm:sr-only">Try again</span>
-          </button>
-        )}
-      </div>
+      <AnswerActions text={message.content} onRetry={onRetry} />
     </div>
   );
 }

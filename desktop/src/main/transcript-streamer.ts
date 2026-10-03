@@ -14,7 +14,7 @@
 import fs from 'fs/promises'
 import os from 'os'
 import path from 'path'
-import { claudeProjectSlug } from '@/lib/usage/claude-transcript-usage'
+import { CLAUDE_SLUG_MAX, claudeProjectSlug } from '@/lib/usage/claude-transcript-usage'
 import {
   newTranscriptState,
   reduceTranscriptLine,
@@ -61,9 +61,27 @@ async function post(
   }
 }
 
+/**
+ * Claude Code's log folder for a project directory, or null. A slug past
+ * CLAUDE_SLUG_MAX is truncated by Claude Code and suffixed with a hash we do
+ * not reproduce, so a long path is matched on that prefix instead — deep
+ * worktree paths are exactly the ones that get long.
+ */
+async function projectFolder(dir: string): Promise<string | null> {
+  const root = path.join(os.homedir(), '.claude', 'projects')
+  const slug = claudeProjectSlug(dir)
+  const exact = path.join(root, slug)
+  if (await fs.stat(exact).then(() => true, () => false)) return exact
+  if (slug.length <= CLAUDE_SLUG_MAX) return null
+  const prefix = slug.slice(0, CLAUDE_SLUG_MAX)
+  const hit = (await fs.readdir(root).catch(() => [] as string[])).find((n) => n.startsWith(prefix))
+  return hit ? path.join(root, hit) : null
+}
+
 /** The newest session log for a project directory, or null. */
 async function newestLog(dir: string): Promise<{ file: string; size: number } | null> {
-  const folder = path.join(os.homedir(), '.claude', 'projects', claudeProjectSlug(dir))
+  const folder = await projectFolder(dir)
+  if (!folder) return null
   let names: string[]
   try {
     names = (await fs.readdir(folder)).filter((n) => n.endsWith('.jsonl'))
@@ -99,6 +117,10 @@ export function startTranscript(base: string, token: string, tab: string): void 
   let partial = ''
   let state = newTranscriptState()
   let busy = false
+  // Said once: "this runner has the session, and Claude has written nothing
+  // yet". Without it the viewer could not tell an empty session from a
+  // runner that never answered, and showed the second for both.
+  let announcedEmpty = false
 
   const tick = async () => {
     if (stopped || busy) return
@@ -107,7 +129,13 @@ export function startTranscript(base: string, token: string, tab: string): void 
       const dir = ptyDirForTab(tab)
       if (!dir) return
       const log = await newestLog(dir)
-      if (!log) return
+      if (!log) {
+        if (!announcedEmpty) {
+          announcedEmpty = true
+          await post(base, token, tab, { reset: true, sessionId: null, items: [] })
+        }
+        return
+      }
 
       if (log.file !== file) {
         // New session (first look, /clear, or a fresh launch): send its tail

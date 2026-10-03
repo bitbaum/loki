@@ -10,6 +10,9 @@ export type ClaudeTranscriptState = {
   connected: boolean;
   /** At least one frame arrived — distinguishes "empty session" from "no data". */
   received: boolean;
+  /** Claude's session id; null when the runner has the tab but Claude has
+   *  written no log yet (it says so once, with an empty frame). */
+  sessionId: string | null;
 };
 
 /**
@@ -26,6 +29,7 @@ export function useClaudeTranscript(
     items: [],
     connected: false,
     received: false,
+    sessionId: null,
   });
 
   useEffect(() => {
@@ -38,6 +42,7 @@ export function useClaudeTranscript(
         setState((s) => ({
           connected: true,
           received: true,
+          sessionId: frame.sessionId ?? (frame.reset ? null : s.sessionId),
           items: frame.reset ? frame.items : mergeTranscriptItems(s.items, frame.items),
         }));
       } catch {

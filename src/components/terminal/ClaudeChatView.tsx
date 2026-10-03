@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { Composer } from "@/components/composer/Composer";
+import { AnswerActions } from "@/components/loki/AnswerActions";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { useClaudeTranscript } from "@/hooks/use-claude-transcript";
 import {
@@ -58,7 +59,7 @@ export function ClaudeChatView({
   onKey: (bytes: string) => void;
   onShowTerminal: () => void;
 }) {
-  const { items, connected, received } = useClaudeTranscript(tab, channel);
+  const { items, connected, received, sessionId } = useClaudeTranscript(tab, channel);
   const blocks = groupTranscript(items);
   const last = items[items.length - 1];
   const maybeWaiting = looksBlockedOnApproval(items);
@@ -100,31 +101,14 @@ export function ClaudeChatView({
     <div className="ui-claude-chat">
       <div ref={scrollRef} className="ui-loki-thread" onScroll={onScroll}>
         <div className="ui-loki-thread-inner ui-claude-chat-inner">
-          {!received ? (
-            <div className="ui-claude-chat-empty" role="status">
-              {silent ? (
-                <>
-                  <p className="text-sm text-text-secondary">
-                    {connected
-                      ? "No conversation from this session yet."
-                      : "Reconnecting to the builder…"}
-                  </p>
-                  <p className="max-w-xs text-center text-xs text-text-muted">
-                    The chat view reads Claude Code&apos;s session log. It appears once Claude is
-                    running here on an up-to-date runner — the terminal works either way.
-                  </p>
-                  <button type="button" className="ui-btn-secondary" onClick={onShowTerminal}>
-                    <TerminalSquare className="h-4 w-4" aria-hidden /> Open the terminal
-                  </button>
-                </>
-              ) : (
-                <Loader2 className="ui-spinner h-5 w-5 text-text-muted" aria-hidden />
-              )}
-            </div>
-          ) : items.length === 0 ? (
-            <p className="ui-claude-chat-empty text-sm text-text-muted">
-              Nothing said in this session yet. Write the first message below.
-            </p>
+          {!received || items.length === 0 ? (
+            <ChatEmpty
+              received={received}
+              silent={silent}
+              connected={connected}
+              started={sessionId !== null}
+              onShowTerminal={onShowTerminal}
+            />
           ) : (
             blocks.map((block) => <Block key={blockKey(block)} block={block} />)
           )}
@@ -196,6 +180,63 @@ export function ClaudeChatView({
   );
 }
 
+/**
+ * Before the first message, the screen names the one state it is in, and the
+ * composer below stays live in every one of them — typing reaches the session
+ * whether or not the conversation view can read it back.
+ *
+ * "No conversation yet" used to cover three different facts: the runner has
+ * not answered (old runner, or nothing running), Claude is open but has not
+ * written a log, and the session is simply empty. They need different next
+ * steps, so they get different words.
+ */
+function ChatEmpty({
+  received,
+  silent,
+  connected,
+  started,
+  onShowTerminal,
+}: {
+  received: boolean;
+  silent: boolean;
+  connected: boolean;
+  started: boolean;
+  onShowTerminal: () => void;
+}) {
+  if (!received && !silent) {
+    return (
+      <div className="ui-claude-chat-empty" role="status">
+        <Loader2 className="ui-spinner h-5 w-5 text-text-muted" aria-hidden />
+      </div>
+    );
+  }
+  const [title, body] = received
+    ? started
+      ? ["Nothing said yet", "Write the first message below — it goes straight to Claude."]
+      : [
+          "Claude hasn't started here yet",
+          "Write below to begin. If the agent in this session is not Claude, the terminal shows it.",
+        ]
+    : connected
+      ? [
+          "The conversation isn't coming through",
+          "The builder running this session hasn't sent it. It needs Fleet Runner 0.8.38 or newer — the terminal works either way, and what you write below still reaches the session.",
+        ]
+      : ["Reconnecting…", "Lost the connection to the builder. Trying again."];
+  return (
+    <div className="ui-claude-chat-empty" role="status">
+      <MessageCircle className="h-6 w-6 text-text-muted" aria-hidden />
+      <p className="text-base font-medium text-text-primary">{title}</p>
+      <p className="max-w-xs text-center text-sm text-text-tertiary">{body}</p>
+      {(!received || !started) && (
+        <button type="button" className="ui-btn-secondary ui-btn-sm" onClick={onShowTerminal}>
+          <TerminalSquare className="h-4 w-4" aria-hidden /> Open the terminal
+        </button>
+      )}
+    </div>
+  );
+}
+
 function blockKey(block: TranscriptBlock): string {
   return block.type === "message" ? block.item.id : `tools:${block.id}`;
 }
@@ -211,8 +252,11 @@ function Block({ block }: { block: TranscriptBlock }) {
     );
   }
   return (
-    <div className="ui-loki-answer">
-      <MarkdownText text={item.text} className="space-y-2" />
+    <div className="ui-loki-turn group/turn">
+      <div className="ui-loki-answer">
+        <MarkdownText text={item.text} className="space-y-2" />
+      </div>
+      <AnswerActions text={item.text} />
     </div>
   );
 }
