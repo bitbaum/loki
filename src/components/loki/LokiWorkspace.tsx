@@ -7,6 +7,7 @@ import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
 import { resolveLokiProjectSelection } from "@/lib/loki/project-selection";
 import { conversationIdFromParam } from "@/lib/loki/conversation-param";
+import { clearLokiDraft, lokiDraftKey } from "@/lib/loki/draft";
 import { rememberFleetProject } from "@/lib/fleet-context";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
 import { useBuilderPresence } from "@/hooks/use-builder-presence";
@@ -411,6 +412,12 @@ export function LokiWorkspace({
     const chatOnly = opts.chatOnly ?? false;
     setError(null);
     setLastSent({ text, choice });
+    // The draft is leaving the composer. Clear it under the key it was written
+    // in NOW: a first message creates the thread and moves the composer to
+    // that thread's key, so the composer's own clear-after-send would miss
+    // the start-page draft and the next visit to /loki would offer an
+    // already-sent message back.
+    clearLokiDraft(lokiDraftKey(activeId));
 
     // Ensure a thread exists; a fresh page send creates one implicitly.
     const convoId = activeId ?? (await createConversation());
@@ -557,6 +564,7 @@ export function LokiWorkspace({
         // discarding anything still staged.
         key={composerPrefill ? `prefill:${composerPrefill}` : "composer"}
         defaultText={composerPrefill ?? ""}
+        draftKey={lokiDraftKey(activeId)}
         selectedProjects={selectedProjects}
         projectCount={projects.length}
         selectedGoal={selectedGoal}
