@@ -108,7 +108,7 @@ export function FeedbackWatchPanel({
   const ready = data?.work.terminalReady ?? terminalReady === true;
 
   return (
-    <div className="rounded-md border border-border-subtle bg-surface-secondary/40 px-3 py-2 text-xs">
+    <div className="rounded-lg border border-border-subtle bg-surface-base px-3 py-2.5 text-xs">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="font-medium text-text-primary">{summary}</p>
@@ -126,7 +126,7 @@ export function FeedbackWatchPanel({
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           <a
             href={termHref}
-            className="ui-btn-secondary gap-1"
+            className="ui-btn-secondary ui-btn-sm"
             title={
               ready
                 ? "Open the agent PTY"
@@ -137,16 +137,13 @@ export function FeedbackWatchPanel({
           </a>
           <a
             href={chatHref}
-            className="ui-btn-secondary gap-1"
+            className="ui-btn-secondary ui-btn-sm"
             title="Open Loki chat for this project — talk to the run there when the agent is in chat"
           >
             <MessagesSquare className="h-3 w-3" /> Chat
           </a>
         </div>
       </div>
-      <p className="mt-1.5 text-micro text-text-muted">
-        Watching on this row. Terminal and Chat are one tap away — you should not have to hunt.
-      </p>
       {loading && !data && (
         <p className="mt-1 flex items-center gap-1 text-text-muted">
           <Loader2 className="ui-spinner-xs" /> Loading…

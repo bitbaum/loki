@@ -5,6 +5,7 @@ import { ArrowDown, Loader2, Square } from "lucide-react";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
 import type { LiveTurn } from "@/hooks/use-loki-stream";
+import { FollowUps } from "./FollowUps";
 import { MessageTurn } from "./MessageTurn";
 import { WorkTrail } from "./WorkTrail";
 import type { LokiMessage } from "./types";
@@ -53,6 +54,7 @@ export function Thread({
   onPickProject,
   onAnswerAnyway,
   onRetry,
+  onFollowUp,
   tail,
 }: {
   messages: LokiMessage[];
@@ -66,6 +68,8 @@ export function Thread({
   onPickProject?: (project: string, pendingText: string) => void;
   onAnswerAnyway?: (pendingText: string) => void;
   onRetry?: () => void;
+  /** Send a suggested follow-up as the next message. Omit to show none. */
+  onFollowUp?: (text: string) => void;
   /** Rendered after the last turn, inside the scroll (e.g. "save to project"). */
   tail?: ReactNode;
 }) {
@@ -112,6 +116,22 @@ export function Thread({
   if (messages.length === 0 && !sending && !stopped) return null;
 
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+  const lastMessage = messages[messages.length - 1];
+  // Suggestions only follow an ordinary answer that ends the thread — never a
+  // dispatch receipt or a "which project?" question, which have their own
+  // next step, and never while the next turn is already on its way.
+  const lastQuestion =
+    lastMessage === lastAssistant
+      ? [...messages].reverse().find((m) => m.role === "user")?.content
+      : undefined;
+  const showFollowUps =
+    !!onFollowUp &&
+    !live &&
+    !sending &&
+    !!lastAssistant &&
+    lastMessage === lastAssistant &&
+    (lastAssistant.kind ?? "chat") === "chat" &&
+    !!lastQuestion;
 
   return (
     <div className="ui-loki-thread-wrap">
@@ -120,10 +140,18 @@ export function Thread({
             of stranding it at the top of the pane; it is inert once the content
             is tall enough to scroll. */}
         <div className="ui-loki-thread-inner">
-          {messages.map((m) => (
+          {messages.map((m, i) => (
             <MessageTurn
               key={m.id}
               message={m}
+              question={
+                m.role === "assistant"
+                  ? (messages
+                      .slice(0, i)
+                      .reverse()
+                      .find((p) => p.role === "user")?.content ?? null)
+                  : null
+              }
               onPickProject={onPickProject}
               onAnswerAnyway={onAnswerAnyway}
               onRetry={onRetry && m.id === lastAssistant?.id ? onRetry : undefined}
@@ -164,6 +192,15 @@ export function Thread({
             <p className="ui-loki-stopped" role="status">
               Stopped. Nothing was saved — send it again to retry.
             </p>
+          )}
+
+          {showFollowUps && (
+            <FollowUps
+              answerId={lastAssistant.id}
+              question={lastQuestion}
+              answer={lastAssistant.content}
+              onPick={onFollowUp}
+            />
           )}
 
           {!live && tail}

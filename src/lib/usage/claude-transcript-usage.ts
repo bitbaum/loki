@@ -44,15 +44,24 @@ export const emptyTotals = (): UsageTotals => ({
 });
 
 /**
- * Claude Code encodes a project cwd as a directory slug by replacing BOTH
- * "/" and "." with "-" (e.g. /a/b/.claude/x → -a-b--claude-x). The older
- * copy of this logic in poller.ts (detectAuthFailure) only replaced "/",
- * which silently misses any dotted path — worktrees under .claude/ being
- * the case that matters. This is the corrected SSOT.
+ * Claude Code names a project's log folder after its cwd with EVERY character
+ * that is not a letter or digit turned into "-" (e.g. /a/b/.claude/x →
+ * -a-b--claude-x). This used to replace only "/" and ".", which agreed for
+ * most paths and silently missed the rest: workspace and worktree names may
+ * carry "_" (box-workspace-path and worktree-workspace both allow it), and
+ * for those the transcript stream, the usage collector and the auth canary
+ * all looked in a folder that never exists.
+ *
+ * Paths whose slug passes CLAUDE_SLUG_MAX are truncated by Claude Code and
+ * given a hash suffix we do not reproduce; callers that must find such a
+ * folder match on the truncated prefix (see transcript-streamer.ts).
  */
 export function claudeProjectSlug(dir: string): string {
-  return dir.replace(/[/.]/g, "-");
+  return dir.replace(/[^a-zA-Z0-9]/g, "-");
 }
+
+/** Beyond this length Claude Code truncates the folder name and adds a hash. */
+export const CLAUDE_SLUG_MAX = 200;
 
 type TranscriptLine = {
   uuid?: string;

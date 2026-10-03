@@ -6,8 +6,9 @@
  *   3a. command + projectKey  → dispatch into the project session via injectPrompt(),
  *                               persist an assistant "dispatch" turn
  *   3b. chat                  → ask Loki via askLoki(), persist an assistant "chat" turn
- *   3c. command, no project   → persist an assistant "command" turn asking which
- *                               project (meta.needsProject)
+ *   3c. command, no project   → answer as 3b, with an offer to run it on a
+ *                               project under the answer (meta.runOffer) —
+ *                               never a blocking "which project?" turn
  *
  * Dispatch + chat call the shared cores (inject-core / loki-core) in-process —
  * the same SSOT the /api/inject and /api/loki routes wrap. No self-HTTP.
@@ -572,37 +573,32 @@ async function dispatchResolvedCommand(
 }
 
 /**
- * Say what we understood before asking for more. An operator who typed a name
- * and got back an unexplained list of nine other projects has been told,
- * wrongly, that their message was never read — so when the sentence contains
- * something that reads like a project we don't have, name it.
+ * The way to run a message on a project, carried under an ANSWER rather than
+ * instead of one. This used to stop the turn and reply "Which project should I
+ * run that on?" over a grid of every project — 17 buttons on a phone — so a
+ * plain question ("let's keep improving this interface") got a form back
+ * instead of a reply. Now Loki answers, and the offer sits under the answer,
+ * closed, for the times you did mean "go do it".
+ *
+ * Says what we understood: a name that reads like a project we don't have is
+ * named, so the person knows their sentence was read.
  */
-async function needsProjectReply(
-  ctx: TurnContext,
-  resolution: CommandResolution,
-): Promise<ConversationMessage> {
+function runOfferFor(ctx: TurnContext, resolution: CommandResolution): Record<string, unknown> {
   const unknown = unknownProjectMention(ctx.text, ctx.projectNames);
-  const content = unknown
-    ? `I don't have a project called **${unknown}**. Pick the right one below, or I can just answer without running anything.`
-    : "Which project should I run that on? Pick one below — or I can just answer instead.";
-  return addMessage(ctx.conversationId, {
-    role: "assistant",
-    kind: "command",
-    content,
-    meta: {
-      needsProject: true,
-      intentId: resolution.intentId,
-      pendingText: ctx.text,
-      projectOptions: ctx.projectNames,
-      ...(unknown ? { unknownProject: unknown } : {}),
-    },
-  });
+  return {
+    runOffer: true,
+    intentId: resolution.intentId,
+    pendingText: ctx.text,
+    projectOptions: ctx.projectNames,
+    ...(unknown ? { unknownProject: unknown } : {}),
+  };
 }
 
 async function chatReply(
   ctx: TurnContext,
   resolution: CommandResolution,
   emit: Emit,
+  extraMeta: Record<string, unknown> = {},
 ): Promise<ConversationMessage> {
   const chatProject = resolveLokiChatProjectKey(
     resolution,
@@ -652,6 +648,7 @@ async function chatReply(
     kind: "chat",
     content: reply,
     meta: {
+      ...extraMeta,
       projectKey: chatProject,
       // Provenance — which brain, which model, what was retrieved, which
       // tools ran, and whether the answer verified clean. Persisted whole:
@@ -710,8 +707,10 @@ async function resolveAndAnswer(ctx: TurnContext, emit: Emit): Promise<Conversat
   if (resolution.kind === "command" && dispatchTargets.length > 0) {
     return dispatchResolvedCommand(ctx, resolution, dispatchTargets);
   }
-  if (shouldAskForProject(resolution, ctx.projectNames)) return needsProjectReply(ctx, resolution);
-  return chatReply(ctx, resolution, emit);
+  const offer = shouldAskForProject(resolution, ctx.projectNames)
+    ? runOfferFor(ctx, resolution)
+    : {};
+  return chatReply(ctx, resolution, emit, offer);
 }
 
 /** Persist the human turn, and title an untitled thread from its first line. */

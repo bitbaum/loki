@@ -14,6 +14,10 @@ assert.equal(
   claudeProjectSlug("/home/g/dev/app/.claude/worktrees/x"),
   "-home-g-dev-app--claude-worktrees-x",
 );
+// Every non-alphanumeric becomes "-", as Claude Code does — "_" and "~" too.
+// The old rule kept them and looked in folders that never exist.
+assert.equal(claudeProjectSlug("/home/loki/dev/my_app"), "-home-loki-dev-my-app");
+assert.equal(claudeProjectSlug("/w/solon~ab12cd34"), "-w-solon-ab12cd34");
 
 // --- collectClaudeUsage over a fixture transcript ---
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "fc-usage-test-"));

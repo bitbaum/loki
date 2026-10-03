@@ -25,6 +25,8 @@ import { useImmersiveChat } from "@/hooks/use-immersive-chat";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { LokiTopbarButtons, ThreadHeader } from "./ThreadHeader";
 import { ProjectFilter } from "./ProjectFilter";
+import { VoiceConversation } from "./VoiceConversation";
+import { useVoiceConversation } from "@/hooks/use-voice-conversation";
 import type {
   Attachment,
   ConversationSummary,
@@ -487,6 +489,16 @@ export function LokiWorkspace({
     });
   };
 
+  // Hands-free voice chat: what is said is sent like a typed message, and the
+  // newest answer is read back. Lives here because it needs both ends — the
+  // send path and the transcript.
+  const newestAnswer = [...messages].reverse().find((m) => m.role === "assistant");
+  const voice = useVoiceConversation({
+    onUtterance: (text) => void send(text),
+    latestAnswer: newestAnswer ? { id: newestAnswer.id, text: newestAnswer.content } : null,
+    turnFailed: !!(error ?? stream.error) || stream.stopped,
+  });
+
   const toggleProject = (name: string) => {
     setSelectedProjects((prev) =>
       prev.includes(name) ? prev.filter((p) => p !== name) : [...prev, name],
@@ -542,6 +554,7 @@ export function LokiWorkspace({
         onPickProject={dispatchWithProject}
         onAnswerAnyway={answerWithoutProject}
         onRetry={lastSent ? retryLast : undefined}
+        onFollowUp={(text) => void send(text)}
         // Inside the scroll, after the last turn: it is an action ON the
         // exchange, and as a fixed row between thread and composer it took a
         // permanent line of a phone screen from the conversation.
@@ -578,7 +591,10 @@ export function LokiWorkspace({
 
       <QueuedMessages items={queue.items} onRemove={queue.remove} />
 
+      <VoiceConversation voice={voice} />
+
       <LokiComposer
+        onTalk={() => void voice.start()}
         // Re-keyed only on a PREFILL, never on the thread id. Keying on
         // `activeId` remounted the composer the moment a first message created
         // the thread — mid-send — silently resetting the model choice and

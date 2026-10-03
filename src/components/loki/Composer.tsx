@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { FolderKanban, Plus, X } from "lucide-react";
+import { AudioLines, FolderKanban, Plus, X } from "lucide-react";
 import {
   composerChips,
   fillSuggestedAction,
@@ -46,6 +46,7 @@ export function LokiComposer({
   showStarters = true,
   draftKey,
   queue = false,
+  onTalk,
 }: {
   disabled: boolean;
   sending: boolean;
@@ -72,6 +73,8 @@ export function LokiComposer({
   draftKey?: string;
   /** Take the next message while a turn runs (the workspace queues it). */
   queue?: boolean;
+  /** Start a hands-free voice conversation. Omit to hide the Talk button. */
+  onTalk?: () => void;
 }) {
   const [text, setTextState] = useState(defaultText);
   // Restore once, on the client, after the server-rendered empty box: reading
@@ -229,9 +232,23 @@ export function LokiComposer({
       above={suggestions}
       tools={scope}
       trailing={
-        selectedProjects.length > 0 ? (
-          <ExecutorHonestyChip honesty={dispatchHonesty} compact />
-        ) : null
+        <>
+          {selectedProjects.length > 0 && <ExecutorHonestyChip honesty={dispatchHonesty} compact />}
+          {/* The mic beside send DICTATES into the box; Talk is a conversation
+              — it listens, answers aloud, and listens again. */}
+          {onTalk && !text.trim() && (
+            <button
+              type="button"
+              className="ui-loki-talk"
+              onClick={onTalk}
+              disabled={disabled}
+              aria-label="Talk — a hands-free voice conversation"
+            >
+              <AudioLines className="h-4 w-4" aria-hidden />
+              Talk
+            </button>
+          )}
+        </>
       }
       onSend={(outgoing, choice, attachments) => onSend(outgoing, choice, attachments)}
     />

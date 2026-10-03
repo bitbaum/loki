@@ -29,6 +29,18 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.38",
+    tag: "fleet-runner-v0.8.38",
+    date: "2026-10-03T12:00:00Z",
+    highlights: [
+      "The phone conversation view finds Claude's session log for projects whose folder name contains an underscore or another symbol, and for very long worktree paths.",
+      "When Claude has not written anything yet, Loki now says so instead of waiting as if the runner never answered.",
+    ],
+    breaking: [],
+    notes:
+      "Claude Code names its log folders by turning every character that is not a letter or digit into a dash. The runner only did that for slashes and dots, so some projects showed an empty conversation forever. Token accounting used the same rule and is fixed with it.",
+  },
+  {
     version: "0.8.37",
     tag: "fleet-runner-v0.8.37",
     date: "2026-10-03T00:00:00Z",

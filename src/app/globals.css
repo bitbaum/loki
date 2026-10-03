@@ -4718,22 +4718,12 @@
   .ui-inbox-group-note {
     @apply shrink-0 text-nano text-text-muted;
   }
-  /* Page refactor, batch B: reports that failed for one reason, folded under
-     that reason; and the "show all shipped" line. */
-  .ui-inbox-fold {
-    @apply border-t border-border-subtle;
-  }
-  .ui-inbox-fold-summary {
-    @apply flex min-h-11 w-full cursor-pointer list-none flex-col justify-center gap-0.5 px-4 py-2 text-left text-xs text-text-tertiary transition-colors hover:text-text-secondary;
-  }
+  /* The text of a fold of reports that failed for one reason (.ui-fb-fold). */
   .ui-inbox-fold-count {
     @apply text-sm font-medium text-text-primary;
   }
   .ui-inbox-fold-cause {
     @apply line-clamp-2 text-text-tertiary;
-  }
-  .ui-inbox-fold[open] > .ui-inbox-fold-summary {
-    @apply border-b border-border-subtle;
   }
   .ui-inbox-project-state {
     @apply text-nano text-text-muted;
@@ -4799,6 +4789,116 @@
   }
   .ui-inbox-more {
     @apply inline-flex min-h-9 items-center text-xs text-text-secondary underline decoration-border-subtle underline-offset-2 transition-colors hover:decoration-current;
+  }
+
+  /* ── /feedback: one inbox, not a pile of parts ─────────────────────────────
+     Reported from a phone on 2026-10-03: "a bunch of random elements". It was:
+     a lone bordered "Studio requests" button, two rows of pills, a sentence
+     restating the chip you had just tapped, three bordered cards with grey
+     headers, and rows whose buttons came in three heights and two fills, with
+     the row's own status floating between them in a different place each time.
+
+     The page now has ONE structure, top to bottom:
+       lens    — Needs you · Under way · Shipped. Which question you are asking.
+       filters — one line: projects (scroll) + source + Studio requests.
+       list    — one panel; every row is context → message → why → actions.
+     Every button in a row's action bar is one height. The bar's labelled
+     buttons are the decision; the icon buttons (note, resolve, archive) sit
+     at its trailing edge, so the decision lines up down the page. */
+  .ui-fb-lens {
+    @apply grid grid-cols-3 gap-1 rounded-xl border border-border-subtle bg-surface-raised p-1;
+  }
+  .ui-fb-lens-tab {
+    @apply flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-center text-xs text-text-tertiary transition-colors hover:text-text-secondary sm:flex-row sm:gap-2 sm:text-sm;
+  }
+  .ui-fb-lens-tab[aria-selected="true"] {
+    @apply bg-surface-base text-text-primary;
+    box-shadow: inset 0 0 0 1px var(--border-default);
+  }
+  .ui-fb-lens-label {
+    @apply truncate font-medium;
+  }
+  .ui-fb-lens-count {
+    @apply text-base font-semibold tabular-nums text-text-primary sm:text-sm;
+  }
+  /* The one number on the page that is a debt: only "Needs you" earns a tint,
+     and only while it is above zero. */
+  .ui-fb-lens-count-due {
+    color: var(--status-warning);
+  }
+  .ui-fb-lens-hint {
+    @apply mt-2 text-xs text-text-tertiary;
+  }
+  .ui-fb-filters {
+    @apply space-y-2;
+  }
+  .ui-fb-filterline {
+    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-text-tertiary;
+  }
+  .ui-fb-filterline-tools {
+    @apply ml-auto flex items-center gap-3;
+  }
+  .ui-fb-select {
+    @apply min-h-9 rounded-lg border border-border-subtle bg-surface-base px-2 text-xs text-text-secondary;
+  }
+  .ui-fb-list {
+    @apply divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised;
+  }
+  .ui-fb-list > * {
+    @apply px-4;
+  }
+  .ui-fb-row {
+    @apply flex flex-col gap-1.5 py-4;
+  }
+  /* FeedbackReportText's "more" toggle: a flex-col child stretches, which
+     centred its label under the message. */
+  .ui-fb-row > button {
+    @apply self-start;
+  }
+  .ui-fb-row-context {
+    @apply flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-text-tertiary;
+  }
+  .ui-fb-row-context-sep {
+    @apply text-text-muted;
+  }
+  .ui-fb-row-project {
+    @apply font-medium text-text-secondary underline-offset-2 hover:underline;
+  }
+  .ui-fb-row-why {
+    @apply text-xs leading-snug text-text-secondary;
+  }
+  .ui-fb-row-why-quiet {
+    @apply text-xs leading-snug text-text-muted;
+  }
+  .ui-fb-row-actions {
+    @apply mt-1.5 flex flex-wrap items-center gap-1.5;
+  }
+  .ui-fb-row-utility {
+    @apply ml-auto flex items-center gap-0.5;
+  }
+  /* One height for every control in the bar, whatever component drew it
+     (WatchFixButton, ProviderSwitch and the Watch toggle each pick their own
+     variant). Variant stays theirs; size is the bar's. */
+  .ui-fb-row-actions :is(.ui-btn-save, .ui-btn-secondary, .ui-btn-primary) {
+    @apply min-h-9 gap-1.5 rounded-lg px-3 py-1.5 text-xs;
+  }
+  .ui-fb-row-actions .ui-btn-icon {
+    @apply h-9 w-9 p-0;
+  }
+  .ui-fb-fold {
+    @apply py-1;
+  }
+  .ui-fb-fold > summary {
+    @apply flex min-h-11 cursor-pointer list-none flex-col justify-center gap-0.5 py-2 text-xs text-text-tertiary;
+  }
+  .ui-fb-fold[open] > summary {
+    @apply border-b border-border-subtle;
+  }
+  .ui-fb-fold > .ui-fb-row + .ui-fb-row {
+    @apply border-t border-border-subtle;
+  }
+  .ui-fb-more {
+    @apply flex min-h-11 w-full items-center text-xs text-text-tertiary transition-colors hover:text-text-secondary;
   }
 
   /* The account menu's styles live in @bitbaum/accountkit (imported at the
@@ -6038,8 +6138,14 @@
     @apply sticky top-0 z-20 -mx-3 flex shrink-0 items-center gap-1 bg-surface-page px-1 md:hidden;
     padding-top: env(safe-area-inset-top);
   }
+  /* Stretch, not center: a centred flex child is as wide as its text, so
+     `truncate` never engaged and a long title ran across the back arrow and
+     off both edges of the phone. */
   .ui-loki-thread-header-title {
-    @apply flex min-w-0 flex-1 flex-col items-center px-1 py-1 text-center leading-tight;
+    @apply flex min-w-0 flex-1 flex-col items-stretch px-1 py-1 text-center leading-tight;
+  }
+  .ui-loki-thread-header-title > span {
+    @apply block min-w-0 max-w-full;
   }
   /* One reveal control where a whole duplicate toolbar used to sit. */
   .ui-loki-topbar {
@@ -6111,11 +6217,16 @@
   .ui-loki-picker {
     @apply mt-2 flex max-w-full flex-col gap-2;
   }
+  /* Small wrapping chips, not a grid of tiles: seventeen projects as 44px
+     two-column tiles were a full phone screen of buttons under one message. */
   .ui-loki-picker-grid {
-    @apply grid grid-cols-2 gap-1.5 sm:grid-cols-3;
+    @apply flex flex-wrap gap-1.5;
   }
   .ui-loki-picker-chip {
-    @apply flex min-h-11 items-center justify-center truncate rounded-xl border border-border-subtle bg-surface-base px-2 text-xs text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
+    @apply inline-flex min-h-9 max-w-full items-center truncate rounded-full border border-border-subtle bg-surface-base px-3 text-xs text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
+  }
+  .ui-loki-run-offer {
+    @apply mt-1 flex flex-col gap-1;
   }
   .ui-loki-picker-answer {
     @apply inline-flex min-h-11 items-center gap-1.5 self-start rounded-full px-2 text-xs text-text-tertiary transition-colors hover:text-text-primary;
@@ -6252,6 +6363,71 @@
      full 44px target there instead of a 32px pill. */
   .ui-loki-turn-action {
     @apply inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary max-sm:h-11 max-sm:w-11 max-sm:justify-center max-sm:px-0;
+  }
+  /* Suggested follow-ups under the newest answer: quiet rows, each a full
+     44px tap target, read as "what you might say next" rather than buttons
+     competing with the answer above them. */
+  /* Hands-free voice chat (VoiceConversation): a full screen with one circle.
+     The circle's fill says whose turn it is — the accent while it listens to
+     you, neutral while it thinks or speaks — and its scale follows your voice
+     (set inline, a measured value, not a design decision). */
+  .ui-voice {
+    @apply flex h-full flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))];
+  }
+  .ui-voice-top {
+    @apply flex justify-end;
+  }
+  .ui-voice-end {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-primary;
+  }
+  .ui-voice-stage {
+    @apply flex flex-1 flex-col items-center justify-center gap-3 text-center;
+  }
+  .ui-voice-orb {
+    @apply mb-4 inline-flex h-36 w-36 items-center justify-center rounded-full border border-border-default bg-surface-raised text-text-secondary transition-transform duration-100 disabled:cursor-default;
+  }
+  .ui-voice-orb-listening {
+    @apply border-transparent bg-accent-primary text-text-inverted;
+  }
+  .ui-voice-orb-speaking {
+    @apply animate-pulse text-text-primary;
+  }
+  .ui-voice-label {
+    @apply text-lg font-medium text-text-primary;
+  }
+  .ui-voice-hint {
+    @apply max-w-xs text-sm text-text-tertiary;
+  }
+  .ui-voice-heard {
+    @apply mt-2 line-clamp-3 max-w-sm text-sm text-text-secondary;
+  }
+  .ui-voice-bottom {
+    @apply flex justify-center;
+  }
+  /* The composer's way into it: a filled pill, the one loud control in the
+     row, as in the reference chat — it is a different mode, not a tool. */
+  .ui-loki-talk {
+    @apply inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-text-primary px-3 text-xs font-medium text-surface-page transition-opacity hover:opacity-90 disabled:opacity-40;
+  }
+  /* Thumbs-down's small form under an answer (ReportAnswer), and the line
+     that replaces it once the report is filed. */
+  .ui-loki-report {
+    @apply mt-2 flex max-w-xl flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised p-3;
+  }
+  .ui-loki-report-label {
+    @apply text-sm text-text-secondary;
+  }
+  .ui-loki-report-done {
+    @apply mt-1 flex items-center gap-2 text-sm text-text-secondary;
+  }
+  .ui-loki-followups {
+    @apply mt-1 flex flex-col;
+  }
+  .ui-loki-followup {
+    @apply flex min-h-11 w-full items-center gap-3 rounded-lg px-1 py-2 text-left text-sm leading-snug text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
+  }
+  .ui-loki-followup svg {
+    @apply text-text-muted;
   }
   /* Scope pill and "Project" button: same quiet pill as the model picker. */
   .ui-loki-scope-btn {
