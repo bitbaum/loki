@@ -70,7 +70,7 @@ export const TERMINAL_INPUT_MODES: TerminalModeOption<TerminalInputMode>[] = [
   {
     id: "prompt",
     label: "Prompt",
-    hint: "Compose a task. It is assembled with project context, and queued if the builder is offline.",
+    hint: "Compose a task — paste or attach screenshots, or dictate. It is assembled with project context, and queued if the builder is offline.",
   },
   {
     id: "voice",

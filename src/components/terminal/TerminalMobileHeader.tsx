@@ -72,11 +72,12 @@ export function TerminalMobileHeader({
       {onOpenLoki && (
         <button
           type="button"
-          className="ui-term-mhead-icon"
+          className="ui-term-mhead-icon w-auto gap-1 px-3 text-xs font-medium"
           onClick={onOpenLoki}
-          aria-label="Loki comments and inject"
+          aria-label="Chat with Loki about this project and run"
         >
           <MessagesSquare className="h-4 w-4" aria-hidden="true" />
+          Chat
         </button>
       )}
       <button
