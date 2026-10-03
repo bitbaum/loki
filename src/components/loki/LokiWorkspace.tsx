@@ -591,19 +591,7 @@ export function LokiWorkspace({
 
       <QueuedMessages items={queue.items} onRemove={queue.remove} />
 
-      {voice.phase !== "off" && (
-        <VoiceConversation
-          phase={voice.phase}
-          level={voice.level}
-          heard={voice.heard}
-          error={voice.error}
-          onTap={voice.tap}
-          onEnd={voice.end}
-        />
-      )}
-      {/* A failure to open the microphone closes the voice screen; say why
-          next to the button that opened it. */}
-      {voice.phase === "off" && voice.error && <p className="ui-error px-1">{voice.error}</p>}
+      <VoiceConversation voice={voice} />
 
       <LokiComposer
         onTalk={() => void voice.start()}

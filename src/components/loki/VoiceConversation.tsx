@@ -3,7 +3,7 @@
 import { Loader2, Mic, X } from "lucide-react";
 import { Drawer } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
-import type { VoicePhase } from "@/hooks/use-voice-conversation";
+import type { useVoiceConversation, VoicePhase } from "@/hooks/use-voice-conversation";
 
 const PHASE_COPY: Record<VoicePhase, { label: string; hint: string }> = {
   off: { label: "", hint: "" },
@@ -21,21 +21,11 @@ const PHASE_COPY: Record<VoicePhase, { label: string; hint: string }> = {
  * way out. Everything said here lands in the open conversation as ordinary
  * messages, so closing this screen leaves the full transcript behind it.
  */
-export function VoiceConversation({
-  phase,
-  level,
-  heard,
-  error,
-  onTap,
-  onEnd,
-}: {
-  phase: VoicePhase;
-  level: number;
-  heard: string;
-  error: string;
-  onTap: () => void;
-  onEnd: () => void;
-}) {
+export function VoiceConversation({ voice }: { voice: ReturnType<typeof useVoiceConversation> }) {
+  const { phase, level, heard, error, tap: onTap, end: onEnd } = voice;
+  // Closed, the only thing to say is why it closed: a microphone that could
+  // not be opened, next to the button that tried.
+  if (phase === "off") return error ? <p className="ui-error px-1">{error}</p> : null;
   const copy = PHASE_COPY[phase];
   const busy = phase === "starting" || phase === "transcribing" || phase === "thinking";
   return (

@@ -258,28 +258,43 @@ export function useVoiceConversation({
     if (phase !== "thinking") answerAtSendRef.current = null;
   }, [phase, latestAnswer?.id]);
 
+  /** Read an answer aloud, then listen again. */
+  const speakAnswer = useCallback(
+    (markdown: string) => {
+      const text = plainTextForSpeech(markdown);
+      if (!text || !("speechSynthesis" in window)) {
+        listen();
+        return;
+      }
+      setPhase("speaking");
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = guessSpeechLang(text, document.documentElement.lang || "en");
+      u.onend = () => {
+        if (phaseRef.current === "speaking") listen();
+      };
+      u.onerror = u.onend;
+      window.speechSynthesis.speak(u);
+    },
+    [listen],
+  );
+
   useEffect(() => {
     if (phase !== "thinking") return;
-    if (turnFailed) {
-      listen();
-      return;
-    }
-    if (!latestAnswer || latestAnswer.id === answerAtSendRef.current) return;
-    if (answerAtSendRef.current === null) return;
-    const text = plainTextForSpeech(latestAnswer.text);
-    if (!text || typeof window === "undefined" || !("speechSynthesis" in window)) {
-      listen();
-      return;
-    }
-    setPhase("speaking");
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = guessSpeechLang(text, document.documentElement.lang || "en");
-    u.onend = () => {
-      if (phaseRef.current === "speaking") listen();
-    };
-    u.onerror = u.onend;
-    window.speechSynthesis.speak(u);
+    const fresh =
+      !turnFailed &&
+      latestAnswer !== null &&
+      answerAtSendRef.current !== null &&
+      latestAnswer.id !== answerAtSendRef.current;
+    if (!turnFailed && !fresh) return;
+    // Deferred one tick: the answer is an event from outside (the stream),
+    // and the phase change it causes belongs in a callback, not the effect
+    // body (react-hooks/set-state-in-effect).
+    const t = window.setTimeout(() => {
+      if (turnFailed) listen();
+      else if (latestAnswer) speakAnswer(latestAnswer.text);
+    }, 0);
+    return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react to a new answer or a failure only
   }, [phase, latestAnswer?.id, turnFailed]);
 
