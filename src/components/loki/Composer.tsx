@@ -45,6 +45,7 @@ export function LokiComposer({
   dispatchHonesty = null,
   showStarters = true,
   draftKey,
+  queue = false,
 }: {
   disabled: boolean;
   sending: boolean;
@@ -69,6 +70,8 @@ export function LokiComposer({
   /** Where the draft is mirrored so a discarded tab gives it back (see
    *  lib/loki/draft.ts). Omit and the draft lives in memory only. */
   draftKey?: string;
+  /** Take the next message while a turn runs (the workspace queues it). */
+  queue?: boolean;
 }) {
   const [text, setTextState] = useState(defaultText);
   // Restore once, on the client, after the server-rendered empty box: reading
@@ -201,6 +204,7 @@ export function LokiComposer({
       sending={sending}
       onStop={onStop}
       attachmentOnlyText={IMAGE_ONLY_DEFAULT}
+      queue={queue}
       modelPicker
       above={suggestions}
       header={scopeRow}

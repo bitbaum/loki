@@ -94,6 +94,7 @@ function ToolGroup({ tools, live }: { tools: WorkTool[]; live: boolean }) {
                 <Check className="ui-loki-trail-icon text-status-positive" aria-hidden />
               )}
               <span className="truncate">{toolLabel(tool.name, tool.phase)}</span>
+              {tool.detail && <span className="ui-loki-trail-detail">{tool.detail}</span>}
               {tool.phase === "end" && (
                 <span className="ui-loki-trail-count">
                   {tool.facts ?? 0} {(tool.facts ?? 0) === 1 ? "record" : "records"}

@@ -146,6 +146,7 @@ export function useLokiStream({
                     name: event.name,
                     phase: event.phase,
                     facts: event.facts,
+                    detail: event.detail,
                   }),
                 };
               });

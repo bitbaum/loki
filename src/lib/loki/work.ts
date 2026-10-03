@@ -32,6 +32,9 @@ export type WorkTool = {
   phase: "start" | "end" | "fail";
   /** Records it returned. Only meaningful once `phase` is "end". */
   facts?: number;
+  /** The call's arguments, one short line (`query: "Elena"`) — what the
+   *  reference chat shows as the command under each step. */
+  detail?: string;
 };
 export type WorkNote = { kind: "note"; text: string };
 export type WorkStep = WorkTool | WorkNote;
@@ -80,6 +83,25 @@ export function applyNote(work: readonly WorkStep[], text: string): WorkStep[] {
   return [...work, { kind: "note", text }];
 }
 
+/** How long a step's detail line may be. One line on a phone. */
+export const DETAIL_MAX_CHARS = 80;
+
+/**
+ * A tool call's arguments as one short line: `query: "Elena", limit: 5`.
+ * Strings are quoted, nested values flattened to JSON, the whole thing cut
+ * to one line — it is the command under the step, not the record of it.
+ * Empty arguments are no detail at all rather than `{}`.
+ */
+export function describeArgs(args: unknown): string | undefined {
+  if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
+  const parts = Object.entries(args as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(([k, v]) => `${k}: ${typeof v === "string" ? JSON.stringify(v) : JSON.stringify(v)}`);
+  if (parts.length === 0) return undefined;
+  const line = parts.join(", ").replace(/\s+/g, " ");
+  return line.length > DETAIL_MAX_CHARS ? `${line.slice(0, DETAIL_MAX_CHARS - 1)}…` : line;
+}
+
 /** The one-line summary of a finished tool group. "0 records" is a real and
  *  useful answer — it is how an operator learns the tool ran and their data is
  *  genuinely empty, rather than assuming it never ran. */
@@ -115,6 +137,7 @@ export function readWork(meta: Record<string, unknown> | null | undefined): Work
         name: e.name,
         phase: e.phase,
         ...(typeof e.facts === "number" ? { facts: e.facts } : {}),
+        ...(typeof e.detail === "string" && e.detail ? { detail: e.detail } : {}),
       });
     }
   }

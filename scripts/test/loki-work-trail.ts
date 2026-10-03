@@ -10,8 +10,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  DETAIL_MAX_CHARS,
   applyNote,
   applyToolStep,
+  describeArgs,
   groupWork,
   readWork,
   summarizeTools,
@@ -75,13 +77,22 @@ assert.deepEqual(noted, [
   { kind: "note", text: "Found it — checking who owns it." },
 ]);
 
+// The command under a step: arguments as one short line, never `{}`.
+assert.equal(describeArgs({ query: "Elena", limit: 5 }), 'query: "Elena", limit: 5');
+assert.equal(describeArgs({}), undefined);
+assert.equal(describeArgs({ q: "" }), undefined);
+assert.equal(describeArgs("nope"), undefined);
+const long = describeArgs({ query: "x".repeat(200) })!;
+assert.ok(long.length <= DETAIL_MAX_CHARS && long.endsWith("…"), "cut to one line");
+assert.equal(describeArgs({ q: "two\nlines" })!.includes("\n"), false, "one line");
+
 // Persisted meta: only finished steps and real notes; junk is ignored.
 assert.deepEqual(
   readWork({
     work: [
       { kind: "note", text: "x" },
       { kind: "tool", name: "a", phase: "start" },
-      { kind: "tool", name: "b", phase: "end", facts: 4 },
+      { kind: "tool", name: "b", phase: "end", facts: 4, detail: 'q: "x"' },
       { kind: "tool", name: "c", phase: "fail" },
       null,
       "nope",
@@ -90,9 +101,28 @@ assert.deepEqual(
   }),
   [
     { kind: "note", text: "x" },
-    { kind: "tool", name: "b", phase: "end", facts: 4 },
+    { kind: "tool", name: "b", phase: "end", facts: 4, detail: 'q: "x"' },
     { kind: "tool", name: "c", phase: "fail" },
   ],
+);
+
+// The queue: a send during a turn is taken, shown, and flushed after.
+const workspace = readFileSync("src/components/loki/LokiWorkspace.tsx", "utf8");
+assert.match(
+  workspace,
+  /if \(sending && !dispatchOnly\) \{\s*setQueue/,
+  "a send while running is queued",
+);
+assert.match(
+  workspace,
+  /if \(sending \|\| stream\.error \|\| queue\.length === 0\) return;/,
+  "flushed only when the turn ended cleanly",
+);
+assert.match(workspace, /className="ui-loki-queue-item"/, "queued messages are shown");
+assert.match(
+  workspace,
+  /<LokiComposer[\s\S]*?\n\s+queue\n/,
+  "the composer takes messages while running",
 );
 assert.deepEqual(readWork(null), []);
 assert.deepEqual(readWork({}), []);

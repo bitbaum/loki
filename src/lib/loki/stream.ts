@@ -48,7 +48,14 @@ export type LokiStreamEvent =
    *  (lib/loki/work.ts), the narration between groups of tools. */
   | { type: "note"; text: string }
   /** One tool, as it runs. `facts` is how many records it actually returned. */
-  | { type: "tool"; name: string; phase: "start" | "end" | "fail"; facts?: number }
+  | {
+      type: "tool";
+      name: string;
+      phase: "start" | "end" | "fail";
+      facts?: number;
+      /** The call's arguments as one line (lib/loki/work.ts describeArgs). */
+      detail?: string;
+    }
   /** Named waiting — what the turn is doing while no prose is arriving. */
   | { type: "status"; label: LokiStatusLabel }
   /** The authoritative persisted turn. Replaces the preview; ends the stream. */

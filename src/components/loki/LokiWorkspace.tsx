@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PanelLeft, SquarePen } from "lucide-react";
 import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
 import { resolveLokiProjectSelection } from "@/lib/loki/project-selection";
 import { conversationIdFromParam } from "@/lib/loki/conversation-param";
+import { X } from "lucide-react";
 import { clearLokiDraft, lokiDraftKey } from "@/lib/loki/draft";
 import { rememberFleetProject } from "@/lib/fleet-context";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
@@ -340,6 +341,24 @@ export function LokiWorkspace({
   const stream = useLokiStream({ onMessage: handleMessage });
   const sending = stream.sending;
 
+  /**
+   * Messages typed while a turn ran. The reference chat takes the next thought
+   * the moment it is finished being typed — "Queue a message…" — and sends it
+   * when the turn ends; refusing it until a spinner stops is the one place a
+   * chat makes the person wait on the machine. Sent in order, one per turn,
+   * through the same `send`, so a queued message is no different from a typed
+   * one by the time the server sees it. Held (not dropped) if the turn failed:
+   * the error and its Try again stand in front of it.
+   */
+  type QueuedSend = {
+    id: number;
+    text: string;
+    choice: ModelChoice;
+    attachments: Attachment[];
+    chatOnly?: boolean;
+  };
+  const [queue, setQueue] = useState<QueuedSend[]>([]);
+
   // Client-side project filter over the full list (deselect = show all).
   const visibleConversations = useMemo(() => {
     if (selectedProjects.length === 0) return conversations;
@@ -410,6 +429,14 @@ export function LokiWorkspace({
     const scopedProjects = opts.selectedProjectsOverride ?? selectedProjects;
     const dispatchOnly = opts.dispatchOnly ?? false;
     const chatOnly = opts.chatOnly ?? false;
+    if (sending && !dispatchOnly) {
+      setQueue((prev) => [
+        ...prev,
+        { id: Date.now() + prev.length, text, choice, attachments, chatOnly },
+      ]);
+      clearLokiDraft(lokiDraftKey(activeId));
+      return;
+    }
     setError(null);
     setLastSent({ text, choice });
     // The draft is leaving the composer. Clear it under the key it was written
@@ -451,6 +478,19 @@ export function LokiWorkspace({
       ...(attachments.length > 0 ? { attachments } : {}),
     });
   };
+
+  // The turn ended: the next queued message goes. Through a ref, so the
+  // effect does not re-run on every render that recreates `send`.
+  const sendRef = useRef(send);
+  useEffect(() => {
+    sendRef.current = send;
+  });
+  useEffect(() => {
+    if (sending || stream.error || queue.length === 0) return;
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void sendRef.current(next.text, next.choice, next.attachments, { chatOnly: next.chatOnly });
+  }, [sending, stream.error, queue]);
 
   /**
    * Re-ask the last question.
@@ -557,6 +597,26 @@ export function LokiWorkspace({
         </div>
       )}
 
+      {queue.length > 0 && (
+        <div className="ui-loki-queue" role="status" aria-live="polite">
+          <span>Next:</span>
+          {queue.map((q) => (
+            <span key={q.id} className="ui-loki-queue-item">
+              <span className="truncate">{q.text}</span>
+              <button
+                type="button"
+                className="ui-loki-queue-remove"
+                onClick={() => setQueue((prev) => prev.filter((x) => x.id !== q.id))}
+                aria-label={`Don't send: ${q.text}`}
+                title="Don't send"
+              >
+                <X className="h-3 w-3" aria-hidden />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <LokiComposer
         // Re-keyed only on a PREFILL, never on the thread id. Keying on
         // `activeId` remounted the composer the moment a first message created
@@ -572,6 +632,7 @@ export function LokiWorkspace({
         onOpenProjects={() => setFilterOpen(true)}
         disabled={false}
         sending={sending}
+        queue
         onStop={stream.stop}
         showStarters={isStart}
         dispatchHonesty={dispatchHonesty}

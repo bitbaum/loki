@@ -34,7 +34,7 @@
  * "answer with what you have" rather than to an error.
  */
 import { assignFactIds, renderFacts, type Fact } from "@bitbaum/ai-kit/grounding";
-import type { WorkStep } from "@/lib/loki/work";
+import { describeArgs, type WorkStep } from "@/lib/loki/work";
 import {
   trimFactsToBudget,
   mergeFactsWithCap,
@@ -123,11 +123,11 @@ export type LokiTurnEvent =
   /** What the model said in a gathering round, kept as a working note (see
    *  lib/loki/work.ts) rather than discarded by the `reset` that follows. */
   | { type: "note"; text: string }
-  | { type: "tool"; name: string; phase: "start" }
-  | { type: "tool"; name: string; phase: "end"; facts: number }
+  | { type: "tool"; name: string; phase: "start"; detail?: string }
+  | { type: "tool"; name: string; phase: "end"; facts: number; detail?: string }
   // A failed tool is its own state, never "returned nothing" — the same
   // distinction the model is given in the note it receives.
-  | { type: "tool"; name: string; phase: "fail" }
+  | { type: "tool"; name: string; phase: "fail"; detail?: string }
   | { type: "status"; label: "verifying" };
 
 /** A citation the UI can resolve — what [F8] or [D1] actually refers to. */
@@ -301,12 +301,14 @@ async function runToolCalls(
     }
     attempted.add(key);
     used.push(call.name);
-    emit({ type: "tool", name: call.name, phase: "start" });
+    const detail = describeArgs(parsed.data);
+    emit({ type: "tool", name: call.name, phase: "start", detail });
     try {
       const result = await tool.handler(parsed.data, ctx);
       facts.push(...result.facts);
-      emit({ type: "tool", name: call.name, phase: "end", facts: result.facts.length });
-      work.push({ kind: "tool", name: call.name, phase: "end", facts: result.facts.length });
+      const facts_ = result.facts.length;
+      emit({ type: "tool", name: call.name, phase: "end", facts: facts_, detail });
+      work.push({ kind: "tool", name: call.name, phase: "end", facts: facts_, detail });
       messages.push({
         role: "user",
         content:
@@ -317,8 +319,8 @@ async function runToolCalls(
     } catch (e) {
       // A failed tool must read as "unknown", never as "none" — otherwise the
       // model reports an outage as an empty result and the operator believes it.
-      emit({ type: "tool", name: call.name, phase: "fail" });
-      work.push({ kind: "tool", name: call.name, phase: "fail" });
+      emit({ type: "tool", name: call.name, phase: "fail", detail });
+      work.push({ kind: "tool", name: call.name, phase: "fail", detail });
       messages.push({
         role: "user",
         content: `[tool ${call.name}] FAILED (${e instanceof Error ? e.message.slice(0, 80) : "error"}). Treat this as unknown, not as empty.`,

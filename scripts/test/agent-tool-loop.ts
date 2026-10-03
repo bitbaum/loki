@@ -235,7 +235,7 @@ async function main() {
     });
     assert.deepEqual(r.work, [
       { kind: "note", text: "Checking who Elena is first." },
-      { kind: "tool", name: "search_people", phase: "end", facts: 1 },
+      { kind: "tool", name: "search_people", phase: "end", facts: 1, detail: 'query: "Elena"' },
     ]);
     assert.equal(r.text, "Elena Weber SINGA Switzerland — whatsapp +41774730093 [F1].");
     const noteAt = events.findIndex((e) => e.type === "note");
