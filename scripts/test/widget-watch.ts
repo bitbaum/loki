@@ -9,6 +9,7 @@ import {
   failureSignature,
   isFailedRequest,
   isNoiseError,
+  nextTapStreak,
   pushTrail,
   TRAIL_MAX,
   watchReport,
@@ -74,4 +75,24 @@ check(() => {
   assert.ok(s.length <= 2000 && s.includes("failure: POST /api/projects → 500"));
 });
 
-console.log(`${n}/5 widget-watch cases passed`);
+check(() => {
+  // Three taps on one button inside the window: dead. A field, a gap, or a
+  // different button in between: not.
+  let r = nextTapStreak(null, "button “Pay”", 0);
+  r = nextTapStreak(r.streak, "button “Pay”", 1000);
+  assert.equal(r.dead, false);
+  r = nextTapStreak(r.streak, "button “Pay”", 2000);
+  assert.equal(r.dead, true);
+  let f = nextTapStreak(null, "email field “Your email”", 0);
+  f = nextTapStreak(f.streak, "email field “Your email”", 100);
+  f = nextTapStreak(f.streak, "email field “Your email”", 200);
+  assert.equal(f.dead, false, "fields are tapped to focus");
+  let g = nextTapStreak(null, "button “Pay”", 0);
+  g = nextTapStreak(g.streak, "button “Pay”", 1000);
+  g = nextTapStreak(g.streak, "button “Pay”", 9000);
+  assert.equal(g.dead, false, "outside the window it starts again");
+  const rep = watchReport({ kind: "dead-tap", text: "button “Pay”" }, [], 0);
+  assert.match(rep.message, /tapped button “Pay” three times and nothing happened/);
+});
+
+console.log(`${n}/6 widget-watch cases passed`);

@@ -12,8 +12,10 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   the top says **Loki is watching**. When something on the page breaks — an
   error, or a request that fails — Loki files it with the steps that led
   there and starts the fix; the pill says **Loki is fixing it**, with a link
-  to follow. What you type is never recorded, **Pause** stops it, and
-  visitors are never watched.
+  to follow. A button that does nothing when tapped three times counts as
+  broken too, and **Report** on the pill files anything else that looks
+  wrong, with the same steps attached. What you type is never recorded,
+  **Pause** stops it, and visitors are never watched.
 - **Loki's chat answers first.** A message that sounds like work no longer
   gets "Which project?" over a wall of buttons — it gets an answer, with
   "Run this on a project…" underneath for when you meant it.

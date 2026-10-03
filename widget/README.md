@@ -35,10 +35,13 @@ carries the owner pass, and from then on, in that browser, a pill at the top
 of the page says **Loki is watching**. While it does, the widget keeps a short
 trail — pages, taps (by the control's label, never what was typed), the site's
 own non-GET requests — and when the page breaks (an uncaught error, a request
-that fails with a 5xx or never answers) it files a report with that trail. The
+that fails with a 5xx or never answers, or a button or link tapped three
+times in five seconds with nothing happening) it files a report with that
+trail. The
 owner pass makes the report a build, so the pill turns into **Something broke
 — Loki is fixing it · Follow**. One report per distinct cause, at most three
-per page load. **Pause** on the pill stops recording until **Resume**;
+per page load. **Report** on the pill opens the note with the same trail
+attached, for anything that looks wrong without failing. **Pause** on the pill stops recording until **Resume**;
 visitors without the pass get no pill and no recording.
 Code: `widget/watch.ts` (page), `widget/watch-trail.ts` (pure, tested);
 proven in a browser by `scripts/test/widget-watch-browser.ts`.

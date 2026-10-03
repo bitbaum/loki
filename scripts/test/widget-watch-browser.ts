@@ -22,8 +22,9 @@ const ORIGIN = "http://host.fixture";
 const SITE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Shop</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
 <main><h1>Shop</h1><input id="email" placeholder="Your email">
-<button id="buy">Buy now</button></main>
-<script>document.getElementById("buy").onclick = () => fetch("/shop/checkout?token=secret", { method: "POST" });</script>
+<button id="buy">Buy now</button><button id="dead">Save</button><button id="ok">Refresh</button></main>
+<script>document.getElementById("buy").onclick = () => fetch("/shop/checkout?token=secret", { method: "POST" });
+document.getElementById("ok").onclick = () => fetch("/shop/ok");</script>
 <script src="${ORIGIN}/widget.js" data-fc-project="fcw_fixture" async></script></body></html>`;
 
 type Report = { suggestion: string; ownerPass?: string };
@@ -52,6 +53,7 @@ async function open(browser: Browser, js: string, hash: string) {
       return json({ ok: true, owner: true, building: true });
     }
     if (url.pathname === "/shop/checkout") return json({ error: "boom" }, 500);
+    if (url.pathname === "/shop/ok") return json({ ok: true });
     return route.fulfill({ body: SITE, contentType: "text/html" });
   });
   await p.goto(`${ORIGIN}/${hash}`);
@@ -66,14 +68,14 @@ const pillText = (p: Page) =>
       ?.shadowRoot?.querySelector(".watch-pill .wtext") as HTMLElement | null;
     return el?.innerText ?? null;
   });
+/** The pill's last button is Pause / Resume (Report sits before it). */
 const clickPillButton = (p: Page) =>
-  p.evaluate(() =>
-    (
-      document
-        .getElementById("loki-feedback-host")!
-        .shadowRoot!.querySelector(".watch-pill .wbtn") as HTMLElement
-    ).click(),
-  );
+  p.evaluate(() => {
+    const all = document
+      .getElementById("loki-feedback-host")!
+      .shadowRoot!.querySelectorAll(".watch-pill .wbtn");
+    (all[all.length - 1] as HTMLElement).click();
+  });
 
 async function main() {
   let browser: Browser;
@@ -125,6 +127,37 @@ async function main() {
       "the pill says it is being fixed",
     );
     ok(s.errors.length === 0, `no page errors (${s.errors.join("; ")})`);
+    await s.close();
+  }
+
+  // ---- a button that does nothing, and one that works ----
+  {
+    const s = await open(browser, js, "#loki-owner=pass123");
+    await s.p.keyboard.press("Escape");
+    for (let i = 0; i < 3; i++) await s.p.click("#ok");
+    await s.p.waitForTimeout(400);
+    ok(s.reports.length === 0, "a working button tapped three times is not reported");
+    for (let i = 0; i < 3; i++) await s.p.click("#dead");
+    await s.p.waitForTimeout(400);
+    ok(s.reports.length === 1, `a dead button files one report (got ${s.reports.length})`);
+    ok(
+      (s.reports[0]?.suggestion ?? "").includes(
+        "tapped button “Save” three times and nothing happened",
+      ),
+      "the report says which button did nothing",
+    );
+    // Report opens the note with the trail attached.
+    await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      (r.querySelectorAll(".watch-pill .wbtn")[0] as HTMLElement).click();
+    });
+    await s.p.waitForTimeout(300);
+    const opened = await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      const diag = r.querySelector(".diag") as HTMLElement | null;
+      return !!r.querySelector(".panel") && diag?.style.display === "block";
+    });
+    ok(opened, "Report opens the note with the trail attached");
     await s.close();
   }
 
