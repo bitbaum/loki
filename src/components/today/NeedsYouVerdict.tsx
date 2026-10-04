@@ -4,8 +4,10 @@ import Link from "next/link";
 import { AlertCircle, AlertTriangle, Check, ChevronRight, Loader2, Server } from "lucide-react";
 import { useControlInbox } from "@/hooks/use-control-inbox";
 import { DismissAlertButton } from "./DismissAlertButton";
+import { LokiDispatchButton } from "@/components/shared/LokiDispatchButton";
 import {
   composeNeedsYou,
+  needsYouHeadline,
   type NeedsYouAlert,
   type NeedsYouApprovals,
   type NeedsYouItem,
@@ -30,6 +32,12 @@ export type FlaggedProject = NeedsYouProject;
  *
  * A FAILED FETCH IS NOT "NOTHING". `loadFailed` renders as "couldn't check",
  * never as a calm all-clear.
+ *
+ * Three tiers (lib/needs-you): URGENT items are shown in full with a one-tap
+ * hand-off to Loki, because "Email verification bypass: anyone can register…"
+ * cut at ninety characters is the one sentence on this page that must be read
+ * whole. DECIDE items are one line each. TIDY items and the builder's alarms
+ * share one quiet "Also" line and are not counted.
  */
 export function NeedsYouVerdict({
   flagged,
@@ -54,7 +62,7 @@ export function NeedsYouVerdict({
     );
   }
 
-  const { items, total } = composeNeedsYou({
+  const { items, total, urgent } = composeNeedsYou({
     projects: flagged,
     approvals,
     feedbackCount: inbox.feedbackCount,
@@ -63,13 +71,28 @@ export function NeedsYouVerdict({
     systemAlertCount,
   });
 
+  const tidy = items.filter((i) => i.tier === "tidy");
   const systemLine =
-    systemAlertCount > 0 ? (
-      <Link href="/system#system-alerts" className="ui-verdict-system">
+    systemAlertCount > 0 || tidy.length > 0 ? (
+      <p className="ui-verdict-also">
         <Server className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        {systemAlertCount} system {systemAlertCount === 1 ? "alert" : "alerts"}
-        <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      </Link>
+        <span className="sr-only">Also: </span>
+        {tidy.map((t) =>
+          t.href ? (
+            <Link key={t.key} href={t.href} className="ui-verdict-also-link">
+              {t.label}
+            </Link>
+          ) : (
+            <span key={t.key}>{t.label}</span>
+          ),
+        )}
+        {systemAlertCount > 0 && (
+          <Link href="/system#system-alerts" className="ui-verdict-also-link">
+            {systemAlertCount} system {systemAlertCount === 1 ? "alert" : "alerts"}
+            <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          </Link>
+        )}
+      </p>
     ) : null;
 
   if (inbox.loadFailed) {
@@ -82,7 +105,7 @@ export function NeedsYouVerdict({
             Try again
           </button>
         </p>
-        {items.length > 0 && <NeedsYouList items={items} />}
+        {items.length > 0 && <NeedsYouList items={items.filter((i) => i.tier !== "tidy")} />}
         {systemLine}
       </section>
     );
@@ -101,15 +124,57 @@ export function NeedsYouVerdict({
     );
   }
 
+  const urgentItems = items.filter((i) => i.tier === "urgent");
   return (
     <section className="ui-verdict ui-verdict-alert" aria-label="What needs you">
       <p className="ui-verdict-line">
         <AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" aria-hidden />
-        {total} {total === 1 ? "thing needs" : "things need"} you
+        {needsYouHeadline(total, urgent)}
       </p>
-      <NeedsYouList items={items} />
+      {urgentItems.length > 0 && (
+        <ul className="ui-verdict-list">
+          {urgentItems.map((item) => (
+            <li key={item.key}>
+              <UrgentRow item={item} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <NeedsYouList items={items.filter((i) => i.tier === "decide")} />
       {systemLine}
     </section>
+  );
+}
+
+/**
+ * An urgent item, whole: what is wrong in its own words, where to look, and
+ * Loki one tap away. "Fix with Loki" opens Loki with the problem written out;
+ * it starts nothing until the operator sends it.
+ */
+function UrgentRow({ item }: { item: NeedsYouItem }) {
+  const text = item.detail?.[0] ?? item.reason ?? "";
+  return (
+    <div className="ui-verdict-urgent">
+      <p className="ui-verdict-urgent-head">
+        <AlertCircle className="h-3.5 w-3.5 shrink-0 text-status-negative" aria-hidden />
+        <span className="ui-verdict-label">{item.label}</span>
+      </p>
+      {text && <p className="ui-verdict-urgent-text">{text}</p>}
+      <div className="ui-verdict-actions">
+        <LokiDispatchButton
+          prompt={`Urgent in ${item.label}: ${text}\n\nInvestigate it, confirm the impact, and propose the smallest safe fix.`}
+          label="Fix with Loki"
+          title={`Ask Loki to fix this in ${item.label}`}
+          className="ui-btn-pill-positive"
+        />
+        {item.href && (
+          <Link href={item.href} className="ui-verdict-open">
+            Open <ChevronRight className="h-3 w-3" aria-hidden />
+          </Link>
+        )}
+        {item.dismissAlertId && <DismissAlertButton alertId={item.dismissAlertId} />}
+      </div>
+    </div>
   );
 }
 

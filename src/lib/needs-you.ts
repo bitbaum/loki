@@ -36,7 +36,32 @@ export function approvalsSentence(n: number): string {
   return n === 1 ? "1 action waiting for approval" : `${n} actions waiting for approval`;
 }
 
-export type NeedsYouProject = { id: string; name: string; reason: string; href: string | null };
+export type NeedsYouProject = {
+  id: string;
+  name: string;
+  reason: string;
+  href: string | null;
+  /** The whole sentence when `reason` was shortened to fit one line. */
+  fullReason?: string;
+  /** A security hole or a site that is down: act before anything else. */
+  urgent?: boolean;
+};
+
+/**
+ * Where an item sits on the page, and whether it is need at all.
+ *
+ *   urgent  something is broken or exposed; shown in full, first, with a
+ *           one-tap hand-off to Loki
+ *   decide  waiting on a yes, a no or a read: approvals, feedback, flags
+ *   tidy    housekeeping (a site without the feedback widget). Real, but
+ *           not need: it sits on one quiet line and is NOT in the count.
+ *
+ * Measured 2026-10-04: the front door said "17 things need you" for one
+ * security hole, seven approvals, eight reports and a missing widget, all
+ * in one list at one weight. A number that large with no order in it reads
+ * as noise, and the hole that actually mattered was line one of seventeen.
+ */
+export type NeedsYouTier = "urgent" | "decide" | "tidy";
 
 export type NeedsYouApprovals = {
   count: number;
@@ -81,31 +106,41 @@ export type NeedsYouItem = {
   dismissAlertId?: string;
   /** How many things this one line stands for (an "N people" row is N). */
   weight: number;
+  tier: NeedsYouTier;
 };
 
 /**
  * The front door's list, in the order a person should act on it: what is
  * broken first, then what is waiting on a yes, then the small queue.
  *
- * The total is the SUM OF THE WEIGHTS — there is no second count to drift.
- * System alerts are deliberately outside it: they are the builder's alarms,
- * linked from one line to /system, and counting them here is how Today grew
- * eight cards of repo paths and model ids.
+ * The total is the SUM OF THE WEIGHTS of the urgent and decide rows — there is
+ * no second count to drift. Tidy rows and system alerts are outside it: the
+ * builder's alarms are linked from one line to /system, and counting them here
+ * is how Today grew eight cards of repo paths and model ids.
  */
-export function composeNeedsYou(input: NeedsYouInputs): { items: NeedsYouItem[]; total: number } {
+export function composeNeedsYou(input: NeedsYouInputs): {
+  items: NeedsYouItem[];
+  total: number;
+  urgent: number;
+} {
   const items: NeedsYouItem[] = [];
 
   for (const alert of input.alerts.filter((a) => a.urgent)) {
     items.push(alertItem(alert));
   }
 
-  for (const p of input.projects) {
+  // Urgent projects first, still after urgent alerts.
+  const projects = [...input.projects].sort((x, y) => Number(!!y.urgent) - Number(!!x.urgent));
+  for (const p of projects) {
     items.push({
       key: `project:${p.id}`,
       label: p.name,
       reason: p.reason,
       href: p.href,
+      detail: p.fullReason && p.fullReason !== p.reason ? [p.fullReason] : undefined,
+      urgent: p.urgent,
       weight: 1,
+      tier: p.urgent ? "urgent" : "decide",
     });
   }
 
@@ -118,6 +153,7 @@ export function composeNeedsYou(input: NeedsYouInputs): { items: NeedsYouItem[];
         reason: "Behind your PIN",
         href: "/unlock?next=/approvals",
         weight: a.count,
+        tier: "decide",
       });
     } else {
       if (a.checkinNames.length > 0) {
@@ -128,6 +164,7 @@ export function composeNeedsYou(input: NeedsYouInputs): { items: NeedsYouItem[];
           href: "/approvals",
           detail: n === 1 ? undefined : a.checkinNames,
           weight: n,
+          tier: "decide",
         });
       }
       for (const o of a.others) {
@@ -137,6 +174,7 @@ export function composeNeedsYou(input: NeedsYouInputs): { items: NeedsYouItem[];
           reason: "Waiting for your approval",
           href: "/approvals",
           weight: 1,
+          tier: "decide",
         });
       }
     }
@@ -149,6 +187,7 @@ export function composeNeedsYou(input: NeedsYouInputs): { items: NeedsYouItem[];
       label: `${n} feedback ${n === 1 ? "report" : "reports"} to triage`,
       href: "/feedback",
       weight: n,
+      tier: "decide",
     });
   }
 
@@ -159,6 +198,7 @@ export function composeNeedsYou(input: NeedsYouInputs): { items: NeedsYouItem[];
       label: `${n} ${n === 1 ? "site is" : "sites are"} missing the feedback widget`,
       href: "/feedback",
       weight: n,
+      tier: "tidy",
     });
   }
 
@@ -166,7 +206,26 @@ export function composeNeedsYou(input: NeedsYouInputs): { items: NeedsYouItem[];
     items.push(alertItem(alert));
   }
 
-  return { items, total: items.reduce((sum, i) => sum + i.weight, 0) };
+  const counted = items.filter((i) => i.tier !== "tidy");
+  return {
+    items,
+    total: counted.reduce((sum, i) => sum + i.weight, 0),
+    urgent: counted.filter((i) => i.tier === "urgent").reduce((sum, i) => sum + i.weight, 0),
+  };
+}
+
+/**
+ * The verdict's one line. With something urgent it leads with that, because
+ * "1 urgent" is a different morning from "17 things"; otherwise the plain
+ * count. Housekeeping never makes the sentence.
+ */
+export function needsYouHeadline(total: number, urgent: number): string {
+  if (total === 0) return "Nothing needs you.";
+  if (urgent > 0) {
+    const rest = total - urgent;
+    return rest > 0 ? `${urgent} urgent · ${rest} waiting on you` : `${urgent} urgent`;
+  }
+  return total === 1 ? "1 thing needs you" : `${total} things need you`;
 }
 
 function alertItem(alert: NeedsYouAlert): NeedsYouItem {
@@ -178,5 +237,6 @@ function alertItem(alert: NeedsYouAlert): NeedsYouItem {
     urgent: alert.urgent,
     dismissAlertId: alert.id,
     weight: 1,
+    tier: alert.urgent ? "urgent" : "decide",
   };
 }

@@ -397,9 +397,9 @@ export function AskLokiButton() {
               A TEXTAREA, not an input, and the difference is data loss rather
               than comfort.
 
-              "Brief Loki" on /today prefills this control with a multi-line
-              prompt built by SummaryBar — a heading, the day's counts, then the
-              question — joined with "\n". An <input> cannot hold a newline, so
+              "Plan my day" on /today prefills this control with a multi-line
+              prompt — the plan, then the day's counts from SummaryBar — joined
+              with "\n" (it was "Brief Loki" until 2026-10-04). An <input> cannot hold a newline, so
               the browser silently stripped every one and the value arrived as
               "Daily brief — Friday, 18 SeptemberWhat should I focus on today?".
               Measured live on 2026-09-18: newlineCount 0. The product generated

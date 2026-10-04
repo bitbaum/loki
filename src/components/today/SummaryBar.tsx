@@ -12,13 +12,13 @@ import {
   CirclePause,
 } from "lucide-react";
 import { ScrollAffordance } from "@/components/ui/scroll-affordance";
-import { buildTodayBriefPrompt } from "@/lib/today-brief";
+import type { ReactNode } from "react";
+import { todayBriefFacts } from "@/lib/today-brief";
 import Link from "next/link";
-import { LokiDispatchButton } from "@/components/shared/LokiDispatchButton";
+import { DayPhaseDispatch } from "@/components/today/DayPhaseDispatch";
 import { getTodaySummary, getFleetSummary } from "@/db/queries/today";
 import { requirePageUserId } from "@/lib/session";
 import { isPrivateZoneLocked } from "@/lib/private-zone";
-import { APP_LOCALE } from "@/lib/constants";
 import { NAV } from "@/config/navigation";
 
 /** Placeholder shown while SummaryBar's DB queries run. */
@@ -39,7 +39,12 @@ export function SummaryBarSkeleton() {
   );
 }
 
-export async function SummaryBar() {
+/**
+ * Today's counts and the page's ONE Loki action. `children` are the other
+ * actions of the row (Log a conversation), so the counts and the actions read
+ * as one line instead of a chip row, a lone "Brief Loki" and a second row.
+ */
+export async function SummaryBar({ children }: { children?: ReactNode }) {
   const userId = await requirePageUserId();
   const [rawSummary, fleet] = await Promise.all([getTodaySummary(userId), getFleetSummary(userId)]);
 
@@ -67,13 +72,9 @@ export async function SummaryBar() {
       }
     : rawSummary;
 
-  // The prompt lives in lib/today-brief.ts so it can be tested. Inline here it
-  // carried two silent bugs — see that file.
-  const todayBriefPrompt = buildTodayBriefPrompt(
-    `Daily brief — ${new Date().toLocaleDateString(APP_LOCALE, { weekday: "long", month: "long", day: "numeric" })}`,
-    s,
-    fleet,
-  );
+  // The facts live in lib/today-brief.ts so they can be tested; "Plan my day"
+  // carries them, so Loki plans from what this bar shows.
+  const facts = todayBriefFacts(s, fleet);
 
   // Group chips by semantic so the row reads as: "what I have" → "what wants me"
   // → "what my fleet is doing" → "ask Loki." Previously 10+ mixed chips with
@@ -211,12 +212,8 @@ export async function SummaryBar() {
         {alerts.length > 0 && fleetPills.length > 0 && divider}
         {fleetPills}
         {(counters.length > 0 || alerts.length > 0 || fleetPills.length > 0) && divider}
-        <LokiDispatchButton
-          prompt={todayBriefPrompt}
-          title="Brief Loki on today"
-          label="Brief Loki"
-          className="inline-flex items-center gap-1.5 rounded-full border border-status-positive/30 bg-status-positive-subtle/40 px-3 py-2 text-xs font-semibold text-status-positive hover:bg-status-positive-subtle transition-colors ui-tap shrink-0"
-        />
+        <DayPhaseDispatch facts={facts} />
+        {children}
       </div>
     </ScrollAffordance>
   );

@@ -51,20 +51,15 @@ export const TODAY_BRIEF_QUESTION =
  * locale — and so a test can assert the shape without depending on today's
  * date or the machine's locale.
  */
-export function buildTodayBriefPrompt(
-  heading: string,
-  s: TodayBriefCounts,
-  fleet: TodayBriefFleet,
-): string {
+/** The day's counts as plain lines, absent ones dropped. Shared by the brief
+ *  and by "Plan my day" / "Wrap up day", so Loki plans from the same facts. */
+export function todayBriefFacts(s: TodayBriefCounts, fleet: TodayBriefFleet): string[] {
   const fleetParts = [
     fleet.running > 0 && `${fleet.running} running`,
     fleet.waiting > 0 && `${fleet.waiting} waiting`,
     fleet.degraded > 0 && `${fleet.degraded} degraded`,
   ].filter((p): p is string => typeof p === "string");
-
-  const lines: (string | false)[] = [
-    heading,
-    "",
+  return [
     s.activeGoals > 0 && `Goals: ${s.activeGoals} active, ${s.avgGoalProgress}% average progress`,
     s.habitsTotal > 0 && `Habits: ${s.habitsDone}/${s.habitsTotal} done today`,
     s.goalsDueSoon > 0 && `Goals due soon: ${s.goalsDueSoon}`,
@@ -75,15 +70,29 @@ export function buildTodayBriefPrompt(
     s.pendingDrafts > 0 && `Pending action drafts: ${s.pendingDrafts}`,
     s.urgentAlerts > 0 && `Urgent alerts: ${s.urgentAlerts}`,
     fleetParts.length > 0 && `Agent fleet: ${fleetParts.join(", ")}`,
-    "",
-    TODAY_BRIEF_QUESTION,
-  ];
+  ].filter((line): line is string => typeof line === "string");
+}
+
+/**
+ * A day-phase prompt ("Plan my day", "Wrap up day") with today's facts
+ * appended, so the one button does what "Brief Loki" did beside it. They were
+ * two buttons asking Loki the same thing with different context.
+ */
+export function withTodayFacts(prompt: string, facts: string[]): string {
+  return facts.length === 0 ? prompt : `${prompt}\n\nToday so far:\n${facts.join("\n")}`;
+}
+
+export function buildTodayBriefPrompt(
+  heading: string,
+  s: TodayBriefCounts,
+  fleet: TodayBriefFleet,
+): string {
+  const lines: string[] = [heading, "", ...todayBriefFacts(s, fleet), "", TODAY_BRIEF_QUESTION];
 
   return (
     lines
-      // Drop the absent COUNTS (false) and keep the intentional "" separators.
-      // `.filter(Boolean)` cannot tell those apart, which is bug 1 above.
-      .filter((line): line is string => line !== false)
+      // Absent counts were already dropped by todayBriefFacts; the "" separators
+      // stay. `.filter(Boolean)` would delete them too, which is bug 1 above.
       .join("\n")
       // With every count absent the two separators end up adjacent, which would
       // open the prompt with a gap. Collapse runs rather than making the

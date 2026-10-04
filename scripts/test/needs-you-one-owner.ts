@@ -11,7 +11,12 @@
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { composeNeedsYou, NEEDS_YOU_LABELS, type NeedsYouInputs } from "@/lib/needs-you";
+import {
+  composeNeedsYou,
+  needsYouHeadline,
+  NEEDS_YOU_LABELS,
+  type NeedsYouInputs,
+} from "@/lib/needs-you";
 import { ALERT_TYPE_IDS, alertRestatesListedSource } from "@/config/alert-types";
 
 let failed = 0;
@@ -47,14 +52,19 @@ console.log("needs-you-one-owner:");
 {
   const { items, total } = composeNeedsYou(base);
   check(
-    "the total is the sum of the rows' weights — no second count",
-    total === items.reduce((s, i) => s + i.weight, 0),
+    "the total is the sum of the counted rows' weights — no second count",
+    total === items.filter((i) => i.tier !== "tidy").reduce((s, i) => s + i.weight, 0),
   );
-  // 1 project + 6 people + 1 approval + 6 feedback + 1 widget + 1 alert
-  check("everything the operator owns is counted once", total === 16, `total was ${total}`);
+  // 1 project + 6 people + 1 approval + 6 feedback + 1 alert. The missing
+  // widget is housekeeping (tier "tidy"): listed on the Also line, not counted.
+  check("everything the operator owns is counted once", total === 15, `total was ${total}`);
   check(
     "system alarms are linked, not counted",
-    !items.some((i) => i.key.startsWith("system")) && total === 16,
+    !items.some((i) => i.key.startsWith("system")) && total === 15,
+  );
+  check(
+    "a missing widget is housekeeping, not need",
+    items.find((i) => i.key === "widget")?.tier === "tidy",
   );
   const people = items.find((i) => i.key === "approvals:checkins");
   check(
@@ -72,7 +82,7 @@ console.log("needs-you-one-owner:");
   const locked = items.find((i) => i.key === "approvals:locked");
   check(
     "behind the PIN, approvals are one row with only their count",
-    locked?.weight === 7 && !locked.detail && total === 1 + 7 + 6 + 1 + 1,
+    locked?.weight === 7 && !locked.detail && total === 1 + 7 + 6 + 1,
   );
 }
 
@@ -86,6 +96,57 @@ console.log("needs-you-one-owner:");
     systemAlertCount: 3,
   });
   check("nothing to do reads as zero even with system alarms", items.length === 0 && total === 0);
+}
+
+// Tiers, measured 2026-10-04: "17 things need you" for one security hole,
+// seven approvals, eight reports and a missing widget, at one weight.
+{
+  const { items, total, urgent } = composeNeedsYou({
+    ...base,
+    projects: [
+      { id: "ok", name: "heidi", reason: "Broken export", href: "/projects/ok" },
+      {
+        id: "sec",
+        name: "evig",
+        reason: "Email verification bypass…",
+        fullReason: "Email verification bypass: anyone can register @revamp-it.ch and get Staff",
+        href: "/projects/sec",
+        urgent: true,
+      },
+    ],
+    alerts: [],
+  });
+  check(
+    "a security flag is urgent and leads, ahead of other flags",
+    items[0]?.key === "project:sec" && items[0]?.tier === "urgent",
+  );
+  check(
+    "the urgent row carries the whole sentence, not the 90-character cut",
+    items[0]?.detail?.[0]?.includes("get Staff") === true,
+  );
+  check(
+    "the headline leads with what is urgent",
+    needsYouHeadline(total, urgent) === `1 urgent · ${total - 1} waiting on you`,
+    needsYouHeadline(total, urgent),
+  );
+  check("no urgency, plain count", needsYouHeadline(3, 0) === "3 things need you");
+  check("one thing is singular", needsYouHeadline(1, 0) === "1 thing needs you");
+  check("nothing is said plainly", needsYouHeadline(0, 0) === "Nothing needs you.");
+}
+
+{
+  const { items, total } = composeNeedsYou({
+    projects: [],
+    approvals: { count: 0, locked: false, checkinNames: [], others: [] },
+    feedbackCount: 0,
+    widgetCount: 2,
+    alerts: [],
+    systemAlertCount: 0,
+  });
+  check(
+    "housekeeping alone is not a reason to say something needs you",
+    total === 0 && items.length === 1,
+  );
 }
 
 // An alert that only announces a source the list composes directly is not a
