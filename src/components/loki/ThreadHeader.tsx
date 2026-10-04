@@ -14,14 +14,14 @@ export function ThreadHeader({
   title,
   projects,
   onBack,
-  onOpenChats,
+  onOpenLokis,
   onNewChat,
   onOpenProjects,
 }: {
   title: string;
   projects: string[];
   onBack: () => void;
-  onOpenChats: () => void;
+  onOpenLokis: () => void;
   onNewChat: () => void;
   onOpenProjects: () => void;
 }) {
@@ -91,7 +91,7 @@ export function ThreadHeader({
             />
             <div className="ui-menu" role="menu">
               {item("New chat", SquarePen, onNewChat)}
-              {item("All chats", History, onOpenChats)}
+              {item("All chats", History, onOpenLokis)}
               {item("Projects", FolderKanban, onOpenProjects)}
             </div>
           </>
@@ -110,12 +110,12 @@ export function ThreadHeader({
 export function LokiTopbarButtons({
   pinned,
   onTogglePinned,
-  onOpenChats,
+  onOpenLokis,
   onNewChat,
 }: {
   pinned: boolean;
   onTogglePinned: () => void;
-  onOpenChats: () => void;
+  onOpenLokis: () => void;
   onNewChat: () => void;
 }) {
   return (
@@ -124,7 +124,7 @@ export function LokiTopbarButtons({
         type="button"
         className="ui-loki-topbar-btn"
         onClick={() =>
-          window.matchMedia("(min-width: 768px)").matches ? onTogglePinned() : onOpenChats()
+          window.matchMedia("(min-width: 768px)").matches ? onTogglePinned() : onOpenLokis()
         }
         aria-label={pinned ? "Hide chats" : "Show chats"}
         aria-pressed={pinned}

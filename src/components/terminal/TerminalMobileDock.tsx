@@ -22,7 +22,7 @@ export function TerminalMobileDock({
   channel,
   inputMode,
   onInputModeChange,
-  onOpenChat,
+  onOpenLoki,
   onKey,
   liveKeys,
   immersive,
@@ -31,8 +31,8 @@ export function TerminalMobileDock({
   channel: BuilderChannel;
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
-  /** Opens the Loki chat sheet; omitted when there is no project. */
-  onOpenChat?: () => void;
+  /** Opens the Loki panel sheet; omitted when there is no project. */
+  onOpenLoki?: () => void;
   /** Verbatim bytes into the session. */
   onKey: (bytes: string) => void;
   /** When on, xterm has the keyboard and the typing box would fight it for
@@ -49,7 +49,7 @@ export function TerminalMobileDock({
       <TerminalInputSwitch
         inputMode={inputMode}
         onInputModeChange={onInputModeChange}
-        onOpenChat={onOpenChat}
+        onOpenLoki={onOpenLoki}
       />
 
       {inputMode === "type" && !liveKeys && (

@@ -12,22 +12,22 @@ const ICONS = {
 } satisfies Record<TerminalInputMode, (typeof Keyboard)[]>;
 
 /**
- * How your words reach the session, next to where you write them — plus Chat.
+ * How your words reach the session, next to where you write them — plus Loki.
  *
  * On a phone this switch used to live only inside the session sheet, so the
  * terminal opened in Type (raw keystrokes: no attach, no mic) and attaching a
- * screenshot or talking to the agent meant finding a menu first. Chat — the
- * Loki panel for this project and run — sat behind an unlabeled icon.
+ * screenshot or talking to the agent meant finding a menu first. The Loki
+ * panel (summary, Ask/Inject for this run) sat behind an unlabeled icon.
  */
 export function TerminalInputSwitch({
   inputMode,
   onInputModeChange,
-  onOpenChat,
+  onOpenLoki,
 }: {
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
-  /** Opens the Loki chat panel. Omitted where there is no project to chat about. */
-  onOpenChat?: () => void;
+  /** Opens the Loki panel. Omitted where there is no project for it to be about. */
+  onOpenLoki?: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Input mode">
@@ -49,15 +49,15 @@ export function TerminalInputSwitch({
           </button>
         );
       })}
-      {onOpenChat && (
+      {onOpenLoki && (
         <button
           type="button"
-          onClick={onOpenChat}
-          title="Chat with Loki about this project and run"
+          onClick={onOpenLoki}
+          title="Summarize this run and ask Loki about it"
           className="ui-chip-toggle gap-1"
         >
           <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />
-          Chat
+          Loki
         </button>
       )}
     </div>

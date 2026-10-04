@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, Maximize2, Minimize2, MonitorSmartphone, PanelRight } from "lucide-react";
+import { Loader2, MonitorSmartphone } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
@@ -40,7 +40,8 @@ import { TerminalLokiRail } from "./TerminalLokiRail";
 import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
 import { Modal } from "@/components/ui/modal";
 import { runnerTransport } from "./terminal-transport";
-import { ChatViewButton, ClaudeChatView } from "./ClaudeChatView";
+import { ClaudeChatView } from "./ClaudeChatView";
+import { TerminalPaneActions } from "./TerminalPaneActions";
 import { useTerminalView } from "./use-terminal-view";
 import { useTerminalTabs } from "./use-terminal-tabs";
 
@@ -538,42 +539,14 @@ export function TerminalSurface({
     else setLokiSheetOpen(true);
   };
   const paneActions = (
-    <>
-      {chatAvailable && <ChatViewButton onClick={termView.showChat} />}
-      {projectKey && !immersive && (
-        <button
-          type="button"
-          className={railShown ? "ui-term-pane-btn ui-term-pane-btn-on" : "ui-term-pane-btn"}
-          onClick={toggleRail}
-          aria-pressed={railFits ? railShown : undefined}
-          aria-label={railShown ? "Hide the Loki chat panel" : "Show the Loki chat panel"}
-          title={
-            railShown
-              ? "Hide the chat panel — the terminal takes the width"
-              : "Chat with Loki about this project and run"
-          }
-        >
-          <PanelRight className="h-3.5 w-3.5" aria-hidden="true" />
-          Chat
-        </button>
-      )}
-      {onToggleImmersive && (
-        <button
-          type="button"
-          className={immersive ? "ui-term-pane-btn ui-term-pane-btn-on" : "ui-term-pane-btn"}
-          onClick={onToggleImmersive}
-          aria-pressed={immersive}
-          aria-label={immersive ? "Leave full screen (Esc)" : "Expand terminal to full screen"}
-          title={immersive ? "Leave full screen (Esc)" : "Expand to full screen"}
-        >
-          {immersive ? (
-            <Minimize2 className="h-3.5 w-3.5" aria-hidden="true" />
-          ) : (
-            <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-        </button>
-      )}
-    </>
+    <TerminalPaneActions
+      onShowConversation={chatAvailable ? termView.showChat : undefined}
+      loki={
+        projectKey ? { shown: railShown, pressable: railFits, onToggle: toggleRail } : undefined
+      }
+      immersive={immersive}
+      onToggleImmersive={onToggleImmersive}
+    />
   );
 
   const sheet = sheetOpen ? (
@@ -805,7 +778,7 @@ export function TerminalSurface({
           channel={channel}
           inputMode={inputMode}
           onInputModeChange={setInputMode}
-          onOpenChat={projectKey ? () => setLokiSheetOpen(true) : undefined}
+          onOpenLoki={projectKey ? () => setLokiSheetOpen(true) : undefined}
           onKey={sendKey}
           liveKeys={deck.liveKeys}
           immersive={immersive}

@@ -26,10 +26,10 @@ const render = (props: Parameters<typeof TerminalInputSwitch>[0]) =>
   renderToStaticMarkup(createElement(TerminalInputSwitch, props));
 
 {
-  const html = render({ inputMode: "type", onInputModeChange: noop, onOpenChat: noop });
+  const html = render({ inputMode: "type", onInputModeChange: noop, onOpenLoki: noop });
   for (const mode of TERMINAL_INPUT_MODES)
     ok(html.includes(`>${mode.label}</button>`), `offers ${mode.label}`);
-  ok(html.includes(">Chat</button>"), "offers Chat when there is a project");
+  ok(html.includes(">Loki</button>"), "offers the Loki panel when there is a project");
   ok(/aria-pressed="true"[^>]*>(?:<svg[\s\S]*?<\/svg>)*Type</.test(html), "marks the current mode");
   const prompt = html.split("<button").find((b) => b.includes(">Prompt</button>")) ?? "";
   ok(
@@ -43,7 +43,7 @@ const render = (props: Parameters<typeof TerminalInputSwitch>[0]) =>
 }
 {
   const html = render({ inputMode: "prompt", onInputModeChange: noop });
-  ok(!html.includes(">Chat</button>"), "no Chat without a project to chat about");
+  ok(!html.includes(">Loki</button>"), "no Loki panel without a project");
 }
 {
   // Wired where the operator writes: the phone dock and the desktop session bar.
@@ -58,8 +58,8 @@ const render = (props: Parameters<typeof TerminalInputSwitch>[0]) =>
     "desktop session bar shows the switch",
   );
   ok(
-    read("TerminalSurface.tsx").includes("onOpenChat={projectKey ?"),
-    "dock's Chat opens the Loki sheet",
+    read("TerminalSurface.tsx").includes("onOpenLoki={projectKey ?"),
+    "the dock's Loki chip opens the Loki sheet",
   );
 }
 
