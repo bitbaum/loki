@@ -100,14 +100,13 @@ export default async function PricingPage() {
                     </span>
                   ) : (
                     <>
+                      {/* The free plan is NAMED "Free", so a price of "Free" printed
+                          the same word twice, one above the other (2026-10-04).
+                          A number answers the question a price is there for. */}
                       <span className="ui-public-price-amount">
-                        {plan.priceMonthly === 0
-                          ? "Free"
-                          : `${PRICING_CURRENCY} ${plan.priceMonthly}`}
+                        {`${PRICING_CURRENCY} ${plan.priceMonthly}`}
                       </span>
-                      {plan.priceMonthly > 0 && (
-                        <span className="text-sm text-text-secondary">/ mo</span>
-                      )}
+                      <span className="text-sm text-text-secondary">/ mo</span>
                     </>
                   )}
                 </div>
