@@ -2918,6 +2918,14 @@
   .ui-term-loki-body {
     @apply min-h-0 flex-1 overflow-y-auto px-3 py-2;
   }
+  /* Once there is a conversation, the thread is what gets read: the run status
+     above it keeps its natural height (capped) and the thread takes the rest. */
+  .ui-term-loki-body:has(+ .ui-term-loki-thread) {
+    @apply max-h-40 flex-none;
+  }
+  .ui-term-loki-thread {
+    @apply flex min-h-0 flex-1 flex-col border-t border-border-subtle px-3 text-sm;
+  }
   .ui-term-loki-composer {
     @apply shrink-0 border-t border-border-subtle p-2;
   }
@@ -6666,9 +6674,6 @@
   /* Mutually exclusive destinations for the same words (Ask / Inject). */
   .ui-loki-composer-error {
     @apply flex items-start gap-2 rounded-lg border border-status-negative/30 bg-status-negative-subtle px-2.5 py-1.5 text-xs text-status-negative;
-  }
-  .ui-loki-composer-note {
-    @apply px-1 text-micro text-text-secondary;
   }
   /* What the last send actually did (queued / working / failed). */
   .ui-loki-composer-status {

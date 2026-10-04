@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { AlertTriangle, ChevronDown, ChevronUp, Link2, Minus, Plus } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 import type { AgentLifecycle } from "@/lib/agent-execution/types";
@@ -13,6 +13,7 @@ import {
   type PtyGeometry,
 } from "@/lib/terminal-viewport";
 import { createPtySizeSync, watchTerminalHost } from "@/lib/terminal-size-sync";
+import { logicalLines } from "@/lib/terminal-screen";
 import type { TerminalTransport } from "./terminal-transport";
 
 /**
@@ -46,25 +47,10 @@ const URL_RE = /https?:\/\/[^\s"'`<>\\)\]}]+/g;
  *  full-width runs back into logical lines, then match. Handles plainly-printed
  *  URLs (single short line) and width-wrapped ones alike. */
 function extractUrlsFromBuffer(term: import("@xterm/xterm").Terminal): string[] {
-  const buf = term.buffer.active;
-  const cols = term.cols;
   const urls = new Set<string>();
-  let logical = "";
-  const flush = () => {
-    for (const u of logical.match(URL_RE) ?? []) urls.add(u.replace(/[.,;:!?)\]}]+$/, ""));
-    logical = "";
-  };
-  // Scan a bounded recent window; back up to a logical-line boundary so a URL
-  // that began just above the window isn't captured truncated.
-  let start = Math.max(0, buf.length - 300);
-  while (start > 0 && (buf.getLine(start - 1)?.translateToString(true).length ?? 0) === cols)
-    start--;
-  for (let i = start; i < buf.length; i++) {
-    const text = buf.getLine(i)?.translateToString(true) ?? "";
-    logical += text;
-    if (text.length < cols) flush(); // row didn't fill the width → logical line ended
+  for (const line of logicalLines(term.buffer.active, term.cols, 300)) {
+    for (const u of line.match(URL_RE) ?? []) urls.add(u.replace(/[.,;:!?)\]}]+$/, ""));
   }
-  flush();
   return [...urls];
 }
 
@@ -195,6 +181,7 @@ export function TerminalView({
   onLive,
   onGeometry,
   actions,
+  readScreenRef,
   className,
 }: {
   transport: TerminalTransport;
@@ -222,6 +209,9 @@ export function TerminalView({
   /** Pane controls owned by the caller (the Loki-panel toggle, expand), shown
    *  at the end of the status row so the terminal keeps ONE row of chrome. */
   actions?: ReactNode;
+  /** Filled with a reader of the rendered screen (logical lines, newest
+   *  last) while this view is mounted — for the AI summary. */
+  readScreenRef?: MutableRefObject<((rows: number) => string[]) | null>;
   /** Host div class (bare layout). */
   className?: string;
 }) {
@@ -247,6 +237,16 @@ export function TerminalView({
   const font = fontProp ?? ownFont;
   const fontOverride = font.size;
   const termRef = useRef<import("@xterm/xterm").Terminal | null>(null);
+  useEffect(() => {
+    if (!readScreenRef) return;
+    readScreenRef.current = (rows) => {
+      const term = termRef.current;
+      return term ? logicalLines(term.buffer.active, term.cols, rows) : [];
+    };
+    return () => {
+      readScreenRef.current = null;
+    };
+  }, [readScreenRef]);
   /** Re-runs the mount effect's measure/fit/publish pass from outside it. */
   const resyncRef = useRef<(() => void) | null>(null);
   // Mirrored via effect (never written during render — see the refs rule);

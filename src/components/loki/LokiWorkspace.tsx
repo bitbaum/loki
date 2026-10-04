@@ -680,7 +680,7 @@ export function LokiWorkspace({
     <LokiTopbarButtons
       pinned={historyPinned}
       onTogglePinned={() => setHistoryPinned((open) => !open)}
-      onOpenChats={() => setHistoryOpen(true)}
+      onOpenLokis={() => setHistoryOpen(true)}
       onNewChat={startNewConversation}
     />
   );
@@ -713,7 +713,7 @@ export function LokiWorkspace({
             title={threadTitle}
             projects={selectedProjects}
             onBack={startNewConversation}
-            onOpenChats={() => setHistoryOpen(true)}
+            onOpenLokis={() => setHistoryOpen(true)}
             onNewChat={startNewConversation}
             onOpenProjects={() => setFilterOpen(true)}
           />

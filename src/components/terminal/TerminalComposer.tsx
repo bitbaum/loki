@@ -1,15 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle, BookOpen, X } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { PromptPicker } from "@/components/prompts/PromptPicker";
 import { Composer, type ComposerMode } from "@/components/composer/Composer";
 import type { Attachment, ModelChoice } from "@/components/loki/types";
-import { useLokiStream } from "@/hooks/use-loki-stream";
+import type { SessionAsk } from "@/hooks/use-session-ask";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import { dispatchToneDotClass } from "@/lib/dispatch-status";
-import type { WireMessage } from "@/lib/loki/stream";
 import { terminalComposerModes, type SessionComposerMode } from "./terminal-composer-modes";
 
 const SCREENSHOT_ONLY = "Look at the attached screenshot and fix what is wrong.";
@@ -22,7 +21,8 @@ export type InjectAck = { commandId: string | null; runId: string | null };
  *
  * One component for every place that sends words at a terminal session:
  *   • the Loki rail beside the terminal — Ask (a chat-only question about the
- *     project) or Inject (a task into the attached session);
+ *     project, on the rail's own thread: see useSessionAsk) or Inject (a task
+ *     into the attached session);
  *   • the Prompt-mode box under the terminal and in the phone dock — Inject;
  *   • Control's quick send to any open tab — Inject.
  * They used to be three components with three looks and three feature sets;
@@ -39,7 +39,8 @@ export function TerminalComposer({
   project = null,
   modes: modeIds = ["inject"],
   defaultMode = "inject",
-  onComment,
+  ask: session,
+  draft,
   onInjected,
   ptyLive,
   density = "comfortable",
@@ -51,15 +52,22 @@ export function TerminalComposer({
   project?: string | null;
   modes?: readonly SessionComposerMode[];
   defaultMode?: SessionComposerMode;
-  /** Where Ask's answer is shown (the rail). */
-  onComment?: (text: string) => void;
+  /** The thread Ask writes to — owned by whoever shows it (the rail). Without
+   *  it Ask is not offered. */
+  ask?: SessionAsk;
+  /** Put words in the box, in Inject, for the person to check and send (a
+   *  summary's suggested next step). A new `nonce` re-applies the same text. */
+  draft?: { text: string; nonce: number } | null;
   onInjected?: (ack: InjectAck) => void;
   /** Lets the status line say whether the PTY has started printing. */
   ptyLive?: boolean;
   density?: "comfortable" | "compact";
   injectPlaceholder?: string;
 }) {
-  const modes: ComposerMode[] = terminalComposerModes(modeIds, { project, tab });
+  const modes: ComposerMode[] = terminalComposerModes(
+    session ? modeIds : modeIds.filter((id) => id !== "ask"),
+    { project, tab },
+  );
   const [picked, setMode] = useState<SessionComposerMode>(defaultMode);
   // A mode that is not on offer (Ask with no project yet) falls back to the
   // first one that is, rather than rendering a destination that cannot exist.
@@ -70,6 +78,18 @@ export function TerminalComposer({
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Applied while rendering (React's "adjust state when a prop changes"), not
+  // in an effect; only the focus, which touches the DOM, waits for one.
+  const [appliedDraft, setAppliedDraft] = useState<number | null>(null);
+  if (draft && draft.nonce !== appliedDraft) {
+    setAppliedDraft(draft.nonce);
+    setText(draft.text);
+    setMode("inject");
+  }
+  useEffect(() => {
+    if (draft) inputRef.current?.focus();
+  }, [draft]);
 
   // ── Inject ────────────────────────────────────────────────────────────────
   const [injecting, setInjecting] = useState(false);
@@ -134,57 +154,21 @@ export function TerminalComposer({
     }
   };
 
-  // ── Ask ───────────────────────────────────────────────────────────────────
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const stream = useLokiStream({
-    onMessage: (message: WireMessage) => {
-      if (message.role === "assistant" && message.content) onComment?.(message.content);
-    },
-  });
-
-  const ensureConversation = useCallback(async (): Promise<string | null> => {
-    if (conversationId) return conversationId;
-    const res = await postJson("/api/conversations", { projectKeys: project ? [project] : [] });
-    const body = (await res.json().catch(() => ({}))) as {
-      conversation?: { id?: string };
-      error?: string;
-    };
-    if (!res.ok || typeof body.conversation?.id !== "string") {
-      setError(body.error ?? "Could not open a Loki thread.");
-      return null;
-    }
-    setConversationId(body.conversation.id);
-    return body.conversation.id;
-  }, [conversationId, project]);
-
   const ask = async (
     prompt: string,
     choice: ModelChoice,
     attachments: Attachment[],
-  ): Promise<boolean> => {
-    setError(null);
-    const convoId = await ensureConversation();
-    if (!convoId) return false;
-    // Cleared as soon as the thread exists; the answer streams into the rail.
-    void stream.send(`/api/conversations/${convoId}/messages`, {
-      text: prompt,
-      selectedProjects: project ? [project] : [],
-      chatOnly: true,
-      ...(choice.model ? { model: choice.model } : {}),
-      ...(attachments.length ? { attachments } : {}),
-    });
-    return true;
-  };
+  ): Promise<boolean> => (session ? session.ask(prompt, { choice, attachments }) : false);
 
   const asking = mode === "ask";
-  const sending = asking ? stream.sending : injecting;
+  const sending = asking ? Boolean(session?.sending) : injecting;
   const label = tab ?? project ?? "this session";
   const placeholder = asking
     ? `Ask Loki about ${project ?? label}…`
     : tab
       ? (injectPlaceholder ?? `Describe a task for ${tab} — “/” for the prompt library`)
       : "Open a session to inject";
-  const shownError = error ?? (asking ? stream.error : null);
+  const shownError = error ?? (asking ? (session?.error ?? null) : null);
 
   const header = (
     <>
@@ -196,7 +180,7 @@ export function TerminalComposer({
             type="button"
             onClick={() => {
               setError(null);
-              stream.clearError();
+              session?.clearError();
             }}
             aria-label="Dismiss error"
             className="ui-icon-action shrink-0"
@@ -204,9 +188,6 @@ export function TerminalComposer({
             <X className="h-3 w-3" />
           </button>
         </div>
-      )}
-      {asking && stream.live?.preview && (
-        <p className="ui-loki-composer-note">{stream.live.preview}</p>
       )}
     </>
   );
@@ -259,7 +240,7 @@ export function TerminalComposer({
         placeholder={placeholder}
         ariaLabel={asking ? `Ask Loki about ${project ?? label}` : `Inject into ${label}`}
         sending={sending}
-        onStop={asking ? stream.stop : undefined}
+        onStop={asking ? session?.stop : undefined}
         sendBlockedReason={
           !asking && !tab ? "Open a session first — inject writes into the attached PTY." : null
         }
