@@ -55,6 +55,10 @@ export function ProjectsSummary({
 }) {
   const chips = FILTERS.filter((f) => !f.hidden?.(stats));
   const filtered = resultCount !== totalCount || activeFilter !== null;
+  // "All" alone is a filter with nothing to choose between — a chip row that
+  // only restates the list below it (seen at /projects with three healthy
+  // projects, 2026-10-04). The row appears once there is a second lens.
+  if (chips.length < 2 && !filtered) return null;
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
