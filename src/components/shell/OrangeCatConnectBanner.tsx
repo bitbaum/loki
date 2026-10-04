@@ -57,12 +57,30 @@ export function OrangeCatConnectBanner({ enabled }: { enabled: boolean }) {
   return (
     <div className="flex items-center gap-3 border-b border-border-subtle bg-surface-raised px-4 py-2 text-sm">
       <Cat className="h-4 w-4 shrink-0 text-text-secondary" />
+      {/* One line on a phone too. The full sentence beside a button and a close
+          X wrapped into an eight-line column, 150px above every page (seen at
+          390px, 2026-10-04); there, the headline and a short "Connect" say it. */}
       <p className="min-w-0 flex-1 text-text-secondary">
-        <span className="text-text-primary">Make this your OrangeCat account.</span> One click, then
-        every OrangeCat sign-in works here too and you never need a separate Loki password.
+        <span className="text-text-primary">Make this your OrangeCat account.</span>
+        <span className="max-sm:hidden">
+          {" "}
+          One click, then every OrangeCat sign-in works here too and you never need a separate Loki
+          password.
+        </span>
       </p>
-      <button onClick={connect} disabled={connecting} className="ui-btn-xs shrink-0">
-        {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Connect OrangeCat"}
+      <button
+        onClick={connect}
+        disabled={connecting}
+        aria-label="Connect OrangeCat"
+        className="ui-btn-xs shrink-0"
+      >
+        {connecting ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <>
+            Connect<span className="max-sm:hidden"> OrangeCat</span>
+          </>
+        )}
       </button>
       <button
         onClick={dismiss}
