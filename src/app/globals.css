@@ -5089,8 +5089,27 @@
   .ui-verdict-open {
     @apply inline-flex min-h-11 items-center gap-1 text-sm font-medium text-accent-text hover:opacity-80;
   }
-  .ui-verdict-system {
-    @apply mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm text-text-tertiary transition-colors hover:text-text-primary;
+  /* Tiers (2026-10-04). An URGENT item is the one place the verdict spends
+     space: its whole sentence and two actions. The "Also" line is where
+     housekeeping and the builder's alarms go — real, but not need, and not
+     in the count. */
+  .ui-verdict-urgent {
+    @apply space-y-1.5 py-1;
+  }
+  .ui-verdict-urgent-head {
+    @apply flex items-center gap-2 text-sm;
+  }
+  .ui-verdict-urgent-text {
+    @apply text-sm text-text-secondary wrap-anywhere;
+  }
+  .ui-verdict-actions {
+    @apply flex flex-wrap items-center gap-x-4 gap-y-1;
+  }
+  .ui-verdict-also {
+    @apply mt-2 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-text-tertiary;
+  }
+  .ui-verdict-also-link {
+    @apply inline-flex items-center gap-1 transition-colors hover:text-text-primary;
   }
   .ui-projects-row {
     /* Principle 3 (space separates): a hairline between rows, no card per row.
@@ -5472,9 +5491,6 @@
   /* FAB — desktop only; mobile reaches Loki via the bottom tab bar */
   .ui-fab {
     @apply rounded-full bg-text-primary text-text-inverted transition-opacity hover:opacity-90;
-  }
-  .ui-quick-actions-row {
-    @apply flex gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden;
   }
 
   /* ── Section heading + disclosure ────────────────────────────────────────

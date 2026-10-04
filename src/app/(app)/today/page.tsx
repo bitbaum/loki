@@ -19,7 +19,6 @@ import { StuckGoalsCard } from "@/components/today/StuckGoalsCard";
 import { LockedZoneBanner } from "@/components/today/LockedZoneBanner";
 import { TodayWatch } from "@/components/today/TodayWatch";
 import { LayoutGrid, ChevronDown } from "lucide-react";
-import { DayPhaseDispatch } from "@/components/today/DayPhaseDispatch";
 import { requirePageUserId, getCurrentUserName } from "@/lib/session";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
 import { getProjects } from "@/db/queries/projects";
@@ -135,11 +134,16 @@ async function loadTodayInputs() {
       // The first live flag's OWN WORDS. The sentence someone wrote is what
       // the operator acts on; a count is a number to go and decode.
       const key = FLAG_KEYS.find((k) => hasAnswer(p.attrs[k]) && !signalHasExpired(p.attrMeta, k));
-      const raw = key ? p.attrs[key] : isSiteDown(p) ? "Live site is down" : "";
+      const siteDown = isSiteDown(p);
+      const raw = key ? p.attrs[key] : siteDown ? "Live site is down" : "";
       return {
         id: p.id,
         name: p.name,
         reason: raw.length > 90 ? `${raw.slice(0, 89)}…` : raw,
+        fullReason: raw,
+        // An exposed hole or a dead site is the morning's first job, ahead of
+        // every approval and report (lib/needs-you tiers).
+        urgent: key === PROJECT_ATTR.SECURITY_VULNERABILITY || (!key && siteDown),
         href: `/projects/${p.id}`,
       };
     });
@@ -190,13 +194,13 @@ export default async function TodayPage() {
                 }
               >
                 <div className="mt-2">
-                  <SummaryBar />
+                  {/* One row: today's counts, Plan my day (which carries them,
+                      so there is no separate Brief Loki), Log a conversation. */}
+                  <SummaryBar>
+                    <LogConversationButton />
+                  </SummaryBar>
                 </div>
               </Suspense>
-              <div className="mt-3 ui-quick-actions-row ui-scroll-fade-right">
-                <DayPhaseDispatch />
-                <LogConversationButton />
-              </div>
             </>
           )}
         </div>
