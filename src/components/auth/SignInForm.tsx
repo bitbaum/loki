@@ -133,21 +133,23 @@ function FormInner({
           essay has no account and no reason to make one yet, and the login wall
           is where they bounce. Give them the product first. */}
       {demoEnabled && mode === "email" && (
-        <div className="ui-auth-demo">
-          <button
-            type="button"
-            onClick={handleDemo}
-            disabled={demoLoading}
-            className="ui-btn-primary w-full"
-          >
-            {demoLoading ? "Opening the demo…" : "Explore the demo — no account needed"}
-          </button>
-          <p className="ui-auth-demo-note">
-            A sandboxed fleet with real history. Dispatching agents, terminals and outbound messages
-            are off; everything else is live. Resets nightly.
-          </p>
+        <>
+          <div className="ui-auth-demo">
+            <button
+              type="button"
+              onClick={handleDemo}
+              disabled={demoLoading}
+              className="ui-btn-primary w-full"
+            >
+              {demoLoading ? "Opening the demo…" : "Explore the demo — no account needed"}
+            </button>
+            <p className="ui-auth-demo-note">
+              A sandboxed fleet with real history. Dispatching agents, terminals and outbound
+              messages are off; everything else is live. Resets nightly.
+            </p>
+          </div>
           <AuthDivider label="or sign in" />
-        </div>
+        </>
       )}
 
       {mode === "email" ? (

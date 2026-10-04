@@ -3177,7 +3177,7 @@
      separate namespace so they can diverge if the auth UX ever does. */
   .ui-auth-main {
     min-height: calc(100svh - var(--public-nav-height));
-    @apply relative z-10 flex items-center justify-center px-4 pb-16;
+    @apply relative z-10 flex items-center justify-center px-4 pt-8 pb-16;
   }
   .ui-auth-label {
     @apply block text-sm font-medium text-text-secondary;
@@ -3353,8 +3353,11 @@
     @apply text-sm text-text-muted;
   }
   /* The "explore without an account" block above the sign-in form. */
+  /* The demo is a panel with the card's own radius and border, not a bare
+     orange stripe: on a phone it read as a banner bolted above the page,
+     louder than the sign-in it sits on (2026-10-04). */
   .ui-auth-demo {
-    @apply mb-2 space-y-2;
+    @apply space-y-2.5 rounded-2xl border border-accent-primary/25 bg-accent-muted p-4;
   }
   .ui-auth-demo-note {
     @apply text-center text-xs leading-relaxed text-text-muted;

@@ -175,6 +175,7 @@ import {
 } from "@/db/schema";
 import { getFeedbackLoopMetrics } from "./site-feedback";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
+import { publicFeedbackExcerpt } from "@/lib/feedback/public-excerpt";
 // The one definition of "too old to believe" — shared with Control so the
 // public number and the operator number can never disagree.
 import { OPEN_TURN_TTL_MS } from "@/lib/agent-turns";
@@ -223,8 +224,7 @@ export async function getShippedFromFeedbackSnapshot(
     resolvedCount: loop.resolved,
     medianResolutionHours: loop.medianResolutionHours,
     entries: rows.map((r) => ({
-      excerpt:
-        r.suggestion.length > EXCERPT_LEN ? `${r.suggestion.slice(0, EXCERPT_LEN)}…` : r.suggestion,
+      excerpt: publicFeedbackExcerpt(r.suggestion, EXCERPT_LEN),
       page: r.page,
       project: r.project,
       resolvedAt: (r.resolvedAt ?? new Date()).toISOString(),
