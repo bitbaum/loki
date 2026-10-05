@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Lock, MessageSquareWarning } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { AccountMenu as SharedAccountMenu, type AccountGroup } from "@bitbaum/accountkit";
@@ -40,13 +41,14 @@ type LokiWidgetApi = { report?: () => void };
  * widget's API still opens its panel without a launcher. /support is the way
  * in when the widget is not loaded (no token on this instance).
  */
-function reportProblem() {
+function reportProblem(fallback: () => void) {
   const api = (window as Window & { Loki?: LokiWidgetApi }).Loki;
   if (typeof api?.report === "function") api.report();
-  else window.location.assign("/support");
+  else fallback();
 }
 
 export function AccountMenu() {
+  const router = useRouter();
   const { data: session } = useSession();
   const { configured, unlocked, lock } = usePrivateZone();
   const user = session?.user;
@@ -85,7 +87,7 @@ export function AccountMenu() {
           id: "report",
           label: "Report a problem",
           icon: <MessageSquareWarning className="h-4 w-4" aria-hidden="true" />,
-          onSelect: reportProblem,
+          onSelect: () => reportProblem(() => router.push("/support")),
         },
       ],
     },
