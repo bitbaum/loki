@@ -8,6 +8,7 @@
  * are the product, and they can only be pinned if they can run without a DB.
  */
 import type { KickoffStepId } from "@/lib/project-kickoff";
+import type { ProvisionTemplateId } from "@/config/project-templates";
 import type { SiteDeployment } from "@/hooks/use-site-deployment";
 
 export type KickoffStepState = "pending" | "running" | "done" | "failed";
@@ -55,6 +56,10 @@ export type KickoffInput = {
   plan: KickoffStepId[];
   source: string | null;
   visibility: "private" | "public";
+  /** Starter to seed. Omitted means "auto" (inferred from the profile's
+   *  stack). An intake that brings its own code — /take imports an
+   *  open-source repo — passes "bare" so no starter collides with it. */
+  template?: ProvisionTemplateId | "auto";
 };
 
 export function initialKickoffRun(input: KickoffInput, now = Date.now()): KickoffRunState {
@@ -142,7 +147,10 @@ export async function runKickoffPlan(
   // Repo second: "auto" resolves the starter from the stack the profile step
   // just wrote, so this only picks well once that has landed.
   if (plan.includes("repo")) {
-    const body = await step("repo", "provision", { template: "auto", visibility });
+    const body = await step("repo", "provision", {
+      template: input.template ?? "auto",
+      visibility,
+    });
     if (!body) {
       // No repository — do not dispatch. An agent with nowhere to write code is
       // worse than a paused kickoff; Try again resumes from here.

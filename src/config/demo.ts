@@ -114,6 +114,7 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   ["/api/settings", "credentials"],
   ["/api/orchestration", "dispatch"],
   ["/api/projects/from-website", "dispatch"],
+  ["/api/projects/from-repo", "dispatch"],
   ["/api/inject", "terminal"],
   ["/api/terminal", "terminal"],
   ["/api/command", "terminal"],
