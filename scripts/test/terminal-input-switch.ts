@@ -61,6 +61,43 @@ const render = (props: Parameters<typeof TerminalInputSwitch>[0]) =>
     read("TerminalSurface.tsx").includes("onOpenLoki={projectKey ?"),
     "the dock's Loki chip opens the Loki sheet",
   );
+  ok(
+    read("TerminalSurface.tsx").includes(
+      "onShowConversation={chatAvailable ? termView.showChat : undefined}",
+    ),
+    "the dock's Loki chip switches a Claude session to the conversation view",
+  );
+}
+{
+  // Operator ask, 2026-10-05: "Switch to Loki would show it as a loki
+  // session, which would be a view like the view of this chat."
+  let shown = 0;
+  let opened = 0;
+  const el = TerminalInputSwitch({
+    inputMode: "prompt",
+    onInputModeChange: noop,
+    onOpenLoki: () => opened++,
+    onShowConversation: () => shown++,
+  });
+  const find = (node: unknown): { props: { onClick?: () => void } }[] => {
+    if (!node || typeof node !== "object") return [];
+    if (Array.isArray(node)) return node.flatMap(find);
+    const n = node as { props?: { children?: unknown; onClick?: () => void } };
+    const kids = find(n.props?.children);
+    return n.props?.onClick ? [n as { props: { onClick?: () => void } }, ...kids] : kids;
+  };
+  const buttons = find(el);
+  buttons[buttons.length - 1]?.props.onClick?.();
+  ok(shown === 1 && opened === 0, "Loki switches to the conversation when one exists");
+  const html = render({
+    inputMode: "prompt",
+    onInputModeChange: noop,
+    onShowConversation: noop,
+  });
+  ok(
+    html.includes(">Loki</button>"),
+    "Loki is offered for the conversation even without a project",
+  );
 }
 
 console.log(`${fail ? "✗" : "✓"} terminal-input-switch: ${pass} passed, ${fail} failed`);

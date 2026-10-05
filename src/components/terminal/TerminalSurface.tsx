@@ -779,6 +779,7 @@ export function TerminalSurface({
           inputMode={inputMode}
           onInputModeChange={setInputMode}
           onOpenLoki={projectKey ? () => setLokiSheetOpen(true) : undefined}
+          onShowConversation={chatAvailable ? termView.showChat : undefined}
           onKey={sendKey}
           liveKeys={deck.liveKeys}
           immersive={immersive}
