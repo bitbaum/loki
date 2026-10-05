@@ -13,7 +13,7 @@
  */
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, ListChecks, MessageCircle, Monitor, TerminalSquare } from "lucide-react";
+import { ArrowRight, ListChecks, MessageCircle, TerminalSquare } from "lucide-react";
 import type { CitationMap } from "@/components/ui/markdown-text";
 import {
   deriveMultiDispatchView,
@@ -22,6 +22,7 @@ import {
   type MultiDispatchAttempt,
 } from "@/lib/dispatch-status";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
+import { presentDispatchCard, terminalHref } from "@/lib/dispatch-card";
 import { isBuilderChannel } from "@/lib/constants/statuses";
 /** Human-readable label for an assistant turn's kind badge. SSOT for the
  *  small set of kinds the messages route emits. */
@@ -90,6 +91,7 @@ export function DispatchFooter({ meta }: { meta: Record<string, unknown> | null 
   const primaryProject = multiView ? multiView.primaryProject : (projectKeys[0] ?? null);
   const failed = meta.ok === false;
   const runnerConnected = typeof meta.runnerConnected === "boolean" ? meta.runnerConnected : null;
+  const channel = isBuilderChannel(meta.channel) ? meta.channel : null;
   const { label: staticStatus, warn } = dispatchStatusLabel({
     ok: failed ? false : true,
     mode: typeof meta.mode === "string" ? meta.mode : null,
@@ -97,66 +99,63 @@ export function DispatchFooter({ meta }: { meta: Record<string, unknown> | null 
     runnerConnected,
     // Messages written before routing was recorded have no channel; those keep
     // the unnamed copy rather than being attributed to a guessed machine.
-    channel: isBuilderChannel(meta.channel) ? meta.channel : null,
+    channel,
   });
-  // Precedence: real fan-out outcome > live single-command poll > the frozen
-  // snapshot from dispatch time.
-  const status = multiView ? multiView.label : live ? live.label : staticStatus;
-  const dotClass = multiView
-    ? dispatchToneDotClass(multiView.tone)
-    : live
-      ? dispatchToneDotClass(live.tone)
-      : warn
-        ? "ui-dot-warning"
-        : "ui-dot-positive";
   // Only present when the operator pinned a non-default model in the composer.
   const agent = typeof meta.agent === "string" ? meta.agent : null;
   const model = typeof meta.model === "string" ? meta.model : null;
   const pinned = agent ? `${agent}${model ? ` · ${model}` : ""}` : null;
-  const targetLabel =
-    projectKeys.length === 0
-      ? "No project target"
-      : projectKeys.length === 1
-        ? projectKeys[0]
-        : `${projectKeys.length} projects`;
+
+  // A fan-out's real outcome is the headline; its links go to the project
+  // that actually started (never one that was skipped).
+  const card = multiView
+    ? {
+        headline: multiView.label,
+        detail: null,
+        tone: multiView.tone,
+        primary: primaryProject
+          ? { label: "Watch it", href: terminalHref(primaryProject, channel) }
+          : null,
+        secondary: [{ label: `All ${projectKeys.length} in Control`, href: "/control" }],
+      }
+    : presentDispatchCard({
+        live,
+        staticLabel: staticStatus,
+        warn,
+        failed,
+        channel,
+        project: primaryProject,
+        projectCount: projectKeys.length,
+      });
+  const target = projectKeys.length > 1 ? `${projectKeys.length} projects` : projectKeys[0];
+
   return (
     <div className="ui-loki-dispatch-card">
       <div className="ui-loki-dispatch-status">
-        <span className={dotClass} />
-        <span className="font-medium text-text-primary">{status}</span>
-        {live?.detail && <span className="text-text-tertiary">{live.detail}</span>}
-        <span className="text-text-tertiary">Target: {targetLabel}</span>
-        {pinned && <span className="text-text-tertiary">Agent: {pinned}</span>}
+        <span className={dispatchToneDotClass(card.tone)} />
+        <span className="font-medium text-text-primary">{card.headline}</span>
+        {target && <span className="text-text-tertiary">· {target}</span>}
       </div>
-      {primaryProject && (
+      {(card.detail || pinned) && (
+        <p className="ui-loki-dispatch-detail">
+          {card.detail}
+          {card.detail && pinned ? " · " : ""}
+          {pinned && `Agent: ${pinned}`}
+        </p>
+      )}
+      {(card.primary || card.secondary.length > 0) && (
         <div className="ui-loki-dispatch-actions">
-          <Link
-            href={`/control?focus=${encodeURIComponent(primaryProject)}`}
-            className="ui-dispatch-watch-link"
-          >
-            <Monitor className="h-3.5 w-3.5" />
-            Control state
-          </Link>
-          <Link
-            href={`/terminal?project=${encodeURIComponent(primaryProject)}`}
-            className="ui-dispatch-watch-link"
-          >
-            <TerminalSquare className="h-3.5 w-3.5" />
-            Cloud terminal
-          </Link>
-          <Link
-            href={`/terminal?source=machine&tab=${encodeURIComponent(primaryProject)}`}
-            className="ui-dispatch-watch-link"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            This computer
-          </Link>
-          {projectKeys.length > 1 && (
-            <Link href="/control" className="ui-dispatch-watch-link">
-              <Monitor className="h-3.5 w-3.5" />
-              All selected
+          {card.primary && (
+            <Link href={card.primary.href} className="ui-dispatch-watch-link ui-dispatch-primary">
+              {card.primary.label}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
             </Link>
           )}
+          {card.secondary.map((link) => (
+            <Link key={link.href} href={link.href} className="ui-loki-dispatch-secondary">
+              {link.label}
+            </Link>
+          ))}
         </div>
       )}
     </div>

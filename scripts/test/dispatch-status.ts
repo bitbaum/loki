@@ -217,7 +217,8 @@ if (skippedFirst.primaryProject !== "started-one") {
 // undefined and print "undefined" as a CSS class in the DOM.
 for (const tone of ["positive", "warning", "negative", "neutral"] as const) {
   const cls = dispatchToneDotClass(tone);
-  if (!cls || !cls.startsWith("ui-dot-")) {
+  // Sized (ui-dot) AND coloured (ui-dot-<tone>): a colour class alone renders 0×0.
+  if (!cls || !cls.split(" ").includes("ui-dot") || !/\bui-dot-[a-z]+\b/.test(cls)) {
     throw new Error(`tone ${tone} has no dot class — got "${cls}"`);
   }
 }

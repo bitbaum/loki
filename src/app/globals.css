@@ -6195,6 +6195,10 @@
   .ui-claude-live {
     @apply flex min-w-0 items-center gap-2 px-2 text-sm font-medium text-accent-text;
   }
+  /* The turn's age beside what it is doing — quiet, tabular so it doesn't jitter. */
+  .ui-claude-live-time {
+    @apply ml-auto shrink-0 text-xs font-normal tabular-nums text-text-tertiary;
+  }
   .ui-claude-live-mark {
     @apply inline-block shrink-0 text-base leading-none;
     animation: ui-claude-turn 2.4s linear infinite;
@@ -6730,7 +6734,17 @@
     @apply flex flex-wrap items-center gap-x-2 gap-y-1;
   }
   .ui-loki-dispatch-actions {
-    @apply mt-2 flex flex-wrap gap-1.5;
+    @apply mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5;
+  }
+  .ui-loki-dispatch-detail {
+    @apply mt-1 text-xs leading-snug text-text-tertiary;
+  }
+  /* The one next step a dispatch card offers — the rest are quiet links. */
+  .ui-dispatch-primary {
+    @apply border-border-default font-medium text-text-primary;
+  }
+  .ui-loki-dispatch-secondary {
+    @apply inline-flex min-h-9 items-center text-xs text-text-tertiary underline-offset-2 hover:text-text-primary hover:underline;
   }
   /* "Go watch it" pill — the tap target every dispatch confirmation should
      offer and, before 2026-08-19, only Loki's did. Shared by Loki's dispatch

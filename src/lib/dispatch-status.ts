@@ -314,15 +314,18 @@ export function deriveDispatchLiveStatus(
  *  and the terminal composer's status line all render the same four tones —
  *  this was three separate inline `Record<tone, string>` maps before. */
 export function dispatchToneDotClass(tone: StatusTone): string {
+  // `ui-dot` is the size and shape; the tone class is only a colour. All four
+  // callers passed the tone alone, so the dot was a 0×0 span — the status line
+  // under every dispatch began with an invisible indicator and a blank gap.
   switch (tone) {
     case "positive":
-      return "ui-dot-positive";
+      return "ui-dot ui-dot-positive";
     case "warning":
-      return "ui-dot-warning";
+      return "ui-dot ui-dot-warning";
     case "negative":
-      return "ui-dot-negative";
+      return "ui-dot ui-dot-negative";
     default:
-      return "ui-dot-neutral";
+      return "ui-dot ui-dot-neutral";
   }
 }
 

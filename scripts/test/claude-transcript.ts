@@ -1,6 +1,8 @@
 // Claude Code's session log read as a conversation (src/lib/claude-transcript.ts).
 // Run: npx tsx scripts/test/claude-transcript.ts
 import {
+  describeToolStep,
+  turnElapsedLabel,
   describeToolRun,
   groupTranscript,
   looksBlockedOnApproval,
@@ -197,6 +199,39 @@ ok(
     },
   ]) === "Running git push",
   "a live run says what is happening now",
+);
+
+// A single call names itself, the way the Claude app writes a step.
+const lone = {
+  id: "3",
+  at: null,
+  kind: "tool" as const,
+  name: "Bash",
+  summary: "cd /home/user/loki && git status",
+  status: "done" as const,
+  result: null,
+};
+ok(
+  describeToolStep(lone).verb === "Ran" && describeToolStep(lone).target === lone.summary,
+  "a finished command reads Ran + the command",
+);
+ok(
+  describeToolStep({ ...lone, status: "running" }).verb === "Running",
+  "a running command reads Running",
+);
+ok(
+  describeToolStep({ ...lone, name: "Mystery" }).verb === "Mystery",
+  "an unknown tool keeps its name",
+);
+
+// The turn clock.
+const t0 = "2026-10-05T13:00:00.000Z";
+ok(turnElapsedLabel(t0, Date.parse(t0) + 13_000) === "13 s", "13 s");
+ok(turnElapsedLabel(t0, Date.parse(t0) + 125_000) === "2 min 5 s", "2 min 5 s");
+ok(turnElapsedLabel(t0, Date.parse(t0) + 120_000) === "2 min", "2 min");
+ok(
+  turnElapsedLabel(null, 0) === null && turnElapsedLabel("nope", 0) === null,
+  "no start, no clock",
 );
 
 console.log(`${pass}/${pass + fail} claude-transcript cases passed`);

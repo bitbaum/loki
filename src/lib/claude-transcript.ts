@@ -254,6 +254,51 @@ const TOOL_VERBS: Record<string, string> = {
   Task: "Delegating:",
 };
 
+const DONE_VERBS: Record<string, string> = {
+  Bash: "Ran",
+  Edit: "Edited",
+  MultiEdit: "Edited",
+  Write: "Wrote",
+  NotebookEdit: "Edited",
+  Read: "Read",
+  Glob: "Found",
+  Grep: "Searched for",
+  WebFetch: "Fetched",
+  WebSearch: "Searched the web for",
+  Task: "Delegated:",
+};
+
+/**
+ * One tool call as a verb and what it touched — "Ran" + `git push`, the way
+ * the Claude app writes a single step ("Ran cd /home/user/loki && git …").
+ * A lone call used to read "Ran a command", which hid the one fact worth
+ * reading. Split in two so the target can be set in mono and truncated alone.
+ */
+export function describeToolStep(tool: Extract<TranscriptItem, { kind: "tool" }>): {
+  verb: string;
+  target: string;
+} {
+  const verbs = tool.status === "running" ? TOOL_VERBS : DONE_VERBS;
+  return {
+    verb: verbs[tool.name] ?? (tool.status === "running" ? `Using ${tool.name}` : tool.name),
+    target: tool.summary,
+  };
+}
+
+/**
+ * Seconds since `since`, as the Claude app shows a turn's age: "13 s", "2 min 5 s".
+ * Null without a parseable start.
+ */
+export function turnElapsedLabel(since: string | null, now: number): string | null {
+  if (!since) return null;
+  const start = Date.parse(since);
+  if (!Number.isFinite(start)) return null;
+  const secs = Math.max(0, Math.floor((now - start) / 1000));
+  if (secs < 60) return `${secs} s`;
+  const mins = Math.floor(secs / 60);
+  return secs % 60 === 0 ? `${mins} min` : `${mins} min ${secs % 60} s`;
+}
+
 /** "Ran 2 commands, edited a file" — one line for a folded run of tools. */
 export function describeToolRun(tools: Extract<TranscriptItem, { kind: "tool" }>[]): string {
   // Still running: say what is happening NOW, in its own words, the way a

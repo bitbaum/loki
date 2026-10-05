@@ -25,7 +25,9 @@ export function SuggestionChips({
             disabled={disabled}
             onClick={() => onPick(s)}
           >
-            {s}
+            {/* Text in its own span: an inline-flex button does not ellipsize
+                its bare text, so a long step was cut mid-word ("dashboard f"). */}
+            <span className="truncate">{s}</span>
           </button>
         </li>
       ))}
