@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDown,
   Check,
@@ -52,12 +52,16 @@ export function ClaudeChatView({
   channel,
   onKey,
   onShowTerminal,
+  modeSwitch,
 }: {
   tab: string;
   channel: BuilderChannel;
   /** Write raw bytes into the session's PTY (TerminalSurface's sendKey). */
   onKey: (bytes: string) => void;
   onShowTerminal: () => void;
+  /** The phone's Chat / Type / Prompt / Voice switch, drawn above the composer
+   *  so the way back to the terminal sits where the terminal's own switch does. */
+  modeSwitch?: ReactNode;
 }) {
   const { items, connected, received, sessionId } = useClaudeTranscript(tab, channel);
   const blocks = groupTranscript(items);
@@ -164,6 +168,7 @@ export function ClaudeChatView({
             <span className="min-w-0 truncate">{liveStatus}…</span>
           </p>
         )}
+        {modeSwitch}
         <Composer
           value={draft}
           onValueChange={setDraft}
@@ -314,22 +319,5 @@ function ToolRow({ tool }: { tool: ToolItem }) {
       </button>
       {open && tool.result && <pre className="ui-claude-tool-result">{tool.result}</pre>}
     </li>
-  );
-}
-
-/** The terminal pane's way back to the chat view (desktop pane chrome). */
-export function ChatViewButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      className="ui-term-pane-btn"
-      onClick={onClick}
-      title="Read this Claude session as a conversation"
-    >
-      <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
-      {/* Not "Chat": that word is the Loki panel about this project (the
-          button beside it). This shows the CLAUDE session itself as messages. */}
-      Conversation
-    </button>
   );
 }

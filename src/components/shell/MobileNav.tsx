@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
@@ -8,6 +8,9 @@ import { MOBILE_NAV_ITEMS } from "@/config/navigation";
 import { isCurrentPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { MobileNavSheet } from "@/components/shell/MobileNavSheet";
+import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
+
+const KEYBOARD_OPEN_CLASS = "fc-keyboard-open";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -15,6 +18,16 @@ export function MobileNav() {
 
   const onPrimaryTab = MOBILE_NAV_ITEMS.some((item) => isCurrentPath(pathname, item.href));
   const isMoreActive = !sheetOpen && !onPrimaryTab;
+
+  // The tab bar steps aside while the soft keyboard is up. It is fixed to the
+  // bottom of the layout viewport, which does not shrink for the keyboard, so
+  // it used to float over whatever sat on top of the keys — on /terminal it
+  // covered the Prompt box being typed into. Nobody navigates mid-sentence.
+  const keyboardOpen = useKeyboardInset() > 0;
+  useEffect(() => {
+    document.body.classList.toggle(KEYBOARD_OPEN_CLASS, keyboardOpen);
+    return () => document.body.classList.remove(KEYBOARD_OPEN_CLASS);
+  }, [keyboardOpen]);
 
   return (
     <>

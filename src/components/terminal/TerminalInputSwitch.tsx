@@ -1,6 +1,6 @@
 "use client";
 
-import { Keyboard, MessagesSquare, Mic, Paperclip } from "lucide-react";
+import { Keyboard, MessageCircle, Mic, Paperclip } from "lucide-react";
 import { TERMINAL_INPUT_MODES, type TerminalInputMode } from "@/config/terminal-modes";
 
 const ICONS = {
@@ -12,27 +12,46 @@ const ICONS = {
 } satisfies Record<TerminalInputMode, (typeof Keyboard)[]>;
 
 /**
- * How your words reach the session, next to where you write them — plus Loki.
+ * How you work with the session, next to where you write.
  *
- * On a phone this switch used to live only inside the session sheet, so the
- * terminal opened in Type (raw keystrokes: no attach, no mic) and attaching a
- * screenshot or talking to the agent meant finding a menu first. The Loki
- * panel (summary, Ask/Inject for this run) sat behind an unlabeled icon.
+ * Chat is the first position: the same Claude session read as a conversation
+ * — your messages as bubbles, its answers as text, the way the Claude app shows
+ * it. Type, Prompt and Voice are the raw terminal with three ways to reach it.
+ *
+ * This switch used to end in a fourth chip, "Loki", that opened the Loki panel
+ * — the same panel as the Loki button one row up in the header. On a phone that
+ * was three ways to say "talk" (a chat icon, Loki, Loki) and none of them was
+ * "show me this session as a chat", which is what tapping Loki was expected to
+ * do. One switch, one meaning per chip; the panel keeps its header button.
  */
 export function TerminalInputSwitch({
   inputMode,
   onInputModeChange,
-  onOpenLoki,
+  chat,
 }: {
   inputMode: TerminalInputMode;
+  /** Picking Type/Prompt/Voice also leaves the chat view — the caller's job. */
   onInputModeChange: (mode: TerminalInputMode) => void;
-  /** Opens the Loki panel. Omitted where there is no project for it to be about. */
-  onOpenLoki?: () => void;
+  /** The conversation view. Omitted when the session's agent writes no
+   *  Claude Code log (it has nothing to show as a chat). */
+  chat?: { active: boolean; onSelect: () => void };
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Input mode">
+    <div className="flex flex-wrap items-center gap-1" role="group" aria-label="How to work">
+      {chat && (
+        <button
+          type="button"
+          onClick={chat.onSelect}
+          title="Read and write this session as a conversation"
+          aria-pressed={chat.active}
+          className={chat.active ? "ui-chip-toggle-active gap-1" : "ui-chip-toggle gap-1"}
+        >
+          <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+          Chat
+        </button>
+      )}
       {TERMINAL_INPUT_MODES.map((option) => {
-        const active = option.id === inputMode;
+        const active = !chat?.active && option.id === inputMode;
         return (
           <button
             key={option.id}
@@ -49,17 +68,6 @@ export function TerminalInputSwitch({
           </button>
         );
       })}
-      {onOpenLoki && (
-        <button
-          type="button"
-          onClick={onOpenLoki}
-          title="Summarize this run and ask Loki about it"
-          className="ui-chip-toggle gap-1"
-        >
-          <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />
-          Loki
-        </button>
-      )}
     </div>
   );
 }

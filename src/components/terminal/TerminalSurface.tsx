@@ -44,6 +44,8 @@ import { ClaudeChatView } from "./ClaudeChatView";
 import { TerminalPaneActions } from "./TerminalPaneActions";
 import { useTerminalView } from "./use-terminal-view";
 import { useTerminalTabs } from "./use-terminal-tabs";
+import { useScreenSuggestions } from "./use-screen-suggestions";
+import { TerminalInputSwitch } from "./TerminalInputSwitch";
 
 /** Per-source copy. Cloud and machine differ only in wording, so the strings
  *  stay in the copy SSOT and this map just selects between them. */
@@ -404,6 +406,22 @@ export function TerminalSurface({
   const activeAgentId = tabContext?.agentPref ?? context?.agents.defaultAgent ?? null;
   const termView = useTerminalView(activeAgentId);
   const { view, chatAvailable } = termView;
+  // One switch for how you work with the session: Chat (the conversation
+  // view) or the raw terminal reached by Type / Prompt / Voice. Picking an
+  // input mode is also picking the terminal — they were two controls once,
+  // and a mode chosen while the chat was showing changed nothing visible.
+  const selectInputMode = (mode: TerminalInputMode) => {
+    setInputMode(mode);
+    termView.showTerminal();
+  };
+  const chatSwitch = chatAvailable
+    ? { active: view === "chat", onSelect: termView.showChat }
+    : undefined;
+  // Prompts that fit the screen, read only while a Prompt box is showing.
+  const suggestions = useScreenSuggestions(
+    readScreenRef,
+    Boolean(activeTab) && view === "terminal" && inputMode === "prompt",
+  );
   const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
 
   const [switchingAgent, setSwitchingAgent] = useState(false);
@@ -511,7 +529,6 @@ export function TerminalSurface({
       immersive={immersive}
       onToggleImmersive={onToggleImmersive ?? (() => {})}
       view={view}
-      onToggleView={activeTab && chatAvailable ? termView.toggle : undefined}
     />
   );
 
@@ -540,7 +557,6 @@ export function TerminalSurface({
   };
   const paneActions = (
     <TerminalPaneActions
-      onShowConversation={chatAvailable ? termView.showChat : undefined}
       loki={
         projectKey ? { shown: railShown, pressable: railFits, onToggle: toggleRail } : undefined
       }
@@ -563,7 +579,7 @@ export function TerminalSurface({
       activeTab={source === "shell" ? null : activeTab}
       onSelectTab={source === "shell" ? undefined : setUserSelection}
       inputMode={inputMode}
-      onInputModeChange={setInputMode}
+      onInputModeChange={selectInputMode}
       agents={agents}
       activeAgentId={activeAgentId}
       onSwitchAgent={(id) => void switchAgent(id)}
@@ -698,6 +714,15 @@ export function TerminalSurface({
           channel={channel}
           onKey={sendKey}
           onShowTerminal={termView.showTerminal}
+          modeSwitch={
+            <div className="md:hidden">
+              <TerminalInputSwitch
+                inputMode={inputMode}
+                onInputModeChange={selectInputMode}
+                chat={chatSwitch}
+              />
+            </div>
+          }
         />
       );
     }
@@ -735,7 +760,8 @@ export function TerminalSurface({
         <div className="hidden md:block">
           <TerminalSessionBar
             inputMode={inputMode}
-            onInputModeChange={setInputMode}
+            onInputModeChange={selectInputMode}
+            chat={chatSwitch}
             agents={agents}
             activeAgentId={activeAgentId}
             onSwitchAgent={(id) => void switchAgent(id)}
@@ -763,7 +789,7 @@ export function TerminalSurface({
           two boxes on one screen for one job. */}
       {activeTab && view === "terminal" && inputMode === "prompt" && !railShown && (
         <div className="hidden md:block">
-          <TerminalComposer tab={activeTab} />
+          <TerminalComposer tab={activeTab} suggestions={suggestions} />
         </div>
       )}
       {activeTab && view === "terminal" && inputMode === "voice" && (
@@ -778,7 +804,9 @@ export function TerminalSurface({
           channel={channel}
           inputMode={inputMode}
           onInputModeChange={setInputMode}
-          onOpenLoki={projectKey ? () => setLokiSheetOpen(true) : undefined}
+          onShowChat={chatAvailable ? termView.showChat : undefined}
+          suggestions={suggestions}
+          keyboardOpen={keyboardInset > 0}
           onKey={sendKey}
           liveKeys={deck.liveKeys}
           immersive={immersive}

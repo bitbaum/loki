@@ -139,6 +139,15 @@ check(
   "a pronoun-led sentence is not an instruction",
   !looksLikeDispatchTask("we should probably think about the pricing page in a while"),
 );
+check(
+  "a capability question is a question, even without its question mark",
+  !looksLikeDispatchTask("Are you able to work on improving Loki in this field."),
+);
+check(
+  "is it possible …",
+  !looksLikeDispatchTask("is it possible to run the deploy on lifeops from here"),
+);
+check("do you know …", !looksLikeDispatchTask("do you know what is running on the cloud builder"));
 
 console.log("\ncommand-resolve — work is still work");
 check("imperative with a verb", looksLikeDispatchTask("fix the failing tests in loki"));

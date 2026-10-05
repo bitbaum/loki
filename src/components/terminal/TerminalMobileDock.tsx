@@ -22,7 +22,9 @@ export function TerminalMobileDock({
   channel,
   inputMode,
   onInputModeChange,
-  onOpenLoki,
+  onShowChat,
+  suggestions,
+  keyboardOpen,
   onKey,
   liveKeys,
   immersive,
@@ -31,8 +33,12 @@ export function TerminalMobileDock({
   channel: BuilderChannel;
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
-  /** Opens the Loki panel sheet; omitted when there is no project. */
-  onOpenLoki?: () => void;
+  /** Switches to the conversation view; omitted when the agent has none. */
+  onShowChat?: () => void;
+  /** Prompts that fit the screen, offered above the Prompt box. */
+  suggestions?: readonly string[];
+  /** The soft keyboard is up. */
+  keyboardOpen: boolean;
   /** Verbatim bytes into the session. */
   onKey: (bytes: string) => void;
   /** When on, xterm has the keyboard and the typing box would fight it for
@@ -42,14 +48,19 @@ export function TerminalMobileDock({
 }) {
   return (
     <div className="ui-term-dock md:hidden">
-      <TerminalKeyDeck onKey={onKey} />
+      {/* Writing a task in the Prompt box needs the phone keyboard, not the
+          TUI keys — and with both up the screen above was squeezed to nothing.
+          The deck returns the moment the keyboard goes down, which is when a
+          question on screen gets answered. Type mode keeps it: there the
+          arrows and Esc are the point. */}
+      {!(keyboardOpen && inputMode === "prompt") && <TerminalKeyDeck onKey={onKey} />}
 
       {/* Beside the input, not only in the session sheet: Prompt is where a
           screenshot is attached and where you talk, so it is one tap away. */}
       <TerminalInputSwitch
         inputMode={inputMode}
         onInputModeChange={onInputModeChange}
-        onOpenLoki={onOpenLoki}
+        chat={onShowChat ? { active: false, onSelect: onShowChat } : undefined}
       />
 
       {inputMode === "type" && !liveKeys && (
@@ -61,7 +72,9 @@ export function TerminalMobileDock({
           menu to get the typing box back.
         </p>
       )}
-      {inputMode === "prompt" && <TerminalComposer tab={tab} density="compact" />}
+      {inputMode === "prompt" && (
+        <TerminalComposer tab={tab} density="compact" suggestions={suggestions} />
+      )}
       {inputMode === "voice" && (
         <div className="flex items-center justify-center">
           <TabVoiceMic tab={tab} channel={channel} compact={immersive} />

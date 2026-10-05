@@ -3030,6 +3030,15 @@
   .ui-term-dock {
     @apply flex shrink-0 flex-col gap-2 pt-1;
   }
+  /* Suggested prompts above the Prompt box: one scrolling row, so they cost a
+     line of the phone screen rather than three. */
+  .ui-term-suggests {
+    @apply flex min-w-0 gap-1.5 overflow-x-auto pb-1.5;
+    scrollbar-width: none;
+  }
+  .ui-term-suggest {
+    @apply inline-flex min-h-9 max-w-64 shrink-0 items-center truncate rounded-full border border-border-subtle bg-surface-base px-3 text-xs text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
+  }
   .ui-term-dock-hint {
     @apply px-1 text-micro leading-snug text-text-muted;
   }
@@ -3136,7 +3145,8 @@
     overflow: hidden;
   }
   body.fc-terminal-fullscreen .ui-mobile-nav,
-  body.fc-overlay-open .ui-mobile-nav {
+  body.fc-overlay-open .ui-mobile-nav,
+  body.fc-keyboard-open .ui-mobile-nav {
     display: none;
   }
   body.fc-terminal-fullscreen .ui-app-topbar,
@@ -3144,7 +3154,8 @@
     display: none;
   }
   body.fc-terminal-fullscreen .app-main,
-  body.fc-overlay-open .app-main {
+  body.fc-overlay-open .app-main,
+  body.fc-keyboard-open .app-main {
     padding-bottom: 0;
   }
   body.fc-overlay-open {

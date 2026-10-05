@@ -1,24 +1,22 @@
 "use client";
 
 import { Maximize2, Minimize2, PanelRight } from "lucide-react";
-import { ChatViewButton } from "./ClaudeChatView";
 
 /**
- * The pane controls at the end of the terminal's status row (desktop):
- * Conversation (the Claude session as messages), Loki (the panel that
- * summarizes this run and takes Ask/Inject), and full screen.
+ * The pane controls at the end of the terminal's status row (desktop): Loki
+ * (the panel that summarizes this run and takes Ask/Inject) and full screen.
+ * The way to the conversation view is the Chat position of the input switch
+ * above the pane — it was also a "Conversation" button here, two controls for
+ * one view on one screen.
  *
  * "Loki", not "Chat", matching the phone header: beside a conversation with
  * Claude, a second button called Chat read as the same thing twice.
  */
 export function TerminalPaneActions({
-  onShowConversation,
   loki,
   immersive,
   onToggleImmersive,
 }: {
-  /** Omitted when the session's agent has no conversation view. */
-  onShowConversation?: () => void;
   /** Omitted when there is no project for the panel to be about. */
   loki?: { shown: boolean; pressable: boolean; onToggle: () => void };
   immersive: boolean;
@@ -26,7 +24,6 @@ export function TerminalPaneActions({
 }) {
   return (
     <>
-      {onShowConversation && <ChatViewButton onClick={onShowConversation} />}
       {loki && !immersive && (
         <button
           type="button"

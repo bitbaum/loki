@@ -68,6 +68,20 @@ const CHAT_QUESTION_RE =
 const INFO_REQUEST_RE =
   /^\s*(?:so\s+|and\s+|ok(?:ay)?,?\s+)?(?:i\s+(?:just\s+)?(?:want|need|would\s+like|'?d\s+like|wanna)\s+(?:you\s+)?to\s+(?:tell|explain|show|describe|summari[sz]e|list|walk|say)|i\s+(?:want|need|'?d\s+like)\s+to\s+(?:know|understand|see|hear)|(?:can|could|would|will)\s+you\s+(?:please\s+)?(?:tell|explain|show|describe|summari[sz]e|list|walk|remind|give)|tell\s+me|remind\s+me|walk\s+me\s+through|give\s+me\s+(?:a\s+|an\s+|the\s+)?(?:summary|rundown|status|overview|list|sense|picture|breakdown)|any\s+(?:idea|thoughts|update)|status\s+(?:of|on)\b)/i;
 
+/**
+ * A yes/no question — "Are you able to…", "Is it possible…", "Do you know…".
+ *
+ * Observed 2026-10-05: "Are you able to work on improving Loki in this field."
+ * opened with none of CHAT_QUESTION_RE's words, carried no keyword verb, and
+ * has no question mark (voice input drops it) — so it reached the last-resort
+ * rule below, which reads " on " as a task, and an agent was queued to answer
+ * a question about whether it could. Auxiliary-led sentences ask; they do not
+ * order. "can/could/will you <verb>" is deliberately absent: that is how people
+ * politely give an instruction, and ACTION_VERB_RE decides those.
+ */
+const YES_NO_QUESTION_RE =
+  /^(?:so\s+|and\s+|ok(?:ay)?,?\s+)?(?:are|is|am|was|were|do|does|did|have|has|had|may|might|shall)\s+(?:you|it|there|this|that|we|i|they|loki|anything|everything)\b|^(?:can|could|would|will)\s+(?:you|it|loki)\s+(?:be\s+able|even|actually|really|ever)\b/i;
+
 function inferIntentFromText(text: string): OrchestrationTaskIntentId | null {
   const t = text.toLowerCase();
   if (/\b(code review|review (?:the )?code)\b/.test(t)) return "quality";
@@ -82,6 +96,16 @@ function inferIntentFromText(text: string): OrchestrationTaskIntentId | null {
   return null;
 }
 
+/** Asked to be told, not to have something done — whatever else it contains. */
+function readsAsQuestion(t: string): boolean {
+  return (
+    CHAT_QUESTION_RE.test(t) ||
+    INFO_REQUEST_RE.test(t) ||
+    YES_NO_QUESTION_RE.test(t) ||
+    (t.endsWith("?") && !ACTION_VERB_RE.test(t))
+  );
+}
+
 /** True when the message is work to run, not a question for Loki chat. */
 export function looksLikeDispatchTask(text: string): boolean {
   const t = text.trim();
@@ -90,6 +114,7 @@ export function looksLikeDispatchTask(text: string): boolean {
   if (DEVELOP_READY_RE.test(t)) return true;
   if (CHAT_QUESTION_RE.test(t)) return false;
   if (INFO_REQUEST_RE.test(t)) return false;
+  if (YES_NO_QUESTION_RE.test(t)) return false;
   if (t.endsWith("?") && !ACTION_VERB_RE.test(t)) return false;
   if (ACTION_VERB_RE.test(t)) return true;
   // Last resort: a bare "<project>: <thing>" or "ship the parser for X" with no
@@ -202,8 +227,20 @@ export async function resolveCommand(
     };
   } catch {
     // LLM unavailable → degrade to a deterministic command: project from the
-    // text or the current selection; ask if neither.
+    // text or the current selection; ask if neither. A question stays a
+    // question — queueing an agent to answer "are you able to…?" is the one
+    // degradation worse than a slower answer.
     const projectKey = pickProjectKey(projects, namedInText, selectedProject);
+    if (readsAsQuestion(text.trim())) {
+      return {
+        kind: "chat",
+        projectKey,
+        intentId: null,
+        prompt: text,
+        needsProject: false,
+        reason: "question (no llm)",
+      };
+    }
     return {
       kind: "command",
       projectKey,

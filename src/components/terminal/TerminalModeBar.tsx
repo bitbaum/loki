@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  CHAT_VIEW_HINT,
   TERMINAL_SOURCES,
   terminalInputHint,
   type TerminalInputMode,
@@ -105,6 +106,7 @@ export function TerminalSourceBar({
 export function TerminalSessionBar({
   inputMode,
   onInputModeChange,
+  chat,
   agents,
   activeAgentId,
   onSwitchAgent,
@@ -113,6 +115,8 @@ export function TerminalSessionBar({
 }: {
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
+  /** The conversation view's position in the switch; see TerminalInputSwitch. */
+  chat?: { active: boolean; onSelect: () => void };
   agents: AgentEntry[];
   activeAgentId: string | null;
   onSwitchAgent: (agentId: string) => void;
@@ -157,13 +161,19 @@ export function TerminalSessionBar({
           )}
         </div>
 
-        <TerminalInputSwitch inputMode={inputMode} onInputModeChange={onInputModeChange} />
+        <TerminalInputSwitch
+          inputMode={inputMode}
+          onInputModeChange={onInputModeChange}
+          chat={chat}
+        />
       </div>
 
       {/* One line of consequence for the selected input mode. Replaces the
           permanent yellow callout that used to sit above every terminal
           repeating the same paragraph regardless of what you were doing. */}
-      <p className="text-micro leading-snug text-text-muted">{terminalInputHint(inputMode)}</p>
+      <p className="text-micro leading-snug text-text-muted">
+        {chat?.active ? CHAT_VIEW_HINT : terminalInputHint(inputMode)}
+      </p>
     </div>
   );
 }
