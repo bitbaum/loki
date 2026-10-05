@@ -43,6 +43,7 @@ export function TerminalMobileDock({
   channel,
   inputMode,
   onInputModeChange,
+  suggestions,
   onKey,
   liveKeys,
   immersive,
@@ -51,6 +52,8 @@ export function TerminalMobileDock({
   channel: BuilderChannel;
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
+  /** Prompts that fit the screen, offered above the Prompt box. */
+  suggestions?: readonly string[];
   /** Verbatim bytes into the session. */
   onKey: (bytes: string) => void;
   /** When on, xterm has the keyboard and the typing box would fight it for
@@ -84,7 +87,9 @@ export function TerminalMobileDock({
           menu to get the typing box back.
         </p>
       )}
-      {inputMode === "prompt" && <TerminalComposer tab={tab} density="compact" />}
+      {inputMode === "prompt" && (
+        <TerminalComposer tab={tab} density="compact" suggestions={suggestions} />
+      )}
       {inputMode === "voice" && (
         <div className="flex items-center justify-center">
           <TabVoiceMic tab={tab} channel={channel} compact={immersive} />

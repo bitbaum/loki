@@ -21,13 +21,10 @@ import { useEffect, useState } from "react";
  * Returns 0 where `visualViewport` is unavailable (older browsers, SSR) — the
  * layout is then simply what it was before this hook existed, never broken.
  *
- * The measurement is from the window's bottom edge, so where the app also
- * reserves space for the floating mobile nav (`.app-main` padding) the deck
- * ends up sitting slightly *above* the keys rather than flush against them.
- * That is the deliberate direction to be wrong in: too high is visible, too low
- * is behind the keyboard. In the terminal's full-screen mode — the one you
- * actually type in — the nav is hidden and that padding is zero, so the fit is
- * exact.
+ * The measurement is from the window's bottom edge. While it is non-zero the
+ * mobile nav hides itself and `.app-main` drops the padding it reserves for it
+ * (`fc-keyboard-open`, set by MobileNav), so the fit is exact on every page —
+ * the nav used to stay up and float over the composer being typed into.
  */
 export function useKeyboardInset(): number {
   const [inset, setInset] = useState(0);

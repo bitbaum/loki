@@ -45,6 +45,7 @@ export function TerminalComposer({
   ptyLive,
   density = "comfortable",
   injectPlaceholder,
+  suggestions,
 }: {
   /** The session Inject writes into. null → Inject says why it cannot send. */
   tab: string | null;
@@ -63,6 +64,9 @@ export function TerminalComposer({
   ptyLive?: boolean;
   density?: "comfortable" | "compact";
   injectPlaceholder?: string;
+  /** Instructions that fit what the session shows (lib/terminal-suggestions).
+   *  Shown while the box is empty; a tap fills it, it never sends. */
+  suggestions?: readonly string[];
 }) {
   const modes: ComposerMode[] = terminalComposerModes(
     session ? modeIds : modeIds.filter((id) => id !== "ask"),
@@ -170,8 +174,28 @@ export function TerminalComposer({
       : "Open a session to inject";
   const shownError = error ?? (asking ? (session?.error ?? null) : null);
 
+  const showSuggestions = !asking && Boolean(tab) && !text.trim() && Boolean(suggestions?.length);
   const header = (
     <>
+      {showSuggestions && (
+        <ul className="ui-term-suggests" aria-label="Suggested prompts">
+          {suggestions!.map((s) => (
+            <li key={s}>
+              <button
+                type="button"
+                className="ui-term-suggest"
+                onClick={() => {
+                  setText(s);
+                  setMode("inject");
+                  inputRef.current?.focus();
+                }}
+              >
+                {s}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {shownError && (
         <div className="ui-loki-composer-error" role="alert">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />

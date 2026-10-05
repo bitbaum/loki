@@ -44,6 +44,7 @@ import { ClaudeChatView } from "./ClaudeChatView";
 import { TerminalOfflineActions } from "./TerminalOfflineActions";
 import { TerminalPaneActions } from "./TerminalPaneActions";
 import { useTerminalView } from "./use-terminal-view";
+import { useScreenSuggestions } from "./use-screen-suggestions";
 import { useTerminalTabs } from "./use-terminal-tabs";
 
 /** Per-source copy. Cloud and machine differ only in wording, so the strings
@@ -419,6 +420,8 @@ export function TerminalSurface({
   const transcriptMissing = activeTab !== null && noTranscript.has(activeTab);
   const chatAvailable = termView.chatAvailable && !transcriptMissing;
   const view = transcriptMissing ? "terminal" : termView.view;
+  const promptOpen = Boolean(activeTab) && view === "terminal" && inputMode === "prompt";
+  const suggestions = useScreenSuggestions(readScreenRef, promptOpen);
   const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
 
   const [switchingAgent, setSwitchingAgent] = useState(false);
@@ -795,7 +798,7 @@ export function TerminalSurface({
           two boxes on one screen for one job. */}
       {activeTab && view === "terminal" && inputMode === "prompt" && !railShown && (
         <div className="hidden md:block">
-          <TerminalComposer tab={activeTab} />
+          <TerminalComposer tab={activeTab} suggestions={suggestions} />
         </div>
       )}
       {activeTab && view === "terminal" && inputMode === "voice" && (
@@ -810,6 +813,7 @@ export function TerminalSurface({
           channel={channel}
           inputMode={inputMode}
           onInputModeChange={setInputMode}
+          suggestions={suggestions}
           onKey={sendKey}
           liveKeys={deck.liveKeys}
           immersive={immersive}

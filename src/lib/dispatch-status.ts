@@ -72,8 +72,11 @@ export function dispatchAssistantContent(projectKey: string, input: DispatchStat
       : `Dispatched **${projectKey}** — ${EXECUTOR_COPY.queuedWithBuilderOnlineLong}`;
   }
   if (warn) {
+    // The generic long line ends "(cloud or this computer)" — right when the
+    // builder is unknown, a contradiction after naming one ("Queued for this
+    // computer — … starts when a builder is online (cloud or this computer)").
     return on
-      ? `Queued **${projectKey}** for ${on} — ${EXECUTOR_COPY.queuedWhenOfflineLong}`
+      ? `Queued **${projectKey}** for ${on} — it starts as soon as ${on} is online. Nothing is lost while it waits.`
       : `Queued **${projectKey}** — ${EXECUTOR_COPY.queuedWhenOfflineLong}`;
   }
   void label;
