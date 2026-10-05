@@ -303,6 +303,46 @@ async function main() {
       await close();
     }
 
+    // 7b. The Terminal's contract (loki#1037): the page hides the launcher with
+    //     data-fc-place="hidden" and opens the panel from its own header via
+    //     Loki.report(). The panel must open without a launcher, and closing it
+    //     must not bring the launcher back over the terminal.
+    {
+      const { p, close } = await open(browser, page(filler), 390, 844, js);
+      await p.evaluate(() => {
+        const pane = document.createElement("main");
+        pane.setAttribute("data-fc-place", "hidden");
+        pane.textContent = "terminal";
+        document.body.prepend(pane);
+      });
+      await settle(p);
+      ok((await fab(p))?.visible === false, "terminal page: launcher hidden");
+      const panelOpen = () =>
+        p.evaluate(() => {
+          const panel = document
+            .getElementById("loki-feedback-host")
+            ?.shadowRoot?.querySelector(".panel");
+          return !!panel && panel.getClientRects().length > 0;
+        });
+      await p.evaluate(() => (window as unknown as { Loki: { report(): void } }).Loki.report());
+      await settle(p);
+      ok(await panelOpen(), "terminal page: Loki.report() opens the panel without a launcher");
+      await p.evaluate(() =>
+        (
+          document
+            .getElementById("loki-feedback-host")
+            ?.shadowRoot?.querySelector('[aria-label="Close"]') as HTMLButtonElement | null
+        )?.click(),
+      );
+      await settle(p);
+      ok(!(await panelOpen()), "terminal page: the panel closes");
+      ok(
+        (await fab(p))?.visible === false,
+        "terminal page: closing the panel keeps the launcher hidden",
+      );
+      await close();
+    }
+
     // 8. A sheet mounted AFTER load (no resize, no navigation): the launcher
     //    must move off it on the mutation alone.
     {

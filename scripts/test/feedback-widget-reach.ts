@@ -69,9 +69,27 @@ for (const p of FEEDBACK_WIDGET_EXCLUDED_PREFIXES) {
   ok(!isFeedbackWidgetRoute(`${p}/nested`), `excluded: ${p}/nested`);
 }
 
+// /terminal reaches the widget without a floating button over the PTY: the page
+// hides the launcher and the terminal header opens the panel (loki#1037).
+ok(
+  isFeedbackWidgetRoute("/terminal"),
+  "widget reaches /terminal (launcher hidden, opened from the header)",
+);
+ok(
+  /data-fc-place="hidden"/.test(
+    readFileSync(join(ROOT, "src/app/(app)/terminal/page.tsx"), "utf8"),
+  ),
+  "the terminal page hides the floating launcher",
+);
+ok(
+  /openFeedback\(/.test(
+    readFileSync(join(ROOT, "src/components/terminal/TerminalMobileHeader.tsx"), "utf8"),
+  ),
+  "the terminal header opens the feedback panel",
+);
+
 // A near-miss must NOT be excluded — prefix matching that swallows unrelated
 // routes is how an allowlist quietly loses pages.
-ok(isFeedbackWidgetRoute("/terminals"), "/terminals is not caught by the /terminal exclusion");
 ok(isFeedbackWidgetRoute("/settings"), "/settings is an app page, not an auth page");
 
 // /loki was in APP_SURFACES above and moved out DELIBERATELY, so this asserts
@@ -79,9 +97,9 @@ ok(isFeedbackWidgetRoute("/settings"), "/settings is an app page, not an auth pa
 //
 // Measured on production at 390px: the launcher's centre resolved to
 // `textarea.ui-loki-composer-input` — it covered the box you type into, on the
-// page that exists for typing into it. Same reason /terminal is excluded: the
-// surface has its own composer, and a floating button over it hides the thing
-// being used. Re-including it needs a new measurement, not an opinion.
+// page that exists for typing into it: a floating button over its composer
+// hides the thing being used. Re-including it needs a new measurement, not an
+// opinion (or, like /terminal, a hidden launcher and a control of its own).
 ok(!isFeedbackWidgetRoute("/loki"), "/loki is excluded: the launcher covered its composer");
 ok(isFeedbackWidgetRoute("/lokis"), "/lokis is not caught by the /loki exclusion");
 

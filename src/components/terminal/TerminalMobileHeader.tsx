@@ -1,6 +1,8 @@
 "use client";
 
-import { ChevronDown, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronDown, Maximize2, MessageSquareWarning, Minimize2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { openFeedback } from "@/lib/open-feedback";
 import type { TerminalViewMode } from "@/config/terminal-modes";
 import { cn } from "@/lib/utils";
 import { TerminalViewSwitch } from "./TerminalViewSwitch";
@@ -55,6 +57,7 @@ export function TerminalMobileHeader({
   view?: TerminalViewMode;
   onViewChange?: (view: TerminalViewMode) => void;
 }) {
+  const router = useRouter();
   return (
     <div className="ui-term-mhead">
       <button
@@ -79,6 +82,18 @@ export function TerminalMobileHeader({
       </button>
 
       {onViewChange && view && <TerminalViewSwitch view={view} onViewChange={onViewChange} />}
+      {/* The feedback widget's floating button is hidden on this page (it would
+          cover the terminal and the composer — terminal/page.tsx), so it opens
+          from here: report a problem, point at an element, attach a screenshot. */}
+      <button
+        type="button"
+        className="ui-term-mhead-icon"
+        onClick={() => openFeedback(() => router.push("/support"))}
+        aria-label="Feedback on this page — point at anything or attach a screenshot"
+        title="Feedback"
+      >
+        <MessageSquareWarning className="h-4 w-4" aria-hidden="true" />
+      </button>
       <button
         type="button"
         className="ui-term-mhead-icon"
