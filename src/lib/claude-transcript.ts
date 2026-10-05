@@ -17,7 +17,15 @@
 
 /** One row in the rendered conversation. */
 export type TranscriptItem =
-  | { id: string; at: string | null; kind: "user"; text: string }
+  | {
+      id: string;
+      at: string | null;
+      kind: "user";
+      text: string;
+      /** Claude Code's permission mode when this message was sent
+       *  (`permissionMode` on the log line). Absent from older runners/logs. */
+      mode?: string;
+    }
   | { id: string; at: string | null; kind: "assistant"; text: string }
   | {
       id: string;
@@ -64,6 +72,7 @@ type Line = {
   timestamp?: string;
   isSidechain?: boolean;
   isMeta?: boolean;
+  permissionMode?: string;
   message?: { role?: string; content?: string | Block[] };
 };
 
@@ -140,10 +149,18 @@ export function reduceTranscriptLine(state: TranscriptState, raw: string): Trans
   if (!base) return [];
   const at = typeof line.timestamp === "string" ? line.timestamp : null;
   const content = line.message?.content;
+  const mode =
+    line.type === "user" && typeof line.permissionMode === "string"
+      ? line.permissionMode.slice(0, 40)
+      : undefined;
+  const text = (kind: "user" | "assistant", id: string, body: string): TranscriptItem =>
+    kind === "user" && mode
+      ? { id, at, kind, text: clip(body, TEXT_CHARS), mode }
+      : { id, at, kind, text: clip(body, TEXT_CHARS) };
 
   if (typeof content === "string") {
     if (!content.trim() || isHarnessText(content)) return [];
-    return [{ id: base, at, kind: line.type, text: clip(content, TEXT_CHARS) }];
+    return [text(line.type, base, content)];
   }
   if (!Array.isArray(content)) return [];
 
@@ -152,12 +169,7 @@ export function reduceTranscriptLine(state: TranscriptState, raw: string): Trans
     if (!block || typeof block !== "object") return;
     if (block.type === "text" && typeof block.text === "string") {
       if (!block.text.trim() || isHarnessText(block.text)) return;
-      out.push({
-        id: `${base}:${i}`,
-        at,
-        kind: line.type as "user" | "assistant",
-        text: clip(block.text, TEXT_CHARS),
-      });
+      out.push(text(line.type as "user" | "assistant", `${base}:${i}`, block.text));
       return;
     }
     if (block.type === "tool_use" && typeof block.id === "string") {
@@ -253,6 +265,38 @@ const TOOL_VERBS: Record<string, string> = {
   WebSearch: "Searching the web for",
   Task: "Delegating:",
 };
+
+/**
+ * Claude Code's permission modes, in the words the Claude app uses. A mode
+ * this table does not know is shown by its own name rather than hidden.
+ */
+const MODE_LABELS: Record<string, string> = {
+  default: "Ask before edits",
+  acceptEdits: "Accept edits",
+  plan: "Plan",
+  auto: "Auto",
+  bypassPermissions: "Bypass permissions",
+};
+
+/** Shift+Tab: what Claude Code's TUI takes to move to the next mode. */
+export const CYCLE_MODE_KEY = "\x1b[Z";
+
+/**
+ * The session's permission mode as of your last message, or null when the
+ * log does not say (an older runner, or nothing sent yet).
+ *
+ * Only as of your last message: Claude Code records the mode on what you
+ * send, not when you switch it, so a switch shows once you next write.
+ */
+export function sessionMode(items: TranscriptItem[]): { id: string; label: string } | null {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (item.kind === "user" && item.mode) {
+      return { id: item.mode, label: MODE_LABELS[item.mode] ?? item.mode };
+    }
+  }
+  return null;
+}
 
 const DONE_VERBS: Record<string, string> = {
   Bash: "Ran",

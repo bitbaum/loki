@@ -19,6 +19,7 @@ import {
   describeToolRun,
   describeToolStep,
   groupTranscript,
+  sessionMode,
   turnElapsedLabel,
   looksBlockedOnApproval,
   type TranscriptBlock,
@@ -30,6 +31,7 @@ import { suggestFromReply } from "@/lib/terminal-suggestions";
 import { mergeSteps } from "@/lib/terminal-next-steps";
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
 import { SuggestionChips } from "./SuggestionChips";
+import { SessionModeChip } from "./SessionModeChip";
 
 /** Bracketed paste: newlines stay inside the message instead of submitting it. */
 const PASTE_START = "\x1b[200~";
@@ -98,6 +100,8 @@ export function ClaudeChatView({
     ? ([...items].reverse().find((i) => i.kind === "user")?.at ?? null)
     : null;
   const now = useSecondTick(turnStart !== null);
+  const mode = sessionMode(items);
+  const lastMine = [...items].reverse().find((i) => i.kind === "user")?.id ?? null;
   const elapsed = turnElapsedLabel(turnStart, now);
 
   const [silent, setSilent] = useState(false);
@@ -242,6 +246,9 @@ export function ClaudeChatView({
                 {sendError && <p className="ui-error">{sendError}</p>}
               </>
             ) : undefined
+          }
+          tools={
+            mode ? <SessionModeChip mode={mode} lastMessageId={lastMine} onKey={onKey} /> : null
           }
           sending={working && !draft.trim()}
           // Stop = Esc, exactly what interrupting Claude Code takes.

@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.40",
+    tag: "fleet-runner-v0.8.40",
+    date: "2026-10-05T16:00:00Z",
+    highlights: [
+      "The phone conversation view shows which mode Claude Code is in (Auto, Accept edits, Plan …), and one tap switches to the next one.",
+    ],
+    breaking: [],
+    notes:
+      "Claude Code records its permission mode on every message you send. The runner now passes it along with the conversation, so Loki can show it beside the message box, the way the Claude app does.",
+  },
+  {
     version: "0.8.39",
     tag: "fleet-runner-v0.8.39",
     date: "2026-10-05T14:00:00Z",

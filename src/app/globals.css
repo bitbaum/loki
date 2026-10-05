@@ -6195,6 +6195,11 @@
   .ui-claude-live {
     @apply flex min-w-0 items-center gap-2 px-2 text-sm font-medium text-accent-text;
   }
+  /* Claude Code's permission mode, a pill in the composer row like the
+     Claude app's model pill. */
+  .ui-claude-mode {
+    @apply inline-flex min-h-9 max-w-40 shrink-0 items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
+  }
   /* The turn's age beside what it is doing — quiet, tabular so it doesn't jitter. */
   .ui-claude-live-time {
     @apply ml-auto shrink-0 text-xs font-normal tabular-nums text-text-tertiary;

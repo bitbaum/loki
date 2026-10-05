@@ -1,6 +1,8 @@
 // Claude Code's session log read as a conversation (src/lib/claude-transcript.ts).
 // Run: npx tsx scripts/test/claude-transcript.ts
 import {
+  CYCLE_MODE_KEY,
+  sessionMode,
   describeToolStep,
   turnElapsedLabel,
   describeToolRun,
@@ -233,6 +235,45 @@ ok(
   turnElapsedLabel(null, 0) === null && turnElapsedLabel("nope", 0) === null,
   "no start, no clock",
 );
+
+// The permission mode rides on what you send (operator, 2026-10-05: the
+// Claude app's Auto / Accept edits / Plan, in Loki's conversation view).
+{
+  const st = newTranscriptState();
+  const sent = (uuid: string, mode: string | undefined, text: string) =>
+    reduceTranscriptLine(
+      st,
+      JSON.stringify({
+        type: "user",
+        uuid,
+        timestamp: "2026-10-05T13:00:00Z",
+        ...(mode ? { permissionMode: mode } : {}),
+        message: { role: "user", content: text },
+      }),
+    );
+  const first = sent("u1", "acceptEdits", "fix it");
+  ok(first[0]?.kind === "user" && first[0].mode === "acceptEdits", "a message carries its mode");
+  const listItems = [...first, ...sent("u2", "plan", [{ type: "text", text: "plan it" }] as never)];
+  ok(sessionMode(listItems)?.label === "Plan", "the newest message's mode wins");
+  ok(sessionMode(sent("u3", "auto", "go"))?.label === "Auto", "auto reads Auto");
+  ok(sessionMode(sent("u4", "default", "go"))?.label === "Ask before edits", "default is named");
+  ok(
+    sessionMode(sent("u5", "someNewMode", "go"))?.label === "someNewMode",
+    "an unknown mode keeps its name",
+  );
+  ok(sessionMode(sent("u6", undefined, "go")) === null, "an older log says nothing");
+  const asst = reduceTranscriptLine(
+    st,
+    JSON.stringify({
+      type: "assistant",
+      uuid: "a1",
+      permissionMode: "plan",
+      message: { role: "assistant", content: "hi" },
+    }),
+  );
+  ok(asst[0] && !("mode" in asst[0]), "only your messages carry a mode");
+  ok(CYCLE_MODE_KEY === "\x1b[Z", "the switch key is Shift+Tab");
+}
 
 console.log(`${pass}/${pass + fail} claude-transcript cases passed`);
 if (fail > 0) process.exit(1);

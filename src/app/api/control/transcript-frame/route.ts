@@ -21,6 +21,8 @@ const Item = z.discriminatedUnion("kind", [
     at: z.string().max(40).nullable(),
     kind: z.literal("user"),
     text: z.string().max(20_000),
+    // Claude Code's permission mode on that message (runner 0.8.40+).
+    mode: z.string().max(40).optional(),
   }),
   z.object({
     id: z.string().max(200),
