@@ -29,10 +29,14 @@
  * Matched exactly or by `/prefix/`.
  */
 export const FEEDBACK_WIDGET_EXCLUDED_PREFIXES = [
-  // A full-height PTY. A floating button over live terminal output covers the
-  // thing the operator is reading, and the terminal has its own composer.
-  "/terminal",
-  // Same shape as /terminal, and measured rather than assumed: at 390px the
+  // (/terminal is NOT here. It used to be — a floating button over live PTY
+  // output covers what the operator is reading — but excluding it left the page
+  // used most on a phone with no way to report anything (bitbaum/loki#1037).
+  // The widget now loads there with its launcher hidden by the page
+  // (data-fc-place="hidden" on terminal/page.tsx) and opens from the Feedback
+  // button in the terminal header.)
+  //
+  // A full-width composer at the bottom, measured rather than assumed: at 390px the
   // launcher's centre sits ON TOP of the composer's textarea (`.ck-input`) — the
   // box you type into on the page whose whole purpose is typing into it.
   //
