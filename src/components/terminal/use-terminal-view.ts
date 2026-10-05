@@ -24,8 +24,7 @@ export function useTerminalView(agentId: string | null) {
   return {
     view,
     chatAvailable,
-    showChat: () => setPref("chat"),
+    setView: (next: TerminalViewMode) => setPref(next),
     showTerminal: () => setPref("terminal"),
-    toggle: () => setPref(view === "chat" ? "terminal" : "chat"),
   };
 }

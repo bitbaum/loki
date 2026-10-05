@@ -1,6 +1,6 @@
 "use client";
 
-import { Keyboard, MessagesSquare, Mic, Paperclip } from "lucide-react";
+import { Keyboard, Mic, Paperclip } from "lucide-react";
 import { TERMINAL_INPUT_MODES, type TerminalInputMode } from "@/config/terminal-modes";
 
 const ICONS = {
@@ -12,22 +12,22 @@ const ICONS = {
 } satisfies Record<TerminalInputMode, (typeof Keyboard)[]>;
 
 /**
- * How your words reach the session, next to where you write them — plus Loki.
+ * How your words reach the session, next to where you write them.
  *
  * On a phone this switch used to live only inside the session sheet, so the
  * terminal opened in Type (raw keystrokes: no attach, no mic) and attaching a
- * screenshot or talking to the agent meant finding a menu first. The Loki
- * panel (summary, Ask/Inject for this run) sat behind an unlabeled icon.
+ * screenshot or talking to the agent meant finding a menu first.
+ *
+ * Only input modes live here. "Loki" (the session as a conversation) is a
+ * VIEW, so it is in the header's view switch, which is drawn in both views —
+ * a chip down here vanished with the dock the moment you used it.
  */
 export function TerminalInputSwitch({
   inputMode,
   onInputModeChange,
-  onOpenLoki,
 }: {
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
-  /** Opens the Loki panel. Omitted where there is no project for it to be about. */
-  onOpenLoki?: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Input mode">
@@ -49,17 +49,6 @@ export function TerminalInputSwitch({
           </button>
         );
       })}
-      {onOpenLoki && (
-        <button
-          type="button"
-          onClick={onOpenLoki}
-          title="Summarize this run and ask Loki about it"
-          className="ui-chip-toggle gap-1"
-        >
-          <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" />
-          Loki
-        </button>
-      )}
     </div>
   );
 }

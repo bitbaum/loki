@@ -22,7 +22,6 @@ export function TerminalMobileDock({
   channel,
   inputMode,
   onInputModeChange,
-  onOpenLoki,
   onKey,
   liveKeys,
   immersive,
@@ -31,8 +30,6 @@ export function TerminalMobileDock({
   channel: BuilderChannel;
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
-  /** Opens the Loki panel sheet; omitted when there is no project. */
-  onOpenLoki?: () => void;
   /** Verbatim bytes into the session. */
   onKey: (bytes: string) => void;
   /** When on, xterm has the keyboard and the typing box would fight it for
@@ -46,11 +43,7 @@ export function TerminalMobileDock({
 
       {/* Beside the input, not only in the session sheet: Prompt is where a
           screenshot is attached and where you talk, so it is one tap away. */}
-      <TerminalInputSwitch
-        inputMode={inputMode}
-        onInputModeChange={onInputModeChange}
-        onOpenLoki={onOpenLoki}
-      />
+      <TerminalInputSwitch inputMode={inputMode} onInputModeChange={onInputModeChange} />
 
       {inputMode === "type" && !liveKeys && (
         <TerminalRawComposer onSend={onKey} sessionLabel={tab} />

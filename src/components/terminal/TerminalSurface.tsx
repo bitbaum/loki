@@ -507,11 +507,10 @@ export function TerminalSurface({
       agent={headerAgent}
       state={headerState}
       onOpenSheet={() => setSheetOpen(true)}
-      onOpenLoki={projectKey ? () => setLokiSheetOpen(true) : undefined}
       immersive={immersive}
       onToggleImmersive={onToggleImmersive ?? (() => {})}
       view={view}
-      onToggleView={activeTab && chatAvailable ? termView.toggle : undefined}
+      onViewChange={activeTab && chatAvailable ? termView.setView : undefined}
     />
   );
 
@@ -540,7 +539,6 @@ export function TerminalSurface({
   };
   const paneActions = (
     <TerminalPaneActions
-      onShowConversation={chatAvailable ? termView.showChat : undefined}
       loki={
         projectKey ? { shown: railShown, pressable: railFits, onToggle: toggleRail } : undefined
       }
@@ -574,6 +572,14 @@ export function TerminalSurface({
       columns={geometry?.cols ?? null}
       liveKeys={deck.liveKeys}
       onLiveKeysChange={deck.setLiveKeys}
+      onOpenLoki={
+        projectKey
+          ? () => {
+              setSheetOpen(false);
+              setLokiSheetOpen(true);
+            }
+          : undefined
+      }
     />
   ) : null;
 
@@ -741,6 +747,8 @@ export function TerminalSurface({
             onSwitchAgent={(id) => void switchAgent(id)}
             switchingAgent={switchingAgent}
             agentSwitchDisabledReason={agentSwitchDisabledReason}
+            view={view}
+            onViewChange={chatAvailable ? termView.setView : undefined}
           />
         </div>
       )}
@@ -778,7 +786,6 @@ export function TerminalSurface({
           channel={channel}
           inputMode={inputMode}
           onInputModeChange={setInputMode}
-          onOpenLoki={projectKey ? () => setLokiSheetOpen(true) : undefined}
           onKey={sendKey}
           liveKeys={deck.liveKeys}
           immersive={immersive}
