@@ -1,14 +1,9 @@
 "use client";
 
-import {
-  ChevronDown,
-  Maximize2,
-  MessageCircle,
-  MessagesSquare,
-  Minimize2,
-  TerminalSquare,
-} from "lucide-react";
+import { ChevronDown, Maximize2, Minimize2 } from "lucide-react";
+import type { TerminalViewMode } from "@/config/terminal-modes";
 import { cn } from "@/lib/utils";
+import { TerminalViewSwitch } from "./TerminalViewSwitch";
 
 export type TerminalLiveState = "live" | "connecting" | "stalled" | "idle";
 
@@ -44,23 +39,21 @@ export function TerminalMobileHeader({
   agent,
   state,
   onOpenSheet,
-  onOpenLoki,
   immersive,
   onToggleImmersive,
   view,
-  onToggleView,
+  onViewChange,
 }: {
   title: string;
   agent?: string | null;
   state: TerminalLiveState;
   onOpenSheet: () => void;
-  /** Opens the Loki commentary/inject sheet — same rail as desktop. */
-  onOpenLoki?: () => void;
   immersive: boolean;
   onToggleImmersive: () => void;
-  /** Chat ↔ raw terminal, when the session's agent supports the chat view. */
-  view?: "chat" | "terminal";
-  onToggleView?: () => void;
+  /** Conversation ↔ raw terminal, when the session's agent supports the
+   *  conversation view. */
+  view?: TerminalViewMode;
+  onViewChange?: (view: TerminalViewMode) => void;
 }) {
   return (
     <div className="ui-term-mhead">
@@ -77,42 +70,15 @@ export function TerminalMobileHeader({
           title={STATE_LABEL[state]}
         />
         <span className="ui-term-mhead-title">{title}</span>
-        {/* In the conversation view the composer already says who you are
-            writing to ("Message Claude…"); the chip cost the session name
-            its width — it read "derho…" on a 390px phone. */}
-        {agent && view !== "chat" && <span className="ui-term-mhead-agent">{agent}</span>}
+        {/* Where the view switch is drawn the agent is Claude (only Claude
+            has a conversation view) and the switch needs the width — the chip
+            cost the session name its letters ("derho…" at 390px). The agent
+            is one tap away in the sheet. */}
+        {agent && !onViewChange && <span className="ui-term-mhead-agent">{agent}</span>}
         <ChevronDown className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
       </button>
 
-      {onToggleView && (
-        <button
-          type="button"
-          className="ui-term-mhead-icon"
-          onClick={onToggleView}
-          aria-label={
-            view === "chat" ? "Show the raw terminal" : "Show the Claude session as a conversation"
-          }
-        >
-          {view === "chat" ? (
-            <TerminalSquare className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <MessageCircle className="h-4 w-4" aria-hidden="true" />
-          )}
-        </button>
-      )}
-      {onOpenLoki && (
-        <button
-          type="button"
-          className="ui-term-mhead-icon w-auto gap-1 px-3 text-xs font-medium"
-          onClick={onOpenLoki}
-          aria-label="Ask Loki about this project and run"
-        >
-          <MessagesSquare className="h-4 w-4" aria-hidden="true" />
-          {/* "Loki", not "Chat": beside a conversation with Claude, a second
-              button called Chat read as the same thing twice. */}
-          Loki
-        </button>
-      )}
+      {onViewChange && view && <TerminalViewSwitch view={view} onViewChange={onViewChange} />}
       <button
         type="button"
         className="ui-term-mhead-icon"

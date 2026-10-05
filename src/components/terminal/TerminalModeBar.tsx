@@ -7,12 +7,14 @@ import {
   TERMINAL_SOURCES,
   terminalInputHint,
   type TerminalInputMode,
+  type TerminalViewMode,
   type TerminalSource,
 } from "@/config/terminal-modes";
 import { AgentSwitcherPopover, type AgentEntry } from "@/components/control/agent-switcher-popover";
 import { ExecutorHonestyChip } from "@/components/executor/ExecutorHonestyChip";
 import type { ExecutorHonestyLabel } from "@/lib/executor-honesty";
 import { TerminalInputSwitch } from "./TerminalInputSwitch";
+import { TerminalViewSwitch } from "./TerminalViewSwitch";
 
 /** One segmented control. Kept local — the chip classes it composes are
  *  already the design-system SSOT. Input mode has its own (TerminalInputSwitch). */
@@ -110,6 +112,8 @@ export function TerminalSessionBar({
   onSwitchAgent,
   switchingAgent,
   agentSwitchDisabledReason,
+  view,
+  onViewChange,
 }: {
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
@@ -119,6 +123,9 @@ export function TerminalSessionBar({
   switchingAgent: boolean;
   /** Non-null when switching cannot work right now — shown as the button title. */
   agentSwitchDisabledReason: string | null;
+  view: TerminalViewMode;
+  /** Omitted when the agent has no conversation view. */
+  onViewChange?: (view: TerminalViewMode) => void;
 }) {
   const [agentOpen, setAgentOpen] = useState(false);
   const activeAgent = agents.find((a) => a.id === activeAgentId);
@@ -128,6 +135,7 @@ export function TerminalSessionBar({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {onViewChange && <TerminalViewSwitch view={view} onViewChange={onViewChange} />}
         <div className="relative">
           <button
             type="button"
@@ -157,13 +165,19 @@ export function TerminalSessionBar({
           )}
         </div>
 
-        <TerminalInputSwitch inputMode={inputMode} onInputModeChange={onInputModeChange} />
+        {/* Input modes are how words reach the TERMINAL; the conversation
+            view has its own composer, so the switch would change nothing. */}
+        {view === "terminal" && (
+          <TerminalInputSwitch inputMode={inputMode} onInputModeChange={onInputModeChange} />
+        )}
       </div>
 
       {/* One line of consequence for the selected input mode. Replaces the
           permanent yellow callout that used to sit above every terminal
           repeating the same paragraph regardless of what you were doing. */}
-      <p className="text-micro leading-snug text-text-muted">{terminalInputHint(inputMode)}</p>
+      {view === "terminal" && (
+        <p className="text-micro leading-snug text-text-muted">{terminalInputHint(inputMode)}</p>
+      )}
     </div>
   );
 }

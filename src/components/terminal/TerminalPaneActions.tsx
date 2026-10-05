@@ -1,24 +1,21 @@
 "use client";
 
 import { Maximize2, Minimize2, PanelRight } from "lucide-react";
-import { ChatViewButton } from "./ClaudeChatView";
 
 /**
  * The pane controls at the end of the terminal's status row (desktop):
- * Conversation (the Claude session as messages), Loki (the panel that
- * summarizes this run and takes Ask/Inject), and full screen.
+ * Summary (the panel that summarizes this run and takes Ask/Inject) and full
+ * screen.
  *
- * "Loki", not "Chat", matching the phone header: beside a conversation with
- * Claude, a second button called Chat read as the same thing twice.
+ * "Summary", not "Loki": "Loki" is the conversation view in the session bar's
+ * Loki | Terminal switch, and one word naming two things is what made this
+ * screen hard to find your way around.
  */
 export function TerminalPaneActions({
-  onShowConversation,
   loki,
   immersive,
   onToggleImmersive,
 }: {
-  /** Omitted when the session's agent has no conversation view. */
-  onShowConversation?: () => void;
   /** Omitted when there is no project for the panel to be about. */
   loki?: { shown: boolean; pressable: boolean; onToggle: () => void };
   immersive: boolean;
@@ -26,22 +23,21 @@ export function TerminalPaneActions({
 }) {
   return (
     <>
-      {onShowConversation && <ChatViewButton onClick={onShowConversation} />}
       {loki && !immersive && (
         <button
           type="button"
           className={loki.shown ? "ui-term-pane-btn ui-term-pane-btn-on" : "ui-term-pane-btn"}
           onClick={loki.onToggle}
           aria-pressed={loki.pressable ? loki.shown : undefined}
-          aria-label={loki.shown ? "Hide the Loki panel" : "Show the Loki panel"}
+          aria-label={loki.shown ? "Hide the summary panel" : "Show the summary panel"}
           title={
             loki.shown
-              ? "Hide the Loki panel — the terminal takes the width"
+              ? "Hide the summary — the terminal takes the width"
               : "Summarize this run and ask Loki about it"
           }
         >
           <PanelRight className="h-3.5 w-3.5" aria-hidden="true" />
-          Loki
+          Summary
         </button>
       )}
       {onToggleImmersive && (
