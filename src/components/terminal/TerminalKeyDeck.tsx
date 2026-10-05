@@ -32,7 +32,7 @@ function tick() {
  * moves focus — which is what stops every tap from dismissing the soft keyboard
  * and leaving the composer.
  */
-function KeyCap({
+export function KeyCap({
   keyDef,
   onKey,
   className,

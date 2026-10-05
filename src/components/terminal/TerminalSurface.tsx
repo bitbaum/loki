@@ -41,11 +41,11 @@ import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
 import { Modal } from "@/components/ui/modal";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
+import { TerminalOfflineActions } from "./TerminalOfflineActions";
 import { TerminalPaneActions } from "./TerminalPaneActions";
 import { useTerminalView } from "./use-terminal-view";
-import { useTerminalTabs } from "./use-terminal-tabs";
 import { useScreenSuggestions } from "./use-screen-suggestions";
-import { TerminalInputSwitch } from "./TerminalInputSwitch";
+import { useTerminalTabs } from "./use-terminal-tabs";
 
 /** Per-source copy. Cloud and machine differ only in wording, so the strings
  *  stay in the copy SSOT and this map just selects between them. */
@@ -329,14 +329,22 @@ export function TerminalSurface({
   // bytes, and the composer will happily hand over a pasted paragraph. Sending
   // the pieces without awaiting would let them arrive out of order — the same
   // "echo" → "ehco" reordering TerminalView's own input buffer exists to stop.
+  // Every write goes through ONE chain, so a long paste split into chunks can
+  // never be overtaken by the Enter sent after it — and the caller can await
+  // the moment the last byte has actually left.
+  const sendChain = useRef<Promise<void>>(Promise.resolve());
   const sendKey = useCallback(
-    (bytes: string) => {
-      if (!transport) return;
-      void (async () => {
-        for (let i = 0; i < bytes.length; i += RAW_KEY_CHUNK) {
-          await transport.sendKey(bytes.slice(i, i + RAW_KEY_CHUNK));
-        }
-      })();
+    (bytes: string): Promise<void> => {
+      if (!transport) return Promise.resolve();
+      const run = sendChain.current
+        .then(async () => {
+          for (let i = 0; i < bytes.length; i += RAW_KEY_CHUNK) {
+            await transport.sendKey(bytes.slice(i, i + RAW_KEY_CHUNK));
+          }
+        })
+        .catch(() => {});
+      sendChain.current = run;
+      return run;
     },
     [transport],
   );
@@ -405,23 +413,15 @@ export function TerminalSurface({
   const tabContext = context?.tabs.find((t) => t.tab === activeTab) ?? null;
   const activeAgentId = tabContext?.agentPref ?? context?.agents.defaultAgent ?? null;
   const termView = useTerminalView(activeAgentId);
-  const { view, chatAvailable } = termView;
-  // One switch for how you work with the session: Chat (the conversation
-  // view) or the raw terminal reached by Type / Prompt / Voice. Picking an
-  // input mode is also picking the terminal — they were two controls once,
-  // and a mode chosen while the chat was showing changed nothing visible.
-  const selectInputMode = (mode: TerminalInputMode) => {
-    setInputMode(mode);
-    termView.showTerminal();
-  };
-  const chatSwitch = chatAvailable
-    ? { active: view === "chat", onSelect: termView.showChat }
-    : undefined;
-  // Prompts that fit the screen, read only while a Prompt box is showing.
-  const suggestions = useScreenSuggestions(
-    readScreenRef,
-    Boolean(activeTab) && view === "terminal" && inputMode === "prompt",
-  );
+  // Sessions whose builder never sends the conversation: shown as the terminal
+  // and offered no conversation toggle, without touching the saved preference
+  // (the next session, on a newer runner, still opens as a conversation).
+  const [noTranscript, setNoTranscript] = useState<ReadonlySet<string>>(() => new Set());
+  const transcriptMissing = activeTab !== null && noTranscript.has(activeTab);
+  const chatAvailable = termView.chatAvailable && !transcriptMissing;
+  const view = transcriptMissing ? "terminal" : termView.view;
+  const promptOpen = Boolean(activeTab) && view === "terminal" && inputMode === "prompt";
+  const suggestions = useScreenSuggestions(readScreenRef, promptOpen);
   const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
 
   const [switchingAgent, setSwitchingAgent] = useState(false);
@@ -525,10 +525,10 @@ export function TerminalSurface({
       agent={headerAgent}
       state={headerState}
       onOpenSheet={() => setSheetOpen(true)}
-      onOpenLoki={projectKey ? () => setLokiSheetOpen(true) : undefined}
       immersive={immersive}
       onToggleImmersive={onToggleImmersive ?? (() => {})}
       view={view}
+      onViewChange={activeTab && chatAvailable ? termView.setView : undefined}
     />
   );
 
@@ -544,6 +544,7 @@ export function TerminalSurface({
         canSwitchAgent={!agentSwitchDisabledReason}
         onSwitchAgent={(id) => void switchAgent(id)}
         readScreenRef={readScreenRef}
+        askOnly={view === "chat"}
       />
     ) : null;
 
@@ -579,7 +580,7 @@ export function TerminalSurface({
       activeTab={source === "shell" ? null : activeTab}
       onSelectTab={source === "shell" ? undefined : setUserSelection}
       inputMode={inputMode}
-      onInputModeChange={selectInputMode}
+      onInputModeChange={setInputMode}
       agents={agents}
       activeAgentId={activeAgentId}
       onSwitchAgent={(id) => void switchAgent(id)}
@@ -590,6 +591,14 @@ export function TerminalSurface({
       columns={geometry?.cols ?? null}
       liveKeys={deck.liveKeys}
       onLiveKeysChange={deck.setLiveKeys}
+      onOpenLoki={
+        projectKey
+          ? () => {
+              setSheetOpen(false);
+              setLokiSheetOpen(true);
+            }
+          : undefined
+      }
     />
   ) : null;
 
@@ -687,6 +696,11 @@ export function TerminalSurface({
               </div>
             </>
           )}
+          {(gatedMessage || offline) && (
+            <TerminalOfflineActions
+              onUseThisComputer={source === "cloud" ? () => setSource("machine") : undefined}
+            />
+          )}
         </div>
       );
     }
@@ -714,14 +728,8 @@ export function TerminalSurface({
           channel={channel}
           onKey={sendKey}
           onShowTerminal={termView.showTerminal}
-          modeSwitch={
-            <div className="md:hidden">
-              <TerminalInputSwitch
-                inputMode={inputMode}
-                onInputModeChange={selectInputMode}
-                chat={chatSwitch}
-              />
-            </div>
+          onUnavailable={() =>
+            setNoTranscript((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)))
           }
         />
       );
@@ -760,13 +768,14 @@ export function TerminalSurface({
         <div className="hidden md:block">
           <TerminalSessionBar
             inputMode={inputMode}
-            onInputModeChange={selectInputMode}
-            chat={chatSwitch}
+            onInputModeChange={setInputMode}
             agents={agents}
             activeAgentId={activeAgentId}
             onSwitchAgent={(id) => void switchAgent(id)}
             switchingAgent={switchingAgent}
             agentSwitchDisabledReason={agentSwitchDisabledReason}
+            view={view}
+            onViewChange={chatAvailable ? termView.setView : undefined}
           />
         </div>
       )}
@@ -804,9 +813,7 @@ export function TerminalSurface({
           channel={channel}
           inputMode={inputMode}
           onInputModeChange={setInputMode}
-          onShowChat={chatAvailable ? termView.showChat : undefined}
           suggestions={suggestions}
-          keyboardOpen={keyboardInset > 0}
           onKey={sendKey}
           liveKeys={deck.liveKeys}
           immersive={immersive}

@@ -156,7 +156,7 @@ export default async function MemoryPage() {
                         <span className="text-xs text-text-tertiary">{ix.channel}</span>
                       </div>
                       {ix.summary && (
-                        <div className="mt-1 truncate text-sm text-text-secondary">
+                        <div className="mt-1 line-clamp-2 text-sm text-text-secondary">
                           {ix.summary}
                         </div>
                       )}

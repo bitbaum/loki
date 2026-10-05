@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
-import { AlertTriangle, ChevronDown, ChevronUp, Link2, Minus, Plus } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownToLine,
+  ChevronDown,
+  ChevronUp,
+  Link2,
+  Minus,
+  Plus,
+} from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 import type { AgentLifecycle } from "@/lib/agent-execution/types";
 import { useTerminalFont, type TerminalFontControl } from "@/hooks/use-terminal-font";
@@ -14,6 +22,7 @@ import {
 } from "@/lib/terminal-viewport";
 import { createPtySizeSync, watchTerminalHost } from "@/lib/terminal-size-sync";
 import { logicalLines } from "@/lib/terminal-screen";
+import { attachTouchScroll } from "@/lib/terminal-touch-scroll";
 import type { TerminalTransport } from "./terminal-transport";
 
 /**
@@ -131,6 +140,18 @@ function LinkBar({ links, onDismiss }: { links: string[]; onDismiss: () => void 
   );
 }
 
+/** Shown while the operator has scrolled back through the output: one tap
+ *  returns to the bottom, where the agent is writing now. Without it, reading
+ *  history on a phone meant swiping all the way back down by hand. */
+function JumpToLive({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="ui-term-jump" onClick={onClick}>
+      <ArrowDownToLine className="h-3.5 w-3.5" aria-hidden="true" />
+      Live
+    </button>
+  );
+}
+
 /** Honest overlay for a connected-but-silent stream: the source said it was
  *  ready but never streamed the screen. Replaces the black "live" pane. */
 function TerminalStalledOverlay({ message }: { message: string }) {
@@ -224,6 +245,8 @@ export function TerminalView({
   const [sending, setSending] = useState(false);
   // URLs detected in the terminal output stream — surfaced by <LinkBar/>.
   const [links, setLinks] = useState<string[]>([]);
+  // The viewport is above the newest output (the operator scrolled back).
+  const [scrolledBack, setScrolledBack] = useState(false);
   // Live grid geometry, mirrored into React so the chrome can report it. The
   // operator is entitled to know how many columns they are actually reading —
   // it is the difference between "the agent wrote nonsense" and "my screen is
@@ -442,6 +465,21 @@ export function TerminalView({
       });
 
       term.open(host);
+      // A swipe scrolls the output: xterm 6 only listens to the wheel, so
+      // without this a phone could watch the terminal but never read back.
+      const detachTouch = attachTouchScroll(host, {
+        scrollLines: (n) => term.scrollLines(n),
+        cellHeight: () => {
+          const screen = term.element?.querySelector<HTMLElement>(".xterm-screen");
+          return screen && term.rows ? screen.clientHeight / term.rows : 0;
+        },
+      });
+      const syncScrolledBack = () => {
+        const buf = term.buffer.active;
+        setScrolledBack(buf.viewportY < buf.baseY);
+      };
+      const scrollDisposable = term.onScroll(syncScrolledBack);
+      const writeDisposable = term.onWriteParsed(syncScrolledBack);
       if (interactive) {
         host.tabIndex = 0;
         host.addEventListener("mousedown", () => {
@@ -618,6 +656,9 @@ export function TerminalView({
         if (scanTimer) window.clearTimeout(scanTimer);
         clearStallTimer();
         linkProvider.dispose();
+        detachTouch();
+        scrollDisposable.dispose();
+        writeDisposable.dispose();
         unwatchHost();
         inputDisposable?.dispose();
         term.dispose();
@@ -654,12 +695,15 @@ export function TerminalView({
     if (rendered) fontSync(rendered);
   }, [geometry, fontSync]);
 
+  const jumpToLive = () => termRef.current?.scrollToBottom();
+
   if (bare) {
     return (
       <div className={`flex flex-col ${className ?? "h-full w-full"}`}>
         <div className="relative min-h-0 flex-1">
           <div ref={hostRef} className="h-full w-full overflow-x-auto overflow-y-hidden" />
           {stalled && <TerminalStalledOverlay message={stallMessage} />}
+          {scrolledBack && !stalled && <JumpToLive onClick={jumpToLive} />}
         </div>
         <LinkBar links={links} onDismiss={() => setLinks([])} />
       </div>
@@ -752,6 +796,7 @@ export function TerminalView({
       >
         <div ref={hostRef} className="h-full w-full overflow-x-auto overflow-y-hidden" />
         {stalled && <TerminalStalledOverlay message={stallMessage} />}
+        {scrolledBack && !stalled && <JumpToLive onClick={jumpToLive} />}
       </div>
       <LinkBar links={links} onDismiss={() => setLinks([])} />
       {onSend && !interactive && sendOpen && (

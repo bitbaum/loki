@@ -113,6 +113,11 @@ export const PUBLIC_NAV: PublicNavEntry[] = [
             href: "/change",
             description: "Say which site and what should change — typed or spoken",
           },
+          {
+            label: "Make it yours",
+            href: "/take",
+            description: "Your own copy of an open-source project, renamed and shaped for you",
+          },
           { label: "Pricing", href: "/pricing", description: "Free while Loki is in beta" },
           {
             label: "Download",

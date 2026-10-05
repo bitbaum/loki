@@ -162,6 +162,7 @@ const PAGES = [
 const PUBLIC_PAGES = [
   "/",
   "/change",
+  "/take",
   "/fleet",
   "/pricing",
   "/download",
@@ -660,7 +661,11 @@ async function main() {
   }
 
   fs.mkdirSync(OUT, { recursive: true });
-  const browser = await chromium.launch();
+  // CHROMIUM_PATH: run against a preinstalled Chromium (a sandbox whose
+  // Playwright pin has no matching browser download).
+  const browser = await chromium.launch(
+    process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
+  );
   const failures = [];
   const notes = [];
   let checks = 0;

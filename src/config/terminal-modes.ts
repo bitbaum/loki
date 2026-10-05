@@ -95,10 +95,6 @@ export function terminalInputHint(id: TerminalInputMode): string {
  */
 export type TerminalViewMode = "chat" | "terminal";
 
-/** The Chat position's line under the switch, beside the input modes' hints. */
-export const CHAT_VIEW_HINT =
-  "The same session as a conversation — what you write goes to the agent, its answers read as text.";
-
 export const TERMINAL_VIEW_STORAGE_KEY = "loki:terminal-view";
 
 /** Only Claude Code writes the session log the chat view reads. */

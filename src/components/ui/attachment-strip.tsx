@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef } from "react";
-import { FileText, Paperclip, X } from "lucide-react";
+import { AttachMenu, DEFAULT_ATTACH_MENU_LABELS } from "@bitbaum/chatkit/react";
+import { FileText, X } from "lucide-react";
 import { MAX_ATTACHMENTS } from "@/lib/loki/attachments";
 import type { AttachmentsController } from "@/hooks/use-attachments";
 
@@ -15,6 +15,13 @@ import type { AttachmentsController } from "@/hooks/use-attachments";
  * picture?* The thumbnail answers it at a glance.
  */
 
+/**
+ * The paperclip is chatkit's: on a phone it opens Camera / Photos / Files, one
+ * input each. This file used to own a bare `<input accept="image/*,text/*…">`,
+ * and Android answers a mixed accept with a chooser of capture apps (Camera,
+ * Recorder, "Photos & Videos") and no file browser — attaching a screenshot
+ * was effectively impossible from a phone. Never re-roll a file input here.
+ */
 export function AttachButton({
   attachments,
   label = "Attach a screenshot or file",
@@ -22,33 +29,15 @@ export function AttachButton({
   attachments: AttachmentsController;
   label?: string;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <>
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        // Cameras first on a phone: `image/*` is what makes Android and iOS
-        // offer "Take photo" alongside the gallery.
-        accept="image/*,text/*,.md,.txt,.json,.csv,.log"
-        className="hidden"
-        onChange={(e) => {
-          attachments.addFiles(e.target.files);
-          if (inputRef.current) inputRef.current.value = "";
-        }}
-      />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={attachments.full}
-        className="ui-btn-icon shrink-0"
-        title={attachments.full ? `Up to ${MAX_ATTACHMENTS} files` : label}
-        aria-label={label}
-      >
-        <Paperclip className="h-3.5 w-3.5" />
-      </button>
-    </>
+    <AttachMenu
+      onFiles={attachments.addFiles}
+      disabled={attachments.full}
+      labels={{
+        ...DEFAULT_ATTACH_MENU_LABELS,
+        attach: attachments.full ? `Up to ${MAX_ATTACHMENTS} files` : label,
+      }}
+    />
   );
 }
 

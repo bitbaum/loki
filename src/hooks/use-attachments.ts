@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isTextFile } from "@bitbaum/chatkit";
 import {
   MAX_ATTACHMENTS,
   MAX_ATTACHMENT_CHARS,
@@ -108,6 +109,12 @@ export function useAttachments(): AttachmentsController {
 
   const stageText = useCallback(
     (file: File) => {
+      // Files takes anything (that is what keeps it the real document
+      // browser), so a PDF must be turned away here, not read as text.
+      if (!isTextFile(file.name, file.type)) {
+        setNote(`${file.name}: attach an image (PNG, JPEG, GIF, WebP) or a text file.`);
+        return;
+      }
       if (file.size > MAX_ATTACHMENT_CHARS) {
         setNote(
           `${file.name} is too large (max ${Math.round(MAX_ATTACHMENT_CHARS / 1000)}k chars).`,

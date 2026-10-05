@@ -7,7 +7,7 @@ import { ChatThread } from "@bitbaum/chatkit/react";
 import { useSessionAsk } from "@/hooks/use-session-ask";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
-import { presentTerminalRun, type TerminalRunView } from "@/lib/terminal-run-view";
+import { presentTerminalRun, railStatusLines, type TerminalRunView } from "@/lib/terminal-run-view";
 import { screenText } from "@/lib/terminal-screen";
 import {
   SUMMARY_MAX_CHARS,
@@ -36,7 +36,12 @@ export function TerminalLokiRail({
   canSwitchAgent,
   onSwitchAgent,
   readScreenRef,
+  askOnly = false,
 }: {
+  /** The page already has a box that writes into the session (the
+   *  conversation view's composer): this panel then only asks Loki, so the
+   *  screen never shows two composers for the same session. */
+  askOnly?: boolean;
   project: string | null;
   tab: string | null;
   runId: string | null;
@@ -125,6 +130,15 @@ export function TerminalLokiRail({
   }
 
   const presented = view ? presentTerminalRun(view, ptyLive) : null;
+  const lines = presented ? railStatusLines(presented) : { summary: null, next: null };
+  const diagnostic =
+    view?.stalled && view.diagnostic && view.diagnostic !== view.nextAction
+      ? view.diagnostic
+      : null;
+  const hasStatusBody = Boolean(
+    (loading && !view) || error || !view || lines.summary || lines.next || diagnostic,
+  );
+  const hasBody = hasStatusBody || Boolean(view?.quotaDeath && canSwitchAgent);
 
   return (
     <aside className="ui-term-loki">
@@ -144,54 +158,56 @@ export function TerminalLokiRail({
           </button>
           <Link
             href={fleetSurfaceHref("chat", project)}
-            className="inline-flex items-center gap-0.5 text-micro text-text-secondary underline-offset-2 hover:text-text-primary hover:underline"
+            className="ui-term-pane-btn"
+            title="Open the full Loki chat"
+            aria-label="Open the full Loki chat"
           >
-            Full chat
-            <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>
         </div>
       </header>
 
-      <div className="ui-term-loki-body">
-        {loading && !view && (
-          <p className="flex items-center gap-1 text-xs text-text-muted">
-            <Loader2 className="ui-spinner-xs" /> Checking this run…
-          </p>
-        )}
-        {error && <p className="text-xs text-status-warning">{error}</p>}
-        {!loading && !view && !error && (
-          <p className="text-xs text-text-muted">
-            No run on {project} yet. Implement a report or inject a task — this rail follows the
-            same run id as Feedback Watch.
-          </p>
-        )}
-        {view && (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium text-text-primary">{presented?.stepSummary}</p>
-            <p className="text-xs text-text-secondary">{presented?.nextAction}</p>
-            {view.stalled && view.diagnostic && view.diagnostic !== view.nextAction && (
-              <p className="text-micro text-text-tertiary">{view.diagnostic}</p>
-            )}
-          </div>
-        )}
+      {hasBody && (
+        <div className="ui-term-loki-body">
+          {loading && !view && (
+            <p className="flex items-center gap-1 text-xs text-text-muted">
+              <Loader2 className="ui-spinner-xs" /> Checking this run…
+            </p>
+          )}
+          {error && <p className="text-xs text-status-warning">{error}</p>}
+          {!loading && !view && !error && (
+            <p className="text-xs text-text-muted">
+              Nothing running on {project}. Send a task below and its progress shows here.
+            </p>
+          )}
+          {view && (lines.summary || lines.next || diagnostic) && (
+            <div className="flex flex-col gap-1">
+              {lines.summary && (
+                <p className="text-sm font-medium text-text-primary">{lines.summary}</p>
+              )}
+              {lines.next && <p className="text-xs text-text-secondary">{lines.next}</p>}
+              {diagnostic && <p className="text-micro text-text-tertiary">{diagnostic}</p>}
+            </div>
+          )}
 
-        {/* The rail used to list every alternative agent in config order,
+          {/* The rail used to list every alternative agent in config order,
             whether or not the connected builder had it installed and whether or
             not it had hit its own limit ten minutes earlier. Now it is the same
             ranked, filtered chooser Feedback and Control show — one tap, the
             operator's preferred order, only providers that can answer. */}
-        {view?.quotaDeath && canSwitchAgent && (
-          <div className="mt-3 flex flex-col gap-1.5">
-            <p className="text-xs font-medium text-text-primary">Try another provider</p>
-            <ProviderSwitch
-              projectId={projectId}
-              busy={switching}
-              hint="Quits the current CLI in this tab and launches the one you pick."
-              onSwitch={switchTo}
-            />
-          </div>
-        )}
-      </div>
+          {view?.quotaDeath && canSwitchAgent && (
+            <div className="mt-3 flex flex-col gap-1.5">
+              <p className="text-xs font-medium text-text-primary">Try another provider</p>
+              <ProviderSwitch
+                projectId={projectId}
+                busy={switching}
+                hint="Quits the current CLI in this tab and launches the one you pick."
+                onSwitch={switchTo}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* The conversation, in the fleet's thread: Ask answers and summaries
           stay readable (it used to show only the latest answer). A summary's
@@ -236,8 +252,8 @@ export function TerminalLokiRail({
         <TerminalComposer
           project={project}
           tab={tab}
-          modes={["ask", "inject"]}
-          defaultMode="inject"
+          modes={askOnly ? ["ask"] : ["ask", "inject"]}
+          defaultMode={askOnly ? "ask" : "inject"}
           ask={session}
           draft={draft}
           ptyLive={ptyLive || Boolean(view?.lastProgressAt)}

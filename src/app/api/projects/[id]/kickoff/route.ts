@@ -7,6 +7,7 @@ import { KICKOFF_STEPS } from "@/lib/project-kickoff";
 import { DOC_PASTE_MAX } from "@/lib/constants";
 import { PASTE_TOO_LONG } from "@/lib/api/pasted-text";
 import { getServerKickoff, startServerKickoff } from "@/lib/kickoff/server-runs";
+import { isRepoCopyProject } from "@/lib/repo-brief";
 
 /**
  * "Make it happen", run by the server.
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     plan,
     source: dataOrResp.source,
     visibility: dataOrResp.visibility,
+    template: isRepoCopyProject(project.name) ? "bare" : undefined,
   });
   after(() => done);
   return NextResponse.json({ ok: true, joined, run });
