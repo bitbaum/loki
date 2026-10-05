@@ -40,8 +40,11 @@ const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
   const nav = read("src/components/shell/MobileNav.tsx");
   const menu = read("src/components/shell/AccountMenu.tsx");
   ok(/ui-mobile-nav"[^>]*data-fc-place="hidden"/.test(nav), "phone nav hides the widget launcher");
+  const opener = read("src/lib/open-feedback.ts");
   ok(
-    menu.includes("Report a problem") && menu.includes(".report()"),
+    menu.includes("Report a problem") &&
+      menu.includes("openFeedback(") &&
+      opener.includes(".report()"),
     "menu offers Report a problem",
   );
 }
