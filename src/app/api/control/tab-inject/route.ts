@@ -7,7 +7,8 @@ import { isRuntimeAvailable } from "@/lib/runtime";
 import { executor } from "@/lib/agent-execution";
 import { workspaceIdFor } from "@/lib/agent-execution/ownership";
 import { assembleInjectPrompt } from "@/lib/inject-prompt";
-import { AttachmentsField, foldAttachmentsIntoPrompt } from "@/lib/composer-attachments";
+import { AttachmentsField, stageAttachmentsForAgent } from "@/lib/composer-attachments";
+import { materializeImages } from "@/lib/agent-attachments-fs";
 import { executionAccessErrorBody, resolveQueuedExecution } from "@/lib/execution-access";
 import {
   DEFAULT_ADAPTER_ID,
@@ -123,10 +124,13 @@ export async function POST(req: NextRequest) {
   if (dataOrResp instanceof NextResponse) return dataOrResp;
   const { tab, prompt, attachments: rawAttachments } = dataOrResp;
 
-  // Fold attachments in BEFORE project context is assembled, so the screenshot
-  // description is part of the task the agent is given rather than a trailer
-  // after the conventions block.
-  const promptWithAttachments = await foldAttachmentsIntoPrompt(prompt, rawAttachments);
+  // Stage attachments BEFORE project context is assembled, so the screenshot
+  // is part of the task the agent is given rather than a trailer after the
+  // conventions block. Images travel with the command as files-to-be; their
+  // placeholders become paths where the agent runs (lib/agent-attachments).
+  const staged = stageAttachmentsForAgent(prompt, rawAttachments);
+  const promptWithAttachments = staged.prompt;
+  const attachments = staged.images.length > 0 ? { attachments: staged.images } : {};
   const projects = await getUserProjects(userId);
   const project = projects.find((p) => p.name.toLowerCase() === tab.toLowerCase());
   const adapter: AdapterId =
@@ -170,7 +174,9 @@ export async function POST(req: NextRequest) {
       }),
     );
     clearHandshakeFiles(tab);
-    executor.write(wsId, promptToSend.endsWith("\r") ? promptToSend : `${promptToSend}\r`);
+    // This process IS where the agent runs: write the screenshots here.
+    const local = materializeImages(promptToSend, staged.images);
+    executor.write(wsId, local.endsWith("\r") ? local : `${local}\r`);
     const runId = await recordTabDispatch({
       userId,
       tab,
@@ -215,6 +221,7 @@ export async function POST(req: NextRequest) {
       dir: project.dirPath,
       agent: adapter,
       prompt: promptToSend,
+      ...attachments,
       promptLabel,
       model: project.modelPref ?? undefined,
       projectKey: tab,
@@ -233,6 +240,7 @@ export async function POST(req: NextRequest) {
     tab,
     ...(execution.channel ? { channel: execution.channel } : {}),
     prompt: promptToSend,
+    ...attachments,
     promptKey: "",
     promptLabel,
     adapter,

@@ -6,6 +6,7 @@ import {
   type ImageAttachment,
 } from "@/lib/loki/attachments";
 import { describeAttachedImages } from "@/lib/loki/vision";
+import { withImageTokens, type AgentImage } from "@/lib/agent-attachments";
 import { z } from "@/lib/api/route-helpers";
 
 /**
@@ -50,4 +51,31 @@ export async function foldAttachmentsIntoPrompt(
   const images = attachments.filter((a): a is ImageAttachment => a.kind === "image");
   const imageNote = images.length ? await describeAttachedImages(images, prompt) : "";
   return `${prompt}${imageNote}${renderTextAttachments(attachments)}`;
+}
+
+/**
+ * For a prompt typed into a terminal agent: images go to the agent AS IMAGES
+ * (lib/agent-attachments) — each gets a placeholder line and travels in the
+ * command for the runner to write to a file — while text files are inlined as
+ * before. No vision model is involved, so a rate-limited free tier can no
+ * longer turn a screenshot into "could not analyse".
+ */
+export function stageAttachmentsForAgent(
+  prompt: string,
+  raw: RawAttachments,
+): { prompt: string; images: AgentImage[] } {
+  if (!raw || raw.length === 0) return { prompt, images: [] };
+  const attachments = raw.map(normalizeAttachment);
+  const images: AgentImage[] = attachments
+    .filter((a): a is ImageAttachment => a.kind === "image")
+    .map((a) => ({
+      id: crypto.randomUUID(),
+      name: a.name,
+      mimeType: a.mimeType,
+      dataBase64: a.dataBase64,
+    }));
+  return {
+    prompt: `${withImageTokens(prompt, images)}${renderTextAttachments(attachments)}`,
+    images,
+  };
 }

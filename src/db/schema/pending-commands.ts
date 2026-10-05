@@ -2,6 +2,7 @@ import { pgTable, uuid, text, timestamp, jsonb, index } from "drizzle-orm/pg-cor
 import { sql } from "drizzle-orm";
 import { users } from "./users";
 import type { BuilderChannel } from "@/lib/constants/statuses";
+import type { AgentImage } from "@/lib/agent-attachments";
 
 // Commands queued by the cloud control plane for the local runtime node to execute.
 // The local runner polls this table, claims rows, executes them via zellij, and marks them done.
@@ -39,6 +40,9 @@ export type InjectPayload = {
   /** Optional runner target. Cloud-host dispatches default this to "cloud". */
   channel?: RunnerChannel;
   prompt: string;
+  /** Screenshots for the agent, written to files by the runner, whose paths
+   *  replace the prompt's placeholders (lib/agent-attachments). */
+  attachments?: AgentImage[];
   promptKey?: string;
   promptLabel?: string;
   adapter?: string;
@@ -113,6 +117,9 @@ export type DispatchPayload = {
   dir: string;
   agent: string;
   prompt: string;
+  /** Screenshots for the agent, written to files by the runner, whose paths
+   *  replace the prompt's placeholders (lib/agent-attachments). */
+  attachments?: AgentImage[];
   model?: string;
   promptKey?: string;
   promptLabel?: string;

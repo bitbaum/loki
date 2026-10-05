@@ -22,12 +22,15 @@
  */
 
 import { isFleetRunnerCommandType } from '@/lib/pending-command-contract'
+import { parseAgentImages, type AgentImage } from '@/lib/agent-attachments'
 
 export interface InjectCommand {
   type: 'inject'
   payload: {
     tab: string
     prompt: string
+    /** Screenshots the runner writes to files (lib/agent-attachments). */
+    attachments?: AgentImage[]
     /** Optional model + adapter hints — daemon-bash respects these but the
      *  desktop's inject path just types into the existing zellij tab, so
      *  we accept-but-don't-act on them rather than rejecting. */
@@ -67,6 +70,8 @@ export interface DispatchCommand {
     dir: string
     agent: string
     prompt: string
+    /** Screenshots the runner writes to files (lib/agent-attachments). */
+    attachments?: AgentImage[]
     model?: string
     promptKey?: string
     promptLabel?: string
@@ -217,6 +222,8 @@ function validateInject(payload: Record<string, unknown>): ValidationResult {
   if (payload.projectId !== undefined && payload.projectId !== null && typeof payload.projectId !== 'string') {
     return { ok: false, error: "Inject payload field 'projectId' must be a string or null if present" }
   }
+  const injectImages = parseAgentImages(payload.attachments)
+  if (!injectImages.ok) return { ok: false, error: `Inject payload: ${injectImages.error}` }
 
   return {
     ok: true,
@@ -233,6 +240,7 @@ function validateInject(payload: Record<string, unknown>): ValidationResult {
         projectKey: payload.projectKey as string | undefined,
         runId: payload.runId as string | undefined,
         sessionId: payload.sessionId as string | undefined,
+        ...(injectImages.images.length > 0 ? { attachments: injectImages.images } : {}),
       },
     },
   }
@@ -261,6 +269,8 @@ function validateDispatch(payload: Record<string, unknown>): ValidationResult {
       return { ok: false, error: `dispatch payload field '${field}' must be a string if present` }
     }
   }
+  const dispatchImages = parseAgentImages(payload.attachments)
+  if (!dispatchImages.ok) return { ok: false, error: `dispatch payload: ${dispatchImages.error}` }
   return {
     ok: true,
     command: {
@@ -276,6 +286,7 @@ function validateDispatch(payload: Record<string, unknown>): ValidationResult {
         projectKey: payload.projectKey as string | undefined,
         runId: payload.runId as string | undefined,
         sessionId: payload.sessionId as string | undefined,
+        ...(dispatchImages.images.length > 0 ? { attachments: dispatchImages.images } : {}),
       },
     },
   }
