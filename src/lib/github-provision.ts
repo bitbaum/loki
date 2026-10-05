@@ -419,3 +419,36 @@ export async function deprovisionGithubRepo(
     detail,
   };
 }
+
+/**
+ * Turn GitHub Actions off for one repository.
+ *
+ * A "Make it yours" copy imports one of the fleet's own repositories, whose
+ * workflows deploy to the fleet's box with organisation-wide secrets. The
+ * copy is created in the same organisation, so those workflows would run
+ * there with those secrets: one push could ship a stranger's copy over a live
+ * product. Off before anything is pushed is the guarantee; the brief asking
+ * the agent to remove them is only the second layer.
+ */
+export async function disableGithubActions(
+  token: string,
+  owner: string,
+  repo: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/permissions`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ enabled: false }),
+      signal: AbortSignal.timeout(HTTP_TIMEOUT_SHORT_MS),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
