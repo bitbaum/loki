@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.39",
+    tag: "fleet-runner-v0.8.39",
+    date: "2026-10-05T14:00:00Z",
+    highlights: [
+      "A screenshot you attach in the Terminal or the phone conversation view now reaches the agent as the picture itself: the runner saves it on your machine and Claude opens it.",
+    ],
+    breaking: [],
+    notes:
+      "Screenshots used to be described in words by a free vision model before the agent saw them; when that model was busy, the agent got an error instead of the image. The runner now writes each screenshot to ~/.loki/attachments and gives the agent its path.",
+  },
+  {
     version: "0.8.38",
     tag: "fleet-runner-v0.8.38",
     date: "2026-10-03T12:00:00Z",
