@@ -7,9 +7,9 @@ import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { WebsiteChangeBrief } from "@/components/public/WebsiteChangeBrief";
 
 export const metadata: Metadata = {
-  title: "Change your website",
+  title: "Start from a website",
   description:
-    "Say what your website should do differently — typed or spoken. Loki's agents build a new version for you to review; your live site is not touched until you choose.",
+    "Name a website and say what you want — typed or spoken. Loki's agents build a new version of your site, or something new of your own inspired by one you admire. You review it first.",
 };
 
 /**
@@ -30,12 +30,13 @@ export default async function ChangeWebsitePage({
       <main className="ui-public-container py-10 sm:py-14">
         <div className="mx-auto max-w-2xl space-y-6">
           <div>
-            <div className="ui-public-eyebrow">Change your website</div>
-            <h1 className="ui-public-display-md mt-3">What should your website do differently?</h1>
+            <div className="ui-public-eyebrow">Start from a website</div>
+            <h1 className="ui-public-display-md mt-3">Start from a website you know.</h1>
             <p className="mt-3 text-base text-text-secondary">
-              Say it the way you would tell a person — which site, and what should change. Loki
-              writes it up as a brief, its agents build a new version, and you review it before
-              anything on your live site changes.
+              Say it the way you would tell a person: which site, and what you want. Loki can build
+              a new version of your own site, or something new of your own that only takes ideas
+              from one you admire. Its agents write the brief and build it, and you review it before
+              anything goes live.
             </p>
           </div>
           <WebsiteChangeBrief signedIn={Boolean(session?.user)} />
