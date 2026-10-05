@@ -4461,6 +4461,22 @@
     margin-bottom: calc(var(--mobile-chrome-bottom) + 0.5rem);
     max-height: calc(100svh - var(--mobile-chrome-bottom) - 2rem);
   }
+  /* While a sheet is open the bottom nav is hidden (fc-overlay-open), so the
+     clearance above is empty space: the panel floated ~90px above the edge
+     as a card. On a phone a bottom panel is a SHEET — full width, on the
+     bottom edge, square at the bottom, clear of the home indicator. */
+  @media (max-width: 47.99rem) {
+    body.fc-overlay-open .ui-modal-panel-mobile-bottom {
+      width: calc(100% + 2rem);
+      max-width: none;
+      margin: 0 -1rem -1rem;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom-width: 0;
+      padding-bottom: var(--mobile-safe-bottom);
+      max-height: calc(100svh - 3rem);
+    }
+  }
   @media (min-width: 48rem) {
     .ui-modal-panel-mobile-clearance,
     .ui-modal-panel-mobile-bottom {

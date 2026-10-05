@@ -11,6 +11,8 @@ import {
   isQuotaDeath,
   nextActionForWork,
   presentTerminalRun,
+  railStatusLines,
+  WORKING_NEXT_ACTION,
 } from "@/lib/terminal-run-view";
 import { FEEDBACK_WORK_PHASE, WAITING_ON, type FeedbackWorkView } from "@/lib/feedback/work-phase";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
@@ -203,6 +205,35 @@ check("Watch and Terminal share the run id in the deep link", () => {
     withSource,
     "/terminal?project=Loki&source=cloud&run=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
   );
+});
+
+check("a working run says it once — the badge — not three times", () => {
+  const lines = railStatusLines({
+    label: "Working · 2 min",
+    stepSummary: "Agent is working",
+    nextAction: WORKING_NEXT_ACTION,
+  });
+  assert.deepEqual(lines, { summary: null, next: null });
+});
+
+check("a line that adds something is kept", () => {
+  const lines = railStatusLines({
+    label: "Stuck",
+    stepSummary: "Agent blocked — needs input",
+    nextAction: "Answer the permission prompt in the terminal.",
+  });
+  assert.equal(lines.summary, "Agent blocked — needs input");
+  assert.equal(lines.next, "Answer the permission prompt in the terminal.");
+});
+
+check("a next action equal to the summary is not printed twice", () => {
+  const lines = railStatusLines({
+    label: "Queued",
+    stepSummary: "Waiting for the builder.",
+    nextAction: "Waiting for the builder.",
+  });
+  assert.equal(lines.summary, "Waiting for the builder.");
+  assert.equal(lines.next, null);
 });
 
 console.log(`\n${passed} checks passed`);

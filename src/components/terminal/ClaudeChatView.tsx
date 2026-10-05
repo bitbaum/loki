@@ -54,6 +54,7 @@ export function ClaudeChatView({
   channel,
   onKey,
   onShowTerminal,
+  onUnavailable,
 }: {
   tab: string;
   channel: BuilderChannel;
@@ -61,6 +62,10 @@ export function ClaudeChatView({
    *  Resolves once the bytes have left, so Enter can follow a long paste. */
   onKey: (bytes: string) => void | Promise<void>;
   onShowTerminal: () => void;
+  /** The builder is connected but never sends this session's conversation
+   *  (an older Fleet Runner). The caller shows the terminal instead — a
+   *  screen explaining runner versions is a dead end, not a view. */
+  onUnavailable?: () => void;
 }) {
   const { items, connected, received, sessionId } = useClaudeTranscript(tab, channel);
   const blocks = groupTranscript(items);
@@ -81,6 +86,13 @@ export function ClaudeChatView({
     const t = window.setTimeout(() => setSilent(true), SILENCE_HINT_MS);
     return () => window.clearTimeout(t);
   }, [received]);
+  const onUnavailableRef = useRef(onUnavailable);
+  useEffect(() => {
+    onUnavailableRef.current = onUnavailable;
+  });
+  useEffect(() => {
+    if (silent && connected && !received) onUnavailableRef.current?.();
+  }, [silent, connected, received]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -249,10 +261,9 @@ function ChatEmpty({
           "Write below to begin. If the agent in this session is not Claude, the terminal shows it.",
         ]
     : connected
-      ? [
-          "The conversation isn't coming through",
-          "The builder running this session hasn't sent it. It needs Fleet Runner 0.8.38 or newer — the terminal works either way, and what you write below still reaches the session.",
-        ]
+      ? // Only seen by a caller that does not take onUnavailable; the
+        // terminal surface switches to the terminal instead.
+        ["Showing the terminal instead", "This builder does not send the conversation view."]
       : ["Reconnecting…", "Lost the connection to the builder. Trying again."];
   return (
     <div className="ui-claude-chat-empty" role="status">

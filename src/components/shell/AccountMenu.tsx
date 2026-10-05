@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { Lock, MessageSquareWarning } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { AccountMenu as SharedAccountMenu, type AccountGroup } from "@bitbaum/accountkit";
 import { ACCOUNT_NAV_ITEMS } from "@/config/navigation";
@@ -31,6 +31,21 @@ import { ThemeToggle } from "@/components/shell/ThemeToggle";
  * both. That split is what stopped the sidebar footer from slowly becoming a
  * second, worse settings page.
  */
+type LokiWidgetApi = { report?: () => void };
+
+/**
+ * Open Loki's own feedback widget. On a phone its floating button is hidden
+ * (the bottom nav carries data-fc-place="hidden": a fourth floating thing over
+ * the page was clutter), so reporting a problem lives here instead — the
+ * widget's API still opens its panel without a launcher. /support is the way
+ * in when the widget is not loaded (no token on this instance).
+ */
+function reportProblem() {
+  const api = (window as Window & { Loki?: LokiWidgetApi }).Loki;
+  if (typeof api?.report === "function") api.report();
+  else window.location.assign("/support");
+}
+
 export function AccountMenu() {
   const { data: session } = useSession();
   const { configured, unlocked, lock } = usePrivateZone();
@@ -62,6 +77,17 @@ export function AccountMenu() {
               },
             ]
           : [],
+    },
+    {
+      id: "help",
+      items: [
+        {
+          id: "report",
+          label: "Report a problem",
+          icon: <MessageSquareWarning className="h-4 w-4" aria-hidden="true" />,
+          onSelect: reportProblem,
+        },
+      ],
     },
   ];
 

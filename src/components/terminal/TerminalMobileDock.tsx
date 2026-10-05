@@ -24,13 +24,14 @@ type WatchPanel = "none" | "keys" | "write";
  * and arrows no matter how the task was dispatched. Modes change how words are
  * delivered; they do not change the fact that a TUI asks yes/no questions.
  *
- * Full screen is for WATCHING. It used to keep this whole dock — two rows of
- * keys, a mode switch and a composer, more than half of a phone screen — so
- * "full screen" bought the terminal a few rows and read as four unrelated
- * toolbars stacked under it (operator, 2026-10-05: "it looks Frankenstein").
- * Now full screen collapses the dock to ONE bar: Keys and Write open their
- * panel on demand, and Esc / Enter stay on the bar because answering a
- * "Continue?" must not take two taps.
+ * ONE bar, one panel at a time. The dock used to be two rows of keys, a mode
+ * switch and a composer stacked together — more than half of a phone screen,
+ * and four unrelated toolbars to read (operator, 2026-10-05: "it looks
+ * Frankenstein"). Now there is a single bar: Keys and Write each open their
+ * panel above it, and while watching Esc / Enter sit on the bar because
+ * answering a "Continue?" must not take two taps. The two layouts differ only in what
+ * starts open: the normal page opens on Write (it is where you type), full
+ * screen opens on nothing (it is for watching).
  *
  * Voice is not offered on the phone switch: the composer's own mic already
  * dictates (into a box you can read before sending), so a third chip for the
@@ -57,7 +58,14 @@ export function TerminalMobileDock({
   liveKeys: boolean;
   immersive: boolean;
 }) {
-  const [panel, setPanel] = useState<WatchPanel>("none");
+  const [panel, setPanel] = useState<WatchPanel>(immersive ? "none" : "write");
+  // Entering full screen is a request to watch; leaving it, to write again.
+  // Adjusted during render (React's pattern for state that follows a prop).
+  const [layout, setLayout] = useState(immersive);
+  if (layout !== immersive) {
+    setLayout(immersive);
+    setPanel(immersive ? "none" : "write");
+  }
   const toggle = (next: WatchPanel) => setPanel((p) => (p === next ? "none" : next));
 
   const writing = (
@@ -85,15 +93,6 @@ export function TerminalMobileDock({
     </>
   );
 
-  if (!immersive) {
-    return (
-      <div className="ui-term-dock md:hidden">
-        <TerminalKeyDeck onKey={onKey} />
-        {writing}
-      </div>
-    );
-  }
-
   return (
     <div className="ui-term-dock md:hidden">
       {panel === "keys" && <TerminalKeyDeck onKey={onKey} />}
@@ -117,7 +116,9 @@ export function TerminalMobileDock({
           <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
           Write
         </button>
-        {panel !== "keys" && (
+        {/* Only while watching: the Keys panel has its own Esc/Enter, and
+            beside the composer's Send a second Enter read as the same button. */}
+        {panel === "none" && (
           <div className="ml-auto flex items-center gap-1.5">
             <KeyCap keyDef={TERMINAL_KEYS.esc} onKey={onKey} className="ui-term-key" />
             <KeyCap

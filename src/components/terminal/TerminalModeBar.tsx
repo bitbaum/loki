@@ -110,7 +110,11 @@ export function TerminalSessionBar({
   onSwitchAgent,
   switchingAgent,
   agentSwitchDisabledReason,
+  showInputModes = true,
 }: {
+  /** Off in the conversation view, whose composer does not use them — a
+   *  switch that changes nothing on screen is noise. */
+  showInputModes?: boolean;
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
   agents: AgentEntry[];
@@ -157,13 +161,17 @@ export function TerminalSessionBar({
           )}
         </div>
 
-        <TerminalInputSwitch inputMode={inputMode} onInputModeChange={onInputModeChange} />
+        {showInputModes && (
+          <TerminalInputSwitch inputMode={inputMode} onInputModeChange={onInputModeChange} />
+        )}
       </div>
 
       {/* One line of consequence for the selected input mode. Replaces the
           permanent yellow callout that used to sit above every terminal
           repeating the same paragraph regardless of what you were doing. */}
-      <p className="text-micro leading-snug text-text-muted">{terminalInputHint(inputMode)}</p>
+      {showInputModes && (
+        <p className="text-micro leading-snug text-text-muted">{terminalInputHint(inputMode)}</p>
+      )}
     </div>
   );
 }

@@ -41,6 +41,7 @@ import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
 import { Modal } from "@/components/ui/modal";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
+import { TerminalOfflineActions } from "./TerminalOfflineActions";
 import { TerminalPaneActions } from "./TerminalPaneActions";
 import { useTerminalView } from "./use-terminal-view";
 import { useTerminalTabs } from "./use-terminal-tabs";
@@ -411,7 +412,13 @@ export function TerminalSurface({
   const tabContext = context?.tabs.find((t) => t.tab === activeTab) ?? null;
   const activeAgentId = tabContext?.agentPref ?? context?.agents.defaultAgent ?? null;
   const termView = useTerminalView(activeAgentId);
-  const { view, chatAvailable } = termView;
+  // Sessions whose builder never sends the conversation: shown as the terminal
+  // and offered no conversation toggle, without touching the saved preference
+  // (the next session, on a newer runner, still opens as a conversation).
+  const [noTranscript, setNoTranscript] = useState<ReadonlySet<string>>(() => new Set());
+  const transcriptMissing = activeTab !== null && noTranscript.has(activeTab);
+  const chatAvailable = termView.chatAvailable && !transcriptMissing;
+  const view = transcriptMissing ? "terminal" : termView.view;
   const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
 
   const [switchingAgent, setSwitchingAgent] = useState(false);
@@ -535,6 +542,7 @@ export function TerminalSurface({
         canSwitchAgent={!agentSwitchDisabledReason}
         onSwitchAgent={(id) => void switchAgent(id)}
         readScreenRef={readScreenRef}
+        askOnly={view === "chat"}
       />
     ) : null;
 
@@ -679,6 +687,11 @@ export function TerminalSurface({
               </div>
             </>
           )}
+          {(gatedMessage || offline) && (
+            <TerminalOfflineActions
+              onUseThisComputer={source === "cloud" ? () => setSource("machine") : undefined}
+            />
+          )}
         </div>
       );
     }
@@ -706,6 +719,9 @@ export function TerminalSurface({
           channel={channel}
           onKey={sendKey}
           onShowTerminal={termView.showTerminal}
+          onUnavailable={() =>
+            setNoTranscript((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)))
+          }
         />
       );
     }
@@ -749,6 +765,7 @@ export function TerminalSurface({
             onSwitchAgent={(id) => void switchAgent(id)}
             switchingAgent={switchingAgent}
             agentSwitchDisabledReason={agentSwitchDisabledReason}
+            showInputModes={view === "terminal"}
           />
         </div>
       )}

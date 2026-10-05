@@ -18,7 +18,10 @@ export function MobileNav() {
 
   return (
     <>
-      <nav className="ui-mobile-nav" aria-label="Primary">
+      {/* data-fc-place="hidden": while this bar is on screen (phones), Loki's
+          own feedback launcher stays out of the way — reporting lives in the
+          account menu. See AccountMenu's reportProblem. */}
+      <nav className="ui-mobile-nav" aria-label="Primary" data-fc-place="hidden">
         {MOBILE_NAV_ITEMS.map((item) => {
           const isActive = isCurrentPath(pathname, item.href);
           const Icon = item.icon;

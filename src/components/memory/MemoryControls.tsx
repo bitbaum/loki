@@ -46,7 +46,7 @@ export function MemoryEntityList({ entities }: { entities: RecentEntity[] }) {
           <div className="flex-1 min-w-0">
             <div className="text-base truncate text-text-primary">{e.name}</div>
             {e.description && (
-              <div className="mt-1 truncate text-sm text-text-secondary">{e.description}</div>
+              <div className="mt-1 line-clamp-2 text-sm text-text-secondary">{e.description}</div>
             )}
           </div>
           <span className="shrink-0 pt-0.5 text-xs text-text-tertiary">

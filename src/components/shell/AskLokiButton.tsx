@@ -246,7 +246,9 @@ export function AskLokiButton() {
     }
   }, [input, asking, workspaceKey, activeForm]);
 
-  if (pathname === "/loki") return null;
+  // /loki IS the assistant; /terminal carries it as its Loki panel (rail or
+  // sheet). A floating second entry point there sat on the panel's own Send.
+  if (pathname === "/loki" || pathname === "/terminal") return null;
 
   const canAct = context != null && !context.readonly;
 
