@@ -65,6 +65,7 @@ import {
   worktreePromptNote,
 } from '@/lib/agent-execution/worktree-workspace'
 import { isDerivedRunTab } from '@/lib/run-tab'
+import { materializeImages } from '@/lib/agent-attachments-fs'
 
 /** Commands that change the open-tab / agent set → trigger an immediate
  *  runtime-state push so the UI reflects them in ~1s, not at the next heartbeat. */
@@ -474,7 +475,10 @@ async function handleCommand(
   } else try {
     switch (validation.command.type) {
       case 'inject': {
-        const { tab, prompt } = validation.command.payload
+        const { tab, attachments } = validation.command.payload
+        // Screenshots become files here, where the agent runs; the prompt
+        // then names their paths (lib/agent-attachments).
+        const prompt = materializeImages(validation.command.payload.prompt, attachments ?? [])
         const baseline = readMtimeMs(sessionFilePath(tab))
         // Owned PTY or nothing. A bare inject cannot start an agent; the cloud
         // enqueues a DISPATCH (cold start) for a project with no live session,
@@ -532,7 +536,8 @@ async function handleCommand(
         // The reliable product loop, done where we have ground truth (the
         // local machine): ensure the tab + agent, then inject — and VERIFY,
         // so the cloud/UI learns the real outcome instead of a fake ok.
-        const { tab, dir, agent, model, prompt, runId, sessionId } = validation.command.payload
+        const { tab, dir, agent, model, runId, sessionId, attachments } = validation.command.payload
+        const prompt = materializeImages(validation.command.payload.prompt, attachments ?? [])
         assertKnownLaunchAgent(agent)
         // Worktree-per-agent (opt-in via LOKI_WORKTREE_DISPATCH): a FRESH
         // dispatch launch runs in its own git worktree so it can never collide

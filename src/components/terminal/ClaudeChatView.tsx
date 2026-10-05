@@ -115,31 +115,29 @@ export function ClaudeChatView({
   const [sendError, setSendError] = useState<string | null>(null);
   const send = async (text: string, attachments: Attachment[]): Promise<boolean> => {
     setSendError(null);
-    let message = text;
     if (attachments.length > 0) {
-      // A screenshot is described (and a text file inlined) by the same fold
-      // every dispatch uses — Claude in a PTY cannot see the picture itself.
+      // A screenshot cannot ride the keystroke lane: it goes as an inject the
+      // runner turns into files, so Claude opens the image itself
+      // (api/control/chat-send, lib/agent-attachments).
       try {
-        const res = await postJson("/api/control/fold-attachments", { text, attachments });
-        const data = (await res.json().catch(() => ({}))) as {
-          prompt?: unknown;
-          error?: unknown;
-        };
-        if (!res.ok || typeof data.prompt !== "string") {
+        const res = await postJson("/api/control/chat-send", { tab, text, attachments, channel });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: unknown };
           setSendError(
             typeof data.error === "string"
               ? data.error
-              : `Could not read the attachment (HTTP ${res.status}).`,
+              : `Could not send the screenshot (HTTP ${res.status}).`,
           );
           return false;
         }
-        message = data.prompt;
       } catch (e) {
-        setSendError(e instanceof Error ? e.message : "Could not read the attachment.");
+        setSendError(e instanceof Error ? e.message : "Could not send the screenshot.");
         return false;
       }
+      setFollowing(true);
+      return true;
     }
-    await onKey(`${PASTE_START}${message}${PASTE_END}`);
+    await onKey(`${PASTE_START}${text}${PASTE_END}`);
     window.setTimeout(() => void onKey(ENTER), SUBMIT_DELAY_MS);
     setFollowing(true);
     return true;
