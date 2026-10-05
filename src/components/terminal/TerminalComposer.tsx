@@ -9,6 +9,7 @@ import type { Attachment, ModelChoice } from "@/components/loki/types";
 import type { SessionAsk } from "@/hooks/use-session-ask";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import { dispatchToneDotClass } from "@/lib/dispatch-status";
+import { SuggestionChips } from "./SuggestionChips";
 import { terminalComposerModes, type SessionComposerMode } from "./terminal-composer-modes";
 
 const SCREENSHOT_ONLY = "Look at the attached screenshot and fix what is wrong.";
@@ -65,7 +66,7 @@ export function TerminalComposer({
   density?: "comfortable" | "compact";
   injectPlaceholder?: string;
   /** Instructions that fit what the session shows (lib/terminal-suggestions).
-   *  Shown while the box is empty; a tap fills it, it never sends. */
+   *  Shown while the box is empty; a tap sends it (SuggestionChips). */
   suggestions?: readonly string[];
 }) {
   const modes: ComposerMode[] = terminalComposerModes(
@@ -178,23 +179,14 @@ export function TerminalComposer({
   const header = (
     <>
       {showSuggestions && (
-        <ul className="ui-term-suggests" aria-label="Suggested prompts">
-          {suggestions!.map((s) => (
-            <li key={s}>
-              <button
-                type="button"
-                className="ui-term-suggest"
-                onClick={() => {
-                  setText(s);
-                  setMode("inject");
-                  inputRef.current?.focus();
-                }}
-              >
-                {s}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <SuggestionChips
+          suggestions={suggestions!}
+          disabled={injecting}
+          onPick={(s) => {
+            setMode("inject");
+            void inject(s, []);
+          }}
+        />
       )}
       {shownError && (
         <div className="ui-loki-composer-error" role="alert">

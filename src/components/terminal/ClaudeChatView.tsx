@@ -24,6 +24,8 @@ import {
 } from "@/lib/claude-transcript";
 import type { BuilderChannel } from "@/lib/constants/statuses";
 import { postJson } from "@/lib/api/fetch";
+import { suggestFromReply } from "@/lib/terminal-suggestions";
+import { SuggestionChips } from "./SuggestionChips";
 
 /** Bracketed paste: newlines stay inside the message instead of submitting it. */
 const PASTE_START = "\x1b[200~";
@@ -79,6 +81,10 @@ export function ClaudeChatView({
   // way the Claude app lets you line up the next thing while it works.
   const [draft, setDraft] = useState("");
   const liveStatus = !working ? null : last?.kind === "tool" ? describeToolRun([last]) : "Thinking";
+  // Claude has finished and is waiting for you: its last reply says what it
+  // is waiting on, so the next step is one tap (lib/terminal-suggestions).
+  const suggestions =
+    last?.kind === "assistant" && !draft.trim() ? suggestFromReply(last.text) : [];
 
   const [silent, setSilent] = useState(false);
   useEffect(() => {
@@ -213,7 +219,17 @@ export function ClaudeChatView({
           placeholder={working ? "Queue a message…" : "Message Claude…"}
           ariaLabel={`Message Claude in ${tab}`}
           attachmentOnlyText="Look at the attached screenshot and fix what is wrong."
-          header={sendError ? <p className="ui-error">{sendError}</p> : undefined}
+          header={
+            sendError || suggestions.length > 0 ? (
+              <>
+                <SuggestionChips
+                  suggestions={suggestions}
+                  onPick={(prompt) => void send(prompt, [])}
+                />
+                {sendError && <p className="ui-error">{sendError}</p>}
+              </>
+            ) : undefined
+          }
           sending={working && !draft.trim()}
           // Stop = Esc, exactly what interrupting Claude Code takes.
           onStop={() => onKey(ESC)}
