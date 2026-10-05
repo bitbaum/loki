@@ -5,6 +5,7 @@
     "node": ">=20"
   },
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "prebuild": "npx tsx scripts/generate-bash-state-vocab.ts && npx tsx scripts/generate-widget-theme.ts && pnpm run build:widget",
