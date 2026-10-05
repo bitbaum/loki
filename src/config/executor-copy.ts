@@ -98,7 +98,7 @@ export const EXECUTOR_COPY = {
     neverSeenTitle: "Connect a builder to run agents",
     offlineTitle: "Builder offline",
     neverSeenBody:
-      "Projects set to “This computer” run through Fleet Runner here; connect it to execute them. Cloud builder access is limited to eligible accounts.",
+      "Agents need a computer to run on. Install the desktop app and they run on yours, in your own folders.",
     offlineBody:
       "No builder is executing right now. Work stays queued — nothing is lost. Open Fleet Runner on this computer; eligible accounts can also use the Cloud builder.",
     reconnectHint: "Using this computer? Open the desktop app from the menu bar. Still stuck?",

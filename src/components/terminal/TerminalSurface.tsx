@@ -41,6 +41,7 @@ import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
 import { Modal } from "@/components/ui/modal";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
+import { TerminalOfflineActions } from "./TerminalOfflineActions";
 import { TerminalPaneActions } from "./TerminalPaneActions";
 import { useTerminalView } from "./use-terminal-view";
 import { useTerminalTabs } from "./use-terminal-tabs";
@@ -327,14 +328,22 @@ export function TerminalSurface({
   // bytes, and the composer will happily hand over a pasted paragraph. Sending
   // the pieces without awaiting would let them arrive out of order — the same
   // "echo" → "ehco" reordering TerminalView's own input buffer exists to stop.
+  // Every write goes through ONE chain, so a long paste split into chunks can
+  // never be overtaken by the Enter sent after it — and the caller can await
+  // the moment the last byte has actually left.
+  const sendChain = useRef<Promise<void>>(Promise.resolve());
   const sendKey = useCallback(
-    (bytes: string) => {
-      if (!transport) return;
-      void (async () => {
-        for (let i = 0; i < bytes.length; i += RAW_KEY_CHUNK) {
-          await transport.sendKey(bytes.slice(i, i + RAW_KEY_CHUNK));
-        }
-      })();
+    (bytes: string): Promise<void> => {
+      if (!transport) return Promise.resolve();
+      const run = sendChain.current
+        .then(async () => {
+          for (let i = 0; i < bytes.length; i += RAW_KEY_CHUNK) {
+            await transport.sendKey(bytes.slice(i, i + RAW_KEY_CHUNK));
+          }
+        })
+        .catch(() => {});
+      sendChain.current = run;
+      return run;
     },
     [transport],
   );
@@ -403,7 +412,13 @@ export function TerminalSurface({
   const tabContext = context?.tabs.find((t) => t.tab === activeTab) ?? null;
   const activeAgentId = tabContext?.agentPref ?? context?.agents.defaultAgent ?? null;
   const termView = useTerminalView(activeAgentId);
-  const { view, chatAvailable } = termView;
+  // Sessions whose builder never sends the conversation: shown as the terminal
+  // and offered no conversation toggle, without touching the saved preference
+  // (the next session, on a newer runner, still opens as a conversation).
+  const [noTranscript, setNoTranscript] = useState<ReadonlySet<string>>(() => new Set());
+  const transcriptMissing = activeTab !== null && noTranscript.has(activeTab);
+  const chatAvailable = termView.chatAvailable && !transcriptMissing;
+  const view = transcriptMissing ? "terminal" : termView.view;
   const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
 
   const [switchingAgent, setSwitchingAgent] = useState(false);
@@ -526,6 +541,7 @@ export function TerminalSurface({
         canSwitchAgent={!agentSwitchDisabledReason}
         onSwitchAgent={(id) => void switchAgent(id)}
         readScreenRef={readScreenRef}
+        askOnly={view === "chat"}
       />
     ) : null;
 
@@ -677,6 +693,11 @@ export function TerminalSurface({
               </div>
             </>
           )}
+          {(gatedMessage || offline) && (
+            <TerminalOfflineActions
+              onUseThisComputer={source === "cloud" ? () => setSource("machine") : undefined}
+            />
+          )}
         </div>
       );
     }
@@ -704,6 +725,9 @@ export function TerminalSurface({
           channel={channel}
           onKey={sendKey}
           onShowTerminal={termView.showTerminal}
+          onUnavailable={() =>
+            setNoTranscript((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)))
+          }
         />
       );
     }

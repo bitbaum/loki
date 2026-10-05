@@ -2841,6 +2841,12 @@
     @apply flex min-h-11 w-full items-center gap-2 rounded-lg border border-border-subtle bg-surface-base px-2.5 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
   }
 
+  /* "Live": floats over the bottom of the grid while the operator has scrolled
+     back, and returns to the newest output in one tap. */
+  .ui-term-jump {
+    @apply absolute bottom-3 right-3 z-10 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border-default bg-surface-raised px-3.5 text-xs font-medium text-text-primary shadow-panel transition-colors hover:border-border-strong;
+  }
+
   /* Status line above the grid: what the stream is doing, how wide the grid
      actually is, and the size stepper. One row, and the only chrome the mobile
      full-screen terminal keeps. */
@@ -3052,6 +3058,11 @@
   /* ── Dock — keys and composer as one block under the screen ─────────────── */
   .ui-term-dock {
     @apply flex shrink-0 flex-col gap-2 pt-1;
+  }
+  /* Full screen's only chrome under the terminal: Keys / Write open a panel
+     above it on demand; Esc and Enter stay so a "Continue?" is one tap. */
+  .ui-term-watchbar {
+    @apply flex min-w-0 items-center gap-1.5;
   }
   .ui-term-dock-hint {
     @apply px-1 text-micro leading-snug text-text-muted;
@@ -4472,6 +4483,22 @@
     margin-inline: 1rem;
     margin-bottom: calc(var(--mobile-chrome-bottom) + 0.5rem);
     max-height: calc(100svh - var(--mobile-chrome-bottom) - 2rem);
+  }
+  /* While a sheet is open the bottom nav is hidden (fc-overlay-open), so the
+     clearance above is empty space: the panel floated ~90px above the edge
+     as a card. On a phone a bottom panel is a SHEET — full width, on the
+     bottom edge, square at the bottom, clear of the home indicator. */
+  @media (max-width: 47.99rem) {
+    body.fc-overlay-open .ui-modal-panel-mobile-bottom {
+      width: calc(100% + 2rem);
+      max-width: none;
+      margin: 0 -1rem -1rem;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom-width: 0;
+      padding-bottom: var(--mobile-safe-bottom);
+      max-height: calc(100svh - 3rem);
+    }
   }
   @media (min-width: 48rem) {
     .ui-modal-panel-mobile-clearance,

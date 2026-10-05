@@ -59,6 +59,36 @@ export function isQuotaDeath(input: {
   return !!text && looksLikeAgentCapacityIssue(text);
 }
 
+/** What a working run's "next action" says when there is nothing to do but
+ *  watch. Named so the rail can recognise it and not print it. */
+export const WORKING_NEXT_ACTION =
+  "Agent is generating. Inject to steer this session, or Ask Loki about the run.";
+
+/** Step summaries that only restate the badge ("Working · 2 min"). */
+const RESTATES_BADGE = new Set(["Agent is generating", "Agent is working"]);
+
+/**
+ * The lines the rail prints under its badge — only the ones that add
+ * something. A working run used to read "Working · 2 min" / "Agent is working"
+ * / "Agent is generating. Inject to steer…": one fact three times, above the
+ * actual content (operator, 2026-10-05). The composer under the rail already
+ * offers Ask and Inject, so the sentence telling you so is dropped too.
+ */
+export function railStatusLines(p: TerminalRunPresentation): {
+  summary: string | null;
+  next: string | null;
+} {
+  const summary =
+    RESTATES_BADGE.has(p.stepSummary) || p.stepSummary === p.label ? null : p.stepSummary;
+  const next =
+    p.nextAction === WORKING_NEXT_ACTION ||
+    p.nextAction === p.label ||
+    p.nextAction === p.stepSummary
+      ? null
+      : p.nextAction;
+  return { summary, next };
+}
+
 export function nextActionForWork(work: FeedbackWorkView, quotaDeath = false): string {
   // Deliberately does not name the alternatives. It used to list all five, and
   // that sentence went stale the moment the chooser started filtering to the
@@ -67,9 +97,7 @@ export function nextActionForWork(work: FeedbackWorkView, quotaDeath = false): s
   if (quotaDeath) return "Quota empty — switch to a provider that still has some.";
   if (work.queueReason) return work.queueReason;
   if (work.detail) return work.detail;
-  if (work.phase === FEEDBACK_WORK_PHASE.WORKING) {
-    return "Agent is generating. Inject to steer this session, or Ask Loki about the run.";
-  }
+  if (work.phase === FEEDBACK_WORK_PHASE.WORKING) return WORKING_NEXT_ACTION;
   if (work.phase === FEEDBACK_WORK_PHASE.QUEUED) {
     return work.stepSummary ?? "Waiting for the builder.";
   }

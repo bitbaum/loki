@@ -25,13 +25,19 @@ const ICONS = {
 export function TerminalInputSwitch({
   inputMode,
   onInputModeChange,
+  hide = [],
 }: {
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
+  /** Modes not offered here because the surface already covers them (the
+   *  current mode is always shown, so nobody is stranded in a hidden one). */
+  hide?: readonly TerminalInputMode[];
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Input mode">
-      {TERMINAL_INPUT_MODES.map((option) => {
+      {TERMINAL_INPUT_MODES.filter(
+        (option) => option.id === inputMode || !hide.includes(option.id),
+      ).map((option) => {
         const active = option.id === inputMode;
         return (
           <button

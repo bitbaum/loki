@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { X, Radio, WifiOff, Sparkles, Download, Terminal, Cpu, Loader2 } from "lucide-react";
+import { X, Radio, WifiOff, Download, Terminal, Cpu, Loader2 } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { APP_URL } from "@/config/brand";
@@ -139,30 +139,11 @@ export function RunnerStatusBanner({
                 : EXECUTOR_COPY.runnerBanner.neverSeenBody}
             </p>
 
-            <div className={`grid gap-2 ${hasProjects ? "" : "md:grid-cols-2"}`}>
-              {/* Path A — "Start a new project" pitch. Hidden when the user
-                  already has projects (the welcome cards on /control's empty
-                  state already cover that case; users-with-projects don't
-                  need to be told to start one). */}
-              {!hasProjects && (
-                <Link
-                  href="/control/new-from-scratch"
-                  className="ui-card-shell hover:border-accent-primary transition-colors p-3 flex flex-col gap-1 group"
-                >
-                  <div className="flex items-center gap-1.5 font-medium text-text-primary text-sm">
-                    <Sparkles className="h-3.5 w-3.5 text-accent-text" />
-                    Start a new project
-                  </div>
-                  <p className="text-xs text-text-muted">
-                    Creates a GitHub repo + project record right from this website. No install. Pick
-                    a starter (Next.js, FastAPI, Hono, plain HTML), clone wherever.
-                  </p>
-                  <span className="text-xs text-accent-text mt-auto pt-1 group-hover:underline">
-                    No install needed →
-                  </span>
-                </Link>
-              )}
-
+            {/* One way forward, not two cards: "Start a new project" lived here
+                AND in the page's own Add-a-project card directly below — the
+                same offer twice on one screen. Setup is the one thing this
+                banner is for. */}
+            <div className="flex flex-col gap-2">
               {/* Path B branches on whether we're already inside Fleet Runner.
                   When yes: replace the "download" CTA with a one-click pair
                   button (the user already has the app, they just need the
@@ -212,21 +193,9 @@ export function RunnerStatusBanner({
                   </div>
                 )
               ) : (
-                <Link
-                  href="/download"
-                  className="ui-card-shell hover:border-accent-primary transition-colors p-3 flex flex-col gap-1 group"
-                >
-                  <div className="flex items-center gap-1.5 font-medium text-text-primary text-sm">
-                    <Download className="h-3.5 w-3.5 text-accent-text" />
-                    Get the desktop app
-                  </div>
-                  <p className="text-xs text-text-muted">
-                    Optional — run agents on this computer with your local folders and CLI tools.
-                    Same dashboard as the website.
-                  </p>
-                  <span className="text-xs text-accent-text mt-auto pt-1 group-hover:underline">
-                    Download for your OS →
-                  </span>
+                <Link href="/download" className="ui-btn-primary self-start gap-1.5 text-xs">
+                  <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                  Get the desktop app
                 </Link>
               )}
             </div>
@@ -234,7 +203,7 @@ export function RunnerStatusBanner({
             <details className="text-xs text-text-tertiary mt-1">
               <summary className="cursor-pointer hover:text-text-secondary">
                 <Terminal className="inline h-3 w-3 mr-1 -mt-0.5" />
-                Prefer a terminal-only install? (CLI agent installer)
+                Other ways to set up
               </summary>
               <div className="mt-2 ml-4 space-y-1.5">
                 <p>
@@ -277,7 +246,10 @@ export function RunnerStatusBanner({
             (setup) flow and when running locally. Also suppressed inside
             Fleet Runner — MissingCLIsBanner handles that case and only shows
             the CLIs ACTUALLY missing (v0.6.0 getInstalledCLIs IPC). */}
-        {(runnerNeverSeen || runtimeAvailable) && !insideFleetRunner && (
+        {/* Only where a builder can act on them now. Before any builder has
+            connected they queued a command nothing would pick up — five
+            buttons that visibly did nothing. */}
+        {runtimeAvailable && !insideFleetRunner && (
           <div className="pt-2 border-t border-border-subtle">
             <p className="text-xs text-text-muted mb-1.5">
               Missing an agent CLI? Click to open a dedicated terminal tab with the installer:
