@@ -420,9 +420,9 @@ export function TerminalSurface({
   const transcriptMissing = activeTab !== null && noTranscript.has(activeTab);
   const chatAvailable = termView.chatAvailable && !transcriptMissing;
   const view = transcriptMissing ? "terminal" : termView.view;
-  const promptOpen = Boolean(activeTab) && view === "terminal" && inputMode === "prompt";
-  const suggestions = useScreenSuggestions(readScreenRef, promptOpen);
   const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
+  const promptOpen = Boolean(activeTab) && view === "terminal" && inputMode === "prompt";
+  const suggestions = useScreenSuggestions(readScreenRef, promptOpen, projectKey);
 
   const [switchingAgent, setSwitchingAgent] = useState(false);
   const agentSwitchDisabledReason = !activeTab

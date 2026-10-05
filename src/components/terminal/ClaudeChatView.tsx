@@ -17,7 +17,10 @@ import { MarkdownText } from "@/components/ui/markdown-text";
 import { useClaudeTranscript } from "@/hooks/use-claude-transcript";
 import {
   describeToolRun,
+  describeToolStep,
   groupTranscript,
+  sessionMode,
+  turnElapsedLabel,
   looksBlockedOnApproval,
   type TranscriptBlock,
   type TranscriptItem,
@@ -25,7 +28,10 @@ import {
 import type { BuilderChannel } from "@/lib/constants/statuses";
 import { postJson } from "@/lib/api/fetch";
 import { suggestFromReply } from "@/lib/terminal-suggestions";
+import { mergeSteps } from "@/lib/terminal-next-steps";
+import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
 import { SuggestionChips } from "./SuggestionChips";
+import { SessionModeChip } from "./SessionModeChip";
 
 /** Bracketed paste: newlines stay inside the message instead of submitting it. */
 const PASTE_START = "\x1b[200~";
@@ -82,9 +88,21 @@ export function ClaudeChatView({
   const [draft, setDraft] = useState("");
   const liveStatus = !working ? null : last?.kind === "tool" ? describeToolRun([last]) : "Thinking";
   // Claude has finished and is waiting for you: its last reply says what it
-  // is waiting on, so the next step is one tap (lib/terminal-suggestions).
-  const suggestions =
-    last?.kind === "assistant" && !draft.trim() ? suggestFromReply(last.text) : [];
+  // is waiting on, so the next step is one tap. The rules answer at once; the
+  // fast model reads the whole reply and its steps lead once they arrive.
+  const reply = last?.kind === "assistant" ? last.text : null;
+  const aiSteps = useAiNextSteps(reply, "reply", tab);
+  const suggestions = reply && !draft.trim() ? mergeSteps(aiSteps, suggestFromReply(reply)) : [];
+  // How long this turn has been going, from your last message — the Claude
+  // app's "✳ 13 s". A run with no clock reads the same at second 2 and
+  // minute 20, which is how a stuck turn hides.
+  const turnStart = working
+    ? ([...items].reverse().find((i) => i.kind === "user")?.at ?? null)
+    : null;
+  const now = useSecondTick(turnStart !== null);
+  const mode = sessionMode(items);
+  const lastMine = [...items].reverse().find((i) => i.kind === "user")?.id ?? null;
+  const elapsed = turnElapsedLabel(turnStart, now);
 
   const [silent, setSilent] = useState(false);
   useEffect(() => {
@@ -208,6 +226,7 @@ export function ClaudeChatView({
               ✳
             </span>
             <span className="min-w-0 truncate">{liveStatus}…</span>
+            {elapsed && <span className="ui-claude-live-time">{elapsed}</span>}
           </p>
         )}
         <Composer
@@ -227,6 +246,9 @@ export function ClaudeChatView({
                 {sendError && <p className="ui-error">{sendError}</p>}
               </>
             ) : undefined
+          }
+          tools={
+            mode ? <SessionModeChip mode={mode} lastMessageId={lastMine} onKey={onKey} /> : null
           }
           sending={working && !draft.trim()}
           // Stop = Esc, exactly what interrupting Claude Code takes.
@@ -317,11 +339,24 @@ function Block({ block }: { block: TranscriptBlock }) {
   );
 }
 
-/** A folded run of tool calls: one line, tap to see each call and its result. */
+/** Now, refreshed every second while `on` — for the turn clock. */
+function useSecondTick(on: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!on) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [on]);
+  return now;
+}
+
+/** A folded run of tool calls: one line, tap to see each call and its result.
+ *  A single call names itself — "Ran" + the command — instead of a count. */
 function ToolRun({ tools }: { tools: ToolItem[] }) {
   const [open, setOpen] = useState(false);
   const running = tools.some((t) => t.status === "running");
   const failed = tools.some((t) => t.status === "error");
+  const step = tools.length === 1 ? describeToolStep(tools[0]) : null;
   return (
     <div className="ui-claude-tools">
       <button
@@ -331,7 +366,14 @@ function ToolRun({ tools }: { tools: ToolItem[] }) {
         aria-expanded={open}
       >
         {running && <Loader2 className="ui-spinner h-3.5 w-3.5 shrink-0" aria-hidden />}
-        <span className="min-w-0 truncate">{describeToolRun(tools)}</span>
+        {step && step.target ? (
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <span className="shrink-0">{step.verb}</span>
+            <span className="min-w-0 truncate font-mono text-text-tertiary">{step.target}</span>
+          </span>
+        ) : (
+          <span className="min-w-0 truncate">{describeToolRun(tools)}</span>
+        )}
         {failed && <span className="ui-claude-tools-failed">failed</span>}
         <ChevronRight
           className={

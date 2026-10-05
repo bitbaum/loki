@@ -1,6 +1,10 @@
 // Claude Code's session log read as a conversation (src/lib/claude-transcript.ts).
 // Run: npx tsx scripts/test/claude-transcript.ts
 import {
+  CYCLE_MODE_KEY,
+  sessionMode,
+  describeToolStep,
+  turnElapsedLabel,
   describeToolRun,
   groupTranscript,
   looksBlockedOnApproval,
@@ -198,6 +202,78 @@ ok(
   ]) === "Running git push",
   "a live run says what is happening now",
 );
+
+// A single call names itself, the way the Claude app writes a step.
+const lone = {
+  id: "3",
+  at: null,
+  kind: "tool" as const,
+  name: "Bash",
+  summary: "cd /home/user/loki && git status",
+  status: "done" as const,
+  result: null,
+};
+ok(
+  describeToolStep(lone).verb === "Ran" && describeToolStep(lone).target === lone.summary,
+  "a finished command reads Ran + the command",
+);
+ok(
+  describeToolStep({ ...lone, status: "running" }).verb === "Running",
+  "a running command reads Running",
+);
+ok(
+  describeToolStep({ ...lone, name: "Mystery" }).verb === "Mystery",
+  "an unknown tool keeps its name",
+);
+
+// The turn clock.
+const t0 = "2026-10-05T13:00:00.000Z";
+ok(turnElapsedLabel(t0, Date.parse(t0) + 13_000) === "13 s", "13 s");
+ok(turnElapsedLabel(t0, Date.parse(t0) + 125_000) === "2 min 5 s", "2 min 5 s");
+ok(turnElapsedLabel(t0, Date.parse(t0) + 120_000) === "2 min", "2 min");
+ok(
+  turnElapsedLabel(null, 0) === null && turnElapsedLabel("nope", 0) === null,
+  "no start, no clock",
+);
+
+// The permission mode rides on what you send (operator, 2026-10-05: the
+// Claude app's Auto / Accept edits / Plan, in Loki's conversation view).
+{
+  const st = newTranscriptState();
+  const sent = (uuid: string, mode: string | undefined, text: string) =>
+    reduceTranscriptLine(
+      st,
+      JSON.stringify({
+        type: "user",
+        uuid,
+        timestamp: "2026-10-05T13:00:00Z",
+        ...(mode ? { permissionMode: mode } : {}),
+        message: { role: "user", content: text },
+      }),
+    );
+  const first = sent("u1", "acceptEdits", "fix it");
+  ok(first[0]?.kind === "user" && first[0].mode === "acceptEdits", "a message carries its mode");
+  const listItems = [...first, ...sent("u2", "plan", [{ type: "text", text: "plan it" }] as never)];
+  ok(sessionMode(listItems)?.label === "Plan", "the newest message's mode wins");
+  ok(sessionMode(sent("u3", "auto", "go"))?.label === "Auto", "auto reads Auto");
+  ok(sessionMode(sent("u4", "default", "go"))?.label === "Ask before edits", "default is named");
+  ok(
+    sessionMode(sent("u5", "someNewMode", "go"))?.label === "someNewMode",
+    "an unknown mode keeps its name",
+  );
+  ok(sessionMode(sent("u6", undefined, "go")) === null, "an older log says nothing");
+  const asst = reduceTranscriptLine(
+    st,
+    JSON.stringify({
+      type: "assistant",
+      uuid: "a1",
+      permissionMode: "plan",
+      message: { role: "assistant", content: "hi" },
+    }),
+  );
+  ok(asst[0] && !("mode" in asst[0]), "only your messages carry a mode");
+  ok(CYCLE_MODE_KEY === "\x1b[Z", "the switch key is Shift+Tab");
+}
 
 console.log(`${pass}/${pass + fail} claude-transcript cases passed`);
 if (fail > 0) process.exit(1);
