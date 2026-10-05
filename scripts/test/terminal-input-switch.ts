@@ -59,8 +59,22 @@ const render = (props: Parameters<typeof TerminalInputSwitch>[0]) =>
   );
   ok(
     read("TerminalSurface.tsx").includes("onOpenLoki={projectKey ?"),
-    "the dock's Loki chip opens the Loki sheet",
+    "the header's Loki button opens the Loki sheet",
   );
+  // One Loki entry point on a phone: the header's. The dock's chip was the
+  // same button a second time, one row below (2026-10-05).
+  ok(
+    !read("TerminalMobileDock.tsx").includes("onOpenLoki"),
+    "the phone dock does not repeat the header's Loki button",
+  );
+}
+{
+  // The phone hides Voice (the composer's mic dictates) — but never strands
+  // someone who is already in it.
+  const hidden = render({ inputMode: "prompt", onInputModeChange: noop, hide: ["voice"] });
+  ok(!hidden.includes(">Voice</button>"), "a hidden mode is not offered");
+  const current = render({ inputMode: "voice", onInputModeChange: noop, hide: ["voice"] });
+  ok(current.includes(">Voice</button>"), "the current mode is always shown");
 }
 
 console.log(`${fail ? "✗" : "✓"} terminal-input-switch: ${pass} passed, ${fail} failed`);

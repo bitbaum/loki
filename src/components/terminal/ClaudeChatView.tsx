@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { Composer } from "@/components/composer/Composer";
+import type { Attachment } from "@/components/loki/types";
 import { AnswerActions } from "@/components/loki/AnswerActions";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { useClaudeTranscript } from "@/hooks/use-claude-transcript";
@@ -22,6 +23,7 @@ import {
   type TranscriptItem,
 } from "@/lib/claude-transcript";
 import type { BuilderChannel } from "@/lib/constants/statuses";
+import { postJson } from "@/lib/api/fetch";
 
 /** Bracketed paste: newlines stay inside the message instead of submitting it. */
 const PASTE_START = "\x1b[200~";
@@ -55,8 +57,9 @@ export function ClaudeChatView({
 }: {
   tab: string;
   channel: BuilderChannel;
-  /** Write raw bytes into the session's PTY (TerminalSurface's sendKey). */
-  onKey: (bytes: string) => void;
+  /** Write raw bytes into the session's PTY (TerminalSurface's sendKey).
+   *  Resolves once the bytes have left, so Enter can follow a long paste. */
+  onKey: (bytes: string) => void | Promise<void>;
   onShowTerminal: () => void;
 }) {
   const { items, connected, received, sessionId } = useClaudeTranscript(tab, channel);
@@ -91,10 +94,37 @@ export function ClaudeChatView({
     if (following) endRef.current?.scrollIntoView({ block: "end" });
   }, [items, following]);
 
-  const send = (text: string) => {
-    onKey(`${PASTE_START}${text}${PASTE_END}`);
-    window.setTimeout(() => onKey(ENTER), SUBMIT_DELAY_MS);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const send = async (text: string, attachments: Attachment[]): Promise<boolean> => {
+    setSendError(null);
+    let message = text;
+    if (attachments.length > 0) {
+      // A screenshot is described (and a text file inlined) by the same fold
+      // every dispatch uses — Claude in a PTY cannot see the picture itself.
+      try {
+        const res = await postJson("/api/control/fold-attachments", { text, attachments });
+        const data = (await res.json().catch(() => ({}))) as {
+          prompt?: unknown;
+          error?: unknown;
+        };
+        if (!res.ok || typeof data.prompt !== "string") {
+          setSendError(
+            typeof data.error === "string"
+              ? data.error
+              : `Could not read the attachment (HTTP ${res.status}).`,
+          );
+          return false;
+        }
+        message = data.prompt;
+      } catch (e) {
+        setSendError(e instanceof Error ? e.message : "Could not read the attachment.");
+        return false;
+      }
+    }
+    await onKey(`${PASTE_START}${message}${PASTE_END}`);
+    window.setTimeout(() => void onKey(ENTER), SUBMIT_DELAY_MS);
     setFollowing(true);
+    return true;
   };
 
   return (
@@ -167,10 +197,11 @@ export function ClaudeChatView({
         <Composer
           value={draft}
           onValueChange={setDraft}
-          onSend={(text) => send(text)}
+          onSend={(text, _choice, attachments) => send(text, attachments)}
           placeholder={working ? "Queue a message…" : "Message Claude…"}
           ariaLabel={`Message Claude in ${tab}`}
-          attach={false}
+          attachmentOnlyText="Look at the attached screenshot and fix what is wrong."
+          header={sendError ? <p className="ui-error">{sendError}</p> : undefined}
           sending={working && !draft.trim()}
           // Stop = Esc, exactly what interrupting Claude Code takes.
           onStop={() => onKey(ESC)}

@@ -327,14 +327,22 @@ export function TerminalSurface({
   // bytes, and the composer will happily hand over a pasted paragraph. Sending
   // the pieces without awaiting would let them arrive out of order — the same
   // "echo" → "ehco" reordering TerminalView's own input buffer exists to stop.
+  // Every write goes through ONE chain, so a long paste split into chunks can
+  // never be overtaken by the Enter sent after it — and the caller can await
+  // the moment the last byte has actually left.
+  const sendChain = useRef<Promise<void>>(Promise.resolve());
   const sendKey = useCallback(
-    (bytes: string) => {
-      if (!transport) return;
-      void (async () => {
-        for (let i = 0; i < bytes.length; i += RAW_KEY_CHUNK) {
-          await transport.sendKey(bytes.slice(i, i + RAW_KEY_CHUNK));
-        }
-      })();
+    (bytes: string): Promise<void> => {
+      if (!transport) return Promise.resolve();
+      const run = sendChain.current
+        .then(async () => {
+          for (let i = 0; i < bytes.length; i += RAW_KEY_CHUNK) {
+            await transport.sendKey(bytes.slice(i, i + RAW_KEY_CHUNK));
+          }
+        })
+        .catch(() => {});
+      sendChain.current = run;
+      return run;
     },
     [transport],
   );
@@ -778,7 +786,6 @@ export function TerminalSurface({
           channel={channel}
           inputMode={inputMode}
           onInputModeChange={setInputMode}
-          onOpenLoki={projectKey ? () => setLokiSheetOpen(true) : undefined}
           onKey={sendKey}
           liveKeys={deck.liveKeys}
           immersive={immersive}

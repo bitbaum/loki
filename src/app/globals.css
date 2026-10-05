@@ -2841,6 +2841,12 @@
     @apply flex min-h-11 w-full items-center gap-2 rounded-lg border border-border-subtle bg-surface-base px-2.5 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
   }
 
+  /* "Live": floats over the bottom of the grid while the operator has scrolled
+     back, and returns to the newest output in one tap. */
+  .ui-term-jump {
+    @apply absolute bottom-3 right-3 z-10 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border-default bg-surface-raised px-3.5 text-xs font-medium text-text-primary shadow-panel transition-colors hover:border-border-strong;
+  }
+
   /* Status line above the grid: what the stream is doing, how wide the grid
      actually is, and the size stepper. One row, and the only chrome the mobile
      full-screen terminal keeps. */
@@ -3029,6 +3035,11 @@
   /* ── Dock — keys and composer as one block under the screen ─────────────── */
   .ui-term-dock {
     @apply flex shrink-0 flex-col gap-2 pt-1;
+  }
+  /* Full screen's only chrome under the terminal: Keys / Write open a panel
+     above it on demand; Esc and Enter stay so a "Continue?" is one tap. */
+  .ui-term-watchbar {
+    @apply flex min-w-0 items-center gap-1.5;
   }
   .ui-term-dock-hint {
     @apply px-1 text-micro leading-snug text-text-muted;
