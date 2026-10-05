@@ -5,7 +5,9 @@ import { upsertWidgetToken } from "@/db/queries/widget-tokens";
 import { appUrl } from "@/lib/email";
 import { planSiteCd } from "@/lib/site-cd";
 import { getRepoWriteToken } from "@/lib/github-org-token";
+import { isRepoCopyProject } from "@/lib/repo-brief";
 import {
+  disableGithubActions,
   parseGithubRepoUrl,
   provisionGithubRepo,
   repoHasStarterFiles,
@@ -180,6 +182,9 @@ export async function roadmapStep(
 // Must match box-workspace.ts DEV_ROOT so dirPath == where the runner clones.
 const DEV_ROOT = process.env.LOKI_BOX_DEV_ROOT || path.join(os.homedir(), "dev");
 
+const ACTIONS_OFF_FAILED =
+  "The repository was created, but GitHub Actions could not be switched off for it. Nothing was imported. Try again.";
+
 export const ProvisionBody = z.object({
   visibility: z.enum(["private", "public"]).default("private"),
   // "auto" resolves from the project's own stack attribute — the kickoff flow
@@ -209,6 +214,27 @@ export async function provisionStep(
   if (template === "auto") {
     const attrs = (await fetchAttributesByEntityIds([id]).catch(() => new Map())).get(id) ?? {};
     template = inferProvisionTemplate(attrs[PROJECT_ATTR.STACK]);
+  }
+
+  // A "Make it yours" copy must never run the imported repo's workflows (see
+  // disableGithubActions). A retry after a failed switch-off lands here with
+  // the repo already linked: switch it off again rather than refusing.
+  const copy = isRepoCopyProject(project.name);
+  const linkedCopy = copy && project.gitUrl ? parseGithubRepoUrl(project.gitUrl) : null;
+  if (linkedCopy) {
+    const off = await disableGithubActions(token, linkedCopy.owner, linkedCopy.repo);
+    if (!off) return json({ error: ACTIONS_OFF_FAILED }, 502);
+    return json({
+      ok: true,
+      repo: {
+        name: linkedCopy.repo,
+        full_name: `${linkedCopy.owner}/${linkedCopy.repo}`,
+        gitUrl: project.gitUrl,
+      },
+      dirPath: path.join(DEV_ROOT, repoSlug(project.name)),
+      template,
+      templateSeeded: true,
+    });
   }
 
   // An already-linked repo is refused unless it is bare: seeding is non-fatal
@@ -286,6 +312,14 @@ export async function provisionStep(
   const up = await getUserProjectByEntityId(userId, id);
   if (up) await updateUserProject(up.id, userId, { gitUrl: result.repo.html_url, dirPath });
   await patchProject(userId, id, { gitUrl: result.repo.html_url });
+
+  // Linked first, so a retry finds this repo instead of creating a second one.
+  if (copy) {
+    const [owner, repo] = result.repo.full_name.split("/");
+    if (!owner || !repo || !(await disableGithubActions(token, owner, repo))) {
+      return json({ error: ACTIONS_OFF_FAILED }, 502);
+    }
+  }
 
   return json({
     ok: true,
