@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     );
   }
   const input = parsed.data;
-  const name = websiteProjectName(input.website, input.requestId);
+  const name = websiteProjectName(input.website, input.requestId, input.mode);
   const source = websiteBuildBrief(input);
   let project = await findProjectEntityByName(userId, name);
   const existing = Boolean(project);

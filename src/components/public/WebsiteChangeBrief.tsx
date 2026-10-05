@@ -3,11 +3,15 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Globe, Pencil } from "lucide-react";
 import { Composer } from "@/components/composer/Composer";
-import { COMMISSION } from "@/config/commission";
+import { COMMISSION, WEBSITE_MODES, WEBSITE_MODE_IDS, type WebsiteMode } from "@/config/commission";
 import { ROUTES } from "@/config/auth";
 import { appendToBrief, extractWebsite } from "@/lib/website-from-speech";
+import { cn } from "@/lib/utils";
 
-type Draft = { website: string; changes: string; requestId: string };
+type Draft = { website: string; changes: string; requestId: string; mode: WebsiteMode };
+
+const isMode = (value: unknown): value is WebsiteMode =>
+  WEBSITE_MODE_IDS.includes(value as WebsiteMode);
 
 /**
  * "Change your website", told in your own words — typed or spoken.
@@ -33,6 +37,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
   const router = useRouter();
   const [website, setWebsite] = useState("");
   const [changes, setChanges] = useState("");
+  const [mode, setMode] = useState<WebsiteMode>("refresh");
   const [editingSite, setEditingSite] = useState(false);
   const [ready, setReady] = useState(false);
   const [sending, setSending] = useState(false);
@@ -53,6 +58,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
             setWebsite(draft.website.slice(0, COMMISSION.maxWebsite));
           if (typeof draft.changes === "string")
             setChanges(draft.changes.slice(0, COMMISSION.maxChanges));
+          if (isMode(draft.mode)) setMode(draft.mode);
           if (
             !handoff &&
             typeof draft.requestId === "string" &&
@@ -74,12 +80,12 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
     try {
       sessionStorage.setItem(
         COMMISSION.draftKey,
-        JSON.stringify({ website, changes, requestId: requestId.current }),
+        JSON.stringify({ website, changes, requestId: requestId.current, mode }),
       );
     } catch {
       /* optional */
     }
-  }, [website, changes, ready]);
+  }, [website, changes, mode, ready]);
 
   /** One thing said or typed: take the address out of it if we have none yet. */
   function hear(text: string): boolean {
@@ -101,7 +107,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
     try {
       sessionStorage.setItem(
         COMMISSION.draftKey,
-        JSON.stringify({ website, changes, requestId: requestId.current }),
+        JSON.stringify({ website, changes, requestId: requestId.current, mode }),
       );
     } catch {
       /* optional */
@@ -115,7 +121,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
       const response = await fetch(COMMISSION.buildPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ website, changes, requestId: requestId.current }),
+        body: JSON.stringify({ website, changes, requestId: requestId.current, mode }),
       });
       const body = (await response.json()) as {
         ok?: boolean;
@@ -143,16 +149,30 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
 
   const hasBrief = changes.trim().length > 0;
   const needsSite = hasBrief && !website.trim();
+  const copy = WEBSITE_MODES[mode];
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="What to do with the website">
+        {WEBSITE_MODE_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={mode === id}
+            onClick={() => {
+              requestId.current = "";
+              setMode(id);
+            }}
+            className={cn("ui-chip-toggle", mode === id && "ui-chip-toggle-active")}
+          >
+            {WEBSITE_MODES[id].label}
+          </button>
+        ))}
+      </div>
+
       <Composer
         onSend={(text) => hear(text)}
-        placeholder={
-          hasBrief
-            ? "Anything else? Say it or type it…"
-            : "e.g. “My site is my-bakery.ch — add online ordering and make it easier to read on a phone.”"
-        }
+        placeholder={hasBrief ? "Anything else? Say it or type it…" : copy.placeholder}
         ariaLabel="Describe your website and what should change"
         attach={false}
         disabled={!ready || sending}
@@ -196,7 +216,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
           </div>
 
           <label htmlFor="change-brief-text" className="ui-change-brief-label">
-            What should change
+            {copy.changesLabel}
           </label>
           <textarea
             id="change-brief-text"
@@ -226,13 +246,13 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
               className="ui-btn-primary min-h-11"
               disabled={sending || !ready || needsSite}
             >
-              {sending ? "Creating your project…" : "Build a new version"}
+              {sending ? "Creating your project…" : copy.action}
             </button>
             <span className="text-sm text-text-muted">
               {needsSite
                 ? "Add the website address first."
                 : signedIn
-                  ? "Your live site is not touched — you review the new version first."
+                  ? copy.note
                   : "You sign in next; this brief stays here."}
             </span>
           </div>
