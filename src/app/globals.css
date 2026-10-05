@@ -2886,6 +2886,29 @@
   .ui-term-mhead-agent {
     @apply shrink-0 rounded bg-surface-overlay px-1.5 py-0.5 text-nano uppercase tracking-caps text-text-secondary;
   }
+  /* Loki | Terminal — the view switch. One bordered control holding both
+     choices, so which view you are in is read, not remembered. */
+  .ui-term-views {
+    @apply flex h-11 shrink-0 md:h-8 md:rounded-lg md:p-0.5 items-center gap-0.5 rounded-xl border border-border-subtle bg-surface-raised p-1;
+  }
+  .ui-term-view,
+  .ui-term-view-active {
+    @apply inline-flex h-full items-center gap-1 rounded-lg px-2.5 text-xs font-medium transition-colors md:rounded-md;
+  }
+  .ui-term-view {
+    @apply text-text-secondary hover:text-text-primary active:bg-surface-overlay;
+  }
+  .ui-term-view-active {
+    @apply bg-surface-overlay text-text-primary;
+  }
+  /* Below 375px the words carry it alone: with icons the switch left the
+     session name two letters at 320px. */
+  @media (max-width: 374px) {
+    .ui-term-view > svg,
+    .ui-term-view-active > svg {
+      @apply hidden;
+    }
+  }
   .ui-term-mhead-icon {
     @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border-subtle bg-surface-raised text-text-secondary transition-colors active:bg-surface-overlay;
   }

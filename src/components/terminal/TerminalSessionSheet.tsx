@@ -98,6 +98,7 @@ export function TerminalSessionSheet({
   columns,
   liveKeys,
   onLiveKeysChange,
+  onOpenLoki,
 }: {
   onClose: () => void;
   source: TerminalSource;
@@ -119,6 +120,8 @@ export function TerminalSessionSheet({
   /** Hand keystrokes to xterm itself instead of the composer. */
   liveKeys: boolean;
   onLiveKeysChange: (value: boolean) => void;
+  /** Opens the Loki panel for this project; omitted without a project. */
+  onOpenLoki?: () => void;
 }) {
   const sourceOptions = TERMINAL_SOURCES.filter((s) => sources.includes(s.id));
 
@@ -186,6 +189,20 @@ export function TerminalSessionSheet({
                 }}
               />
             ))}
+          </Section>
+        )}
+
+        {onOpenLoki && (
+          // This panel used to be a header button labelled "Loki", beside a
+          // conversation view now also called Loki. It is read when stuck, not
+          // every minute, so it sits with the session (desktop: "Summary").
+          <Section label="Summary">
+            <OptionRow
+              title="Summary and next steps"
+              detail="What this run is doing, what to do next, and a place to ask about it."
+              active={false}
+              onSelect={onOpenLoki}
+            />
           </Section>
         )}
 

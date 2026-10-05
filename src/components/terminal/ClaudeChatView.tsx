@@ -358,20 +358,3 @@ function ToolRow({ tool }: { tool: ToolItem }) {
     </li>
   );
 }
-
-/** The terminal pane's way back to the chat view (desktop pane chrome). */
-export function ChatViewButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      className="ui-term-pane-btn"
-      onClick={onClick}
-      title="Read this Claude session as a conversation"
-    >
-      <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
-      {/* Not "Chat": that word is the Loki panel about this project (the
-          button beside it). This shows the CLAUDE session itself as messages. */}
-      Conversation
-    </button>
-  );
-}
