@@ -177,6 +177,7 @@ const PUBLIC_PAGES = [
   "/support",
   "/docs",
   "/sign-in",
+  "/sign-in/error",
   "/sign-up",
   // All render 200 to a signed-out stranger and none were measured. The legal
   // three are the point: /license has already been missed once by a change

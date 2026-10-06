@@ -25,8 +25,8 @@ importers:
         specifier: ^1.11.3
         version: 1.11.3
       '@bitbaum/accountkit':
-        specifier: github:bitbaum/accountkit#v0.1.0
-        version: https://codeload.github.com/bitbaum/accountkit/tar.gz/54dc11cf474461dff71f3c90f46282dbac3ee503(react@19.2.8)
+        specifier: github:bitbaum/accountkit#v0.2.1
+        version: https://codeload.github.com/bitbaum/accountkit/tar.gz/ec5654270527757aa0e762f09b5aaabf272389a2(react@19.2.8)
       '@bitbaum/ai-kit':
         specifier: ^1.18.0
         version: 1.18.0(react@19.2.8)
@@ -382,9 +382,9 @@ packages:
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
 
-  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/54dc11cf474461dff71f3c90f46282dbac3ee503':
-    resolution: {gitHosted: true, integrity: sha512-Tj9rsJi8RAptanKLT18sc9glRhLYnWvS63YSIoP92yTtATVyB39BzLr0Ov/WeSnutJuclaAkXad0uuGeud5+4g==, tarball: https://codeload.github.com/bitbaum/accountkit/tar.gz/54dc11cf474461dff71f3c90f46282dbac3ee503}
-    version: 0.1.0
+  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/ec5654270527757aa0e762f09b5aaabf272389a2':
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/bitbaum/accountkit/tar.gz/ec5654270527757aa0e762f09b5aaabf272389a2}
+    version: 0.2.1
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18'
@@ -5230,7 +5230,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/54dc11cf474461dff71f3c90f46282dbac3ee503(react@19.2.8)':
+  '@bitbaum/accountkit@https://codeload.github.com/bitbaum/accountkit/tar.gz/ec5654270527757aa0e762f09b5aaabf272389a2(react@19.2.8)':
     dependencies:
       react: 19.2.8
 
