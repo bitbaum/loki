@@ -102,7 +102,7 @@ export const MISSION = {
   paragraphs: [
     "Today, a person can describe what they want and have AI agents build it, ship it and keep improving it. Loki is where that happens — one project or forty. Tomorrow, we intend the same kind of direction to reach machines that build in the physical world.",
     "The leverage shifts from companies to individuals. The bottleneck moves from raw capability to human direction.",
-    "Open-weight models already run Loki's own chat. The future of creation should not be gated behind closed frontier subscriptions — running models locally is where this is going.",
+    "Open-weight models answer Loki's own chat first. The future of creation should not be gated behind closed frontier subscriptions — running models locally is where this is going.",
   ],
 };
 
@@ -133,11 +133,13 @@ export const PHILOSOPHY = {
       // capability that does not exist: the chat chain is freeChain("LOKI") —
       // Groq, OpenRouter, Gemini, all hosted — and every agent adapter is a
       // hosted-model CLI. There is no Ollama / llama.cpp / LM Studio path
-      // anywhere in src. What IS true is the open-WEIGHT half: llama, qwen and
-      // gpt-oss drive the loop today. So the claim keeps the half it earns and
-      // states the other as the direction it is.
+      // anywhere in src. What IS true is the open-WEIGHT half: the chain tries
+      // gpt-oss and qwen first, then Google's Gemini (not open-weight) when their
+      // allowance runs out. llama left the chain when Groq retired it in
+      // 2026-08. So the claim keeps the half it earns and states the other as
+      // the direction it is.
       description:
-        "Frontier subscriptions are not the destination. Open-weight models drive Loki today — llama, qwen and gpt-oss — and running them locally is where this is going.",
+        "Frontier subscriptions are not the destination. Open-weight models — gpt-oss and qwen — answer Loki's own chat first today, and running them locally is where this is going.",
     },
     {
       name: "Nothing hidden.",
@@ -246,7 +248,7 @@ export const ROADMAP: {
       {
         // Same correction as PHILOSOPHY above: no local-model path exists.
         title: "Open-weight models, not one vendor.",
-        body: "Open-weight models — llama, qwen and gpt-oss — run Loki's own chat today, and you can bring your own key. Running them on your own machine is the direction; there is no local path yet.",
+        body: "Open-weight models — gpt-oss and qwen — answer Loki's own chat first, and you can bring your own key. Running them on your own machine is the direction; there is no local path yet.",
       },
       {
         title: "Autonomy is a user-controlled switch.",
@@ -336,12 +338,12 @@ export const DESKTOP_DOWNLOAD = {
       // Gatekeeper refuses an unsigned app outright and SmartScreen interrupts
       // one. The page was already careful about the Linux chmod friction and
       // silent about the two that block.
-      body: "On Linux, downloads start non-executable for safety \u2014 paste the one-line command shown under Download to mark Fleet Runner executable and launch it. On macOS, the builds are not yet signed by Apple, so the first launch needs right-click \u2192 Open, then Open again (a plain double-click is refused). On Windows, SmartScreen shows \u201cWindows protected your PC\u201d \u2014 choose More info \u2192 Run anyway. After the first launch, both open normally.",
+      body: "On Linux, the one-line command shown under Download installs the .deb and launches it. On macOS, the builds are not yet signed by Apple, so the first launch needs right-click \u2192 Open, then Open again (a plain double-click is refused). On Windows, SmartScreen shows \u201cWindows protected your PC\u201d \u2014 choose More info \u2192 Run anyway. After the first launch, both open normally.",
     },
     {
       number: "02",
       title: "Sign in — once",
-      body: 'Use the same Loki account you signed up with on the web. The desktop app opens straight to your dashboard. From the web, you can also click "Open in Fleet Runner" to log the desktop app in without copy-pasting a token. Fleet Runner checks for updates on launch and downloads them in the background — you\'ll never have to manually re-download.',
+      body: 'Use the same Loki account you signed up with on the web. The desktop app opens straight to your dashboard. From the web, you can also click "Open in Fleet Runner" to log the desktop app in without copy-pasting a token. Fleet Runner checks for updates on launch and downloads them in the background. On Linux .deb installs, the update banner shows the one command that applies it.',
     },
     {
       number: "03",

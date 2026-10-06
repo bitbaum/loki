@@ -193,6 +193,25 @@ export function buildFleetRegister(
     };
   }
 
+  // A project served outside apps.conf still has a site. loki, orangecat and
+  // bitbaum run from the main Caddyfile, not apps.conf, so without this the
+  // public /fleet page said "no site yet" beside the three busiest addresses
+  // in the studio while the fleet map (map.ts) correctly called them live.
+  // The project's own live URL is the fact; kind and since stay unknown ("-").
+  // owner matches map.ts's default: the register route lists only the studio
+  // owner's projects, and on /fleet "bitbaum" and "-" render the same.
+  for (const r of bySlug.values()) {
+    const live = r.loki?.liveUrl;
+    if (r.site || !live) continue;
+    let host: string;
+    try {
+      host = new URL(live).host;
+    } catch {
+      continue;
+    }
+    r.site = { url: live, host, kind: "-", status: "live", owner: "bitbaum", since: "-" };
+  }
+
   if (solonClaims) {
     for (const r of bySlug.values()) {
       const org = solonClaims.get(r.slug);
@@ -206,6 +225,21 @@ export function buildFleetRegister(
 
 /** Owners that mean "ours", not a client. Everything else is a third party. */
 const OWN = new Set(["bitbaum", "-", ""]);
+
+/**
+ * The partner a site is with, as a reader may see it — or null.
+ *
+ * Ours ("bitbaum", "-") names nobody. Neither does an owner the register marks
+ * as a guess: apps.conf records `Stadt Zürich?` for the Reparaturbonus concept,
+ * and /fleet printed "with Stadt Zürich?" — a relationship that does not exist,
+ * stated publicly about a city. The question mark is the register saying "not
+ * confirmed"; the public page must not drop it into a claim.
+ */
+export function publicOwner(owner: string | null | undefined): string | null {
+  const o = owner?.trim() ?? "";
+  if (!o || o === "-" || o.toLowerCase() === "bitbaum" || o.includes("?")) return null;
+  return o;
+}
 
 /** A site that exists for someone other than us. */
 export function isClientSite(r: RegisterRow): boolean {

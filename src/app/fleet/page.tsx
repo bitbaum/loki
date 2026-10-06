@@ -28,6 +28,7 @@ import {
   groupOf,
   isDayZero,
   kindLabel,
+  publicOwner,
   GROUP_LABEL,
   GROUP_OPTIONS,
   SORT_LABEL,
@@ -471,12 +472,13 @@ function Row({
               {isDayZero(r) ? (
                 <span className="ui-fleet-dayzero">day-zero page</span>
               ) : (
-                kindLabel(r.site.kind)
+                r.site.kind !== "-" && kindLabel(r.site.kind)
               )}
-              {" · "}
+              {/* kind "-": served outside apps.conf, so only "live" is known. */}
+              {(isDayZero(r) || r.site.kind !== "-") && " · "}
               {r.site.status}
-              {r.site.owner !== "bitbaum" && r.site.owner !== "-" && (
-                <span className="ui-public-fleet-nowrap"> · with {r.site.owner}</span>
+              {publicOwner(r.site.owner) && (
+                <span className="ui-public-fleet-nowrap"> · with {publicOwner(r.site.owner)}</span>
               )}
               {r.site.since !== "-" && (
                 <span className="ui-public-fleet-nowrap"> · since {r.site.since}</span>

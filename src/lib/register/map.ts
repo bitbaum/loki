@@ -1,4 +1,4 @@
-import type { RegisterRow } from "./build";
+import { publicOwner, type RegisterRow } from "./build";
 import { orangeCatProjectUrl } from "@/config/orangecat";
 import { PUBLIC_IDENTITY_ATTRS, type PublicIdentityAttr } from "@/config/project-attrs";
 import type { RepoRecords } from "./repo-records";
@@ -427,7 +427,7 @@ export function renderFleetMapOverview(map: FleetMap): string {
     ...map.projects.map((p) => {
       const bits = [
         `${p.slug} — ${p.what ?? "(no description yet)"}`,
-        `${p.layer}, ${p.status}${p.owner !== "bitbaum" ? `, for ${p.owner}` : ""}`,
+        `${p.layer}, ${p.status}${publicOwner(p.owner) ? `, for ${publicOwner(p.owner)}` : ""}`,
         p.urls.live ? `live at ${p.urls.live}` : null,
         p.urls.repo ? `code ${p.urls.repo}` : null,
         p.now.lastLog ? `last log ${p.now.lastLog.date}: ${p.now.lastLog.done}` : null,
