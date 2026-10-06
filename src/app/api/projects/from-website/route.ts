@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
   }
   const input = parsed.data;
   const started = await startBriefProject(userId, {
-    name: websiteProjectName(input.website, input.requestId, input.mode),
+    name: websiteProjectName(input.website, input.mode),
+    requestId: input.requestId,
     source: websiteBuildBrief(input),
   });
   if (!started)

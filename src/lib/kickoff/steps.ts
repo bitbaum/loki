@@ -39,6 +39,7 @@ import { providerChoiceFor } from "@/lib/provider-choice";
 import { routeAroundSpent } from "@/lib/provider-switch";
 import { resolveImplementAdapter } from "@/lib/feedback/implement";
 import { mergeRunPayload } from "@/db/queries/orchestration-runs";
+import { getBriefKind } from "@/db/queries/brief-projects";
 
 /**
  * The project setup steps, callable without an HTTP request.
@@ -219,7 +220,7 @@ export async function provisionStep(
   // A "Make it yours" copy must never run the imported repo's workflows (see
   // disableGithubActions). A retry after a failed switch-off lands here with
   // the repo already linked: switch it off again rather than refusing.
-  const copy = isRepoCopyProject(project.name);
+  const copy = isRepoCopyProject(project.name, await getBriefKind(id));
   const linkedCopy = copy && project.gitUrl ? parseGithubRepoUrl(project.gitUrl) : null;
   if (linkedCopy) {
     const off = await disableGithubActions(token, linkedCopy.owner, linkedCopy.repo);

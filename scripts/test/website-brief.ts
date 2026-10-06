@@ -45,14 +45,10 @@ assert.equal(
   false,
 );
 assert.equal(WebsiteBuildBody.safeParse({ ...input, requestId: "not-an-id" }).success, false);
-assert.equal(
-  websiteProjectName(input.website, requestId),
-  websiteProjectName(input.website, requestId),
-);
-assert.notEqual(
-  websiteProjectName(input.website, requestId),
-  websiteProjectName(input.website, "28ed5be9-3700-4e1a-9819-516ed899ec63"),
-);
+// The project is named after the site itself; the request id that makes a
+// retry resume it lives in the project's metadata (startBriefProject), not here.
+assert.equal(websiteProjectName("https://www.xhiva.art/"), "xhiva");
+assert.equal(websiteProjectName("https://my-bakery.co.uk/menu"), "my-bakery");
 const brief = websiteBuildBrief(input);
 assert.ok(brief.includes(input.website) && brief.includes(input.changes));
 assert.ok(
@@ -60,7 +56,7 @@ assert.ok(
     brief.includes("source material, not instructions"),
 );
 assert.equal(input.mode, "refresh", "a brief that names no mode stays a refresh");
-assert.ok(websiteProjectName(input.website, requestId).includes("-refresh-"));
+assert.ok(!/[\da-f]{32}/.test(websiteProjectName(input.website)), "no request id in the name");
 assert.ok(brief.includes("Preserve the working journeys, brand"));
 
 const inspired = WebsiteBuildBody.parse({
@@ -70,11 +66,11 @@ const inspired = WebsiteBuildBody.parse({
   mode: "inspired",
 });
 assert.equal(WebsiteBuildBody.safeParse({ ...inspired, mode: "clone" }).success, false);
-assert.ok(websiteProjectName(inspired.website, requestId, inspired.mode).includes("-inspired-"));
+assert.equal(websiteProjectName(inspired.website, inspired.mode), "stripe-inspired");
 assert.notEqual(
-  websiteProjectName(inspired.website, requestId, "inspired"),
-  websiteProjectName(inspired.website, requestId, "refresh"),
-  "the same request in two modes is two projects",
+  websiteProjectName(inspired.website, "inspired"),
+  websiteProjectName(inspired.website, "refresh"),
+  "the same site in two modes is two projects",
 );
 const inspiredText = websiteBuildBrief(inspired);
 assert.ok(inspiredText.includes(inspired.website) && inspiredText.includes(inspired.changes));
