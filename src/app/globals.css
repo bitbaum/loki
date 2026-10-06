@@ -358,6 +358,9 @@
   --acct-focus: var(--accent-primary);
   --acct-danger: var(--status-negative);
   --acct-font: var(--font-sans);
+  /* The sign-in error screen's primary button: the same pair the chat's send uses. */
+  --acct-action: var(--ck-accent);
+  --acct-on-action: var(--ck-on-accent);
 }
 
 /* ─── Dark mode ───────────────────────────────────────────────────────────── */

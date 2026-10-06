@@ -7,6 +7,8 @@ export const ROUTES = {
   HOME: "/",
   // Auth
   SIGN_IN: "/sign-in",
+  /** Where Auth.js sends a sign-in that did not finish (public: under /sign-in). */
+  SIGN_IN_ERROR: "/sign-in/error",
   SIGN_UP: "/sign-up",
   FORGOT_PASSWORD: "/forgot-password",
   RESET_PASSWORD: "/reset-password",
