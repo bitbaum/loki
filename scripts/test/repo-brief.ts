@@ -28,14 +28,19 @@ assert.equal(RepoBuildBody.safeParse({ ...input, requestId: "nope" }).success, f
 // A copy is the shared cloud builder's to dispatch; the demo account may not.
 assert.equal(demoDenialFor(TAKE.buildPath, "POST"), "dispatch");
 
-// One request, one project; a retry recognises it and stays on the bare starter.
-const name = repoProjectName(input.repo, requestId);
-assert.equal(name, repoProjectName(input.repo, requestId));
-assert.notEqual(name, repoProjectName("solon", requestId));
+// A readable name; the copy is RECORDED (briefKind) so a retry stays on the
+// bare starter and keeps the imported repo's Actions off.
+const name = repoProjectName(input.repo);
+assert.equal(name, `my-${input.repo}`);
+assert.notEqual(name, repoProjectName("solon"));
 for (const id of OPEN_SOURCE_STARTER_IDS) {
-  assert.ok(isRepoCopyProject(repoProjectName(id, requestId)), id);
+  assert.ok(isRepoCopyProject(repoProjectName(id), "repo-copy"), id);
 }
-assert.equal(isRepoCopyProject(websiteProjectName("https://my-bakery.ch/", requestId)), false);
+// "my-bakery" is a website now, not a copy — the stored kind decides.
+assert.equal(isRepoCopyProject(websiteProjectName("https://my-bakery.ch/"), "website"), false);
+assert.equal(isRepoCopyProject("my-orangecat", "website"), false);
+// Projects started before readable names are still recognised by their old name.
+assert.ok(isRepoCopyProject(`my-${input.repo}-28ed5be937004e1a9819516ed899ec62`));
 assert.equal(isRepoCopyProject("my-unknown-28ed5be937004e1a9819516ed899ec62"), false);
 assert.equal(isRepoCopyProject("my-orangecat"), false);
 

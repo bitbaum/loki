@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { COMMISSION, WEBSITE_MODES, WEBSITE_MODE_IDS, type WebsiteMode } from "@/config/commission";
+import { siteName } from "@/lib/brief-project-name";
 
 /** A reference, never fetched by the intake server. The builder inspects it
  *  as untrusted source material and develops a separate version. */
@@ -38,14 +39,16 @@ export const WebsiteBriefBody = z.object({
 
 export const WebsiteBuildBody = WebsiteBriefBody.extend({ requestId: z.uuid() });
 
-export function websiteProjectName(
-  website: string,
-  requestId: string,
-  mode: WebsiteMode = "refresh",
-): string {
-  const host = new URL(website).hostname.replace(/^www\./, "");
-  const suffix = WEBSITE_MODES[mode].nameSuffix;
-  return `${host.replace(/[^a-z\d]+/gi, "-").slice(0, 32)}-${suffix}-${requestId.replace(/-/g, "")}`;
+/**
+ * The readable name wanted for a website project — the site's own name
+ * ("xhiva" for xhiva.art). A refresh IS that site, so it carries no suffix; an
+ * "inspired" project is a different site of your own, so it says so. The
+ * duplicate-submit guard is the request id in the project's metadata
+ * (startBriefProject), and -2, -3 are added only if the name is taken.
+ */
+export function websiteProjectName(website: string, mode: WebsiteMode = "refresh"): string {
+  const base = siteName(website);
+  return mode === "refresh" ? base : `${base}-${WEBSITE_MODES[mode].nameSuffix}`;
 }
 
 export function websiteBuildBrief(input: z.infer<typeof WebsiteBriefBody>): string {
