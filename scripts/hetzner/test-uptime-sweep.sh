@@ -81,10 +81,23 @@ count="$(printf '%s\n' "$targets" | grep -c . || true)"
 [ "$count" -ge 10 ] && ok "reads the real manifest ($count apps)" \
   || no "expected 10+ apps from the manifest, got $count"
 
-# The outage that motivated all of this must be in the probe set.
-grep -q "^botsmann	botsmann.orangecat.ch	/api/health$" <<<"$targets" \
-  && ok "botsmann is probed — the app whose 503 nobody saw" \
+# The outage that motivated all of this must be in the probe set. botsmann now
+# sleeps when idle (status=validating), so it is probed on the six-hourly pass
+# rather than every 15 minutes — but it is still probed, on its health route.
+grep -q "^botsmann	botsmann.orangecat.ch	/api/health$" <<<"$(INCLUDE_SLEEPING=1 manifest_targets "$MANIFEST")" \
+  && ok "botsmann is probed — the app whose 503 nobody saw (six-hourly while it sleeps)" \
   || no "botsmann is missing from the probe set"
+grep -q "^botsmann	" <<<"$targets" \
+  && no "a sleeping site must not be requested every 15 minutes — it would never sleep" \
+  || ok "a sleeping site is left asleep between the six-hourly probes"
+grep -q "^botsmann	sleeps when idle" <<<"$(manifest_skipped "$MANIFEST")" \
+  && ok "the report says why botsmann was not probed this time" \
+  || no "manifest_skipped must name the sleeping sites"
+eq 1 "$(probe_sleeping_now 06 00)" "the first sweep of 06 UTC probes sleeping sites"
+eq 1 "$(probe_sleeping_now 00 14)" "so does 00:14"
+eq 0 "$(probe_sleeping_now 06 15)" "06:15 does not"
+eq 0 "$(probe_sleeping_now 07 00)" "07:00 does not"
+eq 1 "$(probe_sleeping_now 18 08)" "08 and 09 are not octal"
 
 # Internal-only apps have no URL to probe; probing '-' would page forever.
 grep -qv -- '	-	' <<<"$targets" \

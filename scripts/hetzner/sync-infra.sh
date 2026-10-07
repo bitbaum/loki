@@ -13,11 +13,29 @@ box 'sudo mkdir -p /etc/caddy/apps.d
 grep -q "import apps.d" /etc/caddy/Caddyfile || \
   echo "import apps.d/*.caddy" | sudo tee -a /etc/caddy/Caddyfile >/dev/null'
 
+# Sleep when idle needs systemd-socket-proxyd with --exit-idle-time (systemd
+# 246+). Asked once; without it every site stays always on, as before.
+CAN_SLEEP=0
+proxyd_help=$(box "/usr/lib/systemd/systemd-socket-proxyd --help 2>&1" 2>/dev/null || true)
+if [[ "$proxyd_help" == *--exit-idle-time* ]]; then
+  CAN_SLEEP=1
+else
+  echo "note: systemd-socket-proxyd --exit-idle-time unavailable on the box; no site will sleep"
+fi
+
 for app in "${apps[@]}"; do
   app_lookup "$app"
   echo "=== sync $NAME (port $PORT) ==="
 
-  launch=$(sed "s|__PORT__|$PORT|g" "$(dirname "${BASH_SOURCE[0]}")/launch.sh.tmpl")
+  # A sleeping site's app listens on an inner port; systemd holds $PORT for it
+  # (lib.sh, sleep when idle). Everything else listens on $PORT itself.
+  SLEEP=0; LISTEN="$PORT"
+  if [ "$CAN_SLEEP" = 1 ] && sleeps_when_idle "$PORT" "$DOMAINS" "$STATUS"; then
+    SLEEP=1; LISTEN=$(wake_inner_port "$PORT")
+    echo "    sleeps when idle (status $STATUS): socket :$PORT -> app :$LISTEN"
+  fi
+
+  launch=$(sed "s|__PORT__|$LISTEN|g" "$(dirname "${BASH_SOURCE[0]}")/launch.sh.tmpl")
 
   # Unquoted heredoc on purpose ($NAME expands). That makes every backtick in
   # it a command substitution run HERE: two comments once quoted "systemctl
@@ -75,6 +93,33 @@ WantedBy=multi-user.target
 EOF
 )
 
+  if [ "$SLEEP" = 1 ]; then
+    unit=$(sleep_app_unit "$unit" "$NAME" "$LISTEN")
+    # Stop the always-on app only when the socket is not already holding the
+    # port (the first switch); a re-sync of a sleeping site stops nothing.
+    activate="sudo tee /etc/systemd/system/$NAME-wake.socket >/dev/null <<'SOCK_EOF'
+$(wake_socket_unit "$NAME" "$PORT")
+SOCK_EOF
+sudo tee /etc/systemd/system/$NAME-wake.service >/dev/null <<'PROXY_EOF'
+$(wake_proxy_unit "$NAME" "$LISTEN")
+PROXY_EOF
+sudo systemctl daemon-reload
+sudo systemctl disable $NAME-app >/dev/null 2>&1 || true
+if ! systemctl is-active --quiet $NAME-wake.socket; then sudo systemctl stop $NAME-app; fi
+sudo systemctl enable --now $NAME-wake.socket >/dev/null 2>&1"
+  else
+    # A site that went live is always on again: drop its wake units and
+    # restart the app on its own port. Otherwise exactly what it always was.
+    activate="if [ -f /etc/systemd/system/$NAME-wake.socket ]; then
+  sudo systemctl disable --now $NAME-wake.socket >/dev/null 2>&1 || true
+  sudo systemctl stop $NAME-wake.service >/dev/null 2>&1 || true
+  sudo rm -f /etc/systemd/system/$NAME-wake.socket /etc/systemd/system/$NAME-wake.service
+  sudo systemctl daemon-reload && sudo systemctl enable $NAME-app >/dev/null 2>&1 && sudo systemctl restart $NAME-app
+else
+  sudo systemctl daemon-reload && sudo systemctl enable $NAME-app >/dev/null 2>&1
+fi"
+  fi
+
   box "sudo mkdir -p /opt/$NAME/app && sudo chown -R ubuntu:ubuntu /opt/$NAME
 cat > /opt/$NAME/app/launch.sh <<'LAUNCH_EOF'
 $launch
@@ -83,7 +128,7 @@ chmod +x /opt/$NAME/app/launch.sh
 sudo tee /etc/systemd/system/$NAME-app.service >/dev/null <<'UNIT_EOF'
 $unit
 UNIT_EOF
-sudo systemctl daemon-reload && sudo systemctl enable $NAME-app >/dev/null 2>&1"
+$activate"
 
   if [ "$DOMAINS" != "-" ]; then
     # One rule for what the domains field means — including a site that has

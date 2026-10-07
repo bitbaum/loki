@@ -52,6 +52,10 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST="${MANIFEST:-$HERE/apps.conf}"
+# SLEEP_WHEN_IDLE_STATUSES — a site that sleeps when idle is not probed here:
+# a request every 15 minutes would wake it every time. The box watchdog checks
+# its wake socket instead (install-watchdog.sh); the rule is lib.sh's.
+. "$HERE/_box-env.sh"
 TRIES="${UPTIME_TRIES:-3}"
 TIMEOUT="${UPTIME_TIMEOUT:-15}"
 SLEEP="${UPTIME_SLEEP:-5}"
@@ -129,7 +133,10 @@ health_path_for() {
 # same way selfhost-deploy.yml resolves ${DOMAINS%%,*} — www aliases are the
 # same app and a second probe would only double the noise.
 manifest_targets() {
-  awk -F'|' -v HEALTH="$DEFAULT_HEALTH_PATH" -v PATHS="$HEALTH_PATHS" '
+  # INCLUDE_SLEEPING=1 is the certificate pass: reading a certificate is a TLS
+  # handshake with Caddy and never reaches the app, so it wakes nothing.
+  awk -F'|' -v HEALTH="$DEFAULT_HEALTH_PATH" -v PATHS="$HEALTH_PATHS" \
+      -v SLEEPING="$SLEEP_WHEN_IDLE_STATUSES" -v WITH_SLEEPING="${INCLUDE_SLEEPING:-0}" '
     BEGIN {
       n = split(PATHS, lines, "\n")
       for (i = 1; i <= n; i++) {
@@ -137,26 +144,45 @@ manifest_targets() {
       }
     }
     function health_for(name) { return (name in declared) ? declared[name] : HEALTH }
+    function sleeps(port, status,   k, n, list) {
+      if (port !~ /^[0-9]+$/ || port + 0 <= 4004) return 0
+      n = split(SLEEPING, list, " ")
+      for (k = 1; k <= n; k++) if (list[k] == status) return 1
+      return 0
+    }
     /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
     {
       name = $1; domains = $3; status = $9
       if (domains == "-" || domains == "") next
       if (status == "archived" || status == "handed-over") next
+      if (WITH_SLEEPING != "1" && sleeps($2, status)) next
       sub(/,.*/, "", domains)
       print name "\t" domains "\t" health_for(name)
     }
   ' "$1"
 }
 
+# probe_sleeping_now <HH> <MM> — 1 on the first sweep of every sixth hour.
+probe_sleeping_now() {
+  if [ $((10#$1 % 6)) -eq 0 ] && [ $((10#$2)) -lt 15 ]; then echo 1; else echo 0; fi
+}
+
 # manifest_skipped <file> — echo "name<TAB>reason" for every app NOT probed, so
 # the report can never imply coverage it does not have.
 manifest_skipped() {
-  awk -F'|' '
+  awk -F'|' -v SLEEPING="$SLEEP_WHEN_IDLE_STATUSES" -v WITH_SLEEPING="${INCLUDE_SLEEPING:-0}" '
+    function sleeps(port, status,   k, n, list) {
+      if (port !~ /^[0-9]+$/ || port + 0 <= 4004) return 0
+      n = split(SLEEPING, list, " ")
+      for (k = 1; k <= n; k++) if (list[k] == status) return 1
+      return 0
+    }
     /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
     {
       name = $1; domains = $3; status = $9
       if (domains == "-" || domains == "") { print name "\tinternal-only (no public domain)"; next }
       if (status == "archived" || status == "handed-over") { print name "\tstatus=" status; next }
+      if (WITH_SLEEPING != "1" && sleeps($2, status)) { print name "\tsleeps when idle (status=" status ") — health-probed every 6h; the box watchdog checks its wake socket"; next }
     }
   ' "$1"
 }
@@ -397,7 +423,7 @@ if [ "$MODE" = certs ]; then
       warn)     n_warn=$((n_warn + 1)); bad="$bad $domain(${days:-?}d)" ;;
       critical) n_crit=$((n_crit + 1)); bad="$bad $domain(${days:-?}d)" ;;
     esac
-  done <<<"$( { manifest_targets "$MANIFEST"; extra_targets; } | sort -u )"
+  done <<<"$( { INCLUDE_SLEEPING=1 manifest_targets "$MANIFEST"; extra_targets; } | sort -u )"
 
   echo
   echo "ok=$n_ok  warn=$n_warn  critical=$n_crit"
@@ -406,7 +432,15 @@ if [ "$MODE" = certs ]; then
   exit 0
 fi
 
-targets=$( { manifest_targets "$MANIFEST"; extra_targets; } | sort -u )
+# Sleeping sites still get a real health probe, about every six hours: the
+# first sweep of hours 00/06/12/18 UTC includes them. Probing them every 15
+# minutes would keep them awake for good; never probing them would reopen the
+# hole botsmann fell through (a 503 health route nobody saw for weeks).
+# UPTIME_PROBE_SLEEPING=1|0 overrides.
+if [ -z "${UPTIME_PROBE_SLEEPING:-}" ]; then
+  UPTIME_PROBE_SLEEPING=$(probe_sleeping_now "$(date -u +%H)" "$(date -u +%M)")
+fi
+targets=$( { INCLUDE_SLEEPING="$UPTIME_PROBE_SLEEPING" manifest_targets "$MANIFEST"; extra_targets; } | sort -u )
 [ -n "$targets" ] || { echo "no targets found in $MANIFEST" >&2; exit 2; }
 
 down_list=""; limited_list=""
@@ -444,7 +478,7 @@ echo "up=$n_up  limited=$n_limited  down=$n_down"
 [ -n "$down_list" ] && echo "DOWN: $down_list"
 
 # Never let the summary imply coverage we do not have.
-skipped=$(manifest_skipped "$MANIFEST")
+skipped=$(INCLUDE_SLEEPING="$UPTIME_PROBE_SLEEPING" manifest_skipped "$MANIFEST")
 if [ -n "$skipped" ]; then
   echo
   echo "not probed:"

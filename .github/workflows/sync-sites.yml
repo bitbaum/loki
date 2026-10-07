@@ -1,0 +1,68 @@
+name: Sync sites
+
+# Re-apply scripts/hetzner/sync-infra.sh to sites on the box: systemd units,
+# launch script, Caddy vhost and the watchdog's target list, from the register
+# on main. Registration runs this for a NEW site; this is the button for the
+# ones already there — after a change to how sites are run (sleep when idle,
+# 2026-10-07) or to a row's status (a site that goes live stays on again).
+#
+# Manual on purpose: it changes what is running. Name the sites: a sync of
+# every row would also generate a vhost for the handcrafted services whose
+# Caddy blocks are hand-written (evig), and two blocks for one host fail
+# caddy validate for the whole box.
+on:
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: "Register names, space-separated"
+        required: true
+
+permissions:
+  contents: read
+
+# One writer of the box's units at a time, and never alongside a Loki deploy.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+      APPS: ${{ inputs.apps }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync
+        env:
+          DEPLOY_KEY_PATH: /home/runner/.ssh/id_deploy
+        run: |
+          [ -n "${APPS// /}" ] || { echo "::error::name the sites to sync"; exit 1; }
+          # Word-split on purpose: APPS is a list of register names.
+          # shellcheck disable=SC2086
+          bash scripts/hetzner/sync-infra.sh $APPS
+
+      - name: Every synced site still answers
+        run: |
+          # A sleeping site is woken by this request; give it its cold start.
+          source scripts/hetzner/lib.sh
+          set +e
+          bad=""
+          for n in $APPS; do
+            app_lookup "$n" || continue
+            [ "$DOMAINS" != "-" ] || continue
+            host="${DOMAINS%%,*}"
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 45 "https://$host/")
+            echo "$n  https://$host  HTTP $code"
+            [[ "$code" =~ ^[1-4][0-9][0-9]$ ]] || bad="$bad $n"
+          done
+          [ -z "$bad" ] || { echo "::error::not answering:$bad"; exit 1; }

@@ -99,6 +99,11 @@ A registered site can move from `<slug>.orangecat.ch` to a domain its owner
 bought, with the free address forwarding there. See
 [custom-domains.md](custom-domains.md).
 
+## Sites that sleep when idle
+
+Sites that are not live yet start on their first request and stop after 15
+idle minutes. See [sleep-when-idle.md](sleep-when-idle.md).
+
 ## When a deploy fails
 
 | Symptom | Meaning |
