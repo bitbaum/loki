@@ -30,6 +30,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/_box-env.sh"   # SSOT: HETZNER_IP, BOX_ROOT, BOX_UBUNTU
+# sleeps_when_idle: a sleeping site is checked by its wake socket, not by a
+# request — a request every 5 minutes would keep it awake forever.
+. "$SCRIPT_DIR/lib.sh"
 # The register beside this script is the release copy: main's last deployed
 # apps.conf. When register-site.sh runs this (via sync-infra) it has just
 # appended the new site to the DURABLE register and exports MANIFEST; reading
@@ -76,6 +79,12 @@ if [ -f "$APPS_CONF" ]; then
   while IFS='|' read -r name port domains rest; do
     case "$name" in ''|\#*) continue;; esac
     [ "$domains" = "-" ] && continue
+    status=$(printf '%s' "$rest" | cut -d'|' -f6)
+    if sleeps_when_idle "$port" "$domains" "$status"; then
+      TARGETS="${TARGETS}
+${name}|wake:${name}|socket"
+      continue
+    fi
     IFS=',' read -ra DOMS <<< "$domains"
     for d in "${DOMS[@]}"; do
       [ -z "$d" ] && continue
@@ -120,6 +129,12 @@ check() {  # label url   (targets.conf 3rd field is ignored — redirects are fo
   local label="$1" url="$2"
   local sf="$STATE/$(printf '%s' "$label" | tr -c 'a-zA-Z0-9' '_')"
   local code
+  # A site that sleeps when idle is UP while systemd holds its port for it;
+  # probing it over HTTP would wake it every tick and it would never sleep.
+  if [ "${url#wake:}" != "$url" ]; then
+    if systemctl is-active --quiet "${url#wake:}-wake.socket"; then code=200; else code=000; fi
+    url="${url#wake:} wake socket"
+  else
   # Follow redirects (-L): a 3xx root (locale/trailing-slash) is the server
   # responding, not an outage. UP on a 2xx/3xx final status; DOWN on unreachable
   # (000) or a 4xx/5xx error — incl. loki /api/health returning 503 when
@@ -131,6 +146,7 @@ check() {  # label url   (targets.conf 3rd field is ignored — redirects are fo
   # loki.orangecat.ch was down ~06:00-07:53 on 2026-10-01 with no alert.
   code=$(curl -sL -o /dev/null -m 15 -w "%{http_code}" "$url" 2>/dev/null) || true
   code=${code:0:3}; [[ "$code" =~ ^[0-9]{3}$ ]] || code=000
+  fi
   local now="down"; { [ "$code" -ge 200 ] && [ "$code" -lt 400 ]; } && now="up"
   local prev="up"; [ -f "$sf" ] && prev=$(cat "$sf")
   if [ "$now" != "$prev" ]; then
