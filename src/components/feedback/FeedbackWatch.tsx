@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { withTerminalView } from "@/lib/fleet-context";
 import { Loader2, MessagesSquare, SquareTerminal } from "lucide-react";
 
 type WatchPayload = {
@@ -53,15 +54,12 @@ export function FeedbackWatchButton({
 export function FeedbackWatchPanel({
   feedbackId,
   fallbackTerminalHref,
-  chatHref,
   stepSummary,
   queueReason,
   terminalReady,
 }: {
   feedbackId: string;
   fallbackTerminalHref: string;
-  /** Honest Loki chat deep link for this project — not a fake run-scoped chat. */
-  chatHref: string;
   stepSummary?: string | null;
   queueReason?: string | null;
   terminalReady?: boolean;
@@ -124,23 +122,26 @@ export function FeedbackWatchPanel({
           )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          {/* Both open the SAME session on one page — the agent's conversation
+              or its raw terminal, one tap apart. "Chat" used to open the
+              general Loki chat, which knows nothing about this run. */}
           <a
-            href={termHref}
+            href={withTerminalView(termHref, "chat")}
+            className="ui-btn-secondary ui-btn-sm"
+            title="Watch the agent's conversation — what it says it is doing, as messages"
+          >
+            <MessagesSquare className="h-3 w-3" /> Chat
+          </a>
+          <a
+            href={withTerminalView(termHref, "terminal")}
             className="ui-btn-secondary ui-btn-sm"
             title={
               ready
-                ? "Open the agent PTY"
+                ? "Open the agent's raw terminal"
                 : "Open Terminal for this project (may be empty until a session exists)"
             }
           >
             <SquareTerminal className="h-3 w-3" /> Terminal
-          </a>
-          <a
-            href={chatHref}
-            className="ui-btn-secondary ui-btn-sm"
-            title="Open Loki chat for this project — talk to the run there when the agent is in chat"
-          >
-            <MessagesSquare className="h-3 w-3" /> Chat
           </a>
         </div>
       </div>

@@ -38,6 +38,20 @@ export function fleetSurfaceHref(
     : `/terminal?project=${encoded}${run}`;
 }
 
+/**
+ * Open a terminal link on a chosen VIEW of the session: `chat` is the agent's
+ * conversation (what it says it is doing), `terminal` the raw PTY. Every
+ * "Watch" link used to land on whichever view localStorage remembered — or, for
+ * the Watch panel's "Chat" button, on the general Loki chat, which knows
+ * nothing about the run (2026-10-07: "it just goes to generic chat and I don't
+ * really watch anything being done there"). Both views are one page with a
+ * one-tap switch, so watching flows from the conversation into the terminal.
+ */
+export function withTerminalView(href: string, view: "chat" | "terminal"): string {
+  const base = href.replace(/([?&])view=[^&]*&?/, "$1").replace(/[?&]$/, "");
+  return `${base}${base.includes("?") ? "&" : "?"}view=${view}`;
+}
+
 /** Where to watch a queued inject: Control for state, Activity for the ledger,
  *  Terminal only once a session is actually running. */
 export function injectWatchUrls(

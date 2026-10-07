@@ -22,7 +22,7 @@ import {
   type MultiDispatchAttempt,
 } from "@/lib/dispatch-status";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
-import { presentDispatchCard, terminalHref } from "@/lib/dispatch-card";
+import { presentDispatchCard, watchHref } from "@/lib/dispatch-card";
 import { isBuilderChannel } from "@/lib/constants/statuses";
 /** Human-readable label for an assistant turn's kind badge. SSOT for the
  *  small set of kinds the messages route emits. */
@@ -114,7 +114,7 @@ export function DispatchFooter({ meta }: { meta: Record<string, unknown> | null 
         detail: null,
         tone: multiView.tone,
         primary: primaryProject
-          ? { label: "Watch it", href: terminalHref(primaryProject, channel) }
+          ? { label: "Watch it", href: watchHref(primaryProject, channel) }
           : null,
         secondary: [{ label: `All ${projectKeys.length} in Control`, href: "/control" }],
       }

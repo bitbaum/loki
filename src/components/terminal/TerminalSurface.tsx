@@ -23,6 +23,7 @@ import {
   TERMINAL_RAIL_STORAGE_KEY,
   type TerminalInputMode,
   type TerminalSource,
+  type TerminalViewMode,
 } from "@/config/terminal-modes";
 import type { TerminalContext } from "@/app/api/terminal/context/route";
 import { TerminalView } from "./TerminalView";
@@ -142,6 +143,7 @@ export function TerminalSurface({
   initialSource,
   initialTab,
   initialRunId = null,
+  initialView = null,
 }: {
   local: boolean;
   immersive?: boolean;
@@ -153,6 +155,8 @@ export function TerminalSurface({
   initialTab?: string | null;
   /** Same orchestration run Feedback Watch is following (`?run=`). */
   initialRunId?: string | null;
+  /** `?view=` — open the session as the agent's conversation or the raw PTY. */
+  initialView?: TerminalViewMode | null;
 }) {
   // "shell" — a Loki-owned bash PTY — is only offered where one can
   // actually be provisioned. On the hosted control plane it is absent rather
@@ -412,7 +416,7 @@ export function TerminalSurface({
   );
   const tabContext = context?.tabs.find((t) => t.tab === activeTab) ?? null;
   const activeAgentId = tabContext?.agentPref ?? context?.agents.defaultAgent ?? null;
-  const termView = useTerminalView(activeAgentId);
+  const termView = useTerminalView(activeAgentId, initialView);
   // Sessions whose builder never sends the conversation: shown as the terminal
   // and offered no conversation toggle, without touching the saved preference
   // (the next session, on a newer runner, still opens as a conversation).

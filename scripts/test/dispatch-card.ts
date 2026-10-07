@@ -47,7 +47,10 @@ const running = presentDispatchCard({
   channel: "local",
 });
 check("while it runs, watch it", running.primary?.label === "Watch it");
-check("…on the machine it runs on", running.primary?.href === "/terminal?source=machine&tab=loki");
+check(
+  "…as the agent's conversation, on the machine it runs on",
+  running.primary?.href === "/terminal?source=machine&tab=loki&view=chat",
+);
 check(
   "cloud work opens the cloud terminal",
   terminalHref("loki", "cloud") === "/terminal?project=loki",

@@ -75,7 +75,6 @@ export function FeedbackItemRow({
     undefined,
     work.runId,
   );
-  const chatHref = fleetSurfaceHref("chat", projectName);
   const watchLive = work.watchable === true;
   // Watch exists whenever a run exists (Queued included), and immediately
   // after Implement/Retry. Terminal + Chat live inside the Watch panel — the
@@ -359,7 +358,6 @@ export function FeedbackItemRow({
         <FeedbackWatchPanel
           feedbackId={f.id}
           fallbackTerminalHref={terminalHref}
-          chatHref={chatHref}
           stepSummary={
             work.stepSummary ??
             (followAfterImplement && !watchLive
