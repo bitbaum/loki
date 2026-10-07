@@ -1,4 +1,9 @@
-import { asFleetProject, fleetSurfaceHref, projectFromFleetRoute } from "@/lib/fleet-context";
+import {
+  asFleetProject,
+  fleetSurfaceHref,
+  projectFromFleetRoute,
+  withTerminalView,
+} from "@/lib/fleet-context";
 
 const project = "BiasLens alpha";
 if (fleetSurfaceHref("profile", project) !== "/projects?project=BiasLens%20alpha") {
@@ -43,6 +48,23 @@ if (
   asFleetProject(null) !== null
 ) {
   throw new Error("asFleetProject must strip the lane and treat blanks as none");
+}
+
+// Watch links name the view they open: the agent's conversation or the raw PTY.
+if (
+  withTerminalView("/terminal?project=a%20b&run=r1", "chat") !==
+  "/terminal?project=a%20b&run=r1&view=chat"
+) {
+  throw new Error("withTerminalView must append the view and keep the encoding");
+}
+if (
+  withTerminalView("/terminal?view=chat&project=a", "terminal") !==
+  "/terminal?project=a&view=terminal"
+) {
+  throw new Error("withTerminalView must replace an existing view");
+}
+if (withTerminalView("/terminal", "chat") !== "/terminal?view=chat") {
+  throw new Error("withTerminalView on a bare path");
 }
 
 console.log("✓ fleet-context tests passed");

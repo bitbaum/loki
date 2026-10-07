@@ -23,7 +23,10 @@ export function TerminalPageClient({ local }: { local: boolean }) {
   const initialTab = searchParams.get("project") ?? searchParams.get("tab");
   const runParam = searchParams.get("run");
   const initialRunId = runParam && isValidUuid(runParam) ? runParam : null;
-  const surfaceKey = `${initialSource ?? "default"}:${initialTab ?? ""}:${initialRunId ?? ""}`;
+  // `?view=` is read by useTerminalView; it is in the key so a Watch link to
+  // the other view of an open page remounts onto it.
+  const initialView = searchParams.get("view");
+  const surfaceKey = `${initialSource ?? "default"}:${initialTab ?? ""}:${initialRunId ?? ""}:${initialView ?? ""}`;
 
   return (
     <TerminalMobileShell>

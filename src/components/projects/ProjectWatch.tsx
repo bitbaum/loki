@@ -16,7 +16,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, RotateCcw, SquareTerminal } from "lucide-react";
+import { Loader2, MessagesSquare, RotateCcw, SquareTerminal } from "lucide-react";
+import { withTerminalView } from "@/lib/fleet-context";
 import { postJson } from "@/lib/api/fetch";
 import { peekTabOnce } from "@/lib/peek-tab-client";
 import {
@@ -264,9 +265,17 @@ export function ProjectWatch({
           </div>
           {working && tail && tail.length > 0 && <ScreenFold lines={tail} />}
           {p.terminalHref && status.terminalReady && (
-            <Link href={p.terminalHref} className="ui-chat-link">
-              <SquareTerminal className="h-3.5 w-3.5" aria-hidden="true" /> Open the full terminal
-            </Link>
+            // The agent's own conversation and its raw terminal are one page
+            // with a switch; each link opens it on the view it names.
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <Link href={withTerminalView(p.terminalHref, "chat")} className="ui-chat-link">
+                <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" /> Follow{" "}
+                {provider?.currentLabel ?? "the agent"} live
+              </Link>
+              <Link href={withTerminalView(p.terminalHref, "terminal")} className="ui-chat-link">
+                <SquareTerminal className="h-3.5 w-3.5" aria-hidden="true" /> Open the full terminal
+              </Link>
+            </div>
           )}
         </AssistantMessage>
       )}

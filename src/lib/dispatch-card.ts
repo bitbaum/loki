@@ -14,6 +14,7 @@
  * one quiet secondary link.
  */
 import { EXECUTOR_COPY } from "@/config/executor-copy";
+import { withTerminalView } from "@/lib/fleet-context";
 import type { BuilderChannel, StatusTone } from "@/lib/constants/statuses";
 import type { DispatchLiveStatus } from "@/lib/dispatch-status";
 
@@ -52,12 +53,18 @@ export function terminalHref(project: string, channel: BuilderChannel | null): s
   return channel === "local" ? `/terminal?source=machine&tab=${p}` : `/terminal?project=${p}`;
 }
 
+/** "Watch it" opens the agent's conversation; the raw terminal is one tap away
+ *  on the same page. */
+export function watchHref(project: string, channel: BuilderChannel | null): string {
+  return withTerminalView(terminalHref(project, channel), "chat");
+}
+
 const controlHref = (project: string) => `/control?focus=${encodeURIComponent(project)}`;
 
 export function presentDispatchCard(input: DispatchCardInput): DispatchCardView {
   const { live, project, channel } = input;
   const on = channel ? EXECUTOR_COPY.ranOn[channel] : null;
-  const watch = project ? { label: "Watch it", href: terminalHref(project, channel) } : null;
+  const watch = project ? { label: "Watch it", href: watchHref(project, channel) } : null;
   const control = project ? { label: "Open in Control", href: controlHref(project) } : null;
   const all =
     input.projectCount > 1
