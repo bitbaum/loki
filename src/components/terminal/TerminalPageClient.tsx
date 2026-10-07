@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { TerminalMobileShell } from "@/components/terminal/TerminalMobileShell";
 import { TerminalSurface } from "@/components/terminal/TerminalSurface";
-import type { TerminalSource, TerminalViewMode } from "@/config/terminal-modes";
+import type { TerminalSource } from "@/config/terminal-modes";
 import { isValidUuid } from "@/lib/utils";
 
 /** Legacy deep links used `source=server` for the cloud builder. Kept mapping
@@ -16,11 +16,6 @@ function parseSource(value: string | null): TerminalSource | undefined {
   return undefined;
 }
 
-/** `?view=chat|terminal` — which view of the session a Watch link opens. */
-function parseView(value: string | null): TerminalViewMode | null {
-  return value === "chat" || value === "terminal" ? value : null;
-}
-
 /** Client boundary for /terminal — owns mobile expand state and URL deep links. */
 export function TerminalPageClient({ local }: { local: boolean }) {
   const searchParams = useSearchParams();
@@ -28,7 +23,9 @@ export function TerminalPageClient({ local }: { local: boolean }) {
   const initialTab = searchParams.get("project") ?? searchParams.get("tab");
   const runParam = searchParams.get("run");
   const initialRunId = runParam && isValidUuid(runParam) ? runParam : null;
-  const initialView = parseView(searchParams.get("view"));
+  // `?view=` is read by useTerminalView; it is in the key so a Watch link to
+  // the other view of an open page remounts onto it.
+  const initialView = searchParams.get("view");
   const surfaceKey = `${initialSource ?? "default"}:${initialTab ?? ""}:${initialRunId ?? ""}:${initialView ?? ""}`;
 
   return (
@@ -42,7 +39,6 @@ export function TerminalPageClient({ local }: { local: boolean }) {
           initialSource={initialSource}
           initialTab={initialTab}
           initialRunId={initialRunId}
-          initialView={initialView}
         />
       )}
     </TerminalMobileShell>
