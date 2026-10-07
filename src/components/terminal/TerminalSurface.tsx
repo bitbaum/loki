@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, MonitorSmartphone, Sparkles } from "lucide-react";
+import { Loader2, MonitorSmartphone } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
@@ -26,6 +26,7 @@ import {
 } from "@/config/terminal-modes";
 import type { TerminalContext } from "@/app/api/terminal/context/route";
 import { TerminalView } from "./TerminalView";
+import { TerminalExplainButton, TerminalLokiSheet, useTerminalExplain } from "./TerminalExplain";
 import { TerminalTabStrip } from "./TerminalTabStrip";
 import { TerminalSessionBar, TerminalSourceBar } from "./TerminalModeBar";
 import { TerminalComposer } from "./TerminalComposer";
@@ -38,7 +39,6 @@ import { TerminalSessionSheet } from "./TerminalSessionSheet";
 import { TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
 import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
-import { Modal } from "@/components/ui/modal";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
 import { TerminalOfflineActions } from "./TerminalOfflineActions";
@@ -360,22 +360,6 @@ export function TerminalSurface({
   const deck = useTerminalDeck();
   const keyboardInset = useKeyboardInset();
   const [sheetOpen, setSheetOpen] = useState(false);
-  // The Loki sheet opens on request only. It used to open by itself on phones
-  // whenever the URL carried a run — i.e. every "Open the full terminal" tap —
-  // and covered the session the person had just asked to see with a scrim and
-  // a status card (operator, 2026-10-07). The rail is one tap away in the
-  // header; the terminal is what was asked for.
-  // The exception is a person who asked: `?explain=1` is a "What's going
-  // on?" tap on another page, and the answer lives in this sheet.
-  const [lokiSheetOpen, setLokiSheetOpen] = useState(
-    () =>
-      initialExplain &&
-      typeof window !== "undefined" &&
-      !window.matchMedia(TERMINAL_RAIL_QUERY).matches,
-  );
-  // Each "What's going on?" tap bumps this; the rail answers each value once.
-  const [explainRequest, setExplainRequest] = useState(initialExplain ? 1 : 0);
-  const [explainAnswered, setExplainAnswered] = useState(0);
   // The rail beside the session (lg+). Closing it hands its columns to the
   // terminal; the choice is remembered, like the input mode.
   const [railOpen, setRailOpen] = useLocalStorageState<boolean>(
@@ -387,6 +371,7 @@ export function TerminalSurface({
   // Whether the rail can sit beside the session at this width at all. Below
   // it the rail is a sheet, and the toggle opens that instead.
   const railFits = useMediaQuery(TERMINAL_RAIL_QUERY);
+  const explainer = useTerminalExplain(initialExplain, railFits, () => setRailOpen(true));
   const [liveState, setLiveState] = useState<TerminalLiveState>("connecting");
   // The attached session's rendered screen, for the rail's AI summary.
   const readScreenRef = useRef<((rows: number) => string[]) | null>(null);
@@ -556,8 +541,7 @@ export function TerminalSurface({
         onSwitchAgent={(id) => void switchAgent(id)}
         readScreenRef={readScreenRef}
         askOnly={view === "chat"}
-        explainRequest={explainRequest > explainAnswered ? explainRequest : 0}
-        onExplained={setExplainAnswered}
+        explain={explainer}
       />
     ) : null;
 
@@ -565,14 +549,9 @@ export function TerminalSurface({
   // cannot sit beside the session (md–lg) the same button opens it as a sheet,
   // so the panel is one click away at every width instead of only on lg+.
   const railShown = Boolean(projectKey) && railOpen && railFits && !immersive;
-  const explain = () => {
-    setExplainRequest((n) => n + 1);
-    if (!railFits) setLokiSheetOpen(true);
-    else setRailOpen(true);
-  };
   const toggleRail = () => {
     if (railFits) setRailOpen((open) => !open);
-    else setLokiSheetOpen(true);
+    else explainer.setSheetOpen(true);
   };
   const paneActions = (
     <TerminalPaneActions
@@ -613,7 +592,7 @@ export function TerminalSurface({
         projectKey
           ? () => {
               setSheetOpen(false);
-              setLokiSheetOpen(true);
+              explainer.setSheetOpen(true);
             }
           : undefined
       }
@@ -808,21 +787,8 @@ export function TerminalSurface({
         )}
       </div>
 
-      {/* The one question a person watching an agent actually has, as the
-          most obvious thing under the screen. A TUI is not readable by most
-          people on a phone; this turns it into two sentences and the choices
-          that follow from them — steer it, or leave it running (operator,
-          2026-10-07). Where the rail sits beside the session it carries the
-          same button in its header. */}
       {activeTab && projectKey && !railShown && !(railFits && immersive) && (
-        <button
-          type="button"
-          onClick={explain}
-          className="ui-btn-secondary w-full shrink-0 justify-center gap-2"
-        >
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
-          What&apos;s going on?
-        </button>
+        <TerminalExplainButton onClick={explainer.ask} />
       )}
 
       {/* Desktop composers. The phone's live in the dock below, alongside the
@@ -856,18 +822,10 @@ export function TerminalSurface({
       )}
 
       {sheet}
-      {lokiSheetOpen && projectKey && (
-        <div className="lg:hidden">
-          <Modal
-            onClose={() => setLokiSheetOpen(false)}
-            position="bottom-mobile"
-            size="lg"
-            padded={false}
-            className="ui-sheet"
-          >
-            <div className="ui-term-loki-sheet">{renderLokiRail()}</div>
-          </Modal>
-        </div>
+      {explainer.sheetOpen && projectKey && (
+        <TerminalLokiSheet onClose={() => explainer.setSheetOpen(false)}>
+          {renderLokiRail()}
+        </TerminalLokiSheet>
       )}
     </div>
   );

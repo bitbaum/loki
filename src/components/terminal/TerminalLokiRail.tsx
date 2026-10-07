@@ -43,16 +43,14 @@ export function TerminalLokiRail({
   onSwitchAgent,
   readScreenRef,
   askOnly = false,
-  explainRequest = 0,
-  onExplained,
+  explain,
 }: {
-  /** Told which request was answered, so a sheet that remounts the rail does
-   *  not ask the same question again. */
-  onExplained?: (request: number) => void;
-  /** Bumped by "What's going on?" outside the rail (the phone button, a
-   *  Watch deep link). Each new value asks once, as soon as the session's
-   *  screen is attached — asking before that would explain an empty box. */
-  explainRequest?: number;
+  /** "What's going on?" asked outside the rail (the phone button, a Watch
+   *  deep link). Each new `pending` value is answered once, as soon as the
+   *  session's screen is attached — asking before that would explain an empty
+   *  box — and reported back, so a sheet that remounts the rail does not ask
+   *  the same question again. */
+  explain?: { pending: number; onAnswered: (request: number) => void };
   /** The page already has a box that writes into the session (the
    *  conversation view's composer): this panel then only asks Loki, so the
    *  screen never shows two composers for the same session. */
@@ -131,6 +129,8 @@ export function TerminalLokiRail({
     });
   };
 
+  const explainRequest = explain?.pending ?? 0;
+  const onExplained = explain?.onAnswered;
   const answered = useRef(0);
   useEffect(() => {
     if (!project || explainRequest <= answered.current) return;
