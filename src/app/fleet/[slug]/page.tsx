@@ -8,6 +8,7 @@ import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { humanizeAttrKey } from "@/config/project-attrs";
 import { longDate } from "@/lib/dates";
 import type { FleetMapEntry, MapRoadmapItem } from "@/lib/register/map";
+import { recordText } from "@/lib/register/record-links";
 
 /**
  * A project's public build profile — what Loki publishes about ONE project to
@@ -122,7 +123,7 @@ export default async function PublicProjectProfile({
             <ol className="mt-6 space-y-8">
               {project.roadmap.map((item, i) => (
                 <li key={`${item.title}-${i}`}>
-                  <h3 className="ui-public-prose-strong">{item.title}</h3>
+                  <h3 className="ui-public-prose-strong">{recordText(item.title)}</h3>
                   <p className="ui-public-meta mt-1">{roadmapMeta(item)}</p>
                   {item.milestones.length > 0 && (
                     <ul className="mt-3 space-y-2">
@@ -136,7 +137,7 @@ export default async function PublicProjectProfile({
                             {m.done ? <Check className="h-3 w-3" /> : null}
                           </span>
                           <span className="ui-public-prose-muted min-w-0">
-                            {m.title}
+                            {recordText(m.title)}
                             <span className="sr-only">{m.done ? " — done" : " — not done"}</span>
                           </span>
                         </li>
@@ -161,7 +162,9 @@ export default async function PublicProjectProfile({
               {project.changelog.map((item, i) => (
                 <li key={`${item.date}-${i}`}>
                   <h3 className="ui-public-meta">{longDate(item.date)}</h3>
-                  <p className="ui-public-prose-muted mt-1 whitespace-pre-wrap">{item.done}</p>
+                  <p className="ui-public-prose-muted mt-1 whitespace-pre-wrap">
+                    {recordText(item.done)}
+                  </p>
                 </li>
               ))}
             </ol>

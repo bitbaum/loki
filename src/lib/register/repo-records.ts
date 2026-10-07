@@ -75,8 +75,23 @@ export function parseRoadmapMarkdown(md: string): RepoRoadmapItem[] {
   const items: RepoRoadmapItem[] = [];
   let status: string | null = null;
   let current: RepoRoadmapItem | null = null;
+  // The milestone a wrapped line continues. Milestones are written as wrapped
+  // markdown — the second line indented under the first — and only the line
+  // carrying the checkbox used to be read, so "…redirect into the" was
+  // published without the "first organization" that finished it.
+  let lastStep: { title: string; done: boolean } | null = null;
   for (const raw of md.split(/\r?\n/)) {
     const line = raw.trimEnd();
+    if (!line.trim()) {
+      lastStep = null;
+      continue;
+    }
+    if (lastStep && /^\s+\S/.test(line) && !/^\s*(?:[-*+]|\d+[.)])\s/.test(line)) {
+      const more = plainText(line);
+      if (more) lastStep.title = `${lastStep.title} ${more}`;
+      continue;
+    }
+    lastStep = null;
     const bucket = /^##\s+(.+?)\s*#*\s*$/.exec(line);
     if (bucket) {
       status = statusForBucket(bucket[1]);
@@ -100,7 +115,10 @@ export function parseRoadmapMarkdown(md: string): RepoRoadmapItem[] {
     const step = /^\s*[-*]\s+\[([ xX])\]\s+(.+)$/.exec(line);
     if (step) {
       const title = plainText(step[2]);
-      if (title) current.milestones!.push({ title, done: step[1] !== " " });
+      if (title) {
+        lastStep = { title, done: step[1] !== " " };
+        current.milestones!.push(lastStep);
+      }
       continue;
     }
     // The first prose line under the title is the item's one-liner; anything

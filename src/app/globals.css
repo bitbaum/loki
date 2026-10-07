@@ -2145,6 +2145,28 @@
   .ui-journey-step-list > li[data-done] .ui-journey-step-mark {
     @apply border-status-positive bg-status-positive text-text-inverted;
   }
+  /* The changelog days that delivered a step (`{#id}` in both records).
+     inline-flex, not flex: an atomic inline box is not struck through with a
+     done step's line-through, so the dates stay readable links. */
+  .ui-journey-cites {
+    @apply mt-0.5 inline-flex w-full flex-wrap gap-x-2 text-xs text-text-tertiary;
+  }
+  .ui-journey-cites a {
+    @apply font-mono text-text-secondary underline-offset-4 hover:text-text-primary hover:underline;
+  }
+  /* Under a changelog line: the roadmap step it delivered. */
+  .ui-changelog-advance {
+    @apply mt-1 flex text-xs text-text-tertiary underline-offset-4 hover:text-text-secondary hover:underline;
+  }
+  .ui-changelog-entry {
+    @apply scroll-mt-24;
+  }
+  .ui-journey-step-list > li[id] {
+    @apply scroll-mt-24;
+  }
+  .ui-journey-step-list > li:target {
+    @apply rounded outline outline-2 outline-offset-4 outline-border-interactive;
+  }
   .ui-journey-shipped-list {
     @apply mt-3 flex flex-col gap-2;
   }

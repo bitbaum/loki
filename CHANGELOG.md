@@ -6,6 +6,21 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-07 — The record points both ways
+
+- **The roadmap and the changelog link to each other.** A `{#id}` on a
+  ROADMAP.md step and on the CHANGELOG.md line that delivered it now links
+  them: each step on `/roadmap` names the changelog days that shipped it, and
+  each line on `/changelog` names the step it delivered. One model for every
+  fleet site (bip-kit 0.6.0); OrangeCat and Solon show the same links.
+- **Fleet profiles no longer print the link tokens.** `/fleet/orangecat`
+  showed "Events, end to end {#events}" once OrangeCat started linking its
+  records; every fleet profile strips them now.
+- **A wrapped roadmap step is read whole.** A step written over two lines lost
+  its second line, so Solon's roadmap published "…redirect into the" without
+  "first organization", and the lost line could be taken as the goal's
+  one-line summary.
+
 ## 2026-10-05 — Make it yours
 
 - **Your own copy of an open-source project.** On `/take`, pick OrangeCat,
