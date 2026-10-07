@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import type { Journey, JourneyStop } from "@/lib/register/roadmap-journey";
+import { recordText, type RecordLinks } from "@/lib/register/record-links";
 
 /**
  * The roadmap drawn as a road: what is behind us, a "you are here" for what is
@@ -16,7 +17,7 @@ import type { Journey, JourneyStop } from "@/lib/register/roadmap-journey";
  * only motion (the beacon at "you are here", rings drawing in) is CSS that
  * stops under prefers-reduced-motion.
  */
-export function RoadmapJourney({ journey }: { journey: Journey }) {
+export function RoadmapJourney({ journey, links }: { journey: Journey; links?: RecordLinks }) {
   const road = journey.now.length + journey.next.length + journey.later.length;
   const total = journey.shipped.length + road;
   return (
@@ -50,10 +51,16 @@ export function RoadmapJourney({ journey }: { journey: Journey }) {
         )}
 
         {journey.now.map((stop, i) => (
-          <Stop key={stop.title} stop={stop} here={i === 0} anchor={i === 0 ? "now" : undefined} />
+          <Stop
+            key={stop.title}
+            stop={stop}
+            links={links}
+            here={i === 0}
+            anchor={i === 0 ? "now" : undefined}
+          />
         ))}
         {journey.next.map((stop, i) => (
-          <Stop key={stop.title} stop={stop} anchor={i === 0 ? "next" : undefined} />
+          <Stop key={stop.title} stop={stop} links={links} anchor={i === 0 ? "next" : undefined} />
         ))}
 
         {journey.later.length > 0 && (
@@ -64,7 +71,7 @@ export function RoadmapJourney({ journey }: { journey: Journey }) {
               <ul className="ui-journey-horizon">
                 {journey.later.map((s) => (
                   <li key={s.title}>
-                    <span className="ui-journey-prose-strong">{s.title}</span>
+                    <span className="ui-journey-prose-strong">{recordText(s.title)}</span>
                     {s.line && <span className="ui-journey-line"> — {s.line}</span>}
                   </li>
                 ))}
@@ -134,10 +141,13 @@ function Stop({
   stop,
   here = false,
   anchor,
+  links,
 }: {
   stop: JourneyStop;
   here?: boolean;
   anchor?: string;
+  /** Changelog days per milestone (`{#id}` in both records); absent = none shown. */
+  links?: RecordLinks | undefined;
 }) {
   return (
     <li
@@ -154,11 +164,11 @@ function Stop({
         {!here && stop.phase === "now" && (
           <span className="ui-journey-kicker">Also being built</span>
         )}
-        <h3 className="ui-journey-title">{stop.title}</h3>
+        <h3 className="ui-journey-title">{recordText(stop.title)}</h3>
         {stop.line && <p className="ui-journey-line">{stop.line}</p>}
         {stop.nextStep && (
           <p className="ui-journey-next">
-            <span className="ui-journey-next-label">Next step</span> {stop.nextStep}
+            <span className="ui-journey-next-label">Next step</span> {recordText(stop.nextStep)}
           </p>
         )}
         {stop.total > 0 && (
@@ -168,17 +178,34 @@ function Stop({
               {stop.targetDate ? ` · target ${stop.targetDate}` : ""}
             </summary>
             <ul className="ui-journey-step-list">
-              {stop.milestones.map((m) => (
-                <li key={m.title} data-done={m.done || undefined}>
-                  <span className="ui-journey-step-mark" aria-hidden>
-                    {m.done ? <Check className="h-3 w-3" /> : null}
-                  </span>
-                  <span className="min-w-0">
-                    {m.title}
-                    <span className="sr-only">{m.done ? " — done" : " — not done"}</span>
-                  </span>
-                </li>
-              ))}
+              {stop.milestones.map((m) => {
+                const cites = links?.deliveredIn(m.title) ?? [];
+                return (
+                  <li
+                    key={m.title}
+                    id={links?.stepAnchor(m.title) ?? undefined}
+                    data-done={m.done || undefined}
+                  >
+                    <span className="ui-journey-step-mark" aria-hidden>
+                      {m.done ? <Check className="h-3 w-3" /> : null}
+                    </span>
+                    <span className="min-w-0">
+                      {recordText(m.title)}
+                      <span className="sr-only">{m.done ? " — done" : " — not done"}</span>
+                      {cites.length > 0 && (
+                        <span className="ui-journey-cites">
+                          {m.done ? "Shipped" : "Worked on"}
+                          {cites.map((c) => (
+                            <a key={c.anchor} href={`/changelog#${c.anchor}`} title={c.line}>
+                              {c.date}
+                            </a>
+                          ))}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </details>
         )}

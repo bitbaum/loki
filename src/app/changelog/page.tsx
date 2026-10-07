@@ -5,6 +5,8 @@ import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { ownRecord } from "@/lib/register/own-record";
 import { loadRepoRecords, type RepoChangelogEntry } from "@/lib/register/repo-records";
 import { longDate } from "@/lib/dates";
+import { changeAnchor } from "bip-kit";
+import { recordLinks, recordText } from "@/lib/register/record-links";
 
 /**
  * What changed in the product, dated, in the words of someone using it —
@@ -70,6 +72,15 @@ export default async function ChangelogPage() {
     ? repo.changelog
     : fromMap(record?.entry.changelog ?? []);
   const source = repo?.source.changelog ?? record?.entry.records.source.changelog ?? null;
+  // `{#id}` on a line names the roadmap step it delivered; the same model the
+  // roadmap uses to link back here (bip-kit linkDevelopment).
+  const links = recordLinks(record?.entry.roadmap ?? [], entries);
+  const seen = new Map<string, number>();
+  const anchorOf = (date: string) => {
+    const n = seen.get(date) ?? 0;
+    seen.set(date, n + 1);
+    return changeAnchor(date, n);
+  };
 
   const months: Array<{ key: string; entries: RepoChangelogEntry[] }> = [];
   for (const entry of entries) {
@@ -126,7 +137,11 @@ export default async function ChangelogPage() {
               >
                 <ol className="mt-8 space-y-10 sm:mt-12 sm:space-y-14">
                   {month.entries.map((entry, i) => (
-                    <li key={`${entry.date}-${i}`} className="max-w-2xl">
+                    <li
+                      key={`${entry.date}-${i}`}
+                      id={anchorOf(entry.date)}
+                      className="ui-changelog-entry max-w-2xl"
+                    >
                       <h3 className="ui-public-meta">
                         <time dateTime={entry.date}>{longDate(entry.date)}</time>
                         {entry.title ? (
@@ -147,10 +162,22 @@ export default async function ChangelogPage() {
                                 <span className="ui-public-prose-bullet" />
                                 <span className="min-w-0">
                                   {item.lead && (
-                                    <span className="ui-public-prose-strong">{item.lead}</span>
+                                    <span className="ui-public-prose-strong">
+                                      {recordText(item.lead)}
+                                    </span>
                                   )}
                                   {item.lead && item.text ? " " : null}
-                                  {withPrLinks(item.text)}
+                                  {withPrLinks(recordText(item.text))}
+                                  {links.advances(`${item.lead ?? ""} ${item.text}`).map((a) => (
+                                    <a
+                                      key={a.stepAnchor ?? a.goalAnchor}
+                                      href={`/roadmap#${a.stepAnchor ?? a.goalAnchor}`}
+                                      className="ui-changelog-advance"
+                                    >
+                                      → {recordText(a.goal)}
+                                      {a.step ? ` · ${recordText(a.step)}` : ""}
+                                    </a>
+                                  ))}
                                 </span>
                               </li>
                             ))}

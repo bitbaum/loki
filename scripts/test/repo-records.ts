@@ -69,6 +69,20 @@ Intro prose is ignored.
     { title: "Credential file per tenant", done: false },
   ]);
   assert.deepEqual(parseRoadmapMarkdown("# Roadmap\n\nNothing yet."), []);
+  // A wrapped milestone is one milestone; its continuation is neither lost
+  // nor taken for the item's one-liner.
+  const wrapped = parseRoadmapMarkdown(
+    "## Now\n### Pages\n\n- [x] Anyone may found an organization; founding\n      chooses its profile {#founding}\n- [ ] Retire it; old links redirect into the\n      first organization\n  - [ ] a nested step\n",
+  );
+  assert.equal(wrapped[0].line, null);
+  assert.deepEqual(wrapped[0].milestones, [
+    {
+      title: "Anyone may found an organization; founding chooses its profile {#founding}",
+      done: true,
+    },
+    { title: "Retire it; old links redirect into the first organization", done: false },
+    { title: "a nested step", done: false },
+  ]);
 }
 
 // ---- changelog ----
