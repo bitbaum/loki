@@ -13,10 +13,10 @@ import {
   NARRATE_HISTORY,
   NARRATE_MIN_INTERVAL_MS,
   narrationPrompt,
-  parseNarration,
   pushNarration,
   shouldNarrate,
 } from "@/lib/watch-narration";
+import { parseNarration } from "@/lib/watch-narration-parse";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

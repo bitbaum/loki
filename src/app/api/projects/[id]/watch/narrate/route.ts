@@ -16,8 +16,8 @@ import {
   NARRATE_MAX_LINES,
   NARRATION_SYSTEM,
   narrationPrompt,
-  parseNarration,
 } from "@/lib/watch-narration";
+import { parseNarration } from "@/lib/watch-narration-parse";
 
 /**
  * One plain-language headline for what the agent is doing now, read from the
