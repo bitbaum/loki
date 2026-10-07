@@ -3,13 +3,13 @@
 import { Maximize2, Minimize2, PanelRight } from "lucide-react";
 
 /**
- * The pane controls at the end of the terminal's status row (desktop):
- * Summary (the panel that summarizes this run and takes Ask/Inject) and full
- * screen.
+ * The pane controls at the end of the terminal's status row (desktop): Loki
+ * (the supervisor's panel — summary of this run, next steps, Ask/Inject) and
+ * full screen.
  *
- * "Summary", not "Loki": "Loki" is the conversation view in the session bar's
- * Loki | Terminal switch, and one word naming two things is what made this
- * screen hard to find your way around.
+ * "Loki" is right here and nowhere else on this screen: the conversation view
+ * in the session bar is named after the agent in the session. One word for
+ * two AIs was what made this screen hard to find your way around.
  */
 export function TerminalPaneActions({
   loki,
@@ -29,15 +29,15 @@ export function TerminalPaneActions({
           className={loki.shown ? "ui-term-pane-btn ui-term-pane-btn-on" : "ui-term-pane-btn"}
           onClick={loki.onToggle}
           aria-pressed={loki.pressable ? loki.shown : undefined}
-          aria-label={loki.shown ? "Hide the summary panel" : "Show the summary panel"}
+          aria-label={loki.shown ? "Hide the Loki panel" : "Show the Loki panel"}
           title={
             loki.shown
-              ? "Hide the summary — the terminal takes the width"
+              ? "Hide Loki — the terminal takes the width"
               : "Summarize this run and ask Loki about it"
           }
         >
           <PanelRight className="h-3.5 w-3.5" aria-hidden="true" />
-          Summary
+          Loki
         </button>
       )}
       {onToggleImmersive && (

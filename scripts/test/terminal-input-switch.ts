@@ -47,15 +47,28 @@ const read = (f: string) => readFileSync(join(process.cwd(), "src/components/ter
   ok(!html.includes("Loki"), "input modes only — Loki is a view, not an input mode");
 }
 {
-  // Loki | Terminal: both choices named, the current one marked.
+  // Claude | Terminal: the conversation is named after the AGENT in the
+  // session, never "Loki" — that is the supervisor, on its own model.
   for (const view of ["chat", "terminal"] as const) {
     const html = renderToStaticMarkup(
-      createElement(TerminalViewSwitch, { view, onViewChange: noop }),
+      createElement(TerminalViewSwitch, { view, onViewChange: noop, agentLabel: "Claude" }),
     );
-    ok(html.includes(">Loki</button>") && html.includes(">Terminal</button>"), "names both views");
+    ok(
+      html.includes(">Claude</button>") && html.includes(">Terminal</button>"),
+      "names both views",
+    );
+    ok(!html.includes("Loki"), "the agent's conversation is not called Loki");
     const pressed = html.split("<button").find((b) => b.includes('aria-pressed="true"')) ?? "";
-    ok(pressed.includes(view === "chat" ? ">Loki<" : ">Terminal<"), `marks ${view} as current`);
+    ok(pressed.includes(view === "chat" ? ">Claude<" : ">Terminal<"), `marks ${view} as current`);
   }
+  const codex = renderToStaticMarkup(
+    createElement(TerminalViewSwitch, { view: "chat", onViewChange: noop, agentLabel: "Codex" }),
+  );
+  ok(codex.includes(">Codex</button>"), "follows the agent that is actually running");
+  const unnamed = renderToStaticMarkup(
+    createElement(TerminalViewSwitch, { view: "chat", onViewChange: noop }),
+  );
+  ok(unnamed.includes(">Chat</button>"), "an unnamed agent reads as Chat, not Loki");
 }
 {
   // Wired where you look, at every width, and in both views.
@@ -70,12 +83,17 @@ const read = (f: string) => readFileSync(join(process.cwd(), "src/components/ter
   );
   ok(
     /<TerminalSessionSheet[\s\S]*?onOpenLoki=\{/.test(surface),
-    "the run summary panel is reachable from the session sheet",
+    "the Loki panel is reachable from the session sheet",
   );
   ok(!read("TerminalMobileHeader.tsx").includes("onOpenLoki"), "no second 'Loki' in the header");
   ok(
-    !read("TerminalPaneActions.tsx").includes("\n          Loki\n"),
-    "desktop panel button is not also called Loki",
+    read("TerminalPaneActions.tsx").includes("\n          Loki\n"),
+    "the desktop panel button is the one thing called Loki",
+  );
+  ok(
+    read("TerminalMobileHeader.tsx").includes("agentLabel={agent}") &&
+      read("TerminalModeBar.tsx").includes("agentLabel={activeAgent?.label"),
+    "both switches are named after the running agent",
   );
   // One Loki entry point on a phone: the header's. The dock's chip was the
   // same button a second time, one row below (2026-10-05).

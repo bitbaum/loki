@@ -8,27 +8,22 @@
  * ProjectActionButtons.
  *
  * Copy rule: say what is known, from the run ledger and the runner's last
- * observation, and nothing else. "Building now" needs a fresh observation;
- * "timed out after 1h 44m, nothing reached the repo" needs the run row and
- * the commit list. See lib/project-build-status for what each state requires.
+ * observation, and nothing else — and say it as an outcome. The words are
+ * lib/project-state-sentence (one sentence per project, ending on "live" or
+ * "waiting on you"); what each state requires as evidence is
+ * lib/project-build-status. This strip used to compose its own copy and
+ * ended on "work reached the repo", which is true and not what the person
+ * who asked for the change wanted to know.
  */
 import Link from "next/link";
 import { Rocket } from "lucide-react";
 import type { BuildStatus } from "@/lib/project-build-status";
-import { timeAgo, formatDurationMinutes } from "@/lib/dates";
+import { projectStateSentence } from "@/lib/project-state-sentence";
 import { MakeItHappenButton } from "./ProjectActionButtons";
-
-const OUTCOME_VERB: Record<string, string> = {
-  success: "finished",
-  partial: "finished partially",
-  user_abort: "was stopped",
-  error: "failed",
-  hang: "hung",
-  timeout: "timed out",
-};
 
 export function ProjectBuildStatus({
   status,
+  liveUrl,
   projectId,
   workspaceKey,
   readonly,
@@ -36,6 +31,8 @@ export function ProjectBuildStatus({
   hasNextStep,
 }: {
   status: BuildStatus;
+  /** Where the project is served, so "live" can say where. */
+  liveUrl?: string | null;
   projectId: string;
   workspaceKey: string;
   readonly: boolean;
@@ -52,63 +49,40 @@ export function ProjectBuildStatus({
   if (setupNeeded && status.kind === "idle") return null;
 
   const canStart = !readonly && !setupNeeded;
+  const sentence = projectStateSentence(status, { liveUrl });
   const tone =
-    status.kind === "building" || status.kind === "queued"
+    sentence.tone === "working" || sentence.tone === "live"
       ? "ui-dot-positive"
-      : status.kind === "stalled"
+      : sentence.tone === "waiting"
         ? "ui-dot-warning"
         : "ui-dot-neutral";
+  const { headline, detail } = sentence;
+  const KICKER = { live: "Live", working: "Build", waiting: "Waiting on you", quiet: "Build" };
+  // Where to look, beside the sentence: the site once it is live, the change
+  // while it is on its way. The action slot stays the one button that starts
+  // work, so this is a link in the text, never a second button.
+  const shipping = status.kind === "idle" ? status.last?.shipping : null;
+  const look =
+    sentence.tone === "live" && liveUrl
+      ? { href: liveUrl, label: "Open the site" }
+      : shipping?.prUrl && !sentence.waitingOnYou
+        ? { href: shipping.prUrl, label: "See the change" }
+        : null;
 
-  let headline: string;
-  let detail: string;
   let action: React.ReactNode = null;
-
-  switch (status.kind) {
-    case "building": {
-      headline = "Building now";
-      detail = [status.label, status.sinceMs != null ? `started ${timeAgo(status.sinceMs)}` : null]
-        .filter(Boolean)
-        .join(" · ");
-      if (!detail) detail = "An agent is working on this project.";
-      action = (
-        <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11 gap-2">
-          <Rocket className="h-4 w-4" aria-hidden="true" /> Watch it work
-        </Link>
-      );
-      break;
-    }
-    case "queued": {
-      headline = "Starting up";
-      detail = `Sent ${timeAgo(status.sinceMs)}. Waiting for a builder to claim it.`;
-      action = (
-        <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11">
-          Watch it start
-        </Link>
-      );
-      break;
-    }
-    case "stalled": {
-      headline = `Sent ${timeAgo(status.sinceMs)}, but no agent has picked it up`;
-      detail = "Nothing has been recorded for that request, so starting again is safe.";
-      break;
-    }
-    case "idle": {
-      headline = "Nothing is being built right now";
-      const last = status.last;
-      if (!last) {
-        detail = "No build has been started yet.";
-      } else {
-        const verb = OUTCOME_VERB[last.outcome] ?? last.outcome;
-        const landed = last.landed ? "work reached the repo" : "nothing reached the repo";
-        detail =
-          last.outcome === "success"
-            ? `Last run finished ${timeAgo(last.finishedAtMs)} after ${formatDurationMinutes(last.durationMinutes)} — ${landed}.`
-            : `Last attempt ${verb} ${timeAgo(last.finishedAtMs)} after ${formatDurationMinutes(last.durationMinutes)} — ${landed}.`;
-      }
-      break;
-    }
+  if (status.kind === "building") {
+    action = (
+      <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11 gap-2">
+        <Rocket className="h-4 w-4" aria-hidden="true" /> Watch it work
+      </Link>
+    );
+  } else if (status.kind === "queued") {
+    action = (
+      <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11">
+        Watch it start
+      </Link>
+    );
   }
-
   if (canStart && (status.kind === "idle" || status.kind === "stalled")) {
     action = (
       <MakeItHappenButton
@@ -125,7 +99,7 @@ export function ProjectBuildStatus({
       aria-labelledby="project-build-status-title"
     >
       <div className="min-w-0">
-        <p className="ui-kicker">Build</p>
+        <p className="ui-kicker">{KICKER[sentence.tone]}</p>
         <h2
           id="project-build-status-title"
           className="mt-1 flex items-center gap-2 text-lg font-semibold text-text-primary"
@@ -133,7 +107,17 @@ export function ProjectBuildStatus({
           <span className={`ui-dot ${tone}`} aria-hidden="true" />
           {headline}
         </h2>
-        <p className="mt-1 text-sm leading-relaxed text-text-secondary">{detail}</p>
+        <p className="mt-1 text-sm leading-relaxed text-text-secondary">
+          {detail}
+          {look && (
+            <>
+              {" "}
+              <a href={look.href} target="_blank" rel="noreferrer" className="ui-link-subtle">
+                {look.label}
+              </a>
+            </>
+          )}
+        </p>
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </section>

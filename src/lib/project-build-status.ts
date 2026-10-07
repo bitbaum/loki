@@ -23,6 +23,7 @@ import type { ProjectState } from "@/db/schema/project-states";
 import type { RepoCommit } from "@/lib/github-commits";
 import { isRuntimeObservationFresh } from "@/lib/project-session";
 import { MINUTE_MS } from "@/lib/constants/time";
+import { normalizeRunShipping, shippingLanded, type RunShipping } from "@/lib/control-run-shipping";
 
 type StateLike = Pick<
   ProjectState,
@@ -49,9 +50,14 @@ export type LastAttempt = {
   startedAtMs: number;
   finishedAtMs: number;
   durationMinutes: number;
-  /** Something reached the repo: the run reported a commit, or commits landed
-   *  after it started. A timeout that still shipped is not "nothing". */
+  /** Something reached the repo: the run reported a commit, commits landed
+   *  after it started, or the fix ledger saw the change deployed. A timeout
+   *  that still shipped is not "nothing". */
   landed: boolean;
+  /** Where the change got to after the run closed — PR, merge, deploy. The
+   *  outcome is stamped at close; this keeps moving. Absent when the ledger
+   *  never looked. */
+  shipping: RunShipping | null;
   error: string | null;
 };
 
@@ -104,8 +110,9 @@ export function deriveBuildStatus(input: {
       reportedCommit.trim() !== "" &&
       reportedCommit !== "none") ||
     (commits ?? []).some((commit) => commit.atMs > startedAtMs);
-  const payload = finished.payload as { error?: unknown } | null;
+  const payload = finished.payload as { error?: unknown; fix?: unknown } | null;
   const error = typeof payload?.error === "string" ? payload.error : null;
+  const shipping = normalizeRunShipping(payload?.fix) ?? null;
   return {
     kind: "idle",
     last: {
@@ -113,7 +120,8 @@ export function deriveBuildStatus(input: {
       startedAtMs,
       finishedAtMs,
       durationMinutes: Math.max(0, Math.round((finishedAtMs - startedAtMs) / MINUTE_MS)),
-      landed,
+      landed: landed || shippingLanded(shipping),
+      shipping,
       error,
     },
   };

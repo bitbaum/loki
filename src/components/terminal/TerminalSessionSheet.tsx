@@ -193,13 +193,13 @@ export function TerminalSessionSheet({
         )}
 
         {onOpenLoki && (
-          // This panel used to be a header button labelled "Loki", beside a
-          // conversation view now also called Loki. It is read when stuck, not
-          // every minute, so it sits with the session (desktop: "Summary").
-          <Section label="Summary">
+          // The supervisor, as distinct from the agent in the session (the
+          // view switch names that one). Read when stuck, not every minute,
+          // so it sits with the session rather than in the header.
+          <Section label="Loki">
             <OptionRow
-              title="Summary and next steps"
-              detail="What this run is doing, what to do next, and a place to ask about it."
+              title="Ask Loki about this run"
+              detail="What it is doing, what to do next, and a place to ask — on Loki's own model, not the agent's."
               active={false}
               onSelect={onOpenLoki}
             />
