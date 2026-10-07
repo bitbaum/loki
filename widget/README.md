@@ -49,18 +49,34 @@ proven in a browser by `scripts/test/widget-watch-browser.ts`.
 ## "Watch the fix" — the walkthrough
 
 When a fix has shipped, Loki's feedback row offers **Watch the fix**. It opens
-the live page with `#loki-tour=<token>` (a signed, 24-hour ticket for that one
-report, carried in the fragment so the site's server never sees it). This
-bundle reads a numbered outline of the visible page, asks `/api/widget/tour`
-for a script, and plays it: a cursor glides to each element, a caption says
-why, and in-page controls (an `#anchor` link, a disclosure, a plain button)
-are really clicked — anything that would navigate away or submit is only
-pointed at. A step it cannot show is said out loud ("Oops — …, it has been
-flagged") and reported back; Loki files it as an AI-review item on the
-project, so a fix that is not really live comes back into the loop. Nothing
-for a host to install: every site with the widget gets it. Code:
-`widget/tour.ts`, `src/app/api/widget/tour/route.ts`,
-`src/lib/feedback/tour-plan.ts`.
+the live page with `#loki-tour=<token>` (a signed ticket for that one report,
+carried in the fragment so the site's server never sees it). This bundle reads
+a numbered outline of the visible page, asks `/api/widget/tour` for the story,
+and plays it in chapters: the report (with the reporter's screenshot, if they
+attached one), what was wrong, the change demonstrated live, why this way, what
+else was considered, who it helps. On the page, a cursor glides to each
+element and in-page controls (an `#anchor` link, a disclosure, a plain button)
+are really clicked; anything that would navigate away or submit is only
+pointed at. Back, Pause and Next put the pace in the viewer's hands.
+
+The story comes from the **design note** the agent writes in the fix's pull
+request (`## Walkthrough`, `src/lib/feedback/fix-note.ts`). A PR without one
+still gets a walkthrough, built from the report and the agent's one-line
+account.
+
+The ticket has an **audience**. The owner's (24 hours, minted from Loki) gets
+the whole story and ends at "confirm in Loki" and the PR. The reporter's
+(seven days, minted on `/my-feedback` once the fix is live) gets their own
+words, the live demonstration and the note's plain sentence — never the
+maintainer's reasoning, the PR or the repository. That boundary lives in
+`buildTourBeats` (`src/lib/feedback/tour-plan.ts`) and nowhere else.
+
+A step it cannot show is said out loud ("Oops — …, it has been flagged") and
+reported back; Loki files it as an AI-review item on the project, so a fix
+that is not really live comes back into the loop. Nothing for a host to
+install: every site with the widget gets it. Code: `widget/tour.ts`,
+`src/app/api/widget/tour/route.ts`, `src/lib/feedback/tour-plan.ts`,
+`src/lib/feedback/fix-note.ts`, `src/lib/feedback/tour-token.ts`.
 
 ## Where the launcher sits
 

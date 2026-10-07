@@ -15,6 +15,8 @@
  * and caches the result on the run.
  */
 
+import { parseFixNote, type FixNote } from "@/lib/feedback/fix-note";
+
 export const FIX_SHIP_STATE = {
   /** Run said success, but no PR, push or commit could be found. */
   NO_EVIDENCE: "no_evidence",
@@ -48,6 +50,10 @@ export type FixShipping = {
     title: string;
     mergedAt?: string | null;
     mergeSha?: string | null;
+    /** The agent's design note from the PR description (fix-note.ts) — what
+     *  "Watch the fix" tells the story from. Absent on PRs written before the
+     *  note was asked for, and on PRs whose author left it out. */
+    note?: FixNote | null;
   };
   push?: { url: string; title: string };
   deploy?: { url: string | null; name: string; conclusion: string | null; status: string | null };
@@ -299,6 +305,8 @@ export type GithubPrDetail = {
   createdAt?: string | null;
   /** The branch it merged into (`base.ref`) — whose later deploys carry it. */
   baseRef?: string | null;
+  /** The description, read only for its design note (parseFixNote). */
+  body?: string | null;
 };
 /** GitHub's workflow run object, only the fields the ledger reads. */
 export type GithubWorkflowRun = {
@@ -343,6 +351,7 @@ export function deriveShippingFromPr(
       title: pr.title,
       mergedAt: pr.merged_at,
       mergeSha: pr.merge_commit_sha,
+      note: parseFixNote(pr.body),
     },
     checkedAt,
   };

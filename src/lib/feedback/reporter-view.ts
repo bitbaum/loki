@@ -60,10 +60,17 @@ const ON_THE_WAY: ReadonlySet<string> = new Set([
 
 export function reporterStatusFor(
   work: FeedbackWorkView,
-  opts: { liveHref?: string | null } = {},
+  /** `tourHref`: the live page with the reporter's own walkthrough ticket
+   *  (tour-token.ts, audience "reporter"). When present it replaces the bare
+   *  link — "check the live page" left them to find the change themselves. */
+  opts: { liveHref?: string | null; tourHref?: string | null } = {},
 ): ReporterStatus {
   const liveHref = opts.liveHref ?? null;
-  const checkLive = liveHref ? { href: liveHref, label: "Check the live page" } : null;
+  const checkLive = opts.tourHref
+    ? { href: opts.tourHref, label: "Watch your fix" }
+    : liveHref
+      ? { href: liveHref, label: "Check the live page" }
+      : null;
 
   switch (work.phase) {
     case FEEDBACK_WORK_PHASE.NOT_STARTED:

@@ -112,6 +112,11 @@ for (const tone of ["neutral", "accent", "warning", "positive"] satisfies Report
     liveHref: "https://example.com/pricing",
   });
   assert.equal(s.action, null, "offered Check the live page before the fix shipped");
+  const withTour = reporterStatusFor(deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, snap), {
+    liveHref: "https://example.com/pricing",
+    tourHref: "https://example.com/pricing#loki-tour=t",
+  });
+  assert.equal(withTour.action, null, "offered a walkthrough of a fix that is not live");
   assert.ok(!/live/i.test(s.label), `claimed live while the PR was open: ${s.label}`);
 }
 
@@ -122,6 +127,13 @@ for (const tone of ["neutral", "accent", "warning", "positive"] satisfies Report
   const s = reporterStatusFor(shipped, { liveHref: "https://example.com/pricing" });
   assert.equal(s.tone, "positive");
   assert.equal(s.action?.href, "https://example.com/pricing");
+  // With their own ticket, the reporter is walked through it instead.
+  const toured = reporterStatusFor(shipped, {
+    liveHref: "https://example.com/pricing",
+    tourHref: "https://example.com/pricing#loki-tour=t",
+  });
+  assert.equal(toured.action?.label, "Watch your fix");
+  assert.equal(toured.action?.href, "https://example.com/pricing#loki-tour=t");
 }
 
 // No live URL to send them to = no action. An action with nowhere to go is the

@@ -160,6 +160,8 @@ A visitor's note on any fleet site becomes a pull request, a deploy, and a walkt
 - [x] One click dispatches an agent; the fix ledger follows the PR to merge and deploy
 - [x] The owner's own note starts the build straight from the site
 - [x] "Watch the fix": a narrated cursor walks the owner through the change on the live page; a step it cannot show is filed back as a report
+- [x] The walkthrough tells the story — what was wrong, why this way, what else was considered, who it helps — from a design note the agent writes with each fix
+- [x] The reporter gets their own walkthrough of their fix, in plain words
 - [x] Failed runs say why in one sentence
 
 ### OrangeCat project handoff
