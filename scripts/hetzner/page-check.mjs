@@ -26,6 +26,31 @@ const result = {
   headings: 0,
 };
 
+// One deadline for the whole look. Each Playwright call has its own timeout,
+// but not all of them: on a host that accepts the connection and never answers
+// (farmaciadelparco.orangecat.ch before its first deploy, 2026-10-07), `goto`
+// gave up after 45s and the NEXT call waited on the still-pending navigation
+// forever — holding the deploy until the job's 45-minute limit cancelled it,
+// twice. Past the deadline the page is recorded as not loaded, like any other.
+const DEADLINE_MS = 90_000;
+const deadline = setTimeout(() => {
+  console.error(`page-check: gave up on ${url} after ${DEADLINE_MS / 1000}s`);
+  finish();
+  process.exit(0);
+}, DEADLINE_MS);
+
+let finished = false;
+function finish() {
+  if (finished) return;
+  finished = true;
+  fs.writeFileSync(out, JSON.stringify(result, null, 2));
+  console.log(
+    `page-check ${url}: ${result.ok ? `HTTP ${result.status}` : "did not load"}, ` +
+      `sideways scroll ${result.overflowX ? "yes" : "no"}, ${result.errors} error(s), ` +
+      `${result.brokenImages} broken image(s), ${result.textLength} chars, ${result.headings} heading(s)`,
+  );
+}
+
 let browser;
 try {
   browser = await chromium.launch({
@@ -67,9 +92,5 @@ try {
   await browser?.close().catch(() => undefined);
 }
 
-fs.writeFileSync(out, JSON.stringify(result, null, 2));
-console.log(
-  `page-check ${url}: ${result.ok ? `HTTP ${result.status}` : "did not load"}, ` +
-    `sideways scroll ${result.overflowX ? "yes" : "no"}, ${result.errors} error(s), ` +
-    `${result.brokenImages} broken image(s), ${result.textLength} chars, ${result.headings} heading(s)`,
-);
+clearTimeout(deadline);
+finish();
