@@ -9,11 +9,12 @@
  * the Team page in Italian, German and French" — with past headlines stacking
  * up underneath as the story of the build.
  *
- * This is the pure half: the prompt, the reading of the answer, and when a new
- * narration is worth asking for. The route (/api/projects/[id]/watch/narrate)
- * only adds auth, the AI budget and the model call.
+ * This is the pure half the BROWSER may import: the prompt, and when a new
+ * narration is worth asking for. Reading the model's answer lives in
+ * watch-narration-parse.ts, because the model-JSON reader reaches the agent
+ * library and, through it, the database driver — imported from here it broke
+ * the production build of every page that renders Watch (2026-10-07).
  */
-import { safeParseModelJson } from "@/lib/ai/model-json";
 
 export type Narration = {
   /** What it is doing now, as the person would say it. ≤ 90 chars. */
@@ -58,26 +59,6 @@ export function narrationPrompt(input: {
     ...input.screen.slice(-NARRATE_MAX_LINES).map((l) => l.slice(0, NARRATE_MAX_LINE_CHARS)),
     "```",
   ].join("\n");
-}
-
-const text = (v: unknown, max: number): string | null => {
-  if (typeof v !== "string") return null;
-  const t = v.replace(/\s+/g, " ").trim();
-  if (!t || /^(null|none|n\/a|-)$/i.test(t)) return null;
-  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
-};
-
-/** The model's answer, or null when it gave nothing a person should read. */
-export function parseNarration(raw: string): Narration | null {
-  const json = safeParseModelJson<Record<string, unknown>>(raw);
-  if (!json) return null;
-  const headline = text(json.headline, 90);
-  if (!headline) return null;
-  return {
-    headline,
-    detail: text(json.detail, 200),
-    needsYou: text(json.needsYou, 200),
-  };
 }
 
 /**
