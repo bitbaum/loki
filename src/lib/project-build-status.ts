@@ -79,7 +79,22 @@ export function deriveBuildStatus(input: {
 }): BuildStatus {
   const { state, runs, commits, nowMs } = input;
 
-  if (state?.agentRunning && isRuntimeObservationFresh(state, nowMs)) {
+  // A live agent process is not a live build. Once a run CLOSES, Claude Code
+  // sits at its prompt with the process still up, so the runner keeps
+  // reporting agent_running=t — and the page said "Building now · An agent is
+  // working" beside "Finished · PR #1 merged 35m ago" (farmaciadelparco,
+  // 2026-10-07). The agent is building only while a run is open, or when it
+  // was given a prompt AFTER the last run closed (typed in the terminal).
+  const hasOpenRun = runs.some((run) => !run.finishedAt);
+  const lastFinishMs = Math.max(
+    -Infinity,
+    ...runs.map((r) => r.finishedAt?.getTime() ?? -Infinity),
+  );
+  const promptMs = state?.currentPromptStartedAt?.getTime() ?? null;
+  const doneWithPrompt =
+    !hasOpenRun && Number.isFinite(lastFinishMs) && (promptMs == null || promptMs <= lastFinishMs);
+
+  if (state?.agentRunning && isRuntimeObservationFresh(state, nowMs) && !doneWithPrompt) {
     return {
       kind: "building",
       sinceMs: state.currentPromptStartedAt?.getTime() ?? null,

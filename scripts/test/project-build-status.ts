@@ -96,6 +96,40 @@ eq(
   "fresh but not running, nothing ever ran → idle with no last attempt",
 );
 
+// farmaciadelparco, 2026-10-07: the run closed 35 minutes ago, Claude Code was
+// still open at its prompt, and the page said "Building now".
+eq(
+  deriveBuildStatus({
+    state: {
+      agentRunning: true,
+      runtimeObservedAt: at(1),
+      currentPromptLabel: "Start building",
+      currentPromptStartedAt: at(49),
+    },
+    runs: [run({ startedMinutesAgo: 49, finishedMinutesAgo: 35, outcome: "success" })],
+    commits: null,
+    nowMs: NOW,
+  }).kind,
+  "idle",
+  "an open agent process after its run closed is not building",
+);
+
+eq(
+  deriveBuildStatus({
+    state: {
+      agentRunning: true,
+      runtimeObservedAt: at(1),
+      currentPromptLabel: "Fix the footer",
+      currentPromptStartedAt: at(5),
+    },
+    runs: [run({ startedMinutesAgo: 49, finishedMinutesAgo: 35, outcome: "success" })],
+    commits: null,
+    nowMs: NOW,
+  }),
+  { kind: "building", sinceMs: NOW - 5 * MINUTE_MS, label: "Fix the footer" },
+  "a prompt given after the last run closed is building",
+);
+
 // ── Open runs: queued inside the grace window, stalled past it ──────────────
 eq(
   deriveBuildStatus({

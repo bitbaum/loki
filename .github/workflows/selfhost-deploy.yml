@@ -344,6 +344,10 @@ jobs:
       - name: Look at the live page before the deploy
         if: steps.gate.outputs.proceed == 'true' && steps.app.outputs.domain != '-'
         continue-on-error: true
+        # A look, never a gate: a page that hangs once held the whole deploy
+        # for 45 minutes (farmaciadelparco, 2026-10-07). page-check.mjs has its
+        # own 90s deadline; this is the backstop for the install and the rest.
+        timeout-minutes: 4
         env:
           DOMAIN: ${{ steps.app.outputs.domain }}
           TOOLING: ${{ steps.app.outputs.tooling }}
@@ -416,6 +420,8 @@ jobs:
       # page-check-compare.mjs, pinned by scripts/test/page-check-compare.ts.
       - name: Compare the live page with before
         if: steps.gate.outputs.proceed == 'true' && steps.app.outputs.domain != '-'
+        # Room for the look (90s deadline) and a rollback, never the job's 45m.
+        timeout-minutes: 8
         env:
           DOMAIN: ${{ steps.app.outputs.domain }}
           TOOLING: ${{ steps.app.outputs.tooling }}
