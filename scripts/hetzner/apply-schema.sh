@@ -157,6 +157,20 @@ app_role_unreadable_tables_sql() { # <role> <schema>
   printf '%s' "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = '$schema' AND c.relkind IN ('r','p') AND c.relname <> '_deploy_schema_history' AND NOT has_table_privilege('$role', c.oid, 'SELECT') ORDER BY 1;"
 }
 
+# Tables in <schema> that PostgREST's PUBLIC role can read with row-level
+# security off — one per line. In a schema PostgREST serves, each of these is
+# readable by anyone holding the anon key, which ships in the browser bundle.
+#
+# Found 2026-10-06: botsmann.consultations (every visitor's name, email and
+# message) was exactly this, because the block below used to default-grant ALL
+# on every table to anon. RLS on, or no anon SELECT, both clear a table: a
+# table may be public on purpose, but then it says so with a policy.
+public_exposure_sql() { # <schema>
+  local schema="$1"
+  [[ "$schema" =~ ^[a-z_][a-z0-9_]*$ ]] || return 1
+  printf '%s' "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = '$schema' AND c.relkind IN ('r','p') AND NOT c.relrowsecurity AND has_table_privilege('anon', c.oid, 'SELECT') ORDER BY 1;"
+}
+
 if [ -n "${APPLY_SCHEMA_LIB_ONLY:-}" ]; then return 0; fi
 
 # Resolve the migrations dir per app layout. The original hardcoded kivvi's
@@ -258,6 +272,25 @@ set_app_role_defaults() {
   printf '%s\n' "$defaults" | run_sql -q || return 1
 }
 
+# Refuse a deploy that leaves a table in a PostgREST-served schema readable by
+# the public role with no RLS. Supabase apps only: host databases are not
+# behind PostgREST, so "anon" means nothing there.
+refuse_public_exposure() {
+  [ "$SQL_TARGET" = "supabase" ] || return 0
+  local sql open
+  sql=$(public_exposure_sql "$TARGET_SCHEMA") || { echo "[schema] $NAME: REFUSING — '$TARGET_SCHEMA' is not a plain identifier"; return 1; }
+  open=$(printf '%s' "$sql" | run_sql -qtA) || return 1
+  if [ -n "$open" ]; then
+    echo "[schema] $NAME: REFUSING — anyone with the public anon key can read: $(printf '%s' "$open" | tr '\n' ' ')"
+    echo "         The anon key ships in the browser bundle and PostgREST serves '$TARGET_SCHEMA'."
+    echo "         Either enable RLS with the policies the app needs, or revoke anon SELECT, in a migration:"
+    echo "           ALTER TABLE <table> ENABLE ROW LEVEL SECURITY;   -- then CREATE POLICY …"
+    echo "           REVOKE SELECT ON <table> FROM anon, authenticated;"
+    return 1
+  fi
+  echo "[schema] $NAME: no table in '$TARGET_SCHEMA' is readable by the public role without RLS ✓"
+}
+
 ensure_app_role_access() {
   [ "$SQL_TARGET" = "host" ] || return 0
   local role="$DB" has_role unreadable
@@ -315,17 +348,29 @@ guard_baseline() {
   exit 1
 }
 
-# Create the app's schema and give PostgREST's roles the same access they have
-# in printcraft's schema, INCLUDING default privileges — the migrations below
-# create their tables after this runs, so a one-off GRANT would miss every one.
+# Create the app's schema and give PostgREST's roles access, INCLUDING default
+# privileges — the migrations below create their tables after this runs, so a
+# one-off GRANT would miss every one.
+#
+# Tables default to service_role ONLY (changed 2026-10-06). This used to grant
+# ALL to anon and authenticated as well, copying printcraft's schema, and a
+# migration-created table has RLS off — so every new table was world-readable
+# and writable through PostgREST with the public key (botsmann.consultations).
+# A table the browser or the anon key should reach now says so in its own
+# migration (GRANT … TO anon, or RLS + a policy); forgetting fails loudly with
+# "permission denied" instead of silently publishing the table.
 if [ "$TARGET_SCHEMA" != "public" ]; then
   printf '%s' "
     CREATE SCHEMA IF NOT EXISTS $TARGET_SCHEMA AUTHORIZATION postgres;
     GRANT USAGE ON SCHEMA $TARGET_SCHEMA TO anon, authenticated, service_role;
     ALTER DEFAULT PRIVILEGES IN SCHEMA $TARGET_SCHEMA
-      GRANT ALL ON TABLES TO anon, authenticated, service_role;
+      REVOKE ALL ON TABLES FROM anon, authenticated;
     ALTER DEFAULT PRIVILEGES IN SCHEMA $TARGET_SCHEMA
-      GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+      REVOKE ALL ON SEQUENCES FROM anon, authenticated;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA $TARGET_SCHEMA
+      GRANT ALL ON TABLES TO service_role;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA $TARGET_SCHEMA
+      GRANT ALL ON SEQUENCES TO service_role;
     ALTER DEFAULT PRIVILEGES IN SCHEMA $TARGET_SCHEMA
       GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
   " | run_sql -q
@@ -356,7 +401,7 @@ for f in "${MIGS[@]}"; do
 done
 # Up to date still runs the access step, so an app deployed before it existed
 # gets its default privileges (and its unreadable tables named) on next deploy.
-[ "${#PENDING[@]}" -gt 0 ] || { echo "[schema] $NAME: schema up to date (${#MIGS[@]} migration(s))"; set_app_role_defaults || exit 1; ensure_app_role_access || exit 1; exit 0; }
+[ "${#PENDING[@]}" -gt 0 ] || { echo "[schema] $NAME: schema up to date (${#MIGS[@]} migration(s))"; set_app_role_defaults || exit 1; ensure_app_role_access || exit 1; refuse_public_exposure || exit 1; exit 0; }
 
 # Guard: refuse the whole deploy if any PENDING migration carries a data-loss or
 # table-rewrite statement. Additive drizzle output never does; a hit means the
@@ -420,6 +465,7 @@ set_app_role_defaults || exit 1
 run_sql -q < "$BATCH"
 echo "[schema] $NAME: schema applied ✓"
 ensure_app_role_access || exit 1
+refuse_public_exposure || exit 1
 
 # Applied is not the same as REACHABLE. PostgREST only serves the schemas named
 # in PGRST_DB_SCHEMAS; anything else answers PGRST205 "Could not find the table"

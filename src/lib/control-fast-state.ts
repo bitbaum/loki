@@ -2,6 +2,7 @@ import fs from "fs";
 import { resolveSessionFile, stateFile } from "@/lib/agent-config";
 import { SENTINEL_VALIDITY_S } from "@/lib/constants/control";
 import { parseSessionFile } from "@/lib/session-content";
+import { isProjectWorktreeDir } from "@/lib/agent-execution/worktree-workspace";
 import type { CurrentPrompt, SessionState } from "@/lib/control-types";
 
 export function parseSession(tab: string, adapter = "claude"): SessionState | null {
@@ -224,6 +225,20 @@ export function claudeLiveSessionForDir(
   return best;
 }
 
+/** Newest live Claude session running in one of this project's dispatch worktrees. */
+function claudeLiveSessionInWorktree(
+  sessions: Map<string, ClaudeLiveSession>,
+  tab: string,
+): ClaudeLiveSession | null {
+  let best: ClaudeLiveSession | null = null;
+  for (const [rawCwd, s] of sessions) {
+    if (!isProjectWorktreeDir(rawCwd, tab) && !isProjectWorktreeDir(canonicalDir(rawCwd), tab))
+      continue;
+    if (!best || s.statusUpdatedAtS > best.statusUpdatedAtS) best = s;
+  }
+  return best;
+}
+
 export type FastProjectState = {
   tab: string;
   workspaceId?: string | null;
@@ -271,7 +286,9 @@ export function readFastState(
       // direct-terminal observation so the agent reads as Working instead of
       // "process detected, no lifecycle signal".
       if (!currentPrompt) {
-        const live = claudeLiveSessionForDir(liveSessions, dir);
+        const live =
+          claudeLiveSessionForDir(liveSessions, dir) ??
+          claudeLiveSessionInWorktree(liveSessions, tab);
         if (live && live.status !== "idle") {
           currentPrompt = {
             key: "direct_terminal",
@@ -284,7 +301,11 @@ export function readFastState(
       const liveAdapter = activeAgents[0] ?? "claude";
       return {
         tab,
-        agentRunning: agentCwds.some((cwd) => cwd === dir || cwd.startsWith(dir + "/")),
+        // The primary checkout OR one of this project's dispatch worktrees —
+        // an agent Loki started in its own worktree is this project's agent.
+        agentRunning: agentCwds.some(
+          (cwd) => cwd === dir || cwd.startsWith(dir + "/") || isProjectWorktreeDir(cwd, tab),
+        ),
         tabOpen,
         activeAgents,
         session: parseSession(tab, liveAdapter),

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { accounts } from "@/db/schema";
 import { getUserByEmail } from "@/db/queries/users";
+import { lokiMayReceivePasswordReset } from "@/lib/auth/reset-eligibility";
 import { createPasswordReset } from "@/db/queries/passwordResets";
 import { sendEmail, resetPasswordEmailTemplate, appUrl } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -40,6 +44,21 @@ export async function POST(req: NextRequest) {
   // Always return 200 — don't reveal whether the email exists.
   const user = await getUserByEmail(email);
   if (!user) return NextResponse.json({ ok: true });
+
+  // Never for an account only OrangeCat created: its address is unverified.
+  // Same answer, so the response still says nothing (lib/auth/reset-eligibility).
+  const linked = await db
+    .select({ provider: accounts.provider })
+    .from(accounts)
+    .where(eq(accounts.userId, user.id));
+  if (
+    !lokiMayReceivePasswordReset(
+      user,
+      linked.map((a) => a.provider),
+    )
+  ) {
+    return NextResponse.json({ ok: true });
+  }
 
   // OAuth-created accounts do not initially have a password hash. Sending a
   // reset link to their stored email lets the account owner establish email

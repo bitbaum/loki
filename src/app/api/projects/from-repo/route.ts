@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
   }
   const input = parsed.data;
   const started = await startBriefProject(userId, {
-    name: repoProjectName(input.repo, input.requestId),
+    name: repoProjectName(input.repo),
+    requestId: input.requestId,
     source: repoBuildBrief(input),
     template: "bare",
   });

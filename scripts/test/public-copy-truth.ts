@@ -18,6 +18,8 @@ const PUBLIC_COPY = [
   "src/config/brand.ts",
   "src/config/marketing-content.ts",
   "src/config/how-it-works.ts",
+  "src/config/problems-we-solve.ts",
+  "src/components/public/ProblemsSection.tsx",
   "src/config/compare.ts",
   "src/config/auth.ts",
   "src/config/fleet-site-copy.ts",

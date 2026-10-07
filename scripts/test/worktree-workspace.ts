@@ -84,6 +84,7 @@ async function main(): Promise<void> {
     worktreeBranch,
     worktreePath,
     worktreePromptNote,
+    isProjectWorktreeDir,
   }: WorktreeModule = await import("@/lib/agent-execution/worktree-workspace");
 
   // ── 1. Creation, idempotency, fallback ─────────────────────────────────────
@@ -211,6 +212,28 @@ async function main(): Promise<void> {
     assert(note.includes(worktreeBranch("run-9")), "note must name the branch");
     assert(note.includes("git push origin HEAD:main"), "note must say how to land on main");
     assert(note.includes("pull --rebase"), "note must include the rebase-first step");
+  });
+
+  // ── 5. Whose agent is it? ──────────────────────────────────────────────────
+  // 2026-10-02: an agent in ~/.loki/worktrees/<project>-2ba3ac62/<runId> read as
+  // "no agent running" everywhere, because only the primary checkout counted.
+
+  const root = path.join(SANDBOX, "worktrees");
+  check("an agent in the project's own dispatch worktree is the project's", () => {
+    assert(isProjectWorktreeDir(path.join(root, "testproj", "run-1"), TAB), "own tab folder");
+    assert(isProjectWorktreeDir(path.join(root, "testproj", "run-1", "src"), TAB), "subdirectory");
+  });
+  check("an agent in a derived run-tab worktree (<project>~<runId8>) is the project's", () => {
+    assert(
+      isProjectWorktreeDir(path.join(root, "testproj-2ba3ac62", "2ba3ac62-0df4-4acc"), TAB),
+      "derived run-tab folder",
+    );
+  });
+  check("a different project whose name starts the same is NOT this project's", () => {
+    assert(!isProjectWorktreeDir(path.join(root, "testproj-cli", "run-1"), TAB), "prefix sibling");
+    assert(!isProjectWorktreeDir(path.join(root, "testproj-2ba3ac6", "x"), TAB), "7 hex chars");
+    assert(!isProjectWorktreeDir(path.join(SANDBOX, "elsewhere", "testproj"), TAB), "outside root");
+    assert(!isProjectWorktreeDir(root, TAB), "the root itself");
   });
 
   // ── Done ───────────────────────────────────────────────────────────────────

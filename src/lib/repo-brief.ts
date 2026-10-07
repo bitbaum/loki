@@ -15,8 +15,10 @@ export const RepoBriefBody = z.object({
 export const RepoBuildBody = RepoBriefBody.extend({ requestId: z.uuid() });
 
 /** One request is one project: a retry resumes it, a new request is a new copy. */
-export function repoProjectName(repo: OpenSourceStarterId, requestId: string): string {
-  return `my-${repo}-${requestId.replace(/-/g, "")}`;
+/** The readable name wanted ("my-<repo>"); -2, -3 only if taken. The request
+ *  id that guards a repeat lives in the project's metadata (startBriefProject). */
+export function repoProjectName(repo: OpenSourceStarterId): string {
+  return `my-${repo}`;
 }
 
 /**
@@ -24,7 +26,15 @@ export function repoProjectName(repo: OpenSourceStarterId, requestId: string): s
  * the empty starter, including when its kickoff is retried, because the retry
  * request does not repeat the template. The name is the record of how it began.
  */
-export function isRepoCopyProject(name: string): boolean {
+/**
+ * A "Make it yours" copy: recorded at start as `briefKind: "repo-copy"` in the
+ * project's metadata, or — for projects started before names became readable —
+ * named `my-<repo>-<32 hex>`. The name alone can no longer say it: "my-bakery"
+ * is a website now, not a copy of anything.
+ */
+export function isRepoCopyProject(name: string, briefKind?: string | null): boolean {
+  if (briefKind === "repo-copy") return true;
+  if (briefKind === "website") return false;
   const match = /^my-([a-z\d-]+)-[\da-f]{32}$/.exec(name);
   return Boolean(match && (OPEN_SOURCE_STARTER_IDS as readonly string[]).includes(match[1]!));
 }

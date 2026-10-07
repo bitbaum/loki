@@ -90,6 +90,24 @@ grep -q "table_schema='\$TARGET_SCHEMA'" "$SCRIPT" \
   || no "a hardcoded public ledger reference survives"
 
 echo
+echo "the public role — no table PostgREST serves may be readable without RLS (botsmann.consultations, 2026-10-06)"
+sql=$(public_exposure_sql botsmann)
+case "$sql" in
+  *"nspname = 'botsmann'"*"NOT c.relrowsecurity"*"has_table_privilege('anon', c.oid, 'SELECT')"*) ok "public_exposure_sql asks for anon-readable tables with RLS off, in the app's schema" ;;
+  *) no "public_exposure_sql builds the wrong query: $sql" ;;
+esac
+public_exposure_sql "x; DROP TABLE y" >/dev/null 2>&1 && no "public_exposure_sql quoted a non-identifier" || ok "public_exposure_sql refuses a non-identifier schema"
+[ "$(grep -c 'refuse_public_exposure || exit 1' "$SCRIPT")" -ge 2 ] \
+  && ok "the exposure guard runs on BOTH supabase exits (applied, and already up to date)" \
+  || no "the exposure guard is not on both supabase exits"
+! grep -qE 'GRANT ALL ON TABLES TO anon' "$SCRIPT" \
+  && ok "new tables are never default-granted to anon" \
+  || no "the script still default-grants ALL on tables to anon"
+grep -q 'GRANT ALL ON TABLES TO service_role' "$SCRIPT" \
+  && ok "new tables default to service_role" \
+  || no "service_role lost its default table access"
+
+echo
 echo "the destructive guard — a statement, not a substring"
 DESTRUCTIVE='DROP TABLE|DROP COLUMN|DROP SCHEMA|TRUNCATE|DELETE[[:space:]]+FROM|ALTER COLUMN[[:space:]].*[[:space:]]TYPE[[:space:]]'
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT

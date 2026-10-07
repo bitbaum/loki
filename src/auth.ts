@@ -26,6 +26,8 @@ import { findOrCreateTwitterUser } from "@/db/queries/oauth-x";
 import { getEnabledAuthProviders } from "@/lib/auth-providers";
 import { ORANGECAT_OAUTH_ISSUER } from "@/config/orangecat";
 import { persistOAuthTokens, type OAuthTokenSet } from "@/lib/auth/persist-oauth-tokens";
+import { orangecatProvider, withOrangecatIdentity } from "@bitbaum/accountkit/orangecat";
+import { orangecatUserStore } from "@/lib/auth/orangecat-store";
 
 // Enabled-provider predicates, shared with the sign-in page (src/app/sign-in)
 // so a rendered button can never drift from the mounted provider.
@@ -101,12 +103,19 @@ declare module "@auth/core/jwt" {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
+  // An OrangeCat sign-in resolves its user by the OIDC `sub` alone — never by
+  // email (lib/auth/orangecat-store.ts). keepTokens: the accounts row still
+  // stores the OrangeCat token set, which powers publish/promote/wallet.
+  adapter: withOrangecatIdentity(
+    DrizzleAdapter(db, {
+      usersTable: users,
+      accountsTable: accounts,
+      sessionsTable: sessions,
+      verificationTokensTable: verificationTokens,
+    }),
+    orangecatUserStore,
+    { keepTokens: true },
+  ),
   // Persist Auth.js error events to the database — the host's runtime logs
   // aren't reliably reachable from this environment, and an auth failure that
   // can't be diagnosed is functionally a P0. Low write volume in steady state
@@ -336,27 +345,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // project publish + timeline promote without a separate API-key step.
     ...(enabledProviders.orangecat
       ? [
-          {
-            id: "orangecat",
-            name: "OrangeCat",
-            type: "oidc" as const,
-            issuer: ORANGECAT_OAUTH_ISSUER,
+          // The shared provider (@bitbaum/accountkit/orangecat): client_secret_post,
+          // PKCE, and a profile WITHOUT email, so Auth.js never looks a Loki
+          // account up — or patches one — by an address OrangeCat did not verify.
+          orangecatProvider({
             clientId: process.env.ORANGECAT_OAUTH_CLIENT_ID!,
             clientSecret: process.env.ORANGECAT_OAUTH_CLIENT_SECRET!,
-            // OrangeCat's token endpoint only supports client_secret_post (creds in
-            // the form body); Auth.js defaults to client_secret_basic, which OC
-            // rejects with 400 "client_id is required" at the code-exchange step.
-            client: { token_endpoint_auth_method: "client_secret_post" as const },
-            checks: ["pkce" as const, "state" as const],
-            authorization: {
-              params: {
-                scope: "openid profile email project.read project.write timeline.write wallet.read",
-              },
-            },
-            // Actor `sub`, not email, is the cross-product identity boundary.
-            // Do not silently attach an OrangeCat actor to an existing Loki
-            // account merely because the email strings happen to match.
-          },
+            issuer: ORANGECAT_OAUTH_ISSUER,
+            scopes: "openid profile email project.read project.write timeline.write wallet.read",
+          }),
         ]
       : []),
     // Conditionally mounted (like Google/X) so a missing key pair cleanly
@@ -516,6 +513,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: ROUTES.SIGN_IN,
     signOut: ROUTES.SIGN_OUT,
+    // Was Auth.js's bare "Error" page.
+    error: ROUTES.SIGN_IN_ERROR,
   },
   callbacks: {
     async signIn({ user, account }) {

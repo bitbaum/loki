@@ -68,6 +68,34 @@ export function worktreePath(tab: string, runId: string): string {
   return path.join(WORKTREES_ROOT, sanitize(tab), sanitize(runId));
 }
 
+/**
+ * True when `cwd` is inside one of THIS project's dispatch worktrees: the
+ * project tab's own folder, or a derived run-tab's ("<project>~<runId8>",
+ * sanitized to "<project>-<runId8>").
+ *
+ * Why it exists (2026-10-02, xhiva-art-refresh): the agent ran in
+ * ~/.loki/worktrees/<project>-2ba3ac62/<runId> while "is an agent running?"
+ * only matched the primary checkout, so a working agent read as absent
+ * everywhere — the build card said "no agent has picked it up, starting again
+ * is safe", Terminal said "session ended", Ask left it out, and the run never
+ * closed. The suffix is exactly eight hex characters, so a different project
+ * whose name merely starts the same ("loki" vs "loki-cli") never matches.
+ */
+export function isProjectWorktreeDir(
+  cwd: string,
+  tab: string,
+  root: string = WORKTREES_ROOT,
+): boolean {
+  const rel = path.relative(root, cwd);
+  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return false;
+  const first = rel.split(path.sep)[0];
+  const base = sanitize(tab);
+  return (
+    first === base ||
+    (first.startsWith(`${base}-`) && /^[0-9a-f]{8}$/.test(first.slice(base.length + 1)))
+  );
+}
+
 /** True when the dir is inside a git repository (worktrees only make sense there). */
 function isGitRepo(dir: string): boolean {
   try {
