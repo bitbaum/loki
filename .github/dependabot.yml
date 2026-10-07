@@ -11,6 +11,11 @@ updates:
     open-pull-requests-limit: 5
     labels: ["dependencies"]
     groups:
+      # The fleet's own packages (chatkit, ai-kit, accountkit…) get their own
+      # PR, so a fix made once in a kit is not stuck behind a third-party bump
+      # that fails CI. First matching group wins, so this must come first.
+      bitbaum:
+        patterns: ["@bitbaum/*"]
       minor-and-patch:
         update-types: ["minor", "patch"]
     ignore:
