@@ -3086,8 +3086,17 @@
   }
   /* Full screen's only chrome under the terminal: Keys / Write open a panel
      above it on demand; Esc and Enter stay so a "Continue?" is one tap. */
+  /* The prompt library opens upward over whatever it serves — on /terminal,
+     the session. At a flat 20rem on a phone (keyboard up, or a browser's own
+     toolbars) it covered every line of the terminal you were picking a prompt
+     in answer to; under half the viewport, some of the session always shows. */
+  .ui-picker-panel {
+    max-height: min(20rem, 45dvh);
+  }
+  /* Wraps rather than scrolls: at 320px the Esc/Enter pair drops to its own
+     line instead of pushing a mode chip off screen. */
   .ui-term-watchbar {
-    @apply flex min-w-0 items-center gap-1.5;
+    @apply flex min-w-0 flex-wrap items-center gap-1.5;
   }
   /* Suggested prompts above the Prompt box: one scrolling row, so they cost a
      line of the phone screen rather than three. */
@@ -3096,7 +3105,7 @@
     scrollbar-width: none;
   }
   .ui-term-suggest {
-    @apply inline-flex min-h-9 max-w-64 shrink-0 items-center truncate rounded-full border border-border-subtle bg-surface-base px-3 text-xs text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
+    @apply inline-flex min-h-9 max-w-52 shrink-0 items-center rounded-2xl border border-border-subtle bg-surface-base px-3 py-1 text-left text-xs leading-snug text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
   }
   .ui-term-dock-hint {
     @apply px-1 text-micro leading-snug text-text-muted;

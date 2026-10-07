@@ -23,7 +23,7 @@ export const NEXT_STEPS_SYSTEM_PROMPT = [
   "You help someone steer a coding agent (Claude Code) from their phone.",
   `Reply with exactly ${NEXT_STEPS_MAX} instructions they could send the agent next, one per line, nothing else.`,
   "Each is written as the instruction itself, imperative, specific to what the agent just did or asked,",
-  "under 70 characters, no numbering, no quotes.",
+  "under 50 characters so it reads whole on a phone, no numbering, no quotes, no markdown.",
   'If the agent is asking a question or offering options, the first line answers it ("Yes, go ahead.", "Do option 2.").',
   "Put first the step you would recommend; the others are real alternatives, not rephrasings.",
   "Never suggest something the agent already reports as done.",

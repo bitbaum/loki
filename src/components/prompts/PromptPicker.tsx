@@ -80,7 +80,12 @@ export function PromptPicker({
   };
 
   return (
-    <div className={cn("ui-card-shell-raised flex max-h-80 flex-col overflow-hidden", className)}>
+    <div
+      className={cn(
+        "ui-card-shell-raised ui-picker-panel flex flex-col overflow-hidden",
+        className,
+      )}
+    >
       <div className="flex shrink-0 items-center gap-2 border-b border-border-subtle px-3 py-2">
         <Search className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
         <input

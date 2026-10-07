@@ -53,6 +53,10 @@ export function parseFollowUps(raw: string): string[] {
       .trim()
       .replace(/^(?:(?:[-*•↳]|\d+[.)])\s*)+/, "")
       .replace(/^["'“”‘’]+|["'“”‘’]+$/g, "")
+      // Markdown emphasis around the whole line. The bullet strip above eats a
+      // leading "**", which left "Next best steps:**" — a heading that no
+      // longer ended in ":" and so shipped as a one-tap "suggestion".
+      .replace(/^[*_`~]+|[*_`~]+$/g, "")
       .trim();
     if (!text || text.length > FOLLOW_UP_MAX_CHARS) continue;
     if (/:$/.test(text)) continue; // a preamble, not a suggestion

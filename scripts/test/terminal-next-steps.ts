@@ -33,6 +33,15 @@ check(
   !parseNextSteps("Here are steps:\n- Ship it").includes("Here are steps:"),
 );
 
+check(
+  "drops a markdown heading, not just a plain preamble",
+  parseNextSteps("**Next best steps:**\n- Ship it").join("|") === "Ship it",
+);
+check(
+  "unwraps emphasis around a real step",
+  parseNextSteps("1. **Run the tests first.**").join("|") === "Run the tests first.",
+);
+
 const rules = ["Yes, go ahead.", "Summarize what you did and what is left."];
 check("no AI yet → the rules", mergeSteps(null, rules).join("|") === rules.join("|"));
 check("AI failed (empty) → the rules", mergeSteps([], rules).length === 2);
