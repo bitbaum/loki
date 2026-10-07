@@ -34,6 +34,7 @@ import { buildCardProps } from "./control-panel-card-props";
 import { ProjectOperationsView } from "./ProjectOperationsView";
 import { MissingCLIsBanner } from "@/components/desktop/MissingCLIsBanner";
 import { useAutomationPolicy } from "@/hooks/use-automation-policy";
+import { LateNightAutopilot } from "./LateNightAutopilot";
 import type { AutoInjectMode } from "@/config/beacon";
 
 export function ControlPanel() {
@@ -393,6 +394,7 @@ export function ControlPanel() {
           panel renders nothing at all when the queue is empty. That is two
           rows above the fleet, not the ~1,400px of unbounded strips it
           replaced (#367). Add a GROUP to the inbox; never add a strip here. */}
+      <LateNightAutopilot />
       <ControlInbox inbox={inbox} />
 
       {/* ControlFleetStatus shows runner health + working/ready/open counters

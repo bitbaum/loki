@@ -166,6 +166,7 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
           void notifyFixShipped({
             userId,
             projectId: item.projectId,
+            feedbackId: item.id,
             feedbackExcerpt: excerptOf(item.suggestion),
             announcement: announce,
             fix,
