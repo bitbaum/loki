@@ -11,7 +11,7 @@
  */
 
 import { useState } from "react";
-import { Bot, ChevronDown, Loader2, Sparkles } from "lucide-react";
+import { Bot, ChevronDown, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/dates";
 import type { WatchItem } from "@/lib/project-watch";
@@ -71,15 +71,7 @@ export function AssistantMessage({
 type Step = Extract<WatchItem, { type: "step" }>;
 
 /** Every mechanical hop, folded into one line — open it for the detail. */
-export function ActivityGroup({
-  steps,
-  live,
-  summary,
-}: {
-  steps: Step[];
-  live: boolean;
-  summary: string;
-}) {
+export function ActivityGroup({ steps, summary }: { steps: Step[]; summary: string }) {
   const [open, setOpen] = useState(false);
   if (steps.length === 0) return null;
   return (
@@ -90,7 +82,6 @@ export function ActivityGroup({
         aria-expanded={open}
         className="ui-chat-activity"
       >
-        {live && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />}
         <span className="truncate">{summary}</span>
         <span className="shrink-0 text-text-muted">
           · {steps.length} step{steps.length === 1 ? "" : "s"}
@@ -114,31 +105,6 @@ export function ActivityGroup({
           ))}
         </ol>
       )}
-    </div>
-  );
-}
-
-/**
- * The agent's raw screen, folded — the live line above already says what it
- * is doing; this is for the person who wants to see it for themselves.
- */
-export function ScreenFold({ lines }: { lines: string[] }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="ui-chat-link"
-      >
-        {open ? "Hide screen" : "Show screen"}
-        <ChevronDown
-          className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
-          aria-hidden="true"
-        />
-      </button>
-      {open && <pre className="ui-watch-tail">{lines.join("\n")}</pre>}
     </div>
   );
 }

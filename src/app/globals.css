@@ -4461,8 +4461,64 @@
       transform: translateY(-2px);
     }
   }
-  .ui-watch-tail {
-    @apply mt-1 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-surface-raised p-3 font-mono text-xs leading-relaxed text-text-secondary;
+
+  /* Watch's live card: Loki narrating the build, the story so far, and the
+     two ways to drive it (steer / autopilot). The headline rises in when it
+     changes, so a new step reads as news rather than a silent text swap. */
+  .ui-watch-live {
+    @apply space-y-4 rounded-2xl border border-border-default bg-surface-base p-4 sm:p-5;
+  }
+  .ui-watch-live-kicker {
+    @apply flex items-center gap-2 text-xs font-medium text-text-secondary;
+  }
+  .ui-watch-live-dot {
+    @apply relative inline-flex h-2 w-2 shrink-0 rounded-full;
+    background-color: var(--status-positive);
+  }
+  .ui-watch-live-dot::after {
+    content: "";
+    @apply absolute inset-0 rounded-full;
+    background-color: var(--status-positive);
+    animation: ui-watch-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  .ui-watch-headline {
+    @apply text-lg font-semibold leading-snug text-text-primary sm:text-xl;
+    animation: ui-watch-rise 0.45s ease-out;
+  }
+  .ui-watch-story {
+    @apply space-y-1.5 border-t border-border-subtle pt-3;
+  }
+  .ui-watch-story-item {
+    @apply flex items-start gap-2 text-sm text-text-secondary;
+  }
+  .ui-watch-steer {
+    @apply flex items-center gap-2 rounded-xl border border-border-default bg-surface-raised p-1.5 pl-3;
+  }
+  .ui-watch-steer-input {
+    @apply min-h-10 min-w-0 flex-1 bg-transparent text-base text-text-primary outline-none placeholder:text-text-muted sm:text-sm;
+  }
+  @keyframes ui-watch-rise {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes ui-watch-ping {
+    75%,
+    100% {
+      opacity: 0;
+      transform: scale(2.4);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ui-watch-headline,
+    .ui-watch-live-dot::after {
+      animation: none;
+    }
   }
 
   /* Exactly three lines of relaxed text (3 × 1.625em), for blocks whose child

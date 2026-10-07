@@ -1,13 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Loader2, Sparkles } from "lucide-react";
 import { ChatThread } from "@bitbaum/chatkit/react";
 import { useSessionAsk } from "@/hooks/use-session-ask";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
-import { presentTerminalRun, railStatusLines, type TerminalRunView } from "@/lib/terminal-run-view";
+import {
+  presentTerminalRun,
+  railStatusLines,
+  SESSION_LOST_LABEL,
+  type TerminalPtyState,
+  type TerminalRunView,
+} from "@/lib/terminal-run-view";
 import { screenText } from "@/lib/terminal-screen";
 import {
   SUMMARY_MAX_CHARS,
@@ -31,13 +37,20 @@ export function TerminalLokiRail({
   project,
   tab,
   runId,
-  ptyLive,
+  ptyState,
   projectId,
   canSwitchAgent,
   onSwitchAgent,
   readScreenRef,
   askOnly = false,
+  explain,
 }: {
+  /** "What's going on?" asked outside the rail (the phone button, a Watch
+   *  deep link). Each new `pending` value is answered once, as soon as the
+   *  session's screen is attached — asking before that would explain an empty
+   *  box — and reported back, so a sheet that remounts the rail does not ask
+   *  the same question again. */
+  explain?: { pending: number; onAnswered: (request: number) => void };
   /** The page already has a box that writes into the session (the
    *  conversation view's composer): this panel then only asks Loki, so the
    *  screen never shows two composers for the same session. */
@@ -45,7 +58,7 @@ export function TerminalLokiRail({
   project: string | null;
   tab: string | null;
   runId: string | null;
-  ptyLive: boolean;
+  ptyState: TerminalPtyState;
   /** user_projects id — lets the chooser exclude the agent that just died. */
   projectId: string | null;
   canSwitchAgent: boolean;
@@ -109,12 +122,35 @@ export function TerminalLokiRail({
   const summarize = () => {
     if (!project) return;
     const screen = screenText(screenLines(), SUMMARY_MAX_CHARS);
-    const run = view ? presentTerminalRun(view, ptyLive) : null;
+    const run = view ? presentTerminalRun(view, ptyState) : null;
     void session.ask(summaryPrompt(project), {
       attachments: [screenAttachment(screen || "(the terminal is empty)", run)],
       shown: SUMMARY_REQUEST,
     });
   };
+
+  const explainRequest = explain?.pending ?? 0;
+  const onExplained = explain?.onAnswered;
+  const answered = useRef(0);
+  useEffect(() => {
+    if (!project || explainRequest <= answered.current) return;
+    const go = () => {
+      answered.current = explainRequest;
+      summarize();
+      onExplained?.(explainRequest);
+    };
+    if (ptyState !== "connecting") {
+      go();
+      return;
+    }
+    // Still attaching (or the conversation view, which never reports live):
+    // give the screen a moment, then answer with what there is.
+    const t = window.setTimeout(go, 4_000);
+    return () => window.clearTimeout(t);
+    // summarize reads refs and the latest view; re-running on its identity
+    // would ask again on every poll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [explainRequest, ptyState, project]);
 
   if (!project) {
     return (
@@ -129,7 +165,7 @@ export function TerminalLokiRail({
     );
   }
 
-  const presented = view ? presentTerminalRun(view, ptyLive) : null;
+  const presented = view ? presentTerminalRun(view, ptyState) : null;
   const lines = presented ? railStatusLines(presented) : { summary: null, next: null };
   const diagnostic =
     view?.stalled && view.diagnostic && view.diagnostic !== view.nextAction
@@ -150,11 +186,14 @@ export function TerminalLokiRail({
             type="button"
             onClick={summarize}
             disabled={session.sending}
-            title="Summarize what this session shows, with next steps you can send"
+            title="What the agent is doing, in plain words — and what you can do next"
+            aria-label="What's going on?"
             className="ui-term-pane-btn"
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            Summarize
+            {/* Icon-only on the narrowest phones, where the label beside the
+                run badge and the open-chat button would push the header wide. */}
+            <span className="max-[400px]:sr-only">What&apos;s going on?</span>
           </button>
           <Link
             href={fleetSurfaceHref("chat", project)}
@@ -186,6 +225,14 @@ export function TerminalLokiRail({
                 <p className="text-sm font-medium text-text-primary">{lines.summary}</p>
               )}
               {lines.next && <p className="text-xs text-text-secondary">{lines.next}</p>}
+              {presented?.label === SESSION_LOST_LABEL && (
+                <Link
+                  href={fleetSurfaceHref("profile", project)}
+                  className="ui-btn-secondary mt-1 self-start"
+                >
+                  Open the project
+                </Link>
+              )}
               {diagnostic && <p className="text-micro text-text-tertiary">{diagnostic}</p>}
             </div>
           )}
@@ -256,7 +303,7 @@ export function TerminalLokiRail({
           defaultMode={askOnly ? "ask" : "inject"}
           ask={session}
           draft={draft}
-          ptyLive={ptyLive || Boolean(view?.lastProgressAt)}
+          ptyLive={ptyState === "live" || Boolean(view?.lastProgressAt)}
           density="compact"
         />
       </div>

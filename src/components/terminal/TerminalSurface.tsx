@@ -26,6 +26,7 @@ import {
 } from "@/config/terminal-modes";
 import type { TerminalContext } from "@/app/api/terminal/context/route";
 import { TerminalView } from "./TerminalView";
+import { TerminalExplainButton, TerminalLokiSheet, useTerminalExplain } from "./TerminalExplain";
 import { TerminalTabStrip } from "./TerminalTabStrip";
 import { TerminalSessionBar, TerminalSourceBar } from "./TerminalModeBar";
 import { TerminalComposer } from "./TerminalComposer";
@@ -38,7 +39,6 @@ import { TerminalSessionSheet } from "./TerminalSessionSheet";
 import { TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
 import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
-import { Modal } from "@/components/ui/modal";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
 import { TerminalOfflineActions } from "./TerminalOfflineActions";
@@ -142,6 +142,7 @@ export function TerminalSurface({
   initialSource,
   initialTab,
   initialRunId = null,
+  initialExplain = false,
 }: {
   local: boolean;
   immersive?: boolean;
@@ -153,6 +154,9 @@ export function TerminalSurface({
   initialTab?: string | null;
   /** Same orchestration run Feedback Watch is following (`?run=`). */
   initialRunId?: string | null;
+  /** `?explain=1` — arrived from a "What's going on?" tap elsewhere: open
+   *  Loki and answer it as soon as the session is on screen. */
+  initialExplain?: boolean;
 }) {
   // "shell" — a Loki-owned bash PTY — is only offered where one can
   // actually be provisioned. On the hosted control plane it is absent rather
@@ -356,15 +360,6 @@ export function TerminalSurface({
   const deck = useTerminalDeck();
   const keyboardInset = useKeyboardInset();
   const [sheetOpen, setSheetOpen] = useState(false);
-  // Auto-open the Loki sheet only where the rail is not beside the session.
-  // Reusing one React element in both the split and the modal would unmount it
-  // from the visible desktop pane (the modal is lg:hidden).
-  const [lokiSheetOpen, setLokiSheetOpen] = useState(
-    () =>
-      Boolean(initialRunId) &&
-      typeof window !== "undefined" &&
-      !window.matchMedia(TERMINAL_RAIL_QUERY).matches,
-  );
   // The rail beside the session (lg+). Closing it hands its columns to the
   // terminal; the choice is remembered, like the input mode.
   const [railOpen, setRailOpen] = useLocalStorageState<boolean>(
@@ -376,6 +371,7 @@ export function TerminalSurface({
   // Whether the rail can sit beside the session at this width at all. Below
   // it the rail is a sheet, and the toggle opens that instead.
   const railFits = useMediaQuery(TERMINAL_RAIL_QUERY);
+  const explainer = useTerminalExplain(initialExplain, railFits, () => setRailOpen(true));
   const [liveState, setLiveState] = useState<TerminalLiveState>("connecting");
   // The attached session's rendered screen, for the rail's AI summary.
   const readScreenRef = useRef<((rows: number) => string[]) | null>(null);
@@ -539,12 +535,13 @@ export function TerminalSurface({
         project={projectKey}
         tab={activeTab}
         runId={initialRunId}
-        ptyLive={liveState === "live"}
+        ptyState={liveState}
         projectId={tabContext?.projectId ?? null}
         canSwitchAgent={!agentSwitchDisabledReason}
         onSwitchAgent={(id) => void switchAgent(id)}
         readScreenRef={readScreenRef}
         askOnly={view === "chat"}
+        explain={explainer}
       />
     ) : null;
 
@@ -554,7 +551,7 @@ export function TerminalSurface({
   const railShown = Boolean(projectKey) && railOpen && railFits && !immersive;
   const toggleRail = () => {
     if (railFits) setRailOpen((open) => !open);
-    else setLokiSheetOpen(true);
+    else explainer.setSheetOpen(true);
   };
   const paneActions = (
     <TerminalPaneActions
@@ -595,7 +592,7 @@ export function TerminalSurface({
         projectKey
           ? () => {
               setSheetOpen(false);
-              setLokiSheetOpen(true);
+              explainer.setSheetOpen(true);
             }
           : undefined
       }
@@ -790,6 +787,10 @@ export function TerminalSurface({
         )}
       </div>
 
+      {activeTab && projectKey && !railShown && !(railFits && immersive) && (
+        <TerminalExplainButton onClick={explainer.ask} />
+      )}
+
       {/* Desktop composers. The phone's live in the dock below, alongside the
           key deck, so there is exactly one stack of controls under the screen
           rather than a composer here and a keyboard somewhere else. While the
@@ -821,18 +822,10 @@ export function TerminalSurface({
       )}
 
       {sheet}
-      {lokiSheetOpen && projectKey && (
-        <div className="lg:hidden">
-          <Modal
-            onClose={() => setLokiSheetOpen(false)}
-            position="bottom-mobile"
-            size="lg"
-            padded={false}
-            className="ui-sheet"
-          >
-            <div className="ui-term-loki-sheet">{renderLokiRail()}</div>
-          </Modal>
-        </div>
+      {explainer.sheetOpen && projectKey && (
+        <TerminalLokiSheet onClose={() => explainer.setSheetOpen(false)}>
+          {renderLokiRail()}
+        </TerminalLokiSheet>
       )}
     </div>
   );

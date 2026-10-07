@@ -31,22 +31,35 @@ export type TerminalRunView = {
 
 export type TerminalRunPresentation = Pick<TerminalRunView, "label" | "stepSummary" | "nextAction">;
 
+/** What the terminal knows about its own byte stream. Mirrors
+ *  TerminalView's onLive states; `idle` means no session is selected. */
+export type TerminalPtyState = "live" | "connecting" | "stalled" | "idle";
+
+export const SESSION_LOST_LABEL = "Not responding";
+
 /** A durable run row can outlive its PTY (runner restart, crash, or manual
  * stop). The terminal knows whether bytes can actually flow, so it must not
- * repeat the run ledger's old “Working / generating” claim when no session is
- * attached. */
+ * repeat the run ledger's old "Working / generating" claim when the session
+ * has stopped answering.
+ *
+ * "Connecting" is NOT that. This used to take a boolean, and every state but
+ * "live" read as gone — so opening Terminal on a phone (where the Loki sheet
+ * opened on top of the session) announced "Session ended — its agent terminal
+ * is gone" for the seconds it took to attach, over a session that was
+ * running fine (operator, 2026-10-07). Until the stream has had its chance,
+ * the ledger's word stands. */
 export function presentTerminalRun(
   view: TerminalRunView,
-  ptyLive: boolean,
+  pty: TerminalPtyState,
 ): TerminalRunPresentation {
-  if (ptyLive || view.phase !== FEEDBACK_WORK_PHASE.WORKING) {
+  if (pty !== "stalled" || view.phase !== FEEDBACK_WORK_PHASE.WORKING) {
     return view;
   }
   return {
-    label: "Session ended",
-    stepSummary: "No live terminal session",
+    label: SESSION_LOST_LABEL,
+    stepSummary: "The agent's screen stopped answering",
     nextAction:
-      "The run record is still open, but its agent terminal is gone. Start this project again or return to Feedback and Retry.",
+      "Usually the builder restarting — it reconnects by itself. If it stays like this, open the project and send the task again.",
   };
 }
 

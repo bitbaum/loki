@@ -39,6 +39,7 @@ export function TerminalPageClient({ local }: { local: boolean }) {
           initialSource={initialSource}
           initialTab={initialTab}
           initialRunId={initialRunId}
+          initialExplain={searchParams.get("explain") === "1"}
         />
       )}
     </TerminalMobileShell>

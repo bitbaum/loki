@@ -11,6 +11,7 @@ import {
   isQuotaDeath,
   nextActionForWork,
   presentTerminalRun,
+  SESSION_LOST_LABEL,
   railStatusLines,
   WORKING_NEXT_ACTION,
 } from "@/lib/terminal-run-view";
@@ -143,13 +144,19 @@ check("an open run never claims generation after its PTY is gone", () => {
     projectKey: "substrata",
     work: work(),
   });
-  assert.deepEqual(presentTerminalRun(view, false), {
-    label: "Session ended",
-    stepSummary: "No live terminal session",
-    nextAction:
-      "The run record is still open, but its agent terminal is gone. Start this project again or return to Feedback and Retry.",
-  });
-  assert.equal(presentTerminalRun(view, true).label, "Working · 2 min");
+  const lost = presentTerminalRun(view, "stalled");
+  assert.equal(lost.label, SESSION_LOST_LABEL);
+  assert.doesNotMatch(lost.label, /working|generating/i);
+  assert.match(lost.nextAction, /open the project/i, "names the way forward");
+  assert.equal(presentTerminalRun(view, "live").label, "Working · 2 min");
+});
+
+check("attaching to a session is not the session being gone", () => {
+  // 2026-10-07: Terminal opened on a phone said "Session ended — its agent
+  // terminal is gone" while it was still connecting to a healthy session.
+  const view = buildTerminalRunView({ runId: "run-1", projectKey: "farmacia", work: work() });
+  assert.equal(presentTerminalRun(view, "connecting").label, "Working · 2 min");
+  assert.equal(presentTerminalRun(view, "idle").label, "Working · 2 min");
 });
 
 check("empty Terminal explains session location and project routing", () => {
