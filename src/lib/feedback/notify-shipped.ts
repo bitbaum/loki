@@ -31,6 +31,7 @@ import { APP_URL } from "@/config/brand";
 import { refreshOrInsertActiveAlert } from "@/db/queries/alerts";
 import { type FixShipping } from "@/lib/feedback/fix-shipping";
 import type { ShipAnnouncement } from "@/lib/feedback/fix-shipping";
+import { watchFixPath } from "@/lib/feedback/tour-token";
 
 /**
  * The two alert types raised here — must match src/config/alert-types.ts.
@@ -48,6 +49,7 @@ const FIX_DEPLOY_FAILED_ALERT = { type: "fix_deploy_failed", severity: "warning"
 export async function notifyFixShipped(input: {
   userId: string;
   projectId: string;
+  feedbackId: string;
   feedbackExcerpt: string | null;
   announcement: ShipAnnouncement;
   fix: FixShipping;
@@ -63,6 +65,10 @@ export async function notifyFixShipped(input: {
     const live = input.announcement === "live";
     const byFleet = input.fix.shippedByFleet === true;
     const inboxPath = `/feedback?project=${encodeURIComponent(projectName)}`;
+    // A live fix opens on its walkthrough, not the bare page: the cursor goes
+    // to each part that changed and a caption says why. Needs a live page.
+    const watchFix =
+      live && input.livePageUrl ? `${APP_URL}${watchFixPath(input.feedbackId)}` : null;
     const what = input.feedbackExcerpt ? `“${input.feedbackExcerpt}”` : "a visitor's report";
 
     const title = live
@@ -73,15 +79,15 @@ export async function notifyFixShipped(input: {
     const viaLater = input.fix.liveVia === "later_deploy";
     const body = live
       ? viaLater
-        ? `Its own deploy failed, but a later deploy of the site shipped it. Check it and confirm: ${what}`
-        : `${byFleet ? "Merged automatically and deployed" : "Merged and deployed"}. Check it and confirm: ${what}`
+        ? `Its own deploy failed, but a later deploy of the site shipped it. Watch the fix and confirm: ${what}`
+        : `${byFleet ? "Merged automatically and deployed" : "Merged and deployed"}. Watch the fix and confirm: ${what}`
       : `${input.fix.deploy?.name ?? "The deploy"} failed on the merge commit, so the site still shows the old version. ${what}`;
 
     const [pushResult] = await Promise.all([
       pushToUser(input.userId, {
         title,
         body,
-        url: live && input.livePageUrl ? input.livePageUrl : inboxPath,
+        url: watchFix ?? inboxPath,
         tag: `${PUSH_TAG_PREFIX}fix-${input.projectId}`,
       }),
       (async () => {
@@ -94,7 +100,7 @@ export async function notifyFixShipped(input: {
           what,
           ...(input.fix.pr ? [input.fix.pr.url] : []),
           ...(input.fix.deploy?.url && !live ? [input.fix.deploy.url] : []),
-          ...(live && input.livePageUrl ? [input.livePageUrl] : [`${APP_URL}${inboxPath}`]),
+          ...(watchFix ? [`▶ Watch the fix: ${watchFix}`] : [`${APP_URL}${inboxPath}`]),
         ];
         await sendTelegramMessage(target, lines.join("\n")).catch(() => undefined);
       })(),
@@ -103,7 +109,7 @@ export async function notifyFixShipped(input: {
         ...(live ? FIX_LIVE_ALERT : FIX_DEPLOY_FAILED_ALERT),
         title,
         description: body,
-        actionUrl: live && input.livePageUrl ? input.livePageUrl : inboxPath,
+        actionUrl: watchFix ?? inboxPath,
       }),
     ]);
 

@@ -71,5 +71,12 @@ export function verifyTourToken(
   return a.length === b.length && timingSafeEqual(a, b) ? { feedbackId, audience } : null;
 }
 
+/** Loki's stable address for one fix's walkthrough: it mints a fresh ticket
+ *  on every open (app/(app)/feedback/[id]/watch-fix), so a link in a message
+ *  outlives the day a ticket lasts. */
+export function watchFixPath(feedbackId: string): string {
+  return `/feedback/${encodeURIComponent(feedbackId)}/watch-fix`;
+}
+
 // The fragment key and the link shape are defined once, on the widget's side.
 export { TOUR_HASH_KEY, tourSiteUrl };
