@@ -10,6 +10,7 @@ import {
   commerce,
   isClientSite,
   isPaid,
+  publicOwner,
   repoFromGitUrl,
   summarize,
   usefulDescription,
@@ -73,6 +74,8 @@ const rows = buildFleetRegister(
       id: "4",
       name: "orangecat",
       gitUrl: "https://github.com/bitbaum/orangecat.git",
+      // Served from the main Caddyfile, so apps.conf has no row for it.
+      liveUrl: "https://orangecat.ch",
       orangecatProjectId: "cb09",
     },
     { id: "5", name: "retired", gitUrl: null, isActive: false },
@@ -101,12 +104,24 @@ ok(
   "hosted-only project appears with site and no profile",
 );
 ok(by["wild-spirit"]?.loki?.id === "3", "display-name-only project folds to wild-spirit");
+// /fleet once said "no site yet" beside loki.orangecat.ch and orangecat.ch:
+// they are served outside apps.conf, and only apps.conf could mint a site.
+ok(
+  by["orangecat"]?.site?.host === "orangecat.ch" && by["orangecat"]?.site?.status === "live",
+  "a project's own live URL is a site when apps.conf has no row for it",
+);
+ok(by["wild-spirit"]?.site === null, "no live URL and no apps.conf row → still no site");
+// "with Stadt Zürich?" was printed on /fleet: a guessed owner is not a partner.
+ok(publicOwner("RevampIT") === "RevampIT", "a named partner is shown");
+ok(publicOwner("Stadt Zürich?") === null, "an owner marked '?' is never shown");
+ok(publicOwner("bitbaum") === null && publicOwner("-") === null, "ours names nobody");
 
 const s = summarize(rows);
 // 7 projects: five profiles (one inactive, excluded) + two hosted-only rows
-// (factory-sep11-0110 and `short`); 5 sites: kivvi, aoz, sink, factory, short.
+// (factory-sep11-0110 and `short`); 6 sites: kivvi, aoz, sink, factory, short,
+// and orangecat from its own live URL.
 ok(
-  s.projects === 7 && s.sites === 5 && s.loki === 5 && s.orangecat === 1 && s.solon === 1,
+  s.projects === 7 && s.sites === 6 && s.loki === 5 && s.orangecat === 1 && s.solon === 1,
   `summary counts (${JSON.stringify(s)})`,
 );
 

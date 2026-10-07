@@ -77,7 +77,7 @@ Key design rules:
 
 ## Stack
 
-- **Next.js 16.2.6** App Router, React 19, TypeScript strict
+- **Next.js 16** App Router, React 19, TypeScript strict
 - **PostgreSQL 17** with Drizzle ORM and schema-inferred types
 - **NextAuth v5**: OrangeCat (OIDC, the primary account), GitHub, Google and X
   OAuth, plus email/password and local owner-key support for private installs

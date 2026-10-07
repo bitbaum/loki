@@ -135,7 +135,7 @@ export const HOW_DEEP: HowSection[] = [
     lede: "Autopilot is on or off, per project, and one switch pauses everything. With autopilot off, nothing starts on your agent subscriptions unless you — or a note you left on your own site — asked for it.",
     points: [
       "Anything that needs a decision waits in Approvals, which works from a phone.",
-      "Loki's own chat runs on open-weight models through free providers, or on your own model key if you add one.",
+      "Loki's own chat runs on free model tiers — open-weight gpt-oss and qwen first, then Google's Gemini — or on your own model key if you add one.",
     ],
   },
   {

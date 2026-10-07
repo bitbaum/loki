@@ -6,6 +6,22 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-05 — Make it yours
+
+- **Your own copy of an open-source project.** On `/take`, pick OrangeCat,
+  Loki, Solon, evig, Substrata or Heidi and say what your copy is for. Loki's
+  agents copy the code into a project of your own, keep the licence and the
+  credit, and give it your name and look. GitHub Actions are switched off on
+  every copy before anything is imported (#1043, #1047).
+- **Inspired by, not a copy of.** On `/change`, "Make my own, inspired by it"
+  starts an independent site that takes only ideas from an address you
+  admire: layout, structure, interaction and mood (#1038).
+- **The Terminal on a phone.** Attach a photo or a file, swipe to scroll,
+  one bar instead of stacked rows, and suggested next steps read from what
+  is on the screen. A screenshot reaches the agent as the image itself, and
+  the feedback tool sits in the Terminal's header instead of over the
+  terminal (#1042, #1044, #1045, #1046, #1048).
+
 ## 2026-10-03 — Your site fixes itself while you use it
 
 - **Watch mode.** Open your site from Loki ("Open your site") and a pill at

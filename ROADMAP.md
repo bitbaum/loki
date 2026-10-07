@@ -111,6 +111,9 @@ The same control patterns — an on/off autopilot, approvals, handoff, queues, v
 
 ## Shipped
 
+### Make it yours
+Pick one of the studio's MIT projects and say what your copy is for; agents copy it into a project of your own, keep the licence and the credit, and give it your name and look.
+
 ### Change a website from its address
 Enter an existing website and say what should change, in plain words. The brief survives signing in and becomes one project, and sending it starts the build.
 

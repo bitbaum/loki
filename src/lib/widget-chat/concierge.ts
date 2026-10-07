@@ -1,5 +1,6 @@
 import { ECOSYSTEM } from "@/config/ecosystem";
 import { publicProfilePath, type FleetMap, type FleetMapEntry } from "@/lib/register/map";
+import { publicOwner } from "@/lib/register/build";
 import type { StudioCommissionContract } from "@/lib/studio-commission";
 
 /**
@@ -99,7 +100,8 @@ export function stageWord(p: Pick<FleetMapEntry, "status" | "owner">): string {
     "not live": "in development, not publicly running",
   };
   const word = base[p.status] ?? p.status;
-  return p.owner && p.owner !== "bitbaum" ? `${word}; a pilot built with ${p.owner}` : word;
+  const partner = publicOwner(p.owner);
+  return partner ? `${word}; a pilot built with ${partner}` : word;
 }
 
 function clip(text: string | null | undefined, max: number): string | null {

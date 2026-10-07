@@ -2,7 +2,7 @@
   "name": "@loki/agent",
   "version": "0.1.0",
   "description": "Connect your machine to the Loki cloud control plane",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "bin": {
     "loki-agent": "bin/loki-agent.js"
   },

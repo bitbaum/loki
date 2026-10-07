@@ -7,7 +7,9 @@
  * which is the whole point of describing a list rather than hand-wiring one.
  */
 import type { ListSpec } from "listkit";
-import type { RegisterRow } from "@/lib/register/build";
+import { publicOwner, type RegisterRow } from "@/lib/register/build";
+
+export { publicOwner };
 
 /** The groups the page renders, derived from the register's own facts. */
 export const GROUP_OPTIONS = ["live", "building", "profile"] as const;
@@ -55,6 +57,7 @@ export const KIND_LABEL: Record<string, string> = {
 export function kindLabel(kind: string): string {
   return KIND_LABEL[kind] ?? kind;
 }
+
 export const STATUS_OPTIONS = ["live", "validating", "prospect", "unverified", "demo"] as const;
 
 export const SORT_LABEL: Record<string, string> = {
@@ -87,7 +90,7 @@ export const FLEET_LIST: ListSpec<RegisterRow> = {
     // Who it is with, as a facet: "show me the pilots with X" is the first
     // question anyone asks a studio's project list. Options are supplied at call
     // time because the set of partners is data, not a constant.
-    { key: "owner", kind: "many", value: (r) => r.site?.owner ?? "" },
+    { key: "owner", kind: "many", value: (r) => publicOwner(r.site?.owner) ?? "" },
     // The gap-finding facets. These are why the register is a to-do list read
     // sideways, and until now the only way to use it was to scan 38 rows.
     { key: "nosite", kind: "flag", value: (r) => !r.site },
@@ -95,7 +98,7 @@ export const FLEET_LIST: ListSpec<RegisterRow> = {
     { key: "nosolon", kind: "flag", value: (r) => !r.solon },
   ],
   search: {
-    text: (r) => [r.name, r.slug, r.description, r.site?.host, r.site?.owner],
+    text: (r) => [r.name, r.slug, r.description, r.site?.host, publicOwner(r.site?.owner)],
   },
   sorts: [
     { key: "name", by: [(r) => r.name ?? r.slug] },
@@ -111,7 +114,7 @@ export const FLEET_LIST: ListSpec<RegisterRow> = {
 /** The spec with the owner options filled in from the rows actually present. */
 export function fleetListFor(rows: readonly RegisterRow[]): ListSpec<RegisterRow> {
   const owners = [
-    ...new Set(rows.map((r) => r.site?.owner).filter((o): o is string => !!o && o !== "-")),
+    ...new Set(rows.map((r) => publicOwner(r.site?.owner)).filter((o): o is string => !!o)),
   ].sort((a, b) => a.localeCompare(b));
   return {
     ...FLEET_LIST,
