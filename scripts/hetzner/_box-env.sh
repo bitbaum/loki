@@ -30,6 +30,15 @@ WORKFLOW_OWNER="${WORKFLOW_OWNER:-bitbaum}"
 # The domain every site gets a free subdomain on, until it has its own.
 SITES_BASE_DOMAIN="${SITES_BASE_DOMAIN:-orangecat.ch}"
 
+# SLEEP WHEN IDLE. A site whose register status is one of these is not kept
+# running: systemd listens on its port and starts it on the first request, and
+# stops it after SLEEP_IDLE_TIME with no traffic. Every site used to hold up to
+# 1 GB around the clock, which put the box's ceiling at ~50 sites however rarely
+# they were visited. `live` (and handed-over/infra) stays always on, so a real
+# client's visitor never waits. Rule and units: lib.sh (sleeps_when_idle).
+SLEEP_WHEN_IDLE_STATUSES="${SLEEP_WHEN_IDLE_STATUSES:-prospect demo validating unverified}"
+SLEEP_IDLE_TIME="${SLEEP_IDLE_TIME:-15min}"
+
 # Where local checkouts live.
 DEV_ROOT="${DEV_ROOT:-/home/g/dev}"
 
