@@ -175,7 +175,7 @@ export const DEMO_PARTIAL_PREFIXES: Readonly<Record<string, string>> = {
  * Otherwise this table becomes a comment that documents protection nobody wrote.
  *
  * Not listed, deliberately: /api/system exposes only a GET of host stats — no
- * mutation to deny, and reading uptime costs nothing. /api/newsletter, /api/feedback, /api/commission and /api/widget-boot
+ * mutation to deny, and reading uptime costs nothing. /api/newsletter, /api/feedback, /api/commission, /api/site-consult and /api/widget-boot
  * are public endpoints any anonymous visitor may already call, so gating the
  * demo account specifically would protect nothing. /api/stripe/webhook,
  * /api/orangecat/* and /api/solon/* verify their own HMAC signatures and are not
@@ -258,6 +258,7 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
   "robots",
   "sessions",
   "setup",
+  "site-consult", // Public, anonymous already: reads one public page by rules, no AI spend, no write.
   "share",
   "solon",
   "system",

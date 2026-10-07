@@ -2485,6 +2485,61 @@
   .ui-change-brief-label {
     @apply block text-xs font-medium uppercase tracking-caps text-text-tertiary;
   }
+  /* /change (2026-10-07): the consultation — what Loki found on the live page,
+     shown BEFORE anything is built. A report, not a form: the headline is the
+     verdict, the snippet is how Google shows the site today, and each finding
+     is one row the owner can keep or drop from the build. */
+  .ui-consult {
+    @apply space-y-5 rounded-2xl border border-border-default bg-surface-base p-4 sm:p-6;
+  }
+  .ui-consult-head {
+    @apply flex flex-wrap items-start justify-between gap-3;
+  }
+  .ui-consult-headline {
+    @apply mt-2 text-xl font-semibold leading-snug tracking-display text-text-primary sm:text-2xl;
+  }
+  .ui-consult-snippet {
+    @apply min-w-0 space-y-1 rounded-xl border border-border-subtle bg-surface-raised p-3 sm:p-4;
+  }
+  .ui-consult-snippet-url {
+    @apply truncate text-xs text-text-tertiary;
+  }
+  .ui-consult-snippet-title {
+    @apply text-base font-medium leading-snug text-accent-text wrap-anywhere;
+  }
+  .ui-consult-snippet-desc {
+    @apply text-sm leading-relaxed text-text-secondary wrap-anywhere;
+  }
+  .ui-consult-snippet-missing {
+    @apply text-sm italic text-text-muted;
+  }
+  .ui-consult-group {
+    @apply space-y-2;
+  }
+  .ui-consult-finding {
+    @apply flex min-w-0 cursor-pointer items-start gap-3 rounded-xl border border-border-subtle p-3 transition-colors hover:border-border-default sm:p-4;
+  }
+  .ui-consult-finding-off {
+    @apply opacity-60;
+  }
+  .ui-consult-finding-title {
+    @apply text-sm font-semibold text-text-primary sm:text-base;
+  }
+  .ui-consult-evidence {
+    @apply mt-1 text-sm text-text-primary wrap-anywhere;
+  }
+  .ui-consult-why {
+    @apply mt-1 text-sm leading-relaxed text-text-secondary;
+  }
+  .ui-consult-passed {
+    @apply grid gap-x-4 gap-y-1.5 pt-2 text-sm text-text-secondary sm:grid-cols-2;
+  }
+  .ui-consult-scope {
+    @apply text-xs leading-relaxed text-text-muted;
+  }
+  .ui-consult-loading {
+    @apply flex items-start gap-3 rounded-2xl border border-border-subtle bg-surface-base p-4 text-sm text-text-secondary sm:p-5;
+  }
   .ui-public-download-compare-fold {
     @apply mt-10;
   }

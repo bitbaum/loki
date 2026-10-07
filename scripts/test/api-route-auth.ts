@@ -78,6 +78,8 @@ const PUBLIC: Record<string, string> = {
     "Public directory of studio-approved, consenting, published partners with real availability. Explicit profile allowlist, never application evidence or contact details.",
   commission:
     "Compatibility 410 directing legacy paid-intake clients to Bitbaum; no database or side effects.",
+  "site-consult":
+    "The free consultation on /change, shown before any account exists. Reads one public page through the SSRF guard (private networks, IP literals and custom ports refused on every redirect hop), judges it by rules with no AI spend, is rate-limited per visitor and cached, and returns findings — never the page's content.",
   // — Sign-in and account recovery. Public by definition: the caller has no
   //   session yet, which is the entire reason they are here.
   "auth/[...nextauth]": "NextAuth's own handler — owns the session it would otherwise check",

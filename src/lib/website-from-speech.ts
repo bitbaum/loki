@@ -44,3 +44,26 @@ export function appendToBrief(brief: string, said: string, max: number): string 
   const next = brief.trim() ? `${brief.trim()}\n${line}` : line;
   return next.slice(0, max);
 }
+
+/** Words that only frame an address: "my site is …", "hier ist meine Seite …". */
+const FRAMING = new Set(
+  (
+    "my our the a this here here's heres it it's its is at of for me please check look see url address link " +
+    "site website webpage page homepage home " +
+    "meine mein unsere unser die das der hier ist bitte seite webseite homepage schau " +
+    "mon ma notre le la voici est c s regarde"
+  ).split(" "),
+);
+
+/**
+ * Whether what was said carries anything beyond the address. "my-bakery.ch"
+ * or "my site is my-bakery.ch" is the address alone — the consultation's
+ * question, not a change request — so it must not land in the brief as one.
+ */
+export function saysMoreThanAddress(text: string): boolean {
+  return unspeak(text)
+    .replace(new RegExp(DOMAIN.source, "gi"), " ")
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .some((word) => word && !FRAMING.has(word));
+}

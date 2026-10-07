@@ -5,7 +5,7 @@
  * Run: npx tsx scripts/test/website-from-speech.ts
  */
 import assert from "node:assert/strict";
-import { appendToBrief, extractWebsite } from "@/lib/website-from-speech";
+import { appendToBrief, extractWebsite, saysMoreThanAddress } from "@/lib/website-from-speech";
 
 let passed = 0;
 const check = (label: string, fn: () => void) => {
@@ -55,6 +55,19 @@ check("empty speech changes nothing", () => {
 });
 check("the brief never exceeds its limit", () => {
   assert.equal(appendToBrief("abc", "defgh", 6).length, 6);
+});
+
+console.log("\nsaysMoreThanAddress");
+
+check("an address alone is the consultation's question, not a change", () => {
+  assert.equal(saysMoreThanAddress("my-bakery.ch"), false);
+  assert.equal(saysMoreThanAddress("https://www.my-bakery.ch/"), false);
+  assert.equal(saysMoreThanAddress("My site is my-bakery.ch."), false);
+  assert.equal(saysMoreThanAddress("hier ist meine Webseite: evig dot ch"), false);
+});
+check("anything asked for alongside it is kept", () => {
+  assert.equal(saysMoreThanAddress("my-bakery.ch — add online ordering"), true);
+  assert.equal(saysMoreThanAddress("Make it faster"), true);
 });
 
 console.log(`\n${passed}/${passed} website-from-speech cases passed`);

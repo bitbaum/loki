@@ -3,15 +3,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Globe, Pencil } from "lucide-react";
 import { Composer } from "@/components/composer/Composer";
+import { SiteConsultation } from "@/components/public/SiteConsultation";
 import { COMMISSION, WEBSITE_MODES, WEBSITE_MODE_IDS, type WebsiteMode } from "@/config/commission";
 import { ROUTES } from "@/config/auth";
-import { appendToBrief, extractWebsite } from "@/lib/website-from-speech";
+import { CONSULT_CHECKS, type ConsultCheckId } from "@/config/site-consult";
+import { useSiteConsultation } from "@/hooks/use-site-consultation";
+import { appendToBrief, extractWebsite, saysMoreThanAddress } from "@/lib/website-from-speech";
+import { clearWebsiteDraft, parseWebsiteDraft, saveWebsiteDraft } from "@/lib/website-draft";
 import { cn } from "@/lib/utils";
-
-type Draft = { website: string; changes: string; requestId: string; mode: WebsiteMode };
-
-const isMode = (value: unknown): value is WebsiteMode =>
-  WEBSITE_MODE_IDS.includes(value as WebsiteMode);
 
 /**
  * "Change your website", told in your own words — typed or spoken.
@@ -28,6 +27,12 @@ const isMode = (value: unknown): value is WebsiteMode =>
  * must not spend the shared free AI quota. If no address was said, the brief
  * asks for one in one line.
  *
+ * On "Improve this site", the address alone starts a free consultation
+ * (SiteConsultation): Loki reads the live page and says what is costing the
+ * owner visitors BEFORE anything is built, and each finding becomes a fix they
+ * can keep or drop. That is the moment the visitor sees Loki understood their
+ * site — so it comes first, and a build can be nothing more than "fix these".
+ *
  * Everything after is unchanged and deliberate: the draft survives sign-in
  * (sessionStorage), a resubmit reuses its requestId so it cannot create two
  * projects, and the build goes through the same project + kickoff pipeline
@@ -38,6 +43,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
   const [website, setWebsite] = useState("");
   const [changes, setChanges] = useState("");
   const [mode, setMode] = useState<WebsiteMode>("refresh");
+  const [fixes, setFixes] = useState<ConsultCheckId[] | null>(null);
   const [editingSite, setEditingSite] = useState(false);
   const [ready, setReady] = useState(false);
   const [sending, setSending] = useState(false);
@@ -47,71 +53,69 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
   // Restore a draft: from the studio's handoff link (#brief=…) or from this tab.
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
+      const handoff = location.hash.startsWith("#brief=");
+      let raw: string | null = null;
       try {
-        const handoff = location.hash.startsWith("#brief=");
-        const raw = handoff
+        raw = handoff
           ? decodeURIComponent(location.hash.slice(7))
           : sessionStorage.getItem(COMMISSION.draftKey);
-        const draft: Partial<Draft> | null = raw ? (JSON.parse(raw) as Partial<Draft>) : null;
-        if (draft) {
-          if (typeof draft.website === "string")
-            setWebsite(draft.website.slice(0, COMMISSION.maxWebsite));
-          if (typeof draft.changes === "string")
-            setChanges(draft.changes.slice(0, COMMISSION.maxChanges));
-          if (isMode(draft.mode)) setMode(draft.mode);
-          if (
-            !handoff &&
-            typeof draft.requestId === "string" &&
-            /^[a-f\d-]{36}$/.test(draft.requestId)
-          )
-            requestId.current = draft.requestId;
-        }
-        if (handoff) history.replaceState(null, "", location.pathname + location.search);
       } catch {
         /* Storage is optional. */
       }
+      const draft = parseWebsiteDraft(raw, handoff);
+      if (draft.website !== undefined) setWebsite(draft.website);
+      if (draft.changes !== undefined) setChanges(draft.changes);
+      if (draft.mode) setMode(draft.mode);
+      if (draft.fixes) setFixes(draft.fixes);
+      if (draft.requestId) requestId.current = draft.requestId;
+      if (handoff) history.replaceState(null, "", location.pathname + location.search);
       setReady(true);
     });
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  const refresh = mode === "refresh";
+  const { state: consultState, retry } = useSiteConsultation(website, ready && refresh);
+  const report = consultState.status === "ready" ? consultState.consultation : null;
+  const found = report?.findings.map((f) => f.id) ?? [];
+  const selected = new Set(fixes ?? found);
+  const chosen = refresh ? found.filter((id) => selected.has(id)) : [];
+
   useEffect(() => {
-    if (!ready) return;
-    try {
-      sessionStorage.setItem(
-        COMMISSION.draftKey,
-        JSON.stringify({ website, changes, requestId: requestId.current, mode }),
-      );
-    } catch {
-      /* optional */
-    }
-  }, [website, changes, mode, ready]);
+    if (ready) saveWebsiteDraft({ website, changes, requestId: requestId.current, mode, fixes });
+  }, [website, changes, mode, fixes, ready]);
+
+  function changeWebsite(next: string) {
+    requestId.current = "";
+    setFixes(null);
+    setWebsite(next.slice(0, COMMISSION.maxWebsite));
+  }
+
+  function toggleFix(id: ConsultCheckId) {
+    requestId.current = "";
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setFixes(found.filter((f) => next.has(f)));
+  }
 
   /** One thing said or typed: take the address out of it if we have none yet. */
   function hear(text: string): boolean {
     const said = text.trim();
     if (!said) return false;
     requestId.current = "";
-    if (!website) {
-      const found = extractWebsite(said);
-      if (found) setWebsite(found.slice(0, COMMISSION.maxWebsite));
-    }
-    setChanges((prev) => appendToBrief(prev, said, COMMISSION.maxChanges));
+    const address = website ? null : extractWebsite(said);
+    if (address) changeWebsite(address);
+    if (!address || saysMoreThanAddress(said))
+      setChanges((prev) => appendToBrief(prev, said, COMMISSION.maxChanges));
     return true;
   }
 
   async function build() {
-    if (sending || !website.trim() || !changes.trim()) return;
+    if (sending || !website.trim() || (!changes.trim() && !chosen.length)) return;
     setError("");
     requestId.current ||= crypto.randomUUID();
-    try {
-      sessionStorage.setItem(
-        COMMISSION.draftKey,
-        JSON.stringify({ website, changes, requestId: requestId.current, mode }),
-      );
-    } catch {
-      /* optional */
-    }
+    saveWebsiteDraft({ website, changes, requestId: requestId.current, mode, fixes });
     if (!signedIn) {
       router.push(`${ROUTES.SIGN_IN}?callbackUrl=${encodeURIComponent(COMMISSION.path)}`);
       return;
@@ -121,7 +125,13 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
       const response = await fetch(COMMISSION.buildPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ website, changes, requestId: requestId.current, mode }),
+        body: JSON.stringify({
+          website,
+          changes,
+          requestId: requestId.current,
+          mode,
+          fixes: chosen,
+        }),
       });
       const body = (await response.json()) as {
         ok?: boolean;
@@ -134,11 +144,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
         );
       if (!body.projectPath || !/^\/projects\/[\da-f-]+\/watch$/.test(body.projectPath))
         throw new Error("The response was incomplete. Retry to resume this request.");
-      try {
-        sessionStorage.removeItem(COMMISSION.draftKey);
-      } catch {
-        /* optional */
-      }
+      clearWebsiteDraft();
       router.push(body.projectPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Try again; your brief is still here.");
@@ -147,9 +153,17 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
     }
   }
 
-  const hasBrief = changes.trim().length > 0;
+  const hasBrief = changes.trim().length > 0 || website.trim().length > 0;
   const needsSite = hasBrief && !website.trim();
+  const canBuild = !needsSite && (changes.trim().length > 0 || chosen.length > 0);
   const copy = WEBSITE_MODES[mode];
+  const action =
+    chosen.length > 0
+      ? `${copy.action} — ${chosen.length} ${chosen.length === 1 ? "fix" : "fixes"}`
+      : copy.action;
+  const handoff = [changes.trim(), ...chosen.map((id) => `- ${CONSULT_CHECKS[id].title}`)]
+    .filter(Boolean)
+    .join("\n");
 
   return (
     <div className="space-y-4">
@@ -179,6 +193,15 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
         hint="Type, or tap the mic and say it — in any language."
       />
 
+      {refresh && (
+        <SiteConsultation
+          state={consultState}
+          selected={selected}
+          onToggle={toggleFix}
+          onRetry={retry}
+        />
+      )}
+
       {hasBrief && (
         <section className="ui-change-brief" aria-label="Your brief">
           <div className="ui-change-brief-row">
@@ -194,10 +217,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
                 autoFocus={editingSite}
                 maxLength={COMMISSION.maxWebsite}
                 value={website}
-                onChange={(e) => {
-                  requestId.current = "";
-                  setWebsite(e.target.value);
-                }}
+                onChange={(e) => changeWebsite(e.target.value)}
                 onBlur={() => setEditingSite(false)}
               />
             ) : (
@@ -216,7 +236,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
           </div>
 
           <label htmlFor="change-brief-text" className="ui-change-brief-label">
-            {copy.changesLabel}
+            {report ? "Anything else you want (optional)" : copy.changesLabel}
           </label>
           <textarea
             id="change-brief-text"
@@ -225,6 +245,9 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
               10,
               Math.max(3, changes.split("\n").length + Math.ceil(changes.length / 40)),
             )}
+            placeholder={
+              report ? "e.g. “Add online booking” — or leave it to the fixes above." : undefined
+            }
             maxLength={COMMISSION.maxChanges}
             value={changes}
             onChange={(e) => {
@@ -244,16 +267,18 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
               type="button"
               onClick={() => void build()}
               className="ui-btn-primary min-h-11"
-              disabled={sending || !ready || needsSite}
+              disabled={sending || !ready || !canBuild}
             >
-              {sending ? "Creating your project…" : copy.action}
+              {sending ? "Creating your project…" : action}
             </button>
             <span className="text-sm text-text-muted">
               {needsSite
                 ? "Add the website address first."
-                : signedIn
-                  ? copy.note
-                  : "You sign in next; this brief stays here."}
+                : !canBuild
+                  ? "Pick a fix above, or say what you want."
+                  : signedIn
+                    ? copy.note
+                    : "You sign in next; this brief stays here."}
             </span>
           </div>
         </section>
@@ -263,7 +288,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
         Prefer to hand it to people?{" "}
         <a
           className="ui-public-link"
-          href={`${COMMISSION.studioHireUrl}#brief=${encodeURIComponent(JSON.stringify({ website, changes }))}`}
+          href={`${COMMISSION.studioHireUrl}#brief=${encodeURIComponent(JSON.stringify({ website, changes: handoff }))}`}
         >
           Take this brief to the bitbaum studio
         </a>

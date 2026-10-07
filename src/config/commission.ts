@@ -16,6 +16,8 @@ export const COMMISSION = {
  * the button, the reassurance line and the repo-name suffix of each mode.
  *
  * - refresh: a new version OF that site, for its owner — brand and content kept.
+ *   The address alone starts a free consultation (config/site-consult) before
+ *   anything is built; its findings become fixes the owner keeps or drops.
  * - inspired: a new, independent site that only borrows ideas from it — layout,
  *   structure, interaction, mood. Its name, logo, words, pictures and code stay
  *   theirs; the result is the asker's own and must not pass for the original.
@@ -28,7 +30,7 @@ export const WEBSITE_MODES = {
     note: "Your live site is not touched — you review the new version first.",
     nameSuffix: "refresh",
     placeholder:
-      "e.g. “My site is my-bakery.ch — add online ordering and make it easier to read on a phone.”",
+      "Your website, e.g. “my-bakery.ch” — Loki looks at it first and tells you what it finds.",
   },
   inspired: {
     label: "Make my own, inspired by it",
