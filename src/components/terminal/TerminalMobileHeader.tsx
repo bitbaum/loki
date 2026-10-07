@@ -73,15 +73,16 @@ export function TerminalMobileHeader({
           title={STATE_LABEL[state]}
         />
         <span className="ui-term-mhead-title">{title}</span>
-        {/* Where the view switch is drawn the agent is Claude (only Claude
-            has a conversation view) and the switch needs the width — the chip
-            cost the session name its letters ("derho…" at 390px). The agent
-            is one tap away in the sheet. */}
+        {/* Where the view switch is drawn it already carries the agent's
+            name, and it needs the width — the chip cost the session name its
+            letters ("derho…" at 390px). */}
         {agent && !onViewChange && <span className="ui-term-mhead-agent">{agent}</span>}
         <ChevronDown className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
       </button>
 
-      {onViewChange && view && <TerminalViewSwitch view={view} onViewChange={onViewChange} />}
+      {onViewChange && view && (
+        <TerminalViewSwitch view={view} onViewChange={onViewChange} agentLabel={agent} />
+      )}
       {/* The feedback widget's floating button is hidden on this page (it would
           cover the terminal and the composer — terminal/page.tsx), so it opens
           from here: report a problem, point at an element, attach a screenshot. */}

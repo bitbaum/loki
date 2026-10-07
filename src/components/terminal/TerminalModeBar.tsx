@@ -135,7 +135,13 @@ export function TerminalSessionBar({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        {onViewChange && <TerminalViewSwitch view={view} onViewChange={onViewChange} />}
+        {onViewChange && (
+          <TerminalViewSwitch
+            view={view}
+            onViewChange={onViewChange}
+            agentLabel={activeAgent?.label ?? null}
+          />
+        )}
         <div className="relative">
           <button
             type="button"
