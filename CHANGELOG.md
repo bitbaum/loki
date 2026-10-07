@@ -8,6 +8,14 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-10-07 — The record points both ways
 
+- **Your site gets a consultation before it gets rebuilt.** On "Start from a
+  website", naming your own site now opens a free consultation first: Loki
+  reads the live page the way a new visitor and Google do, and says in plain
+  words what is costing you visitors right now, what is worth fixing, and
+  what is already right — each with the proof it saw, and how Google shows
+  you today. Every finding is a fix you keep or drop; "Build a new version —
+  5 fixes" builds exactly those, with anything you add in your own words.
+  It spends no AI and needs no account.
 - **Watch the fix tells the whole story.** The walkthrough now plays in
   chapters, about a minute long: the report and its screenshot, what was
   actually wrong, the change shown live on the page, why it was done that way,
