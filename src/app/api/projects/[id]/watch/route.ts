@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { promptHistory } from "@/db/schema/prompt-history";
 import { getSessionUserId } from "@/lib/session";
 import { readIdParam } from "@/lib/api/route-helpers";
-import { getProjectCore } from "@/db/queries/projects";
+import { getProjectAutopilotOverride, getProjectCore } from "@/db/queries/projects";
+import { getBeaconSettings } from "@/db/queries/beacon-settings";
 import {
   getLatestRunForProjectKey,
   getProjectOrchestrationRuns,
@@ -89,7 +90,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   const tab = run.payload?.sessionTab ?? project.name;
-  const up = await getUserProjectByEntityId(userId, idOrResp).catch(() => null);
+  const [up, autopilotOverride, beacon] = await Promise.all([
+    getUserProjectByEntityId(userId, idOrResp).catch(() => null),
+    getProjectAutopilotOverride(userId, project.name).catch(() => null),
+    getBeaconSettings(userId),
+  ]);
   const failed = Boolean(run.finishedAt) && (view.phase === "failed" || view.stalled);
   return NextResponse.json(
     {
@@ -127,6 +132,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       // The one tap: a finished run that did not deliver can be sent again.
       canRetry: failed,
       userProjectId: up?.id ?? null,
+      // Steer or let go: Watch offers the project's real autopilot switch
+      // beside the box that steers it, not a description of either.
+      autopilot: { override: autopilotOverride, inherited: beacon.auto_inject_mode },
       terminalHref: fleetSurfaceHref("terminal", tab, undefined, run.id),
     },
     { headers: { "Cache-Control": "no-store" } },

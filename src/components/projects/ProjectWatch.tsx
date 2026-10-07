@@ -14,9 +14,9 @@
  * takes by itself when a builder refuses a run.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, MessagesSquare, RotateCcw, Sparkles } from "lucide-react";
+import { Loader2, MessagesSquare, RotateCcw } from "lucide-react";
 import { withTerminalView } from "@/lib/fleet-context";
 import { timeAgo } from "@/lib/dates";
 import { postJson } from "@/lib/api/fetch";
@@ -30,13 +30,9 @@ import {
 import { KICKOFF_STEP_LABEL } from "@/lib/project-kickoff";
 import type { KickoffRunState } from "@/lib/kickoff/orchestrate";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
-import {
-  ActivityGroup,
-  AssistantMessage,
-  ScreenFold,
-  TypingDots,
-  UserMessage,
-} from "./project-watch-parts";
+import type { AutoInjectMode } from "@/config/beacon";
+import { ProjectWatchLive } from "./ProjectWatchLive";
+import { ActivityGroup, AssistantMessage, TypingDots, UserMessage } from "./project-watch-parts";
 
 type WatchPayload = {
   project: { name: string };
@@ -65,6 +61,7 @@ type WatchPayload = {
   userProjectId?: string | null;
   tab?: string;
   terminalHref?: string;
+  autopilot?: { override: AutoInjectMode | null; inherited: AutoInjectMode };
 };
 
 const LIVE_POLL_MS = 4_000;
@@ -83,7 +80,6 @@ export function ProjectWatch({
   const [tail, setTail] = useState<string[] | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   const live = Boolean(data?.run?.live || data?.kickoff?.running || retrying);
   const working = data?.status?.phase === "working" && data.status.terminalReady;
@@ -132,11 +128,8 @@ export function ProjectWatch({
     };
   }, [working, tab]);
 
-  // Follow the conversation as it grows.
-  const itemCount = data?.items.length ?? 0;
-  useEffect(() => {
-    if (live) bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [itemCount, live]);
+  // No auto-scroll: while it works, the live card at the top IS the news —
+  // following the thread down used to scroll it out of view.
 
   const retry = (agent?: string) => {
     setRetrying(true);
@@ -193,6 +186,19 @@ export function ProjectWatch({
   return (
     <div className="space-y-6" aria-live="polite">
       {p.kickoff?.running && <SetupMessage kickoff={p.kickoff} />}
+
+      {p.run && status && runLive && !failed && !status.stalled && (
+        <ProjectWatchLive
+          projectId={projectId}
+          provider={provider?.currentLabel ?? "The agent"}
+          startedAt={p.run.startedAt}
+          screen={working ? tail : null}
+          fallbackHeadline={(working && tail && latestActivityLine(tail)) || status.label}
+          tab={status.terminalReady ? (p.tab ?? null) : null}
+          terminalHref={status.terminalReady ? (p.terminalHref ?? null) : null}
+          autopilot={p.autopilot ?? null}
+        />
+      )}
 
       {!p.run && !p.kickoff?.running && (
         <AssistantMessage who="Loki">
@@ -261,36 +267,14 @@ export function ProjectWatch({
         ) : null,
       )}
 
-      {p.run && status && runLive && !failed && (
-        <AssistantMessage who={provider?.currentLabel ?? "Agent"} agent>
-          <div className="flex items-start gap-3">
-            <span className="pt-2.5">
-              <TypingDots />
-            </span>
-            <span className="min-w-0 text-text-secondary wrap-anywhere">
-              {status.stalled
-                ? status.nextAction
-                : ((working && tail && latestActivityLine(tail)) ?? status.label)}
-            </span>
-          </div>
-          {working && tail && tail.length > 0 && <ScreenFold lines={tail} />}
+      {p.run && status && runLive && !failed && status.stalled && (
+        <AssistantMessage who="Loki">
+          <p>{status.nextAction}</p>
           {p.terminalHref && status.terminalReady && (
-            // The question a person watching actually has, answered in plain
-            // words on the session itself, with what they can say next — or
-            // leave it be. It opens the terminal with Loki already asked.
-            // The agent's own conversation is the other view of the same page.
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <Link
-                href={`${withTerminalView(p.terminalHref, "terminal")}&explain=1`}
-                className="ui-btn-primary gap-1.5"
-              >
-                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> What&apos;s going on?
-              </Link>
-              <Link href={withTerminalView(p.terminalHref, "chat")} className="ui-chat-link">
-                <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" /> Follow{" "}
-                {provider?.currentLabel ?? "the agent"} live
-              </Link>
-            </div>
+            <Link href={withTerminalView(p.terminalHref, "chat")} className="ui-chat-link">
+              <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" /> See where{" "}
+              {provider?.currentLabel ?? "the agent"} stopped
+            </Link>
           )}
         </AssistantMessage>
       )}
@@ -342,7 +326,6 @@ export function ProjectWatch({
           </p>
         </AssistantMessage>
       )}
-      <div ref={bottomRef} />
     </div>
   );
 }
