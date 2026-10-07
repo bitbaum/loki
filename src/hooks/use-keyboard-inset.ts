@@ -53,3 +53,54 @@ export function useKeyboardInset(): number {
 
   return inset;
 }
+
+const EDITABLE = "input, textarea, select, [contenteditable=''], [contenteditable='true']";
+
+/**
+ * Whether the soft keyboard is up — for chrome that should step aside while it
+ * is (the mobile tab bar), NOT for padding. Use `useKeyboardInset` for padding.
+ *
+ * `useKeyboardInset` alone cannot answer this on Android. The root layout sets
+ * `interactive-widget=resizes-content`, which Chrome and Brave on Android honour:
+ * the layout viewport shrinks with the keyboard, so `innerHeight` and
+ * `visualViewport.height` fall together and the covered height is always 0.
+ * That is correct for padding (nothing is covered) and wrong for "is the
+ * keyboard open" — the tab bar stayed up and sat on top of the Terminal's
+ * Prompt box, directly above the keys (reported from Brave on Android).
+ *
+ * So the second signal: a text field has focus AND the window is much shorter
+ * than the tallest it has been at this width. Keyed by width so rotating the
+ * phone is not mistaken for a keyboard.
+ */
+export function useKeyboardOpen(): boolean {
+  const inset = useKeyboardInset();
+  const [shrunk, setShrunk] = useState(false);
+
+  useEffect(() => {
+    const tallest = new Map<number, number>();
+    const measure = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const editing = document.activeElement?.matches(EDITABLE) ?? false;
+      const max = Math.max(tallest.get(w) ?? 0, h);
+      // Only learn the full height while nothing is being typed into — a page
+      // that loads with a field already focused must not take the shrunken
+      // height as its baseline.
+      if (!editing) tallest.set(w, max);
+      setShrunk(editing && (tallest.get(w) ?? h) - h > 120);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    document.addEventListener("focusin", measure);
+    document.addEventListener("focusout", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+      document.removeEventListener("focusin", measure);
+      document.removeEventListener("focusout", measure);
+    };
+  }, []);
+
+  return inset > 0 || shrunk;
+}
