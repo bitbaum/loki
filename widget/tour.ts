@@ -135,6 +135,49 @@ function safeToClick(el: Element): boolean {
   return false;
 }
 
+/** How far the caption must rise to clear the host's own bottom bar (a tab
+ *  bar, a cookie strip). Only a bar that spans most of the width counts: a
+ *  floating button is something the caption may cover for the length of a
+ *  tour — the card wins on z-index — but a nav pinned under it would hide the
+ *  caption's buttons. Substrata's phone tab bar did exactly that (2026-10-07).
+ *  Pure, so it is testable without a browser. */
+export function bottomBarInset(
+  bars: { top: number; bottom: number; width: number }[],
+  vw: number,
+  vh: number,
+): number {
+  let inset = 0;
+  for (const b of bars) {
+    if (b.bottom < vh - 4 || b.width < vw * 0.6) continue;
+    const h = vh - b.top;
+    if (h > 0 && h <= vh * 0.3) inset = Math.max(inset, h);
+  }
+  return Math.round(inset);
+}
+
+/** Fixed or sticky host elements touching the bottom edge, read from what is
+ *  actually painted there. Our own hosts are skipped. */
+function measureBottomBars(): { top: number; bottom: number; width: number }[] {
+  const vw = window.innerWidth;
+  const y = window.innerHeight - 2;
+  const out: { top: number; bottom: number; width: number }[] = [];
+  const seen = new Set<Element>();
+  for (const fx of [0.2, 0.5, 0.8]) {
+    for (const hit of document.elementsFromPoint(vw * fx, y)) {
+      for (let el: Element | null = hit; el && el !== document.body; el = el.parentElement) {
+        if (seen.has(el)) break;
+        seen.add(el);
+        if (el.closest("#loki-feedback-host, #loki-tour-host")) break;
+        const pos = getComputedStyle(el).position;
+        if (pos !== "fixed" && pos !== "sticky") continue;
+        const r = el.getBoundingClientRect();
+        out.push({ top: r.top, bottom: r.bottom, width: r.width });
+      }
+    }
+  }
+  return out;
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function tourCSS(t: WidgetTheme): string {
@@ -161,8 +204,8 @@ function tourCSS(t: WidgetTheme): string {
   border: 2px solid ${t.accent}; transform: translate(-50%,-50%) scale(.4); opacity: .9;
   animation: rip .6s ease-out forwards; }
 @keyframes rip { to { transform: translate(-50%,-50%) scale(3.2); opacity: 0; } }
-.card { position: fixed; left: 12px; right: 12px; bottom: 12px; margin: 0 auto; max-width: 440px;
-  transition: top .35s, bottom .35s;
+.card { position: fixed; left: 12px; right: 12px; bottom: calc(12px + var(--bar, 0px)); margin: 0 auto;
+  max-width: 440px; z-index: 2147483647; transition: top .35s, bottom .35s;
   pointer-events: auto; background: ${t.surface}; color: ${t.text};
   border: 1px solid ${t.borderStrong}; border-radius: ${rs}; padding: 12px 14px;
   font-size: 14px; line-height: 1.45; }
@@ -251,7 +294,14 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
   card.append(top, say, bar, row);
   layer.append(ring, cursor);
   root.append(style, layer, card);
+  let barInset = 0;
+  const liftAboveBar = () => {
+    barInset = bottomBarInset(measureBottomBars(), window.innerWidth, window.innerHeight);
+    card.style.setProperty("--bar", `${barInset}px`);
+  };
   document.body.appendChild(host);
+  liftAboveBar();
+  window.addEventListener("resize", liftAboveBar);
   // The launcher would sit on top of the caption; it comes back on close.
   const launcher = document.getElementById("loki-feedback-host");
   const launcherDisplay = launcher?.style.display ?? "";
@@ -263,6 +313,7 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
   const close = () => {
     closed = true;
     skip?.();
+    window.removeEventListener("resize", liftAboveBar);
     host.remove();
     if (launcher) launcher.style.display = launcherDisplay;
   };
@@ -317,7 +368,7 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
     // The caption never covers what it is talking about: an element low on
     // the screen (a footer link can never be scrolled to the middle) sends
     // the card to the top.
-    card.classList.toggle("up", r.bottom > window.innerHeight - card.offsetHeight - 24);
+    card.classList.toggle("up", r.bottom > window.innerHeight - barInset - card.offsetHeight - 24);
     return r;
   };
   const tap = (x: number, y: number) => {
@@ -442,6 +493,7 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
   row.append(
     btn("Replay", () => {
       // The token is still valid; the page is read again from the top.
+      window.removeEventListener("resize", liftAboveBar);
       host.remove();
       if (launcher) launcher.style.display = launcherDisplay;
       window.scrollTo({ top: 0, behavior: "smooth" });

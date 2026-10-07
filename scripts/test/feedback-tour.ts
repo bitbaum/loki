@@ -14,6 +14,7 @@ import {
 } from "../../src/lib/feedback/tour-token";
 import { fallbackTourSteps, parseTourSteps, tourPrompt } from "../../src/lib/feedback/tour-plan";
 import { explainRunFailure } from "../../src/lib/feedback/failure-reason";
+import { bottomBarInset } from "../../widget/tour";
 
 // Read at call time, so setting it after the imports is enough.
 process.env.AUTH_SECRET ??= "test-secret-for-tour-token";
@@ -107,6 +108,28 @@ const outline = [
   );
   assert.match(silent, /never answered/);
   assert.doesNotMatch(silent, /builder is online/);
+}
+
+// ---- caption clears the host's bottom bar ----
+// 2026-10-07: on Substrata at 390px the phone tab bar and the floating ASK
+// button sat on top of the caption and its "Looks right" button.
+{
+  const vw = 390;
+  const vh = 760;
+  const tabBar = { top: 690, bottom: 760, width: 390 };
+  const askButton = { top: 640, bottom: 704, width: 72 };
+  assert.equal(bottomBarInset([tabBar, askButton], vw, vh), 70, "rises above a full-width tab bar");
+  assert.equal(bottomBarInset([askButton], vw, vh), 0, "a floating button is covered, not avoided");
+  assert.equal(
+    bottomBarInset([{ top: 0, bottom: 760, width: 390 }], vw, vh),
+    0,
+    "an app shell filling the screen is not a bar",
+  );
+  assert.equal(
+    bottomBarInset([{ top: 20, bottom: 80, width: 390 }], vw, vh),
+    0,
+    "a top header is not a bottom bar",
+  );
 }
 
 console.log("feedback-tour: ok");

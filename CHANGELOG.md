@@ -20,6 +20,10 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   its second line, so Solon's roadmap published "…redirect into the" without
   "first organization", and the lost line could be taken as the goal's
   one-line summary.
+- **The walkthrough's caption stays on top.** On a phone, the site's own tab
+  bar and floating buttons could cover the "Watch the fix" caption and its
+  "Looks right" button (Substrata at 390px). The caption now sits above
+  everything on the page and rises clear of a bottom tab bar.
 
 ## 2026-10-05 — Make it yours
 
