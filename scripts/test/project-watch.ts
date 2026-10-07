@@ -169,4 +169,42 @@ check("the live line is what the agent is doing, not the CLI around it", () => {
   assert(latestActivityLine(["│ > │", "   ", "? for shortcuts"]) === null, "chrome became a line");
 });
 
+check("a redraw in place is the last frame, not every frame glued together", () => {
+  // 2026-10-07, a phone: the screen read "Actioning…●✢4*✶75✻ ✻Actioning…5✻…"
+  // because the spinner's CR / cursor-up / erase-line moves were deleted
+  // instead of applied.
+  const frames = ["✢", "✶", "✻", "●"]
+    .map((g, i) => `\r\x1b[2K${g} Actioning… (${i + 1}s · esc to interrupt)`)
+    .join("");
+  const raw =
+    "Running 1 shell command…\r\n  ⎿ $ cd /tmp && sed -n 71,72p i18n.js\r\n" +
+    frames +
+    "\r\n\x1b[1A\x1b[2K\x1b[G✶ Actioning… (3m 37s · ↓ 6.6k tokens)\r\n  ⎿ Tip: Use /btw to ask\r\n" +
+    "──────────\r\n› \r\n──────────\r\n⏵⏵ auto mode on (shift+tab to cycle) · esc to interrupt\r\n";
+  const tail = tailForWatch(raw);
+  assert(
+    tail.filter((l) => l.includes("Actioning")).length === 1,
+    `frames piled up: ${JSON.stringify(tail)}`,
+  );
+  assert(
+    tail.some((l) => l.includes("3m 37s")),
+    "kept a stale frame, not the last one",
+  );
+  assert(
+    latestActivityLine(tail) === "Running 1 shell command…",
+    `the headline is the spinner or chrome: ${latestActivityLine(tail)}`,
+  );
+});
+
+check("a tool call reads as a sentence", () => {
+  assert(
+    latestActivityLine(["⏺ Write(src/app/page.tsx)"]) === "Writing src/app/page.tsx",
+    "raw call",
+  );
+  assert(
+    latestActivityLine(["⏺ Read(i18n.js)", "  ⎿ Read 72 lines"]) === "Reading i18n.js",
+    "picked the detail",
+  );
+});
+
 console.log(`\n✓ project-watch: ${passed} passed`);

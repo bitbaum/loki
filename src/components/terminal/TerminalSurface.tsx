@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, MonitorSmartphone } from "lucide-react";
+import { Loader2, MonitorSmartphone, Sparkles } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
@@ -142,6 +142,7 @@ export function TerminalSurface({
   initialSource,
   initialTab,
   initialRunId = null,
+  initialExplain = false,
 }: {
   local: boolean;
   immersive?: boolean;
@@ -153,6 +154,9 @@ export function TerminalSurface({
   initialTab?: string | null;
   /** Same orchestration run Feedback Watch is following (`?run=`). */
   initialRunId?: string | null;
+  /** `?explain=1` — arrived from a "What's going on?" tap elsewhere: open
+   *  Loki and answer it as soon as the session is on screen. */
+  initialExplain?: boolean;
 }) {
   // "shell" — a Loki-owned bash PTY — is only offered where one can
   // actually be provisioned. On the hosted control plane it is absent rather
@@ -356,15 +360,22 @@ export function TerminalSurface({
   const deck = useTerminalDeck();
   const keyboardInset = useKeyboardInset();
   const [sheetOpen, setSheetOpen] = useState(false);
-  // Auto-open the Loki sheet only where the rail is not beside the session.
-  // Reusing one React element in both the split and the modal would unmount it
-  // from the visible desktop pane (the modal is lg:hidden).
+  // The Loki sheet opens on request only. It used to open by itself on phones
+  // whenever the URL carried a run — i.e. every "Open the full terminal" tap —
+  // and covered the session the person had just asked to see with a scrim and
+  // a status card (operator, 2026-10-07). The rail is one tap away in the
+  // header; the terminal is what was asked for.
+  // The exception is a person who asked: `?explain=1` is a "What's going
+  // on?" tap on another page, and the answer lives in this sheet.
   const [lokiSheetOpen, setLokiSheetOpen] = useState(
     () =>
-      Boolean(initialRunId) &&
+      initialExplain &&
       typeof window !== "undefined" &&
       !window.matchMedia(TERMINAL_RAIL_QUERY).matches,
   );
+  // Each "What's going on?" tap bumps this; the rail answers each value once.
+  const [explainRequest, setExplainRequest] = useState(initialExplain ? 1 : 0);
+  const [explainAnswered, setExplainAnswered] = useState(0);
   // The rail beside the session (lg+). Closing it hands its columns to the
   // terminal; the choice is remembered, like the input mode.
   const [railOpen, setRailOpen] = useLocalStorageState<boolean>(
@@ -539,12 +550,14 @@ export function TerminalSurface({
         project={projectKey}
         tab={activeTab}
         runId={initialRunId}
-        ptyLive={liveState === "live"}
+        ptyState={liveState}
         projectId={tabContext?.projectId ?? null}
         canSwitchAgent={!agentSwitchDisabledReason}
         onSwitchAgent={(id) => void switchAgent(id)}
         readScreenRef={readScreenRef}
         askOnly={view === "chat"}
+        explainRequest={explainRequest > explainAnswered ? explainRequest : 0}
+        onExplained={setExplainAnswered}
       />
     ) : null;
 
@@ -552,6 +565,11 @@ export function TerminalSurface({
   // cannot sit beside the session (md–lg) the same button opens it as a sheet,
   // so the panel is one click away at every width instead of only on lg+.
   const railShown = Boolean(projectKey) && railOpen && railFits && !immersive;
+  const explain = () => {
+    setExplainRequest((n) => n + 1);
+    if (!railFits) setLokiSheetOpen(true);
+    else setRailOpen(true);
+  };
   const toggleRail = () => {
     if (railFits) setRailOpen((open) => !open);
     else setLokiSheetOpen(true);
@@ -789,6 +807,23 @@ export function TerminalSurface({
           </div>
         )}
       </div>
+
+      {/* The one question a person watching an agent actually has, as the
+          most obvious thing under the screen. A TUI is not readable by most
+          people on a phone; this turns it into two sentences and the choices
+          that follow from them — steer it, or leave it running (operator,
+          2026-10-07). Where the rail sits beside the session it carries the
+          same button in its header. */}
+      {activeTab && projectKey && !railShown && !(railFits && immersive) && (
+        <button
+          type="button"
+          onClick={explain}
+          className="ui-btn-secondary w-full shrink-0 justify-center gap-2"
+        >
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          What&apos;s going on?
+        </button>
+      )}
 
       {/* Desktop composers. The phone's live in the dock below, alongside the
           key deck, so there is exactly one stack of controls under the screen

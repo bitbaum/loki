@@ -16,8 +16,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, MessagesSquare, RotateCcw, SquareTerminal } from "lucide-react";
+import { Loader2, MessagesSquare, RotateCcw, Sparkles } from "lucide-react";
 import { withTerminalView } from "@/lib/fleet-context";
+import { timeAgo } from "@/lib/dates";
 import { postJson } from "@/lib/api/fetch";
 import { peekTabOnce } from "@/lib/peek-tab-client";
 import {
@@ -225,10 +226,19 @@ export function ProjectWatch({
       )}
 
       {p.run && status && (
+        // The live message below already says "Working · 1 min" with its
+        // own dots. Saying it here too, with a second spinner, put the same
+        // fact on screen three times (operator, 2026-10-07): this line is
+        // the run's history, so it says when it started.
         <ActivityGroup
           steps={steps}
-          live={runLive && !status.stalled}
-          summary={failed ? "Stopped" : runLive ? status.label : "Finished"}
+          summary={
+            failed
+              ? "Stopped"
+              : runLive && p.run
+                ? `Started ${timeAgo(new Date(p.run.startedAt).getTime())}`
+                : "Finished"
+          }
         />
       )}
 
@@ -265,15 +275,20 @@ export function ProjectWatch({
           </div>
           {working && tail && tail.length > 0 && <ScreenFold lines={tail} />}
           {p.terminalHref && status.terminalReady && (
-            // The agent's own conversation and its raw terminal are one page
-            // with a switch; each link opens it on the view it names.
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
+            // The question a person watching actually has, answered in plain
+            // words on the session itself, with what they can say next — or
+            // leave it be. It opens the terminal with Loki already asked.
+            // The agent's own conversation is the other view of the same page.
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <Link
+                href={`${withTerminalView(p.terminalHref, "terminal")}&explain=1`}
+                className="ui-btn-primary gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> What&apos;s going on?
+              </Link>
               <Link href={withTerminalView(p.terminalHref, "chat")} className="ui-chat-link">
                 <MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" /> Follow{" "}
                 {provider?.currentLabel ?? "the agent"} live
-              </Link>
-              <Link href={withTerminalView(p.terminalHref, "terminal")} className="ui-chat-link">
-                <SquareTerminal className="h-3.5 w-3.5" aria-hidden="true" /> Open the full terminal
               </Link>
             </div>
           )}

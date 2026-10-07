@@ -313,11 +313,13 @@ export function ProjectKickoff({
         </ol>
       )}
 
+      {/* One quiet line under the steps, aligned with their labels. It was a
+          four-line paragraph with its own spinner — a second "working"
+          beside the step that is already spinning, hanging off its own
+          left edge (operator, 2026-10-07). */}
       {running && (
-        <p className="flex items-center gap-2 text-xs text-text-secondary">
-          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
-          Working — usually a minute or two. It runs on Loki, not in this page: lock your phone,
-          close the tab or open Terminal — it keeps going and is here when you come back.
+        <p className="pl-6.5 text-xs text-text-tertiary">
+          Runs on Loki — you can close this page; it keeps going.
         </p>
       )}
 
@@ -348,7 +350,13 @@ function StepIcon({ state }: { state: KickoffStepState }) {
     return <Check className="h-4 w-4 shrink-0 text-status-positive" aria-hidden="true" />;
   if (state === "failed")
     return <AlertCircle className="h-4 w-4 shrink-0 text-status-negative" aria-hidden="true" />;
-  return <span className="ui-dot ui-dot-neutral mx-1.5 shrink-0" aria-hidden="true" />;
+  // Same 16px box as the icons, so a pending step's label lines up with the
+  // rest instead of sitting a few pixels off.
+  return (
+    <span className="flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden="true">
+      <span className="ui-dot ui-dot-neutral" />
+    </span>
+  );
 }
 
 /**
