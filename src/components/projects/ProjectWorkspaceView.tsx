@@ -361,6 +361,7 @@ export function ProjectWorkspaceView({
                 {flagsBlock}
                 <ProjectBuildStatus
                   status={buildStatus}
+                  liveUrl={userProject?.liveUrl ?? links.prodUrl}
                   projectId={project.id}
                   workspaceKey={workspaceKey}
                   readonly={dossier.readonly}
