@@ -93,6 +93,12 @@ The app repo's name and the `apps.conf` key often differ — `revamp-info` on th
 box is served from the `hirnli` repo, `datacat-web` from `datacat`. The shim's
 `app:` value is always the **apps.conf key**.
 
+## Giving a site its own domain
+
+A registered site can move from `<slug>.orangecat.ch` to a domain its owner
+bought, with the free address forwarding there. See
+[custom-domains.md](custom-domains.md).
+
 ## When a deploy fails
 
 | Symptom | Meaning |

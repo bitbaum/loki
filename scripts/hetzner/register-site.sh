@@ -92,39 +92,10 @@ esac
 say() { printf '  %s\n' "$*"; }
 run() { if [ "$DRY" = 1 ]; then printf '  DRY  %s\n' "$*"; else eval "$@"; fi; }
 # The register is a file in git; a row that exists only on this box is lost to
-# the next clone and invisible to CI's uniqueness check. Send it to main the
-# way every other change gets there: a branch, a PR, the sweep. Best-effort —
-# the site is registered here either way — but always announced.
-publish_register_row() {
-  local line="$1" fc_git wt branch
-  fc_git="$(dirname "$(dirname "$(dirname "$MANIFEST")")")"
-  git -C "$fc_git" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { say "register row not published: $fc_git is not a git checkout"; return 0; }
-  branch="register/$SLUG"
-  wt="$(mktemp -d)/fc"
-  if git -C "$fc_git" fetch -q origin main 2>/dev/null \
-     && git -C "$fc_git" worktree add -q -B "$branch" "$wt" origin/main 2>/dev/null; then
-    if grep -q "^$SLUG|" "$wt/scripts/hetzner/apps.conf"; then
-      say "register row already on main"
-    else
-      printf '%s\n' "$line" >> "$wt/scripts/hetzner/apps.conf"
-      if git -C "$wt" -c user.name="$GIT_SCAFFOLD_NAME" -c user.email="$GIT_SCAFFOLD_EMAIL" \
-           commit -q -am "chore(register): add $SLUG ($PORT)" \
-         && env -u GH_TOKEN -u GITHUB_TOKEN git -C "$wt" push -q -f -u origin "$branch" 2>/dev/null \
-         && pr=$(env -u GH_TOKEN -u GITHUB_TOKEN gh pr create --repo "$(git -C "$fc_git" remote get-url origin | sed -E 's#^https://github.com/##; s#^git@github.com:##; s#\.git$##')" \
-                 --head "$branch" --base main --title "chore(register): add $SLUG ($PORT)" \
-                 --body "Registered from the box by register-site.sh. Row: \`$line\`" 2>/dev/null); then
-        say "register row sent to main: $pr"
-      else
-        say "⚠ register row not published to main (push or PR failed) — the durable register still has it"
-      fi
-    fi
-    git -C "$fc_git" worktree remove -f "$wt" >/dev/null 2>&1 || true
-  else
-    say "⚠ register row not published to main (could not fetch or branch)"
-  fi
-  rm -rf "$(dirname "$wt")"
-  return 0
-}
+# the next clone and invisible to CI's uniqueness check. publish_register_row
+# (lib.sh) sends it to main the way every other change gets there: a branch, a
+# PR, the sweep. Best-effort — the site is registered here either way — but
+# always announced. attach-domain.sh uses the same function to update a row.
 
 # Normalize OWNER/NAME from a URL if needed.
 if [[ "$REPO_REF" == https://github.com/* ]] || [[ "$REPO_REF" == git@github.com:* ]]; then
@@ -401,7 +372,7 @@ else
   LINE="$SLUG|$PORT|$SLUG.$BASE_DOMAIN|$REPO_DIR|.|-|$OWNER|$KIND|$STATUS|$PLAN|$PRICE|$(date -u +%Y-%m-%d)"
   printf '%s\n' "$LINE" >> "$MANIFEST"
   say "appended to $MANIFEST"
-  publish_register_row "$LINE"
+  publish_register_row "$SLUG" "$LINE"
 fi
 
 # ------------------------------------------------------------------------ box
