@@ -97,6 +97,11 @@ assert.equal(
   "the Menu sheet must not carry an account footer — AccountMenu in the top bar " +
     "owns Settings, appearance and sign out, on every viewport",
 );
+assert.ok(
+  /openFeedback/.test(sheet),
+  "the Menu sheet must offer feedback on the current page — on a phone the " +
+    "widget draws no floating button, so this is where people look for it",
+);
 
 console.log(
   `✓ nav surfaces: strip is project-gated, top bar defers to the bottom bar on ` +

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Lock, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Lock, MessageSquareWarning, X } from "lucide-react";
 import {
   MOBILE_NAV_ITEMS,
   SIDEBAR_SECTIONS,
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { usePrivateZone } from "@/hooks/use-private-zone";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 import { useOverlayLock } from "@/hooks/use-overlay-lock";
+import { openFeedback } from "@/lib/open-feedback";
 
 const TAB_IDS = new Set(MOBILE_NAV_ITEMS.map((item) => item.id));
 
@@ -50,6 +52,14 @@ function MobileNavRow({
 export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClose: () => void }) {
   const { configured, unlocked } = usePrivateZone();
   const privateLocked = configured && !unlocked;
+  const router = useRouter();
+
+  // The sheet closes first so the widget's screenshot and "point at it" see
+  // the page the report is about, not this menu over it.
+  const reportOnPage = () => {
+    onClose();
+    requestAnimationFrame(() => openFeedback(() => router.push("/support")));
+  };
 
   // This is a dialog covering the app, so it owes the same two things every
   // other overlay here provides. Verified against prod before this line existed:
@@ -78,6 +88,22 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
         </div>
 
         <div className="ui-mobile-nav-sheet-scroll">
+          {/* On a phone the feedback widget draws no floating button (it would
+              sit on this tab bar — MobileNav), and the account menu's "Report a
+              problem" is two taps behind an avatar nobody reads as help. This
+              is where a phone user goes looking for "everything else", so the
+              way to say "this page is wrong" lives here, first. */}
+          <div className="px-3 pb-2">
+            <button type="button" onClick={reportOnPage} className="ui-mobile-nav-row w-full">
+              <MessageSquareWarning className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">Feedback on this page</span>
+                <span className="block truncate text-xs text-text-tertiary">
+                  Point at anything, add a screenshot — it lands in Feedback
+                </span>
+              </span>
+            </button>
+          </div>
           {SIDEBAR_SECTIONS.map((section) => {
             const items = sheetItems(section);
             if (items.length === 0) return null;

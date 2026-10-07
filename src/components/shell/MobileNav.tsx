@@ -8,7 +8,7 @@ import { MOBILE_NAV_ITEMS } from "@/config/navigation";
 import { isCurrentPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { MobileNavSheet } from "@/components/shell/MobileNavSheet";
-import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
+import { useKeyboardOpen } from "@/hooks/use-keyboard-inset";
 
 const KEYBOARD_OPEN_CLASS = "fc-keyboard-open";
 
@@ -23,7 +23,7 @@ export function MobileNav() {
   // bottom of the layout viewport, which does not shrink for the keyboard, so
   // it used to float over whatever sat on top of the keys — on /terminal it
   // covered the Prompt box being typed into. Nobody navigates mid-sentence.
-  const keyboardOpen = useKeyboardInset() > 0;
+  const keyboardOpen = useKeyboardOpen();
   useEffect(() => {
     document.body.classList.toggle(KEYBOARD_OPEN_CLASS, keyboardOpen);
     return () => document.body.classList.remove(KEYBOARD_OPEN_CLASS);
