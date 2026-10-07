@@ -1,4 +1,6 @@
-import type { TourOutlineItem, TourStep } from "../../../widget/tour";
+import type { TourBeat, TourOutlineItem, TourStep } from "../../../widget/tour";
+import type { FixNote } from "./fix-note";
+import type { TourAudience } from "./tour-token";
 
 /**
  * The script of a fix walkthrough — which parts of the live page to show, in
@@ -19,6 +21,10 @@ export type TourInput = {
   /** Elements the reporter pointed at with the picker. */
   selectors: string[];
   outline: TourOutlineItem[];
+  /** The agent's design note, when its PR carried one — its `change` and
+   *  `where` lines are the best map of what to point at. */
+  note?: FixNote | null;
+  audience?: TourAudience;
 };
 
 const WORD = /[\p{L}\p{N}]{4,}/gu;
@@ -92,7 +98,7 @@ export function fallbackTourSteps(input: TourInput): TourStep[] {
   return steps;
 }
 
-export function tourSystemPrompt(): string {
+export function tourSystemPrompt(audience: TourAudience = "owner"): string {
   return [
     "You direct a short guided walkthrough of a website, like a developer showing a client a change they asked for.",
     "A fake cursor moves to each element you choose while your caption is shown. You see only a numbered outline of the visible page, not pixels.",
@@ -103,6 +109,9 @@ export function tourSystemPrompt(): string {
     '- Use target null with action "scroll" only to return to the top of the page after a click demonstrates it.',
     "- Only use outline numbers that exist. If the change is not visible in the outline, return the single most relevant element and say it should be here.",
     "- Never invent text the outline does not contain.",
+    audience === "reporter"
+      ? "- You are speaking to the person who reported the problem, not a developer: plain words, no code, file names or technical terms."
+      : "- You are speaking to the site's owner, who asked for this change.",
   ].join("\n");
 }
 
@@ -114,6 +123,8 @@ export function tourPrompt(input: TourInput): string {
     `The request: ${cut(input.suggestion, 1200)}`,
     input.didLine ? `What the developer says they did: ${cut(input.didLine, 400)}` : null,
     input.prTitle ? `Change title: ${cut(input.prTitle, 200)}` : null,
+    input.note?.change ? `The change, as the developer describes it: ${input.note.change}` : null,
+    input.note?.where ? `Where the developer says to look: ${input.note.where}` : null,
     "",
     "Visible page outline (document order, top to bottom):",
     outline || "(empty)",
@@ -155,4 +166,89 @@ export function parseTourSteps(text: string, outlineLength: number): TourStep[] 
   }
   // A walkthrough of nothing but scrolling shows nothing.
   return steps.some((s) => s.target !== null) ? steps : [];
+}
+
+/** Chapter names. One list, so the card header and the tests agree. */
+export const TOUR_CHAPTER = {
+  ASKED: "You asked",
+  PROBLEM: "The problem",
+  CHANGE: "The change",
+  SEE_IT: "Here it is",
+  WHY: "Why this way",
+  CONSIDERED: "Also considered",
+  HELPS: "Who it helps",
+  FOR_YOU: "What changed for you",
+} as const;
+
+export type TourStory = {
+  audience: TourAudience;
+  /** The report, in the reporter's own words. */
+  asked: string;
+  note: FixNote | null;
+  /** The handoff's one-line account — the owner's fallback when there is no note. */
+  didLine: string | null;
+  /** The live, on-page steps (planned by the model or the fallback). */
+  steps: TourStep[];
+  /** A screenshot the reporter attached — the closest thing to "before". */
+  before: string | null;
+};
+
+/**
+ * The whole walkthrough as a story in chapters: what was asked, what was
+ * wrong, the change shown live on the page, then — for the owner — why it was
+ * done this way, what else was considered and who it helps.
+ *
+ * The reporter's version keeps only their own words, the live demonstration
+ * and the note's plain sentence. Everything else in the note is reasoning a
+ * maintainer wrote for a maintainer, and it never reaches a stranger's screen:
+ * that boundary lives here and nowhere else.
+ */
+export function buildTourBeats(story: TourStory): TourBeat[] {
+  const beats: TourBeat[] = [];
+  const asked = cut(story.asked.replace(/\s+/g, " ").trim(), 220);
+  const note = story.note;
+  const live = (chapter: string) => story.steps.map((step): TourBeat => ({ chapter, ...step }));
+
+  if (story.audience === "reporter") {
+    beats.push({
+      chapter: TOUR_CHAPTER.ASKED,
+      action: "say",
+      say: `You reported: “${asked}” It has been fixed — here is the change.`,
+      image: story.before,
+    });
+    beats.push(...live(TOUR_CHAPTER.SEE_IT));
+    if (note?.plain) beats.push({ chapter: TOUR_CHAPTER.FOR_YOU, action: "say", say: note.plain });
+    return beats;
+  }
+
+  beats.push({
+    chapter: TOUR_CHAPTER.ASKED,
+    action: "say",
+    say: `The report: “${asked}”`,
+    image: story.before,
+  });
+  if (note?.problem)
+    beats.push({ chapter: TOUR_CHAPTER.PROBLEM, action: "say", say: note.problem });
+  const change = note?.change ?? story.didLine;
+  if (change) beats.push({ chapter: TOUR_CHAPTER.CHANGE, action: "say", say: change });
+  beats.push(...live(TOUR_CHAPTER.CHANGE));
+  if (note?.why) beats.push({ chapter: TOUR_CHAPTER.WHY, action: "say", say: note.why });
+  for (const alt of note?.considered ?? []) {
+    beats.push({
+      chapter: TOUR_CHAPTER.CONSIDERED,
+      action: "say",
+      say: alt.whyNot ? `${alt.option} — not chosen: ${alt.whyNot}` : alt.option,
+    });
+  }
+  if (note?.helps) beats.push({ chapter: TOUR_CHAPTER.HELPS, action: "say", say: note.helps });
+  return beats;
+}
+
+/** The closing line on the end card. */
+export function tourOutro(audience: TourAudience, didLine: string | null): string {
+  if (audience === "reporter")
+    return "That's your fix, live. Thank you for reporting it — if it still isn't right, tell us the same way.";
+  return didLine
+    ? `That's it. ${didLine} Does it look right to you?`
+    : "That's the change. Does it look right to you?";
 }

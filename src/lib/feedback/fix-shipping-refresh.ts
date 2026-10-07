@@ -78,6 +78,7 @@ async function fetchPr(ref: PrRef, token: string): Promise<GithubPrDetail | null
     head?: { sha?: string };
     base?: { ref?: string };
     created_at?: string;
+    body?: string | null;
   };
   const j = raw;
   if (typeof j.number !== "number" || typeof j.html_url !== "string") return null;
@@ -93,6 +94,7 @@ async function fetchPr(ref: PrRef, token: string): Promise<GithubPrDetail | null
     headSha: typeof raw.head?.sha === "string" ? raw.head.sha : null,
     createdAt: typeof raw.created_at === "string" ? raw.created_at : null,
     baseRef: typeof raw.base?.ref === "string" ? raw.base.ref : null,
+    body: typeof raw.body === "string" ? raw.body : null,
   };
 }
 

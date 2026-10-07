@@ -12,9 +12,16 @@ import {
   tourSiteUrl,
   TOUR_HASH_KEY,
 } from "../../src/lib/feedback/tour-token";
-import { fallbackTourSteps, parseTourSteps, tourPrompt } from "../../src/lib/feedback/tour-plan";
+import {
+  buildTourBeats,
+  fallbackTourSteps,
+  parseTourSteps,
+  tourOutro,
+  tourPrompt,
+  TOUR_CHAPTER,
+} from "../../src/lib/feedback/tour-plan";
 import { explainRunFailure } from "../../src/lib/feedback/failure-reason";
-import { bottomBarInset } from "../../widget/tour";
+import { bottomBarInset, readMs } from "../../widget/tour";
 
 // Read at call time, so setting it after the imports is enough.
 process.env.AUTH_SECRET ??= "test-secret-for-tour-token";
@@ -24,7 +31,7 @@ process.env.AUTH_SECRET ??= "test-secret-for-tour-token";
   const id = "3f0c7a52-1111-4222-8333-944455556666";
   const now = Date.now();
   const token = createTourToken(id, now);
-  assert.equal(verifyTourToken(token, now), id);
+  assert.deepEqual(verifyTourToken(token, now), { feedbackId: id, audience: "owner" });
   assert.equal(verifyTourToken(token, now + 25 * 60 * 60 * 1000), null, "expires within a day");
   assert.equal(verifyTourToken(`${token}x`, now), null, "a tampered signature is refused");
   const [, exp, sig] = token.split(".");
@@ -35,6 +42,26 @@ process.env.AUTH_SECRET ??= "test-secret-for-tour-token";
     "rides the fragment",
   );
   assert.ok(!url.includes("#old"), "the page's own fragment is replaced, not doubled");
+
+  // The reporter's ticket: a week, its own audience, and no way to become the owner's.
+  const forReporter = createTourToken(id, now, "reporter");
+  assert.deepEqual(verifyTourToken(forReporter, now + 6 * 24 * 60 * 60 * 1000), {
+    feedbackId: id,
+    audience: "reporter",
+  });
+  assert.equal(verifyTourToken(forReporter, now + 8 * 24 * 60 * 60 * 1000), null);
+  const [rid, rexp, , rsig] = forReporter.split(".");
+  assert.equal(
+    verifyTourToken(`${rid}.${rexp}.${rsig}`, now),
+    null,
+    "dropping the mark is refused",
+  );
+  assert.equal(verifyTourToken(`${id}.${exp}.r.${sig}`, now), null, "adding the mark is refused");
+  assert.equal(
+    verifyTourToken(`${rid}.${rexp}.x.${rsig}`, now),
+    null,
+    "an unknown mark is refused",
+  );
 }
 
 // ---- script ----
@@ -108,6 +135,75 @@ const outline = [
   );
   assert.match(silent, /never answered/);
   assert.doesNotMatch(silent, /builder is online/);
+}
+
+// ---- the story: chapters for the owner, plain words for the reporter ----
+// 2026-10-07: the owner watched a fix and asked for the walkthrough to show
+// "how the problem was solved, why so, what the alternatives were, how it
+// benefits users". The reporter gets the same change without the reasoning.
+{
+  const note = {
+    problem: "The menu link pointed at an anchor that no longer existed.",
+    change: "The footer now has a Back to top link.",
+    why: "A footer link is where people look after reading to the end.",
+    considered: [{ option: "A floating button", whyNot: "it covered the chat widget" }],
+    helps: "Anyone on a phone at the bottom of a long page.",
+    where: "The footer.",
+    plain: "There is now a link at the bottom that takes you straight back up.",
+  };
+  const story = {
+    asked: "Add a back to top link",
+    note,
+    didLine: "Added the link.",
+    steps: [{ target: 3, action: "click" as const, say: "Down here — tap it." }],
+    before: "data:image/png;base64,AAAA",
+  };
+  const owner = buildTourBeats({ ...story, audience: "owner" });
+  const chapters = owner.map((b) => b.chapter);
+  for (const c of [
+    TOUR_CHAPTER.ASKED,
+    TOUR_CHAPTER.PROBLEM,
+    TOUR_CHAPTER.CHANGE,
+    TOUR_CHAPTER.WHY,
+    TOUR_CHAPTER.CONSIDERED,
+    TOUR_CHAPTER.HELPS,
+  ])
+    assert.ok(chapters.includes(c), `owner story has "${c}"`);
+  assert.ok(
+    chapters.indexOf(TOUR_CHAPTER.CHANGE) < chapters.indexOf(TOUR_CHAPTER.WHY),
+    "show the change before arguing for it",
+  );
+  assert.equal(owner[0].image, story.before, "the report opens with what it looked like");
+  assert.ok(
+    owner.some((b) => b.target === 3 && b.action === "click"),
+    "the live demo is in it",
+  );
+  assert.match(owner.find((b) => b.chapter === TOUR_CHAPTER.CONSIDERED)?.say ?? "", /not chosen/);
+
+  const reporter = buildTourBeats({ ...story, audience: "reporter" });
+  const said = reporter.map((b) => b.say).join(" ");
+  for (const internal of [note.problem, note.why, note.helps, note.change, "floating button"])
+    assert.ok(!said.includes(internal), `the reporter is not told: ${internal}`);
+  assert.ok(said.includes(note.plain), "the reporter gets the plain sentence");
+  assert.ok(
+    reporter.some((b) => b.target === 3),
+    "and the same live demonstration",
+  );
+  assert.doesNotMatch(tourOutro("reporter", "Added the link."), /Added the link/);
+
+  // No note (a PR from before it was asked for): the owner still gets a story.
+  const bare = buildTourBeats({ ...story, note: null, before: null, audience: "owner" });
+  assert.deepEqual(
+    bare.map((b) => b.chapter),
+    [TOUR_CHAPTER.ASKED, TOUR_CHAPTER.CHANGE, TOUR_CHAPTER.CHANGE],
+  );
+  assert.equal(bare[1].say, "Added the link.", "falls back to the handoff's line");
+
+  // Roughly a minute for a full story, never a blink per beat.
+  assert.equal(readMs("Short."), 3200);
+  assert.equal(readMs("word ".repeat(200)), 9500);
+  const total = owner.reduce((ms, b) => ms + readMs(b.say), 0);
+  assert.ok(total > 25_000 && total < 90_000, `a full owner story reads in ~a minute (${total}ms)`);
 }
 
 // ---- caption clears the host's bottom bar ----

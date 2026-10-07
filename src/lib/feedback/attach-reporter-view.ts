@@ -23,6 +23,7 @@ import { runToFeedbackSnapshot } from "@/lib/feedback/attach-work";
 import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-phase";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { reporterStatusFor, type ReporterStatus } from "@/lib/feedback/reporter-view";
+import { createTourToken, tourSiteUrl } from "@/lib/feedback/tour-token";
 import type { UserFeedbackListItem } from "@/db/queries/site-feedback";
 
 export type ReporterFeedbackRow = {
@@ -57,6 +58,12 @@ export async function attachReporterView(
     const run = item.dispatchedRunId ? runs.get(item.dispatchedRunId) : null;
     const work = deriveFeedbackWork(item.status, runToFeedbackSnapshot(run));
     const liveHref = livePageHref(item.liveUrl, item.url, item.page);
+    // Minted for every row with a live page and a run behind it; the status
+    // only offers it once the fix is actually live. A signature, not a write.
+    const tourHref =
+      liveHref && run
+        ? tourSiteUrl(liveHref, createTourToken(item.id, Date.now(), "reporter"))
+        : null;
     return {
       id: item.id,
       projectId: item.projectId,
@@ -64,7 +71,7 @@ export async function attachReporterView(
       projectName: item.projectName,
       suggestion: item.suggestion,
       createdAt: item.createdAt,
-      status: reporterStatusFor(work, { liveHref }),
+      status: reporterStatusFor(work, { liveHref, tourHref }),
     };
   });
 }

@@ -3,6 +3,7 @@
  * SSOT so single-row Implement and batch "Implement all as one" stay aligned.
  */
 import { fenceUntrusted, inlineUntrusted, UNTRUSTED_PREAMBLE } from "@/lib/feedback/untrusted";
+import { fixNoteInstruction } from "@/lib/feedback/fix-note";
 
 export type FeedbackPromptFields = {
   suggestion: string;
@@ -72,6 +73,7 @@ export function composeFeedbackFixPrompt(
     "",
     "Scope: address exactly this feedback — no unrelated refactors.",
     SHIP_INSTRUCTION,
+    fixNoteInstruction(),
   );
   return lines.join("\n");
 }
@@ -95,6 +97,7 @@ export function composeFeedbackBatchFixPrompt(
     "Address every item below. Prefer one coherent change set when items share a root cause; otherwise fix them independently, most recent first.",
     "Scope: only these reports — no unrelated refactors.",
     SHIP_INSTRUCTION,
+    fixNoteInstruction(),
     "",
   ];
   items.forEach((f, i) => {

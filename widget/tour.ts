@@ -34,16 +34,44 @@ export type TourStep = {
   say: string;
 };
 
+/**
+ * One beat of the story: a sentence under a chapter name, optionally shown on
+ * the page (a target to point at or click) or beside a picture (the "before"
+ * screenshot). A beat with neither is the narrator talking.
+ */
+export type TourBeat = {
+  chapter: string;
+  action: TourStep["action"] | "say";
+  say: string;
+  target?: number | null;
+  selector?: string | null;
+  /** A data: URL of an image (the reporter's own screenshot). */
+  image?: string | null;
+};
+
 type TourPlan = {
   ok: true;
   theme: WidgetTheme;
   title: string;
   intro: string;
+  /** Kept for a widget bundle cached from before chapters existed. */
   steps: TourStep[];
+  /** The chaptered story (lib/feedback/tour-plan.ts → buildTourBeats). */
+  beats?: TourBeat[];
   outro: string;
   lokiHref: string | null;
+  /** The end card's way back. Defaults to the owner's wording. */
+  lokiLabel?: string | null;
   prUrl: string | null;
 };
+
+/** How long a sentence stays up: enough to read it at an unhurried pace,
+ *  never a blink, never a wait. A full story of ten-odd beats lands near a
+ *  minute; Next and Back put the pace in the viewer's hands. */
+export function readMs(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(3200, Math.min(9500, 1600 + words * 320));
+}
 
 /** The owner's link: the live page with the tour token in the fragment. */
 export function tourSiteUrl(pageUrl: string, token: string): string {
@@ -206,6 +234,7 @@ function tourCSS(t: WidgetTheme): string {
 @keyframes rip { to { transform: translate(-50%,-50%) scale(3.2); opacity: 0; } }
 .card { position: fixed; left: 12px; right: 12px; bottom: calc(12px + var(--bar, 0px)); margin: 0 auto;
   max-width: 440px; z-index: 2147483647; transition: top .35s, bottom .35s;
+  max-height: min(72vh, 560px); overflow-y: auto;
   pointer-events: auto; background: ${t.surface}; color: ${t.text};
   border: 1px solid ${t.borderStrong}; border-radius: ${rs}; padding: 12px 14px;
   font-size: 14px; line-height: 1.45; }
@@ -215,7 +244,11 @@ function tourCSS(t: WidgetTheme): string {
   font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: ${t.accent}; }
 .count { font-family: ${mono}; font-size: 10px; color: ${t.textMuted}; }
+.chap { color: ${t.accent}; font-family: ${mono}; font-size: 10px; letter-spacing: .08em;
+  text-transform: uppercase; margin-bottom: 4px; min-height: 1.2em; }
 .say { min-height: 2.9em; }
+.shot { display: block; max-width: 100%; max-height: 32vh; margin-top: 10px; object-fit: contain;
+  border: 1px solid ${t.border}; border-radius: ${rc}; }
 .say.bad { color: ${t.error}; }
 .bar { height: 2px; background: ${t.border}; border-radius: 2px; margin-top: 10px; overflow: hidden; }
 .fill { height: 100%; width: 0; background: ${t.accent}; transition: width .4s; }
@@ -224,6 +257,7 @@ button, a.btn { cursor: pointer; font: inherit; font-size: 12px; padding: 7px 12
   border-radius: ${rc}; border: 1px solid ${t.borderStrong}; background: transparent;
   color: ${t.textSecondary}; text-decoration: none; display: inline-flex; align-items: center; }
 button.primary, a.btn.primary { background: ${t.accent}; border-color: ${t.accent}; color: ${ink}; }
+button:disabled { opacity: .4; cursor: default; }
 button:focus-visible, a.btn:focus-visible { outline: 2px solid ${t.accent}; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   .ring, .cursor, .fill { transition: none; }
@@ -286,12 +320,17 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
   brand.append(h("span", "dot"), h("span", undefined, `Loki · ${plan.title}`));
   const count = h("span", "count");
   top.append(brand, count);
+  const chap = h("p", "chap");
   const say = h("p", "say");
+  const shot = h("img", "shot") as HTMLImageElement;
+  shot.alt = "The screenshot attached to the report";
+  shot.style.display = "none";
+  shot.addEventListener("error", () => (shot.style.display = "none"));
   const bar = h("div", "bar");
   const fill = h("div", "fill");
   bar.appendChild(fill);
   const row = h("div", "row");
-  card.append(top, say, bar, row);
+  card.append(top, chap, say, shot, bar, row);
   layer.append(ring, cursor);
   root.append(style, layer, card);
   let barInset = 0;
@@ -328,8 +367,13 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
     pauseBtn.textContent = paused ? "Play" : "Pause";
     if (!paused) skip?.();
   });
+  let goBack = false;
+  const backBtn = btn("Back", () => {
+    goBack = true;
+    skip?.();
+  });
   const nextBtn = btn("Next", () => skip?.());
-  row.append(pauseBtn, nextBtn, btn("Close", close));
+  row.append(backBtn, pauseBtn, nextBtn, btn("Close", close));
 
   /** Hold a beat — cut short by Next, extended while paused. */
   const hold = (ms: number) =>
@@ -378,15 +422,32 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
     layer.appendChild(rip);
     setTimeout(() => rip.remove(), 700);
   };
-  const beat = (text: string, n: number, total: number, bad = false) => {
+  const beat = (text: string, n: number, total: number, bad = false, chapter = "") => {
+    chap.textContent = chapter;
     say.textContent = text;
     say.classList.toggle("bad", bad);
     count.textContent = total ? `${Math.min(n, total)} / ${total}` : "";
     fill.style.width = total ? `${Math.round((Math.min(n, total) / total) * 100)}%` : "0";
   };
+  const picture = (src: string | null | undefined) => {
+    // Only an image the server sent as a data URL; a host CSP that refuses
+    // data: images just hides it — the sentence still carries the beat.
+    if (src && /^data:image\/(png|jpeg|webp);base64,/.test(src)) {
+      shot.src = src;
+      shot.style.display = "block";
+    } else {
+      shot.removeAttribute("src");
+      shot.style.display = "none";
+    }
+  };
+  const park = () => {
+    ring.classList.remove("on");
+    card.classList.remove("up");
+    moveCursor(window.innerWidth / 2, window.innerHeight * 0.3);
+  };
 
-  const find = (step: TourStep): Element | null => {
-    if (step.target !== null && outline.els[step.target]?.isConnected)
+  const find = (step: TourBeat): Element | null => {
+    if (typeof step.target === "number" && outline.els[step.target]?.isConnected)
       return outline.els[step.target];
     if (step.selector) {
       try {
@@ -398,77 +459,100 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
     return null;
   };
 
+  // A bundle cached from before chapters still gets a plan it can play.
+  const beats: TourBeat[] = plan.beats?.length
+    ? plan.beats
+    : [
+        { chapter: "", action: "say", say: plan.intro },
+        ...plan.steps.map((st): TourBeat => ({ chapter: "", ...st })),
+      ];
+  const total = beats.length;
+
   moveCursor(cx.x, cx.y);
   cursor.classList.add("on");
-  const total = plan.steps.length;
-  beat(plan.intro, 0, total);
-  await hold(2600);
 
   let problem = false;
-  for (let n = 0; n < total && !closed; n++) {
-    const step = plan.steps[n];
-    if (step.target === null && !step.selector) {
-      ring.classList.remove("on");
+  const flagged = new Set<number>();
+  const visited = new Set<number>();
+  let n = 0;
+  while (n < total && !closed) {
+    goBack = false;
+    backBtn.disabled = n === 0;
+    const step = beats[n];
+    const again = visited.has(n);
+    visited.add(n);
+    picture(step.image);
+    const onPage = typeof step.target === "number" || !!step.selector;
+
+    if (!onPage) {
+      park();
       if (step.action === "scroll") window.scrollTo({ top: 0, behavior: "smooth" });
-      beat(step.say, n + 1, total);
-      await hold(3000);
-      continue;
-    }
-    const el = find(step);
-    if (!el || !shown(el)) {
-      problem = true;
-      ring.classList.remove("on");
-      card.classList.remove("up");
-      moveCursor(window.innerWidth / 2, window.innerHeight * 0.3);
-      beat(
-        `Oops — I wanted to show you this, but it isn't on the page: “${step.say}”. That's on us, not you — I've flagged it and it will be investigated.`,
-        n + 1,
-        total,
-        true,
-      );
-      reportProblem(
-        apiBase,
-        token,
-        n,
-        step.say,
-        el ? "element is hidden or has no size" : "element not found",
-      );
-      await hold(6000);
-      continue;
-    }
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    await sleep(750);
-    if (closed) break;
-    const r = frame(el);
-    moveCursor(r.left + Math.min(r.width / 2, 40), r.top + Math.min(r.height / 2, 20));
-    beat(step.say, n + 1, total);
-    await sleep(950);
-    if (step.action === "click" && !closed) {
-      tap(cx.x, cx.y);
-      if (safeToClick(el)) {
-        await sleep(250);
-        (el as HTMLElement).click();
-        // A click usually moves the page (an anchor scrolls): follow the
-        // element if it is still in view, otherwise let the page speak.
-        await sleep(900);
-        const after = el.getBoundingClientRect();
-        if (after.bottom < 0 || after.top > window.innerHeight) {
-          ring.classList.remove("on");
-          card.classList.remove("up");
-          moveCursor(window.innerWidth / 2, window.innerHeight * 0.3);
-        } else {
-          const r2 = frame(el);
-          moveCursor(r2.left + Math.min(r2.width / 2, 40), r2.top + Math.min(r2.height / 2, 20));
+      beat(step.say, n + 1, total, false, step.chapter);
+      await hold(readMs(step.say) + (step.image ? 1500 : 0));
+    } else {
+      const el = find(step);
+      if (!el || !shown(el)) {
+        problem = true;
+        park();
+        beat(
+          `Oops — I wanted to show you this, but it isn't on the page: “${step.say}”. That's on us, not you — I've flagged it and it will be investigated.`,
+          n + 1,
+          total,
+          true,
+          step.chapter,
+        );
+        if (!flagged.has(n)) {
+          flagged.add(n);
+          reportProblem(
+            apiBase,
+            token,
+            n,
+            step.say,
+            el ? "element is hidden or has no size" : "element not found",
+          );
         }
+        await hold(6000);
+      } else {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        await sleep(750);
+        if (closed) break;
+        const r = frame(el);
+        moveCursor(r.left + Math.min(r.width / 2, 40), r.top + Math.min(r.height / 2, 20));
+        beat(step.say, n + 1, total, false, step.chapter);
+        await sleep(950);
+        // Going back shows the element again but does not click it twice:
+        // a second click on a disclosure would undo what the first showed.
+        if (step.action === "click" && !again && !closed) {
+          tap(cx.x, cx.y);
+          if (safeToClick(el)) {
+            await sleep(250);
+            (el as HTMLElement).click();
+            // A click usually moves the page (an anchor scrolls): follow the
+            // element if it is still in view, otherwise let the page speak.
+            await sleep(900);
+            const after = el.getBoundingClientRect();
+            if (after.bottom < 0 || after.top > window.innerHeight) {
+              park();
+            } else {
+              const r2 = frame(el);
+              moveCursor(
+                r2.left + Math.min(r2.width / 2, 40),
+                r2.top + Math.min(r2.height / 2, 20),
+              );
+            }
+          }
+        }
+        await hold(Math.max(3400, readMs(step.say)));
       }
     }
-    await hold(3400);
+    n = goBack ? Math.max(0, n - 1) : n + 1;
   }
   if (closed) return;
 
   ring.classList.remove("on");
   cursor.classList.remove("on");
   card.classList.remove("up");
+  picture(null);
   beat(
     problem
       ? "Part of this did not show up the way it should. It has been flagged — nothing more for you to do here."
@@ -479,7 +563,11 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
   );
   row.replaceChildren();
   if (plan.lokiHref) {
-    const back = h("a", "btn primary", problem ? "Back to Loki" : "Looks right — confirm in Loki");
+    const back = h(
+      "a",
+      "btn primary",
+      plan.lokiLabel ?? (problem ? "Back to Loki" : "Looks right — confirm in Loki"),
+    );
     back.href = plan.lokiHref;
     row.appendChild(back);
   }

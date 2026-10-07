@@ -212,10 +212,14 @@ export default function FeedbackWidgetDocsPage() {
           <h2 className="ui-public-prose-h2">8. You close the loop</h2>
           <p>
             Every report remembers the run that worked on it, so you can see what shipped against
-            it. Once a fix is out, <strong>Watch the fix</strong> opens your page and plays a short
-            walkthrough: a pointer moves to each changed part and a caption says what changed. If a
-            step cannot be shown, it says so and files that back into your inbox, so a fix that did
-            not really land comes back to you.
+            it. Once a fix is out, <strong>Watch the fix</strong> opens your page and tells the
+            story of the change in about a minute: the report and the screenshot that came with it,
+            what was actually wrong, the change shown live with a pointer, why it was done that way,
+            what else was considered, and who it helps. Back, Pause and Next set the pace. If a step
+            cannot be shown, it says so and files that back into your inbox, so a fix that did not
+            really land comes back to you. The person who reported it gets their own shorter version
+            on their feedback page: their words, the change shown live, and one plain sentence about
+            what changed for them, without the technical reasoning.
           </p>
           <p>
             Marking a report resolved is your call — a finished run is not proof the problem went

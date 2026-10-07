@@ -14,8 +14,10 @@ import { stripReasoning } from "@/lib/agent/llm";
 import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
 import { verifyTourToken } from "@/lib/feedback/tour-token";
 import {
+  buildTourBeats,
   fallbackTourSteps,
   parseTourSteps,
+  tourOutro,
   tourPrompt,
   tourSystemPrompt,
   type TourInput,
@@ -100,8 +102,9 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return corsJson({ error: "Invalid walkthrough request" }, 400);
   const data = parsed.data;
 
-  const feedbackId = verifyTourToken(data.t);
-  if (!feedbackId) return corsJson({ error: "This walkthrough link has expired" }, 403);
+  const ticket = verifyTourToken(data.t);
+  if (!ticket) return corsJson({ error: "This walkthrough link has expired" }, 403);
+  const { feedbackId, audience } = ticket;
   const row = await getFeedbackForTour(feedbackId);
   if (!row) return corsJson({ error: "Feedback not found" }, 404);
   const f = row.feedback;
@@ -149,6 +152,8 @@ export async function POST(req: NextRequest) {
     prTitle: fix?.pr?.title ?? null,
     selectors: (f.selectedElements ?? []).map((el) => el.selector).filter(Boolean),
     outline,
+    note: fix?.pr?.note ?? null,
+    audience,
   };
 
   let steps = [] as ReturnType<typeof fallbackTourSteps>;
@@ -160,7 +165,7 @@ export async function POST(req: NextRequest) {
       try {
         const answered = await callTextDetailed(tourPrompt(input), {
           feature: "widget-tour",
-          systemPrompt: tourSystemPrompt(),
+          systemPrompt: tourSystemPrompt(audience),
           maxTokens: 1400,
           temperature: 0.2,
           timeoutMs: HTTP_TIMEOUT_LONG_MS,
@@ -175,16 +180,24 @@ export async function POST(req: NextRequest) {
   if (steps.length === 0) steps = fallbackTourSteps(input);
 
   const asked = f.suggestion.replace(/\s+/g, " ").trim();
+  // The reporter's own first screenshot is the closest thing to "before".
+  const before =
+    (f.screenshots ?? []).find((src) => /^data:image\/(png|jpeg|webp);base64,/.test(src)) ?? null;
+  const forReporter = audience === "reporter";
   return corsJson({
     ok: true,
     theme: PALETTE.widget,
-    title: "Watch the fix",
+    title: forReporter ? "Your fix" : "Watch the fix",
     intro: `You asked: “${asked.length > 140 ? `${asked.slice(0, 139)}…` : asked}” — let me show you what changed.`,
     steps,
-    outro: didLine
-      ? `That's it. ${didLine} Does it look right to you?`
-      : "That's the change. Does it look right to you?",
-    lokiHref: `${appUrl()}/feedback?project=${encodeURIComponent(f.projectId)}`,
-    prUrl: fix?.pr?.url ?? null,
+    beats: buildTourBeats({ audience, asked, note: fix?.pr?.note ?? null, didLine, steps, before }),
+    outro: tourOutro(audience, didLine),
+    // The reporter's way back is their own list, never the owner's inbox; and
+    // the pull request is the maintainer's business (reporter-view.ts).
+    lokiHref: forReporter
+      ? `${appUrl()}/my-feedback`
+      : `${appUrl()}/feedback?project=${encodeURIComponent(f.projectId)}`,
+    lokiLabel: forReporter ? "Back to my feedback" : null,
+    prUrl: forReporter ? null : (fix?.pr?.url ?? null),
   });
 }

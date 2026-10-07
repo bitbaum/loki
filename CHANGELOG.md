@@ -8,6 +8,17 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-10-07 — The record points both ways
 
+- **Watch the fix tells the whole story.** The walkthrough now plays in
+  chapters, about a minute long: the report and its screenshot, what was
+  actually wrong, the change shown live on the page, why it was done that way,
+  what else was considered and who it helps. Back, Pause and Next set the pace.
+  It reads the story from a short design note the agent now writes into every
+  fix's pull request.
+- **The person who reported it can watch too.** On "My feedback", a fix that
+  is live offers "Watch your fix": their own words, the change shown on the
+  page, and one plain sentence about what changed for them — no pull requests
+  and no technical reasoning.
+
 - **The roadmap and the changelog link to each other.** A `{#id}` on a
   ROADMAP.md step and on the CHANGELOG.md line that delivered it now links
   them: each step on `/roadmap` names the changelog days that shipped it, and
