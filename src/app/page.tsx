@@ -10,6 +10,7 @@ import {
 } from "@/db/queries/public-fleet";
 import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
+import { ProblemsSection } from "@/components/public/ProblemsSection";
 import {
   HOME_AUDIENCES,
   HOME_HERO_CONSOLE,
@@ -210,6 +211,11 @@ export default async function LandingPage({
           <p className="ui-public-howto-note">{HOME_SAFETY_NOTE}</p>
         </div>
       </div>
+
+      {/* What it solves — concrete problems, a person's first, then society's.
+          Right after "how it works" so the mechanism is followed by what it
+          is for. Copy: config/problems-we-solve.ts. */}
+      <ProblemsSection signedIn={signedIn} />
 
       {/* 2 — Proof: real fixes that shipped because someone asked. */}
       {shipped.entries.length > 0 && (
