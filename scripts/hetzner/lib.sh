@@ -89,3 +89,132 @@ box() {
     ssh -n -o BatchMode=yes "$BOX" "$@"
   fi
 }
+
+# ------------------------------------------------------------ custom domains
+#
+# A site starts on <slug>.$SITES_BASE_DOMAIN and may later be given its own
+# domain (evig.orangecat.ch -> evig.ch). Both live in the row's `domains`
+# field — the one register — and this is the one rule for what that means:
+#
+#   * no host outside the base domain  -> every host is served (unchanged)
+#   * one or more hosts outside it     -> the FIRST of them is canonical; the
+#     other own-domain hosts (www.) are served too, and every base-domain host
+#     answers with a 308 to the canonical one
+#
+# 308, never 301: a 301 lets the client turn a POST into a bodyless GET, which
+# is how evig's credentials callback broke behind the revampit host
+# (2026-08-16). The base-domain host keeps working as an address, so links
+# printed before the move still land — on the site's own name.
+#
+# Every row in the register today is in the first case or is own-domain only
+# (sink), so this rule changes no existing vhost; test-custom-domain.sh pins
+# that against the real register.
+
+# is_base_host <host> <base> — true for the base domain and anything under it.
+is_base_host() { [ "$1" = "$2" ] || [[ "$1" == *".$2" ]]; }
+
+# canonical_host <domains> <base> — the address a row is MEANT to be reached
+# at: its first own-domain host, else its first host.
+canonical_host() {
+  local h first="" hosts
+  IFS=',' read -ra hosts <<<"$1"
+  for h in "${hosts[@]}"; do
+    [ -n "$h" ] || continue
+    [ -n "$first" ] || first="$h"
+    is_base_host "$h" "$2" || { printf '%s' "$h"; return 0; }
+  done
+  printf '%s' "$first"
+}
+
+# caddy_vhost <name> <port> <domains> <base> — the apps.d file for one row.
+# Pure (prints, touches nothing) so the redirect rule above is testable
+# without a box. sync-infra.sh is its only writer.
+caddy_vhost() {
+  local name="$1" port="$2" domains="$3" base="$4" h canonical serve="" redirect="" hosts
+  canonical=$(canonical_host "$domains" "$base")
+  IFS=',' read -ra hosts <<<"$domains"
+  for h in "${hosts[@]}"; do
+    [ -n "$h" ] || continue
+    if [ "$canonical" != "$h" ] && ! is_base_host "$canonical" "$base" && is_base_host "$h" "$base"; then
+      redirect="${redirect:+$redirect, }$h"
+    else
+      serve="${serve:+$serve, }$h"
+    fi
+  done
+  cat <<VHOST
+$serve {
+  import access_log
+  encode zstd gzip
+  handle_path /uploads/* {
+    root * /opt/$name/uploads
+    file_server
+  }
+  reverse_proxy 127.0.0.1:$port {
+    flush_interval -1
+    # Re-dial across a restart instead of returning 502 the moment the upstream
+    # refuses. A deploy takes the port down for a few seconds; without this that
+    # window is served to users as errors. Only the dial is retried, so a request
+    # that already reached the app is never replayed.
+    lb_try_duration 20s
+    lb_try_interval 250ms
+  }
+}
+VHOST
+  [ -z "$redirect" ] || cat <<VHOST
+
+# The site's own domain is canonical; its free address stays reachable and
+# forwards there with the method and body intact (308).
+$redirect {
+  import access_log
+  redir https://$canonical{uri} 308
+}
+VHOST
+}
+
+# publish_register_row <slug> <line> — make origin/main's register hold <line>
+# as the row for <slug> (append when absent, replace when different), through
+# a branch and a PR, the way every other change reaches main. Best-effort and
+# announced: the durable register on the box already has the change either way.
+publish_register_row() {
+  local slug="$1" line="$2" fc_git wt branch title repo
+  fc_git="$(dirname "$(dirname "$(dirname "$MANIFEST")")")"
+  git -C "$fc_git" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+    || { printf '  register row not published: %s is not a git checkout\n' "$fc_git"; return 0; }
+  branch="register/$slug"
+  wt="$(mktemp -d)/fc"
+  if git -C "$fc_git" fetch -q origin main 2>/dev/null \
+     && git -C "$fc_git" worktree add -q -B "$branch" "$wt" origin/main 2>/dev/null; then
+    local current
+    current=$(grep "^$slug|" "$wt/scripts/hetzner/apps.conf" || true)
+    if [ "$current" = "$line" ]; then
+      printf '  register row already on main\n'
+    else
+      if [ -z "$current" ]; then
+        printf '%s\n' "$line" >> "$wt/scripts/hetzner/apps.conf"
+        title="chore(register): add $slug"
+      else
+        awk -v s="$slug|" -v l="$line" 'index($0, s) == 1 { print l; next } { print }' \
+          "$wt/scripts/hetzner/apps.conf" > "$wt/apps.conf.new" \
+          && mv "$wt/apps.conf.new" "$wt/scripts/hetzner/apps.conf"
+        title="chore(register): update $slug"
+      fi
+      repo=$(git -C "$fc_git" remote get-url origin | sed -E 's#^https://([^@/]+@)?github.com/##; s#^git@github.com:##; s#\.git$##')
+      local pr
+      if git -C "$wt" -c user.name="$GIT_SCAFFOLD_NAME" -c user.email="$GIT_SCAFFOLD_EMAIL" \
+           commit -q -am "$title" \
+         && env -u GH_TOKEN -u GITHUB_TOKEN git -C "$wt" push -q -f -u origin "$branch" 2>/dev/null \
+         && pr=$(env -u GH_TOKEN -u GITHUB_TOKEN gh pr create --repo "$repo" \
+                 --head "$branch" --base main --title "$title" \
+                 --body "Written on the box by the register scripts. Row: \`$line\`" 2>/dev/null); then
+        printf '  register row sent to main: %s\n' "$pr"
+      else
+        printf '  ⚠ register row not published to main (push or PR failed) — the durable register still has it\n'
+      fi
+    fi
+    git -C "$fc_git" worktree remove -f "$wt" >/dev/null 2>&1 || true
+  else
+    printf '  ⚠ register row not published to main (could not fetch or branch)\n'
+  fi
+  rm -rf "$(dirname "$wt")"
+  return 0
+}

@@ -18,6 +18,10 @@ import { shouldInviteToPublicCatalogue } from "@/lib/listing-invitation";
 import { SolonFoundButton } from "./SolonFoundButton";
 import { LiveUrlField } from "./LiveUrlField";
 import { RegisterSiteButton } from "./RegisterSiteButton";
+import { OwnDomainButton } from "./OwnDomainButton";
+import { readAppsConf } from "@/lib/register/apps-conf";
+import { studioRepoRoot } from "@/lib/site-cd-local";
+import { siteAddresses } from "@/lib/site-domain";
 import { getProjectLinks } from "./project-detail-types";
 import { getHealthSignals, HEALTH_SIGNAL_CONFIG } from "./project-badges";
 import { computeProjectHealth } from "@/lib/project-health";
@@ -58,6 +62,13 @@ export function ProjectWorkspaceView({
   const attrs = detail.attrs;
   const workspaceKey = userProject?.name ?? project.name;
   const links = getProjectLinks(attrs, userProject?.gitUrl ?? project.gitUrl, userProject?.liveUrl);
+  // A site this studio serves can move to its own domain; the button names the
+  // domain once it has one. The box's working register is read as well as the
+  // shipped one: an attach writes there first and reaches the release only
+  // after its register PR merges.
+  const siteAddress = userProject?.liveUrl
+    ? siteAddresses(userProject.liveUrl, [...readAppsConf(), ...readAppsConf(studioRepoRoot())])
+    : null;
   const healthSignals = getHealthSignals(attrs);
   const health = computeProjectHealth({
     description: project.description,
@@ -234,6 +245,13 @@ export function ProjectWorkspaceView({
               readonly={dossier.readonly}
               ownerPass={ownerPass}
             />
+            {!dossier.readonly && siteAddress && (
+              <OwnDomainButton
+                projectId={project.id}
+                ownDomain={siteAddress.ownDomain}
+                freeHost={siteAddress.freeHost}
+              />
+            )}
             {!dossier.readonly && (
               <RegisterSiteButton
                 projectId={project.id}

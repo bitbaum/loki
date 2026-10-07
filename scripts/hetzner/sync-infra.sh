@@ -86,27 +86,9 @@ UNIT_EOF
 sudo systemctl daemon-reload && sudo systemctl enable $NAME-app >/dev/null 2>&1"
 
   if [ "$DOMAINS" != "-" ]; then
-    caddy_domains="${DOMAINS//,/, }"
-    vhost=$(cat <<EOF
-$caddy_domains {
-  import access_log
-  encode zstd gzip
-  handle_path /uploads/* {
-    root * /opt/$NAME/uploads
-    file_server
-  }
-  reverse_proxy 127.0.0.1:$PORT {
-    flush_interval -1
-    # Re-dial across a restart instead of returning 502 the moment the upstream
-    # refuses. A deploy takes the port down for a few seconds; without this that
-    # window is served to users as errors. Only the dial is retried, so a request
-    # that already reached the app is never replayed.
-    lb_try_duration 20s
-    lb_try_interval 250ms
-  }
-}
-EOF
-)
+    # One rule for what the domains field means — including a site that has
+    # moved to its own domain — lives in lib.sh (caddy_vhost).
+    vhost=$(caddy_vhost "$NAME" "$PORT" "$DOMAINS" "$SITES_BASE_DOMAIN")
     box "sudo tee /etc/caddy/apps.d/$NAME.caddy >/dev/null <<'CADDY_EOF'
 $vhost
 CADDY_EOF
