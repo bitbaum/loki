@@ -26,19 +26,23 @@ export function TerminalInputSwitch({
   inputMode,
   onInputModeChange,
   hide = [],
+  selected = true,
 }: {
   inputMode: TerminalInputMode;
   onInputModeChange: (mode: TerminalInputMode) => void;
   /** Modes not offered here because the surface already covers them (the
    *  current mode is always shown, so nobody is stranded in a hidden one). */
   hide?: readonly TerminalInputMode[];
+  /** False while the surface shows something else (the phone's key deck, or
+   *  nothing): the current mode stays drawn but is not marked as open. */
+  selected?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Input mode">
       {TERMINAL_INPUT_MODES.filter(
         (option) => option.id === inputMode || !hide.includes(option.id),
       ).map((option) => {
-        const active = option.id === inputMode;
+        const active = selected && option.id === inputMode;
         return (
           <button
             key={option.id}

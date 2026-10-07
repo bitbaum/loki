@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Keyboard, PenLine } from "lucide-react";
+import { Keyboard } from "lucide-react";
 import type { BuilderChannel } from "@/lib/event-stream-types";
 import type { TerminalInputMode } from "@/config/terminal-modes";
 import { TERMINAL_KEYS } from "@/config/terminal-keys";
@@ -27,11 +27,18 @@ type WatchPanel = "none" | "keys" | "write";
  * ONE bar, one panel at a time. The dock used to be two rows of keys, a mode
  * switch and a composer stacked together — more than half of a phone screen,
  * and four unrelated toolbars to read (operator, 2026-10-05: "it looks
- * Frankenstein"). Now there is a single bar: Keys and Write each open their
- * panel above it, and while watching Esc / Enter sit on the bar because
- * answering a "Continue?" must not take two taps. The two layouts differ only in what
- * starts open: the normal page opens on Write (it is where you type), full
- * screen opens on nothing (it is for watching).
+ * Frankenstein"). Now there is a single bar, and while watching Esc / Enter
+ * sit on it because answering a "Continue?" must not take two taps. The two
+ * layouts differ only in what starts open: the normal page opens the writing
+ * panel (it is where you type), full screen opens nothing (it is for watching).
+ *
+ * The bar is ONE switch: Type · Prompt · Keys. Each opens its panel above
+ * it; tapping the open one closes it (back to watching). It used to be two —
+ * Keys | Write on the bar, then Type | Prompt inside Write — two switches and
+ * four combinations to hold in your head for what is one choice: how am I
+ * talking to this session right now (operator, 2026-10-07). Folding the
+ * input modes into the bar also gives the terminal back the row the inner
+ * switch took.
  *
  * Voice is not offered on the phone switch: the composer's own mic already
  * dictates (into a box you can read before sending), so a third chip for the
@@ -71,13 +78,20 @@ export function TerminalMobileDock({
   }
   const toggle = (next: WatchPanel) => setPanel((p) => (p === next ? "none" : next));
 
+  // Picking the mode that is already open closes it; any other opens Write in
+  // that mode. The mode itself is remembered while closed (persisted upstream),
+  // so the chip you last used is the one drawn — just not pressed.
+  const pickInput = (mode: TerminalInputMode) => {
+    if (panel === "write" && mode === inputMode) {
+      setPanel("none");
+      return;
+    }
+    onInputModeChange(mode);
+    setPanel("write");
+  };
+
   const writing = (
     <>
-      <TerminalInputSwitch
-        inputMode={inputMode}
-        onInputModeChange={onInputModeChange}
-        hide={["voice"]}
-      />
       {inputMode === "type" && !liveKeys && (
         <TerminalRawComposer onSend={onKey} sessionLabel={tab} />
       )}
@@ -103,6 +117,12 @@ export function TerminalMobileDock({
       {panel === "keys" && <TerminalKeyDeck onKey={onKey} />}
       {panel === "write" && writing}
       <div className="ui-term-watchbar" role="toolbar" aria-label="Session controls">
+        <TerminalInputSwitch
+          inputMode={inputMode}
+          onInputModeChange={pickInput}
+          hide={["voice"]}
+          selected={panel === "write"}
+        />
         <button
           type="button"
           className={panel === "keys" ? "ui-chip-toggle-active gap-1.5" : "ui-chip-toggle gap-1.5"}
@@ -111,15 +131,6 @@ export function TerminalMobileDock({
         >
           <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
           Keys
-        </button>
-        <button
-          type="button"
-          className={panel === "write" ? "ui-chip-toggle-active gap-1.5" : "ui-chip-toggle gap-1.5"}
-          aria-pressed={panel === "write"}
-          onClick={() => toggle("write")}
-        >
-          <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
-          Write
         </button>
         {/* Only while watching: the Keys panel has its own Esc/Enter, and
             beside the composer's Send a second Enter read as the same button. */}

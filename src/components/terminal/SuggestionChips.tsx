@@ -25,9 +25,11 @@ export function SuggestionChips({
             disabled={disabled}
             onClick={() => onPick(s)}
           >
-            {/* Text in its own span: an inline-flex button does not ellipsize
-                its bare text, so a long step was cut mid-word ("dashboard f"). */}
-            <span className="truncate">{s}</span>
+            {/* Two lines, not one: a step is a sentence you are about to SEND,
+                and "Continue with the next most valuable st…" asked you to
+                guess the rest before tapping it. Text in its own span: an
+                inline-flex button does not clamp its bare text. */}
+            <span className="line-clamp-2">{s}</span>
           </button>
         </li>
       ))}

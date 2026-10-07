@@ -58,6 +58,13 @@ const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
     "normal opens on Write, full screen on nothing",
   );
   ok(dock.includes("ui-term-watchbar"), "the single bar is rendered");
+  // ONE switch on that bar: the input modes ARE the bar's chips. The old
+  // Keys | Write bar opened a second Type | Prompt switch inside Write.
+  ok(!/>\s*Write\s*</.test(dock), "no separate Write chip");
+  ok(
+    /ui-term-watchbar[\s\S]*<TerminalInputSwitch[\s\S]*selected=\{panel === "write"\}/.test(dock),
+    "input modes live on the bar, pressed only while their panel is open",
+  );
 }
 
 console.log(`${fail ? "✗" : "✓"} phone-chrome: ${pass} passed, ${fail} failed`);
