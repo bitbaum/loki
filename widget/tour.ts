@@ -266,13 +266,16 @@ button:disabled { opacity: .4; cursor: default; }
 button.x { min-height: 28px; width: 28px; padding: 0; justify-content: center; border: 0;
   margin: -6px -8px -6px 0; font-size: 18px; line-height: 1; color: ${t.textMuted}; }
 button.x:hover { color: ${t.text}; }
+button.hshare { min-height: 28px; padding: 0 10px; margin: -6px 0; font-size: 12px;
+  border-color: ${t.accent}; color: ${t.accent}; }
+button.hshare:hover { background: ${t.accentMuted}; }
 .top .count { margin-left: auto; }
 .links { display: flex; gap: 14px; margin-top: 8px; }
 .links button, .links a { min-height: 32px; padding: 0; border: 0; font-size: 12px;
   color: ${t.textTertiary}; text-decoration: underline; text-underline-offset: 3px;
   display: inline-flex; align-items: center; }
 .links button:hover, .links a:hover { color: ${t.text}; }
-input.link { flex: 1 1 100%; min-height: 36px; padding: 0 10px; font: inherit; font-size: 12px;
+input.link { display: block; width: 100%; margin: 4px 0 8px; min-height: 36px; padding: 0 10px; font: inherit; font-size: 12px;
   color: ${t.text}; background: transparent; border: 1px solid ${t.borderStrong}; border-radius: ${rc}; }
 button:focus-visible, a.btn:focus-visible { outline: 2px solid ${t.accent}; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
@@ -403,6 +406,19 @@ export async function runTour(
   const x = btn("×", close);
   x.className = "x";
   x.setAttribute("aria-label", "Close the walkthrough");
+  // Share sits in the header from the first beat: on the last card only, the
+  // owner watched fourteen steps with no idea how to send them, copied the
+  // address bar instead — which is the plain page — and asked how sharing
+  // could possibly work (operator, 2026-10-08).
+  if (plan.shareUrl) {
+    // No clipboard: the link appears under the header, not squeezed into it.
+    const share = shareButton(plan.shareUrl, (field) => {
+      if (!top.nextElementSibling?.matches("input.link")) top.after(field);
+    });
+    share.classList.add("hshare");
+    share.title = "Send this walkthrough — whoever opens the link watches it on this page";
+    top.appendChild(share);
+  }
   top.appendChild(x);
 
   /** Hold a beat — cut short by Next, extended while paused. */
@@ -632,7 +648,6 @@ export async function runTour(
         }),
       );
     }
-    if (plan.shareUrl && !problem) row.appendChild(shareButton(plan.shareUrl));
   };
   endButtons();
 
@@ -677,7 +692,7 @@ function copyLinkButton(url: string): HTMLButtonElement {
 /** Pass the walkthrough on: the phone's share sheet, else the clipboard, and
  *  the button says which happened. The link replays the same story for
  *  whoever opens it (Loki's /w/<token>). */
-function shareButton(url: string): HTMLButtonElement {
+function shareButton(url: string, place: (field: HTMLInputElement) => void): HTMLButtonElement {
   const b = h("button", undefined, "Share") as HTMLButtonElement;
   b.type = "button";
   const say = (label: string) => {
@@ -703,7 +718,7 @@ function shareButton(url: string): HTMLButtonElement {
       field.readOnly = true;
       field.value = url;
       field.setAttribute("aria-label", "Link to this walkthrough");
-      b.replaceWith(field);
+      place(field);
       field.select();
     }
   });
