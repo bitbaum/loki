@@ -38,12 +38,14 @@ const page = (body: string) => `<!doctype html><html lang="en"><head><meta chars
 ${body}</body></html>`;
 
 type Advise = { scope: string; question: string; snapshot: string };
+type Report = { suggestion: string; scope?: string; contact?: string };
 
 async function open(browser: Browser, body: string, js: string) {
   const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 } });
   const p = await ctx.newPage();
   const errors: string[] = [];
   const advised: Advise[] = [];
+  const reports: Report[] = [];
   p.on("pageerror", (e) => errors.push(e.message));
   await p.route(`${ORIGIN}/**`, async (route) => {
     const url = new URL(route.request().url());
@@ -67,6 +69,10 @@ async function open(browser: Browser, body: string, js: string) {
         changes: ["Change the button text from 'Submit' to 'Book your stay'"],
       });
     }
+    if (url.pathname === "/api/feedback") {
+      reports.push(JSON.parse(route.request().postData() ?? "{}") as Report);
+      return json({ ok: true, claimUrl: "https://loki.test/claim-feedback/x" });
+    }
     if (url.pathname === "/rooms") {
       return route.fulfill({
         body: "<html><head><title>Rooms</title></head><body><h1>Our rooms</h1></body></html>",
@@ -77,8 +83,18 @@ async function open(browser: Browser, body: string, js: string) {
   });
   await p.goto(`${ORIGIN}/`);
   await p.waitForTimeout(1200);
-  return { p, errors, advised, close: () => ctx.close() };
+  return { p, errors, advised, reports, close: () => ctx.close() };
 }
+
+/** Type into the conversation's composer and press its button. */
+const say = (p: Page, text: string) =>
+  p.evaluate((text) => {
+    const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+    const input = r.querySelector(".convo .chatform .chatinput") as HTMLTextAreaElement;
+    input.value = text;
+    input.dispatchEvent(new Event("input"));
+    (r.querySelector(".convo .chatform .go") as HTMLElement).click();
+  }, text);
 
 const hosts = (p: Page) =>
   p.evaluate(() => document.querySelectorAll("#loki-feedback-host").length);
@@ -108,7 +124,7 @@ const reportText = (p: Page) =>
       (
         document
           .getElementById("loki-feedback-host")!
-          .shadowRoot!.querySelector(".report-view textarea") as HTMLTextAreaElement
+          .shadowRoot!.querySelector(".sendcard textarea") as HTMLTextAreaElement
       ).value,
   );
 
@@ -202,22 +218,31 @@ async function main() {
     await t.close();
   }
 
-  // ---- Ask Loki, then request what it recommends ----
+  // ---- one conversation: ask Loki, then send what it recommends ----
   {
     const t = await open(browser, tag(), js);
     await click(t.p, ".fab");
+    ok((await texts(t.p, ".mode")).length === 0, "no tabs: one conversation, not three tools");
+    ok((await texts(t.p, ".watchbtn"))[0] === "Watch", "Watch is offered in the header");
+    await click(t.p, ".watchbtn");
+    const offer = await t.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      const box = r.querySelector(".watch-offer") as HTMLElement;
+      const a = box.querySelector("a") as HTMLAnchorElement;
+      return { shown: box.style.display !== "none", href: a.href };
+    });
+    ok(offer.shown, "Watch explains itself to someone Loki does not know as the owner");
+    const signIn = new URL(offer.href);
     ok(
-      JSON.stringify(await texts(t.p, ".mode")) ===
-        JSON.stringify(["Request a change", "Ask Loki"]),
-      "a default embed offers Request a change + Ask Loki",
+      signIn.pathname === "/api/widget/owner" &&
+        signIn.searchParams.get("token") === "fcw_fixture" &&
+        signIn.searchParams.get("return") === `${ORIGIN}/`,
+      `…with one link through Loki's sign-in back to this page (${offer.href})`,
     );
-    await click(t.p, ".mode", 1);
-    await click(t.p, ".chip", 2); // Whole site
-    ok(
-      (await texts(t.p, ".advise .starter"))[0] === "How can we make the website better?",
-      "whole-site starters are about the whole site",
-    );
-    await click(t.p, ".advise .starter", 0);
+
+    await click(t.p, ".ctx", 0); // About: this page → the whole site
+    ok((await texts(t.p, ".ctx"))[0] === "About: the whole site", "the scope is one tap");
+    await click(t.p, ".starter", 0);
     await t.p.waitForTimeout(800);
     const sent = t.advised[0];
     ok(sent?.scope === "site", "the question is sent with the whole-site scope");
@@ -230,19 +255,41 @@ async function main() {
       (await texts(t.p, ".change-text"))[0]?.includes("Book your stay") ?? false,
       "the recommended change is listed",
     );
+    ok((await texts(t.p, ".act")).length === 1, "your own words are one tap from the builder too");
     await click(t.p, ".change-send");
-    ok((await texts(t.p, ".hdr b"))[0] === "What should change?", "Request this → opens Report");
     ok(
       (await reportText(t.p)) === "Change the button text from 'Submit' to 'Book your stay'",
-      "…prefilled with the recommended change",
+      "Send to builder opens a confirmation in the thread, prefilled",
     );
+    await click(t.p, ".sendcard .go");
+    await t.p.waitForTimeout(400);
+    ok(t.reports.length === 1, `one report filed (got ${t.reports.length})`);
+    ok(
+      t.reports[0]?.suggestion === "Change the button text from 'Submit' to 'Book your stay'",
+      "with exactly the change",
+    );
+    ok(
+      (await texts(t.p, ".msg.sent"))[0]?.includes("Track what happens next") ?? false,
+      "the receipt lands in the thread, with its tracking link",
+    );
+
+    // The conversation survives the site's own page loads.
+    await t.p.reload();
+    await t.p.waitForTimeout(1200);
+    await click(t.p, ".fab");
+    const after = await texts(t.p, ".convo .msg");
+    ok(
+      after.some((m) => m.includes("does not tell a guest")) &&
+        after.some((m) => m.includes("Track what happens next")),
+      "after a reload the conversation is still there",
+    );
+    ok(t.errors.length === 0, `no page errors (${t.errors.join("; ")})`);
     await t.close();
   }
   {
     const t = await open(browser, tag(), js);
     await click(t.p, ".fab");
-    await click(t.p, ".mode", 1);
-    await click(t.p, ".chip", 0); // An element → picker
+    await click(t.p, ".ctx", 1); // Point at something → picker
     await t.p.waitForTimeout(150);
     const b = await t.p.$eval("#book", (e) => {
       const r = e.getBoundingClientRect();
@@ -252,13 +299,8 @@ async function main() {
     await t.p.mouse.click(b.x, b.y);
     const done = (await texts(t.p, ".pickbar button")).findIndex((s) => /done/i.test(s));
     await click(t.p, ".pickbar button", done);
-    await t.p.evaluate(() => {
-      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-      const input = r.querySelector(".advise textarea") as HTMLTextAreaElement;
-      input.value = "Is this button fine?";
-      input.dispatchEvent(new Event("input"));
-      (r.querySelector(".advise .go") as HTMLElement).click();
-    });
+    ok((await texts(t.p, ".ctx"))[1]?.startsWith("1 element") ?? false, "the pick is shown");
+    await say(t.p, "Is this button fine?");
     await t.p.waitForTimeout(600);
     const sent = t.advised[0];
     ok(sent?.scope === "element", "an element question is sent with the element scope");
@@ -272,9 +314,12 @@ async function main() {
   {
     const t = await open(browser, tag('async data-fc-modes="report"'), js);
     await click(t.p, ".fab");
+    await say(t.p, "The phone number is wrong");
+    await t.p.waitForTimeout(300);
+    ok(t.advised.length === 0, 'data-fc-modes="report" opts a site out of AI answers');
     ok(
-      JSON.stringify(await texts(t.p, ".mode")) === JSON.stringify(["Request a change"]),
-      'data-fc-modes="report" opts a site out of Ask',
+      (await reportText(t.p)) === "The phone number is wrong",
+      "…and a message goes straight to the send confirmation",
     );
     await t.close();
   }

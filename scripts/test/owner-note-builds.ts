@@ -14,10 +14,11 @@ import {
   verifyOwnerPass,
   ownerSiteUrl,
   OWNER_PASS_HASH_KEY,
+  ownerReturnUrl,
 } from "../../src/lib/feedback/owner-pass";
 import { effectiveAutoShip } from "../../src/lib/feedback/auto-ship";
 import { composeFeedbackFixPrompt } from "../../src/lib/feedback/compose-dispatch";
-import { hashWithoutPass, passFromHash } from "../../widget/owner-pass";
+import { hashWithoutPass, ownerSignInUrl, passFromHash } from "../../widget/owner-pass";
 import { FEEDBACK_SELF_ASSERTED_SOURCES, FEEDBACK_SOURCE } from "../../src/lib/constants/statuses";
 
 // Read when a pass is signed, not at import.
@@ -90,7 +91,11 @@ assert.equal(passFromHash("#section-2"), null);
 assert.equal(hashWithoutPass(`#${OWNER_PASS_HASH_KEY}=abc`), "");
 assert.equal(hashWithoutPass(`#tab=plan&${OWNER_PASS_HASH_KEY}=abc`), "#tab=plan");
 const widget = readFileSync("widget/main.ts", "utf8");
-assert.match(widget, /ownerPass: ownerPass \?\? undefined/, "the widget sends the pass");
+assert.match(
+  readFileSync("widget/conversation.ts", "utf8"),
+  /ownerPass: pass \?\? undefined/,
+  "the widget sends the pass",
+);
 assert.match(widget, /if \(ownerState\.arrived\) pendingReport = \{\}/, "arriving opens the note");
 
 // Loki hands the pass only to the owner, on the Live link.
@@ -114,5 +119,41 @@ assert.match(
   /^The owner of Farmhouse asked for this change/,
 );
 assert.match(composeFeedbackFixPrompt(ownerFields, "Farmhouse"), /^Fix this visitor feedback/);
+
+// "This is my site — let Loki watch": the pass goes back ONLY to the project's
+// own site. Anywhere else would hand a working pass to whoever wrote the link.
+{
+  const site = ["https://farm.example"];
+  assert.equal(
+    ownerReturnUrl("https://farm.example/menu?x=1", site),
+    "https://farm.example/menu?x=1",
+  );
+  assert.equal(ownerReturnUrl("https://evil.example/", site), null, "another site");
+  assert.equal(
+    ownerReturnUrl("https://farm.example.evil.example/", site),
+    null,
+    "a lookalike host",
+  );
+  assert.equal(
+    ownerReturnUrl("http://farm.example/", site),
+    null,
+    "another scheme is another origin",
+  );
+  assert.equal(
+    ownerReturnUrl("https://user:pw@farm.example/", site),
+    null,
+    "credentials in the URL",
+  );
+  assert.equal(ownerReturnUrl("javascript:alert(1)", site), null);
+  assert.equal(ownerReturnUrl("/relative", site), null);
+  assert.equal(ownerReturnUrl(null, site), null);
+  assert.equal(ownerReturnUrl("https://farm.example/", []), null, "no known site, no redirect");
+  // The widget builds the link; the hash it is on never travels.
+  const link = new URL(
+    ownerSignInUrl("https://loki.test", "fcw_x", "https://farm.example/p#loki-owner=old"),
+  );
+  assert.equal(link.pathname, "/api/widget/owner");
+  assert.equal(link.searchParams.get("return"), "https://farm.example/p");
+}
 
 console.log("owner-note-builds: ok");

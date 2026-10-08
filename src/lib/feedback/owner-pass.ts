@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { OWNER_PASS_HASH_KEY, ownerSiteUrl } from "../../../widget/owner-pass";
+import { OWNER_DENIED_HASH, OWNER_PASS_HASH_KEY, ownerSiteUrl } from "../../../widget/owner-pass";
 
 /**
  * The owner's pass for their own site's widget.
@@ -47,5 +47,24 @@ export function verifyOwnerPass(
   return a.length === b.length && timingSafeEqual(a, b) ? { projectId, userId } : null;
 }
 
+/**
+ * Where "This is my site — let Loki watch" may send the owner back to, with a
+ * pass in the fragment. Only a page on the project's OWN site: anything else
+ * is an open redirect that hands a working pass to whoever wrote the link.
+ * Returns the URL to redirect to, or null to refuse.
+ */
+export function ownerReturnUrl(raw: string | null, allowedOrigins: string[]): string | null {
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  if (url.username || url.password) return null;
+  return allowedOrigins.includes(url.origin) ? url.href : null;
+}
+
 // The fragment key and the link shape are defined once, on the widget's side.
-export { OWNER_PASS_HASH_KEY, ownerSiteUrl };
+export { OWNER_DENIED_HASH, OWNER_PASS_HASH_KEY, ownerSiteUrl };

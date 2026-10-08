@@ -466,12 +466,10 @@ export function startWatchMode(opts: {
   apiBase: string;
   /** The owner pass as it stands now (null once the server refuses it). */
   pass: () => string | null;
-  /**
-   * Review pressed: hand Loki the session (what they did + the page checks).
-   * Null where the panel has no Ask view to answer in — then the pill has no
-   * Review button rather than one that does nothing.
-   */
-  onReview?: ((session: string) => void) | null;
+  /** Review pressed on the pill: the panel asks Loki about session(). */
+  onReview?: (() => void) | null;
+  /** Paused or resumed — the panel's header follows. */
+  onChange?: () => void;
 }): WatchSession {
   let paused = readWatchPaused(opts.token);
   const sent = new Set<string>();
@@ -482,19 +480,21 @@ export function startWatchMode(opts: {
     noticed: noticeCount(recorder?.trail() ?? []),
   });
   const session = () => sessionForReview(recorder?.trail() ?? [], safePageChecks(), Date.now());
+  const setPaused = (value: boolean) => {
+    paused = value;
+    writeWatchPaused(opts.token, paused);
+    show(paused ? { kind: "paused" } : watching());
+    opts.onChange?.();
+  };
   const pill = createWatchPill(
     opts.root,
     opts.theme,
-    () => {
-      paused = !paused;
-      writeWatchPaused(opts.token, paused);
-      show(paused ? { kind: "paused" } : watching());
-    },
+    () => setPaused(!paused),
     () => {
       const loki = (window as unknown as { Loki?: { report: (i: object) => void } }).Loki;
       loki?.report({ diagnostics: diagnostics("Loki watch mode (Report)") });
     },
-    opts.onReview ? () => opts.onReview?.(session()) : null,
+    opts.onReview ?? null,
   );
   /** What the pill shows now — a new remark updates the count only while it
    *  says "watching", never over "Something broke — Loki is fixing it". */
@@ -550,12 +550,17 @@ export function startWatchMode(opts: {
   if (!paused) show(watching());
 
   return {
+    on: () => !paused && opts.pass() !== null,
+    resume: () => setPaused(false),
     session,
     diagnostics: () => (paused ? null : diagnostics("Loki watch mode (Review)")),
   };
 }
 
 export type WatchSession = {
+  /** Recording right now: the owner's pass holds and they have not paused. */
+  on: () => boolean;
+  resume: () => void;
   /** What Review sends: the trail and the page checks, as text. */
   session: () => string;
   /** The trail as report lines, for a change requested out of a Review —

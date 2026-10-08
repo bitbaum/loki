@@ -14,20 +14,18 @@
  * - The token is write-only by design; the API base is derived from this
  *   script's own src, so one snippet works on every deployment.
  *
- * This file owns the panel — chips, textarea, attach row, submit — plus the
- * boot gate and the programmatic window.Loki entry point. The launcher, the
- * element picker, the screenshot strip, the stylesheets and the DOM helpers
- * live in their own modules alongside it.
+ * This file owns the panel's frame — header (Loki, the page, Watch), the one
+ * conversation (widget/conversation.ts), hiding — plus the boot gate and the
+ * programmatic window.Loki entry point. The launcher, the element picker,
+ * watch mode, the stylesheets and the DOM helpers live in their own modules.
  */
 
-import { forgetOwnerPass, takeOwnerPass } from "./owner-pass";
+import { forgetOwnerPass, ownerSignInUrl, takeOwnerDenied, takeOwnerPass } from "./owner-pass";
 import { startTourFromFragment } from "./tour";
-import { buildSuggestion, formatDiagnostics, type ReportDiagnostics } from "./report-payload";
-import { mergeTranscript } from "./voice";
-import { createVoiceControl } from "./voice-control";
+import type { ReportDiagnostics } from "./report-payload";
 import { DEFAULT_PLACEMENT, normalizePlacement, type Placement } from "./placement";
 import { buildDocCSS, buildShadowCSS, type WidgetTheme } from "./theme";
-import { CAMERA_SVG, h } from "./dom";
+import { h } from "./dom";
 import {
   isHiddenByVisitor,
   readHiddenMarker,
@@ -37,32 +35,13 @@ import {
 } from "./visitor-placement";
 import { createLauncher } from "./launcher";
 import { createPicker } from "./picker";
-import { createAttachments } from "./attachments";
 import { startWatchMode, type WatchSession } from "./watch";
-import { sendReport } from "./send-report";
-import { createChat } from "./chat";
-import { createAdvise } from "./advise";
-import {
-  createModeTabs,
-  createScopeChips,
-  ownerSuccessView,
-  showHideToast,
-  visitorSuccessView,
-  type Scope,
-} from "./panel-views";
-import {
-  initialWidgetSurfaceMode,
-  parseWidgetSurfaceModes,
-  WIDGET_SURFACE_MODE_META,
-  type WidgetSurfaceMode,
-} from "./surface-modes";
+import { createConversation } from "./conversation";
+import { assistantFor } from "./thread";
+import { showHideToast, watchOfferView } from "./panel-views";
+import { parseWidgetSurfaceModes } from "./surface-modes";
 
-const MAX_LEN = 2000;
 const MAX_ELEMENTS = 10;
-const MAX_SCREENSHOTS = 5;
-/** Stop recording here. Kept under the server's ~2 min upload cap so the
- *  visitor is never told "too long" after they have already said it. */
-const VOICE_MAX_MS = 110_000;
 
 interface ReportInput {
   /** Pre-filled first line so the visitor never faces an empty box. */
@@ -183,13 +162,16 @@ interface LokiApi {
     show: unhide,
   };
   (window as unknown as { Loki?: LokiApi }).Loki = api;
-  // Arriving from the owner link: open straight to the note, so "look at my
-  // site and say what to change" is one step, not a hunt for the button.
+  // Arriving from the owner link (or back from "This is my site"): open the
+  // conversation straight away, so "look at my site and say what to change"
+  // is one step, not a hunt for the button. report({}) only opens the panel.
   if (ownerState.arrived) pendingReport = {};
+  // Back from "This is my site" signed in as someone else: say so on the site.
+  const ownerDenied = takeOwnerDenied();
   // The owner arriving from their link, or anyone opening the page with
   // `#loki`, gets the launcher back even if this browser hid it earlier. Without
   // this, "Hide on this site" was permanent: nothing on the page could undo it.
-  if (ownerState.arrived || restoreRequested()) {
+  if (ownerState.arrived || ownerDenied || restoreRequested()) {
     visitorOverride = null;
     writeVisitorPlacement(token, null);
   }
@@ -212,10 +194,6 @@ interface LokiApi {
   };
 
   const mount = (theme: WidgetTheme) => {
-    // ---- state ----
-    let scope: Scope = "page";
-    let submitting = false;
-
     // ---- shadow scaffold ----
     const host = h("div");
     host.id = "loki-feedback-host";
@@ -275,247 +253,46 @@ interface LokiApi {
     panel.setAttribute("aria-modal", "true");
     panel.setAttribute("aria-label", "Loki");
 
+    // ---- header: who you are talking to, about which page, and Watch ----
     const hdr = h("div", "hdr");
     const hdrText = h("div");
     // The brand line is what makes this recognisably Loki on a stranger's
     // site — the same mono micro-label Loki's own pages use.
     const brand = h("div", "brand");
-    const brandName = h("span", "mono", "Loki");
-    brand.append(h("span", "dot"), brandName);
-    // Report's form and Chat's conversation are two views of one panel; the
-    // mode chips swap them. Declared here so syncModes() can reach both.
-    const reportView = h("div", "report-view");
-    hdrText.appendChild(brand);
-    // Surface modes: Report ships today; Chat / Watch are progressive seams
-    // (data-fc-modes="report,chat,watch"). The whole panel is Loki-on-the-site.
-    const enabledModes = parseWidgetSurfaceModes(modesAttr);
-    // The owner always gets Ask, whatever the embed lists: it is where Watch's
-    // Review answers, and a site that opted its VISITORS out of Ask did not
-    // opt its owner out of a second opinion on their own site.
-    if (ownerPass && !enabledModes.includes("ask")) enabledModes.push("ask");
-    let surfaceMode: WidgetSurfaceMode = initialWidgetSurfaceMode(enabledModes);
-    const chat = enabledModes.includes("chat") ? createChat({ apiBase, token }) : null;
-    const advise = enabledModes.includes("ask")
-      ? createAdvise({
-          apiBase,
-          token,
-          getScope: () => scope,
-          getSelected: () => picker.selected(),
-          onRequest: requestFromAdvice,
-        })
-      : null;
-    /** The scope chips sit above both Report and Ask: "about what?" is one question. */
-    const scopeBox = h("div", "scope");
-    const title = h("b");
-    const tabs = createModeTabs(enabledModes, WIDGET_SURFACE_MODE_META, (m) => {
-      surfaceMode = m;
-      syncModes();
-      focusMode();
-    });
-    function syncModes() {
-      // The owner is not filing a report for someone else to triage: what they
-      // say here is built and shipped, and the hint says exactly that.
-      tabs.sync(
-        surfaceMode,
-        ownerPass && surfaceMode === "report"
-          ? "Your site: what you say here gets built and goes live."
-          : WIDGET_SURFACE_MODE_META[surfaceMode].hint,
-      );
-      const chatting = surfaceMode === "chat" && chat !== null;
-      const asking = surfaceMode === "ask" && advise !== null;
-      title.textContent = chatting
-        ? "What are you looking for?"
-        : asking
-          ? "What would you like a second opinion on?"
-          : "What should change?";
-      reportView.style.display = chatting || asking ? "none" : "";
-      scopeBox.style.display = chatting ? "none" : "";
-      if (chat) chat.el.style.display = chatting ? "" : "none";
-      if (advise) advise.el.style.display = asking ? "" : "none";
-      // In chat the panel is just "Chat" — the Cat and Loki are who is IN it,
-      // and each bubble names its speaker. Report stays Loki's.
-      brandName.textContent = chatting ? "Chat" : "Loki";
-    }
+    brand.append(h("span", "dot"), h("span", "mono", "Loki"));
     const hdrPage = h("div", "page");
-    hdrText.append(tabs.row, tabs.hint, title, hdrPage);
+    hdrText.append(brand, hdrPage);
+    const hdrActions = h("div", "hdr-actions");
+    const watchBtn = h("button", "watchbtn");
+    watchBtn.type = "button";
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
-    hdr.append(hdrText, closeBtn);
-
-    const scopeChips = createScopeChips((picked) => {
-      scope = picked;
-      if (picked === "element") picker.start();
-      syncChips();
-      advise?.refresh();
+    hdrActions.append(watchBtn, closeBtn);
+    hdr.append(hdrText, hdrActions);
+    // "How do I make Loki watch?" had no answer on the site itself: the pass
+    // only arrived through one link in Loki. The header always says where
+    // Watch stands, and for anyone not yet recognised, how the owner turns it on.
+    const watchOffer = watchOfferView(ownerSignInUrl(apiBase, token, location.href));
+    watchBtn.addEventListener("click", () => {
+      if (watchSession?.on()) conversation.review();
+      else if (!ownerPass) watchOffer.style.display = watchOffer.style.display ? "" : "none";
+      else watchSession?.resume();
+      syncWatch();
     });
-
-    const textarea = h("textarea");
-    textarea.maxLength = MAX_LEN;
-    textarea.placeholder = ownerPass
-      ? "Say or type what to change. It gets built."
-      : "What should be improved?";
-    const cnt = h("div", "cnt", `0/${MAX_LEN}`);
-    /** The counter and the Send button both follow the text. */
-    function syncCount() {
-      cnt.textContent = `${textarea.value.length}/${MAX_LEN}`;
-      sendBtn.disabled = !textarea.value.trim();
+    function syncWatch() {
+      const on = watchSession?.on() ?? false;
+      watchBtn.textContent = !ownerPass ? "Watch" : on ? "Review" : "Resume watching";
+      watchBtn.classList.toggle("on", on);
+      watchBtn.title = !ownerPass
+        ? "Let Loki watch you use this site and say what to improve"
+        : on
+          ? "Loki reviews what you just did and suggests improvements"
+          : "Watching is paused";
+      if (ownerPass) watchOffer.style.display = "none";
     }
 
-    // Diagnostics travel with the submission but stay OUT of the textarea: the
-    // visitor should see a clean sentence they can edit, not a wall of context
-    // they have to scroll past or delete.
-    let diagnostics: ReportDiagnostics | null = null;
-    const diagNote = h("div", "diag");
-    function syncDiagnostics() {
-      const text = diagnostics ? formatDiagnostics(diagnostics) : "";
-      diagNote.style.display = text ? "block" : "none";
-      diagNote.textContent = text ? "⚙ Technical details attached" : "";
-      diagNote.title = text;
-    }
-    syncDiagnostics();
-    textarea.addEventListener("input", syncCount);
-
-    const contact = h("input");
-    contact.type = "text";
-    contact.placeholder = "Name / email (optional)";
-    // Loki already knows who the owner is; asking them for an email is noise.
-    if (ownerPass) contact.style.display = "none";
-    contact.autocomplete = "off";
-    // Same cap the ingest route enforces, so the field stops accepting text at
-    // the limit instead of taking it and losing the whole report on submit.
-    // The textarea already does this; the contact input did not.
-    contact.maxLength = 200;
-
-    // ---- image attach (file picker + paste; client-downscaled) ----
-    const attachRow = h("div", "attachrow");
-    const fileInput = h("input");
-    fileInput.type = "file";
-    fileInput.accept = "image/*";
-    fileInput.multiple = true;
-    fileInput.style.display = "none";
-    const attachBtn = h("button", "attach");
-    const cameraIcon = h("span");
-    cameraIcon.innerHTML = CAMERA_SVG;
-    attachBtn.append(cameraIcon, h("span", undefined, "Screenshots"));
-    attachBtn.setAttribute("aria-label", "Add screenshots (or paste)");
-    attachBtn.addEventListener("click", () => fileInput.click());
-    const shotsContainer = h("div", "shots");
-    const attachments = createAttachments({
-      attachBtn,
-      container: shotsContainer,
-      max: MAX_SCREENSHOTS,
-      onError: (message) => {
-        errEl.textContent = message;
-      },
-    });
-    // ---- voice input ----
-    const voiceControl = createVoiceControl({
-      endpoint: `${apiBase}/api/widget/transcribe`,
-      token,
-      maxMs: VOICE_MAX_MS,
-      onTranscript: (text) => {
-        textarea.value = mergeTranscript(textarea.value, text, MAX_LEN);
-        syncCount();
-        textarea.focus();
-        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      },
-      onError: (message) => {
-        errEl.textContent = message;
-      },
-    });
-    const voice = voiceControl?.recorder ?? null;
-
-    if (voiceControl) attachRow.append(voiceControl.button);
-    attachRow.append(attachBtn, fileInput);
-
-    fileInput.addEventListener("change", () => {
-      void attachments.attachMany(fileInput.files);
-      fileInput.value = "";
-    });
-    // Paste a screenshot straight into the panel (desktop muscle memory).
-    panel.addEventListener("paste", (e: ClipboardEvent) => {
-      const items = Array.from(e.clipboardData?.items ?? []).filter((i) =>
-        i.type.startsWith("image/"),
-      );
-      if (items.length > 0) {
-        e.preventDefault();
-        for (const item of items) {
-          void attachments.attach(item.getAsFile());
-        }
-      }
-    });
-
-    const row = h("div", "row");
-    const sendBtn = h("button", "go", "Send");
-    sendBtn.disabled = true;
-    sendBtn.addEventListener("click", submit);
-    const cancelBtn = h("button", "ghost", "Cancel");
-    cancelBtn.addEventListener("click", closePanel);
-    row.append(sendBtn, cancelBtn);
-
-    const errEl = h("div", "err");
-    const keys = h("div", "keys");
-    keys.append(
-      h("span", "mono", "Esc closes"),
-      h("span", "sep", "·"),
-      h("span", "mono", "Ctrl+Enter sends"),
-    );
-    // Visible, not only behind a long-press: a visitor who does not want the
-    // button should not have to know a gesture to get rid of it.
-    const hideLink = h("button", "hide-link", "Hide this button on this site");
-    hideLink.addEventListener("click", hideForVisitor);
-
-    scopeBox.append(scopeChips.chips, scopeChips.hint);
-    reportView.append(
-      textarea,
-      cnt,
-      diagNote,
-      contact,
-      attachRow,
-      shotsContainer,
-      row,
-      errEl,
-      keys,
-    );
-    /** (Re)build the panel's children — the success views replace them. */
-    function assemblePanel() {
-      panel.textContent = "";
-      panel.append(hdr, scopeBox, reportView);
-      if (advise) panel.append(advise.el);
-      if (chat) panel.append(chat.el);
-      panel.append(hideLink);
-    }
-    assemblePanel();
-    syncModes();
-
-    function focusMode() {
-      if (surfaceMode === "chat" && chat) chat.focus();
-      else if (surfaceMode === "ask" && advise) advise.focus();
-      else textarea.focus();
-    }
-
-    /** Set once watch mode starts (owner only) — see the end of mount(). */
-    let watchSession: WatchSession | null = null;
-
-    /** A change Loki recommended (or a question it could not answer) becomes a
-     *  request: Report, prefilled, with the same scope and picked elements. */
-    function requestFromAdvice(text: string) {
-      surfaceMode = "report";
-      syncModes();
-      // Out of a Review, the builder gets what Loki saw: the steps that led
-      // to the suggestion travel with it, the same way a failure's do.
-      if (!diagnostics && watchSession) {
-        diagnostics = watchSession.diagnostics();
-        syncDiagnostics();
-      }
-      const current = textarea.value.trim();
-      textarea.value = (current ? `${current}\n${text}` : text).slice(0, MAX_LEN);
-      syncCount();
-      textarea.focus();
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-    }
-
+    const modes = parseWidgetSurfaceModes(modesAttr);
     const picker = createPicker({
       root,
       host,
@@ -523,200 +300,100 @@ interface LokiApi {
       backdrop,
       panel,
       maxElements: MAX_ELEMENTS,
-      onCancel: () => {
-        scope = "page";
-      },
+      onCancel: () => conversation.refresh(),
       onStop: () => {
-        if (scope === "element" && picker.selected().length === 0) scope = "page";
-        syncChips();
-        textarea.focus();
+        conversation.refresh();
+        conversation.focus();
       },
     });
+    /** Set once watch mode starts (owner only) — see the end of mount(). */
+    let watchSession: WatchSession | null = null;
+    const conversation = createConversation({
+      apiBase,
+      token,
+      assistant: () => assistantFor(modes, ownerPass !== null),
+      ownerPass: () => ownerPass,
+      onPassRefused: () => {
+        // Expired or revoked: stop presenting it, and read as a visitor.
+        forgetOwnerPass(token);
+        ownerPass = null;
+        syncWatch();
+        conversation.refresh();
+      },
+      picker,
+      watch: () => watchSession,
+    });
 
-    // ---- behaviors ----
-    function syncChips() {
-      scopeChips.sync(scope, picker.selected().length);
-    }
+    // Visible, not only behind a long-press: a visitor who does not want the
+    // button should not have to know a gesture to get rid of it.
+    const hideLink = h("button", "hide-link", "Hide this button on this site");
+    hideLink.addEventListener("click", hideForVisitor);
+    panel.append(hdr, watchOffer, conversation.el, hideLink);
 
     function openPanel() {
       fab.style.display = "none";
       hdrPage.textContent = document.title || location.pathname;
       root.append(backdrop, panel);
-      syncChips();
+      syncWatch();
+      conversation.refresh();
       document.addEventListener("keydown", onKeydown, true);
-      focusMode();
+      conversation.focus();
     }
 
     function closePanel() {
       if (picker.isPicking()) picker.stop();
-      // Abandon any in-flight recording. Closing the panel with the mic still
-      // open would leave the browser's "recording" indicator lit on someone
-      // else's site, which reads as the page still listening after the visitor
-      // dismissed it — and would transcribe audio they chose not to send.
-      voice?.cancel();
-      picker.clearSelection();
+      // Abandon any in-flight recording: a lit "recording" indicator after the
+      // panel is closed reads as the page still listening.
+      conversation.close();
       backdrop.remove();
       panel.remove();
       document.removeEventListener("keydown", onKeydown, true);
-      scope = "page";
-      textarea.value = "";
-      contact.value = "";
-      attachments.reset();
-      attachments.render();
-      cnt.textContent = `0/${MAX_LEN}`;
-      diagnostics = null;
-      syncDiagnostics();
-      errEl.textContent = "";
-      sendBtn.disabled = true;
-      submitting = false;
-      sendBtn.textContent = "Send";
       fab.style.display = fabRest();
     }
 
     function onKeydown(e: KeyboardEvent) {
-      // The panel is a modal overlay rendered in a shadow root. Host pages bind
-      // global hotkeys (⌘K command palette, "/" search, "?" help, digit
-      // shortcuts) on window/document. Because the event retargets to the shadow
-      // HOST element when it crosses the boundary, the host's own
-      // "is the user typing?" guard reads the wrong node and fires anyway —
-      // stealing keystrokes while the user types feedback (observed on both
-      // orangecat.ch and loki.orangecat.ch, which embed this same widget).
-      // While the panel is open we own the keyboard: stop every keystroke at the
-      // shadow boundary so nothing leaks to the host's global shortcuts. This is
-      // standard modal keyboard-trap behaviour and is the single fix that covers
-      // every embedding host at once.
+      // The panel is a modal overlay in a shadow root. Host pages bind global
+      // hotkeys (⌘K, "/", "?") on document, and the event retargets to the
+      // shadow HOST, so their "is the user typing?" guard reads the wrong node
+      // and steals keystrokes (observed on orangecat.ch and loki.orangecat.ch).
+      // While the panel is open we own the keyboard.
       e.stopPropagation();
-      // Chat's own keys: the trap above stops the event before it reaches the
-      // shadow textarea's listeners, so Enter-to-send is handled here.
-      if (chat && surfaceMode === "chat" && e.composedPath().includes(chat.input) && chat.onKey(e))
-        return;
-      if (
-        advise &&
-        surfaceMode === "ask" &&
-        e.composedPath().includes(advise.input) &&
-        advise.onKey(e)
-      )
-        return;
+      if (conversation.onKey(e)) return;
       if (e.key === "Escape") {
         if (picker.isPicking()) picker.stop();
         else closePanel();
-      } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && surfaceMode === "report") {
-        if (!sendBtn.disabled) void submit();
       }
     }
 
-    function suggestionWithDiagnostics(): string {
-      return buildSuggestion(textarea.value, diagnostics, MAX_LEN);
-    }
-
-    async function submit() {
-      if (submitting || !textarea.value.trim()) return;
-      submitting = true;
-      sendBtn.disabled = true;
-      sendBtn.textContent = "Sending…";
-      errEl.textContent = "";
-      try {
-        // Clamped to the server's caps inside sendReport (widget/send-report.ts).
-        const body = await sendReport(apiBase, {
-          token,
-          suggestion: suggestionWithDiagnostics(),
-          contact: contact.value,
-          scope,
-          screenshots: attachments.shots(),
-          selectedElements: picker.selected(),
-          ownerPass: ownerPass ?? undefined,
-        });
-        if (ownerPass && !body.owner) {
-          // Expired or revoked: stop presenting it, and read as a visitor.
-          forgetOwnerPass(token);
-          ownerPass = null;
-        }
-        if (body.owner) showOwnerSuccess(body.building === true, body.buildNote ?? null);
-        else showSuccess(body.claimUrl ?? null);
-      } catch (err) {
-        submitting = false;
-        sendBtn.disabled = false;
-        sendBtn.textContent = "Send";
-        errEl.textContent = err instanceof Error ? err.message : "Could not send, try again";
-      }
-    }
-
-    function resetForm() {
-      assemblePanel();
-      textarea.value = "";
-      cnt.textContent = `0/${MAX_LEN}`;
-      submitting = false;
-      sendBtn.disabled = true;
-      sendBtn.textContent = "Send";
-    }
-
-    function showOwnerSuccess(building: boolean, note: string | null) {
-      panel.textContent = "";
-      panel.appendChild(
-        ownerSuccessView(building, note, () => {
-          resetForm();
-          textarea.focus();
-        }),
-      );
-    }
-
-    function showSuccess(claimUrl: string | null) {
-      panel.textContent = "";
-      panel.appendChild(visitorSuccessView(claimUrl));
-      setTimeout(() => {
-        // Keep the success view open while the tracking invitation is visible.
-        // A visitor should never have to race a disappearing confirmation.
-        if (claimUrl) return;
-        closePanel();
-        // Rebuild the form for the next open (success view replaced it).
-        assemblePanel();
-      }, 2200);
-    }
-
-    // Programmatic entry point: open prefilled so "report this" is one click.
-    // An already-open panel is left alone — the visitor may be mid-sentence,
-    // and silently replacing their text would lose it.
+    // Programmatic entry point: the host's own "Report" control opens the
+    // send confirmation prefilled, with whatever the host attached.
     liveReport = (input: ReportInput) => {
-      if (panel.isConnected) {
-        textarea.focus();
-        return;
-      }
-      openPanel();
-      diagnostics = input.diagnostics ?? null;
-      syncDiagnostics();
-      if (input.message) {
-        textarea.value = input.message.slice(0, MAX_LEN);
-        syncCount();
-        // Caret at the end: the visitor adds detail, never clears boilerplate.
-        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      }
+      if (!panel.isConnected) openPanel();
+      if (input.message || input.diagnostics)
+        conversation.draft(input.message ?? "", input.diagnostics ?? null);
     };
-    // ask() goes to the studio front desk where a site has one, else to Ask.
     liveAsk = (question: string) => {
-      const target = chat ?? advise;
-      if (!target) return;
       if (!panel.isConnected) openPanel();
-      surfaceMode = chat ? "chat" : "ask";
-      syncModes();
-      target.focus();
-      if (question.trim()) target.ask(question);
+      if (question.trim()) conversation.ask(question);
     };
-    // The owner, here through Loki's link: watch mode, with its pill on screen
-    // the whole time it records (widget/watch.ts).
-    // Review on the pill opens Ask and hands it the session: Loki reads what
-    // the owner did and says what it makes of it.
-    // Always Ask, never Chat: a review is about THIS site, not the catalogue.
-    const review = (session: string) => {
+    // The owner: watch mode, with its pill on screen the whole time it
+    // records (widget/watch.ts). Review — on the pill, in the header, or the
+    // first starter — asks Loki about the session, in this same thread.
+    const review = () => {
       if (!panel.isConnected) openPanel();
-      surfaceMode = "ask";
-      syncModes();
-      title.textContent = "What Loki makes of what you just did";
-      advise?.review(session);
+      conversation.review();
     };
     const watchOpts = { root, host, theme, token, apiBase, pass: () => ownerPass };
-    if (ownerPass) watchSession = startWatchMode({ ...watchOpts, onReview: advise && review });
+    if (ownerPass)
+      watchSession = startWatchMode({ ...watchOpts, onReview: review, onChange: syncWatch });
     // Only now can a click actually open something — see LokiApi.ready.
     api.ready = true;
+    if (ownerDenied) {
+      openPanel();
+      conversation.say(
+        "You're signed in to Loki, but this site belongs to another account — so I can't watch here for you. If it should be yours, ask its owner to share the project with you in Loki.",
+      );
+    }
     if (pendingAsk !== null) {
       const held = pendingAsk;
       pendingAsk = null;

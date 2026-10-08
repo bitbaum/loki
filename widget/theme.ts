@@ -49,23 +49,11 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .mono { font-family: ${mono}; letter-spacing: .08em; text-transform: uppercase; font-size: 10px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: ${theme.accent}; flex: none; box-shadow: 0 0 0 3px ${theme.accentMuted}; }
 
-/* ---- surface modes: the header's Report / Chat / Watch chips ----
-   No var() fallbacks here. The widget lives in a Shadow DOM under
+/* No var() fallbacks anywhere in this file. The widget lives in a Shadow DOM under
    :host all:initial and defines no custom properties, so a var() with a hex
    fallback ALWAYS resolves to that fallback — a hardcoded colour wearing a
    token's clothes. Every colour interpolates from the boot theme, like the
    rest of this file. */
-.modes { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
-.mode {
-  font-size: 11px; padding: 4px 10px; border-radius: ${rc};
-  border: 1px solid ${theme.borderStrong}; color: ${theme.textSecondary};
-  background: transparent;
-}
-.mode.on { border-color: ${theme.accent}; color: ${theme.text}; background: ${theme.accentMuted}; }
-.mode:disabled { opacity: .55; cursor: not-allowed; }
-/* textTertiary, not textMuted: the hint is the one line that explains what the
-   selected mode does, so it has to stay readable on the panel's near-black. */
-.mode-hint { font-size: 11px; color: ${theme.textTertiary}; margin-top: 6px; line-height: 1.35; }
 
 /* ---- launcher: a Loki pill, not an orange circle ----
    QUIET UNTIL WANTED. This sits on every client's site, in the corner of every
@@ -138,12 +126,33 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .x { color: ${theme.textSecondary}; width: 28px; height: 28px; border-radius: ${rc}; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; flex: none; }
 .x:hover { color: ${theme.text}; background: ${theme.surfaceSubtle}; }
 
-/* scope: one segmented control, not three loose chips */
-.chips { display: flex; padding: 3px; gap: 2px; margin-bottom: 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceRaised}; }
-.chip { flex: 1; padding: 7px 4px; font-size: 12px; border-radius: ${rc}; color: ${theme.textSecondary}; text-align: center; transition: background .12s ease, color .12s ease; }
-.chip:hover { color: ${theme.text}; }
-.chip.on { color: ${theme.text}; background: ${theme.surface}; box-shadow: inset 0 0 0 1px ${theme.borderStrong}; font-weight: 500; }
-.hint { font-size: 11px; color: ${theme.accent}; margin: -4px 0 10px; }
+/* header actions: Watch / Review, then close */
+.hdr-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.watchbtn { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; border: 1px solid ${theme.borderStrong}; color: ${theme.textSecondary}; }
+.watchbtn:hover { color: ${theme.text}; border-color: ${theme.accent}; }
+.watchbtn.on { border-color: ${theme.accent}; background: ${theme.accentMuted}; color: ${theme.text}; }
+.watch-offer { margin: -4px 0 12px; padding: 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; font-size: 12px; line-height: 1.5; color: ${theme.textSecondary}; }
+.watch-offer b { display: block; color: ${theme.text}; font-size: 13px; margin-bottom: 4px; }
+.watch-offer .sub { color: ${theme.textTertiary}; margin-top: 4px; }
+.watch-offer .track { margin-top: 10px; }
+
+/* the one conversation */
+.convo { display: flex; flex-direction: column; gap: 10px; }
+.ctxbar { display: flex; flex-wrap: wrap; gap: 6px; }
+.ctx { font-size: 11px; padding: 5px 9px; border-radius: 999px; border: 1px solid ${theme.border}; color: ${theme.textSecondary}; background: ${theme.surfaceRaised}; }
+.ctx:hover:not(:disabled) { color: ${theme.text}; border-color: ${theme.borderDark}; }
+.ctx.on { border-color: ${theme.accent}; color: ${theme.text}; background: ${theme.accentMuted}; }
+.ctx:disabled { cursor: default; }
+.tools { display: flex; gap: 8px; align-items: center; }
+.act { align-self: flex-end; font-size: 11px; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; margin-top: -4px; }
+.act:hover { color: ${theme.text}; }
+.msg.sent { border-color: ${theme.accent}; }
+.msg .track { display: inline-flex; margin-top: 8px; }
+.starter.primary { border-style: solid; border-color: ${theme.accent}; color: ${theme.text}; background: ${theme.accentMuted}; font-weight: 600; }
+.sendcard { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid ${theme.accent}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; }
+.sendcard textarea { min-height: 64px; }
+.sendcard .err { margin-top: 0; }
+@media (pointer: coarse) { .ctx, .watchbtn { padding: 10px 12px; } .act { padding: 8px 0; } }
 
 textarea, input {
   width: 100%; font-size: 13px; line-height: 1.45; color: ${theme.text};
@@ -226,7 +235,7 @@ input { margin-bottom: 10px; }
             display: inline-flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
 .ok p { font-size: 13px; margin-top: 12px; color: ${theme.text}; }
 .ok .sub { font-size: 11px; color: ${theme.textSecondary}; margin-top: 4px; }
-.ok .track { display: inline-flex; margin-top: 14px; border-radius: 9px; padding: 9px 12px;
+.track { display: inline-flex; margin-top: 14px; border-radius: 9px; padding: 9px 12px;
   background: ${theme.accent}; color: ${ink}; font-size: 12px; font-weight: 650; text-decoration: none; }
 
 /* ---- chat mode: one chat, two residents (the Cat and Loki) ----

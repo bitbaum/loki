@@ -101,20 +101,25 @@ export default function FeedbackWidgetDocsPage() {
             appears as text they can edit, and they still press Send.
           </p>
           <p>
-            <strong>Ask Loki before asking for a change.</strong> Most people you build a site for
-            are not web professionals and cannot tell a mistake from a convention. The{" "}
-            <em>Ask Loki</em> tab gives them a second opinion on the element they picked, the page,
-            or the whole site — why something is the way it is, whether it should change. It may
-            well say &ldquo;leave it&rdquo;; every change it does suggest has <em>Request this</em>,
-            which turns it into an ordinary report. Loki reads an outline of the page — headings,
-            words, links, buttons — not a picture of it, and says so. Answers are charged to your AI
-            budget. It is on by default; <code>data-fc-modes=&quot;report&quot;</code> on the script
-            line turns it off.
+            <strong>One conversation with Loki.</strong> Most people you build a site for are not
+            web professionals and cannot tell a mistake from a convention. In the panel they simply
+            talk to Loki — about the page, the whole site, or an element they point at — and get an
+            honest second opinion that may well be &ldquo;leave it&rdquo;. Every change Loki
+            suggests, and their own message as written, has <em>Send to builder</em>, which becomes
+            an ordinary report; the receipt and a tracking link land in the same conversation, which
+            survives their page loads. Loki reads an outline of the page — headings, words, links,
+            buttons — not a picture of it, and says so. Answers are charged to your AI budget.{" "}
+            <code>data-fc-modes=&quot;report&quot;</code> on the script line turns the answers off.
           </p>
           <p>
-            <strong>Chat</strong> is a third tab, off by default. It is a front desk that points
-            visitors to the right project. Turn it on with{" "}
-            <code>data-fc-modes=&quot;report,ask,chat&quot;</code>.
+            <strong>Watch</strong> is in the panel&rsquo;s header. On your own site, tap it and sign
+            in with Loki: you come straight back with Loki watching how you use the page, fixing
+            what breaks, and on <em>Review</em> saying what to improve. Visitors are never watched.
+          </p>
+          <p>
+            <strong>A studio front desk</strong> instead of site advice: with{" "}
+            <code>data-fc-modes=&quot;chat&quot;</code> the Cat and Loki point visitors to the right
+            project.
           </p>
           <p>
             <strong>Visitors can hide it.</strong> <em>Hide this button on this site</em> at the

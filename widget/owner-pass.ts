@@ -74,6 +74,33 @@ export function takeOwnerPass(token: string): { pass: string | null; arrived: bo
   }
 }
 
+/** What Loki appends when someone signed in who does not own this widget. */
+export const OWNER_DENIED_HASH = "loki-owner-denied";
+
+/**
+ * "This is my site — let Loki watch": a top-level trip through Loki, which
+ * signs the person in if needed, checks they own this widget's project, and
+ * returns them to THIS page with a pass (src/app/api/widget/owner/route.ts).
+ */
+export function ownerSignInUrl(apiBase: string, token: string, here: string): string {
+  const u = new URL("/api/widget/owner", apiBase);
+  u.searchParams.set("token", token);
+  u.searchParams.set("return", here.split("#")[0]);
+  return u.href;
+}
+
+/** True once, when Loki sent the person back because the site is not theirs
+ *  — the marker is removed so a reload does not repeat it. */
+export function takeOwnerDenied(): boolean {
+  if (!location.hash.includes(OWNER_DENIED_HASH)) return false;
+  try {
+    history.replaceState(history.state, "", location.pathname + location.search);
+  } catch {
+    /* sandboxed frame */
+  }
+  return true;
+}
+
 /** A pass the server refused (expired, revoked): stop sending it. */
 export function forgetOwnerPass(token: string): void {
   try {
