@@ -48,7 +48,9 @@ surf-your-life|4009|*-*-* 18:00:00|/api/cron/reminders|GET
 surf-your-life|4009|Sun *-*-* 17:00:00|/api/cron/weekly-report|GET
 # No surf-your-life ai-digest timer: George 2026-09-25 — no background job may
 # spend the shared free AI pool. The digest is an on-demand staff action now.
-surf-your-life|4009|*-*-* 03:00:00|/api/cron/embed-backfill|GET
+# No embed-backfill timer either (2026-10-08): it needs a paid OPENAI_API_KEY the
+# box does not have, so it answered 503 every night and paged as a failed unit.
+# Same rule as above — background AI spend is off; backfill on demand if ever.
 # sbb-fundbuero has no vercel.json; its schedule SSOT is this row + the app's TODO.md.
 sbb-fundbuero|4016|*-*-* 03:30:00|/api/cron/purge|POST
 # substrata has no vercel.json. All fire hourly: the sweep route decides from
