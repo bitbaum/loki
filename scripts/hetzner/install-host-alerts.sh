@@ -604,6 +604,56 @@ if pg_isready -q 2>/dev/null; then
 else
   alert_transition postgres bad "🐘" "POSTGRES not accepting connections"
 fi
+
+# Runaway loops — one service repeating the same ERROR hundreds of times an hour.
+#
+# Every check above asks "is X down?". None asked "is X stuck doing the same
+# failing thing forever?" — and a stuck loop looks HEALTHY to all of them: the
+# unit is active, the process answers, nothing ever reaches `failed`. From
+# 2026-09-21 to 2026-10-08 loki-calendar-drain retried one unbookable event
+# every 15 s: 38,851 failures, a model call against the shared free tier on each
+# pass, and not one message. This is that question, asked generically.
+#
+# Only error-shaped lines count (heartbeats like "drained 0" are by design and
+# repeat too), digits are folded so "attempt 41" and "attempt 42" are one line,
+# and the threshold sits well above any healthy chatter. One message per unit,
+# with alert_once's backing-off reminders, and N loops in a tick are ONE digest.
+LOOP_MIN=${LOOP_MIN_REPEATS:-120}
+loop_report=$(journalctl --since "-1 hour" -q -o json --output-fields=_SYSTEMD_UNIT,MESSAGE 2>/dev/null \
+  | LOOP_MIN="$LOOP_MIN" python3 -c '
+import collections, json, os, re, sys
+err = re.compile(r"fail|error|refus|denied|exception|timed? ?out|\b(4[0-9]{2}|5[0-9]{2})\b", re.I)
+skip = re.compile(r"^(init\.scope|notify-failure@.*|watchdog\.service|host-check\.service)$")
+counts = collections.Counter(); sample = {}
+for raw in sys.stdin:
+    try:
+        e = json.loads(raw)
+    except ValueError:
+        continue
+    unit, msg = e.get("_SYSTEMD_UNIT"), e.get("MESSAGE")
+    if not isinstance(unit, str) or not isinstance(msg, str) or skip.match(unit) or not err.search(msg):
+        continue
+    key = (unit, re.sub(r"\d+", "#", msg)[:160])
+    counts[key] += 1; sample[key] = msg
+best = {}
+for (unit, k), n in counts.items():
+    if n >= int(os.environ["LOOP_MIN"]) and n > best.get(unit, (0, ""))[0]:
+        best[unit] = (n, sample[(unit, k)])
+for unit, (n, msg) in sorted(best.items()):
+    print(f"{unit}\t{n}\t{msg[:140]}")
+' 2>/dev/null || true)
+loops=()
+while IFS=$'\t' read -r lu ln lm; do
+  [ -n "$lu" ] || continue
+  if claim_once "loop:$lu" 86400; then
+    loops+=("${lu%.service} ${ln}×/h: “${lm}”")
+  else
+    logger -t watchdog "loop: ${lu} still repeating (${ln}×/h) — already told, holding"
+  fi
+done <<< "$loop_report"
+if [ "${#loops[@]}" -gt 0 ]; then
+  _alert_deliver "🔁 LOOP — stuck repeating the same error, likely retrying something that cannot succeed: $(printf '%s; ' "${loops[@]}" | sed 's/; $//')"
+fi
 HC
 chmod +x "$MON/host-check.sh"
 
