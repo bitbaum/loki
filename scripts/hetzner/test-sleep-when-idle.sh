@@ -48,7 +48,9 @@ grep -q '^OnFailure=' <<<"$(sed -n '/^\[Unit\]/,/^\[Service\]/p' <<<"$U")" || fa
 grep -q '^\[Install\]' <<<"$U" && fail "a sleeping app must have no [Install]: the socket starts at boot, not the app"
 grep -qF "ExecStartPost=/bin/bash -c 'for i in \$\$(seq 1 300); do (echo > /dev/tcp/127.0.0.1/24027)" <<<"$U" \
   || fail "readiness wait must escape \$ as \$\$ for systemd and dial the inner port: $(grep ExecStartPost <<<"$U")"
-ok "app unit: bound to its proxy, waits until it listens, not enabled at boot"
+grep -qx "SuccessExitStatus=143 SIGTERM" <<<"$(sed -n '/^\[Service\]/,$p' <<<"$U")" \
+  || fail "falling asleep (SIGTERM, Node exits 143) must count as a clean stop, or every nap pages as DOWN"
+ok "app unit: bound to its proxy, waits until it listens, naps cleanly, not enabled at boot"
 S=$(wake_socket_unit skif 4027); P=$(wake_proxy_unit skif 24027)
 grep -qx "ListenStream=127.0.0.1:4027" <<<"$S" && grep -qx "WantedBy=sockets.target" <<<"$S" || fail "socket: $S"
 grep -qx "Requires=skif-app.service" <<<"$P" && grep -qx "After=skif-app.service" <<<"$P" \

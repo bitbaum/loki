@@ -252,6 +252,12 @@ wake_inner_port() { printf '%s' "$(($1 + 20000))"; }
 # sleeping site: bound to its wake proxy, ready only once it accepts
 # connections (so the proxy, ordered after it, never dials a closed port), and
 # with no [Install] section — the socket is what is enabled at boot, not the app.
+#
+# Falling asleep is a stop, not a crash: the proxy idles out, BindsTo stops the
+# app with SIGTERM, and Node exits 143. Without SuccessExitStatus systemd files
+# that as Result=exit-code, the unit reads `failed`, and every nap paged
+# Telegram as 🔴 DOWN quoting the boot banner, then ✅ RECOVERED on the next
+# visit — ~10 sites flapping all day on 2026-10-08, burying real alerts.
 sleep_app_unit() {
   local wait
   wait="ExecStartPost=/bin/bash -c 'for i in \$\$(seq 1 300); do (echo > /dev/tcp/127.0.0.1/$3) 2>/dev/null && exit 0; sleep 0.1; done; exit 1'"
@@ -260,7 +266,7 @@ sleep_app_unit() {
     skip { next }
     { print }
     /^\[Unit\]$/ { print bind }
-    /^ExecStart=/ { print wait }
+    /^ExecStart=/ { print wait; print "SuccessExitStatus=143 SIGTERM" }
   ' <<<"$1"
 }
 
