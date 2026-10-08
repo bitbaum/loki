@@ -25,6 +25,8 @@ export type ReportAnswer = {
   owner?: boolean;
   building?: boolean;
   buildNote?: string;
+  /** The owner's build, in Loki ("Watch the fix") — the receipt links to it. */
+  followUrl?: string;
 };
 
 /** File a report about the page the person is on. Throws the server's own

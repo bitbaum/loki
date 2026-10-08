@@ -276,8 +276,17 @@ export function createConversation(opts: {
     return box;
   }
 
-  function render() {
+  /**
+   * Rebuild the thread. Follows the newest message only when you were already
+   * at the bottom (or it is your own action); reading further up, your place
+   * is kept — a remark arriving while you reach for a button must not move
+   * the button out from under the tap (it did, on loki.orangecat.ch).
+   */
+  function render(follow = false) {
+    const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 24;
+    const keep = log.scrollTop;
     log.textContent = "";
+
     const a = opts.assistant();
     if (a === "concierge" && !owner()) {
       for (const g of CONCIERGE_GREETING)
@@ -365,7 +374,11 @@ export function createConversation(opts: {
             : `Sent to whoever builds this site: “${item.text}”. Thank you.`,
         );
         if (item.claimUrl) {
-          const t = h("a", "track", "Track what happens next →");
+          const t = h(
+            "a",
+            "track",
+            item.owner ? "Follow the build →" : "Track what happens next →",
+          );
           t.href = item.claimUrl;
           t.target = "_blank";
           t.rel = "noopener noreferrer";
@@ -376,7 +389,7 @@ export function createConversation(opts: {
     });
     if (draftOpen) log.appendChild(draftOpen);
     renderStarters();
-    log.scrollTop = log.scrollHeight;
+    log.scrollTop = follow || atBottom ? log.scrollHeight : keep;
   }
 
   function renderStarters() {
@@ -419,7 +432,7 @@ export function createConversation(opts: {
     sendBtn.disabled = true;
     err.textContent = "";
     remember({ kind: "you", at: Date.now(), text });
-    render();
+    render(true);
     const pending = bubble(
       "bot from-loki pending",
       "Loki",
@@ -462,7 +475,7 @@ export function createConversation(opts: {
       err.textContent = e instanceof Error ? e.message : "Could not reach Loki — try again.";
     } finally {
       busy = false;
-      render();
+      render(true);
       sendBtn.disabled = !input.value.trim();
     }
   }
@@ -557,10 +570,12 @@ export function createConversation(opts: {
           owner: res.owner === true,
           ...(res.building ? { building: true } : {}),
           ...(res.buildNote ? { note: res.buildNote } : {}),
-          ...(res.claimUrl ? { claimUrl: res.claimUrl } : {}),
+          // One link either way: a visitor tracks their report, the owner
+          // follows the build Loki just started.
+          ...(res.claimUrl || res.followUrl ? { claimUrl: res.followUrl ?? res.claimUrl } : {}),
         });
         syncContext();
-        render();
+        render(true);
       } catch (e) {
         go.disabled = false;
         go.textContent = owner() ? "Build it" : "Send";
@@ -568,22 +583,23 @@ export function createConversation(opts: {
       }
     });
     draftOpen = card;
-    render();
+    render(true);
     box.focus();
     box.setSelectionRange(box.value.length, box.value.length);
   }
 
   syncContext();
-  render();
+  render(true);
 
   return {
     el,
     input,
     focus: () => input.focus(),
     /** Re-read who is speaking (owner/visitor) and what is picked. */
-    refresh: () => {
+    /** `follow`: jump to the newest message (opening the panel to see it). */
+    refresh: (follow = false) => {
       syncContext();
-      render();
+      render(follow);
     },
     ask: (q: string) => void ask(q),
     review,
@@ -604,7 +620,7 @@ export function createConversation(opts: {
     /** Loki says something unprompted (e.g. "this site is not yours"). */
     say: (text: string) => {
       remember({ kind: "loki", at: Date.now(), speaker: "loki", text });
-      render();
+      render(true);
     },
     /** Closing the panel: stop the mic; the thread itself is kept. */
     close: () => {

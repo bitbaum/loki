@@ -24,7 +24,10 @@ const SITE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
 <main><h1>Shop</h1><input id="email" placeholder="Your email">
 <button id="buy">Buy now</button><button id="dead">Save</button><button id="ok">Refresh</button>
 <button id="find">Find a size</button><button id="icon"><svg width="10" height="10"></svg></button>
-<img src="/shop/hero.png" width="40" height="40"><button id="jank">Load more</button></main>
+<img src="/shop/hero.png" width="40" height="40"><button id="jank">Load more</button>
+<nav><a href="/roomy" style="display:inline-block;height:20px;margin:24px">Roomy nav link</a></nav>
+<div><a href="/p1" style="display:inline-block;width:16px;height:16px">1</a><a href="/p2" style="display:inline-block;width:16px;height:16px">2</a></div></main>
+<footer style="content-visibility:auto;margin-top:4000px"><a href="/about">About the shop</a></footer>
 <script>document.getElementById("buy").onclick = () => fetch("/shop/checkout?token=secret", { method: "POST" });
 document.getElementById("ok").onclick = () => fetch("/shop/ok");
 document.getElementById("find").onclick = () => fetch("/shop/sizes?user=secret");
@@ -167,6 +170,57 @@ async function main() {
     await s.close();
   }
 
+  // ---- the launcher IS the status; the top bar only when it cannot be seen ----
+  {
+    const s = await open(browser, js, "#loki-owner=pass123");
+    await s.p.keyboard.press("Escape");
+    const state = () =>
+      s.p.evaluate(() => {
+        const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+        const fab = r.querySelector(".fab") as HTMLElement;
+        const bar = r.querySelector(".watch-pill") as HTMLElement;
+        const bubble = r.querySelector(".fab-bubble") as HTMLElement;
+        return {
+          label: fab.innerText.replace(/\s+/g, " ").trim(),
+          watching: fab.classList.contains("watching"),
+          badge: (r.querySelector(".fab-badge") as HTMLElement).innerText,
+          bar: getComputedStyle(bar).display !== "none",
+          bubble: getComputedStyle(bubble).display !== "none" ? bubble.innerText : "",
+        };
+      });
+    let st = await state();
+    ok(
+      st.label.startsWith("Loki · watching") && st.watching,
+      `the owner's launcher says so (${st.label})`,
+    );
+    ok(!st.bar, "with the launcher showing it, the top bar stays off the site");
+    await s.p.click("#find");
+    await s.p.waitForTimeout(600);
+    st = await state();
+    ok(
+      st.badge === "1" || st.badge === "2",
+      `what Loki said while closed is counted (${st.badge})`,
+    );
+    ok(st.bubble.includes("/shop/sizes"), `…and shown beside the launcher (${st.bubble})`);
+    await s.p.evaluate(() =>
+      (
+        document
+          .getElementById("loki-feedback-host")!
+          .shadowRoot!.querySelector(".fab") as HTMLElement
+      ).click(),
+    );
+    await s.p.keyboard.press("Escape");
+    st = await state();
+    ok(st.badge === "", "opening Loki clears the count");
+    // A site that hides the launcher must not hide that Loki is watching.
+    await s.p.evaluate(() => document.documentElement.setAttribute("data-fc-place", "hidden"));
+    await s.p.waitForTimeout(2600);
+    st = await state();
+    ok(st.bar, "launcher hidden by the site → the top bar says Loki is watching");
+    ok(s.errors.length === 0, `no page errors (${s.errors.join("; ")})`);
+    await s.close();
+  }
+
   // ---- a button that does nothing, and one that works ----
   {
     const s = await open(browser, js, "#loki-owner=pass123");
@@ -278,8 +332,14 @@ async function main() {
     ok(session.includes("GET /shop/sizes → 404"), "and what the page answered");
     ok(/page \/[\s\S]*page \//.test(session), "and both page loads — the trail survived reload");
     ok(
-      session.includes("no name a screen reader can read"),
-      "page checks: the unnamed icon button",
+      session.includes("1 button(s)/link(s) have no name a screen reader can read"),
+      `page checks: the unnamed icon button — and ONLY it, not the labelled footer link the browser skipped painting (${/\d+ button\(s\)[^\n]*/.exec(session)?.[0]})`,
+    );
+    const crowded = /(\d+) tap target\(s\) are under 24px and crowded[^\n]*/.exec(session);
+    ok(!!crowded, "page checks: the two cramped 16px links are a finding");
+    ok(
+      !!crowded && !crowded[0].includes("Roomy"),
+      `…a roomy 20px link is not — WCAG's spacing exception (${crowded?.[0]})`,
     );
     ok(session.includes("no alt text"), "page checks: the image without alt");
     ok(session.includes("failed to load"), "page checks: the broken image");

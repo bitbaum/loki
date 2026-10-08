@@ -102,6 +102,35 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
   .fab.scrolling { opacity: .3; pointer-events: none; }
 }
 
+/* The owner's launcher is the status of Loki on their site: full weight,
+   labelled, a live dot while it watches, a count of what it said meanwhile.
+   "Quiet until wanted" is for strangers on a client's site, not its owner. */
+.fab.owner { opacity: 1; transform: none; box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); }
+.fab.owner .fab-label { display: inline; }
+.fab.watching { border-color: ${theme.accent}; }
+.fab.watching .dot { animation: fcpulse 1.6s ease-in-out infinite; }
+.fab-badge {
+  position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: ${theme.accent}; color: ${ink};
+  font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+}
+.fab-bubble {
+  position: fixed; z-index: 2147483000; max-width: min(300px, calc(100vw - 32px));
+  display: flex; align-items: flex-start; gap: 8px; padding: 10px 10px 10px 12px; cursor: pointer;
+  background: ${theme.surface}; color: ${theme.text}; font-size: 12px; line-height: 1.45;
+  border: 1px solid ${theme.accent}; border-radius: ${rs}; box-shadow: 0 8px 32px rgba(0,0,0,.45);
+}
+.fab-bubble-text { min-width: 0; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.fab-bubble-x { flex: none; color: ${theme.textSecondary}; font-size: 11px; padding: 0 2px; }
+@media (max-width: 480px) {
+  .fab.owner { width: auto; padding: 0 12px; }
+  .fab.owner .fab-label { display: inline; font-size: 12px; }
+  .fab.owner .fab-icon { display: none; }
+  .fab.owner .dot { display: block; }
+  .fab.owner.scrolling { opacity: 1; pointer-events: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .fab.watching .dot { animation: none; } }
+
 .backdrop { position: fixed; inset: 0; z-index: 2147483001; background: rgba(0,0,0,.35); }
 
 /* ---- panel: Loki's card ---- */
@@ -148,9 +177,16 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 /* composer: the text, then one row — attach tools left, the two ways to send right */
 .composer { display: flex; flex-direction: column; gap: 8px; }
 .composer .chatinput { min-height: 64px; }
-.composer-actions { display: flex; align-items: center; gap: 8px; }
+/* Wraps rather than overflows: with a mic (every real browser) the row once
+   pushed Ask Loki out of the panel. The tools are icons at rest; a recording's
+   timer and a screenshot count still show, because then they say something. */
+.composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .composer-actions .tools { margin-right: auto; }
 .composer-actions .go, .composer-actions .ghost { height: 38px; padding: 0 12px; white-space: nowrap; }
+.composer-actions .mic, .composer-actions .attach { height: 38px; min-width: 38px; padding: 0 10px; justify-content: center; }
+.composer-actions .mic:not(.rec):not(.busy) span:last-child { display: none; }
+.composer-actions .attach span:last-child { display: none; }
+.composer-actions .attach.has span:last-child { display: inline; }
 .tools { display: flex; gap: 8px; align-items: center; }
 .msg.noticed { border-color: ${theme.accent}; }
 .msg.noticed .who { color: ${theme.accent}; }

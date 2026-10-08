@@ -14,6 +14,7 @@ import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
 import { createFeedbackClaimToken } from "@/lib/feedback/claim-token";
 import { appUrl } from "@/lib/email";
+import { watchFixPath } from "@/lib/feedback/tour-token";
 import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
 import { startOwnerBuild } from "@/lib/feedback/owner-build";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
@@ -187,7 +188,13 @@ export async function POST(req: NextRequest) {
   // not hidden: the note is stored either way and waits in the inbox.
   if (fromOwner) {
     const build = await startOwnerBuild(token.userId, token.projectId, created.id);
-    return NextResponse.json({ ok: true, owner: true, ...build }, { headers: CORS_HEADERS });
+    // The receipt in the widget links to this fix in Loki, so "On it" is never
+    // a dead end: the owner follows the build to live from the same thread.
+    const followUrl = `${appUrl()}${watchFixPath(created.id)}`;
+    return NextResponse.json(
+      { ok: true, owner: true, ...build, followUrl },
+      { headers: CORS_HEADERS },
+    );
   }
 
   const claim = createFeedbackClaimToken(created.id);

@@ -39,6 +39,8 @@ export function createAttachments(opts: {
       container.appendChild(shotWrap);
     }
     attachBtn.style.display = shots.length >= max ? "none" : "";
+    // A compact composer shows the label only once it says something new.
+    attachBtn.classList.toggle("has", shots.length > 0);
     // Icon + label every time: the old branch replaced the whole button
     // with bare text once a shot was attached, so the camera vanished.
     attachBtn.textContent = "";
