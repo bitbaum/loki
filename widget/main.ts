@@ -263,16 +263,19 @@ interface LokiApi {
     const hdrPage = h("div", "page");
     hdrText.append(brand, hdrPage);
     const hdrActions = h("div", "hdr-actions");
+    // Watch's controls live in the header, in plain words: Watch (anyone not
+    // yet known as the owner), Review + Stop watching (watching), Watch again
+    // (stopped). Starting and stopping is never more than one tap away.
     const watchBtn = h("button", "watchbtn");
     watchBtn.type = "button";
+    const stopBtn = h("button", "watchbtn", "Stop watching");
+    stopBtn.type = "button";
+    stopBtn.title = "Loki stops recording what you do here until you start it again";
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
-    hdrActions.append(watchBtn, closeBtn);
+    hdrActions.append(watchBtn, stopBtn, closeBtn);
     hdr.append(hdrText, hdrActions);
-    // "How do I make Loki watch?" had no answer on the site itself: the pass
-    // only arrived through one link in Loki. The header always says where
-    // Watch stands, and for anyone not yet recognised, how the owner turns it on.
     const watchOffer = watchOfferView(ownerSignInUrl(apiBase, token, location.href));
     watchBtn.addEventListener("click", () => {
       if (watchSession?.on()) conversation.review();
@@ -280,16 +283,22 @@ interface LokiApi {
       else watchSession?.resume();
       syncWatch();
     });
+    stopBtn.addEventListener("click", () => {
+      watchSession?.stop();
+      syncWatch();
+    });
     function syncWatch() {
       const on = watchSession?.on() ?? false;
-      watchBtn.textContent = !ownerPass ? "Watch" : on ? "Review" : "Resume watching";
-      watchBtn.classList.toggle("on", on);
+      watchBtn.textContent = !ownerPass ? "Watch" : on ? "Review" : "Watch again";
+      watchBtn.classList.toggle("on", on || !!ownerPass);
       watchBtn.title = !ownerPass
-        ? "Let Loki watch you use this site and say what to improve"
+        ? "Let Loki watch you use this site and tell you what isn't working"
         : on
-          ? "Loki reviews what you just did and suggests improvements"
-          : "Watching is paused";
+          ? "Loki reviews everything you just did and suggests improvements"
+          : "Loki watches again and tells you when something isn't right";
+      stopBtn.style.display = on ? "" : "none";
       if (ownerPass) watchOffer.style.display = "none";
+      conversation?.refresh();
     }
 
     const modes = parseWidgetSurfaceModes(modesAttr);
@@ -376,16 +385,19 @@ interface LokiApi {
       if (!panel.isConnected) openPanel();
       if (question.trim()) conversation.ask(question);
     };
-    // The owner: watch mode, with its pill on screen the whole time it
-    // records (widget/watch.ts). Review — on the pill, in the header, or the
-    // first starter — asks Loki about the session, in this same thread.
-    const review = () => {
-      if (!panel.isConnected) openPanel();
-      conversation.review();
-    };
+    // The owner: watch mode, with its bar on screen the whole time it records
+    // (widget/watch.ts). What it notices, Loki says in this conversation; the
+    // bar's Show opens it there.
     const watchOpts = { root, host, theme, token, apiBase, pass: () => ownerPass };
     if (ownerPass)
-      watchSession = startWatchMode({ ...watchOpts, onReview: review, onChange: syncWatch });
+      watchSession = startWatchMode({
+        ...watchOpts,
+        onShow: () => {
+          if (!panel.isConnected) openPanel();
+        },
+        onRemark: (r) => conversation.noticed(r),
+        onChange: syncWatch,
+      });
     // Only now can a click actually open something — see LokiApi.ready.
     api.ready = true;
     if (ownerDenied) {

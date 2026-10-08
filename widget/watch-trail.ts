@@ -234,3 +234,94 @@ export function sessionForReview(trail: TrailEntry[], checks: string[], now: num
   if (body.length > room) body = `…\n${body.slice(body.length - room + 2)}`;
   return `${head}${body}${tail}`.slice(0, REVIEW_SESSION_MAX);
 }
+
+/** What watch remarked on, as recorded — `after` is the tap that led there. */
+export type NoticeKind = "4xx" | "slow" | "console" | "load" | "longtask" | "cls" | "checks";
+export type Notice = { kind: NoticeKind; text: string; after?: string | null };
+
+const STATUS_WORDS: Record<number, string> = {
+  400: "was rejected as malformed",
+  401: "was refused — not signed in",
+  403: "was refused — not allowed",
+  404: "found nothing there (404)",
+  405: "was refused — wrong kind of request",
+  408: "timed out",
+  409: "hit a conflict",
+  410: "is gone",
+  413: "was too large",
+  422: "was rejected as invalid",
+  429: "was turned away — too many requests",
+};
+
+/**
+ * A remark in words the owner reads in the conversation — what happened, after
+ * what — and the change request "Fix this" would send. Pure: built from the
+ * recorded text alone, by rules, so speaking up costs no model call (no
+ * background AI on the shared free tier). "Why?" is where a model comes in.
+ */
+export function explainNotice(n: Notice): { say: string; fix: string } {
+  const after = n.after ? `After you tapped ${n.after}, ` : "";
+  const afterFix = n.after ? ` after tapping ${n.after}` : "";
+  const req = /^([A-Z]+) (\S+) → (\d{3}|no response)(?: in ([\d.]+)s)?/.exec(n.text);
+  if ((n.kind === "4xx" || n.kind === "slow") && req) {
+    const [, , path, status, secs] = req;
+    if (n.kind === "slow") {
+      return {
+        say: `${after}the page waited ${secs}s for ${path} — long enough to feel broken.`,
+        fix: `Make ${path} answer faster${afterFix} (it took ${secs}s).`,
+      };
+    }
+    const words = STATUS_WORDS[Number(status)] ?? `was rejected (${status})`;
+    return {
+      say: `${after}the page asked for ${path} and it ${words}.`,
+      fix: `Fix the request to ${path}${afterFix}: it answers ${status}.`,
+    };
+  }
+  switch (n.kind) {
+    case "console": {
+      const msg = n.text.replace(/^console error:\s*/, "");
+      return {
+        say: `${after}the page reported an error of its own: “${msg}”.`,
+        fix: `Fix the error this page logs${afterFix}: “${msg}”.`,
+      };
+    }
+    case "load":
+      return {
+        say: `This page was slow to arrive — ${n.text.replace(/^this page /, "it ")}. Some visitors leave before that.`,
+        fix: `Make this page load faster — ${n.text.replace(/^this page /, "it ")}.`,
+      };
+    case "longtask":
+      return {
+        say: `${n.text.charAt(0).toUpperCase()}${n.text.slice(1)}.`,
+        fix: `Stop the page freezing ${n.text.replace(/ the page froze for .*$/, "").replace(/^after /, "after ")}.`,
+      };
+    case "cls":
+      return {
+        say: "Content jumped around on this page while you were looking at it — easy to tap the wrong thing.",
+        fix: "Stop the content on this page jumping around as it loads (reserve space for what arrives late).",
+      };
+    default:
+      return { say: n.text, fix: n.text };
+  }
+}
+
+/**
+ * The page checks as one remark: a short list, and one request that fixes them
+ * all. Null when the page is clean — silence is the right answer then.
+ */
+export function explainChecks(
+  checks: string[],
+): { say: string; fix: string; short: string } | null {
+  if (!checks.length) return null;
+  const list = checks.map((c) => `• ${c}`).join("\n");
+  return {
+    say: `Looking at this page, ${checks.length === 1 ? "one thing stands out" : `${checks.length} things stand out`}:\n${list}`,
+    fix: `Fix these on this page:\n${list}`,
+    short: `${checks.length === 1 ? "one thing" : `${checks.length} things`} on this page could be better`,
+  };
+}
+
+/** Same remark, same signature — so a reload does not say it again. */
+export function noticeSignature(path: string, n: Notice): string {
+  return `${path}|${n.kind}|${n.text.replace(/\d+(\.\d+)?/g, "#").slice(0, 120)}`;
+}

@@ -90,10 +90,10 @@ async function open(browser: Browser, body: string, js: string) {
 const say = (p: Page, text: string) =>
   p.evaluate((text) => {
     const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-    const input = r.querySelector(".convo .chatform .chatinput") as HTMLTextAreaElement;
+    const input = r.querySelector(".convo .composer .chatinput") as HTMLTextAreaElement;
     input.value = text;
     input.dispatchEvent(new Event("input"));
-    (r.querySelector(".convo .chatform .go") as HTMLElement).click();
+    (r.querySelector(".convo .composer .go") as HTMLElement).click();
   }, text);
 
 const hosts = (p: Page) =>
@@ -218,6 +218,51 @@ async function main() {
     await t.close();
   }
 
+  // ---- feedback, just like before: pick what it is about, write, send — no AI ----
+  {
+    const t = await open(browser, tag(), js);
+    await click(t.p, ".fab");
+    ok(
+      JSON.stringify(await texts(t.p, ".segbtn")) ===
+        JSON.stringify(["This page", "Whole site", "An element"]),
+      "feedback is about this page, the whole site or an element",
+    );
+    await click(t.p, ".segbtn", 2);
+    await t.p.waitForTimeout(150);
+    const b = await t.p.$eval("#book", (e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    await t.p.mouse.click(b.x, b.y);
+    const done = (await texts(t.p, ".pickbar button")).findIndex((s) => /done/i.test(s));
+    await click(t.p, ".pickbar button", done);
+    await t.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      const input = r.querySelector(".composer .chatinput") as HTMLTextAreaElement;
+      input.value = "This should say Book now";
+      input.dispatchEvent(new Event("input"));
+    });
+    ok(
+      (await texts(t.p, ".composer .feedback"))[0] === "Send as feedback",
+      "Send as feedback is right there",
+    );
+    await click(t.p, ".composer .feedback");
+    ok(
+      (await reportText(t.p)) === "This should say Book now",
+      "…opening the confirmation directly",
+    );
+    await click(t.p, ".sendcard .go");
+    await t.p.waitForTimeout(400);
+    ok(t.advised.length === 0, "feedback never waits on an AI answer");
+    const r = t.reports[0] as (Report & { selectedElements?: { selector: string }[] }) | undefined;
+    ok(
+      r?.suggestion === "This should say Book now" && r?.scope === "element",
+      "filed, about the element",
+    );
+    ok(r?.selectedElements?.[0]?.selector.includes("book") ?? false, "with the element attached");
+    await t.close();
+  }
+
   // ---- one conversation: ask Loki, then send what it recommends ----
   {
     const t = await open(browser, tag(), js);
@@ -240,8 +285,15 @@ async function main() {
       `…with one link through Loki's sign-in back to this page (${offer.href})`,
     );
 
-    await click(t.p, ".ctx", 0); // About: this page → the whole site
-    ok((await texts(t.p, ".ctx"))[0] === "About: the whole site", "the scope is one tap");
+    await click(t.p, ".segbtn", 1); // About: Whole site
+    ok(
+      (await t.p.evaluate(
+        () =>
+          document.getElementById("loki-feedback-host")!.shadowRoot!.querySelector(".segbtn.on")
+            ?.textContent,
+      )) === "Whole site",
+      "page / whole site / element is one control, as before",
+    );
     await click(t.p, ".starter", 0);
     await t.p.waitForTimeout(800);
     const sent = t.advised[0];
@@ -289,7 +341,7 @@ async function main() {
   {
     const t = await open(browser, tag(), js);
     await click(t.p, ".fab");
-    await click(t.p, ".ctx", 1); // Point at something → picker
+    await click(t.p, ".segbtn", 2); // An element → picker
     await t.p.waitForTimeout(150);
     const b = await t.p.$eval("#book", (e) => {
       const r = e.getBoundingClientRect();
@@ -299,7 +351,7 @@ async function main() {
     await t.p.mouse.click(b.x, b.y);
     const done = (await texts(t.p, ".pickbar button")).findIndex((s) => /done/i.test(s));
     await click(t.p, ".pickbar button", done);
-    ok((await texts(t.p, ".ctx"))[1]?.startsWith("1 element") ?? false, "the pick is shown");
+    ok((await texts(t.p, ".segbtn"))[2]?.startsWith("1 element") ?? false, "the pick is shown");
     await say(t.p, "Is this button fine?");
     await t.p.waitForTimeout(600);
     const sent = t.advised[0];

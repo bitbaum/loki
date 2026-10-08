@@ -15,14 +15,21 @@ ends up with two copies of the tag still renders one launcher (all proven in
 
 ## What the panel offers
 
-One conversation with Loki — no tabs. Type, speak, paste a screenshot or point
-at an element; Loki answers about this page (one tap switches to the whole
-site). Every change Loki recommends, and your own message as written, has
-**Send to builder →**: a short confirmation in the thread, then the receipt
-(and a link to track it) in the thread too. The conversation is kept per tab,
-so it survives the site's own page loads. **Watch** sits in the header: the
-owner gets Review; anyone else gets "This is my site — sign in with Loki",
-which comes straight back to the page with Watch on.
+One conversation with Loki. **About: This page · Whole site · An element**
+says what you mean; then write (or speak, or paste a screenshot) and choose:
+**Send as feedback** goes straight to whoever builds the site, **Ask Loki**
+gets a second opinion first. Every change Loki recommends has **Send to
+builder →** too. The confirmation and the receipt (with a link to track it)
+appear in the conversation, which is kept per tab so it survives page loads.
+
+**Watch** sits in the header. Anyone not yet known as the owner gets "This is
+my site — sign in with Loki", which comes straight back with Watch on. While it
+watches, a bar at the top says so, Loki **speaks up in the conversation** when
+something does not work or does not look right (a failed request, a frozen
+page, content jumping, unlabelled buttons, broken images — each in plain words,
+with **Fix this** and **Why does it matter?**), and **Stop watching** is one
+tap in the header or the bar. Speaking up is rule-based; a model only runs on
+Why or Review.
 
 `data-fc-modes` only decides who answers:
 

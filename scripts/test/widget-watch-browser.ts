@@ -183,15 +183,26 @@ async function main() {
       ),
       "the report says which button did nothing",
     );
-    // Report opens the note with the trail attached.
-    await clickPill(s.p, "Report");
+    // Loki said so in the conversation; Show on the bar opens it there.
+    await clickPill(s.p, "Show");
     await s.p.waitForTimeout(300);
-    const opened = await s.p.evaluate(() => {
+    const said = await s.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-      const diag = r.querySelector(".diag") as HTMLElement | null;
-      return !!r.querySelector(".panel") && diag?.style.display === "block";
+      const m = Array.from(r.querySelectorAll(".msg.noticed")).find((x) =>
+        (x as HTMLElement).innerText.includes("three times"),
+      ) as HTMLElement | undefined;
+      return {
+        open: !!r.querySelector(".panel"),
+        text: m?.innerText ?? "",
+        fix: !!m?.querySelector(".change-send"),
+      };
     });
-    ok(opened, "Report opens the note with the trail attached");
+    ok(said.open, "Show opens the conversation");
+    ok(
+      said.text.includes("three times and nothing happened") && said.text.includes("started a fix"),
+      `Loki says what broke and that a fix is under way (${said.text})`,
+    );
+    ok(!said.fix, "an already-started fix offers no second Fix button");
     await s.close();
   }
 
@@ -206,16 +217,58 @@ async function main() {
     await s.p.click("#find");
     await s.p.waitForTimeout(500);
     ok(
-      (await pillText(s.p))?.includes("noticed") === true,
-      `a 404 is noticed on the pill (${await pillText(s.p)})`,
+      (await pillText(s.p))?.includes("/shop/sizes") === true,
+      `the bar says what Loki noticed, in words (${await pillText(s.p)})`,
     );
     ok(s.reports.length === 0, "a 404 is a remark, not an automatic fix");
-    ok(s.advice.length === 0, "no model runs until Review is pressed");
+    ok(s.advice.length === 0, "speaking up costs no model call");
+    await clickPill(s.p, "Show");
+    await s.p.waitForTimeout(200);
+    const remark = await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      const m = Array.from(r.querySelectorAll(".msg.noticed")).find((x) =>
+        (x as HTMLElement).innerText.includes("/shop/sizes"),
+      ) as HTMLElement | undefined;
+      (m?.querySelector(".change-send") as HTMLElement | null)?.click();
+      return m?.innerText ?? "";
+    });
+    ok(
+      remark.includes("After you tapped button “Find a size”") &&
+        remark.includes("found nothing there (404)"),
+      `Loki says it in the conversation, naming the tap (${remark})`,
+    );
+    const card = await s.p.evaluate(
+      () =>
+        (
+          document
+            .getElementById("loki-feedback-host")!
+            .shadowRoot!.querySelector(".sendcard textarea") as HTMLTextAreaElement | null
+        )?.value ?? "",
+    );
+    ok(card.includes("Fix the request to /shop/sizes"), "Fix this opens the request, written out");
+    await s.p.keyboard.press("Escape");
 
-    // A trail survives a full page load: a multi-page site is one visit.
+    // A trail survives a full page load: a multi-page site is one visit —
+    // and what Loki already said, it does not say again.
     await s.p.reload();
-    await s.p.waitForTimeout(1000);
-    await clickPill(s.p, "Review");
+    await s.p.waitForTimeout(3500);
+    const repeats = await s.p.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("loki-thread:fcw_fixture") ?? "[]").filter(
+          (i: { kind: string; text: string }) =>
+            i.kind === "noticed" && i.text.includes("/shop/sizes"),
+        ).length,
+    );
+    ok(repeats === 1, `a reload does not repeat a remark (${repeats})`);
+    await clickPill(s.p, "Show");
+    await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      (
+        Array.from(r.querySelectorAll(".watchbtn")).find(
+          (b) => (b as HTMLElement).innerText === "Review",
+        ) as HTMLElement
+      ).click();
+    });
     await s.p.waitForTimeout(800);
     const a = s.advice[0];
     ok(s.advice.length === 1, `Review asks Loki once (got ${s.advice.length})`);
@@ -238,7 +291,7 @@ async function main() {
         reply: (
           Array.from(r.querySelectorAll(".convo .msg.from-loki")).pop() as HTMLElement | undefined
         )?.innerText,
-        change: (r.querySelector(".convo .change-text") as HTMLElement | null)?.innerText,
+        change: (r.querySelector(".convo .changes .change-text") as HTMLElement | null)?.innerText,
       };
     });
     ok(
@@ -250,7 +303,7 @@ async function main() {
     // Requesting that change carries the session's steps to the builder.
     await s.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-      (r.querySelector(".convo .change-send") as HTMLElement).click();
+      (r.querySelector(".convo .changes .change-send") as HTMLElement).click();
     });
     await s.p.waitForTimeout(200);
     const report = await s.p.evaluate(() => {
@@ -289,11 +342,40 @@ async function main() {
     const s = await open(browser, js, "#loki-owner=pass123");
     await s.p.keyboard.press("Escape");
     await clickPillButton(s.p);
-    ok((await pillText(s.p))?.startsWith("Loki paused") === true, "pause is visible");
+    ok((await pillText(s.p))?.startsWith("Loki stopped watching") === true, "stopping is visible");
     await s.p.click("#buy");
     await s.p.waitForTimeout(600);
-    ok(s.reports.length === 0, "paused, a failure files nothing");
+    ok(s.reports.length === 0, "stopped, a failure files nothing");
     await clickPillButton(s.p); // leave it resumed for the next context
+    await s.close();
+  }
+
+  // ---- Stop watching from the panel's header: nothing recorded, nothing said ----
+  {
+    const s = await open(browser, js, "#loki-owner=pass123");
+    const header = (label: string) =>
+      s.p.evaluate((label) => {
+        const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+        const b = Array.from(r.querySelectorAll(".watchbtn")).find(
+          (x) =>
+            (x as HTMLElement).innerText === label && (x as HTMLElement).style.display !== "none",
+        ) as HTMLElement | undefined;
+        b?.click();
+        return !!b;
+      }, label);
+    ok(await header("Stop watching"), "the header offers Stop watching while Loki watches");
+    await s.p.keyboard.press("Escape");
+    await s.p.click("#find");
+    await s.p.waitForTimeout(3200);
+    const after = await s.p.evaluate(() => ({
+      thread: sessionStorage.getItem("loki-thread:fcw_fixture") ?? "",
+      trail: sessionStorage.getItem("loki-watch-trail:fcw_fixture") ?? "",
+    }));
+    ok(!after.thread.includes("noticed"), "stopped, Loki says nothing");
+    ok(!after.trail.includes("Find a size"), "stopped, nothing is recorded");
+    await clickPill(s.p, "Show");
+    ok(await header("Watch again"), "and the header offers Watch again");
+    ok((await pillText(s.p))?.startsWith("Loki is watching") === true, "which starts it again");
     await s.close();
   }
 
