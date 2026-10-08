@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { VALID_CURRENCIES, VALID_FREQUENCIES, FREQUENCY } from "@/config/subscriptions";
+import { DateInput } from "@/components/ui/date-input";
 
 type EditData = {
   name: string;
@@ -105,7 +106,7 @@ export function SubscriptionEditForm({
       </div>
       <div className="flex gap-2 items-center">
         <label className="text-xs text-text-tertiary shrink-0">Next due</label>
-        <input
+        <DateInput
           type="date"
           value={nextDue}
           onChange={(e) => setNextDue(e.target.value)}

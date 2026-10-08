@@ -12,6 +12,7 @@ import { useCreateMutation } from "@/hooks/use-create-mutation";
 import { postJson } from "@/lib/api/fetch";
 import { SUBSCRIPTION_FORM } from "@/config/ai-forms";
 import type { CreateSubscriptionInput } from "@/db/queries/money";
+import { DateInput } from "@/components/ui/date-input";
 
 export function NewSubscriptionButton() {
   const form = useAiForm({
@@ -119,7 +120,7 @@ export function NewSubscriptionButton() {
           </select>
         </Field>
         <Field label="Next Due" aiTouched={form.isAiTouched("nextDue")}>
-          <input
+          <DateInput
             type="date"
             value={form.text("nextDue")}
             onChange={(e) => form.setValue("nextDue", e.target.value)}

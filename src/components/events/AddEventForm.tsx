@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, X, Loader2 } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import type { EventRow } from "@/db/queries/events";
+import { DateInput } from "@/components/ui/date-input";
 
 export function AddEventForm({
   onCreated,
@@ -122,7 +123,7 @@ export function AddEventForm({
           placeholder="URL (optional)"
           className="flex-1 ui-input-compact"
         />
-        <input
+        <DateInput
           type="date"
           value={deadline}
           onChange={(e) => setDeadline(e.target.value)}

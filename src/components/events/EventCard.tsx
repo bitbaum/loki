@@ -10,6 +10,7 @@ import { deadlineLabel, toLocalDateStr } from "@/lib/dates";
 import { patchJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import type { EventRow } from "@/db/queries/events";
 import { EVENT_STATUS } from "@/lib/constants/statuses";
+import { DateInput } from "@/components/ui/date-input";
 
 export function EventCard({
   event,
@@ -121,7 +122,7 @@ export function EventCard({
           className="ui-input-compact w-full"
         />
         <div className="flex gap-2">
-          <input
+          <DateInput
             type="date"
             value={draftDeadline}
             onChange={(e) => setDraftDeadline(e.target.value)}

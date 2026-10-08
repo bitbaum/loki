@@ -8,6 +8,7 @@ import { GOAL_FORM } from "@/config/ai-forms";
 import { Field } from "@/components/ui/form";
 import { ModalForm } from "@/components/ui/modal-form";
 import { useCreateMutation } from "@/hooks/use-create-mutation";
+import { DateInput } from "@/components/ui/date-input";
 
 export function NewGoalButton({ goals }: { goals: GoalWithChildren[] }) {
   // One store for the whole form. The user types into it and the assistant
@@ -80,7 +81,7 @@ export function NewGoalButton({ goals }: { goals: GoalWithChildren[] }) {
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Target Date" aiTouched={form.isAiTouched("targetDate")}>
-          <input
+          <DateInput
             type="date"
             value={form.text("targetDate")}
             onChange={(e) => form.setValue("targetDate", e.target.value)}
