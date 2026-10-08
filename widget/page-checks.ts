@@ -52,7 +52,13 @@ function accessibleName(el: Element): string {
   const imgAlt = Array.from(el.querySelectorAll("img[alt]"))
     .map((i) => i.getAttribute("alt"))
     .join(" ");
-  return clean(`${(el as HTMLElement).innerText ?? el.textContent ?? ""} ${imgAlt}`);
+  // innerText is "" — not null — for anything the browser skipped painting
+  // (content-visibility: auto below the fold), so `??` never fell back and a
+  // whole labelled footer read as "no name". Seen on loki.orangecat.ch.
+  const svgTitle = Array.from(el.querySelectorAll("svg title"))
+    .map((t) => t.textContent)
+    .join(" ");
+  return clean(`${(el as HTMLElement).innerText || el.textContent || ""} ${imgAlt} ${svgTitle}`);
 }
 
 function fieldHasLabel(el: HTMLElement): boolean {
@@ -62,11 +68,18 @@ function fieldHasLabel(el: HTMLElement): boolean {
   return !!id && !!el.ownerDocument.querySelector(`label[for="${CSS.escape(id)}"]`);
 }
 
+/** An example someone can find on the page: its words, else where a link goes,
+ *  else its id or classes — never a bare "a". */
 function describe(el: Element): string {
   const name = accessibleName(el);
   const tag = el.tagName.toLowerCase();
-  const id = el.id ? `#${el.id}` : "";
-  return name ? `${tag} ${quote(name)}` : `${tag}${id}`;
+  const kind = tag === "a" ? "link" : tag;
+  if (name) return `${kind} ${quote(name)}`;
+  const href = el.getAttribute("href");
+  if (href) return `a link to ${href.slice(0, 60)}`;
+  if (el.id) return `${kind}#${el.id}`;
+  const cls = (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean).slice(0, 2).join(".");
+  return cls ? `${kind}.${cls}` : kind;
 }
 
 /**
@@ -122,16 +135,31 @@ export function runPageChecks(doc: Document = document): string[] {
     );
   }
 
-  const small = controls.filter((el) => {
-    const r = el.getBoundingClientRect();
+  // WCAG 2.5.8 has a spacing exception, and without it this flagged a whole
+  // nav ("25 tap targets", e.g. a 336×20 link) on a page that passes: a target
+  // under 24px is fine when a 24px circle on its centre touches no other
+  // target. Only the cramped ones are a finding.
+  const rects = controls.map((el) => el.getBoundingClientRect());
+  const half = MIN_TARGET_PX / 2;
+  const small = controls.filter((el, i) => {
+    const r = rects[i];
     // Inline links inside a sentence are exempt in WCAG 2.5.8 too.
     if (el.tagName === "A" && getComputedStyle(el).display === "inline") return false;
-    return r.width > 0 && (r.width < MIN_TARGET_PX || r.height < MIN_TARGET_PX);
+    if (!(r.width > 0 && (r.width < MIN_TARGET_PX || r.height < MIN_TARGET_PX))) return false;
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    return rects.some((o, j) => {
+      if (j === i || controls[j].contains(el) || el.contains(controls[j])) return false;
+      // Distance from the circle's centre to the other target's box.
+      const dx = Math.max(o.left - cx, 0, cx - o.right);
+      const dy = Math.max(o.top - cy, 0, cy - o.bottom);
+      return dx * dx + dy * dy < half * half;
+    });
   });
   if (small.length) {
     const r = small[0].getBoundingClientRect();
     out.push(
-      `${small.length} tap target(s) are smaller than ${MIN_TARGET_PX}×${MIN_TARGET_PX}px (e.g. ${describe(small[0])} at ${Math.round(r.width)}×${Math.round(r.height)})`,
+      `${small.length} tap target(s) are under ${MIN_TARGET_PX}px and crowded by their neighbours, easy to mis-tap (e.g. ${describe(small[0])} at ${Math.round(r.width)}×${Math.round(r.height)})`,
     );
   }
 

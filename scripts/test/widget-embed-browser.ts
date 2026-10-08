@@ -40,9 +40,29 @@ ${body}</body></html>`;
 type Advise = { scope: string; question: string; snapshot: string };
 type Report = { suggestion: string; scope?: string; contact?: string };
 
-async function open(browser: Browser, body: string, js: string) {
-  const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 } });
+async function open(
+  browser: Browser,
+  body: string,
+  js: string,
+  o: { width?: number; withMic?: boolean } = {},
+) {
+  const ctx = await browser.newContext({ viewport: { width: o.width ?? 1200, height: 800 } });
   const p = await ctx.newPage();
+  // Every real browser has a mic; this test browser does not, and a composer
+  // checked only without one shipped with Ask Loki pushed out of the panel.
+  if (o.withMic)
+    // A string, not a function: tsx wraps functions in a `__name` helper that
+    // does not exist in the page, and the init script then dies on line one.
+    await p.addInitScript(`
+      Object.defineProperty(Navigator.prototype, "mediaDevices", {
+        configurable: true,
+        get: () => ({ getUserMedia: () => Promise.reject(new Error("test")) }),
+      });
+      Object.defineProperty(document, "featurePolicy", {
+        configurable: true,
+        value: { allowsFeature: () => true },
+      });
+    `);
   const errors: string[] = [];
   const advised: Advise[] = [];
   const reports: Report[] = [];
@@ -215,6 +235,36 @@ async function main() {
     await t.p.goto(`${ORIGIN}/other#loki`);
     await t.p.waitForTimeout(1200);
     ok(await fabShown(t.p), "arriving with #loki restores the launcher");
+    await t.close();
+  }
+
+  // ---- the panel fits: nothing scrolls sideways, every button is inside it ----
+  for (const width of [1200, 390, 320]) {
+    const t = await open(browser, tag(), js, { width, withMic: true });
+    await click(t.p, ".fab");
+    const fit = await t.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      const panel = r.querySelector(".panel") as HTMLElement;
+      const box = panel.getBoundingClientRect();
+      const outside = Array.from(r.querySelectorAll(".panel button"))
+        .filter((b) => (b as HTMLElement).offsetParent !== null)
+        .filter((b) => {
+          const x = b.getBoundingClientRect();
+          return x.right > box.right + 0.5 || x.left < box.left - 0.5;
+        })
+        .map((b) => (b as HTMLElement).innerText || b.getAttribute("aria-label"));
+      return {
+        mic: !!r.querySelector(".composer .mic"),
+        scrolls: panel.scrollWidth > panel.clientWidth + 1,
+        outside,
+      };
+    });
+    ok(fit.mic, `${width}px: the composer has its mic (as in a real browser)`);
+    ok(!fit.scrolls, `${width}px: the panel does not scroll sideways`);
+    ok(
+      fit.outside.length === 0,
+      `${width}px: no button outside the panel (${fit.outside.join(", ")})`,
+    );
     await t.close();
   }
 

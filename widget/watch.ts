@@ -376,7 +376,7 @@ export function createWatchPill(
   theme: WidgetTheme,
   onToggle: () => void,
   onShow: () => void,
-): { set: (state: WatchPillState) => void } {
+): { set: (state: WatchPillState) => void; setVisible: (visible: boolean) => void } {
   const style = h("style");
   style.textContent = `
 .watch-pill {
@@ -450,7 +450,12 @@ export function createWatchPill(
     }
   };
   set({ kind: "watching" });
-  return { set };
+  return {
+    set,
+    setVisible: (visible: boolean) => {
+      pill.style.display = visible ? "" : "none";
+    },
+  };
 }
 
 /** The ingest's cap on `suggestion` (api/feedback FeedbackBody). */
@@ -518,6 +523,9 @@ export function startWatchMode(opts: {
   onShow: () => void;
   /** Loki noticed something — say it in the conversation. */
   onRemark: (remark: Remark) => void;
+  /** True while the launcher or the open panel already shows that Loki is
+   *  watching — then the top bar stays out of the site's way. */
+  statusShown: () => boolean;
   /** Stopped or started again — the panel's header follows. */
   onChange?: () => void;
 }): WatchSession {
@@ -538,6 +546,13 @@ export function startWatchMode(opts: {
     if (!paused) scheduleChecks();
   };
   const pill = createWatchPill(opts.root, opts.theme, () => setPaused(!paused), opts.onShow);
+  // The bar is the fallback, not the main signal: shown only when neither the
+  // launcher nor the open panel can say that Loki is watching (a page that
+  // blocks every corner, or one that hides the launcher). Re-checked each
+  // second — the launcher hides and returns as the page changes under it.
+  const syncBar = () => pill.setVisible(!opts.statusShown());
+  syncBar();
+  window.setInterval(syncBar, 1000);
   /** What the pill shows now — a remark never covers "Loki is fixing it". */
   let shown: WatchPillState["kind"] = "watching";
   const show = (state: WatchPillState) => {

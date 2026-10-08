@@ -298,8 +298,12 @@ interface LokiApi {
           : "Loki watches again and tells you when something isn't right";
       stopBtn.style.display = on ? "" : "none";
       if (ownerPass) watchOffer.style.display = "none";
+      // The owner's launcher carries the same state as this header.
+      launcher.setOwnerStatus(ownerPass ? { watching: on, unread } : null);
       conversation?.refresh();
     }
+    /** What Loki said while the panel was closed — the launcher's badge. */
+    let unread = 0;
 
     const modes = parseWidgetSurfaceModes(modesAttr);
     const picker = createPicker({
@@ -340,11 +344,13 @@ interface LokiApi {
     panel.append(hdr, watchOffer, conversation.el, hideLink);
 
     function openPanel() {
+      unread = 0;
       fab.style.display = "none";
       hdrPage.textContent = document.title || location.pathname;
       root.append(backdrop, panel);
       syncWatch();
-      conversation.refresh();
+      // Opening is to see what is new: land on the newest message.
+      conversation.refresh(true);
       document.addEventListener("keydown", onKeydown, true);
       conversation.focus();
     }
@@ -385,9 +391,10 @@ interface LokiApi {
       if (!panel.isConnected) openPanel();
       if (question.trim()) conversation.ask(question);
     };
-    // The owner: watch mode, with its bar on screen the whole time it records
-    // (widget/watch.ts). What it notices, Loki says in this conversation; the
-    // bar's Show opens it there.
+    // The owner: watch mode (widget/watch.ts). Its state lives on the launcher
+    // ("Loki · watching", a count of what it said); what it notices, Loki says
+    // in this conversation and, while the panel is closed, in a bubble beside
+    // the launcher. The top bar appears only when neither can be seen.
     const watchOpts = { root, host, theme, token, apiBase, pass: () => ownerPass };
     if (ownerPass)
       watchSession = startWatchMode({
@@ -395,9 +402,17 @@ interface LokiApi {
         onShow: () => {
           if (!panel.isConnected) openPanel();
         },
-        onRemark: (r) => conversation.noticed(r),
+        onRemark: (r) => {
+          conversation.noticed(r);
+          if (panel.isConnected) return;
+          unread++;
+          syncWatch();
+          launcher.say(r.short ?? r.say.split("\n")[0]);
+        },
+        statusShown: () => panel.isConnected || launcher.isShown(),
         onChange: syncWatch,
       });
+    syncWatch();
     // Only now can a click actually open something — see LokiApi.ready.
     api.ready = true;
     if (ownerDenied) {

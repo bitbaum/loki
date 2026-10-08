@@ -6,6 +6,48 @@ data-fc-project="fcw_…" async></script>`. Architecture, routes and history:
 This file is the part a HOST needs: installing it, what the panel offers,
 where the launcher goes, and how to hide it.
 
+## The design, in one model
+
+Read this before changing the widget; every rule below was learned by using it.
+
+**Two people, one place.** A *visitor* wants to tell whoever builds the site
+something, quickly, and know it arrived. The *owner* wants an expert looking
+over their shoulder: say what is wrong, get it fixed. Both get the same thing —
+**one conversation with Loki** — so there is one place to look and one way of
+doing everything; no tabs, no second tool.
+
+**Two ways to say anything, side by side.** *Send as feedback* (straight to the
+builder, no AI, never waits on a model) and *Ask Loki* (a second opinion
+first). About *this page / the whole site / an element* scopes both. Anything
+Loki suggests is one tap from the builder. What was sent comes back as a
+receipt in the same thread, linked to where it can be followed in Loki.
+
+**Watch is the owner's, and it speaks.** While it watches, Loki says what it
+noticed — in the conversation, in plain words, naming the tap that led there,
+each with *Fix this* and *Why does it matter?* — and is otherwise quiet.
+
+Rules that resolve the trade-offs:
+
+- **The launcher is the status.** For a visitor it is quiet ("quiet until
+  wanted"). For the owner it is full weight — *Loki · watching*, a count of
+  what Loki said while the panel was closed, the newest remark beside it. A top
+  bar appears only when the launcher cannot be seen, because recording is
+  never silent — and never covers the site's own header when it need not.
+- **Starting and stopping is one tap**, named for what it does (*Stop
+  watching*, *Watch again*), in the header and wherever the status shows.
+  Stopped means nothing is recorded and nothing is said.
+- **Precision over coverage.** A remark that is wrong teaches the owner to
+  ignore Loki. Checks follow the standard they cite (WCAG's spacing exception
+  for small targets), read what a screen reader reads (not what happens to be
+  painted), and every rule has a browser test that would fail if it cried wolf.
+- **Speaking up costs nothing.** Remarks are written by rules, once per visit;
+  a model runs only when asked (*Why*, *Review*, *Ask Loki*).
+- **Never move what someone is reaching for.** New messages follow only when
+  you were already at the bottom; reading further up, your place is kept.
+- **Fits on a phone, with a mic.** The panel must never scroll sideways at
+  320–1200px with every control present (a composer tested without a mic once
+  pushed *Ask Loki* out of the panel).
+
 ## Installing
 
 One tag, anywhere in the page. `async`, `defer`, a plain tag, a `type="module"`

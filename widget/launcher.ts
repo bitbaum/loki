@@ -16,10 +16,25 @@ import {
 } from "./placement";
 import { createHostScanner, readPlaceDirective } from "./host-scan";
 
+/**
+ * For the site's OWNER the launcher is the status of Loki on their site, not
+ * a quiet feedback button: it says "Loki · watching", counts what Loki said
+ * while the panel was closed, and shows the newest remark as a bubble beside
+ * it. Visitors keep the quiet launcher (the "quiet until wanted" rule below
+ * was written for strangers on a client's site, not for its owner).
+ */
+export type OwnerStatus = { watching: boolean; unread: number };
+
 export type Launcher = {
   fab: HTMLButtonElement;
   /** Re-run the avoid pass — the panel calls this after it closes. */
   reposition(): void;
+  /** Owner mode (null = a visitor's quiet launcher). */
+  setOwnerStatus(status: OwnerStatus | null): void;
+  /** Show a remark beside the launcher for a while; tapping it opens Loki. */
+  say(text: string): void;
+  /** On screen right now — the watch bar only appears when it is not. */
+  isShown(): boolean;
 };
 
 export function createLauncher(opts: {
@@ -41,11 +56,62 @@ export function createLauncher(opts: {
   const fab = h("button", "fab");
   const fabIcon = h("span", "fab-icon");
   fabIcon.innerHTML = PENCIL_SVG;
-  fab.append(h("span", "dot"), h("span", "fab-label", "Feedback"), fabIcon);
+  const fabLabel = h("span", "fab-label", "Feedback");
+  const badge = h("span", "fab-badge");
+  fab.append(h("span", "dot"), fabLabel, fabIcon, badge);
   fab.setAttribute("aria-label", "Give feedback");
   fab.setAttribute("aria-haspopup", "dialog");
-  fab.addEventListener("click", opts.onOpen);
+  fab.addEventListener("click", () => {
+    bubble.style.display = "none";
+    opts.onOpen();
+  });
   root.appendChild(fab);
+
+  // ---- owner status: label, unread count, and the newest remark ----
+  const bubble = h("div", "fab-bubble");
+  bubble.setAttribute("role", "status");
+  bubble.style.display = "none";
+  const bubbleText = h("span", "fab-bubble-text");
+  const bubbleClose = h("button", "fab-bubble-x", "✕");
+  bubbleClose.setAttribute("aria-label", "Dismiss");
+  bubble.append(bubbleText, bubbleClose);
+  bubble.addEventListener("click", (e) => {
+    bubble.style.display = "none";
+    if (e.target !== bubbleClose) opts.onOpen();
+  });
+  root.appendChild(bubble);
+  let bubbleTimer = 0;
+  const BUBBLE_SHOWN_MS = 12_000;
+
+  function setOwnerStatus(status: OwnerStatus | null) {
+    fab.classList.toggle("owner", status !== null);
+    fab.classList.toggle("watching", !!status?.watching);
+    const label = status ? (status.watching ? "Loki · watching" : "Loki") : "Feedback";
+    fabLabel.textContent = label;
+    const unread = status?.unread ?? 0;
+    badge.textContent = unread ? String(Math.min(unread, 9)) : "";
+    badge.style.display = unread ? "" : "none";
+    fab.setAttribute(
+      "aria-label",
+      status
+        ? `Open Loki${status.watching ? " — watching" : ""}${unread ? `, ${unread} new` : ""}`
+        : "Give feedback",
+    );
+  }
+  setOwnerStatus(null);
+
+  function say(text: string) {
+    if (fab.style.display === "none" || fab.style.visibility === "hidden") return;
+    bubbleText.textContent = text;
+    // Anchor beside the launcher's own corner so it opens inward.
+    const { x, y } = cornerEdges(current.corner);
+    bubble.style.left = bubble.style.right = bubble.style.top = bubble.style.bottom = "auto";
+    bubble.style[x] = `${current.offsetX}px`;
+    bubble.style[y] = `${current.offsetY + 52}px`;
+    bubble.style.display = "";
+    window.clearTimeout(bubbleTimer);
+    bubbleTimer = window.setTimeout(() => (bubble.style.display = "none"), BUBBLE_SHOWN_MS);
+  }
 
   // ---- visitor escape hatch ----
   //
@@ -278,5 +344,12 @@ export function createLauncher(opts: {
     attributeFilter: ["class", "style", "hidden", "open", "data-fc-avoid", "data-fc-place"],
   });
 
-  return { fab, reposition };
+  return {
+    fab,
+    reposition,
+    setOwnerStatus,
+    say,
+    isShown: () =>
+      fab.isConnected && fab.style.display !== "none" && fab.style.visibility !== "hidden",
+  };
 }
