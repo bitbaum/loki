@@ -31,7 +31,7 @@ export function previewSystemPrompt(): string {
     "You show a website's owner what a change would look like, by editing the live page in their browser only. Nothing you do is saved.",
     "You see a numbered outline of the visible page (document order), not pixels or CSS.",
     "Reply with JSON only:",
-    '{"summary":"<one plain sentence: what the preview shows>","ops":[...]}',
+    '{"summary":"<one plain sentence: what the preview shows, in the language the owner wrote in>","ops":[...]}',
     `At most ${PREVIEW_MAX_OPS} ops, each one of:`,
     '- {"op":"style","target":<n>,"css":{"<property>":"<value>"}} — restyle element n (colors, sizes, spacing, fonts, borders, layout).',
     '- {"op":"text","target":<n>,"text":"<new text>"} — replace the words of element n (a heading, a button, a link).',
@@ -42,7 +42,7 @@ export function previewSystemPrompt(): string {
     "- Do what was asked, as a good designer would, and nothing else.",
     "- HTML: plain tags only (div, section, h2, h3, p, a, img, ul, li, strong, button, …), inline style attributes for looks. No scripts, no event handlers, no forms, no iframes.",
     "- No url() in CSS and no external images except https photos you are sure exist; prefer colors, gradients and text.",
-    "- Only use outline numbers that exist. Write new text in the language the page is in.",
+    "- Only use outline numbers that exist. Text you put ON the page is in the page's language; the summary is in the owner's.",
     '- If it cannot be shown this way (it needs data, a new page, or code), return {"summary":"<why, in one sentence>","ops":[]}.',
   ].join("\n");
 }
