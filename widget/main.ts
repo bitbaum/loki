@@ -162,11 +162,11 @@ interface LokiApi {
     show: unhide,
   };
   (window as unknown as { Loki?: LokiApi }).Loki = api;
-  // Arriving from the owner link (or back from "This is my site"): open the
+  // Arriving from the owner link (or returning through the "This is my site" link): open the
   // conversation straight away, so "look at my site and say what to change"
   // is one step, not a hunt for the button. report({}) only opens the panel.
   if (ownerState.arrived) pendingReport = {};
-  // Back from "This is my site" signed in as someone else: say so on the site.
+  // Returned through that link signed in as someone else: say so on the site.
   const ownerDenied = takeOwnerDenied();
   // The owner arriving from their link, or anyone opening the page with
   // `#loki`, gets the launcher back even if this browser hid it earlier. Without

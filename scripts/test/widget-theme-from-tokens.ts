@@ -122,9 +122,19 @@ for (const [name, css] of sheets) {
   }
 }
 
-// The mode chips are styled at all (the #734 regression rendered them naked).
+// The panel's own controls are styled at all (the #734 regression rendered the
+// old mode chips naked; the one conversation replaced them with these).
 const shadow = buildShadowCSS(theme);
-for (const sel of [".modes", ".mode", ".mode.on", ".mode:disabled", ".mode-hint"]) {
+for (const sel of [
+  ".watchbtn",
+  ".watchbtn.on",
+  ".watch-offer",
+  ".ctx",
+  ".ctx.on",
+  ".sendcard",
+  ".act",
+  ".track",
+]) {
   assert.ok(
     ruleBodies(shadow).some((r) => r.selector === sel),
     `shadow: "${sel}" is not a rule of its own`,
