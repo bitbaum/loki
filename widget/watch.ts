@@ -9,15 +9,20 @@
  */
 import { h } from "./dom";
 import type { WidgetTheme } from "./theme";
-import { buildSuggestion } from "./report-payload";
+import { buildSuggestion, type ReportDiagnostics } from "./report-payload";
 import {
   failureSignature,
   watchReport,
   WATCH_REPORTS_PER_PAGE,
   describeControl,
   describeRequest,
+  freshTrail,
   isFailedRequest,
+  isNoticeableRequest,
   nextTapStreak,
+  noticeCount,
+  sessionForReview,
+  SLOW_REQUEST_MS,
   trailDiagnostics,
   type TapStreak,
   isNoiseError,
@@ -25,8 +30,40 @@ import {
   type Failure,
   type TrailEntry,
 } from "./watch-trail";
+import { runPageChecks } from "./page-checks";
+import { sendReport } from "./send-report";
 
 const pausedKey = (token: string) => `loki-watch-paused:${token}`;
+/** Per tab, per site: a multi-page site reloads on every link, and Review must
+ *  still see the whole visit. sessionStorage dies with the tab, which is the
+ *  right lifetime for "what I just did". */
+const trailKey = (token: string) => `loki-watch-trail:${token}`;
+
+function readStoredTrail(token: string): TrailEntry[] {
+  try {
+    return freshTrail(JSON.parse(sessionStorage.getItem(trailKey(token)) ?? "[]"), Date.now());
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredTrail(token: string, trail: TrailEntry[]): void {
+  try {
+    sessionStorage.setItem(trailKey(token), JSON.stringify(trail));
+  } catch {
+    /* storage blocked or full: the trail lasts for this page view */
+  }
+}
+
+/** Long tasks shorter than this are not felt; longer ones freeze taps. */
+const LONG_TASK_MS = 300;
+/** Remarks of one kind per page view, at most — a janky page must not fill
+ *  the whole trail with "froze 320ms". */
+const NOTICES_PER_KIND = 3;
+/** Cumulative Layout Shift above this is "poor" by Google's own threshold. */
+const CLS_POOR = 0.1;
+/** A page that takes longer than this to load has lost some of its visitors. */
+const SLOW_LOAD_MS = 3_000;
 
 export function readWatchPaused(token: string): boolean {
   try {
@@ -52,17 +89,36 @@ export function writeWatchPaused(token: string, paused: boolean): void {
  */
 export function installWatch(opts: {
   host: HTMLElement;
+  /** Keys the trail kept across this tab's page loads. */
+  token: string;
   /** The widget's own calls to Loki — not the site's, so not recorded. */
   isOwnRequest: (url: string) => boolean;
   isActive: () => boolean;
   onFailure: (failure: Failure, trail: TrailEntry[]) => void;
+  /** Something new went into the trail (the pill keeps its count from this). */
+  onChange?: (trail: TrailEntry[]) => void;
 }): { trail: () => TrailEntry[] } {
-  let trail: TrailEntry[] = [];
+  let trail: TrailEntry[] = readStoredTrail(opts.token);
   const add = (kind: TrailEntry["kind"], text: string) => {
     if (!opts.isActive()) return;
-    trail = pushTrail(trail, { at: Date.now(), kind, text });
+    const next = pushTrail(trail, { at: Date.now(), kind, text });
+    if (next === trail) return;
+    trail = next;
+    writeStoredTrail(opts.token, trail);
+    opts.onChange?.(trail);
+  };
+  const noticed = new Map<string, number>();
+  /** A remark, rationed per kind per page view (see NOTICES_PER_KIND). */
+  const notice = (kind: string, text: string) => {
+    const n = noticed.get(kind) ?? 0;
+    if (n >= NOTICES_PER_KIND) return;
+    noticed.set(kind, n + 1);
+    add("notice", text);
   };
   let streak: TapStreak = null;
+  /** The last tap on the site (performance clock) — a freeze right after it
+   *  is one the person felt (see observePerformance). */
+  let lastTap: { at: number; what: string } | null = null;
   const fail = (failure: Failure) => {
     if (!opts.isActive()) return;
     // A dead tap is already in the trail as the tap itself.
@@ -77,6 +133,7 @@ export function installWatch(opts: {
     if (location.pathname === lastPath) return;
     lastPath = location.pathname;
     streak = null;
+    noticed.clear();
     add("page", location.pathname);
   };
   for (const name of ["pushState", "replaceState"] as const) {
@@ -110,6 +167,7 @@ export function installWatch(opts: {
         placeholder: el.getAttribute("placeholder"),
       });
       add("tap", tap);
+      lastTap = { at: e.timeStamp, what: tap };
       if (!opts.isActive()) return;
       const next = nextTapStreak(streak, tap, Date.now());
       streak = next.streak;
@@ -130,13 +188,17 @@ export function installWatch(opts: {
     fail({ kind: "error", text: reason });
   });
 
-  const onRequest = (method: string, url: string, status: number | null) => {
+  const onRequest = (method: string, url: string, status: number | null, ms: number) => {
     if (opts.isOwnRequest(new URL(url, location.href).href)) return;
     // The page answered the tap, so the button was not dead.
     streak = null;
     const text = describeRequest(method, url, status);
     if (isFailedRequest(status)) fail({ kind: "request", text });
-    else if (!/^GET /.test(text)) add("request", text);
+    else if (isNoticeableRequest(status, ms)) {
+      const slow = ms >= SLOW_REQUEST_MS;
+      // The duration is only news when it was slow; "404 in 0.0s" is noise.
+      notice(slow ? "slow" : "4xx", describeRequest(method, url, status, slow ? ms : undefined));
+    } else if (!/^GET /.test(text)) add("request", text);
   };
 
   const originalFetch = window.fetch.bind(window);
@@ -145,13 +207,15 @@ export function installWatch(opts: {
     const method = init?.method ?? (input instanceof Request ? input.method : "GET");
     // A request leaving is the page responding — even a slow one is not dead.
     if (!opts.isOwnRequest(new URL(url, location.href).href)) streak = null;
+    const started = performance.now();
     try {
       const res = await originalFetch(input, init);
-      onRequest(method, url, res.status);
+      onRequest(method, url, res.status, performance.now() - started);
       return res;
     } catch (err) {
       // An aborted request is the page changing its mind, not a failure.
-      if (!(err instanceof DOMException && err.name === "AbortError")) onRequest(method, url, null);
+      if (!(err instanceof DOMException && err.name === "AbortError"))
+        onRequest(method, url, null, performance.now() - started);
       throw err;
     }
   };
@@ -165,18 +229,120 @@ export function installWatch(opts: {
   ) {
     this.__lokiReq = [method, String(url)];
     if (!opts.isOwnRequest(new URL(String(url), location.href).href)) streak = null;
+    const started = performance.now();
     this.addEventListener("loadend", () => {
       const [m, u] = this.__lokiReq ?? ["GET", ""];
-      onRequest(m, u, this.status === 0 ? null : this.status);
+      onRequest(m, u, this.status === 0 ? null : this.status, performance.now() - started);
     });
     return (open as (...a: unknown[]) => void).call(this, method, url, ...rest);
   } as typeof XMLHttpRequest.prototype.open;
 
+  // The site's own console.error: what its developers already know is wrong
+  // and left in. Never a fix by itself — frameworks log warnings here too —
+  // but a reviewer reading it next to the tap that caused it learns a lot.
+  const originalConsoleError = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    originalConsoleError(...args);
+    try {
+      const first = args[0] instanceof Error ? args[0].message : String(args[0] ?? "");
+      if (first && !first.startsWith("[loki-widget]") && !isNoiseError(first))
+        notice("console", `console error: ${first.slice(0, 140)}`);
+    } catch {
+      /* never let recording break the site's own logging */
+    }
+  };
+
+  observePerformance(notice, opts.host, () => lastTap);
+
   return { trail: () => trail };
 }
 
+/** A freeze this soon after a tap on the site is one the person felt. */
+const FELT_FREEZE_WINDOW_MS = 1_000;
+
+function isOurNode(node: Node | null | undefined, host: HTMLElement): boolean {
+  if (!node) return false;
+  const root = node.getRootNode();
+  return node === host || host.contains(node) || (root instanceof ShadowRoot && root.host === host);
+}
+
+/**
+ * What the page feels like rather than what it does: how long it took to load,
+ * the main thread freezing under a tap, content jumping as it loads. Each is
+ * a remark (never a fix by itself), in words a non-engineer can read.
+ */
+function observePerformance(
+  notice: (kind: string, text: string) => void,
+  host: HTMLElement,
+  lastTap: () => { at: number; what: string } | null,
+): void {
+  const nav = () => {
+    const entry = performance.getEntriesByType("navigation")[0] as
+      PerformanceNavigationTiming | undefined;
+    if (!entry || !entry.loadEventEnd) return;
+    const ms = entry.loadEventEnd - entry.startTime;
+    if (ms >= SLOW_LOAD_MS) notice("load", `this page took ${(ms / 1000).toFixed(1)}s to load`);
+  };
+  if (document.readyState === "complete") setTimeout(nav, 0);
+  else window.addEventListener("load", () => setTimeout(nav, 0), { once: true });
+
+  const observe = (type: string, onEntries: (list: PerformanceEntryList) => void) => {
+    try {
+      if (!PerformanceObserver.supportedEntryTypes?.includes(type)) return;
+      new PerformanceObserver((list) => onEntries(list.getEntries())).observe({
+        type,
+        buffered: true,
+      });
+    } catch {
+      /* an older browser: one signal fewer, nothing broken */
+    }
+  };
+  // Only a freeze that answers a tap on the SITE counts. A long task carries
+  // no script attribution, so one during load could be anyone's — including
+  // this widget booting, or Review reading the page — and a reviewer that
+  // blames the site for Loki's own work is worse than one that says nothing.
+  observe("longtask", (entries) => {
+    const tap = lastTap();
+    for (const e of entries) {
+      if (e.duration < LONG_TASK_MS || !tap) continue;
+      // Overlap, not "starts after": the task that RUNS the tap handler began
+      // a moment before this listener saw the tap.
+      const overlaps =
+        e.startTime + e.duration >= tap.at && e.startTime <= tap.at + FELT_FREEZE_WINDOW_MS;
+      if (overlaps)
+        notice(
+          "longtask",
+          `after ${tap.what} the page froze for ${Math.round(e.duration)}ms (taps go unanswered meanwhile)`,
+        );
+    }
+  });
+  let cls = 0;
+  let clsNoted = false;
+  observe("layout-shift", (entries) => {
+    for (const e of entries as (PerformanceEntry & {
+      value?: number;
+      hadRecentInput?: boolean;
+      sources?: { node?: Node | null }[];
+    })[]) {
+      // A shift right after the person's own input is the page responding.
+      // Only shifts the browser can pin on a node of the SITE count: Chrome
+      // reports Loki's own panel (shadow DOM) with a null node, and opening
+      // Review once scored 0.27 against a page that never moved.
+      const site = (e.sources ?? []).some((s) => s.node && !isOurNode(s.node, host));
+      if (!e.hadRecentInput && site) cls += e.value ?? 0;
+    }
+    if (!clsNoted && cls > CLS_POOR) {
+      clsNoted = true;
+      notice(
+        "cls",
+        `content jumped around on this page (layout shift ${cls.toFixed(2)}, poor above ${CLS_POOR})`,
+      );
+    }
+  });
+}
+
 export type WatchPillState =
-  | { kind: "watching" }
+  | { kind: "watching"; noticed?: number }
   | { kind: "paused" }
   | { kind: "sending"; what: string }
   | { kind: "fixing"; what: string; followUrl: string }
@@ -192,6 +358,7 @@ export function createWatchPill(
   theme: WidgetTheme,
   onTogglePause: () => void,
   onReport: () => void,
+  onReview: (() => void) | null = null,
 ): { set: (state: WatchPillState) => void } {
   const style = h("style");
   style.textContent = `
@@ -209,6 +376,8 @@ export function createWatchPill(
 .watch-pill .wtext a { color: inherit; text-decoration: underline; }
 .watch-pill .wbtn + .wbtn { margin-left: -4px; }
 .watch-pill .wbtn { flex: none; min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid ${theme.border}; color: ${theme.textSecondary}; font-size: 11px; }
+.watch-pill .wbtn.primary { border-color: ${theme.accent}; background: ${theme.accentMuted}; color: ${theme.text}; font-weight: 600; }
+@media (pointer: coarse) { .watch-pill .wbtn { min-height: 32px; } }
 @keyframes wpulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .watch-pill .wdot { animation: none; } }
 `;
@@ -221,9 +390,16 @@ export function createWatchPill(
   // trail attached, for "this looks wrong" that no listener can see.
   const report = h("button", "wbtn", "Report");
   report.addEventListener("click", onReport);
+  // Review: what Loki makes of what you just did — errors, design,
+  // engineering, process, product — each change one tap from being built.
+  const review = onReview ? h("button", "wbtn primary", "Review") : null;
+  if (review && onReview) {
+    review.title = "Loki reviews what you just did on this site and suggests improvements";
+    review.addEventListener("click", onReview);
+  }
   const btn = h("button", "wbtn");
   btn.addEventListener("click", onTogglePause);
-  pill.append(dot, text, report, btn);
+  pill.append(dot, text, ...(review ? [review] : []), report, btn);
   root.append(style, pill);
 
   const set = (state: WatchPillState) => {
@@ -237,9 +413,14 @@ export function createWatchPill(
     pill.title = "what" in state ? state.what : "";
     btn.textContent = state.kind === "paused" ? "Resume" : "Pause";
     report.style.display = state.kind === "paused" ? "none" : "";
+    if (review) review.style.display = state.kind === "paused" ? "none" : "";
     switch (state.kind) {
       case "watching":
-        text.textContent = "Loki is watching";
+        // The count is the invitation: something is worth a look, and Review
+        // is the button beside it. No model runs until it is pressed.
+        text.textContent = state.noticed
+          ? `Loki is watching · noticed ${state.noticed}`
+          : "Loki is watching";
         break;
       case "paused":
         text.textContent = "Loki paused — nothing recorded";
@@ -285,30 +466,48 @@ export function startWatchMode(opts: {
   apiBase: string;
   /** The owner pass as it stands now (null once the server refuses it). */
   pass: () => string | null;
-}): void {
+  /**
+   * Review pressed: hand Loki the session (what they did + the page checks).
+   * Null where the panel has no Ask view to answer in — then the pill has no
+   * Review button rather than one that does nothing.
+   */
+  onReview?: ((session: string) => void) | null;
+}): WatchSession {
   let paused = readWatchPaused(opts.token);
   const sent = new Set<string>();
   let reverting: ReturnType<typeof setTimeout> | null = null;
   let recorder: { trail: () => TrailEntry[] } | null = null;
+  const watching = (): WatchPillState => ({
+    kind: "watching",
+    noticed: noticeCount(recorder?.trail() ?? []),
+  });
+  const session = () => sessionForReview(recorder?.trail() ?? [], safePageChecks(), Date.now());
   const pill = createWatchPill(
     opts.root,
     opts.theme,
     () => {
       paused = !paused;
       writeWatchPaused(opts.token, paused);
-      pill.set({ kind: paused ? "paused" : "watching" });
+      show(paused ? { kind: "paused" } : watching());
     },
     () => {
       const loki = (window as unknown as { Loki?: { report: (i: object) => void } }).Loki;
-      loki?.report({
-        diagnostics: {
-          "filed by": "Loki watch mode (Report)",
-          ...trailDiagnostics(recorder?.trail() ?? [], Date.now()),
-        },
-      });
+      loki?.report({ diagnostics: diagnostics("Loki watch mode (Report)") });
     },
+    opts.onReview ? () => opts.onReview?.(session()) : null,
   );
-  if (paused) pill.set({ kind: "paused" });
+  /** What the pill shows now — a new remark updates the count only while it
+   *  says "watching", never over "Something broke — Loki is fixing it". */
+  let shown: WatchPillState["kind"] = "watching";
+  const show = (state: WatchPillState) => {
+    shown = state.kind;
+    pill.set(state);
+  };
+  show(paused ? { kind: "paused" } : watching());
+  const diagnostics = (filedBy: string) => ({
+    "filed by": filedBy,
+    ...trailDiagnostics(recorder?.trail() ?? [], Date.now()),
+  });
 
   const report = async (failure: Failure, trail: TrailEntry[]) => {
     const pass = opts.pass();
@@ -316,38 +515,59 @@ export function startWatchMode(opts: {
     if (!pass || sent.has(signature) || sent.size >= WATCH_REPORTS_PER_PAGE) return;
     sent.add(signature);
     if (reverting) clearTimeout(reverting);
-    pill.set({ kind: "sending", what: failure.text });
+    show({ kind: "sending", what: failure.text });
     const { message, diagnostics } = watchReport(failure, trail, Date.now());
     try {
-      const res = await fetch(`${opts.apiBase}/api/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: opts.token,
-          suggestion: buildSuggestion(message, diagnostics, SUGGESTION_MAX),
-          page: location.pathname.slice(0, 300),
-          url: location.href.slice(0, 1000),
-          pageTitle: document.title.slice(0, 300) || undefined,
-          scope: "page",
-          ownerPass: pass,
-        }),
+      await sendReport(opts.apiBase, {
+        token: opts.token,
+        suggestion: buildSuggestion(message, diagnostics, SUGGESTION_MAX),
+        scope: "page",
+        ownerPass: pass,
       });
-      if (!res.ok) throw new Error(String(res.status));
-      pill.set({ kind: "fixing", what: failure.text, followUrl: `${opts.apiBase}/feedback` });
+      show({ kind: "fixing", what: failure.text, followUrl: `${opts.apiBase}/feedback` });
       reverting = setTimeout(() => {
-        if (!paused) pill.set({ kind: "watching" });
+        if (!paused) show(watching());
       }, FIXING_SHOWN_MS);
     } catch {
-      pill.set({ kind: "not-sent", what: failure.text });
+      show({ kind: "not-sent", what: failure.text });
     }
   };
 
   recorder = installWatch({
     host: opts.host,
+    token: opts.token,
     isOwnRequest: (url) =>
       url.startsWith(`${opts.apiBase}/api/feedback`) ||
       url.startsWith(`${opts.apiBase}/api/widget`),
     isActive: () => !paused && opts.pass() !== null,
     onFailure: (failure, trail) => void report(failure, trail),
+    onChange: () => {
+      if (shown === "watching") show(watching());
+    },
   });
+  // A trail restored from the previous page of this visit may already hold
+  // remarks; say so from the first paint.
+  if (!paused) show(watching());
+
+  return {
+    session,
+    diagnostics: () => (paused ? null : diagnostics("Loki watch mode (Review)")),
+  };
+}
+
+export type WatchSession = {
+  /** What Review sends: the trail and the page checks, as text. */
+  session: () => string;
+  /** The trail as report lines, for a change requested out of a Review —
+   *  null while paused, when nothing may travel. */
+  diagnostics: () => ReportDiagnostics | null;
+};
+
+/** Page checks must never take the review down with them. */
+function safePageChecks(): string[] {
+  try {
+    return runPageChecks(document);
+  } catch {
+    return [];
+  }
 }

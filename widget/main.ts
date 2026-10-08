@@ -38,7 +38,8 @@ import {
 import { createLauncher } from "./launcher";
 import { createPicker } from "./picker";
 import { createAttachments } from "./attachments";
-import { startWatchMode } from "./watch";
+import { startWatchMode, type WatchSession } from "./watch";
+import { sendReport } from "./send-report";
 import { createChat } from "./chat";
 import { createAdvise } from "./advise";
 import {
@@ -288,6 +289,10 @@ interface LokiApi {
     // Surface modes: Report ships today; Chat / Watch are progressive seams
     // (data-fc-modes="report,chat,watch"). The whole panel is Loki-on-the-site.
     const enabledModes = parseWidgetSurfaceModes(modesAttr);
+    // The owner always gets Ask, whatever the embed lists: it is where Watch's
+    // Review answers, and a site that opted its VISITORS out of Ask did not
+    // opt its owner out of a second opinion on their own site.
+    if (ownerPass && !enabledModes.includes("ask")) enabledModes.push("ask");
     let surfaceMode: WidgetSurfaceMode = initialWidgetSurfaceMode(enabledModes);
     const chat = enabledModes.includes("chat") ? createChat({ apiBase, token }) : null;
     const advise = enabledModes.includes("ask")
@@ -490,11 +495,20 @@ interface LokiApi {
       else textarea.focus();
     }
 
+    /** Set once watch mode starts (owner only) — see the end of mount(). */
+    let watchSession: WatchSession | null = null;
+
     /** A change Loki recommended (or a question it could not answer) becomes a
      *  request: Report, prefilled, with the same scope and picked elements. */
     function requestFromAdvice(text: string) {
       surfaceMode = "report";
       syncModes();
+      // Out of a Review, the builder gets what Loki saw: the steps that led
+      // to the suggestion travel with it, the same way a failure's do.
+      if (!diagnostics && watchSession) {
+        diagnostics = watchSession.diagnostics();
+        syncDiagnostics();
+      }
       const current = textarea.value.trim();
       textarea.value = (current ? `${current}\n${text}` : text).slice(0, MAX_LEN);
       syncCount();
@@ -601,41 +615,17 @@ interface LokiApi {
       sendBtn.disabled = true;
       sendBtn.textContent = "Sending…";
       errEl.textContent = "";
-      const shots = attachments.shots();
-      const selected = picker.selected();
       try {
-        const res = await fetch(`${apiBase}/api/feedback`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token,
-            suggestion: suggestionWithDiagnostics(),
-            // Every field here is clamped to the server's own cap. Two of them
-            // were not, and the ingest route rejects the WHOLE submission with
-            // a bare "Invalid submission" naming no field — so a visitor who
-            // typed a long signature into "Name / email", or who was on a page
-            // with a very long pathname, lost their entire report with no way
-            // to know why. Caps: api/feedback/route.ts FeedbackBody.
-            contact: contact.value.trim().slice(0, 200) || undefined,
-            page: location.pathname.slice(0, 300),
-            url: location.href.slice(0, 1000),
-            pageTitle: document.title.slice(0, 300) || undefined,
-            scope,
-            screenshots: shots.length ? shots : undefined,
-            selectedElements: selected.length ? selected : undefined,
-            ownerPass: ownerPass ?? undefined,
-          }),
+        // Clamped to the server's caps inside sendReport (widget/send-report.ts).
+        const body = await sendReport(apiBase, {
+          token,
+          suggestion: suggestionWithDiagnostics(),
+          contact: contact.value,
+          scope,
+          screenshots: attachments.shots(),
+          selectedElements: picker.selected(),
+          ownerPass: ownerPass ?? undefined,
         });
-        if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(body?.error ?? `Request failed (${res.status})`);
-        }
-        const body = (await res.json()) as {
-          claimUrl?: string;
-          owner?: boolean;
-          building?: boolean;
-          buildNote?: string;
-        };
         if (ownerPass && !body.owner) {
           // Expired or revoked: stop presenting it, and read as a visitor.
           forgetOwnerPass(token);
@@ -713,7 +703,18 @@ interface LokiApi {
     };
     // The owner, here through Loki's link: watch mode, with its pill on screen
     // the whole time it records (widget/watch.ts).
-    if (ownerPass) startWatchMode({ root, host, theme, token, apiBase, pass: () => ownerPass });
+    // Review on the pill opens Ask and hands it the session: Loki reads what
+    // the owner did and says what it makes of it.
+    // Always Ask, never Chat: a review is about THIS site, not the catalogue.
+    const review = (session: string) => {
+      if (!panel.isConnected) openPanel();
+      surfaceMode = "ask";
+      syncModes();
+      title.textContent = "What Loki makes of what you just did";
+      advise?.review(session);
+    };
+    const watchOpts = { root, host, theme, token, apiBase, pass: () => ownerPass };
+    if (ownerPass) watchSession = startWatchMode({ ...watchOpts, onReview: advise && review });
     // Only now can a click actually open something — see LokiApi.ready.
     api.ready = true;
     if (pendingAsk !== null) {

@@ -15,10 +15,12 @@ import { trimToLastSentence } from "@/lib/widget-chat/concierge";
 import {
   ADVISE_MAX_HISTORY,
   ADVISE_MAX_QUESTION,
+  ADVISE_MAX_SESSION,
   ADVISE_MAX_SNAPSHOT,
   ADVISE_UNAVAILABLE,
   advisePrompt,
   adviseSystemPrompt,
+  plainAnswer,
   splitAdvice,
 } from "@/lib/widget-advise/advisor";
 
@@ -51,6 +53,9 @@ const AdviseBody = z.object({
   question: z.string().trim().min(1).max(ADVISE_MAX_QUESTION),
   scope: z.enum(["element", "page", "site"]),
   snapshot: z.string().max(ADVISE_MAX_SNAPSHOT),
+  /** Watch's session record (the pill's Review) — makes the answer a review
+   *  of what the owner did, not only of the page. */
+  session: z.string().max(ADVISE_MAX_SESSION).optional(),
   history: z
     .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(3000) }))
     .max(ADVISE_MAX_HISTORY)
@@ -107,15 +112,21 @@ export async function POST(req: NextRequest) {
     const project = await getWidgetProjectBrief(token.projectId).catch(() => null);
     const answered = await callTextDetailed(advisePrompt(data.history ?? [], data.question), {
       feature: "widget-advise",
-      systemPrompt: adviseSystemPrompt({ scope: data.scope, snapshot: data.snapshot, project }),
-      // Reasoning models spend hidden tokens before the first visible word.
-      maxTokens: 1800,
+      systemPrompt: adviseSystemPrompt({
+        scope: data.scope,
+        snapshot: data.snapshot,
+        project,
+        session: data.session,
+      }),
+      // Reasoning models spend hidden tokens before the first visible word; a
+      // session review answers through five lenses and needs the room.
+      maxTokens: data.session ? 2600 : 1800,
       temperature: 0.3,
       timeoutMs: HTTP_TIMEOUT_LONG_MS,
     });
     void recordAiSpend(token.userId, answered.tokens);
     const { answer, changes } = splitAdvice(stripReasoning(answered.text));
-    const reply = trimToLastSentence(answer);
+    const reply = plainAnswer(trimToLastSentence(answer));
     if (!reply) throw new Error("empty answer");
     return corsJson({ ok: true, reply, changes });
   } catch (e) {

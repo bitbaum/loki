@@ -19,7 +19,10 @@
  *             (widget/watch.ts): it switches on by itself when the owner
  *             arrives through Loki's "Open your site" link, shows a "Loki is
  *             watching" pill the whole time it records, and files a fix when
- *             something on the page breaks. Visitors are never watched.
+ *             something on the page breaks. Its Review button hands the
+ *             session to Ask, which judges it — errors, design, engineering,
+ *             process, product — with each change one tap from being built.
+ *             Visitors are never watched.
  *
  * Keep this file free of DOM so the captain app and the IIFE bundle can share
  * labels/ids without dragging Shadow DOM into Node tests.
@@ -48,7 +51,7 @@ export const WIDGET_SURFACE_MODE_META: Record<
   },
   watch: {
     label: "Watch",
-    hint: "Loki observes how you use the page and comments. Coming next.",
+    hint: "Loki watches you use your own site, fixes what breaks, and on Review says what could be better.",
     shipped: false,
   },
 };

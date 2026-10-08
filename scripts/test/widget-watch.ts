@@ -7,11 +7,18 @@ import {
   describeControl,
   describeRequest,
   failureSignature,
+  freshTrail,
   isFailedRequest,
   isNoiseError,
+  isNoticeableRequest,
   nextTapStreak,
+  noticeCount,
   pushTrail,
+  REVIEW_SESSION_MAX,
+  sessionForReview,
+  SLOW_REQUEST_MS,
   TRAIL_MAX,
+  TRAIL_MAX_AGE_MS,
   watchReport,
   type TrailEntry,
 } from "../../widget/watch-trail";
@@ -95,4 +102,61 @@ check(() => {
   assert.match(rep.message, /tapped button “Pay” three times and nothing happened/);
 });
 
-console.log(`${n}/6 widget-watch cases passed`);
+// ---- Review: what a reviewer remarks on that is not a failure ----
+check(() => {
+  assert.equal(describeRequest("get", "/a?x=1", 200, 4230), "GET /a → 200 in 4.2s");
+  assert.equal(isNoticeableRequest(404, 50), true, "a 404 is worth a remark");
+  assert.equal(isNoticeableRequest(200, SLOW_REQUEST_MS), true, "so is a slow answer");
+  assert.equal(isNoticeableRequest(200, 120), false);
+  // 5xx and no-answer are failures (they file a fix) — never also a remark.
+  assert.equal(isNoticeableRequest(500, 9000), false);
+  assert.equal(isNoticeableRequest(null, 9000), false);
+});
+
+check(() => {
+  const now = 10_000_000;
+  const kept = freshTrail(
+    [
+      { at: now - TRAIL_MAX_AGE_MS - 1, kind: "tap", text: "yesterday" },
+      { at: now - 1000, kind: "tap", text: "button “Go”" },
+      { at: now - 500, kind: "bogus", text: "x" },
+      { at: "soon", kind: "tap", text: "x" },
+      { at: now + 60_000, kind: "tap", text: "from the future" },
+      null,
+    ],
+    now,
+  );
+  assert.deepEqual(kept, [{ at: now - 1000, kind: "tap", text: "button “Go”" }]);
+  assert.deepEqual(freshTrail("not json array", now), [], "stored garbage is an empty trail");
+});
+
+check(() => {
+  const t: TrailEntry[] = [
+    { at: 0, kind: "page", text: "/shop" },
+    { at: 1_000, kind: "tap", text: "button “Buy”" },
+    { at: 1_200, kind: "notice", text: "POST /cart → 404 in 0.2s" },
+    { at: 45_000, kind: "tap", text: "link “Help”" },
+  ];
+  assert.equal(noticeCount(t), 1);
+  const s = sessionForReview(t, ["2 image(s) have no alt text"], 90_000);
+  assert.match(s, /page \/shop\ntap button “Buy”\nnotice POST \/cart → 404/);
+  assert.match(s, /\(paused 44s\)\ntap link “Help”/, "a long stop before a step is written out");
+  assert.match(s, /nothing for 45s, then asked for this review/);
+  assert.match(s, /Checks on the page they are on now:\n- 2 image\(s\) have no alt text/);
+});
+
+check(() => {
+  // Too long: the OLDEST steps go, the checks and the newest steps stay.
+  const t: TrailEntry[] = Array.from({ length: TRAIL_MAX }, (_, i) => ({
+    at: i,
+    kind: "tap" as const,
+    text: `button “${String(i).padStart(3, "0")} ${"x".repeat(140)}”`,
+  }));
+  const s = sessionForReview(t, ["check A"], TRAIL_MAX);
+  assert.ok(s.length <= REVIEW_SESSION_MAX, `capped (${s.length})`);
+  assert.ok(s.includes(`button “${String(TRAIL_MAX - 1).padStart(3, "0")}`), "newest kept");
+  assert.ok(!s.includes("button “000"), "oldest dropped");
+  assert.ok(s.endsWith("- check A"), "checks survive the cut");
+});
+
+console.log(`${n} widget-watch cases passed`);

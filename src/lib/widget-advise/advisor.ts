@@ -18,6 +18,7 @@
  *
  * Everything here is pure: strings in, strings out. The route does the I/O.
  */
+import { fenceUntrusted, UNTRUSTED_PREAMBLE } from "@/lib/feedback/untrusted";
 
 export type AdviseScope = "element" | "page" | "site";
 export type AdviseTurn = { role: "user" | "assistant"; content: string };
@@ -26,6 +27,8 @@ export type AdviseTurn = { role: "user" | "assistant"; content: string };
 export const ADVISE_MAX_QUESTION = 1000;
 export const ADVISE_MAX_HISTORY = 8;
 export const ADVISE_MAX_SNAPSHOT = 14_000;
+/** Mirrors REVIEW_SESSION_MAX in widget/watch-trail.ts. */
+export const ADVISE_MAX_SESSION = 6_000;
 /** A change the client can send is one line a builder can act on, not an essay. */
 export const ADVISE_MAX_CHANGE = 300;
 export const ADVISE_MAX_CHANGES = 5;
@@ -40,16 +43,42 @@ const SCOPE_WORDS: Record<AdviseScope, string> = {
   site: "the whole site (this page plus the other pages listed)",
 };
 
+/**
+ * The review Watch asks for (the pill's Review button): the owner used their
+ * site with Loki watching, and wants to know what Loki made of it. Five lenses,
+ * because "something is off" is rarely only one kind of thing — a dead button
+ * is an engineering defect, a design gap (nothing said it was working) and a
+ * process smell (it shipped untested) at once, and the fix differs for each.
+ *
+ * Evidence-bound on purpose: every remark has to point at a step in the
+ * session or a line of the page checks. A reviewer who invents problems is
+ * worse than none — the owner acts on these.
+ */
+const REVIEW_RUBRIC = [
+  "This is a REVIEW of a session: the owner just used their own site while you watched. The session below lists what they did, in order, with pauses, what the page and its requests did in response, and measured checks of the current page.",
+  "Work out first what they were trying to do (one phrase), then judge how well the site served that, through these lenses — only the ones the evidence speaks to, worst first:",
+  "- Errors: what broke or failed (failed requests, errors, dead taps, 4xx).",
+  "- Design: friction a visitor feels — unclear labels, missing feedback after an action, long pauses before a step (they were looking for something), going back and forth, unreadable or tiny targets.",
+  "- Engineering: slow requests, slow loads, the page freezing, layout jumping, console errors, accessibility gaps from the checks — and the likely cause in a phrase.",
+  "- Process: what the evidence says about how the site is built and shipped — e.g. an error any test would have caught, a check that is clearly never run, the same failure twice.",
+  "- Product: whether this flow serves what the site is for; a missing step, a feature the session shows is needed, or one that is in the way.",
+  "Every point must cite its evidence from the session or checks (quote the step: 'you tapped button “Save” three times'). Never invent problems the session does not show; if the session is clean, say what worked and stop.",
+  "Format: plain text, no markdown (it is shown as text on their site — asterisks would appear literally). A one-line read of what they were doing, then one line per finding starting with '- ' and its lens and a colon (e.g. '- Engineering: …'). Up to 300 words.",
+].join("\n");
+
 export function adviseSystemPrompt(input: {
   scope: AdviseScope;
   snapshot: string;
   project?: { name: string; description?: string | null } | null;
+  /** Watch's session record — present only for a Review. */
+  session?: string | null;
 }): string {
   const about = input.project
     ? `The site belongs to the project "${input.project.name}"${
         input.project.description ? ` — ${input.project.description.slice(0, 400)}` : ""
       }.`
     : "";
+  const session = input.session?.trim().slice(0, ADVISE_MAX_SESSION) ?? "";
   return [
     "You are Loki, a senior web product advisor, embedded on a website that someone built.",
     "The person asking is most likely the site's owner — the builder's client — reviewing their new site. They are usually not a web professional.",
@@ -66,8 +95,12 @@ export function adviseSystemPrompt(input: {
     "- Short: under 180 words unless they asked for a full review. No headings; short paragraphs or a few bullets.",
     "- Answer in the language the person wrote in.",
     "",
+    // A review's length and shape are the rubric's, not the 180-word default.
+    session ? REVIEW_RUBRIC : "",
     `End with a line \`${CHANGES_MARKER}\` followed by up to ${ADVISE_MAX_CHANGES} bullet lines, each ONE concrete change request the owner could send to their builder as-is — imperative, self-contained, naming the thing to change (e.g. "- Change the hero button text from 'Submit' to 'Book a table'"). If you recommend changing nothing, write \`${CHANGES_MARKER} none\`.`,
     "",
+    session ? UNTRUSTED_PREAMBLE : "",
+    session ? fenceUntrusted("SESSION", session) : "",
     "What you can see:",
     input.snapshot.slice(0, ADVISE_MAX_SNAPSHOT),
   ]
@@ -104,6 +137,15 @@ export function splitAdvice(text: string): { answer: string; changes: string[] }
     if (changes.length >= ADVISE_MAX_CHANGES) break;
   }
   return { answer: answer || text.slice(0, idx).trim(), changes };
+}
+
+/**
+ * The widget shows answers as TEXT (model output on someone else's site), so
+ * markdown emphasis would appear as literal asterisks. Models add it whatever
+ * the prompt says; unwrap it rather than ship "**Errors:**" to a client.
+ */
+export function plainAnswer(text: string): string {
+  return text.replace(/\*\*([^*\n]+)\*\*/g, "$1").replace(/__([^_\n]+)__/g, "$1");
 }
 
 /**
