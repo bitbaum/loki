@@ -236,25 +236,28 @@ async function main() {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
       return {
         reply: (
-          Array.from(r.querySelectorAll(".advise .msg.from-loki")).pop() as HTMLElement | undefined
+          Array.from(r.querySelectorAll(".convo .msg.from-loki")).pop() as HTMLElement | undefined
         )?.innerText,
-        change: (r.querySelector(".advise .change-text") as HTMLElement | null)?.innerText,
+        change: (r.querySelector(".convo .change-text") as HTMLElement | null)?.innerText,
       };
     });
-    ok(shown.reply?.includes("looking for a size") === true, "the review is shown in Ask");
+    ok(
+      shown.reply?.includes("looking for a size") === true,
+      "the review is shown in the conversation",
+    );
     ok(shown.change?.includes("size chart") === true, "with its change one tap away");
 
     // Requesting that change carries the session's steps to the builder.
     await s.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-      (r.querySelector(".advise .change-send") as HTMLElement).click();
+      (r.querySelector(".convo .change-send") as HTMLElement).click();
     });
     await s.p.waitForTimeout(200);
     const report = await s.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
       return {
-        text: (r.querySelector(".report-view textarea") as HTMLTextAreaElement | null)?.value,
-        diag: (r.querySelector(".diag") as HTMLElement | null)?.style.display,
+        text: (r.querySelector(".sendcard textarea") as HTMLTextAreaElement | null)?.value,
+        diag: (r.querySelector(".sendcard .diag") as HTMLElement | null)?.style.display,
       };
     });
     ok(report.text?.includes("size chart") === true, "the change prefills the request");

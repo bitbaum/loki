@@ -22,7 +22,7 @@ import {
 import {
   ADVISE_MAX_HISTORY as WIDGET_MAX_HISTORY,
   ADVISE_MAX_QUESTION as WIDGET_MAX_QUESTION,
-} from "../../widget/advise";
+} from "../../widget/loki-api";
 import { SNAPSHOT_MAX_CHARS } from "../../widget/page-snapshot";
 import { REVIEW_SESSION_MAX } from "../../widget/watch-trail";
 
@@ -88,7 +88,7 @@ import { REVIEW_SESSION_MAX } from "../../widget/watch-trail";
 assert.equal(WIDGET_MAX_QUESTION, ADVISE_MAX_QUESTION, "question cap mirrors the route");
 assert.equal(WIDGET_MAX_HISTORY, ADVISE_MAX_HISTORY, "history cap mirrors the route");
 assert.equal(SNAPSHOT_MAX_CHARS, ADVISE_MAX_SNAPSHOT, "snapshot cap mirrors the route");
-const widgetSrc = readFileSync("widget/advise.ts", "utf8");
+const widgetSrc = readFileSync("widget/loki-api.ts", "utf8");
 const routeSrc = readFileSync("src/app/api/widget/advise/route.ts", "utf8");
 const historyContent = (src: string) => /content[^\n]*?(\d{3,5})\)/.exec(src)?.[1];
 assert.ok(historyContent(widgetSrc), "the widget clamps history content");

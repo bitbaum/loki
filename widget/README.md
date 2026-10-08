@@ -15,14 +15,25 @@ ends up with two copies of the tag still renders one launcher (all proven in
 
 ## What the panel offers
 
-| mode | `data-fc-modes` | what it is for |
-|---|---|---|
-| **Request a change** | `report` (default) | say what should change; it reaches whoever builds the site |
-| **Ask Loki** | `ask` (default) | a second opinion first: "is this right, why is it like this, should it change, how would you make the site better?" — about a picked element, this page, or the whole site. Every change Loki recommends has **Request this →**, which opens Request a change prefilled with it |
-| Chat | `chat` (opt-in) | the studio front desk (the Cat and Loki route visitors to projects) |
+One conversation with Loki — no tabs. Type, speak, paste a screenshot or point
+at an element; Loki answers about this page (one tap switches to the whole
+site). Every change Loki recommends, and your own message as written, has
+**Send to builder →**: a short confirmation in the thread, then the receipt
+(and a link to track it) in the thread too. The conversation is kept per tab,
+so it survives the site's own page loads. **Watch** sits in the header: the
+owner gets Review; anyone else gets "This is my site — sign in with Loki",
+which comes straight back to the page with Watch on.
 
-No attribute = `report,ask`. `data-fc-modes="report"` opts a site out of Ask.
-Ask reads an outline of the page in the visitor's browser (headings, wording,
+`data-fc-modes` only decides who answers:
+
+| `data-fc-modes` | who answers |
+|---|---|
+| (none) / `report,ask` | Loki, about this site |
+| `chat` | the studio front desk — the Cat and Loki route visitors to projects |
+| `report` | nobody: no AI, a message goes straight to the send confirmation |
+
+The site's owner always gets Loki's advice, whatever the attribute says.
+Loki reads an outline of the page in the visitor's browser (headings, wording,
 links, buttons, forms, a picked element's markup and computed style; for
 "Whole site" a few more same-origin pages from the navigation) and sends it to
 `/api/widget/advise`, charged to the token owner's AI budget. It sees no
@@ -137,7 +148,11 @@ move it to another corner from the same long-press / right-click menu.
 ## Tests
 
 - `scripts/test/widget-embed-browser.ts` — installing (module / injected /
-  duplicate tags), hiding and every way back, and Ask → Request this.
+  duplicate tags), hiding and every way back, the one conversation (ask →
+  send to builder → receipt, surviving a reload), the Watch offer's sign-in
+  link, and the report-only embed.
+- `scripts/test/widget-thread.ts` — who answers, restoring a stored thread
+  (untrusted input), the thread as model history.
 - `scripts/test/widget-advise.ts` — the advisor prompt, answer/changes split,
   and the widget↔route caps.
 - `scripts/test/widget-placement.ts` — the pure slot order and chooser.
