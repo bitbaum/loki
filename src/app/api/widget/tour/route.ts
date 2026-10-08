@@ -219,7 +219,7 @@ export async function POST(req: NextRequest) {
     title: audience === "reporter" ? "Your fix" : "Watch the fix",
     intro:
       audience === "viewer"
-        ? `Someone asked: “${short}” — here is what changed.`
+        ? "A change was just made to this site. Here it is, live."
         : `You asked: “${short}” — let me show you what changed.`,
     steps,
     beats: buildTourBeats({ audience, asked, note: fix?.pr?.note ?? null, didLine, steps, before }),
