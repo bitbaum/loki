@@ -2796,6 +2796,11 @@
   .ui-term-tab-active .ui-term-tab-close {
     @apply opacity-60;
   }
+  /* Armed: the second press ends the session, so it must read as a question
+     and stay visible without hovering the tab. */
+  .ui-term-tab-close-armed {
+    @apply bg-surface-overlay text-status-warning opacity-100;
+  }
   .ui-term-newtab {
     @apply shrink-0 rounded-md p-1.5 text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-primary;
   }
