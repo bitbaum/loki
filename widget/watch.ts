@@ -22,6 +22,7 @@ import {
   nextTapStreak,
   noticeCount,
   sessionForReview,
+  SLOW_REQUEST_MS,
   trailDiagnostics,
   type TapStreak,
   isNoiseError,
@@ -115,6 +116,9 @@ export function installWatch(opts: {
     add("notice", text);
   };
   let streak: TapStreak = null;
+  /** The last tap on the site (performance clock) — a freeze right after it
+   *  is one the person felt (see observePerformance). */
+  let lastTap: { at: number; what: string } | null = null;
   const fail = (failure: Failure) => {
     if (!opts.isActive()) return;
     // A dead tap is already in the trail as the tap itself.
@@ -163,6 +167,7 @@ export function installWatch(opts: {
         placeholder: el.getAttribute("placeholder"),
       });
       add("tap", tap);
+      lastTap = { at: e.timeStamp, what: tap };
       if (!opts.isActive()) return;
       const next = nextTapStreak(streak, tap, Date.now());
       streak = next.streak;
@@ -189,12 +194,11 @@ export function installWatch(opts: {
     streak = null;
     const text = describeRequest(method, url, status);
     if (isFailedRequest(status)) fail({ kind: "request", text });
-    else if (isNoticeableRequest(status, ms))
-      notice(
-        status !== null && status >= 400 ? "4xx" : "slow",
-        describeRequest(method, url, status, ms),
-      );
-    else if (!/^GET /.test(text)) add("request", text);
+    else if (isNoticeableRequest(status, ms)) {
+      const slow = ms >= SLOW_REQUEST_MS;
+      // The duration is only news when it was slow; "404 in 0.0s" is noise.
+      notice(slow ? "slow" : "4xx", describeRequest(method, url, status, slow ? ms : undefined));
+    } else if (!/^GET /.test(text)) add("request", text);
   };
 
   const originalFetch = window.fetch.bind(window);
@@ -248,9 +252,18 @@ export function installWatch(opts: {
     }
   };
 
-  observePerformance(notice);
+  observePerformance(notice, opts.host, () => lastTap);
 
   return { trail: () => trail };
+}
+
+/** A freeze this soon after a tap on the site is one the person felt. */
+const FELT_FREEZE_WINDOW_MS = 1_000;
+
+function isOurNode(node: Node | null | undefined, host: HTMLElement): boolean {
+  if (!node) return false;
+  const root = node.getRootNode();
+  return node === host || host.contains(node) || (root instanceof ShadowRoot && root.host === host);
 }
 
 /**
@@ -258,7 +271,11 @@ export function installWatch(opts: {
  * the main thread freezing under a tap, content jumping as it loads. Each is
  * a remark (never a fix by itself), in words a non-engineer can read.
  */
-function observePerformance(notice: (kind: string, text: string) => void): void {
+function observePerformance(
+  notice: (kind: string, text: string) => void,
+  host: HTMLElement,
+  lastTap: () => { at: number; what: string } | null,
+): void {
   const nav = () => {
     const entry = performance.getEntriesByType("navigation")[0] as
       PerformanceNavigationTiming | undefined;
@@ -280,12 +297,22 @@ function observePerformance(notice: (kind: string, text: string) => void): void 
       /* an older browser: one signal fewer, nothing broken */
     }
   };
+  // Only a freeze that answers a tap on the SITE counts. A long task carries
+  // no script attribution, so one during load could be anyone's — including
+  // this widget booting, or Review reading the page — and a reviewer that
+  // blames the site for Loki's own work is worse than one that says nothing.
   observe("longtask", (entries) => {
+    const tap = lastTap();
     for (const e of entries) {
-      if (e.duration >= LONG_TASK_MS)
+      if (e.duration < LONG_TASK_MS || !tap) continue;
+      // Overlap, not "starts after": the task that RUNS the tap handler began
+      // a moment before this listener saw the tap.
+      const overlaps =
+        e.startTime + e.duration >= tap.at && e.startTime <= tap.at + FELT_FREEZE_WINDOW_MS;
+      if (overlaps)
         notice(
           "longtask",
-          `the page froze for ${Math.round(e.duration)}ms (taps go unanswered meanwhile)`,
+          `after ${tap.what} the page froze for ${Math.round(e.duration)}ms (taps go unanswered meanwhile)`,
         );
     }
   });
@@ -295,15 +322,20 @@ function observePerformance(notice: (kind: string, text: string) => void): void 
     for (const e of entries as (PerformanceEntry & {
       value?: number;
       hadRecentInput?: boolean;
+      sources?: { node?: Node | null }[];
     })[]) {
       // A shift right after the person's own input is the page responding.
-      if (!e.hadRecentInput) cls += e.value ?? 0;
+      // Only shifts the browser can pin on a node of the SITE count: Chrome
+      // reports Loki's own panel (shadow DOM) with a null node, and opening
+      // Review once scored 0.27 against a page that never moved.
+      const site = (e.sources ?? []).some((s) => s.node && !isOurNode(s.node, host));
+      if (!e.hadRecentInput && site) cls += e.value ?? 0;
     }
     if (!clsNoted && cls > CLS_POOR) {
       clsNoted = true;
       notice(
         "cls",
-        `content jumped around while loading (layout shift ${cls.toFixed(2)}, poor above ${CLS_POOR})`,
+        `content jumped around on this page (layout shift ${cls.toFixed(2)}, poor above ${CLS_POOR})`,
       );
     }
   });

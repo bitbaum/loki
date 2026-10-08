@@ -20,6 +20,7 @@ import {
   ADVISE_UNAVAILABLE,
   advisePrompt,
   adviseSystemPrompt,
+  plainAnswer,
   splitAdvice,
 } from "@/lib/widget-advise/advisor";
 
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
     });
     void recordAiSpend(token.userId, answered.tokens);
     const { answer, changes } = splitAdvice(stripReasoning(answered.text));
-    const reply = trimToLastSentence(answer);
+    const reply = plainAnswer(trimToLastSentence(answer));
     if (!reply) throw new Error("empty answer");
     return corsJson({ ok: true, reply, changes });
   } catch (e) {

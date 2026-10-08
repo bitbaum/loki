@@ -15,6 +15,7 @@ import {
   ADVISE_MAX_SNAPSHOT,
   CHANGES_MARKER,
   advisePrompt,
+  plainAnswer,
   adviseSystemPrompt,
   splitAdvice,
 } from "@/lib/widget-advise/advisor";
@@ -127,5 +128,11 @@ assert.match(widgetSrc, /session\.slice\(0, REVIEW_SESSION_MAX\)/, "the widget c
   const huge = adviseSystemPrompt({ scope: "page", snapshot: "", session: "x".repeat(50_000) });
   assert.ok(huge.length < ADVISE_MAX_SESSION + 6_000, "an oversized session is clamped");
 }
+
+// ---- answers are shown as text: markdown emphasis is unwrapped, not shown ----
+assert.equal(
+  plainAnswer("- **Errors:** the 404\n- __Design:__ no label\n2 * 3 * 4"),
+  "- Errors: the 404\n- Design: no label\n2 * 3 * 4",
+);
 
 console.log("widget-advise: ok");

@@ -63,7 +63,7 @@ const REVIEW_RUBRIC = [
   "- Process: what the evidence says about how the site is built and shipped — e.g. an error any test would have caught, a check that is clearly never run, the same failure twice.",
   "- Product: whether this flow serves what the site is for; a missing step, a feature the session shows is needed, or one that is in the way.",
   "Every point must cite its evidence from the session or checks (quote the step: 'you tapped button “Save” three times'). Never invent problems the session does not show; if the session is clean, say what worked and stop.",
-  "Format: a one-line read of what they were doing, then a short bullet per finding, each starting with its lens in bold (e.g. **Engineering:**). Up to 300 words.",
+  "Format: plain text, no markdown (it is shown as text on their site — asterisks would appear literally). A one-line read of what they were doing, then one line per finding starting with '- ' and its lens and a colon (e.g. '- Engineering: …'). Up to 300 words.",
 ].join("\n");
 
 export function adviseSystemPrompt(input: {
@@ -137,6 +137,15 @@ export function splitAdvice(text: string): { answer: string; changes: string[] }
     if (changes.length >= ADVISE_MAX_CHANGES) break;
   }
   return { answer: answer || text.slice(0, idx).trim(), changes };
+}
+
+/**
+ * The widget shows answers as TEXT (model output on someone else's site), so
+ * markdown emphasis would appear as literal asterisks. Models add it whatever
+ * the prompt says; unwrap it rather than ship "**Errors:**" to a client.
+ */
+export function plainAnswer(text: string): string {
+  return text.replace(/\*\*([^*\n]+)\*\*/g, "$1").replace(/__([^_\n]+)__/g, "$1");
 }
 
 /**

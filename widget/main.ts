@@ -710,6 +710,7 @@ interface LokiApi {
       if (!panel.isConnected) openPanel();
       surfaceMode = "ask";
       syncModes();
+      title.textContent = "What Loki makes of what you just did";
       advise?.review(session);
     };
     const watchOpts = { root, host, theme, token, apiBase, pass: () => ownerPass };

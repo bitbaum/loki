@@ -24,10 +24,16 @@ const SITE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>
 <main><h1>Shop</h1><input id="email" placeholder="Your email">
 <button id="buy">Buy now</button><button id="dead">Save</button><button id="ok">Refresh</button>
 <button id="find">Find a size</button><button id="icon"><svg width="10" height="10"></svg></button>
-<img src="/shop/hero.png" width="40" height="40"></main>
+<img src="/shop/hero.png" width="40" height="40"><button id="jank">Load more</button></main>
 <script>document.getElementById("buy").onclick = () => fetch("/shop/checkout?token=secret", { method: "POST" });
 document.getElementById("ok").onclick = () => fetch("/shop/ok");
-document.getElementById("find").onclick = () => fetch("/shop/sizes?user=secret");</script>
+document.getElementById("find").onclick = () => fetch("/shop/sizes?user=secret");
+// A janky "Load more": freezes the main thread, then pushes everything down.
+document.getElementById("jank").onclick = () => {
+  const until = performance.now() + 450; while (performance.now() < until) {}
+  setTimeout(() => { const b = document.createElement("div"); b.style.height = "320px";
+    b.textContent = "Banner"; document.querySelector("main").prepend(b); }, 900);
+};</script>
 <script src="${ORIGIN}/widget.js" data-fc-project="fcw_fixture" async></script></body></html>`;
 
 type Report = { suggestion: string; ownerPass?: string };
@@ -75,6 +81,10 @@ async function open(browser: Browser, js: string, hash: string) {
   await p.waitForTimeout(1000);
   return { p, errors, reports, advice, close: () => ctx.close() };
 }
+
+/** The recorded trail, as the tab keeps it across page loads. */
+const trailText = (p: Page) =>
+  p.evaluate(() => sessionStorage.getItem("loki-watch-trail:fcw_fixture") ?? "");
 
 /** Click a pill button by its label — the pill's buttons are Review, Report, Pause. */
 const clickPill = (p: Page, label: string) =>
@@ -137,6 +147,7 @@ async function main() {
       "owner sees the watching pill",
     );
     await s.p.fill("#email", "me@example.com");
+    await s.p.click("#email");
     await s.p.click("#buy");
     await s.p.waitForTimeout(600);
     await s.p.click("#buy");
@@ -189,6 +200,9 @@ async function main() {
     const s = await open(browser, js, "#loki-owner=pass123");
     await s.p.keyboard.press("Escape");
     await s.p.fill("#email", "me@example.com");
+    // Tap the FILLED field: a tap on a field is recorded, its value never is.
+    // (fill() alone types without a tap, which once made this check vacuous.)
+    await s.p.click("#email");
     await s.p.click("#find");
     await s.p.waitForTimeout(500);
     ok(
@@ -245,7 +259,25 @@ async function main() {
     });
     ok(report.text?.includes("size chart") === true, "the change prefills the request");
     ok(report.diag === "block", "with the watched steps attached");
+    // Loki's own panel opening is not the site's layout shift, and Loki's own
+    // boot and page reading are not the site freezing.
+    const after = await trailText(s.p);
+    ok(!after.includes("jumped around"), `Loki's panel is not blamed for a shift (${after})`);
+    ok(!after.includes("froze"), "nor Loki's own work for a freeze");
     ok(s.errors.length === 0, `no page errors (${s.errors.join("; ")})`);
+    await s.close();
+  }
+
+  // ---- the site's own jank IS noticed (a detector that never fires reads as clean) ----
+  {
+    const s = await open(browser, js, "#loki-owner=pass123");
+    await s.p.keyboard.press("Escape");
+    await s.p.click("#jank");
+    await s.p.waitForTimeout(1600);
+    const t = await trailText(s.p);
+    ok(/after button “Load more” the page froze for \d+ms/.test(t), `a felt freeze (${t})`);
+    ok(t.includes("content jumped around on this page"), "and the content pushed down");
+    ok(s.reports.length === 0, "jank is a remark for Review, not an automatic fix");
     await s.close();
   }
 
