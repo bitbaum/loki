@@ -4,6 +4,7 @@ import { RATE_LIMIT_WINDOW_SHORT_MS, RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/con
 import { getWidgetTokenByToken } from "@/db/queries/widget-tokens";
 import { WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
 import { transcribeWithGroq } from "@/lib/transcribe";
+import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 
 /**
  * Speech-to-text for the embeddable feedback widget — the visitor speaks
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
   }
 
   const origin = req.headers.get("origin");
-  if (token.origins?.length && (!origin || !token.origins.includes(origin))) {
+  if (!isWidgetOriginAllowed({ tokenOrigins: token.origins, origin, allowMissingOrigin: false })) {
     return corsError("Origin not allowed for this widget", 403);
   }
 

@@ -16,6 +16,7 @@ import { createFeedbackClaimToken } from "@/lib/feedback/claim-token";
 import { appUrl } from "@/lib/email";
 import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
 import { implementFeedback } from "@/lib/feedback/implement";
+import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 
 /** Owner notes start an agent each; this bounds what a leaked pass can spend. */
 const OWNER_BUILDS_PER_DAY = 40;
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
 
   // Server-side origin allowlist (empty/null = any origin).
   const origin = req.headers.get("origin");
-  if (token.origins?.length && (!origin || !token.origins.includes(origin))) {
+  if (!isWidgetOriginAllowed({ tokenOrigins: token.origins, origin, allowMissingOrigin: false })) {
     return corsError("Origin not allowed for this widget", 403);
   }
 

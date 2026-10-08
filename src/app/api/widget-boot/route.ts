@@ -5,6 +5,7 @@ import { WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
 import { getWidgetTokenByToken, touchWidgetToken } from "@/db/queries/widget-tokens";
 import { normalizeWidgetPlacement, type WidgetPlacement } from "@/config/widget-placement";
 import { PALETTE } from "@/lib/palette";
+import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 
 /**
  * Widget boot: the embed's first call on every page load. Returns whether the
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest) {
   // don't render a dead FAB there. No Origin header (same-origin dogfood,
   // curl) passes, matching ingest semantics.
   const origin = req.headers.get("origin");
-  if (row.origins?.length && origin && !row.origins.includes(origin)) {
+  if (!isWidgetOriginAllowed({ tokenOrigins: row.origins, origin, allowMissingOrigin: true })) {
     return bootResponse(false);
   }
 

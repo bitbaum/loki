@@ -26,6 +26,7 @@ import {
   stripMeta,
   trimToLastSentence,
 } from "@/lib/widget-chat/concierge";
+import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 
 /**
  * The widget's Chat mode (widget/surface-modes.ts): a plain chat in which the
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
     return corsError("This assistant is paused for this site", 403);
   }
   const origin = req.headers.get("origin");
-  if (token.origins?.length && (!origin || !token.origins.includes(origin))) {
+  if (!isWidgetOriginAllowed({ tokenOrigins: token.origins, origin, allowMissingOrigin: false })) {
     return corsError("Origin not allowed for this widget", 403);
   }
   if (!checkRateLimit(`widget-chat:token:${token.id}`, RATE_PER_TOKEN, RATE_LIMIT_WINDOW_LONG_MS)) {
