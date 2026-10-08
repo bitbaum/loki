@@ -22,18 +22,23 @@ const ORIGIN = "http://host.fixture";
 const SITE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Shop</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
 <main><h1>Shop</h1><input id="email" placeholder="Your email">
-<button id="buy">Buy now</button><button id="dead">Save</button><button id="ok">Refresh</button></main>
+<button id="buy">Buy now</button><button id="dead">Save</button><button id="ok">Refresh</button>
+<button id="find">Find a size</button><button id="icon"><svg width="10" height="10"></svg></button>
+<img src="/shop/hero.png" width="40" height="40"></main>
 <script>document.getElementById("buy").onclick = () => fetch("/shop/checkout?token=secret", { method: "POST" });
-document.getElementById("ok").onclick = () => fetch("/shop/ok");</script>
+document.getElementById("ok").onclick = () => fetch("/shop/ok");
+document.getElementById("find").onclick = () => fetch("/shop/sizes?user=secret");</script>
 <script src="${ORIGIN}/widget.js" data-fc-project="fcw_fixture" async></script></body></html>`;
 
 type Report = { suggestion: string; ownerPass?: string };
+type Advice = { question: string; scope: string; session?: string };
 
 async function open(browser: Browser, js: string, hash: string) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
   const p = await ctx.newPage();
   const errors: string[] = [];
   const reports: Report[] = [];
+  const advice: Advice[] = [];
   p.on("pageerror", (e) => errors.push(e.message));
   await p.route(`${ORIGIN}/**`, async (route) => {
     const url = new URL(route.request().url());
@@ -53,13 +58,34 @@ async function open(browser: Browser, js: string, hash: string) {
       return json({ ok: true, owner: true, building: true });
     }
     if (url.pathname === "/shop/checkout") return json({ error: "boom" }, 500);
+    if (url.pathname === "/api/widget/advise") {
+      advice.push(JSON.parse(route.request().postData() ?? "{}") as Advice);
+      return json({
+        ok: true,
+        reply: "You were looking for a size. **Errors:** the size lookup 404s.",
+        changes: ["Make “Find a size” show the size chart instead of failing"],
+      });
+    }
     if (url.pathname === "/shop/ok") return json({ ok: true });
+    if (url.pathname === "/shop/sizes") return json({ error: "not found" }, 404);
+    if (url.pathname === "/shop/hero.png") return route.fulfill({ status: 404, body: "" });
     return route.fulfill({ body: SITE, contentType: "text/html" });
   });
   await p.goto(`${ORIGIN}/${hash}`);
   await p.waitForTimeout(1000);
-  return { p, errors, reports, close: () => ctx.close() };
+  return { p, errors, reports, advice, close: () => ctx.close() };
 }
+
+/** Click a pill button by its label — the pill's buttons are Review, Report, Pause. */
+const clickPill = (p: Page, label: string) =>
+  p.evaluate((label) => {
+    const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+    const btn = Array.from(r.querySelectorAll(".watch-pill .wbtn")).find(
+      (b) => (b as HTMLElement).innerText.trim() === label,
+    ) as HTMLElement | undefined;
+    if (!btn) throw new Error(`no pill button "${label}"`);
+    btn.click();
+  }, label);
 
 const pillText = (p: Page) =>
   p.evaluate(() => {
@@ -147,10 +173,7 @@ async function main() {
       "the report says which button did nothing",
     );
     // Report opens the note with the trail attached.
-    await s.p.evaluate(() => {
-      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-      (r.querySelectorAll(".watch-pill .wbtn")[0] as HTMLElement).click();
-    });
+    await clickPill(s.p, "Report");
     await s.p.waitForTimeout(300);
     const opened = await s.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
@@ -158,6 +181,71 @@ async function main() {
       return !!r.querySelector(".panel") && diag?.style.display === "block";
     });
     ok(opened, "Report opens the note with the trail attached");
+    await s.close();
+  }
+
+  // ---- Review: Loki judges what the owner did, from evidence ----
+  {
+    const s = await open(browser, js, "#loki-owner=pass123");
+    await s.p.keyboard.press("Escape");
+    await s.p.fill("#email", "me@example.com");
+    await s.p.click("#find");
+    await s.p.waitForTimeout(500);
+    ok(
+      (await pillText(s.p))?.includes("noticed") === true,
+      `a 404 is noticed on the pill (${await pillText(s.p)})`,
+    );
+    ok(s.reports.length === 0, "a 404 is a remark, not an automatic fix");
+    ok(s.advice.length === 0, "no model runs until Review is pressed");
+
+    // A trail survives a full page load: a multi-page site is one visit.
+    await s.p.reload();
+    await s.p.waitForTimeout(1000);
+    await clickPill(s.p, "Review");
+    await s.p.waitForTimeout(800);
+    const a = s.advice[0];
+    ok(s.advice.length === 1, `Review asks Loki once (got ${s.advice.length})`);
+    const session = a?.session ?? "";
+    ok(/^Review what I just did/.test(a?.question ?? ""), "Review asks for a review");
+    ok(session.includes("tap button “Find a size”"), "the session carries the tap");
+    ok(session.includes("GET /shop/sizes → 404"), "and what the page answered");
+    ok(/page \/[\s\S]*page \//.test(session), "and both page loads — the trail survived reload");
+    ok(
+      session.includes("no name a screen reader can read"),
+      "page checks: the unnamed icon button",
+    );
+    ok(session.includes("no alt text"), "page checks: the image without alt");
+    ok(session.includes("failed to load"), "page checks: the broken image");
+    ok(!session.includes("me@example.com"), "what was typed never leaves the page");
+    ok(!session.includes("user=secret"), "query strings never leave the page");
+    const shown = await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      return {
+        reply: (
+          Array.from(r.querySelectorAll(".advise .msg.from-loki")).pop() as HTMLElement | undefined
+        )?.innerText,
+        change: (r.querySelector(".advise .change-text") as HTMLElement | null)?.innerText,
+      };
+    });
+    ok(shown.reply?.includes("looking for a size") === true, "the review is shown in Ask");
+    ok(shown.change?.includes("size chart") === true, "with its change one tap away");
+
+    // Requesting that change carries the session's steps to the builder.
+    await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      (r.querySelector(".advise .change-send") as HTMLElement).click();
+    });
+    await s.p.waitForTimeout(200);
+    const report = await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      return {
+        text: (r.querySelector(".report-view textarea") as HTMLTextAreaElement | null)?.value,
+        diag: (r.querySelector(".diag") as HTMLElement | null)?.style.display,
+      };
+    });
+    ok(report.text?.includes("size chart") === true, "the change prefills the request");
+    ok(report.diag === "block", "with the watched steps attached");
+    ok(s.errors.length === 0, `no page errors (${s.errors.join("; ")})`);
     await s.close();
   }
 

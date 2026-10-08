@@ -13,15 +13,32 @@
  * (button text, aria-label, an input's placeholder) and NEVER by what was
  * typed into it; a request by method, path and status, never its body or
  * query string.
+ *
+ * Review (the pill's button) reads the same trail: it is what lets Loki say
+ * what the owner was trying to do and judge the site against it — errors,
+ * design, engineering, process and product — instead of only reacting when
+ * something throws.
  */
 import type { ReportDiagnostics } from "./report-payload";
 
-export type TrailKind = "tap" | "page" | "request" | "error";
+/**
+ * `notice` is what a demanding reviewer would remark on that is NOT a failure:
+ * a 404, a slow request, a console error, a page that took four seconds, the
+ * main thread freezing. It never files a fix by itself; Review judges it
+ * alongside the taps around it.
+ */
+export type TrailKind = "tap" | "page" | "request" | "error" | "notice";
 export type TrailEntry = { at: number; kind: TrailKind; text: string };
 export type Failure = { kind: "error" | "request" | "dead-tap"; text: string };
 
-/** The last this-many things — enough to reproduce, small enough to read. */
-export const TRAIL_MAX = 20;
+/**
+ * The last this-many things. A failure report quotes only the newest twelve;
+ * Review reads the lot, which is what lets it follow what the owner was doing
+ * across several pages rather than only the moment something broke.
+ */
+export const TRAIL_MAX = 60;
+/** A trail kept across page loads is this session's, not last week's. */
+export const TRAIL_MAX_AGE_MS = 30 * 60_000;
 /** Reports filed automatically per page load, at most. */
 export const WATCH_REPORTS_PER_PAGE = 3;
 const TEXT_MAX = 60;
@@ -62,15 +79,35 @@ export function isFailedRequest(status: number | null): boolean {
   return status === null || status >= 500;
 }
 
-/** "GET /api/projects → 500" — path only: query strings carry tokens. */
-export function describeRequest(method: string, url: string, status: number | null): string {
+/** "GET /api/projects → 500" — path only: query strings carry tokens. A
+ *  duration, when given, is in tenths of a second: "→ 200 in 4.2s". */
+export function describeRequest(
+  method: string,
+  url: string,
+  status: number | null,
+  ms?: number,
+): string {
   let path = url;
   try {
     path = new URL(url, "http://x").pathname;
   } catch {
     /* keep what we were given */
   }
-  return `${method.toUpperCase()} ${path} → ${status === null ? "no response" : status}`;
+  const took = ms === undefined ? "" : ` in ${(Math.round(ms / 100) / 10).toFixed(1)}s`;
+  return `${method.toUpperCase()} ${path} → ${status === null ? "no response" : status}${took}`;
+}
+
+/** Slower than this and a person notices the wait. */
+export const SLOW_REQUEST_MS = 3_000;
+
+/**
+ * A request that did not fail but is still worth a remark: refused or pointed
+ * at something that is not there (4xx), or slow. Failures (5xx, no answer)
+ * belong to isFailedRequest, never to both.
+ */
+export function isNoticeableRequest(status: number | null, ms: number): boolean {
+  if (status === null || status >= 500) return false;
+  return status >= 400 || ms >= SLOW_REQUEST_MS;
 }
 
 /** Errors the browser raises about itself, not about the site. */
@@ -138,4 +175,62 @@ export function nextTapStreak(
   return next.count >= DEAD_TAP_COUNT
     ? { streak: null, dead: true }
     : { streak: next, dead: false };
+}
+
+/** Drop what is older than this session and anything malformed — a trail
+ *  restored from storage after a page load is untrusted input. */
+export function freshTrail(trail: unknown, now: number): TrailEntry[] {
+  if (!Array.isArray(trail)) return [];
+  const kinds: TrailKind[] = ["tap", "page", "request", "error", "notice"];
+  return trail
+    .filter(
+      (e): e is TrailEntry =>
+        !!e &&
+        typeof e.at === "number" &&
+        typeof e.text === "string" &&
+        kinds.includes(e.kind) &&
+        now - e.at <= TRAIL_MAX_AGE_MS &&
+        e.at <= now,
+    )
+    .map((e) => ({ at: e.at, kind: e.kind, text: e.text.slice(0, 160) }))
+    .slice(-TRAIL_MAX);
+}
+
+/** How many things Loki has remarked on — what the pill counts. */
+export function noticeCount(trail: TrailEntry[]): number {
+  return trail.filter((e) => e.kind === "notice" || e.kind === "error").length;
+}
+
+/** Mirrors ADVISE_MAX_SESSION in src/lib/widget-advise/advisor.ts. */
+export const REVIEW_SESSION_MAX = 6_000;
+/** A gap this long between two steps reads as the person stopping to think. */
+export const HESITATION_MS = 20_000;
+
+/**
+ * The session as Review sends it: what the owner did, in order, with the
+ * pauses between steps written out (forty seconds before a button is a finding
+ * in itself), then what the page checks found. When it is too long the OLDEST
+ * steps go — the end of a session is where the question usually is.
+ */
+export function sessionForReview(trail: TrailEntry[], checks: string[], now: number): string {
+  const steps: string[] = [];
+  let prev: number | null = null;
+  for (const e of trail) {
+    if (prev !== null && e.at - prev >= HESITATION_MS) {
+      steps.push(`(paused ${Math.round((e.at - prev) / 1000)}s)`);
+    }
+    steps.push(`${e.kind} ${e.text}`);
+    prev = e.at;
+  }
+  if (prev !== null && now - prev >= HESITATION_MS) {
+    steps.push(`(nothing for ${Math.round((now - prev) / 1000)}s, then asked for this review)`);
+  }
+  const head = "What they did, oldest first:\n";
+  const tail = checks.length
+    ? `\n\nChecks on the page they are on now:\n${checks.map((c) => `- ${c}`).join("\n")}`
+    : "";
+  let body = steps.length ? steps.join("\n") : "(nothing yet — they have only just arrived)";
+  const room = REVIEW_SESSION_MAX - head.length - tail.length;
+  if (body.length > room) body = `…\n${body.slice(body.length - room + 2)}`;
+  return `${head}${body}${tail}`.slice(0, REVIEW_SESSION_MAX);
 }

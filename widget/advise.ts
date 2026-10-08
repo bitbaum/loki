@@ -15,10 +15,14 @@
 import { h } from "./dom";
 import type { SelectedEl } from "./picker";
 import { SNAPSHOT_MAX_CHARS, takeSnapshot, type SnapshotScope } from "./page-snapshot";
+import { REVIEW_SESSION_MAX } from "./watch-trail";
 
 /** Mirrors ADVISE_MAX_QUESTION / ADVISE_MAX_HISTORY in the route's advisor module. */
 export const ADVISE_MAX_QUESTION = 1000;
 export const ADVISE_MAX_HISTORY = 8;
+
+/** What the owner "asks" when they press Review on the watch pill. */
+export const REVIEW_QUESTION = "Review what I just did on this site. What should be improved?";
 
 type Turn = { role: "user" | "assistant"; content: string };
 
@@ -114,7 +118,11 @@ export function createAdvise(opts: {
     log.scrollTop = log.scrollHeight;
   }
 
-  async function send(question?: string) {
+  /**
+   * `session` is Watch's record of what the owner just did (widget/watch.ts):
+   * with it, the answer is a review of their session, not of the page alone.
+   */
+  async function send(question?: string, session?: string) {
     const message = (question ?? input.value).trim().slice(0, ADVISE_MAX_QUESTION);
     if (busy || !message) return;
     busy = true;
@@ -123,12 +131,19 @@ export function createAdvise(opts: {
     input.value = "";
     const selected = opts.getSelected();
     // "An element" with nothing picked is still a good question about the page.
+    // A session review is about the page they are on, whatever chip is lit.
     const scope: SnapshotScope =
-      opts.getScope() === "element" && selected.length === 0 ? "page" : opts.getScope();
+      session || (opts.getScope() === "element" && selected.length === 0)
+        ? "page"
+        : opts.getScope();
     bubble("user", message);
     const pending = bubble(
       "bot",
-      scope === "site" ? "Reading the site…" : "Looking at the " + scope + "…",
+      session
+        ? "Going through what you did…"
+        : scope === "site"
+          ? "Reading the site…"
+          : "Looking at the " + scope + "…",
     );
     pending.classList.add("pending");
     try {
@@ -141,6 +156,7 @@ export function createAdvise(opts: {
           question: message,
           scope,
           snapshot,
+          session: session ? session.slice(0, REVIEW_SESSION_MAX) : undefined,
           history: history
             .slice(-ADVISE_MAX_HISTORY)
             .map((t) => ({ ...t, content: t.content.slice(0, 3000) })),
@@ -192,5 +208,7 @@ export function createAdvise(opts: {
       return false;
     },
     ask: (q: string) => void send(q),
+    /** Watch's Review: judge the owner's session, not only the page. */
+    review: (session: string) => void send(REVIEW_QUESTION, session),
   };
 }
