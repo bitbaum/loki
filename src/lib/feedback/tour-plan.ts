@@ -224,14 +224,16 @@ export function buildTourBeats(story: TourStory): TourBeat[] {
     return beats;
   }
 
-  // Someone the owner shared the link with: the request and the live change,
-  // nothing of the maintainer's and nothing of the reporter's but their words —
-  // their screenshot may show their own screen.
+  // Someone the owner shared the link with: the live change and its plain
+  // sentence — nothing of the maintainer's, and nothing of the reporter's.
+  // Not even their words: the first shared link quoted a request's typos and
+  // the owner's private ambition to a stranger (2026-10-08); their screenshot
+  // may show their own screen.
   if (story.audience === "viewer") {
     beats.push({
       chapter: TOUR_CHAPTER.REQUEST,
       action: "say",
-      say: `Someone asked: “${asked}” Here is what changed on the live site.`,
+      say: "A change was just made to this site. Here it is, live.",
     });
     beats.push(...live(TOUR_CHAPTER.SEE_IT));
     if (note?.plain) beats.push({ chapter: TOUR_CHAPTER.HELPS, action: "say", say: note.plain });

@@ -11,8 +11,8 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **Share a fix's walkthrough with anyone.** "Watch the fix" now has a Share
   button, in Loki's inbox and on the walkthrough's last card. The link opens
   the live site and plays the same walkthrough there — the real page, not a
-  recording — in plain words: the request and the change shown on the page,
-  without the code reasoning, the pull request or the reporter's screenshot.
+  recording — in plain words: the change shown on the page, without the code
+  reasoning, the pull request, or the reporter's words and screenshot.
   Everyone who opens it sees the same story, and passing it around does not
   spend your AI budget once per viewer.
 - **A cleaner last card.** The walkthrough ends on one short question and one

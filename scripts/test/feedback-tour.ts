@@ -215,14 +215,16 @@ const outline = [
   );
   assert.doesNotMatch(tourOutro("reporter"), /Added the link/);
 
-  // Someone the owner shared it with: the request and the live change — no
-  // maintainer's reasoning, and never the reporter's screenshot of their screen.
-  const viewer = buildTourBeats({ ...story, before: null, audience: "viewer" });
+  // Someone the owner shared it with: the live change and its plain sentence —
+  // no maintainer's reasoning, and nothing of the reporter's: not their
+  // screenshot, not even their words (the first shared link quoted a
+  // request's typos and the owner's private ambition, 2026-10-08).
+  const viewer = buildTourBeats({ ...story, audience: "viewer" });
   const told = viewer.map((b) => b.say).join(" ");
-  for (const internal of [note.problem, note.why, note.change, "floating button"])
+  for (const internal of [note.problem, note.why, note.change, "floating button", story.asked])
     assert.ok(!told.includes(internal), `a viewer is not told: ${internal}`);
   assert.equal(viewer[0].chapter, TOUR_CHAPTER.REQUEST);
-  assert.match(viewer[0].say, /^Someone asked:/, "never 'You asked' to someone who didn't");
+  assert.doesNotMatch(told, /You asked|You reported/, "never 'you' to someone who didn't ask");
   assert.ok(
     viewer.every((b) => !b.image),
     "no screenshot",
