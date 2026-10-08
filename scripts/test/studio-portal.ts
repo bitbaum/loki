@@ -17,6 +17,7 @@ import {
   validateCourseEvidence,
 } from "../../src/lib/studio/policy";
 import { StudioContract } from "../../src/lib/studio-commission";
+import { studioPortalUrl } from "../../src/lib/studio/link-mail";
 import { studioView } from "../../src/lib/studio/projection";
 import type { StudioRequest } from "../../src/db/schema/studio-requests";
 async function main() {
@@ -75,6 +76,22 @@ async function main() {
     StudioGuestAction.safeParse({ action: "link_project", mutationId: id, projectId: id }).success,
     false,
   );
+  // A guest may add the reply address later; it must be an address.
+  assert.equal(
+    StudioGuestAction.safeParse({ action: "set_contact", mutationId: id, contact: "a@b.ch" })
+      .success,
+    true,
+  );
+  assert.equal(
+    StudioGuestAction.safeParse({
+      action: "set_contact",
+      mutationId: id,
+      contact: "not an address",
+    }).success,
+    false,
+  );
+  // The mailed link is the same shape the site builds: id and key in the fragment.
+  assert.equal(studioPortalUrl(id, key), `${COMMISSION.studioOrigin}/portal/#id=${id}&key=${key}`);
   assert.equal(
     StudioGuestAction.safeParse({
       action: "approve_partner",

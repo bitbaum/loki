@@ -6,6 +6,7 @@ export const STUDIO = {
   portalPath: "/api/studio-portal",
   reviewPath: "/api/studio-review",
   partnersPath: "/api/studio-partners",
+  recoverPath: "/api/studio-recover",
   maxBody: 32_000,
 } as const;
 
@@ -66,6 +67,7 @@ const preview = {
 };
 export const StudioGuestAction = z.discriminatedUnion("action", [
   z.object({ ...mutation, action: z.literal("message"), body: message }).strict(),
+  z.object({ ...mutation, action: z.literal("set_contact"), contact: z.email().max(200) }).strict(),
   z.object({ ...mutation, action: z.literal("accept_preview"), version }).strict(),
   z.object({ ...mutation, action: z.literal("request_changes"), version, body: message }).strict(),
   z
