@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { controlAuditEvents, type NewControlAuditEvent } from "@/db/schema/control-audit-events";
 import type { Action } from "@/db/schema/actions";
@@ -60,6 +60,24 @@ export function recordActionAuditEvent(
       ...extra?.meta,
     },
   });
+}
+
+/** How many times one action reached `lifecycle` (e.g. how often its booking failed). */
+export async function countActionAuditEvents(
+  actionId: string,
+  lifecycle: ActionAuditLifecycle,
+): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(controlAuditEvents)
+    .where(
+      and(
+        eq(controlAuditEvents.event, "action"),
+        eq(controlAuditEvents.action, lifecycle),
+        sql`${controlAuditEvents.meta}->>'actionId' = ${actionId}`,
+      ),
+    );
+  return row?.n ?? 0;
 }
 
 export async function getRecentControlAuditEvents(userId: string, limit = 20) {

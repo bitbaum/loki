@@ -7,10 +7,12 @@ import {
   releaseActionClaim,
   getActionById,
   markActionExecuted,
+  giveUpApprovedAction,
 } from "@/db/queries/actions";
-import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
+import { countActionAuditEvents, recordActionAuditEvent } from "@/db/queries/control-audit-events";
+import { bookingVerdict } from "@/lib/actions/booking-attempts";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
-import { notifyActionExecuted } from "@/lib/actions/notify-decision";
+import { notifyActionExecuted, notifyActionGaveUp } from "@/lib/actions/notify-decision";
 import { standingApprovalVerdict } from "@/lib/actions/standing-approval";
 import { getUserPreferences } from "@/db/queries/user-preferences";
 
@@ -93,15 +95,26 @@ export async function POST(req: NextRequest) {
   const { id, ok, eventId, htmlLink, error } = dataOrResp;
 
   if (!ok) {
-    // Booking failed on the local side — leave the row 'approved' for a retry on
-    // the next drain pass, but record why so a permanently-bad event is visible.
-    // Release the claim too: the lease would expire on its own, but a transient
-    // gog error should cost one poll interval, not the full lease.
+    // Booking failed on the local side. A transient gog error earns a retry on
+    // the next pass (release the claim so it costs one poll, not the lease);
+    // the same failure MAX_BOOKING_ATTEMPTS times is a fact about the event —
+    // stop, and tell the operator once (see lib/actions/booking-attempts.ts).
+    const reason = error ?? "gog booking failed";
     const row = await getActionById(userId, id);
-    if (row)
-      await recordActionAuditEvent(userId, row, "failed", {
-        reason: error ?? "gog booking failed",
-      });
+    if (row) {
+      await recordActionAuditEvent(userId, row, "failed", { reason });
+      const failures = await countActionAuditEvents(id, "failed");
+      if (bookingVerdict(failures) === "give_up") {
+        const gaveUp = await giveUpApprovedAction(id, userId);
+        if (gaveUp) {
+          await recordActionAuditEvent(userId, gaveUp, "expired", {
+            reason: `gave up after ${failures} failed bookings: ${reason}`,
+          });
+          await notifyActionGaveUp(userId, gaveUp, reason, failures).catch(() => {});
+        }
+        return NextResponse.json({ ok: false, marked: false, gaveUp: true });
+      }
+    }
     await releaseActionClaim(id, userId);
     return NextResponse.json({ ok: false, marked: false });
   }

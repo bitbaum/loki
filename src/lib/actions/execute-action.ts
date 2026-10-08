@@ -250,7 +250,12 @@ export async function executeAction(
           return { executed: false, deferred: true };
         }
 
-        const booked = await bookCalendarEvent(action.payload, action.title, opts.recoverEvent);
+        const booked = await bookCalendarEvent(
+          action.payload,
+          action.title,
+          opts.recoverEvent,
+          action.description,
+        );
         if (!booked.ok) {
           await recordActionAuditEvent(userId, action, "failed", { reason: booked.error });
           return { executed: false, error: booked.error };
