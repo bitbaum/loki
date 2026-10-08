@@ -250,6 +250,12 @@ export function FeedbackItemRow({
       />
     );
   } else if (resolved) {
+    // A fix you confirmed is still worth showing: the walkthrough and its
+    // Share link stay on the row, so a done fix can be watched or passed on
+    // later instead of vanishing with the confirm (operator, 2026-10-08).
+    if (f.dispatchedRunId && liveHref) {
+      decision = <WatchFixButton feedbackId={f.id} liveHref={liveHref} size="sm" />;
+    }
     utility = (
       <IconAction
         icon={Star}

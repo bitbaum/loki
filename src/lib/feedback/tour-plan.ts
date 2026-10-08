@@ -276,3 +276,26 @@ export function tourOutro(audience: TourAudience): string {
   if (audience === "viewer") return "That's the change, live on the site — made with Loki.";
   return "That's the change, live on the site. Does it look right to you?";
 }
+
+/**
+ * A "Not quite" from a walkthrough's last card, written as a report an agent
+ * can act on: what is still wrong, about which fix, and — when the owner tried
+ * it with "Show me" first — what the preview showed, so the build starts from
+ * the version they already saw rather than a fresh guess.
+ */
+export function followUpSuggestion(input: {
+  text: string;
+  original: string;
+  preview?: string | null;
+}): string {
+  return [
+    input.text.trim(),
+    "",
+    `(Follow-up after watching the fix for: “${cut(input.original.replace(/\s+/g, " ").trim(), 300)}”.)`,
+    input.preview
+      ? `They previewed it on the live page first; the preview showed: ${cut(input.preview, 300)} Build that.`
+      : null,
+  ]
+    .filter((l) => l !== null)
+    .join("\n");
+}

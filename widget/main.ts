@@ -91,7 +91,7 @@ interface LokiApi {
   }
   const apiBase = script?.src ? new URL(script.src).origin : "";
   // "Watch the fix" runs apart from the launcher: a hidden button still tours.
-  startTourFromFragment(apiBase);
+  startTourFromFragment(apiBase, token);
   // The owner, arriving from Loki's "Open your site" link or returning with the
   // pass kept from it. Their notes start the fix instead of waiting in an inbox.
   const ownerState = takeOwnerPass(token);

@@ -8,6 +8,18 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-10-08 — Share the walkthrough
 
+- **"Not quite" — and "Show me" first.** A walkthrough's last card now has
+  "Not quite": say (or speak) what is still wrong, and Loki starts the fix
+  again with your words. Or press **Show me** first: Loki redraws the live
+  page the way you described it — on your screen only, nothing saved — and
+  "Build this" sends your words together with what the preview showed. Undo
+  puts the page back exactly. The person who reported it can say "Not quite"
+  too; their words go to your inbox.
+- **Finished fixes keep their walkthrough.** Watch the fix and Share now stay
+  on a fix after you confirm it, so you can show it to someone later.
+- **Copy page link** on the last card copies the page's own address, for
+  sharing the site without a walkthrough.
+
 - **Share a fix's walkthrough with anyone.** "Watch the fix" now has a Share
   button, in Loki's inbox and on the walkthrough's last card. The link opens
   the live site and plays the same walkthrough there — the real page, not a

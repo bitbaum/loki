@@ -16,6 +16,7 @@
  */
 import { h } from "./dom";
 import type { WidgetTheme } from "./theme";
+import { followUpCSS, mountFollowUp } from "./tour-followup";
 
 export const TOUR_HASH_KEY = "loki-tour";
 
@@ -65,6 +66,8 @@ type TourPlan = {
   prUrl: string | null;
   /** A link anyone can open to watch the same change; absent for a reporter. */
   shareUrl?: string | null;
+  /** Who may say "Not quite" (and preview it); absent on a shared link. */
+  followUp?: "owner" | "reporter" | null;
 };
 
 /** How long a sentence stays up: enough to read it at an unhurried pace,
@@ -292,7 +295,11 @@ function reportProblem(apiBase: string, token: string, step: number, say: string
   }).catch(() => {});
 }
 
-export async function runTour(apiBase: string, token: string): Promise<void> {
+export async function runTour(
+  apiBase: string,
+  token: string,
+  projectToken: string | null = null,
+): Promise<void> {
   if (document.getElementById("loki-tour-host")) return;
   // Let the page settle (fonts, client components) before reading it.
   if (document.readyState !== "complete") {
@@ -319,7 +326,7 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
   host.id = "loki-tour-host";
   const root = host.attachShadow({ mode: "open" });
   const style = h("style");
-  style.textContent = tourCSS(t);
+  style.textContent = tourCSS(t) + followUpCSS(t);
   const layer = h("div", "layer");
   const ring = h("div", "ring");
   const cursor = h("div", "cursor");
@@ -343,7 +350,8 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
   const fill = h("div", "fill");
   bar.appendChild(fill);
   const row = h("div", "row");
-  card.append(top, chap, say, shot, bar, row);
+  const slot = h("div");
+  card.append(top, chap, say, shot, slot, bar, row);
   layer.append(ring, cursor);
   root.append(style, layer, card);
   let barInset = 0;
@@ -362,9 +370,12 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
   let paused = false;
   let closed = false;
   let skip: (() => void) | null = null;
+  // An open "Not quite" — its preview lives only as long as the card does.
+  let followUp: { dispose(): void } | null = null;
   const close = () => {
     closed = true;
     skip?.();
+    followUp?.dispose();
     window.removeEventListener("resize", liftAboveBar);
     host.remove();
     if (launcher) launcher.style.display = launcherDisplay;
@@ -572,40 +583,71 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
   cursor.classList.remove("on");
   card.classList.remove("up");
   picture(null);
-  beat(
-    problem
-      ? "Part of this did not show up the way it should. It has been flagged — nothing more for you to do here."
-      : plan.outro,
-    total,
-    total,
-    problem,
-    problem ? "Needs a look" : "Live now",
-  );
-  // The end card: one decision, one way to pass it on, and the quiet extras
-  // underneath — four equal buttons over two rows read as a toolbar, not an
-  // ending (operator, 2026-10-08).
-  row.replaceChildren();
-  if (plan.lokiHref) {
-    const back = h(
-      "a",
-      "btn primary",
-      plan.lokiLabel ?? (problem ? "Back to Loki" : "Looks right — confirm"),
-    );
-    back.href = plan.lokiHref;
-    row.appendChild(back);
-  }
-  if (plan.shareUrl && !problem) row.appendChild(shareButton(plan.shareUrl));
+  // The end card: one decision, "Not quite" beside it, one way to pass it on,
+  // and the quiet extras underneath — four equal buttons over two rows read
+  // as a toolbar, not an ending (operator, 2026-10-08).
+  const outro = problem
+    ? "Part of this did not show up the way it should. It has been flagged — nothing more for you to do here."
+    : plan.outro;
+  const endButtons = () => {
+    beat(outro, total, total, problem, problem ? "Needs a look" : "Live now");
+    row.replaceChildren();
+    if (plan.lokiHref) {
+      const back = h(
+        "a",
+        "btn primary",
+        plan.lokiLabel ?? (problem ? "Back to Loki" : "Looks right"),
+      );
+      back.href = plan.lokiHref;
+      row.appendChild(back);
+    }
+    if (plan.followUp && !problem) {
+      const audience = plan.followUp;
+      row.appendChild(
+        btn("Not quite", () => {
+          card.classList.remove("up");
+          followUp = mountFollowUp({
+            apiBase,
+            token,
+            projectToken,
+            audience,
+            tell: (chapter, text) => beat(text, total, total, false, chapter),
+            row,
+            slot,
+            outline: buildTourOutline,
+            show: (el) => {
+              el.scrollIntoView({ block: "center", behavior: "smooth" });
+              setTimeout(() => {
+                frame(el);
+                card.classList.remove("up");
+              }, 500);
+            },
+            back: () => {
+              followUp?.dispose();
+              followUp = null;
+              ring.classList.remove("on");
+              endButtons();
+            },
+          });
+        }),
+      );
+    }
+    if (plan.shareUrl && !problem) row.appendChild(shareButton(plan.shareUrl));
+  };
+  endButtons();
+
   const links = h("div", "links");
   links.appendChild(
     btn("Replay", () => {
       // The token is still valid; the page is read again from the top.
-      window.removeEventListener("resize", liftAboveBar);
-      host.remove();
-      if (launcher) launcher.style.display = launcherDisplay;
+      close();
       window.scrollTo({ top: 0, behavior: "smooth" });
-      void runTour(apiBase, token);
+      void runTour(apiBase, token, projectToken);
     }),
   );
+  // Sharing the page itself, without a walkthrough: the address as it is now
+  // (the tour token already left the address bar).
+  links.appendChild(copyLinkButton(location.href.split("#")[0]));
   if (plan.prUrl) {
     const pr = h("a", undefined, "The code change");
     pr.href = plan.prUrl;
@@ -614,6 +656,22 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
     links.appendChild(pr);
   }
   card.appendChild(links);
+}
+
+/** Copy the plain page address — for sharing the site, not the walkthrough. */
+function copyLinkButton(url: string): HTMLButtonElement {
+  const b = h("button", undefined, "Copy page link") as HTMLButtonElement;
+  b.type = "button";
+  b.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      b.textContent = "Copied";
+    } catch {
+      b.textContent = url;
+    }
+    setTimeout(() => (b.textContent = "Copy page link"), 2500);
+  });
+  return b;
 }
 
 /** Pass the walkthrough on: the phone's share sheet, else the clipboard, and
@@ -652,8 +710,9 @@ function shareButton(url: string): HTMLButtonElement {
   return b;
 }
 
-/** Start a walkthrough if this page load carried a tour token. */
-export function startTourFromFragment(apiBase: string): void {
+/** Start a walkthrough if this page load carried a tour token. The site's
+ *  widget token lets "Not quite" offer the mic. */
+export function startTourFromFragment(apiBase: string, projectToken: string | null = null): void {
   const token = takeTourToken();
-  if (token) void runTour(apiBase, token);
+  if (token) void runTour(apiBase, token, projectToken);
 }

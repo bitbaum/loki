@@ -20,10 +20,13 @@ import {
   type TourAudience,
 } from "@/lib/feedback/tour-token";
 import { firstSentence } from "@/lib/feedback/fix-shipping";
+import { startOwnerBuild } from "@/lib/feedback/owner-build";
+import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
 import {
   buildTourBeats,
   fallbackTourSteps,
   parseTourSteps,
+  followUpSuggestion,
   tourOutro,
   tourPrompt,
   tourSystemPrompt,
@@ -73,6 +76,14 @@ const TourBody = z.object({
       step: z.number().int().min(0).max(20),
       say: z.string().max(300),
       reason: z.string().max(120),
+      path: z.string().max(500).optional(),
+    })
+    .optional(),
+  /** "Not quite" on the last card: what is still wrong, and the preview they tried. */
+  followUp: z
+    .object({
+      text: z.string().trim().min(3).max(1000),
+      preview: z.string().max(300).optional(),
       path: z.string().max(500).optional(),
     })
     .optional(),
@@ -133,6 +144,48 @@ export async function POST(req: NextRequest) {
   const run = f.dispatchedRunId ? await getOrchestrationRunById(f.userId, f.dispatchedRunId) : null;
   const fix = (run?.payload as { fix?: FixShipping } | null)?.fix ?? null;
   const didLine = firstSentence((run?.summary as { done?: string } | null)?.done);
+
+  if (data.followUp) {
+    // A shared link shows the change; it does not file work in the owner's name.
+    if (audience === "viewer") return corsJson({ error: "Only the owner can send this" }, 403);
+    if (!checkRateLimit(`widget-tour:followup:${feedbackId}`, 6, RATE_LIMIT_WINDOW_SHORT_MS)) {
+      return corsJson({ error: "That's several in a row — give it a few minutes" }, 429);
+    }
+    const page = data.followUp.path ?? f.page ?? null;
+    const suggestion = followUpSuggestion({
+      text: data.followUp.text,
+      original: f.suggestion,
+      preview: data.followUp.preview ?? null,
+    });
+    const contentHash = feedbackContentHash(suggestion, page);
+    let id = await bumpDuplicateFeedback(f.projectId, contentHash);
+    if (!id) {
+      const created = await insertSiteFeedback({
+        projectId: f.projectId,
+        userId: f.userId,
+        tokenId: f.tokenId,
+        suggestion,
+        page,
+        url: f.url,
+        pageTitle: f.pageTitle,
+        scope: "page",
+        source: audience === "owner" ? FEEDBACK_SOURCE.OWNER : FEEDBACK_SOURCE.VISITOR,
+        contentHash,
+      });
+      if (!created) return corsJson({ error: "Could not save it — try again" }, 500);
+      // A reporter's word reaches the owner like any report (the owner's own
+      // note is announced by the build it starts).
+      void notifyFeedbackReceived(created);
+      id = created.id;
+    }
+    // The owner saying what is still wrong IS the decision, as on Report with
+    // an owner pass; the reporter's words go to the owner's inbox.
+    if (audience === "owner") {
+      const build = await startOwnerBuild(f.userId, f.projectId, id);
+      return corsJson({ ok: true, ...build });
+    }
+    return corsJson({ ok: true, building: false });
+  }
 
   if (data.problem) {
     // The walkthrough could not show part of the fix — the first live check
@@ -232,6 +285,9 @@ export async function POST(req: NextRequest) {
       audience === "reporter"
         ? null
         : `${appUrl()}${sharedWatchPath(createShareToken(feedbackId))}`,
+    // "Not quite" (and its preview) for the people the fix was for; a shared
+    // link only shows the change.
+    followUp: audience === "viewer" ? null : audience,
   });
 }
 
