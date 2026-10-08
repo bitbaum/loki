@@ -106,6 +106,11 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **The feedback inbox is one view:** Needs you · Under way · Shipped, with
   every report laid out the same way.
 
+## 2026-10-08 — The private link comes back
+
+- **A studio request or partner application mails its private link** to the address given — at intake, or when the address is added later through the portal. The link is the only credential, so until now a closed tab was a lost request.
+- **"Send my link again"** (`POST /api/studio-recover`): the address you gave us gets a fresh link to every open request under it, and the old link stops working. The answer is the same whether or not the address is known.
+
 ## 2026-10-01 — The studio hears every request
 
 - **A studio brief, a partner application or a reply on one now reaches a

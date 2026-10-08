@@ -185,6 +185,33 @@ export function feedbackShippedTemplate(input: {
 }
 
 /**
+ * The private link to a studio request on bitbaum. The link is the whole
+ * credential — there is no account — so this mail is the only way back once a
+ * tab is closed. `fresh` is the recovery door: the old link no longer works.
+ */
+export function studioLinkTemplate(input: {
+  url: string;
+  kind: "website" | "partner";
+  fresh: boolean;
+}) {
+  const subject = mailSubject("studio_link", input.fresh ? "fresh" : undefined);
+  const what = input.kind === "partner" ? "partner application" : "studio request";
+  const html = emailShell(`
+    <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:${EMAIL_THEME.ink};">Your ${what}, kept private</h2>
+    ${p(`This link opens your ${what} at the bitbaum studio: replies, status${input.kind === "partner" ? ", the course evidence you submit" : " and previews"} all live there. There is no account and no password — the link is the key, so keep this mail.`)}
+    <div style="text-align:center;">${btn(input.url, `Open your ${input.kind === "partner" ? "application" : "portal"} →`)}</div>
+    ${small(`Or paste this link in your browser:<br><a href="${input.url}" style="color:${EMAIL_THEME.muted};word-break:break-all;">${input.url}</a>`)}
+    ${small(input.fresh ? "You asked for a new link, so the previous one no longer works. If you did not ask, someone entered your address on the studio site; nothing of yours was shown to them, and this mail is the only place the link exists." : "Anyone holding this link can read and add to the request, so do not forward it. Lost it? The portal page can send a new one to this address.")}
+  `);
+  const text = `Your ${what} at the bitbaum studio:
+
+${input.url}
+
+${input.fresh ? "You asked for a new link; the previous one no longer works." : "There is no account — the link is the key. Keep this mail and do not forward it."}`;
+  return { subject, html, text };
+}
+
+/**
  * An invitation into one project. The project and inviter names are
  * user-authored, so they are escaped exactly like the feedback template's.
  */

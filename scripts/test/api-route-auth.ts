@@ -76,6 +76,8 @@ const PUBLIC: Record<string, string> = {
     "Public write-only Bitbaum brief intake. Fixed contract chooses the owner; strict input, exact origin and rate limit. No read capability returned beyond the caller-created request.",
   "studio-partners":
     "Public directory of studio-approved, consenting, published partners with real availability. Explicit profile allowlist, never application evidence or contact details.",
+  "studio-recover":
+    "The way back to a studio request whose only credential is a private link: the address a visitor gave gets fresh links to its open requests, the old links die, and the reply is identical whether or not the address is known. Exact origin, 3 per window per IP, honeypot; nothing is ever returned to the caller.",
   commission:
     "Compatibility 410 directing legacy paid-intake clients to Bitbaum; no database or side effects.",
   "site-consult":

@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
 import { db } from "@/db";
 import {
   studioRequests as requests,
@@ -188,6 +189,36 @@ export async function createStudioRequest(
   });
 }
 
+/**
+ * The recovery door: every open request a visitor filed under this address
+ * gets a fresh access key — the old link dies — and the new keys go back to
+ * the route to be mailed to that same address. Hashes only are stored.
+ */
+export async function rotateStudioAccessByContact(userId: string, contact: string) {
+  await requireNotDemo(userId, "content");
+  const rows = await db
+    .select({ id: requests.id, kind: requests.kind })
+    .from(requests)
+    .where(
+      and(
+        eq(requests.userId, userId),
+        eq(requests.contact, contact.trim()),
+        eq(requests.accessRevoked, false),
+      ),
+    )
+    .limit(10);
+  const out: { id: string; kind: "website" | "partner"; accessKey: string }[] = [];
+  for (const r of rows) {
+    const accessKey = `spt_${randomBytes(32).toString("base64url")}`;
+    await db
+      .update(requests)
+      .set({ accessKeyHash: studioHash(accessKey), updatedAt: new Date() })
+      .where(owned(userId, r.id));
+    out.push({ id: r.id, kind: r.kind, accessKey });
+  }
+  return out;
+}
+
 export async function getStudioPortal(id: string, key: string) {
   const [row] = await db.select().from(requests).where(eq(requests.id, id)).limit(1);
   if (!accessible(row, key)) return null;
@@ -237,6 +268,11 @@ export async function mutateStudioPortal(
       switch (input.action) {
         case "message":
           body = input.body;
+          break;
+        case "set_contact":
+          patch.contact = input.contact;
+          body = "Reply address added.";
+          visible = false;
           break;
         case "accept_preview":
           requireCurrentPreview(row, input.version);
