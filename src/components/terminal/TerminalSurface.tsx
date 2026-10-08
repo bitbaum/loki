@@ -26,7 +26,6 @@ import {
 import type { TerminalContext } from "@/app/api/terminal/context/route";
 import { TerminalView } from "./TerminalView";
 import { TerminalExplainButton, TerminalLokiSheet, useTerminalExplain } from "./TerminalExplain";
-import { TerminalTabStrip } from "./TerminalTabStrip";
 import { TerminalSessionBar, TerminalSourceBar } from "./TerminalModeBar";
 import { TerminalComposer } from "./TerminalComposer";
 import { TerminalLaunch } from "./TerminalLaunch";
@@ -38,7 +37,7 @@ import { TerminalSessionSheet } from "./TerminalSessionSheet";
 import { TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
 import { buildStripTabs } from "./terminal-strip-tabs";
-import { TerminalLaunchPanel } from "./TerminalLaunchPanel";
+import { TerminalAgentTabs } from "./TerminalAgentTabs";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
 import { TerminalOfflineActions } from "./TerminalOfflineActions";
@@ -442,8 +441,8 @@ export function TerminalSurface({
       : null;
 
   const stripTabs = useMemo(
-    () => buildStripTabs(tabs, context, activeTab, ta.aliases),
-    [tabs, activeTab, context, ta.aliases],
+    () => buildStripTabs(tabs, context, activeTab, ta.aliases, ta.layout),
+    [tabs, activeTab, context, ta.aliases, ta.layout],
   );
 
   // Where we looked, and the one place we haven't — both named in the miss
@@ -598,8 +597,7 @@ export function TerminalSurface({
           requestedTab={resolvedInitialTab!}
           sourceLabel={sourceLabel}
           otherSourceLabel={otherSourceLabel}
-          available={tabs}
-          onAttach={setUserSelection}
+          hasOthers={tabs.length > 0}
           onSwitchSource={() => setSource(source === "machine" ? "cloud" : "machine")}
         />
       );
@@ -728,34 +726,31 @@ export function TerminalSurface({
     <div className="flex h-full min-h-0 flex-col gap-2" style={rootStyle}>
       {sourceBar}
       <div className="md:hidden">{mobileHeader}</div>
-      <div className="hidden md:block">
-        <TerminalTabStrip
-          tabs={stripTabs}
-          activeId={activeTab}
-          onSelect={setUserSelection}
-          onClose={(id) => void ta.closeTab(id)}
-          onNew={() => ta.setLaunchOpen((open) => !open)}
-          newLabel="Start an agent session"
-          onRename={(id, name) =>
-            ta.rename(id, name, stripTabs.find((t) => t.id === id)?.original ?? id)
-          }
-        />
-      </div>
-      {ta.launchOpen && context && (
-        <TerminalLaunchPanel
-          projects={context.launchable}
-          agents={agents}
-          defaultAgent={context.agents.defaultAgent}
-          activeProject={tabContext?.projectName ?? fleetProject}
-          channel={channel}
-          onCancel={() => ta.setLaunchOpen(false)}
-        />
-      )}
-      {ta.actionError && (
-        <p className="ui-error" role="alert">
-          {ta.actionError}
-        </p>
-      )}
+      <TerminalAgentTabs
+        tabs={stripTabs}
+        activeTab={activeTab}
+        onSelect={setUserSelection}
+        layout={ta.layout}
+        setLayout={ta.setLayout}
+        onRename={(id, name) =>
+          ta.rename(id, name, stripTabs.find((t) => t.id === id)?.original ?? id)
+        }
+        onClose={(id) => void ta.closeTab(id)}
+        launch={
+          context
+            ? {
+                projects: context.launchable,
+                agents,
+                defaultAgent: context.agents.defaultAgent,
+                activeProject: tabContext?.projectName ?? fleetProject,
+                channel,
+              }
+            : null
+        }
+        launchOpen={ta.launchOpen}
+        setLaunchOpen={ta.setLaunchOpen}
+        error={ta.actionError}
+      />
       {activeTab && (
         <div className="hidden md:block">
           <TerminalSessionBar

@@ -2763,7 +2763,7 @@
     @apply border-border-default bg-surface-raised text-text-primary;
   }
   .ui-term-tab-label {
-    @apply whitespace-nowrap tracking-tight;
+    @apply max-w-56 truncate whitespace-nowrap tracking-tight;
   }
   /* The Alt+N ordinal, shown dimmed before the tab name so the keyboard
      shortcut is discoverable from the strip itself. */
@@ -2800,6 +2800,21 @@
      and stay visible without hovering the tab. */
   .ui-term-tab-close-armed {
     @apply bg-surface-overlay text-status-warning opacity-100;
+  }
+  /* Arranging: the tab being carried fades; the one it would displace shows an
+     edge where the carried tab will land. */
+  .ui-term-tab-dragging {
+    @apply opacity-40;
+  }
+  .ui-term-tab-drop {
+    @apply border-l-border-interactive;
+  }
+  .ui-term-tab-pin {
+    @apply h-3 w-3 shrink-0 text-accent-text;
+  }
+  /* Where one project's tabs end and the next one's begin. */
+  .ui-term-tab-sep {
+    @apply mx-1 h-4 w-px shrink-0 bg-border-default;
   }
   .ui-term-newtab {
     @apply shrink-0 rounded-md p-1.5 text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-primary;
@@ -3254,15 +3269,6 @@
   }
   .ui-term-miss-body {
     @apply text-xs text-text-muted;
-  }
-  .ui-term-miss-options {
-    @apply mt-2 flex w-full max-w-md flex-col items-center gap-1.5;
-  }
-  .ui-term-miss-grid {
-    @apply grid w-full grid-cols-2 gap-1.5 sm:grid-cols-3;
-  }
-  .ui-term-miss-chip {
-    @apply flex min-h-11 items-center justify-center truncate rounded-lg border border-border-subtle bg-surface-raised px-2 text-xs text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
   }
   .ui-term-miss-actions {
     @apply mt-3 flex flex-wrap items-center justify-center gap-2;
