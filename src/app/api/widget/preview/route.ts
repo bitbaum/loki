@@ -103,6 +103,17 @@ export async function POST(req: NextRequest) {
     );
     void recordAiSpend(f.userId, answered.tokens);
     const plan = parsePreviewOps(stripReasoning(answered.text), data.outline.length);
+    if (plan.ops.length === 0 && !plan.summary) {
+      // Unreadable answer: the owner only sees "couldn't show that", so say
+      // here WHICH link answered and what it wrote. The first live miss
+      // (substrata, 120-item outline) could not be diagnosed without this —
+      // the same prompt sent straight to Gemini parsed fine.
+      console.warn(
+        `[widget-preview] unreadable answer from ${answered.provider}/${answered.model}` +
+          ` (${answered.text.length} chars, after ${answered.attempts.length} failed link(s)):` +
+          ` ${answered.text.slice(0, 300).replace(/\s+/g, " ")}`,
+      );
+    }
     return corsJson({ ok: true, ...plan });
   } catch (e) {
     console.warn("[widget-preview] model unavailable:", e instanceof Error ? e.message : e);
