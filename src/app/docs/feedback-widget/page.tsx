@@ -225,6 +225,12 @@ export default function FeedbackWidgetDocsPage() {
             screenshot.
           </p>
           <p>
+            If it is not quite right, say so on the walkthrough&apos;s last card — typed or spoken —
+            and the fix starts again with your words. <strong>Show me</strong> first redraws the
+            live page the way you described it, on your screen only, so you can see an idea before
+            anything is built; <strong>Build this</strong> sends it, Undo puts the page back.
+          </p>
+          <p>
             Marking a report resolved is your call — a finished run is not proof the problem went
             away. When you do, any visitor who left an email gets a short note that their feedback
             shipped. People who hear back report again; that is the point.

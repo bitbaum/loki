@@ -18,6 +18,7 @@ import {
 import {
   buildTourBeats,
   fallbackTourSteps,
+  followUpSuggestion,
   parseTourSteps,
   tourOutro,
   tourPrompt,
@@ -25,6 +26,8 @@ import {
 } from "../../src/lib/feedback/tour-plan";
 import { explainRunFailure } from "../../src/lib/feedback/failure-reason";
 import { bottomBarInset, readMs } from "../../widget/tour";
+import { cleanCss, cleanDecl } from "../../widget/preview";
+import { parsePreviewOps } from "../../src/lib/widget-preview/plan";
 
 // Read at call time, so setting it after the imports is enough.
 process.env.AUTH_SECRET ??= "test-secret-for-tour-token";
@@ -273,6 +276,54 @@ const outline = [
     0,
     "a top header is not a bottom bar",
   );
+}
+
+// ---- "Not quite" and "Show me" ----
+{
+  // The model's edits: only the closed vocabulary, only targets that exist.
+  const raw = JSON.stringify({
+    summary: "Bigger heading.",
+    ops: [
+      { op: "style", target: 2, css: { "font-size": "40px" } },
+      { op: "style", target: 99, css: { color: "red" } },
+      { op: "text", target: 1, text: "Aperto oggi" },
+      { op: "insert", target: 0, where: "sideways", html: "<p>Hours</p>" },
+      { op: "eval", target: 0, code: "alert(1)" },
+      { op: "css", css: "body{background:#fff}" },
+      { op: "hide", target: -1 },
+    ],
+  });
+  const plan = parsePreviewOps(`Sure! ${raw}`, 3);
+  assert.equal(plan.summary, "Bigger heading.");
+  assert.deepEqual(
+    plan.ops.map((o) => o.op),
+    ["style", "text", "insert", "css"],
+    "unknown ops and missing targets are dropped",
+  );
+  assert.equal((plan.ops[2] as { where: string }).where, "after", "a bad position defaults safely");
+  assert.deepEqual(parsePreviewOps("no json here", 3), { summary: null, ops: [] });
+
+  // CSS that loads or executes never reaches the page.
+  const css = cleanCss("@import url(x.css); a{background:url(http://e/x.png);width:expression(1)}");
+  assert.doesNotMatch(css, /@import|url\(|expression\(/);
+  assert.deepEqual(cleanDecl("Font-Size", "40px"), ["font-size", "40px"]);
+  assert.equal(
+    cleanDecl("color", "red; } body { display:none"),
+    null,
+    "no breaking out of a declaration",
+  );
+  assert.equal(cleanDecl("on click", "x"), null);
+
+  // A follow-up reads as a report an agent can act on, carrying the preview.
+  const note = followUpSuggestion({
+    text: "  Make the photos bigger ",
+    original: "where is all the content",
+    preview: "Photos at full width.",
+  });
+  assert.ok(note.startsWith("Make the photos bigger\n"));
+  assert.match(note, /where is all the content/);
+  assert.match(note, /previewed it.*Photos at full width\..*Build that\./s);
+  assert.doesNotMatch(followUpSuggestion({ text: "x y z", original: "o" }), /previewed/);
 }
 
 console.log("feedback-tour: ok");
