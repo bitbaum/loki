@@ -111,7 +111,9 @@ export function tourSystemPrompt(audience: TourAudience = "owner"): string {
     "- Never invent text the outline does not contain.",
     audience === "reporter"
       ? "- You are speaking to the person who reported the problem, not a developer: plain words, no code, file names or technical terms."
-      : "- You are speaking to the site's owner, who asked for this change.",
+      : audience === "viewer"
+        ? "- You are speaking to someone the site's owner shared this change with, not a developer: plain words, no code, file names or technical terms."
+        : "- You are speaking to the site's owner, who asked for this change.",
   ].join("\n");
 }
 
@@ -171,6 +173,7 @@ export function parseTourSteps(text: string, outlineLength: number): TourStep[] 
 /** Chapter names. One list, so the card header and the tests agree. */
 export const TOUR_CHAPTER = {
   ASKED: "You asked",
+  REQUEST: "The request",
   PROBLEM: "The problem",
   CHANGE: "The change",
   SEE_IT: "Here it is",
@@ -221,6 +224,20 @@ export function buildTourBeats(story: TourStory): TourBeat[] {
     return beats;
   }
 
+  // Someone the owner shared the link with: the request and the live change,
+  // nothing of the maintainer's and nothing of the reporter's but their words —
+  // their screenshot may show their own screen.
+  if (story.audience === "viewer") {
+    beats.push({
+      chapter: TOUR_CHAPTER.REQUEST,
+      action: "say",
+      say: `Someone asked: “${asked}” Here is what changed on the live site.`,
+    });
+    beats.push(...live(TOUR_CHAPTER.SEE_IT));
+    if (note?.plain) beats.push({ chapter: TOUR_CHAPTER.HELPS, action: "say", say: note.plain });
+    return beats;
+  }
+
   beats.push({
     chapter: TOUR_CHAPTER.ASKED,
     action: "say",
@@ -244,11 +261,16 @@ export function buildTourBeats(story: TourStory): TourBeat[] {
   return beats;
 }
 
-/** The closing line on the end card. */
-export function tourOutro(audience: TourAudience, didLine: string | null): string {
+/**
+ * The closing line on the end card: one short sentence and the question it
+ * asks. It used to repeat the agent's one-line account, which the story had
+ * already told under "The change" — on a big fix that was a wall of change log
+ * ("…into typed content, rebuilt the home page (team-photo hero, …), verified
+ * 115/115 browser checks incl.") where the card should simply ask (2026-10-08).
+ */
+export function tourOutro(audience: TourAudience): string {
   if (audience === "reporter")
     return "That's your fix, live. Thank you for reporting it — if it still isn't right, tell us the same way.";
-  return didLine
-    ? `That's it. ${didLine} Does it look right to you?`
-    : "That's the change. Does it look right to you?";
+  if (audience === "viewer") return "That's the change, live on the site — made with Loki.";
+  return "That's the change, live on the site. Does it look right to you?";
 }

@@ -219,7 +219,10 @@ export default function FeedbackWidgetDocsPage() {
             cannot be shown, it says so and files that back into your inbox, so a fix that did not
             really land comes back to you. The person who reported it gets their own shorter version
             on their feedback page: their words, the change shown live, and one plain sentence about
-            what changed for them, without the technical reasoning.
+            what changed for them, without the technical reasoning. <strong>Share</strong> gives
+            you a link for anyone else: it opens the live site and plays the same walkthrough there
+            in plain words, without the reasoning, the pull request or the reporter&apos;s
+            screenshot.
           </p>
           <p>
             Marking a report resolved is your call — a finished run is not proof the problem went

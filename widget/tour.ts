@@ -63,6 +63,8 @@ type TourPlan = {
   /** The end card's way back. Defaults to the owner's wording. */
   lokiLabel?: string | null;
   prUrl: string | null;
+  /** A link anyone can open to watch the same change; absent for a reporter. */
+  shareUrl?: string | null;
 };
 
 /** How long a sentence stays up: enough to read it at an unhurried pace,
@@ -258,6 +260,17 @@ button, a.btn { cursor: pointer; font: inherit; font-size: 12px; padding: 7px 12
   color: ${t.textSecondary}; text-decoration: none; display: inline-flex; align-items: center; }
 button.primary, a.btn.primary { background: ${t.accent}; border-color: ${t.accent}; color: ${ink}; }
 button:disabled { opacity: .4; cursor: default; }
+button.x { min-height: 28px; width: 28px; padding: 0; justify-content: center; border: 0;
+  margin: -6px -8px -6px 0; font-size: 18px; line-height: 1; color: ${t.textMuted}; }
+button.x:hover { color: ${t.text}; }
+.top .count { margin-left: auto; }
+.links { display: flex; gap: 14px; margin-top: 8px; }
+.links button, .links a { min-height: 32px; padding: 0; border: 0; font-size: 12px;
+  color: ${t.textTertiary}; text-decoration: underline; text-underline-offset: 3px;
+  display: inline-flex; align-items: center; }
+.links button:hover, .links a:hover { color: ${t.text}; }
+input.link { flex: 1 1 100%; min-height: 36px; padding: 0 10px; font: inherit; font-size: 12px;
+  color: ${t.text}; background: transparent; border: 1px solid ${t.borderStrong}; border-radius: ${rc}; }
 button:focus-visible, a.btn:focus-visible { outline: 2px solid ${t.accent}; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   .ring, .cursor, .fill { transition: none; }
@@ -373,7 +386,13 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
     skip?.();
   });
   const nextBtn = btn("Next", () => skip?.());
-  row.append(backBtn, pauseBtn, nextBtn, btn("Close", close));
+  row.append(backBtn, pauseBtn, nextBtn);
+  // Closing is always one tap in the corner, never a fourth button competing
+  // with the ones that move the story.
+  const x = btn("×", close);
+  x.className = "x";
+  x.setAttribute("aria-label", "Close the walkthrough");
+  top.appendChild(x);
 
   /** Hold a beat — cut short by Next, extended while paused. */
   const hold = (ms: number) =>
@@ -560,25 +579,24 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
     total,
     total,
     problem,
+    problem ? "Needs a look" : "Live now",
   );
+  // The end card: one decision, one way to pass it on, and the quiet extras
+  // underneath — four equal buttons over two rows read as a toolbar, not an
+  // ending (operator, 2026-10-08).
   row.replaceChildren();
   if (plan.lokiHref) {
     const back = h(
       "a",
       "btn primary",
-      plan.lokiLabel ?? (problem ? "Back to Loki" : "Looks right — confirm in Loki"),
+      plan.lokiLabel ?? (problem ? "Back to Loki" : "Looks right — confirm"),
     );
     back.href = plan.lokiHref;
     row.appendChild(back);
   }
-  if (plan.prUrl) {
-    const pr = h("a", "btn", "What changed");
-    pr.href = plan.prUrl;
-    pr.target = "_blank";
-    pr.rel = "noreferrer";
-    row.appendChild(pr);
-  }
-  row.append(
+  if (plan.shareUrl && !problem) row.appendChild(shareButton(plan.shareUrl));
+  const links = h("div", "links");
+  links.appendChild(
     btn("Replay", () => {
       // The token is still valid; the page is read again from the top.
       window.removeEventListener("resize", liftAboveBar);
@@ -587,8 +605,51 @@ export async function runTour(apiBase: string, token: string): Promise<void> {
       window.scrollTo({ top: 0, behavior: "smooth" });
       void runTour(apiBase, token);
     }),
-    btn("Close", close),
   );
+  if (plan.prUrl) {
+    const pr = h("a", undefined, "The code change");
+    pr.href = plan.prUrl;
+    pr.target = "_blank";
+    pr.rel = "noreferrer";
+    links.appendChild(pr);
+  }
+  card.appendChild(links);
+}
+
+/** Pass the walkthrough on: the phone's share sheet, else the clipboard, and
+ *  the button says which happened. The link replays the same story for
+ *  whoever opens it (Loki's /w/<token>). */
+function shareButton(url: string): HTMLButtonElement {
+  const b = h("button", undefined, "Share") as HTMLButtonElement;
+  b.type = "button";
+  const say = (label: string) => {
+    b.textContent = label;
+    setTimeout(() => (b.textContent = "Share"), 2500);
+  };
+  b.addEventListener("click", async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Watch the change", url });
+        return;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      say("Link copied");
+    } catch {
+      // No clipboard (an insecure page, a refused permission): hand over the
+      // link itself, selected, rather than a button that did nothing.
+      const field = h("input", "link") as HTMLInputElement;
+      field.readOnly = true;
+      field.value = url;
+      field.setAttribute("aria-label", "Link to this walkthrough");
+      b.replaceWith(field);
+      field.select();
+    }
+  });
+  return b;
 }
 
 /** Start a walkthrough if this page load carried a tour token. */

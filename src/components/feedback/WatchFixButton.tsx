@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Play } from "lucide-react";
+import { Check, Loader2, Play, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { tourSiteUrl } from "../../../widget/tour";
 
@@ -47,15 +47,69 @@ export function WatchFixButton({
   };
 
   return (
+    <>
+      <button
+        type="button"
+        onClick={() => void open()}
+        disabled={busy}
+        className={cn("ui-btn-save gap-1", size === "sm" && "ui-btn-sm")}
+        title="Open the live page and watch Loki walk you through the change"
+      >
+        {busy ? <Loader2 className="ui-spinner-xs" /> : <Play className="h-3 w-3" />}
+        Watch the fix
+      </button>
+      <ShareWatchButton feedbackId={feedbackId} size={size} />
+    </>
+  );
+}
+
+/**
+ * Share the walkthrough: a link anyone can open to watch the same change on
+ * the live site, in plain words (app/w/[token]). The phone's share sheet when
+ * there is one, else the clipboard — and the button says which happened.
+ */
+function ShareWatchButton({ feedbackId, size }: { feedbackId: string; size: "sm" | "md" }) {
+  const [state, setState] = useState<"idle" | "busy" | "copied" | "failed">("idle");
+
+  const share = async () => {
+    setState("busy");
+    try {
+      const res = await fetch(`/api/feedback/${feedbackId}/share`, { method: "POST" });
+      const body = (await res.json().catch(() => ({}))) as { url?: string };
+      if (!res.ok || !body.url) throw new Error("no link");
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "Watch the fix", url: body.url });
+          setState("idle");
+          return;
+        } catch (e) {
+          if (e instanceof DOMException && e.name === "AbortError") return setState("idle");
+        }
+      }
+      await navigator.clipboard.writeText(body.url);
+      setState("copied");
+    } catch {
+      setState("failed");
+    }
+    setTimeout(() => setState("idle"), 2500);
+  };
+
+  return (
     <button
       type="button"
-      onClick={() => void open()}
-      disabled={busy}
-      className={cn("ui-btn-save gap-1", size === "sm" && "ui-btn-sm")}
-      title="Open the live page and watch Loki walk you through the change"
+      onClick={() => void share()}
+      disabled={state === "busy"}
+      className={cn("ui-btn-secondary gap-1", size === "sm" && "ui-btn-sm")}
+      title="Copy a link anyone can open to watch this change on the live site"
     >
-      {busy ? <Loader2 className="ui-spinner-xs" /> : <Play className="h-3 w-3" />}
-      Watch the fix
+      {state === "busy" ? (
+        <Loader2 className="ui-spinner-xs" />
+      ) : state === "copied" ? (
+        <Check className="h-3 w-3" />
+      ) : (
+        <Share2 className="h-3 w-3" />
+      )}
+      {state === "copied" ? "Link copied" : state === "failed" ? "Couldn't share" : "Share"}
     </button>
   );
 }

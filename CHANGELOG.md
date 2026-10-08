@@ -6,6 +6,21 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-08 — Share the walkthrough
+
+- **Share a fix's walkthrough with anyone.** "Watch the fix" now has a Share
+  button, in Loki's inbox and on the walkthrough's last card. The link opens
+  the live site and plays the same walkthrough there — the real page, not a
+  recording — in plain words: the request and the change shown on the page,
+  without the code reasoning, the pull request or the reporter's screenshot.
+  Everyone who opens it sees the same story, and passing it around does not
+  spend your AI budget once per viewer.
+- **A cleaner last card.** The walkthrough ends on one short question and one
+  decision — "Looks right — confirm" — with Share beside it, Replay and the
+  code change as quiet links underneath, and close as an × in the corner. It
+  no longer repeats the agent's change log, and a summary is no longer cut off
+  at an abbreviation ("…checks incl.").
+
 ## 2026-10-07 — The record points both ways
 
 - **Your site gets a consultation before it gets rebuilt.** On "Start from a
