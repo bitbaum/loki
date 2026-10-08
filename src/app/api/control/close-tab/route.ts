@@ -6,6 +6,10 @@ import { executionAccessErrorBody, resolveQueuedExecution } from "@/lib/executio
 
 const CloseTabBody = z.object({
   tab: z.string().trim().min(1).max(120),
+  // The builder the operator is looking at. Without it the close was always
+  // routed to the cloud builder, so closing a tab on "This computer" either
+  // did nothing or hit a different machine's session of the same name.
+  channel: z.enum(["cloud", "local"]).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -14,7 +18,10 @@ export async function POST(req: NextRequest) {
   const dataOrResp = await readJsonBody(req, CloseTabBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
 
-  const execution = await resolveQueuedExecution(userId, { defaultChannel: "cloud" });
+  const execution = await resolveQueuedExecution(userId, {
+    defaultChannel: "cloud",
+    requestedChannel: dataOrResp.channel ?? null,
+  });
   if (!execution.ok) {
     return NextResponse.json(executionAccessErrorBody(execution), { status: execution.status });
   }

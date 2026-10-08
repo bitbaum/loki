@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 export type TerminalTab = {
   id: string;
   label: string;
+  /** The name before any rename — what an emptied rename falls back to. */
+  original?: string;
   /** Live agent CLI(s) in this tab — "claude", "grok", "claude+codex". */
   badge?: string;
   /** Dot class (`ui-dot-positive` etc). Omit for no status dot. */
@@ -51,13 +53,21 @@ export function TerminalTabStrip({
   onSelect: (id: string) => void;
   onClose?: (id: string) => void;
   onNew?: () => void;
-  /** When given, double-clicking a tab renames it in place. Agent tabs are
-   *  named by the builder, so only the shell workspace passes this. */
+  /** When given, double-clicking (or F2 on) a tab renames it in place. For
+   *  agent tabs this is a display name only; the session keeps its real id. */
   onRename?: (id: string, title: string) => void;
   newLabel?: string;
   trailing?: React.ReactNode;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Closing ends a running agent, so the × arms first ("Close?") and a second
+  // press confirms. It disarms on its own, so a stray tap never lingers.
+  const [armedId, setArmedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!armedId) return;
+    const t = setTimeout(() => setArmedId(null), 3000);
+    return () => clearTimeout(t);
+  }, [armedId]);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!e.altKey || e.ctrlKey || e.metaKey) return;
@@ -103,13 +113,19 @@ export function TerminalTabStrip({
             role="tab"
             tabIndex={0}
             aria-selected={tab.id === activeId}
-            title={tab.title ?? tab.label}
+            title={[tab.title ?? tab.label, onRename ? "Double-click to rename" : null]
+              .filter(Boolean)
+              .join(" — ")}
             onMouseDown={() => onSelect(tab.id)}
             onDoubleClick={() => onRename && setEditingId(tab.id)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 onSelect(tab.id);
+              }
+              if (e.key === "F2" && onRename) {
+                e.preventDefault();
+                setEditingId(tab.id);
               }
             }}
             className={cn("group ui-term-tab", tab.id === activeId && "ui-term-tab-active")}
@@ -147,15 +163,26 @@ export function TerminalTabStrip({
             {onClose && (
               <button
                 type="button"
-                className="ui-term-tab-close"
-                title={`Close ${tab.label}`}
+                className={cn("ui-term-tab-close", armedId === tab.id && "ui-term-tab-close-armed")}
+                title={
+                  armedId === tab.id ? `Press again to close ${tab.label}` : `Close ${tab.label}`
+                }
                 aria-label={`Close ${tab.label}`}
                 onMouseDown={(e) => {
                   e.stopPropagation();
-                  onClose(tab.id);
+                  if (armedId === tab.id) {
+                    setArmedId(null);
+                    onClose(tab.id);
+                  } else {
+                    setArmedId(tab.id);
+                  }
                 }}
               >
-                <X className="h-3 w-3" />
+                {armedId === tab.id ? (
+                  <span className="text-micro font-medium">Close?</span>
+                ) : (
+                  <X className="h-3 w-3" />
+                )}
               </button>
             )}
           </div>

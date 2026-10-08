@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, MonitorSmartphone } from "lucide-react";
-import { postJson } from "@/lib/api/fetch";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
 import { useFetch } from "@/hooks/use-fetch";
@@ -38,7 +37,8 @@ import { TerminalMobileHeader, type TerminalLiveState } from "./TerminalMobileHe
 import { TerminalSessionSheet } from "./TerminalSessionSheet";
 import { TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
-import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
+import { buildStripTabs } from "./terminal-strip-tabs";
+import { TerminalLaunchPanel } from "./TerminalLaunchPanel";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
 import { TerminalOfflineActions } from "./TerminalOfflineActions";
@@ -46,6 +46,8 @@ import { TerminalPaneActions } from "./TerminalPaneActions";
 import { useTerminalView } from "./use-terminal-view";
 import { useScreenSuggestions } from "./use-screen-suggestions";
 import { useTerminalTabs } from "./use-terminal-tabs";
+import { activeAgentFor } from "./terminal-agent";
+import { useTerminalTabActions } from "./use-terminal-tab-actions";
 
 /** Per-source copy. Cloud and machine differ only in wording, so the strings
  *  stay in the copy SSOT and this map just selects between them. */
@@ -407,7 +409,15 @@ export function TerminalSurface({
     [context],
   );
   const tabContext = context?.tabs.find((t) => t.tab === activeTab) ?? null;
-  const activeAgentId = tabContext?.agentPref ?? context?.agents.defaultAgent ?? null;
+  // The agent RUNNING in the tab, not the one the project prefers: see
+  // terminal-agent.ts. The switcher label, the Claude | Terminal toggle and the
+  // chat view all hang off this.
+  const activeAgentId = activeAgentFor({
+    liveAgents: tabContext?.liveAgents ?? [],
+    rosterIds: (context?.agents.agents ?? []).map((a) => a.id),
+    pref: tabContext?.agentPref,
+    fallback: context?.agents.defaultAgent,
+  });
   const termView = useTerminalView(activeAgentId);
   // Sessions whose builder never sends the conversation: shown as the terminal
   // and offered no conversation toggle, without touching the saved preference
@@ -420,60 +430,20 @@ export function TerminalSurface({
   const promptOpen = Boolean(activeTab) && view === "terminal" && inputMode === "prompt";
   const suggestions = useScreenSuggestions(readScreenRef, promptOpen, projectKey);
 
-  const [switchingAgent, setSwitchingAgent] = useState(false);
+  const ta = useTerminalTabActions(channel, tabs.length, {
+    tab: activeTab,
+    dir: tabContext?.dir ?? null,
+    activeAgentId,
+  });
   const agentSwitchDisabledReason = !activeTab
     ? "Open a session first — switching swaps the CLI running in a tab."
     : !tabContext?.dir
       ? `“${activeTab}” isn’t linked to a project directory, so Loki doesn’t know where to relaunch the agent.`
       : null;
 
-  // Capture the one field the callback needs as a local, so the closure
-  // depends on `tabDir` — not the whole `tabContext` object — and the manual
-  // deps match what the compiler infers.
-  const tabDir = tabContext?.dir ?? null;
-  const switchAgent = useCallback(
-    async (agentId: string) => {
-      if (!activeTab || !tabDir) return;
-      setSwitchingAgent(true);
-      try {
-        await postJson("/api/control/switch-agent", {
-          tab: activeTab,
-          dir: tabDir,
-          toAgent: agentId,
-          ...(activeAgentId ? { fromAgent: activeAgentId } : {}),
-        });
-      } catch {
-        /* the session itself remains the source of truth on screen */
-      } finally {
-        setSwitchingAgent(false);
-      }
-    },
-    [activeTab, tabDir, activeAgentId],
-  );
-
-  // The strip tells the truth about each tab: the project it resolves to (by
-  // name, or by pane cwd for generically named tabs) and the agent CLI actually
-  // running in it — so "Tab #1 · claude" and "Tab #2 · grok" are distinguishable
-  // without clicking through.
   const stripTabs = useMemo(
-    () =>
-      tabs.map((tab) => {
-        const ctx = context?.tabs.find((t) => t.tab === tab);
-        const badge = ctx?.liveAgents.length ? ctx.liveAgents.join("+") : undefined;
-        // A parallel run's tab is `<project>~<runId8>`; read it as its project,
-        // with a marker so two lanes of one project stay distinguishable. The
-        // raw alias stays in the tooltip for whoever needs it.
-        const project = ctx?.projectName ?? baseProjectKey(tab);
-        const label = isDerivedRunTab(tab) ? `${project} · parallel` : project;
-        return {
-          id: tab,
-          label,
-          badge,
-          title: [label !== tab ? tab : null, badge].filter(Boolean).join(" — ") || undefined,
-          dot: tab === activeTab ? "ui-dot-positive" : undefined,
-        };
-      }),
-    [tabs, activeTab, context],
+    () => buildStripTabs(tabs, context, activeTab, ta.aliases),
+    [tabs, activeTab, context, ta.aliases],
   );
 
   // Where we looked, and the one place we haven't — both named in the miss
@@ -538,7 +508,7 @@ export function TerminalSurface({
         ptyState={liveState}
         projectId={tabContext?.projectId ?? null}
         canSwitchAgent={!agentSwitchDisabledReason}
-        onSwitchAgent={(id) => void switchAgent(id)}
+        onSwitchAgent={(id) => void ta.switchAgent(id)}
         readScreenRef={readScreenRef}
         askOnly={view === "chat"}
         explain={explainer}
@@ -580,8 +550,8 @@ export function TerminalSurface({
       onInputModeChange={setInputMode}
       agents={agents}
       activeAgentId={activeAgentId}
-      onSwitchAgent={(id) => void switchAgent(id)}
-      switchingAgent={switchingAgent}
+      onSwitchAgent={(id) => void ta.switchAgent(id)}
+      switchingAgent={ta.switchingAgent}
       agentSwitchDisabledReason={agentSwitchDisabledReason}
       honesty={honesty}
       font={font}
@@ -759,8 +729,33 @@ export function TerminalSurface({
       {sourceBar}
       <div className="md:hidden">{mobileHeader}</div>
       <div className="hidden md:block">
-        <TerminalTabStrip tabs={stripTabs} activeId={activeTab} onSelect={setUserSelection} />
+        <TerminalTabStrip
+          tabs={stripTabs}
+          activeId={activeTab}
+          onSelect={setUserSelection}
+          onClose={(id) => void ta.closeTab(id)}
+          onNew={() => ta.setLaunchOpen((open) => !open)}
+          newLabel="Start an agent session"
+          onRename={(id, name) =>
+            ta.rename(id, name, stripTabs.find((t) => t.id === id)?.original ?? id)
+          }
+        />
       </div>
+      {ta.launchOpen && context && (
+        <TerminalLaunchPanel
+          projects={context.launchable}
+          agents={agents}
+          defaultAgent={context.agents.defaultAgent}
+          activeProject={tabContext?.projectName ?? fleetProject}
+          channel={channel}
+          onCancel={() => ta.setLaunchOpen(false)}
+        />
+      )}
+      {ta.actionError && (
+        <p className="ui-error" role="alert">
+          {ta.actionError}
+        </p>
+      )}
       {activeTab && (
         <div className="hidden md:block">
           <TerminalSessionBar
@@ -768,8 +763,8 @@ export function TerminalSurface({
             onInputModeChange={setInputMode}
             agents={agents}
             activeAgentId={activeAgentId}
-            onSwitchAgent={(id) => void switchAgent(id)}
-            switchingAgent={switchingAgent}
+            onSwitchAgent={(id) => void ta.switchAgent(id)}
+            switchingAgent={ta.switchingAgent}
             agentSwitchDisabledReason={agentSwitchDisabledReason}
             view={view}
             onViewChange={chatAvailable ? termView.setView : undefined}
