@@ -195,6 +195,7 @@ export async function createStudioRequest(
  * the route to be mailed to that same address. Hashes only are stored.
  */
 export async function rotateStudioAccessByContact(userId: string, contact: string) {
+  await requireNotDemo(userId, "content");
   const rows = await db
     .select({ id: requests.id, kind: requests.kind })
     .from(requests)
