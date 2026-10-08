@@ -8,9 +8,9 @@
 #   scp scripts/hetzner/ivy-health.sh ubuntu@<box>:/tmp/ && \
 #     ssh ubuntu@<box> 'sudo install -m 755 /tmp/ivy-health.sh /usr/local/bin/'
 #
-# History: born 2026-06-23 as the OpenClaw gateway's watchdog. FleetCrown became
-# Loki and the OpenClaw gateway was retired, but this kept checking
-# fleetcrown-app/-bridge and the gateway — units that no longer exist — so it
+# History: born 2026-06-23 as the OpenClaw gateway's watchdog. The product was
+# renamed Loki and the gateway retired, but this kept checking the pre-rename
+# app/bridge units and the gateway — units that no longer exist — so it
 # paged "🔥⚠️ DEGRADED … (restart failed)" every 4h for things that were never
 # coming back (2026-10-08). It now checks only what Loki runs today. Disk and
 # memory pressure are host-check.sh's (install-host-alerts.sh); this only heals.
