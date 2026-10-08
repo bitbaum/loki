@@ -115,7 +115,10 @@ export async function findQueueBlockers(runIds: string[]): Promise<Map<string, Q
   const rows = await db.execute<{
     own_id: string;
     blocker_id: string;
-    blocker_started_at: Date;
+    // Raw db.execute rows are NOT run through the schema: a timestamp comes
+    // back as a string. Typing it Date let `.toISOString()` reach the inbox
+    // and 500 /feedback whenever a run was queued behind another (2026-10-08).
+    blocker_started_at: Date | string;
     blocker_label: string | null;
   }>(sql`
     SELECT own.id AS own_id,
@@ -145,7 +148,7 @@ export async function findQueueBlockers(runIds: string[]): Promise<Map<string, Q
     if (out.has(row.own_id)) continue; // ORDER BY put the oldest blocker first
     out.set(row.own_id, {
       runId: row.blocker_id,
-      startedAt: row.blocker_started_at,
+      startedAt: new Date(row.blocker_started_at),
       label: row.blocker_label,
     });
   }
