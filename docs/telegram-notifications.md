@@ -33,6 +33,7 @@ message; test runs (`ALERT_DRY_RUN=1`) never deliver.
 | ⚙️ STILL FAILING: a; b (digest) / ✅ RECOVERED: a; b (digest) | The 5-min sweep sees a unit failed on two consecutive ticks / recover | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
 | 🔧 FIXED (no action needed): \<what was repaired\> | host-check auto-repaired an unreadable app `.env` and restarted the app | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
 | 💾 DISK / 🧠 MEM / 🐘 POSTGRES transitions | Resource crosses its hysteresis band on the box | `scripts/hetzner/install-host-alerts.sh` (host-check.sh) |
+| 🔥⚠️ Loki self-check — DEGRADED / 🔥✅ RECOVERED / 🔥 Loki auto-fixed | Every 15 min (`ivy-health.timer`): postgres or a `loki-*` unit is down and a restart did not bring it back, or loki-app stops answering `/api/health`. A heal that worked is reported once; the same failure re-pages at most every 4h | `scripts/hetzner/ivy-health.sh` (installed by hand to `/usr/local/bin`) |
 | 🔴 DOWN: \<app\> (\<url\>) → HTTP \<code\> / ✅ RECOVERED (on-box) | An app URL in targets.conf stops answering | `scripts/hetzner/install-watchdog.sh` (watch.sh; also the external dead-man's-switch ping) |
 | 🔴 DOWN: \<app\> (\<detail\>) / ✅ RECOVERED: \<app\> (off-box) | GitHub-side health sweep of every registered app — still reports when bitbaum itself is dead | `.github/workflows/fleet-uptime.yml` (probe: `scripts/hetzner/uptime-sweep.sh`) |
 | 🚨 Loki deploy: \<failure/rollback\> | A loki deploy fails or rolls back | `scripts/deploy-hetzner.sh` |
