@@ -86,6 +86,7 @@ served_log=$(printf '%s\n' "$log" | grep -E "$SERVED_RE")
 links=$(link_ids "$failed_log" | sort | uniq -c | sort -rn)
 
 findings=0
+alerted=""   # state keys raised this run — everything else may recover
 while read -r count link; do
   [ -n "${link:-}" ] || continue
   [ "$count" -ge "$MIN_FAILS" ] || continue
@@ -113,11 +114,24 @@ while read -r count link; do
     rate="no served turn seen — a floor, not a rate"
   fi
   msg="$link: $count failure(s) in the last ${WINDOW%% ago}${kinds:+ —$kinds} · $rate"
+  emoji="🧪"
+  # A rejected key is not a flaky provider. It fails EVERY call until someone
+  # replaces it, and the fallback chain hides it the whole time — orangecat's
+  # Groq key was dead for days in 2026-10 while the chat answered from other
+  # vendors and the mic simply broke. Say what it is and what to do.
+  case "$kinds" in
+    *" 401="*|*" 403="*)
+      emoji="🔑"
+      msg="$link: API KEY REJECTED (${kinds# }) — replace this provider's key in the app's env file, then restart the app. $count failure(s) in the last ${WINDOW%% ago} · $rate"
+      ;;
+  esac
   findings=$((findings + 1))
+  key="aiprovider_$(printf '%s' "$link" | tr -c 'a-zA-Z0-9' '_')"
+  alerted="$alerted $key "
   if [ "$REPORT_ONLY" = 1 ]; then
     echo "$msg"
   else
-    alert_transition "aiprovider_$(printf '%s' "$link" | tr -c 'a-zA-Z0-9' '_')" bad "🧪" "$msg"
+    alert_transition "$key" bad "$emoji" "$msg"
   fi
 done <<EOF
 $links
@@ -125,5 +139,22 @@ EOF
 
 if [ "$findings" = 0 ]; then
   [ "$REPORT_ONLY" = 1 ] && echo "no link failed $MIN_FAILS+ times in the window (a floor: successes are not logged)"
+fi
+
+# RECOVERY. alert_transition pages only on a state FLIP, and this sweep used to
+# set links `bad` and never `ok` — so a link that went bad once stayed bad for
+# good and could never page again. groq/openai/gpt-oss-20b went bad on
+# 2026-09-14 (rate limits); when orangecat's Groq KEY died weeks later the state
+# was already `bad` and nothing was sent. A link below the threshold in a window
+# this sweep could actually read is no longer failing: let it recover, so the
+# next failure is news again. (An unreadable journal exited above — no recovery
+# is ever inferred from not being able to look.)
+if [ "$REPORT_ONLY" = 0 ]; then
+  for sf in "$MON"/state/host_aiprovider_*; do
+    [ -f "$sf" ] || continue
+    key="${sf##*/host_}"
+    case "$alerted" in *" $key "*) continue ;; esac
+    [ "$(cat "$sf")" = bad ] && alert_transition "$key" ok "✅" ""
+  done
 fi
 exit 0
