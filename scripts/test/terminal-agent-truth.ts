@@ -93,8 +93,27 @@ const bare = renderToStaticMarkup(
 );
 ok(!/Close loki/.test(bare) && !/New terminal/.test(bare), "without verbs the strip stays bare");
 
-// Wiring: the surface uses the live agent and does not swallow a failed switch.
 const read = (f: string) => readFileSync(join(process.cwd(), "src/components/terminal", f), "utf8");
+
+// Browser-found 2026-10-08: rename swallowed Space ("main loki" -> "mainloki")
+// because the tab's own key handler caught keys bubbling from the input; an
+// untouched blur stored a capped alias; Cancel floated away from its card.
+const stripSrc = read("TerminalTabStrip.tsx");
+ok(
+  /if \(e\.target !== e\.currentTarget\) return;/.test(stripSrc),
+  "only the tab itself handles Space/Enter, never a key typed into its rename input",
+);
+ok(
+  /next !== tab\.label\) onRename/.test(stripSrc),
+  "leaving the rename box untouched is not a rename",
+);
+const panelSrc = read("TerminalLaunchPanel.tsx");
+ok(
+  /relative/.test(panelSrc) && /absolute/.test(panelSrc) && !/items-start gap-2/.test(panelSrc),
+  "the launcher's close control sits on its card, not beside it",
+);
+
+// Wiring: the surface uses the live agent and does not swallow a failed switch.
 const surface = read("TerminalSurface.tsx");
 const actions = read("use-terminal-tab-actions.ts");
 ok(/activeAgentFor\(/.test(surface), "TerminalSurface derives the agent from the live CLI");
