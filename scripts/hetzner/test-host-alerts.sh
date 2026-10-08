@@ -142,6 +142,14 @@ exec "$@"
 STUB
 cat > "$TMP/bin/journalctl" <<'STUB'
 #!/usr/bin/env bash
+# The runaway-loop check reads the last hour as JSON (-o json): serve the
+# $JOURNAL_JSON fixture, or nothing — a quiet hour.
+for a in "$@"; do
+  if [ "$a" = json ]; then
+    [ -n "${JOURNAL_JSON:-}" ] && [ -f "$JOURNAL_JSON" ] && cat "$JOURNAL_JSON"
+    exit 0
+  fi
+done
 # %b expands \n escapes, so a test can stage a multi-line journal via
 # JOURNAL_LINES and exercise the boilerplate filter on realistic output.
 printf '%b\n' "${JOURNAL_LINES:-stub journal line}"
@@ -775,6 +783,46 @@ lib alert_clear bk
 lib alert_once bk 1800 "🔴" "fresh outage"
 check "backoff: recovery resets the ladder — a fresh outage pages immediately (got $(sent))" \
   "$([ "$(sent)" -eq 1 ] && echo 0 || echo 1)"
+
+# ── Runaway loops ───────────────────────────────────────────────────────────
+# 2026-09-21 → 2026-10-08: loki-calendar-drain failed the same booking every
+# 15 s, 38,851 times, and every check here reported a healthy box.
+jlines() { # unit count message-template (use N for a varying number)
+  local i; for i in $(seq 1 "$2"); do
+    python3 -c 'import json,sys; print(json.dumps({"_SYSTEMD_UNIT": sys.argv[1], "MESSAGE": sys.argv[2]}))' "$1" "${3//N/$i}"
+  done
+}
+run_loops() { : > "$ALERT_LOG"; : > "$SEND_LOG"; DISK_PCT=10 JOURNAL_JSON="$TMP/journal.json" bash "$TMP/host-check.sh" >/dev/null 2>&1 || true; }
+loop_sent() { grep -c '🔁 LOOP' "$SEND_LOG" 2>/dev/null || true; }
+rm -f "$TMP"/state/paged_loop*
+jlines loki-calendar-drain.service 220 '[calendar-drain] failed "Schabernack": missing title or date/time in event payload' > "$TMP/journal.json"
+run_loops
+check "loops: 220 identical errors in an hour page ONCE (got $(loop_sent))" \
+  "$([ "$(loop_sent)" -eq 1 ] && echo 0 || echo 1)"
+check "loops: the page names the unit and the repeated line" \
+  "$(grep -q 'loki-calendar-drain 220×/h: “\[calendar-drain\] failed' "$SEND_LOG" && echo 0 || echo 1)"
+run_loops
+check "loops: the same loop on the next tick is silent — already told (got $(loop_sent))" \
+  "$([ "$(loop_sent)" -eq 0 ] && echo 0 || echo 1)"
+rm -f "$TMP"/state/paged_loop*
+jlines loki-hosted-runner.service 400 '[hosted-runner] drained 0 (one-shot; presence unchanged)' > "$TMP/journal.json"
+run_loops
+check "loops: a heartbeat repeated 400× is not an error — silent (got $(loop_sent))" \
+  "$([ "$(loop_sent)" -eq 0 ] && echo 0 || echo 1)"
+jlines some-app.service 100 'request failed: 503' > "$TMP/journal.json"
+run_loops
+check "loops: 100 errors/h is under the floor — silent (got $(loop_sent))" \
+  "$([ "$(loop_sent)" -eq 0 ] && echo 0 || echo 1)"
+jlines retry-app.service 150 'attempt N failed: upstream timeout after N ms' > "$TMP/journal.json"
+run_loops
+check "loops: lines differing only in numbers are ONE loop (got $(loop_sent))" \
+  "$([ "$(loop_sent)" -eq 1 ] && echo 0 || echo 1)"
+rm -f "$TMP"/state/paged_loop*
+{ jlines a-app.service 130 'boom: failed'; jlines b-app.service 140 'error: nope'; } > "$TMP/journal.json"
+run_loops
+check "loops: two looping units in one tick are ONE digest naming both" \
+  "$([ "$(loop_sent)" -eq 1 ] && grep -q 'a-app 130' "$SEND_LOG" && grep -q 'b-app 140' "$SEND_LOG" && echo 0 || echo 1)"
+rm -f "$TMP/journal.json" "$TMP"/state/paged_loop*
 
 printf '\n  %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
