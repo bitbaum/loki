@@ -145,14 +145,23 @@ export type BookEventResult =
 export type EventRecovery = (
   payload: ActionPayload | null | undefined,
   fallbackTitle: string,
+  /** The action row's free-text description. Proposals often put the WHEN only
+   *  there ("Sa 26.09.2026 22:00 - So 27.09.2026 04:00 | Schneiderei …"); a
+   *  recovery that never read it looped on one such row from 2026-09-21 to
+   *  2026-10-08 — 38,851 failed passes, a model call on every one. */
+  context?: string | null,
 ) => Promise<ActionPayload | null | undefined>;
 
 /** Passed IN by callers acting on a person's tap, never reached by default: a
  *  standing rule executes from a cron tick with nobody asking, and a model call
  *  there would spend the box's shared free tier (2026-09-25). */
-export const recoverEventPayloadFromText: EventRecovery = async (payload, fallbackTitle) => {
+export const recoverEventPayloadFromText: EventRecovery = async (
+  payload,
+  fallbackTitle,
+  context,
+) => {
   if (!process.env.GROQ_API_KEY) return payload;
-  const text = [payload?.subject, payload?.body, payload?.eventTitle, fallbackTitle]
+  const text = [payload?.subject, payload?.body, payload?.eventTitle, fallbackTitle, context]
     .map((v) => (typeof v === "string" ? v.trim() : ""))
     .filter(Boolean)
     .join("\n");
@@ -210,12 +219,13 @@ export async function resolveGogCreateArgs(
   payload: ActionPayload | null | undefined,
   fallbackTitle: string,
   recover?: EventRecovery,
+  context?: string | null,
 ): Promise<string[] | null> {
   if (buildGogCreateArgs(payload, fallbackTitle)) {
     return buildGogCreateArgs(payload, fallbackTitle);
   }
   if (!recover) return null;
-  const enriched = await recover(payload, fallbackTitle).catch(() => payload);
+  const enriched = await recover(payload, fallbackTitle, context).catch(() => payload);
   return buildGogCreateArgs(enriched, fallbackTitle);
 }
 
@@ -223,10 +233,11 @@ export async function bookCalendarEvent(
   payload: ActionPayload | null | undefined,
   fallbackTitle: string,
   recover?: EventRecovery,
+  context?: string | null,
 ): Promise<BookEventResult> {
   // Structured fields present → book directly. Missing → recover from free text,
   // but only when the caller passed a recovery (see recoverEventPayloadFromText).
-  const args = await resolveGogCreateArgs(payload, fallbackTitle, recover);
+  const args = await resolveGogCreateArgs(payload, fallbackTitle, recover, context);
   if (!args) return { ok: false, error: "missing title or date/time in event payload" };
 
   const res = await runToolArgs(GOG_BIN, args, 20000);

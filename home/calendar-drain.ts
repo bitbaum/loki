@@ -46,7 +46,12 @@ import {
 import type { ActionPayload } from "@/db/schema/actions";
 import { runToolArgs } from "@/lib/tools";
 
-type DrainEvent = { id: string; title: string; payload: ActionPayload | null };
+type DrainEvent = {
+  id: string;
+  title: string;
+  description?: string | null;
+  payload: ActionPayload | null;
+};
 
 /**
  * Where to reach the cloud drain endpoint and how to auth. Standalone CLI use
@@ -79,7 +84,12 @@ export async function drainOnce(cfg?: DrainConfig): Promise<{ booked: number; fa
   for (const ev of events ?? []) {
     // The drain runs on the operator's own machine and books events a person
     // approved; recovering an unstructured date there is part of that ask.
-    const result = await bookCalendarEvent(ev.payload, ev.title, recoverEventPayloadFromText);
+    const result = await bookCalendarEvent(
+      ev.payload,
+      ev.title,
+      recoverEventPayloadFromText,
+      ev.description,
+    );
     const body = result.ok
       ? { id: ev.id, ok: true as const, eventId: result.eventId, htmlLink: result.htmlLink }
       : { id: ev.id, ok: false as const, error: result.error };

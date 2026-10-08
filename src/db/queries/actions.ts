@@ -79,7 +79,12 @@ export async function markActionExecuted(id: string, userId: string): Promise<Ac
 }
 
 /** What a claiming drain needs to do the booking — nothing more. */
-export type ClaimedAction = { id: string; title: string; payload: ActionPayload | null };
+export type ClaimedAction = {
+  id: string;
+  title: string;
+  description: string | null;
+  payload: ActionPayload | null;
+};
 
 /**
  * CLAIM approved-but-unexecuted actions of a type, oldest first.
@@ -132,14 +137,42 @@ export async function claimApprovedActionsByType(
       LIMIT ${batchLimit}
       FOR UPDATE SKIP LOCKED
     )
-    RETURNING id, title, payload
+    RETURNING id, title, description, payload
   `);
   const rows = (result as unknown as { rows?: unknown[] }).rows ?? (result as unknown as unknown[]);
-  return (rows as Array<{ id: string; title: string; payload: ActionPayload | null }>).map((r) => ({
+  return (
+    rows as Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      payload: ActionPayload | null;
+    }>
+  ).map((r) => ({
     id: r.id,
     title: r.title,
+    description: r.description ?? null,
     payload: r.payload ?? null,
   }));
+}
+
+/**
+ * Stop trying to execute an approved action: approved → expired. Guarded on
+ * status='approved' so it can never undo a booking that landed meanwhile
+ * (idempotent: a second call matches nothing and returns null).
+ */
+export async function giveUpApprovedAction(id: string, userId: string): Promise<ActionRow | null> {
+  const [updated] = await db
+    .update(actions)
+    .set({ status: ACTION_STATUS.EXPIRED, claimedAt: null })
+    .where(
+      and(
+        eq(actions.id, id),
+        eq(actions.userId, userId),
+        eq(actions.status, ACTION_STATUS.APPROVED),
+      ),
+    )
+    .returning();
+  return updated ?? null;
 }
 
 /**

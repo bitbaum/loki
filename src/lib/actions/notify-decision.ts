@@ -272,6 +272,48 @@ export async function notifyActionExecuted(
 }
 
 /**
+ * Loki stopped trying to carry out something the operator approved. Sent once,
+ * when the retries run out — the operator approved it and believes it happened,
+ * so silence here is the expensive kind.
+ */
+export async function notifyActionGaveUp(
+  userId: string,
+  action: ActionRow,
+  reason: string,
+  attempts: number,
+): Promise<void> {
+  const target = selfTelegramTarget();
+  if (!target) return;
+
+  try {
+    const tz = getActiveTimezone(await getUserPreferences(userId).catch(() => null));
+    const isEvent = action.type === ACTION_TYPE.CREATE_EVENT;
+    const lines = [
+      `⚠️ ${isEvent ? "Not booked" : "Not done"} — “${action.title}”`,
+      ...describeAction(action, tz),
+    ];
+    const details = action.description?.trim();
+    if (details) lines.push(details.slice(0, 400));
+    lines.push(
+      `\nI tried ${attempts}× and stopped: ${reason}. ${
+        isEvent
+          ? "Add it to your calendar yourself, or ask me again with the date."
+          : "Ask me again if it still matters."
+      }`,
+    );
+    await reportSend(
+      await sendTelegramMessage(target, lines.join("\n"), {
+        buttons: [[{ text: "Open in Loki", url: actionEditUrl(action.id) }]],
+      }),
+      action.id,
+      "give-up notice",
+    );
+  } catch (err) {
+    await logFailure(action.id, "give-up notice", err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
  * A refused send is a failure, even though nothing threw.
  *
  * sendTelegramMessage reports a rejected token, a blocked chat or an API error
