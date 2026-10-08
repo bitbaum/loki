@@ -58,6 +58,10 @@ export function previewPrompt(input: PreviewInput): string {
     "",
     "Visible page outline:",
     outline || "(empty)",
+    "",
+    // Last, beside the owner's own words: a system-prompt rule alone lost to
+    // an all-Italian outline and answered the owner in Italian (2026-10-08).
+    `Write "summary" in the language of this, the owner's own request: “${input.ask.slice(0, 120)}” — even when the page is in another language.`,
   ]
     .filter((l) => l !== null)
     .join("\n");
