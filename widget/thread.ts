@@ -39,6 +39,17 @@ export type ThreadItem =
       building?: boolean;
       note?: string;
       claimUrl?: string;
+    }
+  | {
+      /** Watch spoke up on its own: something it saw while the owner used
+       *  the site (watch-trail.ts explainNotice). */
+      kind: "noticed";
+      at: number;
+      text: string;
+      /** The change request "Fix this" sends. */
+      fix: string;
+      /** It broke outright and a fix was already started — nothing to tap. */
+      filed?: boolean;
     };
 
 /** Enough to read back a visit; small enough for sessionStorage and a prompt. */
@@ -116,6 +127,11 @@ function restoreItem(raw: unknown, now: number): ThreadItem | null {
       ...(claimUrl ? { claimUrl } : {}),
     };
   }
+  if (r.kind === "noticed") {
+    const fix = str(r.fix, 1000);
+    if (!fix) return null;
+    return { kind: "noticed", at, text, fix, ...(r.filed === true ? { filed: true } : {}) };
+  }
   return null;
 }
 
@@ -143,7 +159,9 @@ export function historyFor(
         ? { role: "user" as const, content: i.text }
         : i.kind === "loki"
           ? { role: "assistant" as const, content: i.text }
-          : { role: "assistant" as const, content: `(Sent to the builder: ${i.text})` },
+          : i.kind === "noticed"
+            ? { role: "assistant" as const, content: `(Noticed while watching: ${i.text})` }
+            : { role: "assistant" as const, content: `(Sent to the builder: ${i.text})` },
     )
     .slice(-maxTurns)
     .map((t) => ({ ...t, content: t.content.slice(0, maxChars) }));

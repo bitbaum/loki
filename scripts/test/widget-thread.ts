@@ -99,6 +99,34 @@ assert.deepEqual(parseWidgetSurfaceModes("nonsense"), ["report", "ask"]);
   assert.deepEqual(restoreThread("not an array", now), []);
 }
 
+// ---- Loki's remarks survive a reload, and need their fix to be a remark ----
+{
+  const now = 50_000_000;
+  const r = restoreThread(
+    [
+      {
+        kind: "noticed",
+        at: now - 5,
+        text: "It found nothing there (404).",
+        fix: "Fix /hours",
+        filed: true,
+      },
+      { kind: "noticed", at: now - 4, text: "No fix to send" },
+    ],
+    now,
+  );
+  assert.deepEqual(r, [
+    {
+      kind: "noticed",
+      at: now - 5,
+      text: "It found nothing there (404).",
+      fix: "Fix /hours",
+      filed: true,
+    },
+  ]);
+  assert.match(historyFor(r, 4, 200)[0].content, /^\(Noticed while watching: /);
+}
+
 // ---- bounded ----
 {
   let t: ThreadItem[] = [];

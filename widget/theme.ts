@@ -138,12 +138,25 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 
 /* the one conversation */
 .convo { display: flex; flex-direction: column; gap: 10px; }
-.ctxbar { display: flex; flex-wrap: wrap; gap: 6px; }
-.ctx { font-size: 11px; padding: 5px 9px; border-radius: 999px; border: 1px solid ${theme.border}; color: ${theme.textSecondary}; background: ${theme.surfaceRaised}; }
-.ctx:hover:not(:disabled) { color: ${theme.text}; border-color: ${theme.borderDark}; }
-.ctx.on { border-color: ${theme.accent}; color: ${theme.text}; background: ${theme.accentMuted}; }
-.ctx:disabled { cursor: default; }
+.ctxbar { display: flex; align-items: center; gap: 8px; }
+.ctx-label { font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; flex: none; }
+/* "About": one segmented control — this page / whole site / an element */
+.seg { display: flex; flex: 1; padding: 3px; gap: 2px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceRaised}; }
+.segbtn { flex: 1; padding: 6px 4px; font-size: 12px; border-radius: ${rc}; color: ${theme.textSecondary}; text-align: center; white-space: nowrap; }
+.segbtn:hover { color: ${theme.text}; }
+.segbtn.on { color: ${theme.text}; background: ${theme.surface}; box-shadow: inset 0 0 0 1px ${theme.accent}; font-weight: 500; }
+/* composer: the text, then one row — attach tools left, the two ways to send right */
+.composer { display: flex; flex-direction: column; gap: 8px; }
+.composer .chatinput { min-height: 64px; }
+.composer-actions { display: flex; align-items: center; gap: 8px; }
+.composer-actions .tools { margin-right: auto; }
+.composer-actions .go, .composer-actions .ghost { height: 38px; padding: 0 12px; white-space: nowrap; }
 .tools { display: flex; gap: 8px; align-items: center; }
+.msg.noticed { border-color: ${theme.accent}; }
+.msg.noticed .who { color: ${theme.accent}; }
+.noticed-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+.noticed-actions .act { margin-top: 0; align-self: center; }
+@media (max-width: 380px) { .composer-actions .attach span:last-child { display: none; } }
 .act { align-self: flex-end; font-size: 11px; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; margin-top: -4px; }
 .act:hover { color: ${theme.text}; }
 .msg.sent { border-color: ${theme.accent}; }
@@ -152,7 +165,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .sendcard { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid ${theme.accent}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; }
 .sendcard textarea { min-height: 64px; }
 .sendcard .err { margin-top: 0; }
-@media (pointer: coarse) { .ctx, .watchbtn { padding: 10px 12px; } .act { padding: 8px 0; } }
+@media (pointer: coarse) { .segbtn, .watchbtn { padding: 10px 8px; } .act { padding: 8px 0; } }
 
 textarea, input {
   width: 100%; font-size: 13px; line-height: 1.45; color: ${theme.text};

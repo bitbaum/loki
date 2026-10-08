@@ -20,6 +20,9 @@ import {
   TRAIL_MAX,
   TRAIL_MAX_AGE_MS,
   watchReport,
+  explainChecks,
+  explainNotice,
+  noticeSignature,
   type TrailEntry,
 } from "../../widget/watch-trail";
 import { buildSuggestion } from "../../widget/report-payload";
@@ -157,6 +160,71 @@ check(() => {
   assert.ok(s.includes(`button “${String(TRAIL_MAX - 1).padStart(3, "0")}`), "newest kept");
   assert.ok(!s.includes("button “000"), "oldest dropped");
   assert.ok(s.endsWith("- check A"), "checks survive the cut");
+});
+
+// ---- Loki speaks up: each remark in plain words, with the fix it would send ----
+check(() => {
+  const nf = explainNotice({
+    kind: "4xx",
+    text: "GET /hours → 404",
+    after: "button “Opening hours”",
+  });
+  assert.equal(
+    nf.say,
+    "After you tapped button “Opening hours”, the page asked for /hours and it found nothing there (404).",
+  );
+  assert.match(
+    nf.fix,
+    /^Fix the request to \/hours after tapping button “Opening hours”: it answers 404\.$/,
+  );
+  // No tap to blame: the sentence still stands on its own.
+  assert.match(
+    explainNotice({ kind: "4xx", text: "POST /cart → 403" }).say,
+    /^the page asked for \/cart and it was refused — not allowed\.$/,
+  );
+  assert.match(
+    explainNotice({ kind: "4xx", text: "GET /x → 418" }).say,
+    /was rejected \(418\)/,
+    "an unlisted status still reads",
+  );
+  assert.match(
+    explainNotice({ kind: "slow", text: "GET /api/menu → 200 in 4.2s" }).say,
+    /waited 4\.2s for \/api\/menu/,
+  );
+  assert.match(
+    explainNotice({ kind: "console", text: "console error: x is undefined" }).say,
+    /“x is undefined”/,
+  );
+  assert.match(
+    explainNotice({ kind: "load", text: "this page took 4.1s to load" }).say,
+    /it took 4\.1s to load/,
+  );
+  const freeze = explainNotice({
+    kind: "longtask",
+    text: "after button “Load more” the page froze for 450ms (taps go unanswered meanwhile)",
+  });
+  assert.match(freeze.say, /^After button “Load more” the page froze for 450ms/);
+  assert.equal(freeze.fix, "Stop the page freezing after button “Load more”.");
+  assert.match(explainNotice({ kind: "cls", text: "content jumped around" }).fix, /jumping around/);
+});
+
+check(() => {
+  assert.equal(explainChecks([]), null, "a clean page gets no remark — silence is right");
+  const c = explainChecks(["2 image(s) have no alt text", "The page has no main heading (h1)"])!;
+  assert.match(
+    c.say,
+    /2 things stand out:\n• 2 image\(s\) have no alt text\n• The page has no main heading/,
+  );
+  assert.match(c.fix, /^Fix these on this page:\n• 2 image/);
+  assert.equal(
+    c.short,
+    "2 things on this page could be better",
+    "the bar's one line never ends on a colon",
+  );
+  // One remark per cause per page: numbers do not make it new, another page does.
+  const a = noticeSignature("/shop", { kind: "slow", text: "GET /a → 200 in 4.2s" });
+  assert.equal(a, noticeSignature("/shop", { kind: "slow", text: "GET /a → 200 in 5.9s" }));
+  assert.notEqual(a, noticeSignature("/cart", { kind: "slow", text: "GET /a → 200 in 4.2s" }));
 });
 
 console.log(`${n} widget-watch cases passed`);

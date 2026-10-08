@@ -20,7 +20,9 @@ import {
   isFailedRequest,
   isNoticeableRequest,
   nextTapStreak,
-  noticeCount,
+  explainChecks,
+  explainNotice,
+  noticeSignature,
   sessionForReview,
   SLOW_REQUEST_MS,
   trailDiagnostics,
@@ -28,6 +30,8 @@ import {
   isNoiseError,
   pushTrail,
   type Failure,
+  type Notice,
+  type NoticeKind,
   type TrailEntry,
 } from "./watch-trail";
 import { runPageChecks } from "./page-checks";
@@ -64,6 +68,8 @@ const NOTICES_PER_KIND = 3;
 const CLS_POOR = 0.1;
 /** A page that takes longer than this to load has lost some of its visitors. */
 const SLOW_LOAD_MS = 3_000;
+/** A remark names the tap that led to it when that tap was this recent. */
+const TAP_LEADS_MS = 5_000;
 
 export function readWatchPaused(token: string): boolean {
   try {
@@ -97,6 +103,10 @@ export function installWatch(opts: {
   onFailure: (failure: Failure, trail: TrailEntry[]) => void;
   /** Something new went into the trail (the pill keeps its count from this). */
   onChange?: (trail: TrailEntry[]) => void;
+  /** A remark worth saying out loud — Loki tells the owner in the thread. */
+  onNotice?: (notice: Notice) => void;
+  /** The site moved to another page (SPA navigation) — time to look at it. */
+  onPage?: () => void;
 }): { trail: () => TrailEntry[] } {
   let trail: TrailEntry[] = readStoredTrail(opts.token);
   const add = (kind: TrailEntry["kind"], text: string) => {
@@ -109,11 +119,16 @@ export function installWatch(opts: {
   };
   const noticed = new Map<string, number>();
   /** A remark, rationed per kind per page view (see NOTICES_PER_KIND). */
-  const notice = (kind: string, text: string) => {
+  const notice = (kind: NoticeKind, text: string) => {
+    if (!opts.isActive()) return;
     const n = noticed.get(kind) ?? 0;
     if (n >= NOTICES_PER_KIND) return;
     noticed.set(kind, n + 1);
     add("notice", text);
+    // Name the tap that led here when it was a moment ago; a freeze already
+    // names its own tap in the text.
+    const recent = lastTap && performance.now() - lastTap.at < TAP_LEADS_MS;
+    opts.onNotice?.({ kind, text, after: kind !== "longtask" && recent ? lastTap?.what : null });
   };
   let streak: TapStreak = null;
   /** The last tap on the site (performance clock) — a freeze right after it
@@ -135,6 +150,7 @@ export function installWatch(opts: {
     streak = null;
     noticed.clear();
     add("page", location.pathname);
+    opts.onPage?.();
   };
   for (const name of ["pushState", "replaceState"] as const) {
     const original = history[name];
@@ -272,7 +288,7 @@ function isOurNode(node: Node | null | undefined, host: HTMLElement): boolean {
  * a remark (never a fix by itself), in words a non-engineer can read.
  */
 function observePerformance(
-  notice: (kind: string, text: string) => void,
+  notice: (kind: NoticeKind, text: string) => void,
   host: HTMLElement,
   lastTap: () => { at: number; what: string } | null,
 ): void {
@@ -342,29 +358,30 @@ function observePerformance(
 }
 
 export type WatchPillState =
-  | { kind: "watching"; noticed?: number }
+  | { kind: "watching"; latest?: string }
   | { kind: "paused" }
   | { kind: "sending"; what: string }
   | { kind: "fixing"; what: string; followUrl: string }
   | { kind: "not-sent"; what: string };
 
 /**
- * The always-visible sign that Loki is watching: a small pill at the top of
- * the page. It says what Loki is doing in plain words, and is the one place to
- * pause it — so nobody has to wonder whether they are being recorded.
+ * The always-visible sign that Loki is watching: a bar at the top of the page.
+ * It says in plain words what Loki is doing — and, the moment it notices
+ * something, what that was — with Show (open the conversation where Loki said
+ * it) and Stop watching. Nobody has to wonder whether they are being recorded,
+ * or hunt for how to stop it.
  */
 export function createWatchPill(
   root: ShadowRoot,
   theme: WidgetTheme,
-  onTogglePause: () => void,
-  onReport: () => void,
-  onReview: (() => void) | null = null,
+  onToggle: () => void,
+  onShow: () => void,
 ): { set: (state: WatchPillState) => void } {
   const style = h("style");
   style.textContent = `
 .watch-pill {
   position: fixed; top: max(8px, env(safe-area-inset-top)); left: 12px; right: 12px; margin: 0 auto; width: max-content;
-  z-index: 2147483646; display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 24px);
+  z-index: 2147483646; display: flex; align-items: center; gap: 8px; max-width: min(560px, calc(100vw - 24px));
   padding: 6px 6px 6px 12px; border-radius: 999px; border: 1px solid ${theme.borderStrong};
   background: ${theme.surfaceRaised}; color: ${theme.text}; font-size: 12px; line-height: 1.3;
   box-shadow: 0 4px 16px rgba(0,0,0,.18);
@@ -372,10 +389,11 @@ export function createWatchPill(
 .watch-pill .wdot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: ${theme.accent}; box-shadow: 0 0 0 3px ${theme.accentMuted}; animation: wpulse 2s ease-in-out infinite; }
 .watch-pill.paused .wdot { background: ${theme.textMuted}; box-shadow: none; animation: none; }
 .watch-pill.alert .wdot { background: ${theme.error}; box-shadow: 0 0 0 3px ${theme.errorSurface}; }
+.watch-pill.said { border-color: ${theme.accent}; }
 .watch-pill .wtext { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .watch-pill .wtext a { color: inherit; text-decoration: underline; }
 .watch-pill .wbtn + .wbtn { margin-left: -4px; }
-.watch-pill .wbtn { flex: none; min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid ${theme.border}; color: ${theme.textSecondary}; font-size: 11px; }
+.watch-pill .wbtn { flex: none; min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid ${theme.border}; color: ${theme.textSecondary}; font-size: 11px; white-space: nowrap; }
 .watch-pill .wbtn.primary { border-color: ${theme.accent}; background: ${theme.accentMuted}; color: ${theme.text}; font-weight: 600; }
 @media (pointer: coarse) { .watch-pill .wbtn { min-height: 32px; } }
 @keyframes wpulse { 50% { opacity: .45; } }
@@ -386,44 +404,33 @@ export function createWatchPill(
   pill.setAttribute("aria-live", "polite");
   const dot = h("span", "wdot");
   const text = h("span", "wtext");
-  // Not everything wrong throws an error: Report opens the note with the same
-  // trail attached, for "this looks wrong" that no listener can see.
-  const report = h("button", "wbtn", "Report");
-  report.addEventListener("click", onReport);
-  // Review: what Loki makes of what you just did — errors, design,
-  // engineering, process, product — each change one tap from being built.
-  const review = onReview ? h("button", "wbtn primary", "Review") : null;
-  if (review && onReview) {
-    review.title = "Loki reviews what you just did on this site and suggests improvements";
-    review.addEventListener("click", onReview);
-  }
-  const btn = h("button", "wbtn");
-  btn.addEventListener("click", onTogglePause);
-  pill.append(dot, text, ...(review ? [review] : []), report, btn);
+  const showBtn = h("button", "wbtn", "Show");
+  showBtn.title = "Open the conversation with Loki";
+  showBtn.addEventListener("click", onShow);
+  const toggle = h("button", "wbtn");
+  toggle.addEventListener("click", onToggle);
+  pill.append(dot, text, showBtn, toggle);
   root.append(style, pill);
 
   const set = (state: WatchPillState) => {
-    pill.className = `watch-pill${state.kind === "paused" ? " paused" : ""}${
+    const said = state.kind === "watching" && !!state.latest;
+    pill.className = `watch-pill${state.kind === "paused" ? " paused" : ""}${said ? " said" : ""}${
       state.kind === "sending" || state.kind === "fixing" || state.kind === "not-sent"
         ? " alert"
         : ""
     }`;
     text.textContent = "";
-    // The words fit a phone; what exactly broke is one hover away.
-    pill.title = "what" in state ? state.what : "";
-    btn.textContent = state.kind === "paused" ? "Resume" : "Pause";
-    report.style.display = state.kind === "paused" ? "none" : "";
-    if (review) review.style.display = state.kind === "paused" ? "none" : "";
+    pill.title = "what" in state ? state.what : said ? (state.latest ?? "") : "";
+    toggle.textContent = state.kind === "paused" ? "Watch again" : "Stop watching";
+    showBtn.classList.toggle("primary", said || state.kind === "fixing");
     switch (state.kind) {
       case "watching":
-        // The count is the invitation: something is worth a look, and Review
-        // is the button beside it. No model runs until it is pressed.
-        text.textContent = state.noticed
-          ? `Loki is watching · noticed ${state.noticed}`
-          : "Loki is watching";
+        text.textContent = state.latest
+          ? `Loki noticed: ${state.latest}`
+          : "Loki is watching you use this site";
         break;
       case "paused":
-        text.textContent = "Loki paused — nothing recorded";
+        text.textContent = "Loki stopped watching — nothing is recorded";
         break;
       case "sending":
         text.textContent = "Something broke — telling Loki…";
@@ -438,7 +445,7 @@ export function createWatchPill(
         break;
       }
       case "not-sent":
-        text.textContent = "Something broke — couldn't reach Loki. Report it with the button.";
+        text.textContent = "Something broke — couldn't reach Loki. Tap Show to send it.";
         break;
     }
   };
@@ -449,14 +456,55 @@ export function createWatchPill(
 /** The ingest's cap on `suggestion` (api/feedback FeedbackBody). */
 const SUGGESTION_MAX = 2000;
 
-/** How long "Loki is fixing …" stays before the pill says "watching" again. */
+/** How long "Loki is fixing …" stays before the pill goes back to watching. */
 const FIXING_SHOWN_MS = 30_000;
+/** Let the page settle (fonts, late images) before Loki looks at it. */
+const CHECKS_DELAY_MS = 2_500;
+
+/** What Loki says in the conversation when it noticed something. */
+export type Remark = {
+  say: string;
+  fix: string;
+  filed?: boolean;
+  /** The bar's one line. */ short?: string;
+};
+
+const saidKey = (token: string) => `loki-watch-said:${token}`;
+
+/** Remarks already made this visit — a reload must not repeat them. */
+function readSaid(token: string): Set<string> {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(saidKey(token)) ?? "[]") as unknown;
+    return new Set(Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeSaid(token: string, said: Set<string>): void {
+  try {
+    sessionStorage.setItem(saidKey(token), JSON.stringify([...said].slice(-100)));
+  } catch {
+    /* storage blocked: Loki may repeat itself after a reload, nothing worse */
+  }
+}
+
+/** A failure, in the owner's words (watch files the fix itself). */
+function failureSay(f: Failure): string {
+  return f.kind === "dead-tap"
+    ? `You tapped ${f.text} three times and nothing happened.`
+    : f.kind === "request"
+      ? `Something broke: the page asked for ${f.text.replace(/^[A-Z]+ /, "").replace(/ → /, " and got ")}.`
+      : `Something broke: the page hit an error — “${f.text}”.`;
+}
 
 /**
- * Watch mode, whole: the pill, pause/resume, the recorder, and the report a
- * failure files. A failure files at most once per distinct cause and at most
- * WATCH_REPORTS_PER_PAGE times per page load — one broken request retried in a
- * loop must not start forty builds.
+ * Watch mode, whole: the bar, stop/start, the recorder, the fix a failure
+ * files, and the remarks Loki makes out loud. A failure files at most once per
+ * distinct cause and at most WATCH_REPORTS_PER_PAGE times per page load — one
+ * broken request retried in a loop must not start forty builds. A remark is
+ * made once per visit (signatures kept per tab), so reloading a page with a
+ * known problem does not repeat it.
  */
 export function startWatchMode(opts: {
   root: ShadowRoot;
@@ -466,38 +514,31 @@ export function startWatchMode(opts: {
   apiBase: string;
   /** The owner pass as it stands now (null once the server refuses it). */
   pass: () => string | null;
-  /** Review pressed on the pill: the panel asks Loki about session(). */
-  onReview?: (() => void) | null;
-  /** Paused or resumed — the panel's header follows. */
+  /** Show on the bar: open the conversation. */
+  onShow: () => void;
+  /** Loki noticed something — say it in the conversation. */
+  onRemark: (remark: Remark) => void;
+  /** Stopped or started again — the panel's header follows. */
   onChange?: () => void;
 }): WatchSession {
   let paused = readWatchPaused(opts.token);
   const sent = new Set<string>();
+  const said = readSaid(opts.token);
+  let latest: string | undefined;
   let reverting: ReturnType<typeof setTimeout> | null = null;
   let recorder: { trail: () => TrailEntry[] } | null = null;
-  const watching = (): WatchPillState => ({
-    kind: "watching",
-    noticed: noticeCount(recorder?.trail() ?? []),
-  });
+  const watching = (): WatchPillState => ({ kind: "watching", latest });
   const session = () => sessionForReview(recorder?.trail() ?? [], safePageChecks(), Date.now());
   const setPaused = (value: boolean) => {
     paused = value;
     writeWatchPaused(opts.token, paused);
+    if (!paused) latest = undefined;
     show(paused ? { kind: "paused" } : watching());
     opts.onChange?.();
+    if (!paused) scheduleChecks();
   };
-  const pill = createWatchPill(
-    opts.root,
-    opts.theme,
-    () => setPaused(!paused),
-    () => {
-      const loki = (window as unknown as { Loki?: { report: (i: object) => void } }).Loki;
-      loki?.report({ diagnostics: diagnostics("Loki watch mode (Report)") });
-    },
-    opts.onReview ?? null,
-  );
-  /** What the pill shows now — a new remark updates the count only while it
-   *  says "watching", never over "Something broke — Loki is fixing it". */
+  const pill = createWatchPill(opts.root, opts.theme, () => setPaused(!paused), opts.onShow);
+  /** What the pill shows now — a remark never covers "Loki is fixing it". */
   let shown: WatchPillState["kind"] = "watching";
   const show = (state: WatchPillState) => {
     shown = state.kind;
@@ -509,6 +550,16 @@ export function startWatchMode(opts: {
     ...trailDiagnostics(recorder?.trail() ?? [], Date.now()),
   });
 
+  /** Say it once per visit: in the conversation, and on the bar. */
+  const remark = (signature: string, r: Remark) => {
+    if (paused || said.has(signature)) return;
+    said.add(signature);
+    writeSaid(opts.token, said);
+    opts.onRemark(r);
+    latest = r.short ?? r.say.split("\n")[0];
+    if (shown === "watching") show(watching());
+  };
+
   const report = async (failure: Failure, trail: TrailEntry[]) => {
     const pass = opts.pass();
     const signature = failureSignature(failure);
@@ -517,6 +568,7 @@ export function startWatchMode(opts: {
     if (reverting) clearTimeout(reverting);
     show({ kind: "sending", what: failure.text });
     const { message, diagnostics } = watchReport(failure, trail, Date.now());
+    let filed = false;
     try {
       await sendReport(opts.apiBase, {
         token: opts.token,
@@ -524,6 +576,7 @@ export function startWatchMode(opts: {
         scope: "page",
         ownerPass: pass,
       });
+      filed = true;
       show({ kind: "fixing", what: failure.text, followUrl: `${opts.apiBase}/feedback` });
       reverting = setTimeout(() => {
         if (!paused) show(watching());
@@ -531,6 +584,25 @@ export function startWatchMode(opts: {
     } catch {
       show({ kind: "not-sent", what: failure.text });
     }
+    remark(`${location.pathname}|fail|${signature}`, {
+      say: filed
+        ? `${failureSay(failure)} I've started a fix — it goes live by itself.`
+        : `${failureSay(failure)} I couldn't reach Loki to fix it — send it from here.`,
+      fix: message,
+      filed,
+    });
+  };
+
+  // Look at each page once it has settled: what a visitor pays for that
+  // nobody sees (unnamed buttons, tiny targets, broken images…).
+  let checksTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleChecks = () => {
+    if (checksTimer) clearTimeout(checksTimer);
+    checksTimer = setTimeout(() => {
+      const checks = safePageChecks();
+      const r = explainChecks(checks);
+      if (r) remark(`${location.pathname}|checks|${checks.join("|").replace(/\d+/g, "#")}`, r);
+    }, CHECKS_DELAY_MS);
   };
 
   recorder = installWatch({
@@ -541,30 +613,32 @@ export function startWatchMode(opts: {
       url.startsWith(`${opts.apiBase}/api/widget`),
     isActive: () => !paused && opts.pass() !== null,
     onFailure: (failure, trail) => void report(failure, trail),
-    onChange: () => {
-      if (shown === "watching") show(watching());
-    },
+    onNotice: (n) => remark(noticeSignature(location.pathname, n), explainNotice(n)),
+    onPage: scheduleChecks,
   });
-  // A trail restored from the previous page of this visit may already hold
-  // remarks; say so from the first paint.
-  if (!paused) show(watching());
+  if (!paused) {
+    show(watching());
+    scheduleChecks();
+  }
 
   return {
     on: () => !paused && opts.pass() !== null,
+    stop: () => setPaused(true),
     resume: () => setPaused(false),
     session,
-    diagnostics: () => (paused ? null : diagnostics("Loki watch mode (Review)")),
+    diagnostics: () => (paused ? null : diagnostics("Loki watch mode")),
   };
 }
 
 export type WatchSession = {
-  /** Recording right now: the owner's pass holds and they have not paused. */
+  /** Recording right now: the owner's pass holds and they have not stopped it. */
   on: () => boolean;
+  stop: () => void;
   resume: () => void;
   /** What Review sends: the trail and the page checks, as text. */
   session: () => string;
-  /** The trail as report lines, for a change requested out of a Review —
-   *  null while paused, when nothing may travel. */
+  /** The trail as report lines, for a change sent while watching — null when
+   *  stopped, when nothing may travel. */
   diagnostics: () => ReportDiagnostics | null;
 };
 

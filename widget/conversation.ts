@@ -108,23 +108,34 @@ export function createConversation(opts: {
   log.setAttribute("aria-live", "polite");
   const starters = h("div", "starters");
 
-  // ---- context: what the next message is about, and what travels with it ----
+  // ---- what the next message is about: this page, the whole site, or an
+  // element you point at — for a question to Loki and for feedback alike ----
   const ctx = h("div", "ctxbar");
-  const aboutBtn = h("button", "ctx");
-  aboutBtn.type = "button";
-  aboutBtn.addEventListener("click", () => {
-    scopeSite = !scopeSite;
+  ctx.appendChild(h("span", "ctx-label", "About"));
+  const seg = h("div", "seg");
+  seg.setAttribute("role", "radiogroup");
+  seg.setAttribute("aria-label", "What this is about");
+  const pageBtn = h("button", "segbtn", "This page");
+  const siteBtn = h("button", "segbtn", "Whole site");
+  const pointBtn = h("button", "segbtn", "An element");
+  for (const b of [pageBtn, siteBtn, pointBtn]) {
+    b.type = "button";
+    b.setAttribute("role", "radio");
+    seg.appendChild(b);
+  }
+  pageBtn.addEventListener("click", () => {
+    opts.picker.clearSelection();
+    scopeSite = false;
     syncContext();
   });
-  const pointBtn = h("button", "ctx");
-  pointBtn.type = "button";
-  pointBtn.addEventListener("click", () => {
-    if (opts.picker.selected().length) {
-      opts.picker.clearSelection();
-      syncContext();
-    } else opts.picker.start();
+  siteBtn.addEventListener("click", () => {
+    opts.picker.clearSelection();
+    scopeSite = true;
+    syncContext();
   });
-  ctx.append(aboutBtn, pointBtn);
+  // Tapping it again while something is picked picks again (adds/changes).
+  pointBtn.addEventListener("click", () => opts.picker.start());
+  ctx.append(seg);
 
   const shots = h("div", "shots");
   const err = h("div", "err");
@@ -155,20 +166,35 @@ export function createConversation(opts: {
   const input = h("textarea", "chatinput");
   input.rows = 2;
   input.maxLength = MAX_LEN;
+  // Two ways to say it, side by side: straight to the builder as feedback, or
+  // ask Loki first. Neither is hidden behind the other.
   const sendBtn = h("button", "go");
   sendBtn.type = "button";
   sendBtn.disabled = true;
   sendBtn.addEventListener("click", () => void submit());
-  input.addEventListener("input", () => {
-    sendBtn.disabled = busy || !input.value.trim();
+  const feedbackBtn = h("button", "ghost feedback");
+  feedbackBtn.type = "button";
+  feedbackBtn.disabled = true;
+  feedbackBtn.addEventListener("click", () => {
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+    syncButtons();
+    openDraft(text);
   });
+  const syncButtons = () => {
+    const empty = !input.value.trim();
+    sendBtn.disabled = busy || empty;
+    feedbackBtn.disabled = empty;
+  };
+  input.addEventListener("input", syncButtons);
   const voice = createVoiceControl({
     endpoint: `${opts.apiBase}/api/widget/transcribe`,
     token: opts.token,
     maxMs: VOICE_MAX_MS,
     onTranscript: (text) => {
       input.value = mergeTranscript(input.value, text, MAX_LEN);
-      sendBtn.disabled = busy || !input.value.trim();
+      syncButtons();
       input.focus();
     },
     onError: (m) => (err.textContent = m),
@@ -176,9 +202,11 @@ export function createConversation(opts: {
   const tools = h("div", "tools");
   if (voice) tools.append(voice.button);
   tools.append(attachBtn, fileInput);
-  const form = h("div", "chatform");
-  form.append(input, sendBtn);
-  el.append(log, starters, ctx, shots, form, tools, err);
+  const actions = h("div", "composer-actions");
+  actions.append(tools, feedbackBtn, sendBtn);
+  const form = h("div", "composer");
+  form.append(input, actions);
+  el.append(log, starters, ctx, shots, form, err);
 
   el.addEventListener("paste", (e: ClipboardEvent) => {
     const images = Array.from(e.clipboardData?.items ?? []).filter((i) =>
@@ -194,25 +222,31 @@ export function createConversation(opts: {
 
   function syncContext() {
     const picked = opts.picker.selected().length;
-    aboutBtn.textContent = picked
-      ? "About: what you picked"
-      : scopeSite
-        ? "About: the whole site"
-        : "About: this page";
-    aboutBtn.disabled = picked > 0;
-    aboutBtn.title = "Tap to switch between this page and the whole site";
-    pointBtn.textContent = picked
-      ? `${picked} element${picked > 1 ? "s" : ""} picked ✕`
-      : "Point at something";
-    pointBtn.classList.toggle("on", picked > 0);
+    const now = scope();
+    for (const [b, s] of [
+      [pageBtn, "page"],
+      [siteBtn, "site"],
+      [pointBtn, "element"],
+    ] as const) {
+      b.classList.toggle("on", now === s);
+      b.setAttribute("aria-checked", now === s ? "true" : "false");
+    }
+    pointBtn.textContent = picked ? `${picked} element${picked > 1 ? "s" : ""}` : "An element";
+    pointBtn.title = picked ? "Tap to pick again" : "Point at something on the page";
     const a = opts.assistant();
     input.placeholder =
-      a === "none"
-        ? "What should change?"
+      now === "element"
+        ? "What about what you picked?"
         : owner()
-          ? "Ask Loki, or say what to change…"
-          : "Ask Loki anything about this site…";
-    sendBtn.textContent = a === "none" ? "Next" : "Ask";
+          ? "Say what to change, or ask Loki…"
+          : a === "none"
+            ? "What should change?"
+            : "What should change — or ask Loki anything…";
+    // With no AI on this embed, feedback is the only way, so it leads.
+    feedbackBtn.textContent = owner() ? "Build it" : "Send as feedback";
+    feedbackBtn.className = a === "none" ? "go feedback" : "ghost feedback";
+    sendBtn.textContent = "Ask Loki";
+    sendBtn.style.display = a === "none" ? "none" : "";
   }
 
   function scope(): "element" | "page" | "site" {
@@ -257,8 +291,8 @@ export function createConversation(opts: {
           "Loki",
           owner()
             ? opts.watch()?.on()
-              ? "This is your site, and I'm watching as you use it. Tell me what to change and I'll build it, ask what I'd improve, or tap Review for my take on what you just did."
-              : "This is your site. Tell me what to change and I'll build it, or ask what I'd improve."
+              ? "This is your site, and I'm watching as you use it. When something doesn't work or doesn't look right, I'll say so here. Tell me what to change and I'll build it — or tap Review for my take on everything you just did."
+              : "This is your site. I'm not watching right now — tap Watch again above and I'll tell you when something doesn't work or doesn't look right. You can still tell me what to change."
             : a === "none"
               ? "Tell us what should change — it goes straight to whoever builds this site."
               : "Hi, I'm Loki. Ask me anything about this site, or tell me what should change — it goes straight to whoever builds it.",
@@ -298,6 +332,28 @@ export function createConversation(opts: {
           }
           log.appendChild(row);
         }
+      } else if (item.kind === "noticed") {
+        // Loki speaking up unasked: what it saw, then what to do about it.
+        const m = bubble("bot noticed from-loki", "Loki noticed", item.text);
+        if (!item.filed) {
+          const row = h("div", "noticed-actions");
+          const fix = h("button", "change-send", owner() ? "Fix this →" : "Send to builder →");
+          fix.type = "button";
+          fix.addEventListener("click", () => openDraft(item.fix));
+          const why = h("button", "act", "Why does it matter?");
+          why.type = "button";
+          why.addEventListener(
+            "click",
+            () =>
+              void ask(
+                `Why is this a problem, and how would you fix it? ${item.text}`,
+                opts.watch()?.session(),
+              ),
+          );
+          row.append(fix, why);
+          m.appendChild(row);
+        }
+        log.appendChild(m);
       } else {
         const m = bubble(
           "bot sent from-loki",
@@ -328,7 +384,7 @@ export function createConversation(opts: {
     const list = [...STARTERS[opts.assistant()]];
     if (opts.watch()?.on()) list.unshift(REVIEW_QUESTION);
     // Starters are for an empty conversation; after that they are noise.
-    const empty = !thread.some((i) => i.kind === "you");
+    const empty = !thread.some((i) => i.kind === "you" || i.kind === "noticed");
     starters.style.display = list.length && (empty || opts.watch()?.on()) ? "" : "none";
     for (const q of empty ? list : list.slice(0, 1)) {
       const b = h(
@@ -534,6 +590,17 @@ export function createConversation(opts: {
     /** Host page's report(): straight to the confirmation, prefilled. */
     draft: (message: string, diagnostics: ReportDiagnostics | null) =>
       openDraft(message, diagnostics),
+    /** Watch noticed something: Loki says it in the thread, with Fix this. */
+    noticed: (remark: { say: string; fix: string; filed?: boolean }) => {
+      remember({
+        kind: "noticed",
+        at: Date.now(),
+        text: remark.say,
+        fix: remark.fix,
+        ...(remark.filed ? { filed: true } : {}),
+      });
+      render();
+    },
     /** Loki says something unprompted (e.g. "this site is not yours"). */
     say: (text: string) => {
       remember({ kind: "loki", at: Date.now(), speaker: "loki", text });
