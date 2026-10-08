@@ -23,6 +23,7 @@ import {
   plainAnswer,
   splitAdvice,
 } from "@/lib/widget-advise/advisor";
+import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 
 /**
  * The widget's Ask mode (widget/advise.ts): "is this right, should it change,
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
     return corsJson({ error: "Loki is paused for this site" }, 403);
   }
   const origin = req.headers.get("origin");
-  if (token.origins?.length && (!origin || !token.origins.includes(origin))) {
+  if (!isWidgetOriginAllowed({ tokenOrigins: token.origins, origin, allowMissingOrigin: false })) {
     return corsJson({ error: "Origin not allowed for this widget" }, 403);
   }
   if (
