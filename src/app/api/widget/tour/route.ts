@@ -12,7 +12,14 @@ import { getOrchestrationRunById } from "@/db/queries/orchestration-runs";
 import { callTextDetailed } from "@/lib/groq";
 import { stripReasoning } from "@/lib/agent/llm";
 import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
-import { verifyTourToken } from "@/lib/feedback/tour-token";
+import { createHash } from "node:crypto";
+import {
+  createShareToken,
+  sharedWatchPath,
+  verifyTourToken,
+  type TourAudience,
+} from "@/lib/feedback/tour-token";
+import { firstSentence } from "@/lib/feedback/fix-shipping";
 import {
   buildTourBeats,
   fallbackTourSteps,
@@ -26,7 +33,7 @@ import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import type { FixShipping } from "@/lib/feedback/fix-shipping";
 import { appUrl } from "@/lib/email";
 import { PALETTE } from "@/lib/palette";
-import { TOUR_OUTLINE_MAX } from "../../../../../widget/tour";
+import { TOUR_OUTLINE_MAX, type TourOutlineItem, type TourStep } from "../../../../../widget/tour";
 
 /**
  * "Watch the fix" (widget/tour.ts): the walkthrough script for one shipped
@@ -86,12 +93,26 @@ export function OPTIONS(req: NextRequest) {
   });
 }
 
-const firstSentence = (s: string | null | undefined) => {
-  const text = (s ?? "").replace(/\s+/g, " ").trim();
-  if (!text) return null;
-  const m = text.match(/^.{20,300}?[.!?](\s|$)/);
-  return (m ? m[0] : text.slice(0, 300)).trim();
-};
+/**
+ * A planned script, kept per fix, audience and page outline: everyone opening
+ * the same shared link sees the same walkthrough, and a link passed around
+ * does not spend the owner's AI budget once per viewer. In-process is enough —
+ * one Loki process serves the widget, and a restart only costs a re-plan.
+ */
+const PLANNED_TTL_MS = 6 * 60 * 60 * 1000;
+const PLANNED_MAX = 300;
+const planned = new Map<string, { steps: TourStep[]; at: number }>();
+
+function plannedKey(feedbackId: string, audience: string, outline: TourOutlineItem[]): string {
+  const shape = createHash("sha256").update(JSON.stringify(outline)).digest("base64url");
+  return `${feedbackId}|${audience}|${shape}`;
+}
+
+function rememberPlan(key: string, steps: TourStep[]): void {
+  planned.delete(key);
+  planned.set(key, { steps, at: Date.now() });
+  if (planned.size > PLANNED_MAX) planned.delete(planned.keys().next().value as string);
+}
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
@@ -156,10 +177,12 @@ export async function POST(req: NextRequest) {
     audience,
   };
 
-  let steps = [] as ReturnType<typeof fallbackTourSteps>;
+  const key = plannedKey(feedbackId, audience, outline);
+  const kept = planned.get(key);
+  let steps: TourStep[] = kept && Date.now() - kept.at < PLANNED_TTL_MS ? kept.steps : [];
   // The reporter's own picked element is the most reliable anchor; a model is
   // only needed to find the change when nobody pointed at it.
-  if (input.selectors.length === 0 && outline.length > 0) {
+  if (steps.length === 0 && input.selectors.length === 0 && outline.length > 0) {
     const budget = await checkAiBudget(f.userId).catch(() => ({ allowed: false }));
     if (budget.allowed) {
       try {
@@ -172,6 +195,7 @@ export async function POST(req: NextRequest) {
         });
         void recordAiSpend(f.userId, answered.tokens);
         steps = parseTourSteps(stripReasoning(answered.text), outline.length);
+        if (steps.length > 0) rememberPlan(key, steps);
       } catch (e) {
         console.warn("[widget-tour] model unavailable:", e instanceof Error ? e.message : e);
       }
@@ -180,24 +204,48 @@ export async function POST(req: NextRequest) {
   if (steps.length === 0) steps = fallbackTourSteps(input);
 
   const asked = f.suggestion.replace(/\s+/g, " ").trim();
-  // The reporter's own first screenshot is the closest thing to "before".
+  const short = asked.length > 140 ? `${asked.slice(0, 139)}…` : asked;
+  // The reporter's own first screenshot is the closest thing to "before" —
+  // but it shows THEIR screen, so it never goes to someone the link was shared with.
   const before =
-    (f.screenshots ?? []).find((src) => /^data:image\/(png|jpeg|webp);base64,/.test(src)) ?? null;
-  const forReporter = audience === "reporter";
+    audience === "viewer"
+      ? null
+      : ((f.screenshots ?? []).find((src) => /^data:image\/(png|jpeg|webp);base64,/.test(src)) ??
+        null);
+  const end = endCard(audience, f.projectId);
   return corsJson({
     ok: true,
     theme: PALETTE.widget,
-    title: forReporter ? "Your fix" : "Watch the fix",
-    intro: `You asked: “${asked.length > 140 ? `${asked.slice(0, 139)}…` : asked}” — let me show you what changed.`,
+    title: audience === "reporter" ? "Your fix" : "Watch the fix",
+    intro:
+      audience === "viewer"
+        ? `Someone asked: “${short}” — here is what changed.`
+        : `You asked: “${short}” — let me show you what changed.`,
     steps,
     beats: buildTourBeats({ audience, asked, note: fix?.pr?.note ?? null, didLine, steps, before }),
-    outro: tourOutro(audience, didLine),
-    // The reporter's way back is their own list, never the owner's inbox; and
-    // the pull request is the maintainer's business (reporter-view.ts).
-    lokiHref: forReporter
-      ? `${appUrl()}/my-feedback`
-      : `${appUrl()}/feedback?project=${encodeURIComponent(f.projectId)}`,
-    lokiLabel: forReporter ? "Back to my feedback" : null,
-    prUrl: forReporter ? null : (fix?.pr?.url ?? null),
+    outro: tourOutro(audience),
+    ...end,
+    // The pull request is the maintainer's business (reporter-view.ts).
+    prUrl: audience === "owner" ? (fix?.pr?.url ?? null) : null,
+    // The owner shares the walkthrough; whoever it was shared with may pass it on.
+    shareUrl:
+      audience === "reporter"
+        ? null
+        : `${appUrl()}${sharedWatchPath(createShareToken(feedbackId))}`,
   });
+}
+
+/** Where the end card's main button goes, per audience: the owner to confirm
+ *  in their inbox, the reporter to their own list, a viewer to Loki itself. */
+function endCard(
+  audience: TourAudience,
+  projectId: string,
+): { lokiHref: string; lokiLabel: string | null } {
+  if (audience === "reporter")
+    return { lokiHref: `${appUrl()}/my-feedback`, lokiLabel: "Back to my feedback" };
+  if (audience === "viewer") return { lokiHref: appUrl(), lokiLabel: "Get this for your site" };
+  return {
+    lokiHref: `${appUrl()}/feedback?project=${encodeURIComponent(projectId)}`,
+    lokiLabel: null,
+  };
 }

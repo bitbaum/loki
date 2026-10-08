@@ -52,6 +52,10 @@ export const config = {
      *                                that letter public, /approvals and /api
      *                                included. See lib/actions/action-link.ts for
      *                                why one token can only decide one action.
+     *   w/                         – a shared "Watch the fix" walkthrough: the signed
+     *                                share token only mints a viewer ticket and
+     *                                redirects to the live site (lib/feedback/tour-token.ts).
+     *                                Trailing slash load-bearing, as for a/.
      *   beacon                     – public beacon page
      *   api/auth                   – NextAuth internal endpoints
      *   api/agent/install          – serves the @loki/agent CLI for curl|node install
@@ -121,6 +125,6 @@ export const config = {
      *                                server for api/mcp. It describes how to GET a credential,
      *                                so it cannot require one.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|why|how-it-works|compare|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|commission(?:/|$)|change(?:/|$)|take(?:/|$)|u/|share/project/|share/task/|a/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/studio-intake(?:/|$)|api/studio-partners(?:/|$)|api/studio-portal/|api/commission(?:/|$)|api/site-consult(?:/|$)|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|api/widget/advise|api/widget/tour|api/mcp|\\.well-known/oauth-protected-resource|widget\\.js).+)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg|manifest\\.json|opengraph-image|twitter-image|robots\\.txt|sitemap\\.xml|rss\\.xml|sign-in|sign-up|claim-feedback|forgot-password|reset-password|verify-email|setup|invite|download|whitepaper|thoughts|frontier|mission|philosophy|why|how-it-works|compare|investors|roadmap|pricing|releases|privacy|terms|license|docs|blog|changelog|support|commission(?:/|$)|change(?:/|$)|take(?:/|$)|u/|share/project/|share/task/|a/|w/|beacon|fleet|import-from-local\\.sh|api/auth|api/agent/install|api/agent/daemon|api/health|api/setup|api/crons|api/system|api/beacon|api/fleet/register|api/fleet/map|api/invitations/|api/share/task/|api/orangecat/|api/solon/|api/studio-intake(?:/|$)|api/studio-partners(?:/|$)|api/studio-portal/|api/commission(?:/|$)|api/site-consult(?:/|$)|api/newsletter|api/feedback|api/widget-boot|api/widget/transcribe|api/widget/chat|api/widget/advise|api/widget/tour|api/mcp|\\.well-known/oauth-protected-resource|widget\\.js).+)",
   ],
 };

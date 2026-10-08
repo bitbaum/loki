@@ -7,7 +7,10 @@
 import assert from "node:assert/strict";
 
 import {
+  createShareToken,
   createTourToken,
+  sharedWatchPath,
+  verifyShareToken,
   verifyTourToken,
   tourSiteUrl,
   TOUR_HASH_KEY,
@@ -57,6 +60,27 @@ process.env.AUTH_SECRET ??= "test-secret-for-tour-token";
     "dropping the mark is refused",
   );
   assert.equal(verifyTourToken(`${id}.${exp}.r.${sig}`, now), null, "adding the mark is refused");
+
+  // The viewer's ticket (minted by a share link): its own audience, unpromotable.
+  const forViewer = createTourToken(id, now, "viewer");
+  assert.deepEqual(verifyTourToken(forViewer, now), { feedbackId: id, audience: "viewer" });
+  const [vid, vexp, , vsig] = forViewer.split(".");
+  assert.equal(verifyTourToken(`${vid}.${vexp}.${vsig}`, now), null, "viewer → owner refused");
+  assert.equal(verifyTourToken(`${vid}.${vexp}.r.${vsig}`, now), null, "viewer → reporter refused");
+  assert.equal(
+    verifyTourToken(`${vid}.${vexp}.x.${vsig}`, now),
+    null,
+    "an unknown mark is refused",
+  );
+
+  // The share token: long-lived, and never interchangeable with a tour ticket.
+  const share = createShareToken(id, now);
+  assert.deepEqual(verifyShareToken(share, now + 60 * 24 * 60 * 60 * 1000), { feedbackId: id });
+  assert.equal(verifyShareToken(share, now + 91 * 24 * 60 * 60 * 1000), null, "it does expire");
+  assert.equal(verifyTourToken(share, now), null, "a share link is not a walkthrough ticket");
+  assert.equal(verifyShareToken(token, now), null, "an owner ticket is not a share link");
+  assert.equal(verifyShareToken(`${share}x`, now), null, "tampering is refused");
+  assert.ok(sharedWatchPath(share).startsWith("/w/"));
   assert.equal(
     verifyTourToken(`${rid}.${rexp}.x.${rsig}`, now),
     null,
@@ -189,7 +213,28 @@ const outline = [
     reporter.some((b) => b.target === 3),
     "and the same live demonstration",
   );
-  assert.doesNotMatch(tourOutro("reporter", "Added the link."), /Added the link/);
+  assert.doesNotMatch(tourOutro("reporter"), /Added the link/);
+
+  // Someone the owner shared it with: the request and the live change — no
+  // maintainer's reasoning, and never the reporter's screenshot of their screen.
+  const viewer = buildTourBeats({ ...story, before: null, audience: "viewer" });
+  const told = viewer.map((b) => b.say).join(" ");
+  for (const internal of [note.problem, note.why, note.change, "floating button"])
+    assert.ok(!told.includes(internal), `a viewer is not told: ${internal}`);
+  assert.equal(viewer[0].chapter, TOUR_CHAPTER.REQUEST);
+  assert.match(viewer[0].say, /^Someone asked:/, "never 'You asked' to someone who didn't");
+  assert.ok(
+    viewer.every((b) => !b.image),
+    "no screenshot",
+  );
+  assert.ok(
+    viewer.some((b) => b.target === 3),
+    "the same live demonstration",
+  );
+
+  // The end card asks; it does not replay the agent's change log (2026-10-08).
+  for (const a of ["owner", "reporter", "viewer"] as const)
+    assert.ok(tourOutro(a).length < 110, `${a} outro is one short line`);
 
   // No note (a PR from before it was asked for): the owner still gets a story.
   const bare = buildTourBeats({ ...story, note: null, before: null, audience: "owner" });

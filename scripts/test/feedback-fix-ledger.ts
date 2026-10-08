@@ -249,6 +249,15 @@ const GIT = "https://github.com/bitbaum/dogfood-site-sep10-1201";
   assert.equal(pending.checkLive, undefined, "no ledger yet = no live claim");
   assert.equal(firstSentence("Short."), "Short.");
   assert.equal(firstSentence("x".repeat(200)).length, 160);
+  // An abbreviation's full stop is not an end (the card once read "…checks incl.").
+  assert.equal(
+    firstSentence("Rebuilt the home page, verified 115/115 checks incl. Playwright. Then more."),
+    "Rebuilt the home page, verified 115/115 checks incl. Playwright.",
+  );
+  assert.equal(
+    firstSentence("Moved the menu, e.g. on phones. Rest."),
+    "Moved the menu, e.g. on phones.",
+  );
 }
 
 console.log("feedback-fix-ledger: ok");

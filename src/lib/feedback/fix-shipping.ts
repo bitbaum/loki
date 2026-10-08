@@ -526,12 +526,23 @@ export function livePageHref(
   return null;
 }
 
+/** Abbreviations whose full stop does not end a sentence. */
+const NOT_AN_END = /\b(?:incl|e\.g|i\.e|etc|vs|approx|ca|cf|inkl|bzw|usw|ggf|z\.B)\.$/i;
+
 /** First sentence of the agent's `done` line, for the row — the handoff is
- *  written for another engineer and runs to a paragraph. */
+ *  written for another engineer and runs to a paragraph. An abbreviation's
+ *  full stop is not an end: cutting "verified 115/115 checks incl. Playwright"
+ *  at "incl." put a half-sentence on the walkthrough's card (2026-10-08). */
 export function firstSentence(text: string | null | undefined, max = 160): string | null {
   const t = (text ?? "").replace(/\s+/g, " ").trim();
   if (!t) return null;
-  const m = t.match(/^(.{20,}?[.;])\s/);
-  const s = (m ? m[1] : t).trim();
+  let s = t;
+  const end = /[.;!?](?=\s)/g;
+  for (let m = end.exec(t); m; m = end.exec(t)) {
+    const upTo = t.slice(0, m.index + 1);
+    if (upTo.length < 20 || NOT_AN_END.test(upTo)) continue;
+    s = upTo;
+    break;
+  }
   return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
 }
