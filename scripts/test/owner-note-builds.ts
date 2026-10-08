@@ -55,7 +55,18 @@ assert.match(
   "body source uses the restricted list",
 );
 assert.match(ingest, /pass\.projectId === token\.projectId && pass\.userId === token\.userId/);
-assert.match(ingest, /implementFeedback\(ownerUserId, feedbackId\)/, "owner notes start the fix");
+// One way an owner's words start a fix, shared by Report and the walkthrough's "Not quite".
+const ownerBuild = readFileSync("src/lib/feedback/owner-build.ts", "utf8");
+assert.match(
+  ownerBuild,
+  /implementFeedback\(ownerUserId, feedbackId\)/,
+  "owner notes start the fix",
+);
+assert.match(
+  readFileSync("src/app/api/widget/tour/route.ts", "utf8"),
+  /startOwnerBuild\(f\.userId, f\.projectId, id\)/,
+  "a walkthrough's 'Not quite' starts the fix the same way",
+);
 
 // The owner repeating a note retries it; it must not answer as a visitor, or
 // the widget drops a good pass. So the pass is checked BEFORE dedupe.
@@ -65,7 +76,7 @@ assert.ok(
 );
 assert.match(ingest, /startOwnerBuild\(token\.userId, token\.projectId, bumped\)/);
 assert.match(
-  ingest,
+  ownerBuild,
   /status === 409 && body\.alreadyRunning === true\) return \{ building: true \}/,
 );
 
