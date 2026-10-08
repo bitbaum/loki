@@ -8,6 +8,7 @@ import { postJson } from "@/lib/api/fetch";
 import { ASSIGNMENT_FORM } from "@/config/ai-forms";
 import { TASK_CURRENCIES, type CreateHumanTaskInput } from "@/config/crew";
 import type { CrewMember } from "@/db/queries/crew";
+import { DateInput } from "@/components/ui/date-input";
 
 export type ProjectOption = { id: string; name: string };
 
@@ -151,7 +152,7 @@ export function NewAssignmentButton({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="Needed by" aiTouched={form.isAiTouched("dueDate")}>
-          <input
+          <DateInput
             type="date"
             value={form.text("dueDate")}
             onChange={(e) => form.setValue("dueDate", e.target.value)}

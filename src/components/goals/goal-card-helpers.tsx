@@ -7,6 +7,7 @@ import { patchGoal } from "@/lib/api/goals";
 import { deadlineLabel, toLocalDateStr } from "@/lib/dates";
 import { useInlineEdit } from "@/hooks/use-inline-edit";
 import { useClipboard } from "@/hooks/use-clipboard";
+import { DateInput as WhenDateInput } from "@/components/ui/date-input";
 
 export function ProgressInput({
   goalId,
@@ -89,7 +90,7 @@ export function DateInput({
 
   if (ie.editing) {
     return (
-      <input
+      <WhenDateInput
         type="date"
         value={ie.draft}
         onChange={(e) => ie.setDraft(e.target.value)}

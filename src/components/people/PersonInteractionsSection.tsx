@@ -10,6 +10,7 @@ import { toLocalDateStr } from "@/lib/dates";
 import { INTERACTION_DIRECTION, type InteractionDirection } from "@/lib/constants/statuses";
 import { Section } from "./PersonDetailHelpers";
 import type { Interaction } from "./person-detail-types";
+import { DateInput } from "@/components/ui/date-input";
 
 export function InteractionsSection({
   personId,
@@ -91,7 +92,7 @@ export function InteractionsSection({
           />
           {saveError && <p className="ui-error-xs">{saveError}</p>}
           <div className="flex items-center gap-2">
-            <input
+            <DateInput
               type="date"
               value={occurredAt}
               onChange={(e) => setOccurredAt(e.target.value)}

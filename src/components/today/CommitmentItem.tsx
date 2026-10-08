@@ -8,6 +8,7 @@ import { FulfillCommitmentButton } from "./FulfillCommitmentButton";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { patchJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { deadlineLabel } from "@/lib/dates";
+import { DateInput } from "@/components/ui/date-input";
 
 type CommitmentItemProps = {
   id: string;
@@ -77,7 +78,7 @@ export function CommitmentItem({ id, description, dueDate, financialImpact }: Co
             className="ui-input-inline w-full px-2 py-1 text-sm text-text-primary placeholder:text-text-muted"
           />
           <div className="flex gap-1.5">
-            <input
+            <DateInput
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}

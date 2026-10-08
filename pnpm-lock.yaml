@@ -36,6 +36,9 @@ importers:
       '@bitbaum/mail-kit':
         specifier: ^0.1.1
         version: 0.1.1
+      '@bitbaum/whenkit':
+        specifier: github:bitbaum/whenkit#v0.3.0
+        version: https://codeload.github.com/bitbaum/whenkit/tar.gz/0173ac305ccafc754008ad9ace85a6aa6d30a218(react@19.2.8)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -413,6 +416,13 @@ packages:
   '@bitbaum/mail-kit@0.1.1':
     resolution: {integrity: sha512-3JfaeuwkI+8TVGeSDrr8/esaWkv2d7UAcNg1Xu5HHu6k3cBzuSaLGhuzHp0KlAJgGa2QEQIqtE7W1+PosKFOjw==}
     engines: {node: '>=20'}
+
+  '@bitbaum/whenkit@https://codeload.github.com/bitbaum/whenkit/tar.gz/0173ac305ccafc754008ad9ace85a6aa6d30a218':
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/bitbaum/whenkit/tar.gz/0173ac305ccafc754008ad9ace85a6aa6d30a218}
+    version: 0.3.0
+    engines: {node: '>=20'}
+    peerDependencies:
+      react: '>=18'
 
   '@braintree/sanitize-url@7.1.2':
     resolution: {integrity: sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA==}
@@ -5248,6 +5258,10 @@ snapshots:
   '@bitbaum/design-tokens@1.1.0': {}
 
   '@bitbaum/mail-kit@0.1.1': {}
+
+  '@bitbaum/whenkit@https://codeload.github.com/bitbaum/whenkit/tar.gz/0173ac305ccafc754008ad9ace85a6aa6d30a218(react@19.2.8)':
+    dependencies:
+      react: 19.2.8
 
   '@braintree/sanitize-url@7.1.2': {}
 

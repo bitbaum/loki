@@ -5,6 +5,7 @@ import { Loader2, MapPin, Navigation, X } from "lucide-react";
 import { patchJson } from "@/lib/api/fetch";
 import type { UserPreferencesData } from "@/db/queries/user-preferences";
 import { TOAST_SHORT_MS } from "@/lib/constants/timings";
+import { DateInput } from "@/components/ui/date-input";
 
 const TIMEZONES = Intl.supportedValuesOf("timeZone");
 
@@ -238,7 +239,7 @@ export function LocationSettings({ initialPrefs }: Props) {
         </div>
         <div className="space-y-1.5 sm:max-w-xs">
           <label className="ui-kicker">Until (optional)</label>
-          <input
+          <DateInput
             type="date"
             value={currentCityUntil}
             onChange={(e) => setCurrentCityUntil(e.target.value)}

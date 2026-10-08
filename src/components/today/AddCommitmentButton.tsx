@@ -5,6 +5,7 @@ import { Plus, X, Loader2 } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { useCreateMutation } from "@/hooks/use-create-mutation";
 import type { CreateCommitmentInput } from "@/db/queries/today";
+import { DateInput } from "@/components/ui/date-input";
 
 export function AddCommitmentButton() {
   const [open, setOpen] = useState(false);
@@ -63,7 +64,7 @@ export function AddCommitmentButton() {
         className="w-full ui-input-compact"
       />
       <div className="flex gap-2">
-        <input
+        <DateInput
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
