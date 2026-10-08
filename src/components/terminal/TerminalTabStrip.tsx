@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
+import { Pin, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type TerminalTab = {
@@ -14,6 +14,10 @@ export type TerminalTab = {
   /** Dot class (`ui-dot-positive` etc). Omit for no status dot. */
   dot?: string;
   title?: string;
+  /** Pinned tabs sit first and keep a pin where the Alt+N ordinal would be. */
+  pinned?: boolean;
+  /** Tabs of one group sit together; a divider marks where a group changes. */
+  group?: string;
 };
 
 /**
@@ -44,6 +48,9 @@ export function TerminalTabStrip({
   onClose,
   onNew,
   onRename,
+  onMove,
+  onNudge,
+  onTogglePin,
   newLabel = "New terminal",
   /** Right-hand slot — status chips, presence, etc. */
   trailing,
@@ -56,6 +63,11 @@ export function TerminalTabStrip({
   /** When given, double-clicking (or F2 on) a tab renames it in place. For
    *  agent tabs this is a display name only; the session keeps its real id. */
   onRename?: (id: string, title: string) => void;
+  /** Drag a tab onto another to take its place. */
+  onMove?: (id: string, targetId: string) => void;
+  /** Alt+Shift+←/→ moves the active tab one step — the keyboard's drag. */
+  onNudge?: (id: string, by: -1 | 1) => void;
+  onTogglePin?: (id: string) => void;
   newLabel?: string;
   trailing?: React.ReactNode;
 }) {
@@ -63,6 +75,8 @@ export function TerminalTabStrip({
   // Closing ends a running agent, so the × arms first ("Close?") and a second
   // press confirms. It disarms on its own, so a stray tap never lingers.
   const [armedId, setArmedId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
   useEffect(() => {
     if (!armedId) return;
     const t = setTimeout(() => setArmedId(null), 3000);
@@ -90,6 +104,13 @@ export function TerminalTabStrip({
         }
         return;
       }
+      if (e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        if (onNudge && activeId) {
+          e.preventDefault();
+          onNudge(activeId, e.key === "ArrowRight" ? 1 : -1);
+        }
+        return;
+      }
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         e.preventDefault();
         const from = index === -1 ? 0 : index;
@@ -102,90 +123,147 @@ export function TerminalTabStrip({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [tabs, activeId, onSelect]);
+  }, [tabs, activeId, onSelect, onNudge]);
 
   return (
     <div className="ui-term-tabbar" role="tablist" aria-label="Terminal tabs">
       <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
         {tabs.map((tab, i) => (
-          <div
-            key={tab.id}
-            role="tab"
-            tabIndex={0}
-            aria-selected={tab.id === activeId}
-            title={[tab.title ?? tab.label, onRename ? "Double-click to rename" : null]
-              .filter(Boolean)
-              .join(" — ")}
-            onMouseDown={() => onSelect(tab.id)}
-            onDoubleClick={() => onRename && setEditingId(tab.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSelect(tab.id);
-              }
-              if (e.key === "F2" && onRename) {
-                e.preventDefault();
-                setEditingId(tab.id);
-              }
-            }}
-            className={cn("group ui-term-tab", tab.id === activeId && "ui-term-tab-active")}
-          >
-            {tab.dot && <span className={cn("ui-term-dot", tab.dot)} aria-hidden="true" />}
-            {/* The index doubles as the Alt+N affordance — the shortcut is
-                discoverable without a help panel nobody opens. */}
-            {i < 9 && (
-              <span className="ui-term-tab-index" aria-hidden="true">
-                {i + 1}
-              </span>
+          <Fragment key={tab.id}>
+            {i > 0 && tab.group !== undefined && tab.group !== tabs[i - 1].group && (
+              <span className="ui-term-tab-sep" aria-hidden="true" />
             )}
-            {onRename && editingId === tab.id ? (
-              <input
-                autoFocus
-                defaultValue={tab.label}
-                className="ui-term-tab-input"
-                aria-label={`Rename ${tab.label}`}
-                onBlur={(e) => {
-                  const next = e.target.value.trim();
-                  if (next) onRename(tab.id, next);
-                  setEditingId(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.currentTarget.blur();
-                  if (e.key === "Escape") setEditingId(null);
-                }}
-              />
-            ) : (
-              <>
-                <span className="ui-term-tab-label">{tab.label}</span>
-                {tab.badge && <span className="ui-term-tab-badge">{tab.badge}</span>}
-              </>
-            )}
-            {onClose && (
-              <button
-                type="button"
-                className={cn("ui-term-tab-close", armedId === tab.id && "ui-term-tab-close-armed")}
-                title={
-                  armedId === tab.id ? `Press again to close ${tab.label}` : `Close ${tab.label}`
+            <div
+              role="tab"
+              tabIndex={0}
+              aria-selected={tab.id === activeId}
+              title={[
+                tab.title ?? tab.label,
+                onRename ? "Double-click to rename" : null,
+                onMove ? "drag to reorder" : null,
+              ]
+                .filter(Boolean)
+                .join(" — ")}
+              draggable={Boolean(onMove) && editingId !== tab.id}
+              onDragStart={(e) => {
+                setDragId(tab.id);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", tab.id);
+              }}
+              onDragOver={(e) => {
+                if (!dragId || dragId === tab.id) return;
+                e.preventDefault();
+                setOverId(tab.id);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragId && onMove) onMove(dragId, tab.id);
+                setDragId(null);
+                setOverId(null);
+              }}
+              onDragEnd={() => {
+                setDragId(null);
+                setOverId(null);
+              }}
+              onMouseDown={() => onSelect(tab.id)}
+              onDoubleClick={() => onRename && setEditingId(tab.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(tab.id);
                 }
-                aria-label={`Close ${tab.label}`}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  if (armedId === tab.id) {
-                    setArmedId(null);
-                    onClose(tab.id);
-                  } else {
-                    setArmedId(tab.id);
+                if (e.key === "F2" && onRename) {
+                  e.preventDefault();
+                  setEditingId(tab.id);
+                }
+              }}
+              className={cn(
+                "group ui-term-tab",
+                tab.id === activeId && "ui-term-tab-active",
+                dragId === tab.id && "ui-term-tab-dragging",
+                overId === tab.id && "ui-term-tab-drop",
+              )}
+            >
+              {tab.dot && <span className={cn("ui-term-dot", tab.dot)} aria-hidden="true" />}
+              {/* The index doubles as the Alt+N affordance — the shortcut is
+                discoverable without a help panel nobody opens. A pinned tab
+                shows its pin in the same slot. */}
+              {tab.pinned ? (
+                <Pin className="ui-term-tab-pin" aria-label="Pinned" />
+              ) : (
+                i < 9 && (
+                  <span className="ui-term-tab-index" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                )
+              )}
+              {onRename && editingId === tab.id ? (
+                <input
+                  autoFocus
+                  defaultValue={tab.label}
+                  className="ui-term-tab-input"
+                  aria-label={`Rename ${tab.label}`}
+                  onBlur={(e) => {
+                    const next = e.target.value.trim();
+                    if (next) onRename(tab.id, next);
+                    setEditingId(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                />
+              ) : (
+                <>
+                  <span className="ui-term-tab-label">{tab.label}</span>
+                  {tab.badge && <span className="ui-term-tab-badge">{tab.badge}</span>}
+                </>
+              )}
+              {onTogglePin && (
+                <button
+                  type="button"
+                  className="ui-term-tab-close"
+                  title={tab.pinned ? `Unpin ${tab.label}` : `Pin ${tab.label} to the front`}
+                  aria-label={tab.pinned ? `Unpin ${tab.label}` : `Pin ${tab.label}`}
+                  aria-pressed={Boolean(tab.pinned)}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    onTogglePin(tab.id);
+                  }}
+                >
+                  <Pin className="h-3 w-3" />
+                </button>
+              )}
+              {onClose && (
+                <button
+                  type="button"
+                  className={cn(
+                    "ui-term-tab-close",
+                    armedId === tab.id && "ui-term-tab-close-armed",
+                  )}
+                  title={
+                    armedId === tab.id ? `Press again to close ${tab.label}` : `Close ${tab.label}`
                   }
-                }}
-              >
-                {armedId === tab.id ? (
-                  <span className="text-micro font-medium">Close?</span>
-                ) : (
-                  <X className="h-3 w-3" />
-                )}
-              </button>
-            )}
-          </div>
+                  aria-label={`Close ${tab.label}`}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    if (armedId === tab.id) {
+                      setArmedId(null);
+                      onClose(tab.id);
+                    } else {
+                      setArmedId(tab.id);
+                    }
+                  }}
+                >
+                  {armedId === tab.id ? (
+                    <span className="text-micro font-medium">Close?</span>
+                  ) : (
+                    <X className="h-3 w-3" />
+                  )}
+                </button>
+              )}
+            </div>
+          </Fragment>
         ))}
         {onNew && (
           <button

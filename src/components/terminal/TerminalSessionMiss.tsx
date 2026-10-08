@@ -25,8 +25,7 @@ export function TerminalSessionMiss({
   requestedTab,
   sourceLabel,
   otherSourceLabel,
-  available,
-  onAttach,
+  hasOthers,
   onSwitchSource,
 }: {
   requestedTab: string;
@@ -34,8 +33,8 @@ export function TerminalSessionMiss({
   sourceLabel: string;
   /** The one place we haven't looked, offered as the next thing to try. */
   otherSourceLabel: string | null;
-  available: string[];
-  onAttach: (tab: string) => void;
+  /** Other sessions are running here — the tab strip above lists them. */
+  hasOthers: boolean;
   onSwitchSource: () => void;
 }) {
   // Someone who pressed "Make it happen" and came here to watch is not looking
@@ -49,31 +48,15 @@ export function TerminalSessionMiss({
     <div className="ui-term-miss">
       <SearchX className="h-6 w-6 text-status-warning" aria-hidden="true" />
       <p className="ui-term-miss-title">
-        No session named “{requestedTab}” on {sourceLabel}
+        “{requestedTab}” isn’t running on {sourceLabel}
       </p>
+      {/* The sessions that ARE running are the tab strip above: listing them
+          again here was a second copy of the same list, with raw ids. */}
       <p className="ui-term-miss-body">
-        Nothing is attached yet. This page shows agent sessions started by Loki builders. If you
-        just dispatched work, check its status in Control; a session appears here when the selected
-        builder starts it. Choose another running session only if you mean to type there.
+        {hasOthers
+          ? "Nothing is attached, so nothing you type goes anywhere. Pick a session above, or start this one."
+          : "Nothing is attached. Start it, and it opens here."}
       </p>
-
-      {available.length > 0 && (
-        <div className="ui-term-miss-options">
-          <span className="ui-micro-label">Running on {sourceLabel}</span>
-          <div className="ui-term-miss-grid">
-            {available.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                className="ui-term-miss-chip"
-                onClick={() => onAttach(tab)}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="ui-term-miss-actions">
         {otherSourceLabel && (

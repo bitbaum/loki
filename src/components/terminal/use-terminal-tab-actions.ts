@@ -5,6 +5,7 @@ import { postJson } from "@/lib/api/fetch";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import type { BuilderChannel } from "@/lib/event-stream-types";
 import { parseTabAliases, withTabAlias, type TabAliases } from "./terminal-agent";
+import { EMPTY_LAYOUT, parseTabLayout, type TabLayout } from "./terminal-tab-order";
 
 /**
  * What the operator can DO to the tab strip: name a session, close one, start
@@ -28,6 +29,13 @@ export function useTerminalTabActions(
     {},
     (v) => JSON.stringify(v),
     parseTabAliases,
+  );
+  // Order, pins and grouping: a view preference, kept per builder like names.
+  const [layout, setLayout] = useLocalStorageState<TabLayout>(
+    `loki:terminal-tab-layout:${channel}`,
+    EMPTY_LAYOUT,
+    (v) => JSON.stringify(v),
+    parseTabLayout,
   );
   const [actionError, setActionError] = useState<string | null>(null);
   const [launchOpen, setLaunchOpen] = useState(false);
@@ -81,6 +89,8 @@ export function useTerminalTabActions(
 
   return {
     aliases,
+    layout,
+    setLayout,
     rename,
     closeTab,
     actionError,
