@@ -168,6 +168,10 @@ export function TerminalTabStrip({
               onMouseDown={() => onSelect(tab.id)}
               onDoubleClick={() => onRename && setEditingId(tab.id)}
               onKeyDown={(e) => {
+                // Only the tab itself selects. A key typed into the rename
+                // input bubbles up here, and swallowing its Space made
+                // "main loki" come out as "mainloki".
+                if (e.target !== e.currentTarget) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   onSelect(tab.id);
@@ -205,7 +209,9 @@ export function TerminalTabStrip({
                   aria-label={`Rename ${tab.label}`}
                   onBlur={(e) => {
                     const next = e.target.value.trim();
-                    if (next) onRename(tab.id, next);
+                    // Leaving the box untouched is not a rename: it used to
+                    // store the (possibly capped) label as a permanent alias.
+                    if (next && next !== tab.label) onRename(tab.id, next);
                     setEditingId(null);
                   }}
                   onKeyDown={(e) => {
