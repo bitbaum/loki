@@ -165,6 +165,22 @@ assert.match(composeFeedbackFixPrompt(ownerFields, "Farmhouse"), /^Fix this visi
   );
   assert.equal(link.pathname, "/api/widget/owner");
   assert.equal(link.searchParams.get("return"), "https://farm.example/p");
+
+  // Signed out, the link must lead through sign-in and BACK — shipped once as a
+  // bare 401 (the proxy gates /api/*) and with a param sign-in ignores.
+  const ownerRoute = readFileSync("src/app/api/widget/owner/route.ts", "utf8");
+  const signInForm = readFileSync("src/components/auth/SignInForm.tsx", "utf8");
+  const param = /searchParams\.get\("(\w+)"\)/.exec(signInForm)?.[1];
+  assert.ok(param, "the sign-in form reads a return parameter");
+  assert.ok(
+    ownerRoute.includes(`searchParams.set("${param}"`),
+    `the owner route returns through sign-in's own parameter (${param})`,
+  );
+  assert.match(ownerRoute, /if \(!userId\)/, "the handler itself requires a session");
+  assert.ok(
+    readFileSync("src/proxy.ts", "utf8").includes("|api/widget/owner|"),
+    "the proxy lets the route redirect a signed-out owner instead of answering 401",
+  );
 }
 
 console.log("owner-note-builds: ok");

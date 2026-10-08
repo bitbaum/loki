@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const userId = await getApiUserId();
   if (!userId) {
     const signIn = new URL("/sign-in", appUrl());
-    signIn.searchParams.set("redirect_url", req.nextUrl.pathname + req.nextUrl.search);
+    signIn.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(signIn);
   }
 
