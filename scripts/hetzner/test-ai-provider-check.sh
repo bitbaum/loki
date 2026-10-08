@@ -93,6 +93,41 @@ out=$(run "$TMP/many.log" 1)
 has "$out" "a floor, not a rate"
 hasnt "$out" "% served"
 
+echo "→ a rejected API key is named as one, not as a vague failure count"
+# Shape from journalctl -u orangecat-app, 2026-10-08: the Groq KEY was dead.
+for i in 1 2 3 4 5; do
+  printf '%s\n' '{"level":"warn","message":"platform-llm: model call failed","data":{"link":"groq/openai/gpt-oss-20b","error":"groq/openai/gpt-oss-20b: 401 — {\"error\":{\"message\":\"Invalid API Key\",\"code\":\"invalid_api_key\"}}"},"source":"PlatformLLM"}'
+done > "$TMP/deadkey.log"
+out=$(run "$TMP/deadkey.log")
+has "$out" "API KEY REJECTED"
+has "$out" "401=5"
+has "$out" "replace this provider's key"
+
+echo "→ a link that stopped failing RECOVERS, so its next failure pages again"
+# The bug this pins: links were set bad and never ok, so gpt-oss-20b (bad since
+# 2026-09-14) could not page when the key died weeks later.
+mkdir -p "$TMP/mon/state"
+cat > "$TMP/mon/lib-alert.sh" <<'LIB'
+alert_transition() {
+  local sf="$MON/state/host_$1"; local prev=ok; [ -f "$sf" ] && prev=$(cat "$sf")
+  [ "$2" = "$prev" ] && return 0
+  printf '%s' "$2" > "$sf"; echo "FLIP $1 $2" >> "$MON/flips.log"
+}
+LIB
+printf bad > "$TMP/mon/state/host_aiprovider_groq_openai_gpt_oss_20b"     # stale from weeks ago
+printf bad > "$TMP/mon/state/host_aiprovider_groq_openai_gpt_oss_120b"    # still failing now
+MON="$TMP/mon" JOURNAL_FILE="$TMP/many.log" MIN_FAILS=5 bash "$SCRIPT" >/dev/null 2>&1
+has "$(cat "$TMP/mon/state/host_aiprovider_groq_openai_gpt_oss_20b")" "ok"
+has "$(cat "$TMP/mon/state/host_aiprovider_groq_openai_gpt_oss_120b")" "bad"
+has "$(cat "$TMP/mon/flips.log")" "aiprovider_groq_openai_gpt_oss_20b ok"
+hasnt "$(cat "$TMP/mon/flips.log")" "gpt_oss_120b ok"
+
+echo "→ ...and a journal it could not read recovers nothing"
+printf bad > "$TMP/mon/state/host_aiprovider_groq_openai_gpt_oss_20b"
+: > "$TMP/mon/flips.log"
+MON="$TMP/mon" JOURNAL_FILE="$TMP/empty.log" bash "$SCRIPT" >/dev/null 2>&1
+has "$(cat "$TMP/mon/state/host_aiprovider_groq_openai_gpt_oss_20b")" "bad"
+
 echo
 echo "ai-provider-check: $pass passed, $fail failed"
 [ "$fail" = 0 ]
