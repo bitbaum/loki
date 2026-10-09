@@ -53,6 +53,7 @@ import { APP_NAME } from "@/config/brand";
 import { ECOSYSTEM, ORANGECAT_CAPABILITIES } from "@/config/ecosystem";
 import { HTTP_TIMEOUT_LONG_MS } from "@/lib/constants/time";
 import { looksLikePlan, ANSWER_ONLY } from "@/lib/loki/plan-as-answer";
+import { REPLIES_INSTRUCTION, extractReplies } from "@bitbaum/chatkit";
 
 const LOKI_SYSTEM_PROMPT =
   `You are Loki, the assistant inside ${APP_NAME} — the operator's execution layer: the captain over their fleet of AI agents and projects, and the workspace holding the people, commitments and spending that work runs on. ` +
@@ -223,6 +224,14 @@ export type AskLokiOpts = {
    *  existed the picker's choice reached dispatched agents but never the chat
    *  turn itself, which always started at LOKI_MODEL. */
   model?: string;
+  /**
+   * The answer lands in a chat that shows suggested replies under it. The
+   * model is asked for them, and they come back as `body.replies` — never
+   * inside `body.text`, which is what gets stored, copied, spoken and titled.
+   * Leave it off for anything that is not such a chat (MCP, voice, a prompt
+   * run): there the block would only be noise in the answer.
+   */
+  replies?: boolean;
 };
 
 /**
@@ -281,6 +290,7 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
         readOnly: opts?.readOnly,
         operator,
         model: opts?.model,
+        replies: opts?.replies,
       });
       // Booked whether or not the turn produced usable text: the tokens were
       // spent either way, and only charging for successes would let a run of
@@ -303,6 +313,7 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
           body: {
             ok: true,
             text: result.text,
+            replies: result.replies,
             ...provenance,
             // Sent so the transcript can resolve [F8] to the record it names.
             sources: result.sources,
@@ -377,6 +388,7 @@ async function askLokiOnOwnModel(
       readOnly: opts.readOnly,
       operator,
       own,
+      replies: opts.replies,
     });
     if (!result.text.trim()) {
       throw new Error("it returned an empty answer");
@@ -394,7 +406,13 @@ async function askLokiOnOwnModel(
     logTurn({ ...provenance, userId: opts.userId, textLength: result.text.length });
     return {
       status: 200,
-      body: { ok: true, text: result.text, ...provenance, sources: result.sources },
+      body: {
+        ok: true,
+        text: result.text,
+        replies: result.replies,
+        ...provenance,
+        sources: result.sources,
+      },
     };
   } catch (e) {
     // Vendors usually mask a key they echo; the ones that don't must not have
@@ -455,7 +473,10 @@ async function askLokiViaGateway(
   const background = grounded?.context
     ? `${LOKI_CAPABILITIES}\n\n---\n\n${grounded.context}`
     : LOKI_CAPABILITIES;
-  const contextualMessage = `${background}\n\n---\n\n${message}`;
+  // The fallbacks have no system prompt of ours that every brain reads (the
+  // gateway never sees one), so the replies instruction rides in the message.
+  const repliesAsk = opts?.replies ? `\n\n---\n\n${REPLIES_INSTRUCTION}` : "";
+  const contextualMessage = `${background}${repliesAsk}\n\n---\n\n${message}`;
 
   /**
    * Check an answer and, if it makes unsupported claims, give the model exactly
@@ -505,11 +526,15 @@ async function askLokiViaGateway(
     return { text, violations: first.violations };
   }
 
+  /** The answer without its replies block, which is checked and stored apart. */
+  const answerOf = (text: string) => extractReplies(text);
+
   const finish = (
     text: string,
     via: LokiVia,
     model: string,
     violations: Violation[],
+    replies: string[],
   ): AskLokiResult => {
     const provenance: LokiProvenance = {
       via,
@@ -522,7 +547,10 @@ async function askLokiViaGateway(
       grounding: groundingMeta(facts.length, violations),
     };
     logTurn({ ...provenance, userId: opts?.userId, textLength: text.length });
-    return { status: 200, body: { ok: true, text, ...provenance } };
+    return {
+      status: 200,
+      body: { ok: true, text, replies: opts?.replies ? replies : [], ...provenance },
+    };
   };
 
   // Only the operator's turns may reach their own agent (see isOperatorTurn);
@@ -537,13 +565,20 @@ async function askLokiViaGateway(
     // `</think>` block into the transcript: its agent runs whatever model it
     // likes (gemini-flash-latest at the time), so reasoning output is not
     // hypothetical here — it is the observed case.
-    const text = normaliseCitations(stripReasoning(res.text ?? "")).trim();
+    const answer = answerOf(normaliseCitations(stripReasoning(res.text ?? "")).trim());
+    const text = answer.text;
     if (res.ok && !isUnusableGatewayText(text) && !looksLikeFleetEcho(text)) {
       const checked = await groundOrRepair(text, async (repair) => {
         const again = await askGatewayAgent(repair, { sessionKey: opts?.sessionKey });
-        return again.ok ? normaliseCitations(stripReasoning(again.text ?? "")) : "";
+        return again.ok ? answerOf(normaliseCitations(stripReasoning(again.text ?? ""))).text : "";
       });
-      return finish(checked.text, "gateway", res.model ?? "openclaw/main", checked.violations);
+      return finish(
+        checked.text,
+        "gateway",
+        res.model ?? "openclaw/main",
+        checked.violations,
+        answer.replies,
+      );
     }
     const reason = !res.ok
       ? (res.error ?? "gateway error")
@@ -561,7 +596,9 @@ async function askLokiViaGateway(
   // fallback path is a SMALLER model, so it is the path most likely to
   // fabricate and the last one that should skip the check.
   try {
-    const { text, model } = await callGroq(contextualMessage, voice, opts?.onEvent);
+    const first = await callGroq(contextualMessage, voice, opts?.onEvent);
+    const { model } = first;
+    const { text, replies } = answerOf(first.text);
     // Same rationed pool as the tool loop, so it is booked too. `callGroqText`
     // surfaces no usage count, so 0 books the estimate.
     if (opts?.userId) await recordAiSpend(opts.userId, 0);
@@ -571,9 +608,9 @@ async function askLokiViaGateway(
         `${contextualMessage}\n\n---\n\nYour previous answer:\n${text}\n\n---\n\n${repair}`,
         voice,
       );
-      return fixed;
+      return answerOf(fixed).text;
     });
-    return finish(checked.text, "groq-fallback", model, checked.violations);
+    return finish(checked.text, "groq-fallback", model, checked.violations, replies);
   } catch (e) {
     const raw = e instanceof Error ? e.message : String(e);
     const hint = /\b401\b|invalid.api.key/i.test(raw)

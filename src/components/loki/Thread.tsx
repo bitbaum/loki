@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, Loader2, Square } from "lucide-react";
+import { ChatReplies } from "@bitbaum/chatkit/react";
 import { MarkdownText } from "@/components/ui/markdown-text";
+import { readReplies } from "@/lib/loki/replies";
 import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
 import type { LiveTurn } from "@/hooks/use-loki-stream";
 import { FollowUps } from "./FollowUps";
@@ -132,6 +134,11 @@ export function Thread({
     lastMessage === lastAssistant &&
     (lastAssistant.kind ?? "chat") === "chat" &&
     !!lastQuestion;
+  // The answer's own suggested replies (asked for in the same turn — see
+  // REPLIES_INSTRUCTION) win. The separate follow-ups call is the fallback for
+  // an answer that came without them: an older turn, or a brain that ignored
+  // the instruction. Never both — two rows of "what next" is a menu.
+  const replies = showFollowUps ? readReplies(lastAssistant.meta) : [];
 
   return (
     <div className="ui-loki-thread-wrap">
@@ -194,7 +201,11 @@ export function Thread({
             </p>
           )}
 
-          {showFollowUps && (
+          {showFollowUps && replies.length > 0 && (
+            <ChatReplies replies={replies} onPick={onFollowUp} />
+          )}
+
+          {showFollowUps && replies.length === 0 && (
             <FollowUps
               answerId={lastAssistant.id}
               question={lastQuestion}

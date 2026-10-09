@@ -290,9 +290,17 @@ export function TerminalLokiRail({
       {(session.messages.length > 0 || session.live) && (
         <div className="ui-term-loki-thread">
           <ChatThread
-            messages={session.messages.map((m) =>
-              m.role === "assistant" ? { ...m, content: splitActions(m.content).body } : m,
-            )}
+            messages={session.messages.map((m) => {
+              if (m.role !== "assistant") return m;
+              const { body, actions } = splitActions(m.content);
+              // A summary's own "→" steps already say what to do next, one
+              // tap from Inject; a second row of replies under them would be
+              // a menu. Ordinary answers keep their suggested replies.
+              return actions.length > 0
+                ? { ...m, content: body, replies: [] }
+                : { ...m, content: body };
+            })}
+            onReply={(text) => void session.reply(text)}
             live={session.live ? { text: session.live.preview, status: liveStatus } : null}
             stopped={session.stopped}
             onStop={session.stop}

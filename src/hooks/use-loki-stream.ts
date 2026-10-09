@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { extractReplies } from "@bitbaum/chatkit";
 import { readEventStream } from "@/lib/api/read-event-stream";
 import type { LokiStatusLabel, LokiStreamEvent, WireMessage } from "@/lib/loki/stream";
 import { applyNote, applyToolStep, type WorkStep } from "@/lib/loki/work";
@@ -115,7 +116,16 @@ export function useLokiStream({
           switch (event.type) {
             case "delta":
               preview += event.text;
-              setLive((prev) => ({ ...(prev ?? EMPTY), preview, status: null }));
+              // The answer may end in a suggested-replies block. It is taken
+              // out here, once, for every surface that shows the preview —
+              // including while it is still half-written — so nobody watches
+              // raw JSON appear under an answer. The persisted turn carries
+              // the replies separately (meta.replies).
+              setLive((prev) => ({
+                ...(prev ?? EMPTY),
+                preview: extractReplies(preview).text,
+                status: null,
+              }));
               break;
             case "reset":
               preview = "";

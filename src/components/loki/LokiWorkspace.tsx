@@ -554,7 +554,10 @@ export function LokiWorkspace({
         onPickProject={dispatchWithProject}
         onAnswerAnyway={answerWithoutProject}
         onRetry={lastSent ? retryLast : undefined}
-        onFollowUp={(text) => void send(text)}
+        // A tapped reply goes on the model the operator last chose, as typing
+        // it would — it used to fall back to Auto, so a reply could be answered
+        // by a different model than the question it followed.
+        onFollowUp={(text) => void send(text, lastSent?.choice)}
         // Inside the scroll, after the last turn: it is an action ON the
         // exchange, and as a fixed row between thread and composer it took a
         // permanent line of a phone screen from the conversation.

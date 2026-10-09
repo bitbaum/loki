@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ChatMessageData } from "@bitbaum/chatkit/react";
 import { postJson } from "@/lib/api/fetch";
 import type { Attachment, ModelChoice } from "@/components/loki/types";
 import { useLokiStream, type UseLokiStream } from "@/hooks/use-loki-stream";
 import type { WireMessage } from "@/lib/loki/stream";
 import { citationsFrom } from "@/components/loki/footers";
+import { readReplies } from "@/lib/loki/replies";
 
 export type SessionAsk = {
   /** The thread so far, in chatkit's shape — rendered by ChatThread. */
@@ -24,6 +25,12 @@ export type SessionAsk = {
     text: string,
     opts?: { choice?: ModelChoice; attachments?: Attachment[]; shown?: string },
   ) => Promise<boolean>;
+  /**
+   * Send a suggested reply the person tapped: the same turn the composer
+   * sends, on the model they last chose, so a tap is never a quieter version
+   * of typing the words.
+   */
+  reply: (text: string) => Promise<boolean>;
   stop: () => void;
   clearError: () => void;
 };
@@ -53,6 +60,9 @@ export function useSessionAsk(project: string | null): SessionAsk {
           role: "assistant",
           content: message.content,
           citations: citationsFrom(message.meta),
+          // Stored apart from the text by the messages route; chatkit's
+          // thread shows them under the latest answer.
+          replies: readReplies(message.meta),
         },
       ]);
     },
@@ -73,7 +83,10 @@ export function useSessionAsk(project: string | null): SessionAsk {
     return body.conversation.id;
   }, [conversationId, project]);
 
+  const lastChoice = useRef<ModelChoice | undefined>(undefined);
+
   const ask: SessionAsk["ask"] = async (text, opts = {}) => {
+    if (opts.choice) lastChoice.current = opts.choice;
     setError(null);
     const convoId = await ensureConversation();
     if (!convoId) return false;
@@ -101,6 +114,7 @@ export function useSessionAsk(project: string | null): SessionAsk {
     stopped: stream.stopped,
     error: error ?? stream.error,
     ask,
+    reply: (text) => ask(text, { choice: lastChoice.current }),
     stop: stream.stop,
     clearError: () => {
       setError(null);
