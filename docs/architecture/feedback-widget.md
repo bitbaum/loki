@@ -369,6 +369,25 @@ matters):
 
 ## Since v1 (2026-08-24)
 
+- **2026-10-09 — watch says what it sees.** Watch used to speak only when
+  something was wrong, so between remarks the owner could not tell what it
+  was doing. The panel now carries **What Loki sees** (`widget/thoughts.ts`,
+  `thoughts-view.ts`): one row that opens into the trail worded as notes —
+  pages opened, taps, what the page sent, and every look at a settled page
+  (a `look` trail step, recorded even when the page is clean). The status
+  light is the logo's spiral (`widget/brand-mark.generated.ts`, generated from
+  `src/config/brand-mark.ts` by `scripts/generate-widget-brand-mark.ts`): it
+  turns while Loki watches, spins while it thinks, and stops when paused.
+  Loki's answers render paragraphs, bullets, headings and bold
+  (`widget/rich-text.ts`) — from text nodes, never HTML.
+  The panel was redesigned as one surface at the same time: the header holds
+  only who and where (✕, and Watch for someone not yet known as the owner);
+  watching is shown and paused from the notes row; Loki's words are prose and
+  yours a pill; suggested changes are a hairline list with **Build this →** as
+  accent text; and "About", the words, the tools and the two ways to send are
+  ONE composer card. Rule: at most one filled accent button per region —
+  every other action is quiet text aligned in its row.
+
 - **2026-10-09 — the loop closes on the site.** The receipt used to end at
   "Loki tells you when" and on the site it never did. Now the owner's panel
   carries **Your changes**, a change that went live since the last look is

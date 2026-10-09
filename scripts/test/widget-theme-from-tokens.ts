@@ -127,7 +127,10 @@ for (const [name, css] of sheets) {
 const shadow = buildShadowCSS(theme);
 for (const sel of [
   ".watchbtn",
-  ".watchbtn.on",
+  // The owner's watch control moved from a header pill to the notes row.
+  ".thoughts-toggle",
+  ".composer",
+  ".change-send",
   ".watch-offer",
   ".seg",
   ".segbtn",

@@ -25,7 +25,8 @@ import { startTourFromFragment } from "./tour";
 import type { ReportDiagnostics } from "./report-payload";
 import { DEFAULT_PLACEMENT, normalizePlacement, type Placement } from "./placement";
 import { buildDocCSS, buildShadowCSS, type WidgetTheme } from "./theme";
-import { h } from "./dom";
+import { h, spiralMark } from "./dom";
+import { createThoughtsView } from "./thoughts-view";
 import {
   isHiddenByVisitor,
   readHiddenMarker,
@@ -260,44 +261,42 @@ interface LokiApi {
     // The brand line is what makes this recognisably Loki on a stranger's
     // site — the same mono micro-label Loki's own pages use.
     const brand = h("div", "brand");
-    brand.append(h("span", "dot"), h("span", "mono", "Loki"));
+    brand.append(spiralMark(), h("span", "mono", "Loki"));
     const hdrPage = h("div", "page");
     hdrText.append(brand, hdrPage);
     const hdrActions = h("div", "hdr-actions");
-    // Watch's controls live in the header, in plain words: Watch (anyone not
-    // yet known as the owner), Review + Stop watching (watching), Watch again
-    // (stopped). Starting and stopping is never more than one tap away.
-    const watchBtn = h("button", "watchbtn");
+    // The header names who and where, and nothing else competes with it: for
+    // the owner, watching is told AND controlled in one place — the notes row
+    // under it (Pause / Resume), and Review is the first suggestion in the
+    // conversation. It used to carry Review + Stop watching pills beside ✕,
+    // two loud buttons repeating what the row and the starter already said.
+    // Someone not yet known as the owner keeps one quiet Watch here.
+    const watchBtn = h("button", "watchbtn", "Watch");
     watchBtn.type = "button";
-    const stopBtn = h("button", "watchbtn", "Stop watching");
-    stopBtn.type = "button";
-    stopBtn.title = "Loki stops recording what you do here until you start it again";
+    watchBtn.title = "Let Loki watch you use this site and tell you what isn't working";
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
-    hdrActions.append(watchBtn, stopBtn, closeBtn);
+    hdrActions.append(watchBtn, closeBtn);
     hdr.append(hdrText, hdrActions);
     const watchOffer = watchOfferView(ownerSignInUrl(apiBase, token, location.href));
-    watchBtn.addEventListener("click", () => {
-      if (watchSession?.on()) conversation.review();
-      else if (!ownerPass) watchOffer.style.display = watchOffer.style.display ? "" : "none";
+    // What Loki is seeing while it watches — the owner's, under the header.
+    const thoughts = createThoughtsView(() => {
+      if (watchSession?.on()) watchSession.stop();
       else watchSession?.resume();
       syncWatch();
     });
-    stopBtn.addEventListener("click", () => {
-      watchSession?.stop();
-      syncWatch();
+    watchBtn.addEventListener("click", () => {
+      watchOffer.style.display = watchOffer.style.display ? "" : "none";
     });
     function syncWatch() {
       const on = watchSession?.on() ?? false;
-      watchBtn.textContent = !ownerPass ? "Watch" : on ? "Review" : "Watch again";
-      watchBtn.classList.toggle("on", on || !!ownerPass);
-      watchBtn.title = !ownerPass
-        ? "Let Loki watch you use this site and tell you what isn't working"
-        : on
-          ? "Loki reviews everything you just did and suggests improvements"
-          : "Loki watches again and tells you when something isn't right";
-      stopBtn.style.display = on ? "" : "none";
+      watchBtn.style.display = ownerPass ? "none" : "";
+      // The spiral in the header turns while Loki watches, stops when it does not.
+      brand.classList.toggle("watching", on);
+      brand.classList.toggle("paused", !!ownerPass && !on);
+      thoughts.el.style.display = ownerPass ? "" : "none";
+      thoughts.update(watchSession?.trail() ?? [], on);
       if (ownerPass) watchOffer.style.display = "none";
       // "Hide this button" is a visitor's way out; the owner's panel is their
       // tool, and the link only took space under the composer on a phone.
@@ -343,6 +342,7 @@ interface LokiApi {
         conversation.refresh();
       },
       picker,
+      onBusy: (busy) => brand.classList.toggle("thinking", busy),
       watch: () => watchSession,
     });
 
@@ -368,7 +368,7 @@ interface LokiApi {
         conversation.refresh();
       },
     });
-    panel.append(hdr, watchOffer, changes.el, conversation.el, hideLink);
+    panel.append(hdr, watchOffer, thoughts.el, changes.el, conversation.el, hideLink);
 
     function openPanel() {
       unread = 0;
@@ -439,6 +439,7 @@ interface LokiApi {
         },
         statusShown: () => panel.isConnected || launcher.isShown(),
         onChange: syncWatch,
+        onTrail: (trail) => thoughts.update(trail, watchSession?.on() ?? false),
       });
     syncWatch();
     // The owner's changes are asked for on arrival, so a change that went
