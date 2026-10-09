@@ -100,7 +100,11 @@ const page = {
     }),
   );
   assert.equal(term.searchParams.get("view"), "terminal");
-  assert.equal(term.searchParams.get("q"), null, "the terminal has no composer to prefill");
+  assert.equal(
+    term.searchParams.get("q"),
+    "Me: hi",
+    "the terminal's rail composer takes the thread too",
+  );
 }
 
 // ---- where it lands, inside Loki ----
@@ -110,7 +114,15 @@ assert.equal(continueHref("Heidi", "chat", "Me: hello"), "/loki?project=Heidi&q=
 assert.equal(continueHref("Heidi", "chat", "  "), "/loki?project=Heidi", "nothing to prefill");
 assert.equal(
   continueHref("Heidi", "terminal", "Me: hello"),
-  "/terminal?project=Heidi&view=terminal",
+  "/terminal?project=Heidi&view=terminal&q=Me%3A%20hello",
+);
+const termPage = readFileSync("src/components/terminal/TerminalPageClient.tsx", "utf8");
+assert.match(termPage, /searchParams\.get\("q"\)/, "/terminal reads ?q= into the rail's composer");
+const rail = readFileSync("src/components/terminal/TerminalLokiRail.tsx", "utf8");
+assert.match(
+  rail,
+  /initialDraft \? \{ text: initialDraft, nonce: 1 \} : null/,
+  "as a draft, unsent",
 );
 assert.equal(continueHref("my project", "chat", null), "/loki?project=my%20project");
 

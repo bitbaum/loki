@@ -321,6 +321,22 @@ export function explainChecks(
   };
 }
 
+/**
+ * The page checks' signature: the KINDS of finding on this path, not their
+ * counts or their first example. "30 pieces of text under 12px (e.g. “Partners”)"
+ * and "6 pieces … (e.g. “AI-native …”)" are one finding said twice; the owner
+ * got two cards for it (2026-10-09). Digits and the example are dropped.
+ */
+export function checksSignature(path: string, checks: readonly string[]): string {
+  const kinds = checks.map((c) =>
+    c
+      .replace(/\s*\(e\.g\.[^)]*\)/g, "")
+      .replace(/\d+(\.\d+)?/g, "#")
+      .trim(),
+  );
+  return `${path}|checks|${kinds.join("|")}`;
+}
+
 /** Same remark, same signature — so a reload does not say it again. */
 export function noticeSignature(path: string, n: Notice): string {
   return `${path}|${n.kind}|${n.text.replace(/\d+(\.\d+)?/g, "#").slice(0, 120)}`;

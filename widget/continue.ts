@@ -72,8 +72,7 @@ export function continueUrl(opts: {
   const u = new URL("/api/widget/continue", opts.apiBase);
   u.searchParams.set("token", opts.token);
   u.searchParams.set("view", opts.view);
-  if (opts.view === "chat" && opts.text.trim())
-    u.searchParams.set("q", opts.text.slice(0, HANDOFF_MAX));
+  if (opts.text.trim()) u.searchParams.set("q", opts.text.slice(0, HANDOFF_MAX));
   u.searchParams.set("return", opts.here.split("#")[0]);
   return u.href;
 }

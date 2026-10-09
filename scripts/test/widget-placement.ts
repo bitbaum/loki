@@ -20,6 +20,7 @@ import {
   DEFAULT_PLACEMENT,
   type Rect,
   type SlotVerdict,
+  nearBandTop,
 } from "../../widget/placement";
 import {
   normalizeWidgetPlacement,
@@ -243,6 +244,31 @@ for (const bad of [{ offsetX: -1 }, { offsetX: 5000 }, { corner: "nope" }, {}, n
     "a surface (map) beats a layer (sheet content), whatever the order",
   );
   ok(chooseSlot(slots, () => "blocked") === null, "every slot on a control ⇒ hide, never cover it");
+  {
+    // heidi.orangecat.ch, 2026-10-09: the right corner is the site's own bar
+    // (blocked), the left corner is body text, and the first free gap sits
+    // mid-page. A launcher belongs in the corner, over the last line of a
+    // paragraph, not floating beside a heading.
+    const base = { corner: "bottom-right" as const, offsetX: 16, offsetY: 16 };
+    const slots = slotOrder(base, { edgeLength: 844, size: 44, lockSide: false });
+    const near = nearBandTop(base, { edgeLength: 844, size: 44 });
+    const pick = chooseSlot(
+      slots,
+      (s) => (s.corner === "bottom-right" ? "blocked" : s.offsetY <= near ? "text" : "free"),
+      near,
+    )!;
+    ok(
+      pick.verdict === "text" && pick.slot.corner === "bottom-left" && pick.slot.offsetY === 16,
+      "a near slot over plain text beats a free slot mid-page",
+    );
+    const sheet = chooseSlot(slots, (s) => (s.offsetY <= near ? "layer" : "free"), near)!;
+    ok(
+      sheet.verdict === "free" && sheet.slot.offsetY > near,
+      "a near layer (a bottom sheet) still sends the launcher climbing",
+    );
+    const old = chooseSlot(slots, (s) => (s.offsetY <= near ? "text" : "free"))!;
+    ok(old.verdict === "free", "without a band the old rule holds");
+  }
   let calls = 0;
   chooseSlot(slots, () => (calls++, "free"));
   ok(calls === 1, "an empty corner costs exactly one measurement");

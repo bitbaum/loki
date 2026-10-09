@@ -21,10 +21,13 @@ export function useTerminalExplain(
   /** The rail can sit beside the session; the answer goes there, not a sheet. */
   railFits: boolean,
   openRail: () => void,
+  /** The rail has words waiting in its composer (`?q=`): open it on a phone
+   *  too, or the person who arrived with a draft would never see it. */
+  openForDraft = false,
 ) {
   const [sheetOpen, setSheetOpen] = useState(
     () =>
-      initialExplain &&
+      (initialExplain || openForDraft) &&
       typeof window !== "undefined" &&
       !window.matchMedia(TERMINAL_RAIL_QUERY).matches,
   );

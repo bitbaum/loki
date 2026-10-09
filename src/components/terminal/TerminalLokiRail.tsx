@@ -44,6 +44,7 @@ export function TerminalLokiRail({
   readScreenRef,
   askOnly = false,
   explain,
+  initialDraft = null,
 }: {
   /** "What's going on?" asked outside the rail (the phone button, a Watch
    *  deep link). Each new `pending` value is answered once, as soon as the
@@ -65,12 +66,16 @@ export function TerminalLokiRail({
   onSwitchAgent: (agentId: string) => void;
   /** Reads the session's rendered screen; empty when no session is mounted. */
   readScreenRef?: MutableRefObject<((rows: number) => string[]) | null>;
+  /** Words to start the composer with (`?q=`), in Inject, unsent. */
+  initialDraft?: string | null;
 }) {
   const [view, setView] = useState<TerminalRunView | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const session = useSessionAsk(project);
-  const [draft, setDraft] = useState<{ text: string; nonce: number } | null>(null);
+  const [draft, setDraft] = useState<{ text: string; nonce: number } | null>(() =>
+    initialDraft ? { text: initialDraft, nonce: 1 } : null,
+  );
   const [switching, setSwitching] = useState(false);
 
   const load = useCallback(async () => {

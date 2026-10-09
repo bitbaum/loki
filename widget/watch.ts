@@ -33,6 +33,7 @@ import {
   type Notice,
   type NoticeKind,
   type TrailEntry,
+  checksSignature,
 } from "./watch-trail";
 import { runPageChecks } from "./page-checks";
 import { sendReport } from "./send-report";
@@ -616,7 +617,7 @@ export function startWatchMode(opts: {
     checksTimer = setTimeout(() => {
       const checks = safePageChecks();
       const r = explainChecks(checks);
-      if (r) remark(`${location.pathname}|checks|${checks.join("|").replace(/\d+/g, "#")}`, r);
+      if (r) remark(checksSignature(location.pathname, checks), r);
     }, CHECKS_DELAY_MS);
   };
 

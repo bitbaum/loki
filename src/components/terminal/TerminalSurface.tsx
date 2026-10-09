@@ -144,6 +144,7 @@ export function TerminalSurface({
   initialTab,
   initialRunId = null,
   initialExplain = false,
+  initialPrompt = null,
 }: {
   local: boolean;
   immersive?: boolean;
@@ -158,6 +159,9 @@ export function TerminalSurface({
   /** `?explain=1` — arrived from a "What's going on?" tap elsewhere: open
    *  Loki and answer it as soon as the session is on screen. */
   initialExplain?: boolean;
+  /** `?q=` — put these words in the rail's composer, for the person to check
+   *  and send. The widget's "Continue in Loki → Terminal" carries the thread. */
+  initialPrompt?: string | null;
 }) {
   // "shell" — a Loki-owned bash PTY — is only offered where one can
   // actually be provisioned. On the hosted control plane it is absent rather
@@ -372,7 +376,12 @@ export function TerminalSurface({
   // Whether the rail can sit beside the session at this width at all. Below
   // it the rail is a sheet, and the toggle opens that instead.
   const railFits = useMediaQuery(TERMINAL_RAIL_QUERY);
-  const explainer = useTerminalExplain(initialExplain, railFits, () => setRailOpen(true));
+  const explainer = useTerminalExplain(
+    initialExplain,
+    railFits,
+    () => setRailOpen(true),
+    Boolean(initialPrompt),
+  );
   const [liveState, setLiveState] = useState<TerminalLiveState>("connecting");
   // The attached session's rendered screen, for the rail's AI summary.
   const readScreenRef = useRef<((rows: number) => string[]) | null>(null);
@@ -511,6 +520,7 @@ export function TerminalSurface({
         readScreenRef={readScreenRef}
         askOnly={view === "chat"}
         explain={explainer}
+        initialDraft={initialPrompt}
       />
     ) : null;
 

@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { GetHelpLine } from "./GetHelpLine";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Check, Loader2, Rocket, Zap } from "lucide-react";
@@ -335,6 +336,7 @@ export function ProjectKickoff({
           projectId={projectId}
           onRetry={run}
           onDismiss={() => clearKickoffRun(projectId)}
+          brief={{ changes: text }}
         />
       )}
     </section>
@@ -372,6 +374,7 @@ function KickoffNextStep({
   projectId,
   onRetry,
   onDismiss,
+  brief,
 }: {
   outcome: KickoffRun["dispatch"];
   interrupted?: boolean;
@@ -381,6 +384,8 @@ function KickoffNextStep({
   projectId: string;
   onRetry: () => void;
   onDismiss: () => void;
+  /** What the studio would be handed, if the person asks people instead. */
+  brief?: { website?: string | null; changes?: string | null } | null;
 }) {
   const dismiss = (
     <button type="button" onClick={onDismiss} className="ui-btn-ghost ui-btn-xs">
@@ -492,6 +497,7 @@ function KickoffNextStep({
         </button>
         {dismiss}
       </div>
+      <GetHelpLine brief={brief} />
     </div>
   );
 }
