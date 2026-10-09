@@ -317,11 +317,8 @@ async function main() {
     await clickPill(s.p, "Show");
     await s.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-      (
-        Array.from(r.querySelectorAll(".watchbtn")).find(
-          (b) => (b as HTMLElement).innerText === "Review",
-        ) as HTMLElement
-      ).click();
+      // Review is the conversation's first suggestion — no longer a header pill.
+      (r.querySelector(".starter.primary") as HTMLElement).click();
     });
     await s.p.waitForTimeout(800);
     const a = s.advice[0];
@@ -410,20 +407,18 @@ async function main() {
     await s.close();
   }
 
-  // ---- Stop watching from the panel's header: nothing recorded, nothing said ----
+  // ---- Pause from the panel's notes row: nothing recorded, nothing said ----
   {
     const s = await open(browser, js, "#loki-owner=pass123");
     const header = (label: string) =>
       s.p.evaluate((label) => {
         const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-        const b = Array.from(r.querySelectorAll(".watchbtn")).find(
-          (x) =>
-            (x as HTMLElement).innerText === label && (x as HTMLElement).style.display !== "none",
-        ) as HTMLElement | undefined;
-        b?.click();
-        return !!b;
+        const b = r.querySelector(".thoughts-toggle") as HTMLElement | null;
+        if (!b || b.innerText !== label) return false;
+        b.click();
+        return true;
       }, label);
-    ok(await header("Stop watching"), "the header offers Stop watching while Loki watches");
+    ok(await header("Pause"), "the notes row offers Pause while Loki watches");
     await s.p.keyboard.press("Escape");
     await s.p.click("#find");
     await s.p.waitForTimeout(3200);
@@ -434,7 +429,7 @@ async function main() {
     ok(!after.thread.includes("noticed"), "stopped, Loki says nothing");
     ok(!after.trail.includes("Find a size"), "stopped, nothing is recorded");
     await clickPill(s.p, "Show");
-    ok(await header("Watch again"), "and the header offers Watch again");
+    ok(await header("Resume"), "and the notes row offers Resume");
     ok((await pillText(s.p))?.startsWith("Loki is watching") === true, "which starts it again");
     await s.close();
   }

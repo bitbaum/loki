@@ -217,8 +217,11 @@ export function createConversation(opts: {
   tools.append(attachBtn, fileInput);
   const actions = h("div", "composer-actions");
   actions.append(tools, feedbackBtn, sendBtn);
+  // One card: what it is about, the words, the screenshots, then the ways to
+  // send it. "About" used to be its own bordered bar floating above a
+  // free-standing textarea — two boxes for one sentence.
   const form = h("div", "composer");
-  form.append(input, actions);
+  form.append(ctx, input, shots, actions);
 
   // The way out of the card and into Loki itself (continue-row.ts).
   const cont = createContinueRow({
@@ -227,7 +230,7 @@ export function createConversation(opts: {
     thread: () => thread,
     owner: () => opts.ownerPass() !== null,
   });
-  el.append(log, starters, ctx, shots, form, cont.el, err);
+  el.append(log, starters, form, cont.el, err);
 
   el.addEventListener("paste", (e: ClipboardEvent) => {
     const images = Array.from(e.clipboardData?.items ?? []).filter((i) =>

@@ -265,42 +265,33 @@ interface LokiApi {
     const hdrPage = h("div", "page");
     hdrText.append(brand, hdrPage);
     const hdrActions = h("div", "hdr-actions");
-    // Watch's controls live in the header, in plain words: Watch (anyone not
-    // yet known as the owner), Review + Stop watching (watching), Watch again
-    // (stopped). Starting and stopping is never more than one tap away.
-    const watchBtn = h("button", "watchbtn");
+    // The header names who and where, and nothing else competes with it: for
+    // the owner, watching is told AND controlled in one place — the notes row
+    // under it (Pause / Resume), and Review is the first suggestion in the
+    // conversation. It used to carry Review + Stop watching pills beside ✕,
+    // two loud buttons repeating what the row and the starter already said.
+    // Someone not yet known as the owner keeps one quiet Watch here.
+    const watchBtn = h("button", "watchbtn", "Watch");
     watchBtn.type = "button";
-    const stopBtn = h("button", "watchbtn", "Stop watching");
-    stopBtn.type = "button";
-    stopBtn.title = "Loki stops recording what you do here until you start it again";
+    watchBtn.title = "Let Loki watch you use this site and tell you what isn't working";
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
-    hdrActions.append(watchBtn, stopBtn, closeBtn);
+    hdrActions.append(watchBtn, closeBtn);
     hdr.append(hdrText, hdrActions);
     const watchOffer = watchOfferView(ownerSignInUrl(apiBase, token, location.href));
     // What Loki is seeing while it watches — the owner's, under the header.
-    const thoughts = createThoughtsView();
-    watchBtn.addEventListener("click", () => {
-      if (watchSession?.on()) conversation.review();
-      else if (!ownerPass) watchOffer.style.display = watchOffer.style.display ? "" : "none";
+    const thoughts = createThoughtsView(() => {
+      if (watchSession?.on()) watchSession.stop();
       else watchSession?.resume();
       syncWatch();
     });
-    stopBtn.addEventListener("click", () => {
-      watchSession?.stop();
-      syncWatch();
+    watchBtn.addEventListener("click", () => {
+      watchOffer.style.display = watchOffer.style.display ? "" : "none";
     });
     function syncWatch() {
       const on = watchSession?.on() ?? false;
-      watchBtn.textContent = !ownerPass ? "Watch" : on ? "Review" : "Watch again";
-      watchBtn.classList.toggle("on", on || !!ownerPass);
-      watchBtn.title = !ownerPass
-        ? "Let Loki watch you use this site and tell you what isn't working"
-        : on
-          ? "Loki reviews everything you just did and suggests improvements"
-          : "Loki watches again and tells you when something isn't right";
-      stopBtn.style.display = on ? "" : "none";
+      watchBtn.style.display = ownerPass ? "none" : "";
       // The spiral in the header turns while Loki watches, stops when it does not.
       brand.classList.toggle("watching", on);
       brand.classList.toggle("paused", !!ownerPass && !on);
