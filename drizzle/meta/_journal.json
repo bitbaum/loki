@@ -582,6 +582,13 @@
       "when": 1790801714632,
       "tag": "0082_studio_portal",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1791552155907,
+      "tag": "0083_user_model_keys_per_vendor",
+      "breakpoints": true
     }
   ]
 }

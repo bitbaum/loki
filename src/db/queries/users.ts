@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { users, invitations } from "@/db/schema";
-import { eq, count } from "drizzle-orm";
+import { eq, count, desc, sql } from "drizzle-orm";
 import type { Plan, PlanStatus } from "@/db/schema/users";
 import { USER_PURGE_ORDER } from "@/db/queries/user-purge-tables";
 
@@ -53,6 +53,27 @@ export async function isSiteOperator(userId: string): Promise<boolean> {
     columns: { isDefault: true },
   });
   return row?.isDefault === true;
+}
+
+/**
+ * Every account with its plan, paid first then newest — the operator's view
+ * for granting, extending and revoking passes by hand (System → Plans).
+ */
+export async function listUsersWithPlans(limit = 200) {
+  return db
+    .select({
+      id: users.id,
+      name: users.name,
+      username: users.username,
+      email: users.email,
+      plan: users.plan,
+      planStatus: users.planStatus,
+      planExpiresAt: users.planExpiresAt,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .orderBy(sql`case when ${users.plan} = 'free' then 1 else 0 end`, desc(users.createdAt))
+    .limit(limit);
 }
 
 export async function getUserCount(): Promise<number> {

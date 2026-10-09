@@ -1,15 +1,16 @@
-import { eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { sealSecret, openSecret } from "@bitbaum/ai-kit/seal";
 import { byokKeyHint, byokVendor, type ByokConfig, type ByokVendorId } from "@bitbaum/ai-kit/byok";
 import { db } from "@/db";
 import { userModelKeys } from "@/db/schema/user-model-keys";
 
 /**
- * The model a user brought — see src/db/schema/user-model-keys.ts.
+ * The models a user brought — see src/db/schema/user-model-keys.ts. One row
+ * per vendor, ordered into the user's own chain by `position`.
  *
- * The key leaves this module in exactly one place: `getOwnModel`, which a chat
- * turn calls to make the request. Everything the settings screen reads goes
- * through `getOwnModelSummary`, which has no key in it.
+ * Keys leave this module in exactly one place: `getOwnModels`, which a chat
+ * turn calls to make the requests. Everything the settings screen reads goes
+ * through `listOwnModels`, which has no key in it.
  */
 
 /** "byok": what the value was sealed for; a value sealed for anything else does not open here. */
@@ -33,6 +34,7 @@ export type OwnModelSummary = {
   /** "…abcd" — never more of the key than that. */
   keyHint: string;
   verifiedAt: Date;
+  position: number;
 };
 
 function summaryOf(row: typeof userModelKeys.$inferSelect): OwnModelSummary | null {
@@ -42,55 +44,70 @@ function summaryOf(row: typeof userModelKeys.$inferSelect): OwnModelSummary | nu
     model: row.model,
     keyHint: row.keyHint,
     verifiedAt: row.verifiedAt,
+    position: row.position,
   };
 }
 
-/** What the user brought, without the key. Null when they brought nothing. */
-export async function getOwnModelSummary(userId: string): Promise<OwnModelSummary | null> {
-  const [row] = await db
+async function rowsFor(userId: string) {
+  return db
     .select()
     .from(userModelKeys)
     .where(eq(userModelKeys.userId, userId))
-    .limit(1);
-  return row ? summaryOf(row) : null;
+    .orderBy(asc(userModelKeys.position), asc(userModelKeys.createdAt));
+}
+
+/** What the user brought, without the keys, in chain order. Empty when nothing. */
+export async function listOwnModels(userId: string): Promise<OwnModelSummary[]> {
+  return (await rowsFor(userId)).flatMap((r) => summaryOf(r) ?? []);
 }
 
 /**
- * The user's model WITH its key, for the one request it is needed for.
+ * The user's models WITH their keys, in chain order, for the one request
+ * they are needed for.
  *
- * Null when nothing is stored, the server has no sealing secret, or the value
- * will not open (a rotated secret). The last is logged and treated as "no key"
- * — a chat turn must not fail because of it; the settings screen asks the user
- * to paste the key again.
+ * Empty when nothing is stored or the server has no sealing secret. A value
+ * that will not open (a rotated secret) is logged and skipped — a chat turn
+ * must not fail because of it; the settings screen asks for the key again.
  */
-export async function getOwnModel(userId: string): Promise<ByokConfig | null> {
+export async function getOwnModels(userId: string): Promise<ByokConfig[]> {
   const secret = ownModelSealSecret();
-  if (!secret) return null;
-  const [row] = await db
-    .select()
-    .from(userModelKeys)
-    .where(eq(userModelKeys.userId, userId))
-    .limit(1);
-  if (!row || !byokVendor(row.vendor)) return null;
-  try {
-    return {
-      vendor: row.vendor as ByokVendorId,
-      model: row.model,
-      apiKey: openSecret(row.sealedKey, secret, SEAL_CONTEXT),
-    };
-  } catch {
-    console.error(`[own-model] stored key for user ${userId} did not open — secret rotated?`);
-    return null;
+  if (!secret) return [];
+  const out: ByokConfig[] = [];
+  for (const row of await rowsFor(userId)) {
+    if (!byokVendor(row.vendor)) continue;
+    try {
+      out.push({
+        vendor: row.vendor as ByokVendorId,
+        model: row.model,
+        apiKey: openSecret(row.sealedKey, secret, SEAL_CONTEXT),
+      });
+    } catch {
+      console.error(
+        `[own-model] stored ${row.vendor} key for user ${userId} did not open — secret rotated?`,
+      );
+    }
   }
+  return out;
 }
 
-/** Store (or replace) the user's model. Caller has already probed the key. */
+/** One vendor's stored key, for probing its models without a new paste. */
+export async function getOwnModelKey(
+  userId: string,
+  vendor: ByokVendorId,
+): Promise<ByokConfig | null> {
+  return (await getOwnModels(userId)).find((c) => c.vendor === vendor) ?? null;
+}
+
+/** Store (or replace) the key for one vendor. A new vendor joins the end of the chain. */
 export async function saveOwnModel(userId: string, config: ByokConfig): Promise<OwnModelSummary> {
   const secret = ownModelSealSecret();
   if (!secret) throw new Error("BYOK_SEAL_SECRET is not set on this server");
   const now = new Date();
+  const [{ next }] = await db
+    .select({ next: sql<number>`coalesce(max(${userModelKeys.position}), -1) + 1` })
+    .from(userModelKeys)
+    .where(eq(userModelKeys.userId, userId));
   const values = {
-    vendor: config.vendor,
     model: config.model,
     sealedKey: sealSecret(config.apiKey, secret, SEAL_CONTEXT),
     keyHint: byokKeyHint(config.apiKey),
@@ -99,28 +116,51 @@ export async function saveOwnModel(userId: string, config: ByokConfig): Promise<
   };
   const [row] = await db
     .insert(userModelKeys)
-    .values({ userId, ...values })
-    .onConflictDoUpdate({ target: userModelKeys.userId, set: values })
+    .values({ userId, vendor: config.vendor, position: Number(next), ...values })
+    .onConflictDoUpdate({ target: [userModelKeys.userId, userModelKeys.vendor], set: values })
     .returning();
   const summary = summaryOf(row!);
   if (!summary) throw new Error(`unknown vendor ${config.vendor}`);
   return summary;
 }
 
-/** Change only the model, keeping the stored key. Null when nothing is stored. */
+/** Change only the model for one vendor, keeping its key. Null when that vendor is not stored. */
 export async function setOwnModelChoice(
   userId: string,
+  vendor: ByokVendorId,
   model: string,
 ): Promise<OwnModelSummary | null> {
   const [row] = await db
     .update(userModelKeys)
     .set({ model, updatedAt: new Date() })
-    .where(eq(userModelKeys.userId, userId))
+    .where(and(eq(userModelKeys.userId, userId), eq(userModelKeys.vendor, vendor)))
     .returning();
   return row ? summaryOf(row) : null;
 }
 
-/** Forget the user's key entirely. */
-export async function deleteOwnModel(userId: string): Promise<void> {
-  await db.delete(userModelKeys).where(eq(userModelKeys.userId, userId));
+/** Re-order the chain: vendors in the order given come first, any not named keep their relative order after. */
+export async function reorderOwnModels(
+  userId: string,
+  vendors: string[],
+): Promise<OwnModelSummary[]> {
+  const current = await listOwnModels(userId);
+  const named = vendors.filter((v) => current.some((c) => c.vendor === v));
+  const rest = current.map((c) => c.vendor).filter((v) => !named.includes(v));
+  const order = [...named, ...rest];
+  await Promise.all(
+    order.map((vendor, position) =>
+      db
+        .update(userModelKeys)
+        .set({ position, updatedAt: new Date() })
+        .where(and(eq(userModelKeys.userId, userId), eq(userModelKeys.vendor, vendor))),
+    ),
+  );
+  return listOwnModels(userId);
+}
+
+/** Forget one vendor's key. */
+export async function deleteOwnModel(userId: string, vendor: ByokVendorId): Promise<void> {
+  await db
+    .delete(userModelKeys)
+    .where(and(eq(userModelKeys.userId, userId), eq(userModelKeys.vendor, vendor)));
 }

@@ -1,45 +1,82 @@
-import { byokChain, byokLabel, type ByokConfig } from "@bitbaum/ai-kit/byok";
+import { byokChain, byokLabel, byokVendor, type ByokConfig } from "@bitbaum/ai-kit/byok";
 import type { ChatLink } from "@/config/chat-models";
 import { appUrl } from "@/lib/email";
 
 /**
- * A user's own model, shaped for Loki's model walker.
+ * A user's own models, shaped for Loki's model walker.
  *
  * `byokChain` returns a one-link chain whose key lives in a per-call `env`
- * object — never `process.env` — under this name. The walker reads a link's
- * key from that object first, and a server link's key names (GROQ_API_KEY, …)
- * never appear in it, so a user's key cannot reach a server link and a server
- * key cannot reach a user's link. `scripts/test/own-model.ts` pins that the
- * name here is the one ai-kit actually uses.
+ * object — never `process.env` — under one name. With several vendors that
+ * name would collide, so each user link is re-keyed to `BYOK_API_KEY_<VENDOR>`
+ * and the walker reads a link's key from the per-call object by that name. A
+ * server link's key names (GROQ_API_KEY, …) never appear in it, so a user's
+ * key cannot reach a server link and a server key cannot reach a user's link.
+ * `scripts/test/own-model.ts` pins both halves.
  */
 export const OWN_MODEL_KEY_ENV = "BYOK_API_KEY";
 
 export { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 
 export type OwnModel = {
+  /** The user's vendors in their order, each one link: what Loki walks. */
   chain: ChatLink[];
   env: Record<string, string>;
   /** OpenRouter's attribution headers, when the vendor reads them. */
   extraHeaders?: Record<string, string>;
-  /** "Anthropic · claude-opus-5.5" — for provenance and the settings screen. Never the key. */
+  /** "Anthropic · claude-opus-5.5 (+2 more)" — for provenance and the settings screen. Never a key. */
   label: string;
+  /** The first vendor — what Loki thinks with. */
   vendor: string;
 };
 
-export function ownModelFrom(config: ByokConfig): OwnModel {
-  const { chain, env, extraHeaders } = byokChain(config, { url: appUrl(), title: "Loki" });
+function keyEnvFor(vendor: string): string {
+  return `${OWN_MODEL_KEY_ENV}_${vendor.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+}
+
+/**
+ * One or several configs → one chain, in the order given. `startAt` (a model
+ * id, or `vendor/model`) moves that vendor's link to the front: the composer's
+ * picker choosing where the user's own chain starts, as it does for the free one.
+ */
+export function ownModelFrom(configs: ByokConfig | ByokConfig[], startAt?: string): OwnModel {
+  const list = Array.isArray(configs) ? configs : [configs];
+  if (list.length === 0) throw new Error("ownModelFrom: no config");
+  const site = { url: appUrl(), title: "Loki" };
+  const chain: ChatLink[] = [];
+  const env: Record<string, string> = {};
+  let extraHeaders: Record<string, string> | undefined;
+  for (const config of list) {
+    const built = byokChain(config, site);
+    const name = keyEnvFor(config.vendor);
+    for (const link of built.chain) {
+      chain.push({ ...link, provider: { ...link.provider, keyEnv: name } });
+    }
+    env[name] = (built.env as Record<string, string>)[OWN_MODEL_KEY_ENV] ?? config.apiKey;
+    if (built.extraHeaders) extraHeaders = { ...(extraHeaders ?? {}), ...built.extraHeaders };
+  }
+  if (startAt) {
+    const i = chain.findIndex(
+      (l) => l.model === startAt || `${l.provider.id}/${l.model}` === startAt,
+    );
+    if (i > 0) chain.unshift(...chain.splice(i, 1));
+  }
+  const first = chain[0]!;
+  const firstConfig = list.find((c) => c.vendor === first.provider.id) ?? list[0]!;
+  const label =
+    byokLabel({ vendor: firstConfig.vendor, model: first.model }) +
+    (chain.length > 1 ? ` (+${chain.length - 1} more)` : "");
   return {
     chain,
-    env: env as Record<string, string>,
+    env,
     ...(extraHeaders ? { extraHeaders } : {}),
-    label: byokLabel(config),
-    vendor: config.vendor,
+    label,
+    vendor: byokVendor(firstConfig.vendor)?.label ?? firstConfig.vendor,
   };
 }
 
 /** True for a link that carries a user's own key rather than one of the server's. */
 export function isOwnModelLink(link: ChatLink): boolean {
-  return link.provider.keyEnv === OWN_MODEL_KEY_ENV;
+  return link.provider.keyEnv.startsWith(OWN_MODEL_KEY_ENV);
 }
 
 /**
@@ -55,4 +92,9 @@ export function keyForLink(
   own: Pick<OwnModel, "env"> | undefined,
 ): string | undefined {
   return isOwnModelLink(link) ? own?.env[link.provider.keyEnv] : process.env[link.provider.keyEnv];
+}
+
+/** Every secret in a per-call env, for masking a vendor's echo of one. */
+export function ownModelSecrets(own: Pick<OwnModel, "env"> | undefined): string[] {
+  return own ? Object.values(own.env).filter((v) => v.length > 0) : [];
 }

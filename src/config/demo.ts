@@ -112,6 +112,8 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   // account is shared: a key saved there would power every visitor's chat on
   // someone's bill, and the probe would turn the server into a key checker.
   ["/api/settings", "credentials"],
+  // Operator-only plan grants. The demo account is never the operator (403),
+  // but the family is named here so the table stays complete.
   ["/api/orchestration", "dispatch"],
   ["/api/projects/from-website", "dispatch"],
   ["/api/projects/from-repo", "dispatch"],
@@ -177,8 +179,9 @@ export const DEMO_PARTIAL_PREFIXES: Readonly<Record<string, string>> = {
  * really is matcher-excluded, and every named file really does call the guard.
  * Otherwise this table becomes a comment that documents protection nobody wrote.
  *
- * Not listed, deliberately: /api/system exposes only a GET of host stats — no
- * mutation to deny, and reading uptime costs nothing. /api/newsletter, /api/feedback, /api/commission, /api/site-consult and /api/widget-boot
+ * Not listed, deliberately: /api/system exposes a GET of host stats — no
+ * mutation to deny, and reading uptime costs nothing — plus the operator's
+ * plan-grant POST, which is handler-enforced below. /api/newsletter, /api/feedback, /api/commission, /api/site-consult and /api/widget-boot
  * are public endpoints any anonymous visitor may already call, so gating the
  * demo account specifically would protect nothing. /api/stripe/webhook,
  * /api/orangecat/* and /api/solon/* verify their own HMAC signatures and are not
@@ -192,6 +195,9 @@ export const DEMO_HANDLER_ENFORCED: ReadonlyArray<readonly [string, DemoDenialRe
   // spends a model turn. Matcher-excluded because a connector's first request
   // carries no token by design (see src/proxy.ts).
   ["/api/mcp", "dispatch", "src/app/api/mcp/route.ts"],
+  // Grants a paid plan by hand. /api/system is matcher-excluded for the
+  // runner's GET, so the handler guards — and only the operator may call it.
+  ["/api/system/plan-grant", "billing", "src/app/api/system/plan-grant/route.ts"],
 ] as const;
 
 /**

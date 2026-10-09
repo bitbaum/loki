@@ -1,11 +1,14 @@
 /**
- * The model a user brings to power Loki — read, save, change, remove.
+ * The models a user brings to power Loki — list, add or replace, change,
+ * re-order, remove. One key per vendor; the order is the user's own chain.
  *
- *   GET    → { available, current: { vendor, model, keyHint, verifiedAt } | null }
- *   PUT    { vendor, model, apiKey? } → saves; apiKey omitted = change model, keep key
- *   DELETE → forgets the key
+ *   GET    → { available, models: [{ vendor, model, keyHint, verifiedAt, position }] }
+ *   PUT    { vendor, model, apiKey? } → adds or replaces that vendor's key;
+ *                                       apiKey omitted = change model, keep key
+ *   PATCH  { order: [vendor, …] }     → re-order the chain
+ *   DELETE { vendor }                 → forgets that vendor's key
  *
- * The key is never returned by any method; `keyHint` ("…abcd") is all a client
+ * A key is never returned by any method; `keyHint` ("…abcd") is all a client
  * ever sees. Checking a key WITHOUT saving it is ./probe.
  */
 import type { NextRequest } from "next/server";
@@ -17,9 +20,9 @@ import { jsonError, jsonOk, readJsonBody, z } from "@/lib/api/route-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   deleteOwnModel,
-  getOwnModel,
-  getOwnModelSummary,
+  listOwnModels,
   ownModelSealSecret,
+  reorderOwnModels,
   saveOwnModel,
   setOwnModelChoice,
   type OwnModelSummary,
@@ -30,15 +33,16 @@ export const runtime = "nodejs";
 const NOT_SET_UP =
   "Connecting your own model isn't switched on for this server yet — Loki keeps using its free models.";
 
-function view(summary: OwnModelSummary | null) {
-  return summary
-    ? {
-        vendor: summary.vendor,
-        model: summary.model,
-        keyHint: summary.keyHint,
-        verifiedAt: summary.verifiedAt.toISOString(),
-      }
-    : null;
+const Vendor = z.enum(BYOK_VENDOR_IDS as [ByokVendorId, ...ByokVendorId[]]);
+
+function view(summary: OwnModelSummary) {
+  return {
+    vendor: summary.vendor,
+    model: summary.model,
+    keyHint: summary.keyHint,
+    verifiedAt: summary.verifiedAt.toISOString(),
+    position: summary.position,
+  };
 }
 
 export async function GET() {
@@ -46,12 +50,12 @@ export async function GET() {
   if (!userId) return jsonError("Unauthorized", 401);
   return jsonOk({
     available: ownModelSealSecret() !== null,
-    current: view(await getOwnModelSummary(userId)),
+    models: (await listOwnModels(userId)).map(view),
   });
 }
 
 const PutBody = z.object({
-  vendor: z.enum(BYOK_VENDOR_IDS as [ByokVendorId, ...ByokVendorId[]]),
+  vendor: Vendor,
   model: z.string().trim().min(1).max(200),
   apiKey: z.string().trim().min(8).max(400).optional(),
 });
@@ -59,45 +63,46 @@ const PutBody = z.object({
 export async function PUT(req: NextRequest) {
   const userId = await getApiUserId();
   if (!userId) return jsonError("Unauthorized", 401);
-  if (!ownModelSealSecret()) return jsonError(NOT_SET_UP, 503);
-  // Saving probes the vendor, so it shares the probe's allowance.
+  if (ownModelSealSecret() === null) return jsonError(NOT_SET_UP, 503);
   if (!checkRateLimit(`own-model:${userId}`, 20, 10 * 60_000)) {
     return jsonError("Too many attempts — wait a few minutes and try again.", 429);
   }
   const body = await readJsonBody(req, PutBody);
   if (body instanceof NextResponse) return body;
 
-  // Change the model on the key already stored: no key in the request.
   if (!body.apiKey) {
-    const stored = await getOwnModel(userId);
-    if (!stored || stored.vendor !== body.vendor) {
-      return jsonError("Paste your key for this provider first.", 400);
-    }
-    const probe = await probeByokKey(stored.vendor, stored.apiKey);
-    if (!probe.ok) return jsonError(probe.message, 400, { status: probe.status });
-    if (probe.models.length > 0 && !probe.models.includes(body.model)) {
-      return jsonError(`Your key can't use ${body.model}. Pick one from the list.`, 400);
-    }
-    return jsonOk({ current: view(await setOwnModelChoice(userId, body.model)) });
+    const changed = await setOwnModelChoice(userId, body.vendor, body.model);
+    if (!changed) return jsonError("Paste your key for this provider first.", 400);
+    return jsonOk({ models: (await listOwnModels(userId)).map(view) });
   }
 
-  const config = { vendor: body.vendor, model: body.model, apiKey: body.apiKey };
-  if (!isByokConfig(config)) return jsonError("That doesn't look like a key.", 400);
-
-  // Never trust a client's "it worked": the key is checked again, here, before
-  // it is stored — a saved key that does not work is a chat that fails later
-  // with nobody knowing why.
+  const config = { vendor: body.vendor, apiKey: body.apiKey, model: body.model };
+  if (!isByokConfig(config)) return jsonError("That key or model id is not valid.", 400);
+  // Saved only once the vendor has accepted it: a key that is refused is not
+  // stored, and the vendor's own words say why.
   const probe = await probeByokKey(config.vendor, config.apiKey);
-  if (!probe.ok) return jsonError(probe.message, 400, { status: probe.status });
-  if (probe.models.length > 0 && !probe.models.includes(config.model)) {
-    return jsonError(`Your key can't use ${config.model}. Pick one from the list.`, 400);
-  }
-  return jsonOk({ current: view(await saveOwnModel(userId, config)) });
+  if (!probe.ok) return jsonError(probe.message, probe.status === null ? 502 : 400);
+  await saveOwnModel(userId, config);
+  return jsonOk({ models: (await listOwnModels(userId)).map(view) });
 }
 
-export async function DELETE() {
+const PatchBody = z.object({ order: z.array(Vendor).min(1).max(20) });
+
+export async function PATCH(req: NextRequest) {
   const userId = await getApiUserId();
   if (!userId) return jsonError("Unauthorized", 401);
-  await deleteOwnModel(userId);
-  return jsonOk({ current: null });
+  const body = await readJsonBody(req, PatchBody);
+  if (body instanceof NextResponse) return body;
+  return jsonOk({ models: (await reorderOwnModels(userId, body.order)).map(view) });
+}
+
+const DeleteBody = z.object({ vendor: Vendor });
+
+export async function DELETE(req: NextRequest) {
+  const userId = await getApiUserId();
+  if (!userId) return jsonError("Unauthorized", 401);
+  const body = await readJsonBody(req, DeleteBody);
+  if (body instanceof NextResponse) return body;
+  await deleteOwnModel(userId, body.vendor);
+  return jsonOk({ models: (await listOwnModels(userId)).map(view) });
 }

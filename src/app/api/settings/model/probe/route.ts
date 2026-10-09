@@ -18,7 +18,7 @@ import { probeByokKey } from "@bitbaum/ai-kit/byok-probe";
 import { getApiUserId } from "@/lib/session";
 import { jsonError, jsonOk, readJsonBody, z } from "@/lib/api/route-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getOwnModel } from "@/db/queries/user-model-keys";
+import { getOwnModelKey } from "@/db/queries/user-model-keys";
 
 export const runtime = "nodejs";
 
@@ -38,10 +38,8 @@ export async function POST(req: NextRequest) {
 
   let apiKey = body.apiKey;
   if (!apiKey) {
-    const stored = await getOwnModel(userId);
-    if (!stored || stored.vendor !== body.vendor) {
-      return jsonError("Paste your key for this provider first.", 400);
-    }
+    const stored = await getOwnModelKey(userId, body.vendor);
+    if (!stored) return jsonError("Paste your key for this provider first.", 400);
     apiKey = stored.apiKey;
   }
 

@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Lock, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, KeyRound, Lock, Sparkles, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getJson } from "@/lib/api/fetch";
 import { describeChatModel, type LokiModelsResponse } from "@/lib/loki/models";
+import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 
 /**
  * Which model starts the turn.
@@ -23,7 +24,9 @@ import { describeChatModel, type LokiModelsResponse } from "@/lib/loki/models";
  * ── Locked rows ──────────────────────────────────────────────────────────────
  * A vendor with no key on the server is listed, disabled, with the reason.
  * Hiding it answers "why can't I pick X" with silence; enabling it answers with
- * a failed turn.
+ * a failed turn. The way out is in the same menu: the last row is the link to
+ * add your own key, and a model you brought sits at the top marked as yours —
+ * so the picker is never a list of things you cannot have.
  */
 export function ModelPicker({
   value,
@@ -50,7 +53,7 @@ export function ModelPicker({
         if (live) setData(d);
       })
       .catch(() => {
-        if (live) setData({ options: [], autoStartsAt: null });
+        if (live) setData({ options: [], autoStartsAt: null, addKeyHref: OWN_MODEL_SETTINGS_PATH });
       });
     return () => {
       live = false;
@@ -103,9 +106,11 @@ export function ModelPicker({
               key={`${option.provider}/${option.id}`}
               name={name}
               blurb={
-                option.usable
-                  ? `${blurb} · ${providerName(option.provider)}`
-                  : `Not set up on this server — ${providerName(option.provider)} has no key`
+                option.own
+                  ? `Your key · ${providerName(option.provider)}`
+                  : option.usable
+                    ? `${blurb} · ${providerName(option.provider)}`
+                    : `${providerName(option.provider)} has no key here — add yours below`
               }
               title={option.reason}
               selected={value === option.id}
@@ -114,6 +119,23 @@ export function ModelPicker({
             />
           );
         })}
+        {data !== null && (
+          <a
+            href={data.addKeyHref}
+            className="ui-loki-model-row"
+            role="option"
+            aria-selected={false}
+          >
+            <span className="ui-loki-model-row-text">
+              <span className="ui-loki-model-row-title">Add your own key</span>
+              <span className="ui-loki-model-row-sub">
+                Any provider — Loki thinks with the model you pay for, and your free budget no
+                longer applies
+              </span>
+            </span>
+            <KeyRound className="ui-loki-model-check" aria-hidden />
+          </a>
+        )}
       </div>
       {data !== null && (
         <p className="ui-loki-model-note">

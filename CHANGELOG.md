@@ -6,6 +6,25 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-09 — Your models, your keys, your pass
+
+- **Any model, your key.** Settings → AI takes a key from any of ten
+  providers (OpenRouter, OpenAI, Anthropic, Google, Groq, Mistral, DeepSeek,
+  xAI, Together, Cerebras) — paste, it is checked with the vendor on the spot,
+  the strongest model your key can use is pre-chosen. Add several and Loki
+  tries them in your order, so one provider's bad day never stops you. Your
+  provider bills you; Loki charges nothing for it, on every plan.
+- **The model picker shows the way.** Your own models sit at the top marked
+  "Your key"; a model this server has no key for says so and the last row of
+  the menu is "Add your own key".
+- **Passes, in the open.** Billing shows your plan, the days left and the end
+  date, a Buy or Extend button per priced plan that pays in Bitcoin on
+  OrangeCat, and every pass that ever landed. Nothing renews by itself. The
+  operator sees who is on a pass under System → Plans and can grant, extend or
+  revoke one by hand — a trial or a month for a bug found shows on your
+  Billing tab exactly like a paid pass. How the whole thing fits:
+  `docs/architecture/models-and-money.md`.
+
 ## 2026-10-09 — The fleet in your ear
 
 - **No-screen mode.** Headphones in, one tap on **Start** at `/voice`, and the
