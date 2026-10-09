@@ -218,6 +218,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .yours-status { font-family: ${mono}; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: ${theme.textTertiary}; white-space: nowrap; }
 .yours-row.tone-positive .yours-status { color: ${theme.success}; }
 .yours-row.tone-warning .yours-status { color: ${theme.error}; }
+.yours-visitors { font-size: 11px; color: ${theme.textTertiary}; text-decoration: underline; text-underline-offset: 2px; }
+.yours-visitors:hover { color: ${theme.text}; }
 .yours-go { grid-column: 2 / -1; justify-self: start; font-size: 12px; font-weight: 600; color: ${theme.text}; text-decoration: underline; text-underline-offset: 2px; }
 .yours-go:hover { color: ${theme.accent}; }
 @media (pointer: coarse) { .yours-go, .yours-all { padding: 6px 0; } }

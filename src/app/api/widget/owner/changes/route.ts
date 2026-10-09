@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_SHORT_MS } from "@/lib/constants/time";
-import { WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
+import { FEEDBACK_SOURCE, FEEDBACK_STATUS, WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
 import { getWidgetProjectKey, getWidgetTokenByToken } from "@/db/queries/widget-tokens";
 import { listProjectFeedback } from "@/db/queries/site-feedback";
 import { attachFeedbackWork } from "@/lib/feedback/attach-work";
@@ -13,6 +13,7 @@ import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 import { appUrl } from "@/lib/email";
 import {
   OWNER_CHANGE_TEXT_MAX,
+  OWNER_CHANGES_FETCH,
   OWNER_CHANGES_MAX,
   ownerStatusFor,
   type OwnerChange,
@@ -87,11 +88,24 @@ export async function POST(req: NextRequest) {
     return corsJson({ ok: true, owner: false, changes: [] });
   }
 
-  const [items, key] = await Promise.all([
-    listProjectFeedback(token.userId, token.projectId, OWNER_CHANGES_MAX),
+  const [all, key] = await Promise.all([
+    listProjectFeedback(token.userId, token.projectId, OWNER_CHANGES_FETCH),
     getWidgetProjectKey(token.projectId, token.userId),
   ]);
-  const withWork = await attachFeedbackWork(token.userId, items);
+  // "Your changes" means yours: what the owner asked for, and what Loki filed
+  // on its own while watching or reviewing. A stranger's "so nice picture!"
+  // listed as the owner's own request (2026-10-09) is not a status, it is
+  // noise — visitors' notes are counted, and read in Loki.
+  const mine = all
+    .filter((i) => i.source === FEEDBACK_SOURCE.OWNER || i.source === FEEDBACK_SOURCE.AI_REVIEW)
+    .slice(0, OWNER_CHANGES_MAX);
+  const visitors = all.filter(
+    (i) =>
+      i.source !== FEEDBACK_SOURCE.OWNER &&
+      i.source !== FEEDBACK_SOURCE.AI_REVIEW &&
+      (i.status === FEEDBACK_STATUS.NEW || i.status === FEEDBACK_STATUS.DISPATCHED),
+  ).length;
+  const withWork = await attachFeedbackWork(token.userId, mine);
   const inbox = `${appUrl()}/feedback${key ? `?project=${encodeURIComponent(key)}` : ""}`;
 
   const changes: OwnerChange[] = withWork.map((item) => {
@@ -125,5 +139,5 @@ export async function POST(req: NextRequest) {
           : null,
     };
   });
-  return corsJson({ ok: true, owner: true, changes, inbox });
+  return corsJson({ ok: true, owner: true, changes, inbox, visitors });
 }

@@ -122,17 +122,29 @@ export function createChanges(opts: {
   all.rel = "noopener";
   head.append(title, all);
   const list = h("div", "yours-list");
-  el.append(head, list);
+  // Visitors' notes are not the owner's changes; they are counted, and read
+  // in Loki, where the inbox has the room to show who said what.
+  const visitorsLine = h("a", "yours-visitors");
+  visitorsLine.target = "_blank";
+  visitorsLine.rel = "noopener";
+  visitorsLine.style.display = "none";
+  el.append(head, list, visitorsLine);
 
   let changes: OwnerChange[] = [];
   let inbox: string | null = null;
+  let visitors = 0;
   let timer = 0;
   let startedAt = 0;
   let inflight = false;
 
   function render() {
     list.textContent = "";
-    el.style.display = changes.length ? "" : "none";
+    el.style.display = changes.length || visitors ? "" : "none";
+    visitorsLine.style.display = visitors && inbox ? "" : "none";
+    if (visitors && inbox) {
+      visitorsLine.textContent = `${visitors} note${visitors === 1 ? "" : "s"} from visitors, in Loki →`;
+      visitorsLine.href = inbox;
+    }
     for (const c of changes.slice(0, CHANGES_SHOWN)) {
       const row = h("div", `yours-row tone-${c.tone}`);
       const dot = h("span", "yours-dot");
@@ -168,6 +180,7 @@ export function createChanges(opts: {
       const body = (await res.json().catch(() => null)) as {
         owner?: boolean;
         inbox?: unknown;
+        visitors?: unknown;
       } | null;
       if (!res.ok || !body) return;
       if (body.owner === false) {
@@ -176,6 +189,8 @@ export function createChanges(opts: {
       }
       const next = parseChanges(body);
       inbox = typeof body.inbox === "string" && /^https?:\/\//.test(body.inbox) ? body.inbox : null;
+      visitors =
+        typeof body.visitors === "number" && body.visitors > 0 ? Math.floor(body.visitors) : 0;
       const prev = readSeen(opts.token);
       for (const c of newlyLive(prev, next)) opts.onLive(c);
       writeSeen(opts.token, { ...prev, ...toSeen(next) });
