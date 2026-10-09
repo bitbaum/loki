@@ -27,6 +27,7 @@ import {
 import { readSseChunks } from "@/lib/agent/sse-stream";
 import { recordAIHealthFailure, recordAIHealthSuccess } from "@/lib/ai/health";
 import { recordVendorQuota, recordRefusal } from "@/lib/ai/record-quota";
+import { spokenText, type WhisperVerbose } from "@/lib/voice/whisper-silence";
 import { retryAfterSeconds as groqRetryAfterSeconds } from "@bitbaum/ai-kit";
 
 /**
@@ -370,6 +371,9 @@ export async function callGroqTranscribe(
   const ext = mimeType.split("/")[1]?.split(";")[0] ?? "webm";
   form.append("file", audio, `audio.${ext}`);
   form.append("model", GROQ_WHISPER_MODEL);
+  // Verbose: per-segment no-speech estimates, so silence Whisper put words to
+  // ("Thank you.") is dropped instead of sent as the person's turn.
+  form.append("response_format", "verbose_json");
 
   const res = await fetch(GROQ_AUDIO_URL, {
     method: "POST",
@@ -396,6 +400,5 @@ export async function callGroqTranscribe(
     const body = await res.text().catch(() => "");
     throw new Error(`groq transcribe ${res.status}: ${body.slice(0, 200)}`);
   }
-  const data = (await res.json()) as { text?: string };
-  return (data.text ?? "").trim();
+  return spokenText((await res.json()) as WhisperVerbose);
 }

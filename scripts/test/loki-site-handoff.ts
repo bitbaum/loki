@@ -6,6 +6,7 @@
  */
 import assert from "node:assert/strict";
 import {
+  handoffAsk,
   handoffAttachment,
   handoffSummary,
   handoffTurns,
@@ -35,6 +36,16 @@ assert.equal(h.turns, 3);
 assert.equal(h.lastAsk, "Why is this a problem, and how would you fix it?");
 assert.equal(handoffSummary(h), "loki.orangecat.ch · 3 messages");
 assert.equal(handoffAttachment(h).content, block, "the model reads the whole thing");
+// The empty-box send names the site and the question: it is the thread's title.
+assert.equal(
+  handoffAsk(h),
+  "On loki.orangecat.ch: Why is this a problem, and how would you fix it?",
+);
+assert.equal(
+  handoffAsk({ ...h, lastAsk: null }),
+  "Pick up where we left off on loki.orangecat.ch.",
+);
+assert.ok(handoffAsk({ ...h, lastAsk: "x".repeat(400) }).length < 150, "a long ask is clipped");
 
 const turns = handoffTurns(h);
 assert.deepEqual(

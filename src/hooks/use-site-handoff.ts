@@ -1,8 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { handoffAttachment, parseSiteHandoff, type SiteHandoff } from "@/lib/loki/site-handoff";
+import {
+  handoffAsk,
+  handoffAttachment,
+  parseSiteHandoff,
+  type SiteHandoff,
+} from "@/lib/loki/site-handoff";
 import type { TextAttachment } from "@/lib/loki/attachments";
+
+export type SiteContext = { attachment: TextAttachment; ask: string };
 
 /**
  * A conversation carried in from the owner's site (?q= from the widget's
@@ -15,7 +22,9 @@ export function useSiteHandoff(prefill: string | null): {
   handoff: SiteHandoff | null;
   /** True when ?q= was a hand-off at all (the composer then starts empty). */
   arrived: boolean;
-  attachment: TextAttachment | null;
+  /** What goes with the first message: the block, and the ask to send when
+   *  nothing is typed. */
+  context: SiteContext | null;
   spend: () => void;
 } {
   const parsed = useMemo(() => parseSiteHandoff(prefill), [prefill]);
@@ -24,7 +33,7 @@ export function useSiteHandoff(prefill: string | null): {
   return {
     handoff,
     arrived: parsed !== null,
-    attachment: handoff ? handoffAttachment(handoff) : null,
+    context: handoff ? { attachment: handoffAttachment(handoff), ask: handoffAsk(handoff) } : null,
     spend: () => handoff && setSpent(handoff.text),
   };
 }

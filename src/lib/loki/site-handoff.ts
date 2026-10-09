@@ -41,8 +41,32 @@ export function parseSiteHandoff(q: string | null | undefined): SiteHandoff | nu
   return { source: head[1].trim(), url: head[2], turns, lastAsk, text };
 }
 
-/** What a send with nothing typed says — the person came here to go on. */
-export const HANDOFF_DEFAULT_ASK = "Pick up this conversation from my site and take it from here.";
+/**
+ * What a send with nothing typed says — the person came here to go on.
+ *
+ * It names the site and the last thing they asked there, because this line
+ * becomes the thread's title and its first bubble. The generic "Pick up this
+ * conversation from my site…" it replaced titled every hand-off the same,
+ * truncated, and read to the classifier as a work order: it was queued for a
+ * builder that was offline instead of being answered (operator, 2026-10-09).
+ * The caller sends it as chat, never as a dispatch.
+ */
+export function handoffAsk(h: SiteHandoff): string {
+  const host = handoffHost(h);
+  const last = h.lastAsk?.replace(/\s+/g, " ").trim();
+  if (!last) return `Pick up where we left off on ${host}.`;
+  const clipped = last.length > 120 ? `${last.slice(0, 119).trimEnd()}…` : last;
+  return `On ${host}: ${clipped}`;
+}
+
+function handoffHost(h: SiteHandoff): string {
+  if (!h.url) return h.source;
+  try {
+    return new URL(h.url).host;
+  } catch {
+    return h.source;
+  }
+}
 
 export type HandoffTurn = { who: "you" | "loki" | "noticed" | "sent"; text: string };
 
@@ -76,13 +100,5 @@ export function handoffAttachment(h: SiteHandoff): TextAttachment {
 
 /** "kestrel.example · 3 messages" */
 export function handoffSummary(h: SiteHandoff): string {
-  let host = h.source;
-  if (h.url) {
-    try {
-      host = new URL(h.url).host;
-    } catch {
-      /* keep the title */
-    }
-  }
-  return `${host} · ${h.turns} ${h.turns === 1 ? "message" : "messages"}`;
+  return `${handoffHost(h)} · ${h.turns} ${h.turns === 1 ? "message" : "messages"}`;
 }
