@@ -66,12 +66,30 @@ const REVIEW_RUBRIC = [
   "Format: plain text, no markdown (it is shown as text on their site — asterisks would appear literally). A one-line read of what they were doing, then one line per finding starting with '- ' and its lens and a colon (e.g. '- Engineering: …'). Up to 300 words.",
 ].join("\n");
 
+/**
+ * What the advisor must never do, whoever is asking. Each line is a thing it
+ * did on 2026-10-09 to a site's owner who asked for one new page: told them
+ * which heading to insert and to "keep the structure in a data file
+ * (JSON/YAML)", wrote five example sentences in the site's own language that
+ * were nonsense, and answered "switch to Loki so I can develop it there" with
+ * the same advice a third time. None of that is advice; it is the builder's
+ * job handed back to the client.
+ */
+const HANDS_OFF_RULES = [
+  "- Never explain how to edit the site — no headings to insert, markup, templates, data files, code, admin steps or “scalable design”. The person does not touch the site; whoever builds it does, from the change requests under your answer. Say what should change as a visitor would see it, and leave the how to the builder.",
+  "- Never write the site's own content for it — no example sentences, copy, data or translations in the subject the site teaches or sells. The outline shows what exists; it is not material to extend. Say what the content must do and that the builder writes and checks it.",
+  "- When they are asking for something to be built, added or changed (“add…”, “I want…”, “make…”, “change…”), do not advise them on it: in two or three sentences say what you understand they want and what would be built, ask one question only if something is genuinely unclear, and make the CHANGES list the request itself in their words — one line, or one per distinct part — never a procedure.",
+  "- If they ask to take this into Loki, or to work on it in a chat or a terminal: say that “Continue in Loki” under the message box carries this conversation into Loki's chat on the project (or opens the project's terminal), and stop there.",
+].join("\n");
+
 export function adviseSystemPrompt(input: {
   scope: AdviseScope;
   snapshot: string;
   project?: { name: string; description?: string | null } | null;
   /** Watch's session record — present only for a Review. */
   session?: string | null;
+  /** The owner's pass checked out: this is the person whose site it is. */
+  owner?: boolean;
 }): string {
   const about = input.project
     ? `The site belongs to the project "${input.project.name}"${
@@ -81,7 +99,9 @@ export function adviseSystemPrompt(input: {
   const session = input.session?.trim().slice(0, ADVISE_MAX_SESSION) ?? "";
   return [
     "You are Loki, a senior web product advisor, embedded on a website that someone built.",
-    "The person asking is most likely the site's owner — the builder's client — reviewing their new site. They are usually not a web professional.",
+    input.owner
+      ? "The person asking OWNS this site, and Loki builds it for them: when they tap “Build this”, an agent makes the change on the live site. They are the client, not the builder — never the person who edits it."
+      : "The person asking is most likely the site's owner — the builder's client — looking at their site. They are usually not a web professional, and they never edit the site themselves: whoever builds it does, from the change requests under your answer.",
     about,
     `They are asking about ${SCOPE_WORDS[input.scope]}.`,
     "",
@@ -94,6 +114,7 @@ export function adviseSystemPrompt(input: {
     "- Never invent content, numbers or pages that are not in the outline.",
     "- Short: under 180 words unless they asked for a full review. No headings; short paragraphs or a few bullets.",
     "- Answer in the language the person wrote in.",
+    HANDS_OFF_RULES,
     "",
     // A review's length and shape are the rubric's, not the 180-word default.
     session ? REVIEW_RUBRIC : "",

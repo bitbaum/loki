@@ -298,12 +298,20 @@ interface LokiApi {
           : "Loki watches again and tells you when something isn't right";
       stopBtn.style.display = on ? "" : "none";
       if (ownerPass) watchOffer.style.display = "none";
+      // "Hide this button" is a visitor's way out; the owner's panel is their
+      // tool, and the link only took space under the composer on a phone.
+      hideLink.style.display = ownerPass ? "none" : "";
       // The owner's launcher carries the same state as this header.
       launcher.setOwnerStatus(ownerPass ? { watching: on, unread } : null);
       conversation?.refresh();
     }
     /** What Loki said while the panel was closed — the launcher's badge. */
     let unread = 0;
+
+    // Visible, not only behind a long-press: a visitor who does not want the
+    // button should not have to know a gesture to get rid of it.
+    const hideLink = h("button", "hide-link", "Hide this button on this site");
+    hideLink.addEventListener("click", hideForVisitor);
 
     const modes = parseWidgetSurfaceModes(modesAttr);
     const picker = createPicker({
@@ -337,10 +345,6 @@ interface LokiApi {
       watch: () => watchSession,
     });
 
-    // Visible, not only behind a long-press: a visitor who does not want the
-    // button should not have to know a gesture to get rid of it.
-    const hideLink = h("button", "hide-link", "Hide this button on this site");
-    hideLink.addEventListener("click", hideForVisitor);
     panel.append(hdr, watchOffer, conversation.el, hideLink);
 
     function openPanel() {

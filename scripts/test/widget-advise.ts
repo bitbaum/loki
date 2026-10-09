@@ -70,6 +70,26 @@ import { REVIEW_SESSION_MAX } from "../../widget/watch-trail";
   assert.match(sys, /not a screenshot/);
   assert.match(sys, /CHANGES: none/);
   assert.match(sys, /language the person wrote in/);
+  // 2026-10-09: an owner asked for one new page and was told which heading to
+  // insert, to keep "a data file (JSON/YAML)", given five invented sentences in
+  // the site's own language, and answered "switch to Loki" with the same advice.
+  assert.match(
+    sys,
+    /Never explain how to edit the site/,
+    "the client never gets the builder's job back",
+  );
+  assert.match(sys, /Never write the site's own content/, "no invented example sentences");
+  assert.match(
+    sys,
+    /make the CHANGES list the request itself/,
+    "a build request becomes one tap, not a procedure",
+  );
+  assert.match(sys, /“Continue in Loki” under the message box/, "the way into Loki is named");
+  assert.match(sys, /they never edit the site themselves/, "a visitor's framing says who edits");
+  assert.ok(!/OWNS this site/.test(sys), "no pass, no owner framing");
+  const mine = adviseSystemPrompt({ scope: "page", snapshot: "x", owner: true });
+  assert.match(mine, /OWNS this site/, "with the pass, the advisor knows whose site it is");
+  assert.match(mine, /an agent makes the change on the live site/, "and what Build this does");
   const huge = adviseSystemPrompt({ scope: "site", snapshot: "z".repeat(50_000), project: null });
   assert.ok(huge.length < ADVISE_MAX_SNAPSHOT + 4000, "the snapshot is capped inside the prompt");
 }

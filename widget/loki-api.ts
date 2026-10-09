@@ -60,6 +60,8 @@ export async function askAdvisor(opts: {
   history: Turn[];
   /** Watch's session — present for a Review. */
   session?: string;
+  /** The owner's pass, so Loki answers the person whose site it is as such. */
+  ownerPass?: string;
 }): Promise<Answer> {
   const snapshot = (await takeSnapshot(opts.scope, opts.selected)).slice(0, SNAPSHOT_MAX_CHARS);
   const body = await post(`${opts.apiBase}/api/widget/advise`, {
@@ -68,6 +70,7 @@ export async function askAdvisor(opts: {
     scope: opts.scope,
     snapshot,
     session: opts.session ? opts.session.slice(0, REVIEW_SESSION_MAX) : undefined,
+    ownerPass: opts.ownerPass,
     history: opts.history
       .slice(-ADVISE_MAX_HISTORY)
       .map((t) => ({ ...t, content: t.content.slice(0, 3000) })),

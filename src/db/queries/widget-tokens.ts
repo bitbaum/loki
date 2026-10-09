@@ -65,6 +65,32 @@ export async function getWidgetProjectBrief(
 }
 
 /**
+ * The key Loki's own surfaces address this widget's project by — the
+ * registered project's name (`/loki?project=`, `/terminal?project=`, an
+ * inject's `tab`), falling back to the entity's name when the owner has not
+ * registered a worker project. The same join `getFeedbackWithProject` makes.
+ */
+export async function getWidgetProjectKey(
+  projectId: string,
+  ownerUserId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ entityName: entities.name, projectName: userProjects.name })
+    .from(entities)
+    .leftJoin(
+      userProjects,
+      and(
+        eq(userProjects.entityProjectId, entities.id),
+        eq(userProjects.userId, ownerUserId),
+        eq(userProjects.isActive, true),
+      ),
+    )
+    .where(eq(entities.id, projectId))
+    .limit(1);
+  return row?.projectName ?? row?.entityName ?? null;
+}
+
+/**
  * Record a widget boot heartbeat — this is what makes the UI's "Live ✓"
  * observed truth. Throttled to one write per token per minute so a busy
  * customer page doesn't turn every view into an UPDATE.

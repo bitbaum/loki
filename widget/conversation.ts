@@ -26,6 +26,8 @@ import { buildSuggestion, formatDiagnostics, type ReportDiagnostics } from "./re
 import { sendReport } from "./send-report";
 import { askAdvisor, askConcierge, REVIEW_QUESTION, type Answer } from "./loki-api";
 import { historyFor, pushItem, restoreThread, type Assistant, type ThreadItem } from "./thread";
+import { ownerSignInUrl } from "./owner-pass";
+import { continueUrl, handoffText } from "./continue";
 
 /** The ingest's cap on `suggestion` (api/feedback FeedbackBody). */
 export const MAX_LEN = 2000;
@@ -206,7 +208,47 @@ export function createConversation(opts: {
   actions.append(tools, feedbackBtn, sendBtn);
   const form = h("div", "composer");
   form.append(input, actions);
-  el.append(log, starters, ctx, shots, form, err);
+
+  // ---- the way out of the card and into Loki itself ----
+  //
+  // The panel is for saying what you want; developing it — with the project,
+  // its files and a run to watch — is Loki's chat or terminal. The owner asked
+  // for exactly this ("switch to Loki so I can develop it there with either
+  // chat or terminal") and the widget had no answer. Now the thread travels
+  // with them. Someone without a pass gets one link, because the same trip
+  // signs them in and finds out whether the site is theirs.
+  const cont = h("div", "continue");
+  const contLabel = h("span", "continue-label", "Continue in Loki");
+  const contChat = h("a", "continue-link", "Chat →");
+  const contTerm = h("a", "continue-link", "Terminal →");
+  const contMine = h("a", "continue-link", "This is my site — continue in Loki →");
+  for (const a of [contChat, contTerm, contMine]) {
+    a.target = "_blank";
+    a.rel = "noopener";
+  }
+  contChat.title = "Loki's chat on this project, with this conversation in the message box";
+  contTerm.title = "The project's terminal in Loki";
+  contMine.title = "Sign in with Loki; this conversation goes with you";
+  cont.append(contLabel, contChat, contTerm, contMine);
+  /** Re-aim the links at the thread as it is now (called from syncContext). */
+  const refreshContinue = () => {
+    const text = handoffText(thread, { title: document.title, url: location.href });
+    for (const [a, view] of [
+      [contChat, "chat"],
+      [contTerm, "terminal"],
+      [contMine, "chat"],
+    ] as const) {
+      a.href = continueUrl({
+        apiBase: opts.apiBase,
+        token: opts.token,
+        view,
+        text,
+        here: location.href,
+      });
+    }
+  };
+
+  el.append(log, starters, ctx, shots, form, cont, err);
 
   el.addEventListener("paste", (e: ClipboardEvent) => {
     const images = Array.from(e.clipboardData?.items ?? []).filter((i) =>
@@ -247,6 +289,16 @@ export function createConversation(opts: {
     feedbackBtn.className = a === "none" ? "go feedback" : "ghost feedback";
     sendBtn.textContent = "Ask Loki";
     sendBtn.style.display = a === "none" ? "none" : "";
+    // The owner always has both doors. A visitor sees the one link once they
+    // have said something worth taking along — on an empty thread it would
+    // only be a second sign-in button.
+    const said = thread.some((i) => i.kind === "you");
+    refreshContinue();
+    contLabel.style.display = owner() ? "" : "none";
+    contChat.style.display = owner() ? "" : "none";
+    contTerm.style.display = owner() ? "" : "none";
+    contMine.style.display = !owner() && said ? "" : "none";
+    cont.style.display = owner() || said ? "" : "none";
   }
 
   function scope(): "element" | "page" | "site" {
@@ -307,6 +359,17 @@ export function createConversation(opts: {
               : "Hi, I'm Loki. Ask me anything about this site, or tell me what should change — it goes straight to whoever builds it.",
         ),
       );
+      // The owner's door, on the first screen. It used to live only behind
+      // "Watch" in the header — a feature about watching, which is not where
+      // somebody who wants their site changed goes looking. Found by the
+      // owner on 2026-10-09 only after three answers written for a stranger.
+      if (!owner()) {
+        const mine = h("a", "act mine", "This is my site — sign in with Loki →");
+        mine.href = ownerSignInUrl(opts.apiBase, opts.token, location.href);
+        mine.rel = "noopener";
+        mine.title = "Then what you say here is built, and this conversation can continue in Loki";
+        log.appendChild(mine);
+      }
     }
     const lastYou = thread.map((i) => i.kind).lastIndexOf("you");
     thread.forEach((item, idx) => {
@@ -453,6 +516,7 @@ export function createConversation(opts: {
               selected: opts.picker.selected(),
               history,
               session,
+              ownerPass: opts.ownerPass() ?? undefined,
             });
       answer.messages.forEach((m, i) =>
         remember({
@@ -475,6 +539,7 @@ export function createConversation(opts: {
       err.textContent = e instanceof Error ? e.message : "Could not reach Loki — try again.";
     } finally {
       busy = false;
+      syncContext();
       render(true);
       sendBtn.disabled = !input.value.trim();
     }
