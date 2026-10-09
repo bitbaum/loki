@@ -201,6 +201,24 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .act:hover { color: ${theme.text}; }
 /* the owner's door under the greeting: a link, aligned with Loki's bubble */
 .act.mine { align-self: flex-start; margin-top: 0; color: ${theme.text}; font-weight: 500; }
+/* Your changes: the owner's requests and where each one is, above the thread */
+.yours { display: flex; flex-direction: column; gap: 6px; margin: -4px 0 12px; padding: 10px 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; }
+.yours-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.yours-all { font-size: 11px; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.yours-all:hover { color: ${theme.text}; }
+.yours-list { display: flex; flex-direction: column; gap: 6px; }
+.yours-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 8px; font-size: 12px; line-height: 1.4; }
+.yours-dot { width: 8px; height: 8px; border-radius: 50%; background: ${theme.textMuted}; }
+.yours-row.tone-accent .yours-dot { background: ${theme.accent}; }
+.yours-row.tone-positive .yours-dot { background: ${theme.success}; }
+.yours-row.tone-warning .yours-dot { background: ${theme.error}; }
+.yours-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: ${theme.text}; }
+.yours-status { font-family: ${mono}; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: ${theme.textTertiary}; white-space: nowrap; }
+.yours-row.tone-positive .yours-status { color: ${theme.success}; }
+.yours-row.tone-warning .yours-status { color: ${theme.error}; }
+.yours-go { grid-column: 2 / -1; justify-self: start; font-size: 12px; font-weight: 600; color: ${theme.text}; text-decoration: underline; text-underline-offset: 2px; }
+.yours-go:hover { color: ${theme.accent}; }
+@media (pointer: coarse) { .yours-go, .yours-all { padding: 6px 0; } }
 /* Continue in Loki: one quiet row under the composer, wrapping on a phone */
 .continue { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 12px; }
 .continue-label { font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }

@@ -129,20 +129,24 @@ assert.match(route, /getWidgetProjectKey\(/, "the token becomes a project here, 
 assert.match(route, /continueHref\(key, view, text\)/);
 
 // ---- the widget side ----
-const convo = readFileSync("widget/conversation.ts", "utf8");
-assert.match(convo, /"Continue in Loki"/, "the row exists");
-assert.match(convo, /"Chat →"/);
-assert.match(convo, /"Terminal →"/);
+const row = readFileSync("widget/continue-row.ts", "utf8");
+assert.match(row, /"Continue in Loki"/, "the row exists");
+assert.match(row, /"Chat →"/);
+assert.match(row, /"Terminal →"/);
 assert.match(
-  convo,
+  row,
   /This is my site — continue in Loki →/,
   "a visitor has one door, which signs them in",
 );
+const greeting = readFileSync("widget/greeting.ts", "utf8");
 assert.match(
-  convo,
+  greeting,
   /This is my site — sign in with Loki →/,
-  "the owner's door is under the greeting, not only behind Watch",
+  "the owner's door is under the greeting",
 );
+const convo = readFileSync("widget/conversation.ts", "utf8");
+assert.match(convo, /createContinueRow\(/, "and the conversation renders the row");
+assert.match(convo, /ownerDoor\(/, "and the door");
 assert.match(
   convo,
   /ownerPass: opts\.ownerPass\(\) \?\? undefined/,

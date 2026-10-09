@@ -147,8 +147,11 @@ export async function POST(req: NextRequest) {
     // a visitor here also made the widget drop a perfectly good pass.
     if (fromOwner) {
       const build = await startOwnerBuild(token.userId, token.projectId, bumped);
+      // The same link the first filing got: a receipt without one was the
+      // one place "On it" dead-ended.
+      const followUrl = `${appUrl()}${watchFixPath(bumped)}`;
       return NextResponse.json(
-        { ok: true, owner: true, duplicateOf: bumped, ...build },
+        { ok: true, owner: true, duplicateOf: bumped, ...build, followUrl },
         { headers: CORS_HEADERS },
       );
     }
