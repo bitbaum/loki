@@ -13,6 +13,7 @@ import {
   withSide,
   type Placement,
   type Slot,
+  nearBandTop,
 } from "./placement";
 import { createHostScanner, readPlaceDirective } from "./host-scan";
 
@@ -278,10 +279,14 @@ export function createLauncher(opts: {
       // launcher may climb that edge, never jump across the page.
       lockSide: directive !== null || opts.getVisitorOverride() !== null,
     });
-    const pick = chooseSlot(slots, (slot) => {
-      place(slot);
-      return scanner.verdict(fab.getBoundingClientRect());
-    });
+    const pick = chooseSlot(
+      slots,
+      (slot) => {
+        place(slot);
+        return scanner.verdict(fab.getBoundingClientRect());
+      },
+      nearBandTop(base, { edgeLength: window.innerHeight, size: size.height }),
+    );
     if (!pick) {
       // Every slot would sit on a host control. Hidden until the page changes;
       // the next reposition re-measures.

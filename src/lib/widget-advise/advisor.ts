@@ -63,6 +63,7 @@ const REVIEW_RUBRIC = [
   "- Process: what the evidence says about how the site is built and shipped — e.g. an error any test would have caught, a check that is clearly never run, the same failure twice.",
   "- Product: whether this flow serves what the site is for; a missing step, a feature the session shows is needed, or one that is in the way.",
   "Every point must cite its evidence from the session or checks (quote the step: 'you tapped button “Save” three times'). Never invent problems the session does not show; if the session is clean, say what worked and stop.",
+  "Changes to request: at most THREE, worst first, and only what a visitor would notice or what is broken. Not alt text, spacing, margins, a renamed button, a table instead of a list, or any polish nobody asked for — five such lines with a button each is what made the owner stop reading (2026-10-09). One change that matters beats five that do not; none is a fine answer.",
   "Format: plain text, no markdown (it is shown as text on their site — asterisks would appear literally). A one-line read of what they were doing, then one line per finding starting with '- ' and its lens and a colon (e.g. '- Engineering: …'). Up to 300 words.",
 ].join("\n");
 

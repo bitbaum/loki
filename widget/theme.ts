@@ -261,6 +261,8 @@ ${spiralCSS(theme)}
 .yours-status { font-family: ${mono}; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: ${theme.textTertiary}; white-space: nowrap; }
 .yours-row.tone-positive .yours-status { color: ${theme.success}; }
 .yours-row.tone-warning .yours-status { color: ${theme.error}; }
+.yours-visitors { font-size: 11px; color: ${theme.textTertiary}; text-decoration: underline; text-underline-offset: 2px; }
+.yours-visitors:hover { color: ${theme.text}; }
 .yours-go { grid-column: 2 / -1; justify-self: start; font-size: 12px; font-weight: 600; color: ${theme.accent}; }
 .yours-go:hover { color: ${theme.accent}; }
 @media (pointer: coarse) { .yours-go, .yours-all { padding: 6px 0; } }
@@ -410,9 +412,11 @@ input { margin-bottom: 10px; }
 .change-send:hover { color: ${theme.accentHover}; text-decoration: underline; text-underline-offset: 3px; }
 @media (pointer: coarse) { .change-send { padding: 8px 0 8px 8px; } }
 /* ---- hiding: offered in the panel, and always says how to undo it ---- */
+.made-with { display: block; margin: 14px auto 0; font-size: 11px; text-align: center; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; }
+.made-with:hover { color: ${theme.text}; }
 .hide-link { display: block; margin: 10px auto 0; font-size: 11px; color: ${theme.textMuted}; text-decoration: underline; text-underline-offset: 2px; }
 .hide-link:hover { color: ${theme.textSecondary}; }
-@media (pointer: coarse) { .hide-link { padding: 12px 8px; } }
+@media (pointer: coarse) { .hide-link, .made-with { padding: 12px 8px; } }
 .toast {
   position: fixed; z-index: 2147483003; right: 16px; bottom: 16px; max-width: min(360px, calc(100vw - 32px));
   display: flex; align-items: center; gap: 12px; padding: 10px 12px;

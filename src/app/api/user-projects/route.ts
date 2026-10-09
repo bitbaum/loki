@@ -18,6 +18,10 @@ const CreateBody = z.object({
   gitUrl: z.preprocess(emptyToUndefined, z.string().trim().url().optional()),
   description: z.preprocess(emptyToUndefined, z.string().trim().max(500).optional()),
   stack: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
+  /** Where the project already lives on the web. Set at creation so the
+   *  widget token minted next inherits its origin (an origin-less token runs
+   *  anywhere) and "Open your site" has somewhere to open. */
+  liveUrl: z.preprocess(emptyToUndefined, z.string().trim().url().max(1000).optional()),
 });
 
 export async function GET() {

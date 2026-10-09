@@ -208,8 +208,18 @@ export function runPageChecks(doc: Document = document): string[] {
       (n) => n.nodeType === 3 && clean(n.textContent).length > 2,
     );
     if (!own || !shown(el)) continue;
-    const px = parseFloat(getComputedStyle(el).fontSize);
-    if (px && px < MIN_TEXT_PX) {
+    const style = getComputedStyle(el);
+    const px = parseFloat(style.fontSize);
+    // A small-caps label — uppercase, letter-spaced — is a design choice that
+    // every product in the fleet makes on purpose (Loki's own eyebrows are
+    // 10px). Flagging "AI-NATIVE PRODUCT STUDIO · ZÜRICH at 11.84px" on
+    // bitbaum (2026-10-09) told the owner their style was a defect. And a
+    // rem that rounds to 11.84 is 12 to a reader: half a pixel of tolerance.
+    const label =
+      style.textTransform === "uppercase" ||
+      (parseFloat(style.letterSpacing) || 0) > 0 ||
+      ((el.textContent ?? "").trim().length <= 24 && /^[^a-z]*$/.test(el.textContent ?? ""));
+    if (px && px < MIN_TEXT_PX - 0.5 && !label) {
       tiny++;
       if (!tinyExample) tinyExample = `${quote(el.textContent ?? "")} at ${px}px`;
     }

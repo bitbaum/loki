@@ -20,6 +20,7 @@ import { Rocket } from "lucide-react";
 import type { BuildStatus } from "@/lib/project-build-status";
 import { projectStateSentence } from "@/lib/project-state-sentence";
 import { MakeItHappenButton } from "./ProjectActionButtons";
+import { GetHelpLine } from "./GetHelpLine";
 
 export function ProjectBuildStatus({
   status,
@@ -118,6 +119,9 @@ export function ProjectBuildStatus({
             </>
           )}
         </p>
+        {/* Stalled on the owner: the two other ways to get it built, right
+            where "Waiting on you" says so. Never on a build that is moving. */}
+        {status.kind === "stalled" && <GetHelpLine brief={{ website: liveUrl }} className="mt-2" />}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </section>
