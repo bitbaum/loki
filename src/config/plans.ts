@@ -123,4 +123,5 @@ export const PRICING_INCLUDED: string[] = [
   "Agents run on your own computer with the Fleet Runner app, or on Loki's cloud builder where your account has it",
   "Give a project a definition of done, and a run is checked against it before it counts as done",
   "Memory across projects, autopilot, and the prompt library",
+  "Loki's own chat on a key from any model provider you choose — your provider bills you, Loki never does",
 ];

@@ -4,6 +4,7 @@ import { PageLayout } from "@/components/ui/page-layout";
 import { SystemStats } from "@/components/system/SystemStats";
 import { HetznerCapacityCard } from "@/components/system/HetznerCapacityCard";
 import { RevenueCard } from "@/components/system/RevenueCard";
+import { PlansCard } from "@/components/system/PlansCard";
 import { ScheduledJobsCard } from "@/components/system/ScheduledJobsCard";
 import { MemorySummaryCard } from "@/components/system/MemorySummaryCard";
 import { RecentFailuresCard } from "@/components/system/RecentFailuresCard";
@@ -89,13 +90,18 @@ export default async function SystemPage() {
             <ChevronDown className="ui-disclosure-chevron" aria-hidden="true" />
             <span className="ui-section-label">Records &amp; ideas</span>
             <span className="text-micro text-text-muted">
-              {isFounder ? "revenue · " : ""}memory · control log · proposals
+              {isFounder ? "revenue · plans · " : ""}memory · control log · proposals
             </span>
           </summary>
           <div className="ui-disclosure-body space-y-4">
             {isFounder && (
               <Suspense fallback={<CardSkeleton />}>
                 <RevenueCard />
+              </Suspense>
+            )}
+            {isFounder && (
+              <Suspense fallback={<CardSkeleton />}>
+                <PlansCard />
               </Suspense>
             )}
             <Suspense fallback={<CardSkeleton />}>

@@ -13,7 +13,7 @@ import { OwnModelSettings } from "./OwnModelSettings";
 import { ProviderOrderSettings } from "./ProviderOrderSettings";
 import { AgentTokenSettings } from "./AgentTokenSettings";
 import { BeaconSettings } from "./BeaconSettings";
-import { BillingSettings } from "./BillingSettings";
+import { BillingSettings, type BillingView } from "./BillingSettings";
 import { ProjectsSettings } from "./ProjectsSettings";
 import { TeamSettings } from "./TeamSettings";
 import { NotificationSettings } from "./NotificationSettings";
@@ -30,8 +30,9 @@ type Props = {
     email: string | null;
     hasPassword: boolean;
     plan: Plan;
-    planStatus: string | null;
   };
+  /** Plan, expiry, the pass ledger and the Bitcoin checkout links — server-derived. */
+  billing: BillingView;
   userPrefs: UserPreferencesData;
   projects: UserProject[];
   teamProjects: UserProject[];
@@ -101,6 +102,7 @@ function serverTab(): TabId {
 
 export function SettingsTabs({
   user,
+  billing,
   userPrefs,
   projects,
   teamProjects,
@@ -215,7 +217,7 @@ export function SettingsTabs({
         {activeTab === "team" && <TeamSettings invitations={invitations} />}
         {activeTab === "billing" && (
           <Suspense>
-            <BillingSettings plan={user.plan} planStatus={user.planStatus} />
+            <BillingSettings {...billing} />
           </Suspense>
         )}
       </div>

@@ -41,6 +41,8 @@ Runners on several boxes claim from the one queue; each site knows which box ser
 ### Bring your own key, metered by default
 The builder pays their model vendor directly and pays Loki for the platform; every run records the tokens it spent, per tenant, from day one.
 - [x] Loki's own chat runs on your key when you paste one in Settings
+- [x] Several providers per account, in your own order; the composer's picker shows your models first and links to adding a key
+- [x] Passes paid in Bitcoin: the Billing tab shows the pass, its end date, the Buy button and the ledger; the operator grants, extends and revokes from System → Plans
 - [ ] Tokens per run per tenant recorded and shown on the run
 - [ ] BYOK as the default execution path for new accounts
 - [ ] A metered pool (wholesale tokens sold inside a plan) once the numbers say so

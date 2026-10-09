@@ -39,6 +39,27 @@ async function main() {
     const { chain, env } = byokChain(config);
     assert.equal(chain[0]!.provider.keyEnv, OWN_MODEL_KEY_ENV);
     assert.equal((env as Record<string, string>)[OWN_MODEL_KEY_ENV], USER_KEY);
+    // …and Loki re-keys each user link under a per-vendor name built on it, so
+    // two vendors' keys never share a slot.
+    const own = ownModelFrom(config);
+    assert.ok(own.chain[0]!.provider.keyEnv.startsWith(OWN_MODEL_KEY_ENV));
+    assert.equal(own.env[own.chain[0]!.provider.keyEnv], USER_KEY);
+  });
+
+  await check("several vendors become one chain in the user's order, each with its own key", () => {
+    const groq = { vendor: "groq" as const, apiKey: "gsk-test-groq-key-5678", model: "llama-x" };
+    const own = ownModelFrom([config, groq]);
+    assert.equal(own.chain.length, 2);
+    assert.equal(own.chain[0]!.model, config.model);
+    assert.equal(own.chain[1]!.model, groq.model);
+    assert.equal(keyForLink(own.chain[0]!, own), USER_KEY);
+    assert.equal(keyForLink(own.chain[1]!, own), groq.apiKey);
+    assert.notEqual(own.chain[0]!.provider.keyEnv, own.chain[1]!.provider.keyEnv);
+    assert.match(own.label, /\(\+1 more\)$/);
+    // The picker's choice moves that link to the front.
+    const started = ownModelFrom([config, groq], "llama-x");
+    assert.equal(started.chain[0]!.model, "llama-x");
+    assert.equal(started.vendor, "Groq");
   });
 
   await check("a user's link never falls back to a key the server happens to hold", () => {

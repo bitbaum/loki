@@ -18,13 +18,17 @@ export type LokiModelOption = {
   /** False = listed but not selectable, with `reason` saying why. */
   usable: boolean;
   reason?: string;
+  /** True for a model on the user's own key (Settings → AI). */
+  own?: boolean;
 };
 
 export type LokiModelsResponse = {
-  /** Vendors that answered as reachable, in chain order. */
+  /** The user's own models first, then the server's chain, in order. */
   options: LokiModelOption[];
   /** The model the chain would start at on "Auto", for the Auto row's subtitle. */
   autoStartsAt: string | null;
+  /** Where to add a key for a vendor this server has none for. */
+  addKeyHref: string;
 };
 
 /**

@@ -41,10 +41,10 @@ import {
 import { NO_BASIS } from "@bitbaum/ai-kit/grounding";
 import { rateLimitMessage } from "@/lib/agent/groq-error";
 import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
-import { getOwnModel } from "@/db/queries/user-model-keys";
+import { getOwnModels } from "@/db/queries/user-model-keys";
 import {
   ownModelFrom,
-  OWN_MODEL_KEY_ENV,
+  ownModelSecrets,
   OWN_MODEL_SETTINGS_PATH,
   type OwnModel,
 } from "@/lib/own-model";
@@ -251,7 +251,7 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
   // an option a route could set would be a way to claim it.
   const operator = await isOperatorTurn(opts?.userId);
 
-  const own = opts?.userId ? await loadOwnModel(opts.userId) : null;
+  const own = opts?.userId ? await loadOwnModel(opts.userId, opts?.model) : null;
   if (own && opts?.userId) {
     return askLokiOnOwnModel(message, { ...opts, userId: opts.userId }, own, startedAt, operator);
   }
@@ -349,10 +349,10 @@ async function isOperatorTurn(userId: string | undefined): Promise<boolean> {
   return isSiteOperator(userId).catch(() => false);
 }
 
-async function loadOwnModel(userId: string): Promise<OwnModel | null> {
+async function loadOwnModel(userId: string, startAt?: string): Promise<OwnModel | null> {
   try {
-    const config = await getOwnModel(userId);
-    return config ? ownModelFrom(config) : null;
+    const configs = await getOwnModels(userId);
+    return configs.length > 0 ? ownModelFrom(configs, startAt) : null;
   } catch (e) {
     // A read failure means "use the free chain as before", never "no answer".
     console.error("[loki] own model unavailable:", e instanceof Error ? e.message : e);
@@ -416,10 +416,12 @@ async function askLokiOnOwnModel(
     };
   } catch (e) {
     // Vendors usually mask a key they echo; the ones that don't must not have
-    // it shown, logged or sent back.
-    const key = own.env[OWN_MODEL_KEY_ENV] ?? "";
+    // it shown, logged or sent back — for every key in the chain.
     const raw = e instanceof Error ? e.message : String(e);
-    const detail = key ? raw.split(key).join(`…${key.slice(-4)}`) : raw;
+    const detail = ownModelSecrets(own).reduce(
+      (text, key) => text.split(key).join(`…${key.slice(-4)}`),
+      raw,
+    );
     console.error(`[loki] own model (${own.label}) failed:`, detail);
     return {
       status: 502,
