@@ -748,6 +748,43 @@ function runTests(): void {
     );
   });
 
+  check("fleet pulse: a queue waiting for a shut laptop names the way out", () => {
+    const pulse = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 0,
+      latestRuns: runs(["success"]),
+      executionStall: {
+        stalled: true,
+        stalledCount: 1,
+        oldestSeconds: 106 * 60,
+        tabs: ["loki"],
+        localQueued: 1,
+      },
+      cloudOnline: true,
+    });
+    assert(pulse.key === "stalled", "still the stalled state (the hero's button keys off it)");
+    assert(pulse.label === "Waiting for this computer", `label: ${pulse.label}`);
+    assert(
+      !!pulse.detail && /cloud builder is online and can take it/.test(pulse.detail),
+      "says the cloud can take it, not 'restart the desktop app'",
+    );
+    // Cloud offline too: the old diagnosis stands.
+    const noWayOut = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 0,
+      latestRuns: runs(["success"]),
+      executionStall: {
+        stalled: true,
+        stalledCount: 1,
+        oldestSeconds: 600,
+        tabs: ["loki"],
+        localQueued: 1,
+      },
+      cloudOnline: false,
+    });
+    assert(noWayOut.label === "Stalled", "no online sibling → Stalled");
+  });
+
   check("fleet pulse: non-stalled execution health leaves Building untouched", () => {
     const pulse = deriveFleetPulse({
       automationMode: "on",

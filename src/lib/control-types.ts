@@ -238,6 +238,8 @@ export type ControlData = {
     stalledCount: number;
     oldestSeconds: number;
     tabs: string[];
+    /** Of those, the ones waiting for this computer. */
+    localQueued: number;
   } | null;
   failedCommands: FailedCommand[];
 };

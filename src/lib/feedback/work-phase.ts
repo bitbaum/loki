@@ -64,6 +64,9 @@ export type FeedbackWorkView = {
   /** One line of what to do / what happened. Written for a human, always.
    *  Never a raw run error — see `diagnostic`. */
   detail: string | null;
+  /** The one-tap way out of a builder that is offline: hand the queued row to
+   *  this builder (POST /api/control/reroute with `commandId`). */
+  rerouteTo?: "cloud";
   /**
    * The run's raw error, for a disclosure the reader opens on purpose.
    *
@@ -168,6 +171,9 @@ export type FeedbackRunSnapshot = {
   builderChannel?: "cloud" | "local" | null;
   localOnline?: boolean;
   cloudOnline?: boolean;
+  /** The project may run on the cloud builder instead of this computer
+   *  (execution-access offlineFallbackChannel): no locus lock, cloneable repo. */
+  cloudFallbackOk?: boolean;
   /**
    * The open run ahead of this one in the project's lane, when the per-project
    * FIFO gate is deliberately withholding this command (see findQueueBlockers).
@@ -229,10 +235,24 @@ export function hasPostPromptGeneration(
  * lives once: a run that never streamed and a run that streamed and then went
  * quiet differ in what already happened, not in what to do about it.
  */
-function builderOfflineAsk(localQueue: boolean): string {
+function builderOfflineAsk(localQueue: boolean, cloudCanTake: boolean): string {
+  if (localQueue && cloudCanTake)
+    return "This computer is offline — the cloud builder can take it now";
   return localQueue
     ? "Open Fleet Runner on This computer — or use cloud builder, then Retry"
     : "The cloud builder is offline — the work waits and starts when it reconnects, or Retry";
+}
+
+/** The cloud can take this local-queued work right now: online, allowed by
+ *  the project's locus, and a row still waiting to be moved. */
+function cloudCanTake(run: FeedbackRunSnapshot): boolean {
+  return (
+    run.builderChannel === "local" &&
+    run.cloudOnline === true &&
+    run.cloudFallbackOk === true &&
+    run.pendingUnclaimed === true &&
+    !!run.commandId
+  );
 }
 
 export function deriveFeedbackWork(
@@ -437,7 +457,8 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,
       label: "Needs you",
-      detail: builderOfflineAsk(localQueue),
+      detail: builderOfflineAsk(localQueue, cloudCanTake(run)),
+      ...(cloudCanTake(run) ? { rerouteTo: "cloud" as const } : {}),
       // watchable filled by withStep (in-flight); no PTY yet → terminalReady false
       diagnostic: run.hostedPending
         ? "Cloud builder offline; hosted Hermes was queued but has not claimed yet."
@@ -554,7 +575,8 @@ function derivePhase(
       return {
         phase: FEEDBACK_WORK_PHASE.STUCK,
         label: "Needs you",
-        detail: builderOfflineAsk(localQueue),
+        detail: builderOfflineAsk(localQueue, cloudCanTake(run)),
+        ...(cloudCanTake(run) ? { rerouteTo: "cloud" as const } : {}),
         since,
         lastActivityAt: run.lastProgressAt,
         // Observation only: what it did before the builder went away, and how

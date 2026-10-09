@@ -341,7 +341,10 @@ export function deriveFleetPulse(input: {
     stalledCount: number;
     oldestSeconds: number;
     tabs?: string[];
+    localQueued?: number;
   } | null;
+  /** The cloud builder is online — a local-queued stall has a way out. */
+  cloudOnline?: boolean;
   /** The "Needs you" queue — feedback awaiting triage plus sites missing the
    *  widget. The hero's whole brief is "is anything waiting on me?", and until
    *  this argument existed it answered that question without reading the one
@@ -360,10 +363,21 @@ export function deriveFleetPulse(input: {
   if (stall?.stalled) {
     const mins = Math.max(1, Math.round(stall.oldestSeconds / 60));
     const who = stall.tabs && stall.tabs.length > 0 ? ` (${stall.tabs.join(", ")})` : "";
+    const n = stall.stalledCount;
+    const plural = n === 1 ? "" : "es";
+    // Waiting for a laptop that is shut is not a hung runner: it is a queue
+    // with a known way out, and the hero's one button is that way out.
+    if ((stall.localQueued ?? 0) > 0 && input.cloudOnline) {
+      return {
+        key: "stalled",
+        label: "Waiting for this computer",
+        detail: `${n} dispatch${plural} queued ${mins}m for this computer${who}, which is offline. The cloud builder is online and can take it now.`,
+      };
+    }
     return {
       key: "stalled",
       label: "Stalled",
-      detail: `${stall.stalledCount} dispatch${stall.stalledCount === 1 ? "" : "es"} queued for ${mins}m${who} — the builder is connected but not executing them. Restart the desktop app or check the cloud builder if this persists.`,
+      detail: `${n} dispatch${plural} queued for ${mins}m${who} — the builder is connected but not executing them. Restart the desktop app or check the cloud builder if this persists.`,
     };
   }
   if (input.workingCount > 0) {

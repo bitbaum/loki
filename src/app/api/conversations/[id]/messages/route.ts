@@ -181,6 +181,7 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
     // persisted and replayed months later, and an unknown channel would index
     // the name map to undefined and quietly drop the builder from the label.
     channel: isBuilderChannel(inject.body.channel) ? inject.body.channel : null,
+    reroutedFrom: isBuilderChannel(inject.body.reroutedFrom) ? inject.body.reroutedFrom : null,
   };
   // Identifiers the transcript footer polls to show LIVE dispatch status
   // (queued → picked up → ran/failed) instead of a frozen "starting shortly".
@@ -205,6 +206,7 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
       warning: dispatchInput.warning,
       runnerConnected: dispatchInput.runnerConnected,
       channel: dispatchInput.channel,
+      reroutedFrom: dispatchInput.reroutedFrom,
       agent: opts.agent ?? null,
       model: opts.model ?? null,
       commandId,

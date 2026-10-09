@@ -92,6 +92,7 @@ export function DispatchFooter({ meta }: { meta: Record<string, unknown> | null 
   const failed = meta.ok === false;
   const runnerConnected = typeof meta.runnerConnected === "boolean" ? meta.runnerConnected : null;
   const channel = isBuilderChannel(meta.channel) ? meta.channel : null;
+  const reroutedFrom = isBuilderChannel(meta.reroutedFrom) ? meta.reroutedFrom : null;
   const { label: staticStatus, warn } = dispatchStatusLabel({
     ok: failed ? false : true,
     mode: typeof meta.mode === "string" ? meta.mode : null,
@@ -100,6 +101,7 @@ export function DispatchFooter({ meta }: { meta: Record<string, unknown> | null 
     // Messages written before routing was recorded have no channel; those keep
     // the unnamed copy rather than being attributed to a guessed machine.
     channel,
+    reroutedFrom,
   });
   // Only present when the operator pinned a non-default model in the composer.
   const agent = typeof meta.agent === "string" ? meta.agent : null;
