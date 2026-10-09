@@ -163,6 +163,7 @@ const PUBLIC_PAGES = [
   "/",
   "/change",
   "/take",
+  "/build",
   "/fleet",
   "/pricing",
   "/download",
