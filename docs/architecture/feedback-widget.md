@@ -369,6 +369,12 @@ matters):
 
 ## Since v1 (2026-08-24)
 
+- **2026-10-09 — every stranger's door ends at `/build`.** The three ways
+  to get something built (yourself, with a partner, by the studio) are one
+  list, `src/config/build-paths.ts`; the panel's last line for anyone who is
+  not the owner is "Made with Loki — build something of your own →"
+  (`/build?from=<host>`), the tour's "Get this for your site" lands there
+  too, and the concierge has the same door. Tests: `build-paths.ts`.
 - **2026-10-09 — the loop closes on the site.** The receipt used to end at
   "Loki tells you when" and on the site it never did. Now the owner's panel
   carries **Your changes**, a change that went live since the last look is

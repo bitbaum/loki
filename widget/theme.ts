@@ -355,9 +355,11 @@ input { margin-bottom: 10px; }
 .change-send:hover { background: ${theme.accent}; color: ${ink}; }
 @media (pointer: coarse) { .change-send { padding: 11px 12px; } }
 /* ---- hiding: offered in the panel, and always says how to undo it ---- */
+.made-with { display: block; margin: 14px auto 0; font-size: 11px; text-align: center; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; }
+.made-with:hover { color: ${theme.text}; }
 .hide-link { display: block; margin: 10px auto 0; font-size: 11px; color: ${theme.textMuted}; text-decoration: underline; text-underline-offset: 2px; }
 .hide-link:hover { color: ${theme.textSecondary}; }
-@media (pointer: coarse) { .hide-link { padding: 12px 8px; } }
+@media (pointer: coarse) { .hide-link, .made-with { padding: 12px 8px; } }
 .toast {
   position: fixed; z-index: 2147483003; right: 16px; bottom: 16px; max-width: min(360px, calc(100vw - 32px));
   display: flex; align-items: center; gap: 12px; padding: 10px 12px;

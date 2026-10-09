@@ -117,7 +117,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
     requestId.current ||= crypto.randomUUID();
     saveWebsiteDraft({ website, changes, requestId: requestId.current, mode, fixes });
     if (!signedIn) {
-      router.push(`${ROUTES.SIGN_IN}?callbackUrl=${encodeURIComponent(COMMISSION.path)}`);
+      router.push(`${ROUTES.SIGN_UP}?callbackUrl=${encodeURIComponent(COMMISSION.path)}`);
       return;
     }
     setSending(true);

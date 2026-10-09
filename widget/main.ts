@@ -302,6 +302,7 @@ interface LokiApi {
       // "Hide this button" is a visitor's way out; the owner's panel is their
       // tool, and the link only took space under the composer on a phone.
       hideLink.style.display = ownerPass ? "none" : "";
+      madeWith.style.display = ownerPass ? "none" : "";
       // The owner's launcher carries the same state as this header.
       launcher.setOwnerStatus(ownerPass ? { watching: on, unread } : null);
       conversation?.refresh();
@@ -313,6 +314,12 @@ interface LokiApi {
     // button should not have to know a gesture to get rid of it.
     const hideLink = h("button", "hide-link", "Hide this button on this site");
     hideLink.addEventListener("click", hideForVisitor);
+    // The one line a stranger gets about Loki itself: where they are and
+    // where to get one. Quiet, last, and gone for the owner, who knows.
+    const madeWith = h("a", "made-with", "Made with Loki — build something of your own →");
+    madeWith.href = `${apiBase}/build?from=${encodeURIComponent(location.hostname)}`;
+    madeWith.target = "_blank";
+    madeWith.rel = "noopener";
 
     const modes = parseWidgetSurfaceModes(modesAttr);
     const picker = createPicker({
@@ -368,7 +375,7 @@ interface LokiApi {
         conversation.refresh();
       },
     });
-    panel.append(hdr, watchOffer, changes.el, conversation.el, hideLink);
+    panel.append(hdr, watchOffer, changes.el, conversation.el, madeWith, hideLink);
 
     function openPanel() {
       unread = 0;

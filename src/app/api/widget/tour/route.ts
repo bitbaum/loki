@@ -35,6 +35,7 @@ import {
 import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import type { FixShipping } from "@/lib/feedback/fix-shipping";
 import { appUrl } from "@/lib/email";
+import { buildPageHref } from "@/config/build-paths";
 import { PALETTE } from "@/lib/palette";
 import { TOUR_OUTLINE_MAX, type TourOutlineItem, type TourStep } from "../../../../../widget/tour";
 
@@ -265,7 +266,7 @@ export async function POST(req: NextRequest) {
       ? null
       : ((f.screenshots ?? []).find((src) => /^data:image\/(png|jpeg|webp);base64,/.test(src)) ??
         null);
-  const end = endCard(audience, f.projectId);
+  const end = endCard(audience, f.projectId, req.headers.get("origin"));
   return corsJson({
     ok: true,
     theme: PALETTE.widget,
@@ -296,10 +297,15 @@ export async function POST(req: NextRequest) {
 function endCard(
   audience: TourAudience,
   projectId: string,
+  /** The site the tour ran on — /build names it, so "get this" has a this. */
+  from: string | null,
 ): { lokiHref: string; lokiLabel: string | null } {
   if (audience === "reporter")
     return { lokiHref: `${appUrl()}/my-feedback`, lokiLabel: "Back to my feedback" };
-  if (audience === "viewer") return { lokiHref: appUrl(), lokiLabel: "Get this for your site" };
+  // A stranger who just watched a change land used to be sent to a bare
+  // homepage. /build is the invitation: the three ways to get one of their own.
+  if (audience === "viewer")
+    return { lokiHref: buildPageHref(appUrl(), from), lokiLabel: "Get this for your site" };
   return {
     lokiHref: `${appUrl()}/feedback?project=${encodeURIComponent(projectId)}`,
     lokiLabel: null,

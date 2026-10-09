@@ -82,6 +82,24 @@ export const STUDIO_DOORS: ReadonlyArray<{
     when: "they want to contribute code or build on the stack",
     keys: ["contribute", "contributor", "pull request"],
   },
+  // Last on purpose: the tests address the doors above by index. The one door
+  // that is Loki's own — a site or app of THEIR own, by whichever of the three
+  // ways fits (themselves, a partner, the studio). "Can you build this for me?"
+  // used to route only to the waitlist, which is at capacity.
+  {
+    label: "Build something of your own",
+    url: new URL("/build", ECOSYSTEM.loki.siteUrl).href,
+    when: "they want a site or app of their own, ask how to get one like this, or whether they could do it themselves",
+    keys: [
+      "my own site",
+      "my own app",
+      "something of my own",
+      "build my own",
+      "get this for my site",
+      "do it myself",
+      "sign up",
+    ],
+  },
 ];
 
 /**

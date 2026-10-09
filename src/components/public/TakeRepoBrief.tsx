@@ -86,7 +86,7 @@ export function TakeRepoBrief({
     }
     if (!signedIn) {
       const back = `${TAKE.path}?repo=${repo}`;
-      router.push(`${ROUTES.SIGN_IN}?callbackUrl=${encodeURIComponent(back)}`);
+      router.push(`${ROUTES.SIGN_UP}?callbackUrl=${encodeURIComponent(back)}`);
       return;
     }
     setSending(true);
