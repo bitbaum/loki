@@ -14,8 +14,8 @@
  * The fragment never reaches the site's server; the token is signed by Loki,
  * scoped to one feedback item, and expires. Nothing else starts a tour.
  */
-import { h } from "./dom";
-import type { WidgetTheme } from "./theme";
+import { h, spiralMark } from "./dom";
+import { spiralCSS, type WidgetTheme } from "./theme";
 import { followUpCSS, mountFollowUp } from "./tour-followup";
 
 export const TOUR_HASH_KEY = "loki-tour";
@@ -248,6 +248,7 @@ function tourCSS(t: WidgetTheme): string {
 .brand { display: flex; align-items: center; gap: 6px; color: ${t.textTertiary};
   font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: ${t.accent}; }
+${spiralCSS(t)}
 .count { font-family: ${mono}; font-size: 10px; color: ${t.textMuted}; }
 .chap { color: ${t.accent}; font-family: ${mono}; font-size: 10px; letter-spacing: .08em;
   text-transform: uppercase; margin-bottom: 4px; min-height: 1.2em; }
@@ -340,7 +341,7 @@ export async function runTour(
   card.setAttribute("aria-label", "Loki walkthrough");
   const top = h("div", "top");
   const brand = h("div", "brand");
-  brand.append(h("span", "dot"), h("span", undefined, `Loki · ${plan.title}`));
+  brand.append(spiralMark("thinking"), h("span", undefined, `Loki · ${plan.title}`));
   const count = h("span", "count");
   top.append(brand, count);
   const chap = h("p", "chap");

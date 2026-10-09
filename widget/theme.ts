@@ -34,6 +34,25 @@ export type WidgetTheme = {
   white: string;
 };
 
+/**
+ * The spiral status mark (dom.ts spiralMark): the logo, drawn in the accent,
+ * that moves the way Loki is working — a slow turn while it watches, a quick
+ * one while it thinks, still and grey when it is not watching. Shared by the
+ * panel and the walkthrough card, which have separate stylesheets.
+ */
+export function spiralCSS(theme: Pick<WidgetTheme, "accent" | "textMuted">): string {
+  return `
+.dot.spiral { width: 15px; height: 15px; border-radius: 0; background: none; box-shadow: none; color: ${theme.accent}; display: inline-flex; flex: none; }
+.dot.spiral svg { width: 100%; height: 100%; display: block; }
+.dot.spiral.watching svg, .watching > .dot.spiral svg { animation: lokispin 9s linear infinite; }
+.dot.spiral.thinking svg, .thinking > .dot.spiral svg { animation: lokispin 1.1s linear infinite; }
+.dot.spiral.paused, .paused > .dot.spiral { color: ${theme.textMuted}; }
+.dot.spiral.paused svg, .paused > .dot.spiral svg { animation: none; }
+@keyframes lokispin { to { transform: rotate(-360deg); } }
+@media (prefers-reduced-motion: reduce) { .dot.spiral svg { animation: none !important; } }
+`;
+}
+
 export function buildShadowCSS(theme: WidgetTheme): string {
   const ink = theme.inkOnAccent ?? theme.black;
   const sans = theme.fontSans ?? "system-ui, -apple-system, sans-serif";
@@ -48,6 +67,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font: 
 button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid ${theme.accent}; outline-offset: 2px; }
 .mono { font-family: ${mono}; letter-spacing: .08em; text-transform: uppercase; font-size: 10px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: ${theme.accent}; flex: none; box-shadow: 0 0 0 3px ${theme.accentMuted}; }
+${spiralCSS(theme)}
 
 /* No var() fallbacks anywhere in this file. The widget lives in a Shadow DOM under
    :host all:initial and defines no custom properties, so a var() with a hex
@@ -108,7 +128,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .fab.owner { opacity: 1; transform: none; box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); }
 .fab.owner .fab-label { display: inline; }
 .fab.watching { border-color: ${theme.accent}; }
-.fab.watching .dot { animation: fcpulse 1.6s ease-in-out infinite; }
+.fab.watching .dot:not(.spiral) { animation: fcpulse 1.6s ease-in-out infinite; }
 .fab-badge {
   position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: ${theme.accent}; color: ${ink};
@@ -168,6 +188,22 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .watch-offer b { display: block; color: ${theme.text}; font-size: 13px; margin-bottom: 4px; }
 .watch-offer .sub { color: ${theme.textTertiary}; margin-top: 4px; }
 .watch-offer .track { margin-top: 10px; }
+
+/* "What Loki sees": the running notes of watch mode, one row until opened */
+.thoughts { margin: -4px 0 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceRaised}; }
+.thoughts-row { width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 11px; min-height: 40px; text-align: left; font-size: 12px; color: ${theme.textSecondary}; }
+.thoughts-row:hover { color: ${theme.text}; }
+.thoughts-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thoughts-chev { flex: none; color: ${theme.textTertiary}; transition: transform .15s ease; }
+.thoughts.open .thoughts-chev { transform: rotate(90deg); }
+.thoughts-list { list-style: none; margin: 0; padding: 2px 11px 10px; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid ${theme.border}; padding-top: 8px; }
+.thought { display: flex; gap: 10px; font-size: 12px; line-height: 1.45; color: ${theme.textSecondary}; }
+.thought-at { flex: none; width: 30px; font-family: ${mono}; font-size: 10px; line-height: 17px; color: ${theme.textMuted}; text-align: right; }
+.thought-text { min-width: 0; overflow-wrap: anywhere; }
+.thought.good .thought-text { color: ${theme.success}; }
+.thought.warn .thought-text { color: ${theme.text}; }
+.thought.warn .thought-at { color: ${theme.accent}; }
+.thought.bad .thought-text { color: ${theme.error}; }
 
 /* the one conversation */
 .convo { display: flex; flex-direction: column; gap: 10px; }
@@ -329,6 +365,13 @@ input { margin-bottom: 10px; }
 .msg.bot { background: ${theme.surfaceRaised}; border: 1px solid ${theme.border}; color: ${theme.text}; align-self: flex-start; }
 .msg.user { background: ${theme.accentMuted}; border: 1px solid ${theme.accent}; color: ${theme.text}; align-self: flex-end; }
 .msg.pending { color: ${theme.textTertiary}; }
+.msg .rich { display: flex; flex-direction: column; gap: 8px; white-space: normal; }
+.msg .rich p { white-space: pre-wrap; }
+.msg .rich .rh { font-weight: 600; color: ${theme.text}; }
+.msg .rich b { font-weight: 600; color: ${theme.text}; }
+.msg .rich ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.msg .rich li::marker { color: ${theme.accent}; }
+.msg.pending .who { display: flex; align-items: center; gap: 6px; }
 .msg .who { display: block; margin-bottom: 3px; font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }
 .msg.from-cat .who { color: ${theme.accent}; }
 .msg .said { display: block; }

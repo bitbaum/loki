@@ -1,3 +1,5 @@
+import { SPIRAL_D, SPIRAL_STROKE, SPIRAL_VIEWBOX } from "./brand-mark.generated";
+
 /**
  * The widget's tiny DOM toolkit: one element helper, the inline icons, and the
  * client-side image downscale. Zero dependencies — this bundle mounts on any
@@ -23,6 +25,19 @@ const MIC_SVG =
 
 export const CAMERA_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>';
+
+/**
+ * Loki's mark — the same coil as the logo (generated from the brand SSOT) —
+ * used as the widget's status light instead of a generic dot. The CSS turns it
+ * slowly while Loki watches, fast while it thinks, and stops it when paused,
+ * so the one shape that says "Loki" also says what Loki is doing.
+ */
+export function spiralMark(cls = ""): HTMLSpanElement {
+  const span = h("span", `dot spiral${cls ? ` ${cls}` : ""}`);
+  span.setAttribute("aria-hidden", "true");
+  span.innerHTML = `<svg viewBox="0 0 ${SPIRAL_VIEWBOX} ${SPIRAL_VIEWBOX}" fill="none"><path d="${SPIRAL_D}" stroke="currentColor" stroke-width="${SPIRAL_STROKE * 1.4}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return span;
+}
 
 /** A fresh <span> each call — one node cannot sit in two places, and the label
  *  is rebuilt on every state change. */

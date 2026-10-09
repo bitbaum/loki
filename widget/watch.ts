@@ -107,7 +107,7 @@ export function installWatch(opts: {
   onNotice?: (notice: Notice) => void;
   /** The site moved to another page (SPA navigation) — time to look at it. */
   onPage?: () => void;
-}): { trail: () => TrailEntry[] } {
+}): { trail: () => TrailEntry[]; note: (kind: TrailEntry["kind"], text: string) => void } {
   let trail: TrailEntry[] = readStoredTrail(opts.token);
   const add = (kind: TrailEntry["kind"], text: string) => {
     if (!opts.isActive()) return;
@@ -270,7 +270,7 @@ export function installWatch(opts: {
 
   observePerformance(notice, opts.host, () => lastTap);
 
-  return { trail: () => trail };
+  return { trail: () => trail, note: add };
 }
 
 /** A freeze this soon after a tap on the site is one the person felt. */
@@ -528,13 +528,15 @@ export function startWatchMode(opts: {
   statusShown: () => boolean;
   /** Stopped or started again — the panel's header follows. */
   onChange?: () => void;
+  /** A step went into the trail — the panel's running notes follow. */
+  onTrail?: (trail: TrailEntry[]) => void;
 }): WatchSession {
   let paused = readWatchPaused(opts.token);
   const sent = new Set<string>();
   const said = readSaid(opts.token);
   let latest: string | undefined;
   let reverting: ReturnType<typeof setTimeout> | null = null;
-  let recorder: { trail: () => TrailEntry[] } | null = null;
+  let recorder: ReturnType<typeof installWatch> | null = null;
   const watching = (): WatchPillState => ({ kind: "watching", latest });
   const session = () => sessionForReview(recorder?.trail() ?? [], safePageChecks(), Date.now());
   const setPaused = (value: boolean) => {
@@ -615,6 +617,14 @@ export function startWatchMode(opts: {
     if (checksTimer) clearTimeout(checksTimer);
     checksTimer = setTimeout(() => {
       const checks = safePageChecks();
+      // Said in the notes even when clean: "looked, all fine" is what the
+      // owner could not see while watch only spoke about problems.
+      recorder?.note(
+        "look",
+        checks.length
+          ? `${checks.length} ${checks.length === 1 ? "thing stands" : "things stand"} out`
+          : "nothing stands out",
+      );
       const r = explainChecks(checks);
       if (r) remark(`${location.pathname}|checks|${checks.join("|").replace(/\d+/g, "#")}`, r);
     }, CHECKS_DELAY_MS);
@@ -630,6 +640,7 @@ export function startWatchMode(opts: {
     onFailure: (failure, trail) => void report(failure, trail),
     onNotice: (n) => remark(noticeSignature(location.pathname, n), explainNotice(n)),
     onPage: scheduleChecks,
+    onChange: (trail) => opts.onTrail?.(trail),
   });
   if (!paused) {
     show(watching());
@@ -641,6 +652,7 @@ export function startWatchMode(opts: {
     stop: () => setPaused(true),
     resume: () => setPaused(false),
     session,
+    trail: () => recorder?.trail() ?? [],
     diagnostics: () => (paused ? null : diagnostics("Loki watch mode")),
   };
 }
@@ -652,6 +664,8 @@ export type WatchSession = {
   resume: () => void;
   /** What Review sends: the trail and the page checks, as text. */
   session: () => string;
+  /** What it has seen this visit — the panel's running notes. */
+  trail: () => TrailEntry[];
   /** The trail as report lines, for a change sent while watching — null when
    *  stopped, when nothing may travel. */
   diagnostics: () => ReportDiagnostics | null;

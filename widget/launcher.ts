@@ -3,7 +3,7 @@
  * placement engine that keeps it off other people's chat widgets and off the
  * host page's own controls.
  */
-import { h, PENCIL_SVG } from "./dom";
+import { h, PENCIL_SVG, spiralMark } from "./dom";
 import { writeVisitorPlacement } from "./visitor-placement";
 import {
   chooseSlot,
@@ -58,7 +58,7 @@ export function createLauncher(opts: {
   fabIcon.innerHTML = PENCIL_SVG;
   const fabLabel = h("span", "fab-label", "Feedback");
   const badge = h("span", "fab-badge");
-  fab.append(h("span", "dot"), fabLabel, fabIcon, badge);
+  fab.append(spiralMark(), fabLabel, fabIcon, badge);
   fab.setAttribute("aria-label", "Give feedback");
   fab.setAttribute("aria-haspopup", "dialog");
   fab.addEventListener("click", () => {
@@ -86,6 +86,7 @@ export function createLauncher(opts: {
   function setOwnerStatus(status: OwnerStatus | null) {
     fab.classList.toggle("owner", status !== null);
     fab.classList.toggle("watching", !!status?.watching);
+    fab.classList.toggle("paused", status !== null && !status.watching);
     const label = status ? (status.watching ? "Loki · watching" : "Loki") : "Feedback";
     fabLabel.textContent = label;
     const unread = status?.unread ?? 0;
