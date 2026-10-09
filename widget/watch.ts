@@ -68,6 +68,8 @@ const NOTICES_PER_KIND = 3;
 const CLS_POOR = 0.1;
 /** A page that takes longer than this to load has lost some of its visitors. */
 const SLOW_LOAD_MS = 3_000;
+/** How long a tap has to show it did something before Loki says it didn't. */
+const TAP_RESULT_MS = 1_500;
 /** A remark names the tap that led to it when that tap was this recent. */
 const TAP_LEADS_MS = 5_000;
 
@@ -124,11 +126,15 @@ export function installWatch(opts: {
     const n = noticed.get(kind) ?? 0;
     if (n >= NOTICES_PER_KIND) return;
     noticed.set(kind, n + 1);
-    add("notice", text);
+    // The notes read "Noticed: button “Save” did nothing visible" — one line,
+    // not a bare control name under a separate "nothing happened".
+    add("notice", kind === "noeffect" ? `${text} did nothing visible` : text);
     // Name the tap that led here when it was a moment ago; a freeze already
     // names its own tap in the text.
     const recent = lastTap && performance.now() - lastTap.at < TAP_LEADS_MS;
-    opts.onNotice?.({ kind, text, after: kind !== "longtask" && recent ? lastTap?.what : null });
+    // A freeze or a do-nothing tap already names its own tap in the text.
+    const named = kind === "longtask" || kind === "noeffect";
+    opts.onNotice?.({ kind, text, after: !named && recent ? lastTap?.what : null });
   };
   let streak: TapStreak = null;
   /** The last tap on the site (performance clock) — a freeze right after it
@@ -142,11 +148,48 @@ export function installWatch(opts: {
     opts.onFailure(failure, trail);
   };
 
+  // ---- what a tap DID ----
+  // Watching taps is only half of watching: the other half is whether the page
+  // answered. A tap on a button or link waits up to TAP_RESULT_MS for any sign
+  // — the page changing, a request, a navigation — and the notes say which.
+  // No sign at all is worth saying at once, not only after three taps (the
+  // dead-tap rule below files a fix; this one is a remark).
+  let pendingTap: { what: string; timer: ReturnType<typeof setTimeout> } | null = null;
+  const tapObserver = new MutationObserver((records) => {
+    if (records.some((r) => !isOurNode(r.target, opts.host))) settleTap("the page changed");
+  });
+  const settleTap = (result: string | null) => {
+    if (!pendingTap) return;
+    clearTimeout(pendingTap.timer);
+    pendingTap = null;
+    tapObserver.disconnect();
+    if (result) add("result", result);
+  };
+  const watchTap = (what: string) => {
+    settleTap(null);
+    const timer = setTimeout(() => {
+      if (!pendingTap) return;
+      settleTap(null);
+      notice("noeffect", what);
+    }, TAP_RESULT_MS);
+    pendingTap = { what, timer };
+    tapObserver.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterData: true,
+    });
+  };
+  // Leaving the page or jumping within it is an answer too.
+  window.addEventListener("beforeunload", () => settleTap(null));
+  window.addEventListener("hashchange", () => settleTap("it moved within the page"));
+
   add("page", location.pathname);
   let lastPath = location.pathname;
   const notePage = () => {
     if (location.pathname === lastPath) return;
     lastPath = location.pathname;
+    settleTap(null);
     streak = null;
     noticed.clear();
     add("page", location.pathname);
@@ -185,6 +228,11 @@ export function installWatch(opts: {
       add("tap", tap);
       lastTap = { at: e.timeStamp, what: tap };
       if (!opts.isActive()) return;
+      // A disabled control or a link that opens elsewhere answers somewhere
+      // Loki cannot see; only what should change THIS page is waited on.
+      const opensElsewhere = el instanceof HTMLAnchorElement && el.target === "_blank";
+      const disabled = el.matches(":disabled,[aria-disabled=true]");
+      if (/^(button|link)\b/.test(tap) && !opensElsewhere && !disabled) watchTap(tap);
       const next = nextTapStreak(streak, tap, Date.now());
       streak = next.streak;
       if (next.dead) fail({ kind: "dead-tap", text: tap });
@@ -222,7 +270,11 @@ export function installWatch(opts: {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const method = init?.method ?? (input instanceof Request ? input.method : "GET");
     // A request leaving is the page responding — even a slow one is not dead.
-    if (!opts.isOwnRequest(new URL(url, location.href).href)) streak = null;
+    if (!opts.isOwnRequest(new URL(url, location.href).href)) {
+      streak = null;
+      // Answered the moment it asks — a slow server is not a dead button.
+      settleTap("it asked the server");
+    }
     const started = performance.now();
     try {
       const res = await originalFetch(input, init);
@@ -244,7 +296,10 @@ export function installWatch(opts: {
     ...rest: unknown[]
   ) {
     this.__lokiReq = [method, String(url)];
-    if (!opts.isOwnRequest(new URL(String(url), location.href).href)) streak = null;
+    if (!opts.isOwnRequest(new URL(String(url), location.href).href)) {
+      streak = null;
+      settleTap("it asked the server");
+    }
     const started = performance.now();
     this.addEventListener("loadend", () => {
       const [m, u] = this.__lokiReq ?? ["GET", ""];

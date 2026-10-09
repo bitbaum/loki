@@ -13,6 +13,7 @@ import { FEEDBACK_WORK_PHASE, WAITING_ON, type FeedbackWorkView } from "@/lib/fe
 import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
 import {
   CHANGES_MAX,
+  changesSummary,
   newlyLive,
   parseChanges,
   toSeen,
@@ -39,6 +40,14 @@ const ship = (state: string): FixShipping => ({ state }) as FixShipping;
   assert.equal(waiting.label, "Waiting");
   assert.ok(waiting.needsYou && !waiting.live && !waiting.settled);
   assert.equal(ownerStatusFor(view(FEEDBACK_WORK_PHASE.QUEUED)).label, "Starting");
+  // Behind another change in the project's one lane: the order is the news.
+  const behind = ownerStatusFor(
+    view(FEEDBACK_WORK_PHASE.QUEUED, {
+      detail: "Behind “Add alt text” on this project — starts when that run finishes",
+    }),
+  );
+  assert.equal(behind.label, "In line");
+  assert.match(behind.detail, /^Behind “Add alt text”/);
   assert.equal(ownerStatusFor(view(FEEDBACK_WORK_PHASE.WORKING)).label, "Building");
   for (const p of [FEEDBACK_WORK_PHASE.STUCK, FEEDBACK_WORK_PHASE.FAILED]) {
     const s = ownerStatusFor(view(p));
@@ -178,5 +187,31 @@ const main = readFileSync("widget/main.ts", "utf8");
 assert.match(main, /is live on this site\./, "Loki says it in the thread");
 assert.match(main, /launcher\.say\(/, "and beside the launcher when the panel is closed");
 assert.match(main, /changes\.start\(\)/, "asked for on arrival");
+
+// ---- the collapsed line says what moves and what landed, in that order ----
+{
+  const c = (label: string, live = false) =>
+    ({
+      id: label,
+      text: label,
+      at: "",
+      label,
+      tone: "neutral",
+      detail: "",
+      live,
+      settled: live,
+      href: null,
+      action: null,
+    }) as OwnerChange;
+  assert.equal(
+    changesSummary([c("Building"), c("In line"), c("In line"), c("Live", true), c("Done", true)]),
+    "Your changes · 1 building · 2 in line · 2 live",
+  );
+  assert.equal(
+    changesSummary([c("Needs you"), c("Live", true)]),
+    "Your changes · 1 needs you · 1 live",
+  );
+  assert.equal(changesSummary([c("Closed")]), "Your changes · 1");
+}
 
 console.log("widget-changes: ok");

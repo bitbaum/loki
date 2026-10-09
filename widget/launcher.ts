@@ -3,7 +3,7 @@
  * placement engine that keeps it off other people's chat widgets and off the
  * host page's own controls.
  */
-import { h, PENCIL_SVG, spiralMark } from "./dom";
+import { h, PENCIL_SVG, spiralMark, TARGET_SVG } from "./dom";
 import { writeVisitorPlacement } from "./visitor-placement";
 import {
   chooseSlot,
@@ -46,6 +46,8 @@ export function createLauncher(opts: {
   getVisitorOverride(): Placement | null;
   setVisitorOverride(value: Placement | null): void;
   onOpen(): void;
+  /** "Show Loki this" — the owner points at something on the page. */
+  onPoint?(): void;
   /** The visitor chose "Hide on this site" — the panel owns what happens next
    *  (store it, remove the launcher, say how to get it back). */
   onHide(): void;
@@ -83,7 +85,44 @@ export function createLauncher(opts: {
   let bubbleTimer = 0;
   const BUBBLE_SHOWN_MS = 12_000;
 
+  // ---- "Show Loki this" ----
+  // While Loki watches, a target sits beside the launcher: tap it, tap the
+  // thing, say what is wrong. Watching should notice everything by itself,
+  // but when the owner is not sure it did, drawing its attention must take
+  // one tap — not opening a panel and finding a tab (owner, 2026-10-09).
+  const point = h("button", "fab-point");
+  point.type = "button";
+  point.innerHTML = TARGET_SVG;
+  point.setAttribute("aria-label", "Show Loki something on this page");
+  point.title = "Show Loki something on this page";
+  point.style.display = "none";
+  point.addEventListener("click", () => opts.onPoint?.());
+  root.appendChild(point);
+  let pointWanted = false;
+  /** Where the launcher was last put (place() below), for the target beside it. */
+  let placed: Slot | null = null;
+  /** Beside the launcher on its inner side, and only while it is on screen. */
+  function syncPoint() {
+    const shown =
+      pointWanted &&
+      fab.isConnected &&
+      fab.style.display !== "none" &&
+      fab.style.visibility !== "hidden";
+    point.style.display = shown ? "" : "none";
+    if (!shown || !placed) return;
+    const { x, y } = cornerEdges(placed.corner);
+    point.style.left = point.style.right = point.style.top = point.style.bottom = "auto";
+    point.style[x] = `${placed.offsetX + fab.offsetWidth + 8}px`;
+    point.style[y] = `${placed.offsetY}px`;
+  }
+  new MutationObserver(() => syncPoint()).observe(fab, {
+    attributes: true,
+    attributeFilter: ["style", "class"],
+  });
+
   function setOwnerStatus(status: OwnerStatus | null) {
+    pointWanted = !!status?.watching;
+    syncPoint();
     fab.classList.toggle("owner", status !== null);
     fab.classList.toggle("watching", !!status?.watching);
     fab.classList.toggle("paused", status !== null && !status.watching);
@@ -245,6 +284,8 @@ export function createLauncher(opts: {
     fab.style.left = fab.style.right = fab.style.top = fab.style.bottom = "auto";
     fab.style[x] = `${slot.offsetX}px`;
     fab.style[y] = `${slot.offsetY}px`;
+    placed = slot;
+    syncPoint();
   };
   const show = (visible: boolean) => {
     fab.style.visibility = visible ? "" : "hidden";

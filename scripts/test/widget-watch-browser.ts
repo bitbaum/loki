@@ -291,15 +291,13 @@ async function main() {
         remark.includes("found nothing there (404)"),
       `Loki says it in the conversation, naming the tap (${remark})`,
     );
-    const card = await s.p.evaluate(
-      () =>
-        (
-          document
-            .getElementById("loki-feedback-host")!
-            .shadowRoot!.querySelector(".sendcard textarea") as HTMLTextAreaElement | null
-        )?.value ?? "",
+    // The owner's word is the decision: Fix this starts the build, no card.
+    await s.p.waitForTimeout(300);
+    ok(
+      s.reports.some((r) => r.suggestion.includes("Fix the request to /shop/sizes")),
+      "Fix this starts the fix, written out",
     );
-    ok(card.includes("Fix the request to /shop/sizes"), "Fix this opens the request, written out");
+    const reportsBeforeReload = s.reports.length;
     await s.p.keyboard.press("Escape");
 
     // A trail survives a full page load: a multi-page site is one visit —
@@ -357,27 +355,45 @@ async function main() {
     );
     ok(shown.change?.includes("size chart") === true, "with its change one tap away");
 
-    // Requesting that change carries the session's steps to the builder.
+    // Building that change carries the session's steps to the builder — and
+    // for the owner it starts at once: one change, no confirmation card.
     await s.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
       (r.querySelector(".convo .changes .change-send") as HTMLElement).click();
     });
-    await s.p.waitForTimeout(200);
-    const report = await s.p.evaluate(() => {
-      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-      return {
-        text: (r.querySelector(".sendcard textarea") as HTMLTextAreaElement | null)?.value,
-        diag: (r.querySelector(".sendcard .diag") as HTMLElement | null)?.style.display,
-      };
-    });
-    ok(report.text?.includes("size chart") === true, "the change prefills the request");
-    ok(report.diag === "block", "with the watched steps attached");
+    await s.p.waitForTimeout(400);
+    const built = s.reports.slice(reportsBeforeReload).map((r) => r.suggestion);
+    ok(built.length === 1, `one change, one build (got ${built.length})`);
+    ok(built[0]?.includes("size chart") === true, "the change is what gets built");
+    ok(/step 1/.test(built[0] ?? ""), "with the watched steps attached");
     // Loki's own panel opening is not the site's layout shift, and Loki's own
     // boot and page reading are not the site freezing.
     const after = await trailText(s.p);
     ok(!after.includes("jumped around"), `Loki's panel is not blamed for a shift (${after})`);
     ok(!after.includes("froze"), "nor Loki's own work for a freeze");
     ok(s.errors.length === 0, `no page errors (${s.errors.join("; ")})`);
+    await s.close();
+  }
+
+  // ---- what a tap DID: answered, or nothing visibly happened ----
+  {
+    const s = await open(browser, js, "#loki-owner=pass123");
+    await s.p.keyboard.press("Escape");
+    await s.p.click("#ok");
+    await s.p.waitForTimeout(300);
+    await s.p.click("#dead");
+    await s.p.waitForTimeout(2000);
+    const t = await trailText(s.p);
+    ok(t.includes("it asked the server"), `a tap that sent a request is answered (${t})`);
+    ok(t.includes("button “Save” did nothing visible"), "a tap that did nothing is noted, once");
+    const said = await s.p.evaluate(() =>
+      JSON.parse(sessionStorage.getItem("loki-thread:fcw_fixture") ?? "[]").some(
+        (i: { kind: string; text: string }) =>
+          i.kind === "noticed" && i.text.includes("“Save” and nothing visibly happened"),
+      ),
+    );
+    ok(said, "and Loki says so after ONE tap, not three");
+    ok(s.reports.length === 0, "a do-nothing tap is a remark, not an automatic fix");
     await s.close();
   }
 

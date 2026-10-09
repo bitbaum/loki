@@ -37,6 +37,15 @@ assert.match(thoughtsSummary(trail, false), /^Not watching/);
 // `look` survives a page load like every other step.
 assert.equal(freshTrail(trail, t0 + 30_000).length, trail.length);
 
+// What a tap DID is said under it — and a tap that did nothing is flagged.
+assert.equal(
+  thoughtFor({ at: t0, kind: "result", text: "the page changed" }).text,
+  "↳ The page changed",
+);
+const nothing = thoughtFor({ at: t0, kind: "result", text: "nothing visibly happened" });
+assert.equal(nothing.tone, "warn");
+assert.equal(nothing.text, "↳ Nothing visibly happened");
+
 assert.equal(ago(t0, t0 + 2_000), "now");
 assert.equal(ago(t0, t0 + 45_000), "45s");
 assert.equal(ago(t0, t0 + 5 * 60_000), "5m");

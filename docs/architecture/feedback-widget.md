@@ -369,6 +369,22 @@ matters):
 
 ## Since v1 (2026-08-24)
 
+- **2026-10-09 — fixes go as one, and watch notices what taps do.**
+  Suggested changes are one decision (`widget/suggestions.ts`): every row
+  ticked, a tap unticks, and **Build these N as one change** files ONE note —
+  one agent, one pull request, one row in Your changes — instead of a
+  "Build this" per row that started N runs in the project's one lane with
+  nothing saying so. The owner's builds start without a confirmation card
+  ("Edit first" opens it); a visitor's still confirm. Your changes is one
+  summary line that opens ("1 building · 1 in line · 1 live"), and a change
+  waiting behind another reads **In line**, not "Starting"
+  (`owner-view.ts`). Watch waits 1.5 s after each tap on a button or link for
+  the page to change, ask the server or navigate, notes which, and says at
+  once when nothing visibly happened. While it watches, a **◎** beside the
+  launcher points at something on the page and opens the panel with it
+  attached. On a phone the panel is a sheet: drag up for full screen, down to
+  peek, further to close (`widget/sheet.ts`).
+
 - **2026-10-09 — watch says what it sees.** Watch used to speak only when
   something was wrong, so between remarks the owner could not tell what it
   was doing. The panel now carries **What Loki sees** (`widget/thoughts.ts`,

@@ -95,3 +95,16 @@ export function richBody(text: string): HTMLElement {
   }
   return body;
 }
+
+/** The links under an answer — from the server's map, only http(s), new tab. */
+export function answerLinks(links: readonly { label: string; url: string }[]): HTMLElement {
+  const row = h("div", "chatlinks");
+  for (const l of links) {
+    const link = h("a", "chatlink", `${l.label} →`);
+    link.href = l.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    row.appendChild(link);
+  }
+  return row;
+}
