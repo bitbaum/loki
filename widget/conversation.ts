@@ -201,12 +201,7 @@ export function createConversation(opts: {
     feedbackBtn.disabled = empty;
   };
   input.addEventListener("input", syncButtons);
-  // On a phone the keyboard covers the bottom of the sheet, and the box
-  // being typed into sat half behind it (2026-10-09). Once the keyboard has
-  // settled, bring the box back into view.
-  input.addEventListener("focus", () => {
-    window.setTimeout(() => input.scrollIntoView({ block: "nearest" }), 350);
-  });
+  keepInViewOnFocus(input);
   const voice = createVoiceControl({
     endpoint: `${opts.apiBase}/api/widget/transcribe`,
     token: opts.token,
