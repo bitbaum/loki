@@ -64,6 +64,7 @@ for (const p of [
   "/api/health",
   "/api/invitations/abc",
   "/blog/some-post",
+  "/no-screen",
   // The MCP server authenticates itself; its 401 challenge is how a connector
   // finds OrangeCat, so the middleware must not answer first.
   "/api/mcp",
@@ -92,7 +93,7 @@ for (const p of [
   check(`${p} still requires a session`, isProtected(p));
 }
 // And the ordinary app is untouched.
-for (const p of ["/today", "/control", "/people", "/settings"]) {
+for (const p of ["/today", "/control", "/people", "/settings", "/voice", "/api/voice/turn"]) {
   check(`${p} still requires a session`, isProtected(p));
 }
 // Only the RFC 9728 document is public under .well-known, not the directory.

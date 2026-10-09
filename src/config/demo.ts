@@ -121,6 +121,9 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
 
   // — spends API credit ——————————————————————————————————————————————
   ["/api/loki", "spend"],
+  // No-screen mode: a turn can ask Loki (spend) and dispatch to a project
+  // (the box). The snapshot alone would be safe; the prefix is one family.
+  ["/api/voice", "spend"],
   ["/api/conversations", "spend"],
   ["/api/frontier", "spend"],
   ["/api/memory", "spend"],

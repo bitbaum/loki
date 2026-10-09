@@ -58,10 +58,10 @@ Web and mobile become genuine remote control surfaces, not eventually-consistent
 - [ ] Scoped credentials through the existing agent token system
 
 ### Mobile fleet control
-Native iOS and Android apps on the remote control channel, made for steering and approval rather than authoring.
+Native iOS and Android apps on the remote control channel, made for steering and approval rather than authoring. No-screen mode (shipped) is the web form of this; a native shell is what it needs if the browser suspends the page when the screen locks.
 - [ ] Push notifications when an agent needs you
 - [ ] Swipe to approve or reject agent output where a human is actually needed
-- [ ] Voice capture for commands and approvals
+- [x] Voice capture for commands and approvals
 
 ## Later
 
@@ -110,6 +110,14 @@ The same control patterns — an on/off autopilot, approvals, handoff, queues, v
 - [ ] Per-fleet autopilot behind the same approval gate
 
 ## Shipped
+
+### No-screen mode
+Run the fleet with the phone in a pocket: one tap opens the microphone, the briefing is read aloud, twelve spoken commands approve, dispatch, pause and resume through the seams the screen uses, and what changes — a run finishing, a failure, a new approval — is announced unasked.
+- [x] The briefing, the approval list and the failure list composed from one snapshot, pure and tested
+- [x] An explicit grammar for the twelve commands; anything else is a question for Loki
+- [x] Announcements between turns from a twenty-second poll, bounded to five per poll
+- [x] The headphone button as the only button, through the media session
+- [ ] Verified on a locked iPhone in a pocket for an hour
 
 ### Make it yours
 Pick one of the studio's MIT projects and say what your copy is for; agents copy it into a project of your own, keep the licence and the credit, and give it your name and look.

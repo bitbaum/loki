@@ -117,6 +117,7 @@ const VIEWPORTS = [
 const PAGES = [
   "/today",
   "/loki",
+  "/voice",
   "/control",
   "/projects",
   "/approvals",
@@ -168,6 +169,7 @@ const PUBLIC_PAGES = [
   "/download",
   "/why",
   "/how-it-works",
+  "/no-screen",
   "/compare",
   "/roadmap",
   "/investors",
