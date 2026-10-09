@@ -17,7 +17,7 @@
  * Model output is rendered as TEXT, never HTML: it is shown on someone else's
  * site. Links come from the server's map and only http(s) become anchors.
  */
-import { h, spiralMark } from "./dom";
+import { h, spiralMark, keepInViewOnFocus } from "./dom";
 import { richBody } from "./rich-text";
 import type { Picker, SelectedEl } from "./picker";
 import { createAttachments } from "./attachments";
