@@ -114,6 +114,21 @@ assert.equal(
 );
 assert.equal(continueHref("my project", "chat", null), "/loki?project=my%20project");
 
+// ---- the route is reachable: it signs the person in itself ----
+// Observed live on 2026-10-09: the merged route answered a bare 401 because
+// the session middleware caught it first, so "Continue in Loki" was a wall.
+const proxy = readFileSync("src/proxy.ts", "utf8");
+assert.match(
+  proxy,
+  /\|api\/widget\/continue\|/,
+  "the route is on the public list and guards itself",
+);
+assert.match(
+  proxy,
+  /\|api\/widget\/owner\|/,
+  "so is /api/widget/owner, which covers owner/changes",
+);
+
 // ---- the route is the only place the project is resolved ----
 const route = readFileSync("src/app/api/widget/continue/route.ts", "utf8");
 assert.match(route, /getApiUserId\(\)/, "signed in with Loki, or sent to sign in");
