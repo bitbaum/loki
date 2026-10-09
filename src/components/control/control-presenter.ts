@@ -21,6 +21,8 @@ import { latestActivitySummary } from "./project-activity-ledger";
 import { DAY_MS } from "@/lib/constants/time";
 import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
 import { projectAttentionVerdict } from "@/lib/project-attention";
+import { isAwaitingUser } from "@/lib/session-state";
+import { NEEDS_YOU_LABELS } from "@/lib/needs-you";
 
 export type RuntimeSyncContext = {
   /** True when the cloud has never received a runner runtime-state push. */
@@ -109,6 +111,8 @@ export type ProjectDisplayState = {
   isClosing: boolean;
   isReady: boolean;
   isOrchestrationReady: boolean;
+  /** A live session whose agent reported it is blocked on the operator. */
+  isAwaitingYou: boolean;
   isBeaconActive: boolean;
   isRunning: boolean;
   /** WHICH signal made isRunning true. The evidence line names this rather
@@ -129,6 +133,7 @@ export type ProjectDisplayState = {
     | "running"
     | "session-open"
     | "ready"
+    | "awaiting-you"
     | "orchestration-ready"
     | "closing"
     | "closed"
@@ -437,8 +442,11 @@ export function deriveFleetPulse(input: {
       key: "inbox",
       label: "Waiting on you",
       detail:
-        `${inbox.count} small thing${inbox.count === 1 ? "" : "s"} to review — ` +
-        `feedback to triage and sites missing the widget. See “Needs you” below.`,
+        // The queue renders directly ABOVE this card, titled "To review". This
+        // used to send the reader to a "Needs you" panel "below" — wrong name,
+        // wrong direction, restating the list they had just scrolled past.
+        `No agent is blocked — ${inbox.count} small thing${inbox.count === 1 ? "" : "s"} ` +
+        `in “${NEEDS_YOU_LABELS.review}” above.`,
     };
   }
   if (inbox?.unknown) {
@@ -480,6 +488,7 @@ const LIVE_TAB_RANK: Record<LiveTabRankLabel, number> = {
   Offline: 0,
   Working: 0,
   "Ready for next step": 1,
+  "Waiting for you": 1,
   "Agent idle": 3,
   Closing: 2,
   Completed: 3,
@@ -688,6 +697,7 @@ export function getProjectDisplayState(
       isClosing: false,
       isReady: false,
       isOrchestrationReady: false,
+      isAwaitingYou: false,
       isBeaconActive: false,
       isRunning: false,
       runningEvidence: null,
@@ -742,6 +752,22 @@ export function getProjectDisplayState(
     withinWindow(project.readyAt, nowS, READY_WINDOW_S);
 
   const isBeaconActive = withinWindow(project.lockAt, nowS, READY_WINDOW_S);
+
+  // The agent said, in its own handoff, that it is blocked on the operator —
+  // and its session is still there to answer in. Outranks the time-windowed
+  // readings below: readyAt expires after minutes, this holds until the agent
+  // writes something else. Requires a live session so a week-old handoff on a
+  // closed project does not page anyone.
+  const isAwaitingYou =
+    !dismissed &&
+    !isReady &&
+    !isClosed &&
+    !isClosing &&
+    !currentPrompt &&
+    !liveTurnRunning &&
+    !verifiedRunRunning &&
+    (project.agentRunning || isProjectTabOpen(project, liveTabs)) &&
+    isAwaitingUser(project.session);
 
   const latestFinishedAtS = project.latestOrchestrationRun?.finishedAt
     ? Math.floor(new Date(project.latestOrchestrationRun.finishedAt).getTime() / 1000)
@@ -805,13 +831,15 @@ export function getProjectDisplayState(
       ? "closing"
       : isReady
         ? "ready"
-        : isOrchestrationReady
-          ? "orchestration-ready"
-          : isRunning
-            ? "running"
-            : isSessionOpen
-              ? "session-open"
-              : "idle";
+        : isAwaitingYou
+          ? "awaiting-you"
+          : isOrchestrationReady
+            ? "orchestration-ready"
+            : isRunning
+              ? "running"
+              : isSessionOpen
+                ? "session-open"
+                : "idle";
 
   // Labels and tag classes used to be a pair of Records here. Now they come
   // from STATE_DEFINITIONS in lib/control-states — adding a state requires
@@ -826,6 +854,7 @@ export function getProjectDisplayState(
     running: "working",
     "session-open": "open_idle",
     ready: "ready",
+    "awaiting-you": "awaiting_you",
     "orchestration-ready": "orchestration_ready",
     closing: "closing",
     closed: "completed",
@@ -865,6 +894,7 @@ export function getProjectDisplayState(
       isClosing: false,
       isReady: false,
       isOrchestrationReady: false,
+      isAwaitingYou: false,
       isBeaconActive: false,
       isRunning: false,
       runningEvidence: null,
@@ -886,6 +916,7 @@ export function getProjectDisplayState(
     isClosing,
     isReady,
     isOrchestrationReady,
+    isAwaitingYou,
     isBeaconActive,
     isRunning,
     runningEvidence,
@@ -942,6 +973,7 @@ export function buildProjectOperationsSnapshot(
   const claimsLiveObservation =
     display.isRunning ||
     display.isReady ||
+    display.isAwaitingYou ||
     display.isOrchestrationReady ||
     display.isSessionOpen ||
     display.tabOpen;
@@ -973,24 +1005,26 @@ export function buildProjectOperationsSnapshot(
     ? RUNNING_EVIDENCE_LABEL[display.runningEvidence ?? "dispatched-prompt"]
     : display.isReady
       ? "Agent signaled ready on connected computer"
-      : display.isOrchestrationReady
-        ? "Last run completed"
-        : display.isSessionOpen
-          ? "Agent idle"
-          : display.tabOpen
-            ? // The state chip on this card ALREADY reads "Tab open" — it is the
-              // label control-states.ts gives this phase. Saying "Workspace tab
-              // open" underneath repeated it in different words and told the
-              // reader nothing new, on every card in that state.
-              //
-              // The evidence line exists to name WHAT WAS OBSERVED that
-              // justifies the state: "Live agent process detected", "Agent
-              // signaled ready on connected computer", "Last run completed".
-              // When the only thing to say is the label again, the honest
-              // amount to say is nothing — unless there is a real observation
-              // to add, which is what the dispatch suffix carries.
-              (recentDispatchSuffix ?? "")
-            : "No recent activity";
+      : display.isAwaitingYou
+        ? "Agent finished and asked for your direction"
+        : display.isOrchestrationReady
+          ? "Last run completed"
+          : display.isSessionOpen
+            ? "Agent idle"
+            : display.tabOpen
+              ? // The state chip on this card ALREADY reads "Tab open" — it is the
+                // label control-states.ts gives this phase. Saying "Workspace tab
+                // open" underneath repeated it in different words and told the
+                // reader nothing new, on every card in that state.
+                //
+                // The evidence line exists to name WHAT WAS OBSERVED that
+                // justifies the state: "Live agent process detected", "Agent
+                // signaled ready on connected computer", "Last run completed".
+                // When the only thing to say is the label again, the honest
+                // amount to say is nothing — unless there is a real observation
+                // to add, which is what the dispatch suffix carries.
+                (recentDispatchSuffix ?? "")
+              : "No recent activity";
 
   // "Saved agent context" was the prior wording — flagged in browser dogfood
   // 2026-05-31 as opaque jargon that reads like an internal-data label (the

@@ -91,12 +91,21 @@ const NAMES = ["search_people", "list_projects", "propose_action"];
 /** Returns each scripted turn in order; records what it was asked. */
 function scriptedModel(turns: Array<Partial<ModelTurn>>) {
   let i = 0;
-  const seen: Array<{ toolsAdvertised: number }> = [];
-  const fn = async (input: { tools: Array<Record<string, unknown>> }): Promise<ModelTurn> => {
-    seen.push({ toolsAdvertised: input.tools.length });
+  const seen: Array<{ toolsAdvertised: number; maxTokens?: number }> = [];
+  const fn = async (input: {
+    tools: Array<Record<string, unknown>>;
+    maxTokens?: number;
+  }): Promise<ModelTurn> => {
+    seen.push({ toolsAdvertised: input.tools.length, maxTokens: input.maxTokens });
     const t = turns[Math.min(i, turns.length - 1)];
     i++;
-    return { text: t.text ?? "", toolCalls: t.toolCalls ?? [], model: "stub" };
+    return {
+      text: t.text ?? "",
+      toolCalls: t.toolCalls ?? [],
+      model: "stub",
+      cutOff: t.cutOff ?? null,
+      usageTokens: 0,
+    };
   };
   return { fn: fn as never, seen, calls: () => i };
 }
@@ -298,6 +307,41 @@ async function main() {
     });
     assert.equal(r.facts.length, 0, "a failed tool contributes no facts");
     assert.ok(r.text.length > 0, "a failed tool must not fail the turn");
+  }
+
+  // ── 8b. A severed answer is retried once, and never served as whole ─────────
+  // llm.ts reports `cutOff` from finish_reason; the loop used to ignore it, so a
+  // reasoning model that spent its budget thinking stored a clause as the answer.
+  {
+    const model = scriptedModel([
+      {
+        text: "It is not building anything right now; the core",
+        cutOff: "ran out of output budget",
+      },
+      { text: "It is not building anything right now; the core flows have shipped." },
+    ]);
+    const r = await runLokiTurn({
+      userId: "u1",
+      message: "what's going on?",
+      registry: STUB_REGISTRY,
+      callModel: model.fn,
+      seed: SEED,
+    });
+    assert.equal(model.calls(), 2, "a cut-off answer gets exactly one retry");
+    assert.ok((model.seen[1]?.maxTokens ?? 0) > 1400, "the retry gets a larger output budget");
+    assert.equal(r.text, "It is not building anything right now; the core flows have shipped.");
+
+    const stillCut = scriptedModel([
+      { text: "The agent finished and", cutOff: "ran out of output budget" },
+    ]);
+    const r2 = await runLokiTurn({
+      userId: "u1",
+      message: "what's going on?",
+      registry: STUB_REGISTRY,
+      callModel: stillCut.fn,
+      seed: SEED,
+    });
+    assert.match(r2.text, /cut off/i, "an answer still severed after the retry says so");
   }
 
   // ── 9. Bad arguments get the example back, not a zod dump ────────────────────
