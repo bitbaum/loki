@@ -19,13 +19,16 @@ export function SaveContextBar({
   projects,
   messages,
   selectedProject,
+  defaultOpen = false,
 }: {
   projects: LokiProject[];
   messages: LokiMessage[];
   selectedProject: string | null;
+  /** Opened from the phone's conversation menu: skip the one-line trigger. */
+  defaultOpen?: boolean;
 }) {
   const savable = useMemo(() => projects.filter((p) => p.entityProjectId), [projects]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   // The project this exchange is about: named by Loki in the transcript, else the
   // selected one, else the first savable project.
