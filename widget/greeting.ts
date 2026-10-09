@@ -17,8 +17,8 @@ export function greetingFor(state: {
 }): string {
   if (state.owner) {
     return state.watching
-      ? "Your site. I'm watching as you use it and I'll say here when something doesn't work. Tell me what to change and I'll build it."
-      : "Your site. I'm not watching right now — tap Watch again above. You can still tell me what to change and I'll build it.";
+      ? "I'm watching as you use your site. Use it as usual — or tap ◎ beside me to show me something."
+      : "Paused — nothing is recorded. Resume above, or just tell me what to change.";
   }
   if (state.assistant === "none") {
     return "Tell us what should change — it goes straight to whoever builds this site.";

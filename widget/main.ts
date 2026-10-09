@@ -27,6 +27,7 @@ import { DEFAULT_PLACEMENT, normalizePlacement, type Placement } from "./placeme
 import { buildDocCSS, buildShadowCSS, type WidgetTheme } from "./theme";
 import { h, spiralMark } from "./dom";
 import { createThoughtsView } from "./thoughts-view";
+import { attachSheet } from "./sheet";
 import {
   isHiddenByVisitor,
   readHiddenMarker,
@@ -218,6 +219,11 @@ interface LokiApi {
         visitorOverride = value;
       },
       onOpen: openPanel,
+      // Point first, talk second: the panel opens with the thing attached.
+      onPoint: () => {
+        openPanel();
+        picker.start();
+      },
       onHide: hideForVisitor,
     });
     const fab = launcher.fab;
@@ -350,6 +356,8 @@ interface LokiApi {
       },
       picker,
       onBusy: (busy) => brand.classList.toggle("thinking", busy),
+      // A change was filed: Your changes shows where it went, at once.
+      onSent: () => changes.start(),
       watch: () => watchSession,
     });
 
@@ -376,6 +384,9 @@ interface LokiApi {
       },
     });
     panel.append(hdr, watchOffer, thoughts.el, changes.el, conversation.el, madeWith, hideLink);
+    // On a phone the panel is a sheet: drag its top up for more, down to peek
+    // at the page under it, further down to put it away (sheet.ts).
+    attachSheet({ panel, handle: hdr, onClose: closePanel });
 
     function openPanel() {
       unread = 0;

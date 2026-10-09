@@ -129,6 +129,15 @@ ${spiralCSS(theme)}
 .fab.owner .fab-label { display: inline; }
 .fab.watching { border-color: ${theme.accent}; }
 .fab.watching .dot:not(.spiral) { animation: fcpulse 1.6s ease-in-out infinite; }
+/* "Show Loki this": the target beside the owner's launcher, same weight as it */
+.fab-point {
+  position: fixed; z-index: 2147483000; width: 40px; height: 40px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: ${theme.surface}; color: ${theme.accent}; border: 1px solid ${theme.borderDark};
+  box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+}
+.fab-point svg { width: 18px; height: 18px; display: block; }
+.fab-point:hover { border-color: ${theme.accent}; }
 .fab-badge {
   position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: ${theme.accent}; color: ${ink};
@@ -163,9 +172,13 @@ ${spiralCSS(theme)}
   box-shadow: 0 1px 2px rgba(0,0,0,.5), 0 24px 64px rgba(0,0,0,.55);
   padding: 16px;
 }
+.grip { display: none; }
 @media (max-width: 480px) {
   .panel { right: 0; bottom: 0; left: 0; width: 100%; max-width: none; border-radius: 12px 12px 0 0; border-bottom: none;
-           padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+           padding-bottom: calc(16px + env(safe-area-inset-bottom)); transition: transform .2s ease, height .2s ease; }
+  /* The sheet's handle: the grip and the header both drag (sheet.ts). */
+  .grip { display: block; width: 36px; height: 4px; border-radius: 999px; background: ${theme.borderDark}; margin: -8px auto 10px; touch-action: none; }
+  .hdr { touch-action: none; }
 }
 .hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 /* The text column SHRINKS and the actions do not: with Review + Stop watching
@@ -247,25 +260,33 @@ ${spiralCSS(theme)}
 .door { align-self: flex-start; font-size: 12px; color: ${theme.accent}; font-weight: 500; }
 .door:hover { color: ${theme.accent}; }
 /* Your changes: the owner's requests and where each one is, above the thread */
-.yours { display: flex; flex-direction: column; gap: 6px; margin: -12px -16px 12px; padding: 10px 16px; border-bottom: 1px solid ${theme.border}; }
-.yours-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.yours-all { font-size: 12px; color: ${theme.textSecondary}; white-space: nowrap; }
-.yours-all:hover { color: ${theme.text}; }
-.yours-list { display: flex; flex-direction: column; gap: 6px; }
-.yours-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 8px; font-size: 12px; line-height: 1.4; }
-.yours-dot { width: 8px; height: 8px; border-radius: 50%; background: ${theme.textMuted}; }
+/* Your changes: one hairline strip like the notes above — a summary line that
+   opens into the rows, each row its own link. */
+.yours { margin: -12px -16px 12px; padding: 0 16px; border-bottom: 1px solid ${theme.border}; }
+.yours-head { width: 100%; display: flex; align-items: center; gap: 9px; min-height: 40px; padding: 10px 0; text-align: left; font-size: 12px; color: ${theme.textSecondary}; }
+.yours-head:hover { color: ${theme.text}; }
+.yours-head::before { content: ""; flex: none; width: 7px; height: 7px; margin: 0 4px; border-radius: 50%; background: ${theme.success}; }
+.yours.needs-you .yours-head::before { background: ${theme.error}; }
+.yours-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yours.open .thoughts-chev { transform: rotate(90deg); }
+.yours-body { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; }
+.yours-list { display: flex; flex-direction: column; }
+.yours-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; padding: 7px 0; font-size: 12px; line-height: 1.4; color: inherit; text-decoration: none; }
+a.yours-row:hover .yours-text { color: ${theme.accent}; }
+.yours-dot { width: 7px; height: 7px; border-radius: 50%; background: ${theme.textMuted}; }
 .yours-row.tone-accent .yours-dot { background: ${theme.accent}; }
 .yours-row.tone-positive .yours-dot { background: ${theme.success}; }
 .yours-row.tone-warning .yours-dot { background: ${theme.error}; }
 .yours-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: ${theme.text}; }
-.yours-status { font-family: ${mono}; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: ${theme.textTertiary}; white-space: nowrap; }
+.yours-status { font-size: 11px; color: ${theme.textTertiary}; white-space: nowrap; }
 .yours-row.tone-positive .yours-status { color: ${theme.success}; }
 .yours-row.tone-warning .yours-status { color: ${theme.error}; }
-.yours-visitors { font-size: 11px; color: ${theme.textTertiary}; text-decoration: underline; text-underline-offset: 2px; }
+.yours-row.tone-accent .yours-status { color: ${theme.accent}; }
+.yours-all { align-self: flex-end; font-size: 12px; color: ${theme.textSecondary}; text-decoration: none; }
+.yours-all:hover { color: ${theme.text}; }
+@media (pointer: coarse) { .yours-row { padding: 10px 0; } .yours-all { padding: 6px 0; } }
+.yours-visitors { align-self: flex-end; font-size: 12px; color: ${theme.textTertiary}; text-decoration: none; }
 .yours-visitors:hover { color: ${theme.text}; }
-.yours-go { grid-column: 2 / -1; justify-self: start; font-size: 12px; font-weight: 600; color: ${theme.accent}; }
-.yours-go:hover { color: ${theme.accent}; }
-@media (pointer: coarse) { .yours-go, .yours-all { padding: 6px 0; } }
 /* Continue in Loki: one quiet row under the composer, wrapping on a phone */
 .continue { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 12px; padding: 0 2px; }
 .continue-label { color: ${theme.textTertiary}; }
@@ -404,13 +425,24 @@ input { margin-bottom: 10px; }
 .msg.from-loki .who { color: ${theme.accent}; }
 .changes { display: flex; flex-direction: column; align-self: stretch; margin-top: -4px; }
 .changes-title { padding-bottom: 4px; font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }
-.change { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid ${theme.border}; }
+/* Suggested changes are ONE decision: every row ticked to start, a tap
+   unticks, and one action builds what is ticked as one change (suggestions.ts). */
+.change { width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-top: 1px solid ${theme.border}; text-align: left; }
+.change-tick { flex: none; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; border: 1px solid ${theme.borderDark}; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; color: ${ink}; }
+.change.on .change-tick { background: ${theme.accent}; border-color: ${theme.accent}; }
+.change.on .change-tick::after { content: "✓"; font-weight: 700; }
+.changes.single .change-tick { display: none; }
+.changes.single .change { cursor: default; }
 .change-text { font-size: 13px; line-height: 1.45; color: ${theme.text}; min-width: 0; overflow-wrap: anywhere; }
-/* Build / Fix: the accent as TEXT, aligned at the row's end — five filled
-   buttons stacked down the right edge was the loudest thing on the screen. */
+.change:not(.on) .change-text { color: ${theme.textMuted}; }
+.changes-foot { display: flex; align-items: baseline; justify-content: flex-end; gap: 16px; padding-top: 8px; border-top: 1px solid ${theme.border}; }
+.changes-foot .act { align-self: auto; margin-top: 0; }
+/* The action: the accent as TEXT, aligned at the end — never a stack of
+   filled buttons down the right edge. Also "Fix this →" under a remark. */
 .change-send { flex: none; font-size: 12px; font-weight: 600; color: ${theme.accent}; white-space: nowrap; }
 .change-send:hover { color: ${theme.accentHover}; text-decoration: underline; text-underline-offset: 3px; }
-@media (pointer: coarse) { .change-send { padding: 8px 0 8px 8px; } }
+.change-send:disabled { color: ${theme.textMuted}; cursor: default; text-decoration: none; }
+@media (pointer: coarse) { .change-send, .changes-foot .act { padding: 8px 0; } }
 /* ---- hiding: offered in the panel, and always says how to undo it ---- */
 .made-with { display: block; margin: 14px auto 0; font-size: 11px; text-align: center; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; }
 .made-with:hover { color: ${theme.text}; }

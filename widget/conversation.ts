@@ -18,8 +18,9 @@
  * site. Links come from the server's map and only http(s) become anchors.
  */
 import { h, spiralMark, keepInViewOnFocus } from "./dom";
-import { richBody } from "./rich-text";
-import type { Picker, SelectedEl } from "./picker";
+import { answerLinks, richBody } from "./rich-text";
+import { suggestionBox } from "./suggestions";
+import type { Picker } from "./picker";
 import { createAttachments } from "./attachments";
 import { createVoiceControl } from "./voice-control";
 import { mergeTranscript } from "./voice";
@@ -109,6 +110,8 @@ export function createConversation(opts: {
   /** Loki is working on an answer (true) or done (false) — the header's
    *  spiral spins while it thinks. */
   onBusy?: (busy: boolean) => void;
+  /** A note was filed — Your changes refreshes to show where it went. */
+  onSent?: () => void;
 }) {
   let thread = readThread(opts.token);
   let busy = false;
@@ -193,7 +196,7 @@ export function createConversation(opts: {
     if (!text) return;
     input.value = "";
     syncButtons();
-    openDraft(text);
+    build(text);
   });
   const syncButtons = () => {
     const empty = !input.value.trim();
@@ -243,7 +246,6 @@ export function createConversation(opts: {
   });
 
   const owner = () => opts.ownerPass() !== null;
-  const sendLabel = () => (owner() ? "Build this →" : "Send to builder →");
 
   function syncContext() {
     const picked = opts.picker.selected().length;
@@ -287,21 +289,6 @@ export function createConversation(opts: {
     return m;
   }
 
-  function changeBox(title: string, items: string[], action: string): HTMLElement {
-    const box = h("div", "changes");
-    box.appendChild(h("div", "changes-title", title));
-    for (const text of items) {
-      const row = h("div", "change");
-      row.appendChild(h("span", "change-text", text));
-      const b = h("button", "change-send", action);
-      b.type = "button";
-      b.addEventListener("click", () => openDraft(text));
-      row.appendChild(b);
-      box.appendChild(row);
-    }
-    return box;
-  }
-
   /**
    * Rebuild the thread. Follows the newest message only when you were already
    * at the bottom (or it is your own action); reading further up, your place
@@ -343,7 +330,7 @@ export function createConversation(opts: {
             owner() ? "Build this as written" : "Send to builder as written",
           );
           act.type = "button";
-          act.addEventListener("click", () => openDraft(item.text));
+          act.addEventListener("click", () => build(item.text));
           log.appendChild(act);
         }
       } else if (item.kind === "loki") {
@@ -353,18 +340,15 @@ export function createConversation(opts: {
         said.appendChild(richBody(item.text));
         log.appendChild(said);
         if (item.changes?.length)
-          log.appendChild(changeBox("Suggested changes", item.changes, sendLabel()));
-        if (item.links?.length) {
-          const row = h("div", "chatlinks");
-          for (const l of item.links) {
-            const link = h("a", "chatlink", `${l.label} →`);
-            link.href = l.url;
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-            row.appendChild(link);
-          }
-          log.appendChild(row);
-        }
+          log.appendChild(
+            suggestionBox({
+              items: item.changes,
+              owner: owner(),
+              onBuild: build,
+              onEdit: openDraft,
+            }),
+          );
+        if (item.links?.length) log.appendChild(answerLinks(item.links));
       } else if (item.kind === "noticed") {
         // Loki speaking up unasked: what it saw, then what to do about it.
         const m = bubble("bot noticed from-loki", "Loki noticed", item.text);
@@ -372,7 +356,7 @@ export function createConversation(opts: {
           const row = h("div", "noticed-actions");
           const fix = h("button", "change-send", owner() ? "Fix this →" : "Send to builder →");
           fix.type = "button";
-          fix.addEventListener("click", () => openDraft(item.fix));
+          fix.addEventListener("click", () => build(item.fix));
           const why = h("button", "act", "Why does it matter?");
           why.type = "button";
           why.addEventListener(
@@ -393,7 +377,7 @@ export function createConversation(opts: {
           "Loki",
           item.owner
             ? item.building
-              ? `On it — an agent is building “${item.text}”. It goes live on this site by itself; Loki tells you when.`
+              ? `On it — “${item.text}” is in Your changes above. One agent builds it; it goes live here by itself and Loki tells you.`
               : `Saved “${item.text}”. ${item.note ?? "It waits in Loki under Feedback."}`
             : `Sent to whoever builds this site: “${item.text}”. Thank you.`,
         );
@@ -524,6 +508,53 @@ export function createConversation(opts: {
   }
 
   // ---- sending to the builder: a confirmation card in the thread ----
+  /**
+   * The owner's word IS the decision: a change starts building straight away,
+   * with the watched steps attached, and its receipt says where it went. The
+   * confirmation card is a visitor's (it asks who they are), or the owner's
+   * when they choose "Edit first".
+   */
+  function build(text: string) {
+    if (!owner()) return openDraft(text);
+    err.textContent = "";
+    deliver(text, "", opts.watch()?.diagnostics() ?? null).catch((e) => {
+      err.textContent = e instanceof Error ? e.message : "Could not start it — try again.";
+    });
+  }
+
+  /** File the note; the receipt lands in the thread. Throws the server's words. */
+  async function deliver(body: string, contact: string, diag: ReportDiagnostics | null) {
+    const pass = opts.ownerPass();
+    const res = await sendReport(opts.apiBase, {
+      token: opts.token,
+      suggestion: buildSuggestion(body, diag, MAX_LEN),
+      contact,
+      scope: scope(),
+      screenshots: attachments.shots(),
+      selectedElements: opts.picker.selected(),
+      ownerPass: pass ?? undefined,
+    });
+    if (pass && !res.owner) opts.onPassRefused();
+    draftOpen = null;
+    attachments.reset();
+    attachments.render();
+    opts.picker.clearSelection();
+    remember({
+      kind: "sent",
+      at: Date.now(),
+      text: body.slice(0, 300),
+      owner: res.owner === true,
+      ...(res.building ? { building: true } : {}),
+      ...(res.buildNote ? { note: res.buildNote } : {}),
+      // One link either way: a visitor tracks their report, the owner
+      // follows the build Loki just started.
+      ...(res.claimUrl || res.followUrl ? { claimUrl: res.followUrl ?? res.claimUrl } : {}),
+    });
+    syncContext();
+    render(true);
+    opts.onSent?.();
+  }
+
   function openDraft(text: string, diagnostics: ReportDiagnostics | null = null) {
     const diag = diagnostics ?? (owner() ? (opts.watch()?.diagnostics() ?? null) : null);
     const card = h("div", "sendcard");
@@ -575,36 +606,8 @@ export function createConversation(opts: {
       go.disabled = true;
       go.textContent = "Sending…";
       cardErr.textContent = "";
-      const selected: SelectedEl[] = opts.picker.selected();
       try {
-        const pass = opts.ownerPass();
-        const res = await sendReport(opts.apiBase, {
-          token: opts.token,
-          suggestion: buildSuggestion(body, diag, MAX_LEN),
-          contact: contact.value,
-          scope: scope(),
-          screenshots: attachments.shots(),
-          selectedElements: selected,
-          ownerPass: pass ?? undefined,
-        });
-        if (pass && !res.owner) opts.onPassRefused();
-        draftOpen = null;
-        attachments.reset();
-        attachments.render();
-        opts.picker.clearSelection();
-        remember({
-          kind: "sent",
-          at: Date.now(),
-          text: body.slice(0, 300),
-          owner: res.owner === true,
-          ...(res.building ? { building: true } : {}),
-          ...(res.buildNote ? { note: res.buildNote } : {}),
-          // One link either way: a visitor tracks their report, the owner
-          // follows the build Loki just started.
-          ...(res.claimUrl || res.followUrl ? { claimUrl: res.followUrl ?? res.claimUrl } : {}),
-        });
-        syncContext();
-        render(true);
+        await deliver(body, contact.value, diag);
       } catch (e) {
         go.disabled = false;
         go.textContent = owner() ? "Build it" : "Send";

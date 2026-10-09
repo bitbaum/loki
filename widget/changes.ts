@@ -77,6 +77,26 @@ export function toSeen(next: readonly OwnerChange[]): Record<string, boolean> {
   return Object.fromEntries(next.map((c) => [c.id, c.live]));
 }
 
+/**
+ * The collapsed line: what is moving and what landed, in the order the owner
+ * cares — what needs them, what is being built, what is waiting its turn,
+ * what is live. "Your changes · 1 needs you · 1 building · 2 live".
+ */
+export function changesSummary(changes: readonly OwnerChange[], visitors = 0): string {
+  const count = (label: string) => changes.filter((c) => c.label === label).length;
+  const parts = [
+    ["needs you", count("Needs you")],
+    ["building", count("Building") + count("Starting")],
+    ["in line", count("In line")],
+    ["on its way", count("On its way")],
+    ["live", changes.filter((c) => c.live).length],
+  ]
+    .filter(([, n]) => (n as number) > 0)
+    .map(([w, n]) => `${n} ${w}`);
+  if (visitors) parts.push(`${visitors} from visitors`);
+  return parts.length ? `Your changes · ${parts.join(" · ")}` : `Your changes · ${changes.length}`;
+}
+
 export function parseChanges(body: unknown): OwnerChange[] {
   const raw = (body as { changes?: unknown })?.changes;
   if (!Array.isArray(raw)) return [];
@@ -113,22 +133,39 @@ export function createChanges(opts: {
   /** The server no longer honours the pass. */
   onPassRefused: () => void;
 }) {
+  // One line until opened, like the notes above it: "Your changes · 1
+  // building · 2 live ›". It was a header, three rows and a "See it →" line
+  // under each — the busiest block on the panel, open all the time.
   const el = h("div", "yours");
   el.style.display = "none";
-  const head = h("div", "yours-head");
-  const title = h("span", "changes-title", "Your changes");
+  const head = h("button", "yours-head");
+  head.type = "button";
+  head.setAttribute("aria-expanded", "false");
+  const summary = h("span", "yours-sum");
+  const chev = h("span", "thoughts-chev", "›");
+  chev.setAttribute("aria-hidden", "true");
+  head.append(summary, chev);
+  const body = h("div", "yours-body");
+  body.style.display = "none";
+  const list = h("div", "yours-list");
   const all = h("a", "yours-all");
   all.target = "_blank";
   all.rel = "noopener";
-  head.append(title, all);
-  const list = h("div", "yours-list");
   // Visitors' notes are not the owner's changes; they are counted, and read
   // in Loki, where the inbox has the room to show who said what.
   const visitorsLine = h("a", "yours-visitors");
   visitorsLine.target = "_blank";
   visitorsLine.rel = "noopener";
   visitorsLine.style.display = "none";
-  el.append(head, list, visitorsLine);
+  body.append(list, all, visitorsLine);
+  el.append(head, body);
+  let open = false;
+  head.addEventListener("click", () => {
+    open = !open;
+    head.setAttribute("aria-expanded", String(open));
+    el.classList.toggle("open", open);
+    body.style.display = open ? "" : "none";
+  });
 
   let changes: OwnerChange[] = [];
   let inbox: string | null = null;
@@ -140,29 +177,34 @@ export function createChanges(opts: {
   function render() {
     list.textContent = "";
     el.style.display = changes.length || visitors ? "" : "none";
+    summary.textContent = changesSummary(changes, visitors);
+    el.classList.toggle(
+      "needs-you",
+      changes.some((c) => c.tone === "warning"),
+    );
     visitorsLine.style.display = visitors && inbox ? "" : "none";
     if (visitors && inbox) {
       visitorsLine.textContent = `${visitors} note${visitors === 1 ? "" : "s"} from visitors, in Loki →`;
       visitorsLine.href = inbox;
     }
     for (const c of changes.slice(0, CHANGES_SHOWN)) {
-      const row = h("div", `yours-row tone-${c.tone}`);
-      const dot = h("span", "yours-dot");
-      const text = h("span", "yours-text", c.text);
-      text.title = c.text;
-      const status = h("span", "yours-status", c.label);
-      status.title = c.detail;
-      row.append(dot, text, status);
-      if (c.href && c.action) {
-        const go = h("a", "yours-go", `${c.action} →`);
-        go.href = c.href;
-        go.rel = "noopener";
-        row.append(go);
+      // The row IS the link when there is somewhere to go — no second line.
+      const row = c.href
+        ? h("a", `yours-row tone-${c.tone}`)
+        : h("div", `yours-row tone-${c.tone}`);
+      if (row instanceof HTMLAnchorElement && c.href) {
+        row.href = c.href;
+        row.rel = "noopener";
+        row.target = "_blank";
       }
+      row.title = c.detail;
+      const text = h("span", "yours-text", c.text);
+      const status = h("span", "yours-status", c.label);
+      row.append(h("span", "yours-dot"), text, status);
       list.appendChild(row);
     }
     const more = changes.length - CHANGES_SHOWN;
-    all.textContent = more > 0 ? `All ${changes.length} in Loki →` : "In Loki →";
+    all.textContent = more > 0 ? `All ${changes.length} in Loki →` : "Open in Loki →";
     all.style.display = inbox ? "" : "none";
     if (inbox) all.href = inbox;
   }

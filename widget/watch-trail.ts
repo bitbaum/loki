@@ -33,7 +33,7 @@ import type { ReportDiagnostics } from "./report-payload";
  * owner could not see before: watch only ever spoke when something was wrong,
  * so between remarks it was impossible to tell what it was doing.
  */
-export type TrailKind = "tap" | "page" | "request" | "error" | "notice" | "look";
+export type TrailKind = "tap" | "page" | "request" | "error" | "notice" | "look" | "result";
 export type TrailEntry = { at: number; kind: TrailKind; text: string };
 export type Failure = { kind: "error" | "request" | "dead-tap"; text: string };
 
@@ -187,7 +187,7 @@ export function nextTapStreak(
  *  restored from storage after a page load is untrusted input. */
 export function freshTrail(trail: unknown, now: number): TrailEntry[] {
   if (!Array.isArray(trail)) return [];
-  const kinds: TrailKind[] = ["tap", "page", "request", "error", "notice", "look"];
+  const kinds: TrailKind[] = ["tap", "page", "request", "error", "notice", "look", "result"];
   return trail
     .filter(
       (e): e is TrailEntry =>
@@ -242,7 +242,8 @@ export function sessionForReview(trail: TrailEntry[], checks: string[], now: num
 }
 
 /** What watch remarked on, as recorded — `after` is the tap that led there. */
-export type NoticeKind = "4xx" | "slow" | "console" | "load" | "longtask" | "cls" | "checks";
+export type NoticeKind =
+  "4xx" | "slow" | "console" | "load" | "longtask" | "cls" | "checks" | "noeffect";
 export type Notice = { kind: NoticeKind; text: string; after?: string | null };
 
 const STATUS_WORDS: Record<number, string> = {
@@ -300,6 +301,11 @@ export function explainNotice(n: Notice): { say: string; fix: string } {
       return {
         say: `${n.text.charAt(0).toUpperCase()}${n.text.slice(1)}.`,
         fix: `Stop the page freezing ${n.text.replace(/ the page froze for .*$/, "").replace(/^after /, "after ")}.`,
+      };
+    case "noeffect":
+      return {
+        say: `You tapped ${n.text} and nothing visibly happened — nothing on the page changed and nothing was sent.`,
+        fix: `Make ${n.text} do something visible when tapped (or say why it can't).`,
       };
     case "cls":
       return {

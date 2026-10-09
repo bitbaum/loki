@@ -53,6 +53,11 @@ export function ownerStatusFor(work: FeedbackWorkView): OwnerChangeStatus {
         needsYou: true,
       };
     case FEEDBACK_WORK_PHASE.QUEUED:
+      // Waiting behind another change on the same project is not "Starting":
+      // the lane runs one agent at a time, and the owner who sent five fixes
+      // needs to see the order, not five rows all claiming to start.
+      if (work.detail?.startsWith("Behind "))
+        return { ...base, label: "In line", tone: "neutral", detail: work.detail };
       return {
         ...base,
         label: "Starting",

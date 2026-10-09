@@ -35,6 +35,14 @@ export function thoughtFor(e: TrailEntry): Thought {
         tone: /^nothing\b/.test(e.text) ? "good" : "warn",
         text: `Looked over the page — ${e.text}`,
       };
+    case "result": {
+      const nothing = /^nothing\b/.test(e.text);
+      return {
+        at,
+        tone: nothing ? "warn" : "plain",
+        text: `↳ ${nothing ? "Nothing visibly happened" : e.text.charAt(0).toUpperCase() + e.text.slice(1)}`,
+      };
+    }
     case "notice":
       return { at, tone: "warn", text: `Noticed: ${e.text}` };
     case "error":
