@@ -37,6 +37,7 @@ import { createLauncher } from "./launcher";
 import { createPicker } from "./picker";
 import { startWatchMode, type WatchSession } from "./watch";
 import { createConversation } from "./conversation";
+import { createChanges } from "./changes";
 import { assistantFor } from "./thread";
 import { showHideToast, watchOfferView } from "./panel-views";
 import { parseWidgetSurfaceModes } from "./surface-modes";
@@ -298,12 +299,20 @@ interface LokiApi {
           : "Loki watches again and tells you when something isn't right";
       stopBtn.style.display = on ? "" : "none";
       if (ownerPass) watchOffer.style.display = "none";
+      // "Hide this button" is a visitor's way out; the owner's panel is their
+      // tool, and the link only took space under the composer on a phone.
+      hideLink.style.display = ownerPass ? "none" : "";
       // The owner's launcher carries the same state as this header.
       launcher.setOwnerStatus(ownerPass ? { watching: on, unread } : null);
       conversation?.refresh();
     }
     /** What Loki said while the panel was closed — the launcher's badge. */
     let unread = 0;
+
+    // Visible, not only behind a long-press: a visitor who does not want the
+    // button should not have to know a gesture to get rid of it.
+    const hideLink = h("button", "hide-link", "Hide this button on this site");
+    hideLink.addEventListener("click", hideForVisitor);
 
     const modes = parseWidgetSurfaceModes(modesAttr);
     const picker = createPicker({
@@ -337,14 +346,33 @@ interface LokiApi {
       watch: () => watchSession,
     });
 
-    // Visible, not only behind a long-press: a visitor who does not want the
-    // button should not have to know a gesture to get rid of it.
-    const hideLink = h("button", "hide-link", "Hide this button on this site");
-    hideLink.addEventListener("click", hideForVisitor);
-    panel.append(hdr, watchOffer, conversation.el, hideLink);
+    // The owner's changes and where each one is — the half of "Loki tells
+    // you when" that happens on the site (widget/changes.ts). Loki says it in
+    // the thread when the panel is open, beside the launcher when it is not.
+    const changes = createChanges({
+      apiBase,
+      token,
+      pass: () => ownerPass,
+      onLive: (c) => {
+        const links = c.href ? [{ label: c.action ?? "See it", url: c.href }] : [];
+        conversation.say(`“${c.text}” is live on this site.`, links);
+        if (panel.isConnected) return;
+        unread++;
+        syncWatch();
+        launcher.say(`“${c.text.slice(0, 60)}${c.text.length > 60 ? "…" : ""}” is live`);
+      },
+      onPassRefused: () => {
+        forgetOwnerPass(token);
+        ownerPass = null;
+        syncWatch();
+        conversation.refresh();
+      },
+    });
+    panel.append(hdr, watchOffer, changes.el, conversation.el, hideLink);
 
     function openPanel() {
       unread = 0;
+      changes.start();
       fab.style.display = "none";
       hdrPage.textContent = document.title || location.pathname;
       root.append(backdrop, panel);
@@ -413,6 +441,9 @@ interface LokiApi {
         onChange: syncWatch,
       });
     syncWatch();
+    // The owner's changes are asked for on arrival, so a change that went
+    // live since their last visit is announced before they open anything.
+    changes.start();
     // Only now can a click actually open something — see LokiApi.ready.
     api.ready = true;
     if (ownerDenied) {

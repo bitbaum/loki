@@ -24,6 +24,7 @@ import {
   splitAdvice,
 } from "@/lib/widget-advise/advisor";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
+import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
 
 /**
  * The widget's Ask mode (widget/advise.ts): "is this right, should it change,
@@ -61,6 +62,10 @@ const AdviseBody = z.object({
     .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(3000) }))
     .max(ADVISE_MAX_HISTORY)
     .optional(),
+  /** The owner's pass (widget/owner-pass.ts): verified here exactly as
+   *  ingest verifies it, so the advisor knows it is talking to the person
+   *  whose site this is — whose "add X" is a build, not a wish. */
+  ownerPass: z.string().max(400).optional(),
 });
 
 function corsJson(body: unknown, status = 200): NextResponse {
@@ -109,6 +114,10 @@ export async function POST(req: NextRequest) {
   const budget = await checkAiBudget(token.userId);
   if (!budget.allowed) return unavailable();
 
+  // Same test as ingest (api/feedback): this project, this owner, unexpired.
+  const pass = data.ownerPass ? verifyOwnerPass(data.ownerPass) : null;
+  const owner = !!pass && pass.projectId === token.projectId && pass.userId === token.userId;
+
   try {
     const project = await getWidgetProjectBrief(token.projectId).catch(() => null);
     const answered = await callTextDetailed(advisePrompt(data.history ?? [], data.question), {
@@ -118,6 +127,7 @@ export async function POST(req: NextRequest) {
         snapshot: data.snapshot,
         project,
         session: data.session,
+        owner,
       }),
       // Reasoning models spend hidden tokens before the first visible word; a
       // session review answers through five lenses and needs the room.

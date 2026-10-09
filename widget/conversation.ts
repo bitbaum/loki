@@ -25,7 +25,16 @@ import { mergeTranscript } from "./voice";
 import { buildSuggestion, formatDiagnostics, type ReportDiagnostics } from "./report-payload";
 import { sendReport } from "./send-report";
 import { askAdvisor, askConcierge, REVIEW_QUESTION, type Answer } from "./loki-api";
-import { historyFor, pushItem, restoreThread, type Assistant, type ThreadItem } from "./thread";
+import {
+  historyFor,
+  pushItem,
+  restoreThread,
+  type Assistant,
+  type Link,
+  type ThreadItem,
+} from "./thread";
+import { createContinueRow } from "./continue-row";
+import { greetingFor, ownerDoor } from "./greeting";
 
 /** The ingest's cap on `suggestion` (api/feedback FeedbackBody). */
 export const MAX_LEN = 2000;
@@ -206,7 +215,15 @@ export function createConversation(opts: {
   actions.append(tools, feedbackBtn, sendBtn);
   const form = h("div", "composer");
   form.append(input, actions);
-  el.append(log, starters, ctx, shots, form, err);
+
+  // The way out of the card and into Loki itself (continue-row.ts).
+  const cont = createContinueRow({
+    apiBase: opts.apiBase,
+    token: opts.token,
+    thread: () => thread,
+    owner: () => opts.ownerPass() !== null,
+  });
+  el.append(log, starters, ctx, shots, form, cont.el, err);
 
   el.addEventListener("paste", (e: ClipboardEvent) => {
     const images = Array.from(e.clipboardData?.items ?? []).filter((i) =>
@@ -247,6 +264,7 @@ export function createConversation(opts: {
     feedbackBtn.className = a === "none" ? "go feedback" : "ghost feedback";
     sendBtn.textContent = "Ask Loki";
     sendBtn.style.display = a === "none" ? "none" : "";
+    cont.sync();
   }
 
   function scope(): "element" | "page" | "site" {
@@ -298,15 +316,10 @@ export function createConversation(opts: {
         bubble(
           "bot from-loki",
           "Loki",
-          owner()
-            ? opts.watch()?.on()
-              ? "This is your site, and I'm watching as you use it. When something doesn't work or doesn't look right, I'll say so here. Tell me what to change and I'll build it — or tap Review for my take on everything you just did."
-              : "This is your site. I'm not watching right now — tap Watch again above and I'll tell you when something doesn't work or doesn't look right. You can still tell me what to change."
-            : a === "none"
-              ? "Tell us what should change — it goes straight to whoever builds this site."
-              : "Hi, I'm Loki. Ask me anything about this site, or tell me what should change — it goes straight to whoever builds it.",
+          greetingFor({ assistant: a, owner: owner(), watching: opts.watch()?.on() ?? false }),
         ),
       );
+      if (!owner()) log.appendChild(ownerDoor(opts.apiBase, opts.token));
     }
     const lastYou = thread.map((i) => i.kind).lastIndexOf("you");
     thread.forEach((item, idx) => {
@@ -453,6 +466,7 @@ export function createConversation(opts: {
               selected: opts.picker.selected(),
               history,
               session,
+              ownerPass: opts.ownerPass() ?? undefined,
             });
       answer.messages.forEach((m, i) =>
         remember({
@@ -475,6 +489,7 @@ export function createConversation(opts: {
       err.textContent = e instanceof Error ? e.message : "Could not reach Loki — try again.";
     } finally {
       busy = false;
+      syncContext();
       render(true);
       sendBtn.disabled = !input.value.trim();
     }
@@ -618,8 +633,8 @@ export function createConversation(opts: {
       render();
     },
     /** Loki says something unprompted (e.g. "this site is not yours"). */
-    say: (text: string) => {
-      remember({ kind: "loki", at: Date.now(), speaker: "loki", text });
+    say: (text: string, links?: Link[]) => {
+      remember({ kind: "loki", at: Date.now(), speaker: "loki", text, links });
       render(true);
     },
     /** Closing the panel: stop the mic; the thread itself is kept. */

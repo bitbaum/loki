@@ -148,16 +148,20 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
            padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 }
 .hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+/* The text column SHRINKS and the actions do not: with Review + Stop watching
+   beside the close button, the owner's phone once pushed ✕ off the right edge
+   (a flex item refuses to shrink below its content unless told to). */
+.hdr > div:first-child { min-width: 0; flex: 1 1 auto; }
 .hdr .brand { display: flex; align-items: center; gap: 7px; color: ${theme.textSecondary}; margin-bottom: 7px; }
 .hdr b { display: block; font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: ${theme.text}; }
-.hdr .page { font-size: 11px; color: ${theme.textTertiary}; margin-top: 3px; max-width: 280px; font-family: ${mono};
+.hdr .page { font-size: 11px; color: ${theme.textTertiary}; margin-top: 3px; max-width: 100%; font-family: ${mono};
              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .x { color: ${theme.textSecondary}; width: 28px; height: 28px; border-radius: ${rc}; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; flex: none; }
 .x:hover { color: ${theme.text}; background: ${theme.surfaceSubtle}; }
 
 /* header actions: Watch / Review, then close */
 .hdr-actions { display: flex; align-items: center; gap: 6px; flex: none; }
-.watchbtn { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; border: 1px solid ${theme.borderStrong}; color: ${theme.textSecondary}; }
+.watchbtn { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; border: 1px solid ${theme.borderStrong}; color: ${theme.textSecondary}; white-space: nowrap; }
 .watchbtn:hover { color: ${theme.text}; border-color: ${theme.accent}; }
 .watchbtn.on { border-color: ${theme.accent}; background: ${theme.accentMuted}; color: ${theme.text}; }
 .watch-offer { margin: -4px 0 12px; padding: 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; font-size: 12px; line-height: 1.5; color: ${theme.textSecondary}; }
@@ -195,6 +199,34 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 @media (max-width: 380px) { .composer-actions .attach span:last-child { display: none; } }
 .act { align-self: flex-end; font-size: 11px; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; margin-top: -4px; }
 .act:hover { color: ${theme.text}; }
+/* the owner's door under the greeting: a link, aligned with Loki's bubble.
+   Not an .act — those are "your words, as written" and a test counts them. */
+.door { align-self: flex-start; font-size: 11px; color: ${theme.text}; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+.door:hover { color: ${theme.accent}; }
+/* Your changes: the owner's requests and where each one is, above the thread */
+.yours { display: flex; flex-direction: column; gap: 6px; margin: -4px 0 12px; padding: 10px 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; }
+.yours-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.yours-all { font-size: 11px; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.yours-all:hover { color: ${theme.text}; }
+.yours-list { display: flex; flex-direction: column; gap: 6px; }
+.yours-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 8px; font-size: 12px; line-height: 1.4; }
+.yours-dot { width: 8px; height: 8px; border-radius: 50%; background: ${theme.textMuted}; }
+.yours-row.tone-accent .yours-dot { background: ${theme.accent}; }
+.yours-row.tone-positive .yours-dot { background: ${theme.success}; }
+.yours-row.tone-warning .yours-dot { background: ${theme.error}; }
+.yours-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: ${theme.text}; }
+.yours-status { font-family: ${mono}; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: ${theme.textTertiary}; white-space: nowrap; }
+.yours-row.tone-positive .yours-status { color: ${theme.success}; }
+.yours-row.tone-warning .yours-status { color: ${theme.error}; }
+.yours-go { grid-column: 2 / -1; justify-self: start; font-size: 12px; font-weight: 600; color: ${theme.text}; text-decoration: underline; text-underline-offset: 2px; }
+.yours-go:hover { color: ${theme.accent}; }
+@media (pointer: coarse) { .yours-go, .yours-all { padding: 6px 0; } }
+/* Continue in Loki: one quiet row under the composer, wrapping on a phone */
+.continue { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 12px; }
+.continue-label { font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }
+.continue-link { color: ${theme.text}; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+.continue-link:hover { color: ${theme.accent}; }
+@media (pointer: coarse) { .continue-link, .door { padding: 8px 0; } }
 .msg.sent { border-color: ${theme.accent}; }
 .msg .track { display: inline-flex; margin-top: 8px; }
 .starter.primary { border-style: solid; border-color: ${theme.accent}; color: ${theme.text}; background: ${theme.accentMuted}; font-weight: 600; }
