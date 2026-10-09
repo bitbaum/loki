@@ -13,6 +13,8 @@ export type DispatchStatusInput = {
    * guessing a machine they were never dispatched to.
    */
   channel?: BuilderChannel | null;
+  /** The builder the project prefers was offline, so `channel` took the work. */
+  reroutedFrom?: BuilderChannel | null;
 };
 
 /**
@@ -47,8 +49,14 @@ export function dispatchStatusLabel(input: DispatchStatusInput): { label: string
     return { label: on ? `Running now on ${on}` : "Running now", warn: false };
   }
   if (input.mode === "queued") {
+    const from = builderName(input.reroutedFrom);
     return {
-      label: on ? `With ${on} — starting shortly` : EXECUTOR_COPY.queuedWithBuilderOnline,
+      label:
+        on && from
+          ? `With ${on} — ${from} is offline`
+          : on
+            ? `With ${on} — starting shortly`
+            : EXECUTOR_COPY.queuedWithBuilderOnline,
       warn: false,
     };
   }
@@ -67,6 +75,12 @@ export function dispatchAssistantContent(projectKey: string, input: DispatchStat
       : `Running on **${projectKey}** in the agent terminal now.`;
   }
   if (input.mode === "queued" && !warn) {
+    const from = builderName(input.reroutedFrom);
+    // Say what happened and that nothing is needed. The stored preference is
+    // unchanged; the next dispatch asks the same question again.
+    if (on && from) {
+      return `Dispatched **${projectKey}** to ${on} — ${from} is offline, so ${on} took it. Nothing to do.`;
+    }
     return on
       ? `Dispatched **${projectKey}** to ${on} — ${EXECUTOR_COPY.queuedWithBuilderOnlineLong}`
       : `Dispatched **${projectKey}** — ${EXECUTOR_COPY.queuedWithBuilderOnlineLong}`;

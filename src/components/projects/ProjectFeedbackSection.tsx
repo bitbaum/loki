@@ -69,9 +69,8 @@ export function ProjectFeedbackSection({
   );
   const [setupOpen, setSetupOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const { busyId, error, setError, notice, dispatchFix, setStatus, feature } = useFeedbackActions(
-    feedbackFetch.refetch,
-  );
+  const { busyId, error, setError, notice, dispatchFix, runInCloud, setStatus, feature } =
+    useFeedbackActions(feedbackFetch.refetch);
   const [synthesizing, setSynthesizing] = useState(false);
   const [synthesized, setSynthesized] = useState(false);
   const [batchBusy, setBatchBusy] = useState(false);
@@ -316,6 +315,9 @@ export function ProjectFeedbackSection({
               projectName={projectName}
               busy={busyId === f.id}
               onDispatch={(opts) => dispatchFix(f.id, opts ?? {})}
+              onRunInCloud={
+                f.work.commandId ? () => runInCloud(f.id, f.work.commandId!) : undefined
+              }
               onResolve={() => setStatus(f.id, FEEDBACK_STATUS.RESOLVED)}
               onArchive={() => setStatus(f.id, FEEDBACK_STATUS.ARCHIVED)}
               onReopen={() => setStatus(f.id, FEEDBACK_STATUS.NEW)}

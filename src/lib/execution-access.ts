@@ -47,6 +47,9 @@ export type QueuedExecutionDecision =
       ok: true;
       channel?: RunnerChannel;
       runnerConnected: boolean;
+      /** The stored choice was offline, so the work went to this builder's
+       *  online sibling instead (see `offlineFallback`). */
+      reroutedFrom?: RunnerChannel;
       access: ExecutionAccess;
     }
   | {
@@ -83,6 +86,7 @@ export async function resolveQueuedExecution(
     requestedChannel?: RunnerChannel | null;
     defaultChannel?: RunnerChannel;
     project?: ProjectLocus;
+    offlineFallback?: RunnerChannel | null;
   } = {},
 ): Promise<QueuedExecutionDecision> {
   const access = await getExecutionAccess(userId);
@@ -100,6 +104,13 @@ export function decideQueuedExecution(
      * every caller rather than each route deriving its own.
      */
     project?: ProjectLocus;
+    /**
+     * A builder that may take the work when the chosen one is offline right
+     * now — only ever the project's own `offlineFallbackChannel`, which is
+     * null for a locked project. The chat says what happened, so the
+     * operator can send it back; the stored preference itself is untouched.
+     */
+    offlineFallback?: RunnerChannel | null;
   } = {},
 ): QueuedExecutionDecision {
   const requested = options.requestedChannel ?? null;
@@ -134,12 +145,26 @@ export function decideQueuedExecution(
     };
   }
 
-  const channel = requested ?? defaultChannel;
+  const chosen = requested ?? defaultChannel;
+  const fallback = options.offlineFallback ?? null;
+  // The chosen builder is off and its sibling is on: the work goes where it
+  // can start now. Without this a phone tap sat "Queued for this computer"
+  // for 106 minutes beside a cloud builder reading "online · not executing"
+  // (operator, 2026-10-09) — the queue was waiting for a laptop that was shut.
+  const reroute =
+    chosen !== undefined &&
+    fallback !== null &&
+    fallback !== chosen &&
+    !access.presence[chosen] &&
+    access.presence[fallback] &&
+    (fallback !== "cloud" || access.cloudBuilderAllowed);
+  const channel = reroute ? fallback : chosen;
   const runnerConnected = channel ? access.presence[channel] : access.presence.any;
   return {
     ok: true,
     ...(channel ? { channel } : {}),
     runnerConnected,
+    ...(reroute && chosen ? { reroutedFrom: chosen } : {}),
     access,
   };
 }
@@ -252,6 +277,24 @@ export function coldStartWorkspaceDir(
  */
 export function pickDispatchChannel(project: ProjectLocus): RunnerChannel {
   return projectPreferredChannel(project);
+}
+
+/**
+ * Where this project's work may go when its chosen builder is offline — or
+ * null when it must wait.
+ *
+ * Only a PREFERENCE for this computer falls through, and only to the cloud,
+ * and only when the cloud can materialize the project on its own (a cloneable
+ * repository). A locus lock never falls through: that is the 2026-07-14
+ * misroute, and the lock exists to prevent it. The other direction (cloud
+ * preference, cloud offline) never falls through either — the desktop runner
+ * does not clone on demand, so a laptop that has no checkout has nowhere to
+ * put the work.
+ */
+export function offlineFallbackChannel(project: ProjectLocus): RunnerChannel | null {
+  if (projectChannelLock(project) !== null) return null;
+  if (projectPreferredChannel(project) !== "local") return null;
+  return isCloneableGitUrl(project?.gitUrl) ? "cloud" : null;
 }
 
 export function executionAccessErrorBody(

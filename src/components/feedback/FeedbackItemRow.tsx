@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Archive, Check, Loader2, PenLine, Rocket, Star, Undo2 } from "lucide-react";
+import { Archive, Check, Cloud, Loader2, PenLine, Rocket, Star, Undo2 } from "lucide-react";
 import { compactRelativeDate } from "@/lib/dates";
 import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-phase";
@@ -39,6 +39,7 @@ export function FeedbackItemRow({
   project,
   busy,
   onDispatch,
+  onRunInCloud,
   onResolve,
   onArchive,
   onReopen,
@@ -51,6 +52,9 @@ export function FeedbackItemRow({
   busy: boolean;
   /** Queue the fix. `agent` switches provider and records the preference. */
   onDispatch: (opts?: { note?: string; agent?: string }) => void;
+  /** Hand the queued row to the cloud builder — offered when the row waits
+   *  for this computer and the cloud is online (work.rerouteTo). */
+  onRunInCloud?: () => void;
   onResolve: () => void;
   onArchive: () => void;
   onReopen: () => void;
@@ -174,6 +178,26 @@ export function FeedbackItemRow({
     );
   } else if (moving) {
     decision = watchToggle();
+    utility = resolveIcon;
+  } else if (failed && work.rerouteTo === "cloud" && onRunInCloud) {
+    // Waiting for a laptop that is shut, with the cloud builder up: the one
+    // move is to hand it over. Retry would queue a second row for the same
+    // shut laptop, so it steps aside.
+    decision = (
+      <>
+        <button
+          type="button"
+          onClick={onRunInCloud}
+          disabled={busy}
+          className="ui-btn-save"
+          title="Move this to the cloud builder — it starts now, nothing is lost"
+        >
+          {busy ? <Loader2 className="ui-spinner-xs" /> : <Cloud className="h-3 w-3" />}
+          Run it in the cloud
+        </button>
+        {watchToggle(false)}
+      </>
+    );
     utility = resolveIcon;
   } else if (failed) {
     // A run that needs you is most often a run that ran out of quota, and the

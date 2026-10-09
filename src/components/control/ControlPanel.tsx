@@ -93,6 +93,8 @@ export function ControlPanel() {
    * project?", and this is it. Desktop ignores it entirely.
    */
   const [projectOpenOnPhone, setProjectOpenOnPhone] = useState(false);
+  // The hero's counter chips narrow the roster to their bucket.
+  const [categoryFilter, setCategoryFilter] = useState<"working" | "waiting" | null>(null);
   const [highlightTab, setHighlightTab] = useState<string | null>(null);
   const [liveTargetTab, setLiveTargetTab] = useState<string | null>(null);
   const livePanelRef = useRef<HTMLElement>(null);
@@ -186,6 +188,7 @@ export function ControlPanel() {
     // Genuine execution stalls (serialized/in-flight commands already filtered
     // out server-side) outrank "Building" — see deriveFleetPulse.
     executionStall: data?.runnerExecutionStall ?? null,
+    cloudOnline: Boolean(builderPresence?.cloud),
     latestRuns: latestRunSignals(data?.projects ?? [], nowS),
   });
   const liveTabRows = useMemo(
@@ -435,13 +438,18 @@ export function ControlPanel() {
               ?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
           onOpenSettings={() => setFleetSettingsOpen(true)}
+          onRunInCloud={() => {
+            void postJson("/api/control/reroute", {}).then(() => refresh(true));
+          }}
           onNewProject={() => (runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true))}
           onFocusCategory={(category) => {
             const match = snapshots?.find(
               (s) => STATE_DEFINITIONS[s.phase].counterCategory === category,
             );
             if (!match) return;
+            setCategoryFilter(category);
             setSelectedTab(match.project.tab);
+            setProjectOpenOnPhone(false);
             document
               .getElementById("control-projects")
               ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -450,6 +458,8 @@ export function ControlPanel() {
       )}
 
       <ProjectOperationsView
+        categoryFilter={categoryFilter}
+        onClearCategoryFilter={() => setCategoryFilter(null)}
         snapshots={snapshots}
         selectedTab={selectedTab}
         onSelect={(tab) => {

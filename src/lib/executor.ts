@@ -10,7 +10,7 @@
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { DEFAULT_ADAPTER_ID } from "@/lib/orchestration";
 import { enqueueInjectCommand, enqueueDispatchCommand } from "@/db/queries/pending-commands";
-import type { InjectPayload } from "@/db/schema/pending-commands";
+import type { InjectPayload, RunnerChannel } from "@/db/schema/pending-commands";
 import { resolveQueuedExecution } from "@/lib/execution-access";
 import { planParallelRun } from "@/lib/orchestration/parallel-run";
 
@@ -25,6 +25,11 @@ export type ExecuteResult =
       mode: "queued";
       commandId: string;
       runnerConnected: boolean;
+      /** The builder the row was actually given. */
+      channel?: RunnerChannel;
+      /** Set when the chosen builder was offline and its online sibling took
+       *  the work (execution-access offlineFallback). */
+      reroutedFrom?: RunnerChannel;
       /** Set when a busy project got this run its own lane (planParallelRun):
        *  the derived tab it will run in. Absent = it waits its turn. */
       parallelTab?: string;
@@ -45,6 +50,10 @@ export async function executeInject(
      *  of a bare `inject` — so the prompt lands even when no agent is running
      *  yet. Without a dir we can't launch, so fall back to `inject`. */
     dir?: string | null;
+    /** Where the work may go instead when `channel`'s builder is offline right
+     *  now (execution-access offlineFallbackChannel), and the directory that
+     *  builder clones into. Null: the chosen builder is the only one. */
+    offlineFallback?: { channel: RunnerChannel; dir: string | null } | null;
     /** When true (a busy local project), skip the direct inject and queue for
      *  the runner instead — so a 2nd same-project dispatch serializes behind the
      *  running agent rather than colliding in the shared tab/PTY/checkout. The
@@ -80,11 +89,15 @@ export async function executeInject(
     const decision = await resolveQueuedExecution(userId, {
       requestedChannel: payload.channel,
       defaultChannel: remoteDefaultChannel,
+      offlineFallback: payload.offlineFallback?.channel ?? null,
     });
     if (!decision.ok) {
       return { ok: false, mode: "queued", error: decision.message, code: decision.code };
     }
     const channel = decision.channel;
+    // Rerouted work runs in the directory the fallback builder will clone
+    // into, not the path the chosen builder had.
+    const dir = decision.reroutedFrom ? (payload.offlineFallback?.dir ?? payload.dir) : payload.dir;
     // A busy project would make this dispatch wait for the run ahead of it.
     // When a parallel lane is free, it gets its own tab and worktree instead
     // and starts now — the case that matters is a person pressing Implement
@@ -97,11 +110,11 @@ export async function executeInject(
             prompt: payload.prompt,
           })
         : null;
-    const commandId = payload.dir
+    const commandId = dir
       ? await enqueueDispatchCommand(userId, {
           tab: plan?.tab ?? payload.tab,
           ...(channel ? { channel } : {}),
-          dir: payload.dir,
+          dir,
           agent: payload.adapter ?? DEFAULT_ADAPTER_ID,
           prompt: plan?.prompt ?? payload.prompt,
           model: payload.model,
@@ -117,6 +130,8 @@ export async function executeInject(
       mode: "queued",
       commandId,
       runnerConnected: decision.runnerConnected,
+      ...(channel ? { channel } : {}),
+      ...(decision.reroutedFrom ? { reroutedFrom: decision.reroutedFrom } : {}),
       ...(plan ? { parallelTab: plan.tab } : {}),
     };
   } catch (err) {

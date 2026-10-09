@@ -53,7 +53,14 @@ type Props = {
   runnerVersion?: string | null;
   builderVersions?: { cloud: string | null; local: string | null } | null;
   builderPresence?: BuilderChannelPresence | null;
-  runnerExecutionStall: { stalled: boolean; stalledCount: number; oldestSeconds: number } | null;
+  runnerExecutionStall: {
+    stalled: boolean;
+    stalledCount: number;
+    oldestSeconds: number;
+    localQueued?: number;
+  } | null;
+  /** Hand everything waiting for this computer to the cloud builder. */
+  onRunInCloud?: () => void;
   lastUpdated: number | null;
   /** Truthful hero headline — deriveFleetPulse(), computed by ControlPanel. */
   fleetPulse: FleetPulse;
@@ -97,6 +104,7 @@ export function ControlFleetStatus({
   onOpenSettings,
   onNewProject,
   onFocusCategory,
+  onRunInCloud,
 }: Props) {
   // Vocabulary AND arithmetic reconciled with ProjectOperationsView's rail.
   // The triad is "X working · Y awaiting input · Z idle" — three
@@ -274,6 +282,14 @@ export function ControlFleetStatus({
   // At most one. A card with two equally-weighted buttons has no primary, and
   // this card's whole job is to make the next step obvious.
   const topAttention = attentionProjects[0] ?? null;
+  // Work waiting for a shut laptop while the cloud builder is up: the one
+  // button is the way out. "Restart the desktop app" was an instruction for
+  // a hung runner, printed under a queue that was merely waiting.
+  const canRunInCloud =
+    fleetPulse.key === "stalled" &&
+    (runnerExecutionStall?.localQueued ?? 0) > 0 &&
+    Boolean(builderPresence?.cloud) &&
+    Boolean(onRunInCloud);
 
   return (
     <section className="ui-control-hero">
@@ -344,6 +360,11 @@ export function ControlFleetStatus({
           className="ui-hero-action ui-btn-primary"
         >
           Review failed dispatches
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+      ) : canRunInCloud ? (
+        <button type="button" onClick={onRunInCloud} className="ui-hero-action ui-btn-primary">
+          Run it in the cloud
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       ) : fleetPulse.key === "failing" ? (

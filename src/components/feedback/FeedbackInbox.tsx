@@ -90,7 +90,8 @@ export function FeedbackInbox() {
   const [showArchived, setShowArchived] = useState(false);
   const [showAllShipped, setShowAllShipped] = useState(false);
   const [chosenLens, setChosenLens] = useState<Lens | null>(null);
-  const { busyId, error, notice, dispatchFix, setStatus, feature } = useFeedbackActions(refetch);
+  const { busyId, error, notice, dispatchFix, runInCloud, setStatus, feature } =
+    useFeedbackActions(refetch);
 
   const all = useMemo(() => data?.feedback ?? [], [data]);
   const metrics = data?.metrics ?? null;
@@ -213,7 +214,7 @@ export function FeedbackInbox() {
   // view that holds something, so an empty "Needs you" never greets a page
   // whose agents are busy.
   const lens: Lens = chosenLens ?? defaultLens(counts);
-  const rowProps = { busyId, dispatchFix, setStatus, feature, hideProject };
+  const rowProps = { busyId, dispatchFix, runInCloud, setStatus, feature, hideProject };
 
   return (
     <div className="space-y-4">
@@ -530,6 +531,7 @@ function Row({
   f,
   busyId,
   dispatchFix,
+  runInCloud,
   setStatus,
   feature,
   hideProject,
@@ -537,6 +539,7 @@ function Row({
   f: InboxItem;
   busyId: string | null;
   dispatchFix: (id: string, opts?: { note?: string; agent?: string }) => void;
+  runInCloud: (id: string, commandId: string) => void;
   setStatus: (id: string, status: FeedbackStatus) => void;
   feature: (id: string, featured: boolean) => void;
   /** On a project-scoped view the project is the heading, not a per-row chip. */
@@ -549,6 +552,7 @@ function Row({
       project={hideProject ? null : { id: f.projectId, name: f.projectName }}
       busy={busyId === f.id}
       onDispatch={(opts) => dispatchFix(f.id, opts ?? {})}
+      onRunInCloud={f.work.commandId ? () => runInCloud(f.id, f.work.commandId!) : undefined}
       onResolve={() => setStatus(f.id, FEEDBACK_STATUS.RESOLVED)}
       onArchive={() => setStatus(f.id, FEEDBACK_STATUS.ARCHIVED)}
       onReopen={() => setStatus(f.id, FEEDBACK_STATUS.NEW)}

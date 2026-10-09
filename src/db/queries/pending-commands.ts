@@ -39,6 +39,9 @@ export async function getRunnerExecutionStall(userId: string, graceSeconds = 120
       tabs: sql<
         string[]
       >`coalesce(array_agg(distinct coalesce(payload->>'projectKey', payload->>'tab')) filter (where coalesce(payload->>'projectKey', payload->>'tab') is not null), '{}')`,
+      // How many of them wait for this computer specifically — the case with
+      // a one-tap way out (rerouteQueuedToCloud) rather than a restart.
+      localQueued: sql<number>`count(*) filter (where payload->>'channel' = 'local')::int`,
     })
     .from(pendingCommands)
     .where(
@@ -68,7 +71,51 @@ export async function getRunnerExecutionStall(userId: string, graceSeconds = 120
     stalledCount,
     oldestSeconds: row?.oldestSeconds ?? 0,
     tabs: (row?.tabs ?? []).slice(0, 5),
+    localQueued: row?.localQueued ?? 0,
   };
+}
+
+/**
+ * Unclaimed, unexecuted commands waiting for one builder — what a reroute may
+ * move. Bounded to the stall detector's window so a days-old leftover is not
+ * resurrected onto another machine.
+ */
+export async function listUnclaimedForChannel(userId: string, channel: RunnerChannel) {
+  return db
+    .select()
+    .from(pendingCommands)
+    .where(
+      and(
+        eq(pendingCommands.userId, userId),
+        isNull(pendingCommands.claimedAt),
+        isNull(pendingCommands.executedAt),
+        sql`${pendingCommands.payload}->>'channel' = ${channel}`,
+        sql`created_at > now() - interval '2 hours'`,
+      ),
+    )
+    .orderBy(pendingCommands.createdAt);
+}
+
+/** Hand an unclaimed row to another builder. Only while nobody holds it: a
+ *  claimed row is being executed, and moving it would run the work twice. */
+export async function retargetUnclaimedCommand(
+  userId: string,
+  id: string,
+  next: { type: string; payload: Record<string, unknown> },
+): Promise<boolean> {
+  const rows = await db
+    .update(pendingCommands)
+    .set({ type: next.type, payload: next.payload })
+    .where(
+      and(
+        eq(pendingCommands.id, id),
+        eq(pendingCommands.userId, userId),
+        isNull(pendingCommands.claimedAt),
+        isNull(pendingCommands.executedAt),
+      ),
+    )
+    .returning({ id: pendingCommands.id });
+  return rows.length > 0;
 }
 
 /**

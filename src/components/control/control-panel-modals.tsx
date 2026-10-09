@@ -52,12 +52,14 @@ export function NewProjectModal({
           onChange={(e) => onNameChange(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && onCreate()}
           placeholder="Project name"
+          aria-label="Project name"
           className="ui-input w-full"
         />
         <input
           value={dir}
           onChange={(e) => onDirChange(e.target.value)}
           placeholder="Local path — e.g. ~/dev/my-project"
+          aria-label="Local path"
           className="ui-input w-full"
         />
         <input

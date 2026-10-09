@@ -26,6 +26,7 @@ import { workspaceIdFor } from "@/lib/agent-execution/ownership";
 import { executeInject } from "@/lib/executor";
 import {
   coldStartWorkspaceDir,
+  offlineFallbackChannel,
   pickDispatchChannel,
   projectChannelLock,
 } from "@/lib/execution-access";
@@ -687,6 +688,8 @@ type PreparedDispatch = {
   ptyBacked: boolean;
   projectBusy: boolean;
   pinnedChannel: ReturnType<typeof pickDispatchChannel>;
+  /** The builder that takes the work if `pinnedChannel` is offline now. */
+  offlineFallback: RunnerChannel | null;
   isLifecycle: boolean;
   projectPath: string | null;
   runtimeAvailable: boolean;
@@ -707,6 +710,7 @@ async function executeAndReport(
     ptyBacked,
     projectBusy,
     pinnedChannel,
+    offlineFallback,
     isLifecycle,
     projectPath,
     runtimeAvailable,
@@ -742,6 +746,12 @@ async function executeAndReport(
       dir: projectPath ?? coldStartWorkspaceDir(canonical, dbMatch.gitUrl),
       projectBusy,
       channel: pinnedChannel,
+      // Lifecycle commands act on a PTY that exists on one machine; they never
+      // fall through.
+      offlineFallback:
+        offlineFallback && !isLifecycle
+          ? { channel: offlineFallback, dir: coldStartWorkspaceDir(canonical, dbMatch.gitUrl) }
+          : null,
     },
     userId,
     injectFn ?? (() => Promise.reject(new Error("Runtime unavailable"))),
@@ -753,6 +763,11 @@ async function executeAndReport(
 
   const queuedOffline =
     result.mode === "queued" && (result as { runnerConnected?: boolean }).runnerConnected === false;
+  // The builder the row was actually given — the pinned one, unless it was
+  // offline and the fallback took the work.
+  const queued = result.mode === "queued" ? result : null;
+  const channel = queued?.channel ?? pinnedChannel;
+  const reroutedFrom = queued?.reroutedFrom ?? null;
 
   if (runId && result.mode === "queued") {
     const cid = (result as { commandId?: string }).commandId;
@@ -790,7 +805,7 @@ async function executeAndReport(
           "Cloud builder is offline. Ensure loki-box-runner is active on the box, or open Fleet Runner — then tap Implement again.",
         code: "builder-offline",
         warning: "runner-offline",
-        channel: pinnedChannel,
+        channel,
         ...(runId ? { runId } : {}),
       },
     };
@@ -804,7 +819,8 @@ async function executeAndReport(
       mode: result.mode,
       // Which builder this went to. The operator should never have to guess
       // which machine has their work — especially when it queues.
-      channel: pinnedChannel,
+      channel,
+      ...(reroutedFrom ? { reroutedFrom } : {}),
       ...(result.mode === "queued" && {
         commandId: (result as { commandId: string }).commandId,
         runnerConnected: (result as { runnerConnected?: boolean }).runnerConnected ?? null,
@@ -962,6 +978,9 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
   }
   const pinnedChannel =
     projectChannelLock(dbMatch) ?? params.builderChannel ?? pickDispatchChannel(dbMatch);
+  // A caller that asked for a builder by name gets that builder; only the
+  // project's own stored preference falls through when it is offline.
+  const offlineFallback = params.builderChannel ? null : offlineFallbackChannel(dbMatch);
 
   return await executeAndReport(params, userId, {
     dbMatch,
@@ -986,6 +1005,7 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
     ptyBacked,
     projectBusy,
     pinnedChannel,
+    offlineFallback,
     isLifecycle,
     projectPath,
     runtimeAvailable,

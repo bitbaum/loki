@@ -59,11 +59,12 @@ export function AppTopBar({
   return (
     <header className="ui-app-topbar">
       <TopbarSlot />
-      {/* Mobile-only page title — bottom nav already tells "where", but a
-          glance up should confirm it. md+ users see the full sidebar so the
-          title is redundant there. */}
+      {/* Page title: shown on a phone (a glance up confirms "where"), read
+          but not drawn from md up, where the sidebar already says it. It
+          stays in the tree so every page has exactly one h1 at every width —
+          the widget's own check flagged Control as having none on a laptop. */}
       {pageLabel && (
-        <h1 className="truncate text-base font-semibold text-text-primary md:hidden">
+        <h1 className="truncate text-base font-semibold text-text-primary md:sr-only">
           {pageLabel}
         </h1>
       )}

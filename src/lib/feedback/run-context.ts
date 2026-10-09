@@ -6,7 +6,11 @@
  * without a database — `attach-work.ts` does the querying and calls in here.
  */
 import type { PendingByRun, InjectAckByRun, QueueBlocker } from "@/db/queries/pending-commands";
-import { pickDispatchChannel, type ProjectLocus } from "@/lib/execution-access";
+import {
+  offlineFallbackChannel,
+  pickDispatchChannel,
+  type ProjectLocus,
+} from "@/lib/execution-access";
 import type { BuilderChannelPresence } from "@/lib/builder-presence";
 import type { FeedbackRunSnapshot } from "@/lib/feedback/work-phase";
 
@@ -81,6 +85,7 @@ export function applyRunContext(
 
   snap.localOnline = ctx.presence.local;
   snap.cloudOnline = ctx.presence.cloud;
+  snap.cloudFallbackOk = offlineFallbackChannel(ctx.project) === "cloud";
   // Channel-aware offline: local queue → need Fleet Runner; cloud → need box.
   // The open pending row is the truth while it exists, but the runner stamps
   // executedAt on its inject-ack, so for most of a run there is no row left to

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { compactRelativeDate } from "@/lib/dates";
 import { postJson } from "@/lib/api/fetch";
@@ -69,6 +69,8 @@ export function ProjectOperationsView({
   cardProps,
   automationMode,
   onBulkNotice,
+  categoryFilter = null,
+  onClearCategoryFilter,
 }: {
   snapshots: ProjectOperationsSnapshot[] | null;
   selectedTab: string | null;
@@ -82,6 +84,11 @@ export function ProjectOperationsView({
   automationMode: AutoInjectMode;
   /** Toast after bulk build/pause on the selected rail rows. */
   onBulkNotice?: (message: string) => void;
+  /** The hero's "N awaiting input" / "N working" was tapped: show only that
+   *  bucket, with a chip to clear it. Tapping used to select the first such
+   *  project and scroll — on a phone that changed nothing on screen. */
+  categoryFilter?: "working" | "waiting" | null;
+  onClearCategoryFilter?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<ProjectRailSort>("priority");
@@ -118,8 +125,13 @@ export function ProjectOperationsView({
   // sort mode, the query, or the SET of visible projects changes. The frozen
   // order lives in state, adjusted during render behind the setKey guard
   // (previously a ref, but refs must not be read or written during render).
+  const inCategory = categoryFilter
+    ? sourceSnapshots.filter(
+        (snapshot) => STATE_DEFINITIONS[snapshot.phase].counterCategory === categoryFilter,
+      )
+    : sourceSnapshots;
   const filtered = normalizedQuery
-    ? sourceSnapshots.filter((snapshot) => {
+    ? inCategory.filter((snapshot) => {
         const haystack = [
           snapshot.project.tab,
           snapshot.project.profile?.mission,
@@ -133,9 +145,9 @@ export function ProjectOperationsView({
           .toLowerCase();
         return haystack.includes(normalizedQuery);
       })
-    : sourceSnapshots;
+    : inCategory;
 
-  const setKey = `${sort}|${normalizedQuery}|${filtered
+  const setKey = `${sort}|${normalizedQuery}|${categoryFilter ?? ""}|${filtered
     .map((s) => s.project.tab)
     .sort()
     .join(",")}`;
@@ -183,7 +195,7 @@ export function ProjectOperationsView({
   const [showQuiet, setShowQuiet] = useState(false);
   const isQuiet = (snapshot: ProjectOperationsSnapshot) =>
     isIdle(snapshot) && !snapshot.attentionReason && snapshot.project.tab !== selected?.project.tab;
-  const foldQuiet = sort === "priority" && !normalizedQuery;
+  const foldQuiet = sort === "priority" && !normalizedQuery && !categoryFilter;
   const shownSnapshots =
     foldQuiet && !showQuiet ? visibleSnapshots.filter((s) => !isQuiet(s)) : visibleSnapshots;
   const quietCount = foldQuiet ? visibleSnapshots.filter(isQuiet).length : 0;
@@ -281,9 +293,21 @@ export function ProjectOperationsView({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Find project"
+              aria-label="Find project"
               className="ui-tap min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
             />
           </div>
+          {categoryFilter && (
+            <button
+              type="button"
+              onClick={onClearCategoryFilter}
+              className="ui-chip-filter mt-2"
+              aria-label="Show all projects"
+            >
+              {categoryFilter === "waiting" ? "Awaiting input" : "Working"} · {filtered.length}
+              <X className="h-3 w-3" aria-hidden />
+            </button>
+          )}
           <div className="mt-2 grid grid-cols-4 gap-1">
             {(
               [
@@ -297,7 +321,7 @@ export function ProjectOperationsView({
                 type="button"
                 onClick={() => setSort(id)}
                 className={cn(
-                  "ui-tap justify-center rounded-md px-2 py-1 text-micro transition-colors",
+                  "ui-tap justify-center rounded-md px-2 py-1 text-xs transition-colors",
                   sort === id
                     ? "bg-accent-muted text-accent-text"
                     : "text-text-muted hover:bg-surface-overlay hover:text-text-secondary",
@@ -314,7 +338,7 @@ export function ProjectOperationsView({
               }}
               aria-pressed={selecting}
               className={cn(
-                "ui-tap justify-center rounded-md px-2 py-1 text-micro transition-colors",
+                "ui-tap justify-center rounded-md px-2 py-1 text-xs transition-colors",
                 selecting
                   ? "bg-accent-muted text-accent-text"
                   : "text-text-muted hover:bg-surface-overlay hover:text-text-secondary",
@@ -436,7 +460,7 @@ export function ProjectOperationsView({
                       {snapshot.display.stateLabel}
                     </span>
                     {evidence && (
-                      <span className="mt-0.5 block truncate text-micro text-text-muted">
+                      <span className="mt-0.5 block truncate text-xs text-text-muted">
                         {evidence}
                       </span>
                     )}

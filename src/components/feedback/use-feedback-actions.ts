@@ -58,6 +58,15 @@ export function useFeedbackActions(refetch: () => void) {
     );
   };
 
+  /** The queued row waits for this computer, which is off: hand it to the
+   *  cloud builder (POST /api/control/reroute). */
+  const runInCloud = (id: string, commandId: string) =>
+    act(
+      id,
+      () => postJson("/api/control/reroute", { commandId }),
+      "Could not move this to the cloud builder",
+    );
+
   const setStatus = (id: string, status: FeedbackStatus) =>
     act(id, () => patchJson(`/api/feedback/${id}`, { status }), "Update failed");
 
@@ -75,6 +84,7 @@ export function useFeedbackActions(refetch: () => void) {
     notice,
     act,
     dispatchFix,
+    runInCloud,
     setStatus,
     resolve,
     archive,

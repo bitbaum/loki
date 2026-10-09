@@ -340,6 +340,42 @@ for (const prompt of [
     `must not send the operator to a terminal on an offline machine: "${stalledOffline.detail}"`,
   );
   assert.match(stalledOffline.detail ?? "", /Fleet Runner/);
+
+  // The laptop is shut but the cloud builder is up, and the row is still
+  // unclaimed on a project the cloud can clone: the card offers the one-tap
+  // move instead of telling a person on a phone to open a desktop app.
+  const cloudCanTake = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      startedAt: new Date(now - 5 * 60_000),
+      builderOffline: true,
+      builderChannel: "local",
+      cloudOnline: true,
+      cloudFallbackOk: true,
+      pendingUnclaimed: true,
+      commandId: "cmd-1",
+    }),
+    now,
+  );
+  assert.equal(cloudCanTake.phase, FEEDBACK_WORK_PHASE.STUCK);
+  assert.equal(cloudCanTake.rerouteTo, "cloud");
+  assert.match(cloudCanTake.detail ?? "", /cloud builder can take it/);
+  // Locked to the laptop: no offer, the honest ask stays.
+  const locked = deriveFeedbackWork(
+    FEEDBACK_STATUS.DISPATCHED,
+    snap({
+      startedAt: new Date(now - 5 * 60_000),
+      builderOffline: true,
+      builderChannel: "local",
+      cloudOnline: true,
+      cloudFallbackOk: false,
+      pendingUnclaimed: true,
+      commandId: "cmd-2",
+    }),
+    now,
+  );
+  assert.equal(locked.rerouteTo, undefined);
+  assert.match(locked.detail ?? "", /Fleet Runner/);
   assert.match(stalledOffline.diagnostic ?? "", /went offline/);
   assert.match(
     stalledOffline.diagnostic ?? "",
