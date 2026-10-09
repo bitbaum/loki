@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
-import { resolveLokiProjectSelection } from "@/lib/loki/project-selection";
+import { initialLokiSelection } from "@/lib/loki/project-selection";
 import { conversationIdFromParam } from "@/lib/loki/conversation-param";
 import { useSendQueue } from "@/hooks/use-send-queue";
 import { useDispatchOutcome } from "@/hooks/use-dispatch-outcome";
@@ -17,6 +17,8 @@ import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { Drawer } from "@/components/ui/modal";
 import { ThreadRail } from "./ThreadRail";
 import { StartScreen } from "./StartScreen";
+import { SiteHandoffCard } from "./SiteHandoffCard";
+import { useSiteHandoff } from "@/hooks/use-site-handoff";
 import { Thread } from "./Thread";
 import { LokiComposer } from "./Composer";
 import { SaveContextBar } from "./SaveContextBar";
@@ -77,6 +79,9 @@ export function LokiWorkspace({
     setPrevPrefillParam(prefillParam);
     if (prefillParam) setComposerPrefill(prefillParam);
   }
+
+  // ?q= from the widget's "Continue in Loki" is context, not a message.
+  const site = useSiteHandoff(composerPrefill);
 
   const hasInitialProjects = initialProjects !== undefined;
   const hasInitialConvos = initialConversations !== undefined;
@@ -203,12 +208,11 @@ export function LokiWorkspace({
   // One-shot selection seed once projects have loaded. Pure computation over
   // props/state, so it runs as a guarded render-time adjustment (the
   // selectionInitialized latch guarantees convergence) rather than an effect.
-  if (!selectionInitialized && !projectsLoading && projects.length > 0) {
-    // Only honor an explicit ?project= — a fresh /loki visit is the start
-    // page (new / open / what needs me). Remembered scope still writes so
-    // Control and Terminal keep the last project.
-    const requested = searchParams.get("project");
-    const fromUrl = resolveLokiProjectSelection(projects, requested);
+  const seedReady = !selectionInitialized && !projectsLoading && projects.length > 0;
+  if (seedReady && !(activeId && convosLoading)) {
+    // ?project=, or the open thread's own projects (project-selection.ts).
+    const thread = conversations.find((c) => c.id === activeId);
+    const fromUrl = initialLokiSelection(projects, searchParams.get("project"), thread);
     if (fromUrl.length > 0) setSelectedProjects(fromUrl);
     setSelectionInitialized(true);
   }
@@ -515,8 +519,7 @@ export function LokiWorkspace({
       : null;
 
   const isStart = messages.length === 0 && !transcriptLoading && !sending && !activeId;
-  // A conversation on screen takes the whole phone (useImmersiveChat): its own
-  // header, no app top bar, no bottom tabs. The start screen keeps the shell.
+  // A thread takes the whole phone (useImmersiveChat); the start keeps the shell.
   const inThread = !isStart;
   useImmersiveChat(inThread);
   // The rail is `md:flex` — pinned or not, a phone never shows it. Treating
@@ -528,7 +531,8 @@ export function LokiWorkspace({
 
   const chatBody = (
     <>
-      {isStart && (
+      {isStart && site.handoff && <SiteHandoffCard handoff={site.handoff} onDismiss={site.spend} />}
+      {isStart && !site.handoff && (
         <StartScreen
           conversations={conversations}
           railVisible={historyPinned && wide}
@@ -600,7 +604,9 @@ export function LokiWorkspace({
         // the thread — mid-send — silently resetting the model choice and
         // discarding anything still staged.
         key={composerPrefill ? `prefill:${composerPrefill}` : "composer"}
-        defaultText={composerPrefill ?? ""}
+        defaultText={site.arrived ? "" : (composerPrefill ?? "")}
+        context={site.attachment}
+        onContextUsed={site.spend}
         draftKey={lokiDraftKey(activeId)}
         selectedProjects={selectedProjects}
         projectCount={projects.length}

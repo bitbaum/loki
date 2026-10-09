@@ -6733,10 +6733,63 @@
   .ui-voice-setting-note {
     @apply text-xs text-text-muted;
   }
-  /* The composer's way into it: a filled pill, the one loud control in the
-     row, as in the reference chat — it is a different mode, not a tool. */
+  /* The composer's way into it. With an empty box it TAKES the send slot —
+     the same filled circle, a waveform instead of an arrow — and the disabled
+     send hides (rule after @layer). It used to be a white "Talk" pill beside a
+     grey send arrow: two primary-looking controls, the louder one not the one
+     you came to use. */
   .ui-loki-talk {
-    @apply inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-text-primary px-3 text-xs font-medium text-surface-page transition-opacity hover:opacity-90 disabled:opacity-40;
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-text-primary text-surface-page transition-opacity hover:opacity-90 disabled:opacity-40;
+  }
+  /* A conversation carried in from the owner's site (SiteHandoffCard): read
+     like the start of this thread — your words a pill, Loki's prose, a remark
+     with its rule — above an empty composer. */
+  .ui-loki-handoff {
+    @apply mx-auto mt-auto flex w-full max-w-2xl flex-col gap-3 px-1 pb-4;
+  }
+  .ui-loki-handoff-head {
+    @apply flex items-center gap-2;
+  }
+  .ui-loki-handoff-source {
+    @apply inline-flex min-w-0 items-center gap-1 truncate text-xs text-text-tertiary hover:text-text-secondary;
+  }
+  .ui-loki-handoff-x {
+    @apply ml-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-primary;
+  }
+  .ui-loki-handoff-earlier {
+    @apply text-xs text-text-muted;
+  }
+  .ui-loki-handoff-turns {
+    @apply flex flex-col gap-3;
+  }
+  .ui-loki-handoff-turn {
+    @apply text-sm leading-relaxed text-text-primary;
+  }
+  .ui-loki-handoff-you {
+    @apply max-w-[85%] self-end rounded-2xl bg-surface-raised px-3.5 py-2;
+  }
+  .ui-loki-handoff-noticed,
+  .ui-loki-handoff-sent {
+    @apply border-l-2 border-accent-primary pl-3;
+  }
+  .ui-loki-handoff-who {
+    @apply mb-0.5 block text-micro font-medium uppercase tracking-wide text-accent-text;
+  }
+  /* The one opener a carried-in conversation needs. */
+  .ui-loki-suggest-chip-primary {
+    @apply border-accent-primary/50 text-text-primary;
+  }
+  /* Whether work sent to the project will run, as a dot on its pill. */
+  .ui-loki-scope-dot {
+    @apply h-2 w-2 shrink-0 rounded-full bg-border-strong;
+  }
+  .ui-loki-scope-dot-builder-starting {
+    @apply bg-status-positive;
+  }
+  .ui-loki-scope-dot-needs-builder,
+  .ui-loki-scope-dot-needs-github,
+  .ui-loki-scope-dot-needs-gateway {
+    @apply bg-status-warning;
   }
   /* Thumbs-down's small form under an answer (ReportAnswer), and the line
      that replaces it once the report is filed. */
@@ -7391,6 +7444,11 @@
 }
 :is(.ui-loki-stage, .ui-claude-chat) .ck-submit {
   gap: 0.25rem;
+}
+/* Empty box: Talk is the send slot (see .ui-loki-talk), so the disabled send
+   arrow beside it would be a second, dead primary button. */
+:is(.ui-loki-stage, .ui-claude-chat) .ck-submit:has(.ui-loki-talk) .ck-send:disabled {
+  display: none;
 }
 :is(.ui-loki-stage, .ui-claude-chat) .ck-tools > .ui-loki-scope-pill {
   min-width: 5rem;

@@ -8,11 +8,21 @@ import {
   fillSuggestedAction,
   type LokiComposerChip,
 } from "@/config/loki-suggested-actions";
-import { ExecutorHonestyChip } from "@/components/executor/ExecutorHonestyChip";
 import type { ExecutorHonestyLabel } from "@/lib/executor-honesty";
+import type { TextAttachment } from "@/lib/loki/attachments";
+import { HANDOFF_DEFAULT_ASK } from "@/lib/loki/site-handoff";
 import { Composer } from "@/components/composer/Composer";
 import { readLokiDraft, writeLokiDraft } from "@/lib/loki/draft";
 import type { Attachment, LokiProject, ModelChoice } from "./types";
+
+/** Whether work sent to the project will run, as the dot on its pill. */
+const SCOPE_DOT: Record<ExecutorHonestyLabel["kind"], string> = {
+  queued: "ui-loki-scope-dot",
+  "builder-starting": "ui-loki-scope-dot ui-loki-scope-dot-builder-starting",
+  "needs-builder": "ui-loki-scope-dot ui-loki-scope-dot-needs-builder",
+  "needs-github": "ui-loki-scope-dot ui-loki-scope-dot-needs-github",
+  "needs-gateway": "ui-loki-scope-dot ui-loki-scope-dot-needs-gateway",
+};
 
 const IMAGE_ONLY_DEFAULT = "What's wrong here and what should we change?";
 
@@ -47,6 +57,8 @@ export function LokiComposer({
   draftKey,
   queue = false,
   onTalk,
+  context = null,
+  onContextUsed,
 }: {
   disabled: boolean;
   sending: boolean;
@@ -75,6 +87,10 @@ export function LokiComposer({
   queue?: boolean;
   /** Start a hands-free voice conversation. Omit to hide the Talk button. */
   onTalk?: () => void;
+  /** Context that rides with the next message (a conversation carried in from
+   *  the owner's site). Shown by the workspace, attached here, once. */
+  context?: TextAttachment | null;
+  onContextUsed?: () => void;
 }) {
   const [text, setTextState] = useState(defaultText);
   // Restore once, on the client, after the server-rendered empty box: reading
@@ -82,7 +98,7 @@ export function LokiComposer({
   // server sent. A prefill (defaultText) is a deliberate newer intent and
   // wins over whatever was left behind.
   useEffect(() => {
-    if (!draftKey || defaultText) return;
+    if (!draftKey || defaultText || context) return;
     const saved = readLokiDraft(draftKey);
     if (saved) setTextState(saved); // eslint-disable-line react-hooks/set-state-in-effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,6 +118,18 @@ export function LokiComposer({
   const chips = showStarters || selectedProjects.length > 0 ? allChips : [];
   const chipsPhoneHidden = !showStarters;
 
+  // The carried-in context goes with the first message, then is spent.
+  const sendWith = (
+    t: string,
+    choice: ModelChoice,
+    attachments: Attachment[],
+    opts?: { chatOnly?: boolean },
+  ) => {
+    if (!context) return onSend(t, choice, attachments, opts);
+    onSend(t.trim() || HANDOFF_DEFAULT_ASK, choice, [...attachments, context], opts);
+    onContextUsed?.();
+  };
+
   const runChip = (chip: LokiComposerChip) => {
     if (disabled || sending) return;
     if (chip.kind === "open_projects") return onOpenProjects?.();
@@ -113,16 +141,18 @@ export function LokiComposer({
       textareaRef.current?.focus();
       return;
     }
-    onSend(prompt, model ? { model } : {}, [], chip.chatOnly ? { chatOnly: true } : undefined);
+    sendWith(prompt, model ? { model } : {}, [], chip.chatOnly ? { chatOnly: true } : undefined);
   };
 
-  const placeholder = scopedProject
-    ? `Ask, or send work to ${scopedProject}…`
-    : selectedProjects.length > 1
-      ? `Ask, or send work to ${selectedProjects.length} projects…`
-      : projectCount === 0
-        ? "Name a new project, or ask anything…"
-        : "Ask anything, or send work to a project…";
+  const placeholder = context
+    ? "What should Loki do with this?"
+    : scopedProject
+      ? `Ask, or send work to ${scopedProject}…`
+      : selectedProjects.length > 1
+        ? `Ask, or send work to ${selectedProjects.length} projects…`
+        : projectCount === 0
+          ? "Name a new project, or ask anything…"
+          : "Ask anything, or send work to a project…";
 
   // Only when it has something in it. The old scope row reserved 28px of a
   // phone screen to display nothing.
@@ -133,37 +163,48 @@ export function LokiComposer({
     (Boolean(text.trim()) || !chips.some((c) => c.kind === "open_projects"));
   const showScopeRow = selectedProjects.length > 0 || offersProjectButton;
 
-  const suggestions =
-    !text.trim() && chips.length > 0 ? (
-      <div
-        className={chipsPhoneHidden ? "ui-loki-suggest-row max-md:hidden" : "ui-loki-suggest-row"}
-      >
-        {chips.map((chip) => {
-          const title =
-            chip.kind === "href"
-              ? chip.label
-              : chip.kind === "open_projects"
-                ? "Choose a project"
-                : fillSuggestedAction(chip.template ?? "", scopedProject);
-          return chip.kind === "href" && chip.href ? (
-            <Link key={chip.id} href={chip.href} className="ui-loki-suggest-chip" title={title}>
-              {chip.label}
-            </Link>
-          ) : (
-            <button
-              key={chip.id}
-              type="button"
-              className="ui-loki-suggest-chip"
-              disabled={disabled || sending}
-              onClick={() => runChip(chip)}
-              title={title}
-            >
-              {chip.label}
-            </button>
-          );
-        })}
+  // With a conversation carried in, the one useful opener is to go on with it.
+  const suggestions = context ? (
+    !text.trim() && (
+      <div className="ui-loki-suggest-row">
+        <button
+          type="button"
+          className="ui-loki-suggest-chip ui-loki-suggest-chip-primary"
+          disabled={disabled || sending}
+          onClick={() => sendWith("", model ? { model } : {}, [])}
+        >
+          Take it from here
+        </button>
       </div>
-    ) : null;
+    )
+  ) : !text.trim() && chips.length > 0 ? (
+    <div className={chipsPhoneHidden ? "ui-loki-suggest-row max-md:hidden" : "ui-loki-suggest-row"}>
+      {chips.map((chip) => {
+        const title =
+          chip.kind === "href"
+            ? chip.label
+            : chip.kind === "open_projects"
+              ? "Choose a project"
+              : fillSuggestedAction(chip.template ?? "", scopedProject);
+        return chip.kind === "href" && chip.href ? (
+          <Link key={chip.id} href={chip.href} className="ui-loki-suggest-chip" title={title}>
+            {chip.label}
+          </Link>
+        ) : (
+          <button
+            key={chip.id}
+            type="button"
+            className="ui-loki-suggest-chip"
+            disabled={disabled || sending}
+            onClick={() => runChip(chip)}
+            title={title}
+          >
+            {chip.label}
+          </button>
+        );
+      })}
+    </div>
+  ) : null;
 
   // Scope sits INLINE with attach / mic / model, not in a header row of its
   // own: on a phone that row was a whole line spent on one pill and a "+".
@@ -177,6 +218,15 @@ export function LokiComposer({
       )}
       {selectedProjects.map((project) => (
         <span key={project} className="ui-loki-scope-pill">
+          {/* Whether work sent to it will run — a dot on the project itself,
+              not a separate chip squeezing the row (its words in the title). */}
+          {dispatchHonesty && (
+            <span
+              className={SCOPE_DOT[dispatchHonesty.kind]}
+              title={`${dispatchHonesty.label} — ${dispatchHonesty.title}`}
+              aria-label={dispatchHonesty.label}
+            />
+          )}
           {onOpenProjects ? (
             <button
               type="button"
@@ -192,7 +242,7 @@ export function LokiComposer({
           {onRemoveProject && (
             <button
               type="button"
-              className="ui-loki-scope-remove"
+              className="ui-loki-scope-remove max-md:hidden"
               onClick={() => onRemoveProject(project)}
               aria-label={`Remove ${project}`}
             >
@@ -233,24 +283,26 @@ export function LokiComposer({
       tools={scope}
       trailing={
         <>
-          {selectedProjects.length > 0 && <ExecutorHonestyChip honesty={dispatchHonesty} compact />}
           {/* The mic beside send DICTATES into the box; Talk is a conversation
               — it listens, answers aloud, and listens again. */}
-          {onTalk && !text.trim() && (
+          {/* Empty box: the send slot IS Talk (the disabled send hides — see
+              .ui-loki-talk in globals.css). One primary control, not a white
+              "Talk" pill outshining a grey send arrow beside it. */}
+          {onTalk && !text.trim() && !context && (
             <button
               type="button"
               className="ui-loki-talk"
               onClick={onTalk}
               disabled={disabled}
               aria-label="Talk — a hands-free voice conversation"
+              title="Talk — a hands-free voice conversation"
             >
-              <AudioLines className="h-4 w-4" aria-hidden />
-              Talk
+              <AudioLines className="h-5 w-5" aria-hidden />
             </button>
           )}
         </>
       }
-      onSend={(outgoing, choice, attachments) => onSend(outgoing, choice, attachments)}
+      onSend={(outgoing, choice, attachments) => sendWith(outgoing, choice, attachments)}
     />
   );
 }
