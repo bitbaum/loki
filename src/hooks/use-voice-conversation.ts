@@ -32,15 +32,27 @@ export type VoiceAnswer = { id: string; text: string } | null;
  * speaks the first answer that arrives after it sent something, and goes
  * back to listening on a failure — a dead end in a conversation you cannot see
  * would be silence forever.
+ *
+ * Two things no-screen mode added, both off by default so the Loki page's
+ * Talk button is unchanged:
+ *   - `say(text)`: read something UNASKED — a run finishing, an approval
+ *     arriving. While listening it takes the turn at once (the take in
+ *     progress is dropped: nobody was mid-sentence, or the level would have
+ *     ended it); while busy it queues and is read after the answer.
+ *   - `idle: "listen"`: twenty seconds of silence re-arms the microphone
+ *     instead of pausing. With the screen off, "paused" is a dead end: the
+ *     one tap that would resume it is on a screen nobody is looking at.
  */
 export function useVoiceConversation({
   onUtterance,
   latestAnswer,
   turnFailed,
+  idle = "pause",
 }: {
   onUtterance: (text: string) => void;
   latestAnswer: VoiceAnswer;
   turnFailed: boolean;
+  idle?: "pause" | "listen";
 }) {
   const [phase, setPhaseState] = useState<VoicePhase>("off");
   const [level, setLevel] = useState(0);
@@ -61,19 +73,30 @@ export function useVoiceConversation({
   const answerAtSendRef = useRef<string | null>(null);
   /** What the current take becomes when its recorder stops. */
   const outcomeRef = useRef<"send" | "discard">("discard");
+  /** Unasked lines waiting for the voice to be free. */
+  const sayQueueRef = useRef<string[]>([]);
+  /** The person interrupted to talk: the next listen is theirs, the queue
+   *  waits for the one after. */
+  const holdQueueRef = useRef(false);
+  const idleRef = useRef(idle);
+  useEffect(() => {
+    idleRef.current = idle;
+  }, [idle]);
   const onUtteranceRef = useRef(onUtterance);
   useEffect(() => {
     onUtteranceRef.current = onUtterance;
   }, [onUtterance]);
   const listenRef = useRef<() => void>(() => {});
+  const speakRef = useRef<(text: string) => void>(() => {});
 
-  const stopLoop = () => {
+  const stopLoop = useCallback(() => {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     setLevel(0);
-  };
+  }, []);
 
-  const end = useCallback(() => {
+  /** Drop the take in progress without sending it. */
+  const dropTake = useCallback(() => {
     stopLoop();
     const rec = recorderRef.current;
     recorderRef.current = null;
@@ -81,6 +104,12 @@ export function useVoiceConversation({
       rec.onstop = null;
       rec.stop();
     }
+  }, [stopLoop]);
+
+  const end = useCallback(() => {
+    dropTake();
+    sayQueueRef.current = [];
+    holdQueueRef.current = false;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     void ctxRef.current?.close().catch(() => {});
@@ -90,7 +119,7 @@ export function useVoiceConversation({
       window.speechSynthesis.cancel();
     }
     setPhase("off");
-  }, []);
+  }, [dropTake]);
 
   useEffect(() => end, [end]);
 
@@ -130,6 +159,16 @@ export function useVoiceConversation({
     const stream = streamRef.current;
     const analyser = analyserRef.current;
     if (!stream || phaseRef.current === "off") return;
+    // Something arrived while the voice was busy: say it before listening —
+    // unless the person just cut in, in which case this listen is theirs.
+    if (holdQueueRef.current) holdQueueRef.current = false;
+    else {
+      const queued = sayQueueRef.current.shift();
+      if (queued) {
+        speakRef.current(queued);
+        return;
+      }
+    }
     const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
       ? "audio/webm;codecs=opus"
       : MediaRecorder.isTypeSupported("audio/mp4")
@@ -183,83 +222,23 @@ export function useVoiceConversation({
       if (decision === "idle") {
         recorder.onstop = null;
         recorder.stop();
-        setPhase("paused");
+        // A fresh take: the recorder's buffer of silence is dropped, the
+        // microphone stays open. Or the old behaviour: wait for a tap.
+        if (idleRef.current === "listen") listenRef.current();
+        else setPhase("paused");
         return;
       }
       outcomeRef.current = decision;
       recorder.stop();
     };
     rafRef.current = requestAnimationFrame(tick);
-  }, [transcribe]);
+  }, [transcribe, stopLoop]);
   useEffect(() => {
     listenRef.current = listen;
   }, [listen]);
 
-  const start = useCallback(async () => {
-    if (phaseRef.current !== "off" && phaseRef.current !== "paused") return;
-    setError("");
-    setHeard("");
-    if (!streamRef.current) {
-      setPhase("starting");
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
-        });
-        streamRef.current = stream;
-        try {
-          const ctx = new AudioContext();
-          const analyser = ctx.createAnalyser();
-          analyser.fftSize = 1024;
-          ctx.createMediaStreamSource(stream).connect(analyser);
-          ctxRef.current = ctx;
-          analyserRef.current = analyser;
-        } catch {
-          /* no analyser: listening still works, the person taps to send */
-        }
-      } catch (err) {
-        const name = err instanceof DOMException ? err.name : "";
-        setError(
-          name === "NotAllowedError"
-            ? "Microphone blocked — allow it in the browser's site settings, then tap Talk again."
-            : "No microphone available.",
-        );
-        setPhase("off");
-        return;
-      }
-    }
-    setPhase("listening");
-    listen();
-  }, [listen]);
-
-  /** Tap the orb: finish talking now, or cut the answer short and reply. */
-  const tap = useCallback(() => {
-    const p = phaseRef.current;
-    if (p === "speaking") {
-      window.speechSynthesis.cancel();
-      listen();
-    } else if (p === "listening") {
-      // A tap means "I'm done": whatever was said goes.
-      stopLoop();
-      const rec = recorderRef.current;
-      if (rec && rec.state !== "inactive") {
-        outcomeRef.current = "send";
-        rec.stop();
-      }
-    } else if (p === "paused") {
-      void start();
-    }
-  }, [listen, start]);
-
-  // Remember which answer was newest when we sent, so only a NEW one is read.
-  useEffect(() => {
-    if (phase === "thinking" && answerAtSendRef.current === null) {
-      answerAtSendRef.current = latestAnswer?.id ?? "";
-    }
-    if (phase !== "thinking") answerAtSendRef.current = null;
-  }, [phase, latestAnswer?.id]);
-
-  /** Read an answer aloud, then listen again. */
-  const speakAnswer = useCallback(
+  /** Read text aloud, then listen again (which also drains the say queue). */
+  const speakThenListen = useCallback(
     (markdown: string) => {
       const text = plainTextForSpeech(markdown);
       if (!text || !("speechSynthesis" in window)) {
@@ -278,6 +257,108 @@ export function useVoiceConversation({
     },
     [listen],
   );
+  useEffect(() => {
+    speakRef.current = speakThenListen;
+  }, [speakThenListen]);
+
+  const start = useCallback(
+    async (opening?: string) => {
+      if (phaseRef.current !== "off" && phaseRef.current !== "paused") return;
+      setError("");
+      setHeard("");
+      if (!streamRef.current) {
+        setPhase("starting");
+        // iOS only lets a page speak after it has spoken inside a tap. The
+        // real opening line comes after an await, so an empty utterance
+        // here, still inside the gesture, is what unlocks it.
+        if (opening && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+        }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true },
+          });
+          streamRef.current = stream;
+          try {
+            const ctx = new AudioContext();
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 1024;
+            ctx.createMediaStreamSource(stream).connect(analyser);
+            ctxRef.current = ctx;
+            analyserRef.current = analyser;
+          } catch {
+            /* no analyser: listening still works, the person taps to send */
+          }
+        } catch (err) {
+          const name = err instanceof DOMException ? err.name : "";
+          setError(
+            name === "NotAllowedError"
+              ? "Microphone blocked — allow it in the browser's site settings, then tap Talk again."
+              : "No microphone available.",
+          );
+          setPhase("off");
+          return;
+        }
+      }
+      if (opening) {
+        setPhase("listening");
+        speakRef.current(opening);
+        return;
+      }
+      setPhase("listening");
+      listen();
+    },
+    [listen],
+  );
+
+  /** Tap the orb: finish talking now, or cut the answer short and reply. */
+  const tap = useCallback(() => {
+    const p = phaseRef.current;
+    if (p === "speaking") {
+      // Interrupting means "I want to talk": whatever else was queued waits
+      // for the next free moment, after the reply.
+      window.speechSynthesis.cancel();
+      holdQueueRef.current = true;
+      listen();
+    } else if (p === "listening") {
+      // A tap means "I'm done": whatever was said goes.
+      stopLoop();
+      const rec = recorderRef.current;
+      if (rec && rec.state !== "inactive") {
+        outcomeRef.current = "send";
+        rec.stop();
+      }
+    } else if (p === "paused") {
+      void start();
+    }
+  }, [listen, start, stopLoop]);
+
+  /**
+   * Say something the person did not ask for. Listening: now, dropping the
+   * silent take. Busy or speaking: after the current answer. Off: never.
+   */
+  const say = useCallback(
+    (text: string) => {
+      const p = phaseRef.current;
+      if (p === "off" || !text.trim()) return;
+      if (p === "listening" || p === "paused") {
+        dropTake();
+        speakThenListen(text);
+        return;
+      }
+      sayQueueRef.current.push(text);
+    },
+    [speakThenListen, dropTake],
+  );
+
+  // Remember which answer was newest when we sent, so only a NEW one is read.
+  useEffect(() => {
+    if (phase === "thinking" && answerAtSendRef.current === null) {
+      answerAtSendRef.current = latestAnswer?.id ?? "";
+    }
+    if (phase !== "thinking") answerAtSendRef.current = null;
+  }, [phase, latestAnswer?.id]);
 
   useEffect(() => {
     if (phase !== "thinking") return;
@@ -292,11 +373,11 @@ export function useVoiceConversation({
     // body (react-hooks/set-state-in-effect).
     const t = window.setTimeout(() => {
       if (turnFailed) listen();
-      else if (latestAnswer) speakAnswer(latestAnswer.text);
+      else if (latestAnswer) speakThenListen(latestAnswer.text);
     }, 0);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react to a new answer or a failure only
   }, [phase, latestAnswer?.id, turnFailed]);
 
-  return { phase, level, heard, error, start, end, tap };
+  return { phase, level, heard, error, start, end, tap, say };
 }

@@ -21,7 +21,9 @@ import {
 const LOOP = [
   { id: "now", items: ["today", "approvals", "feedback"] },
   { id: "fleet", items: ["control", "projects", "activity", "system"] },
-  { id: "command", items: ["loki", "terminal", "prompts"] },
+  // No-screen (/voice) sits beside Loki: the same "say it" altitude with the
+  // screen off, not a fourth altitude.
+  { id: "command", items: ["loki", "voice", "terminal", "prompts"] },
 ] as const;
 
 for (const expected of LOOP) {

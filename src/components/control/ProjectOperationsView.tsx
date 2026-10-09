@@ -87,6 +87,11 @@ export function ProjectOperationsView({
   const [sort, setSort] = useState<ProjectRailSort>("priority");
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Bulk selection is a mode, not a column. A checkbox on every row put a
+  // rarely-used fleet action in front of the one thing the row is for —
+  // opening that project — and on a phone it was the first control on each
+  // line (operator, 2026-10-09).
+  const [selecting, setSelecting] = useState(false);
   const [sendTaskOpen, setSendTaskOpen] = useState(false);
   const sourceSnapshots = useMemo(() => snapshots ?? [], [snapshots]);
 
@@ -279,7 +284,7 @@ export function ProjectOperationsView({
               className="ui-tap min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
             />
           </div>
-          <div className="mt-2 grid grid-cols-3 gap-1">
+          <div className="mt-2 grid grid-cols-4 gap-1">
             {(
               [
                 ["priority", "Priority"],
@@ -301,6 +306,22 @@ export function ProjectOperationsView({
                 {label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                if (selecting) setBulkSelected(new Set());
+                setSelecting((v) => !v);
+              }}
+              aria-pressed={selecting}
+              className={cn(
+                "ui-tap justify-center rounded-md px-2 py-1 text-micro transition-colors",
+                selecting
+                  ? "bg-accent-muted text-accent-text"
+                  : "text-text-muted hover:bg-surface-overlay hover:text-text-secondary",
+              )}
+            >
+              {selecting ? "Done" : "Select"}
+            </button>
           </div>
           {bulkKeys.length > 0 && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -373,15 +394,17 @@ export function ProjectOperationsView({
                   bulkSelected.has(snapshot.project.tab) && "ring-1 ring-accent-primary/40",
                 )}
               >
-                <label className="ui-checkbox-hit mt-0.5">
-                  <input
-                    type="checkbox"
-                    checked={bulkSelected.has(snapshot.project.tab)}
-                    onChange={() => toggleBulk(snapshot.project.tab)}
-                    aria-label={`Select ${snapshot.project.tab} for bulk actions`}
-                    className="h-3.5 w-3.5 shrink-0"
-                  />
-                </label>
+                {selecting && (
+                  <label className="ui-checkbox-hit mt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={bulkSelected.has(snapshot.project.tab)}
+                      onChange={() => toggleBulk(snapshot.project.tab)}
+                      aria-label={`Select ${snapshot.project.tab} for bulk actions`}
+                      className="h-3.5 w-3.5 shrink-0"
+                    />
+                  </label>
+                )}
                 <button
                   type="button"
                   onClick={() => onSelect(snapshot.project.tab)}

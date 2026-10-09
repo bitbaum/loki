@@ -23,7 +23,34 @@ import {
   splitActions,
   summaryPrompt,
 } from "@/lib/terminal-summary";
+import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
+import type { LiveTurn } from "@/hooks/use-loki-stream";
 import { TerminalComposer } from "./TerminalComposer";
+
+/**
+ * "12s · Running list_projects" — the live line /loki's own thread prints.
+ * This panel used to say only "Working on it", with no clock, for turns that
+ * run tens of seconds: on a phone that is indistinguishable from a hang.
+ */
+function useLiveStatus(live: LiveTurn | null): string | undefined {
+  const [now, setNow] = useState(() => Date.now());
+  const since = live?.startedAt ?? 0;
+  useEffect(() => {
+    if (!since) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [since]);
+  if (!live || !since) return undefined;
+  const s = Math.max(0, Math.floor((now - since) / 1000));
+  const clock = s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
+  const running = live.tools.findLast((t) => t.phase === "start");
+  const doing = live.status
+    ? LOKI_STATUS_COPY[live.status]
+    : running
+      ? `Running ${running.name.replace(/_/g, " ")}`
+      : LOKI_STATUS_COPY.thinking;
+  return `${clock} · ${doing}`;
+}
 
 type RunPayload = { ok?: boolean; view: TerminalRunView | null; error?: string };
 
@@ -73,6 +100,7 @@ export function TerminalLokiRail({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const session = useSessionAsk(project);
+  const liveStatus = useLiveStatus(session.live);
   const [draft, setDraft] = useState<{ text: string; nonce: number } | null>(() =>
     initialDraft ? { text: initialDraft, nonce: 1 } : null,
   );
@@ -270,7 +298,7 @@ export function TerminalLokiRail({
             messages={session.messages.map((m) =>
               m.role === "assistant" ? { ...m, content: splitActions(m.content).body } : m,
             )}
-            live={session.live ? { text: session.live.preview } : null}
+            live={session.live ? { text: session.live.preview, status: liveStatus } : null}
             stopped={session.stopped}
             onStop={session.stop}
             renderFooter={(m) => {

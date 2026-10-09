@@ -27,7 +27,13 @@ import type { ReportDiagnostics } from "./report-payload";
  * main thread freezing. It never files a fix by itself; Review judges it
  * alongside the taps around it.
  */
-export type TrailKind = "tap" | "page" | "request" | "error" | "notice";
+/**
+ * `look` is Loki's own look at a page once it settled (page-checks.ts) — kept
+ * even when it found nothing, because "looked, all fine" is exactly what the
+ * owner could not see before: watch only ever spoke when something was wrong,
+ * so between remarks it was impossible to tell what it was doing.
+ */
+export type TrailKind = "tap" | "page" | "request" | "error" | "notice" | "look";
 export type TrailEntry = { at: number; kind: TrailKind; text: string };
 export type Failure = { kind: "error" | "request" | "dead-tap"; text: string };
 
@@ -181,7 +187,7 @@ export function nextTapStreak(
  *  restored from storage after a page load is untrusted input. */
 export function freshTrail(trail: unknown, now: number): TrailEntry[] {
   if (!Array.isArray(trail)) return [];
-  const kinds: TrailKind[] = ["tap", "page", "request", "error", "notice"];
+  const kinds: TrailKind[] = ["tap", "page", "request", "error", "notice", "look"];
   return trail
     .filter(
       (e): e is TrailEntry =>

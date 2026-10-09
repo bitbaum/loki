@@ -7,6 +7,7 @@
  */
 import assert from "node:assert/strict";
 import {
+  AWAITING_YOU_LABEL,
   buildTerminalRunView,
   isQuotaDeath,
   nextActionForWork,
@@ -241,6 +242,32 @@ check("a next action equal to the summary is not printed twice", () => {
   });
   assert.equal(lines.summary, "Waiting for the builder.");
   assert.equal(lines.next, null);
+});
+
+check("an agent that handed back the wheel reads as your turn, not as gone quiet", () => {
+  // Skif, 2026-10-09: "Agent went quiet · Open Terminal — or Retry" over a
+  // screen that ended "Next direction is yours". Retry would re-run done work.
+  const quiet = work({
+    phase: FEEDBACK_WORK_PHASE.STUCK,
+    waitingOn: WAITING_ON.YOU,
+    label: "Needs you",
+    detail: "Open Terminal — or Retry",
+    stepSummary: "Agent went quiet",
+    diagnostic: "Worked 5 h 30 min, silent 1 h 16 min",
+  });
+  const view = buildTerminalRunView({
+    runId: "r",
+    projectKey: "Skif",
+    work: quiet,
+    awaitingYou: { next: "Real-device QA of the phone layouts, or limit vitest parallelism" },
+  });
+  assert.equal(view.label, AWAITING_YOU_LABEL);
+  assert.equal(view.stalled, false, "a finished agent is not a stalled one");
+  assert.match(view.stepSummary, /Real-device QA/, "the agent's own next line is the summary");
+  assert.doesNotMatch(view.nextAction, /Retry/);
+
+  const noHandoff = buildTerminalRunView({ runId: "r", projectKey: "Skif", work: quiet });
+  assert.equal(noHandoff.label, "Needs you", "without the agent's word, silence keeps its reading");
 });
 
 console.log(`\n${passed} checks passed`);

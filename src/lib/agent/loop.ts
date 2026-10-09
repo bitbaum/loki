@@ -89,6 +89,13 @@ const HISTORY_CHARS_PER_TURN = 600;
  * link's — see chat-models.ts, "Prompt budgets, PER LINK".
  */
 const FALLBACK_PROMPT_BUDGET_TOKENS = 24_000;
+/**
+ * Output budget for the one retry an answer gets when the vendor says it cut
+ * it off. The ordinary budget (llm.ts, 1400) is shared with a reasoning
+ * model's hidden thinking, so on a long context the visible answer can be the
+ * last 200 characters of what it was allowed — see the cut-off guard below.
+ */
+const CUT_OFF_RETRY_MAX_TOKENS = 4096;
 
 /**
  * The model call, as an injectable seam.
@@ -422,6 +429,8 @@ export async function runLokiTurn(input: {
   // Summed across every call this turn makes — rounds AND the repair pass.
   let usageTokens = 0;
   let rounds = 0;
+  // Why the final round's answer is not whole (llm.ts cutOffReason), or null.
+  let cutOff: string | null = null;
   const attempted = new Set<string>();
   let answerNext = false;
 
@@ -533,6 +542,7 @@ export async function runLokiTurn(input: {
     model = turn.model;
     usageTokens += turn.usageTokens;
     text = turn.text;
+    cutOff = turn.cutOff ?? null;
 
     if (turn.toolCalls.length === 0 || lastRound) break;
 
@@ -564,6 +574,49 @@ export async function runLokiTurn(input: {
       },
       ...executed.messages,
     );
+  }
+
+  // ── Was the answer cut off? ───────────────────────────────────────────────
+  //
+  // llm.ts has read `finish_reason` since 2026-09-18 and handed the verdict
+  // back as `cutOff` — and nothing here looked at it, so a severed answer was
+  // persisted and rendered as if whole. On a phone that read as Loki stopping
+  // mid-sentence, three answers running, each about 230 characters long and
+  // each ending on a clause ("…the core booking and safety assessment flows"):
+  // a reasoning model spending most of its 1400-token budget thinking about a
+  // long terminal attachment (operator, 2026-10-09).
+  //
+  // One retry, same prompt, no tools, a larger budget. Taken only if it is no
+  // longer cut off, or at least says more — a second fragment is not better
+  // than the first.
+  if (cutOff && text.trim() && lastUserContent) {
+    console.warn(`[loki] answer cut off (${cutOff}) — retrying once with a larger budget`);
+    sink?.reset();
+    try {
+      const retry = await callModel({
+        own: input.own,
+        model: input.model,
+        feature: "loki-chat",
+        messages: [
+          { role: "system", content: lastSystem },
+          ...prior,
+          { role: "user", content: lastUserContent },
+          ...conversation,
+        ],
+        tools: [],
+        validToolNames: [],
+        maxTokens: CUT_OFF_RETRY_MAX_TOKENS,
+        sink,
+      });
+      usageTokens += retry.usageTokens;
+      if (retry.text.trim() && (!retry.cutOff || retry.text.length > text.length)) {
+        text = retry.text;
+        model = retry.model;
+        cutOff = retry.cutOff ?? null;
+      }
+    } catch (e) {
+      console.warn(`[loki] cut-off retry failed, keeping the first reply: ${String(e)}`);
+    }
   }
 
   // ── Did we get the model's PLAN instead of an answer? ──────────────────────
@@ -721,7 +774,11 @@ export async function runLokiTurn(input: {
   ];
 
   return {
-    text,
+    // Still severed after the retry: say so on the answer itself, rather than
+    // let a clause pass for a conclusion.
+    text: cutOff
+      ? `${text.trimEnd()}…\n\n_The answer was cut off. Ask "go on" for the rest._`
+      : text,
     facts,
     sources,
     violations,

@@ -34,6 +34,25 @@ export type WidgetTheme = {
   white: string;
 };
 
+/**
+ * The spiral status mark (dom.ts spiralMark): the logo, drawn in the accent,
+ * that moves the way Loki is working — a slow turn while it watches, a quick
+ * one while it thinks, still and grey when it is not watching. Shared by the
+ * panel and the walkthrough card, which have separate stylesheets.
+ */
+export function spiralCSS(theme: Pick<WidgetTheme, "accent" | "textMuted">): string {
+  return `
+.dot.spiral { width: 15px; height: 15px; border-radius: 0; background: none; box-shadow: none; color: ${theme.accent}; display: inline-flex; flex: none; }
+.dot.spiral svg { width: 100%; height: 100%; display: block; }
+.dot.spiral.watching svg, .watching > .dot.spiral svg { animation: lokispin 9s linear infinite; }
+.dot.spiral.thinking svg, .thinking > .dot.spiral svg { animation: lokispin 1.1s linear infinite; }
+.dot.spiral.paused, .paused > .dot.spiral { color: ${theme.textMuted}; }
+.dot.spiral.paused svg, .paused > .dot.spiral svg { animation: none; }
+@keyframes lokispin { to { transform: rotate(-360deg); } }
+@media (prefers-reduced-motion: reduce) { .dot.spiral svg { animation: none !important; } }
+`;
+}
+
 export function buildShadowCSS(theme: WidgetTheme): string {
   const ink = theme.inkOnAccent ?? theme.black;
   const sans = theme.fontSans ?? "system-ui, -apple-system, sans-serif";
@@ -48,6 +67,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font: 
 button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid ${theme.accent}; outline-offset: 2px; }
 .mono { font-family: ${mono}; letter-spacing: .08em; text-transform: uppercase; font-size: 10px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: ${theme.accent}; flex: none; box-shadow: 0 0 0 3px ${theme.accentMuted}; }
+${spiralCSS(theme)}
 
 /* No var() fallbacks anywhere in this file. The widget lives in a Shadow DOM under
    :host all:initial and defines no custom properties, so a var() with a hex
@@ -108,7 +128,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .fab.owner { opacity: 1; transform: none; box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); }
 .fab.owner .fab-label { display: inline; }
 .fab.watching { border-color: ${theme.accent}; }
-.fab.watching .dot { animation: fcpulse 1.6s ease-in-out infinite; }
+.fab.watching .dot:not(.spiral) { animation: fcpulse 1.6s ease-in-out infinite; }
 .fab-badge {
   position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: ${theme.accent}; color: ${ink};
@@ -161,52 +181,75 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 
 /* header actions: Watch / Review, then close */
 .hdr-actions { display: flex; align-items: center; gap: 6px; flex: none; }
-.watchbtn { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; border: 1px solid ${theme.borderStrong}; color: ${theme.textSecondary}; white-space: nowrap; }
-.watchbtn:hover { color: ${theme.text}; border-color: ${theme.accent}; }
-.watchbtn.on { border-color: ${theme.accent}; background: ${theme.accentMuted}; color: ${theme.text}; }
+.watchbtn { font-size: 12px; font-weight: 600; padding: 6px 8px; border-radius: ${rc}; color: ${theme.accent}; white-space: nowrap; }
+.watchbtn:hover { background: ${theme.surfaceSubtle}; }
 .watch-offer { margin: -4px 0 12px; padding: 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; font-size: 12px; line-height: 1.5; color: ${theme.textSecondary}; }
 .watch-offer b { display: block; color: ${theme.text}; font-size: 13px; margin-bottom: 4px; }
 .watch-offer .sub { color: ${theme.textTertiary}; margin-top: 4px; }
 .watch-offer .track { margin-top: 10px; }
 
+/* "What Loki sees": the running notes of watch mode, one row until opened */
+.thoughts { margin: -4px -16px 12px; padding: 0 16px; border-top: 1px solid ${theme.border}; border-bottom: 1px solid ${theme.border}; }
+.thoughts-head { display: flex; align-items: center; gap: 8px; }
+.thoughts-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; padding: 10px 0; min-height: 40px; text-align: left; font-size: 12px; color: ${theme.textSecondary}; }
+.thoughts-toggle { flex: none; font-size: 12px; font-weight: 600; color: ${theme.textSecondary}; padding: 6px 0 6px 8px; }
+.thoughts-toggle:hover { color: ${theme.text}; }
+.thoughts-row:hover { color: ${theme.text}; }
+.thoughts-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thoughts-chev { flex: none; color: ${theme.textTertiary}; transition: transform .15s ease; }
+.thoughts.open .thoughts-chev { transform: rotate(90deg); }
+.thoughts-list { list-style: none; margin: 0; padding: 0 0 12px; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.thought { display: flex; gap: 10px; font-size: 12px; line-height: 1.45; color: ${theme.textSecondary}; }
+.thought-at { flex: none; width: 24px; font-family: ${mono}; font-size: 10px; line-height: 17px; color: ${theme.textMuted}; text-align: right; }
+.thought-text { min-width: 0; overflow-wrap: anywhere; }
+.thought.good .thought-text { color: ${theme.success}; }
+.thought.warn .thought-text { color: ${theme.text}; }
+.thought.warn .thought-at { color: ${theme.accent}; }
+.thought.bad .thought-text { color: ${theme.error}; }
+
 /* the one conversation */
 .convo { display: flex; flex-direction: column; gap: 10px; }
 .ctxbar { display: flex; align-items: center; gap: 8px; }
-.ctx-label { font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; flex: none; }
-/* "About": one segmented control — this page / whole site / an element */
-.seg { display: flex; flex: 1; padding: 3px; gap: 2px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceRaised}; }
-.segbtn { flex: 1; padding: 6px 4px; font-size: 12px; border-radius: ${rc}; color: ${theme.textSecondary}; text-align: center; white-space: nowrap; }
+.ctx-label { font-size: 12px; color: ${theme.textMuted}; flex: none; }
+/* "About" — this page / whole site / an element — as the card's top line of
+   text tabs, underlined when chosen. It was a bordered segmented bar of its
+   own above the card: a second box for half a sentence. */
+.seg { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.segbtn { padding: 3px 0; font-size: 12px; color: ${theme.textTertiary}; white-space: nowrap; border-bottom: 1px solid transparent; }
 .segbtn:hover { color: ${theme.text}; }
-.segbtn.on { color: ${theme.text}; background: ${theme.surface}; box-shadow: inset 0 0 0 1px ${theme.accent}; font-weight: 500; }
-/* composer: the text, then one row — attach tools left, the two ways to send right */
-.composer { display: flex; flex-direction: column; gap: 8px; }
-.composer .chatinput { min-height: 64px; }
+.segbtn.on { color: ${theme.text}; border-bottom-color: ${theme.accent}; }
+/* composer: ONE card — what it is about, the words, then a row: tools left,
+   the quiet way and the one accent way to send it right */
+.composer { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid ${theme.borderStrong}; border-radius: ${rs}; background: ${theme.surfaceRaised}; transition: border-color .12s ease, box-shadow .12s ease; }
+.composer:focus-within { border-color: ${theme.accent}; box-shadow: 0 0 0 3px ${theme.accentMuted}; }
+.composer .chatinput, .composer .chatinput:hover, .composer .chatinput:focus { min-height: 48px; padding: 4px 0; border: none; background: transparent; box-shadow: none; }
 /* Wraps rather than overflows: with a mic (every real browser) the row once
    pushed Ask Loki out of the panel. The tools are icons at rest; a recording's
    timer and a screenshot count still show, because then they say something. */
-.composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.composer-actions .tools { margin-right: auto; }
-.composer-actions .go, .composer-actions .ghost { height: 38px; padding: 0 12px; white-space: nowrap; }
-.composer-actions .mic, .composer-actions .attach { height: 38px; min-width: 38px; padding: 0 10px; justify-content: center; }
+.composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.composer-actions .tools { margin-right: auto; gap: 2px; }
+.composer-actions .go, .composer-actions .ghost { height: 32px; padding: 0 12px; white-space: nowrap; }
+.composer-actions .ghost { border: none; padding: 0 8px; }
+.composer-actions .mic, .composer-actions .attach { height: 32px; min-width: 32px; padding: 0 8px; justify-content: center; border-color: transparent; }
 .composer-actions .mic:not(.rec):not(.busy) span:last-child { display: none; }
 .composer-actions .attach span:last-child { display: none; }
 .composer-actions .attach.has span:last-child { display: inline; }
 .tools { display: flex; gap: 8px; align-items: center; }
-.msg.noticed { border-color: ${theme.accent}; }
+.msg.noticed { border-left: 2px solid ${theme.accent}; padding-left: 10px; }
 .msg.noticed .who { color: ${theme.accent}; }
-.noticed-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+.noticed-actions { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-top: 6px; }
 .noticed-actions .act { margin-top: 0; align-self: center; }
 @media (max-width: 380px) { .composer-actions .attach span:last-child { display: none; } }
-.act { align-self: flex-end; font-size: 11px; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; margin-top: -4px; }
+.act { align-self: flex-end; font-size: 12px; color: ${theme.textTertiary}; margin-top: -2px; }
 .act:hover { color: ${theme.text}; }
 /* the owner's door under the greeting: a link, aligned with Loki's bubble.
    Not an .act — those are "your words, as written" and a test counts them. */
-.door { align-self: flex-start; font-size: 11px; color: ${theme.text}; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+.door { align-self: flex-start; font-size: 12px; color: ${theme.accent}; font-weight: 500; }
 .door:hover { color: ${theme.accent}; }
 /* Your changes: the owner's requests and where each one is, above the thread */
-.yours { display: flex; flex-direction: column; gap: 6px; margin: -4px 0 12px; padding: 10px 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; }
+.yours { display: flex; flex-direction: column; gap: 6px; margin: -12px -16px 12px; padding: 10px 16px; border-bottom: 1px solid ${theme.border}; }
 .yours-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.yours-all { font-size: 11px; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.yours-all { font-size: 12px; color: ${theme.textSecondary}; white-space: nowrap; }
 .yours-all:hover { color: ${theme.text}; }
 .yours-list { display: flex; flex-direction: column; gap: 6px; }
 .yours-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 8px; font-size: 12px; line-height: 1.4; }
@@ -220,19 +263,19 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .yours-row.tone-warning .yours-status { color: ${theme.error}; }
 .yours-visitors { font-size: 11px; color: ${theme.textTertiary}; text-decoration: underline; text-underline-offset: 2px; }
 .yours-visitors:hover { color: ${theme.text}; }
-.yours-go { grid-column: 2 / -1; justify-self: start; font-size: 12px; font-weight: 600; color: ${theme.text}; text-decoration: underline; text-underline-offset: 2px; }
+.yours-go { grid-column: 2 / -1; justify-self: start; font-size: 12px; font-weight: 600; color: ${theme.accent}; }
 .yours-go:hover { color: ${theme.accent}; }
 @media (pointer: coarse) { .yours-go, .yours-all { padding: 6px 0; } }
 /* Continue in Loki: one quiet row under the composer, wrapping on a phone */
-.continue { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 12px; }
-.continue-label { font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }
-.continue-link { color: ${theme.text}; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+.continue { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 12px; padding: 0 2px; }
+.continue-label { color: ${theme.textTertiary}; }
+.continue-link { color: ${theme.textSecondary}; font-weight: 500; }
 .continue-link:hover { color: ${theme.accent}; }
 @media (pointer: coarse) { .continue-link, .door { padding: 8px 0; } }
-.msg.sent { border-color: ${theme.accent}; }
-.msg .track { display: inline-flex; margin-top: 8px; }
-.starter.primary { border-style: solid; border-color: ${theme.accent}; color: ${theme.text}; background: ${theme.accentMuted}; font-weight: 600; }
-.sendcard { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid ${theme.accent}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; }
+.msg.sent { border-left: 2px solid ${theme.success}; padding-left: 10px; }
+.msg .track { display: inline-flex; margin-top: 6px; padding: 0; background: none; color: ${theme.accent}; font-size: 12px; font-weight: 600; }
+.starter.primary { color: ${theme.accent}; border-color: ${theme.accent}; font-weight: 600; }
+.sendcard { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid ${theme.accent}; border-radius: ${rs}; background: ${theme.surfaceRaised}; }
 .sendcard textarea { min-height: 64px; }
 .sendcard .err { margin-top: 0; }
 @media (pointer: coarse) { .segbtn, .watchbtn { padding: 10px 8px; } .act { padding: 8px 0; } }
@@ -303,13 +346,13 @@ input { margin-bottom: 10px; }
 
 .row { display: flex; gap: 8px; }
 .go {
-  flex: 1; height: 38px; background: ${theme.accent}; color: ${ink}; font-size: 13px; font-weight: 600;
+  flex: none; height: 34px; padding: 0 14px; background: ${theme.accent}; color: ${ink}; font-size: 13px; font-weight: 600;
   border-radius: ${rs}; letter-spacing: -.01em; transition: background .12s ease, opacity .12s ease;
 }
 .go:hover { background: ${theme.accentHover}; }
 .go:disabled { cursor: default; background: ${theme.surfaceRaised}; color: ${theme.textMuted}; }
-.ghost { height: 38px; font-size: 13px; color: ${theme.textSecondary}; padding: 0 14px; border: 1px solid ${theme.borderStrong}; border-radius: ${rs}; }
-.ghost:hover { color: ${theme.text}; border-color: ${theme.borderDark}; }
+.ghost { height: 34px; font-size: 13px; color: ${theme.textSecondary}; padding: 0 10px; border-radius: ${rs}; }
+.ghost:hover { color: ${theme.text}; background: ${theme.surfaceSubtle}; }
 .err { font-size: 12px; color: ${theme.error}; margin-top: 8px; }
 .keys { color: ${theme.textMuted}; text-align: center; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .keys .sep { opacity: .6; }
@@ -326,22 +369,32 @@ input { margin-bottom: 10px; }
    the links under an answer come from the fleet map, styled as quiet chips so
    the first recommendation reads as the next step. */
 .chat { display: flex; flex-direction: column; gap: 10px; }
-.chatlog { display: flex; flex-direction: column; gap: 8px; max-height: min(46vh, 380px); overflow-y: auto; padding: 2px; }
-.msg { font-size: 13px; line-height: 1.5; padding: 9px 11px; border-radius: ${rs}; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere; }
-.msg.bot { background: ${theme.surfaceRaised}; border: 1px solid ${theme.border}; color: ${theme.text}; align-self: flex-start; }
-.msg.user { background: ${theme.accentMuted}; border: 1px solid ${theme.accent}; color: ${theme.text}; align-self: flex-end; }
+.chatlog { display: flex; flex-direction: column; gap: 14px; max-height: min(46vh, 380px); overflow-y: auto; padding: 2px; }
+/* Loki's words are prose on the panel itself — no box — and yours are a
+   pill, the way every good chat reads. Bordered bubbles on both sides plus
+   bordered cards under them made the thread a stack of boxes. */
+.msg { font-size: 13px; line-height: 1.55; max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.bot { color: ${theme.text}; align-self: stretch; }
+.msg.user { max-width: 86%; padding: 8px 12px; border-radius: 16px; background: ${theme.surfaceSubtle}; color: ${theme.text}; align-self: flex-end; }
 .msg.pending { color: ${theme.textTertiary}; }
+.msg .rich { display: flex; flex-direction: column; gap: 8px; white-space: normal; }
+.msg .rich p { white-space: pre-wrap; }
+.msg .rich .rh { font-weight: 600; color: ${theme.text}; }
+.msg .rich b { font-weight: 600; color: ${theme.text}; }
+.msg .rich ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.msg .rich li::marker { color: ${theme.accent}; }
+.msg.pending .who { display: flex; align-items: center; gap: 6px; }
 .msg .who { display: block; margin-bottom: 3px; font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }
 .msg.from-cat .who { color: ${theme.accent}; }
 .msg .said { display: block; }
-.msg.failed { color: ${theme.error}; background: ${theme.errorSurface}; }
+.msg.failed { color: ${theme.error}; background: ${theme.errorSurface}; padding: 8px 10px; border-radius: ${rs}; }
 .chatlinks { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; max-width: 92%; }
-.chatlink { font-size: 12px; font-weight: 500; color: ${theme.text}; text-decoration: none; padding: 6px 10px;
-  border: 1px solid ${theme.borderStrong}; border-radius: ${rc}; background: transparent; }
-.chatlink:first-child { border-color: ${theme.accent}; background: ${theme.accentMuted}; }
+.chatlink { font-size: 12px; font-weight: 500; color: ${theme.textSecondary}; text-decoration: none; padding: 6px 12px;
+  border: 1px solid ${theme.borderStrong}; border-radius: 999px; background: transparent; }
+.chatlink:first-child { color: ${theme.accent}; border-color: ${theme.accent}; }
 .chatlink:hover { border-color: ${theme.accent}; }
 .starters { display: flex; flex-wrap: wrap; gap: 6px; }
-.starter { font-size: 12px; color: ${theme.textSecondary}; padding: 6px 10px; border: 1px dashed ${theme.borderStrong}; border-radius: ${rc}; text-align: left; }
+.starter { font-size: 12px; color: ${theme.textSecondary}; padding: 6px 12px; border: 1px solid ${theme.borderStrong}; border-radius: 999px; text-align: left; }
 .starter:hover { color: ${theme.text}; border-color: ${theme.accent}; }
 .chatform { display: flex; gap: 8px; align-items: flex-end; }
 .chatform .chatinput { min-height: 44px; max-height: 120px; }
@@ -349,13 +402,15 @@ input { margin-bottom: 10px; }
 @media (pointer: coarse) { .starter, .chatlink { padding: 11px 12px; } }
 /* ---- ask mode: advice, then each recommended change one tap from a request ---- */
 .msg.from-loki .who { color: ${theme.accent}; }
-.changes { display: flex; flex-direction: column; gap: 6px; align-self: stretch; padding: 10px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; }
-.changes-title { font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }
-.change { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.change-text { font-size: 12px; line-height: 1.45; color: ${theme.text}; min-width: 0; overflow-wrap: anywhere; }
-.change-send { flex: none; font-size: 11px; font-weight: 600; color: ${theme.text}; padding: 5px 9px; border: 1px solid ${theme.accent}; border-radius: ${rc}; background: ${theme.accentMuted}; }
-.change-send:hover { background: ${theme.accent}; color: ${ink}; }
-@media (pointer: coarse) { .change-send { padding: 11px 12px; } }
+.changes { display: flex; flex-direction: column; align-self: stretch; margin-top: -4px; }
+.changes-title { padding-bottom: 4px; font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }
+.change { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid ${theme.border}; }
+.change-text { font-size: 13px; line-height: 1.45; color: ${theme.text}; min-width: 0; overflow-wrap: anywhere; }
+/* Build / Fix: the accent as TEXT, aligned at the row's end — five filled
+   buttons stacked down the right edge was the loudest thing on the screen. */
+.change-send { flex: none; font-size: 12px; font-weight: 600; color: ${theme.accent}; white-space: nowrap; }
+.change-send:hover { color: ${theme.accentHover}; text-decoration: underline; text-underline-offset: 3px; }
+@media (pointer: coarse) { .change-send { padding: 8px 0 8px 8px; } }
 /* ---- hiding: offered in the panel, and always says how to undo it ---- */
 .made-with { display: block; margin: 14px auto 0; font-size: 11px; text-align: center; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; }
 .made-with:hover { color: ${theme.text}; }

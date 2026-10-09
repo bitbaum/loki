@@ -108,7 +108,8 @@ export function ProjectAutopilotToggle({
         )}
         title={tooltip}
       >
-        {building ? "On" : "Paused"}
+        {/* A bare "On" beside a project name did not say WHAT was on. */}
+        {building ? "Autopilot" : "Paused"}
       </span>
     );
   }

@@ -17,7 +17,8 @@
  * Model output is rendered as TEXT, never HTML: it is shown on someone else's
  * site. Links come from the server's map and only http(s) become anchors.
  */
-import { h } from "./dom";
+import { h, spiralMark } from "./dom";
+import { richBody } from "./rich-text";
 import type { Picker, SelectedEl } from "./picker";
 import { createAttachments } from "./attachments";
 import { createVoiceControl } from "./voice-control";
@@ -105,6 +106,9 @@ export function createConversation(opts: {
   onPassRefused: () => void;
   picker: Picker;
   watch: () => ConversationWatch | null;
+  /** Loki is working on an answer (true) or done (false) — the header's
+   *  spiral spins while it thinks. */
+  onBusy?: (busy: boolean) => void;
 }) {
   let thread = readThread(opts.token);
   let busy = false;
@@ -219,8 +223,11 @@ export function createConversation(opts: {
   tools.append(attachBtn, fileInput);
   const actions = h("div", "composer-actions");
   actions.append(tools, feedbackBtn, sendBtn);
+  // One card: what it is about, the words, the screenshots, then the ways to
+  // send it. "About" used to be its own bordered bar floating above a
+  // free-standing textarea — two boxes for one sentence.
   const form = h("div", "composer");
-  form.append(input, actions);
+  form.append(ctx, input, shots, actions);
 
   // The way out of the card and into Loki itself (continue-row.ts).
   const cont = createContinueRow({
@@ -229,7 +236,7 @@ export function createConversation(opts: {
     thread: () => thread,
     owner: () => opts.ownerPass() !== null,
   });
-  el.append(log, starters, ctx, shots, form, cont.el, err);
+  el.append(log, starters, form, cont.el, err);
 
   el.addEventListener("paste", (e: ClipboardEvent) => {
     const images = Array.from(e.clipboardData?.items ?? []).filter((i) =>
@@ -281,7 +288,7 @@ export function createConversation(opts: {
   function bubble(cls: string, who: string | null, text: string): HTMLElement {
     const m = h("div", `msg ${cls}`);
     if (who) m.appendChild(h("span", "who", who));
-    m.appendChild(h("span", "said", text));
+    if (text) m.appendChild(h("span", "said", text));
     return m;
   }
 
@@ -346,7 +353,10 @@ export function createConversation(opts: {
         }
       } else if (item.kind === "loki") {
         const sp = item.speaker ?? "loki";
-        log.appendChild(bubble(`bot from-${sp}`, sp === "cat" ? "Cat" : "Loki", item.text));
+        // Loki's own words, with structure (rich-text.ts) — text nodes only.
+        const said = bubble(`bot from-${sp}`, sp === "cat" ? "Cat" : "Loki", "");
+        said.appendChild(richBody(item.text));
+        log.appendChild(said);
         if (item.changes?.length)
           log.appendChild(changeBox("Suggested changes", item.changes, sendLabel()));
         if (item.links?.length) {
@@ -448,6 +458,7 @@ export function createConversation(opts: {
       return;
     }
     busy = true;
+    opts.onBusy?.(true);
     sendBtn.disabled = true;
     err.textContent = "";
     remember({ kind: "you", at: Date.now(), text });
@@ -457,6 +468,7 @@ export function createConversation(opts: {
       "Loki",
       session ? "Going through what you did…" : "Looking…",
     );
+    pending.querySelector(".who")?.prepend(spiralMark("thinking"));
     log.appendChild(pending);
     log.scrollTop = log.scrollHeight;
     const history = historyFor(thread.slice(0, -1), 12, 3000);
@@ -495,6 +507,7 @@ export function createConversation(opts: {
       err.textContent = e instanceof Error ? e.message : "Could not reach Loki — try again.";
     } finally {
       busy = false;
+      opts.onBusy?.(false);
       syncContext();
       render(true);
       sendBtn.disabled = !input.value.trim();
