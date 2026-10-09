@@ -9,8 +9,7 @@ import {
   type LokiComposerChip,
 } from "@/config/loki-suggested-actions";
 import type { ExecutorHonestyLabel } from "@/lib/executor-honesty";
-import type { TextAttachment } from "@/lib/loki/attachments";
-import { HANDOFF_DEFAULT_ASK } from "@/lib/loki/site-handoff";
+import type { SiteContext } from "@/hooks/use-site-handoff";
 import { Composer } from "@/components/composer/Composer";
 import { readLokiDraft, writeLokiDraft } from "@/lib/loki/draft";
 import type { Attachment, LokiProject, ModelChoice } from "./types";
@@ -89,7 +88,7 @@ export function LokiComposer({
   onTalk?: () => void;
   /** Context that rides with the next message (a conversation carried in from
    *  the owner's site). Shown by the workspace, attached here, once. */
-  context?: TextAttachment | null;
+  context?: SiteContext | null;
   onContextUsed?: () => void;
 }) {
   const [text, setTextState] = useState(defaultText);
@@ -126,7 +125,13 @@ export function LokiComposer({
     opts?: { chatOnly?: boolean },
   ) => {
     if (!context) return onSend(t, choice, attachments, opts);
-    onSend(t.trim() || HANDOFF_DEFAULT_ASK, choice, [...attachments, context], opts);
+    // Nothing typed means "go on with that conversation": an answer here,
+    // not a work order for a builder. Typed words are classified as usual.
+    const typed = t.trim();
+    onSend(typed || context.ask, choice, [...attachments, context.attachment], {
+      ...opts,
+      ...(typed ? {} : { chatOnly: true }),
+    });
     onContextUsed?.();
   };
 

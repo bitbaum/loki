@@ -609,7 +609,7 @@ export function LokiWorkspace({
         // discarding anything still staged.
         key={composerPrefill ? `prefill:${composerPrefill}` : "composer"}
         defaultText={site.arrived ? "" : (composerPrefill ?? "")}
-        context={site.attachment}
+        context={site.context}
         onContextUsed={site.spend}
         draftKey={lokiDraftKey(activeId)}
         selectedProjects={selectedProjects}

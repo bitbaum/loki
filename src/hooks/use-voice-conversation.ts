@@ -70,6 +70,8 @@ export function useVoiceConversation({
   const [phase, setPhaseState] = useState<VoicePhase>("off");
   const [level, setLevel] = useState(0);
   const [heard, setHeard] = useState("");
+  /** What Loki is reading aloud right now, for the screen to show. */
+  const [saying, setSaying] = useState("");
   const [error, setError] = useState("");
 
   const phaseRef = useRef<VoicePhase>("off");
@@ -320,6 +322,7 @@ export function useVoiceConversation({
         listen();
         return;
       }
+      setSaying(text);
       setPhase("speaking");
       const token = ++speakTokenRef.current;
       if (bargeInRef.current) watchBargeIn(token);
@@ -455,5 +458,5 @@ export function useVoiceConversation({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react to a new answer or a failure only
   }, [phase, latestAnswer?.id, turnFailed]);
 
-  return { phase, level, heard, error, start, end, tap, say };
+  return { phase, level, heard, saying, error, start, end, tap, say };
 }

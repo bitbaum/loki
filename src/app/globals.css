@@ -6656,18 +6656,14 @@
   /* Suggested follow-ups under the newest answer: quiet rows, each a full
      44px tap target, read as "what you might say next" rather than buttons
      competing with the answer above them. */
-  /* Hands-free voice chat (VoiceConversation): a full screen with one circle.
-     The circle's fill says whose turn it is — the accent while it listens to
-     you, neutral while it thinks or speaks — and its scale follows your voice
-     (set inline, a measured value, not a design decision). */
+  /* Hands-free voice chat (VoiceConversation): a full screen with Loki's
+     spiral in one circle. The circle's fill says whose turn it is — the
+     accent while it listens to you, neutral while it thinks or speaks — and
+     the spiral's motion says what it is doing: still and swelling with your
+     voice (scale set inline, a measured value), spinning while it thinks,
+     breathing while it speaks. */
   .ui-voice {
     @apply flex h-full flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))];
-  }
-  .ui-voice-top {
-    @apply flex justify-end;
-  }
-  .ui-voice-end {
-    @apply inline-flex h-11 w-11 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-primary;
   }
   .ui-voice-stage {
     @apply flex flex-1 flex-col items-center justify-center gap-3 text-center;
@@ -6679,7 +6675,33 @@
     @apply border-transparent bg-accent-primary text-text-inverted;
   }
   .ui-voice-orb-speaking {
-    @apply animate-pulse text-text-primary;
+    @apply text-text-primary;
+    animation: ui-voice-breathe 2.4s ease-in-out infinite;
+  }
+  .ui-voice-orb-busy {
+    @apply text-text-primary;
+  }
+  .ui-voice-spiral {
+    @apply h-14 w-14;
+    transform-origin: 50% 50%;
+  }
+  .ui-voice-orb-busy .ui-voice-spiral {
+    animation: ui-brand-spiral-spin 1.6s linear infinite;
+  }
+  .ui-voice-orb-speaking .ui-voice-spiral {
+    animation: ui-brand-spiral-spin 9s linear infinite;
+  }
+  @keyframes ui-voice-breathe {
+    50% {
+      box-shadow: 0 0 0 12px color-mix(in oklch, var(--text-primary) 6%, transparent);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ui-voice-orb-speaking,
+    .ui-voice-orb-busy .ui-voice-spiral,
+    .ui-voice-orb-speaking .ui-voice-spiral {
+      animation: none;
+    }
   }
   .ui-voice-label {
     @apply text-lg font-medium text-text-primary;
@@ -6690,8 +6712,16 @@
   .ui-voice-heard {
     @apply mt-2 line-clamp-3 max-w-sm text-sm text-text-secondary;
   }
+  /* What Loki is reading aloud — the answer, readable along, not a caption. */
+  .ui-voice-saying {
+    @apply line-clamp-6 max-w-sm text-base leading-relaxed text-text-primary;
+  }
   .ui-voice-bottom {
     @apply flex justify-center;
+  }
+  /* The one way out, where the thumb is. */
+  .ui-voice-end {
+    @apply inline-flex h-14 w-14 items-center justify-center rounded-full bg-surface-raised text-text-secondary transition-colors hover:text-text-primary;
   }
   /* No-screen mode (components/voice/NoScreenMode): the same circle as the
      Loki page's voice chat, as a whole page. Larger type for the one glance
