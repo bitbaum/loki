@@ -6,6 +6,31 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-09 — The fleet in your ear
+
+- **No-screen mode.** Headphones in, one tap on **Start** at `/voice`, and the
+  phone goes in your pocket. Loki reads the briefing — who is working, what is
+  waiting on you, what failed — then listens. Say "what's waiting on me",
+  "approve the first one", "tell heidi to fix the header", "pause everything",
+  "what failed", or ask anything else and hear the answer. Every action is
+  the one the screen makes: the Approvals page's decision, the composer's
+  send, Control's pause button.
+- **Told, not asked.** While you say nothing, the phone checks the fleet every
+  twenty seconds and reads what changed into your ear: a run finished and what
+  it did, a run failed and why, a new approval, the builder going offline or
+  coming back. At most five things per check, so a reconnect does not read out
+  the afternoon.
+- **The headphone button is the only button.** Press it to send what you just
+  said or to cut Loki off and talk; next track repeats the briefing. The lock
+  screen shows what Loki is doing.
+- **Resume, to match pause.** "Resume everything" and "resume heidi" clear a
+  per-project pause the same way Control's button set it.
+- **What it is not, yet.** It is a web page: the loop is verified in a desktop
+  browser with a synthetic microphone, not yet on a locked iPhone in a pocket.
+  Approvals behind the private-zone PIN are not read aloud until you unlock
+  them on screen; the briefing says they are locked. The public page at
+  `/no-screen` says the same.
+
 ## 2026-10-08 — Share the walkthrough
 
 - **"Not quite" — and "Show me" first.** A walkthrough's last card now has

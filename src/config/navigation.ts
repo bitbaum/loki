@@ -12,6 +12,7 @@ import {
   Terminal,
   SquareTerminal,
   MessageSquare,
+  Headphones,
   BookOpen,
   Settings,
   Brain,
@@ -61,6 +62,15 @@ export const NAV = {
     icon: MessageSquare,
     active: true,
     mobile: true,
+  },
+  voice: {
+    id: "voice",
+    label: "No-screen",
+    description: "Run the fleet by ear — hear it, speak to it, never look",
+    href: "/voice",
+    icon: Headphones,
+    active: true,
+    mobile: false,
   },
   approvals: {
     id: "approvals",
@@ -345,8 +355,9 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     label: "Command",
     question: "How do I act on it?",
     // The same act at three altitudes: say it (Loki), type it (Terminal),
-    // or save it to repeat (Prompts).
-    items: [NAV.loki, NAV.terminal, NAV.prompts],
+    // or save it to repeat (Prompts) — and say it with the screen off
+    // (No-screen), which is Loki's Talk button made the whole surface.
+    items: [NAV.loki, NAV.voice, NAV.terminal, NAV.prompts],
   },
   {
     id: "private",

@@ -2281,6 +2281,27 @@
   /* Homepage "how it works": three numbered steps a newcomer reads left to
      right (top to bottom on a phone). The number is large and faint so the
      sentence, not the digit, carries the step. */
+  /* /no-screen: a spoken exchange, laid out as a transcript. "You" sits to
+     the right like a sent message, Loki to the left, and the unasked line
+     ("Later") is set apart — it is the one thing the page is selling. */
+  .ui-public-ear {
+    @apply mx-auto mt-10 flex w-full max-w-2xl flex-col gap-3 text-left sm:mt-14;
+  }
+  .ui-public-ear-turn {
+    @apply flex max-w-[85%] flex-col gap-1 rounded-2xl border border-border-subtle bg-surface-base px-4 py-3;
+  }
+  .ui-public-ear-turn-you {
+    @apply self-end border-transparent bg-surface-raised;
+  }
+  .ui-public-ear-turn-later {
+    @apply mt-2 w-full max-w-full border-dashed border-border-default bg-transparent;
+  }
+  .ui-public-ear-who {
+    @apply text-[11px] uppercase tracking-[0.14em] text-text-tertiary;
+  }
+  .ui-public-ear-line {
+    @apply text-sm leading-relaxed text-text-primary sm:text-base;
+  }
   .ui-public-howto {
     @apply grid gap-3 sm:gap-4 md:grid-cols-3;
   }
@@ -6656,6 +6677,34 @@
   }
   .ui-voice-bottom {
     @apply flex justify-center;
+  }
+  /* No-screen mode (components/voice/NoScreenMode): the same circle as the
+     Loki page's voice chat, as a whole page. Larger type for the one glance
+     before the phone goes away, and a start screen whose only loud control
+     is Start — the list under it is read once, then never again. */
+  .ui-voice-label-lg {
+    @apply text-2xl;
+  }
+  .ui-voice-said {
+    @apply mt-1 line-clamp-4 max-w-sm text-sm text-text-tertiary;
+  }
+  .ui-voice-start {
+    @apply mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-4 px-4 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center;
+  }
+  .ui-voice-start-btn {
+    @apply mt-2 inline-flex min-h-16 w-full items-center justify-center gap-3 rounded-full bg-accent-primary text-lg font-medium text-text-inverted transition-opacity hover:opacity-90;
+  }
+  .ui-voice-commands {
+    @apply mt-6 w-full space-y-3 text-left;
+  }
+  .ui-voice-command {
+    @apply flex flex-col gap-0.5 border-t border-border-subtle pt-3;
+  }
+  .ui-voice-command-say {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-voice-command-does {
+    @apply text-sm text-text-tertiary;
   }
   /* The composer's way into it: a filled pill, the one loud control in the
      row, as in the reference chat — it is a different mode, not a tool. */

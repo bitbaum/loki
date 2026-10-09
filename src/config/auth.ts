@@ -1,4 +1,5 @@
 import type { NavLink } from "@/components/public/PublicSurface";
+import { NO_SCREEN_PUBLIC_PATH } from "@/config/no-screen";
 
 // Single source of truth for all auth and app route strings.
 // Import from here — never hardcode "/sign-in" or "/today" in components.
@@ -109,6 +110,11 @@ export const PUBLIC_NAV: PublicNavEntry[] = [
             label: "Compare",
             href: "/compare",
             description: "Loki next to Claude Code, Codex, Lovable and others",
+          },
+          {
+            label: "No-screen mode",
+            href: NO_SCREEN_PUBLIC_PATH,
+            description: "Hear your fleet and speak to it, with the phone in your pocket",
           },
           {
             label: "Change a website",

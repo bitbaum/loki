@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" width="1200" height="560" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="ns-arr" markerWidth="12" markerHeight="12" refX="6" refY="4" orient="auto">
+      <path d="M2,1 L9,4 L2,7" fill="none" stroke="var(--text-tertiary)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="ns-arr-acc" markerWidth="12" markerHeight="12" refX="6" refY="4" orient="auto">
+      <path d="M2,1 L9,4 L2,7" fill="none" stroke="var(--accent-primary)" stroke-opacity="0.85" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- the phone: left column -->
+  <text x="190" y="40" fill="var(--text-tertiary)" font-size="12" font-weight="500" text-anchor="middle" letter-spacing="2">THE PHONE · IN A POCKET</text>
+  <rect x="40" y="56" width="300" height="470" rx="18" fill="none" stroke="var(--border-subtle)" stroke-dasharray="4 4"/>
+
+  <g font-size="14.5" font-weight="500">
+    <rect x="70" y="90" width="240" height="56" rx="12" fill="var(--surface-raised)" stroke="var(--border-default)"/>
+    <text x="190" y="114" fill="var(--text-primary)" text-anchor="middle">Listen</text>
+    <text x="190" y="133" fill="var(--text-tertiary)" font-size="12" font-weight="400" text-anchor="middle">microphone open · ends on a pause</text>
+
+    <rect x="70" y="200" width="240" height="56" rx="12" fill="var(--surface-raised)" stroke="var(--border-default)"/>
+    <text x="190" y="224" fill="var(--text-primary)" text-anchor="middle">Transcribe</text>
+    <text x="190" y="243" fill="var(--text-tertiary)" font-size="12" font-weight="400" text-anchor="middle">the one leg that leaves the phone</text>
+
+    <rect x="70" y="310" width="240" height="56" rx="12" fill="var(--surface-raised)" stroke="var(--border-default)"/>
+    <text x="190" y="334" fill="var(--text-primary)" text-anchor="middle">Speak</text>
+    <text x="190" y="353" fill="var(--text-tertiary)" font-size="12" font-weight="400" text-anchor="middle">the phone's own voice · then listen</text>
+
+    <rect x="70" y="420" width="240" height="56" rx="12" fill="var(--surface-raised)" stroke="var(--border-default)"/>
+    <text x="190" y="444" fill="var(--text-primary)" text-anchor="middle">Poll every 20 s</text>
+    <text x="190" y="463" fill="var(--text-tertiary)" font-size="12" font-weight="400" text-anchor="middle">diff the snapshot · announce the change</text>
+  </g>
+
+  <!-- the loop arrows on the phone -->
+  <g fill="none" stroke="var(--text-tertiary)" stroke-width="1.7" marker-end="url(#ns-arr)">
+    <path d="M190,146 L190,196"/>
+    <path d="M190,366 C140,366 120,300 120,230 C120,180 150,150 180,150" stroke-dasharray="5 4"/>
+  </g>
+  <text x="96" y="262" fill="var(--text-tertiary)" font-size="11" text-anchor="middle">again</text>
+
+  <!-- the server: right column -->
+  <text x="800" y="40" fill="var(--text-tertiary)" font-size="12" font-weight="500" text-anchor="middle" letter-spacing="2">LOKI · THE SAME SEAMS THE SCREEN USES</text>
+
+  <g font-size="14.5" font-weight="600">
+    <rect x="470" y="200" width="250" height="56" rx="12" fill="var(--accent-primary)" fill-opacity="0.08" stroke="var(--accent-primary)" stroke-opacity="0.6"/>
+    <text x="595" y="224" fill="var(--accent-primary)" text-anchor="middle">Parse the sentence</text>
+    <text x="595" y="243" fill="var(--text-tertiary)" font-size="12" font-weight="400" text-anchor="middle">a grammar, not a guess · lib/voice/commands</text>
+  </g>
+
+  <g font-size="13.5" font-weight="500">
+    <rect x="860" y="90" width="280" height="48" rx="12" fill="var(--surface-raised)" stroke="var(--border-default)"/>
+    <text x="1000" y="112" fill="var(--text-primary)" text-anchor="middle">Briefing · composeBriefing</text>
+    <text x="1000" y="129" fill="var(--text-tertiary)" font-size="11.5" font-weight="400" text-anchor="middle">one snapshot of runs, turns, alerts, approvals</text>
+
+    <rect x="860" y="160" width="280" height="48" rx="12" fill="var(--surface-raised)" stroke="var(--border-default)"/>
+    <text x="1000" y="182" fill="var(--text-primary)" text-anchor="middle">Approve / reject · decideAction</text>
+    <text x="1000" y="199" fill="var(--text-tertiary)" font-size="11.5" font-weight="400" text-anchor="middle">the Approvals page's own decision</text>
+
+    <rect x="860" y="230" width="280" height="48" rx="12" fill="var(--surface-raised)" stroke="var(--border-default)"/>
+    <text x="1000" y="252" fill="var(--text-primary)" text-anchor="middle">Dispatch · injectPrompt</text>
+    <text x="1000" y="269" fill="var(--text-tertiary)" font-size="11.5" font-weight="400" text-anchor="middle">the composer's own send</text>
+
+    <rect x="860" y="300" width="280" height="48" rx="12" fill="var(--surface-raised)" stroke="var(--border-default)"/>
+    <text x="1000" y="322" fill="var(--text-primary)" text-anchor="middle">Pause / resume · fleet-pause</text>
+    <text x="1000" y="339" fill="var(--text-tertiary)" font-size="11.5" font-weight="400" text-anchor="middle">Control's own button</text>
+
+    <rect x="860" y="370" width="280" height="48" rx="12" fill="var(--surface-raised)" stroke="var(--border-default)"/>
+    <text x="1000" y="392" fill="var(--text-primary)" text-anchor="middle">Anything else · askLoki</text>
+    <text x="1000" y="409" fill="var(--text-tertiary)" font-size="11.5" font-weight="400" text-anchor="middle">the chat, read aloud</text>
+  </g>
+
+  <!-- phone → server → phone -->
+  <g fill="none" stroke="var(--accent-primary)" stroke-opacity="0.85" stroke-width="1.7" marker-end="url(#ns-arr-acc)">
+    <path d="M310,228 L466,228"/>
+  </g>
+  <g fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" marker-end="url(#ns-arr)">
+    <path d="M720,222 C780,222 800,114 856,114"/>
+    <path d="M720,226 C780,226 800,184 856,184"/>
+    <path d="M720,230 L856,254"/>
+    <path d="M720,236 C780,236 800,324 856,324"/>
+    <path d="M720,242 C780,242 800,394 856,394"/>
+  </g>
+  <!-- the answer comes back as one sentence -->
+  <g fill="none" stroke="var(--accent-primary)" stroke-opacity="0.85" stroke-width="1.7" marker-end="url(#ns-arr-acc)">
+    <path d="M860,440 C700,440 520,420 316,338"/>
+  </g>
+  <text x="600" y="460" fill="var(--accent-primary)" font-size="12" font-weight="500" text-anchor="middle">one sentence back · never empty</text>
+
+  <!-- the snapshot poll -->
+  <g fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ns-arr)">
+    <path d="M860,470 C700,470 500,470 316,452"/>
+  </g>
+  <text x="600" y="492" fill="var(--text-tertiary)" font-size="12" text-anchor="middle">/api/voice/snapshot · what changed since last time</text>
+
+  <text x="600" y="540" fill="var(--text-tertiary)" font-size="12" text-anchor="middle">The loop closes on the phone. The server adds a mouth and an ear to seams that already existed; it adds no second way to do anything.</text>
+</svg>

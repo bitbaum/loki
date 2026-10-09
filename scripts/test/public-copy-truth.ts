@@ -27,6 +27,8 @@ const PUBLIC_COPY = [
   "src/app/fleet/page.tsx",
   "src/app/why/page.tsx",
   "src/app/how-it-works/page.tsx",
+  "src/app/no-screen/page.tsx",
+  "src/config/no-screen.ts",
   "src/app/compare/page.tsx",
   "src/components/public/PublicFooter.tsx",
 ];
