@@ -526,6 +526,10 @@ export function LokiWorkspace({
   // "pinned" as "visible" hid the recent chats on every phone (the pin
   // defaults to on), so Back from a thread landed on an empty screen.
   const wide = useMediaQuery("(min-width: 768px)");
+  // Which thread the menu opened "save to context" for — it closes itself by
+  // no longer matching when the operator moves to another thread.
+  const [saveFor, setSaveFor] = useState<string | null>(null);
+  const saveOpen = saveFor === (activeId ?? "new");
   const threadTitle =
     (activeId && conversations.find((c) => c.id === activeId)?.title) || "New chat";
 
@@ -538,13 +542,7 @@ export function LokiWorkspace({
           railVisible={historyPinned && wide}
           loading={convosLoading}
           onResume={(id) => setActiveId(id)}
-          onBrowseAll={() => {
-            if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-              setHistoryPinned(true);
-              return;
-            }
-            setHistoryOpen(true);
-          }}
+          onBrowseAll={() => (wide ? setHistoryPinned(true) : setHistoryOpen(true))}
         />
       )}
 
@@ -565,12 +563,15 @@ export function LokiWorkspace({
         // Inside the scroll, after the last turn: it is an action ON the
         // exchange, and as a fixed row between thread and composer it took a
         // permanent line of a phone screen from the conversation.
+        // On a phone it waits in the thread menu until asked for.
         tail={
-          messages.length > 0 ? (
+          messages.length > 0 && (wide || saveOpen) ? (
             <SaveContextBar
+              key={activeId ?? "new"}
               projects={projects}
               messages={messages}
               selectedProject={selectedProjects[0] ?? null}
+              defaultOpen={saveOpen}
             />
           ) : null
         }
@@ -725,6 +726,7 @@ export function LokiWorkspace({
             onOpenLokis={() => setHistoryOpen(true)}
             onNewChat={startNewConversation}
             onOpenProjects={() => setFilterOpen(true)}
+            onSaveContext={messages.length > 0 ? () => setSaveFor(activeId ?? "new") : undefined}
           />
         ) : (
           <TopbarPortal>{topbarButtons}</TopbarPortal>

@@ -6459,41 +6459,45 @@
     @apply gap-2;
   }
 
-  /* Resume rail above the start composer — the recent threads, one tap in. */
+  /* Start screen: the spiral and one question centred in the free space, the
+     few recent threads docked just above the composer. The stage is
+     justify-end on a phone, so the greeting takes flex-1 and centres itself. */
   .ui-loki-start {
-    @apply flex min-h-0 shrink flex-col gap-2 overflow-y-auto;
+    @apply flex min-h-0 flex-1 flex-col gap-4 sm:flex-none sm:gap-6;
   }
-  .ui-loki-start-inbox {
-    @apply max-sm:flex-1;
+  .ui-loki-start-hello {
+    @apply flex flex-1 flex-col items-center justify-center gap-3 text-center sm:flex-none;
   }
   .ui-loki-start-title {
-    @apply px-1 text-lg font-medium text-text-primary sm:text-xl;
+    @apply text-xl font-medium text-text-primary sm:text-2xl;
+  }
+  .ui-loki-start-recent {
+    @apply flex flex-col gap-1;
+  }
+  .ui-loki-start-recent-head {
+    @apply flex items-center justify-between px-2;
   }
   .ui-loki-start-list {
     @apply flex flex-col;
   }
-  /* Messages-list rows: no boxes, a round initial, title + time on one line,
-     the project under it. Boxing every row read as a form, not a list. */
+  /* One line per thread: initial, title, project, time. Rows, not boxes. */
   .ui-loki-start-row {
-    @apply flex min-h-16 w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition-colors hover:bg-surface-raised;
+    @apply flex min-h-11 w-full items-center gap-3 rounded-xl px-2 text-left transition-colors hover:bg-surface-raised;
   }
   .ui-loki-start-avatar {
-    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-raised text-base font-semibold text-text-secondary;
-  }
-  .ui-loki-start-row-text {
-    @apply flex min-w-0 flex-1 flex-col gap-0.5;
+    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-raised text-xs font-semibold text-text-secondary;
   }
   .ui-loki-start-row-title {
-    @apply min-w-0 flex-1 truncate text-base font-medium text-text-primary sm:text-sm;
-  }
-  .ui-loki-start-row-time {
-    @apply shrink-0 text-xs text-text-muted;
+    @apply min-w-0 flex-1 truncate text-sm text-text-primary;
   }
   .ui-loki-start-row-meta {
-    @apply truncate text-sm text-text-tertiary sm:text-xs;
+    @apply max-w-28 shrink-0 truncate text-xs text-text-tertiary max-[360px]:hidden;
+  }
+  .ui-loki-start-row-time {
+    @apply w-8 shrink-0 text-right text-xs text-text-muted;
   }
   .ui-loki-start-more {
-    @apply min-h-11 self-start rounded-lg px-1 text-xs text-text-tertiary transition-colors hover:text-text-primary;
+    @apply min-h-11 rounded-lg px-1 text-xs text-text-tertiary transition-colors hover:text-text-primary;
   }
 
   /* Needs-project picker. A grid, not a wrapped chip cloud: nine variable-width

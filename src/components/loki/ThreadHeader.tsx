@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { ArrowLeft, FolderKanban, History, MoreVertical, PanelLeft, SquarePen } from "lucide-react";
+import {
+  ArrowLeft,
+  BookmarkPlus,
+  FolderKanban,
+  History,
+  MoreVertical,
+  PanelLeft,
+  SquarePen,
+} from "lucide-react";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 
 /**
@@ -17,6 +25,7 @@ export function ThreadHeader({
   onOpenLokis,
   onNewChat,
   onOpenProjects,
+  onSaveContext,
 }: {
   title: string;
   projects: string[];
@@ -24,6 +33,9 @@ export function ThreadHeader({
   onOpenLokis: () => void;
   onNewChat: () => void;
   onOpenProjects: () => void;
+  /** Save the exchange into a project's context — an occasional act, so it
+   *  lives here rather than as a line under every phone conversation. */
+  onSaveContext?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const close = useCallback(() => setMenuOpen(false), []);
@@ -93,6 +105,7 @@ export function ThreadHeader({
               {item("New chat", SquarePen, onNewChat)}
               {item("All chats", History, onOpenLokis)}
               {item("Projects", FolderKanban, onOpenProjects)}
+              {onSaveContext && item("Save to project context", BookmarkPlus, onSaveContext)}
             </div>
           </>
         )}
