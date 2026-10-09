@@ -1,3 +1,5 @@
+import { extractReplies } from "@bitbaum/chatkit";
+
 /**
  * An answer as it should be READ ALOUD.
  *
@@ -9,8 +11,11 @@
  */
 
 export function plainTextForSpeech(markdown: string): string {
+  // Suggested replies are buttons, never words: a quick_replies block is
+  // dropped outright rather than announced as "(code)".
+  const prose = extractReplies(markdown).text;
   return (
-    markdown
+    prose
       // Fenced code is not prose; say that it is there rather than reading it.
       .replace(/```[\s\S]*?```/g, " (code) ")
       .replace(/`([^`]*)`/g, "$1")

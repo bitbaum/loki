@@ -37,6 +37,10 @@ const AskLokiBody = z.object({
     )
     .max(12)
     .optional(),
+  // The caller is a chat that shows suggested replies under the answer (the
+  // floating assistant). Off for one-shot callers such as a prompt run, where
+  // a row of buttons would have nowhere to send.
+  replies: z.boolean().default(false),
 });
 
 const PAGE_CONTEXT_MAX_CHARS = 2000;
@@ -95,7 +99,12 @@ export async function POST(req: NextRequest) {
   // "nothing to queue this turn" and never blocks the reply. This is the queue's
   // producer; the operator still approves every draft before it executes.
   const [{ status, body }, queued] = await Promise.all([
-    askLoki(message, { sessionKey, userId, history: dataOrResp.history }),
+    askLoki(message, {
+      sessionKey,
+      userId,
+      history: dataOrResp.history,
+      replies: dataOrResp.replies,
+    }),
     enqueueProposalFromMessage(userId, dataOrResp.message, new Date().toISOString()).catch(
       () => null,
     ),

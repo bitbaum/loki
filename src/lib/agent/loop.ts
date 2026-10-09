@@ -58,6 +58,7 @@ import { maxPromptBudgetTokens } from "@/config/chat-models";
 import type { OwnModel } from "@/lib/own-model";
 import type { RetrievedSource } from "@/lib/agent/context";
 import { APP_NAME } from "@/config/brand";
+import { REPLIES_INSTRUCTION, extractReplies } from "@bitbaum/chatkit";
 import { looksLikePlan, ANSWER_ONLY } from "@/lib/loki/plan-as-answer";
 
 // The concrete registry and the seed builder reach the database, and @/db
@@ -161,7 +162,13 @@ export type LoopSeed = {
 };
 
 export type LoopResult = {
+  /** The answer, with any suggested-replies block already taken out. */
   text: string;
+  /**
+   * What the person is likely to say next (chatkit's suggested replies), when
+   * the turn asked for them and the model offered some. Empty otherwise.
+   */
+  replies: string[];
   facts: Fact[];
   /** Resolved citations, so the transcript can render an id as its record. */
   sources: CitationSource[];
@@ -338,6 +345,25 @@ async function runToolCalls(
   return { facts, messages, used };
 }
 
+/** chatkit's suggested-replies ask, for a turn that lands in a chat with buttons. */
+function repliesLine(wanted: boolean | undefined): string {
+  return wanted ? `\n\n${REPLIES_INSTRUCTION}` : "";
+}
+
+/**
+ * Take the suggested-replies block out of a model reply, as soon as it
+ * arrives — so it never reaches a note, the verifier or the stored answer.
+ * Done before grounding:
+ * the replies are what the person might say next, not claims about their
+ * records, and a repair pass (which rewrites by deletion, without the replies
+ * instruction) must not be what decides whether they survive. A block the
+ * caller did not ask for is still removed — it is never part of the answer.
+ */
+function takeReplies(text: string, wanted: boolean | undefined) {
+  const split = extractReplies(text);
+  return { text: split.text, replies: wanted ? split.replies : [] };
+}
+
 /**
  * Run one Loki turn.
  *
@@ -368,6 +394,9 @@ export async function runLokiTurn(input: {
    * Ignored when the user brought their own model. Undefined = LOKI_MODEL.
    */
   model?: string;
+  /** The answer lands in a chat with reply buttons: ask for chatkit's suggested
+   *  replies (LoopResult.replies). Off for MCP, voice and prompt runs. */
+  replies?: boolean;
   /** Injected in tests; defaults to the real provider call. */
   callModel?: ModelCaller;
   /** Present when someone is watching: stream the turn instead of buffering it. */
@@ -420,6 +449,8 @@ export async function runLokiTurn(input: {
   const used: string[] = [];
   const work: WorkStep[] = [];
   let text = "";
+  // Suggested replies ride out of every model reply — see takeReplies.
+  let replies: string[] = [];
   let model = "";
   // The exact prompt the last round sent, kept so a reply that turns out to be
   // a PLAN can be asked again with the instruction it showed it needed. Built
@@ -459,7 +490,7 @@ export async function runLokiTurn(input: {
     // model handed tools will keep calling them, and the operator would get a
     // dangling tool call instead of a reply.
     const lastRound = answerNext || round === MAX_ROUNDS - 1;
-    const system = systemPrompt(advertised, !lastRound) + voiceLine;
+    const system = systemPrompt(advertised, !lastRound) + voiceLine + repliesLine(input.replies);
 
     // Everything charged besides facts. It GROWS as the loop proceeds — the
     // conversation carries each round's tool results — so the fit is recomputed
@@ -541,7 +572,7 @@ export async function runLokiTurn(input: {
     })();
     model = turn.model;
     usageTokens += turn.usageTokens;
-    text = turn.text;
+    ({ text, replies } = takeReplies(turn.text, input.replies));
     cutOff = turn.cutOff ?? null;
 
     if (turn.toolCalls.length === 0 || lastRound) break;
@@ -551,9 +582,10 @@ export async function runLokiTurn(input: {
     // as an ANSWER (the next round replaces `text`) but it is not nothing: it
     // is the narration the operator reads between groups of work, and the
     // one thing a static spinner never gave them. Kept as a note, in order.
-    if (turn.text.trim()) {
-      work.push({ kind: "note", text: turn.text.trim() });
-      emit({ type: "note", text: turn.text.trim() });
+    // `text`, not `turn.text`: a note is never the place for a replies block.
+    if (text.trim()) {
+      work.push({ kind: "note", text: text.trim() });
+      emit({ type: "note", text: text.trim() });
     }
 
     const executed = await runToolCalls(turn.toolCalls, registry, ctx, attempted, emit, work);
@@ -610,7 +642,7 @@ export async function runLokiTurn(input: {
       });
       usageTokens += retry.usageTokens;
       if (retry.text.trim() && (!retry.cutOff || retry.text.length > text.length)) {
-        text = retry.text;
+        ({ text, replies } = takeReplies(retry.text, input.replies));
         model = retry.model;
         cutOff = retry.cutOff ?? null;
       }
@@ -667,7 +699,7 @@ export async function runLokiTurn(input: {
       // improvement, and an empty reply is worse than a plan — at least a plan
       // shows the model understood the question.
       if (retry.text.trim() && !looksLikePlan(retry.text)) {
-        text = retry.text;
+        ({ text, replies } = takeReplies(retry.text, input.replies));
         model = retry.model;
       }
     } catch (e) {
@@ -779,6 +811,7 @@ export async function runLokiTurn(input: {
     text: cutOff
       ? `${text.trimEnd()}…\n\n_The answer was cut off. Ask "go on" for the rest._`
       : text,
+    replies,
     facts,
     sources,
     violations,

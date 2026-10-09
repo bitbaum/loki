@@ -39,6 +39,7 @@ import {
 import { injectPrompt } from "@/lib/inject-core";
 import { askLoki } from "@/lib/loki-core";
 import { pickProvenance } from "@/lib/loki/provenance";
+import { readReplies } from "@/lib/loki/replies";
 import { enqueueProposalFromMessage } from "@/lib/actions/enqueue-proposal";
 import { ORCHESTRATION_ADAPTER_IDS, type AdapterId } from "@/lib/orchestration";
 import {
@@ -631,6 +632,8 @@ async function chatReply(
         : `agent:main:web:conv:${ctx.conversationId}`,
       userId: ctx.userId,
       model: ctx.model,
+      // This answer lands in a thread with reply buttons under it.
+      replies: true,
       // The thread so far, so the primary path has the same continuity the
       // gateway's session memory used to give only the fallback. Trimmed by
       // the loop; only role + content cross this seam.
@@ -650,6 +653,11 @@ async function chatReply(
     meta: {
       ...extraMeta,
       projectKey: chatProject,
+      // What the person is likely to say next, as one-tap buttons under the
+      // latest answer. Kept apart from `content` so the stored answer — what
+      // is copied, spoken, saved to memory and fed back as history — never
+      // carries the block it came in.
+      ...(readReplies(loki.body).length > 0 ? { replies: readReplies(loki.body) } : {}),
       // Provenance — which brain, which model, what was retrieved, which
       // tools ran, and whether the answer verified clean. Persisted whole:
       // this used to keep `model` and `sources` and drop `grounding`, so a

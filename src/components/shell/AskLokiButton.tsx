@@ -13,6 +13,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { ChatReplies } from "@bitbaum/chatkit/react";
 import { readPageContext } from "@fleet/ai-forms/react";
 import {
   readAssistantContext,
@@ -30,7 +31,10 @@ import { postJson } from "@/lib/api/fetch";
 import { LOKI_OPEN_EVENT } from "@/lib/client-events";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 import { ProvenanceFooter } from "@/components/loki/ProvenanceFooter";
+import { citationsFrom } from "@/components/loki/footers";
+import { MarkdownText } from "@/components/ui/markdown-text";
 import { pickProvenance } from "@/lib/loki/provenance";
+import { readReplies } from "@/lib/loki/replies";
 
 /** Prior turns sent with an ask, and how much of each. Matches the loop's own trim. */
 const HISTORY_TURNS = 8;
@@ -41,6 +45,8 @@ type Turn = {
   text: string;
   /** Provenance for a Loki turn — which model, what it read, whether it verified. */
   meta?: Record<string, unknown>;
+  /** What the person is likely to say next — one tap sends it. */
+  replies?: string[];
 };
 
 /** Ceiling for the drawer composer's auto-grow. Smaller than the full-page
@@ -181,70 +187,83 @@ export function AskLokiButton() {
   // depends on `workspaceKey` — not the whole `context` object — and the
   // manual deps match what the compiler infers.
   const workspaceKey = context?.workspaceKey ?? null;
-  const ask = useCallback(async () => {
-    const message = input.trim();
-    if (!message || asking) return;
-    setInput("");
-    setAskError(null);
-    setTurns((prev) => [...prev, { role: "user", text: message }]);
-    setAsking(true);
+  /** Send the box, or — when a suggested reply was tapped — exactly that
+   *  reply, leaving whatever is half-typed in the box where it is. */
+  const ask = useCallback(
+    async (picked?: string) => {
+      const message = (picked ?? input).trim();
+      if (!message || asking) return;
+      if (picked === undefined) setInput("");
+      setAskError(null);
+      setTurns((prev) => [...prev, { role: "user", text: message }]);
+      setAsking(true);
 
-    // A form is open: write into it. Telling the user which fields to type in
-    // would be a worse answer than just filling them.
-    const form = activeForm?.getAssist();
-    if (form) {
+      // A form is open: write into it. Telling the user which fields to type in
+      // would be a worse answer than just filling them.
+      const form = activeForm?.getAssist();
+      if (form) {
+        try {
+          const result = await form.ask(message);
+          setTurns((prev) => [
+            ...prev,
+            { role: "loki", text: result.ok ? result.message : result.error },
+          ]);
+        } finally {
+          setAsking(false);
+        }
+        return;
+      }
+
       try {
-        const result = await form.ask(message);
-        setTurns((prev) => [
-          ...prev,
-          { role: "loki", text: result.ok ? result.message : result.error },
-        ]);
+        const projectKey = workspaceKey;
+        // Send the heavy project context once per project thread per page life.
+        const includeContext = projectKey != null && sentContextRef.current !== projectKey;
+        // What the user can actually see, read from the rendered page — so the
+        // answer is grounded in this screen rather than in route metadata.
+        const pageContext = readPageContext();
+        // The panel's own transcript, so a follow-up has something to follow.
+        // These turns live in client state only — without sending them, "and the
+        // second one?" reached the model with no first one.
+        const history = turnsRef.current.slice(-HISTORY_TURNS).map((t) => ({
+          role: t.role === "loki" ? ("assistant" as const) : ("user" as const),
+          content: t.text.slice(0, HISTORY_CHARS),
+        }));
+        const res = await postJson("/api/loki", {
+          message,
+          ...(pageContext ? { pageContext } : {}),
+          ...(projectKey ? { projectKey, includeContext } : {}),
+          ...(history.length > 0 ? { history } : {}),
+          replies: true,
+        });
+        const body = (await res.json()) as {
+          ok?: boolean;
+          text?: string;
+          error?: string;
+        } & Record<string, unknown>;
+        if (!res.ok || !body.ok || !body.text) {
+          setAskError(body.error ?? "Loki did not answer — try again.");
+        } else {
+          if (includeContext && projectKey) sentContextRef.current = projectKey;
+          setTurns((prev) => [
+            ...prev,
+            {
+              role: "loki",
+              text: body.text!,
+              // The sources travel with the answer so its [F1] markers resolve
+              // to the records they name, as they do on /loki.
+              meta: { ...pickProvenance(body), sources: body.sources },
+              replies: readReplies(body),
+            },
+          ]);
+        }
+      } catch {
+        setAskError("Loki is unreachable — network error.");
       } finally {
         setAsking(false);
       }
-      return;
-    }
-
-    try {
-      const projectKey = workspaceKey;
-      // Send the heavy project context once per project thread per page life.
-      const includeContext = projectKey != null && sentContextRef.current !== projectKey;
-      // What the user can actually see, read from the rendered page — so the
-      // answer is grounded in this screen rather than in route metadata.
-      const pageContext = readPageContext();
-      // The panel's own transcript, so a follow-up has something to follow.
-      // These turns live in client state only — without sending them, "and the
-      // second one?" reached the model with no first one.
-      const history = turnsRef.current.slice(-HISTORY_TURNS).map((t) => ({
-        role: t.role === "loki" ? ("assistant" as const) : ("user" as const),
-        content: t.text.slice(0, HISTORY_CHARS),
-      }));
-      const res = await postJson("/api/loki", {
-        message,
-        ...(pageContext ? { pageContext } : {}),
-        ...(projectKey ? { projectKey, includeContext } : {}),
-        ...(history.length > 0 ? { history } : {}),
-      });
-      const body = (await res.json()) as {
-        ok?: boolean;
-        text?: string;
-        error?: string;
-      } & Record<string, unknown>;
-      if (!res.ok || !body.ok || !body.text) {
-        setAskError(body.error ?? "Loki did not answer — try again.");
-      } else {
-        if (includeContext && projectKey) sentContextRef.current = projectKey;
-        setTurns((prev) => [
-          ...prev,
-          { role: "loki", text: body.text!, meta: pickProvenance(body) },
-        ]);
-      }
-    } catch {
-      setAskError("Loki is unreachable — network error.");
-    } finally {
-      setAsking(false);
-    }
-  }, [input, asking, workspaceKey, activeForm]);
+    },
+    [input, asking, workspaceKey, activeForm],
+  );
 
   // /loki IS the assistant; /terminal carries it as its Loki panel (rail or
   // sheet). A floating second entry point there sat on the panel's own Send.
@@ -367,16 +386,23 @@ export function AskLokiButton() {
 
             {turns.map((turn, i) => (
               <div key={i} className={turn.role === "user" ? "text-right" : ""}>
-                <p
-                  className={
-                    turn.role === "user"
-                      ? "inline-block max-w-[90%] rounded-lg bg-surface-raised px-3 py-2 text-left text-sm text-text-primary"
-                      : "whitespace-pre-wrap text-sm leading-relaxed text-text-secondary"
-                  }
-                >
-                  {turn.text}
-                </p>
+                {turn.role === "user" ? (
+                  <p className="inline-block max-w-[90%] whitespace-pre-wrap rounded-lg bg-surface-raised px-3 py-2 text-left text-sm text-text-primary">
+                    {turn.text}
+                  </p>
+                ) : (
+                  // Rendered, not printed: an answer is markdown with [F1]
+                  // citations, and this panel used to show the asterisks and
+                  // the bare handles.
+                  <MarkdownText text={turn.text} citations={citationsFrom(turn.meta ?? null)} />
+                )}
                 {turn.role === "loki" && <ProvenanceFooter meta={turn.meta ?? null} />}
+                {/* Under the latest answer only, and never while the next
+                    turn is on its way — the same rule as every chat in the
+                    fleet (chatkit's ChatThread). */}
+                {turn.role === "loki" && i === turns.length - 1 && !asking && turn.replies && (
+                  <ChatReplies replies={turn.replies} onPick={(r) => void ask(r)} />
+                )}
               </div>
             ))}
             {asking && (
