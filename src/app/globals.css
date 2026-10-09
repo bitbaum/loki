@@ -3464,6 +3464,10 @@
   .ui-auth-hint {
     @apply text-center text-sm text-text-muted;
   }
+  /* the one line that puts Loki on a site — shown whole, copyable in one tap */
+  .ui-auth-snippet {
+    @apply rounded-md border border-border-subtle bg-surface-raised px-3 py-2 font-mono text-xs leading-relaxed text-text-secondary;
+  }
   .ui-auth-hint-emphasis {
     @apply text-center text-sm text-text-tertiary;
   }

@@ -12,9 +12,10 @@ export const CONTINUE_TEXT_MAX = 4000;
  * project's terminal. Pure, so the route stays a thin check-and-redirect.
  */
 export function continueHref(projectKey: string, view: ContinueView, text: string | null): string {
-  if (view === "terminal")
-    return withTerminalView(fleetSurfaceHref("terminal", projectKey), "terminal");
-  const base = fleetSurfaceHref("chat", projectKey);
+  const base =
+    view === "terminal"
+      ? withTerminalView(fleetSurfaceHref("terminal", projectKey), "terminal")
+      : fleetSurfaceHref("chat", projectKey);
   const q = text?.trim().slice(0, CONTINUE_TEXT_MAX);
   return q ? `${base}${base.includes("?") ? "&" : "?"}q=${encodeURIComponent(q)}` : base;
 }

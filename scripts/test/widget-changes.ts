@@ -162,9 +162,15 @@ assert.match(
 );
 assert.match(
   route,
-  /attachFeedbackWork\(token\.userId, items\)/,
+  /attachFeedbackWork\(token\.userId, mine\)/,
   "the same phase the inbox derives",
 );
+assert.match(
+  route,
+  /i\.source === FEEDBACK_SOURCE\.OWNER \|\| i\.source === FEEDBACK_SOURCE\.AI_REVIEW/,
+  "yours means yours — a visitor's note is not the owner's change",
+);
+assert.match(route, /visitors/, "and visitors' notes are counted, not listed");
 assert.match(route, /isWidgetOriginAllowed/, "origin allowlist like every widget route");
 assert.match(
   route,

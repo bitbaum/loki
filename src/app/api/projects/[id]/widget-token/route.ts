@@ -7,6 +7,8 @@ import {
   revokeWidgetToken,
 } from "@/db/queries/widget-tokens";
 import { appUrl } from "@/lib/email";
+import { getUserProjectByEntityId } from "@/db/queries/user-projects";
+import { createOwnerPass, ownerSiteUrl } from "@/lib/feedback/owner-pass";
 import type { WidgetToken } from "@/db/schema";
 import { WIDGET_CORNERS, WIDGET_OFFSET_MAX, WIDGET_OFFSET_MIN } from "@/config/widget-placement";
 
@@ -42,13 +44,26 @@ function withSnippet(t: WidgetToken) {
   };
 }
 
+/**
+ * The owner's way onto their own site with Loki already there: the live URL
+ * with the owner pass in the fragment (never sent to a server). Null until
+ * the project has a live URL — a link to nowhere is not an invitation.
+ */
+async function openSiteUrl(userId: string, projectId: string): Promise<string | null> {
+  const up = await getUserProjectByEntityId(userId, projectId);
+  return up?.liveUrl ? ownerSiteUrl(up.liveUrl, createOwnerPass(projectId, userId)) : null;
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = await getSessionUserId();
   if (!userId) return jsonError("Unauthorized", 401);
   const idOrResp = await readIdParam(params);
   if (idOrResp instanceof NextResponse) return idOrResp;
   const token = await getActiveWidgetToken(userId, idOrResp);
-  return jsonOk({ token: token ? withSnippet(token) : null });
+  return jsonOk({
+    token: token ? withSnippet(token) : null,
+    openSiteUrl: token ? await openSiteUrl(userId, idOrResp) : null,
+  });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -66,7 +81,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     placement: dataOrResp.placement,
   });
   if (!token) return jsonError("Project not found", 404);
-  return jsonOk({ token: withSnippet(token) });
+  return jsonOk({ token: withSnippet(token), openSiteUrl: await openSiteUrl(userId, idOrResp) });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

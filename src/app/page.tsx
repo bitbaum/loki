@@ -31,6 +31,8 @@ import { ROUTES } from "@/config/auth";
 import { isFleetRunnerRequest } from "@/lib/fleet-runner";
 import { landingRedirect } from "@/lib/landing-destination";
 import { COMMISSION } from "@/config/commission";
+import { BUILD_PAGE } from "@/config/build-paths";
+import { BuildPaths } from "@/components/public/BuildPaths";
 
 export default async function LandingPage({
   searchParams,
@@ -274,6 +276,21 @@ export default async function LandingPage({
         </div>
       </div>
 
+      {/* 3b — Three ways to get it built: yourself, with a partner, or by the
+          studio. One list (config/build-paths.ts), the same cards /build shows.
+          Before this the page offered only the first, and the other two were
+          a word in the nav. */}
+      <div className="ui-public-band ui-public-section">
+        <div className="ui-public-container">
+          <div className="text-center">
+            <div className="ui-public-eyebrow">{BUILD_PAGE.eyebrow}</div>
+            <h2 className="ui-public-display-lg mt-3 sm:mt-4">{BUILD_PAGE.title}</h2>
+            <p className="ui-public-section-lede mx-auto mt-4">{BUILD_PAGE.lede}</p>
+          </div>
+          <BuildPaths className="ui-public-section-gap" />
+        </div>
+      </div>
+
       {/* 4 — What is inside, for a visitor who wants a look first. */}
       <div className="ui-public-band ui-public-section">
         <div className="ui-public-container">
@@ -344,7 +361,10 @@ export default async function LandingPage({
           {signedIn ? `Open ${APP_NAME}` : "Start a project"}
         </Link>
         <p className="ui-public-meta mt-4">
-          Free while {APP_NAME} is in beta. Open source under the MIT licence.
+          Free while {APP_NAME} is in beta. Open source under the MIT licence.{" "}
+          <Link href={BUILD_PAGE.path} className="ui-public-link-standalone">
+            Or have it built →
+          </Link>
         </p>
       </div>
     </PublicSurface>

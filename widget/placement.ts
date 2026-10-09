@@ -167,13 +167,21 @@ export function slotOrder(
     }
     return out;
   };
-  // Snapped to the climb grid, so the far band continues the near one exactly.
-  const nearSteps = Math.floor(Math.min(NEAR_CLIMB, maxOffset - base.offsetY) / CLIMB_STEP);
-  const nearTop = base.offsetY + nearSteps * CLIMB_STEP;
+  const nearTop = nearBandTop(base, opts);
   const slots: Slot[] = [];
   for (const c of sides) slots.push(...climb(c, base.offsetY, nearTop));
   for (const c of sides) slots.push(...climb(c, nearTop + CLIMB_STEP, maxOffset));
   return slots;
+}
+
+/**
+ * Where the near band ends: the highest offset still "in the corner".
+ * Snapped to the climb grid, so the far band continues the near one exactly.
+ */
+export function nearBandTop(base: Slot, opts: { edgeLength: number; size: number }): number {
+  const maxOffset = Math.max(base.offsetY, opts.edgeLength - opts.size - base.offsetY);
+  const nearSteps = Math.floor(Math.min(NEAR_CLIMB, maxOffset - base.offsetY) / CLIMB_STEP);
+  return base.offsetY + nearSteps * CLIMB_STEP;
 }
 
 /**
@@ -183,6 +191,15 @@ export function slotOrder(
  * no launcher — window.Loki.report() still works for a host that wires its
  * own button.
  *
+ * ONE EXCEPTION, and it is about where a launcher belongs. A slot in the
+ * near band that only covers plain text wins over a free slot halfway up the
+ * page: a launcher over the last line of a paragraph in the corner is where
+ * launchers live, a launcher floating mid-screen over a card title is a
+ * stain (heidi.orangecat.ch, 2026-10-09: the site's own bottom bar took the
+ * right corner, the left corner was body text, and the first free gap was
+ * beside the heading). A layer or a surface in the near band still sends us
+ * climbing — a bottom sheet scrolls small targets under us.
+ *
  * `verdict` is the DOM measurement, injected so this stays pure. It runs
  * lazily and stops at the first free slot, so the common case — nothing in the
  * corner — costs one measurement.
@@ -190,15 +207,21 @@ export function slotOrder(
 export function chooseSlot(
   slots: Slot[],
   verdict: (slot: Slot) => SlotVerdict,
+  /** The top of the near band (nearBandTop); omitted = no band, old rule. */
+  nearTop = -Infinity,
 ): { slot: Slot; verdict: Exclude<SlotVerdict, "blocked"> } | null {
   const rank = (v: SlotVerdict) => SLOT_VERDICTS.indexOf(v);
   let best: { slot: Slot; verdict: Exclude<SlotVerdict, "blocked"> } | null = null;
+  let nearText: Slot | null = null;
   for (const slot of slots) {
+    const near = slot.offsetY <= nearTop;
+    if (!near && nearText) return { slot: nearText, verdict: "text" };
     const v = verdict(slot);
     if (v === "free") return { slot, verdict: v };
+    if (v === "text" && near && !nearText) nearText = slot;
     if (v !== "blocked" && (!best || rank(v) < rank(best.verdict))) best = { slot, verdict: v };
   }
-  return best;
+  return nearText ? { slot: nearText, verdict: "text" } : best;
 }
 
 /**

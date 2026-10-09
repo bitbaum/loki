@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { GitBranch } from "lucide-react";
 import { normalizeUsername } from "@/lib/username";
 import { postJson, patchJson, throwApiError, getJson } from "@/lib/api/fetch";
+import { normalizeSiteUrl } from "@/lib/site-url";
 import { ROUTES } from "@/config/auth";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { APP_DOMAIN } from "@/config/brand";
@@ -24,7 +25,15 @@ import { ConnectMachineStep } from "@/components/onboarding/ConnectMachineStep";
 import { RepoPicker } from "@/components/onboarding/RepoPicker";
 import type { GitHubRepo } from "@/app/api/github/repos/route";
 
-type OnboardingStep = "username" | "project" | "connect";
+type OnboardingStep = "username" | "project" | "site" | "connect";
+
+/** What the site step shows: the snippet, and the way onto the site. */
+type SiteSetup = {
+  entityProjectId: string;
+  snippet: string;
+  openSiteUrl: string | null;
+  canInstall: boolean;
+};
 
 type OnboardingBootstrap = {
   complete?: boolean;
@@ -35,10 +44,11 @@ type OnboardingBootstrap = {
   needsSessionRefresh?: boolean;
 };
 
-function stepIndex(step: OnboardingStep): number {
+function stepIndex(step: OnboardingStep, withSite: boolean): number {
   if (step === "username") return 0;
   if (step === "project") return 1;
-  return 2;
+  if (step === "site") return 2;
+  return withSite ? 3 : 2;
 }
 
 export default function OnboardingPage() {
@@ -51,6 +61,10 @@ export default function OnboardingPage() {
   const [projectName, setProjectName] = useState("");
   const [dirPath, setDirPath] = useState("");
   const [gitUrl, setGitUrl] = useState("");
+  const [liveUrl, setLiveUrl] = useState("");
+  const [site, setSite] = useState<SiteSetup | null>(null);
+  const [installNote, setInstallNote] = useState("");
+  const [copied, setCopied] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -141,7 +155,10 @@ export default function OnboardingPage() {
       // Land on Control, not /today: the onboarding's whole arc is "connect a
       // builder to dispatch agents", so the next step a new builder wants is the
       // dispatch surface — and the finish button literally says "Go to Control".
-      router.push("/control");
+      // Someone who gave their website lands on that project instead: its
+      // page has the live link with Loki on it, the widget's status, and
+      // the first change waiting to be said.
+      router.push(site ? `/projects/${site.entityProjectId}` : "/control");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -180,13 +197,78 @@ export default function OnboardingPage() {
     setError("");
     try {
       if (!skip && projectName.trim()) {
-        await postJson("/api/user-projects", {
+        const web = normalizeSiteUrl(liveUrl);
+        if (liveUrl.trim() && !web) throw new Error("That does not look like a website address.");
+        const res = await postJson("/api/user-projects", {
           name: projectName.trim(),
           dirPath: dirPath.trim() || undefined,
           gitUrl: gitUrl.trim() || undefined,
+          liveUrl: web ?? undefined,
         });
+        // This used to ignore the answer: a 409 or a 403 advanced the step
+        // and the person found out later that no project existed.
+        if (!res.ok) await throwApiError(res, "Could not add the project");
+        const project = (await res.json()) as { entityProjectId?: string | null };
+        // A website means Loki can be ON it: mint the widget token now (its
+        // origin is the site's, since the live URL is already set) and show
+        // the one line that puts Loki there.
+        if (web && project.entityProjectId) {
+          const tok = await postJson(`/api/projects/${project.entityProjectId}/widget-token`, {});
+          if (tok.ok) {
+            const body = (await tok.json()) as {
+              token?: { snippet?: string } | null;
+              openSiteUrl?: string | null;
+            };
+            if (body.token?.snippet) {
+              setSite({
+                entityProjectId: project.entityProjectId,
+                snippet: body.token.snippet,
+                openSiteUrl: body.openSiteUrl ?? null,
+                canInstall: Boolean(gitUrl.trim() || dirPath.trim()),
+              });
+              setStep("site");
+              return;
+            }
+          }
+        }
       }
       setStep("connect");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function copySnippet() {
+    if (!site) return;
+    try {
+      await navigator.clipboard.writeText(site.snippet);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("Could not copy — select the line and copy it yourself.");
+    }
+  }
+
+  /** The agent adds the one line to the repo; the answer says what happened. */
+  async function installWithAgent() {
+    if (!site) return;
+    setSaving(true);
+    setInstallNote("");
+    setError("");
+    try {
+      const res = await postJson(`/api/projects/${site.entityProjectId}/widget-token/install`, {
+        mode: "install",
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; hint?: string };
+      if (!res.ok) {
+        setInstallNote([body.error, body.hint].filter(Boolean).join(" "));
+        return;
+      }
+      setInstallNote(
+        "An agent is adding it now. When it is on the site, open it and Loki is in the corner.",
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -204,7 +286,7 @@ export default function OnboardingPage() {
 
   return (
     <AuthShell>
-      <AuthProgressBar activeStep={stepIndex(step)} />
+      <AuthProgressBar activeStep={stepIndex(step, site !== null)} steps={site ? 4 : 3} />
 
       {step === "username" ? (
         <>
@@ -297,6 +379,28 @@ export default function OnboardingPage() {
               </div>
             ) : null}
 
+            {/* The website, for a project that is already online. It is what
+                makes the next step possible: Loki on that site, watching, and
+                the first change said from there — the whole product, from a
+                phone, on day one. Shown for a picked repo and for manual entry
+                alike; a project that is not online yet just leaves it empty. */}
+            {(projectName || showManual) && (
+              <AuthField label="Your website (optional)" htmlFor="onboarding-live-url">
+                <AuthInput
+                  id="onboarding-live-url"
+                  value={liveUrl}
+                  onChange={(e) => setLiveUrl(e.target.value)}
+                  placeholder="yoursite.com"
+                  inputMode="url"
+                  autoComplete="url"
+                />
+                <p className="ui-auth-hint">
+                  If it is online already, Loki can be on it: say what to change from the site
+                  itself, and it gets built.
+                </p>
+              </AuthField>
+            )}
+
             {error && <p className="ui-error">{error}</p>}
 
             <div className="ui-auth-row-actions">
@@ -315,6 +419,61 @@ export default function OnboardingPage() {
                 className="ui-auth-submit-btn flex-1"
               >
                 {saving ? "Saving…" : "Continue →"}
+              </button>
+            </div>
+          </AuthCard>
+        </>
+      ) : step === "site" && site ? (
+        <>
+          <AuthHeading
+            title="Put Loki on your site"
+            description="One line in your site's HTML. From then on, open your site and Loki is in the corner: say what to change there, and it gets built."
+          />
+          <AuthCard>
+            <div className="space-y-3">
+              <code className="ui-auth-snippet block select-all break-all">{site.snippet}</code>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={copySnippet} className="ui-auth-secondary-btn">
+                  {copied ? "Copied" : "Copy the line"}
+                </button>
+                {site.canInstall && (
+                  <button
+                    type="button"
+                    onClick={installWithAgent}
+                    disabled={saving}
+                    className="ui-auth-secondary-btn"
+                  >
+                    {saving ? "Sending…" : "Let an agent add it"}
+                  </button>
+                )}
+              </div>
+              {installNote && <p className="ui-auth-hint">{installNote}</p>}
+              <p className="ui-auth-hint">
+                Paste it before <code>&lt;/body&gt;</code> (or in <code>&lt;head&gt;</code>). It
+                shows nothing to visitors but a small button; to you it is Loki.
+              </p>
+            </div>
+
+            {error && <p className="ui-error">{error}</p>}
+
+            <div className="ui-auth-row-actions">
+              {site.openSiteUrl && (
+                <a
+                  href={site.openSiteUrl}
+                  target="_blank"
+                  rel="noopener"
+                  className="ui-auth-secondary-btn flex-1 text-center"
+                >
+                  Open your site with Loki →
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setStep("connect")}
+                disabled={saving}
+                className="ui-auth-submit-btn flex-1"
+              >
+                Continue →
               </button>
             </div>
           </AuthCard>

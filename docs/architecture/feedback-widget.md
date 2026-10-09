@@ -385,6 +385,19 @@ matters):
   attached. On a phone the panel is a sheet: drag up for full screen, down to
   peek, further to close (`widget/sheet.ts`).
 
+- **2026-10-09 — the first day is the whole product.** Onboarding asks for
+  the website (optional); a project created with one gets its widget token
+  at once (origin = the site's), the step shows the one line to paste or
+  lets an agent add it (repo present), and **Open your site with Loki →**
+  carries the owner pass. Finishing lands on the project, not Control. A
+  stalled build and a failed kickoff offer the other two ways to get it
+  built (`GetHelpLine`, from `build-paths.ts`). Tests: `onboarding-site-step.ts`.
+- **2026-10-09 — every stranger's door ends at `/build`.** The three ways
+  to get something built (yourself, with a partner, by the studio) are one
+  list, `src/config/build-paths.ts`; the panel's last line for anyone who is
+  not the owner is "Made with Loki — build something of your own →"
+  (`/build?from=<host>`), the tour's "Get this for your site" lands there
+  too, and the concierge has the same door. Tests: `build-paths.ts`.
 - **2026-10-09 — watch says what it sees.** Watch used to speak only when
   something was wrong, so between remarks the owner could not tell what it
   was doing. The panel now carries **What Loki sees** (`widget/thoughts.ts`,

@@ -80,3 +80,14 @@ export function downscaleImage(file: Blob): Promise<string | null> {
     img.src = url;
   });
 }
+
+/**
+ * On a phone the keyboard covers the bottom of the sheet, and the box being
+ * typed into sat half behind it (2026-10-09). Once the keyboard has settled,
+ * bring the box back into view.
+ */
+export function keepInViewOnFocus(el: HTMLElement, settleMs = 350): void {
+  el.addEventListener("focus", () => {
+    window.setTimeout(() => el.scrollIntoView({ block: "nearest" }), settleMs);
+  });
+}

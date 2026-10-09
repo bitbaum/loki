@@ -21,6 +21,7 @@ import {
   TRAIL_MAX_AGE_MS,
   watchReport,
   explainChecks,
+  checksSignature,
   explainNotice,
   noticeSignature,
   type TrailEntry,
@@ -210,6 +211,20 @@ check(() => {
 
 check(() => {
   assert.equal(explainChecks([]), null, "a clean page gets no remark — silence is right");
+  // One finding, two counts, two examples: one signature.
+  assert.equal(
+    checksSignature("/p", ["30 piece(s) of text are under 12px (e.g. “Partners” at 11.84px)"]),
+    checksSignature("/p", [
+      "6 piece(s) of text are under 12px (e.g. “AI-native studio” at 11.5px)",
+    ]),
+    "the same kind of finding is said once, whatever the count or example",
+  );
+  assert.notEqual(
+    checksSignature("/p", ["2 image(s) have no alt text"]),
+    checksSignature("/p", ["The page has no main heading (h1)"]),
+    "a different finding is a different signature",
+  );
+  assert.notEqual(checksSignature("/p", ["x"]), checksSignature("/q", ["x"]), "per path");
   const c = explainChecks(["2 image(s) have no alt text", "The page has no main heading (h1)"])!;
   assert.match(
     c.say,

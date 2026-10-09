@@ -82,7 +82,7 @@ export function toSeen(next: readonly OwnerChange[]): Record<string, boolean> {
  * cares — what needs them, what is being built, what is waiting its turn,
  * what is live. "Your changes · 1 needs you · 1 building · 2 live".
  */
-export function changesSummary(changes: readonly OwnerChange[]): string {
+export function changesSummary(changes: readonly OwnerChange[], visitors = 0): string {
   const count = (label: string) => changes.filter((c) => c.label === label).length;
   const parts = [
     ["needs you", count("Needs you")],
@@ -93,6 +93,7 @@ export function changesSummary(changes: readonly OwnerChange[]): string {
   ]
     .filter(([, n]) => (n as number) > 0)
     .map(([w, n]) => `${n} ${w}`);
+  if (visitors) parts.push(`${visitors} from visitors`);
   return parts.length ? `Your changes · ${parts.join(" · ")}` : `Your changes · ${changes.length}`;
 }
 
@@ -150,7 +151,13 @@ export function createChanges(opts: {
   const all = h("a", "yours-all");
   all.target = "_blank";
   all.rel = "noopener";
-  body.append(list, all);
+  // Visitors' notes are not the owner's changes; they are counted, and read
+  // in Loki, where the inbox has the room to show who said what.
+  const visitorsLine = h("a", "yours-visitors");
+  visitorsLine.target = "_blank";
+  visitorsLine.rel = "noopener";
+  visitorsLine.style.display = "none";
+  body.append(list, all, visitorsLine);
   el.append(head, body);
   let open = false;
   head.addEventListener("click", () => {
@@ -162,18 +169,24 @@ export function createChanges(opts: {
 
   let changes: OwnerChange[] = [];
   let inbox: string | null = null;
+  let visitors = 0;
   let timer = 0;
   let startedAt = 0;
   let inflight = false;
 
   function render() {
     list.textContent = "";
-    el.style.display = changes.length ? "" : "none";
-    summary.textContent = changesSummary(changes);
+    el.style.display = changes.length || visitors ? "" : "none";
+    summary.textContent = changesSummary(changes, visitors);
     el.classList.toggle(
       "needs-you",
       changes.some((c) => c.tone === "warning"),
     );
+    visitorsLine.style.display = visitors && inbox ? "" : "none";
+    if (visitors && inbox) {
+      visitorsLine.textContent = `${visitors} note${visitors === 1 ? "" : "s"} from visitors, in Loki →`;
+      visitorsLine.href = inbox;
+    }
     for (const c of changes.slice(0, CHANGES_SHOWN)) {
       // The row IS the link when there is somewhere to go — no second line.
       const row = c.href
@@ -209,6 +222,7 @@ export function createChanges(opts: {
       const body = (await res.json().catch(() => null)) as {
         owner?: boolean;
         inbox?: unknown;
+        visitors?: unknown;
       } | null;
       if (!res.ok || !body) return;
       if (body.owner === false) {
@@ -217,6 +231,8 @@ export function createChanges(opts: {
       }
       const next = parseChanges(body);
       inbox = typeof body.inbox === "string" && /^https?:\/\//.test(body.inbox) ? body.inbox : null;
+      visitors =
+        typeof body.visitors === "number" && body.visitors > 0 ? Math.floor(body.visitors) : 0;
       const prev = readSeen(opts.token);
       for (const c of newlyLive(prev, next)) opts.onLive(c);
       writeSeen(opts.token, { ...prev, ...toSeen(next) });

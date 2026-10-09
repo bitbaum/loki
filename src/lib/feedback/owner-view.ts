@@ -129,6 +129,8 @@ export function ownerStatusFor(work: FeedbackWorkView): OwnerChangeStatus {
 
 /** Mirrors widget/changes.ts. */
 export const OWNER_CHANGES_MAX = 12;
+/** Rows read before the owner's own are picked out of them. */
+export const OWNER_CHANGES_FETCH = 60;
 export const OWNER_CHANGE_TEXT_MAX = 200;
 
 /** One row as the widget receives it: the status words, never the work view. */

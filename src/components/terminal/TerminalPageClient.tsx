@@ -26,7 +26,10 @@ export function TerminalPageClient({ local }: { local: boolean }) {
   // `?view=` is read by useTerminalView; it is in the key so a Watch link to
   // the other view of an open page remounts onto it.
   const initialView = searchParams.get("view");
-  const surfaceKey = `${initialSource ?? "default"}:${initialTab ?? ""}:${initialRunId ?? ""}:${initialView ?? ""}`;
+  // `?q=` — words for the rail's composer, from "Continue in Loki" on the
+  // owner's site. Nothing is sent until they press send.
+  const initialPrompt = searchParams.get("q")?.trim().slice(0, 4000) || null;
+  const surfaceKey = `${initialSource ?? "default"}:${initialTab ?? ""}:${initialRunId ?? ""}:${initialView ?? ""}:${initialPrompt ? "q" : ""}`;
 
   return (
     <TerminalMobileShell>
@@ -40,6 +43,7 @@ export function TerminalPageClient({ local }: { local: boolean }) {
           initialTab={initialTab}
           initialRunId={initialRunId}
           initialExplain={searchParams.get("explain") === "1"}
+          initialPrompt={initialPrompt}
         />
       )}
     </TerminalMobileShell>

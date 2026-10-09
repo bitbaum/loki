@@ -285,6 +285,8 @@ a.yours-row:hover .yours-text { color: ${theme.accent}; }
 .yours-all { align-self: flex-end; font-size: 12px; color: ${theme.textSecondary}; text-decoration: none; }
 .yours-all:hover { color: ${theme.text}; }
 @media (pointer: coarse) { .yours-row { padding: 10px 0; } .yours-all { padding: 6px 0; } }
+.yours-visitors { align-self: flex-end; font-size: 12px; color: ${theme.textTertiary}; text-decoration: none; }
+.yours-visitors:hover { color: ${theme.text}; }
 /* Continue in Loki: one quiet row under the composer, wrapping on a phone */
 .continue { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 12px; padding: 0 2px; }
 .continue-label { color: ${theme.textTertiary}; }
@@ -442,9 +444,11 @@ input { margin-bottom: 10px; }
 .change-send:disabled { color: ${theme.textMuted}; cursor: default; text-decoration: none; }
 @media (pointer: coarse) { .change-send, .changes-foot .act { padding: 8px 0; } }
 /* ---- hiding: offered in the panel, and always says how to undo it ---- */
+.made-with { display: block; margin: 14px auto 0; font-size: 11px; text-align: center; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; }
+.made-with:hover { color: ${theme.text}; }
 .hide-link { display: block; margin: 10px auto 0; font-size: 11px; color: ${theme.textMuted}; text-decoration: underline; text-underline-offset: 2px; }
 .hide-link:hover { color: ${theme.textSecondary}; }
-@media (pointer: coarse) { .hide-link { padding: 12px 8px; } }
+@media (pointer: coarse) { .hide-link, .made-with { padding: 12px 8px; } }
 .toast {
   position: fixed; z-index: 2147483003; right: 16px; bottom: 16px; max-width: min(360px, calc(100vw - 32px));
   display: flex; align-items: center; gap: 12px; padding: 10px 12px;
