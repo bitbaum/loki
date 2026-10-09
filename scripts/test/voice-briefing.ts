@@ -127,9 +127,9 @@ check(() => {
   next.approvals = [{ id: "a1", title: "Reply to the reporter", type: "send_message" }];
   next.working = [{ project: "orangecat", sinceMin: 0 }];
   assert.deepEqual(diffSnapshots(prev, next), [
-    "heidi finished: Header fits at 320px.",
-    "New approval: Reply to the reporter. Say approve or reject.",
-    "orangecat started working.",
+    { kind: "finished", project: "heidi", note: "Header fits at 320px." },
+    { kind: "approval", id: "a1", title: "Reply to the reporter" },
+    { kind: "started", project: "orangecat" },
   ]);
   // Nothing changed → nothing said.
   assert.deepEqual(diffSnapshots(next, next), []);
@@ -140,10 +140,8 @@ check(() => {
   const next = empty();
   prev.builderOnline = true;
   next.builderOnline = false;
-  assert.deepEqual(diffSnapshots(prev, next), [
-    "The builder went offline. Nothing can run until it is back.",
-  ]);
-  assert.deepEqual(diffSnapshots(next, prev), ["The builder is back online."]);
+  assert.deepEqual(diffSnapshots(prev, next), [{ kind: "builder-offline" }]);
+  assert.deepEqual(diffSnapshots(next, prev), [{ kind: "builder-online" }]);
 });
 
 check(() => {

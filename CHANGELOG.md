@@ -23,6 +23,21 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **The headphone button is the only button.** Press it to send what you just
   said or to cut Loki off and talk; next track repeats the briefing. The lock
   screen shows what Loki is doing.
+- **Pleasant to leave on.** A studio voice (six to choose from; the phone's
+  own voice takes over mid-sentence if the box has none or the signal drops),
+  a quiet music bed the phone composes itself — no file, no licence — that
+  ducks under the voice, and a short tone before each kind of news: rising for
+  finished, falling for failed, a knock for something that needs you. Talk
+  over Loki to interrupt it. Three runs finishing in a minute are one
+  sentence; the same news never comes in the same words twice; "details"
+  reads what each run did; "Only what needs me" holds finished runs for one
+  sentence every five minutes. A dropped line is said once, and once when it
+  is back. All four choices sit on the start screen and stay on the phone.
+- **Hear it first.** `/no-screen` plays a twenty-second sample — the music,
+  the tones, the briefing — on your own phone before you sign in.
+- **Essays, anyone first.** Thoughts can fold their technical depth into
+  "Under the hood" sections a reader opens on purpose; the fleet-in-your-ear
+  essay is the first written that way.
 - **Resume, to match pause.** "Resume everything" and "resume heidi" clear a
   per-project pause the same way Control's button set it.
 - **What it is not, yet.** It is a web page: the loop is verified in a desktop

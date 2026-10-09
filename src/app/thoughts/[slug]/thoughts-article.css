@@ -35,3 +35,49 @@
 .bp-progress-bar {
   background: var(--accent-warm);
 }
+
+/* A closed technical section (components/thoughts/DeepBlock): the one line
+   the reader opens if they want the files and the seams. Styled like a
+   callout at rest, with the marker as a chevron that turns when open. */
+.bp-deep {
+  margin: 0 0 var(--bp-flow);
+  border: 1px solid var(--bp-border);
+  border-radius: var(--bp-radius);
+  background: var(--bp-surface);
+}
+.bp-deep-summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.85rem 1.1rem;
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bp-fg-muted);
+}
+.bp-deep-summary::-webkit-details-marker {
+  display: none;
+}
+.bp-deep-summary::before {
+  content: "";
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  margin-right: 0.7em;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-0.15em) rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+.bp-deep[open] > .bp-deep-summary::before {
+  transform: translateY(-0.25em) rotate(45deg);
+}
+.bp-deep[open] > .bp-deep-summary {
+  border-bottom: 1px solid var(--bp-border);
+}
+.bp-deep-body {
+  padding: 1rem 1.1rem 0.25rem;
+}
+.bp-deep-body > .bp-article > :last-child {
+  margin-bottom: 0.75rem;
+}

@@ -14,6 +14,7 @@
  */
 import { NO_SCREEN_COMMANDS, NO_SCREEN_MAX_ANNOUNCEMENTS } from "@/config/no-screen";
 import { plainTextForSpeech } from "@/lib/loki/speech-text";
+import type { FleetChange } from "@/lib/voice/announce";
 
 export type FleetSnapshot = {
   /** ISO time the snapshot was taken. */
@@ -172,47 +173,42 @@ export function composeHelp(): string {
 }
 
 /**
- * What changed between two snapshots, as announcements — the sentences read
- * into the headphones unasked. Finished runs, new approvals, the builder
- * dropping or returning, new alerts, and a project starting work. Projects
- * going idle are not announced: a run's own ending already says that.
+ * What changed between two snapshots, as typed changes. Finished runs, new
+ * approvals, the builder dropping or returning, new alerts, a project
+ * starting work. Projects going idle are not a change: a run's own ending
+ * already says that. The SENTENCES are lib/voice/announce.ts's job — this
+ * only decides what is new. Bounded, so a phone reconnecting after an hour
+ * does not read out sixty runs.
  */
-export function diffSnapshots(prev: FleetSnapshot, next: FleetSnapshot): string[] {
-  const out: string[] = [];
+export function diffSnapshots(prev: FleetSnapshot, next: FleetSnapshot): FleetChange[] {
+  const out: FleetChange[] = [];
 
   if (prev.builderOnline !== false && next.builderOnline === false)
-    out.push("The builder went offline. Nothing can run until it is back.");
+    out.push({ kind: "builder-offline" });
   if (prev.builderOnline === false && next.builderOnline === true)
-    out.push("The builder is back online.");
+    out.push({ kind: "builder-online" });
 
   const seenRuns = new Set(prev.recentRuns.map((r) => r.id));
   for (const r of next.recentRuns) {
     if (seenRuns.has(r.id)) continue;
-    const note = excerptForSpeech(r.note, 160);
     out.push(
       r.failed
-        ? `${spoken(r.project)} failed${note ? `: ${note}` : "."}`
-        : `${spoken(r.project)} finished${note ? `: ${note}` : "."}`,
+        ? { kind: "failed", project: r.project, note: r.note }
+        : { kind: "finished", project: r.project, note: r.note },
     );
   }
 
   const seenApprovals = new Set(prev.approvals.map((a) => a.id));
-  const fresh = next.approvals.filter((a) => !seenApprovals.has(a.id));
-  if (fresh.length === 1)
-    out.push(`New approval: ${excerptForSpeech(fresh[0].title, 120)}. Say approve or reject.`);
-  else if (fresh.length > 1)
-    out.push(`${count(fresh.length, "new approval")}. Say "what's waiting" to hear them.`);
+  for (const a of next.approvals)
+    if (!seenApprovals.has(a.id)) out.push({ kind: "approval", id: a.id, title: a.title });
 
   const seenAlerts = new Set(prev.alerts.map((a) => a.id));
-  for (const a of next.alerts) {
-    if (!seenAlerts.has(a.id)) out.push(`Alert: ${excerptForSpeech(a.title, 120)}.`);
-  }
+  for (const a of next.alerts)
+    if (!seenAlerts.has(a.id)) out.push({ kind: "alert", title: a.title });
 
   const wasWorking = new Set(prev.working.map((w) => w.project));
-  const started = next.working
-    .filter((w) => !wasWorking.has(w.project))
-    .map((w) => spoken(w.project));
-  if (started.length > 0) out.push(`${list(started)} started working.`);
+  for (const w of next.working)
+    if (!wasWorking.has(w.project)) out.push({ kind: "started", project: w.project });
 
   return out.slice(0, NO_SCREEN_MAX_ANNOUNCEMENTS);
 }

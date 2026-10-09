@@ -2284,6 +2284,13 @@
   /* /no-screen: a spoken exchange, laid out as a transcript. "You" sits to
      the right like a sent message, Loki to the left, and the unasked line
      ("Later") is set apart — it is the one thing the page is selling. */
+  /* /no-screen "Hear it": one button and the honest line under it. */
+  .ui-public-hear {
+    @apply mx-auto mt-8 flex w-full max-w-sm flex-col items-stretch gap-2 sm:max-w-none sm:items-center;
+  }
+  .ui-public-hear-note {
+    @apply max-w-md text-center text-xs text-text-tertiary;
+  }
   .ui-public-ear {
     @apply mx-auto mt-10 flex w-full max-w-2xl flex-col gap-3 text-left sm:mt-14;
   }
@@ -6709,6 +6716,22 @@
   }
   .ui-voice-command-does {
     @apply text-sm text-text-tertiary;
+  }
+  /* The four choices on the start screen: a label and a row of chips. */
+  .ui-voice-settings {
+    @apply mt-2 w-full space-y-3 text-left;
+  }
+  .ui-voice-setting {
+    @apply flex flex-col gap-1.5;
+  }
+  .ui-voice-setting-label {
+    @apply text-xs font-semibold uppercase text-text-secondary;
+  }
+  .ui-voice-setting-chips {
+    @apply flex flex-wrap gap-1.5;
+  }
+  .ui-voice-setting-note {
+    @apply text-xs text-text-muted;
   }
   /* The composer's way into it: a filled pill, the one loud control in the
      row, as in the reference chat — it is a different mode, not a tool. */

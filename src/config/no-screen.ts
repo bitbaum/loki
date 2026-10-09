@@ -23,6 +23,7 @@ export type VoiceCommandKind =
   | "resume"
   | "help"
   | "repeat"
+  | "details"
   | "quiet"
   | "end"
   | "ask";
@@ -82,6 +83,11 @@ export const NO_SCREEN_COMMANDS: readonly VoiceCommandDoc[] = [
     does: "Reads the last thing it said once more.",
   },
   {
+    kind: "details",
+    say: ["Details", "Tell me more"],
+    does: "After an announcement: what each run actually did, in its own words.",
+  },
+  {
     kind: "quiet",
     say: ["Quiet", "Hold on"],
     does: "Stops talking and listens.",
@@ -115,12 +121,33 @@ export const NO_SCREEN_PUBLIC_PATH = "/no-screen";
 /** The essay that explains the mode; linked from the public page. */
 export const NO_SCREEN_ESSAY_PATH = "/thoughts/the-fleet-in-your-ear";
 
+type NoScreenPageCopy = {
+  eyebrow: string;
+  title: string;
+  lede: string;
+  cta: string;
+  ctaNote: string;
+  essayCta: string;
+  demoCta: string;
+  demoNote: string;
+  demo: readonly {
+    earcon?: "heard" | "finished" | "failed" | "attention" | "offline" | "online";
+    text: string;
+  }[];
+  sample: readonly { who: "you" | "loki" | "later"; line: string }[];
+  steps: readonly { title: string; body: string }[];
+  hears: readonly string[];
+  listen: readonly { title: string; body: string }[];
+  button: { title: string; body: string };
+  limits: readonly { title: string; body: string }[];
+};
+
 /**
  * Public page copy (/no-screen). Plain words, every claim true of /voice on
  * main today — the sample exchange is composed by lib/voice/briefing from a
  * snapshot shaped like the one in its test, not typed to sound good.
  */
-export const NO_SCREEN_PAGE = {
+export const NO_SCREEN_PAGE: NoScreenPageCopy = {
   eyebrow: "No-screen mode",
   title: "Run your fleet with your eyes closed.",
   lede: "Headphones in. One tap. The phone goes in your pocket. Loki reads your fleet aloud, listens for what you say, and tells you when something finishes or needs you.",
@@ -147,6 +174,24 @@ export const NO_SCREEN_PAGE = {
     },
     { who: "later", line: "heidi finished: Header fits at 320 pixels." },
   ],
+  demoCta: "Hear twenty seconds of it",
+  demoNote:
+    "Your phone's own voice reads this sample; signed in, Loki speaks with a studio voice. The music and the tones are made by the phone as you listen — nothing is downloaded.",
+  /** The sample the public page plays: a tone, then a sentence, in the
+   *  order a real session would say them. Sentences are the composer's. */
+  demo: [
+    { earcon: undefined, text: "Loki here. Reading your fleet." },
+    {
+      earcon: undefined,
+      text: 'One agent is working: heidi for 12 minutes. One thing is waiting on you. Say "what\'s waiting" to hear it.',
+    },
+    { earcon: "finished", text: "Done on orangecat: the tests pass again." },
+    {
+      earcon: "attention",
+      text: "New approval: reply to the visitor who reported the broken header. Say approve or reject.",
+    },
+    { earcon: "failed", text: "A run failed on solon: the build timed out." },
+  ],
   steps: [
     {
       title: "Press Start, once.",
@@ -167,6 +212,28 @@ export const NO_SCREEN_PAGE = {
     "A new approval arrived. Say approve or reject.",
     "The builder went offline, or came back.",
     "A project started working.",
+  ],
+  listen: [
+    {
+      title: "A voice you can live with.",
+      body: "Signed in, Loki reads with a studio voice — six to pick from — in pieces short enough to sound like speech, not a text box being read out. No voice configured on your box, or no signal? The phone's own voice takes over mid-sentence.",
+    },
+    {
+      title: "Music the phone makes itself.",
+      body: "A quiet bed of slow chords, composed on the phone as you listen: no file, no licence, no stream, nothing to download. It drops under the voice and comes back after, so silence sounds like a line that is still open, not a phone that died in your pocket.",
+    },
+    {
+      title: "A tone before the news.",
+      body: "Rising notes for a run that finished. Falling notes for one that failed. Two equal notes, a knock, for something that needs you. Under half a second each, so you know what kind of news is coming before the first word.",
+    },
+    {
+      title: "Talk over it.",
+      body: 'Say anything while Loki is speaking and it stops and listens. Three runs finishing in one minute are one sentence, not three; the same news never comes in the same words twice in a row; and "details" reads what each run actually did, only when you ask.',
+    },
+    {
+      title: "Only what needs you, if you prefer.",
+      body: 'One switch holds the "finished" news and reads it as a single sentence every five minutes. Failures, approvals and the builder dropping still come at once.',
+    },
   ],
   button: {
     title: "The headphone button is the only button.",
@@ -190,4 +257,51 @@ export const NO_SCREEN_PAGE = {
       body: "Changes are read within the poll interval, not the moment they happen. Fast enough to act on, slow enough that a phone in a pocket keeps its battery.",
     },
   ],
-} as const;
+};
+
+// ─── Sound ───────────────────────────────────────────────────────────────────
+// A voice is a serial channel at about 150 words a minute, and an AI voice
+// that talks too much is the fastest way to make someone take the headphones
+// out. Everything below exists to make listening pleasant: a studio voice
+// instead of the phone's robot, a quiet music bed the phone composes itself
+// so silence does not sound like a dead line, and short tones before an
+// announcement so the ear knows what kind of news is coming before the words.
+
+/** The studio voice: Groq's Orpheus endpoint. "phone" is the browser's own. */
+export const NO_SCREEN_TTS_MODEL = "canopylabs/orpheus-v1-english";
+/** The vendor's guidance per request; longer text is read in pieces. */
+export const NO_SCREEN_TTS_MAX_CHARS = 200;
+
+export type NoScreenVoice = "phone" | "autumn" | "diana" | "hannah" | "austin" | "daniel" | "troy";
+
+export const NO_SCREEN_VOICES: readonly { id: NoScreenVoice; label: string; note: string }[] = [
+  { id: "autumn", label: "Autumn", note: "Studio voice" },
+  { id: "hannah", label: "Hannah", note: "Studio voice" },
+  { id: "diana", label: "Diana", note: "Studio voice" },
+  { id: "troy", label: "Troy", note: "Studio voice" },
+  { id: "austin", label: "Austin", note: "Studio voice" },
+  { id: "daniel", label: "Daniel", note: "Studio voice" },
+  { id: "phone", label: "Phone", note: "Your phone's own voice. Works offline, costs nothing." },
+] as const;
+export const NO_SCREEN_DEFAULT_VOICE: NoScreenVoice = "autumn";
+
+/** What is read out unasked. "important" holds finished runs for the digest. */
+export type AnnounceMode = "everything" | "important";
+/** In "important" mode, held news is read as one sentence this often. */
+export const NO_SCREEN_DIGEST_MS = 5 * 60_000;
+
+export type NoScreenSettings = {
+  voice: NoScreenVoice;
+  music: boolean;
+  /** Talk over Loki to interrupt it, instead of pressing the button. */
+  bargeIn: boolean;
+  mode: AnnounceMode;
+};
+export const NO_SCREEN_DEFAULT_SETTINGS: NoScreenSettings = {
+  voice: NO_SCREEN_DEFAULT_VOICE,
+  music: true,
+  bargeIn: true,
+  mode: "everything",
+};
+/** Per-device conveniences, kept in the browser (no account state). */
+export const NO_SCREEN_SETTINGS_KEY = "loki.no-screen.settings";
