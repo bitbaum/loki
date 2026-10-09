@@ -34,6 +34,7 @@ export const PROJECT_STATES = [
   "open_idle", // Agent process detected, no recent lifecycle signal — likely at prompt.
   "working", // Agent mid-turn (lock sentinel fresh OR current prompt active).
   "ready", // Stop hook fired recently — agent just handed off.
+  "awaiting_you", // Live session whose agent reported `status: blocked` — it asked you something.
   "orchestration_ready", // Latest orchestration run completed recently.
   "closing", // Closing hook fired — agent is shutting down.
   "completed", // Closed hook fired — agent finished cleanly.
@@ -160,6 +161,21 @@ export const STATE_DEFINITIONS: Record<ProjectStateKey, ProjectStateDefinition> 
       "Stop hook fired recently — the agent finished a turn and is ready for the next instruction. The handoff lists the suggested next move.",
     dotClass: "bg-status-positive",
     tagClass: "ui-tag ui-tag-positive",
+    counterCategory: "waiting",
+    problem: null,
+  },
+  // The agent's own word, not an inference. Before this state existed a
+  // session that wrote `status: blocked / awaiting_user` and sat at its prompt
+  // fell through to open_idle — "Agent idle", counted idle — so the hero said
+  // "0 awaiting input" while the Loki sheet for the same project said "Needs
+  // you" (Skif, 2026-10-09: all planned work shipped, "Next direction is
+  // yours", invisible on Control for over an hour).
+  awaiting_you: {
+    label: "Waiting for you",
+    description:
+      "The agent stopped and handed control back — its session reports it is blocked on you. It will not continue until you reply.",
+    dotClass: "bg-status-warning",
+    tagClass: "ui-tag ui-tag-warning",
     counterCategory: "waiting",
     problem: null,
   },
@@ -326,6 +342,8 @@ export function deriveProjectStateKey(signals: {
   // the fresh status. The /control card read like the runner was offline
   // when in fact it had just synced.
   if (signals.sessionStatus === SESSION_STATUS.READY) return "ready";
+  if (signals.sessionStatus === SESSION_STATUS.BLOCKED && (signals.agentRunning || signals.tabOpen))
+    return "awaiting_you";
   if (signals.agentRunning) return "open_idle";
   if (signals.tabOpen) return "tab_open";
   return "not_running";

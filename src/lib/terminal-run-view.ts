@@ -117,14 +117,52 @@ export function nextActionForWork(work: FeedbackWorkView, quotaDeath = false): s
   return work.label;
 }
 
+/** One readable sentence from a free-text handoff line, never a wall. */
+function clip(text: string | null | undefined, max = 200): string {
+  const t = (text ?? "").replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), max / 2)).trimEnd()}…`;
+}
+
+/** Badge for a session whose agent has handed the wheel back. */
+export const AWAITING_YOU_LABEL = "Your turn";
+
 export function buildTerminalRunView(input: {
   runId: string;
   projectKey: string;
   work: FeedbackWorkView;
   lastProgressAt?: string | null;
   error?: string | null;
+  /**
+   * The agent's own handoff, written after this run started, says it is
+   * blocked on the operator (session-state.ts isAwaitingUser) — with its
+   * `next:` line when it wrote one. Null when it says no such thing.
+   */
+  awaitingYou?: { next: string | null } | null;
 }): TerminalRunView {
   const quotaDeath = isQuotaDeath({ diagnostic: input.work.diagnostic, error: input.error });
+  // Silence after output reads "Needs you · Open Terminal — or Retry" from the
+  // run ledger alone. When the agent itself said it is done and waiting on a
+  // decision, that is the wrong story twice over: the session is healthy (a
+  // Retry re-runs finished work) and the person is already looking at the
+  // terminal. Seen on Skif, 2026-10-09: "Agent went quiet … silent 1 h 16 min"
+  // over a screen that ended "Next direction is yours".
+  if (input.awaitingYou && input.work.phase === FEEDBACK_WORK_PHASE.STUCK && !quotaDeath) {
+    return {
+      runId: input.runId,
+      projectKey: input.projectKey,
+      phase: input.work.phase,
+      label: AWAITING_YOU_LABEL,
+      stepSummary: clip(input.awaitingYou.next) || "The agent finished and is waiting for you",
+      nextAction: "Tell it what to do next below.",
+      stalled: false,
+      diagnostic: null,
+      terminalReady: input.work.terminalReady === true,
+      lastProgressAt: input.lastProgressAt ?? input.work.lastActivityAt ?? null,
+      quotaDeath: false,
+    };
+  }
   return {
     runId: input.runId,
     projectKey: input.projectKey,

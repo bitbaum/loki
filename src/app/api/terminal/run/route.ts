@@ -10,6 +10,8 @@ import { hydrateFeedbackSnapshot } from "@/lib/feedback/attach-work";
 import { deriveFeedbackWork } from "@/lib/feedback/work-phase";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { buildTerminalRunView } from "@/lib/terminal-run-view";
+import { getProjectState } from "@/db/queries/project-states";
+import { isAwaitingUser } from "@/lib/session-state";
 
 /**
  * GET /api/terminal/run?project=X&run=Y
@@ -46,9 +48,33 @@ export async function GET(req: NextRequest) {
     work,
     lastProgressAt: snap?.lastProgressAt ?? null,
     error: snap?.error ?? null,
+    awaitingYou: snap?.builderOffline ? null : await awaitingYou(userId, run),
   });
 
   return jsonOk({ view });
+}
+
+/**
+ * The agent's handoff says it is waiting on the operator, and it said so
+ * during this run — an older handoff describes an earlier piece of work.
+ */
+async function awaitingYou(
+  userId: string,
+  run: { projectKey: string; startedAt: Date },
+): Promise<{ next: string | null } | null> {
+  const state = await getProjectState(userId, run.projectKey).catch(() => null);
+  if (!state?.sessionUpdatedAt || state.sessionUpdatedAt < run.startedAt) return null;
+  const waiting = isAwaitingUser({
+    status: state.sessionStatus ?? undefined,
+    blockReason: state.sessionBlockReason ?? undefined,
+    health: state.sessionHealth ?? "",
+    done: state.sessionDone ?? "",
+    next: state.sessionNext ?? "",
+    tests: state.sessionTests ?? "",
+    todos: state.sessionTodos ?? "",
+    mtime: state.sessionUpdatedAt.getTime(),
+  });
+  return waiting ? { next: state.sessionNext?.trim() || null } : null;
 }
 
 export const runtime = "nodejs";

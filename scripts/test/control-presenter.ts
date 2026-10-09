@@ -365,6 +365,56 @@ function runTests(): void {
     assert(snapshot.evidenceLabel === "Agent idle", "evidence label must match the badge wording");
   });
 
+  check("a live session that reported blocked is waiting on you, and counted so", () => {
+    // Skif, 2026-10-09: the agent wrote `status: blocked / awaiting_user` —
+    // "Next direction is yours" — and Control said "Agent idle · 0 awaiting
+    // input" for over an hour, because nothing here read session.status.
+    const nowS = 1_700_000_000;
+    const session = {
+      status: "blocked",
+      blockReason: "awaiting_user",
+      done: "Audit finished",
+      next: "Pick: real-device QA, or limit vitest parallelism",
+      tests: "",
+      todos: "0",
+      health: "",
+      mtime: (nowS - 3600) * 1000,
+    };
+    const live = stubProject({ tab: "Skif", agentRunning: true, session });
+    const state = getProjectDisplayState(live, ["Skif"], nowS);
+    assert(state.stateKey === "awaiting_you", `expected awaiting_you, got ${state.stateKey}`);
+    assert(state.stateLabel === "Waiting for you", "the badge says whose move it is");
+    const page = buildControlPageState(
+      {
+        projects: [live],
+        liveTabs: ["Skif"],
+        inventory: { source: "user_projects", trackedProjectCount: 1, controlProjectCount: 1 },
+      } as unknown as Parameters<typeof buildControlPageState>[0],
+      nowS,
+      true,
+      false,
+    );
+    assert(page.dashboard.waitingCount === 1, "it is counted as awaiting input, not idle");
+
+    // The same handoff on a project with no session left is history, not a page.
+    const closed = stubProject({ tab: "Skif", session });
+    assert(
+      getProjectDisplayState(closed, [], nowS).stateKey !== "awaiting_you",
+      "a closed project's old handoff must not claim anyone is waiting",
+    );
+    // And a turn in flight outranks the handoff it is busy superseding.
+    const busy = stubProject({
+      tab: "Skif",
+      agentRunning: true,
+      session,
+      liveAgentTurns: openTurn(1),
+    });
+    assert(
+      getProjectDisplayState(busy, ["Skif"], nowS).stateKey === "working",
+      "a new turn means it is working again",
+    );
+  });
+
   check("ready sentinel is a next-step state, not generic waiting", () => {
     const nowS = 1_700_000_000;
     const project = stubProject({ tab: "Loki", readyAt: nowS - 5 });

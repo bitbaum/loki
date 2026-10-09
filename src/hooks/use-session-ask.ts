@@ -6,6 +6,7 @@ import { postJson } from "@/lib/api/fetch";
 import type { Attachment, ModelChoice } from "@/components/loki/types";
 import { useLokiStream, type UseLokiStream } from "@/hooks/use-loki-stream";
 import type { WireMessage } from "@/lib/loki/stream";
+import { citationsFrom } from "@/components/loki/footers";
 
 export type SessionAsk = {
   /** The thread so far, in chatkit's shape — rendered by ChatThread. */
@@ -44,7 +45,15 @@ export function useSessionAsk(project: string | null): SessionAsk {
       if (message.role !== "assistant" || !message.content) return;
       setMessages((all) => [
         ...all,
-        { id: message.id, role: "assistant", content: message.content },
+        // The sources travel with the answer. Without them chatkit drops each
+        // [F1] marker and keeps the space before it, so the rail printed
+        // "queued waiting for pickup ." — a citation turned into a typo.
+        {
+          id: message.id,
+          role: "assistant",
+          content: message.content,
+          citations: citationsFrom(message.meta),
+        },
       ]);
     },
   });
