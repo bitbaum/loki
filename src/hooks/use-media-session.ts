@@ -16,7 +16,9 @@ import { useCallback, useEffect, useRef } from "react";
  *
  * `arm()` must be called inside a tap: a browser will not start audio
  * outside a gesture, and the whole point is to call it once and pocket the
- * phone.
+ * phone. Given the soundscape's MediaStream, the element plays THAT — the
+ * music, the earcons and the studio voice are then the track the phone
+ * shows; without one it plays the silent loop.
  */
 export function useMediaSession({
   title,
@@ -37,15 +39,21 @@ export function useMediaSession({
     onNextRef.current = onNext;
   }, [onToggle, onNext]);
 
-  const arm = useCallback(() => {
+  const arm = useCallback((stream?: MediaStream | null, onRefused?: () => void) => {
     if (typeof window === "undefined") return;
     if (!audioRef.current) {
-      const a = new Audio(silentWavUrl());
-      a.loop = true;
+      const a = new Audio();
+      if (stream) a.srcObject = stream;
+      else {
+        a.src = silentWavUrl();
+        a.loop = true;
+      }
       audioRef.current = a;
     }
     void audioRef.current.play().catch(() => {
-      /* no gesture, or autoplay refused: the orb still works by touch */
+      // No gesture, or autoplay refused: the orb still works by touch, and
+      // the caller can route its sound straight out instead of through us.
+      onRefused?.();
     });
   }, []);
 
@@ -53,6 +61,7 @@ export function useMediaSession({
     const a = audioRef.current;
     if (!a) return;
     a.pause();
+    a.srcObject = null;
     a.removeAttribute("src");
     a.load();
     audioRef.current = null;

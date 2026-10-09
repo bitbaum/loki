@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pollTranscriptionResult } from "@/hooks/use-whisper-mic";
-import { guessSpeechLang, plainTextForSpeech } from "@/lib/loki/speech-text";
+import { plainTextForSpeech } from "@/lib/loki/speech-text";
+import { createSynthSpeaker, type Speaker } from "@/lib/voice/speaker";
 import {
   decideVoiceTurn,
   newVoiceTurn,
@@ -42,17 +43,29 @@ export type VoiceAnswer = { id: string; text: string } | null;
  *   - `idle: "listen"`: twenty seconds of silence re-arms the microphone
  *     instead of pausing. With the screen off, "paused" is a dead end: the
  *     one tap that would resume it is on a screen nobody is looking at.
+ *   - `speaker`: who reads the words (lib/voice/speaker). Default is the
+ *     browser's own voice, as before; no-screen mode hands in the studio
+ *     voice, which plays through its soundscape.
+ *   - `bargeIn`: keep the analyser running while Loki speaks, and treat a
+ *     burst of speech as "stop, I'm talking" — the phone's echo cancellation
+ *     (and headphones, which are the whole point) keep Loki's own voice from
+ *     counting. The first third of a second is spent deciding, so the
+ *     person's first syllable is lost; "Loki, …" as a lead-in costs nothing.
  */
 export function useVoiceConversation({
   onUtterance,
   latestAnswer,
   turnFailed,
   idle = "pause",
+  speaker,
+  bargeIn = false,
 }: {
   onUtterance: (text: string) => void;
   latestAnswer: VoiceAnswer;
   turnFailed: boolean;
   idle?: "pause" | "listen";
+  speaker?: Speaker;
+  bargeIn?: boolean;
 }) {
   const [phase, setPhaseState] = useState<VoicePhase>("off");
   const [level, setLevel] = useState(0);
@@ -73,8 +86,26 @@ export function useVoiceConversation({
   const answerAtSendRef = useRef<string | null>(null);
   /** What the current take becomes when its recorder stops. */
   const outcomeRef = useRef<"send" | "discard">("discard");
-  /** Unasked lines waiting for the voice to be free. */
-  const sayQueueRef = useRef<string[]>([]);
+  /** Unasked lines waiting for the voice to be free, each with the cue
+   *  (an earcon) to play right before it. */
+  const sayQueueRef = useRef<{ text: string; cue?: () => void }[]>([]);
+  const synthRef = useRef<Speaker | null>(null);
+  const speakerRef = useRef<Speaker | null>(speaker ?? null);
+  useEffect(() => {
+    speakerRef.current = speaker ?? null;
+  }, [speaker]);
+  const currentSpeaker = () => {
+    if (speakerRef.current) return speakerRef.current;
+    if (!synthRef.current) synthRef.current = createSynthSpeaker();
+    return synthRef.current;
+  };
+  /** Which speak() is current; a cancelled one must not call listen(). */
+  const speakTokenRef = useRef(0);
+  const bargeInRef = useRef(bargeIn);
+  useEffect(() => {
+    bargeInRef.current = bargeIn;
+  }, [bargeIn]);
+  const bargeRafRef = useRef<number | null>(null);
   /** The person interrupted to talk: the next listen is theirs, the queue
    *  waits for the one after. */
   const holdQueueRef = useRef(false);
@@ -110,14 +141,15 @@ export function useVoiceConversation({
     dropTake();
     sayQueueRef.current = [];
     holdQueueRef.current = false;
+    if (bargeRafRef.current !== null) cancelAnimationFrame(bargeRafRef.current);
+    bargeRafRef.current = null;
+    speakTokenRef.current++;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     void ctxRef.current?.close().catch(() => {});
     ctxRef.current = null;
     analyserRef.current = null;
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    currentSpeaker().cancel();
     setPhase("off");
   }, [dropTake]);
 
@@ -165,7 +197,8 @@ export function useVoiceConversation({
     else {
       const queued = sayQueueRef.current.shift();
       if (queued) {
-        speakRef.current(queued);
+        queued.cue?.();
+        speakRef.current(queued.text);
         return;
       }
     }
@@ -237,25 +270,66 @@ export function useVoiceConversation({
     listenRef.current = listen;
   }, [listen]);
 
+  /**
+   * While Loki speaks, watch the microphone for the person cutting in. A
+   * burst above twice the room's speech bar for a third of a second is a
+   * person, not a breath; the voice stops and the microphone is theirs.
+   */
+  const watchBargeIn = useCallback(
+    (token: number) => {
+      const analyser = analyserRef.current;
+      if (!analyser) return;
+      const buf = new Uint8Array(analyser.fftSize);
+      let loudSince: number | null = null;
+      const tick = () => {
+        if (speakTokenRef.current !== token || phaseRef.current !== "speaking") {
+          bargeRafRef.current = null;
+          return;
+        }
+        analyser.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (const v of buf) {
+          const x = (v - 128) / 128;
+          sum += x * x;
+        }
+        const rms = Math.sqrt(sum / buf.length);
+        const bar = speechThreshold(noiseRef.current) * 2.5;
+        const now = performance.now();
+        if (rms > bar) loudSince ??= now;
+        else loudSince = null;
+        if (loudSince !== null && now - loudSince > 350) {
+          bargeRafRef.current = null;
+          speakTokenRef.current++;
+          currentSpeaker().cancel();
+          holdQueueRef.current = true;
+          listen();
+          return;
+        }
+        bargeRafRef.current = requestAnimationFrame(tick);
+      };
+      bargeRafRef.current = requestAnimationFrame(tick);
+    },
+    [listen],
+  );
+
   /** Read text aloud, then listen again (which also drains the say queue). */
   const speakThenListen = useCallback(
     (markdown: string) => {
       const text = plainTextForSpeech(markdown);
-      if (!text || !("speechSynthesis" in window)) {
+      if (!text) {
         listen();
         return;
       }
       setPhase("speaking");
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = guessSpeechLang(text, document.documentElement.lang || "en");
-      u.onend = () => {
-        if (phaseRef.current === "speaking") listen();
-      };
-      u.onerror = u.onend;
-      window.speechSynthesis.speak(u);
+      const token = ++speakTokenRef.current;
+      if (bargeInRef.current) watchBargeIn(token);
+      void currentSpeaker()
+        .speak(text)
+        .finally(() => {
+          if (speakTokenRef.current === token && phaseRef.current === "speaking") listen();
+        });
     },
-    [listen],
+    [listen, watchBargeIn],
   );
   useEffect(() => {
     speakRef.current = speakThenListen;
@@ -318,7 +392,8 @@ export function useVoiceConversation({
     if (p === "speaking") {
       // Interrupting means "I want to talk": whatever else was queued waits
       // for the next free moment, after the reply.
-      window.speechSynthesis.cancel();
+      speakTokenRef.current++;
+      currentSpeaker().cancel();
       holdQueueRef.current = true;
       listen();
     } else if (p === "listening") {
@@ -339,15 +414,16 @@ export function useVoiceConversation({
    * silent take. Busy or speaking: after the current answer. Off: never.
    */
   const say = useCallback(
-    (text: string) => {
+    (text: string, cue?: () => void) => {
       const p = phaseRef.current;
       if (p === "off" || !text.trim()) return;
       if (p === "listening" || p === "paused") {
         dropTake();
+        cue?.();
         speakThenListen(text);
         return;
       }
-      sayQueueRef.current.push(text);
+      sayQueueRef.current.push({ text, cue });
     },
     [speakThenListen, dropTake],
   );

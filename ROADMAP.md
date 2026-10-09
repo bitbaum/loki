@@ -117,6 +117,7 @@ Run the fleet with the phone in a pocket: one tap opens the microphone, the brie
 - [x] An explicit grammar for the twelve commands; anything else is a question for Loki
 - [x] Announcements between turns from a twenty-second poll, bounded to five per poll
 - [x] The headphone button as the only button, through the media session
+- [x] Pleasant for an hour: a studio voice with the phone's as fallback, a music bed the phone composes, a tone before each kind of news, talk-over, coalesced and varied sentences, "details" and an only-what-needs-me mode
 - [ ] Verified on a locked iPhone in a pocket for an hour
 
 ### Make it yours

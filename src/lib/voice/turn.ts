@@ -132,6 +132,7 @@ export async function runVoiceTurn(
     // The phone answers these itself; a server still answers sensibly if asked.
     case "quiet":
     case "repeat":
+    case "details":
     case "end":
       say = "";
       break;

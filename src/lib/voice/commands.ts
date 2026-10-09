@@ -18,7 +18,7 @@ import type { VoiceCommandKind } from "@/config/no-screen";
 export type ApprovalTarget = { all: true } | { all: false; index: number | null };
 
 export type VoiceCommand =
-  | { kind: "status" | "waiting" | "failures" | "help" | "repeat" | "quiet" | "end" }
+  | { kind: "status" | "waiting" | "failures" | "help" | "repeat" | "details" | "quiet" | "end" }
   | { kind: "pause" | "resume"; project: string | null }
   | { kind: "approve" | "reject"; target: ApprovalTarget }
   | { kind: "dispatch"; project: string; task: string }
@@ -82,6 +82,7 @@ const QUIET_RE =
   /^(?:quiet|be quiet|hold on|hang on|wait|shh+|shush|never ?mind|silence|stop talking|stop|halt)$/;
 const REPEAT_RE =
   /^(?:(?:say|read) (?:that|it) again|repeat(?: that)?|again|what|pardon|sorry what)$/;
+const DETAILS_RE = /^(?:details|the details|tell me more|more|what did (?:it|they) do|go on|and)$/;
 const HELP_RE =
   /^(?:help|what can i say|what can you do|what do you understand|commands|how does this work|what are the commands)$/;
 const STATUS_RE =
@@ -131,6 +132,7 @@ export function parseVoiceCommand(raw: string, projects: string[] = []): VoiceCo
   if (END_RE.test(text)) return { kind: "end" };
   if (QUIET_RE.test(text)) return { kind: "quiet" };
   if (REPEAT_RE.test(text)) return { kind: "repeat" };
+  if (DETAILS_RE.test(text)) return { kind: "details" };
   if (HELP_RE.test(text)) return { kind: "help" };
   if (STATUS_RE.test(text)) return { kind: "status" };
   if (WAITING_RE.test(text)) return { kind: "waiting" };
@@ -164,7 +166,7 @@ export function parseVoiceCommand(raw: string, projects: string[] = []): VoiceCo
   return { kind: "ask", text: raw.trim() };
 }
 
-/** The three commands the phone answers without the server. */
+/** The commands the phone answers without the server. */
 export function isLocalVoiceCommand(kind: VoiceCommandKind): boolean {
-  return kind === "quiet" || kind === "repeat" || kind === "end";
+  return kind === "quiet" || kind === "repeat" || kind === "end" || kind === "details";
 }

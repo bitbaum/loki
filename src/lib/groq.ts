@@ -75,7 +75,7 @@ export const GROQ_WHISPER_MODEL = "whisper-large-v3-turbo";
 export function supportsReasoningEffort(model: string): boolean {
   return model.startsWith("openai/gpt-oss");
 }
-const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 // Transcription stays Groq-direct: Whisper has no equivalent in the free chat
 // chain, so there is no second vendor to fall through to. Pretending otherwise
 // would be a fallback that cannot fire.

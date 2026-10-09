@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PublicSurface } from "@/components/public/PublicSurface";
+import { NoScreenDemo } from "@/components/public/NoScreenDemo";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
 import { FinalCta } from "@/components/public/FinalCta";
 import {
@@ -38,6 +39,8 @@ export default function NoScreenPage() {
             </Link>
           </div>
           <p className="ui-public-hero-sublede">{NO_SCREEN_PAGE.ctaNote}</p>
+
+          <NoScreenDemo />
 
           <div className="ui-public-ear">
             {NO_SCREEN_PAGE.sample.map((turn, i) => (
@@ -86,10 +89,32 @@ export default function NoScreenPage() {
 
       <div className="ui-public-section border-t border-border-subtle">
         <div className="ui-public-container-mid">
+          <h2 className="ui-public-eyebrow">WHY IT IS PLEASANT TO LISTEN TO</h2>
+          <p className="ui-public-lede mt-4 max-w-2xl">
+            A voice is a slow channel, and an AI voice that talks too much is the fastest way to
+            make someone take the headphones out. Every part of this is built to be left on for an
+            hour.
+          </p>
+          <div className="mt-10 space-y-10 sm:mt-14 sm:space-y-12">
+            {NO_SCREEN_PAGE.listen.map((item, i) => (
+              <div key={item.title} className="flex flex-col gap-2 sm:flex-row sm:gap-12">
+                <div className="ui-public-step-num sm:pt-2">{String(i + 1).padStart(2, "0")}</div>
+                <div className="flex-1">
+                  <h3 className="ui-public-display-md">{item.title}</h3>
+                  <p className="ui-public-body-lg mt-3 max-w-2xl">{item.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="ui-public-band ui-public-section">
+        <div className="ui-public-container-mid">
           <h2 className="ui-public-eyebrow">WHAT YOU CAN SAY</h2>
           <p className="ui-public-lede mt-4 max-w-2xl">
-            Twelve things, and every other sentence is a question for Loki. The same list is read to
-            you when you say &ldquo;what can I say&rdquo;.
+            Thirteen things, and every other sentence is a question for Loki. The same list is read
+            to you when you say &ldquo;what can I say&rdquo;.
           </p>
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {NO_SCREEN_COMMANDS.map((c) => (
@@ -102,7 +127,7 @@ export default function NoScreenPage() {
         </div>
       </div>
 
-      <div className="ui-public-band ui-public-section">
+      <div className="ui-public-section border-t border-border-subtle">
         <div className="ui-public-container-mid">
           <h2 className="ui-public-eyebrow">WHAT IT IS NOT, YET</h2>
           <div className="mt-8 space-y-8 sm:mt-10 sm:space-y-10">

@@ -13,7 +13,8 @@ import { MermaidBlock } from "bip-kit/react/mermaid";
 // node_modules/shiki symlink.
 setHighlighterLoader(() => import("shiki"));
 
-import type { ThoughtBlock } from "@/lib/thoughts-content";
+import { parseThoughtBlocks, type ThoughtBlock } from "@/lib/thoughts-content";
+import { DeepBlock, deepTitle, isDeepBlock } from "./DeepBlock";
 
 /**
  * Essay body renderer: bip-kit's reference renderer (`ArticleBody`) with two
@@ -48,7 +49,8 @@ function readLocalSvg(src: string): string | null {
 }
 
 type SvgSegment = { kind: "svg"; svg: string; alt: string; caption?: string };
-type Segment = { kind: "article"; blocks: ThoughtBlock[] } | SvgSegment;
+type DeepSegment = { kind: "deep"; title: string; blocks: ThoughtBlock[] };
+type Segment = { kind: "article"; blocks: ThoughtBlock[] } | SvgSegment | DeepSegment;
 
 function toSegments(blocks: ThoughtBlock[]): Segment[] {
   const segments: Segment[] = [];
@@ -61,6 +63,17 @@ function toSegments(blocks: ThoughtBlock[]): Segment[] {
   };
 
   for (const block of blocks) {
+    // A ```deep fence: a closed technical section (DeepBlock), rendered as
+    // its own segment so the native <details> wraps a whole ArticleBody.
+    if (isDeepBlock(block)) {
+      flush();
+      segments.push({
+        kind: "deep",
+        title: deepTitle(block.lang),
+        blocks: parseThoughtBlocks(block.text),
+      });
+      continue;
+    }
     if (block.type === "image" || block.type === "figure") {
       const caption =
         block.type === "figure" ? block.caption : block.alt.trim() ? block.alt : undefined;
@@ -96,6 +109,10 @@ export function ThoughtArticleBody({ blocks }: { blocks: ThoughtBlock[] }) {
       {toSegments(blocks).map((segment, i) =>
         segment.kind === "article" ? (
           <ArticleBody key={i} blocks={segment.blocks} components={{ mermaid: MermaidBlock }} />
+        ) : segment.kind === "deep" ? (
+          <div key={i} className="bp-article">
+            <DeepBlock title={segment.title} blocks={segment.blocks} />
+          </div>
         ) : (
           <div key={i} className="bp-article">
             <figure className="bp-figure">
