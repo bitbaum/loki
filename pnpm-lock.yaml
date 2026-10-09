@@ -31,8 +31,8 @@ importers:
         specifier: ^1.20.1
         version: 1.20.1(react@19.3.0)
       '@bitbaum/chatkit':
-        specifier: github:bitbaum/chatkit#163c879163d22c6eb633314b3bd4e25712a01899
-        version: https://codeload.github.com/bitbaum/chatkit/tar.gz/163c879163d22c6eb633314b3bd4e25712a01899(react@19.3.0)
+        specifier: github:bitbaum/chatkit#699e49d1797c5da502c01d3f3a2c902d561c07aa
+        version: https://codeload.github.com/bitbaum/chatkit/tar.gz/699e49d1797c5da502c01d3f3a2c902d561c07aa(react@19.3.0)
       '@bitbaum/mail-kit':
         specifier: ^0.1.1
         version: 0.1.1
@@ -401,9 +401,9 @@ packages:
       react:
         optional: true
 
-  '@bitbaum/chatkit@https://codeload.github.com/bitbaum/chatkit/tar.gz/163c879163d22c6eb633314b3bd4e25712a01899':
-    resolution: {gitHosted: true, tarball: https://codeload.github.com/bitbaum/chatkit/tar.gz/163c879163d22c6eb633314b3bd4e25712a01899}
-    version: 0.6.0
+  '@bitbaum/chatkit@https://codeload.github.com/bitbaum/chatkit/tar.gz/699e49d1797c5da502c01d3f3a2c902d561c07aa':
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/bitbaum/chatkit/tar.gz/699e49d1797c5da502c01d3f3a2c902d561c07aa}
+    version: 0.6.1
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -5214,7 +5214,7 @@ snapshots:
     optionalDependencies:
       react: 19.3.0
 
-  '@bitbaum/chatkit@https://codeload.github.com/bitbaum/chatkit/tar.gz/163c879163d22c6eb633314b3bd4e25712a01899(react@19.3.0)':
+  '@bitbaum/chatkit@https://codeload.github.com/bitbaum/chatkit/tar.gz/699e49d1797c5da502c01d3f3a2c902d561c07aa(react@19.3.0)':
     dependencies:
       react: 19.3.0
 
