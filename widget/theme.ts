@@ -199,8 +199,10 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 @media (max-width: 380px) { .composer-actions .attach span:last-child { display: none; } }
 .act { align-self: flex-end; font-size: 11px; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; margin-top: -4px; }
 .act:hover { color: ${theme.text}; }
-/* the owner's door under the greeting: a link, aligned with Loki's bubble */
-.act.mine { align-self: flex-start; margin-top: 0; color: ${theme.text}; font-weight: 500; }
+/* the owner's door under the greeting: a link, aligned with Loki's bubble.
+   Not an .act — those are "your words, as written" and a test counts them. */
+.door { align-self: flex-start; font-size: 11px; color: ${theme.text}; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+.door:hover { color: ${theme.accent}; }
 /* Your changes: the owner's requests and where each one is, above the thread */
 .yours { display: flex; flex-direction: column; gap: 6px; margin: -4px 0 12px; padding: 10px 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; }
 .yours-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -224,7 +226,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .continue-label { font-family: ${mono}; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: ${theme.textTertiary}; }
 .continue-link { color: ${theme.text}; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
 .continue-link:hover { color: ${theme.accent}; }
-@media (pointer: coarse) { .continue-link, .act.mine { padding: 8px 0; } }
+@media (pointer: coarse) { .continue-link, .door { padding: 8px 0; } }
 .msg.sent { border-color: ${theme.accent}; }
 .msg .track { display: inline-flex; margin-top: 8px; }
 .starter.primary { border-style: solid; border-color: ${theme.accent}; color: ${theme.text}; background: ${theme.accentMuted}; font-weight: 600; }

@@ -29,7 +29,7 @@ export function greetingFor(state: {
 /** The owner's door, under the greeting: a round trip through Loki's sign-in
  *  that lands back on this page with the pass and Watch on. */
 export function ownerDoor(apiBase: string, token: string): HTMLAnchorElement {
-  const mine = h("a", "act mine", "This is my site — sign in with Loki →");
+  const mine = h("a", "door", "This is my site — sign in with Loki →");
   mine.href = ownerSignInUrl(apiBase, token, location.href);
   mine.rel = "noopener";
   mine.title = "Then what you say here is built, and this conversation can continue in Loki";
