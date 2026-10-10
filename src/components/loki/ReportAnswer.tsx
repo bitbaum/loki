@@ -88,7 +88,7 @@ export function ReportAnswer({
         </button>
         <button
           type="submit"
-          className="ui-btn-primary ui-btn-sm"
+          className="ui-btn-secondary ui-btn-sm"
           disabled={state.kind === "sending"}
         >
           {state.kind === "sending" && <Loader2 className="ui-spinner-xs" aria-hidden />}

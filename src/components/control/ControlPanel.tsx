@@ -15,6 +15,7 @@ import {
 } from "./control-presenter";
 import { rememberFleetProject } from "@/lib/fleet-context";
 import { ControlFleetStatus } from "./ControlFleetStatus";
+import { AwayReturnCard } from "@/components/shell/AwayReturnCard";
 import { AttentionBar } from "./AttentionBar";
 import { AgentEscalations } from "./AgentEscalations";
 import { ControlInbox } from "./ControlInbox";
@@ -311,6 +312,11 @@ export function ControlPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Tier 0, only after a "back in 30 minutes": what happened while they
+          were away and what needs them, each line a link. Above tier 1
+          because the person coming back asked this question before any
+          other; it is gone with one tap. */}
+      <AwayReturnCard />
       {/* ORDERING (the whole page, one rule): Control answers four questions,
           in this order, and every child below belongs to exactly one tier.
 

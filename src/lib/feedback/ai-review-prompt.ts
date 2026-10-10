@@ -37,6 +37,7 @@ export function composeReviewPrompt(
     `  -d '{"token":"${widgetToken}","suggestion":"<one concrete issue + where + why it matters, <=2000 chars>","contact":"${AI_REVIEWER_CONTACT}","source":"${FEEDBACK_SOURCE.AI_REVIEW}","page":"<pathname>","url":"${pageUrl}","pageTitle":"<title>","scope":"element","selectedElements":[{"elementType":"<tag>","elementText":"<visible text, <=100 chars>","selector":"<real CSS selector from the live DOM>"}]}'`,
     "```",
     `Use scope "page" (and omit selectedElements) only when an issue has no single element. Verify each POST returns ok:true.`,
+    `SHOW what you saw: on the FIRST finding (and on any finding about layout), add "screenshots":["<data URL>"] — the mobile screenshot of the viewport where the issue is, as JPEG at quality 60 and at most 390px wide (resize with Playwright's screenshot clip or sharp; one data URL must stay under 600000 characters). The owner reads your findings beside the picture you read them from; a finding with no picture is a claim they have to go and check.`,
     "4. HANDOFF: end with a one-line summary per filed finding and the count submitted. If the page is genuinely clean, file nothing and say so.",
   ].join("\n");
 }

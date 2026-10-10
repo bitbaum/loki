@@ -455,49 +455,48 @@ function RowContext({
     dateStyle: "medium",
     timeStyle: "short",
   });
-  const parts: React.ReactNode[] = [];
+  // One sentence of context, as text with " · " between the parts, so it
+  // wraps like a sentence. As a row of flex items the project link wrapped
+  // onto its own line above "· home · today" (phone, 2026-10-10): parts of
+  // one thought on two lines, which is what "thrown together" looks like.
+  const words: React.ReactNode[] = [];
+  if (agentTag) words.push(<span key="a">{agentTag}</span>);
   if (project)
-    parts.push(
+    words.push(
       <Link key="p" href={`/projects/${project.id}#feedback`} className="ui-fb-row-project">
         {project.name}
       </Link>,
     );
-  if (pageLabel)
-    parts.push(
-      <span key="pg" className="max-w-48 truncate">
-        {pageLabel}
-      </span>,
-    );
+  if (pageLabel) words.push(<span key="pg">{pageLabel}</span>);
   if (who)
-    parts.push(
-      <span key="w" className="max-w-40 truncate" title={f.contact ?? undefined}>
+    words.push(
+      <span key="w" title={f.contact ?? undefined}>
         {who}
       </span>,
     );
-  parts.push(
+  words.push(
     <time key="t" dateTime={new Date(at).toISOString()} title={`Submitted ${exact}`}>
       {resolved ? `resolved ${compactRelativeDate(at)}` : compactRelativeDate(at)}
     </time>,
   );
 
   return (
-    <div className="ui-fb-row-context">
-      {/* "Not started" said nothing the Implement button did not. The badge
-          is a status, never a link. */}
+    <p className="ui-fb-row-context">
       {work.phase !== FEEDBACK_WORK_PHASE.NOT_STARTED && <FeedbackWorkBadge work={work} />}
-      {agentTag && <span className="ui-tag shrink-0">{agentTag}</span>}
       {f.duplicateCount > 1 && (
-        <span className="ui-badge shrink-0" title={`Reported ${f.duplicateCount} times`}>
+        <span className="ui-badge" title={`Reported ${f.duplicateCount} times`}>
           ×{f.duplicateCount}
         </span>
       )}
-      {parts.map((p, i) => (
-        <span key={i} className="inline-flex min-w-0 items-center gap-1.5">
-          {i > 0 && <span className="ui-fb-row-context-sep">·</span>}
-          {p}
-        </span>
-      ))}
-    </div>
+      <span className="ui-fb-row-context-words">
+        {words.map((w, i) => (
+          <span key={i}>
+            {i > 0 && <span className="ui-fb-row-context-sep"> · </span>}
+            {w}
+          </span>
+        ))}
+      </span>
+    </p>
   );
 }
 
@@ -506,17 +505,12 @@ function ElementTarget({ f }: { f: FeedbackListItemWithWork | FeedbackListItem }
   const els = f.selectedElements;
   if (!els || els.length === 0) return null;
   const text = els.length === 1 ? els[0].elementText : null;
+  // "Pointed at “Welcome to Kestrel”" — a sentence, not a mono tag beside a
+  // quote (the tag read as debug output on the row).
+  const what = els.length > 1 ? `${els.length} elements` : els[0].elementType || "an element";
   return (
-    <p
-      className="flex min-w-0 items-baseline gap-1 text-xs text-text-tertiary"
-      title={els.map((el) => el.selector).join("\n")}
-    >
-      <span className="shrink-0 font-mono text-micro">
-        {els.length > 1 ? `${els.length} elements` : els[0].elementType || "element"}
-      </span>
-      {text && (
-        <span className="truncate">“{text.length > 48 ? `${text.slice(0, 48)}…` : text}”</span>
-      )}
+    <p className="ui-fb-row-target" title={els.map((el) => el.selector).join("\n")}>
+      Pointed at {text ? `“${text.length > 48 ? `${text.slice(0, 48)}…` : text}”` : what}
     </p>
   );
 }

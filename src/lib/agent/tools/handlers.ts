@@ -28,6 +28,8 @@ import { ORCHESTRATION_STATES, type OrchestrationState } from "@/lib/orchestrati
 import { HOUR_MS } from "@/lib/constants/time";
 import { askGatewayAgent, isGatewayConfigured } from "@/lib/openclaw-gateway";
 import { makeFact } from "@bitbaum/ai-kit/grounding";
+import { setAway } from "@/lib/away";
+import { AWAY_MAX_MINUTES } from "@/lib/away-rules";
 import {
   alertFacts,
   captureFacts,
@@ -591,6 +593,50 @@ const proposeHumanTaskTool = defineTool({
   },
 });
 
+/**
+ * "Back in 30 minutes." The operator says how long they will be gone; the
+ * next screen they open (Control, the chat) leads with what happened while
+ * they were out and what needs them. The fleet keeps working either way —
+ * this records the promise so the return can be answered, not a pause.
+ */
+const setAwayTool = defineTool({
+  name: "set_away",
+  kind: "propose",
+  description:
+    "The operator says they are leaving for a while ('back in 30 minutes', 'I'm out for an hour', 'going to watch a movie, back at 11'). Record it, so the next screen they open leads with what happened while they were away and what needs them. Minutes from now; convert a clock time to minutes. Never for 'back in a sec'.",
+  params: z.object({
+    minutes: z
+      .number()
+      .int()
+      .min(1)
+      .max(AWAY_MAX_MINUTES)
+      .describe("how long until they said they would be back"),
+  }),
+  example: 'TOOL: set_away\nARGS: {"minutes": 30}',
+  handler: async ({ minutes }, ctx) => {
+    const away = await setAway(ctx.userId, minutes as number);
+    const back = new Date(away.until).toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    });
+    return {
+      facts: [
+        makeFact({
+          kind: "away",
+          subject: `back in ${away.minutes} min`,
+          source: "your account",
+          values: {
+            back_at_utc: back,
+            minutes: String(away.minutes),
+            then: "Control and this chat open with what happened while you were away and what needs you. Say it in one line: enjoy it, the fleet keeps working, the summary is ready when you are back.",
+          },
+        }),
+      ],
+    };
+  },
+});
+
 export const LOKI_TOOLS: ToolRegistry = Object.fromEntries(
   [
     searchPeopleTool,
@@ -611,5 +657,6 @@ export const LOKI_TOOLS: ToolRegistry = Object.fromEntries(
     listHumanTasksTool,
     proposeActionTool,
     proposeHumanTaskTool,
+    setAwayTool,
   ].map((t) => [t.name, t]),
 );
