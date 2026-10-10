@@ -30,6 +30,11 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **No more "update password?"** The key field is masked but is not a
   password field, so the browser stops offering to save your API key as the
   site's login.
+- **Your words appear as you speak.** Press the mic and the words scroll in
+  as they are heard, one line, dimmed while the server transcribes and
+  replaced by its words when they land. The checkmark still ends the take.
+  Where the phone's recogniser cannot run, the wave stays and the recording
+  is untouched. (chatkit 0.7.0.)
 ## 2026-10-10 — The night works from what you said, and no further than you allow
 
 - **Autopilot overnight, with a budget.** While you sleep, Loki builds from
