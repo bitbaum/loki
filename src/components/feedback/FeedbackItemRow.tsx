@@ -440,7 +440,9 @@ function RowContext({
       : f.source === FEEDBACK_SOURCE.SYNTHESIZER
         ? "Brief"
         : null;
-  const pageLabel = f.page || (f.url ? f.url.replace(/^https?:\/\/[^/]+/, "") || f.url : null);
+  // The front page is "home", not a bare slash between two dots.
+  const rawPage = f.page || (f.url ? f.url.replace(/^https?:\/\/[^/]+/, "") || f.url : null);
+  const pageLabel = rawPage === "/" ? "home" : rawPage;
   const who = agentTag ? null : contactName(f.contact);
   const resolved = f.status === FEEDBACK_STATUS.RESOLVED && f.resolvedAt;
   const at = resolved ? f.resolvedAt! : f.createdAt;

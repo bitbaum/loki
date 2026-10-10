@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Inbox, Loader2, MessagesSquare } from "lucide-react";
@@ -196,12 +196,10 @@ export function FeedbackInbox() {
     );
   }
 
-  // Filters earn their place only when they can change what is shown: one
-  // project needs no project chips, one source needs no source picker. On a
-  // project-scoped view (?project=…) the project is named once in the filter
-  // line and the rows stop repeating it.
+  // On a project-scoped view (?project=…) the project is named once in the
+  // footer line and the rows stop repeating it.
   const sourcesPresent = new Set(all.map((f) => f.source ?? FEEDBACK_SOURCE.VISITOR));
-  const showProjectChips = projects.length > 1;
+  const showProjectPicker = projects.length > 1;
   const hideProject = !!projectFilter || projects.length <= 1;
   const showSourcePicker = sourcesPresent.size > 1;
   const current = projectFilter ? projects.find((p) => p.name === projectFilter) : null;
@@ -218,89 +216,73 @@ export function FeedbackInbox() {
 
   return (
     <div className="space-y-4">
-      <div className="ui-fb-filters">
-        {showProjectChips && (
-          <div
-            className="ui-inbox-projects ui-scroll-fade-right mb-0"
-            role="group"
-            aria-label="Filter reports by project"
+      {/* The page's one question, first: is anything waiting on me? On a
+          phone this strip used to sit 550px down, under project chips, a
+          sentence of fleet statistics, a source picker and a link to another
+          page — four things the reader had not asked for, in front of the one
+          they had (2026-10-10). The filters follow it as one quiet line, the
+          numbers close the page. */}
+      <div className="ui-fb-lens" role="tablist" aria-label="Which reports">
+        {LENSES.map((l) => (
+          <button
+            key={l.key}
+            type="button"
+            role="tab"
+            aria-selected={lens === l.key}
+            onClick={() => setChosenLens(l.key)}
+            className="ui-fb-lens-tab"
+            title={l.hint}
           >
-            <FilterChip active={projectFilter === null} onClick={() => setProjectFilter(null)}>
-              All projects
-            </FilterChip>
-            {projects.map((p) => (
-              <FilterChip
-                key={p.name}
-                active={projectFilter === p.name}
-                onClick={() => setProjectFilter((v) => (v === p.name ? null : p.name))}
-                count={p.open}
-              >
-                {p.name}
-              </FilterChip>
-            ))}
-          </div>
-        )}
-        {/* One quiet line: what you are looking at, how to narrow it, and the
-            sibling page. The loop's numbers live here instead of in cards; the
-            Studio requests link lives here instead of in a lone bordered
-            button above everything. */}
-        <div className="ui-fb-filterline">
-          <span className="min-w-0">
-            {current
-              ? `${current.name} · ${current.open > 0 ? `${current.open} open` : "nothing open"}`
-              : metrics && metrics.total > 0
-                ? metricsLine(metrics)
-                : null}
-          </span>
-          <span className="ui-fb-filterline-tools">
-            {showSourcePicker && (
-              <select
-                value={sourceFilter ?? ""}
-                onChange={(e) => setSourceFilter(e.target.value || null)}
-                className="ui-fb-select"
-                aria-label="Filter reports by source"
-              >
-                {SOURCE_FILTERS.filter((s) => s.key === null || sourcesPresent.has(s.key)).map(
-                  (s) => (
-                    <option key={s.label} value={s.key ?? ""}>
-                      {s.label}
-                    </option>
-                  ),
-                )}
-              </select>
-            )}
-            <Link href="/feedback/studio" className="ui-link-muted whitespace-nowrap">
-              Studio requests →
-            </Link>
-          </span>
-        </div>
+            <span
+              className={cn(
+                "ui-fb-lens-count",
+                l.key === LENS.NEEDS_YOU && counts[l.key] > 0 && "ui-fb-lens-count-due",
+              )}
+            >
+              {counts[l.key]}
+            </span>
+            <span className="ui-fb-lens-label">{l.label}</span>
+          </button>
+        ))}
       </div>
 
-      <div>
-        <div className="ui-fb-lens" role="tablist" aria-label="Which reports">
-          {LENSES.map((l) => (
-            <button
-              key={l.key}
-              type="button"
-              role="tab"
-              aria-selected={lens === l.key}
-              onClick={() => setChosenLens(l.key)}
-              className="ui-fb-lens-tab"
+      {/* Filters earn their place only when they can change what is shown:
+          one project needs no project picker, one source no source picker. */}
+      {(showProjectPicker || showSourcePicker) && (
+        <div className="ui-fb-filterbar">
+          {showProjectPicker && (
+            <select
+              value={projectFilter ?? ""}
+              onChange={(e) => setProjectFilter(e.target.value || null)}
+              className="ui-fb-select"
+              aria-label="Filter reports by project"
             >
-              <span
-                className={cn(
-                  "ui-fb-lens-count",
-                  l.key === LENS.NEEDS_YOU && counts[l.key] > 0 && "ui-fb-lens-count-due",
-                )}
-              >
-                {counts[l.key]}
-              </span>
-              <span className="ui-fb-lens-label">{l.label}</span>
-            </button>
-          ))}
+              <option value="">All projects</option>
+              {projects.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.open > 0 ? `${p.name} · ${p.open} open` : p.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {showSourcePicker && (
+            <select
+              value={sourceFilter ?? ""}
+              onChange={(e) => setSourceFilter(e.target.value || null)}
+              className="ui-fb-select"
+              aria-label="Filter reports by source"
+            >
+              {SOURCE_FILTERS.filter((s) => s.key === null || sourcesPresent.has(s.key)).map(
+                (s) => (
+                  <option key={s.label} value={s.key ?? ""}>
+                    {s.label}
+                  </option>
+                ),
+              )}
+            </select>
+          )}
         </div>
-        <p className="ui-fb-lens-hint">{LENSES.find((l) => l.key === lens)!.hint}</p>
-      </div>
+      )}
 
       {error && <p className="ui-error">{error}</p>}
       {notice && <p className="ui-callout-warning">{notice}</p>}
@@ -384,6 +366,21 @@ export function FeedbackInbox() {
           )}
         </div>
       )}
+
+      {/* The loop's numbers and the sibling page close the page. Nothing here
+          is a decision, so it reads after the rows, not before them. */}
+      <p className="ui-fb-foot">
+        <span className="min-w-0">
+          {current
+            ? `${current.name} · ${current.open > 0 ? `${current.open} open` : "nothing open"}`
+            : metrics && metrics.total > 0
+              ? metricsLine(metrics)
+              : null}
+        </span>
+        <Link href="/feedback/studio" className="ui-link-muted whitespace-nowrap">
+          Studio requests →
+        </Link>
+      </p>
     </div>
   );
 }
@@ -493,38 +490,6 @@ export function metricsLine(m: FeedbackLoopMetrics): string {
       : null,
   ].filter((p): p is string => p !== null);
   return parts.join(" · ");
-}
-
-function FilterChip({
-  active,
-  onClick,
-  count,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  count?: number;
-  children: React.ReactNode;
-}) {
-  const ref = useRef<HTMLButtonElement>(null);
-  // A chip row scrolls sideways on a phone; a filter set from the URL must
-  // not leave its own chip out of sight (rendered at 390px: "All projects"
-  // in view, "petvity" three chips off the right edge).
-  useEffect(() => {
-    if (active) ref.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [active]);
-  return (
-    <button
-      ref={ref}
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn("ui-inbox-project whitespace-nowrap", active && "ui-inbox-project-active")}
-    >
-      {children}
-      {count != null && count > 0 && <span className="ui-inbox-project-count">{count}</span>}
-    </button>
-  );
 }
 
 function Row({
