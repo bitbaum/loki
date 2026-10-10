@@ -5086,17 +5086,13 @@
   .ui-fb-lens-count-due {
     color: var(--status-warning);
   }
-  .ui-fb-lens-hint {
-    @apply mt-2 text-xs text-text-tertiary;
+  /* One quiet line of pickers under the lenses; absent when nothing can be
+     narrowed. The numbers close the page in .ui-fb-foot. */
+  .ui-fb-filterbar {
+    @apply flex flex-wrap items-center gap-2;
   }
-  .ui-fb-filters {
-    @apply space-y-2;
-  }
-  .ui-fb-filterline {
-    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-text-tertiary;
-  }
-  .ui-fb-filterline-tools {
-    @apply ml-auto flex items-center gap-3;
+  .ui-fb-foot {
+    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-xs text-text-tertiary;
   }
   .ui-fb-select {
     @apply min-h-9 rounded-lg border border-border-subtle bg-surface-base px-2 text-xs text-text-secondary;
