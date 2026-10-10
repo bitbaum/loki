@@ -6,6 +6,25 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — Loki remembers what it noticed
+
+- **A finding being fixed is not noticed again.** Until now Loki's watch
+  mode forgot its own remarks the moment the tab closed: the next visit
+  noticed the same missing heading or the same tiny text, offered "Fix
+  this" again, and pressing it commissioned the same work twice — the
+  words of each filing carried the watched steps, so nothing matched. Now a
+  finding carries a key, "Fix this" files it with the note, and the next
+  visit looks before it speaks: a finding whose fix is building, in line
+  or on its way is left to **Your changes**; one the owner closed is left
+  alone; one that was fixed and is back says so — "Loki noticed, again" —
+  with **Fix again**.
+- **Every card says where its fix is.** A remark from earlier reads
+  "Being fixed · Building", "Needs you" or "Fixed 10 Oct" under the
+  finding, linked to the live page or to Loki, and follows the fix as it
+  moves while the panel is open.
+- Pressing "Fix this" twice, in two tabs or on two days, now lands on the
+  same row in Loki, with the second press counted rather than built again.
+
 ## 2026-10-10 — Auto decides
 
 - **A greeting never spends a frontier model.** With your own keys, every

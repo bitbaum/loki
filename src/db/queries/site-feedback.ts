@@ -94,6 +94,31 @@ export async function bumpDuplicateFeedback(
   return bumped?.id ?? null;
 }
 
+/**
+ * The same dedupe for a Watch remark, by its key: an OPEN row that started
+ * from the same finding on the same page is the row, however the watched
+ * steps appended to the suggestion differ this time. Null when none is open —
+ * a finding fixed (resolved) or closed (archived) and noticed again is a
+ * fresh report, and the widget says so ("it's back").
+ */
+export async function bumpDuplicateFeedbackByNotice(
+  projectId: string,
+  noticeKey: string,
+): Promise<string | null> {
+  const [bumped] = await db
+    .update(siteFeedback)
+    .set({ duplicateCount: sql`${siteFeedback.duplicateCount} + 1` })
+    .where(
+      and(
+        eq(siteFeedback.projectId, projectId),
+        eq(siteFeedback.noticeKey, noticeKey),
+        inArray(siteFeedback.status, [FEEDBACK_STATUS.NEW, FEEDBACK_STATUS.DISPATCHED]),
+      ),
+    )
+    .returning({ id: siteFeedback.id });
+  return bumped?.id ?? null;
+}
+
 /** Inbox row: everything except the screenshot bytes (kept out of list
  *  payloads), plus a flag so the UI can offer the images on demand. */
 export type FeedbackListItem = Omit<SiteFeedback, "screenshots"> & {

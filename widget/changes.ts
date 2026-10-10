@@ -15,6 +15,7 @@
  * transition that matters.
  */
 import { h } from "./dom";
+import { knownFor, parseKnown, type KnownFix } from "./known-fixes";
 
 export type OwnerChange = {
   id: string;
@@ -132,6 +133,8 @@ export function createChanges(opts: {
   onLive: (change: OwnerChange) => void;
   /** The server no longer honours the pass. */
   onPassRefused: () => void;
+  /** The list was re-read: cards keyed to a fix follow its status. */
+  onUpdate?: () => void;
 }) {
   // One line until opened, like the notes above it: "Your changes · 1
   // building · 2 live ›". It was a header, three rows and a "See it →" line
@@ -168,6 +171,13 @@ export function createChanges(opts: {
   });
 
   let changes: OwnerChange[] = [];
+  /** Every keyed fix the server knows, open or settled (known-fixes.ts). */
+  let known: KnownFix[] = [];
+  let firstRead: (() => void) | null = null;
+  /** Settles after the first answer (or refusal), so Watch can look before it speaks. */
+  const ready = new Promise<void>((resolve) => {
+    firstRead = resolve;
+  });
   let inbox: string | null = null;
   let visitors = 0;
   let timer = 0;
@@ -211,7 +221,12 @@ export function createChanges(opts: {
 
   async function refresh(): Promise<void> {
     const pass = opts.pass();
-    if (!pass || inflight) return;
+    if (!pass) {
+      firstRead?.();
+      firstRead = null;
+      return;
+    }
+    if (inflight) return;
     inflight = true;
     try {
       const res = await fetch(`${opts.apiBase}/api/widget/owner/changes`, {
@@ -230,6 +245,8 @@ export function createChanges(opts: {
         return;
       }
       const next = parseChanges(body);
+      known = parseKnown(body);
+      opts.onUpdate?.();
       inbox = typeof body.inbox === "string" && /^https?:\/\//.test(body.inbox) ? body.inbox : null;
       visitors =
         typeof body.visitors === "number" && body.visitors > 0 ? Math.floor(body.visitors) : 0;
@@ -244,6 +261,8 @@ export function createChanges(opts: {
       /* Loki unreachable: the strip keeps what it had */
     } finally {
       inflight = false;
+      firstRead?.();
+      firstRead = null;
     }
   }
 
@@ -264,5 +283,15 @@ export function createChanges(opts: {
     }, CHANGES_POLL_MS);
   }
 
-  return { el, refresh, start, stop, count: () => changes.length };
+  return {
+    el,
+    refresh,
+    start,
+    stop,
+    count: () => changes.length,
+    /** The fix a remark's key already has, if any — see known-fixes.ts. */
+    known: (key: string) => knownFor(known, key),
+    /** Resolves once Loki has answered (or could not), never later than the caller's own wait. */
+    ready: () => ready,
+  };
 }

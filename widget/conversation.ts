@@ -26,6 +26,7 @@ import { createVoiceControl } from "./voice-control";
 import { mergeTranscript } from "./voice";
 import { buildSuggestion, formatDiagnostics, type ReportDiagnostics } from "./report-payload";
 import { sendReport } from "./send-report";
+import { knownLabel, type KnownFix } from "./known-fixes";
 import { askAdvisor, askConcierge, REVIEW_QUESTION, type Answer } from "./loki-api";
 import {
   historyFor,
@@ -112,6 +113,8 @@ export function createConversation(opts: {
   onBusy?: (busy: boolean) => void;
   /** A note was filed — Your changes refreshes to show where it went. */
   onSent?: () => void;
+  /** What Loki already did about a remark's key (widget/changes.ts). */
+  known?: (key: string) => KnownFix | null;
 }) {
   let thread = readThread(opts.token);
   let busy = false;
@@ -350,26 +353,17 @@ export function createConversation(opts: {
           );
         if (item.links?.length) log.appendChild(answerLinks(item.links));
       } else if (item.kind === "noticed") {
-        // Loki speaking up unasked: what it saw, then what to do about it.
-        const m = bubble("bot noticed from-loki", "Loki noticed", item.text);
-        if (!item.filed) {
-          const row = h("div", "noticed-actions");
-          const fix = h("button", "change-send", owner() ? "Fix this →" : "Send to builder →");
-          fix.type = "button";
-          fix.addEventListener("click", () => build(item.fix));
-          const why = h("button", "act", "Why does it matter?");
-          why.type = "button";
-          why.addEventListener(
-            "click",
-            () =>
-              void ask(
-                `Why is this a problem, and how would you fix it? ${item.text}`,
-                opts.watch()?.session(),
-              ),
-          );
-          row.append(fix, why);
-          m.appendChild(row);
-        }
+        const m = noticedCard(item, {
+          bubble,
+          known: item.key ? (opts.known?.(item.key) ?? null) : null,
+          owner: owner(),
+          onFix: () => build(item.fix, item.key),
+          onWhy: () =>
+            void ask(
+              `Why is this a problem, and how would you fix it? ${item.text}`,
+              opts.watch()?.session(),
+            ),
+        });
         log.appendChild(m);
       } else {
         const m = bubble(
@@ -514,16 +508,21 @@ export function createConversation(opts: {
    * confirmation card is a visitor's (it asks who they are), or the owner's
    * when they choose "Edit first".
    */
-  function build(text: string) {
+  function build(text: string, key?: string) {
     if (!owner()) return openDraft(text);
     err.textContent = "";
-    deliver(text, "", opts.watch()?.diagnostics() ?? null).catch((e) => {
+    deliver(text, "", opts.watch()?.diagnostics() ?? null, key).catch((e) => {
       err.textContent = e instanceof Error ? e.message : "Could not start it — try again.";
     });
   }
 
   /** File the note; the receipt lands in the thread. Throws the server's words. */
-  async function deliver(body: string, contact: string, diag: ReportDiagnostics | null) {
+  async function deliver(
+    body: string,
+    contact: string,
+    diag: ReportDiagnostics | null,
+    key?: string,
+  ) {
     const pass = opts.ownerPass();
     const res = await sendReport(opts.apiBase, {
       token: opts.token,
@@ -533,6 +532,9 @@ export function createConversation(opts: {
       screenshots: attachments.shots(),
       selectedElements: opts.picker.selected(),
       ownerPass: pass ?? undefined,
+      // The finding's key rides with its fix, so the next visit's remark
+      // finds this row instead of filing another.
+      ...(pass && key ? { noticeKey: key } : {}),
     });
     if (pass && !res.owner) opts.onPassRefused();
     draftOpen = null;
@@ -639,13 +641,21 @@ export function createConversation(opts: {
     draft: (message: string, diagnostics: ReportDiagnostics | null) =>
       openDraft(message, diagnostics),
     /** Watch noticed something: Loki says it in the thread, with Fix this. */
-    noticed: (remark: { say: string; fix: string; filed?: boolean }) => {
+    noticed: (remark: {
+      say: string;
+      fix: string;
+      filed?: boolean;
+      key?: string;
+      again?: boolean;
+    }) => {
       remember({
         kind: "noticed",
         at: Date.now(),
         text: remark.say,
         fix: remark.fix,
         ...(remark.filed ? { filed: true } : {}),
+        ...(remark.key ? { key: remark.key } : {}),
+        ...(remark.again ? { again: true } : {}),
       });
       render();
     },
@@ -673,3 +683,55 @@ export function createConversation(opts: {
 }
 
 export type Conversation = ReturnType<typeof createConversation>;
+
+/**
+ * Loki speaking up unasked: what it saw, then what to do about it. A finding
+ * Loki already filed a fix for shows where that fix is instead of a second
+ * "Fix this" (known-fixes.ts); one fixed and back says so and offers "Fix
+ * again".
+ */
+function noticedCard(
+  item: Extract<ThreadItem, { kind: "noticed" }>,
+  deps: {
+    bubble: (cls: string, who: string | null, text: string) => HTMLElement;
+    known: KnownFix | null;
+    owner: boolean;
+    onFix: () => void;
+    onWhy: () => void;
+  },
+): HTMLElement {
+  const m = deps.bubble(
+    "bot noticed from-loki",
+    item.again ? "Loki noticed — again" : "Loki noticed",
+    item.again ? `${item.text}\n\nLoki fixed this before. It is back.` : item.text,
+  );
+  const known = deps.known;
+  const inFlight = !!known && !known.settled;
+  if (known && (inFlight || known.live)) {
+    const st = h("a", `noticed-status tone-${known.tone}`);
+    st.textContent = `${knownLabel(known)} — ${known.detail}`;
+    st.title = known.detail;
+    if (known.href) {
+      st.href = known.href;
+      st.target = "_blank";
+      st.rel = "noopener noreferrer";
+    }
+    m.appendChild(st);
+  }
+  if (!item.filed && !inFlight) {
+    const row = h("div", "noticed-actions");
+    const fix = h(
+      "button",
+      "change-send",
+      deps.owner ? (known?.live ? "Fix again →" : "Fix this →") : "Send to builder →",
+    );
+    fix.type = "button";
+    fix.addEventListener("click", deps.onFix);
+    const why = h("button", "act", "Why does it matter?");
+    why.type = "button";
+    why.addEventListener("click", deps.onWhy);
+    row.append(fix, why);
+    m.appendChild(row);
+  }
+  return m;
+}

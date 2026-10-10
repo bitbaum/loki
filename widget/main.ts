@@ -343,6 +343,9 @@ interface LokiApi {
     });
     /** Set once watch mode starts (owner only) — see the end of mount(). */
     let watchSession: WatchSession | null = null;
+    /** Your changes, once built below — the conversation's first render (a
+     *  restored thread with a noticed card) asks it before the const exists. */
+    let changesRef: ReturnType<typeof createChanges> | null = null;
     const conversation = createConversation({
       apiBase,
       token,
@@ -360,6 +363,7 @@ interface LokiApi {
       // A change was filed: Your changes shows where it went, at once.
       onSent: () => changes.start(),
       watch: () => watchSession,
+      known: (key) => changesRef?.known(key) ?? null,
     });
 
     // The owner's changes and where each one is — the half of "Loki tells
@@ -383,7 +387,12 @@ interface LokiApi {
         syncWatch();
         conversation.refresh();
       },
+      // A fix moved (building → live): the card that noticed it follows.
+      onUpdate: () => {
+        if (panel.isConnected) conversation.refresh();
+      },
     });
+    changesRef = changes;
     panel.append(hdr, watchOffer, thoughts.el, changes.el, conversation.el, madeWith, hideLink);
     // On a phone the panel is a sheet: drag its top up for more, down to peek
     // at the page under it, further down to put it away (sheet.ts).
@@ -463,6 +472,8 @@ interface LokiApi {
         statusShown: () => panel.isConnected || launcher.isShown(),
         onChange: syncWatch,
         onTrail: (trail) => thoughts.update(trail, watchSession?.on() ?? false),
+        known: (key) => changes.known(key),
+        knownReady: () => changes.ready(),
         read: async () => {
           const pass = ownerPass;
           if (!pass) return null;

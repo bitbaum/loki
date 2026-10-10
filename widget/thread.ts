@@ -50,6 +50,11 @@ export type ThreadItem =
       fix: string;
       /** It broke outright and a fix was already started — nothing to tap. */
       filed?: boolean;
+      /** The remark's signature (watch-trail.ts) — what "Fix this" files, and
+       *  what the card's status is looked up by (known-fixes.ts). */
+      key?: string;
+      /** Loki fixed this before and it is back. */
+      again?: boolean;
     };
 
 /** Enough to read back a visit; small enough for sessionStorage and a prompt. */
@@ -130,7 +135,16 @@ function restoreItem(raw: unknown, now: number): ThreadItem | null {
   if (r.kind === "noticed") {
     const fix = str(r.fix, 1000);
     if (!fix) return null;
-    return { kind: "noticed", at, text, fix, ...(r.filed === true ? { filed: true } : {}) };
+    const key = str(r.key, 300);
+    return {
+      kind: "noticed",
+      at,
+      text,
+      fix,
+      ...(r.filed === true ? { filed: true } : {}),
+      ...(key ? { key } : {}),
+      ...(r.again === true ? { again: true } : {}),
+    };
   }
   return null;
 }
