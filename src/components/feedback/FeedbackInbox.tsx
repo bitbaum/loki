@@ -34,7 +34,7 @@ const SOURCE_FILTERS = [
  * Three lenses, keyed on WHO IS BLOCKED (work.waitingOn), never on DB status:
  * Needs you (your move — triage, retry, or look at a fix that is live), Under
  * way (an agent is generating, a green pull request is merging, a deploy is
- * running — nothing for you to do), Shipped (resolved). One lens shows at a
+ * running — nothing for you to do), Done (resolved). One lens shows at a
  * time, as one list — they used to stack as three bordered cards with grey
  * headers, which on a phone read as three unrelated widgets (2026-10-03).
  * Archived stays behind a toggle. Status could not answer the page's one question: `dispatched` covers
@@ -357,7 +357,7 @@ export function FeedbackInbox() {
               aria-expanded={showAllShipped}
               className="ui-fb-more"
             >
-              {showAllShipped ? "Show fewer" : `Show all ${shipped.length} shipped`}
+              {showAllShipped ? "Show fewer" : `Show all ${shipped.length} done`}
             </button>
           )}
         </div>
@@ -405,8 +405,8 @@ const LENSES: { key: Lens; label: string; hint: string }[] = [
   },
   {
     key: LENS.SHIPPED,
-    label: "Shipped",
-    hint: "Confirmed fixes. Star one to feature it on the public strip.",
+    label: "Done",
+    hint: "Fixes you confirmed. Star one to feature it on the public strip.",
   },
 ];
 
@@ -441,7 +441,7 @@ function LensEmpty({
       ? "Nothing waiting on you"
       : lens === LENS.UNDER_WAY
         ? "Nothing under way"
-        : "Nothing shipped yet";
+        : "Nothing done yet";
   return (
     <EmptyState
       icon={Inbox}
@@ -486,7 +486,7 @@ export function metricsLine(m: FeedbackLoopMetrics): string {
   const parts = [
     `${m.total} reports`,
     m.open > 0 ? `${m.open} open` : null,
-    `${m.resolved} shipped${m.resolved30d > 0 ? ` (${m.resolved30d} in the last 30 days)` : ""}`,
+    `${m.resolved} done${m.resolved30d > 0 ? ` (${m.resolved30d} in the last 30 days)` : ""}`,
     m.archived > 0 ? `${m.archived} archived` : null,
     m.medianResolutionHours != null
       ? `${compactDurationHours(m.medianResolutionHours)} median to confirmed`

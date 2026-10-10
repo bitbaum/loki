@@ -411,7 +411,7 @@ export function createConversation(opts: {
       const b = h(
         "button",
         q === REVIEW_QUESTION ? "starter primary" : "starter",
-        q === REVIEW_QUESTION ? "Review what I just did" : q,
+        q === REVIEW_QUESTION ? "Review my last few minutes" : q,
       );
       b.type = "button";
       b.addEventListener("click", () => {

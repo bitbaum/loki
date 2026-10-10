@@ -38,6 +38,7 @@ import {
 import { createLauncher } from "./launcher";
 import { createPicker } from "./picker";
 import { startWatchMode, type WatchSession } from "./watch";
+import { askAdvisor, READ_QUESTION } from "./loki-api";
 import { createConversation } from "./conversation";
 import { createChanges } from "./changes";
 import { assistantFor } from "./thread";
@@ -458,6 +459,25 @@ interface LokiApi {
         statusShown: () => panel.isConnected || launcher.isShown(),
         onChange: syncWatch,
         onTrail: (trail) => thoughts.update(trail, watchSession?.on() ?? false),
+        read: async () => {
+          const pass = ownerPass;
+          if (!pass) return null;
+          const a = await askAdvisor({
+            apiBase,
+            token,
+            question: READ_QUESTION,
+            scope: "page",
+            selected: [],
+            history: [],
+            ownerPass: pass,
+            read: true,
+          });
+          if (a.degraded) return null;
+          return {
+            say: a.messages.map((m: { text: string }) => m.text).join("\n"),
+            changes: a.changes,
+          };
+        },
       });
     syncWatch();
     // The owner's changes are asked for on arrival, so a change that went

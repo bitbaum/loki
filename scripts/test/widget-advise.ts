@@ -120,6 +120,29 @@ assert.equal(
 assert.equal(REVIEW_SESSION_MAX, ADVISE_MAX_SESSION, "session cap mirrors the route");
 assert.match(widgetSrc, /session\.slice\(0, REVIEW_SESSION_MAX\)/, "the widget clamps the session");
 
+// ---- Watch's unasked READ of a page: the judge the ruler is not ----
+{
+  const read = adviseSystemPrompt({
+    scope: "page",
+    snapshot: "PAGE OUTLINE",
+    owner: true,
+    read: true,
+  });
+  assert.match(read, /Loki's own READ of the page/, "read flag turns on the read rubric");
+  for (const lens of ["Purpose:", "Hierarchy:", "Content:", "Fit:", "Function:"]) {
+    assert.ok(read.includes(lens), `the read judges ${lens}`);
+  }
+  assert.match(
+    read,
+    /At most THREE findings/,
+    "three at most — five lines with a button each is noise",
+  );
+  assert.match(read, /nothing stands out/, "silence is an allowed answer");
+  assert.ok(!/REVIEW of a session/.test(read), "a read is not a session review");
+  const asked = adviseSystemPrompt({ scope: "page", snapshot: "PAGE OUTLINE", owner: true });
+  assert.ok(!/Loki's own READ/.test(asked), "a question gets no read rubric");
+}
+
 // ---- Watch's Review: a session turns the answer into a five-lens review ----
 {
   const plain = adviseSystemPrompt({ scope: "page", snapshot: "PAGE OUTLINE" });
