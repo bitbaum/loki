@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ExternalLink, Loader2, X } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, Loader2, X } from "lucide-react";
 import { BYOK_VENDORS, byokVendor, type ByokVendorId } from "@bitbaum/ai-kit/byok";
 import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
 
@@ -18,17 +18,23 @@ import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
  * shown), versus we COULD NOT CHECK it (a vendor hiccup — try again).
  */
 
+type Billing = { billingUrl: string; limit: string };
+
 type Probe =
   | { state: "idle" }
   | { state: "checking" }
   | { state: "works"; message: string; models: string[]; suggested: string | null }
+  /** The vendor knows the key but cannot bill it yet — saved, with the way forward. */
+  | { state: "unfunded"; message: string; billing: Billing }
   | { state: "refused"; message: string };
 
 type ProbeResponse = {
   works: boolean;
+  state: "works" | "unfunded" | "refused" | "unreachable";
   message: string;
   models: string[];
   suggested: string | null;
+  billing: Billing;
 };
 
 export function OwnModelForm({
@@ -41,7 +47,8 @@ export function OwnModelForm({
   existing: OwnModelRow[];
   /** Set = change this vendor's model with the stored key; no paste. */
   changeOnly: OwnModelRow | null;
-  onSaved: (models: OwnModelRow[]) => void;
+  /** `note` is set when the key was saved but needs a follow-up (unfunded). */
+  onSaved: (models: OwnModelRow[], note: string | null) => void;
   onCancel: (() => void) | null;
 }) {
   const [vendor, setVendor] = useState<ByokVendorId>(changeOnly?.vendor ?? BYOK_VENDORS[0]!.id);
@@ -71,6 +78,9 @@ export function OwnModelForm({
           suggested: data.suggested,
         });
         setModel(data.suggested ?? "");
+      } else if (data.state === "unfunded") {
+        setProbe({ state: "unfunded", message: data.message, billing: data.billing });
+        setModel("");
       } else {
         setProbe({ state: "refused", message: data.message });
       }
@@ -104,12 +114,20 @@ export function OwnModelForm({
     setSaving(true);
     setError(null);
     try {
-      const data = await ownModelRequest<{ models: OwnModelRow[] }>("/api/settings/model", "PUT", {
+      const data = await ownModelRequest<{
+        models: OwnModelRow[];
+        unfunded?: { message: string; billing: Billing };
+      }>("/api/settings/model", "PUT", {
         vendor,
         model: model.trim(),
         ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
       });
-      onSaved(data.models);
+      onSaved(
+        data.models,
+        data.unfunded
+          ? `${info.label} key saved. It answers once the account has credits — see the billing link on its row.`
+          : null,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save.");
     } finally {
@@ -121,7 +139,7 @@ export function OwnModelForm({
   const replaces = !changeOnly && existing.find((m) => m.vendor === vendor);
   const canSave =
     !saving &&
-    probe.state === "works" &&
+    (probe.state === "works" || probe.state === "unfunded") &&
     model.trim().length > 0 &&
     (apiKey.trim().length > 0 || changeOnly !== null);
 
@@ -206,10 +224,39 @@ export function OwnModelForm({
         )}
       </div>
 
-      {probe.state === "works" && (
+      {/* Not a wall. The key is right; the account behind it is empty, and the
+          page that fixes that is one tap away. Saved now, used the moment the
+          vendor's meter allows. */}
+      {probe.state === "unfunded" && (
+        <div className="ui-callout-warning">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="font-medium text-text-primary">
+              {info.label} knows this key but can&apos;t bill it yet.
+            </p>
+            <p className="text-xs text-text-secondary">{probe.message}</p>
+            <p className="text-xs text-text-secondary">
+              Add credits or raise {probe.billing.limit} at{" "}
+              <a
+                href={probe.billing.billingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent-text underline-offset-2 hover:underline"
+              >
+                {info.label}&apos;s billing page{" "}
+                <ExternalLink className="inline h-3 w-3" aria-hidden="true" />
+              </a>
+              . You can save the key now — Loki uses it the moment {info.label} does. A few francs
+              with a spending limit is enough to see how a model thinks.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {(probe.state === "works" || probe.state === "unfunded") && (
         <div>
           <p className="ui-micro-label mb-2">{changeOnly ? "Model" : "3 · Your model"}</p>
-          {probe.models.length > 0 ? (
+          {probe.state === "works" && probe.models.length > 0 ? (
             <select
               className="ui-input w-full"
               value={model}
@@ -232,7 +279,13 @@ export function OwnModelForm({
               aria-label="Model id"
             />
           )}
-          {probe.suggested && model === probe.suggested && (
+          {probe.state === "unfunded" && (
+            <p className="mt-1 text-xs text-text-muted">
+              {info.label} would not list models for an unfunded key, so type the one you want — for
+              example <span className="font-mono">{info.modelExample}</span>.
+            </p>
+          )}
+          {probe.state === "works" && probe.suggested && model === probe.suggested && (
             <p className="mt-1 text-xs text-text-muted">
               Chosen for you: the newest model in the strongest tier your key can use. Pick another
               any time.
@@ -249,7 +302,11 @@ export function OwnModelForm({
           onClick={() => void save()}
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
-          {changeOnly ? "Use this model" : "Add this model"}
+          {changeOnly
+            ? "Use this model"
+            : probe.state === "unfunded"
+              ? "Save the key anyway"
+              : "Add this model"}
         </button>
         {onCancel && (
           <button type="button" className="ui-btn-ghost" onClick={onCancel}>

@@ -5,6 +5,7 @@ export * from "./agent-sessions";
 export * from "./agent-tokens";
 export * from "./ai-spend";
 export * from "./ai-usage";
+export * from "./own-model-usage";
 export * from "./provider-quota";
 export * from "./entities";
 export * from "./entity-relations";

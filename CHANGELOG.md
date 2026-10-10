@@ -6,6 +6,20 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — A key with no credits is not a bad key
+
+- **Unfunded keys save.** A key the vendor recognises but cannot bill yet —
+  no credits, a spending limit reached — used to be refused as a bad key.
+  It is now saved with the vendor's own words and the link to its billing
+  page, and Loki uses it the moment the vendor does. The first real xAI key
+  pasted into Settings hit exactly this wall.
+- **What your keys spend.** Each key's row in Settings → AI shows today's and
+  the last thirty days' tokens and calls, and links to the vendor's credits
+  and spending cap. Tokens, not francs: the vendor's meter is the bill.
+- **Scale, written down.** `docs/architecture/models-and-money.md` says why
+  the free pool is a tasting menu, why your own key is the path that scales
+  to a billion builders, and what a pass pays for.
+
 ## 2026-10-09 — Your models, your keys, your pass
 
 - **Any model, your key.** Settings → AI takes a key from any of ten

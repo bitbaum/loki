@@ -27,6 +27,8 @@ export type OwnModel = {
   label: string;
   /** The first vendor — what Loki thinks with. */
   vendor: string;
+  /** Whose keys these are, so a call on them is counted to that person (own_model_usage). */
+  userId?: string;
 };
 
 function keyEnvFor(vendor: string): string {

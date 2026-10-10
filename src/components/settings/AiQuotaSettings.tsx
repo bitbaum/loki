@@ -78,9 +78,10 @@ export function AiQuotaSettings() {
         <div>
           <h2 className="font-medium text-text-primary">AI capacity</h2>
           <p className="-mt-1 text-sm text-text-secondary">
-            Every answer runs on a free tier. This is what each provider last told us was left —
-            read from the replies themselves, not by asking the vendor, because at least one
-            vendor&apos;s own usage page reports a full tank while the key is locked out.
+            Without a key of your own, every answer runs on a free tier shared by everyone here.
+            This is what each provider last told us was left — read from the replies themselves, not
+            by asking the vendor, because at least one vendor&apos;s own usage page reports a full
+            tank while the key is locked out.
           </p>
         </div>
         <button

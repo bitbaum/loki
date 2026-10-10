@@ -49,6 +49,19 @@ function recordUsage(provider: string, model: string, feature: string, tokens: n
     .catch(() => undefined);
 }
 
+/**
+ * The same, for a call on the user's OWN key: counted to that person, at
+ * their vendor, in a ledger of their own (own_model_usage) — never in Loki's
+ * pool meters above. Skipped when the chain carries no owner (tests).
+ */
+function recordOwnUsage(own: OwnModel, vendor: string, model: string, tokens: number): void {
+  if (!own.userId) return;
+  const userId = own.userId;
+  void import("@/db/queries/own-model-usage")
+    .then((m) => m.recordOwnUsage({ userId, vendor, model, tokens }))
+    .catch(() => undefined);
+}
+
 export type ChatMessage = {
   role: "system" | "user" | "assistant" | "tool";
   content: string;
@@ -843,6 +856,8 @@ export async function callModelWithTools(
         if (!input.own) {
           recordAIHealthSuccess();
           recordUsage(link.provider.id, link.model, input.feature, turn.usageTokens);
+        } else {
+          recordOwnUsage(input.own, link.provider.id, link.model, turn.usageTokens);
         }
         return turn;
       } catch (e) {
