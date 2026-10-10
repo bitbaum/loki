@@ -17,3 +17,6 @@ export function ownModelAddPath(vendor: string, model?: string): string {
 
 /** Where providers are compared and chosen. */
 export const MODEL_STORE_PATH = "/models";
+
+/** The store's "On your own machine" section: how a laptop model becomes a provider. */
+export const MODEL_STORE_LOCAL_PATH = "/models#local";

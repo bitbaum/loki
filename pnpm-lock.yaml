@@ -117,6 +117,9 @@ importers:
       node-pty:
         specifier: ^1.1.0
         version: 1.1.0
+      undici:
+        specifier: ^7.30.0
+        version: 7.30.0
       postgres:
         specifier: ^3.4.9
         version: 3.4.9

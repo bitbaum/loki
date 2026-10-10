@@ -1,8 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, Check, ExternalLink, Loader2, X } from "lucide-react";
-import { BYOK_VENDORS, byokVendor, type ByokVendorId } from "@bitbaum/ai-kit/byok";
+import {
+  CUSTOM_VENDOR_ID,
+  VENDORS,
+  VENDOR_KIND_ORDER,
+  vendorById,
+  type VendorId,
+} from "@/config/model-vendors";
+import { parseEndpoint } from "@/lib/models/endpoint-guard";
+import { MODEL_STORE_LOCAL_PATH } from "@/lib/own-model-path";
 import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
 
 /**
@@ -10,15 +19,20 @@ import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
  *
  * Built so that connecting a model takes one paste: pick a provider, open its
  * key page, paste, and the key is checked on the spot. If it works, the models
- * it can actually use appear with the strongest one already chosen (ai-kit's
- * probe reads the vendor's own list — it never guesses names). One click saves.
+ * it can actually use appear with the strongest one already chosen (the probe
+ * reads the vendor's own list — it never guesses names). One click saves.
+ *
+ * "Your own endpoint" is the same form with a URL where the key page would
+ * be: the URL is judged as it is typed (lib/models/endpoint-guard.ts, the
+ * same rule the server applies), probed the moment it passes, and the key is
+ * optional because a tunnel to Ollama needs none.
  *
  * Every state says what it means for the reader, including the two failure
  * shapes that must not be confused: the vendor REFUSED the key (their words,
  * shown), versus we COULD NOT CHECK it (a vendor hiccup — try again).
  */
 
-type Billing = { billingUrl: string; limit: string };
+type Billing = { billingUrl: string | null; limit: string | null };
 
 type Probe =
   | { state: "idle" }
@@ -50,19 +64,21 @@ export function OwnModelForm({
   /** Set = change this vendor's model with the stored key; no paste. */
   changeOnly: OwnModelRow | null;
   /** From the store's "Add" / "Use" buttons: the vendor, and the model, already chosen. */
-  initialVendor?: ByokVendorId;
+  initialVendor?: VendorId;
   initialModel?: string;
   /** What was saved, so the list can say it in a sentence and test it. */
   onSaved: (
     models: OwnModelRow[],
-    saved: { vendor: ByokVendorId; kind: "add" | "change"; unfunded: boolean },
+    saved: { vendor: VendorId; kind: "add" | "change"; unfunded: boolean },
   ) => void;
   onCancel: (() => void) | null;
 }) {
-  const [vendor, setVendor] = useState<ByokVendorId>(
-    changeOnly?.vendor ?? initialVendor ?? BYOK_VENDORS[0]!.id,
+  const [vendor, setVendor] = useState<VendorId>(
+    changeOnly?.vendor ?? initialVendor ?? VENDORS[0]!.id,
   );
   const [apiKey, setApiKey] = useState("");
+  const [endpoint, setEndpoint] = useState("");
+  const [label, setLabel] = useState("");
   const [probe, setProbe] = useState<Probe>({ state: "idle" });
   const [model, setModel] = useState(initialModel ?? "");
   // The model the store chose rides through the probe: when the vendor lists
@@ -72,57 +88,73 @@ export function OwnModelForm({
   const [error, setError] = useState<string | null>(null);
   const probeSeq = useRef(0);
 
+  const custom = vendor === CUSTOM_VENDOR_ID;
+  const endpointVerdict = custom ? parseEndpoint(endpoint) : null;
+
   /** Check a key (or, with none, the stored one) and load what it can use. */
-  const runProbe = useCallback(async (forVendor: ByokVendorId, key: string | null) => {
-    const seq = ++probeSeq.current;
-    setProbe({ state: "checking" });
-    setError(null);
-    try {
-      const data = await ownModelRequest<ProbeResponse>("/api/settings/model/probe", "POST", {
-        vendor: forVendor,
-        ...(key ? { apiKey: key } : {}),
-      });
-      if (seq !== probeSeq.current) return; // a newer paste has taken over
-      if (data.works) {
-        setProbe({
-          state: "works",
-          message: data.message,
-          models: data.models,
-          suggested: data.suggested,
+  const runProbe = useCallback(
+    async (forVendor: VendorId, key: string | null, baseUrl: string | null) => {
+      const seq = ++probeSeq.current;
+      setProbe({ state: "checking" });
+      setError(null);
+      try {
+        const data = await ownModelRequest<ProbeResponse>("/api/settings/model/probe", "POST", {
+          vendor: forVendor,
+          ...(key ? { apiKey: key } : {}),
+          ...(baseUrl !== null ? { baseUrl } : {}),
         });
-        const keep = wanted.current && data.models.includes(wanted.current) ? wanted.current : null;
-        setModel(keep ?? data.suggested ?? "");
-      } else if (data.state === "unfunded") {
-        setProbe({ state: "unfunded", message: data.message, billing: data.billing });
-        setModel(wanted.current);
-      } else {
-        setProbe({ state: "refused", message: data.message });
+        if (seq !== probeSeq.current) return; // a newer paste has taken over
+        if (data.works) {
+          setProbe({
+            state: "works",
+            message: data.message,
+            models: data.models,
+            suggested: data.suggested,
+          });
+          const keep =
+            wanted.current && data.models.includes(wanted.current) ? wanted.current : null;
+          setModel(keep ?? data.suggested ?? "");
+        } else if (data.state === "unfunded") {
+          setProbe({ state: "unfunded", message: data.message, billing: data.billing });
+          setModel(wanted.current);
+        } else {
+          setProbe({ state: "refused", message: data.message });
+        }
+      } catch (e) {
+        if (seq === probeSeq.current) {
+          setProbe({
+            state: "refused",
+            message: e instanceof Error ? e.message : "Couldn't check the key.",
+          });
+        }
       }
-    } catch (e) {
-      if (seq === probeSeq.current) {
-        setProbe({
-          state: "refused",
-          message: e instanceof Error ? e.message : "Couldn't check the key.",
-        });
-      }
-    }
-  }, []);
+    },
+    [],
+  );
 
   // Changing the model only: list what the stored key can use, no paste.
   useEffect(() => {
     if (!changeOnly) return;
-    const timer = setTimeout(() => void runProbe(changeOnly.vendor, null), 0);
+    const timer = setTimeout(() => void runProbe(changeOnly.vendor, null, null), 0);
     return () => clearTimeout(timer);
   }, [changeOnly, runProbe]);
 
   // Check a pasted key as soon as the reader stops typing — no "Check" button
   // to find. Short keys are not sent: nothing a vendor issues is that short.
+  // For an endpoint the URL is what is checked, with the key if one is there.
   useEffect(() => {
+    if (changeOnly) return;
     const key = apiKey.trim();
+    if (custom) {
+      const verdict = parseEndpoint(endpoint);
+      if (!verdict.ok) return;
+      const timer = setTimeout(() => void runProbe(vendor, key || null, verdict.baseUrl), 700);
+      return () => clearTimeout(timer);
+    }
     if (key.length < 8) return;
-    const timer = setTimeout(() => void runProbe(vendor, key), 600);
+    const timer = setTimeout(() => void runProbe(vendor, key, null), 600);
     return () => clearTimeout(timer);
-  }, [apiKey, vendor, runProbe]);
+  }, [apiKey, endpoint, vendor, custom, changeOnly, runProbe]);
 
   async function save() {
     setSaving(true);
@@ -135,6 +167,9 @@ export function OwnModelForm({
         vendor,
         model: model.trim(),
         ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+        ...(custom && !changeOnly && endpointVerdict?.ok
+          ? { baseUrl: endpointVerdict.baseUrl, ...(label.trim() ? { label: label.trim() } : {}) }
+          : {}),
       });
       onSaved(data.models, {
         vendor,
@@ -148,43 +183,47 @@ export function OwnModelForm({
     }
   }
 
-  const info = byokVendor(vendor)!;
+  const info = vendorById(vendor)!;
   const replaces = !changeOnly && existing.find((m) => m.vendor === vendor);
   const canSave =
     !saving &&
     (probe.state === "works" || probe.state === "unfunded") &&
     model.trim().length > 0 &&
-    (apiKey.trim().length > 0 || changeOnly !== null);
+    (changeOnly !== null || (custom ? Boolean(endpointVerdict?.ok) : apiKey.trim().length > 0));
+
+  const reset = () => {
+    setProbe({ state: "idle" });
+    setModel("");
+  };
 
   return (
     <div className="space-y-4">
       {!changeOnly && (
         <div>
           <p className="ui-micro-label mb-2">1 · Your provider</p>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Provider">
-            {BYOK_VENDORS.map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                role="radio"
-                aria-checked={vendor === v.id}
-                className={`ui-chip-toggle ${vendor === v.id ? "ui-chip-toggle-active" : ""}`}
-                onClick={() => {
-                  setVendor(v.id);
-                  setProbe({ state: "idle" });
-                  setModel("");
-                }}
-              >
-                {v.label}
-              </button>
+          <div className="space-y-2" role="radiogroup" aria-label="Provider">
+            {VENDOR_KIND_ORDER.map((group) => (
+              <div key={group.kind} className="flex flex-wrap items-center gap-2">
+                <span className="w-full text-xs text-text-muted sm:w-36">{group.title}</span>
+                {VENDORS.filter((v) => v.kind === group.kind).map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={vendor === v.id}
+                    className={`ui-chip-toggle ${vendor === v.id ? "ui-chip-toggle-active" : ""}`}
+                    onClick={() => {
+                      setVendor(v.id);
+                      reset();
+                    }}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
-          {vendor === "openrouter" && (
-            <p className="mt-2 text-xs text-text-muted">
-              One OpenRouter key reaches models from every major lab — the easiest way to use the
-              strongest ones.
-            </p>
-          )}
+          <p className="mt-2 text-xs text-text-muted">{info.blurb}</p>
           {replaces && (
             <p className="mt-2 text-xs text-text-muted">
               You already have a {info.label} key ({replaces.keyHint}). Pasting a new one replaces
@@ -194,17 +233,87 @@ export function OwnModelForm({
         </div>
       )}
 
-      {!changeOnly && (
+      {!changeOnly && custom && (
+        <div className="space-y-3">
+          <div>
+            <p className="ui-micro-label mb-2">2 · Your endpoint</p>
+            <p className="mb-2 text-xs text-text-secondary">
+              An OpenAI-compatible server on a public https address — Ollama or LM Studio on your
+              laptop behind a tunnel, vLLM on a box, a company gateway.{" "}
+              <Link
+                href={MODEL_STORE_LOCAL_PATH}
+                className="text-accent-text underline-offset-2 hover:underline"
+              >
+                How to set one up →
+              </Link>
+            </p>
+            <input
+              type="url"
+              className="ui-input w-full font-mono"
+              placeholder="https://my-laptop.tail1234.ts.net/v1"
+              value={endpoint}
+              onChange={(e) => {
+                setEndpoint(e.target.value);
+                reset();
+              }}
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              aria-label="Endpoint URL"
+            />
+            {endpoint.trim() && endpointVerdict && !endpointVerdict.ok && (
+              <p className="mt-1 text-xs text-status-negative">{endpointVerdict.reason}</p>
+            )}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="ui-micro-label mb-2">Name (optional)</p>
+              <input
+                className="ui-input w-full"
+                placeholder="MacBook Ollama"
+                value={label}
+                maxLength={60}
+                onChange={(e) => setLabel(e.target.value)}
+                aria-label="Endpoint name"
+              />
+            </div>
+            <div>
+              <p className="ui-micro-label mb-2">Key (if it wants one)</p>
+              <input
+                type="text"
+                className="ui-input ui-input-secret w-full font-mono"
+                placeholder="Leave empty for a plain Ollama"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
+                aria-label="Endpoint API key"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!changeOnly && !custom && (
         <div>
           <p className="ui-micro-label mb-2">2 · Your key</p>
-          <a
-            href={info.keyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mb-2 inline-flex items-center gap-1 text-sm text-accent-text underline-offset-2 hover:underline"
-          >
-            Get a key from {info.label} <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-          </a>
+          {info.keyUrl && (
+            <a
+              href={info.keyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-2 inline-flex items-center gap-1 text-sm text-accent-text underline-offset-2 hover:underline"
+            >
+              Get a key from {info.label}{" "}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          )}
           {/* type="text" + ui-input-secret, not type="password": masked the
               same, but the browser's password manager no longer offers to
               save an API key as the site's login. */}
@@ -230,7 +339,7 @@ export function OwnModelForm({
         {probe.state === "checking" && (
           <span className="inline-flex items-center gap-2 text-text-muted">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Checking with{" "}
-            {info.label}…
+            {custom ? "your endpoint" : info.label}…
           </span>
         )}
         {probe.state === "works" && (
@@ -256,20 +365,22 @@ export function OwnModelForm({
               {info.label} knows this key but can&apos;t bill it yet.
             </p>
             <p className="text-xs text-text-secondary">{probe.message}</p>
-            <p className="text-xs text-text-secondary">
-              Add credits or raise {probe.billing.limit} at{" "}
-              <a
-                href={probe.billing.billingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent-text underline-offset-2 hover:underline"
-              >
-                {info.label}&apos;s billing page{" "}
-                <ExternalLink className="inline h-3 w-3" aria-hidden="true" />
-              </a>
-              . You can save the key now — Loki uses it the moment {info.label} does. A few francs
-              with a spending limit is enough to see how a model thinks.
-            </p>
+            {probe.billing.billingUrl && (
+              <p className="text-xs text-text-secondary">
+                Add credits or raise {probe.billing.limit ?? "the spending limit"} at{" "}
+                <a
+                  href={probe.billing.billingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-text underline-offset-2 hover:underline"
+                >
+                  {info.label}&apos;s billing page{" "}
+                  <ExternalLink className="inline h-3 w-3" aria-hidden="true" />
+                </a>
+                . You can save the key now — Loki uses it the moment {info.label} does. A few francs
+                with a spending limit is enough to see how a model thinks.
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -327,7 +438,9 @@ export function OwnModelForm({
             ? "Use this model"
             : probe.state === "unfunded"
               ? "Save the key anyway"
-              : "Add this model"}
+              : custom
+                ? "Add this endpoint"
+                : "Add this model"}
         </button>
         {onCancel && (
           <button type="button" className="ui-btn-ghost" onClick={onCancel}>
@@ -338,8 +451,9 @@ export function OwnModelForm({
 
       {!changeOnly && (
         <p className="text-xs text-text-muted">
-          Your key is encrypted before it&apos;s stored and is only used for your own Loki chats. It
-          is never shown again — only its last four characters. Remove it here any time.
+          {custom
+            ? "Loki's server connects to your endpoint over https only, never to a private address, and sends your key (if any) nowhere else. Your laptop has to be on and the tunnel up for Loki to use it."
+            : "Your key is encrypted before it's stored and is only used for your own Loki chats. It is never shown again — only its last four characters. Remove it here any time."}
         </p>
       )}
 

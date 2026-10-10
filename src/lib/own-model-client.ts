@@ -1,15 +1,18 @@
-import type { ByokVendorId } from "@bitbaum/ai-kit/byok";
+import type { VendorId } from "@/config/model-vendors";
 
 /**
  * What the settings screen knows about one key the user brought — the API's
  * view of a row, never the key itself (see api/settings/model/route.ts).
  */
 export type OwnModelRow = {
-  vendor: ByokVendorId;
+  vendor: VendorId;
   model: string;
   keyHint: string;
   verifiedAt: string;
   position: number;
+  /** Only for `custom`: the host and the name the person gave it. */
+  baseUrl: string | null;
+  label: string | null;
 };
 
 /** One JSON request against /api/settings/model and its probe, with the

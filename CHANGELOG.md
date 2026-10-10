@@ -6,6 +6,27 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — Every model, every lab, your own machine
+
+- **The whole landscape on `/models`.** Every chat model in OpenRouter's
+  public catalogue — about 460 from 60 labs, Kimi, GLM, Qwen, Llama and
+  MiniMax among them — with open weights marked, an intelligence index, the
+  price in and out, context, when it was listed, and every way to run it
+  through Loki. Filter by open weights, free to try, sees images, reasoning,
+  lab or a price ceiling; sort by best value, smartest, cheapest, newest or
+  longest context; the filters are the URL, so a view is a link. **Use**
+  switches a model on a key you hold; **Add key** opens Settings with the
+  vendor and model chosen. "Check for new models" names what appeared since
+  the last read.
+- **The Chinese labs directly.** Moonshot (Kimi), Z.ai (GLM), Alibaba (Qwen)
+  and MiniMax can be connected with their own keys, not only through a
+  router — and Fireworks as a host for open models.
+- **A model on your own machine.** Point Loki at Ollama or LM Studio behind a
+  tunnel (Tailscale Funnel, cloudflared, ngrok) and it thinks for free, with
+  your data staying on your laptop. The recipe is on the store; Loki checks
+  the address, lists the models it finds, and only ever connects over https
+  to a public address.
+
 ## 2026-10-10 — One Loki on your site
 
 - **The owner's launcher is one thing, always in one place.** On your own

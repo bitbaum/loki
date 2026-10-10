@@ -20,7 +20,7 @@
  * X?" with silence; enabling it would answer with a failed turn; naming a
  * server environment variable would answer a person with a deploy instruction.
  */
-import { byokVendor } from "@bitbaum/ai-kit/byok";
+import { CUSTOM_VENDOR_ID, vendorById } from "@/config/model-vendors";
 import { getApiUserId } from "@/lib/session";
 import { jsonOk, jsonError } from "@/lib/api/route-helpers";
 import { CHAT_CHAIN, providerModels, usableChatChain } from "@/config/chat-models";
@@ -39,7 +39,10 @@ export async function GET() {
     options.push({
       id: m.model,
       label: m.model,
-      provider: byokVendor(m.vendor)?.label ?? m.vendor,
+      provider:
+        m.vendor === CUSTOM_VENDOR_ID && m.label
+          ? m.label
+          : (vendorById(m.vendor)?.label ?? m.vendor),
       usable: true,
       own: true,
     });
