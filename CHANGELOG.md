@@ -22,6 +22,18 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   on Telegram and push. Nothing when the night did nothing.
 - **Feedback on a phone.** The question — how many need you — leads the
   page; the pickers are one quiet line; the numbers close it.
+- **Loki reads the page.** The widget's Watch measured — small type, tiny
+  targets, missing names — and said so on every page while the page in
+  front of you said nothing first. It now also reads each page once per
+  visit as a first-time visitor on a phone (purpose, hierarchy, content,
+  fit, function) and says at most three things, each quoting the page, or
+  nothing. Same "Fix this". Essay: `/thoughts/loki-reads-the-page`.
+- **Which model are you.** Loki's chat says what it is running on from its
+  own prompt, in one sentence, instead of a tool round and a referral to
+  Settings.
+- **Share on OrangeCat.** Every Thoughts essay's share bar leads with
+  OrangeCat: one tap opens the composer there, prefilled, on the reader's
+  own account.
 
 ## 2026-10-10 — A key with no credits is not a bad key
 

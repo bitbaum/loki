@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Link2 } from "lucide-react";
+import { ORANGECAT_PUBLIC_ORIGIN } from "@/config/orangecat";
 
 // Share affordance for essay pages: X intent + LinkedIn share + copy link.
 // The absolute URL is built server-side (APP_URL SSOT in config/brand.ts)
@@ -10,6 +11,12 @@ import { Check, Link2 } from "lucide-react";
 export function ShareBar({ url, title }: { url: string; title: string }) {
   const [copied, setCopied] = useState(false);
 
+  // Our own network first. An essay here could be shared to X and LinkedIn
+  // and not to OrangeCat — the platform these essays are about (operator,
+  // 2026-10-10). OrangeCat's /share opens its composer prefilled, the way
+  // x.com/intent/post opens X's; a reader who does not have an account is
+  // offered one and lands back on the same prefilled post.
+  const orangeCatHref = `${ORANGECAT_PUBLIC_ORIGIN}/share?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`;
   const xHref = `https://x.com/intent/post?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`;
   const linkedInHref = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
 
@@ -27,6 +34,9 @@ export function ShareBar({ url, title }: { url: string; title: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="ui-micro-label">Share</span>
+      <a href={orangeCatHref} className="ui-btn-chip" aria-label={`Share "${title}" on OrangeCat`}>
+        OrangeCat
+      </a>
       <a
         href={xHref}
         target="_blank"

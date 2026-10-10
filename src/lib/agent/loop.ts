@@ -56,6 +56,7 @@ import {
 } from "@/lib/agent/tools/registry";
 import { maxPromptBudgetTokens } from "@/config/chat-models";
 import type { OwnModel } from "@/lib/own-model";
+import { modelIdentityLine } from "@/lib/agent/model-identity";
 import type { RetrievedSource } from "@/lib/agent/context";
 import { APP_NAME } from "@/config/brand";
 import { REPLIES_INSTRUCTION, extractReplies } from "@bitbaum/chatkit";
@@ -371,6 +372,25 @@ function takeReplies(text: string, wanted: boolean | undefined) {
  * time, so the model always sees the CURRENT full record set with fresh
  * citation ids rather than a growing transcript of tool chatter.
  */
+/** The system prompt for one round: the tool catalog (unless this round must
+ *  answer), what Loki is running on, the operator's writing voice, and the
+ *  suggested-replies instruction. */
+function composeSystem(
+  advertised: ToolRegistry,
+  lastRound: boolean,
+  input: Pick<Parameters<typeof runLokiTurn>[0], "own" | "model" | "voice" | "replies">,
+): string {
+  const voiceLine = input.voice?.trim()
+    ? `\n\nAdopt this writing voice: ${input.voice.trim()}`
+    : "";
+  return (
+    systemPrompt(advertised, !lastRound) +
+    modelIdentityLine(input.own, input.model) +
+    voiceLine +
+    repliesLine(input.replies)
+  );
+}
+
 export async function runLokiTurn(input: {
   userId: string;
   message: string;
@@ -482,15 +502,11 @@ export async function runLokiTurn(input: {
     // Every round REPLACES the answer (`text = turn.text` below), so whatever
     // the previous round streamed is superseded, not continued.
     emit({ type: "reset" });
-    const voiceLine = input.voice?.trim()
-      ? `\n\nAdopt this writing voice: ${input.voice.trim()}`
-      : "";
-
     // The last round must produce an answer, so stop advertising tools — a weak
     // model handed tools will keep calling them, and the operator would get a
     // dangling tool call instead of a reply.
     const lastRound = answerNext || round === MAX_ROUNDS - 1;
-    const system = systemPrompt(advertised, !lastRound) + voiceLine + repliesLine(input.replies);
+    const system = composeSystem(advertised, lastRound, input);
 
     // Everything charged besides facts. It GROWS as the loop proceeds — the
     // conversation carries each round's tool results — so the fit is recomputed
