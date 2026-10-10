@@ -49,6 +49,14 @@ export const userPreferences = pgTable(
      * breaking the chooser it feeds.
      */
     agentOrder: text("agent_order"),
+    /**
+     * "Back in 30 minutes." awaySince is when they said it, awayUntil when
+     * they said they would be back. While set, the next screen they open
+     * leads with what happened since (lib/away.ts); dismissing the card
+     * clears both. Null = not away.
+     */
+    awaySince: timestamp("away_since", { withTimezone: true }),
+    awayUntil: timestamp("away_until", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("idx_user_preferences_user_id").on(t.userId)],

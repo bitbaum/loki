@@ -2,6 +2,7 @@
 
 import { shortTimeAgo } from "@/lib/dates";
 import { BrandMark } from "@/components/shell/BrandMark";
+import { AwayReturnCard } from "@/components/shell/AwayReturnCard";
 import type { ConversationSummary } from "./types";
 
 /** Threads offered for resuming. Four one-line rows fit above the composer on a
@@ -42,6 +43,7 @@ export function StartScreen({
 
   return (
     <div className="ui-loki-start">
+      <AwayReturnCard />
       <div className="ui-loki-start-hello">
         <BrandMark showWordmark={false} />
         <h1 className="ui-loki-start-title">What are we working on?</h1>

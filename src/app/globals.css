@@ -5105,8 +5105,10 @@
   .ui-fb-foot {
     @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-xs text-text-tertiary;
   }
+  /* A picker is a word with a chevron, not a third bordered box under the
+     bordered lens strip and above the bordered list. */
   .ui-fb-select {
-    @apply min-h-9 rounded-lg border border-border-subtle bg-surface-base px-2 text-xs text-text-secondary;
+    @apply min-h-9 rounded-lg border-0 bg-transparent px-1 text-xs text-text-secondary;
   }
   .ui-fb-list {
     @apply divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised;
@@ -5125,8 +5127,15 @@
   .ui-fb-row-context {
     @apply flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-text-tertiary;
   }
+  /* The words wrap as one sentence; only the badges are boxes. */
+  .ui-fb-row-context-words {
+    @apply min-w-0 leading-relaxed;
+  }
   .ui-fb-row-context-sep {
     @apply text-text-muted;
+  }
+  .ui-fb-row-target {
+    @apply text-xs text-text-tertiary;
   }
   .ui-fb-row-project {
     @apply font-medium text-text-secondary underline-offset-2 hover:underline;
@@ -5166,6 +5175,28 @@
   }
   .ui-fb-more {
     @apply flex min-h-11 w-full items-center text-xs text-text-tertiary transition-colors hover:text-text-secondary;
+  }
+
+  /* "Back in 30 minutes": one quiet line while away, one card on return.
+     Every line is a row that goes where it is acted on. */
+  .ui-away-line {
+    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-xs text-text-secondary;
+  }
+  .ui-away {
+    @apply rounded-2xl border border-border-subtle bg-surface-base px-4 py-3;
+    box-shadow: var(--shadow-panel);
+  }
+  .ui-away-head {
+    @apply flex items-center justify-between gap-2;
+  }
+  .ui-away-title {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-away-lines {
+    @apply mt-1 divide-y divide-border-subtle;
+  }
+  .ui-away-row {
+    @apply flex min-h-11 items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
 
   /* The account menu's styles live in @bitbaum/accountkit (imported at the
@@ -6834,8 +6865,12 @@
   }
   /* Thumbs-down's small form under an answer (ReportAnswer), and the line
      that replaces it once the report is filed. */
+  /* The thumbs-down form is part of the thread, in the thread's own type:
+     no second box with its own border and fill, no filled call to action.
+     (Phone, 2026-10-10: a grey card with an orange button under a grey
+     answer bubble read as a different app's dialog.) */
   .ui-loki-report {
-    @apply mt-2 flex max-w-xl flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised p-3;
+    @apply mt-2 flex max-w-xl flex-col gap-2;
   }
   .ui-loki-report-label {
     @apply text-sm text-text-secondary;

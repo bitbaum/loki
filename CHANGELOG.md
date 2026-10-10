@@ -63,6 +63,16 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **Share on OrangeCat.** Every Thoughts essay's share bar leads with
   OrangeCat: one tap opens the composer there, prefilled, on the reader's
   own account.
+- **"Back in 30 minutes."** Say it to Loki and the next screen you open —
+  Control, or the chat — leads with what happened while you were away: what
+  needs you, what went live, what finished and what still runs, each line a
+  link to where it is acted on. One tap and it is gone. Nothing is recorded
+  during the absence; the summary is read from what moved.
+- **Fewer things thrown together.** A feedback row's context is one
+  sentence that wraps like one; the pickers are words, not boxes; "Pointed
+  at" reads as a sentence; the thumbs-down form in the chat is part of the
+  thread, not a second dialog; a review files the screenshot it judged with
+  its first finding, so you read the finding beside the picture.
 
 ## 2026-10-10 — A key with no credits is not a bad key
 

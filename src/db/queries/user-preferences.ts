@@ -17,6 +17,9 @@ export type UserPreferencesData = {
   memoryEnabled: boolean;
   /** Preferred provider order, comma-separated agent ids. Null = fleet default. */
   agentOrder: string | null;
+  /** ISO — "back in N minutes" said at awaySince, promised for awayUntil. Null = not away. */
+  awaySince: string | null;
+  awayUntil: string | null;
   /**
    * Action types the operator approved in advance — Loki carries these out
    * without a per-item tap. Always passed through sanitizeStandingApprovals
@@ -68,6 +71,8 @@ export const EMPTY_USER_PREFERENCES: UserPreferencesData = {
   writingVoice: null,
   memoryEnabled: true,
   agentOrder: null,
+  awaySince: null,
+  awayUntil: null,
   standingApprovals: [ACTION_TYPE.CREATE_EVENT],
 };
 
@@ -91,6 +96,8 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     writingVoice: row.writingVoice,
     memoryEnabled: row.memoryEnabled,
     agentOrder: row.agentOrder,
+    awaySince: row.awaySince?.toISOString() ?? null,
+    awayUntil: row.awayUntil?.toISOString() ?? null,
     standingApprovals: row.standingApprovals ?? [],
   };
 }

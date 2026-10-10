@@ -68,6 +68,7 @@ Who: the owner, later, picking the phone back up.
 | | |
 |---|---|
 | Today | Telegram says it is live → **Watch the fix** walks the live page: what was wrong, the change shown on the page, "Why this way", the alternatives not chosen → **Share** gives anyone the same walkthrough. |
+| Away | "Back in 30 minutes" said to Loki (`set_away`): Control and the chat start then lead with what happened — what needs you, what went live, what finished, what still runs, what arrived — each line a link, gone in one tap. Derived from what moved, never recorded, so nothing can be missed (`src/lib/away-rules.ts`). |
 | Rule | The walkthrough is the receipt. A row that says "Done" with no way to see what was done is a bank statement without the amount. Done rows keep Watch the fix and Share. |
 
 ### 5. It is done but not right → I say so, it changes
