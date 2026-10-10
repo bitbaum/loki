@@ -142,6 +142,7 @@ const PAGES = [
   "/system",
   "/thoughts",
   "/settings",
+  "/models",
   "/integrations/orangecat/build",
   "/control/import",
   "/control/new-from-scratch",

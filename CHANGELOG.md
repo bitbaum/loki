@@ -40,6 +40,22 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - The late-night "go to sleep, autopilot has it" strip on Control is
   replaced by the Tonight card, which shows the plan instead of offering a
   switch.
+## 2026-10-10 — A store for models: who thinks for you, and who you pay
+
+- **Models, compared.** `/models` lists every provider you can bring —
+  OpenRouter, Anthropic, OpenAI, Google, xAI, DeepSeek, Mistral, Groq,
+  Together, Cerebras — with who they are, what they are known for, what
+  they give away, and their newest models with live prices per million
+  tokens and context, read from OpenRouter's public catalogue and refreshed
+  on a button. A table sorts them by what decides a bill. **Add to Loki**
+  opens Settings with the provider chosen; **Use** chooses the model too.
+- **The free pool, in plain words.** The models Loki uses at no charge are
+  shared by everyone here and rationed per person; when a day's allowance
+  is spent it is spent for everyone. The capacity counters now sit behind
+  one line instead of twelve cards. Your own key does not draw on the pool.
+- **A second provider.** With one key connected, Settings says why a second
+  matters: Auto gets a choice when the first is slow or out of credit, and
+  you can compare two models on the same question.
 
 ## 2026-10-10 — Your model gets time to think, and you see that it works
 

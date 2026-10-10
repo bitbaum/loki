@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Gauge, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, ChevronDown, Gauge, Loader2, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 import type { QuotaRowView } from "@/lib/ai/quota-view";
 
 /**
@@ -76,12 +78,17 @@ export function AiQuotaSettings() {
     <section className="ui-settings-section">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-medium text-text-primary">AI capacity</h2>
+          <h2 className="font-medium text-text-primary">The free pool</h2>
           <p className="-mt-1 text-sm text-text-secondary">
-            Without a key of your own, every answer runs on a free tier shared by everyone here.
-            This is what each provider last told us was left — read from the replies themselves, not
-            by asking the vendor, because at least one vendor&apos;s own usage page reports a full
-            tank while the key is locked out.
+            Models the vendors let Loki use at no charge, shared by everyone here and rationed per
+            person. When a day&apos;s allowance is spent, it is spent for everyone until it resets.
+            Your own key does not draw on it.{" "}
+            <Link
+              href={MODEL_STORE_PATH}
+              className="text-accent-text underline-offset-2 hover:underline"
+            >
+              Bring one →
+            </Link>
           </p>
         </div>
         <button
@@ -113,27 +120,38 @@ export function AiQuotaSettings() {
             <span>{data.summary}</span>
           </div>
 
-          <div className="space-y-2">
-            {data.providers.map((p) => (
-              <QuotaRow key={`${p.provider}:${p.model}`} row={p} />
-            ))}
-          </div>
-
           {data.providers.length === 0 && (
             <p className="text-sm text-text-muted">
               No AI provider keys are configured, so Loki has nothing to answer with.
             </p>
           )}
 
-          <SpendToday spend={data.spend} total={data.spendTotal} />
+          {/* The per-model counters are the record, not the headline: twelve
+              rows of tokens-today are what made this section read as noise on
+              a phone. The one-line summary above is the answer; the rows wait
+              one tap away. */}
+          {data.providers.length > 0 && (
+            <details className="ui-disclosure">
+              <summary className="ui-disclosure-summary">
+                <ChevronDown className="ui-disclosure-chevron" aria-hidden="true" />
+                <span>Every provider, in detail</span>
+                <span className="text-micro text-text-muted">{data.providers.length} counters</span>
+              </summary>
+              <div className="ui-disclosure-body space-y-2">
+                {data.providers.map((p) => (
+                  <QuotaRow key={`${p.provider}:${p.model}`} row={p} />
+                ))}
+                <p className="pt-2 text-xs text-text-muted">
+                  Counters come from three places, never a probe: the rate-limit headers on answers
+                  already served, the refusal itself when a vendor states a limit its headers do
+                  not, and links skipped before they were called. Nothing here costs a request to
+                  measure.
+                </p>
+              </div>
+            </details>
+          )}
 
-          <p className="text-xs text-text-muted">
-            Counters come from three places, never a probe: the rate-limit headers on answers
-            already served, the refusal itself when a vendor states a limit its headers do not (Groq
-            publishes a daily token pool only in the 429 body), and links skipped before they were
-            called. That last one is why a vendor can appear here having served nothing. Nothing on
-            this page costs a request to measure.
-          </p>
+          <SpendToday spend={data.spend} total={data.spendTotal} />
         </>
       )}
     </section>

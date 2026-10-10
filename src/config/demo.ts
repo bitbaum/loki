@@ -258,6 +258,7 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
   "health",
   "me",
   "metrics",
+  "models", // The model store: a public catalogue read through a cache, plus which keys the caller holds. No spend, nothing written.
   "newsletter",
   "notification-preferences",
   "onboarding",

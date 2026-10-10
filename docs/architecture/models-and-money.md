@@ -154,6 +154,26 @@ The cap itself is set at the vendor — five francs with a monthly limit is
 enough to compare how two models think, and a cap there protects the person
 whatever Loki does.
 
+### The store: choosing who thinks for you
+
+`/models` is where the choice is made. It says the three ways in plain
+words — the free pool is finite and shared, your own key scales, a pass
+pays for Loki and not for tokens — then lists every provider a person can
+bring with the human half from `config/model-store.ts` (who they are, what
+they are known for, what they give away, their own price page) and the
+live half from OpenRouter's public catalogue (`lib/models/store-catalog.ts`:
+~450 models with price per token, context and release date, no key
+needed, cached an hour). One tap on **Add to Loki** opens Settings with the
+vendor already chosen; **Use** on a table row chooses the model too. The
+table sorts by the numbers that decide a bill. "Check for new models"
+re-reads the catalogue and names what appeared since the last read.
+
+What the store does not do is rank quality. Price is the one number every
+vendor publishes; "better" is the person's call, with the Test button and
+the same question asked twice. And it does not type a price: the one time
+a number is hand-written it would be stale by the following week, so the
+descriptions carry their own `asOf` date and the vendor's page is the bill.
+
 ## Why not metered credits (yet)
 
 OrangeCat's Cat sells credits: top up in Bitcoin, spend per request. That is
@@ -194,7 +214,11 @@ The question is not "can the box take the load"; it is "whose meter does
 each turn run on". Three facts decide the design:
 
 1. **The free pool does not scale.** Groq's 1,000 requests a day and
-   OpenRouter's free models are one allowance for the whole site. At a
+   OpenRouter's free models are one allowance for the whole site. The
+   alternative — Loki buying tokens and handing them out — is Loki raising
+   money to pay the labs on everyone's behalf, which is the business the
+   store exists to avoid: the person pays the lab, chooses the lab, and can
+   change their mind. At a
    thousand users that is one request each; at a million it is a rounding
    error. The free pool is a tasting menu, rationed per person
    (`lib/ai-budget`), and every refusal it issues points at the two ways
