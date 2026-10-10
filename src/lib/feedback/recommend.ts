@@ -37,6 +37,9 @@ export const RECOMMEND = {
   FILE: "file",
   /** The project has nowhere to run: a link, not a tap Loki can take for you. */
   CONNECT: "connect",
+  /** Live, and only a person's eyes can settle it: the walkthrough is the tap,
+   *  "It worked" / "Not fixed" come after. Not taken by "Do all". */
+  LOOK: "look",
 } as const;
 export type RecommendKind = (typeof RECOMMEND)[keyof typeof RECOMMEND];
 
@@ -160,7 +163,7 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
       if (!fix) return null;
       const partial = /partial success/i.test(work.detail ?? "");
       switch (fix.state) {
-        case FIX_SHIP_STATE.DEPLOYED:
+        case FIX_SHIP_STATE.DEPLOYED: {
           if (partial)
             return {
               kind: RECOMMEND.RETRY,
@@ -169,13 +172,35 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
               runs: 1,
               priority: 35,
             };
+          const look = fix.verify ?? null;
+          // Loki read the page. Its verdict is the recommendation; the
+          // evidence is the reason, so the owner can disagree from the card.
+          if (look?.verdict === "looks_fixed")
+            return {
+              kind: RECOMMEND.CONFIRM,
+              label: "Close it",
+              why: `Loki checked ${pageWord(input.page)}: ${look.evidence}`,
+              runs: 0,
+              priority: 70,
+            };
+          if (look?.verdict === "not_visible")
+            return {
+              kind: RECOMMEND.RETRY,
+              label: "Try again",
+              why: `Loki checked ${pageWord(input.page)} and could not find the change: ${look.evidence}`,
+              runs: 1,
+              priority: 36,
+            };
           return {
-            kind: RECOMMEND.CONFIRM,
-            label: "Confirm it worked",
-            why: `Live on ${pageWord(input.page)}; the agent reported success and the deploy went through.`,
+            kind: RECOMMEND.LOOK,
+            label: "See it on the site",
+            why: look
+              ? `Live on ${pageWord(input.page)}. ${look.evidence} One look settles it.`
+              : `Live on ${pageWord(input.page)}; Loki has not read the page yet. One look settles it.`,
             runs: 0,
-            priority: 60,
+            priority: 55,
           };
+        }
         case FIX_SHIP_STATE.NO_EVIDENCE:
         case FIX_SHIP_STATE.PUSHED:
           return {
@@ -209,29 +234,42 @@ export function summarizeDecisions(recs: Recommendation[]): {
   runs: number;
   confirms: number;
   files: number;
-  /** Decisions the button can take (a CONNECT is a link, not a tap). */
+  /** Live fixes only a person can settle — "Do all" leaves them for your eyes. */
+  looks: number;
+  /** Decisions the button can take (a CONNECT is a link, a LOOK is yours). */
   takeable: number;
 } {
   let runs = 0;
   let confirms = 0;
   let files = 0;
+  let looks = 0;
   let takeable = 0;
   for (const r of recs) {
+    if (r.kind === RECOMMEND.LOOK) {
+      looks += 1;
+      continue;
+    }
     if (r.kind === RECOMMEND.CONNECT) continue;
     takeable += 1;
     runs += r.runs;
     if (r.kind === RECOMMEND.CONFIRM) confirms += 1;
     if (r.kind === RECOMMEND.FILE) files += 1;
   }
-  return { total: recs.length, runs, confirms, files, takeable };
+  return { total: recs.length, runs, confirms, files, looks, takeable };
 }
 
-/** "Do all 12 · starts 4 runs, confirms 3, files 5 away" */
+/** "Do all 12 · starts 4 runs, closes 3, files 5 away" — and what it leaves for your eyes. */
 export function doAllLabel(s: ReturnType<typeof summarizeDecisions>): string {
   const parts = [
     s.runs ? `starts ${s.runs} ${s.runs === 1 ? "run" : "runs"}` : null,
-    s.confirms ? `confirms ${s.confirms}` : null,
+    s.confirms ? `closes ${s.confirms}` : null,
     s.files ? `files ${s.files} away` : null,
   ].filter((p): p is string => p !== null);
   return `Do all ${s.takeable}${parts.length ? ` · ${parts.join(", ")}` : ""}`;
+}
+
+/** The line beside "Do all" when some decisions are a person's to make. */
+export function looksLine(s: ReturnType<typeof summarizeDecisions>): string | null {
+  if (!s.looks) return null;
+  return `${s.looks} ${s.looks === 1 ? "is" : "are"} live and need${s.looks === 1 ? "s" : ""} your eyes — Loki could not tell from the page.`;
 }

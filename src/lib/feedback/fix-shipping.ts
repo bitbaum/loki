@@ -67,6 +67,14 @@ export type FixShipping = {
   ownDeploy?: { url: string | null; name: string; conclusion: string | null };
   /** ISO — when GitHub was last asked. */
   checkedAt: string;
+  /** Loki read the live page once the fix was deployed (feedback/verify-live.ts):
+   *  did the page answer the report? Absent until it has looked. */
+  verify?: {
+    verdict: "looks_fixed" | "not_visible" | "cannot_tell";
+    evidence: string;
+    at: string;
+    url: string;
+  } | null;
   /** No GitHub token / API failure: the state is what the handoff claimed, unverified. */
   unverified?: boolean;
   /**

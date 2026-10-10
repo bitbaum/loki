@@ -6,6 +6,8 @@ import { Loader2 } from "lucide-react";
 import { RECOMMEND, type Recommendation } from "@/lib/feedback/recommend";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import { FeedbackItemRow } from "@/components/feedback/FeedbackItemRow";
+import { WatchFixButton } from "@/components/feedback/WatchFixButton";
+import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { compactRelativeDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +43,8 @@ export function DecisionCard({
     : never;
 }) {
   const [other, setOther] = useState(false);
-  const cost = rec.runs ? "one agent run" : "free";
+  const cost = rec.kind === RECOMMEND.LOOK ? "your eyes" : rec.runs ? "one agent run" : "free";
+  const liveHref = livePageHref(f.liveUrl, f.url, f.page);
   return (
     <article className={cn("ui-fb-decision", taken && "ui-fb-decision-taken")}>
       <p className="ui-fb-decision-kicker">
@@ -63,6 +66,30 @@ export function DecisionCard({
           <Link href={`/projects/${f.projectId}`} className="ui-btn-save">
             {rec.label}
           </Link>
+        ) : rec.kind === RECOMMEND.LOOK ? (
+          // Look first — the walkthrough opens the live page and points at
+          // the change — then answer. Both answers are one tap, right here.
+          <>
+            {liveHref && <WatchFixButton feedbackId={f.id} liveHref={liveHref} />}
+            <button
+              type="button"
+              onClick={rowProps.onResolve}
+              disabled={busy}
+              className="ui-btn-secondary"
+              title="You looked and the point is fixed"
+            >
+              It worked
+            </button>
+            <button
+              type="button"
+              onClick={rowProps.onReopen}
+              disabled={busy}
+              className="ui-btn-secondary"
+              title="Put it back so it can be built again"
+            >
+              Not fixed
+            </button>
+          </>
         ) : (
           <button
             type="button"
@@ -117,6 +144,8 @@ function kindWord(rec: Recommendation): string {
       return "File away";
     case RECOMMEND.CONNECT:
       return "Connect";
+    case RECOMMEND.LOOK:
+      return "Look";
   }
 }
 

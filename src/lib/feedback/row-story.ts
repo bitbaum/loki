@@ -176,12 +176,26 @@ export function rowStory(input: RowStoryInput, now = Date.now()): RowStory {
           tone: "machine",
         };
       switch (fix.state) {
-        case FIX_SHIP_STATE.DEPLOYED:
+        case FIX_SHIP_STATE.DEPLOYED: {
+          const seen = fix.verify ?? null;
+          if (seen?.verdict === "looks_fixed")
+            return {
+              headline: `The fix is live on ${pageWord(input.page)} — Loki checked.`,
+              next: `${seen.evidence} Close it, or look yourself first.`,
+              tone: "you",
+            };
+          if (seen?.verdict === "not_visible")
+            return {
+              headline: `Live on ${pageWord(input.page)}, but Loki could not find the change.`,
+              next: `${seen.evidence} Try again, or look yourself.`,
+              tone: "you",
+            };
           return {
             headline: `The fix is live on ${pageWord(input.page)}.`,
-            next: look,
+            next: seen ? `${seen.evidence} ${look}` : look,
             tone: "you",
           };
+        }
         case FIX_SHIP_STATE.MERGED:
           return {
             headline: "The change is merged but not deployed yet.",

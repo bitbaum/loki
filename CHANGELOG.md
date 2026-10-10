@@ -6,6 +6,20 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — Loki looks before it asks you to
+
+- **"Confirm it worked" is gone.** You could not know whether a fix worked
+  without going to look, so the page was asking you to assert what Loki
+  should have checked. Now, once a fix is live, Loki reads the live page
+  against the report. If the page shows the change, the card says "Close
+  it" with what Loki saw ("The footer now reads © 2026"). If the change is
+  not there, it says "Try again" and why. If text cannot tell — layout,
+  colour, a flow — the card leads with "See it on the site" (the walkthrough)
+  and "It worked / Not fixed" sit right beside it. "Do all" leaves those for
+  your eyes and says how many.
+- One page read per shipped fix, a couple per visit, on your AI budget, only
+  when you open the page — never from a timer.
+
 ## 2026-10-10 — Feedback decides, you say yes
 
 - **Loki decides each report before you see it.** The page opens with the
