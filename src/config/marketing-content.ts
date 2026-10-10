@@ -246,9 +246,11 @@ export const ROADMAP: {
         body: "Projects run on their configured builder. Eligible accounts can use the cloud builder; Fleet Runner runs work on your computer when you choose it.",
       },
       {
-        // Same correction as PHILOSOPHY above: no local-model path exists.
+        // The local path is a public https endpoint (a tunnel to Ollama or LM
+        // Studio) — say exactly that, not "local models", which would promise
+        // the server can see a laptop.
         title: "Open-weight models, not one vendor.",
-        body: "Open-weight models — gpt-oss and qwen — answer Loki's own chat first, and you can bring your own key. Running them on your own machine is the direction; there is no local path yet.",
+        body: "Open-weight models — gpt-oss and qwen — answer Loki's own chat first, and you can bring any lab's key. A model on your own machine works too: expose Ollama or LM Studio on an https address and point Loki at it.",
       },
       {
         title: "Autonomy is a user-controlled switch.",

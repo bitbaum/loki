@@ -23,3 +23,14 @@ export function contextLabel(context: number | null): string {
   }
   return `${Math.round(context / 1000)}k ctx`;
 }
+
+/** "Sep 2026" from epoch ms, or "" when the lab gave no date. Pure. */
+export function releasedLabel(released: number | null): string {
+  if (!released) return "";
+  return new Date(released).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+}
+
+/** The Artificial Analysis index as a person reads it: "62", or "—" when unrated. */
+export function indexLabel(index: number | null): string {
+  return index === null ? "—" : String(Math.round(index));
+}

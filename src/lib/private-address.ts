@@ -21,6 +21,17 @@ export function isPrivateAddress(ip: string): boolean {
     if (mapped) {
       return isPrivateAddress(mapped[1]);
     }
+    // The same mapping in hex, which is how the URL parser spells it: a
+    // person types `[::ffff:10.0.0.1]` and `new URL` hands back
+    // `[::ffff:a00:1]`. Found 2026-10-10 by the endpoint guard's own test;
+    // without this line the dotted check above is a check on a form the
+    // caller never sees.
+    const mappedHex = unbracketed.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (mappedHex) {
+      const hi = parseInt(mappedHex[1]!, 16);
+      const lo = parseInt(mappedHex[2]!, 16);
+      return isPrivateAddress(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+    }
     if (unbracketed === "::" || unbracketed === "::1") {
       return true; // unspecified / loopback
     }

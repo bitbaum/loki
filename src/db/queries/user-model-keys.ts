@@ -1,6 +1,12 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { sealSecret, openSecret } from "@bitbaum/ai-kit/seal";
-import { byokKeyHint, byokVendor, type ByokConfig, type ByokVendorId } from "@bitbaum/ai-kit/byok";
+import { byokKeyHint } from "@bitbaum/ai-kit/byok";
+import {
+  CUSTOM_VENDOR_ID,
+  vendorById,
+  type OwnKeyConfig,
+  type VendorId,
+} from "@/config/model-vendors";
 import { db } from "@/db";
 import { userModelKeys } from "@/db/schema/user-model-keys";
 
@@ -29,22 +35,33 @@ export function ownModelSealSecret(): string | null {
 }
 
 export type OwnModelSummary = {
-  vendor: ByokVendorId;
+  vendor: VendorId;
   model: string;
-  /** "…abcd" — never more of the key than that. */
+  /** "…abcd" — never more of the key than that; "no key" for a keyless endpoint. */
   keyHint: string;
   verifiedAt: Date;
   position: number;
+  /** Only for `custom`: the host and the name the person gave it. */
+  baseUrl: string | null;
+  label: string | null;
 };
 
+/** The two columns only `custom` carries; read for no other vendor. */
+function endpointOf(row: { vendor: string; baseUrl: string | null; label: string | null }) {
+  return row.vendor === CUSTOM_VENDOR_ID
+    ? { baseUrl: row.baseUrl, label: row.label }
+    : { baseUrl: null, label: null };
+}
+
 function summaryOf(row: typeof userModelKeys.$inferSelect): OwnModelSummary | null {
-  if (!byokVendor(row.vendor)) return null; // a vendor since removed from the closed list
+  if (!vendorById(row.vendor)) return null; // a vendor since removed from the closed list
   return {
-    vendor: row.vendor as ByokVendorId,
+    vendor: row.vendor as VendorId,
     model: row.model,
     keyHint: row.keyHint,
     verifiedAt: row.verifiedAt,
     position: row.position,
+    ...endpointOf(row),
   };
 }
 
@@ -69,17 +86,22 @@ export async function listOwnModels(userId: string): Promise<OwnModelSummary[]> 
  * that will not open (a rotated secret) is logged and skipped — a chat turn
  * must not fail because of it; the settings screen asks for the key again.
  */
-export async function getOwnModels(userId: string): Promise<ByokConfig[]> {
+export async function getOwnModels(userId: string): Promise<OwnKeyConfig[]> {
   const secret = ownModelSealSecret();
   if (!secret) return [];
-  const out: ByokConfig[] = [];
+  const out: OwnKeyConfig[] = [];
   for (const row of await rowsFor(userId)) {
-    if (!byokVendor(row.vendor)) continue;
+    if (!vendorById(row.vendor)) continue;
+    // A custom row without a host cannot be called; it is skipped, not thrown.
+    if (row.vendor === CUSTOM_VENDOR_ID && !row.baseUrl) continue;
+    const endpoint = endpointOf(row);
     try {
       out.push({
-        vendor: row.vendor as ByokVendorId,
+        vendor: row.vendor as VendorId,
         model: row.model,
         apiKey: openSecret(row.sealedKey, secret, SEAL_CONTEXT),
+        ...(endpoint.baseUrl ? { baseUrl: endpoint.baseUrl } : {}),
+        ...(endpoint.label ? { label: endpoint.label } : {}),
       });
     } catch {
       console.error(
@@ -93,13 +115,13 @@ export async function getOwnModels(userId: string): Promise<ByokConfig[]> {
 /** One vendor's stored key, for probing its models without a new paste. */
 export async function getOwnModelKey(
   userId: string,
-  vendor: ByokVendorId,
-): Promise<ByokConfig | null> {
+  vendor: VendorId,
+): Promise<OwnKeyConfig | null> {
   return (await getOwnModels(userId)).find((c) => c.vendor === vendor) ?? null;
 }
 
 /** Store (or replace) the key for one vendor. A new vendor joins the end of the chain. */
-export async function saveOwnModel(userId: string, config: ByokConfig): Promise<OwnModelSummary> {
+export async function saveOwnModel(userId: string, config: OwnKeyConfig): Promise<OwnModelSummary> {
   const secret = ownModelSealSecret();
   if (!secret) throw new Error("BYOK_SEAL_SECRET is not set on this server");
   const now = new Date();
@@ -107,12 +129,15 @@ export async function saveOwnModel(userId: string, config: ByokConfig): Promise<
     .select({ next: sql<number>`coalesce(max(${userModelKeys.position}), -1) + 1` })
     .from(userModelKeys)
     .where(eq(userModelKeys.userId, userId));
+  const custom = config.vendor === CUSTOM_VENDOR_ID;
   const values = {
     model: config.model,
     sealedKey: sealSecret(config.apiKey, secret, SEAL_CONTEXT),
-    keyHint: byokKeyHint(config.apiKey),
+    keyHint: config.apiKey ? byokKeyHint(config.apiKey) : "no key",
     verifiedAt: now,
     updatedAt: now,
+    baseUrl: custom ? (config.baseUrl ?? null) : null,
+    label: custom ? config.label?.trim() || null : null,
   };
   const [row] = await db
     .insert(userModelKeys)
@@ -127,7 +152,7 @@ export async function saveOwnModel(userId: string, config: ByokConfig): Promise<
 /** Change only the model for one vendor, keeping its key. Null when that vendor is not stored. */
 export async function setOwnModelChoice(
   userId: string,
-  vendor: ByokVendorId,
+  vendor: VendorId,
   model: string,
 ): Promise<OwnModelSummary | null> {
   const [row] = await db
@@ -159,7 +184,7 @@ export async function reorderOwnModels(
 }
 
 /** Forget one vendor's key. */
-export async function deleteOwnModel(userId: string, vendor: ByokVendorId): Promise<void> {
+export async function deleteOwnModel(userId: string, vendor: VendorId): Promise<void> {
   await db
     .delete(userModelKeys)
     .where(and(eq(userModelKeys.userId, userId), eq(userModelKeys.vendor, vendor)));

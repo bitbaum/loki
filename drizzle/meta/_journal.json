@@ -617,6 +617,13 @@
       "when": 1791552159907,
       "tag": "0087_night_allowance",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1791628122352,
+      "tag": "0088_own_endpoint",
+      "breakpoints": true
     }
   ]
 }

@@ -37,7 +37,8 @@ import {
 import { createCallTimeout } from "@/lib/agent/call-timeout";
 import { classifyGroqLimit, groqRetryAfterSeconds, humanizeWait } from "@/lib/agent/groq-error";
 import { chainFrom, linkPromptCeilingTokens, type ChatLink } from "@/config/chat-models";
-import { keyForLink, type OwnModel } from "@/lib/own-model";
+import { isOwnEndpointLink, keyForLink, type OwnModel } from "@/lib/own-model";
+import { guardedFetch } from "@/lib/models/endpoint-guard";
 import { recordAIHealthFailure, recordAIHealthSuccess } from "@/lib/ai/health";
 import { recordVendorQuota, recordPreflightSkip, recordRefusal } from "@/lib/ai/record-quota";
 import { readSseChunks } from "@/lib/agent/sse-stream";
@@ -381,18 +382,24 @@ async function callOneLinkWithin(
   timeout: ReturnType<typeof createCallTimeout>,
 ): Promise<ModelTurn> {
   const key = keyForLink(link, input.own);
-  if (!key) {
+  // undefined = no key to send (the link is refused); "" = a user's keyless
+  // endpoint, which gets no Authorization header rather than "Bearer ".
+  if (key === undefined) {
     throw new LinkError(
       "other",
       input.own ? "your key is not available" : `${link.provider.keyEnv} not set`,
     );
   }
 
-  const res = await fetch(`${link.provider.baseUrl}/chat/completions`, {
+  // A person's own endpoint is the one host that is data, not config, and it
+  // goes through the gated dialer (lib/models/endpoint-guard.ts). Every other
+  // link's host is a fixed vendor from the table.
+  const doFetch = isOwnEndpointLink(link) ? guardedFetch : fetch;
+  const res = await doFetch(`${link.provider.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
+      ...(key ? { Authorization: `Bearer ${key}` } : {}),
       ...(input.own?.extraHeaders ?? {}),
     },
     body: JSON.stringify({

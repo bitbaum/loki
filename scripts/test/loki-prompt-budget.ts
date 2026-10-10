@@ -41,7 +41,7 @@ import {
   renderFacts,
   buildGroundedContext,
 } from "@bitbaum/ai-kit/grounding";
-import { byokChain } from "@bitbaum/ai-kit/byok";
+import { ownModelFrom } from "../../src/lib/own-model";
 
 let passed = 0;
 const check = (label: string, fn: () => void) => {
@@ -86,8 +86,9 @@ const OPENROUTER = {
   });
 
   check("a reader's OWN Groq key is not held to Loki's free-tier minute window", () => {
-    // Built by the real producer, so the own-key marker is ai-kit's, not ours.
-    const [own] = byokChain({
+    // Built by the real producer (Loki's, since 2026-10-10), so the own-key
+    // marker this reads is the one a real turn carries.
+    const [own] = ownModelFrom({
       vendor: "groq",
       model: "openai/gpt-oss-120b",
       apiKey: "gsk_not_a_real_key_1234",
