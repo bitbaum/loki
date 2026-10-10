@@ -47,8 +47,11 @@ export function OwnModelForm({
   existing: OwnModelRow[];
   /** Set = change this vendor's model with the stored key; no paste. */
   changeOnly: OwnModelRow | null;
-  /** `note` is set when the key was saved but needs a follow-up (unfunded). */
-  onSaved: (models: OwnModelRow[], note: string | null) => void;
+  /** What was saved, so the list can say it in a sentence and test it. */
+  onSaved: (
+    models: OwnModelRow[],
+    saved: { vendor: ByokVendorId; kind: "add" | "change"; unfunded: boolean },
+  ) => void;
   onCancel: (() => void) | null;
 }) {
   const [vendor, setVendor] = useState<ByokVendorId>(changeOnly?.vendor ?? BYOK_VENDORS[0]!.id);
@@ -122,12 +125,11 @@ export function OwnModelForm({
         model: model.trim(),
         ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
       });
-      onSaved(
-        data.models,
-        data.unfunded
-          ? `${info.label} key saved. It answers once the account has credits — see the billing link on its row.`
-          : null,
-      );
+      onSaved(data.models, {
+        vendor,
+        kind: changeOnly ? "change" : "add",
+        unfunded: Boolean(data.unfunded),
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save.");
     } finally {
@@ -192,14 +194,22 @@ export function OwnModelForm({
           >
             Get a key from {info.label} <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
           </a>
+          {/* type="text" + ui-input-secret, not type="password": masked the
+              same, but the browser's password manager no longer offers to
+              save an API key as the site's login. */}
           <input
-            type="password"
-            className="ui-input w-full font-mono"
+            type="text"
+            className="ui-input ui-input-secret w-full font-mono"
             placeholder={`Paste your ${info.label} key${info.keyHint ? ` (${info.keyHint})` : ""}`}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
             spellCheck={false}
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
             aria-label={`${info.label} API key`}
           />
         </div>

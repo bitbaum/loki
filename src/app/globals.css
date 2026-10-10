@@ -4155,6 +4155,14 @@
     @apply border-border-strong;
     box-shadow: 0 0 0 2px oklch(1 0 0 / 6%);
   }
+  /* A secret that is NOT a password: an API key typed here is masked like
+     one, but the field is type="text", so the browser's password manager
+     does not offer to save it as the site's login (Brave did, 2026-10-10).
+     Firefox has no text-security and shows the key as typed — the person's
+     own key, on their own screen, for the seconds it takes to paste. */
+  .ui-input-secret {
+    -webkit-text-security: disc;
+  }
   .ui-input-compact {
     @apply rounded-xl border border-border-default bg-surface-overlay px-3 py-2 text-base text-text-primary outline-none transition-colors placeholder:text-text-muted sm:text-sm;
   }
@@ -6974,8 +6982,13 @@
   }
   /* The choices as one rounded card with hairline rows — the grouped-list
      shape a phone settings sheet uses, so the sheet reads as native. */
+  /* `shrink-0` on the card AND its rows: in the phone sheet the card is a
+     flex item of a height-capped scroller, and flex items shrink by default —
+     so every row was squeezed to its 56px minimum and a two-line subtitle
+     spilled over the row below (seen on a real phone, 2026-10-10). The
+     scroller scrolls; the rows keep their height. */
   .ui-loki-model-card {
-    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl bg-surface-base;
+    @apply flex shrink-0 flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl bg-surface-base;
   }
   .ui-loki-model-sheet-head {
     @apply flex shrink-0 items-center px-2 pt-1 pb-2;
@@ -6989,7 +7002,7 @@
      a minimum of it is already compliant — this is the one row here where the
      floor and the natural height genuinely differ. */
   .ui-loki-model-row {
-    @apply flex w-full min-h-14 items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-raised disabled:cursor-not-allowed;
+    @apply flex w-full min-h-14 shrink-0 items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-raised disabled:cursor-not-allowed;
   }
   /* Real but unreachable. Listed and disabled with the reason, never hidden
      (which answers "why can't I pick it" with silence) and never fake-enabled

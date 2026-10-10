@@ -40,6 +40,17 @@ export const HTTP_TIMEOUT_LONG_MS = 30 * SECOND_MS;
 /** Outbound HTTP — the longest LLM calls (vision, plan generation). */
 export const HTTP_TIMEOUT_XL_MS = 45 * SECOND_MS;
 
+/**
+ * A model call is bounded by SILENCE, not by a stopwatch (lib/agent/call-timeout.ts).
+ * First byte: how long a vendor may think before saying anything. A user's
+ * own key may be on a reasoning model that thinks for a minute; the free
+ * chain is fast models and 30 s already means "down". Idle: bytes were
+ * flowing and stopped. Total: the hard ceiling whatever flows.
+ */
+export const MODEL_FIRST_BYTE_OWN_MS = 90 * SECOND_MS;
+export const MODEL_STREAM_IDLE_MS = 30 * SECOND_MS;
+export const MODEL_CALL_TOTAL_MS = 5 * 60 * SECOND_MS;
+
 /** Subprocess default — local CLI tools and git probes. */
 export const EXEC_TIMEOUT_MS = 15 * SECOND_MS;
 

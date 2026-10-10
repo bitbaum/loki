@@ -63,6 +63,14 @@ export type LokiWorkspaceProps = {
  * Client orchestrator for Loki's chat-first surface. History is the only
  * persistent rail; project scope is available on demand from the composer.
  */
+type SendOpts = {
+  selectedProjectsOverride?: string[];
+  dispatchOnly?: boolean;
+  chatOnly?: boolean;
+  /** Answer on the free chain this once, keys or not. */
+  pool?: "free";
+};
+
 export function LokiWorkspace({
   initialProjects,
   initialConversations,
@@ -404,7 +412,7 @@ export function LokiWorkspace({
     text: string,
     choice: ModelChoice = {},
     attachments: Attachment[] = [],
-    opts: { selectedProjectsOverride?: string[]; dispatchOnly?: boolean; chatOnly?: boolean } = {},
+    opts: SendOpts = {},
   ) => {
     const scopedProjects = opts.selectedProjectsOverride ?? selectedProjects;
     const dispatchOnly = opts.dispatchOnly ?? false;
@@ -449,6 +457,7 @@ export function LokiWorkspace({
       selectedProjects: scopedProjects,
       ...(dispatchOnly ? { dispatchOnly: true } : {}),
       ...(chatOnly ? { chatOnly: true } : {}),
+      ...(opts.pool ? { pool: opts.pool } : {}),
       // Model picker — omitted keys mean "Auto" (walk the whole chain).
       ...(choice.agent ? { agent: choice.agent } : {}),
       ...(choice.model ? { model: choice.model } : {}),
@@ -484,12 +493,15 @@ export function LokiWorkspace({
   // "Just answer" — the way out of a needs-project prompt the operator never
   // asked for. dispatchOnly skips the optimistic bubble (their message is
   // already in the transcript); chatOnly forces the answer path server-side.
-  const answerWithoutProject = (pendingText: string) => {
+  // `pool: "free"`: the same path under a turn the person's own model failed —
+  // the same words on the free chain, chosen by them, never silently.
+  const answerWithoutProject = (pendingText: string, pool?: "free") => {
     if (!activeId || !pendingText.trim()) return;
     void send(pendingText, {}, [], {
       selectedProjectsOverride: [],
       dispatchOnly: true,
       chatOnly: true,
+      ...(pool ? { pool } : {}),
     });
   };
 
@@ -555,6 +567,7 @@ export function LokiWorkspace({
         onStop={stream.stop}
         onPickProject={dispatchWithProject}
         onAnswerAnyway={answerWithoutProject}
+        onAnswerFree={(text) => answerWithoutProject(text, "free")}
         onRetry={lastSent ? retryLast : undefined}
         // A tapped reply goes on the model the operator last chose, as typing
         // it would — it used to fall back to Auto, so a reply could be answered

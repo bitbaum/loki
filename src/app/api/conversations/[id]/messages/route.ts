@@ -104,6 +104,9 @@ const Body = z
     // project" — without this the classifier can misread "review my fleet" as a
     // command and return a needs-project picker instead of Loki's answer.
     chatOnly: z.boolean().optional(),
+    // "free": answer on Loki's free chain this once, even with own keys set —
+    // the one-tap way out under a turn the person's own model failed.
+    pool: z.enum(["free"]).optional(),
   })
   .superRefine((data, ctx) => {
     const hasAttach = (data.attachments?.length ?? 0) > 0;
@@ -234,6 +237,7 @@ type TurnContext = {
   selectedProjects: string[];
   agent?: AdapterId;
   model?: string;
+  pool?: "free";
   attachments?: Attachment[];
   attachmentSuffix: string;
   hasImages: boolean;
@@ -634,6 +638,7 @@ async function chatReply(
         : `agent:main:web:conv:${ctx.conversationId}`,
       userId: ctx.userId,
       model: ctx.model,
+      pool: ctx.pool,
       // This answer lands in a thread with reply buttons under it.
       replies: true,
       // The thread so far, so the primary path has the same continuity the
@@ -660,6 +665,9 @@ async function chatReply(
       // is copied, spoken, saved to memory and fed back as history — never
       // carries the block it came in.
       ...(readReplies(loki.body).length > 0 ? { replies: readReplies(loki.body) } : {}),
+      // The person's own model failed this turn: the footer offers the free
+      // chain for the same words, one tap, chosen by them (see AskLokiOpts.pool).
+      ...(loki.body.fallbackFree === true ? { ownModelFailed: true, pendingText: ctx.text } : {}),
       // Provenance — which brain, which model, what was retrieved, which
       // tools ran, and whether the answer verified clean. Persisted whole:
       // this used to keep `model` and `sources` and drop `grounding`, so a
@@ -812,6 +820,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         attachmentSuffix,
         hasImages,
         chatOnly: Boolean(chatOnly),
+        ...(dataOrResp.pool ? { pool: dataOrResp.pool } : {}),
       };
 
       for (const fastPath of FAST_PATHS) {

@@ -8,6 +8,7 @@ import { WorkTrail } from "./WorkTrail";
 import {
   DispatchFooter,
   NeedsProjectPicker,
+  OwnModelFallbackOffer,
   QueuedActionFooter,
   RunOnProjectOffer,
   citationsFrom,
@@ -31,6 +32,7 @@ export function MessageTurn({
   message,
   onPickProject,
   onAnswerAnyway,
+  onAnswerFree,
   onRetry,
   question = null,
 }: {
@@ -40,6 +42,8 @@ export function MessageTurn({
   question?: string | null;
   onPickProject?: (project: string, pendingText: string) => void;
   onAnswerAnyway?: (pendingText: string) => void;
+  /** Under a turn the person's own model failed: the free chain, same words. */
+  onAnswerFree?: (pendingText: string) => void;
   /** Only passed for the last assistant turn — retrying an older one would
    *  fork the thread, which this transcript has no way to represent. */
   onRetry?: () => void;
@@ -88,6 +92,9 @@ export function MessageTurn({
       {message.kind === "chat" && <QueuedActionFooter meta={message.meta} />}
       {message.kind === "chat" && onPickProject && (
         <RunOnProjectOffer meta={message.meta} onPick={onPickProject} />
+      )}
+      {message.kind === "chat" && onAnswerFree && (
+        <OwnModelFallbackOffer meta={message.meta} onAnswerFree={onAnswerFree} />
       )}
 
       <AnswerActions text={message.content} onRetry={onRetry} report={{ question }} />
