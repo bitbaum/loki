@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUp, Check, ExternalLink, KeyRound, Loader2, Plus } from "lucide-react";
+import { ArrowUp, Check, ExternalLink, KeyRound, Loader2, Plus, Zap } from "lucide-react";
 import { byokVendor } from "@bitbaum/ai-kit/byok";
 import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
 import { OwnModelForm } from "./OwnModelForm";
@@ -31,6 +31,13 @@ type Usage = {
 };
 type Billing = Record<string, { billingUrl: string; limit: string }>;
 
+type TestResult =
+  | { state: "running" }
+  | { state: "ok"; ms: number; answer: string }
+  | { state: "failed"; ms: number; message: string };
+
+const label = (vendor: string) => byokVendor(vendor as never)?.label ?? vendor;
+
 const count = (n: number) => n.toLocaleString("en-CH");
 
 export function OwnModelSettings() {
@@ -42,8 +49,15 @@ export function OwnModelSettings() {
   const [mode, setMode] = useState<Mode>({ kind: "list" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** One line after a save that needs a follow-up (an unfunded key). */
-  const [savedNote, setSavedNote] = useState<string | null>(null);
+  /**
+   * One line after every change — added, changed, moved, removed — so the
+   * person SEES that what they did took, instead of a list that silently
+   * re-rendered (George, 2026-10-10: "some feedback like the model
+   * successfully added"). A warning tone when the key still needs something.
+   */
+  const [note, setNote] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
+  /** The last real turn per vendor: answered in N s, or what went wrong. */
+  const [tests, setTests] = useState<Record<string, TestResult>>({});
 
   useEffect(() => {
     let alive = true;
@@ -71,12 +85,17 @@ export function OwnModelSettings() {
     };
   }, []);
 
-  async function act(run: () => Promise<{ models: OwnModelRow[] }>, failure: string) {
+  async function act(
+    run: () => Promise<{ models: OwnModelRow[] }>,
+    failure: string,
+    done: (models: OwnModelRow[]) => string,
+  ) {
     setBusy(true);
     setError(null);
     try {
       const data = await run();
       setModels(data.models);
+      setNote({ tone: "ok", text: done(data.models) });
     } catch (e) {
       setError(e instanceof Error ? e.message : failure);
     } finally {
@@ -91,14 +110,48 @@ export function OwnModelSettings() {
     void act(
       () => ownModelRequest("/api/settings/model", "PATCH", { order }),
       "Couldn't reorder your models.",
+      (next) => `Order saved. Loki now starts with ${label(next[0]!.vendor)} · ${next[0]!.model}.`,
     );
   }
 
   function remove(row: OwnModelRow) {
+    setTests((t) => {
+      const { [row.vendor]: _gone, ...rest } = t;
+      return rest;
+    });
     void act(
       () => ownModelRequest("/api/settings/model", "DELETE", { vendor: row.vendor }),
       "Couldn't remove that key.",
+      (next) =>
+        next.length === 0
+          ? `${label(row.vendor)} key removed. Loki is back on its free models.`
+          : `${label(row.vendor)} key removed. Loki now starts with ${label(next[0]!.vendor)}.`,
     );
+  }
+
+  /** One real, tiny turn on that key: "it answered in 1.3 s" beats "saved". */
+  async function test(vendor: string) {
+    setTests((t) => ({ ...t, [vendor]: { state: "running" } }));
+    try {
+      const r = await ownModelRequest<
+        { ok: true; ms: number; answer: string } | { ok: false; ms: number; message: string }
+      >("/api/settings/model/test", "POST", { vendor });
+      setTests((t) => ({
+        ...t,
+        [vendor]: r.ok
+          ? { state: "ok", ms: r.ms, answer: r.answer }
+          : { state: "failed", ms: r.ms, message: r.message },
+      }));
+    } catch (e) {
+      setTests((t) => ({
+        ...t,
+        [vendor]: {
+          state: "failed",
+          ms: 0,
+          message: e instanceof Error ? e.message : "Couldn't test.",
+        },
+      }));
+    }
   }
 
   const showForm = loaded && available && (mode.kind !== "list" || models.length === 0);
@@ -132,27 +185,36 @@ export function OwnModelSettings() {
         </p>
       )}
 
-      {savedNote && (
-        <p className="ui-callout-warning" role="status">
-          {savedNote}
+      {note && (
+        <p
+          className={note.tone === "ok" ? "ui-callout-positive" : "ui-callout-warning"}
+          role="status"
+        >
+          <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1">{note.text}</span>
         </p>
       )}
 
+      {/* `basis-56` on each row's text block: without a basis the buttons took
+          their width first and the text was squeezed into a column a few
+          characters wide, wrapping "grok-4.7" letter by letter on a phone
+          (2026-10-10). Now the text keeps at least 14rem and the buttons wrap
+          under it when the row is narrower than both. */}
       {loaded && available && models.length > 0 && (
         <ol className="divide-y divide-border-subtle rounded-lg border border-border-subtle">
           {models.map((row, index) => (
-            <li key={row.vendor} className="flex flex-wrap items-start gap-3 px-3 py-3">
+            <li key={row.vendor} className="flex flex-wrap items-start gap-x-3 gap-y-2 px-3 py-3">
               <Check className="mt-1 h-4 w-4 shrink-0 text-status-positive" aria-hidden="true" />
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-56">
                 <p className="font-medium text-text-primary">
-                  {byokVendor(row.vendor)?.label ?? row.vendor} ·{" "}
-                  <span className="break-all">{row.model}</span>
+                  {label(row.vendor)} · <span className="break-words">{row.model}</span>
                 </p>
                 <p className="text-xs text-text-secondary">
                   {index === 0 ? "Loki starts here · " : `Tried ${ordinal(index + 1)} · `}
                   key {row.keyHint} · checked {new Date(row.verifiedAt).toLocaleDateString()}
                 </p>
                 <UsageLine usage={usage.find((u) => u.vendor === row.vendor)} />
+                <TestLine result={tests[row.vendor]} />
                 {billing[row.vendor] && (
                   <a
                     href={billing[row.vendor]!.billingUrl}
@@ -166,7 +228,16 @@ export function OwnModelSettings() {
                   </a>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="ui-btn-secondary text-xs"
+                  onClick={() => void test(row.vendor)}
+                  disabled={busy || tests[row.vendor]?.state === "running"}
+                  title="Send one short question on this key and time the answer"
+                >
+                  <Zap className="h-3.5 w-3.5" aria-hidden="true" /> Test
+                </button>
                 <button
                   type="button"
                   className="ui-btn-secondary text-xs"
@@ -223,10 +294,28 @@ export function OwnModelSettings() {
             key={mode.kind === "change" ? `change:${mode.row.vendor}` : mode.kind}
             existing={models}
             changeOnly={mode.kind === "change" ? mode.row : null}
-            onSaved={(next, note) => {
+            onSaved={(next, saved) => {
               setModels(next);
               setMode({ kind: "list" });
-              setSavedNote(note);
+              const row = next.find((m) => m.vendor === saved.vendor);
+              const name = `${label(saved.vendor)} · ${row?.model ?? ""}`;
+              if (saved.unfunded) {
+                setNote({
+                  tone: "warn",
+                  text: `${name} saved. It answers once the account has credits — see the billing link on its row.`,
+                });
+                return;
+              }
+              setNote({
+                tone: "ok",
+                text:
+                  saved.kind === "change"
+                    ? `${name} — model changed. Testing it now…`
+                    : next[0]?.vendor === saved.vendor
+                      ? `${name} added. Loki starts here now. Testing it…`
+                      : `${name} added as your ${ordinal(next.findIndex((m) => m.vendor === saved.vendor) + 1)} model. Testing it…`,
+              });
+              void test(saved.vendor);
             }}
             onCancel={models.length > 0 ? () => setMode({ kind: "list" }) : null}
           />
@@ -256,6 +345,32 @@ function UsageLine({ usage }: { usage: Usage | undefined }) {
   );
 }
 
+/** The last real turn on this key: proof it works, with its time. */
+function TestLine({ result }: { result: TestResult | undefined }) {
+  if (!result) return null;
+  if (result.state === "running") {
+    return (
+      <p className="flex items-center gap-1.5 text-xs text-text-muted" role="status">
+        <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> Asking it one short
+        question…
+      </p>
+    );
+  }
+  if (result.state === "ok") {
+    return (
+      <p className="text-xs text-status-positive" role="status">
+        Answered in {(result.ms / 1000).toFixed(1)} s
+        {result.answer ? <span className="text-text-secondary"> — “{result.answer}”</span> : null}
+      </p>
+    );
+  }
+  return (
+    <p className="text-xs text-status-negative" role="status">
+      Didn&apos;t answer ({(result.ms / 1000).toFixed(1)} s): {result.message}
+    </p>
+  );
+}
+
 function ordinal(n: number): string {
-  return n === 2 ? "second" : n === 3 ? "third" : `${n}th`;
+  return n === 1 ? "first" : n === 2 ? "second" : n === 3 ? "third" : `${n}th`;
 }

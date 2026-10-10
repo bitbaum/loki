@@ -55,6 +55,7 @@ export function Thread({
   onStop,
   onPickProject,
   onAnswerAnyway,
+  onAnswerFree,
   onRetry,
   onFollowUp,
   tail,
@@ -69,6 +70,8 @@ export function Thread({
   onStop: () => void;
   onPickProject?: (project: string, pendingText: string) => void;
   onAnswerAnyway?: (pendingText: string) => void;
+  /** Under a turn the person's own model failed: the free chain, same words. */
+  onAnswerFree?: (pendingText: string) => void;
   onRetry?: () => void;
   /** Send a suggested follow-up as the next message. Omit to show none. */
   onFollowUp?: (text: string) => void;
@@ -161,6 +164,7 @@ export function Thread({
               }
               onPickProject={onPickProject}
               onAnswerAnyway={onAnswerAnyway}
+              onAnswerFree={onAnswerFree}
               onRetry={onRetry && m.id === lastAssistant?.id ? onRetry : undefined}
             />
           ))}

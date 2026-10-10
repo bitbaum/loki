@@ -28,7 +28,13 @@
  * model routinely breaks nested-JSON escaping. The format is chosen for the
  * weakest model expected to run it, not the strongest.
  */
-import { HTTP_TIMEOUT_LONG_MS } from "@/lib/constants/time";
+import {
+  HTTP_TIMEOUT_LONG_MS,
+  MODEL_CALL_TOTAL_MS,
+  MODEL_FIRST_BYTE_OWN_MS,
+  MODEL_STREAM_IDLE_MS,
+} from "@/lib/constants/time";
+import { createCallTimeout } from "@/lib/agent/call-timeout";
 import { classifyGroqLimit, groqRetryAfterSeconds, humanizeWait } from "@/lib/agent/groq-error";
 import { chainFrom, linkPromptCeilingTokens, type ChatLink } from "@/config/chat-models";
 import { keyForLink, type OwnModel } from "@/lib/own-model";
@@ -347,6 +353,33 @@ async function callOneLink(
   input: ModelCallInput,
   tools: Array<Record<string, unknown>>,
 ): Promise<ModelTurn> {
+  // Bounded by silence, not a stopwatch: a reasoning model on the user's own
+  // key may think for a minute before its first token, and a long answer may
+  // stream for two. What a hung vendor looks like is no byte at all, or bytes
+  // that stop — see call-timeout.ts. The free chain keeps its 30 s first byte:
+  // those are fast models, and 30 s of nothing there already means "down".
+  const timeout = createCallTimeout({
+    firstByteMs: input.timeoutMs ?? (input.own ? MODEL_FIRST_BYTE_OWN_MS : HTTP_TIMEOUT_LONG_MS),
+    idleMs: MODEL_STREAM_IDLE_MS,
+    totalMs: MODEL_CALL_TOTAL_MS,
+  });
+  try {
+    return await callOneLinkWithin(link, input, tools, timeout);
+  } catch (e) {
+    const why = timeout.reason();
+    if (why) throw new LinkError("other", `${link.model} ${why}`);
+    throw e;
+  } finally {
+    timeout.done();
+  }
+}
+
+async function callOneLinkWithin(
+  link: ChatLink,
+  input: ModelCallInput,
+  tools: Array<Record<string, unknown>>,
+  timeout: ReturnType<typeof createCallTimeout>,
+): Promise<ModelTurn> {
   const key = keyForLink(link, input.own);
   if (!key) {
     throw new LinkError(
@@ -377,8 +410,10 @@ async function callOneLink(
       max_tokens: input.maxTokens ?? 1400,
       temperature: input.temperature ?? 0.2,
     }),
-    signal: AbortSignal.timeout(input.timeoutMs ?? HTTP_TIMEOUT_LONG_MS),
+    signal: timeout.signal,
   });
+  // Headers are the first byte: the vendor is alive and answering.
+  timeout.sawByte();
 
   // Learn what is left at this vendor from the answer we already paid for.
   // Success AND refusal both disclose it, and the refusal is the more valuable
@@ -431,7 +466,9 @@ async function callOneLink(
     );
   }
 
-  const raw = input.sink ? await readStreamedBody(res, input.sink) : await readBufferedBody(res);
+  const raw = input.sink
+    ? await readStreamedBody(res, input.sink, timeout.sawByte)
+    : await readBufferedBody(res);
   // Reasoning first, then tool lines. Order matters: a model's `<think>` block
   // routinely REHEARSES the call it is about to make ("I should use TOOL:
   // search_people…"), and parsing that rehearsal as a real call runs a tool the
@@ -675,7 +712,11 @@ export function createProseGate(
 // the frame carrying `finish_reason` usually carries no delta, so reading the
 // stop reason after the `if (!delta) return` guard throws away the only field
 // that says whether the prose above is whole.
-export async function readStreamedBody(res: Response, sink: StreamSink): Promise<RawBody> {
+export async function readStreamedBody(
+  res: Response,
+  sink: StreamSink,
+  onByte?: () => void,
+): Promise<RawBody> {
   const body = res.body;
   if (!body) throw new LinkError("other", "streamed response had no body");
 
@@ -687,37 +728,41 @@ export async function readStreamedBody(res: Response, sink: StreamSink): Promise
   const calls = new Map<number, { id?: string; name: string; args: string }>();
   const gate = createProseGate(sink.delta, sink.reset);
 
-  await readSseChunks(body, (chunk) => {
-    // Usage rides the final chunk (stream_options.include_usage) and is what
-    // the day's budget is charged against — never estimated.
-    if (chunk.usage?.total_tokens) usageTokens = chunk.usage.total_tokens;
+  await readSseChunks(
+    body,
+    (chunk) => {
+      // Usage rides the final chunk (stream_options.include_usage) and is what
+      // the day's budget is charged against — never estimated.
+      if (chunk.usage?.total_tokens) usageTokens = chunk.usage.total_tokens;
 
-    const stop = chunk.choices?.[0]?.finish_reason;
-    if (stop) finishReason = stop;
+      const stop = chunk.choices?.[0]?.finish_reason;
+      if (stop) finishReason = stop;
 
-    const delta = chunk.choices?.[0]?.delta;
-    // NB: read the stop reason BEFORE this guard. The frame that carries
-    // `finish_reason` routinely carries an empty delta, so returning early on a
-    // missing delta would throw away the only field that says whether the
-    // answer above is whole.
-    if (!delta) return;
+      const delta = chunk.choices?.[0]?.delta;
+      // NB: read the stop reason BEFORE this guard. The frame that carries
+      // `finish_reason` routinely carries an empty delta, so returning early on a
+      // missing delta would throw away the only field that says whether the
+      // answer above is whole.
+      if (!delta) return;
 
-    if (delta.content) {
-      text += delta.content;
-      gate.push(delta.content);
-    }
+      if (delta.content) {
+        text += delta.content;
+        gate.push(delta.content);
+      }
 
-    // Native calls arrive in fragments keyed by index: the name lands in the
-    // first fragment and the JSON arguments accumulate across many.
-    for (const tc of delta.tool_calls ?? []) {
-      const idx = tc.index ?? 0;
-      const slot = calls.get(idx) ?? { name: "", args: "" };
-      if (tc.id) slot.id = tc.id;
-      if (tc.function?.name) slot.name += tc.function.name;
-      if (tc.function?.arguments) slot.args += tc.function.arguments;
-      calls.set(idx, slot);
-    }
-  });
+      // Native calls arrive in fragments keyed by index: the name lands in the
+      // first fragment and the JSON arguments accumulate across many.
+      for (const tc of delta.tool_calls ?? []) {
+        const idx = tc.index ?? 0;
+        const slot = calls.get(idx) ?? { name: "", args: "" };
+        if (tc.id) slot.id = tc.id;
+        if (tc.function?.name) slot.name += tc.function.name;
+        if (tc.function?.arguments) slot.args += tc.function.arguments;
+        calls.set(idx, slot);
+      }
+    },
+    onByte,
+  );
 
   // The trailing line has no newline to prove it complete, but the stream
   // ending proves it.

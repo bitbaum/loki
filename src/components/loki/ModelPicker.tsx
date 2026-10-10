@@ -242,5 +242,7 @@ function providerName(id: string): string {
     openrouter: "OpenRouter",
     openai: "OpenAI",
   };
-  return known[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
+  if (known[id]) return known[id];
+  // A label already cased by its vendor ("xAI", from the user's own rows) stays as it is.
+  return /[A-Z]/.test(id) ? id : id.charAt(0).toUpperCase() + id.slice(1);
 }

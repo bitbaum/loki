@@ -13,7 +13,7 @@
  */
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ListChecks, MessageCircle, TerminalSquare } from "lucide-react";
+import { ArrowRight, ListChecks, MessageCircle, Sparkles, TerminalSquare } from "lucide-react";
 import type { CitationMap } from "@/components/ui/markdown-text";
 import {
   deriveMultiDispatchView,
@@ -278,6 +278,33 @@ export function NeedsProjectPicker({
  * to that project. It replaced a turn that stopped and asked "which project?"
  * before answering anything — a form where a reply should have been.
  */
+/**
+ * Under a turn the person's own model failed: the free chain, for the same
+ * words, in one tap. Never automatic — their key failing is the one thing
+ * they need to see — but never a dead end either.
+ */
+export function OwnModelFallbackOffer({
+  meta,
+  onAnswerFree,
+}: {
+  meta: Record<string, unknown> | null;
+  onAnswerFree: (pendingText: string) => void;
+}) {
+  if (!meta?.ownModelFailed || typeof meta.pendingText !== "string") return null;
+  return (
+    <div className="ui-loki-run-offer">
+      <button
+        type="button"
+        className="ui-loki-picker-answer"
+        onClick={() => onAnswerFree(meta.pendingText as string)}
+      >
+        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+        Answer with the free models instead
+      </button>
+    </div>
+  );
+}
+
 export function RunOnProjectOffer({
   meta,
   onPick,

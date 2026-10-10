@@ -6,6 +6,30 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — Your model gets time to think, and you see that it works
+
+- **A model call is bounded by silence, not by a stopwatch.** A 30-second cap
+  on the whole call killed the first real turn on a user's own key: grok-4.7
+  thought for longer than that before its first word. Now a vendor may take
+  up to 90 seconds to say anything on your own key, may stream for up to
+  five minutes, and is only cut off when it goes silent for 30 seconds — and
+  the sentence you get says which of those happened.
+- **Your model failed? One tap answers on the free models.** Under such a
+  turn a button sends the same words on Loki's free chain, for that turn
+  only. Loki never switches silently: your key failing is the one thing you
+  need to see.
+- **Every key action says what it did.** Adding a key reads "xAI · grok-4.7
+  added. Loki starts here now. Testing it…" and then "Answered in 1.3 s —
+  ‘Hello, I'm Grok.’": a real, tiny turn on the key, timed, so "added" is
+  backed by an answer. A **Test** button on each row repeats it; changing,
+  re-ordering and removing say what changed.
+- **Screens that lay out on a phone.** The model picker's rows were being
+  squeezed in the bottom sheet and overlapped; a key's row in Settings
+  wrapped its model name letter by letter. Both fixed; "xAI" is no longer
+  shown as "XAI".
+- **No more "update password?"** The key field is masked but is not a
+  password field, so the browser stops offering to save your API key as the
+  site's login.
 ## 2026-10-10 — The night works from what you said, and no further than you allow
 
 - **Autopilot overnight, with a budget.** While you sleep, Loki builds from

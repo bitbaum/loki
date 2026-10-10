@@ -45,6 +45,8 @@ export type SseDelta = {
 export async function readSseChunks(
   body: ReadableStream<Uint8Array>,
   onChunk: (chunk: SseDelta) => void,
+  /** Called on every raw read, frame or not — the liveness signal a silence-bounded timeout re-arms on. */
+  onByte?: () => void,
 ): Promise<void> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -54,6 +56,7 @@ export async function readSseChunks(
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      onByte?.();
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       // Whatever follows the last newline may be half a frame.

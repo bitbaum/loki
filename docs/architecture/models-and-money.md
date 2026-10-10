@@ -125,6 +125,22 @@ and the model is typed by hand since the vendor would not list any. The
 next turn works the moment the vendor's meter does, and when it does not,
 the turn's error says so with the same link.
 
+### Time to think, and proof that it works
+
+A model call is bounded by silence, not by a stopwatch
+(`lib/agent/call-timeout.ts`): a first byte within 90 s on your own key
+(30 s on the free chain, whose models are fast), then at most 30 s between
+bytes, and a five-minute ceiling whatever flows. The old single 30-second
+cap killed the first real turn on a reasoning model. When a turn on your key
+does fail, the thread says what happened in the vendor's terms and offers
+one tap to answer the same words on the free chain, for that turn only —
+never a silent switch (`AskLokiOpts.pool`).
+
+"Added" is backed by an answer: right after a funded save, and on each
+row's **Test** button, `/api/settings/model/test` sends one short question
+on that key and reports the time and the reply. The probe proves the vendor
+knows the key; the test proves the model answers.
+
 ### Counting what your keys spend
 
 A turn on your own key is deliberately kept out of Loki's two pool meters

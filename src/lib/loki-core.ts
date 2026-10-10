@@ -225,6 +225,13 @@ export type AskLokiOpts = {
    *  turn itself, which always started at LOKI_MODEL. */
   model?: string;
   /**
+   * "free": answer on Loki's free chain even though the user brought keys.
+   * The one-tap way out under a turn their own model failed — chosen by the
+   * person for this turn, never silently by the server (which would spend
+   * the pool they opted out of and hide that their key stopped working).
+   */
+  pool?: "free";
+  /**
    * The answer lands in a chat that shows suggested replies under it. The
    * model is asked for them, and they come back as `body.replies` — never
    * inside `body.text`, which is what gets stored, copied, spoken and titled.
@@ -251,7 +258,8 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
   // an option a route could set would be a way to claim it.
   const operator = await isOperatorTurn(opts?.userId);
 
-  const own = opts?.userId ? await loadOwnModel(opts.userId, opts?.model) : null;
+  const own =
+    opts?.userId && opts.pool !== "free" ? await loadOwnModel(opts.userId, opts?.model) : null;
   if (own && opts?.userId) {
     return askLokiOnOwnModel(message, { ...opts, userId: opts.userId }, own, startedAt, operator);
   }
@@ -423,13 +431,19 @@ async function askLokiOnOwnModel(
       raw,
     );
     console.error(`[loki] own model (${own.label}) failed:`, detail);
+    // The walker's own wrapper ("no chat model answered: ") is plumbing: with
+    // one vendor in the chain the sentence is about that vendor, and the
+    // reader should get the vendor's part — "grok-4.7 no answer within 90 s".
+    const said = detail.replace(/^no chat model answered:\s*/, "").slice(0, 240);
     return {
       status: 502,
       body: {
         error:
-          `Your model (${own.label}) didn't answer: ${detail.slice(0, 240)}. ` +
-          "Check the key or pick another model in Settings → AI.",
+          `Your model (${own.label}) didn't answer — ${said}. ` +
+          "Try again, answer on the free models this once, or check the key in Settings → AI.",
         settingsUrl: OWN_MODEL_SETTINGS_PATH,
+        // The thread offers "answer with the free models" under this turn.
+        fallbackFree: true,
       },
     };
   }
