@@ -314,7 +314,14 @@ const report = (id: string, projectId: string, over: Partial<NightReport> = {}):
   const refused = nightNoteText({
     budget: 4,
     approval: NIGHT_APPROVAL.APPROVED,
-    fixes: [{ feedbackId: "a", projectName: "kestrel", runId: null, why: "no builder online" }],
+    fixes: [
+      {
+        feedbackId: "a",
+        projectName: "kestrel",
+        runId: null,
+        why: "Injection failed: no builder online. Connect Fleet Runner on this computer to run agent work.",
+      },
+    ],
     reads: [],
     archived: 0,
     rerouted: 0,

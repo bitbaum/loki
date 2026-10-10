@@ -86,9 +86,9 @@ Who: the owner checking in. One question: is anything waiting on me?
 
 | | |
 |---|---|
-| Today | Three lenses, by who acts: **Needs you · Under way · Done**. A row's badge names its state in the same family — "Live — check it", "Failed", "Not started", "Done" — and its colour follows who acts: amber when it is yours, red when it broke, green only when nothing waits on you. |
-| What broke it | The lens said "Shipped", the rows in it said "Done", and rows under "Needs you" wore a green "Shipped · confirm" — three words and two colours for two states. One vocabulary from this change. |
-| Still owed | A failed row offers three buttons (provider switch · Retry · Watch). One primary, the rest behind it. |
+| Today | Three lenses, by who acts: **Needs you · Under way · Done**, each with its meaning in one line under the strip. Every row is the same paragraph: **what the state is** (one bold sentence — "The fix is live on /pricing.", "An agent is working on it — 4 min so far.", "The attempt failed."), the report, where and when, **what happens now** ("Look at it, then say whether it worked." / "Nothing to do; it starts by itself."), and the moves — every control a verb that names its destination: *See the fix on the site*, *It worked*, *Not fixed*, *Watch in Terminal*, *Agent's chat*, *Build it*, *Try again*, *File away*. No bare icons. `src/lib/feedback/row-story.ts` writes the sentences from the honest phase; the row only places them. |
+| What broke it | Rebuilt 2026-10-10. The owner's reading on a phone: "it says live check it or needs you — it doesn't explain why it needs me and what I need to do … Watch what? Where would I be taken? … I don't know what the star is, and I don't know what that arrow is." A status WORD, a report and a set of buttons left the sentence between them to the reader; "Watch" and "Watch the fix" meant different places on different lenses. Before that, three words and two colours for two states (fixed earlier the same day). |
+| Still owed | A failed row still offers three moves (provider switch · Try again · Watch in Terminal). Under way has no "stop this run". |
 
 ## Rules these paths impose
 

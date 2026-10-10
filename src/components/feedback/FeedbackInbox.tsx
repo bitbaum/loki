@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FeedbackItemRow } from "@/components/feedback/FeedbackItemRow";
 import { useFeedbackActions } from "@/components/feedback/use-feedback-actions";
 import { foldSameFailures, SHIPPED_SHOWN } from "@/lib/feedback/inbox-groups";
+import { LENS_MEANING } from "@/lib/feedback/row-story";
 import { cn } from "@/lib/utils";
 
 type InboxItem = UserFeedbackListItem & { work: FeedbackWorkView };
@@ -254,6 +255,11 @@ export function FeedbackInbox() {
         ))}
       </div>
 
+      {/* What the open lens MEANS, in one line: the reader should never have
+          to infer the page's words from its buttons (owner, 2026-10-10: "it
+          doesn't explain why it needs me and what exactly I need to do"). */}
+      <p className="ui-fb-lens-hint">{LENSES.find((l) => l.key === lens)?.hint}</p>
+
       {/* Filters earn their place only when they can change what is shown:
           one project needs no project picker, one source no source picker. */}
       {(showProjectPicker || showSourcePicker) && (
@@ -398,21 +404,9 @@ type Lens = (typeof LENS)[keyof typeof LENS];
 
 /** Order is the loop's order: your move → moving on its own → done. */
 const LENSES: { key: Lens; label: string; hint: string }[] = [
-  {
-    key: LENS.NEEDS_YOU,
-    label: "Needs you",
-    hint: "Your move — implement, retry, or confirm a fix that is live.",
-  },
-  {
-    key: LENS.UNDER_WAY,
-    label: "Under way",
-    hint: "Agents and deploys at work. Nothing for you to do — Telegram when there is.",
-  },
-  {
-    key: LENS.SHIPPED,
-    label: "Done",
-    hint: "Fixes you confirmed. Star one to feature it on the public strip.",
-  },
+  { key: LENS.NEEDS_YOU, label: "Needs you", hint: LENS_MEANING.needsYou },
+  { key: LENS.UNDER_WAY, label: "Under way", hint: LENS_MEANING.underWay },
+  { key: LENS.SHIPPED, label: "Done", hint: LENS_MEANING.done },
 ];
 
 /** The first lens that holds something; Needs you when all are empty. Pure. */

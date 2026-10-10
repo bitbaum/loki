@@ -5096,6 +5096,9 @@
   }
   /* One quiet line of pickers under the lenses; absent when nothing can be
      narrowed. The numbers close the page in .ui-fb-foot. */
+  .ui-fb-lens-hint {
+    @apply px-1 text-xs leading-snug text-text-tertiary;
+  }
   .ui-fb-filterbar {
     @apply flex flex-wrap items-center gap-2;
   }
@@ -5124,14 +5127,25 @@
   .ui-fb-row > button {
     @apply self-start;
   }
-  .ui-fb-row-context {
-    @apply flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-text-tertiary;
+  /* The row's five parts (FeedbackItemRow): headline, report, where, next,
+     moves. The headline's colour is whose move it is — warm when it is the
+     reader's, quiet when a machine has it, green only when it is done. */
+  .ui-fb-row-headline {
+    @apply text-sm font-semibold leading-snug text-text-primary;
   }
-  /* The words wrap as one sentence; only the badges are boxes. */
-  .ui-fb-row-context-words {
-    @apply min-w-0 leading-relaxed;
+  .ui-fb-row-headline-you {
+    color: var(--status-warning);
   }
-  .ui-fb-row-context-sep {
+  .ui-fb-row-headline-done {
+    color: var(--status-positive);
+  }
+  .ui-fb-row-headline-quiet {
+    @apply text-text-tertiary;
+  }
+  .ui-fb-row-where {
+    @apply min-w-0 text-xs leading-relaxed text-text-tertiary;
+  }
+  .ui-fb-row-where-sep {
     @apply text-text-muted;
   }
   .ui-fb-row-target {
@@ -5140,26 +5154,32 @@
   .ui-fb-row-project {
     @apply font-medium text-text-secondary underline-offset-2 hover:underline;
   }
-  .ui-fb-row-why {
+  .ui-fb-row-next {
     @apply text-xs leading-snug text-text-secondary;
-  }
-  .ui-fb-row-why-quiet {
-    @apply text-xs leading-snug text-text-muted;
   }
   .ui-fb-row-actions {
     @apply mt-1.5 flex flex-wrap items-center gap-1.5;
   }
-  .ui-fb-row-utility {
-    @apply ml-auto flex items-center gap-0.5;
+  /* The ways out: text, after the moves, never icons to decode. */
+  .ui-fb-row-quiet {
+    @apply ml-auto flex flex-wrap items-center gap-x-3 gap-y-1;
+  }
+  .ui-fb-row-quiet-btn {
+    @apply min-h-9 text-xs text-text-tertiary underline-offset-2 transition-colors hover:text-text-secondary hover:underline disabled:opacity-50;
+  }
+  .ui-fb-row-details {
+    @apply text-xs text-text-muted;
+  }
+  .ui-fb-row-details > summary {
+    @apply min-h-9 cursor-pointer list-none py-1 hover:text-text-secondary;
+  }
+  .ui-fb-row-details > ul {
+    @apply mt-1 space-y-1 border-l border-border-subtle pl-3;
   }
   /* One height for every control in the bar, whatever component drew it
-     (WatchFixButton, ProviderSwitch and the Watch toggle each pick their own
-     variant). Variant stays theirs; size is the bar's. */
+     (WatchFixButton and ProviderSwitch each pick their own variant). */
   .ui-fb-row-actions :is(.ui-btn-save, .ui-btn-secondary, .ui-btn-primary) {
     @apply min-h-9 gap-1.5 rounded-lg px-3 py-1.5 text-xs;
-  }
-  .ui-fb-row-actions .ui-btn-icon {
-    @apply h-9 w-9 p-0;
   }
   .ui-fb-fold {
     @apply py-1;
