@@ -182,6 +182,16 @@ export type NightSummary = {
   skipped: NightPlan["skipped"];
 };
 
+/** A refusal as one short clause: the first sentence, without the executor's
+ *  "Injection failed:" prefix, capped — a morning note is read on a phone. */
+function shortWhy(why: string | undefined): string | null {
+  if (!why) return null;
+  const clean = why.replace(/^[A-Za-z ]+failed:\s*/i, "").trim();
+  const first = clean.split(/(?<=[.!?])\s/)[0] ?? clean;
+  const cut = first.replace(/[.]$/, "");
+  return cut.length > 90 ? `${cut.slice(0, 89)}…` : cut;
+}
+
 /** Runs the night actually started. */
 export function nightRunsStarted(s: NightSummary): number {
   return s.fixes.filter((f) => f.runId).length + s.reads.filter((r) => r.runId).length;
@@ -207,7 +217,7 @@ export function nightNoteText(s: NightSummary, spentUsd?: number | null): string
   const approved =
     s.approval === NIGHT_APPROVAL.APPROVED || s.approval === NIGHT_APPROVAL.ALLOWANCE;
   if (approved && planned > 0 && nightRunsStarted(s) === 0) {
-    const why = s.fixes.find((f) => f.why)?.why;
+    const why = shortWhy(s.fixes.find((f) => f.why)?.why);
     parts.push(
       `could not start the ${planned} ${planned === 1 ? "run" : "runs"} you approved${why ? ` (${why})` : ""}`,
     );

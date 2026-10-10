@@ -6,6 +6,23 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — Feedback says what it means
+
+- **Every report now reads as one paragraph.** What the state is, in one
+  bold sentence ("The fix is live on /pricing.", "An agent is working on it
+  — 4 min so far.", "The attempt failed: the agent ran out of quota."); the
+  report; where and when; then what happens now ("Look at it, then say
+  whether it worked." / "Nothing to do; it starts by itself."). Before, a
+  status word and a row of buttons left all of that to you.
+- **Every button is a verb that names where it goes.** "See the fix on the
+  site" (the live page, with Loki's walkthrough), "Watch in Terminal" and
+  "Agent's chat" (this run's session, live), "It worked" / "Not fixed",
+  "Build it", "Try again", "File away", "Show on the public strip". The
+  unexplained star and arrow icons are gone.
+- **Each lens says what it means** in one line under the strip: Needs you
+  waits for one decision from you per row; Under way is agents and deploys
+  at work; Done is fixes you confirmed.
+
 ## 2026-10-10 — One Loki on your site
 
 - **The owner's launcher is one thing, always in one place.** On your own

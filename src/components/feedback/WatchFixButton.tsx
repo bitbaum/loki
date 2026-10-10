@@ -53,10 +53,10 @@ export function WatchFixButton({
         onClick={() => void open()}
         disabled={busy}
         className={cn("ui-btn-save gap-1", size === "sm" && "ui-btn-sm")}
-        title="Open the live page and watch Loki walk you through the change"
+        title="Opens the live page in a new tab; Loki points at each part of the change and says why"
       >
         {busy ? <Loader2 className="ui-spinner-xs" /> : <Play className="h-3 w-3" />}
-        Watch the fix
+        See the fix on the site
       </button>
       <ShareWatchButton feedbackId={feedbackId} size={size} />
     </>
@@ -100,7 +100,7 @@ function ShareWatchButton({ feedbackId, size }: { feedbackId: string; size: "sm"
       onClick={() => void share()}
       disabled={state === "busy"}
       className={cn("ui-btn-secondary gap-1", size === "sm" && "ui-btn-sm")}
-      title="Copy a link anyone can open to watch this change on the live site"
+      title="A link anyone can open to see this change walked through on the live site"
     >
       {state === "busy" ? (
         <Loader2 className="ui-spinner-xs" />
@@ -109,7 +109,11 @@ function ShareWatchButton({ feedbackId, size }: { feedbackId: string; size: "sm"
       ) : (
         <Share2 className="h-3 w-3" />
       )}
-      {state === "copied" ? "Link copied" : state === "failed" ? "Couldn't share" : "Share"}
+      {state === "copied"
+        ? "Link copied"
+        : state === "failed"
+          ? "Couldn't share"
+          : "Share the walkthrough"}
     </button>
   );
 }

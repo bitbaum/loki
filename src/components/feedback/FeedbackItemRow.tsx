@@ -2,36 +2,46 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Archive, Check, Cloud, Loader2, PenLine, Rocket, Star, Undo2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { compactRelativeDate } from "@/lib/dates";
 import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-phase";
+import { rowStory } from "@/lib/feedback/row-story";
 import type { FeedbackListItem } from "@/db/queries/site-feedback";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import { FeedbackReportText } from "@/components/feedback/FeedbackReportText";
-import { FeedbackWorkBadge } from "@/components/feedback/FeedbackWorkBadge";
-import { FeedbackWatchButton, FeedbackWatchPanel } from "@/components/feedback/FeedbackWatch";
 import { WatchFixButton } from "@/components/feedback/WatchFixButton";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
-import { fleetSurfaceHref } from "@/lib/fleet-context";
+import { fleetSurfaceHref, withTerminalView } from "@/lib/fleet-context";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
+import { cn } from "@/lib/utils";
 
 /**
- * One feedback item, everywhere feedback renders: the per-project section and
- * the cross-project /feedback inbox.
+ * One feedback report, everywhere feedback renders.
  *
- * Every row has the same four parts, in the same order, whatever its phase:
+ * Rebuilt 2026-10-10 from the owner's reading of it on a phone: "It doesn't
+ * explain why it needs me and what exactly I need to do … Watch what? Where
+ * would I be taken? … I don't know what the star is, and I don't know what
+ * that arrow is." The row showed a status word, the report, and buttons —
+ * and left every sentence between them to the reader.
  *
- *   context  — status · project · page · who · when   (one muted line)
- *   message  — the report itself, clamped to three lines
- *   why      — one line on what is happening or what went wrong
- *   actions  — the decision (labelled) … utilities (icons, trailing edge)
+ * Now every row is the same five things, in order, and reads top to bottom
+ * as one paragraph a person could say aloud:
  *
- * The status used to sit BELOW the message on a line of its own, the context
- * on another, and the buttons came in three heights and two fills depending
- * on which component drew them — so no two rows looked like the same kind of
- * thing (reported from a phone, 2026-10-03: "a bunch of random elements").
- * The parts are fixed now; only their content changes with the phase.
+ *   1. what the state IS      — one bold sentence (lib/feedback/row-story.ts)
+ *   2. the report             — the visitor's or Loki's words, clamped
+ *   3. where and when         — project · page · who · when, one muted line
+ *   4. what happens now       — one sentence: what is wanted of you, or
+ *                               that nothing is
+ *   5. the moves              — every control is a verb that names its
+ *                               destination ("See the fix on the site",
+ *                               "Watch in Terminal", "It worked", "File
+ *                               away"). No bare icons; the one filled button
+ *                               is the move the sentence above asks for.
+ *
+ * Technical detail (the agent's handoff line, raw errors, screenshots) sits
+ * under the moves behind a disclosure, never between the sentence and the
+ * button it points at.
  */
 export function FeedbackItemRow({
   feedback: f,
@@ -47,7 +57,7 @@ export function FeedbackItemRow({
 }: {
   feedback: FeedbackListItemWithWork | FeedbackListItem;
   projectName: string;
-  /** Set on cross-project surfaces: renders a project link in the context line. */
+  /** Set on cross-project surfaces: renders a project link in the where line. */
   project?: { id: string; name: string } | null;
   busy: boolean;
   /** Queue the fix. `agent` switches provider and records the preference. */
@@ -60,130 +70,125 @@ export function FeedbackItemRow({
   onReopen: () => void;
   onFeature: () => void;
 }) {
-  // "Comment then implement" without a comment thread: the note IS an edit to
-  // the dispatch prompt. Plain Implement stays one-click.
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState("");
-  // Persist "just implemented" across list refetch remounts — otherwise Watch
-  // opens for one frame and vanishes when the inbox reloads (live walk 2026-09-16).
-  const followKey = `loki:follow-implement:${f.id}`;
-  const [followAfterImplement, setFollowAfterImplement] = useState(() => readFollow(followKey));
-  const [watchOpen, setWatchOpen] = useState(() => readFollow(followKey));
   const work = "work" in f && f.work ? f.work : deriveFeedbackWork(f.status, null);
-  // Let Terminal resolve source (This computer vs cloud); do not force cloud.
-  // A run given a parallel lane runs in its own tab; the project's tab holds
-  // a different agent. Open the one this row is about.
-  const terminalHref = fleetSurfaceHref(
+  const runnable = "runnable" in f ? f.runnable !== false : true;
+  const liveHref = livePageHref("liveUrl" in f ? f.liveUrl : null, f.url, f.page);
+  const story = rowStory({
+    work,
+    page: f.page ?? null,
+    runnable,
+    hadRun: !!f.dispatchedRunId,
+    resolvedAt: f.resolvedAt ?? null,
+    archiveReason: f.archiveReason ?? null,
+  });
+  // The run this row is about — its own lane's tab when it got one.
+  const runHref = fleetSurfaceHref(
     "terminal",
     work.terminalTab ?? projectName,
     undefined,
     work.runId,
   );
-  const watchLive = work.watchable === true;
-  // Watch exists whenever a run exists (Queued included), and immediately
-  // after Implement/Retry. Terminal + Chat live inside the Watch panel — the
-  // separate "Watching this run — pick where to look" strip repeated them.
-  const showWatch = watchLive || followAfterImplement;
-  const startImplement = (opts?: { note?: string; agent?: string }) => {
-    try {
-      sessionStorage.setItem(followKey, "1");
-    } catch {
-      /* private mode */
-    }
-    setFollowAfterImplement(true);
-    setWatchOpen(true);
-    onDispatch(opts);
-  };
-  // Somewhere for an agent to work. Rows from the per-project inbox carry no
-  // flag and keep the one-click Implement; the server refuses the same case.
-  const runnable = "runnable" in f ? f.runnable !== false : true;
-  // The live page: the project's public origin plus the reported path. The
-  // visitor's host is only a fallback — they may have reported from a preview.
-  const liveHref = livePageHref("liveUrl" in f ? f.liveUrl : null, f.url, f.page);
-  const ship = work.ship ?? null;
-  const showCheckLive = work.checkLive === true && !!liveHref;
   const phase = work.phase;
-  const failed = phase === FEEDBACK_WORK_PHASE.FAILED || phase === FEEDBACK_WORK_PHASE.STUCK;
+  const ship = work.ship ?? null;
   const moving = phase === FEEDBACK_WORK_PHASE.QUEUED || phase === FEEDBACK_WORK_PHASE.WORKING;
-  const resolved = f.status === FEEDBACK_STATUS.RESOLVED;
+  const broken = phase === FEEDBACK_WORK_PHASE.FAILED || phase === FEEDBACK_WORK_PHASE.STUCK;
+  const live = phase === FEEDBACK_WORK_PHASE.NEEDS_VERIFY && work.checkLive === true && !!liveHref;
+  const done = f.status === FEEDBACK_STATUS.RESOLVED;
+  const archived = f.status === FEEDBACK_STATUS.ARCHIVED;
 
-  const watchToggle = (primary = true) =>
-    showWatch ? (
-      <FeedbackWatchButton
-        open={watchOpen}
-        onToggle={() => setWatchOpen((v) => !v)}
-        primary={primary}
-      />
-    ) : null;
-  const implementButton = (label: string, primary: boolean, title: string) => (
+  const build = (label: string, primary: boolean, opts?: { note?: string; agent?: string }) => (
     <button
       type="button"
-      onClick={() => startImplement()}
+      onClick={() => onDispatch(opts)}
       disabled={busy}
       className={primary ? "ui-btn-save" : "ui-btn-secondary"}
-      title={title}
+      title="Queue an agent run for this on your builder"
     >
-      {busy ? <Loader2 className="ui-spinner-xs" /> : <Rocket className="h-3 w-3" />}
+      {busy && <Loader2 className="ui-spinner-xs" />}
       {label}
     </button>
   );
-  const resolveIcon = (
-    <IconAction
-      icon={Check}
-      label="Mark resolved"
-      onClick={onResolve}
-      busy={busy}
-      title={moving ? "Mark resolved — the run is not needed any more" : "Mark resolved"}
-    />
-  );
-
-  // The decision: labelled buttons, at most one filled.
-  let decision: React.ReactNode = null;
-  // The utilities: icon buttons at the trailing edge, in a fixed order.
-  let utility: React.ReactNode = null;
-
-  if (phase === FEEDBACK_WORK_PHASE.NOT_STARTED && !runnable) {
-    decision = (
-      <Link
-        href={`/projects/${f.projectId}`}
-        className="ui-btn-save"
-        title="This project has no repository or folder yet — the agent has nowhere to work. Add a Git URL, then Implement."
+  /** Where to watch: the run's session, as its chat or its raw terminal. */
+  const watchLinks = work.watchable ? (
+    <>
+      <a
+        href={withTerminalView(runHref, "terminal")}
+        className="ui-btn-secondary"
+        title={
+          work.terminalReady
+            ? "Open this run's terminal and watch the agent work, live"
+            : "Open this run's terminal — it fills once the agent starts"
+        }
       >
+        Watch in Terminal
+      </a>
+      <a
+        href={withTerminalView(runHref, "chat")}
+        className="ui-btn-secondary"
+        title="The same run as a conversation: what the agent says it is doing"
+      >
+        Agent&apos;s chat
+      </a>
+    </>
+  ) : null;
+
+  // The moves: the one the headline asks for, filled; the alternatives, plain;
+  // the ways out (file away, reopen, feature), as quiet text.
+  let moves: React.ReactNode = null;
+  let quiet: React.ReactNode = null;
+  if (archived) {
+    quiet = <QuietMove onClick={onReopen} busy={busy} label="Reopen" />;
+  } else if (done) {
+    moves = f.dispatchedRunId && liveHref && (
+      <WatchFixButton feedbackId={f.id} liveHref={liveHref} />
+    );
+    quiet = (
+      <>
+        <QuietMove
+          onClick={onFeature}
+          busy={busy}
+          label={f.featuredAt ? "Remove from the public strip" : "Show on the public strip"}
+          title="The site's 'shipped thanks to feedback' strip"
+        />
+        <QuietMove onClick={onReopen} busy={busy} label="Not fixed after all" />
+      </>
+    );
+  } else if (phase === FEEDBACK_WORK_PHASE.NOT_STARTED && !runnable) {
+    moves = (
+      <Link href={`/projects/${f.projectId}`} className="ui-btn-save">
         Connect a repository
       </Link>
     );
-    utility = resolveIcon;
+    quiet = <QuietMove onClick={onArchive} busy={busy} label="File away" />;
   } else if (phase === FEEDBACK_WORK_PHASE.NOT_STARTED) {
-    decision = (
+    moves = (
       <>
-        {implementButton(
-          "Implement",
-          true,
-          "Ask the agent to fix this — Watch opens so you can follow",
-        )}
-        {watchToggle()}
+        {build("Build it", true)}
+        <button
+          type="button"
+          onClick={() => setNoteOpen((v) => !v)}
+          disabled={busy}
+          className="ui-btn-secondary"
+          aria-expanded={noteOpen}
+          title="Tell the agent something first, then build"
+        >
+          Add a note first
+        </button>
       </>
     );
-    utility = (
+    quiet = (
       <>
-        <IconAction
-          icon={PenLine}
-          label="Add an instruction, then implement"
-          onClick={() => setNoteOpen((v) => !v)}
-          busy={busy}
-          expanded={noteOpen}
-        />
-        {resolveIcon}
+        <QuietMove onClick={onResolve} busy={busy} label="Already done" />
+        <QuietMove onClick={onArchive} busy={busy} label="File away" />
       </>
     );
   } else if (moving) {
-    decision = watchToggle();
-    utility = resolveIcon;
-  } else if (failed && work.rerouteTo === "cloud" && onRunInCloud) {
-    // Waiting for a laptop that is shut, with the cloud builder up: the one
-    // move is to hand it over. Retry would queue a second row for the same
-    // shut laptop, so it steps aside.
-    decision = (
+    moves = watchLinks;
+    quiet = <QuietMove onClick={onResolve} busy={busy} label="Not needed any more" />;
+  } else if (broken && work.rerouteTo === "cloud" && onRunInCloud) {
+    moves = (
       <>
         <button
           type="button"
@@ -192,48 +197,45 @@ export function FeedbackItemRow({
           className="ui-btn-save"
           title="Move this to the cloud builder — it starts now, nothing is lost"
         >
-          {busy ? <Loader2 className="ui-spinner-xs" /> : <Cloud className="h-3 w-3" />}
+          {busy && <Loader2 className="ui-spinner-xs" />}
           Run it in the cloud
         </button>
-        {watchToggle(false)}
+        {watchLinks}
       </>
     );
-    utility = resolveIcon;
-  } else if (failed) {
-    // A run that needs you is most often a run that ran out of quota, and the
-    // fix is a different provider — not the same one again. So the switch is
-    // the PRIMARY control and Retry steps down beside it. ProviderSwitch
-    // renders nothing when no provider can answer.
-    decision = (
+    quiet = <QuietMove onClick={onArchive} busy={busy} label="File away" />;
+  } else if (broken) {
+    moves = (
       <>
         <ProviderSwitch
           projectId={f.projectId}
           busy={busy}
-          onSwitch={(agent) => startImplement({ agent })}
+          onSwitch={(agent) => onDispatch({ agent })}
         />
-        {implementButton(
-          "Retry",
-          false,
-          "Queue again on the same provider — Watch opens so you can follow",
-        )}
-        {watchToggle(false)}
+        {build("Try again", false)}
+        {watchLinks}
       </>
     );
-    utility = resolveIcon;
-  } else if (phase === FEEDBACK_WORK_PHASE.NEEDS_VERIFY) {
-    decision = (
+    quiet = (
       <>
-        {showCheckLive ? (
+        <QuietMove onClick={onResolve} busy={busy} label="Mark done anyway" />
+        <QuietMove onClick={onArchive} busy={busy} label="File away" />
+      </>
+    );
+  } else if (phase === FEEDBACK_WORK_PHASE.NEEDS_VERIFY) {
+    moves = (
+      <>
+        {live ? (
           <WatchFixButton feedbackId={f.id} liveHref={liveHref!} />
         ) : ship?.pr ? (
           <a
             href={ship.pr.url}
             target="_blank"
             rel="noreferrer"
-            className="ui-btn-save"
+            className="ui-btn-secondary"
             title={ship.pr.title}
           >
-            Review PR
+            Read the change on GitHub ↗
           </a>
         ) : ship?.push ? (
           <a
@@ -243,126 +245,55 @@ export function FeedbackItemRow({
             className="ui-btn-secondary"
             title={ship.push.title}
           >
-            Open branch
+            Open the branch ↗
           </a>
         ) : ship ? (
-          implementButton("Retry", true, "Queue again — Watch opens so you can follow")
+          build("Try again", true)
         ) : null}
-
-        <button
-          type="button"
-          onClick={onResolve}
-          disabled={busy}
-          className="ui-btn-secondary"
-          title={
-            showCheckLive
-              ? "You looked at the live page and the point is fixed"
-              : "Mark resolved without a live check"
-          }
-        >
-          <Check className="h-3 w-3" /> Confirm
-        </button>
+        {story.tone === "you" && (
+          <>
+            <button
+              type="button"
+              onClick={onResolve}
+              disabled={busy}
+              className={live ? "ui-btn-secondary" : "ui-btn-secondary"}
+              title={live ? "You looked and the point is fixed" : "Close it as done"}
+            >
+              {live ? "It worked" : "Mark done"}
+            </button>
+            <button
+              type="button"
+              onClick={onReopen}
+              disabled={busy}
+              className="ui-btn-secondary"
+              title="Put it back so it can be built again, with a note"
+            >
+              Not fixed
+            </button>
+          </>
+        )}
       </>
     );
-    utility = (
-      <IconAction
-        icon={Undo2}
-        label="Not fixed"
-        title="Not fixed — reopen so it can be implemented again with a note"
-        onClick={onReopen}
-        busy={busy}
-      />
-    );
-  } else if (resolved) {
-    // A fix you confirmed is still worth showing: the walkthrough and its
-    // Share link stay on the row, so a done fix can be watched or passed on
-    // later instead of vanishing with the confirm (operator, 2026-10-08).
-    if (f.dispatchedRunId && liveHref) {
-      decision = <WatchFixButton feedbackId={f.id} liveHref={liveHref} size="sm" />;
-    }
-    utility = (
-      <IconAction
-        icon={Star}
-        label={f.featuredAt ? "Unfeature" : "Feature publicly"}
-        title={
-          f.featuredAt
-            ? "Remove from the public 'shipped thanks to feedback' strip"
-            : "Feature on the public 'shipped thanks to feedback' strip"
-        }
-        onClick={onFeature}
-        busy={busy}
-        pressed={!!f.featuredAt}
-      />
-    );
+    quiet =
+      story.tone === "you" ? null : <QuietMove onClick={onResolve} busy={busy} label="Mark done" />;
   }
 
   return (
-    <article className="ui-fb-row">
-      <RowContext f={f} work={work} project={project} />
+    <article className={cn("ui-fb-row", archived && "opacity-70")}>
+      <p className={cn("ui-fb-row-headline", `ui-fb-row-headline-${story.tone}`)}>
+        {story.headline}
+      </p>
       <FeedbackReportText text={f.suggestion} />
       <ElementTarget f={f} />
+      <WhereLine f={f} project={project} />
+      {story.next && <p className="ui-fb-row-next">{story.next}</p>}
 
-      {(failed || phase === FEEDBACK_WORK_PHASE.NEEDS_VERIFY) && work.detail && (
-        <p className="ui-fb-row-why">{work.detail}</p>
-      )}
-      {/* A row the night filed away says why, in the night's words; a row a
-          person archived carries no reason and says nothing. */}
-      {phase === FEEDBACK_WORK_PHASE.ARCHIVED && f.archiveReason && (
-        <p className="ui-fb-row-why-quiet">{f.archiveReason}</p>
-      )}
-      {moving && (
-        <p className="ui-fb-row-why-quiet">
-          {work.stepSummary ? work.stepSummary : "Moving — Telegram when you need to"}
-        </p>
-      )}
-      {phase === FEEDBACK_WORK_PHASE.NEEDS_VERIFY &&
-        (work.didLine || (showCheckLive && ship?.pr)) && (
-          <p className="ui-fb-row-why-quiet">
-            {work.didLine && <span title="The agent's own account">Agent: {work.didLine}</span>}
-            {/* With the live page as the primary action, the pull request is a
-              reference, not a second decision — a link on the agent's line
-              rather than a third labelled button. */}
-            {showCheckLive && ship?.pr && (
-              <>
-                {work.didLine && " · "}
-                <a
-                  href={ship.pr.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="ui-link-muted"
-                  title={ship.pr.title}
-                >
-                  What changed ↗
-                </a>
-              </>
-            )}
-          </p>
-        )}
-      {/* The run's raw error, opened on purpose rather than printed at the
-          reader — an engineer's note is not addressed to whoever filed it. */}
-      {failed && work.diagnostic && (
-        <details>
-          <summary className="cursor-pointer text-micro text-text-muted hover:text-text-secondary">
-            Technical details
-          </summary>
-          <p className="mt-1 whitespace-pre-wrap break-words font-mono text-micro text-text-muted">
-            {work.diagnostic}
-          </p>
-        </details>
-      )}
-      {f.hasScreenshots && <ScreenshotsThumbnails feedbackId={f.id} />}
-
-      <div className="ui-fb-row-actions">
-        {decision}
-        <div className="ui-fb-row-utility">
-          {utility}
-          {resolved ? (
-            <IconAction icon={Undo2} label="Reopen" onClick={onReopen} busy={busy} />
-          ) : (
-            <IconAction icon={Archive} label="Archive" onClick={onArchive} busy={busy} />
-          )}
+      {(moves || quiet) && (
+        <div className="ui-fb-row-actions">
+          {moves}
+          {quiet && <span className="ui-fb-row-quiet">{quiet}</span>}
         </div>
-      </div>
+      )}
 
       {noteOpen && phase === FEEDBACK_WORK_PHASE.NOT_STARTED && (
         <div className="ui-fb-row-actions">
@@ -371,49 +302,44 @@ export function FeedbackItemRow({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={500}
-            placeholder="Instruction for the agent, e.g. 'only fix the mobile layout'"
+            placeholder="For the agent, e.g. 'only fix the mobile layout'"
             className="ui-input-compact min-w-0 flex-1"
             onKeyDown={(e) => {
-              if (e.key === "Enter" && note.trim()) startImplement({ note: note.trim() });
+              if (e.key === "Enter" && note.trim()) onDispatch({ note: note.trim() });
             }}
           />
-          <button
-            type="button"
-            onClick={() => startImplement(note.trim() ? { note: note.trim() } : undefined)}
-            disabled={busy}
-            className="ui-btn-save"
-          >
-            {busy ? <Loader2 className="ui-spinner-xs" /> : <Rocket className="h-3 w-3" />}
-            Implement
-          </button>
+          {build("Build it", true, note.trim() ? { note: note.trim() } : undefined)}
         </div>
       )}
 
-      {watchOpen && showWatch && (
-        <FeedbackWatchPanel
-          feedbackId={f.id}
-          fallbackTerminalHref={terminalHref}
-          stepSummary={
-            work.stepSummary ??
-            (followAfterImplement && !watchLive
-              ? "Starting — follow here, or open Terminal / Chat"
-              : null)
-          }
-          queueReason={work.queueReason}
-          terminalReady={work.terminalReady === true}
-        />
-      )}
+      <RowDetails f={f} work={work} />
     </article>
   );
 }
 
-function readFollow(key: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return sessionStorage.getItem(key) === "1";
-  } catch {
-    return false;
-  }
+/** A way out, as quiet text: never an icon the reader has to decode. */
+function QuietMove({
+  onClick,
+  busy,
+  label,
+  title,
+}: {
+  onClick: () => void;
+  busy: boolean;
+  label: string;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className="ui-fb-row-quiet-btn"
+      title={title}
+    >
+      {label}
+    </button>
+  );
 }
 
 /** Display name from a contact string: "Fufa <f@x.ch>, CCSF" → "Fufa". */
@@ -424,78 +350,55 @@ export function contactName(contact: string | null | undefined): string | null {
   return named ? named[1].trim() : c;
 }
 
-/**
- * The context line: status first, because it is the first thing a reader
- * needs to sort the row; then where (project · page), who, and when — the
- * age relative, the exact instant on hover.
- */
-function RowContext({
+/** Where and when: project · page · who · when, as one sentence that wraps like one. */
+function WhereLine({
   f,
-  work,
   project,
 }: {
   f: FeedbackListItemWithWork | FeedbackListItem;
-  work: ReturnType<typeof deriveFeedbackWork>;
   project?: { id: string; name: string } | null;
 }) {
-  // Agent-filed rows get a typed tag instead of their magic contact string.
-  const agentTag =
+  const source =
     f.source === FEEDBACK_SOURCE.AI_REVIEW
-      ? "AI review"
+      ? "Loki's own read"
       : f.source === FEEDBACK_SOURCE.SYNTHESIZER
-        ? "Brief"
+        ? "a brief"
         : null;
-  // The front page is "home", not a bare slash between two dots.
   const rawPage = f.page || (f.url ? f.url.replace(/^https?:\/\/[^/]+/, "") || f.url : null);
   const pageLabel = rawPage === "/" ? "home" : rawPage;
-  const who = agentTag ? null : contactName(f.contact);
-  const resolved = f.status === FEEDBACK_STATUS.RESOLVED && f.resolvedAt;
-  const at = resolved ? f.resolvedAt! : f.createdAt;
+  const who = source ?? contactName(f.contact);
   const exact = new Date(f.createdAt).toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   });
-  // One sentence of context, as text with " · " between the parts, so it
-  // wraps like a sentence. As a row of flex items the project link wrapped
-  // onto its own line above "· home · today" (phone, 2026-10-10): parts of
-  // one thought on two lines, which is what "thrown together" looks like.
-  const words: React.ReactNode[] = [];
-  if (agentTag) words.push(<span key="a">{agentTag}</span>);
+  const parts: React.ReactNode[] = [];
   if (project)
-    words.push(
+    parts.push(
       <Link key="p" href={`/projects/${project.id}#feedback`} className="ui-fb-row-project">
         {project.name}
       </Link>,
     );
-  if (pageLabel) words.push(<span key="pg">{pageLabel}</span>);
+  if (pageLabel) parts.push(<span key="pg">{pageLabel}</span>);
   if (who)
-    words.push(
+    parts.push(
       <span key="w" title={f.contact ?? undefined}>
-        {who}
+        from {who}
       </span>,
     );
-  words.push(
-    <time key="t" dateTime={new Date(at).toISOString()} title={`Submitted ${exact}`}>
-      {resolved ? `resolved ${compactRelativeDate(at)}` : compactRelativeDate(at)}
+  parts.push(
+    <time key="t" dateTime={new Date(f.createdAt).toISOString()} title={`Reported ${exact}`}>
+      {compactRelativeDate(f.createdAt)}
     </time>,
   );
-
+  if (f.duplicateCount > 1) parts.push(<span key="d">reported {f.duplicateCount} times</span>);
   return (
-    <p className="ui-fb-row-context">
-      {work.phase !== FEEDBACK_WORK_PHASE.NOT_STARTED && <FeedbackWorkBadge work={work} />}
-      {f.duplicateCount > 1 && (
-        <span className="ui-badge" title={`Reported ${f.duplicateCount} times`}>
-          ×{f.duplicateCount}
+    <p className="ui-fb-row-where">
+      {parts.map((w, i) => (
+        <span key={i}>
+          {i > 0 && <span className="ui-fb-row-where-sep"> · </span>}
+          {w}
         </span>
-      )}
-      <span className="ui-fb-row-context-words">
-        {words.map((w, i) => (
-          <span key={i}>
-            {i > 0 && <span className="ui-fb-row-context-sep"> · </span>}
-            {w}
-          </span>
-        ))}
-      </span>
+      ))}
     </p>
   );
 }
@@ -505,8 +408,6 @@ function ElementTarget({ f }: { f: FeedbackListItemWithWork | FeedbackListItem }
   const els = f.selectedElements;
   if (!els || els.length === 0) return null;
   const text = els.length === 1 ? els[0].elementText : null;
-  // "Pointed at “Welcome to Kestrel”" — a sentence, not a mono tag beside a
-  // quote (the tag read as debug output on the row).
   const what = els.length > 1 ? `${els.length} elements` : els[0].elementType || "an element";
   return (
     <p className="ui-fb-row-target" title={els.map((el) => el.selector).join("\n")}>
@@ -515,67 +416,66 @@ function ElementTarget({ f }: { f: FeedbackListItemWithWork | FeedbackListItem }
   );
 }
 
-function IconAction({
-  icon: Icon,
-  label,
-  title,
-  onClick,
-  busy,
-  expanded,
-  pressed,
+/**
+ * What an engineer might want and the owner did not ask for: the agent's own
+ * account, the pull request, the raw error, screenshots. One disclosure,
+ * after the moves, so it never sits between a sentence and its button.
+ */
+function RowDetails({
+  f,
+  work,
 }: {
-  icon: typeof Check;
-  label: string;
-  title?: string;
-  onClick: () => void;
-  busy: boolean;
-  expanded?: boolean;
-  pressed?: boolean;
+  f: FeedbackListItemWithWork | FeedbackListItem;
+  work: ReturnType<typeof deriveFeedbackWork>;
 }) {
+  const pr = work.ship?.pr ?? null;
+  const items: React.ReactNode[] = [];
+  if (work.didLine) items.push(<li key="did">The agent said: “{work.didLine}”</li>);
+  if (pr)
+    items.push(
+      <li key="pr">
+        <a
+          href={pr.url}
+          target="_blank"
+          rel="noreferrer"
+          className="ui-link-muted"
+          title={pr.title}
+        >
+          The change on GitHub (PR #{pr.number}) ↗
+        </a>
+      </li>,
+    );
+  if (work.queueReason && work.queueReason !== work.detail)
+    items.push(<li key="q">{work.queueReason}</li>);
+  if (work.diagnostic)
+    items.push(
+      <li key="diag" className="whitespace-pre-wrap break-words font-mono">
+        {work.diagnostic}
+      </li>,
+    );
+  if (items.length === 0 && !f.hasScreenshots) return null;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={busy}
-      className="ui-btn-icon"
-      title={title ?? label}
-      aria-label={label}
-      aria-expanded={expanded}
-      aria-pressed={pressed}
-    >
-      <Icon className="h-3.5 w-3.5" fill={pressed ? "currentColor" : "none"} />
-    </button>
+    <details className="ui-fb-row-details">
+      <summary>Details</summary>
+      {items.length > 0 && <ul>{items}</ul>}
+      {f.hasScreenshots && <ScreenshotsThumbnails feedbackId={f.id} />}
+    </details>
   );
 }
 
 function ScreenshotsThumbnails({ feedbackId }: { feedbackId: string }) {
   const [screenshots, setScreenshots] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     fetch(`/api/feedback/${feedbackId}/screenshot`)
       .then((res) => res.json())
-      .then((data: { screenshots?: string[] }) => {
-        setScreenshots(data.screenshots ?? []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      .then((data: { screenshots?: string[] }) => setScreenshots(data.screenshots ?? []))
+      .catch(() => {});
   }, [feedbackId]);
-
-  if (loading) return null;
   if (screenshots.length === 0) return null;
-
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="mt-2 flex flex-wrap gap-2">
       {screenshots.map((dataUrl, i) => (
-        <a
-          key={i}
-          href={dataUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-block"
-          title={`Screenshot ${i + 1} of ${screenshots.length}`}
-        >
+        <a key={i} href={dataUrl} target="_blank" rel="noreferrer" className="inline-block">
           {/* eslint-disable-next-line @next/next/no-img-element -- data URL from API */}
           <img
             src={dataUrl}
