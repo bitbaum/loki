@@ -438,10 +438,35 @@ export async function setFeedbackStatus(
           : status === FEEDBACK_STATUS.NEW
             ? null
             : undefined,
+      // A person's own archive carries no reason; the night's does (below).
+      // Either way a reopened row starts clean.
+      archiveReason: status === FEEDBACK_STATUS.ARCHIVED ? undefined : null,
     })
     .where(and(eq(siteFeedback.id, id), eq(siteFeedback.userId, userId)))
     .returning();
   return updated ?? null;
+}
+
+/** File rows away with the sentence that explains it on the row. Only rows
+ *  still `new` move: a row a person started or finished since is theirs. */
+export async function archiveFeedbackWithReason(
+  userId: string,
+  ids: string[],
+  reason: string,
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const rows = await db
+    .update(siteFeedback)
+    .set({ status: FEEDBACK_STATUS.ARCHIVED, archiveReason: reason })
+    .where(
+      and(
+        eq(siteFeedback.userId, userId),
+        eq(siteFeedback.status, FEEDBACK_STATUS.NEW),
+        inArray(siteFeedback.id, ids),
+      ),
+    )
+    .returning({ id: siteFeedback.id });
+  return rows.length;
 }
 
 /** The feedback item a run was dispatched for, if it was one. Owner-scoped. */

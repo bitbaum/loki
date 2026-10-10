@@ -7,7 +7,7 @@
 // a nudge. Everything it queues is a status='draft' CREATE_COMMITMENT the
 // operator still approves before it does anything (IRON RULE).
 //
-// Scope mirrors nudge-idle: only fires for users with fleet autopilot ON (the
+// Scope mirrors the autopilot night: only fires for users with fleet autopilot ON (the
 // same "I trust the system to keep moving for me" opt-in). Bounded per user by a
 // queue-pressure cap, a 30-day per-contact cooldown, and a small per-tick limit
 // (see checkin-producer.ts) so it can never flood the approval queue.

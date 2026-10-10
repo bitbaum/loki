@@ -6,6 +6,23 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — The night works from what you said, and no further than you allow
+
+- **Autopilot overnight, with a budget.** While you sleep, Loki builds from
+  your feedback — one fix per project, your own notes first — reads one
+  site that has not been read this week and files what it finds, and files
+  away reports nobody started in 21 days with the reason on the row. The
+  limit is a number of runs a night, in Settings → When an agent finishes
+  (default 4, 0 keeps the filing and stops the building). A project paused
+  on Control is left alone. The idle nudge that woke three projects a night
+  on a generic "next best" guess is retired: a run with no brief is where the
+  queue of things nobody asked for came from.
+- **The morning note.** /feedback opens with one line on what the night did
+  and what it spent where the runner reported a price; the same line arrives
+  on Telegram and push. Nothing when the night did nothing.
+- **Feedback on a phone.** The question — how many need you — leads the
+  page; the pickers are one quiet line; the numbers close it.
+
 ## 2026-10-10 — A key with no credits is not a bad key
 
 - **Unfunded keys save.** A key the vendor recognises but cannot bill yet —

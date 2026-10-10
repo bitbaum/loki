@@ -22,13 +22,13 @@ If any of those are false, the product must say why instead of pretending work s
 - **Loki "develop all / build fleet":** same `kickFleet()` path.
 - **Loki "move forward" with one project:** `injectPrompt(next_best)`.
 - **Agent finishes and reports ready:** Fleet Runner asks `/api/control/dispatch`; safety gates return `queue`, `nextbest`, or `off`.
-- **Idle cron:** `/api/crons/nudge-idle` -> `injectPrompt(next_best)` after idle/cooldown/pending checks.
+- **The night:** `/api/crons/autopilot-night` -> `implementFeedback()` for the inbox's open reports under the account's run budget, and `injectPrompt(customPrompt: review)` for one site read — never a bare `next_best` (retired `nudge-idle`, 2026-10-10; see `src/config/autopilot-night.ts`).
 
 `injectPrompt()` is the SSOT dispatch spine. It assembles project context/RAG, opens run tracking, applies tenant execution policy, and queues the runner's self-healing `dispatch` command when a project has `dir_path`.
 
 ## What Changed
 
-The idle cron no longer inserts `pending_commands` directly. Direct insertion skipped:
+The night (and before it the idle cron) does not insert `pending_commands` directly. Direct insertion skipped:
 
 - tenant execution policy
 - project context/RAG assembly parity
@@ -36,7 +36,7 @@ The idle cron no longer inserts `pending_commands` directly. Direct insertion sk
 - run tracking
 - runner self-healing launch behavior
 
-It now uses the same `injectPrompt(next_best)` path as Control and Loki.
+It uses the same `injectPrompt` / `implementFeedback` path as Control, Loki and the Implement button.
 
 `kickFleet()` now skips projects without `dir_path` with reason `no_path`. A project profile without a path is still useful strategy context, but it is not an executable loop target.
 

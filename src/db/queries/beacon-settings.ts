@@ -3,6 +3,7 @@ import { beaconSettings, userProjects } from "@/db/schema";
 import { and, eq, isNull, ne, or } from "drizzle-orm";
 import { DEFAULT_BEACON_COUNTDOWN_S, DEFAULT_AUTO_INJECT_MODE } from "@/lib/constants/control";
 import { AUTO_INJECT_MODE_VALUES, type AutoInjectMode } from "@/config/beacon";
+import { NIGHT_RUNS_DEFAULT, NIGHT_RUNS_MAX } from "@/config/autopilot-night";
 
 export type { AutoInjectMode } from "@/config/beacon";
 
@@ -17,6 +18,8 @@ export type BeaconSettingsData = {
   whisper_model: string;
   transcription_provider: string;
   auto_inject_mode: AutoInjectMode;
+  /** Runs the autopilot night may start. See src/config/autopilot-night.ts. */
+  night_runs: number;
 };
 
 const DEFAULTS: BeaconSettingsData = {
@@ -26,7 +29,13 @@ const DEFAULTS: BeaconSettingsData = {
   // Autopilot — see DEFAULT_AUTO_INJECT_MODE in src/lib/constants/control.ts for
   // the rationale. Safety rails live in /api/control/dispatch + the Stop hook.
   auto_inject_mode: DEFAULT_AUTO_INJECT_MODE,
+  night_runs: NIGHT_RUNS_DEFAULT,
 };
+
+function coerceNightRuns(v: number | null | undefined): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) return NIGHT_RUNS_DEFAULT;
+  return Math.max(0, Math.min(NIGHT_RUNS_MAX, Math.floor(v)));
+}
 
 function coerceAutoInjectMode(v: string | null | undefined): AutoInjectMode {
   return AUTO_INJECT_MODE_VALUES.includes(v as AutoInjectMode)
@@ -48,6 +57,7 @@ export async function getBeaconSettings(userId: string): Promise<BeaconSettingsD
     whisper_model: rows[0].whisperModel,
     transcription_provider: rows[0].transcriptionProvider,
     auto_inject_mode: coerceAutoInjectMode(rows[0].autoInjectMode),
+    night_runs: coerceNightRuns(rows[0].nightRuns),
   };
 }
 
@@ -89,6 +99,7 @@ export async function upsertBeaconSettings(
   if (patch.transcription_provider !== undefined)
     updateSet.transcriptionProvider = patch.transcription_provider;
   if (patch.auto_inject_mode !== undefined) updateSet.autoInjectMode = patch.auto_inject_mode;
+  if (patch.night_runs !== undefined) updateSet.nightRuns = coerceNightRuns(patch.night_runs);
 
   await db
     .insert(beaconSettings)
@@ -98,6 +109,7 @@ export async function upsertBeaconSettings(
       whisperModel: inserted.whisper_model,
       transcriptionProvider: inserted.transcription_provider,
       autoInjectMode: inserted.auto_inject_mode,
+      nightRuns: coerceNightRuns(inserted.night_runs),
     })
     .onConflictDoUpdate({
       target: beaconSettings.userId,

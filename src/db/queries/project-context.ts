@@ -5,7 +5,7 @@
  * is judged against the actual goals instead of being generic.
  *
  * Reused by the orchestration render path (renderTaskForAdapter callers) and the
- * nudge-idle cron — one source, so the autopilot always aims at the same context
+ * autopilot night — one source, so the autopilot always aims at the same context
  * the operator sees in the product (Projects brief + Goals).
  */
 import { and, eq, desc } from "drizzle-orm";

@@ -5091,6 +5091,9 @@
   .ui-fb-filterbar {
     @apply flex flex-wrap items-center gap-2;
   }
+  .ui-fb-night {
+    @apply px-1 text-xs text-text-secondary;
+  }
   .ui-fb-foot {
     @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-xs text-text-tertiary;
   }

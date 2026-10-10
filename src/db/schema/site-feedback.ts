@@ -69,6 +69,9 @@ export const siteFeedback = pgTable(
     featuredAt: timestamp("featured_at", { withTimezone: true }),
 
     status: text("status").$type<FeedbackStatus>().notNull().default(FEEDBACK_STATUS.NEW),
+    /** Why a row was filed away when a person did not do it — the autopilot
+     *  night's one sentence, shown on the archived row. Cleared on reopen. */
+    archiveReason: text("archive_reason"),
     /** Orchestration run created when the operator dispatched a fix for this item. */
     dispatchedRunId: uuid("dispatched_run_id"),
     /** When the item was resolved (close-the-loop or manual). Cleared on reopen —

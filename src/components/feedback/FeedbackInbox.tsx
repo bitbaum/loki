@@ -77,6 +77,8 @@ export function FeedbackInbox() {
   } = useFetch<{
     feedback: InboxItem[];
     metrics: FeedbackLoopMetrics | null;
+    /** What the last autopilot night did — null when nothing, or no night. */
+    night: { night: string; note: string } | null;
   }>("/api/feedback/inbox");
   const searchParams = useSearchParams();
   // `?project=` is a name or an entity id — both are handed out as links
@@ -95,6 +97,7 @@ export function FeedbackInbox() {
 
   const all = useMemo(() => data?.feedback ?? [], [data]);
   const metrics = data?.metrics ?? null;
+  const night = data?.night ?? null;
 
   useEffect(() => {
     if (!requestedProject || all.length === 0) return;
@@ -216,6 +219,11 @@ export function FeedbackInbox() {
 
   return (
     <div className="space-y-4">
+      {/* The morning note: one line on what Loki did while the reader slept,
+          above the lenses because the rows it mentions are in them. Absent
+          when the night did nothing — silence when fine. */}
+      {night && <p className="ui-fb-night">{night.note}</p>}
+
       {/* The page's one question, first: is anything waiting on me? On a
           phone this strip used to sit 550px down, under project chips, a
           sentence of fleet statistics, a source picker and a link to another

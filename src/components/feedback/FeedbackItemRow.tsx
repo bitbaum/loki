@@ -305,6 +305,11 @@ export function FeedbackItemRow({
       {(failed || phase === FEEDBACK_WORK_PHASE.NEEDS_VERIFY) && work.detail && (
         <p className="ui-fb-row-why">{work.detail}</p>
       )}
+      {/* A row the night filed away says why, in the night's words; a row a
+          person archived carries no reason and says nothing. */}
+      {phase === FEEDBACK_WORK_PHASE.ARCHIVED && f.archiveReason && (
+        <p className="ui-fb-row-why-quiet">{f.archiveReason}</p>
+      )}
       {moving && (
         <p className="ui-fb-row-why-quiet">
           {work.stepSummary ? work.stepSummary : "Moving — Telegram when you need to"}
