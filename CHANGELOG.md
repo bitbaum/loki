@@ -6,6 +6,22 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — Feedback decides, you say yes
+
+- **Loki decides each report before you see it.** The page opens with the
+  count ("6 decisions"), and every card leads with the one tap Loki
+  recommends and why: "Confirm · free — live on /pricing; the agent
+  reported success and the deploy went through." "Build · one agent run —
+  a visitor's report on /contact; the project can take a run." "File away
+  · free — nobody started this in 25 days." Tap to agree. "Something else"
+  opens the full row for the reader who disagrees.
+- **One button for all of them**, and it says what it spends before you
+  tap: "Do all 6 · starts 5 runs, confirms 1, files 2 away".
+- **The scope sits beside the number.** "6 decisions · substrata ▾" —
+  the project picker is part of the heading, so the count it changes is
+  the one next to it. Agents at work, fixes you confirmed and reports
+  filed away are three collapsed lines under the queue.
+
 ## 2026-10-10 — Feedback says what it means
 
 - **Every report now reads as one paragraph.** What the state is, in one

@@ -4986,13 +4986,6 @@
   .ui-inbox-group-note {
     @apply shrink-0 text-nano text-text-muted;
   }
-  /* The text of a fold of reports that failed for one reason (.ui-fb-fold). */
-  .ui-inbox-fold-count {
-    @apply text-sm font-medium text-text-primary;
-  }
-  .ui-inbox-fold-cause {
-    @apply line-clamp-2 text-text-tertiary;
-  }
   .ui-inbox-project-state {
     @apply text-nano text-text-muted;
   }
@@ -5073,34 +5066,74 @@
      Every button in a row's action bar is one height. The bar's labelled
      buttons are the decision; the icon buttons (note, resolve, archive) sit
      at its trailing edge, so the decision lines up down the page. */
-  .ui-fb-lens {
-    @apply grid grid-cols-3 gap-1 rounded-xl border border-border-subtle bg-surface-raised p-1;
+  /* The heading is the count and the scope: "6 decisions · substrata ▾". */
+  .ui-fb-head {
+    @apply flex flex-wrap items-baseline gap-x-2 gap-y-1;
   }
-  .ui-fb-lens-tab {
-    @apply flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-center text-xs text-text-tertiary transition-colors hover:text-text-secondary sm:flex-row sm:gap-2 sm:text-sm;
+  .ui-fb-head-count {
+    @apply text-xl font-semibold tracking-tight text-text-primary;
   }
-  .ui-fb-lens-tab[aria-selected="true"] {
-    @apply bg-surface-base text-text-primary;
-    box-shadow: inset 0 0 0 1px var(--border-default);
+  /* One button for every yes, with what it spends written on it. */
+  .ui-fb-doall {
+    @apply flex flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-raised p-4 sm:flex-row sm:items-center sm:justify-between;
   }
-  .ui-fb-lens-label {
-    @apply truncate font-medium;
+  .ui-fb-doall-text {
+    @apply text-sm text-text-secondary;
   }
-  .ui-fb-lens-count {
-    @apply text-base font-semibold tabular-nums text-text-primary sm:text-sm;
+  .ui-fb-quiet-line {
+    @apply px-1 text-sm text-text-tertiary;
   }
-  /* The one number on the page that is a debt: only "Needs you" earns a tint,
-     and only while it is above zero. */
-  .ui-fb-lens-count-due {
-    color: var(--status-warning);
+  /* A decision: the tap, the reason, the report beneath in smaller type. */
+  .ui-fb-decisions {
+    @apply divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised;
   }
-  /* One quiet line of pickers under the lenses; absent when nothing can be
-     narrowed. The numbers close the page in .ui-fb-foot. */
-  .ui-fb-lens-hint {
-    @apply px-1 text-xs leading-snug text-text-tertiary;
+  .ui-fb-decision {
+    @apply flex flex-col gap-1.5 px-4 py-4 transition-opacity;
   }
-  .ui-fb-filterbar {
-    @apply flex flex-wrap items-center gap-2;
+  .ui-fb-decision-taken {
+    @apply opacity-60;
+  }
+  .ui-fb-decision-kicker {
+    font-size: 0.75rem;
+    @apply font-semibold uppercase text-text-secondary;
+    letter-spacing: var(--tracking-label);
+  }
+  .ui-fb-decision-why {
+    @apply text-sm font-medium leading-snug text-text-primary;
+  }
+  .ui-fb-decision-report {
+    @apply text-xs leading-relaxed text-text-tertiary;
+  }
+  .ui-fb-decision-quote {
+    @apply text-text-secondary;
+  }
+  .ui-fb-decision-where {
+    @apply text-text-muted;
+  }
+  .ui-fb-decision-actions {
+    @apply mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5;
+  }
+  .ui-fb-decision-actions .ui-btn-save {
+    @apply min-h-10 rounded-lg px-4 text-sm;
+  }
+  .ui-fb-decision-done {
+    @apply text-sm text-text-tertiary;
+  }
+  .ui-fb-decision-row {
+    @apply mt-2 rounded-xl border border-border-subtle bg-surface-base px-4;
+  }
+  /* What is not a decision: one line each, open on demand. */
+  .ui-fb-section > summary {
+    @apply flex min-h-11 cursor-pointer list-none flex-col justify-center gap-0.5 px-1 py-2;
+  }
+  .ui-fb-section-title {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-fb-section-hint {
+    @apply text-xs text-text-tertiary;
+  }
+  .ui-fb-section[open] > summary {
+    @apply mb-2;
   }
   .ui-fb-night {
     @apply px-1 text-xs text-text-secondary;
@@ -5180,18 +5213,6 @@
      (WatchFixButton and ProviderSwitch each pick their own variant). */
   .ui-fb-row-actions :is(.ui-btn-save, .ui-btn-secondary, .ui-btn-primary) {
     @apply min-h-9 gap-1.5 rounded-lg px-3 py-1.5 text-xs;
-  }
-  .ui-fb-fold {
-    @apply py-1;
-  }
-  .ui-fb-fold > summary {
-    @apply flex min-h-11 cursor-pointer list-none flex-col justify-center gap-0.5 py-2 text-xs text-text-tertiary;
-  }
-  .ui-fb-fold[open] > summary {
-    @apply border-b border-border-subtle;
-  }
-  .ui-fb-fold > .ui-fb-row + .ui-fb-row {
-    @apply border-t border-border-subtle;
   }
   .ui-fb-more {
     @apply flex min-h-11 w-full items-center text-xs text-text-tertiary transition-colors hover:text-text-secondary;
