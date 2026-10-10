@@ -610,6 +610,13 @@
       "when": 1791552158907,
       "tag": "0086_away",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1791552159907,
+      "tag": "0087_night_allowance",
+      "breakpoints": true
     }
   ]
 }

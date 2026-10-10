@@ -70,6 +70,8 @@ const HASH_TO_TAB: Record<string, TabId> = {
   "own-model": "ai",
   byok: "ai",
   keys: "ai",
+  // "Allowance" on Control's Tonight card — the night's settings live with the agent's.
+  autopilot: "agent",
 };
 
 // The tab the URL hash names. Pure, so it can be the tab store's client

@@ -11,7 +11,7 @@ import { getBeaconSettings, upsertBeaconSettings } from "@/db/queries/beacon-set
 import { getProjectAutopilotOverride } from "@/db/queries/projects";
 import { DEFAULT_AUTO_INJECT_MODE } from "@/lib/constants/control";
 import type { AutoInjectMode } from "@/config/beacon";
-import { NIGHT_RUNS_MAX } from "@/config/autopilot-night";
+import { NIGHT_RUNS_MAX, NIGHT_ALLOW_MAX_DAYS } from "@/config/autopilot-night";
 
 export type { BeaconSettingsData } from "@/db/queries/beacon-settings";
 
@@ -26,6 +26,9 @@ const PatchBody = z.object({
   transcription_provider: z.enum(TRANSCRIPTION_PROVIDER_VALUES).optional(),
   auto_inject_mode: z.enum(AUTO_INJECT_MODE_VALUES).optional(),
   night_runs: z.number().int().min(0).max(NIGHT_RUNS_MAX).optional(),
+  /** Days from now that nights may run without asking; 0 clears the allowance. */
+  night_allow_days: z.number().int().min(0).max(NIGHT_ALLOW_MAX_DAYS).optional(),
+  night_cost_cap_usd: z.number().min(0).max(1000).nullable().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -53,6 +56,17 @@ export async function PATCH(req: NextRequest) {
   const dataOrResp = await readJsonBody(req, PatchBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
 
-  const updated = await upsertBeaconSettings(userId, dataOrResp);
+  const { night_allow_days, ...patch } = dataOrResp;
+  const updated = await upsertBeaconSettings(userId, {
+    ...patch,
+    ...(night_allow_days !== undefined
+      ? {
+          night_allow_until:
+            night_allow_days > 0
+              ? new Date(Date.now() + night_allow_days * 24 * 60 * 60_000).toISOString()
+              : null,
+        }
+      : {}),
+  });
   return NextResponse.json(updated);
 }

@@ -54,6 +54,7 @@ const TYPE_LABEL: Record<string, string> = {
   [ACTION_TYPE.SEND_EMAIL]: "Email",
   [ACTION_TYPE.DISPATCH_PROMPT]: "Dispatch",
   [ACTION_TYPE.FOLLOW_UP]: "Follow-up",
+  [ACTION_TYPE.AUTOPILOT_PLAN]: "Tonight's autopilot plan",
 };
 
 /**
@@ -202,7 +203,10 @@ export async function notifyActionNeedsDecision(
         },
         { text: "✕ Reject", url: actionLinkUrl({ actionId: action.id, userId, verb: "reject" }) },
       ],
-      [{ text: "✏️ Edit", url: actionEditUrl(action.id) }],
+      // A plan is yes or no; there is nothing in it to edit.
+      ...(action.type === ACTION_TYPE.AUTOPILOT_PLAN
+        ? []
+        : [[{ text: "✏️ Edit", url: actionEditUrl(action.id) }]]),
     ];
 
     await reportSend(

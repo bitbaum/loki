@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, real, timestamp, index } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { NIGHT_RUNS_DEFAULT } from "@/config/autopilot-night";
 
@@ -27,6 +27,11 @@ export const beaconSettings = pgTable(
     // while the owner sleeps. 0 = the night files away and reroutes, but
     // starts nothing. See src/config/autopilot-night.ts.
     nightRuns: integer("night_runs").notNull().default(NIGHT_RUNS_DEFAULT),
+    // The allowance: until when nights may run WITHOUT asking each evening,
+    // and the most a night may be estimated to cost under it. Null = ask
+    // every evening (the default — nothing runs that was not approved).
+    nightAllowUntil: timestamp("night_allow_until", { withTimezone: true }),
+    nightCostCapUsd: real("night_cost_cap_usd"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("idx_beacon_settings_user_id").on(t.userId)],

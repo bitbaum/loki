@@ -4,6 +4,7 @@ import {
   Calendar,
   CheckCircle,
   MessageCircle,
+  Moon,
   Rocket,
   Check,
   X,
@@ -31,6 +32,7 @@ const TYPE_ICONS: Record<ActionType, typeof Send> = {
   [ACTION_TYPE.CREATE_COMMITMENT]: CheckCircle,
   [ACTION_TYPE.FOLLOW_UP]: MessageCircle,
   [ACTION_TYPE.DISPATCH_PROMPT]: Rocket,
+  [ACTION_TYPE.AUTOPILOT_PLAN]: Moon,
   [ACTION_TYPE.IMPORT_PERSON]: Users,
   [ACTION_TYPE.ENRICH_PERSON]: Users,
   [ACTION_TYPE.MERGE_PEOPLE]: Users,
@@ -272,24 +274,32 @@ export async function ActionQueueCard({
                         a triager needs to read — the Decide popup summarises it.
                         Collapsed so the card stays scannable but the exact text
                         stays one click away (nothing is approved blind). */}
-                    {(payload?.body != null || payload?.subject != null) && (
-                      <details className="mt-2 rounded bg-surface-base border border-border-subtle">
-                        <summary className="cursor-pointer px-2 py-1.5 text-xs text-text-tertiary">
-                          Show the exact text that would be sent
-                        </summary>
-                        <div className="px-2 pb-2">
-                          {payload?.subject != null && (
-                            <div className="text-xs font-medium text-text-secondary mb-1">
-                              {"Subject: "}
-                              {String(payload.subject)}
-                            </div>
-                          )}
-                          <pre className="text-xs text-text-secondary whitespace-pre-wrap">
-                            {String(payload?.body ?? "")}
-                          </pre>
-                        </div>
-                      </details>
+                    {/* Tonight's plan IS the text; it is what is being approved,
+                        so it reads in the open, not behind a disclosure. */}
+                    {action.type === ACTION_TYPE.AUTOPILOT_PLAN && payload?.body != null && (
+                      <p className="mt-1 text-xs md:text-sm text-text-secondary">
+                        {String(payload.body)}
+                      </p>
                     )}
+                    {action.type !== ACTION_TYPE.AUTOPILOT_PLAN &&
+                      (payload?.body != null || payload?.subject != null) && (
+                        <details className="mt-2 rounded bg-surface-base border border-border-subtle">
+                          <summary className="cursor-pointer px-2 py-1.5 text-xs text-text-tertiary">
+                            Show the exact text that would be sent
+                          </summary>
+                          <div className="px-2 pb-2">
+                            {payload?.subject != null && (
+                              <div className="text-xs font-medium text-text-secondary mb-1">
+                                {"Subject: "}
+                                {String(payload.subject)}
+                              </div>
+                            )}
+                            <pre className="text-xs text-text-secondary whitespace-pre-wrap">
+                              {String(payload?.body ?? "")}
+                            </pre>
+                          </div>
+                        </details>
+                      )}
 
                     {action.reasoning && (
                       <div className="text-xs md:text-sm text-text-secondary mt-2 italic">

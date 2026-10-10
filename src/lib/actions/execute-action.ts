@@ -50,7 +50,15 @@ export type ExecuteActionResult = {
  *  gate but do nothing at execution until built. SEND_MESSAGE (Telegram),
  *  SEND_EMAIL (Resend) and CREATE_EVENT (gog calendar create) are now wired —
  *  see the switch below. */
-const DEFERRED_TYPES = new Set<Action["type"]>([ACTION_TYPE.FOLLOW_UP, ACTION_TYPE.OTHER]);
+// AUTOPILOT_PLAN is deferred by design: approving it says "yes, tonight";
+// the night cron (crons/autopilot-night) claims the approved row at 02:30
+// UTC and runs exactly what it names. Approval must never start agent runs
+// in the approving request.
+const DEFERRED_TYPES = new Set<Action["type"]>([
+  ACTION_TYPE.FOLLOW_UP,
+  ACTION_TYPE.OTHER,
+  ACTION_TYPE.AUTOPILOT_PLAN,
+]);
 
 type ProfileUpdatePayload = {
   kind: "profile_update";

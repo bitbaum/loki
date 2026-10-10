@@ -6,6 +6,27 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — The night asks first
+
+- **Nothing runs at night that you have not seen.** Every evening Loki shows
+  tonight's plan with names and a price on it — which fixes, which site, how
+  many of your runs, and what it would cost going by your own last runs — and
+  asks for one tap: Approve or Reject, on Control, on Telegram and under
+  Approvals. A plan left undecided expires at 02:30 and the morning note says
+  nothing was built. Before this, the night decided for you; the plan was
+  only visible the morning after.
+- **Allow it in advance, for as long as you say.** Settings → Autopilot:
+  "Nights run without asking" for a week, a month or three months, optionally
+  under a dollar cap a night. Under an allowance the evening message says
+  "runs without asking until …"; a night over the cap asks again.
+- **Free things stay free.** Filing away reports nobody started in three
+  weeks and moving stuck rows to the cloud spend nothing, undo in one tap,
+  and happen with or without a yes. The evening plan and the morning note are
+  assembled from counts — no model is called to write them.
+- The late-night "go to sleep, autopilot has it" strip on Control is
+  replaced by the Tonight card, which shows the plan instead of offering a
+  switch.
+
 ## 2026-10-10 — Your model gets time to think, and you see that it works
 
 - **A model call is bounded by silence, not by a stopwatch.** A 30-second cap
