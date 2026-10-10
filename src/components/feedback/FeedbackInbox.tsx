@@ -17,6 +17,7 @@ import { useFeedbackActions } from "@/components/feedback/use-feedback-actions";
 import {
   RECOMMEND,
   doAllLabel,
+  looksLine,
   recommendFor,
   summarizeDecisions,
   type Recommendation,
@@ -173,13 +174,17 @@ export function FeedbackInbox() {
         await setStatus(f.id, FEEDBACK_STATUS.ARCHIVED, rec.archiveReason);
         break;
       case RECOMMEND.CONNECT:
+      case RECOMMEND.LOOK:
         return;
     }
     setTaken((s) => new Set(s).add(f.id));
   };
 
   const takeAll = async () => {
-    const todo = decisions.filter((d) => d.rec.kind !== RECOMMEND.CONNECT && !taken.has(d.f.id));
+    const todo = decisions.filter(
+      (d) =>
+        d.rec.kind !== RECOMMEND.CONNECT && d.rec.kind !== RECOMMEND.LOOK && !taken.has(d.f.id),
+    );
     setBatch({ done: 0, total: todo.length });
     for (const [i, d] of todo.entries()) {
       await take(d.f, d.rec);
@@ -261,6 +266,7 @@ export function FeedbackInbox() {
         <div className="ui-fb-doall">
           <p className="ui-fb-doall-text">
             Loki has already decided each one. Tap a card to agree, or take them all at once.
+            {looksLine(summary) && <> {looksLine(summary)}</>}
           </p>
           <button
             type="button"
