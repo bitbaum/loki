@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getJson } from "@/lib/api/fetch";
 import { describeChatModel, type LokiModelsResponse } from "@/lib/loki/models";
-import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
+import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 
 /**
  * Which model starts the turn.
@@ -53,7 +53,7 @@ export function ModelPicker({
         if (live) setData(d);
       })
       .catch(() => {
-        if (live) setData({ options: [], autoStartsAt: null, addKeyHref: OWN_MODEL_SETTINGS_PATH });
+        if (live) setData({ options: [], autoStartsAt: null, addKeyHref: MODEL_STORE_PATH });
       });
     return () => {
       live = false;
@@ -129,8 +129,8 @@ export function ModelPicker({
             <span className="ui-loki-model-row-text">
               <span className="ui-loki-model-row-title">Add your own key</span>
               <span className="ui-loki-model-row-sub">
-                Any provider — Loki thinks with the model you pay for, and your free budget no
-                longer applies
+                Compare providers and prices — Loki thinks with the model you pay for, and the free
+                budget no longer applies
               </span>
             </span>
             <KeyRound className="ui-loki-model-check" aria-hidden />
