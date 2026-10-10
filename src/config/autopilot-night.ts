@@ -157,8 +157,22 @@ export function planNight(input: {
 }
 
 /** What a night did — stored per (user, night) and read back as the morning note. */
+export const NIGHT_APPROVAL = {
+  /** The owner tapped yes on the evening's plan. */
+  APPROVED: "approved",
+  /** An allowance the owner set in advance covered it (Settings → Autopilot). */
+  ALLOWANCE: "allowance",
+  /** A plan was put in front of the owner and never approved — nothing was built. */
+  NOT_APPROVED: "not_approved",
+  /** The evening found nothing to build, so there was nothing to ask. */
+  NOTHING_PLANNED: "nothing_planned",
+} as const;
+export type NightApproval = (typeof NIGHT_APPROVAL)[keyof typeof NIGHT_APPROVAL];
+
 export type NightSummary = {
   budget: number;
+  /** How the night was allowed to build. Absent on nights before the evening asked (2026-10-10). */
+  approval?: NightApproval;
   /** `why` is the refusal when no run started — the tick log's reason, not the owner's note. */
   fixes: { feedbackId: string; projectName: string; runId: string | null; why?: string }[];
   reads: { projectName: string; runId: string | null }[];
@@ -180,7 +194,24 @@ export function nightRunsStarted(s: NightSummary): number {
  */
 export function nightNoteText(s: NightSummary, spentUsd?: number | null): string | null {
   const parts: string[] = [];
+  // A plan nobody said yes to is a fact the morning owes the owner — it is
+  // the one case where "nothing" is the news, and the way to a night that
+  // builds is one line away (Settings → Autopilot).
+  if (s.approval === NIGHT_APPROVAL.NOT_APPROVED) {
+    parts.push("built nothing (tonight's plan was not approved)");
+  }
   const started = s.fixes.filter((f) => f.runId);
+  // A yes that led nowhere is owed an answer too: the owner approved runs and
+  // none began — say so, with the first refusal, instead of a silent morning.
+  const planned = s.fixes.length + s.reads.length;
+  const approved =
+    s.approval === NIGHT_APPROVAL.APPROVED || s.approval === NIGHT_APPROVAL.ALLOWANCE;
+  if (approved && planned > 0 && nightRunsStarted(s) === 0) {
+    const why = s.fixes.find((f) => f.why)?.why;
+    parts.push(
+      `could not start the ${planned} ${planned === 1 ? "run" : "runs"} you approved${why ? ` (${why})` : ""}`,
+    );
+  }
   if (started.length) {
     const names = [...new Set(started.map((f) => f.projectName))];
     parts.push(
@@ -202,4 +233,188 @@ export function nightNoteText(s: NightSummary, spentUsd?: number | null): string
     .join(" · ");
   const body = parts.join(", ");
   return `Last night Loki ${body[0]}${body.slice(1)} · ${tail}.`;
+}
+
+// ─── The evening: say what tonight would do, and what it would cost, first ───
+
+/** When the night runs (UTC). The evening plan's hour is the timer's alone
+ *  (scripts/install-hetzner-crons.sh, 19:00 UTC) — nothing here depends on it. */
+export const NIGHT_RUN_HOUR_UTC = 2;
+export const NIGHT_RUN_MINUTE_UTC = 30;
+
+/** The instant the night named `night` runs — on that morning, UTC. */
+export function nightRunAt(night: string): Date {
+  const hh = String(NIGHT_RUN_HOUR_UTC).padStart(2, "0");
+  const mm = String(NIGHT_RUN_MINUTE_UTC).padStart(2, "0");
+  return new Date(`${night}T${hh}:${mm}:00Z`);
+}
+
+/** The night the evening plans for: the morning of the next run after `now`. */
+export function upcomingNight(now: Date): string {
+  const d = new Date(now);
+  const minutes = d.getUTCHours() * 60 + d.getUTCMinutes();
+  if (minutes >= NIGHT_RUN_HOUR_UTC * 60 + NIGHT_RUN_MINUTE_UTC) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Tonight's proposal: the plan with names on it, made in the evening and
+ * put in front of the owner before anything runs. "Nothing sneaky is done,
+ * nothing without the user's knowledge, unless they were explicitly asked
+ * how much they allow and for how long" (owner, 2026-10-10).
+ */
+export type NightProposal = {
+  /** The night it is for — the morning it ends on, YYYY-MM-DD. */
+  night: string;
+  budget: number;
+  fixes: { feedbackId: string; projectName: string; excerpt: string }[];
+  reads: { projectId: string; projectName: string }[];
+  /** Reports that would be filed away — free, and reversible with one tap. */
+  archive: number;
+  /** Candidates passed over, for the "why only two" question. */
+  skipped: NightPlan["skipped"];
+};
+
+/** A run with what it cost, from the owner's own history. */
+export type RunCostSample = {
+  adapter: string;
+  costUsd: number | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+};
+
+export type NightEstimate = {
+  /** Runs the plan would start. */
+  runs: number;
+  /** Money, when the owner's runners report a price; null when none of the
+   *  sample did (a subscription builder meters nothing). */
+  totalUsd: number | null;
+  perRunUsd: number | null;
+  /** Tokens per run, averaged over the sample, when reported. */
+  perRunTokens: number | null;
+  /** How many past runs the figures rest on. 0 = a guess with nothing behind it. */
+  sample: number;
+};
+
+/**
+ * What tonight would cost, from what the owner's last runs cost. Honest in
+ * both directions: a price only when the runners reported one, and the
+ * sample size beside it so a figure from two runs reads as what it is.
+ */
+export function estimateNightCost(history: RunCostSample[], runs: number): NightEstimate {
+  const priced = history.filter((r) => typeof r.costUsd === "number" && r.costUsd > 0);
+  const tokened = history.filter(
+    (r) => typeof r.tokensIn === "number" || typeof r.tokensOut === "number",
+  );
+  const perRunUsd = priced.length
+    ? priced.reduce((n, r) => n + (r.costUsd as number), 0) / priced.length
+    : null;
+  const perRunTokens = tokened.length
+    ? Math.round(
+        tokened.reduce((n, r) => n + (r.tokensIn ?? 0) + (r.tokensOut ?? 0), 0) / tokened.length,
+      )
+    : null;
+  return {
+    runs,
+    totalUsd: perRunUsd == null ? null : Math.round(perRunUsd * runs * 100) / 100,
+    perRunUsd: perRunUsd == null ? null : Math.round(perRunUsd * 100) / 100,
+    perRunTokens,
+    sample: history.length,
+  };
+}
+
+/** "$1.20 (from your last 20 runs)" / "no metered cost — your builder is on a subscription" / "no runs to go on". */
+export function estimateText(e: NightEstimate): string {
+  if (e.runs === 0) return "nothing to spend — no runs planned";
+  if (e.sample === 0) return "no past runs to estimate from";
+  if (e.totalUsd == null) {
+    return `no metered cost — your builder reported no price on the last ${e.sample} ${e.sample === 1 ? "run" : "runs"}`;
+  }
+  const tokens = e.perRunTokens ? `, ~${Math.round(e.perRunTokens / 1000)}k tokens a run` : "";
+  return `~$${e.totalUsd.toFixed(2)} (your last ${e.sample} runs averaged $${(e.perRunUsd as number).toFixed(2)}${tokens})`;
+}
+
+/**
+ * The evening message: what would run, what it would cost, what is free.
+ * One short paragraph for a phone; the card shows the same lines.
+ */
+export function nightProposalText(p: NightProposal, e: NightEstimate): string {
+  const parts: string[] = [];
+  if (p.fixes.length) {
+    const names = [...new Set(p.fixes.map((f) => f.projectName))];
+    parts.push(`${p.fixes.length} ${p.fixes.length === 1 ? "fix" : "fixes"} (${names.join(", ")})`);
+  }
+  if (p.reads.length) parts.push(`read ${p.reads.map((r) => r.projectName).join(", ")}`);
+  const runs = p.fixes.length + p.reads.length;
+  const free = p.archive
+    ? ` Filing away ${p.archive} old ${p.archive === 1 ? "report" : "reports"} is free and one tap to undo.`
+    : "";
+  if (runs === 0) {
+    return `Tonight Loki has nothing to build: no open report on a project that can take a run.${free}`;
+  }
+  return `Tonight Loki would start ${parts.join(" and ")} — ${runs} of ${p.budget} runs, ${estimateText(e)}.${free}`;
+}
+
+// ─── The allowance: the one way a night runs without asking ─────────────────
+
+/** How far ahead an allowance may reach. */
+export const NIGHT_ALLOW_MAX_DAYS = 365;
+
+/** What Settings offers — "for how long", in the owner's words. 0 = ask every evening. */
+export const NIGHT_ALLOW_CHOICES: readonly { days: number; label: string }[] = [
+  { days: 0, label: "Ask me every evening" },
+  { days: 7, label: "For a week" },
+  { days: 30, label: "For a month" },
+  { days: 90, label: "For three months" },
+];
+
+/**
+ * The choice an allowance reads back as: the largest offered span that still
+ * fits in what is left of it, so a week set six days ago still shows "a week"
+ * and an expired one shows "ask me". Pure.
+ */
+export function allowanceDaysLeft(until: string | null, now = Date.now()): number {
+  const t = until ? Date.parse(until) : NaN;
+  if (Number.isNaN(t) || t <= now) return 0;
+  const left = (t - now) / 86_400_000;
+  let best = 0;
+  for (const c of NIGHT_ALLOW_CHOICES) if (c.days > 0 && c.days <= left + 1) best = c.days;
+  return best || NIGHT_ALLOW_CHOICES.find((c) => c.days > 0)!.days;
+}
+
+/** The approval row's title — one per night, which is also the dedupe key. */
+export function nightActionTitle(night: string): string {
+  return `Tonight's autopilot plan · ${night}`;
+}
+
+export type NightAllowanceVerdict =
+  { auto: true; reason: string } | { auto: false; reason: string };
+
+/**
+ * May tonight's plan run without a tap? Only under an allowance the owner
+ * set — "run without asking until <date>, up to $<cap> a night" — and only
+ * when the estimate stays under the cap. An unmetered builder (no price
+ * reported) is within any cap: there is nothing to exceed. Pure.
+ */
+export function nightAllowance(
+  settings: { night_allow_until: string | null; night_cost_cap_usd: number | null },
+  estimate: NightEstimate,
+  now = Date.now(),
+): NightAllowanceVerdict {
+  const until = settings.night_allow_until ? Date.parse(settings.night_allow_until) : NaN;
+  if (Number.isNaN(until) || until <= now) {
+    return { auto: false, reason: "no allowance — the plan waits for your yes" };
+  }
+  const cap = settings.night_cost_cap_usd;
+  if (cap != null && estimate.totalUsd != null && estimate.totalUsd > cap) {
+    return {
+      auto: false,
+      reason: `estimated $${estimate.totalUsd.toFixed(2)} is over your $${cap.toFixed(2)} cap — the plan waits for your yes`,
+    };
+  }
+  const day = new Date(until).toISOString().slice(0, 10);
+  return {
+    auto: true,
+    reason: `allowed until ${day}${cap != null ? `, up to $${cap.toFixed(2)} a night` : ""}`,
+  };
 }

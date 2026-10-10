@@ -5,6 +5,11 @@
  */
 import assert from "node:assert/strict";
 import {
+  nightActionTitle,
+  nightAllowance,
+  estimateNightCost,
+  estimateText,
+  nightProposalText,
   nightNoteText,
   nightRunsStarted,
   planNight,
@@ -14,6 +19,10 @@ import {
   STALE_REPORT_REASON,
   type NightProject,
   type NightReport,
+  NIGHT_APPROVAL,
+  allowanceDaysLeft,
+  nightRunAt,
+  upcomingNight,
 } from "@/config/autopilot-night";
 
 const NOW = Date.parse("2026-10-11T02:30:00Z");
@@ -171,6 +180,169 @@ const report = (id: string, projectId: string, over: Partial<NightReport> = {}):
     nightNoteText({ ...summary, fixes: [], reads: [], archived: 1 }),
     "Last night Loki filed away 1 old report · 0 of 4 runs.",
   );
+}
+
+// ── The evening: what it would cost, honestly ────────────────────────────────
+{
+  const none = estimateNightCost([], 3);
+  assert.equal(none.totalUsd, null);
+  assert.equal(estimateText(none), "no past runs to estimate from");
+
+  const subscription = estimateNightCost(
+    [
+      { adapter: "claude", costUsd: null, tokensIn: null, tokensOut: null },
+      { adapter: "claude", costUsd: null, tokensIn: null, tokensOut: null },
+    ],
+    2,
+  );
+  assert.equal(subscription.totalUsd, null);
+  assert.match(estimateText(subscription), /no metered cost/);
+
+  const metered = estimateNightCost(
+    [
+      { adapter: "codex", costUsd: 0.4, tokensIn: 100_000, tokensOut: 5_000 },
+      { adapter: "codex", costUsd: 0.8, tokensIn: 200_000, tokensOut: 7_000 },
+      { adapter: "claude", costUsd: null, tokensIn: null, tokensOut: null },
+    ],
+    3,
+  );
+  assert.equal(metered.perRunUsd, 0.6);
+  assert.equal(metered.totalUsd, 1.8);
+  assert.equal(metered.perRunTokens, 156_000);
+  assert.equal(metered.sample, 3);
+  assert.equal(
+    estimateText(metered),
+    "~$1.80 (your last 3 runs averaged $0.60, ~156k tokens a run)",
+  );
+
+  const text = nightProposalText(
+    {
+      night: "2026-10-11",
+      budget: 4,
+      fixes: [
+        { feedbackId: "a", projectName: "kestrel", excerpt: "prices unreadable" },
+        { feedbackId: "b", projectName: "harbourlight", excerpt: "footer year" },
+      ],
+      reads: [{ projectId: "c", projectName: "ledgerpost" }],
+      archive: 2,
+      skipped: { paused: 0, busy: 0, not_runnable: 0, lane_taken: 0, over_budget: 0 },
+    },
+    metered,
+  );
+  assert.equal(
+    text,
+    "Tonight Loki would start 2 fixes (kestrel, harbourlight) and read ledgerpost — 3 of 4 runs, ~$1.80 (your last 3 runs averaged $0.60, ~156k tokens a run). Filing away 2 old reports is free and one tap to undo.",
+  );
+  const quiet = nightProposalText(
+    {
+      night: "2026-10-11",
+      budget: 4,
+      fixes: [],
+      reads: [],
+      archive: 0,
+      skipped: { paused: 0, busy: 0, not_runnable: 0, lane_taken: 0, over_budget: 0 },
+    },
+    none,
+  );
+  assert.match(quiet, /nothing to build/);
+}
+
+// ── The allowance: the only way a night runs unasked ────────────────────────
+{
+  const now = Date.parse("2026-10-10T19:00:00Z");
+  const metered = { runs: 3, totalUsd: 1.8, perRunUsd: 0.6, perRunTokens: null, sample: 3 };
+  const unmetered = { runs: 3, totalUsd: null, perRunUsd: null, perRunTokens: null, sample: 3 };
+  const none = nightAllowance({ night_allow_until: null, night_cost_cap_usd: null }, metered, now);
+  assert.equal(none.auto, false);
+  const expired = nightAllowance(
+    { night_allow_until: "2026-10-01T00:00:00Z", night_cost_cap_usd: null },
+    metered,
+    now,
+  );
+  assert.equal(expired.auto, false, "an allowance that ran out asks again");
+  const over = nightAllowance(
+    { night_allow_until: "2026-10-17T00:00:00Z", night_cost_cap_usd: 1 },
+    metered,
+    now,
+  );
+  assert.equal(over.auto, false);
+  assert.match(over.reason, /over your \$1\.00 cap/);
+  const ok = nightAllowance(
+    { night_allow_until: "2026-10-17T00:00:00Z", night_cost_cap_usd: 5 },
+    metered,
+    now,
+  );
+  assert.deepEqual(ok, { auto: true, reason: "allowed until 2026-10-17, up to $5.00 a night" });
+  const free = nightAllowance(
+    { night_allow_until: "2026-10-17T00:00:00Z", night_cost_cap_usd: 1 },
+    unmetered,
+    now,
+  );
+  assert.equal(free.auto, true, "an unmetered builder cannot exceed a cap");
+  assert.equal(nightActionTitle("2026-10-11"), "Tonight's autopilot plan · 2026-10-11");
+}
+
+// ── The night that was not approved says so; the clock names the right night ─
+{
+  const held = nightNoteText({
+    budget: 4,
+    approval: NIGHT_APPROVAL.NOT_APPROVED,
+    fixes: [],
+    reads: [],
+    archived: 2,
+    rerouted: 0,
+    skipped: { paused: 0, busy: 0, not_runnable: 0, lane_taken: 0, over_budget: 0 },
+  });
+  assert.equal(
+    held,
+    "Last night Loki built nothing (tonight's plan was not approved), filed away 2 old reports · 0 of 4 runs.",
+  );
+  assert.equal(
+    nightNoteText({
+      budget: 4,
+      approval: NIGHT_APPROVAL.NOTHING_PLANNED,
+      fixes: [],
+      reads: [],
+      archived: 0,
+      rerouted: 0,
+      skipped: { paused: 0, busy: 0, not_runnable: 0, lane_taken: 0, over_budget: 0 },
+    }),
+    null,
+    "nothing planned, nothing done: silence",
+  );
+
+  const refused = nightNoteText({
+    budget: 4,
+    approval: NIGHT_APPROVAL.APPROVED,
+    fixes: [{ feedbackId: "a", projectName: "kestrel", runId: null, why: "no builder online" }],
+    reads: [],
+    archived: 0,
+    rerouted: 0,
+    skipped: { paused: 0, busy: 0, not_runnable: 0, lane_taken: 0, over_budget: 0 },
+  });
+  assert.equal(
+    refused,
+    "Last night Loki could not start the 1 run you approved (no builder online) · 0 of 4 runs.",
+    "a yes that led nowhere is not a silent morning",
+  );
+
+  // 19:00 UTC on the 10th plans for the run on the morning of the 11th; a
+  // replay at 01:00 on the 11th still names the 11th; 03:00 is the next night.
+  assert.equal(upcomingNight(new Date("2026-10-10T19:00:00Z")), "2026-10-11");
+  assert.equal(upcomingNight(new Date("2026-10-11T01:00:00Z")), "2026-10-11");
+  assert.equal(upcomingNight(new Date("2026-10-11T03:00:00Z")), "2026-10-12");
+  assert.equal(nightRunAt("2026-10-11").toISOString(), "2026-10-11T02:30:00.000Z");
+
+  const now = Date.parse("2026-10-10T12:00:00Z");
+  const days = (n: number) => new Date(now + n * 86_400_000).toISOString();
+  assert.equal(allowanceDaysLeft(null, now), 0);
+  assert.equal(allowanceDaysLeft(days(-1), now), 0, "an expired allowance reads as ask me");
+  assert.equal(allowanceDaysLeft(days(7), now), 7);
+  assert.equal(allowanceDaysLeft(days(6.5), now), 7, "a week set half a day ago is still a week");
+  assert.equal(allowanceDaysLeft(days(2), now), 7, "less than the shortest choice rounds up to it");
+  assert.equal(allowanceDaysLeft(days(30), now), 30);
+  assert.equal(allowanceDaysLeft(days(45), now), 30);
+  assert.equal(allowanceDaysLeft(days(365), now), 90);
 }
 
 console.log("✓ autopilot night planner tests passed");

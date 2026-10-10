@@ -17,7 +17,13 @@ import {
   type AutoInjectMode,
 } from "@/config/beacon";
 import { LOKI_REFRESH_EVENT } from "@/lib/client-events";
-import { NIGHT_RUNS_DEFAULT, NIGHT_RUNS_MAX, STALE_REPORT_DAYS } from "@/config/autopilot-night";
+import {
+  NIGHT_ALLOW_CHOICES,
+  NIGHT_RUNS_DEFAULT,
+  NIGHT_RUNS_MAX,
+  STALE_REPORT_DAYS,
+  allowanceDaysLeft,
+} from "@/config/autopilot-night";
 
 export function BeaconSettings() {
   const [data, setData] = useState<BeaconSettingsData | null>(null);
@@ -26,6 +32,10 @@ export function BeaconSettings() {
   const [provider, setProvider] = useState("auto");
   const [autoInjectMode, setAutoInjectMode] = useState<AutoInjectMode>(DEFAULT_AUTO_INJECT_MODE);
   const [nightRuns, setNightRuns] = useState(NIGHT_RUNS_DEFAULT);
+  // The allowance is edited as "for how long from now" and stored as an
+  // instant; what the owner last set is read back as the choice it rounds to.
+  const [allowDays, setAllowDays] = useState(0);
+  const [costCap, setCostCap] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -40,6 +50,8 @@ export function BeaconSettings() {
         setProvider(d.transcription_provider);
         setAutoInjectMode(d.auto_inject_mode);
         setNightRuns(d.night_runs);
+        setAllowDays(allowanceDaysLeft(d.night_allow_until));
+        setCostCap(d.night_cost_cap_usd == null ? "" : String(d.night_cost_cap_usd));
       })
       .catch(() => setLoadError(true));
   }, []);
@@ -50,7 +62,9 @@ export function BeaconSettings() {
       model !== data.whisper_model ||
       provider !== data.transcription_provider ||
       autoInjectMode !== data.auto_inject_mode ||
-      nightRuns !== data.night_runs);
+      nightRuns !== data.night_runs ||
+      allowDays !== allowanceDaysLeft(data.night_allow_until) ||
+      costCap !== (data.night_cost_cap_usd == null ? "" : String(data.night_cost_cap_usd)));
 
   const save = async () => {
     setSaving(true);
@@ -63,6 +77,8 @@ export function BeaconSettings() {
         transcription_provider: provider,
         auto_inject_mode: autoInjectMode,
         night_runs: nightRuns,
+        night_allow_days: allowDays,
+        night_cost_cap_usd: costCap.trim() === "" ? null : Number(costCap),
       });
       if (!res.ok) await throwApiError(res, "Failed to save");
       setData({
@@ -71,6 +87,9 @@ export function BeaconSettings() {
         transcription_provider: provider,
         auto_inject_mode: autoInjectMode,
         night_runs: nightRuns,
+        night_allow_until:
+          allowDays > 0 ? new Date(Date.now() + allowDays * 86_400_000).toISOString() : null,
+        night_cost_cap_usd: costCap.trim() === "" ? null : Number(costCap),
       });
       setSaved(true);
       window.dispatchEvent(new CustomEvent(LOKI_REFRESH_EVENT));
@@ -171,6 +190,51 @@ export function BeaconSettings() {
                 this number is the most it can spend. It also files away reports nobody started in{" "}
                 {STALE_REPORT_DAYS} days, with the reason on the row. 0 keeps the filing and stops
                 the building. A project paused on Control is left alone.
+              </p>
+            </div>
+
+            {/* ── The night asks first ── */}
+            <div className="space-y-1.5">
+              <label className="ui-kicker" htmlFor="night-allow">
+                Nights run without asking
+              </label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                <select
+                  id="night-allow"
+                  value={allowDays}
+                  onChange={(e) => setAllowDays(Number(e.target.value))}
+                  className="ui-input w-auto"
+                >
+                  {NIGHT_ALLOW_CHOICES.map((c) => (
+                    <option key={c.days} value={c.days}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-text-tertiary">up to $</span>
+                  <input
+                    id="night-cap"
+                    type="number"
+                    min={0}
+                    step="0.5"
+                    inputMode="decimal"
+                    placeholder="no cap"
+                    value={costCap}
+                    onChange={(e) => setCostCap(e.target.value)}
+                    className="ui-input w-24 tabular-nums"
+                    aria-label="Cost cap per night in dollars"
+                  />
+                  <span className="text-sm text-text-tertiary">a night</span>
+                </div>
+              </div>
+              <p className="text-xs text-text-muted">
+                Every evening Loki shows you tonight&apos;s plan — which fixes, which site, and what
+                it would cost from your own last runs — and nothing that spends is started without
+                your yes. Set an allowance and it runs without asking for that long, under the cap;
+                a night over the cap asks again. Filing away old reports and moving stuck rows to
+                the cloud is free and always happens. Building uses your builder as set above; the
+                evening message and the morning note cost nothing.
               </p>
             </div>
 

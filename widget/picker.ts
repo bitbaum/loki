@@ -110,13 +110,68 @@ export function createPicker(opts: {
   pickMsg.append(h("span", "dot"), pickCount, pickLbl);
   const pickDone = h("button", "go", "Done");
   pickDone.addEventListener("click", stopPicking);
+  // "This screen": what is on screen right now, marked as one — for the owner
+  // on a phone who sees a problem with the whole view, not one control. It
+  // picks the blocks visible in the viewport (so Loki gets their markup and
+  // where they sit), the way a screenshot would frame them.
+  const pickScreen = h("button", "ghost", "This screen");
+  pickScreen.type = "button";
+  pickScreen.title = "Mark everything on screen right now";
+  pickScreen.addEventListener("click", () => {
+    clearSelection();
+    for (const node of visibleBlocks(maxElements)) select(node);
+    syncPickbar();
+    if (selected.length) stopPicking();
+  });
   const pickCancel = h("button", "ghost", "Cancel");
   pickCancel.addEventListener("click", () => {
     clearSelection();
     opts.onCancel();
     stopPicking();
   });
-  pickbar.append(pickMsg, pickDone, pickCancel);
+  pickbar.append(pickMsg, pickScreen, pickDone, pickCancel);
+
+  /**
+   * The blocks a screenshot of the viewport would show: landmarks and
+   * sections that intersect it, outermost first, descending into one that is
+   * much taller than the screen (a `main` holding the whole page says nothing
+   * about THIS screen). Capped, and never the widget's own host.
+   */
+  function visibleBlocks(max: number): Element[] {
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    const BLOCKS = "header, nav, main, section, article, aside, footer, form, [role], h1, h2";
+    const inView = (r: DOMRect) => r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw;
+    const out: Element[] = [];
+    const walk = (parent: Element) => {
+      for (const el of Array.from(parent.children)) {
+        if (out.length >= max) return;
+        if (el === host || el.id === "loki-feedback-host") continue;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0 || !inView(r)) continue;
+        const block = el.matches(BLOCKS);
+        if (block && r.height <= vh * 1.5) {
+          out.push(el);
+          continue;
+        }
+        walk(el);
+      }
+    };
+    walk(document.body);
+    return out;
+  }
+
+  function select(target: Element) {
+    const selector = generateSelector(target);
+    if (selected.some((s) => s.selector === selector) || selected.length >= maxElements) return;
+    selected.push({
+      elementType: target.tagName.toLowerCase(),
+      elementText: elementLabel(target),
+      selector,
+    });
+    selectedNodes.push(target);
+    target.classList.add("fcw-selected");
+  }
 
   // Full-viewport shield: blocks host navigation/handlers during pick.
   // Target resolution uses elementsFromPoint so we still hit the real DOM
@@ -162,22 +217,18 @@ export function createPicker(opts: {
       selected.splice(idx, 1);
       selectedNodes[idx]?.classList.remove("fcw-selected");
       selectedNodes.splice(idx, 1);
-    } else if (selected.length < maxElements) {
-      selected.push({
-        elementType: target.tagName.toLowerCase(),
-        elementText: elementLabel(target),
-        selector,
-      });
-      selectedNodes.push(target);
-      target.classList.add("fcw-selected");
+    } else {
+      select(target);
     }
     syncPickbar();
   }
 
   function syncPickbar() {
     if (selected.length === 0) {
+      // Short enough to survive a phone beside "This screen": the hint is
+      // the two buttons' names, not a sentence that ellipsises to "Tap w…".
       pickCount.textContent = "Pick";
-      pickLbl.textContent = "Click the element your feedback is about";
+      pickLbl.textContent = "Tap it, or";
       pickDone.disabled = true;
       return;
     }
@@ -187,7 +238,7 @@ export function createPicker(opts: {
     const label = (last.elementText || last.selector).replace(/\s+/g, " ").slice(0, 60);
     pickCount.textContent = `${selected.length} selected`;
     pickLbl.textContent =
-      selected.length === 1 ? `${label} — click more, or Done` : `last: ${label} — Done when ready`;
+      selected.length === 1 ? `${label} — tap more, or Done` : `last: ${label} — Done when ready`;
     pickDone.disabled = false;
   }
 

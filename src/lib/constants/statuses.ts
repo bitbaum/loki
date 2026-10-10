@@ -60,6 +60,11 @@ export const ACTION_TYPE = {
   FOLLOW_UP: "follow_up",
   /** Approve → injectPrompt a prepared prompt into a project (feedback digester). */
   DISPATCH_PROMPT: "dispatch_prompt",
+  /** Tonight's autopilot plan, proposed in the evening with its cost. Approved
+   *  (or allowed in advance, Settings → Autopilot) it runs at 02:30 UTC; a
+   *  draft left undecided expires then and nothing runs. Never executes on
+   *  approval itself — the night cron claims it. See lib/autopilot-night.ts. */
+  AUTOPILOT_PLAN: "autopilot_plan",
   /** Accept a parsed contact into this user's private book. Never a scrape. */
   IMPORT_PERSON: "import_person",
   /** Accept a field proposal onto an existing person. Never silent. */

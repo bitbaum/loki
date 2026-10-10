@@ -311,6 +311,21 @@ export async function getStaleDraftSummaries(
   }));
 }
 
+/**
+ * The newest row with this exact title, whatever its status — for titles that
+ * are keys by construction (one autopilot plan per night), so a card can say
+ * "waiting for you", "approved" or "not tonight" without a status enum in the URL.
+ */
+export async function getActionByTitle(userId: string, title: string): Promise<ActionRow | null> {
+  const [row] = await db
+    .select()
+    .from(actions)
+    .where(and(eq(actions.userId, userId), eq(actions.title, title)))
+    .orderBy(desc(actions.createdAt))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function getActionById(userId: string, id: string): Promise<ActionRow | null> {
   const [row] = await db
     .select()

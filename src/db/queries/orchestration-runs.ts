@@ -1208,3 +1208,36 @@ export async function closeRunsEndedByRunnerRestart(
   }
   return closed;
 }
+
+/**
+ * What the owner's recent closed runs cost — the sample the evening's
+ * estimate rests on (config/autopilot-night.ts estimateNightCost). Closed
+ * runs only, newest first; a run that reported no usage is still a sample
+ * (it says the builder meters nothing), so the estimate can say so.
+ */
+export async function listRunCostSamples(
+  userId: string,
+  limit = 30,
+): Promise<
+  { adapter: string; costUsd: number | null; tokensIn: number | null; tokensOut: number | null }[]
+> {
+  return db
+    .select({
+      adapter: orchestrationRuns.adapter,
+      costUsd: orchestrationRuns.costUsd,
+      tokensIn: orchestrationRuns.tokensIn,
+      tokensOut: orchestrationRuns.tokensOut,
+    })
+    .from(orchestrationRuns)
+    .where(and(eq(orchestrationRuns.userId, userId), isNotNull(orchestrationRuns.finishedAt)))
+    .orderBy(desc(orchestrationRuns.finishedAt))
+    .limit(limit)
+    .then((rows) =>
+      rows.map((r) => ({
+        adapter: r.adapter,
+        costUsd: r.costUsd,
+        tokensIn: r.tokensIn == null ? null : Number(r.tokensIn),
+        tokensOut: r.tokensOut == null ? null : Number(r.tokensOut),
+      })),
+    );
+}

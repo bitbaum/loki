@@ -35,7 +35,7 @@ import { buildCardProps } from "./control-panel-card-props";
 import { ProjectOperationsView } from "./ProjectOperationsView";
 import { MissingCLIsBanner } from "@/components/desktop/MissingCLIsBanner";
 import { useAutomationPolicy } from "@/hooks/use-automation-policy";
-import { LateNightAutopilot } from "./LateNightAutopilot";
+import { TonightCard } from "./TonightCard";
 import type { AutoInjectMode } from "@/config/beacon";
 
 export function ControlPanel() {
@@ -317,6 +317,11 @@ export function ControlPanel() {
           because the person coming back asked this question before any
           other; it is gone with one tap. */}
       <AwayReturnCard />
+      {/* Tier 0 too, in the evening: tonight's plan with its price and the
+          one decision — the only question on this page with a clock on it
+          (undecided at 02:30 UTC, nothing runs). Renders nothing when there
+          is no plan. */}
+      <TonightCard />
       {/* ORDERING (the whole page, one rule): Control answers four questions,
           in this order, and every child below belongs to exactly one tier.
 
@@ -407,7 +412,6 @@ export function ControlPanel() {
           panel renders nothing at all when the queue is empty. That is two
           rows above the fleet, not the ~1,400px of unbounded strips it
           replaced (#367). Add a GROUP to the inbox; never add a strip here. */}
-      <LateNightAutopilot />
       <ControlInbox inbox={inbox} />
 
       {/* ControlFleetStatus shows runner health + working/ready/open counters

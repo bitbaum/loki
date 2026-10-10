@@ -20,6 +20,10 @@ export type BeaconSettingsData = {
   auto_inject_mode: AutoInjectMode;
   /** Runs the autopilot night may start. See src/config/autopilot-night.ts. */
   night_runs: number;
+  /** ISO — nights run without asking until then. Null = ask every evening. */
+  night_allow_until: string | null;
+  /** The most a night may be estimated to cost under the allowance. Null = no cap. */
+  night_cost_cap_usd: number | null;
 };
 
 const DEFAULTS: BeaconSettingsData = {
@@ -30,6 +34,8 @@ const DEFAULTS: BeaconSettingsData = {
   // the rationale. Safety rails live in /api/control/dispatch + the Stop hook.
   auto_inject_mode: DEFAULT_AUTO_INJECT_MODE,
   night_runs: NIGHT_RUNS_DEFAULT,
+  night_allow_until: null,
+  night_cost_cap_usd: null,
 };
 
 function coerceNightRuns(v: number | null | undefined): number {
@@ -58,6 +64,8 @@ export async function getBeaconSettings(userId: string): Promise<BeaconSettingsD
     transcription_provider: rows[0].transcriptionProvider,
     auto_inject_mode: coerceAutoInjectMode(rows[0].autoInjectMode),
     night_runs: coerceNightRuns(rows[0].nightRuns),
+    night_allow_until: rows[0].nightAllowUntil?.toISOString() ?? null,
+    night_cost_cap_usd: rows[0].nightCostCapUsd ?? null,
   };
 }
 
@@ -100,6 +108,9 @@ export async function upsertBeaconSettings(
     updateSet.transcriptionProvider = patch.transcription_provider;
   if (patch.auto_inject_mode !== undefined) updateSet.autoInjectMode = patch.auto_inject_mode;
   if (patch.night_runs !== undefined) updateSet.nightRuns = coerceNightRuns(patch.night_runs);
+  if (patch.night_allow_until !== undefined)
+    updateSet.nightAllowUntil = patch.night_allow_until ? new Date(patch.night_allow_until) : null;
+  if (patch.night_cost_cap_usd !== undefined) updateSet.nightCostCapUsd = patch.night_cost_cap_usd;
 
   await db
     .insert(beaconSettings)
@@ -110,6 +121,8 @@ export async function upsertBeaconSettings(
       transcriptionProvider: inserted.transcription_provider,
       autoInjectMode: inserted.auto_inject_mode,
       nightRuns: coerceNightRuns(inserted.night_runs),
+      nightAllowUntil: inserted.night_allow_until ? new Date(inserted.night_allow_until) : null,
+      nightCostCapUsd: inserted.night_cost_cap_usd,
     })
     .onConflictDoUpdate({
       target: beaconSettings.userId,

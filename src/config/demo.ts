@@ -239,6 +239,7 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
   "studio-recover", // Public write under the fixed studio owner; query rejects a demo owner; mails only the address a request already holds.
   "activity",
   "alerts",
+  "autopilot", // Tonight's plan, read back from the caller's own approval queue and settings.
   "away", // "Back in N minutes": two timestamps on the caller's own preferences, read back as a summary of their own runs and feedback.
   "beacon-settings",
   "builder",

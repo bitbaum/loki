@@ -87,10 +87,15 @@ export function createLauncher(opts: {
   const BUBBLE_SHOWN_MS = 12_000;
 
   // ---- "Show Loki this" ----
-  // While Loki watches, a target sits beside the launcher: tap it, tap the
-  // thing, say what is wrong. Watching should notice everything by itself,
-  // but when the owner is not sure it did, drawing its attention must take
-  // one tap — not opening a panel and finding a tab (owner, 2026-10-09).
+  // The owner's launcher has a second half: a target, flush against it. Tap
+  // it, tap the thing (or "This screen"), say what is wrong. Watching should
+  // notice everything by itself, but when the owner is not sure it did,
+  // drawing its attention must take one tap — not opening a panel and finding
+  // a tab (owner, 2026-10-09). It is part of the launcher, not a second
+  // floating circle, and it is there whenever the owner is — paused too:
+  // "I don't know when one appears and when the other appears" (2026-10-10)
+  // was the ◎ coming and going with Watch while a top bar came and went with
+  // the launcher. Now one thing, in one place, always the same.
   const point = h("button", "fab-point");
   point.type = "button";
   point.innerHTML = TARGET_SVG;
@@ -113,17 +118,28 @@ export function createLauncher(opts: {
     if (!shown || !placed) return;
     const { x, y } = cornerEdges(placed.corner);
     point.style.left = point.style.right = point.style.top = point.style.bottom = "auto";
-    point.style[x] = `${placed.offsetX + fab.offsetWidth + 8}px`;
+    // Flush against the launcher's inner edge: one pill, two halves.
+    point.style[x] = `${placed.offsetX + fab.offsetWidth - 1}px`;
     point.style[y] = `${placed.offsetY}px`;
+    point.style.height = `${fab.offsetHeight}px`;
+    point.classList.toggle("left", x === "left");
   }
   new MutationObserver(() => syncPoint()).observe(fab, {
     attributes: true,
     attributeFilter: ["style", "class"],
   });
 
+  /** The site's owner: the launcher is their tool and is never hidden for
+   *  them by the avoid pass — on their own site, a corner it covers is theirs
+   *  to move it from (long-press), not a reason for it to vanish and a bar to
+   *  appear somewhere else. */
+  let owner = false;
   function setOwnerStatus(status: OwnerStatus | null) {
-    pointWanted = !!status?.watching;
+    pointWanted = status !== null;
+    const wasOwner = owner;
+    owner = status !== null;
     syncPoint();
+    if (owner !== wasOwner) reposition();
     fab.classList.toggle("owner", status !== null);
     fab.classList.toggle("watching", !!status?.watching);
     fab.classList.toggle("paused", status !== null && !status.watching);
@@ -285,6 +301,7 @@ export function createLauncher(opts: {
     fab.style.left = fab.style.right = fab.style.top = fab.style.bottom = "auto";
     fab.style[x] = `${slot.offsetX}px`;
     fab.style[y] = `${slot.offsetY}px`;
+    fab.classList.toggle("on-left", x === "left");
     placed = slot;
     syncPoint();
   };
@@ -329,10 +346,11 @@ export function createLauncher(opts: {
       nearBandTop(base, { edgeLength: window.innerHeight, size: size.height }),
     );
     if (!pick) {
-      // Every slot would sit on a host control. Hidden until the page changes;
-      // the next reposition re-measures.
+      // Every slot would sit on a host control. For a visitor: hidden until
+      // the page changes (the next reposition re-measures). For the owner:
+      // stays, in its own corner — Loki on their site is never out of sight.
       place(base);
-      show(false);
+      show(owner);
       return;
     }
     place(pick.slot);

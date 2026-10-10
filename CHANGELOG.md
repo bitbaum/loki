@@ -6,6 +6,40 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — One Loki on your site
+
+- **The owner's launcher is one thing, always in one place.** On your own
+  site it was two: "Loki · watching" in a corner with a ◎ beside it, and a
+  "Loki is watching" bar at the top that took over whenever the corner was
+  busy — on a phone, every scroll. Now the launcher never hides and never
+  fades for the owner, the ◎ is its other half (there whether watching or
+  paused), and the bar appears only on a page that hides the launcher
+  outright — carrying the same ◎.
+- **Show Loki this screen.** ◎ now offers **This screen** beside tapping an
+  element: it marks what is on screen right now, the way a screenshot would
+  frame it, and the conversation opens with it attached — say what you would
+  change, ask Loki, or build it.
+
+## 2026-10-10 — The night asks first
+
+- **Nothing runs at night that you have not seen.** Every evening Loki shows
+  tonight's plan with names and a price on it — which fixes, which site, how
+  many of your runs, and what it would cost going by your own last runs — and
+  asks for one tap: Approve or Reject, on Control, on Telegram and under
+  Approvals. A plan left undecided expires at 02:30 and the morning note says
+  nothing was built. Before this, the night decided for you; the plan was
+  only visible the morning after.
+- **Allow it in advance, for as long as you say.** Settings → Autopilot:
+  "Nights run without asking" for a week, a month or three months, optionally
+  under a dollar cap a night. Under an allowance the evening message says
+  "runs without asking until …"; a night over the cap asks again.
+- **Free things stay free.** Filing away reports nobody started in three
+  weeks and moving stuck rows to the cloud spend nothing, undo in one tap,
+  and happen with or without a yes. The evening plan and the morning note are
+  assembled from counts — no model is called to write them.
+- The late-night "go to sleep, autopilot has it" strip on Control is
+  replaced by the Tonight card, which shows the plan instead of offering a
+  switch.
 ## 2026-10-10 — A store for models: who thinks for you, and who you pay
 
 - **Models, compared.** `/models` lists every provider you can bring —

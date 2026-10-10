@@ -7,7 +7,7 @@
  * is on screen; one tap pauses it, and paused it records nothing. The trail
  * and what counts as a failure are watch-trail.ts (pure, tested).
  */
-import { h } from "./dom";
+import { TARGET_SVG, h } from "./dom";
 import type { WidgetTheme } from "./theme";
 import { buildSuggestion, type ReportDiagnostics } from "./report-payload";
 import {
@@ -432,6 +432,7 @@ export function createWatchPill(
   theme: WidgetTheme,
   onToggle: () => void,
   onShow: () => void,
+  onPoint?: () => void,
 ): { set: (state: WatchPillState) => void; setVisible: (visible: boolean) => void } {
   const style = h("style");
   style.textContent = `
@@ -451,6 +452,8 @@ export function createWatchPill(
 .watch-pill .wbtn + .wbtn { margin-left: -4px; }
 .watch-pill .wbtn { flex: none; min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid ${theme.border}; color: ${theme.textSecondary}; font-size: 11px; white-space: nowrap; }
 .watch-pill .wbtn.primary { border-color: ${theme.accent}; background: ${theme.accentMuted}; color: ${theme.text}; font-weight: 600; }
+.watch-pill .wpoint { padding: 0 6px; color: ${theme.accent}; display: inline-flex; align-items: center; }
+.watch-pill .wpoint svg { width: 16px; height: 16px; }
 @media (pointer: coarse) { .watch-pill .wbtn { min-height: 32px; } }
 @keyframes wpulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .watch-pill .wdot { animation: none; } }
@@ -463,9 +466,16 @@ export function createWatchPill(
   const showBtn = h("button", "wbtn", "Show");
   showBtn.title = "Open the conversation with Loki";
   showBtn.addEventListener("click", onShow);
+  // The same ◎ the launcher carries, so the bar (the fallback when a site
+  // hides the launcher) offers exactly what the launcher does.
+  const pointBtn = h("button", "wbtn wpoint");
+  pointBtn.innerHTML = TARGET_SVG;
+  pointBtn.title = "Show Loki something on this page";
+  pointBtn.setAttribute("aria-label", "Show Loki something on this page");
+  pointBtn.addEventListener("click", () => onPoint?.());
   const toggle = h("button", "wbtn");
   toggle.addEventListener("click", onToggle);
-  pill.append(dot, text, showBtn, toggle);
+  pill.append(dot, text, showBtn, pointBtn, toggle);
   root.append(style, pill);
 
   const set = (state: WatchPillState) => {
@@ -577,6 +587,8 @@ export function startWatchMode(opts: {
   pass: () => string | null;
   /** Show on the bar: open the conversation. */
   onShow: () => void;
+  /** ◎ on the bar: point at something, as the launcher's ◎ does. */
+  onPoint?: () => void;
   /** Loki noticed something — say it in the conversation. */
   onRemark: (remark: Remark) => void;
   /** True while the launcher or the open panel already shows that Loki is
@@ -606,7 +618,13 @@ export function startWatchMode(opts: {
     opts.onChange?.();
     if (!paused) scheduleChecks();
   };
-  const pill = createWatchPill(opts.root, opts.theme, () => setPaused(!paused), opts.onShow);
+  const pill = createWatchPill(
+    opts.root,
+    opts.theme,
+    () => setPaused(!paused),
+    opts.onShow,
+    opts.onPoint,
+  );
   // The bar is the fallback, not the main signal: shown only when neither the
   // launcher nor the open panel can say that Loki is watching (a page that
   // blocks every corner, or one that hides the launcher). Re-checked each
