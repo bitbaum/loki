@@ -449,6 +449,10 @@ interface LokiApi {
         onShow: () => {
           if (!panel.isConnected) openPanel();
         },
+        onPoint: () => {
+          openPanel();
+          picker.start();
+        },
         onRemark: (r) => {
           conversation.noticed(r);
           if (panel.isConnected) return;

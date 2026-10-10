@@ -458,6 +458,88 @@ async function main() {
     await s.close();
   }
 
+  // ---- one Loki on the owner's site: the launcher stays, the ◎ is its other
+  //      half, and "This screen" marks what is on screen ----
+  {
+    const s = await open(browser, js, "#loki-owner=pass123");
+    await s.p.keyboard.press("Escape");
+    const state = () =>
+      s.p.evaluate(() => {
+        const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+        const fab = r.querySelector(".fab") as HTMLElement;
+        const point = r.querySelector(".fab-point") as HTMLElement;
+        const bar = r.querySelector(".watch-pill") as HTMLElement;
+        const fr = fab.getBoundingClientRect();
+        const pr = point.getBoundingClientRect();
+        return {
+          fab: getComputedStyle(fab).visibility !== "hidden" && fab.style.display !== "none",
+          point: getComputedStyle(point).display !== "none",
+          // Right corner: the target is on the launcher's inner (left) side.
+          flush: Math.abs(pr.right - fr.left) <= 2 && Math.abs(pr.top - fr.top) <= 1,
+          bar: getComputedStyle(bar).display !== "none",
+        };
+      });
+    let st = await state();
+    ok(st.point && st.flush, "the ◎ is the launcher's other half, flush against it");
+    // Paused: still one launcher, still the ◎ — pointing does not depend on watching.
+    await clickPillButton(s.p).catch(() => {});
+    await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      (r.querySelector(".fab") as HTMLElement).click();
+    });
+    await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      (r.querySelector(".thoughts-toggle") as HTMLElement | null)?.click();
+    });
+    await s.p.keyboard.press("Escape");
+    st = await state();
+    ok(st.point, "paused, the ◎ is still there");
+    // A page that blocks every corner: a visitor's launcher hides (host-avoid
+    // test); the owner's stays, and no bar takes its place.
+    await s.p.evaluate(() => {
+      const wall = document.createElement("div");
+      wall.id = "wall";
+      wall.style.cssText =
+        "position:fixed;inset:0;display:flex;flex-wrap:wrap;overflow:hidden;z-index:5";
+      wall.innerHTML = Array.from(
+        { length: 400 },
+        (_, i) => `<button style="width:48px;height:48px;margin:0">${i}</button>`,
+      ).join("");
+      document.body.append(wall);
+    });
+    await s.p.waitForTimeout(2800);
+    st = await state();
+    ok(st.fab && !st.bar, "every corner busy → the owner's launcher stays, no bar appears");
+    await s.p.evaluate(() => document.getElementById("wall")?.remove());
+    // ◎ → This screen: the blocks on screen are marked and the panel opens with them.
+    await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      (r.querySelector(".fab-point") as HTMLElement).click();
+    });
+    await s.p.waitForTimeout(300);
+    const picked = await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      const btn = Array.from(r.querySelectorAll(".pickbar button")).find(
+        (b) => (b as HTMLElement).innerText.trim() === "This screen",
+      ) as HTMLElement | undefined;
+      btn?.click();
+      return {
+        offered: !!btn,
+        marked: document.querySelectorAll(".fcw-selected").length,
+        panel: !!r.querySelector(".panel"),
+        chip: (r.querySelector(".segbtn.on") as HTMLElement | null)?.innerText ?? "",
+      };
+    });
+    ok(picked.offered, "◎ offers This screen beside tapping an element");
+    ok(picked.marked >= 1, `This screen marks what is on screen (${picked.marked})`);
+    ok(
+      picked.panel && /element/.test(picked.chip),
+      `…and the conversation opens with it attached (${picked.chip})`,
+    );
+    ok(s.errors.length === 0, `no page errors (${s.errors.join("; ")})`);
+    await s.close();
+  }
+
   // ---- a visitor: no pill, no recording ----
   {
     const s = await open(browser, js, "");

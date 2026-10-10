@@ -6,6 +6,20 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — One Loki on your site
+
+- **The owner's launcher is one thing, always in one place.** On your own
+  site it was two: "Loki · watching" in a corner with a ◎ beside it, and a
+  "Loki is watching" bar at the top that took over whenever the corner was
+  busy — on a phone, every scroll. Now the launcher never hides and never
+  fades for the owner, the ◎ is its other half (there whether watching or
+  paused), and the bar appears only on a page that hides the launcher
+  outright — carrying the same ◎.
+- **Show Loki this screen.** ◎ now offers **This screen** beside tapping an
+  element: it marks what is on screen right now, the way a screenshot would
+  frame it, and the conversation opens with it attached — say what you would
+  change, ask Loki, or build it.
+
 ## 2026-10-10 — The night asks first
 
 - **Nothing runs at night that you have not seen.** Every evening Loki shows

@@ -28,11 +28,17 @@ each with *Fix this* and *Why does it matter?* — and is otherwise quiet.
 
 Rules that resolve the trade-offs:
 
-- **The launcher is the status.** For a visitor it is quiet ("quiet until
-  wanted"). For the owner it is full weight — *Loki · watching*, a count of
-  what Loki said while the panel was closed, the newest remark beside it. A top
-  bar appears only when the launcher cannot be seen, because recording is
-  never silent — and never covers the site's own header when it need not.
+- **The launcher is the status, and the owner has exactly one of it.** For a
+  visitor it is quiet ("quiet until wanted"). For the owner it is full weight —
+  one pill, two halves: *Loki · watching* (a count of what Loki said while the
+  panel was closed, the newest remark beside it) and **◎**, which points at an
+  element or marks the whole screen. The owner's launcher never hides for the
+  auto-avoid and never fades on scroll: on their own site, a corner it covers
+  is theirs to move it from (long-press), not a reason for it to vanish and
+  something else to appear at the top. The top bar exists only for a page that
+  hides the launcher outright (`data-fc-place="hidden"`), and carries the same
+  ◎ — the owner said on 2026-10-10 that a bar and a launcher taking turns
+  "sure is confusing", and they were right.
 - **Starting and stopping is one tap**, named for what it does (*Stop
   watching*, *Watch again*), in the header and wherever the status shows.
   Stopped means nothing is recorded and nothing is said.
@@ -101,7 +107,11 @@ trail. The
 owner pass makes the report a build, so the pill turns into **Something broke
 — Loki is fixing it · Follow**. One report per distinct cause, at most three
 per page load. **Report** on the pill opens the note with the same trail
-attached, for anything that looks wrong without failing. **Pause** on the pill stops recording until **Resume**;
+attached, for anything that looks wrong without failing. **◎** — on the
+launcher, always — is how the owner shows Loki something: tap it, then tap the
+element, or **This screen** to mark everything on screen right now (the blocks
+a screenshot would frame), and say what you would change. Loki answers or
+builds it, in the same conversation. **Pause** on the pill stops recording until **Resume**;
 visitors without the pass get no pill and no recording.
 Code: `widget/watch.ts` (page), `widget/watch-trail.ts` (pure, tested);
 proven in a browser by `scripts/test/widget-watch-browser.ts`.

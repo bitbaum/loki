@@ -129,15 +129,24 @@ ${spiralCSS(theme)}
 .fab.owner .fab-label { display: inline; }
 .fab.watching { border-color: ${theme.accent}; }
 .fab.watching .dot:not(.spiral) { animation: fcpulse 1.6s ease-in-out infinite; }
-/* "Show Loki this": the target beside the owner's launcher, same weight as it */
+/* "Show Loki this": the other half of the owner's launcher — flush against
+   it, squared on the shared edge, so the two read as one pill: [Loki · watching | ◎] */
 .fab-point {
-  position: fixed; z-index: 2147483000; width: 40px; height: 40px; border-radius: 999px;
+  position: fixed; z-index: 2147483000; width: 44px; height: 44px;
+  /* The launcher sits in a RIGHT corner by default, so the target is on its
+     inner (left) side: squared where they meet. */
+  border-radius: 999px 0 0 999px;
   display: inline-flex; align-items: center; justify-content: center;
   background: ${theme.surface}; color: ${theme.accent}; border: 1px solid ${theme.borderDark};
   box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
 }
+.fab-point.left { border-radius: 0 999px 999px 0; }
 .fab-point svg { width: 18px; height: 18px; display: block; }
 .fab-point:hover { border-color: ${theme.accent}; }
+/* The launcher's edge that meets the target is squared too (right corner by
+   default; the left one when the launcher sits on the left). */
+.fab.owner { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.fab.owner.on-left { border-radius: 999px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .fab-badge {
   position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: ${theme.accent}; color: ${ink};

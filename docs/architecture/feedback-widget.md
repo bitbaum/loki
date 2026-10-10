@@ -380,9 +380,14 @@ matters):
   waiting behind another reads **In line**, not "Starting"
   (`owner-view.ts`). Watch waits 1.5 s after each tap on a button or link for
   the page to change, ask the server or navigate, notes which, and says at
-  once when nothing visibly happened. While it watches, a **◎** beside the
-  launcher points at something on the page and opens the panel with it
-  attached. On a phone the panel is a sheet: drag up for full screen, down to
+  once when nothing visibly happened. A **◎** is the other half of the
+  owner's launcher — there whether Loki watches or is paused — and points at
+  something on the page, or marks **This screen** (the blocks in the
+  viewport, `picker.ts visibleBlocks`), opening the panel with it attached.
+  The owner's launcher is never hidden by the avoid pass and never fades on
+  scroll, so the top bar appears only for `data-fc-place="hidden"` (2026-10-10:
+  the bar and the launcher taking turns on a phone read as two competing
+  tools). On a phone the panel is a sheet: drag up for full screen, down to
   peek, further to close (`widget/sheet.ts`).
 
 - **2026-10-09 — the first day is the whole product.** Onboarding asks for
