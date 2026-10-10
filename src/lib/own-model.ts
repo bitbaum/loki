@@ -40,6 +40,12 @@ export type OwnModel = {
   vendor: string;
   /** Whose keys these are, so a call on them is counted to that person (own_model_usage). */
   userId?: string;
+  /** On Auto: what the turn was judged to be and which tier answered — for the footer. */
+  turn?: {
+    level: "light" | "standard" | "heavy";
+    reason: string;
+    tier: "economy" | "standard" | "frontier";
+  };
 };
 
 export type OwnModelOptions = {

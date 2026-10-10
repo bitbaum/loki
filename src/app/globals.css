@@ -7144,6 +7144,16 @@
       @apply hidden;
     }
   }
+  /* What Auto picks: a strip on the store, a block in Settings. */
+  .ui-auto-strip {
+    @apply space-y-3 rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-5;
+  }
+  .ui-auto-picks {
+    @apply grid gap-3 sm:grid-cols-3;
+  }
+  .ui-auto-pick {
+    @apply flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-overlay/40 p-3;
+  }
   /* "On your own machine": a quiet panel with a numbered recipe. */
   .ui-store-local {
     @apply rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-5;

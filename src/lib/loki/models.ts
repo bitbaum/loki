@@ -27,6 +27,8 @@ export type LokiModelsResponse = {
   options: LokiModelOption[];
   /** The model the chain would start at on "Auto", for the Auto row's subtitle. */
   autoStartsAt: string | null;
+  /** With own keys: "Auto · balanced — light turns on X, heavy ones on Y". Null on the free chain. */
+  autoSummary: string | null;
   /** Where to add a key for a vendor this server has none for. */
   addKeyHref: string;
 };

@@ -6,6 +6,21 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-10 — Auto decides
+
+- **A greeting never spends a frontier model.** With your own keys, every
+  turn is judged light, standard or heavy before a model is chosen, and Auto
+  picks the cheapest model that is good enough: a cheap one for lookups and
+  captures, the best value for ordinary asks, the smartest you have for code,
+  strategy and anything you ask to be thought about carefully. The footer
+  says which turn it was and why.
+- **Your stance.** Thrifty, Balanced or Best — how far up Auto may reach.
+  Even Best sends the small things to the cheap pick.
+- **Your picks.** On `/models` and in Settings → AI you see the three models
+  Auto chose and why, change any of them to another your keys reach, and hand
+  it back with "Loki decides". The composer's Auto row names the two ends:
+  which model takes the light turns and which the heavy ones.
+
 ## 2026-10-10 — Every model, every lab, your own machine
 
 - **The whole landscape on `/models`.** Every chat model in OpenRouter's

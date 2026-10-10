@@ -37,6 +37,7 @@ export * from "./beacon-settings";
 export * from "./prompts";
 export * from "./user-preferences";
 export * from "./user-model-keys";
+export * from "./user-model-tiers";
 export * from "./debug-logs";
 export * from "./cron-jobs";
 export * from "./runtime-snapshots";
