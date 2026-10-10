@@ -11,7 +11,7 @@ what's next) must be one coherent story, not five overlapping surfaces.
 > toggles + rail override chips, pulsing dot when fleet is building.
 > **Phase 1b (2026-06-29):** Start building calls `POST /api/control/fleet-kick` —
 > kicks up to `MAX_CONCURRENT_BUILDING` (3) idle projects with `next_best`; Loki
-> phrase "develop all my projects". **nudge-idle cron fixed** (`!= off`, was dead).
+> phrase "develop all my projects". **nudge-idle cron fixed** (`!= off`, was dead; retired 2026-10-10 for the autopilot night).
 > **Phase 2a (2026-06-29):** Control rail **Build selected** / **Pause selected**;
 > Loki multi-select command fan-out; screenshot → dispatch when project scoped.
 > 2d re-run via

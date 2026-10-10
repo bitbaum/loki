@@ -11,6 +11,7 @@ import { getBeaconSettings, upsertBeaconSettings } from "@/db/queries/beacon-set
 import { getProjectAutopilotOverride } from "@/db/queries/projects";
 import { DEFAULT_AUTO_INJECT_MODE } from "@/lib/constants/control";
 import type { AutoInjectMode } from "@/config/beacon";
+import { NIGHT_RUNS_MAX } from "@/config/autopilot-night";
 
 export type { BeaconSettingsData } from "@/db/queries/beacon-settings";
 
@@ -24,6 +25,7 @@ const PatchBody = z.object({
   whisper_model: z.enum(WHISPER_MODEL_VALUES).optional(),
   transcription_provider: z.enum(TRANSCRIPTION_PROVIDER_VALUES).optional(),
   auto_inject_mode: z.enum(AUTO_INJECT_MODE_VALUES).optional(),
+  night_runs: z.number().int().min(0).max(NIGHT_RUNS_MAX).optional(),
 });
 
 export async function GET(req: NextRequest) {

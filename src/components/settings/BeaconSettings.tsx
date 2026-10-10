@@ -17,6 +17,7 @@ import {
   type AutoInjectMode,
 } from "@/config/beacon";
 import { LOKI_REFRESH_EVENT } from "@/lib/client-events";
+import { NIGHT_RUNS_DEFAULT, NIGHT_RUNS_MAX, STALE_REPORT_DAYS } from "@/config/autopilot-night";
 
 export function BeaconSettings() {
   const [data, setData] = useState<BeaconSettingsData | null>(null);
@@ -24,6 +25,7 @@ export function BeaconSettings() {
   const [model, setModel] = useState("base");
   const [provider, setProvider] = useState("auto");
   const [autoInjectMode, setAutoInjectMode] = useState<AutoInjectMode>(DEFAULT_AUTO_INJECT_MODE);
+  const [nightRuns, setNightRuns] = useState(NIGHT_RUNS_DEFAULT);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -37,6 +39,7 @@ export function BeaconSettings() {
         setModel(d.whisper_model);
         setProvider(d.transcription_provider);
         setAutoInjectMode(d.auto_inject_mode);
+        setNightRuns(d.night_runs);
       })
       .catch(() => setLoadError(true));
   }, []);
@@ -46,7 +49,8 @@ export function BeaconSettings() {
     (countdown !== data.countdown_seconds ||
       model !== data.whisper_model ||
       provider !== data.transcription_provider ||
-      autoInjectMode !== data.auto_inject_mode);
+      autoInjectMode !== data.auto_inject_mode ||
+      nightRuns !== data.night_runs);
 
   const save = async () => {
     setSaving(true);
@@ -58,6 +62,7 @@ export function BeaconSettings() {
         whisper_model: model,
         transcription_provider: provider,
         auto_inject_mode: autoInjectMode,
+        night_runs: nightRuns,
       });
       if (!res.ok) await throwApiError(res, "Failed to save");
       setData({
@@ -65,6 +70,7 @@ export function BeaconSettings() {
         whisper_model: model,
         transcription_provider: provider,
         auto_inject_mode: autoInjectMode,
+        night_runs: nightRuns,
       });
       setSaved(true);
       window.dispatchEvent(new CustomEvent(LOKI_REFRESH_EVENT));
@@ -123,10 +129,9 @@ export function BeaconSettings() {
                 ))}
               </div>
               <p className="text-xs text-text-muted">
-                When an agent finishes a task, autopilot sends the next queued instruction — or, if
-                the queue is empty, picks the next-best task automatically. It pauses on its own for
-                busy agents, pending blockers, and failing health checks. Set it Off to dispatch
-                every prompt by hand.{" "}
+                When an agent finishes a task, autopilot sends the next queued instruction. It
+                pauses on its own for busy agents, pending blockers, and failing health checks. Set
+                it Off to dispatch every prompt by hand.{" "}
                 <span className="text-text-tertiary">
                   This is the account-wide default. A project that sets its own autopilot on{" "}
                   <a href="/control" className="ui-link">
@@ -134,6 +139,38 @@ export function BeaconSettings() {
                   </a>{" "}
                   overrides it.
                 </span>
+              </p>
+            </div>
+
+            {/* ── The night's budget ── */}
+            <div className="space-y-1.5">
+              <label className="ui-kicker" htmlFor="night-runs">
+                Overnight
+              </label>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-text-tertiary">up to</span>
+                <input
+                  id="night-runs"
+                  type="number"
+                  min={0}
+                  max={NIGHT_RUNS_MAX}
+                  value={nightRuns}
+                  onChange={(e) =>
+                    setNightRuns(
+                      Math.max(0, Math.min(NIGHT_RUNS_MAX, parseInt(e.target.value) || 0)),
+                    )
+                  }
+                  className="ui-input w-24 tabular-nums"
+                />
+                <span className="text-sm text-text-tertiary">runs a night</span>
+              </div>
+              <p className="text-xs text-text-muted">
+                While you sleep, Loki works through your feedback — one fix per project, the
+                owner&apos;s own notes first — and reads one site that has not been read this week,
+                filing what it finds into Feedback. Every run is an agent run on your builder, so
+                this number is the most it can spend. It also files away reports nobody started in{" "}
+                {STALE_REPORT_DAYS} days, with the reason on the row. 0 keeps the filing and stops
+                the building. A project paused on Control is left alone.
               </p>
             </div>
 

@@ -30,7 +30,7 @@ const AUTOMATION_HINTS: Record<AutoInjectMode, { primary: string; secondary?: st
   off: { primary: "Agents stop when a task ends. You dispatch every next step yourself." },
   on: {
     primary:
-      "Agents work through each project's queue, then pick the next-best task automatically.",
+      "Agents work through each project's queue; overnight Loki builds from your feedback under the run budget and reads one site.",
     secondary: "Busy agents, blockers, and failing health checks still pause dispatch.",
   },
 };

@@ -1,5 +1,6 @@
 import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { users } from "./users";
+import { NIGHT_RUNS_DEFAULT } from "@/config/autopilot-night";
 
 export const beaconSettings = pgTable(
   "beacon_settings",
@@ -22,6 +23,10 @@ export const beaconSettings = pgTable(
     // commit; coerceAutoInjectMode in src/db/queries/beacon-settings.ts
     // tolerates them for any row that escapes the UPDATE.
     autoInjectMode: text("auto_inject_mode").notNull().default("on"),
+    // Runs the autopilot night may start — the one limit on what it spends
+    // while the owner sleeps. 0 = the night files away and reroutes, but
+    // starts nothing. See src/config/autopilot-night.ts.
+    nightRuns: integer("night_runs").notNull().default(NIGHT_RUNS_DEFAULT),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("idx_beacon_settings_user_id").on(t.userId)],

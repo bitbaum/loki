@@ -58,7 +58,8 @@ hand-off.
 |---|---|
 | Today | Say it (typed or spoken) → one agent run → PR → auto-merge → deploy → "done" with a link. The chat says where it runs and that nothing is needed. |
 | What broke it | A hand-off from the site was dispatched as work instead of answered (#1118); a voice turn heard "Thank you." in silence (#1118); a preference for a shut laptop parked the work (#1119). |
-| Still owed | Autopilot overnight: finish what is queued and greet with "while you were away" (safe), or also review the sites on a schedule and build its own fixes up to a nightly limit (bold). The owner's call, open. |
+| Overnight | From this change (owner's call, 2026-10-10: bold, with a budget): the autopilot night builds from the inbox — one fix per project, the owner's own notes first — under a per-account budget counted in **runs**, reads one site not read this week and files what it finds, files away reports nobody started in 21 days (reason on the row), hands rows waiting for a shut laptop to the cloud, and leaves one line on /feedback, Telegram and push: "Last night Loki started 2 fixes (kestrel, harbourlight), read ledgerpost, filed away 4 old reports · 3 of 4 runs · $1.20." Nothing when it did nothing. The old idle nudge — three projects a night on a generic "next best" guess — is retired; a guess with no brief is where the garbage in the queue came from. `src/config/autopilot-night.ts`. |
+| Rule | The night spends runs, never the free pool: a fix is an agent run on the owner's builder, a read is an agent run that files through the widget API, the note is counts. A paused project takes nothing. 0 runs keeps the filing and stops the building. |
 
 ### 4. It is done → I look, I understand why, I share it
 
