@@ -9,7 +9,11 @@ import {
   WIDGET_TOKEN_STATUS,
 } from "@/lib/constants/statuses";
 import { getWidgetTokenByToken } from "@/db/queries/widget-tokens";
-import { bumpDuplicateFeedback, insertSiteFeedback } from "@/db/queries/site-feedback";
+import {
+  bumpDuplicateFeedback,
+  insertSiteFeedback,
+  bumpDuplicateFeedbackByNotice,
+} from "@/db/queries/site-feedback";
 import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
 import { createFeedbackClaimToken } from "@/lib/feedback/claim-token";
@@ -57,6 +61,10 @@ const FeedbackBody = z.object({
   /** The owner's signed pass (feedback/owner-pass.ts), which the widget picked
    *  up from Loki's "Open your site" link. Verified below, never trusted. */
   ownerPass: z.string().max(300).optional(),
+  /** Watch's remark signature behind an owner's "Fix this" (widget/watch-trail.ts).
+   *  Honoured only with a valid pass: it keys the owner's own findings to
+   *  their fixes and is nothing a visitor may set. */
+  noticeKey: z.string().max(300).optional(),
   /** Visitor-attached images, client-downscaled by the widget. Data URLs only;
    *  the char cap bounds storage per image (~450 KB each). */
   screenshots: z
@@ -140,7 +148,13 @@ export async function POST(req: NextRequest) {
   // row's duplicate_count instead of creating a new row — volume signal kept,
   // inbox noise dropped. Idempotent for the visitor (they still see success).
   const contentHash = feedbackContentHash(data.suggestion, data.page ?? null);
-  const bumped = await bumpDuplicateFeedback(token.projectId, contentHash);
+  // A Watch finding is keyed by what it IS, not by the words this filing
+  // carries (the watched steps differ every time): the owner pressing "Fix
+  // this" on a finding already being fixed lands on that row.
+  const noticeKey = fromOwner && data.noticeKey ? data.noticeKey : null;
+  const bumped =
+    (noticeKey ? await bumpDuplicateFeedbackByNotice(token.projectId, noticeKey) : null) ??
+    (await bumpDuplicateFeedback(token.projectId, contentHash));
   if (bumped) {
     // The owner saying the same thing again means "do it": a failed attempt
     // starts again, one already running answers "already on it". Answering as
@@ -174,6 +188,7 @@ export async function POST(req: NextRequest) {
     scope: data.scope ?? null,
     source: fromOwner ? FEEDBACK_SOURCE.OWNER : (data.source ?? FEEDBACK_SOURCE.VISITOR),
     contentHash,
+    noticeKey,
     screenshots: data.screenshots ?? null,
     selectedElements: data.selectedElements ?? null,
     userAgent: req.headers.get("user-agent")?.slice(0, 300) ?? null,

@@ -112,6 +112,14 @@ assert.deepEqual(parseWidgetSurfaceModes("nonsense"), ["report", "ask"]);
         filed: true,
       },
       { kind: "noticed", at: now - 4, text: "No fix to send" },
+      {
+        kind: "noticed",
+        at: now - 3,
+        text: "The page has no main heading.",
+        fix: "Add one",
+        key: "/p|checks|The page has no main heading (h#)",
+        again: true,
+      },
     ],
     now,
   );
@@ -122,6 +130,14 @@ assert.deepEqual(parseWidgetSurfaceModes("nonsense"), ["report", "ask"]);
       text: "It found nothing there (404).",
       fix: "Fix /hours",
       filed: true,
+    },
+    {
+      kind: "noticed",
+      at: now - 3,
+      text: "The page has no main heading.",
+      fix: "Add one",
+      key: "/p|checks|The page has no main heading (h#)",
+      again: true,
     },
   ]);
   assert.match(historyFor(r, 4, 200)[0].content, /^\(Noticed while watching: /);

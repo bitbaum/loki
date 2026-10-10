@@ -7,6 +7,7 @@
 import { build } from "esbuild";
 import { chromium, type Browser, type Page } from "playwright";
 import { PALETTE } from "../../src/lib/palette";
+import { noticeSignature } from "../../widget/watch-trail";
 
 let pass = 0;
 let fail = 0;
@@ -42,7 +43,7 @@ document.getElementById("jank").onclick = () => {
 type Report = { suggestion: string; ownerPass?: string };
 type Advice = { question: string; scope: string; session?: string; read?: boolean };
 
-async function open(browser: Browser, js: string, hash: string) {
+async function open(browser: Browser, js: string, hash: string, known: unknown[] = []) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
   const p = await ctx.newPage();
   const errors: string[] = [];
@@ -67,6 +68,17 @@ async function open(browser: Browser, js: string, hash: string) {
       return json({ ok: true, owner: true, building: true });
     }
     if (url.pathname === "/shop/checkout") return json({ error: "boom" }, 500);
+    // The owner's fixes, as Loki remembers them (known-fixes.ts).
+    if (url.pathname === "/api/widget/owner/changes") {
+      return json({
+        ok: true,
+        owner: true,
+        changes: [],
+        known,
+        inbox: "https://loki.example/feedback",
+        visitors: 0,
+      });
+    }
     if (url.pathname === "/api/widget/advise") {
       advice.push(JSON.parse(route.request().postData() ?? "{}") as Advice);
       return json({
@@ -257,6 +269,88 @@ async function main() {
       `Loki says what broke and that a fix is under way (${said.text})`,
     );
     ok(!said.fix, "an already-started fix offers no second Fix button");
+    await s.close();
+  }
+
+  // ---- Loki remembers what it noticed: a fix in flight is not said again ----
+  {
+    const key = noticeSignature("/", { kind: "4xx", text: "GET /shop/sizes → 404", after: null });
+    const inFlight = {
+      key,
+      id: "f-sizes",
+      at: "2026-10-10T10:00:00Z",
+      label: "Building",
+      tone: "accent",
+      detail: "An agent is working on it right now.",
+      live: false,
+      settled: false,
+      href: "https://loki.example/feedback",
+    };
+    const s = await open(browser, js, "#loki-owner=pass123", [inFlight]);
+    await s.p.keyboard.press("Escape");
+    await s.p.click("#find");
+    await s.p.waitForTimeout(600);
+    ok(
+      (await pillText(s.p))?.includes("/shop/sizes") !== true,
+      `a finding whose fix is building is not noticed again (${await pillText(s.p)})`,
+    );
+    const trail = await trailText(s.p);
+    ok(trail.includes("already with Loki"), "the notes say why Loki kept quiet");
+    await clickPill(s.p, "Show");
+    await s.p.waitForTimeout(200);
+    const cards = await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      return Array.from(r.querySelectorAll(".msg.noticed")).filter((x) =>
+        (x as HTMLElement).innerText.includes("/shop/sizes"),
+      ).length;
+    });
+    ok(cards === 0, `no second card for a fix in flight (${cards})`);
+    await s.close();
+  }
+
+  // ---- …a fix that is live and back is said as such, with Fix again ----
+  {
+    const key = noticeSignature("/", { kind: "4xx", text: "GET /shop/sizes → 404", after: null });
+    const live = {
+      key,
+      id: "f-sizes",
+      at: "2026-10-03T10:00:00Z",
+      label: "Live",
+      tone: "positive",
+      detail: "It is on the site now. Have a look.",
+      live: true,
+      settled: true,
+      href: "https://host.fixture/shop",
+    };
+    const s = await open(browser, js, "#loki-owner=pass123", [live]);
+    await s.p.keyboard.press("Escape");
+    await s.p.click("#find");
+    await s.p.waitForTimeout(600);
+    await clickPill(s.p, "Show");
+    await s.p.waitForTimeout(200);
+    const card = await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      const m = Array.from(r.querySelectorAll(".msg.noticed")).find((x) =>
+        (x as HTMLElement).innerText.includes("/shop/sizes"),
+      ) as HTMLElement | undefined;
+      return {
+        text: m?.innerText ?? "",
+        status: (m?.querySelector(".noticed-status") as HTMLElement | null)?.innerText ?? "",
+        button: (m?.querySelector(".change-send") as HTMLElement | null)?.innerText ?? "",
+      };
+    });
+    ok(card.text.includes("It is back"), `a fixed finding that recurs says so (${card.text})`);
+    ok(card.status.startsWith("Fixed 3 Oct"), `the card says when it was fixed (${card.status})`);
+    ok(card.button === "Fix again →", `and offers to fix it again (${card.button})`);
+    // Fix again files the finding's key with the note, so it lands on the same row.
+    await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      (r.querySelector(".msg.noticed .change-send") as HTMLElement).click();
+    });
+    await s.p.waitForTimeout(300);
+    const filed = s.reports.find((r) => r.suggestion.includes("/shop/sizes")) as
+      (Report & { noticeKey?: string }) | undefined;
+    ok(filed?.noticeKey === key, `Fix again carries the key (${filed?.noticeKey})`);
     await s.close();
   }
 

@@ -147,3 +147,26 @@ export type OwnerChange = {
   href: string | null;
   action: string | null;
 };
+
+/**
+ * A fix Watch can look up by what it noticed (site_feedback.notice_key):
+ * where it is, in the owner's words. Every owner row with a key is listed —
+ * open or settled — because the question on the next visit is different for
+ * each: an open one means "say nothing, it is being fixed"; a live one means
+ * "it was fixed, and if it is back, say so"; a closed one means "the owner
+ * decided, do not nag".
+ */
+export type KnownFix = {
+  key: string;
+  id: string;
+  at: string;
+  label: string;
+  tone: OwnerChangeTone;
+  detail: string;
+  live: boolean;
+  settled: boolean;
+  href: string | null;
+};
+
+/** How many keyed rows the widget is told about — enough for a whole site. */
+export const KNOWN_FIXES_MAX = 100;

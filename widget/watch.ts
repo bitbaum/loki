@@ -37,6 +37,7 @@ import {
 } from "./watch-trail";
 import { runPageChecks } from "./page-checks";
 import { sendReport } from "./send-report";
+import { remarkVerdict, type KnownFix } from "./known-fixes";
 
 const pausedKey = (token: string) => `loki-watch-paused:${token}`;
 /** Per tab, per site: a multi-page site reloads on every link, and Review must
@@ -538,6 +539,10 @@ export type Remark = {
   fix: string;
   filed?: boolean;
   /** The bar's one line. */ short?: string;
+  /** The remark's signature: what "Fix this" files, and what its status is looked up by. */
+  key: string;
+  /** Loki fixed this before (the fix is live) and it is back. */
+  again?: boolean;
 };
 
 const saidKey = (token: string) => `loki-watch-said:${token}`;
@@ -601,6 +606,10 @@ export function startWatchMode(opts: {
   /** Loki's own read of the page (loki-api READ_QUESTION): what a ruler
    *  cannot measure — purpose, hierarchy, content, fit. Null: nothing to say. */
   read?: () => Promise<{ say: string; changes: string[] } | null>;
+  /** What Loki already did about a finding (widget/changes.ts → known-fixes.ts). */
+  known?: (key: string) => KnownFix | null;
+  /** Settles once the owner's fixes have been read, so Watch looks before it speaks. */
+  knownReady?: () => Promise<void>;
 }): WatchSession {
   let paused = readWatchPaused(opts.token);
   const sent = new Set<string>();
@@ -644,15 +653,33 @@ export function startWatchMode(opts: {
     ...trailDiagnostics(recorder?.trail() ?? [], Date.now()),
   });
 
-  /** Say it once per visit: in the conversation, and on the bar. */
-  const remark = (signature: string, r: Remark) => {
+  /**
+   * Say it once per visit: in the conversation, and on the bar — unless Loki
+   * already did something about it. A finding being fixed is not said again
+   * (Your changes shows it; a second card was a second commissioning); one
+   * fixed and back is said as such; one the owner closed is left alone.
+   */
+  const remark = (signature: string, r: Omit<Remark, "key">) => {
     if (paused || said.has(signature)) return;
     said.add(signature);
     writeSaid(opts.token, said);
-    opts.onRemark(r);
+    const verdict = remarkVerdict(opts.known?.(signature) ?? null);
+    if (verdict === "silent") {
+      recorder?.note("look", `${r.short ?? r.say.split("\n")[0]} — already with Loki`);
+      return;
+    }
+    opts.onRemark({ ...r, key: signature, ...(verdict === "again" ? { again: true } : {}) });
     latest = r.short ?? r.say.split("\n")[0];
     if (shown === "watching") show(watching());
   };
+
+  /** Wait for the owner's fixes once, briefly: speaking before they are read is the bug. */
+  const KNOWN_WAIT_MS = 4_000;
+  const lookFirst = () =>
+    Promise.race([
+      opts.knownReady?.() ?? Promise.resolve(),
+      new Promise<void>((resolve) => setTimeout(resolve, KNOWN_WAIT_MS)),
+    ]);
 
   const report = async (failure: Failure, trail: TrailEntry[]) => {
     const pass = opts.pass();
@@ -662,6 +689,7 @@ export function startWatchMode(opts: {
     if (reverting) clearTimeout(reverting);
     show({ kind: "sending", what: failure.text });
     const { message, diagnostics } = watchReport(failure, trail, Date.now());
+    const key = `${location.pathname}|fail|${signature}`;
     let filed = false;
     try {
       await sendReport(opts.apiBase, {
@@ -669,6 +697,7 @@ export function startWatchMode(opts: {
         suggestion: buildSuggestion(message, diagnostics, SUGGESTION_MAX),
         scope: "page",
         ownerPass: pass,
+        noticeKey: key,
       });
       filed = true;
       show({ kind: "fixing", what: failure.text, followUrl: `${opts.apiBase}/feedback` });
@@ -678,7 +707,7 @@ export function startWatchMode(opts: {
     } catch {
       show({ kind: "not-sent", what: failure.text });
     }
-    remark(`${location.pathname}|fail|${signature}`, {
+    remark(key, {
       say: filed
         ? `${failureSay(failure)} I've started a fix — it goes live by itself.`
         : `${failureSay(failure)} I couldn't reach Loki to fix it — send it from here.`,
@@ -692,7 +721,9 @@ export function startWatchMode(opts: {
   let checksTimer: ReturnType<typeof setTimeout> | null = null;
   const scheduleChecks = () => {
     if (checksTimer) clearTimeout(checksTimer);
-    checksTimer = setTimeout(() => {
+    checksTimer = setTimeout(async () => {
+      await lookFirst();
+      if (paused) return;
       const checks = safePageChecks();
       // Said in the notes even when clean: "looked, all fine" is what the
       // owner could not see while watch only spoke about problems.
@@ -717,6 +748,13 @@ export function startWatchMode(opts: {
     if (!opts.read || paused || said.has(key)) return;
     said.add(key);
     writeSaid(opts.token, said);
+    // A read whose fix is in flight is not made at all — no model call to
+    // say again what Loki is already changing.
+    const verdict = remarkVerdict(opts.known?.(key) ?? null);
+    if (verdict === "silent") {
+      recorder?.note("look", "read it before — the changes are with Loki");
+      return;
+    }
     const r = await opts.read().catch(() => null);
     if (paused) return;
     if (!r || !r.changes.length) {
@@ -732,6 +770,8 @@ export function startWatchMode(opts: {
       say: `Reading this page as a visitor:\n${r.say}`,
       fix: `Make these changes on this page, together:\n${list}`,
       short: `reading it, ${r.changes.length === 1 ? "one thing" : `${r.changes.length} things`} could be better`,
+      key,
+      ...(verdict === "again" ? { again: true } : {}),
     });
     latest = `reading it, ${r.changes.length === 1 ? "one thing" : `${r.changes.length} things`} could be better`;
     if (shown === "watching") show(watching());

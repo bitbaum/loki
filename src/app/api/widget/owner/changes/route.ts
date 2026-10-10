@@ -12,10 +12,12 @@ import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 import { appUrl } from "@/lib/email";
 import {
+  KNOWN_FIXES_MAX,
   OWNER_CHANGE_TEXT_MAX,
   OWNER_CHANGES_FETCH,
   OWNER_CHANGES_MAX,
   ownerStatusFor,
+  type KnownFix,
   type OwnerChange,
 } from "@/lib/feedback/owner-view";
 
@@ -105,39 +107,66 @@ export async function POST(req: NextRequest) {
       i.source !== FEEDBACK_SOURCE.AI_REVIEW &&
       (i.status === FEEDBACK_STATUS.NEW || i.status === FEEDBACK_STATUS.DISPATCHED),
   ).length;
-  const withWork = await attachFeedbackWork(token.userId, mine);
+  // What Watch noticed and the owner (or Watch itself) filed: keyed rows,
+  // open or settled, so the next visit's remark finds its fix. Beyond the
+  // twelve the strip shows — a finding fixed last month still answers.
+  const keyed = all.filter((i) => i.noticeKey).slice(0, KNOWN_FIXES_MAX);
+  const withWork = await attachFeedbackWork(token.userId, [
+    ...mine,
+    ...keyed.filter((k) => !mine.some((m) => m.id === k.id)),
+  ]);
   const inbox = `${appUrl()}/feedback${key ? `?project=${encodeURIComponent(key)}` : ""}`;
-
-  const changes: OwnerChange[] = withWork.map((item) => {
+  const known: KnownFix[] = withWork.flatMap((item) => {
+    if (!item.noticeKey) return [];
     const status = ownerStatusFor(item.work);
     const liveHref = livePageHref(item.liveUrl, item.url, item.page);
-    // "See it" is the walkthrough of THIS change on the live page, minted for
-    // the owner; it is offered only once the change is actually live.
-    const href = status.live
-      ? liveHref
-        ? tourSiteUrl(liveHref, createTourToken(item.id))
-        : inbox
-      : status.needsYou
-        ? inbox
-        : null;
-    return {
-      id: item.id,
-      text: item.suggestion.slice(0, OWNER_CHANGE_TEXT_MAX),
-      at: item.createdAt.toISOString(),
-      label: status.label,
-      tone: status.tone,
-      detail: status.detail,
-      live: status.live,
-      settled: status.settled,
-      href,
-      action: status.live
-        ? liveHref
-          ? "See it"
-          : "Open in Loki"
-        : status.needsYou
-          ? "Open in Loki"
-          : null,
-    };
+    return [
+      {
+        key: item.noticeKey,
+        id: item.id,
+        at: item.createdAt.toISOString(),
+        label: status.label,
+        tone: status.tone,
+        detail: status.detail,
+        live: status.live,
+        settled: status.settled,
+        href: status.live && liveHref ? liveHref : inbox,
+      },
+    ];
   });
-  return corsJson({ ok: true, owner: true, changes, inbox, visitors });
+
+  const changes: OwnerChange[] = withWork
+    .filter((item) => mine.some((m) => m.id === item.id))
+    .map((item) => {
+      const status = ownerStatusFor(item.work);
+      const liveHref = livePageHref(item.liveUrl, item.url, item.page);
+      // "See it" is the walkthrough of THIS change on the live page, minted for
+      // the owner; it is offered only once the change is actually live.
+      const href = status.live
+        ? liveHref
+          ? tourSiteUrl(liveHref, createTourToken(item.id))
+          : inbox
+        : status.needsYou
+          ? inbox
+          : null;
+      return {
+        id: item.id,
+        text: item.suggestion.slice(0, OWNER_CHANGE_TEXT_MAX),
+        at: item.createdAt.toISOString(),
+        label: status.label,
+        tone: status.tone,
+        detail: status.detail,
+        live: status.live,
+        settled: status.settled,
+        href,
+        action: status.live
+          ? liveHref
+            ? "See it"
+            : "Open in Loki"
+          : status.needsYou
+            ? "Open in Loki"
+            : null,
+      };
+    });
+  return corsJson({ ok: true, owner: true, changes, known, inbox, visitors });
 }
