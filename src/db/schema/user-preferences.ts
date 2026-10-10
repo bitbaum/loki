@@ -55,6 +55,13 @@ export const userPreferences = pgTable(
      * leads with what happened since (lib/away.ts); dismissing the card
      * clears both. Null = not away.
      */
+    /**
+     * How Auto spends on the person's own keys: "thrifty" never reaches for a
+     * frontier model unless they pick it, "balanced" does for heavy turns,
+     * "best" for anything that is not trivial. A light turn goes to the cheap
+     * pick under every stance — lib/models/auto-picks.ts has the table.
+     */
+    modelStance: text("model_stance").notNull().default("balanced"),
     awaySince: timestamp("away_since", { withTimezone: true }),
     awayUntil: timestamp("away_until", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

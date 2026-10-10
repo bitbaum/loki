@@ -5,6 +5,7 @@ import { DEFAULT_TIMEZONE } from "@/lib/constants";
 import { WEATHER_CITY } from "@/lib/constants/today";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
 import { sanitizeStandingApprovals } from "@/lib/actions/standing-approval";
+import { DEFAULT_STANCE, isStance, type Stance } from "@/lib/models/auto-picks";
 
 export type UserPreferencesData = {
   homeCity: string | null;
@@ -17,6 +18,8 @@ export type UserPreferencesData = {
   memoryEnabled: boolean;
   /** Preferred provider order, comma-separated agent ids. Null = fleet default. */
   agentOrder: string | null;
+  /** How Auto spends on the person's own keys — see lib/models/auto-picks.ts. */
+  modelStance: Stance;
   /** ISO — "back in N minutes" said at awaySince, promised for awayUntil. Null = not away. */
   awaySince: string | null;
   awayUntil: string | null;
@@ -71,6 +74,7 @@ export const EMPTY_USER_PREFERENCES: UserPreferencesData = {
   writingVoice: null,
   memoryEnabled: true,
   agentOrder: null,
+  modelStance: DEFAULT_STANCE,
   awaySince: null,
   awayUntil: null,
   standingApprovals: [ACTION_TYPE.CREATE_EVENT],
@@ -96,6 +100,7 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     writingVoice: row.writingVoice,
     memoryEnabled: row.memoryEnabled,
     agentOrder: row.agentOrder,
+    modelStance: isStance(row.modelStance) ? row.modelStance : DEFAULT_STANCE,
     awaySince: row.awaySince?.toISOString() ?? null,
     awayUntil: row.awayUntil?.toISOString() ?? null,
     standingApprovals: row.standingApprovals ?? [],
@@ -131,6 +136,7 @@ function toRow(d: UserPreferencesData) {
     writingVoice: d.writingVoice,
     memoryEnabled: d.memoryEnabled,
     agentOrder: d.agentOrder,
+    modelStance: d.modelStance,
     // Narrowed on write as well as on read: the column is an authorisation
     // record, and the only values that may ever land in it are the eligible ones.
     standingApprovals: sanitizeStandingApprovals(d.standingApprovals),

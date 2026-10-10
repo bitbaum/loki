@@ -42,6 +42,7 @@ import { NO_BASIS } from "@bitbaum/ai-kit/grounding";
 import { rateLimitMessage } from "@/lib/agent/groq-error";
 import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
 import { getOwnModels } from "@/db/queries/user-model-keys";
+import { routeTurn } from "@/lib/models/routing";
 import {
   ownModelFrom,
   ownModelSecrets,
@@ -259,7 +260,9 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
   const operator = await isOperatorTurn(opts?.userId);
 
   const own =
-    opts?.userId && opts.pool !== "free" ? await loadOwnModel(opts.userId, opts?.model) : null;
+    opts?.userId && opts.pool !== "free"
+      ? await loadOwnModel(opts.userId, opts?.model, message, opts.history ?? [])
+      : null;
   if (own && opts?.userId) {
     return askLokiOnOwnModel(message, { ...opts, userId: opts.userId }, own, startedAt, operator);
   }
@@ -357,10 +360,30 @@ async function isOperatorTurn(userId: string | undefined): Promise<boolean> {
   return isSiteOperator(userId).catch(() => false);
 }
 
-async function loadOwnModel(userId: string, startAt?: string): Promise<OwnModel | null> {
+/**
+ * The person's own chain for THIS turn. With a model picked in the composer
+ * the chain starts there; on Auto, the turn's difficulty and the person's
+ * stance choose the pick (lib/models/routing.ts) and the rest of their keys
+ * follow as the fallback. When Auto has nothing to decide with (no catalogue
+ * yet, keys the catalogue cannot see) the keys are walked as stored.
+ */
+async function loadOwnModel(
+  userId: string,
+  startAt: string | undefined,
+  message: string,
+  history: ReadonlyArray<{ role: string; content: string }>,
+): Promise<OwnModel | null> {
   try {
     const configs = await getOwnModels(userId);
-    return configs.length > 0 ? { ...ownModelFrom(configs, startAt), userId } : null;
+    if (configs.length === 0) return null;
+    if (startAt) return { ...ownModelFrom(configs, { startAt }), userId };
+    const route = await routeTurn(userId, configs, message, history).catch(() => null);
+    if (!route) return { ...ownModelFrom(configs), userId };
+    return {
+      ...ownModelFrom(configs, { links: route.links }),
+      userId,
+      turn: { level: route.difficulty.level, reason: route.difficulty.reason, tier: route.tier },
+    };
   } catch (e) {
     // A read failure means "use the free chain as before", never "no answer".
     console.error("[loki] own model unavailable:", e instanceof Error ? e.message : e);
@@ -403,7 +426,9 @@ async function askLokiOnOwnModel(
     }
     const provenance: LokiProvenance = {
       via: "tool-loop",
-      model: `your key: ${own.label}`,
+      model: own.turn
+        ? `your key: ${own.label} — ${own.turn.level} turn (${own.turn.reason})`
+        : `your key: ${own.label}`,
       durationMs: Date.now() - startedAt,
       toolsUsed: result.toolsUsed,
       work: result.work,

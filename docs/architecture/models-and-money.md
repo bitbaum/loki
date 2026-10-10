@@ -243,6 +243,46 @@ says so when it is not. A Fleet Runner that proxies to a laptop without a
 tunnel is the obvious next step; it is not built, and the page does not
 pretend it is.
 
+### Auto decides
+
+Until 2026-10-10 "Auto" on a person's own keys meant "the first key's one
+model, for every turn" — an Anthropic key put Fable 5.1 on "what time is
+it". Now Auto is a decision per turn, in three pure pieces:
+
+1. **Difficulty** (`lib/models/difficulty.ts`): the message and the recent
+   history → `light` / `standard` / `heavy`, with a reason. Explicit asks win
+   ("think hard" is heavy, "quick" is light); then code, a judgement call, a
+   professional domain, writing, research, length and a numbered list count
+   as signs (two make heavy, one makes standard); then the shapes a cheap
+   model answers as well as any (a greeting, a capture, a lookup, a short
+   question) are light. A keyword heuristic on purpose: it runs before every
+   turn and must not cost a model call.
+2. **Picks** (`lib/models/auto-picks.ts`): from what the person's keys reach
+   (a router reaches the catalogue; a lab key its namespace; a host or an
+   endpoint only what was stored), three picks — economy is the best value
+   among cheap tool-capable models, standard the best value at or above the
+   median index below frontier price, frontier the smartest reachable. A
+   pick the person set by hand (`user_model_tiers`) wins and says "your
+   choice".
+3. **Stance** (`user_preferences.model_stance`): which pick a difficulty maps
+   to. Thrifty never reaches frontier on its own; balanced (default) does for
+   heavy turns; best for anything not trivial. **A light turn goes to the
+   economy pick under every stance** — the rule the whole thing exists for.
+
+`lib/models/routing.ts` feeds them: `routeTurn` builds the chain for one
+turn (the pick, the nearest tiers up before down, then every key's default,
+no duplicates) and `loki-core.ts#loadOwnModel` walks it; the footer's
+provenance reads "your key: Moonshot (Kimi) · kimi-tiny — light turn (a
+greeting)". When Auto has nothing to decide with (no catalogue yet, keys the
+catalogue cannot see) the keys are walked as stored, which is what Auto
+meant before. A model picked in the composer bypasses all of it.
+
+The same block shows on `/models` above the table and in Settings → AI under
+the keys (`components/models/AutoRouting.tsx`): the stance, the three picks
+with their reasons, a select per tier, "Loki decides" to drop a choice. The
+composer's Auto row says the two ends of it: "balanced — light turns on
+Kimi K3, heavy ones on Claude Fable 5.1".
+
 ### Follow-up: one key for Loki and Cat
 
 George's ask is that a key brought here powers Cat too. Today the two store

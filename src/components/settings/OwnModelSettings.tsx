@@ -6,6 +6,7 @@ import { ArrowUp, Check, ExternalLink, KeyRound, Loader2, Plus, Zap } from "luci
 import { CUSTOM_VENDOR_ID, isVendorId, vendorById, type VendorId } from "@/config/model-vendors";
 import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
+import { AutoRouting } from "@/components/models/AutoRouting";
 import { OwnModelForm } from "./OwnModelForm";
 
 /**
@@ -302,6 +303,12 @@ export function OwnModelSettings() {
             </li>
           ))}
         </ol>
+      )}
+
+      {loaded && available && models.length > 0 && (
+        <div className="border-t border-border-subtle pt-4">
+          <AutoRouting key={models.map((m) => `${m.vendor}:${m.model}`).join("|")} />
+        </div>
       )}
 
       {loaded && available && models.length > 0 && mode.kind === "list" && (

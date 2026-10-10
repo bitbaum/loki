@@ -26,6 +26,7 @@ import { jsonOk, jsonError } from "@/lib/api/route-helpers";
 import { CHAT_CHAIN, providerModels, usableChatChain } from "@/config/chat-models";
 import { listOwnModels } from "@/db/queries/user-model-keys";
 import { MODEL_STORE_PATH } from "@/lib/own-model-path";
+import { autoSummary, routingFor } from "@/lib/models/routing";
 import type { LokiModelOption, LokiModelsResponse } from "@/lib/loki/models";
 
 export async function GET() {
@@ -76,9 +77,19 @@ export async function GET() {
       ? `${usable[0].provider.id}/${usable[0].model}`
       : null;
 
+  // With keys, Auto is a decision per turn (lib/models/routing.ts); the row
+  // says which model takes the light turns and which the heavy ones.
+  const summary =
+    own.length > 0
+      ? autoSummary(
+          await routingFor(userId).catch(() => ({ stance: "balanced" as const, picks: [] })),
+        )
+      : null;
+
   return jsonOk({
     options,
     autoStartsAt,
+    autoSummary: summary,
     addKeyHref: MODEL_STORE_PATH,
   } satisfies LokiModelsResponse);
 }

@@ -16,6 +16,7 @@ import {
 } from "@/lib/models/store-filters";
 import { OWN_MODEL_SETTINGS_PATH, ownModelAddPath } from "@/lib/own-model-path";
 import { ownModelRequest } from "@/lib/own-model-client";
+import { AutoRouting } from "./AutoRouting";
 import { LocalModels } from "./LocalModels";
 import { ModelTable, type UseState } from "./ModelTable";
 import { StoreToolbar } from "./StoreToolbar";
@@ -170,6 +171,8 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
           )}
         </div>
       </section>
+
+      {data.connected.length > 0 && <AutoRouting compact />}
 
       <StoreToolbar
         filters={filters}
