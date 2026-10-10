@@ -19,6 +19,8 @@ import { getApiUserId } from "@/lib/session";
 import { jsonError, jsonOk, readJsonBody, z } from "@/lib/api/route-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getOwnModelKey } from "@/db/queries/user-model-keys";
+import { ownModelVerdict } from "@/lib/own-model-verdict";
+import { OWN_MODEL_BILLING } from "@/config/own-model-vendors";
 
 export const runtime = "nodejs";
 
@@ -44,10 +46,15 @@ export async function POST(req: NextRequest) {
   }
 
   const probe = await probeByokKey(body.vendor, apiKey);
+  // Four states, not two: a key the vendor knows but cannot bill is
+  // "unfunded", and the way forward (its billing page) rides along.
+  const state = ownModelVerdict(probe);
   return jsonOk({
     works: probe.ok,
+    state,
     message: probe.message,
     models: probe.models,
     suggested: probe.suggested,
+    billing: OWN_MODEL_BILLING[body.vendor],
   });
 }

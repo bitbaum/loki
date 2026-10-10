@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUp, Check, KeyRound, Loader2, Plus } from "lucide-react";
+import { ArrowUp, Check, ExternalLink, KeyRound, Loader2, Plus } from "lucide-react";
 import { byokVendor } from "@bitbaum/ai-kit/byok";
 import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
 import { OwnModelForm } from "./OwnModelForm";
@@ -22,25 +22,44 @@ import { OwnModelForm } from "./OwnModelForm";
 
 type Mode = { kind: "list" } | { kind: "add" } | { kind: "change"; row: OwnModelRow };
 
+type Usage = {
+  vendor: string;
+  tokensToday: number;
+  callsToday: number;
+  tokens30d: number;
+  calls30d: number;
+};
+type Billing = Record<string, { billingUrl: string; limit: string }>;
+
+const count = (n: number) => n.toLocaleString("en-CH");
+
 export function OwnModelSettings() {
   const [loaded, setLoaded] = useState(false);
   const [available, setAvailable] = useState(true);
   const [models, setModels] = useState<OwnModelRow[]>([]);
+  const [usage, setUsage] = useState<Usage[]>([]);
+  const [billing, setBilling] = useState<Billing>({});
   const [mode, setMode] = useState<Mode>({ kind: "list" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** One line after a save that needs a follow-up (an unfunded key). */
+  const [savedNote, setSavedNote] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     void (async () => {
       try {
-        const data = await ownModelRequest<{ available: boolean; models: OwnModelRow[] }>(
-          "/api/settings/model",
-          "GET",
-        );
+        const data = await ownModelRequest<{
+          available: boolean;
+          models: OwnModelRow[];
+          usage: Usage[];
+          billing: Billing;
+        }>("/api/settings/model", "GET");
         if (!alive) return;
         setAvailable(data.available);
         setModels(data.models);
+        setUsage(data.usage ?? []);
+        setBilling(data.billing ?? {});
       } catch {
         if (alive) setError("Couldn't read your model settings just now.");
       } finally {
@@ -113,6 +132,12 @@ export function OwnModelSettings() {
         </p>
       )}
 
+      {savedNote && (
+        <p className="ui-callout-warning" role="status">
+          {savedNote}
+        </p>
+      )}
+
       {loaded && available && models.length > 0 && (
         <ol className="divide-y divide-border-subtle rounded-lg border border-border-subtle">
           {models.map((row, index) => (
@@ -127,6 +152,19 @@ export function OwnModelSettings() {
                   {index === 0 ? "Loki starts here · " : `Tried ${ordinal(index + 1)} · `}
                   key {row.keyHint} · checked {new Date(row.verifiedAt).toLocaleDateString()}
                 </p>
+                <UsageLine usage={usage.find((u) => u.vendor === row.vendor)} />
+                {billing[row.vendor] && (
+                  <a
+                    href={billing[row.vendor]!.billingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-0.5 inline-flex items-center gap-1 text-xs text-accent-text underline-offset-2 hover:underline"
+                  >
+                    Credits and {billing[row.vendor]!.limit} at{" "}
+                    {byokVendor(row.vendor)?.label ?? row.vendor}
+                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                  </a>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -185,9 +223,10 @@ export function OwnModelSettings() {
             key={mode.kind === "change" ? `change:${mode.row.vendor}` : mode.kind}
             existing={models}
             changeOnly={mode.kind === "change" ? mode.row : null}
-            onSaved={(next) => {
+            onSaved={(next, note) => {
               setModels(next);
               setMode({ kind: "list" });
+              setSavedNote(note);
             }}
             onCancel={models.length > 0 ? () => setMode({ kind: "list" }) : null}
           />
@@ -196,6 +235,24 @@ export function OwnModelSettings() {
 
       {error && <p className="ui-error text-sm">{error}</p>}
     </section>
+  );
+}
+
+/**
+ * What this key has cost, counted here beside the vendor's own meter. Tokens
+ * and calls, never a currency: Loki does not know the vendor's price list,
+ * and a wrong franc is worse than an honest token.
+ */
+function UsageLine({ usage }: { usage: Usage | undefined }) {
+  if (!usage || usage.calls30d === 0) {
+    return <p className="text-xs text-text-muted">Not used yet.</p>;
+  }
+  return (
+    <p className="text-xs text-text-muted">
+      Today {count(usage.tokensToday)} tokens in {usage.callsToday} call
+      {usage.callsToday === 1 ? "" : "s"} · 30 days {count(usage.tokens30d)} tokens in{" "}
+      {usage.calls30d} call{usage.calls30d === 1 ? "" : "s"}
+    </p>
   );
 }
 

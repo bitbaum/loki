@@ -111,6 +111,33 @@ sequenceDiagram
   up on the person's Billing tab exactly like a paid one. The box-only
   `scripts/grant-plan.ts` remains for an emergency with no browser.
 
+### A key that is right but unfunded is not a bad key
+
+The first real key pasted into this screen (xAI, 2026-10-10) was refused:
+the account had no credits, xAI answered the probe with a sentence about
+credits, and Loki read every non-2xx as "bad key". That is a wall. The probe
+now yields four verdicts (`lib/own-model-verdict.ts`): **works**,
+**unfunded** (the vendor knows the key but cannot bill it — a 402, or a
+sentence about credits, balance or a spending limit), **refused** (a 401, or
+anything else) and **unreachable**. An unfunded key is saved, with the
+vendor's words and the link to its billing page (`config/own-model-vendors.ts`),
+and the model is typed by hand since the vendor would not list any. The
+next turn works the moment the vendor's meter does, and when it does not,
+the turn's error says so with the same link.
+
+### Counting what your keys spend
+
+A turn on your own key is deliberately kept out of Loki's two pool meters
+(`ai_spend` rations the free pool; `ai_usage` shows the operator where it
+went). It now lands in a third ledger that is yours: `own_model_usage`, one
+row per (user, day, vendor, model). Settings → AI shows, on each key's row,
+today's and the last thirty days' tokens and calls, and the link to that
+vendor's credits and spending cap. Tokens, never francs: Loki does not hold
+the vendors' price lists, and a wrong franc is worse than an honest token.
+The cap itself is set at the vendor — five francs with a monthly limit is
+enough to compare how two models think, and a cap there protects the person
+whatever Loki does.
+
 ## Why not metered credits (yet)
 
 OrangeCat's Cat sells credits: top up in Bitcoin, spend per request. That is
@@ -144,6 +171,56 @@ secrets are unset. Each is one edit, no code change.
    on /pricing once prices exist.
 6. **Pass length.** Thirty days is the default everywhere (the webhook reads
    `loki-days:<n>`, so a 365-day pass is one more product, not code).
+
+## How this scales to a billion builders
+
+The question is not "can the box take the load"; it is "whose meter does
+each turn run on". Three facts decide the design:
+
+1. **The free pool does not scale.** Groq's 1,000 requests a day and
+   OpenRouter's free models are one allowance for the whole site. At a
+   thousand users that is one request each; at a million it is a rounding
+   error. The free pool is a tasting menu, rationed per person
+   (`lib/ai-budget`), and every refusal it issues points at the two ways
+   out. It is never the plan for the tenth-thousandth user, and nothing in
+   the product should imply it is.
+
+2. **Your own key scales for free.** Each person's turn runs on their
+   vendor account, with their vendor's rate limit and their vendor's bill.
+   Loki holds a sealed key and a counter. A million users on their own keys
+   cost Loki a million small rows and no tokens, there is no noisy
+   neighbour because no two people share a meter, and the vendor's spending
+   cap protects each person whatever Loki does. This is why the roadmap
+   makes own keys the default execution path for new accounts, and why
+   OpenRouter is listed first: one key, every lab, a per-key credit limit.
+
+3. **A pass pays for Loki, not for tokens.** Room, seats and the operator's
+   time are what a pass buys. The moment Loki resells tokens inside a plan
+   it inherits every user's model bill and a margin argument with each
+   vendor; that is the metered-credits phase, and it is deferred until Loki
+   sells something metered of its own (hosted builder minutes).
+
+What this means for the machinery as it grows:
+
+- **Keys.** Sealed at rest with one app secret. Before the user count makes
+  rotation an event, the secret gets a version prefix so two secrets can be
+  live during a rotation and a key that will not open is re-asked for, never
+  lost silently (`getOwnModels` already skips one that does not open).
+- **Ledgers.** All three are per-day rollups, not event logs: a user's
+  thirty-day view is thirty rows, whatever their traffic. Nothing on the hot
+  path aggregates.
+- **Vendors.** The list is closed and lives in ai-kit; the chain walker is
+  the same for a server key and a user key, so a new vendor is one entry
+  there and zero code here.
+- **The brain is not the hands.** The model a person brings powers Loki's
+  own reasoning — what it says, which tools it calls, how it steers a run.
+  The agent in the terminal (Claude Code, Codex, Cursor) runs on the
+  person's own sign-in to that agent, as it always has. A stronger brain
+  makes a better steer; it does not change who pays for the hands.
+- **Compare, don't guess.** With several keys on one account the composer's
+  picker starts a turn on any of them. The same question asked on two models
+  and the usage rows beside each key are the comparison the owner asked
+  for; a few francs with a cap at each vendor is enough to run it.
 
 ## What was deliberately not built
 

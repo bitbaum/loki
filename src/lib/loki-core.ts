@@ -352,7 +352,7 @@ async function isOperatorTurn(userId: string | undefined): Promise<boolean> {
 async function loadOwnModel(userId: string, startAt?: string): Promise<OwnModel | null> {
   try {
     const configs = await getOwnModels(userId);
-    return configs.length > 0 ? ownModelFrom(configs, startAt) : null;
+    return configs.length > 0 ? { ...ownModelFrom(configs, startAt), userId } : null;
   } catch (e) {
     // A read failure means "use the free chain as before", never "no answer".
     console.error("[loki] own model unavailable:", e instanceof Error ? e.message : e);

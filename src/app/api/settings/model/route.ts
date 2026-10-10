@@ -2,7 +2,8 @@
  * The models a user brings to power Loki — list, add or replace, change,
  * re-order, remove. One key per vendor; the order is the user's own chain.
  *
- *   GET    → { available, models: [{ vendor, model, keyHint, verifiedAt, position }] }
+ *   GET    → { available, models: [{ vendor, model, keyHint, verifiedAt, position }],
+ *              usage: [{ vendor, tokensToday, callsToday, tokens30d, calls30d }], billing }
  *   PUT    { vendor, model, apiKey? } → adds or replaces that vendor's key;
  *                                       apiKey omitted = change model, keep key
  *   PATCH  { order: [vendor, …] }     → re-order the chain
@@ -18,6 +19,9 @@ import { probeByokKey } from "@bitbaum/ai-kit/byok-probe";
 import { getApiUserId } from "@/lib/session";
 import { jsonError, jsonOk, readJsonBody, z } from "@/lib/api/route-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { ownModelVerdict } from "@/lib/own-model-verdict";
+import { OWN_MODEL_BILLING } from "@/config/own-model-vendors";
+import { ownUsageByVendor } from "@/db/queries/own-model-usage";
 import {
   deleteOwnModel,
   listOwnModels,
@@ -48,9 +52,18 @@ function view(summary: OwnModelSummary) {
 export async function GET() {
   const userId = await getApiUserId();
   if (!userId) return jsonError("Unauthorized", 401);
+  const [models, usage] = await Promise.all([
+    listOwnModels(userId),
+    ownUsageByVendor(userId).catch(() => []),
+  ]);
   return jsonOk({
     available: ownModelSealSecret() !== null,
-    models: (await listOwnModels(userId)).map(view),
+    models: models.map(view),
+    // What each key has cost at its vendor — tokens and calls, today and over
+    // 30 days — and where its spending cap is set. The vendor's meter is the
+    // bill; this is the reader's own count beside it.
+    usage,
+    billing: OWN_MODEL_BILLING,
   });
 }
 
@@ -78,12 +91,21 @@ export async function PUT(req: NextRequest) {
 
   const config = { vendor: body.vendor, apiKey: body.apiKey, model: body.model };
   if (!isByokConfig(config)) return jsonError("That key or model id is not valid.", 400);
-  // Saved only once the vendor has accepted it: a key that is refused is not
-  // stored, and the vendor's own words say why.
+  // Saved once the vendor KNOWS the key. A key it refuses is not stored, and
+  // the vendor's own words say why. A key it knows but cannot bill yet (no
+  // credits, a spending limit) IS stored — the account is one top-up away
+  // from working, and refusing it was a wall (xAI, 2026-10-10).
   const probe = await probeByokKey(config.vendor, config.apiKey);
-  if (!probe.ok) return jsonError(probe.message, probe.status === null ? 502 : 400);
+  const verdict = ownModelVerdict(probe);
+  if (verdict === "unreachable") return jsonError(probe.message, 502);
+  if (verdict === "refused") return jsonError(probe.message, 400);
   await saveOwnModel(userId, config);
-  return jsonOk({ models: (await listOwnModels(userId)).map(view) });
+  return jsonOk({
+    models: (await listOwnModels(userId)).map(view),
+    ...(verdict === "unfunded"
+      ? { unfunded: { message: probe.message, billing: OWN_MODEL_BILLING[config.vendor] } }
+      : {}),
+  });
 }
 
 const PatchBody = z.object({ order: z.array(Vendor).min(1).max(20) });

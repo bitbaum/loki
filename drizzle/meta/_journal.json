@@ -589,6 +589,13 @@
       "when": 1791552155907,
       "tag": "0083_user_model_keys_per_vendor",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1791552156907,
+      "tag": "0084_own_model_usage",
+      "breakpoints": true
     }
   ]
 }
