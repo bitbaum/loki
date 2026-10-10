@@ -40,7 +40,7 @@ document.getElementById("jank").onclick = () => {
 <script src="${ORIGIN}/widget.js" data-fc-project="fcw_fixture" async></script></body></html>`;
 
 type Report = { suggestion: string; ownerPass?: string };
-type Advice = { question: string; scope: string; session?: string };
+type Advice = { question: string; scope: string; session?: string; read?: boolean };
 
 async function open(browser: Browser, js: string, hash: string) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
@@ -319,8 +319,16 @@ async function main() {
       (r.querySelector(".starter.primary") as HTMLElement).click();
     });
     await s.p.waitForTimeout(800);
-    const a = s.advice[0];
-    ok(s.advice.length === 1, `Review asks Loki once (got ${s.advice.length})`);
+    // Watch READS each page by itself (loki-api READ_QUESTION, once per path
+    // per visit): the two page loads before the reload are one path, so one
+    // read — and the reload did not repeat it either.
+    const reads = s.advice.filter((x) => x.read === true);
+    ok(reads.length === 1, `Watch reads the page once per visit (got ${reads.length})`);
+    ok(/^Read this page/.test(reads[0]?.question ?? ""), "the read is the read question");
+    ok(!reads[0]?.session, "a read carries no session — it judges the page, not the taps");
+    const reviews = s.advice.filter((x) => x.read !== true);
+    const a = reviews[0];
+    ok(reviews.length === 1, `Review asks Loki once (got ${reviews.length})`);
     const session = a?.session ?? "";
     ok(/^Review what I just did/.test(a?.question ?? ""), "Review asks for a review");
     ok(session.includes("tap button “Find a size”"), "the session carries the tap");

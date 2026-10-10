@@ -66,6 +66,8 @@ const AdviseBody = z.object({
    *  ingest verifies it, so the advisor knows it is talking to the person
    *  whose site this is — whose "add X" is a build, not a wish. */
   ownerPass: z.string().max(400).optional(),
+  /** Watch's unasked read of the page — owner only; the rubric is the server's. */
+  read: z.boolean().optional(),
 });
 
 function corsJson(body: unknown, status = 200): NextResponse {
@@ -128,6 +130,7 @@ export async function POST(req: NextRequest) {
         project,
         session: data.session,
         owner,
+        read: data.read === true && owner,
       }),
       // Reasoning models spend hidden tokens before the first visible word; a
       // session review answers through five lenses and needs the room.

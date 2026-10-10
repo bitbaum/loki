@@ -26,6 +26,8 @@ export const CHAT_MAX_HISTORY = 12;
 
 /** What the owner "asks" when they press Review. */
 export const REVIEW_QUESTION = "Review what I just did on this site. What should be improved?";
+/** Watch's unasked read of a page (the server applies its own rubric). */
+export const READ_QUESTION = "Read this page as a first-time visitor on a phone.";
 
 type Turn = { role: "user" | "assistant"; content: string };
 
@@ -62,6 +64,8 @@ export async function askAdvisor(opts: {
   session?: string;
   /** The owner's pass, so Loki answers the person whose site it is as such. */
   ownerPass?: string;
+  /** Watch's unasked read of the page — the server's rubric, not a question. */
+  read?: boolean;
 }): Promise<Answer> {
   const snapshot = (await takeSnapshot(opts.scope, opts.selected)).slice(0, SNAPSHOT_MAX_CHARS);
   const body = await post(`${opts.apiBase}/api/widget/advise`, {
@@ -71,6 +75,7 @@ export async function askAdvisor(opts: {
     snapshot,
     session: opts.session ? opts.session.slice(0, REVIEW_SESSION_MAX) : undefined,
     ownerPass: opts.ownerPass,
+    ...(opts.read ? { read: true } : {}),
     history: opts.history
       .slice(-ADVISE_MAX_HISTORY)
       .map((t) => ({ ...t, content: t.content.slice(0, 3000) })),

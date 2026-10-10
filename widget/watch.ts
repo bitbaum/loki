@@ -586,6 +586,9 @@ export function startWatchMode(opts: {
   onChange?: () => void;
   /** A step went into the trail — the panel's running notes follow. */
   onTrail?: (trail: TrailEntry[]) => void;
+  /** Loki's own read of the page (loki-api READ_QUESTION): what a ruler
+   *  cannot measure — purpose, hierarchy, content, fit. Null: nothing to say. */
+  read?: () => Promise<{ say: string; changes: string[] } | null>;
 }): WatchSession {
   let paused = readWatchPaused(opts.token);
   const sent = new Set<string>();
@@ -683,7 +686,37 @@ export function startWatchMode(opts: {
       );
       const r = explainChecks(checks);
       if (r) remark(checksSignature(location.pathname, checks), r);
+      void readPage();
     }, CHECKS_DELAY_MS);
+  };
+
+  // Then READ it. The checks measure; this judges — is it clear what the
+  // page is for, does the right thing read first, do the parts belong
+  // together. One model call per page per visit, the owner's own site only,
+  // and silence when nothing stands out: the note says it looked.
+  const readPage = async () => {
+    const key = `${location.pathname}|read`;
+    if (!opts.read || paused || said.has(key)) return;
+    said.add(key);
+    writeSaid(opts.token, said);
+    const r = await opts.read().catch(() => null);
+    if (paused) return;
+    if (!r || !r.changes.length) {
+      recorder?.note("look", "read it — nothing stands out");
+      return;
+    }
+    recorder?.note(
+      "look",
+      `read it — ${r.changes.length} ${r.changes.length === 1 ? "thing" : "things"} to change`,
+    );
+    const list = r.changes.map((c) => `• ${c}`).join("\n");
+    opts.onRemark({
+      say: `Reading this page as a visitor:\n${r.say}`,
+      fix: `Make these changes on this page, together:\n${list}`,
+      short: `reading it, ${r.changes.length === 1 ? "one thing" : `${r.changes.length} things`} could be better`,
+    });
+    latest = `reading it, ${r.changes.length === 1 ? "one thing" : `${r.changes.length} things`} could be better`;
+    if (shown === "watching") show(watching());
   };
 
   recorder = installWatch({

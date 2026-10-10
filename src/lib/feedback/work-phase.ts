@@ -719,25 +719,29 @@ function shippingView(run: FeedbackRunSnapshot): Omit<FeedbackWorkView, "waiting
       if (fix.liveVia === "later_deploy")
         return {
           ...base,
-          label: "Shipped · confirm",
+          label: "Live — check it",
           detail: `${fix.ownDeploy?.name ?? "The deploy"} failed on the merge commit; a later deploy shipped it.${partial ? " The agent reported only partial success — worth a closer look." : ""}`,
           checkLive: true,
         };
       if (fix.shippedByFleet)
         return {
           ...base,
-          label: "Shipped · confirm",
+          label: "Live — check it",
           detail: `Loki merged this and the site deployed.${partial ? " The agent reported only partial success — worth a closer look." : ""}`,
           checkLive: true,
         };
       return {
         ...base,
-        // No sentence: the badge says Shipped, and the buttons under it say
-        // "Watch the fix" and "Confirm". Repeating that as prose printed the same
-        // 18 words on every deployed row — the noise this page keeps growing.
-        // "Shipped", not "Live": a green "Live" read as "watch it live" and
-        // sent the owner to a homepage expecting to see work (2026-09-28).
-        label: "Shipped · confirm",
+        // No sentence: the badge says what the row is, and the buttons under
+        // it say "Watch the fix" and "Confirm". Repeating that as prose
+        // printed the same 18 words on every deployed row.
+        // "Live — check it", in the warning tone, never green: a green
+        // "Shipped" chip under the "Needs you" heading, beside a "Done" lens
+        // whose rows were also green, was the page contradicting itself
+        // (operator, 2026-10-10). A bare green "Live" was tried before that
+        // and read as "watch it live" (2026-09-28); the dash and the verb are
+        // what make it an instruction.
+        label: "Live — check it",
         detail: partial ? "The agent reported only partial success — worth a closer look." : null,
         checkLive: true,
       };

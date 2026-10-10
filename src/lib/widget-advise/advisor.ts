@@ -68,6 +68,26 @@ const REVIEW_RUBRIC = [
 ].join("\n");
 
 /**
+ * Loki's own READ of a page, unasked, while the owner uses their site with
+ * Watch on. The measured checks (page-checks.ts) see what a ruler sees —
+ * small type, tiny targets, a missing label. They cannot see that a page
+ * says nothing first, that two controls mean the same thing, or that its
+ * parts were thrown together. The owner saw exactly that on their own pages
+ * and asked why Loki had not (2026-10-10). This is the reader the ruler is
+ * not. Once per page per visit; three findings at most; silence when fine.
+ */
+const READ_RUBRIC = [
+  "This is Loki's own READ of the page the owner is on — unasked, while they use their site. Read it as a first-time visitor on a phone who has never seen it, and judge only what such a visitor would feel. Look for, worst first:",
+  "- Purpose: within the first screen, is it clear what this page is for and what to do here? Quote the headline if it does not say.",
+  "- Hierarchy: does the most important thing read first, or do several things compete at the same weight? Name the two that compete.",
+  "- Content: text that says nothing, says it twice, uses words a visitor would not, or runs long where a line would do. Quote it.",
+  "- Fit: parts that do not belong together — a control repeated, two labels for one thing, an element that belongs on another page, states that contradict each other (a green badge under a heading that says it needs you). Quote both.",
+  "- Function: a control whose outcome a visitor could not predict from its label.",
+  "Only what the outline shows; never invent. At most THREE findings, each ONE line that quotes the actual wording. No praise, no preamble. If nothing stands out, answer exactly: nothing stands out — and write CHANGES: none.",
+  "Format: plain text, no markdown. One line per finding starting with '- '. Under 120 words.",
+].join("\n");
+
+/**
  * What the advisor must never do, whoever is asking. Each line is a thing it
  * did on 2026-10-09 to a site's owner who asked for one new page: told them
  * which heading to insert and to "keep the structure in a data file
@@ -91,6 +111,8 @@ export function adviseSystemPrompt(input: {
   session?: string | null;
   /** The owner's pass checked out: this is the person whose site it is. */
   owner?: boolean;
+  /** Watch's unasked read of the page (READ_RUBRIC) — not a question. */
+  read?: boolean;
 }): string {
   const about = input.project
     ? `The site belongs to the project "${input.project.name}"${
@@ -117,8 +139,9 @@ export function adviseSystemPrompt(input: {
     "- Answer in the language the person wrote in.",
     HANDS_OFF_RULES,
     "",
-    // A review's length and shape are the rubric's, not the 180-word default.
-    session ? REVIEW_RUBRIC : "",
+    // A review's or a read's length and shape are the rubric's, not the
+    // 180-word default.
+    session ? REVIEW_RUBRIC : input.read ? READ_RUBRIC : "",
     `End with a line \`${CHANGES_MARKER}\` followed by up to ${ADVISE_MAX_CHANGES} bullet lines, each ONE concrete change request the owner could send to their builder as-is — imperative, self-contained, naming the thing to change (e.g. "- Change the hero button text from 'Submit' to 'Book a table'"). If you recommend changing nothing, write \`${CHANGES_MARKER} none\`.`,
     "",
     session ? UNTRUSTED_PREAMBLE : "",
