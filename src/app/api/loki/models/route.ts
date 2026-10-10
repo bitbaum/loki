@@ -25,7 +25,7 @@ import { getApiUserId } from "@/lib/session";
 import { jsonOk, jsonError } from "@/lib/api/route-helpers";
 import { CHAT_CHAIN, providerModels, usableChatChain } from "@/config/chat-models";
 import { listOwnModels } from "@/db/queries/user-model-keys";
-import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
+import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 import type { LokiModelOption, LokiModelsResponse } from "@/lib/loki/models";
 
 export async function GET() {
@@ -76,6 +76,6 @@ export async function GET() {
   return jsonOk({
     options,
     autoStartsAt,
-    addKeyHref: OWN_MODEL_SETTINGS_PATH,
+    addKeyHref: MODEL_STORE_PATH,
   } satisfies LokiModelsResponse);
 }

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ArrowUp, Check, ExternalLink, KeyRound, Loader2, Plus, Zap } from "lucide-react";
-import { byokVendor } from "@bitbaum/ai-kit/byok";
+import { byokVendor, type ByokVendorId } from "@bitbaum/ai-kit/byok";
+import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
 import { OwnModelForm } from "./OwnModelForm";
 
@@ -20,7 +22,19 @@ import { OwnModelForm } from "./OwnModelForm";
  * section says so and Loki keeps using its free models.
  */
 
-type Mode = { kind: "list" } | { kind: "add" } | { kind: "change"; row: OwnModelRow };
+type Mode =
+  | { kind: "list" }
+  | { kind: "add"; vendor?: ByokVendorId; model?: string }
+  | { kind: "change"; row: OwnModelRow };
+
+/** The store's "Add" and "Use" buttons arrive as ?add=<vendor>&model=<id> (see ownModelAddPath). */
+function modeFromUrl(): Mode {
+  if (typeof window === "undefined") return { kind: "list" };
+  const q = new URLSearchParams(window.location.search);
+  const add = q.get("add");
+  if (!add || !byokVendor(add)) return { kind: "list" };
+  return { kind: "add", vendor: add as ByokVendorId, model: q.get("model") ?? undefined };
+}
 
 type Usage = {
   vendor: string;
@@ -46,7 +60,7 @@ export function OwnModelSettings() {
   const [models, setModels] = useState<OwnModelRow[]>([]);
   const [usage, setUsage] = useState<Usage[]>([]);
   const [billing, setBilling] = useState<Billing>({});
-  const [mode, setMode] = useState<Mode>({ kind: "list" });
+  const [mode, setMode] = useState<Mode>(modeFromUrl);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /**
@@ -164,11 +178,15 @@ export function OwnModelSettings() {
           Power Loki with your own models
         </h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Loki runs on free, shared models with a daily budget. Add a key from any provider and Loki
-          thinks with the best model your account can use instead — the daily budget no longer
-          applies to your chats, and your provider bills you for what you use. Loki charges nothing
-          for it. Add several and Loki tries them in order, so one provider having a bad day never
-          stops you.
+          Paste a key from any provider and Loki thinks with the best model your account can use.
+          Your provider bills you for what you use; Loki charges nothing and the shared daily budget
+          no longer applies to your chats. Add several and Loki tries them in order.{" "}
+          <Link
+            href={MODEL_STORE_PATH}
+            className="text-accent-text underline-offset-2 hover:underline"
+          >
+            Compare providers and prices →
+          </Link>
         </p>
       </div>
 
@@ -272,14 +290,22 @@ export function OwnModelSettings() {
       )}
 
       {loaded && available && models.length > 0 && mode.kind === "list" && (
-        <button
-          type="button"
-          className="ui-btn-secondary text-sm"
-          onClick={() => setMode({ kind: "add" })}
-          disabled={busy}
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" /> Add another provider
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="ui-btn-secondary text-sm"
+            onClick={() => setMode({ kind: "add" })}
+            disabled={busy}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" /> Add another provider
+          </button>
+          {models.length === 1 && (
+            <p className="text-xs text-text-tertiary">
+              One provider is one point of failure. A second gives Auto a choice when this one is
+              slow or out of credit — and two models to compare on the same question.
+            </p>
+          )}
+        </div>
       )}
 
       {showForm && (
@@ -294,6 +320,8 @@ export function OwnModelSettings() {
             key={mode.kind === "change" ? `change:${mode.row.vendor}` : mode.kind}
             existing={models}
             changeOnly={mode.kind === "change" ? mode.row : null}
+            initialVendor={mode.kind === "add" ? mode.vendor : undefined}
+            initialModel={mode.kind === "add" ? mode.model : undefined}
             onSaved={(next, saved) => {
               setModels(next);
               setMode({ kind: "list" });

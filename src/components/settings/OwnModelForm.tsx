@@ -40,6 +40,8 @@ type ProbeResponse = {
 export function OwnModelForm({
   existing,
   changeOnly,
+  initialVendor,
+  initialModel,
   onSaved,
   onCancel,
 }: {
@@ -47,6 +49,9 @@ export function OwnModelForm({
   existing: OwnModelRow[];
   /** Set = change this vendor's model with the stored key; no paste. */
   changeOnly: OwnModelRow | null;
+  /** From the store's "Add" / "Use" buttons: the vendor, and the model, already chosen. */
+  initialVendor?: ByokVendorId;
+  initialModel?: string;
   /** What was saved, so the list can say it in a sentence and test it. */
   onSaved: (
     models: OwnModelRow[],
@@ -54,10 +59,15 @@ export function OwnModelForm({
   ) => void;
   onCancel: (() => void) | null;
 }) {
-  const [vendor, setVendor] = useState<ByokVendorId>(changeOnly?.vendor ?? BYOK_VENDORS[0]!.id);
+  const [vendor, setVendor] = useState<ByokVendorId>(
+    changeOnly?.vendor ?? initialVendor ?? BYOK_VENDORS[0]!.id,
+  );
   const [apiKey, setApiKey] = useState("");
   const [probe, setProbe] = useState<Probe>({ state: "idle" });
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState(initialModel ?? "");
+  // The model the store chose rides through the probe: when the vendor lists
+  // it, it stays chosen instead of the probe's own suggestion.
+  const wanted = useRef(initialModel ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const probeSeq = useRef(0);
@@ -80,10 +90,11 @@ export function OwnModelForm({
           models: data.models,
           suggested: data.suggested,
         });
-        setModel(data.suggested ?? "");
+        const keep = wanted.current && data.models.includes(wanted.current) ? wanted.current : null;
+        setModel(keep ?? data.suggested ?? "");
       } else if (data.state === "unfunded") {
         setProbe({ state: "unfunded", message: data.message, billing: data.billing });
-        setModel("");
+        setModel(wanted.current);
       } else {
         setProbe({ state: "refused", message: data.message });
       }
