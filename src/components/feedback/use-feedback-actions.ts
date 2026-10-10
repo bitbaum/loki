@@ -67,8 +67,14 @@ export function useFeedbackActions(refetch: () => void) {
       "Could not move this to the cloud builder",
     );
 
-  const setStatus = (id: string, status: FeedbackStatus) =>
-    act(id, () => patchJson(`/api/feedback/${id}`, { status }), "Update failed");
+  /** `reason` rides along with an archive: the sentence written on the row
+   *  (Loki's recommendation says why it filed something away). */
+  const setStatus = (id: string, status: FeedbackStatus, reason?: string) =>
+    act(
+      id,
+      () => patchJson(`/api/feedback/${id}`, { status, ...(reason ? { reason } : {}) }),
+      "Update failed",
+    );
 
   const resolve = (id: string) => setStatus(id, FEEDBACK_STATUS.RESOLVED);
   const archive = (id: string) => setStatus(id, FEEDBACK_STATUS.ARCHIVED);

@@ -5,6 +5,7 @@ import {
   getFeedbackWithProject,
   setFeedbackFeatured,
   setFeedbackStatus,
+  archiveFeedbackWithReason,
 } from "@/db/queries/site-feedback";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { notifyFeedbackShipped } from "@/lib/feedback/close-loop";
@@ -24,6 +25,9 @@ const PatchBody = z
     /** Curation for the public "shipped thanks to feedback" strip — resolved
      *  rows only (enforced in the query). */
     featured: z.boolean().optional(),
+    /** With `archived`: the sentence written on the row — Loki's reason when
+     *  the owner takes its recommendation. Ignored for any other status. */
+    reason: z.string().trim().min(1).max(300).optional(),
   })
   .refine((b) => b.status !== undefined || b.featured !== undefined, {
     message: "Nothing to update",
@@ -48,6 +52,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (dataOrResp.status !== undefined) {
+    if (dataOrResp.status === FEEDBACK_STATUS.ARCHIVED && dataOrResp.reason) {
+      const n = await archiveFeedbackWithReason(ownerUserId, [idOrResp], dataOrResp.reason);
+      if (!n) return jsonError("Not found", 404);
+      return jsonOk({});
+    }
     const updated = await setFeedbackStatus(ownerUserId, idOrResp, dataOrResp.status);
     if (!updated) return jsonError("Not found", 404);
     // Done = operator confirmed live change. Visitor "shipped" mail rides this

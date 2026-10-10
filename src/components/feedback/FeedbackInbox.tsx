@@ -3,55 +3,46 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Inbox, Loader2, MessagesSquare } from "lucide-react";
+import { AlertTriangle, Loader2, MessagesSquare } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { compactDurationHours } from "@/lib/dates";
-import { FEEDBACK_SOURCE, FEEDBACK_STATUS, type FeedbackStatus } from "@/lib/constants/statuses";
+import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { WAITING_ON } from "@/lib/feedback/work-phase";
 import type { FeedbackLoopMetrics, UserFeedbackListItem } from "@/db/queries/site-feedback";
 import type { FeedbackWorkView } from "@/lib/feedback/work-phase";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FeedbackItemRow } from "@/components/feedback/FeedbackItemRow";
+import { DecisionCard } from "@/components/feedback/DecisionCard";
 import { useFeedbackActions } from "@/components/feedback/use-feedback-actions";
-import { foldSameFailures, SHIPPED_SHOWN } from "@/lib/feedback/inbox-groups";
-import { LENS_MEANING } from "@/lib/feedback/row-story";
-import { cn } from "@/lib/utils";
+import {
+  RECOMMEND,
+  doAllLabel,
+  recommendFor,
+  summarizeDecisions,
+  type Recommendation,
+} from "@/lib/feedback/recommend";
 
 type InboxItem = UserFeedbackListItem & { work: FeedbackWorkView };
 
-const SOURCE_FILTERS = [
-  { key: null, label: "All sources" },
-  { key: FEEDBACK_SOURCE.VISITOR, label: "Visitors" },
-  { key: FEEDBACK_SOURCE.AI_REVIEW, label: "AI review" },
-  { key: FEEDBACK_SOURCE.SYNTHESIZER, label: "Briefs" },
-] as const;
-
 /**
- * The cross-project feedback inbox behind /feedback. Separation of concerns:
- * Control stays operations (what is running), Projects stays the catalog —
- * this page owns the ironing-out loop: every report across the fleet, what
- * phase its fix is in, and the next action, without opening a project first.
+ * /feedback — a queue of decisions Loki has already made, waiting for a yes.
  *
- * Three lenses, keyed on WHO IS BLOCKED (work.waitingOn), never on DB status:
- * Needs you (your move — triage, retry, or look at a fix that is live), Under
- * way (an agent is generating, a green pull request is merging, a deploy is
- * running — nothing for you to do), Done (resolved). One lens shows at a
- * time, as one list — they used to stack as three bordered cards with grey
- * headers, which on a phone read as three unrelated widgets (2026-10-03).
- * Archived stays behind a toggle. Status could not answer the page's one question: `dispatched` covers
- * both an agent mid-run and a fix that deployed an hour ago.
- */
-/**
- * The line under the Reports total, which must ACCOUNT for the total.
+ * Rebuilt 2026-10-10 on the owner's rule: "if my involvement is needed, it
+ * shouldn't take me more than 10 milliseconds … I should be able to tap
+ * once and have some confidence that this tap leads to the correct
+ * improvement, because all the evaluation was done before that one option
+ * was given to me."
  *
- * `open` is new + dispatched and `resolved` is shipped, so a reader who
- * subtracts is left holding a remainder with no name. Prod on 2026-09-20:
- * "68 reports · 29 still open" beside "32 shipped" — and 29 + 32 is 61. The
- * other seven were archived: filed away rather than fixed, a state no card
- * admitted existed.
+ * So the page is not an inbox. It opens with how many decisions there are
+ * and ONE button that takes all of them (saying what it spends). Each
+ * decision is a card: Loki's recommendation as the verb, the reason in one
+ * sentence, the report beneath in smaller type, one filled button. Reading
+ * is optional; disagreeing is one tap away ("Something else" opens the full
+ * row). Everything that is not a decision — agents at work, fixes you
+ * confirmed, reports filed away — sits in collapsed lines under the queue.
  *
- * Pure and exported so the arithmetic is pinned without rendering: three
- * numbers that do not reconcile look exactly like three numbers that do.
+ * The project picker is part of the heading, so the count it changes is
+ * the count beside it.
  */
 export function reportsSubLine(m: {
   total: number;
@@ -67,9 +58,6 @@ export function reportsSubLine(m: {
 }
 
 export function FeedbackInbox() {
-  // `loadError` is aliased because `error` below is the *mutation* error from
-  // useFeedbackActions. They are different failures and the page shows them in
-  // different places; sharing the name is how the load error got dropped.
   const {
     data,
     loading,
@@ -78,23 +66,16 @@ export function FeedbackInbox() {
   } = useFetch<{
     feedback: InboxItem[];
     metrics: FeedbackLoopMetrics | null;
-    /** What the last autopilot night did — null when nothing, or no night. */
     night: { night: string; note: string } | null;
   }>("/api/feedback/inbox");
   const searchParams = useSearchParams();
-  // `?project=` is a name or an entity id — both are handed out as links
-  // (My feedback and the claim page know only the id). Resolved against the
-  // data once it is here; a value that matches nothing filters nothing,
-  // instead of printing an id at the reader (2026-09-28: "Nothing waiting on
-  // you for 5936f8fb-…").
   const requestedProject = searchParams.get("project");
   const [projectFilter, setProjectFilter] = useState<string | null>(null);
-  const [sourceFilter, setSourceFilter] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
-  const [showAllShipped, setShowAllShipped] = useState(false);
-  const [chosenLens, setChosenLens] = useState<Lens | null>(null);
   const { busyId, error, notice, dispatchFix, runInCloud, setStatus, feature } =
     useFeedbackActions(refetch);
+  /** Decisions taken on this screen: the card says "Done" until the list refreshes. */
+  const [taken, setTaken] = useState<Set<string>>(new Set());
+  const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
 
   const all = useMemo(() => data?.feedback ?? [], [data]);
   const metrics = data?.metrics ?? null;
@@ -109,8 +90,7 @@ export function FeedbackInbox() {
     setProjectFilter(match ? match.projectName : null);
   }, [requestedProject, all]);
 
-  // Same honesty poll as the project section: while any fix is in flight,
-  // keep the phases fresh.
+  // While any fix is in flight, keep the phases fresh.
   useEffect(() => {
     const live = all.some(
       (f) => f.status !== FEEDBACK_STATUS.RESOLVED && f.work.waitingOn === WAITING_ON.MACHINE,
@@ -118,11 +98,9 @@ export function FeedbackInbox() {
     if (!live) return;
     const t = window.setInterval(() => refetch(), 8_000);
     return () => window.clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- poll while any row is live; refetch identity is stable enough
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- poll while any row is live
   }, [all.map((f) => `${f.work.phase}:${f.work.waitingOn}`).join("|")]);
 
-  // Project chips come from the data itself — a project appears here exactly
-  // when it has feedback, with its open count.
   const projects = useMemo(() => {
     const byName = new Map<string, { name: string; id: string; open: number }>();
     for (const f of all) {
@@ -135,64 +113,105 @@ export function FeedbackInbox() {
     return [...byName.values()].sort((a, b) => b.open - a.open || a.name.localeCompare(b.name));
   }, [all]);
 
-  const filtered = all.filter((f) => {
-    if (projectFilter && f.projectName !== projectFilter) return false;
-    if (sourceFilter && (f.source ?? FEEDBACK_SOURCE.VISITOR) !== sourceFilter) return false;
-    return true;
-  });
+  const filtered = projectFilter ? all.filter((f) => f.projectName === projectFilter) : all;
 
-  // Grouped by WHO IS BLOCKED, not by DB status. `dispatched` covers both an
-  // agent mid-run and a fix that deployed an hour ago and is waiting for you
-  // to look — filing both under "In progress" hid the one row that needed a
-  // person. work.waitingOn is the SSOT (see work-phase.ts).
-  const active = filtered.filter((f) => f.status !== FEEDBACK_STATUS.ARCHIVED);
-  const needsYou = active.filter(
-    (f) => f.status !== FEEDBACK_STATUS.RESOLVED && f.work.waitingOn === WAITING_ON.YOU,
+  // The clock the recommendations are judged against: taken once per load
+  // of the list (a render must not read the clock, and a decision does not
+  // change by the second).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- re-stamp when the list reloads
+    setNow(Date.now());
+  }, [data]);
+  // Loki's decision per row, surest and cheapest first.
+  const decisions = useMemo(() => {
+    return filtered
+      .map((f) => ({
+        f,
+        rec: recommendFor(
+          {
+            status: f.status,
+            work: f.work,
+            source: f.source ?? null,
+            createdAt: f.createdAt,
+            duplicateCount: f.duplicateCount,
+            runnable: f.runnable !== false,
+            page: f.page ?? null,
+          },
+          now,
+        ),
+      }))
+      .filter((d): d is { f: InboxItem; rec: Recommendation } => d.rec !== null)
+      .sort((a, b) => b.rec.priority - a.rec.priority);
+  }, [filtered, now]);
+  const decided = new Set(decisions.map((d) => d.f.id));
+  const underWay = filtered.filter(
+    (f) =>
+      f.status !== FEEDBACK_STATUS.RESOLVED &&
+      f.status !== FEEDBACK_STATUS.ARCHIVED &&
+      !decided.has(f.id),
   );
-  const underWay = active.filter(
-    (f) => f.status !== FEEDBACK_STATUS.RESOLVED && f.work.waitingOn === WAITING_ON.MACHINE,
-  );
-  const needsYouFolded = foldSameFailures(needsYou);
-  const shipped = filtered.filter((f) => f.status === FEEDBACK_STATUS.RESOLVED);
+  const done = filtered.filter((f) => f.status === FEEDBACK_STATUS.RESOLVED);
   const archived = filtered.filter((f) => f.status === FEEDBACK_STATUS.ARCHIVED);
+  const summary = summarizeDecisions(decisions.filter((d) => !taken.has(d.f.id)).map((d) => d.rec));
+
+  /** Take one decision — the same routes the full row uses. */
+  const take = async (f: InboxItem, rec: Recommendation) => {
+    switch (rec.kind) {
+      case RECOMMEND.CONFIRM:
+        await setStatus(f.id, FEEDBACK_STATUS.RESOLVED);
+        break;
+      case RECOMMEND.BUILD:
+      case RECOMMEND.RETRY:
+        await dispatchFix(f.id, {});
+        break;
+      case RECOMMEND.CLOUD:
+        if (f.work.commandId) await runInCloud(f.id, f.work.commandId);
+        else await dispatchFix(f.id, {});
+        break;
+      case RECOMMEND.FILE:
+        await setStatus(f.id, FEEDBACK_STATUS.ARCHIVED, rec.archiveReason);
+        break;
+      case RECOMMEND.CONNECT:
+        return;
+    }
+    setTaken((s) => new Set(s).add(f.id));
+  };
+
+  const takeAll = async () => {
+    const todo = decisions.filter((d) => d.rec.kind !== RECOMMEND.CONNECT && !taken.has(d.f.id));
+    setBatch({ done: 0, total: todo.length });
+    for (const [i, d] of todo.entries()) {
+      await take(d.f, d.rec);
+      setBatch({ done: i + 1, total: todo.length });
+    }
+    setBatch(null);
+  };
 
   if (loading && all.length === 0) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-text-tertiary">
-        <Loader2 className="ui-spinner-xs" /> Loading your inbox…
+        <Loader2 className="ui-spinner-xs" /> Loading…
       </div>
     );
   }
-
-  // An empty list because the request failed is not "no feedback yet" — it is
-  // an unanswered question, and this page is the one place an operator checks
-  // to be sure nothing is waiting. Answer the question that was actually asked.
   if (all.length === 0 && loadError) {
     return (
       <EmptyState icon={AlertTriangle} title="Couldn't load feedback">
-        The inbox request failed, so this is not a claim that there is no feedback.{" "}
-        <button
-          type="button"
-          onClick={refetch}
-          className="text-accent-text underline-offset-2 hover:underline"
-        >
+        The request failed, so this is not a claim that nothing is waiting.{" "}
+        <button type="button" onClick={refetch} className="ui-link-muted">
           Try again
         </button>
         .
       </EmptyState>
     );
   }
-
   if (all.length === 0) {
     return (
       <EmptyState icon={MessagesSquare} title="No feedback yet">
-        Feedback lands here from every project&apos;s widget — visitor reports, AI-review findings,
-        and synthesized briefs, each with the live status of its fix. Enable the widget on a project
-        page (Feedback section → Widget), or read{" "}
-        <Link
-          href="/docs/feedback-widget"
-          className="text-accent-text underline-offset-2 hover:underline"
-        >
+        Reports land here from every project&apos;s widget, each with Loki&apos;s recommended next
+        step. Enable the widget on a project page, or read{" "}
+        <Link href="/docs/feedback-widget" className="ui-link-muted">
           how the widget works
         </Link>
         .
@@ -200,196 +219,124 @@ export function FeedbackInbox() {
     );
   }
 
-  // On a project-scoped view (?project=…) the project is named once in the
-  // footer line and the rows stop repeating it.
-  const sourcesPresent = new Set(all.map((f) => f.source ?? FEEDBACK_SOURCE.VISITOR));
-  const showProjectPicker = projects.length > 1;
-  const hideProject = !!projectFilter || projects.length <= 1;
-  const showSourcePicker = sourcesPresent.size > 1;
   const current = projectFilter ? projects.find((p) => p.name === projectFilter) : null;
-  const counts: Record<Lens, number> = {
-    [LENS.NEEDS_YOU]: needsYou.length,
-    [LENS.UNDER_WAY]: underWay.length,
-    [LENS.SHIPPED]: shipped.length,
-  };
-  // The lens follows the work unless the reader chose one: open on the first
-  // view that holds something, so an empty "Needs you" never greets a page
-  // whose agents are busy.
-  const lens: Lens = chosenLens ?? defaultLens(counts);
-  const rowProps = { busyId, dispatchFix, runInCloud, setStatus, feature, hideProject };
+  const rowFor = (f: InboxItem) => ({
+    onDispatch: (opts?: { note?: string; agent?: string }) => dispatchFix(f.id, opts ?? {}),
+    onRunInCloud: f.work.commandId ? () => runInCloud(f.id, f.work.commandId!) : undefined,
+    onResolve: () => setStatus(f.id, FEEDBACK_STATUS.RESOLVED),
+    onArchive: () => setStatus(f.id, FEEDBACK_STATUS.ARCHIVED),
+    onReopen: () => setStatus(f.id, FEEDBACK_STATUS.NEW),
+    onFeature: () => feature(f.id, !f.featuredAt),
+  });
+  const projectOf = (f: InboxItem) =>
+    projectFilter || projects.length <= 1 ? null : { id: f.projectId, name: f.projectName };
+  const open = summary.total - [...taken].filter((id) => decided.has(id)).length;
 
   return (
-    <div className="space-y-4">
-      {/* The morning note: one line on what Loki did while the reader slept,
-          above the lenses because the rows it mentions are in them. Absent
-          when the night did nothing — silence when fine. */}
+    <div className="space-y-5">
+      {/* The heading IS the count and the scope: "6 decisions · substrata ▾". */}
+      <div className="ui-fb-head">
+        <h2 className="ui-fb-head-count">
+          {open === 0 ? "Nothing to decide" : `${open} ${open === 1 ? "decision" : "decisions"}`}
+        </h2>
+        {projects.length > 1 && (
+          <select
+            value={projectFilter ?? ""}
+            onChange={(e) => setProjectFilter(e.target.value || null)}
+            className="ui-fb-select"
+            aria-label="Which project"
+          >
+            <option value="">all projects</option>
+            {projects.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
       {night && <p className="ui-fb-night">{night.note}</p>}
 
-      {/* The page's one question, first: is anything waiting on me? On a
-          phone this strip used to sit 550px down, under project chips, a
-          sentence of fleet statistics, a source picker and a link to another
-          page — four things the reader had not asked for, in front of the one
-          they had (2026-10-10). The filters follow it as one quiet line, the
-          numbers close the page. */}
-      <div className="ui-fb-lens" role="tablist" aria-label="Which reports">
-        {LENSES.map((l) => (
+      {open > 0 && (
+        <div className="ui-fb-doall">
+          <p className="ui-fb-doall-text">
+            Loki has already decided each one. Tap a card to agree, or take them all at once.
+          </p>
           <button
-            key={l.key}
             type="button"
-            role="tab"
-            aria-selected={lens === l.key}
-            onClick={() => setChosenLens(l.key)}
-            className="ui-fb-lens-tab"
-            title={l.hint}
+            onClick={() => void takeAll()}
+            disabled={batch !== null || busyId !== null || summary.takeable === 0}
+            className="ui-btn-save"
           >
-            <span
-              className={cn(
-                "ui-fb-lens-count",
-                l.key === LENS.NEEDS_YOU && counts[l.key] > 0 && "ui-fb-lens-count-due",
-              )}
-            >
-              {counts[l.key]}
-            </span>
-            <span className="ui-fb-lens-label">{l.label}</span>
+            {batch ? (
+              <>
+                <Loader2 className="ui-spinner-xs" /> {batch.done} of {batch.total}
+              </>
+            ) : (
+              doAllLabel(summary)
+            )}
           </button>
-        ))}
-      </div>
-
-      {/* What the open lens MEANS, in one line: the reader should never have
-          to infer the page's words from its buttons (owner, 2026-10-10: "it
-          doesn't explain why it needs me and what exactly I need to do"). */}
-      <p className="ui-fb-lens-hint">{LENSES.find((l) => l.key === lens)?.hint}</p>
-
-      {/* Filters earn their place only when they can change what is shown:
-          one project needs no project picker, one source no source picker. */}
-      {(showProjectPicker || showSourcePicker) && (
-        <div className="ui-fb-filterbar">
-          {showProjectPicker && (
-            <select
-              value={projectFilter ?? ""}
-              onChange={(e) => setProjectFilter(e.target.value || null)}
-              className="ui-fb-select"
-              aria-label="Filter reports by project"
-            >
-              <option value="">All projects</option>
-              {projects.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.open > 0 ? `${p.name} · ${p.open} open` : p.name}
-                </option>
-              ))}
-            </select>
-          )}
-          {showSourcePicker && (
-            <select
-              value={sourceFilter ?? ""}
-              onChange={(e) => setSourceFilter(e.target.value || null)}
-              className="ui-fb-select"
-              aria-label="Filter reports by source"
-            >
-              {SOURCE_FILTERS.filter((s) => s.key === null || sourcesPresent.has(s.key)).map(
-                (s) => (
-                  <option key={s.label} value={s.key ?? ""}>
-                    {s.label}
-                  </option>
-                ),
-              )}
-            </select>
-          )}
         </div>
       )}
 
       {error && <p className="ui-error">{error}</p>}
       {notice && <p className="ui-callout-warning">{notice}</p>}
 
-      {counts[lens] === 0 ? (
-        <LensEmpty
-          lens={lens}
-          counts={counts}
-          projectName={projectFilter}
-          projectId={current?.id ?? null}
-          onLens={setChosenLens}
-          onAllProjects={() => setProjectFilter(null)}
-        />
-      ) : lens === LENS.NEEDS_YOU ? (
-        <div className="ui-fb-list">
-          {needsYouFolded.rows.map((f) => (
-            <Row key={f.id} f={f} {...rowProps} />
-          ))}
-          {/* Failures that share one reason fold into one line that says the
-              reason once; each report is still its own row, one tap away, with
-              its own Retry — there is deliberately no "retry all": one tap
-              starting dozens of agent runs is a decision, not a default. */}
-          {needsYouFolded.folds.map((fold) => (
-            <details key={fold.cause} className="ui-fb-fold">
-              <summary>
-                <span className="ui-inbox-fold-count">
-                  {fold.items.length} fixes failed the same way
-                </span>
-                <span className="ui-inbox-fold-cause">{fold.cause}</span>
-              </summary>
-              {fold.items.map((f) => (
-                <Row key={f.id} f={f} {...rowProps} />
-              ))}
-            </details>
-          ))}
-        </div>
-      ) : lens === LENS.UNDER_WAY ? (
-        <div className="ui-fb-list">
-          {underWay.map((f) => (
-            <Row key={f.id} f={f} {...rowProps} />
-          ))}
-        </div>
+      {open === 0 ? (
+        <p className="ui-fb-quiet-line">
+          {current ? `${current.name}: ` : ""}
+          {underWay.length
+            ? `nothing waits on you — ${underWay.length} ${underWay.length === 1 ? "is" : "are"} under way.`
+            : "nothing waits on you."}
+        </p>
       ) : (
-        <div className="ui-fb-list">
-          {/* Nothing here asks for a decision, so the newest few stand for the
-              rest — all 36 rendered in full were most of a 17,000px page. */}
-          {(showAllShipped ? shipped : shipped.slice(0, SHIPPED_SHOWN)).map((f) => (
-            <Row key={f.id} f={f} {...rowProps} />
+        <div className="ui-fb-decisions">
+          {decisions.map(({ f, rec }) => (
+            <DecisionCard
+              key={f.id}
+              item={f}
+              rec={rec}
+              busy={busyId === f.id}
+              taken={taken.has(f.id)}
+              project={projectOf(f)}
+              onTake={() => void take(f, rec)}
+              rowProps={rowFor(f)}
+            />
           ))}
-          {shipped.length > SHIPPED_SHOWN && (
-            <button
-              type="button"
-              onClick={() => setShowAllShipped((v) => !v)}
-              aria-expanded={showAllShipped}
-              className="ui-fb-more"
-            >
-              {showAllShipped ? "Show fewer" : `Show all ${shipped.length} done`}
-            </button>
-          )}
         </div>
       )}
 
-      {/* Archived is not a lens: it is filed away, not a question you ask the
-          inbox. It stays one quiet toggle under whichever list is showing. */}
-      {archived.length > 0 && (
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => setShowArchived((v) => !v)}
-            className="ui-link-muted"
-            aria-expanded={showArchived}
-          >
-            {showArchived ? "Hide archived" : `Show archived (${archived.length})`}
-          </button>
-          {showArchived && (
-            <div className="ui-fb-list opacity-70" aria-label="Archived">
-              {archived.map((f) => (
-                <Row key={f.id} f={f} {...rowProps} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Everything that is not a decision: one line each, open on demand. */}
+      <Section
+        title={`Under way · ${underWay.length}`}
+        hint="Agents and deploys at work. Loki tells you when one needs you."
+        items={underWay}
+        rowFor={rowFor}
+        projectOf={projectOf}
+        busyId={busyId}
+      />
+      <Section
+        title={`Done · ${done.length}`}
+        hint="Fixes you confirmed. The walkthrough on the site stays one tap away."
+        items={done}
+        rowFor={rowFor}
+        projectOf={projectOf}
+        busyId={busyId}
+        limit={10}
+      />
+      <Section
+        title={`Filed away · ${archived.length}`}
+        hint="Closed without a change, each with its reason. Reopen any of them."
+        items={archived}
+        rowFor={rowFor}
+        projectOf={projectOf}
+        busyId={busyId}
+        limit={10}
+      />
 
-      {/* The loop's numbers and the sibling page close the page. Nothing here
-          is a decision, so it reads after the rows, not before them. */}
       <p className="ui-fb-foot">
         <span className="min-w-0">
-          {current
-            ? `${current.name} · ${current.open > 0 ? `${current.open} open` : "nothing open"}`
-            : metrics && metrics.total > 0
-              ? metricsLine(metrics)
-              : null}
+          {metrics && metrics.total > 0 ? metricsLine(metrics) : null}
         </span>
         <Link href="/feedback/studio" className="ui-link-muted whitespace-nowrap">
           Studio requests →
@@ -399,84 +346,52 @@ export function FeedbackInbox() {
   );
 }
 
-const LENS = { NEEDS_YOU: "needs-you", UNDER_WAY: "under-way", SHIPPED: "shipped" } as const;
-type Lens = (typeof LENS)[keyof typeof LENS];
-
-/** Order is the loop's order: your move → moving on its own → done. */
-const LENSES: { key: Lens; label: string; hint: string }[] = [
-  { key: LENS.NEEDS_YOU, label: "Needs you", hint: LENS_MEANING.needsYou },
-  { key: LENS.UNDER_WAY, label: "Under way", hint: LENS_MEANING.underWay },
-  { key: LENS.SHIPPED, label: "Done", hint: LENS_MEANING.done },
-];
-
-/** The first lens that holds something; Needs you when all are empty. Pure. */
-export function defaultLens(counts: Record<Lens, number>): Lens {
-  return LENSES.find((l) => counts[l.key] > 0)?.key ?? LENS.NEEDS_YOU;
-}
-
-/**
- * An empty lens says so AND names the way forward on the same screen (a bare
- * "Nothing waiting on you for <project>." left the owner asking what to do —
- * 2026-09-28): the next lens that has something, or the whole fleet.
- */
-function LensEmpty({
-  lens,
-  counts,
-  projectName,
-  projectId,
-  onLens,
-  onAllProjects,
+function Section({
+  title,
+  hint,
+  items,
+  rowFor,
+  projectOf,
+  busyId,
+  limit,
 }: {
-  lens: Lens;
-  counts: Record<Lens, number>;
-  projectName: string | null;
-  projectId: string | null;
-  onLens: (l: Lens) => void;
-  onAllProjects: () => void;
+  title: string;
+  hint: string;
+  items: InboxItem[];
+  rowFor: (
+    f: InboxItem,
+  ) => Omit<Parameters<typeof FeedbackItemRow>[0], "feedback" | "projectName" | "project" | "busy">;
+  projectOf: (f: InboxItem) => { id: string; name: string } | null;
+  busyId: string | null;
+  limit?: number;
 }) {
-  const elsewhere = LENSES.filter((l) => l.key !== lens && counts[l.key] > 0);
-  const title =
-    lens === LENS.NEEDS_YOU
-      ? "Nothing waiting on you"
-      : lens === LENS.UNDER_WAY
-        ? "Nothing under way"
-        : "Nothing done yet";
+  const [all, setAll] = useState(false);
+  if (items.length === 0) return null;
+  const shown = limit && !all ? items.slice(0, limit) : items;
   return (
-    <EmptyState
-      icon={Inbox}
-      title={title}
-      size="sm"
-      action={
-        <div className="flex flex-wrap justify-center gap-2">
-          {elsewhere.map((l) => (
-            <button
-              key={l.key}
-              type="button"
-              onClick={() => onLens(l.key)}
-              className="ui-btn-secondary ui-btn-sm"
-            >
-              {l.label} ({counts[l.key]})
-            </button>
-          ))}
-          {projectName && (
-            <button type="button" onClick={onAllProjects} className="ui-btn-secondary ui-btn-sm">
-              All projects
-            </button>
-          )}
-          {projectName && projectId && (
-            <Link href={`/projects/${projectId}`} className="ui-btn-secondary ui-btn-sm">
-              Open {projectName}
-            </Link>
-          )}
-        </div>
-      }
-    >
-      {lens === LENS.NEEDS_YOU
-        ? "Every report is either shipped or with an agent. New ones appear here as they arrive."
-        : lens === LENS.UNDER_WAY
-          ? "No agent or deploy is working on a report right now."
-          : "Fixes you confirm land here."}
-    </EmptyState>
+    <details className="ui-fb-section">
+      <summary>
+        <span className="ui-fb-section-title">{title}</span>
+        <span className="ui-fb-section-hint">{hint}</span>
+      </summary>
+      <div className="ui-fb-list">
+        {shown.map((f) => (
+          <FeedbackItemRow
+            key={f.id}
+            feedback={f}
+            projectName={f.projectName}
+            project={projectOf(f)}
+            busy={busyId === f.id}
+            {...rowFor(f)}
+          />
+        ))}
+        {limit && items.length > limit && (
+          <button type="button" onClick={() => setAll((v) => !v)} className="ui-fb-more">
+            {all ? "Show fewer" : `Show all ${items.length}`}
+          </button>
+        )}
+      </div>
+    </details>
   );
 }
 
@@ -492,38 +407,4 @@ export function metricsLine(m: FeedbackLoopMetrics): string {
       : null,
   ].filter((p): p is string => p !== null);
   return parts.join(" · ");
-}
-
-function Row({
-  f,
-  busyId,
-  dispatchFix,
-  runInCloud,
-  setStatus,
-  feature,
-  hideProject,
-}: {
-  f: InboxItem;
-  busyId: string | null;
-  dispatchFix: (id: string, opts?: { note?: string; agent?: string }) => void;
-  runInCloud: (id: string, commandId: string) => void;
-  setStatus: (id: string, status: FeedbackStatus) => void;
-  feature: (id: string, featured: boolean) => void;
-  /** On a project-scoped view the project is the heading, not a per-row chip. */
-  hideProject?: boolean;
-}) {
-  return (
-    <FeedbackItemRow
-      feedback={f}
-      projectName={f.projectName}
-      project={hideProject ? null : { id: f.projectId, name: f.projectName }}
-      busy={busyId === f.id}
-      onDispatch={(opts) => dispatchFix(f.id, opts ?? {})}
-      onRunInCloud={f.work.commandId ? () => runInCloud(f.id, f.work.commandId!) : undefined}
-      onResolve={() => setStatus(f.id, FEEDBACK_STATUS.RESOLVED)}
-      onArchive={() => setStatus(f.id, FEEDBACK_STATUS.ARCHIVED)}
-      onReopen={() => setStatus(f.id, FEEDBACK_STATUS.NEW)}
-      onFeature={() => feature(f.id, !f.featuredAt)}
-    />
-  );
 }
