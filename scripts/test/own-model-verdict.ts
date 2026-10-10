@@ -8,9 +8,8 @@
  * Run: npx tsx scripts/test/own-model-verdict.ts
  */
 import assert from "node:assert/strict";
-import { BYOK_VENDOR_IDS } from "@bitbaum/ai-kit/byok";
+import { VENDOR_IDS, vendorById } from "@/config/model-vendors";
 import { ownModelVerdict } from "@/lib/own-model-verdict";
-import { OWN_MODEL_BILLING } from "@/config/own-model-vendors";
 
 let passed = 0;
 function check(name: string, fn: () => void) {
@@ -65,12 +64,16 @@ check("a bad key is refused; a vendor we could not reach is unreachable; ok is w
   assert.equal(ownModelVerdict({ ok: true, status: 200, message: "works" }), "works");
 });
 
-check("every vendor a reader can bring has a billing page and a word for its cap", () => {
-  for (const id of BYOK_VENDOR_IDS) {
-    const entry = OWN_MODEL_BILLING[id];
-    assert.ok(entry, `${id} has no billing entry`);
-    assert.match(entry.billingUrl, /^https:\/\//, `${id} billing url`);
-    assert.ok(entry.limit.length > 3, `${id} limit word`);
+check("every vendor a reader can pay has a billing page and a word for its cap", () => {
+  for (const id of VENDOR_IDS) {
+    const v = vendorById(id)!;
+    if (v.kind === "custom") {
+      assert.equal(v.billingUrl, null, "your own endpoint has no bill");
+      continue;
+    }
+    assert.ok(v.billingUrl, `${id} has no billing page`);
+    assert.match(v.billingUrl, /^https:\/\//, `${id} billing url`);
+    assert.ok((v.limit ?? "").length > 3, `${id} limit word`);
   }
 });
 

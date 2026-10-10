@@ -7078,52 +7078,117 @@
     @apply h-5 w-5 shrink-0 text-accent-text;
   }
   /* ── The model store (/models) ─────────────────────────────────────────── */
-  /* One of the three ways Loki runs; the accent one is the way that scales. */
-  .ui-store-way {
-    @apply flex flex-col gap-2 rounded-2xl border border-border-subtle bg-surface-base p-4;
+  /* Your keys in one line above the table. */
+  .ui-store-keys {
+    @apply flex items-start gap-3 rounded-2xl border border-border-subtle bg-surface-base px-4 py-3;
   }
-  .ui-store-way-accent {
-    @apply border-accent-primary/30 bg-accent-muted/40;
+  /* Search, chips and selects on one wrapping row. */
+  .ui-store-toolbar {
+    @apply flex flex-wrap items-center gap-3;
   }
-  .ui-store-card {
-    @apply flex flex-col gap-3 rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-5;
-    box-shadow: var(--shadow-panel);
+  /* Open weights earn the positive tone: it is the property that makes a
+     model free to run on your own machine. Closed is neutral, not negative. */
+  .ui-store-badge-open {
+    @apply inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium;
+    color: var(--status-positive);
+    background-color: var(--status-positive-subtle);
+    border-color: color-mix(in oklch, var(--status-positive) 25%, transparent);
   }
-  .ui-store-models {
-    @apply divide-y divide-border-subtle rounded-xl border border-border-subtle px-3;
+  .ui-store-badge-closed {
+    @apply inline-flex items-center rounded-full border border-border-subtle bg-surface-overlay px-2 py-0.5 text-xs font-medium text-text-muted;
   }
-  /* name · price · context on one line; the price and context never wrap,
-     the name truncates — a long id must not push the numbers off the card */
-  .ui-store-model {
-    @apply flex items-center gap-3 py-2 text-sm;
+  /* The intelligence index as a small bar beside its number. */
+  .ui-store-index {
+    @apply inline-block h-1.5 w-16 overflow-hidden rounded-full bg-surface-overlay;
   }
-  .ui-store-price {
-    @apply shrink-0 text-xs text-text-secondary tabular-nums;
+  .ui-store-index > i {
+    @apply block h-full rounded-full;
+    background-color: var(--accent-primary);
   }
-  .ui-store-ctx {
-    @apply hidden shrink-0 text-xs text-text-muted tabular-nums sm:inline;
+  /* One way to run the model: the lab's key, a router, your endpoint. Lit when the key is held. */
+  .ui-store-via {
+    @apply inline-flex items-center gap-1 rounded-md border border-border-subtle px-1.5 py-0.5 text-xs text-text-muted;
   }
-  /* The table scrolls sideways inside its own box on a phone; the page never does. */
+  .ui-store-via-on {
+    @apply border-accent-primary/30 bg-accent-muted text-text-primary;
+  }
   .ui-store-table-wrap {
-    @apply overflow-x-auto rounded-2xl border border-border-subtle bg-surface-base;
+    @apply rounded-2xl border border-border-subtle bg-surface-base;
   }
   .ui-store-table {
-    @apply w-full min-w-[40rem] text-sm;
+    @apply w-full text-sm;
   }
   .ui-store-table th {
     @apply whitespace-nowrap border-b border-border-subtle px-3 py-2 text-left text-xs font-medium text-text-tertiary;
   }
   .ui-store-table td {
-    @apply whitespace-nowrap border-b border-border-subtle px-3 py-2 text-text-secondary;
+    @apply border-b border-border-subtle px-3 py-2.5 align-top text-text-secondary;
   }
   .ui-store-table tbody tr:last-child td {
     @apply border-b-0;
   }
-  .ui-store-sort {
-    @apply inline-flex items-center gap-1 text-left hover:text-text-primary;
+  .ui-store-cell-model {
+    @apply max-w-xs;
   }
   .ui-store-num {
-    @apply tabular-nums;
+    @apply whitespace-nowrap tabular-nums;
+  }
+  /* Under 768px each row is a card and each cell names itself: the page never
+     scrolls sideways, and the numbers keep their labels. */
+  @media (max-width: 767px) {
+    .ui-store-table,
+    .ui-store-table tbody,
+    .ui-store-table tr {
+      @apply block;
+    }
+    .ui-store-table thead {
+      @apply hidden;
+    }
+    .ui-store-table tr {
+      @apply border-b border-border-subtle px-3 py-3;
+    }
+    .ui-store-table tbody tr:last-child {
+      @apply border-b-0;
+    }
+    .ui-store-table td {
+      @apply flex items-start justify-between gap-3 border-0 px-0 py-1;
+    }
+    .ui-store-table td[data-label]:not([data-label=""])::before {
+      content: attr(data-label);
+      @apply shrink-0 text-xs text-text-muted;
+    }
+    .ui-store-cell-model {
+      @apply max-w-none;
+    }
+    .ui-store-cell-model::before {
+      @apply hidden;
+    }
+  }
+  /* What Auto picks: a strip on the store, a block in Settings. */
+  .ui-auto-strip {
+    @apply space-y-3 rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-5;
+  }
+  .ui-auto-picks {
+    @apply grid gap-3 sm:grid-cols-3;
+  }
+  .ui-auto-pick {
+    @apply flex flex-col gap-2 rounded-xl border border-border-subtle bg-surface-overlay/40 p-3;
+  }
+  /* "On your own machine": a quiet panel with a numbered recipe. */
+  .ui-store-local {
+    @apply rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-5;
+  }
+  .ui-store-steps {
+    @apply list-decimal space-y-2 pl-5 text-sm text-text-secondary;
+  }
+  .ui-store-steps a {
+    @apply text-accent-text underline-offset-2 hover:underline;
+  }
+  .ui-store-steps code {
+    @apply mt-1 block overflow-x-auto rounded-md bg-surface-overlay px-2 py-1 font-mono text-xs text-text-primary;
+  }
+  .ui-store-steps code.inline {
+    @apply mt-0 inline px-1 py-0;
   }
   .ui-loki-model-note {
     @apply px-3 pb-1 pt-2 text-xs leading-relaxed text-text-muted;

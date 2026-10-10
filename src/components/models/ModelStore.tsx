@@ -1,47 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, KeyRound, Loader2, RefreshCw, Sparkles, Ticket, Users } from "lucide-react";
-import { byokVendor } from "@bitbaum/ai-kit/byok";
-import type { StoreVendor } from "@/config/model-store";
-import type { StoreModel } from "@/lib/models/store-catalog";
-import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
-import { VendorCard } from "./VendorCard";
-import { CompareTable } from "./CompareTable";
-
-export type StoreVendorData = Omit<StoreVendor, "namespaces"> & {
-  namespaces: string[];
-  connected: { model: string; startsHere: boolean } | null;
-  featured: StoreModel[];
-  all: StoreModel[];
-  recentCount: number;
-};
-
-export type ModelStoreData = {
-  fetchedAt: number | null;
-  vendors: StoreVendorData[];
-};
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { KeyRound, Loader2, RefreshCw } from "lucide-react";
+import { CUSTOM_VENDOR_ID, vendorById } from "@/config/model-vendors";
+import { runsVia, type RunsVia, type StoreModel } from "@/lib/models/store-catalog";
+import type { ModelStoreData } from "@/lib/models/store-data";
+import {
+  STORE_SORTS,
+  applyFilters,
+  parseFilters,
+  serializeFilters,
+  sortModels,
+} from "@/lib/models/store-filters";
+import { OWN_MODEL_SETTINGS_PATH, ownModelAddPath } from "@/lib/own-model-path";
+import { ownModelRequest } from "@/lib/own-model-client";
+import { AutoRouting } from "./AutoRouting";
+import { LocalModels } from "./LocalModels";
+import { ModelTable, type UseState } from "./ModelTable";
+import { StoreToolbar } from "./StoreToolbar";
 
 /**
- * The store. Three honest sentences about how Loki runs, then every provider
- * a person can bring with live prices and one tap to add a key, then the
- * table that lets price be compared across all of them.
+ * The store. Your keys in one line, the controls, the table, the way to run
+ * a model on your own machine, and where the numbers come from.
  *
- * The free pool is explained as what it is — models the vendors let Loki use
- * at no charge, shared by everyone here — because a person deciding whether
- * to bring a key deserves to know that the free pool is finite and theirs is
- * not. The store never says one model is better than another: price is the
- * one number every vendor publishes, and quality is theirs to judge with the
- * Test button and their own questions.
+ * Loki is model-agnostic on purpose: the person decides who thinks for them
+ * and who they pay. That decision needs the whole landscape, honest numbers
+ * from one live source, and a way to narrow it to what matters to THEM —
+ * open weights, a price, a region, images. The store never says a model is
+ * better; it shows the index and the price and lets the person rank.
  */
-export function ModelStore({ initial }: { initial: ModelStoreData }) {
-  const [data, setData] = useState(initial);
-  const [checking, setChecking] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
+const PAGE = 60;
 
-  const connected = data.vendors.filter((v) => v.connected);
-  const totalNew = data.vendors.reduce((n, v) => n + v.recentCount, 0);
+export function ModelStore({ initial }: { initial: ModelStoreData }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [data, setData] = useState(initial);
+  const [filters, setFilters] = useState(() =>
+    parseFilters(new URLSearchParams(searchParams.toString())),
+  );
+  const [shown, setShown] = useState(PAGE);
+  const [checking, setChecking] = useState(false);
+  const [using, setUsing] = useState<UseState>(null);
+  const [note, setNote] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
+
+  // The URL carries the filters, so a view is a link; only non-defaults, so
+  // a plain /models stays plain.
+  useEffect(() => {
+    const qs = serializeFilters(filters);
+    const current = searchParams.toString();
+    if (qs === current) return;
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [filters, pathname, router, searchParams]);
+
+  const connected = useMemo(() => new Set(data.connected.map((c) => c.vendor)), [data]);
+  const visible = useMemo(
+    () =>
+      sortModels(
+        applyFilters(data.models, filters, (m) => runsVia(m, connected).some((v) => v.connected)),
+        filters.sort,
+      ),
+    [data.models, filters, connected],
+  );
+  const sort = STORE_SORTS.find((s) => s.id === filters.sort)!;
 
   async function checkForNew() {
     setChecking(true);
@@ -53,131 +76,153 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
       };
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
       const next = body as ModelStoreData;
-      const before = new Set(data.vendors.flatMap((v) => v.all.map((m) => m.id)));
-      const added = next.vendors.flatMap((v) => v.all).filter((m) => !before.has(m.id));
+      const before = new Set(data.models.map((m) => m.id));
+      const added = next.models.filter((m) => !before.has(m.id));
       setData(next);
-      setNote(
-        added.length === 0
-          ? "Checked just now — nothing new since the last read."
-          : `${added.length} new model${added.length === 1 ? "" : "s"} since the last read: ${added
-              .slice(0, 4)
-              .map((m) => m.model)
-              .join(", ")}${added.length > 4 ? "…" : ""}.`,
-      );
+      setNote({
+        tone: "ok",
+        text:
+          added.length === 0
+            ? "Checked just now — nothing new since the last read."
+            : `${added.length} new model${added.length === 1 ? "" : "s"} since the last read: ${added
+                .slice(0, 4)
+                .map((m) => m.name)
+                .join(", ")}${added.length > 4 ? "…" : ""}.`,
+      });
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "Couldn't check just now.");
+      setNote({ tone: "warn", text: e instanceof Error ? e.message : "Couldn't check just now." });
     } finally {
       setChecking(false);
     }
   }
 
+  /** "Use": the model on a key already held — one PUT, keep the key, say what changed. */
+  async function useModel(m: StoreModel, via: RunsVia) {
+    setUsing({ via, state: "saving" });
+    setNote(null);
+    try {
+      await ownModelRequest("/api/settings/model", "PUT", { vendor: via.vendor, model: via.model });
+      setData((d) => ({
+        ...d,
+        connected: d.connected.map((c) =>
+          c.vendor === via.vendor ? { ...c, model: via.model } : c,
+        ),
+      }));
+      setUsing({ via, state: "done" });
+      const who =
+        via.vendor === CUSTOM_VENDOR_ID
+          ? "your endpoint"
+          : `your ${vendorById(via.vendor)?.label ?? via.vendor} key`;
+      setNote({ tone: "ok", text: `Loki now thinks with ${m.name} on ${who}.` });
+    } catch (e) {
+      setUsing(null);
+      setNote({ tone: "warn", text: e instanceof Error ? e.message : "Couldn't switch model." });
+    }
+    setTimeout(() => setUsing(null), 1500);
+  }
+
+  // An absolute time, not "N min ago": the page is server-rendered once and
+  // a relative figure would be wrong from the second minute on.
+  const readAt =
+    data.fetchedAt === null
+      ? null
+      : new Date(data.fetchedAt).toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
   return (
-    <div className="space-y-8">
-      {/* How Loki runs — three ways, in the order a person meets them. */}
-      <section aria-labelledby="ways" className="space-y-3">
-        <h2 id="ways" className="ui-section-label">
-          Three ways Loki thinks
-        </h2>
-        <div className="grid gap-3 md:grid-cols-3">
-          <Way
-            icon={Users}
-            title="The free pool"
-            tone="neutral"
-            body="Models the vendors let Loki use at no charge — shared by everyone here and rationed per person. When it is spent for the day, it is spent for everyone until it resets. Good for a first look; not a plan."
-          />
-          <Way
-            icon={KeyRound}
-            title="Your own keys"
-            tone="accent"
-            body="You pay the lab directly for what you use; Loki charges nothing. Any model your key can reach, the daily budget no longer applies, and a spending cap at the lab protects you. Bring two and Auto has a choice."
-          />
-          <Way
-            icon={Ticket}
-            title="A Loki pass"
-            tone="neutral"
-            body="Pays for Loki itself — room for more projects — never for tokens. Paid in Bitcoin, a month at a time. The two are independent: a stronger model is a key away on every plan."
-          />
-        </div>
-      </section>
-
-      {/* Where this person stands. */}
-      <section aria-labelledby="yours" className="space-y-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="yours" className="ui-section-label">
-            Your keys
-          </h2>
-          <Link href={OWN_MODEL_SETTINGS_PATH} className="text-xs text-accent-text">
-            Manage in Settings →
-          </Link>
-        </div>
-        {connected.length === 0 ? (
-          <p className="ui-callout-accent">
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>
-              No keys yet — Loki answers you from the free pool. Pick a provider below, paste a key,
-              and Loki thinks with it from the next message. Five francs with a spending limit is
-              enough to find out how a model thinks.
-            </span>
-          </p>
-        ) : (
-          <div className="space-y-2">
-            <ul className="flex flex-wrap gap-2">
-              {connected.map((v) => (
-                <li key={v.id} className="ui-tag ui-tag-positive">
-                  <Check className="h-3 w-3" aria-hidden="true" />
-                  {byokVendor(v.id)?.label ?? v.id} · {v.connected!.model}
-                  {v.connected!.startsHere ? " · starts here" : ""}
-                </li>
+    <div className="space-y-6">
+      {/* Your keys — one line, never a wall. */}
+      <section aria-label="Your keys" className="ui-store-keys">
+        <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-accent-text" aria-hidden="true" />
+        <div className="min-w-0 flex-1 text-sm">
+          {data.connected.length === 0 ? (
+            <p className="text-text-secondary">
+              Loki answers you on its shared free pool. Bring one key — five francs with a spending
+              limit — and any model below is yours; bring two and Auto has a choice.{" "}
+              <Link
+                href={ownModelAddPath("openrouter")}
+                className="text-accent-text underline-offset-2 hover:underline"
+              >
+                Add a key →
+              </Link>
+            </p>
+          ) : (
+            <p className="text-text-secondary">
+              <span className="text-text-primary">Your keys:</span>{" "}
+              {data.connected.map((c, i) => (
+                <span key={c.vendor}>
+                  {i > 0 && " · "}
+                  {c.vendor === CUSTOM_VENDOR_ID
+                    ? (c.label ?? "Your endpoint")
+                    : (vendorById(c.vendor)?.label ?? c.vendor)}{" "}
+                  <span className="text-text-muted">{c.model}</span>
+                </span>
               ))}
-            </ul>
-            {connected.length === 1 && (
-              <p className="text-sm text-text-secondary">
-                One provider means one point of failure. Add a second and Auto has a choice: when
-                the first is slow, down or out of credit, the next answers — and you can compare how
-                two models think on the same question.
-              </p>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* The providers. */}
-      <section aria-labelledby="providers" className="space-y-3">
-        <h2 id="providers" className="ui-section-label">
-          Providers
-        </h2>
-        <div className="grid gap-3 md:grid-cols-2">
-          {data.vendors.map((v) => (
-            <VendorCard key={v.id} vendor={v} />
-          ))}
+              .{" "}
+              <Link
+                href={OWN_MODEL_SETTINGS_PATH}
+                className="text-accent-text underline-offset-2 hover:underline"
+              >
+                Manage →
+              </Link>
+            </p>
+          )}
         </div>
       </section>
 
-      {/* Price, side by side. */}
-      <section aria-labelledby="compare" className="space-y-3">
-        <div>
-          <h2 id="compare" className="ui-section-label">
-            Compare
-          </h2>
-          <p className="mt-0.5 text-xs text-text-tertiary">
-            Price is the one number every vendor publishes. Quality is yours to judge: add a key,
-            tap Test, ask the same question twice.
-          </p>
-        </div>
-        <CompareTable models={data.vendors.flatMap((v) => v.featured)} />
-      </section>
+      {data.connected.length > 0 && <AutoRouting compact />}
 
-      {/* Freshness, stated, with the button that makes it true again. */}
-      <section className="flex flex-wrap items-center gap-3 border-t border-border-subtle pt-4 text-xs text-text-muted">
-        <span className="min-w-0 flex-1">
-          Prices and release dates from OpenRouter&apos;s public catalogue
-          {data.fetchedAt ? `, read ${ago(data.fetchedAt)}` : " — could not be read just now"}. The
-          vendor&apos;s own price page is the bill. The descriptions were last checked on{" "}
-          {data.vendors[0]?.asOf}.
-          {totalNew > 0
-            ? ` ${totalNew} model${totalNew === 1 ? "" : "s"} listed in the last 30 days.`
-            : ""}
-        </span>
+      <StoreToolbar
+        filters={filters}
+        labs={data.labs}
+        hasKeys={data.connected.length > 0}
+        onChange={(next) => {
+          setFilters(next);
+          setShown(PAGE);
+        }}
+      />
+
+      {note && (
+        <p
+          className={note.tone === "ok" ? "ui-callout-positive" : "ui-callout-warning"}
+          role="status"
+        >
+          {note.text}
+        </p>
+      )}
+
+      <p className="text-xs text-text-muted" aria-live="polite">
+        {visible.length} of {data.models.length} models · {sort.label.toLowerCase()} first (
+        {sort.explains})
+      </p>
+
+      <ModelTable
+        models={visible.slice(0, shown)}
+        connected={connected}
+        using={using}
+        onUse={useModel}
+      />
+      {visible.length > shown && (
+        <button
+          type="button"
+          className="ui-btn-secondary text-sm"
+          onClick={() => setShown((n) => n + PAGE)}
+        >
+          Show {Math.min(PAGE, visible.length - shown)} more
+        </button>
+      )}
+
+      <LocalModels hasEndpoint={connected.has(CUSTOM_VENDOR_ID)} />
+
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4 text-xs text-text-muted">
+        <p className="max-w-prose">
+          Prices, context and dates from OpenRouter&apos;s public catalogue
+          {readAt === null ? " — not read yet" : ` (read at ${readAt})`}. Intelligence is Artificial
+          Analysis&apos; index as OpenRouter relays it; &quot;open weights&quot; means the lab
+          published them on Hugging Face. The lab&apos;s own page is what you are billed by.
+        </p>
         <button
           type="button"
           className="ui-btn-secondary text-xs"
@@ -191,42 +236,7 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
           )}
           Check for new models
         </button>
-        {note && (
-          <span className="basis-full text-text-secondary" role="status">
-            {note}
-          </span>
-        )}
-      </section>
+      </footer>
     </div>
   );
-}
-
-function Way({
-  icon: Icon,
-  title,
-  body,
-  tone,
-}: {
-  icon: typeof Users;
-  title: string;
-  body: string;
-  tone: "neutral" | "accent";
-}) {
-  return (
-    <div className={tone === "accent" ? "ui-store-way ui-store-way-accent" : "ui-store-way"}>
-      <p className="flex items-center gap-2 text-sm font-medium text-text-primary">
-        <Icon className="h-4 w-4 shrink-0 text-accent-text" aria-hidden="true" />
-        {title}
-      </p>
-      <p className="text-sm text-text-secondary">{body}</p>
-    </div>
-  );
-}
-
-function ago(ts: number): string {
-  const mins = Math.max(0, Math.round((Date.now() - ts) / 60_000));
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
-  const h = Math.round(mins / 60);
-  return `${h} h ago`;
 }

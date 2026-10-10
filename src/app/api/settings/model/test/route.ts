@@ -15,7 +15,7 @@
  */
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { BYOK_VENDOR_IDS, type ByokVendorId } from "@bitbaum/ai-kit/byok";
+import { VENDOR_IDS, type VendorId } from "@/config/model-vendors";
 import { getApiUserId } from "@/lib/session";
 import { jsonError, jsonOk, readJsonBody, z } from "@/lib/api/route-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -25,7 +25,7 @@ import { callModelWithTools } from "@/lib/agent/llm";
 
 export const runtime = "nodejs";
 
-const Body = z.object({ vendor: z.enum(BYOK_VENDOR_IDS as [ByokVendorId, ...ByokVendorId[]]) });
+const Body = z.object({ vendor: z.enum(VENDOR_IDS as [VendorId, ...VendorId[]]) });
 
 export async function POST(req: NextRequest) {
   const userId = await getApiUserId();

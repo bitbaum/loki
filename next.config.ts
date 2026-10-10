@@ -45,7 +45,7 @@ const nextConfig: NextConfig = {
   // (shiki no longer needs to be external: bip-kit 0.2.1's setHighlighterLoader
   // seam — registered in ThoughtArticleBody — puts the literal import("shiki")
   // in our own code, so the bundler ships it like any other dependency.)
-  serverExternalPackages: ["node-pty"],
+  serverExternalPackages: ["node-pty", "undici"],
   env: {
     NEXT_PUBLIC_APP_VERSION: PKG_VERSION,
     NEXT_PUBLIC_BUILD_SHA: buildSha(),

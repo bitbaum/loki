@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUp, Check, ExternalLink, KeyRound, Loader2, Plus, Zap } from "lucide-react";
-import { byokVendor, type ByokVendorId } from "@bitbaum/ai-kit/byok";
+import { CUSTOM_VENDOR_ID, isVendorId, vendorById, type VendorId } from "@/config/model-vendors";
 import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
+import { AutoRouting } from "@/components/models/AutoRouting";
 import { OwnModelForm } from "./OwnModelForm";
 
 /**
@@ -24,7 +25,7 @@ import { OwnModelForm } from "./OwnModelForm";
 
 type Mode =
   | { kind: "list" }
-  | { kind: "add"; vendor?: ByokVendorId; model?: string }
+  | { kind: "add"; vendor?: VendorId; model?: string }
   | { kind: "change"; row: OwnModelRow };
 
 /** The store's "Add" and "Use" buttons arrive as ?add=<vendor>&model=<id> (see ownModelAddPath). */
@@ -32,8 +33,8 @@ function modeFromUrl(): Mode {
   if (typeof window === "undefined") return { kind: "list" };
   const q = new URLSearchParams(window.location.search);
   const add = q.get("add");
-  if (!add || !byokVendor(add)) return { kind: "list" };
-  return { kind: "add", vendor: add as ByokVendorId, model: q.get("model") ?? undefined };
+  if (!add || !isVendorId(add)) return { kind: "list" };
+  return { kind: "add", vendor: add, model: q.get("model") ?? undefined };
 }
 
 type Usage = {
@@ -43,14 +44,26 @@ type Usage = {
   tokens30d: number;
   calls30d: number;
 };
-type Billing = Record<string, { billingUrl: string; limit: string }>;
+type Billing = Record<string, { billingUrl: string | null; limit: string | null }>;
 
 type TestResult =
   | { state: "running" }
   | { state: "ok"; ms: number; answer: string }
   | { state: "failed"; ms: number; message: string };
 
-const label = (vendor: string) => byokVendor(vendor as never)?.label ?? vendor;
+const label = (vendor: string) => vendorById(vendor)?.label ?? vendor;
+
+/** "MacBook Ollama" for an endpoint the person named; the vendor's label otherwise. */
+const rowName = (row: OwnModelRow) =>
+  row.vendor === CUSTOM_VENDOR_ID ? (row.label ?? "Your endpoint") : label(row.vendor);
+
+const hostOf = (url: string | null) => {
+  try {
+    return url ? new URL(url).host : null;
+  } catch {
+    return null;
+  }
+};
 
 const count = (n: number) => n.toLocaleString("en-CH");
 
@@ -178,9 +191,10 @@ export function OwnModelSettings() {
           Power Loki with your own models
         </h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Paste a key from any provider and Loki thinks with the best model your account can use.
-          Your provider bills you for what you use; Loki charges nothing and the shared daily budget
-          no longer applies to your chats. Add several and Loki tries them in order.{" "}
+          Paste a key from any provider — or point Loki at a model on your own machine — and it
+          thinks with the best model your account can use. Your provider bills you for what you use;
+          Loki charges nothing and the shared daily budget no longer applies to your chats. Add
+          several and Loki tries them in order.{" "}
           <Link
             href={MODEL_STORE_PATH}
             className="text-accent-text underline-offset-2 hover:underline"
@@ -225,23 +239,25 @@ export function OwnModelSettings() {
               <Check className="mt-1 h-4 w-4 shrink-0 text-status-positive" aria-hidden="true" />
               <div className="min-w-0 flex-1 basis-56">
                 <p className="font-medium text-text-primary">
-                  {label(row.vendor)} · <span className="break-words">{row.model}</span>
+                  {rowName(row)} · <span className="break-words">{row.model}</span>
                 </p>
                 <p className="text-xs text-text-secondary">
                   {index === 0 ? "Loki starts here · " : `Tried ${ordinal(index + 1)} · `}
+                  {row.vendor === CUSTOM_VENDOR_ID && hostOf(row.baseUrl)
+                    ? `${hostOf(row.baseUrl)} · `
+                    : ""}
                   key {row.keyHint} · checked {new Date(row.verifiedAt).toLocaleDateString()}
                 </p>
                 <UsageLine usage={usage.find((u) => u.vendor === row.vendor)} />
                 <TestLine result={tests[row.vendor]} />
-                {billing[row.vendor] && (
+                {billing[row.vendor]?.billingUrl && (
                   <a
-                    href={billing[row.vendor]!.billingUrl}
+                    href={billing[row.vendor]!.billingUrl!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-0.5 inline-flex items-center gap-1 text-xs text-accent-text underline-offset-2 hover:underline"
                   >
-                    Credits and {billing[row.vendor]!.limit} at{" "}
-                    {byokVendor(row.vendor)?.label ?? row.vendor}
+                    Credits and {billing[row.vendor]!.limit} at {label(row.vendor)}
                     <ExternalLink className="h-3 w-3" aria-hidden="true" />
                   </a>
                 )}
@@ -270,7 +286,7 @@ export function OwnModelSettings() {
                     className="ui-btn-ghost text-xs"
                     onClick={() => moveUp(index)}
                     disabled={busy}
-                    aria-label={`Try ${byokVendor(row.vendor)?.label ?? row.vendor} earlier`}
+                    aria-label={`Try ${rowName(row)} earlier`}
                   >
                     <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" /> Earlier
                   </button>
@@ -287,6 +303,12 @@ export function OwnModelSettings() {
             </li>
           ))}
         </ol>
+      )}
+
+      {loaded && available && models.length > 0 && (
+        <div className="border-t border-border-subtle pt-4">
+          <AutoRouting key={models.map((m) => `${m.vendor}:${m.model}`).join("|")} />
+        </div>
       )}
 
       {loaded && available && models.length > 0 && mode.kind === "list" && (
@@ -312,8 +334,7 @@ export function OwnModelSettings() {
         <div className={models.length > 0 ? "border-t border-border-subtle pt-4" : undefined}>
           {mode.kind === "change" && (
             <p className="mb-3 text-sm text-text-secondary">
-              Changing the model on your {byokVendor(mode.row.vendor)?.label ?? mode.row.vendor} key
-              ({mode.row.keyHint}).
+              Changing the model on {rowName(mode.row)} ({mode.row.keyHint}).
             </p>
           )}
           <OwnModelForm
@@ -326,7 +347,7 @@ export function OwnModelSettings() {
               setModels(next);
               setMode({ kind: "list" });
               const row = next.find((m) => m.vendor === saved.vendor);
-              const name = `${label(saved.vendor)} · ${row?.model ?? ""}`;
+              const name = `${row ? rowName(row) : label(saved.vendor)} · ${row?.model ?? ""}`;
               if (saved.unfunded) {
                 setNote({
                   tone: "warn",

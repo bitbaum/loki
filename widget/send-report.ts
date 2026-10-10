@@ -18,6 +18,8 @@ export type ReportFields = {
   screenshots?: string[];
   selectedElements?: SelectedEl[];
   ownerPass?: string;
+  /** Watch's remark signature, when the note IS a finding's fix (owner only). */
+  noticeKey?: string;
 };
 
 export type ReportAnswer = {
@@ -43,6 +45,7 @@ export async function sendReport(apiBase: string, fields: ReportFields): Promise
       pageTitle: document.title.slice(0, 300) || undefined,
       screenshots: fields.screenshots?.length ? fields.screenshots : undefined,
       selectedElements: fields.selectedElements?.length ? fields.selectedElements : undefined,
+      noticeKey: fields.noticeKey ? fields.noticeKey.slice(0, 300) : undefined,
     }),
   });
   if (!res.ok) {

@@ -14,8 +14,11 @@ import { users } from "./users";
  * available" mean "replace the key you had". The key is stored SEALED (`@bitbaum/ai-kit/seal`,
  * AES-256-GCM with the app's `BYOK_SEAL_SECRET`), so the database alone cannot
  * read it; `key_hint` ("…abcd") is the only part ever shown back. The vendor is
- * an id from ai-kit's closed list, never a URL: the server sends this key to
- * the host that id names, and nowhere else.
+ * an id from Loki's closed list (config/model-vendors.ts), and the server
+ * sends this key to the host that id names — except `custom`, whose host is
+ * the row's `base_url`, gated by lib/models/endpoint-guard.ts. A keyless
+ * endpoint seals the empty string: the column stays NOT NULL and the walker
+ * sends no Authorization header for it.
  *
  * This is for API keys. A Claude or ChatGPT *subscription* is not stored here
  * and never will be — signing in to those happens in the agent's own login
@@ -27,12 +30,22 @@ export const userModelKeys = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    /** An id from ai-kit's BYOK_VENDORS ("anthropic", "openrouter", …). */
+    /** An id from Loki's VENDORS (config/model-vendors.ts): ai-kit's ten, the extras, or "custom". */
     vendor: text("vendor").notNull(),
     /** Order in the user's own chain; 0 is what Loki thinks with first. */
     position: integer("position").notNull().default(0),
     /** The model id at that vendor the user picked. */
     model: text("model").notNull(),
+    /**
+     * Only for `vendor = 'custom'` — the person's own OpenAI-compatible host,
+     * stored as lib/models/endpoint-guard.ts accepted it and re-checked at
+     * every connection. Null for every other vendor, whose host is the
+     * table's (config/model-vendors.ts) and never the row's; getOwnModels
+     * ignores this column for them.
+     */
+    baseUrl: text("base_url"),
+    /** A name the person gave their endpoint ("MacBook Ollama"). Only for `custom`. */
+    label: text("label"),
     /** `iv:tag:ciphertext` from sealSecret(..., "byok"). Never returned by an API. */
     sealedKey: text("sealed_key").notNull(),
     /** "…abcd" — the last four characters, for recognising which key this is. */

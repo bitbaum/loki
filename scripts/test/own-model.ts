@@ -6,7 +6,7 @@
  * Loki's chat can run on a key the user brought (Settings → AI). The walker
  * that makes the call looks a link's key up BY NAME, so the whole safety of
  * the feature rests on one rule: a user's link reads its key only from the
- * per-call env ai-kit's byokChain returns, and a server link reads only
+ * per-call env `ownModelFrom` builds, and a server link reads only
  * `process.env`. Break it either way and one of two things happens:
  *
  *   • a deployment that happens to set BYOK_API_KEY answers every user's turn
@@ -19,9 +19,15 @@
  * Run: npx tsx scripts/test/own-model.ts
  */
 import assert from "node:assert/strict";
-import { byokChain } from "@bitbaum/ai-kit/byok";
+import { isOwnKeyLink } from "@bitbaum/ai-kit";
 import { callModelWithTools } from "@/lib/agent/llm";
-import { OWN_MODEL_KEY_ENV, isOwnModelLink, keyForLink, ownModelFrom } from "@/lib/own-model";
+import {
+  OWN_MODEL_KEY_ENV,
+  isOwnEndpointLink,
+  isOwnModelLink,
+  keyForLink,
+  ownModelFrom,
+} from "@/lib/own-model";
 import type { ChatLink } from "@/config/chat-models";
 
 let passed = 0;
@@ -35,15 +41,17 @@ const USER_KEY = "sk-ant-test-not-a-real-key-1234";
 const config = { vendor: "anthropic" as const, apiKey: USER_KEY, model: "claude-opus-5.5" };
 
 async function main() {
-  await check("the key name here is the one ai-kit's byokChain actually uses", () => {
-    const { chain, env } = byokChain(config);
-    assert.equal(chain[0]!.provider.keyEnv, OWN_MODEL_KEY_ENV);
-    assert.equal((env as Record<string, string>)[OWN_MODEL_KEY_ENV], USER_KEY);
-    // …and Loki re-keys each user link under a per-vendor name built on it, so
-    // two vendors' keys never share a slot.
+  await check("a user link is keyed per vendor and carries ai-kit's own-key marker", () => {
     const own = ownModelFrom(config);
-    assert.ok(own.chain[0]!.provider.keyEnv.startsWith(OWN_MODEL_KEY_ENV));
-    assert.equal(own.env[own.chain[0]!.provider.keyEnv], USER_KEY);
+    const link = own.chain[0]!;
+    assert.ok(link.provider.keyEnv.startsWith(OWN_MODEL_KEY_ENV));
+    assert.equal(own.env[link.provider.keyEnv], USER_KEY);
+    assert.equal(link.provider.baseUrl, "https://api.anthropic.com/v1");
+    // `byok: true` is what chat-models.ts reads to exempt the reader's own
+    // Groq key from the free-tier minute window; `dailyTokens: 0` keeps it
+    // out of the site's capacity sum. Both set by Loki now, not by ai-kit.
+    assert.equal(isOwnKeyLink(link), true);
+    assert.equal(link.provider.dailyTokens, 0);
   });
 
   await check("several vendors become one chain in the user's order, each with its own key", () => {
@@ -57,9 +65,59 @@ async function main() {
     assert.notEqual(own.chain[0]!.provider.keyEnv, own.chain[1]!.provider.keyEnv);
     assert.match(own.label, /\(\+1 more\)$/);
     // The picker's choice moves that link to the front.
-    const started = ownModelFrom([config, groq], "llama-x");
+    const started = ownModelFrom([config, groq], { startAt: "llama-x" });
     assert.equal(started.chain[0]!.model, "llama-x");
     assert.equal(started.vendor, "Groq");
+  });
+
+  await check("`links` names the chain: one key can carry a cheap and a strong model", () => {
+    const groq = { vendor: "groq" as const, apiKey: "gsk-test-groq-key-5678", model: "llama-x" };
+    const own = ownModelFrom([config, groq], {
+      links: [
+        { vendor: "anthropic", model: "claude-haiku-5.5" },
+        { vendor: "groq", model: "llama-x" },
+        { vendor: "anthropic", model: "claude-opus-5.5" },
+        { vendor: "openai", model: "never-stored" },
+      ],
+    });
+    assert.deepEqual(
+      own.chain.map((l) => `${l.provider.id}/${l.model}`),
+      ["anthropic/claude-haiku-5.5", "groq/llama-x", "anthropic/claude-opus-5.5"],
+      "a link for a vendor with no stored key is dropped, not invented",
+    );
+    assert.equal(keyForLink(own.chain[2]!, own), USER_KEY);
+    assert.match(own.label, /claude-haiku-5\.5 \(\+2 more\)$/);
+  });
+
+  await check("a Moonshot key (a Loki extra, not in ai-kit) builds a link to its own host", () => {
+    const kimi = {
+      vendor: "moonshot" as const,
+      apiKey: "sk-moonshot-test-key-99",
+      model: "kimi-k3",
+    };
+    const own = ownModelFrom(kimi);
+    assert.equal(own.chain[0]!.provider.baseUrl, "https://api.moonshot.ai/v1");
+    assert.equal(own.vendor, "Moonshot (Kimi)");
+    assert.equal(keyForLink(own.chain[0]!, own), kimi.apiKey);
+  });
+
+  await check("an own endpoint takes its host from the row, and a keyless one sends no key", () => {
+    const mine = {
+      vendor: "custom" as const,
+      apiKey: "",
+      model: "qwen3",
+      baseUrl: "https://mac.tail1234.ts.net/v1",
+      label: "MacBook Ollama",
+    };
+    const own = ownModelFrom(mine);
+    const link = own.chain[0]!;
+    assert.equal(link.provider.baseUrl, "https://mac.tail1234.ts.net/v1");
+    assert.equal(isOwnEndpointLink(link), true);
+    assert.equal(isOwnEndpointLink(ownModelFrom(config).chain[0]!), false);
+    assert.equal(keyForLink(link, own), "", "an empty key is 'send no header', not 'no key'");
+    assert.equal(own.vendor, "MacBook Ollama");
+    assert.match(own.label, /^MacBook Ollama · qwen3$/);
+    assert.throws(() => ownModelFrom({ ...mine, baseUrl: undefined }), /no endpoint/);
   });
 
   await check("a user's link never falls back to a key the server happens to hold", () => {
@@ -150,6 +208,22 @@ async function main() {
     );
     assert.equal(ownModelFrom(config).extraHeaders, undefined);
   });
+
+  await check(
+    "a server link with an EMPTY env var is 'not set', never a keyless call to the vendor",
+    () => {
+      const serverLink = {
+        provider: { id: "groq", baseUrl: "", keyEnv: "GROQ_API_KEY", models: ["m"] },
+        model: "m",
+      } as unknown as ChatLink;
+      process.env.GROQ_API_KEY = "";
+      try {
+        assert.equal(keyForLink(serverLink, undefined), undefined);
+      } finally {
+        delete process.env.GROQ_API_KEY;
+      }
+    },
+  );
 
   await check("the label names the vendor and model, never the key", () => {
     const label = ownModelFrom(config).label;

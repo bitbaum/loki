@@ -53,7 +53,13 @@ export function ModelPicker({
         if (live) setData(d);
       })
       .catch(() => {
-        if (live) setData({ options: [], autoStartsAt: null, addKeyHref: MODEL_STORE_PATH });
+        if (live)
+          setData({
+            options: [],
+            autoStartsAt: null,
+            autoSummary: null,
+            addKeyHref: MODEL_STORE_PATH,
+          });
       });
     return () => {
       live = false;
@@ -91,9 +97,11 @@ export function ModelPicker({
         <ModelRow
           name="Auto"
           blurb={
-            data?.autoStartsAt
-              ? `Best available right now — ${describeChatModel(data.autoStartsAt).name}`
-              : "Best available right now"
+            data?.autoSummary
+              ? data.autoSummary.replace(/^Auto · /, "")
+              : data?.autoStartsAt
+                ? `Best available right now — ${describeChatModel(data.autoStartsAt).name}`
+                : "Best available right now"
           }
           selected={value === undefined}
           onPick={() => pick(undefined)}

@@ -22,6 +22,60 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **Each lens says what it means** in one line under the strip: Needs you
   waits for one decision from you per row; Under way is agents and deploys
   at work; Done is fixes you confirmed.
+## 2026-10-10 — Loki remembers what it noticed
+
+- **A finding being fixed is not noticed again.** Until now Loki's watch
+  mode forgot its own remarks the moment the tab closed: the next visit
+  noticed the same missing heading or the same tiny text, offered "Fix
+  this" again, and pressing it commissioned the same work twice — the
+  words of each filing carried the watched steps, so nothing matched. Now a
+  finding carries a key, "Fix this" files it with the note, and the next
+  visit looks before it speaks: a finding whose fix is building, in line
+  or on its way is left to **Your changes**; one the owner closed is left
+  alone; one that was fixed and is back says so — "Loki noticed, again" —
+  with **Fix again**.
+- **Every card says where its fix is.** A remark from earlier reads
+  "Being fixed · Building", "Needs you" or "Fixed 10 Oct" under the
+  finding, linked to the live page or to Loki, and follows the fix as it
+  moves while the panel is open.
+- Pressing "Fix this" twice, in two tabs or on two days, now lands on the
+  same row in Loki, with the second press counted rather than built again.
+
+## 2026-10-10 — Auto decides
+
+- **A greeting never spends a frontier model.** With your own keys, every
+  turn is judged light, standard or heavy before a model is chosen, and Auto
+  picks the cheapest model that is good enough: a cheap one for lookups and
+  captures, the best value for ordinary asks, the smartest you have for code,
+  strategy and anything you ask to be thought about carefully. The footer
+  says which turn it was and why.
+- **Your stance.** Thrifty, Balanced or Best — how far up Auto may reach.
+  Even Best sends the small things to the cheap pick.
+- **Your picks.** On `/models` and in Settings → AI you see the three models
+  Auto chose and why, change any of them to another your keys reach, and hand
+  it back with "Loki decides". The composer's Auto row names the two ends:
+  which model takes the light turns and which the heavy ones.
+
+## 2026-10-10 — Every model, every lab, your own machine
+
+- **The whole landscape on `/models`.** Every chat model in OpenRouter's
+  public catalogue — about 460 from 60 labs, Kimi, GLM, Qwen, Llama and
+  MiniMax among them — with open weights marked, an intelligence index, the
+  price in and out, context, when it was listed, and every way to run it
+  through Loki. Filter by open weights, free to try, sees images, reasoning,
+  lab or a price ceiling; sort by best value, smartest, cheapest, newest or
+  longest context; the filters are the URL, so a view is a link. **Use**
+  switches a model on a key you hold; **Add key** opens Settings with the
+  vendor and model chosen. "Check for new models" names what appeared since
+  the last read.
+- **The Chinese labs directly.** Moonshot (Kimi), Z.ai (GLM), Alibaba (Qwen)
+  and MiniMax can be connected with their own keys, not only through a
+  router — and Fireworks as a host for open models.
+- **A model on your own machine.** Point Loki at Ollama or LM Studio behind a
+  tunnel (Tailscale Funnel, cloudflared, ngrok) and it thinks for free, with
+  your data staying on your laptop. The recipe is on the store; Loki checks
+  the address, lists the models it finds, and only ever connects over https
+  to a public address.
 
 ## 2026-10-10 — One Loki on your site
 

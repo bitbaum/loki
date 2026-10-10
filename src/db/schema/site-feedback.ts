@@ -59,6 +59,18 @@ export const siteFeedback = pgTable(
      *  A repeat submission increments duplicateCount instead of a new row. */
     contentHash: text("content_hash"),
     duplicateCount: integer("duplicate_count").notNull().default(1),
+    /**
+     * What Watch noticed, as its remark signature (widget/watch-trail.ts:
+     * the path and the KIND of finding, counts and examples dropped). Set
+     * only on the owner's "Fix this" and Watch's own filings. The content
+     * hash cannot do this job for them: the suggestion carries the watched
+     * steps with "(Ns ago)" on each, so no two filings of one finding ever
+     * hashed the same, and the owner who came back to the page commissioned
+     * the same fix twice (2026-10-10). Keyed, the second press finds the
+     * first row, and the widget can say where that fix is instead of
+     * offering it again.
+     */
+    noticeKey: text("notice_key"),
     /** Optional visitor-attached images as jpeg/png/webp data URLs (≤600k chars each,
      *  client-downscaled, max 5). EXCLUDED from list queries — fetched only via
      *  GET /api/feedback/[id]/screenshots. */
@@ -85,6 +97,7 @@ export const siteFeedback = pgTable(
     index("idx_site_feedback_user").on(t.userId, t.status),
     index("idx_site_feedback_reporter").on(t.reporterUserId, t.createdAt),
     index("idx_site_feedback_dedupe").on(t.projectId, t.contentHash),
+    index("idx_site_feedback_notice").on(t.projectId, t.noticeKey),
   ],
 );
 

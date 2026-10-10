@@ -162,7 +162,7 @@ assert.match(
 );
 assert.match(
   route,
-  /attachFeedbackWork\(token\.userId, mine\)/,
+  /attachFeedbackWork\(token\.userId, \[\s*\.\.\.mine/,
   "the same phase the inbox derives",
 );
 assert.match(

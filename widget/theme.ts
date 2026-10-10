@@ -261,6 +261,12 @@ ${spiralCSS(theme)}
 .msg.noticed .who { color: ${theme.accent}; }
 .noticed-actions { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-top: 6px; }
 .noticed-actions .act { margin-top: 0; align-self: center; }
+/* Where the fix for this finding is — in place of a second "Fix this". */
+.noticed-status { display: block; margin-top: 6px; font-size: 12px; line-height: 1.4; color: ${theme.textTertiary}; text-decoration: none; }
+a.noticed-status:hover { text-decoration: underline; }
+.noticed-status.tone-accent { color: ${theme.accent}; }
+.noticed-status.tone-positive { color: ${theme.success}; }
+.noticed-status.tone-warning { color: ${theme.error}; }
 @media (max-width: 380px) { .composer-actions .attach span:last-child { display: none; } }
 .act { align-self: flex-end; font-size: 12px; color: ${theme.textTertiary}; margin-top: -2px; }
 .act:hover { color: ${theme.text}; }

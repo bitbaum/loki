@@ -154,25 +154,145 @@ The cap itself is set at the vendor — five francs with a monthly limit is
 enough to compare how two models think, and a cap there protects the person
 whatever Loki does.
 
-### The store: choosing who thinks for you
+### The store: the whole landscape, not ten vendors
 
-`/models` is where the choice is made. It says the three ways in plain
-words — the free pool is finite and shared, your own key scales, a pass
-pays for Loki and not for tokens — then lists every provider a person can
-bring with the human half from `config/model-store.ts` (who they are, what
-they are known for, what they give away, their own price page) and the
-live half from OpenRouter's public catalogue (`lib/models/store-catalog.ts`:
-~450 models with price per token, context and release date, no key
-needed, cached an hour). One tap on **Add to Loki** opens Settings with the
-vendor already chosen; **Use** on a table row chooses the model too. The
-table sorts by the numbers that decide a bill. "Check for new models"
-re-reads the catalogue and names what appeared since the last read.
+`/models` is where the choice is made, and since 2026-10-10 it is the
+landscape rather than a shelf: every chat model OpenRouter's public
+catalogue lists (~460 from ~60 labs), filterable and rankable, with every
+way to run each one through Loki and one tap to bring the key.
 
-What the store does not do is rank quality. Price is the one number every
-vendor publishes; "better" is the person's call, with the Test button and
-the same question asked twice. And it does not type a price: the one time
-a number is hand-written it would be stale by the following week, so the
-descriptions carry their own `asOf` date and the vendor's page is the bill.
+**Where every number comes from.** One source, nothing typed by hand
+(`lib/models/store-catalog.ts`):
+
+| On the page       | In the catalogue                                | Never                       |
+| ----------------- | ----------------------------------------------- | --------------------------- |
+| price in / out    | `pricing.prompt` / `pricing.completion` per token | a figure typed in a doc    |
+| open weights      | `hugging_face_id` present                       | guessed from the name       |
+| intelligence      | `benchmarks.artificial_analysis.intelligence_index` | Loki's own opinion       |
+| sees images       | `architecture.input_modalities` has `image`     | —                           |
+| reasoning, tools  | `reasoning` / `supported_parameters`            | —                           |
+| listed, cutoff    | `created`, `knowledge_cutoff`                   | —                           |
+| lab, region       | the namespace; the vendor table or a small map  | —                           |
+
+Two judgements are Loki's, and both are formulas the page states:
+`tierOf` (economy under $2/M out; frontier at $15/M or within five index
+points of the top; else standard) and `valueScore` (index ÷ log₂(2 + 0.25·in
++ 0.75·out), "intelligence per dollar"). Unrated models sort last, never out:
+"smartest" must not quietly mean "rated".
+
+**Filters are the URL** (`lib/models/store-filters.ts`): open weights · free
+to try · sees images · reasoning · on your keys · lab · price ceiling · sort,
+so "open-weight models under $1 from Qwen, smartest first" is a link.
+
+**Runs via.** Each row lists the ways to run the model through Loki — the
+lab's own key (the Chinese labs included, see below), OpenRouter, and your
+own endpoint for open weights — lit when the person holds the key. **Use** on
+a lit way switches the model on that key in one request; **Add key** opens
+Settings with vendor and model chosen.
+
+"Check for new models" re-reads the catalogue and names what appeared since
+the last read; the footer says when it was read and where each number comes
+from. The lab's own page is still the bill.
+
+### Vendors beyond ai-kit
+
+ai-kit's `BYOK_VENDORS` is the fleet's closed list of hosts a server may send
+a stranger's key to — ten of them, and deliberately only the host, key page
+and probe. Loki's `config/model-vendors.ts` is the one table that carries the
+human half for those ten (who they are, what they are known for, what they
+give away, where the bill is, which OpenRouter namespace is theirs) **and**
+the labs ai-kit does not have yet: Moonshot (Kimi), Z.ai (GLM), Alibaba
+(Qwen), MiniMax, and Fireworks as a host. Each extra was checked live with a
+fake key on 2026-10-10 and refused it with a 401, which is the half a probe
+needs. They are probed by `lib/models/probe.ts` (ai-kit's `probeByokKey` for
+ai-kit's vendors; the same two steps in Loki for the extras) and called by
+`lib/own-model.ts`, which now builds the link itself with the fields
+`byokChain` used to set. **The next upstream PR moves the extras into
+ai-kit**; until then, ai-kit resolves from npm with an integrity hash and
+cannot be changed from an agent session, so they live here in the same shape.
+
+### Your own endpoint
+
+The only vendor whose host is data rather than config: an OpenAI-compatible
+server the person runs — Ollama or LM Studio on a laptop behind a tunnel,
+vLLM on a box, a company gateway. Free once the machine is theirs, and the
+data never leaves it. ai-kit refuses base URLs on SSRF grounds and is right
+to as a library; Loki wants the feature and pays for it with
+`lib/models/endpoint-guard.ts`:
+
+- **Typed** (`parseEndpoint`, pure, also run in the browser for the sentence):
+  https only; no credentials in the URL; no literal private, loopback,
+  link-local, CGNAT or metadata address (the one range table,
+  `lib/private-address.ts`, which gained the hex form of a v4-mapped v6
+  address that `new URL` produces); no LAN-only name; port 443 or above 1024;
+  the base stored without a trailing `/chat/completions`.
+- **Connected** (`guardedFetch`): undici's `Agent` with a dialer that resolves
+  the name itself and refuses the connection if ANY answer is private — at
+  connect time, which closes the rebinding gap `site-consult/fetch-page.ts`
+  documents as the one it could not close. Redirects are errors (a 3xx to an
+  IP literal would skip the lookup, and a chat completion never needs one).
+  The stored URL is re-parsed on every call, so a row saved under an older
+  rule is held to the current one.
+- The key is optional (a plain Ollama has none): the row seals the empty
+  string, and the walker sends no Authorization header for it. The server's
+  own keys never reach a user link and a user's URL never reaches a server
+  link — same rule as before, `scripts/test/own-model.ts` pins it.
+
+What is honest about it: the laptop has to be on and the tunnel up, and Loki
+says so when it is not. A Fleet Runner that proxies to a laptop without a
+tunnel is the obvious next step; it is not built, and the page does not
+pretend it is.
+
+### Auto decides
+
+Until 2026-10-10 "Auto" on a person's own keys meant "the first key's one
+model, for every turn" — an Anthropic key put Fable 5.1 on "what time is
+it". Now Auto is a decision per turn, in three pure pieces:
+
+1. **Difficulty** (`lib/models/difficulty.ts`): the message and the recent
+   history → `light` / `standard` / `heavy`, with a reason. Explicit asks win
+   ("think hard" is heavy, "quick" is light); then code, a judgement call, a
+   professional domain, writing, research, length and a numbered list count
+   as signs (two make heavy, one makes standard); then the shapes a cheap
+   model answers as well as any (a greeting, a capture, a lookup, a short
+   question) are light. A keyword heuristic on purpose: it runs before every
+   turn and must not cost a model call.
+2. **Picks** (`lib/models/auto-picks.ts`): from what the person's keys reach
+   (a router reaches the catalogue; a lab key its namespace; a host or an
+   endpoint only what was stored), three picks — economy is the best value
+   among cheap tool-capable models, standard the best value at or above the
+   median index below frontier price, frontier the smartest reachable. A
+   pick the person set by hand (`user_model_tiers`) wins and says "your
+   choice".
+3. **Stance** (`user_preferences.model_stance`): which pick a difficulty maps
+   to. Thrifty never reaches frontier on its own; balanced (default) does for
+   heavy turns; best for anything not trivial. **A light turn goes to the
+   economy pick under every stance** — the rule the whole thing exists for.
+
+`lib/models/routing.ts` feeds them: `routeTurn` builds the chain for one
+turn (the pick, the nearest tiers up before down, then every key's default,
+no duplicates) and `loki-core.ts#loadOwnModel` walks it; the footer's
+provenance reads "your key: Moonshot (Kimi) · kimi-tiny — light turn (a
+greeting)". When Auto has nothing to decide with (no catalogue yet, keys the
+catalogue cannot see) the keys are walked as stored, which is what Auto
+meant before. A model picked in the composer bypasses all of it.
+
+The same block shows on `/models` above the table and in Settings → AI under
+the keys (`components/models/AutoRouting.tsx`): the stance, the three picks
+with their reasons, a select per tier, "Loki decides" to drop a choice. The
+composer's Auto row says the two ends of it: "balanced — light turns on
+Kimi K3, heavy ones on Claude Fable 5.1".
+
+### Follow-up: one key for Loki and Cat
+
+George's ask is that a key brought here powers Cat too. Today the two store
+keys separately (OrangeCat `user_api_keys`, AES-GCM with its own secret;
+Loki `user_model_keys`, ai-kit's seal) and pick models with separate code
+(OrangeCat's `auto-router.ts`; Loki's chain). The path found: OrangeCat
+already issues the OAuth tokens Loki's MCP accepts, so a Loki MCP tool that
+runs plain inference on the caller's own Loki keys — messages and tools in,
+a completion out — would let OrangeCat's resolver add "your Loki keys" as a
+chain step without copying a secret anywhere. Not built in this round.
 
 ## Why not metered credits (yet)
 

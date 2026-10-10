@@ -617,6 +617,27 @@
       "when": 1791552159907,
       "tag": "0087_night_allowance",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1791628122352,
+      "tag": "0088_own_endpoint",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1791629243991,
+      "tag": "0089_model_routing",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1791630321786,
+      "tag": "0090_notice_key",
+      "breakpoints": true
     }
   ]
 }
