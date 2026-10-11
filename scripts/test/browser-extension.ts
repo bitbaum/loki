@@ -31,9 +31,15 @@ function ok(cond: boolean, label: string) {
   }
 }
 
-const PARAMS = { package: "@bitbaum/chatkit", owner: "bitbaum", repo: "chatkit", workflow: "publish.yml" };
+const PARAMS = {
+  package: "@bitbaum/chatkit",
+  owner: "bitbaum",
+  repo: "chatkit",
+  workflow: "publish.yml",
+};
 type State = { owner: string; repo: string; workflow: string; allow: boolean; tabPresses: number };
-const state = (page: Page) => page.evaluate(() => (window as unknown as { __state: State }).__state);
+const state = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __state: State }).__state);
 const submitted = (page: Page) =>
   page.evaluate(() => (window as unknown as { __submitted?: boolean }).__submitted === true);
 
@@ -45,7 +51,10 @@ async function serve(context: BrowserContext, formJs: string) {
     }),
   );
   await context.route("https://loki.orangecat.ch/**", (route) =>
-    route.fulfill({ contentType: "text/html", body: "<!doctype html><html><body><main>Loki</main></body></html>" }),
+    route.fulfill({
+      contentType: "text/html",
+      body: "<!doctype html><html><body><main>Loki</main></body></html>",
+    }),
   );
 }
 
@@ -57,7 +66,10 @@ async function ask(page: Page, params: Record<string, string>) {
           const d = e.data as { type?: string; reply?: { ok: boolean; error?: string } };
           if (d?.type === reply) resolve(d.reply ?? { ok: false });
         });
-        window.postMessage({ type: request, recipe: "npm-trusted-publisher", params }, location.origin);
+        window.postMessage(
+          { type: request, recipe: "npm-trusted-publisher", params },
+          location.origin,
+        );
         setTimeout(() => resolve({ ok: false, error: "no reply" }), 5000);
       }),
     { request: BROWSER_EXTENSION.request, reply: BROWSER_EXTENSION.reply, params },
@@ -93,7 +105,10 @@ async function main() {
 
     const loki = await context.newPage();
     await loki.goto("https://loki.orangecat.ch/fill?recipe=npm-trusted-publisher");
-    const marker = await loki.evaluate((m) => document.documentElement.dataset[m], BROWSER_EXTENSION.marker);
+    const marker = await loki.evaluate(
+      (m) => document.documentElement.dataset[m],
+      BROWSER_EXTENSION.marker,
+    );
     ok(marker === "1", "the extension announces itself on Loki's origin");
 
     const refused = await ask(loki, { ...PARAMS, owner: "not a name" });
@@ -109,14 +124,20 @@ async function main() {
     // fixture. Reloading also proves the real path a sign-in takes: the page
     // navigates, the script is injected again, and the tab's task survives.
     await form.reload();
-    ok(form.url() === "https://www.npmjs.com/package/@bitbaum/chatkit/access", `opened the package's access page (${form.url()})`);
+    ok(
+      form.url() === "https://www.npmjs.com/package/@bitbaum/chatkit/access",
+      `opened the package's access page (${form.url()})`,
+    );
     await form.waitForFunction(
       () => (window as unknown as { __state?: State }).__state?.allow === true,
       undefined,
       { timeout: 10_000 },
     );
     const s = await state(form);
-    ok(s.owner === "bitbaum" && s.repo === "chatkit" && s.workflow === "publish.yml", `fields filled (${JSON.stringify(s)})`);
+    ok(
+      s.owner === "bitbaum" && s.repo === "chatkit" && s.workflow === "publish.yml",
+      `fields filled (${JSON.stringify(s)})`,
+    );
     ok(await form.locator("#loki-handoff-banner").isVisible(), "the banner says what to press");
     ok(!(await submitted(form)), "the hand-off button is NOT pressed");
 
