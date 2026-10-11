@@ -78,6 +78,14 @@ export const KNOWLEDGE_CUES =
 export const ECONOMY_CUES =
   /\b(demand|need(?:s|ed)?|opportunit|market|client|customer|lead|leads|sell|sale|revenue|money|earn|paid|build for|who wants|looking for|orangecat)\w*/i;
 
+/**
+ * "What should I build?" — the operator asking for direction, not for a
+ * record. Answered from the ranked build suggestions (src/lib/build-suggestions)
+ * so Loki proposes from what is actually there instead of brainstorming.
+ */
+export const BUILD_CUES =
+  /\b(what (?:should|could|can|shall) (?:i|we) (?:build|make|ship|work on|do next|start)|what to build|what (?:should|shall) (?:i|we) do next|any ideas?|ideas? for|what do you suggest|suggest (?:something|what|a build)|where (?:do|should) (?:i|we) start|build (?:something|next)|next build)\b/i;
+
 /** Projects by name or in aggregate. */
 /**
  * The studio as a whole: what exists, which pillars, what is live, what is

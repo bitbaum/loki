@@ -15,13 +15,19 @@ interface Props {
   autoOpen?: boolean;
   /** Prefill the name field (deep link: /projects?new=1&name=…). */
   initialName?: string;
+  /** Prefill the description (deep link: …&description=…). */
+  initialDescription?: string;
 }
 
-export function NewProjectButton({ autoOpen = false, initialName = "" }: Props) {
+export function NewProjectButton({
+  autoOpen = false,
+  initialName = "",
+  initialDescription = "",
+}: Props) {
   const form = useAiForm({
     target: PROJECT_FORM.key,
     fields: PROJECT_FORM.fields,
-    initialValues: { name: initialName },
+    initialValues: { name: initialName, description: initialDescription },
   });
   const router = useRouter();
   const { create, saving, error, setError } = useCreateMutation<
@@ -44,6 +50,7 @@ export function NewProjectButton({ autoOpen = false, initialName = "" }: Props) 
     const url = new URL(window.location.href);
     url.searchParams.delete("new");
     url.searchParams.delete("name");
+    url.searchParams.delete("description");
     window.history.replaceState(null, "", url.toString());
   }, [autoOpen]);
 

@@ -32,6 +32,7 @@ import { setAway } from "@/lib/away";
 import { AWAY_MAX_MINUTES } from "@/lib/away-rules";
 import {
   alertFacts,
+  buildSuggestionFacts,
   captureFacts,
   commitmentFacts,
   crewFacts,
@@ -637,6 +638,25 @@ const setAwayTool = defineTool({
   },
 });
 
+/**
+ * "What should I build?" — answered from the operator's own records, not from
+ * the model's imagination. Same ranking as the start screen's "Build next".
+ */
+const suggestBuildsTool = defineTool({
+  name: "suggest_builds",
+  kind: "read",
+  description:
+    "Ranked things the operator could build or ship next, from their projects, open reports, dev-log next steps, stuck goals, notes and OrangeCat demand. Use for 'what should I build/work on', 'any ideas', 'what next'.",
+  params: z.object({}),
+  example: "TOOL: suggest_builds\nARGS: {}",
+  handler: async (_args, ctx) => {
+    const facts = await buildSuggestionFacts(ctx.userId, LIST_LIMIT);
+    return facts.length > 0
+      ? { facts }
+      : empty("Nothing in the operator's records suggests a build right now.");
+  },
+});
+
 export const LOKI_TOOLS: ToolRegistry = Object.fromEntries(
   [
     searchPeopleTool,
@@ -652,6 +672,7 @@ export const LOKI_TOOLS: ToolRegistry = Object.fromEntries(
     listCommitmentsTool,
     listPendingApprovalsTool,
     listCapturesTool,
+    suggestBuildsTool,
     askOpenClawTool,
     listCrewTool,
     listHumanTasksTool,
