@@ -74,6 +74,18 @@ assert.ok(
   "check-model-ids has no timer — model rot goes back to being found by hand",
 );
 
+// ── 4. A timer in SCHED reaches the box without anyone running anything ─────
+// Sections 1–3 prove every route is in SCHED. They could not see the last step:
+// SCHED only became timers when someone ran the installer by hand, so the
+// 19:00 evening proposal (2026-10-10) merged, deployed, passed every check here,
+// and had no timer on the box. The deploy runs the installer now; this keeps it.
+const DEPLOY = "scripts/deploy-hetzner.sh";
+assert.match(
+  readFileSync(DEPLOY, "utf8"),
+  /^[^#\n]*bash "\$PROJECT_DIR\/scripts\/install-hetzner-crons\.sh"/m,
+  `${DEPLOY} no longer runs ${INSTALLER} — a new job would merge with no timer on the box`,
+);
+
 console.log(
-  `✓ cron schedule coverage: ${scheduledRoutes.length} cron-authed route(s), all timered; no orphan timers`,
+  `✓ cron schedule coverage: ${scheduledRoutes.length} cron-authed route(s), all timered; no orphan timers; the deploy installs them`,
 );

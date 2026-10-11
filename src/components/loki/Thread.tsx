@@ -1,10 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { ArrowDown, Loader2, Square } from "lucide-react";
 import { ChatReplies } from "@bitbaum/chatkit/react";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { readReplies } from "@/lib/loki/replies";
+import { projectSwitches } from "@/lib/loki/project-switches";
 import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
 import type { LiveTurn } from "@/hooks/use-loki-stream";
 import { FollowUps } from "./FollowUps";
@@ -145,6 +154,8 @@ export function Thread({
   // an answer that came without them: an older turn, or a brain that ignored
   // the instruction. Never both — two rows of "what next" is a menu.
   const replies = showFollowUps ? readReplies(lastAssistant.meta) : [];
+  // Where this one chat moved to another project (lib/loki/project-switches).
+  const switches = projectSwitches(messages);
 
   return (
     <div className="ui-loki-thread-wrap">
@@ -154,23 +165,29 @@ export function Thread({
             is tall enough to scroll. */}
         <div className="ui-loki-thread-inner">
           {messages.map((m, i) => (
-            <MessageTurn
-              key={m.id}
-              message={m}
-              question={
-                m.role === "assistant"
-                  ? (messages
-                      .slice(0, i)
-                      .reverse()
-                      .find((p) => p.role === "user")?.content ?? null)
-                  : null
-              }
-              onPickProject={onPickProject}
-              onContinue={onContinue}
-              onAnswerAnyway={onAnswerAnyway}
-              onAnswerFree={onAnswerFree}
-              onRetry={onRetry && m.id === lastAssistant?.id ? onRetry : undefined}
-            />
+            <Fragment key={m.id}>
+              {switches.has(i) && (
+                <div className="ui-loki-project-switch" role="separator">
+                  <span>Now on {switches.get(i)}</span>
+                </div>
+              )}
+              <MessageTurn
+                message={m}
+                question={
+                  m.role === "assistant"
+                    ? (messages
+                        .slice(0, i)
+                        .reverse()
+                        .find((p) => p.role === "user")?.content ?? null)
+                    : null
+                }
+                onPickProject={onPickProject}
+                onContinue={onContinue}
+                onAnswerAnyway={onAnswerAnyway}
+                onAnswerFree={onAnswerFree}
+                onRetry={onRetry && m.id === lastAssistant?.id ? onRetry : undefined}
+              />
+            </Fragment>
           ))}
 
           {live && (

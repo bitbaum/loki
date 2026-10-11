@@ -4072,6 +4072,36 @@
     @apply space-y-3 rounded-2xl border border-border-subtle bg-surface-raised p-4;
     box-shadow: var(--shadow-panel);
   }
+  /* ── The person's own AI budget, in Settings → AI ───────────────────────
+     One block per source they can draw on (their keys, then the shared free
+     pool). The number is answers, never a percentage; the bar is the share
+     used, because that is the one quantity that only moves one way through
+     a day. Low and spent are told apart by hue AND by the words in the head. */
+  .ui-budget-source {
+    @apply space-y-2.5 rounded-xl border border-border-subtle bg-surface-raised px-4 py-3;
+  }
+  .ui-budget-source-low {
+    @apply border-status-warning/40 bg-status-warning/5;
+  }
+  .ui-budget-source-spent {
+    @apply border-status-negative/40 bg-status-negative/5;
+  }
+  .ui-budget-hero {
+    @apply flex flex-wrap items-baseline gap-x-2 gap-y-0.5;
+  }
+  .ui-budget-number {
+    @apply text-2xl font-semibold text-text-primary;
+    font-variant-numeric: tabular-nums;
+  }
+  .ui-budget-unit {
+    @apply text-sm text-text-secondary;
+  }
+  .ui-budget-model {
+    @apply flex flex-wrap items-baseline gap-x-2 text-xs text-text-secondary;
+  }
+  .ui-budget-model-note {
+    @apply text-status-warning;
+  }
   .ui-list-item {
     @apply flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-raised px-4 py-3;
   }
@@ -6626,6 +6656,18 @@
   .ui-loki-build-label {
     @apply min-w-0 truncate;
   }
+  /* One chat moving to another project: a quiet labelled rule (project-switches.ts). */
+  .ui-loki-project-switch {
+    @apply flex min-w-0 items-center gap-3 text-xs text-text-tertiary;
+  }
+  .ui-loki-project-switch::before,
+  .ui-loki-project-switch::after {
+    @apply h-px flex-1 bg-border-subtle;
+    content: "";
+  }
+  .ui-loki-project-switch > span {
+    @apply min-w-0 truncate;
+  }
   /* A finished run's own account, under the dispatch card (run-handoff.ts). */
   .ui-loki-handoff {
     @apply mt-2 flex min-w-0 flex-col gap-3 border-t border-border-subtle pt-3;
@@ -7281,6 +7323,11 @@
   }
   .ui-loki-model-note {
     @apply px-3 pb-1 pt-2 text-xs leading-relaxed text-text-muted;
+  }
+  /* The one-line budget above the choices: what is left before a pick is
+     made, so the picker is never a list of rows that will refuse. */
+  .ui-loki-model-budget {
+    @apply flex items-start gap-2 px-4 py-2.5 text-xs text-text-secondary;
   }
 
   @keyframes ui-loki-dot {
