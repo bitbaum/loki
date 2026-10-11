@@ -17,6 +17,12 @@ import type { DispatchLiveView } from "@/lib/dispatch-status";
  * offline builder. SSOT so a fix here (a new terminal state, a longer poll
  * window) reaches every caller at once.
  */
+const POLL_MS = 2_500;
+/** GitHub is asked at most every few minutes server-side (fixNeedsRefresh);
+ *  this only decides how soon the card hears about it. */
+const FOLLOW_POLL_MS = 30_000;
+const FOLLOW_FOR_MS = 2 * 60 * 60_000;
+
 export function useDispatchLiveStatus(
   commandId: string | null,
   runId: string | null,
@@ -36,19 +42,27 @@ export function useDispatchLiveStatus(
     if (!statusUrl) return;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const since = Date.now();
     const poll = async () => {
+      let delay = POLL_MS;
       try {
         const res = await fetch(statusUrl);
         if (res.ok) {
           const v = (await res.json()) as DispatchLiveView;
           if (!active) return;
           setView(v);
-          if (v.terminal) return;
+          // The run is over, but its change is still on its way to the live
+          // site (PR → merge → deploy → Loki's look): keep asking, slowly,
+          // while this card is open — and not all day.
+          if (v.terminal) {
+            if (!v.follow || v.follow.settled || Date.now() - since > FOLLOW_FOR_MS) return;
+            delay = FOLLOW_POLL_MS;
+          }
         }
       } catch {
         /* transient — retry below */
       }
-      if (active) timer = setTimeout(poll, 2500);
+      if (active) timer = setTimeout(poll, delay);
     };
     void poll();
     return () => {
