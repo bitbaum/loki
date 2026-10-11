@@ -15,6 +15,8 @@ import {
 } from "./control-presenter";
 import { rememberFleetProject } from "@/lib/fleet-context";
 import { ControlFleetStatus } from "./ControlFleetStatus";
+import { useRouter } from "next/navigation";
+import { BuildSuggestions } from "@/components/loki/BuildSuggestions";
 import { AwayReturnCard } from "@/components/shell/AwayReturnCard";
 import { AttentionBar } from "./AttentionBar";
 import { AgentEscalations } from "./AgentEscalations";
@@ -39,6 +41,7 @@ import { TonightCard } from "./TonightCard";
 import type { AutoInjectMode } from "@/config/beacon";
 
 export function ControlPanel() {
+  const router = useRouter();
   const {
     data,
     lastUpdated,
@@ -466,6 +469,27 @@ export function ControlPanel() {
           }}
         />
       )}
+
+      {/* Nothing running, nothing waiting on you: that used to be the whole
+          message — a grey "Paused" card over "28 idle projects". Idle is the
+          moment to start something, so say what is worth starting, from the
+          operator's own records (lib/build-suggestions), each with its
+          reason. A tap opens Loki with the ask written and the project set. */}
+      {data &&
+        data.projects.length > 0 &&
+        (dashboard?.runningCount ?? 0) === 0 &&
+        (dashboard?.waitingCount ?? 0) === 0 &&
+        inbox.total === 0 && (
+          <BuildSuggestions
+            variant="cards"
+            title="Nothing running — worth building next"
+            onSend={(prompt, project) => {
+              const q = new URLSearchParams({ q: prompt });
+              if (project) q.set("project", project);
+              router.push(`/loki?${q.toString()}`);
+            }}
+          />
+        )}
 
       <ProjectOperationsView
         categoryFilter={categoryFilter}

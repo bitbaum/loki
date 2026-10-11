@@ -6606,6 +6606,19 @@
   .ui-loki-build-label {
     @apply min-w-0 truncate;
   }
+  /* Control's idle state: the same suggestions with their reason showing. */
+  .ui-loki-build-cards {
+    @apply grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2;
+  }
+  .ui-loki-build-card {
+    @apply flex min-h-11 w-full min-w-0 items-start gap-3 rounded-xl border border-border-default bg-surface-raised px-4 py-3 text-left transition-colors hover:border-border-strong;
+  }
+  .ui-loki-build-card-label {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-loki-build-card-why {
+    @apply text-xs text-text-secondary;
+  }
 
   /* Needs-project picker. A grid, not a wrapped chip cloud: nine variable-width
      chips reflow into a ragged block that reads as noise on a phone, and the
