@@ -5,7 +5,11 @@
 # runs the /api/crons/* janitors + email canary via systemd timers. Schedules are in UTC
 # (the box is Etc/UTC).
 #
-# Idempotent — safe to re-run after a box rebuild or schedule change.
+# Idempotent — safe to re-run after a box rebuild or schedule change, and the
+# deploy (scripts/deploy-hetzner.sh) DOES re-run it on every ship, so a job
+# added to SCHED below gets its timer from the merge that adds it. It used to
+# wait for someone to run this by hand: the 19:00 evening proposal shipped on
+# 2026-10-10 and had no timer on the box until then.
 #
 # Usage: bash scripts/install-hetzner-crons.sh
 
@@ -19,7 +23,10 @@ set -euo pipefail
 
 # Runner: reads CRON_SECRET from the app .env and calls the local app. The
 # secret never leaves the box and isn't duplicated into the unit files.
-cat > /opt/loki/fc-cron.sh <<'SH'
+# Written beside and moved into place: the deploy now re-runs this installer on
+# every ship, and a timer can be mid-run when it does. Truncating a script bash
+# is still reading corrupts that run; a rename leaves it on the old inode.
+cat > /opt/loki/fc-cron.sh.new <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 ENV_FILE=/opt/loki/app/.env
@@ -68,7 +75,8 @@ done
 echo "fc-cron ${NAME}: $(head -c 2000 "$BODY_FILE" | tr -d '\n')"
 exit "$rc"
 SH
-chmod +x /opt/loki/fc-cron.sh
+chmod +x /opt/loki/fc-cron.sh.new
+mv -f /opt/loki/fc-cron.sh.new /opt/loki/fc-cron.sh
 
 cat > /etc/systemd/system/fc-cron@.service <<'SVC'
 [Unit]
