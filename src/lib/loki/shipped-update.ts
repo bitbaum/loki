@@ -1,0 +1,66 @@
+import { tidyFixNote } from "@/lib/feedback/fix-note";
+import { watchFixPath } from "@/lib/feedback/tour-token";
+import { feedbackScreenshotPath } from "@/lib/loki/update-images";
+import {
+  buildProgressUpdate,
+  UPDATE_STAGE,
+  type ProgressUpdate,
+  type UpdateLink,
+} from "@/lib/loki/progress-update";
+import type { FixShipping, ShipAnnouncement } from "@/lib/feedback/fix-shipping";
+
+/**
+ * The update for a fix that went live or failed to deploy. Pure — posted by
+ * post-shipped-update.ts, pinned by scripts/test/progress-update.ts.
+ */
+
+export type ShippedUpdateInput = {
+  announcement: ShipAnnouncement;
+  projectKey: string;
+  feedbackId: string;
+  asked: string | null;
+  hasScreenshot: boolean;
+  fix: FixShipping;
+  livePageUrl: string | null;
+  didLine: string | null;
+  summaryNext: string | null;
+};
+
+/** Pure: the update for a fix that went live or failed to deploy. */
+export function buildShippedUpdate(input: ShippedUpdateInput): ProgressUpdate {
+  const live = input.announcement === "live";
+  const links: UpdateLink[] = [];
+  if (live && input.livePageUrl)
+    links.push({ label: "Watch the fix", href: watchFixPath(input.feedbackId), primary: true });
+  if (live && input.livePageUrl) links.push({ label: "The page", href: input.livePageUrl });
+  if (!live && input.fix.deploy?.url)
+    links.push({ label: "The failed deploy", href: input.fix.deploy.url, primary: true });
+  if (input.fix.pr?.url) links.push({ label: "What changed", href: input.fix.pr.url });
+
+  let where: string | null = null;
+  try {
+    where = input.livePageUrl ? new URL(input.livePageUrl).pathname : null;
+  } catch {
+    where = null;
+  }
+
+  return buildProgressUpdate({
+    stage: live ? UPDATE_STAGE.LIVE : UPDATE_STAGE.DEPLOY_FAILED,
+    project: input.projectKey,
+    asked: input.asked,
+    note: input.fix.pr?.note ? tidyFixNote(input.fix.pr.note) : null,
+    didLine: input.didLine,
+    summaryNext: input.summaryNext,
+    where,
+    deployName: input.fix.deploy?.name ?? null,
+    images: input.hasScreenshot
+      ? [
+          {
+            src: feedbackScreenshotPath(input.feedbackId, 0),
+            caption: "Before — the screenshot that came with the report",
+          },
+        ]
+      : [],
+    links,
+  });
+}

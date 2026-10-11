@@ -28,6 +28,7 @@ import {
 } from "@/lib/feedback/fix-shipping";
 import { effectiveAutoShip, projectsPausedByBrokenDeploy } from "@/lib/feedback/auto-ship";
 import { notifyFixShipped } from "@/lib/feedback/notify-shipped";
+import { postShippedUpdate } from "@/lib/loki/post-shipped-update";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import {
   ORCH_STATE,
@@ -171,6 +172,21 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
             announcement: announce,
             fix,
             livePageUrl: livePageHref(item.liveUrl, item.url, item.page),
+          });
+          // The same moment, told in the chat with room for the story.
+          const summary = run.summary as { done?: string; next?: string } | null;
+          void postShippedUpdate({
+            userId,
+            conversationId: run.payload?.conversationId ?? null,
+            announcement: announce,
+            projectKey: run.projectKey,
+            feedbackId: item.id,
+            asked: item.suggestion,
+            hasScreenshot: item.hasScreenshots === true,
+            fix,
+            livePageUrl: livePageHref(item.liveUrl, item.url, item.page),
+            didLine: summary?.done ?? null,
+            summaryNext: summary?.next ?? null,
           });
         }
       }),
