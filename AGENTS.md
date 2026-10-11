@@ -72,6 +72,16 @@ place the owner is decided, creation goes to the org and fails loudly if it
 cannot, and `scripts/test/repos-are-created-in-the-org.ts` fails on any path
 that does otherwise. `gh repo list catomean` should show one repo (the profile).
 
+## What agents Loki dispatches are told about the fleet
+
+Every prompt Loki assembles for a repo in the `bitbaum` org carries the fleet
+brief (`src/lib/fleet-brief/`): the house rules plus the shared packages and
+blessed stack, read from bitbaum/fleet's registers at dispatch time with a
+committed snapshot as fallback (`pnpm run generate:fleet-brief` refreshes it).
+Do not type fleet facts into Loki; change them in fleet.
+`scripts/test/fleet-brief-reaches-every-dispatch.ts` fails when a new prompt
+assembler skips the brief.
+
 ## Stack
 
 - **Next.js 16** (App Router, Server Components, Server Actions)

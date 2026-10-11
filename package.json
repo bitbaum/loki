@@ -84,6 +84,7 @@
     "test:orangecat-entitlement-e2e": "npx tsx scripts/test/orangecat-entitlement-e2e.ts",
     "generate:brand": "npx tsx scripts/generate-brand.mjs",
     "generate:agent-prompts": "npx tsx scripts/generate-agent-prompts.ts",
+    "generate:fleet-brief": "tsx scripts/generate-fleet-brief-snapshot.ts",
     "ingest:history": "npx tsx scripts/ingest-claude-code-history.ts",
     "desktop:dev": "cd desktop && pnpm run dev",
     "desktop:build": "cd desktop && pnpm run build",

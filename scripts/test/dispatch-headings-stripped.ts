@@ -57,6 +57,7 @@ const PIPELINE_SOURCES = [
   "src/lib/inject-core.ts",
   "src/db/queries/knowledge-embeddings.ts",
   "src/lib/orchestration/escalation-ladder.ts",
+  "src/lib/fleet-brief/brief.ts",
 ];
 
 /**
