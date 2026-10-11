@@ -195,7 +195,10 @@ function FilledValues({ task }: { task: BrowserTask }) {
     <ul className="flex flex-col gap-2 mt-2">
       {task.steps.map((step) =>
         step.kind === "fill" ? (
-          <li key={step.label} className="flex items-center justify-between gap-3 min-w-0">
+          <li
+            key={step.label}
+            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 min-w-0"
+          >
             <span className="text-sm text-text-secondary shrink-0">{step.label}</span>
             <button
               type="button"
@@ -203,7 +206,7 @@ function FilledValues({ task }: { task: BrowserTask }) {
               onClick={() => copy(step.value)}
               aria-label={`Copy ${step.label}: ${step.value}`}
             >
-              <span className="truncate font-mono">{step.value}</span>
+              <span className="font-mono break-all text-left">{step.value}</span>
               {copied === step.value ? (
                 <Check className="h-4 w-4 shrink-0" />
               ) : (
