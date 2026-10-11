@@ -34,6 +34,7 @@ export function MessageTurn({
   onAnswerAnyway,
   onAnswerFree,
   onRetry,
+  onContinue,
   question = null,
 }: {
   message: LokiMessage;
@@ -47,6 +48,8 @@ export function MessageTurn({
   /** Only passed for the last assistant turn — retrying an older one would
    *  fork the thread, which this transcript has no way to represent. */
   onRetry?: () => void;
+  /** Under a finished dispatch: one of its next steps, sent on its project. */
+  onContinue?: (text: string, project: string) => void;
 }) {
   if (message.role === "user") {
     return (
@@ -87,7 +90,9 @@ export function MessageTurn({
           onAnswerAnyway={onAnswerAnyway}
         />
       )}
-      {message.kind === "dispatch" && <DispatchFooter meta={message.meta} />}
+      {message.kind === "dispatch" && (
+        <DispatchFooter meta={message.meta} onContinue={onContinue} />
+      )}
       {message.kind === "chat" && <ProvenanceFooter meta={message.meta} />}
       {message.kind === "chat" && <QueuedActionFooter meta={message.meta} />}
       {message.kind === "chat" && onPickProject && (

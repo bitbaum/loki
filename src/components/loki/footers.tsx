@@ -13,7 +13,15 @@
  */
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ListChecks, MessageCircle, Sparkles, TerminalSquare } from "lucide-react";
+import {
+  ArrowRight,
+  CornerDownRight,
+  ListChecks,
+  MessageCircle,
+  Sparkles,
+  TerminalSquare,
+} from "lucide-react";
+import { nextStepPrompt, type RunHandoff } from "@/lib/run-handoff";
 import type { CitationMap } from "@/components/ui/markdown-text";
 import {
   deriveMultiDispatchView,
@@ -56,7 +64,14 @@ export function citationsFrom(meta: Record<string, unknown> | null): CitationMap
   return Object.keys(map).length > 0 ? map : undefined;
 }
 
-export function DispatchFooter({ meta }: { meta: Record<string, unknown> | null }) {
+export function DispatchFooter({
+  meta,
+  onContinue,
+}: {
+  meta: Record<string, unknown> | null;
+  /** A next step was tapped: send it in this chat, on this project. */
+  onContinue?: (text: string, project: string) => void;
+}) {
   // Hook first — before any early return — to satisfy rules-of-hooks. commandId
   // is read defensively so it's safe even when meta is null.
   const commandId = typeof meta?.commandId === "string" ? meta.commandId : null;
@@ -130,6 +145,10 @@ export function DispatchFooter({ meta }: { meta: Record<string, unknown> | null 
         projectCount: projectKeys.length,
       });
   const target = projectKeys.length > 1 ? `${projectKeys.length} projects` : projectKeys[0];
+  // The run's own account of itself, once it is over (lib/run-handoff). With
+  // it, "successful outcome recorded" is the least useful line on the card.
+  const handoff = live?.terminal ? (live.handoff ?? null) : null;
+  const detail = handoff?.done.length ? null : card.detail;
 
   return (
     <div className="ui-loki-dispatch-card">
@@ -138,12 +157,22 @@ export function DispatchFooter({ meta }: { meta: Record<string, unknown> | null 
         <span className="font-medium text-text-primary">{card.headline}</span>
         {target && <span className="text-text-tertiary">· {target}</span>}
       </div>
-      {(card.detail || pinned) && (
+      {(detail || pinned) && (
         <p className="ui-loki-dispatch-detail">
-          {card.detail}
-          {card.detail && pinned ? " · " : ""}
+          {detail}
+          {detail && pinned ? " · " : ""}
           {pinned && `Agent: ${pinned}`}
         </p>
+      )}
+      {handoff && (
+        <RunHandoffBlock
+          handoff={handoff}
+          onNext={
+            onContinue && primaryProject
+              ? (step) => onContinue(nextStepPrompt(step), primaryProject)
+              : undefined
+          }
+        />
       )}
       {(card.primary || card.secondary.length > 0) && (
         <div className="ui-loki-dispatch-actions">
@@ -158,6 +187,60 @@ export function DispatchFooter({ meta }: { meta: Record<string, unknown> | null 
               {link.label}
             </Link>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * What the finished run did, what it checked, and what it would do next —
+ * said in the chat instead of one link away. Each next step is one tap that
+ * carries on here, on the same project; ignoring them costs nothing.
+ */
+function RunHandoffBlock({
+  handoff,
+  onNext,
+}: {
+  handoff: RunHandoff;
+  onNext?: (step: string) => void;
+}) {
+  return (
+    <div className="ui-loki-handoff">
+      {handoff.done.length > 0 && (
+        <div>
+          <p className="ui-micro-label">What changed</p>
+          <ul className="ui-loki-handoff-list">
+            {handoff.done.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {handoff.checked && (
+        <p className="ui-loki-dispatch-detail">
+          <span className="font-medium text-text-secondary">Checked:</span> {handoff.checked}
+        </p>
+      )}
+      {handoff.next.length > 0 && onNext && (
+        <div>
+          <p className="ui-micro-label">Next, if you want it</p>
+          <ul className="ui-loki-followups" aria-label="Next steps">
+            {handoff.next.map((step, i) => (
+              <li key={step}>
+                <button
+                  type="button"
+                  className={
+                    i === 0 ? "ui-loki-followup ui-loki-followup-next" : "ui-loki-followup"
+                  }
+                  onClick={() => onNext(step)}
+                >
+                  <CornerDownRight className="h-4 w-4 shrink-0" aria-hidden />
+                  <span>{step}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

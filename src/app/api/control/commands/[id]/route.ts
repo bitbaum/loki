@@ -11,6 +11,7 @@ import { getApiUserId } from "@/lib/session";
 import { deriveDispatchLiveStatus, type CommandLiveInput } from "@/lib/dispatch-status";
 import { autoReimplementAfterRunnerNack } from "@/lib/feedback/auto-reimplement";
 import { autoRetryProjectRunAfterNack } from "@/lib/project-retry";
+import { runHandoff } from "@/lib/run-handoff";
 
 // GET /api/control/commands/:id — live dispatch status the transcript footer
 // polls so a dispatch shows queued → picked up → ran/failed instead of a frozen
@@ -42,7 +43,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         }
       : null,
   });
-  return NextResponse.json(view);
+  // Once the run is over, what it did and what comes next ride with the
+  // status, so the chat card can say it instead of linking away.
+  return NextResponse.json({
+    ...view,
+    handoff: runHandoff(run?.finishedAt ? run.summary : null),
+  });
 }
 
 // Runner calls this to mark a command as executed.
