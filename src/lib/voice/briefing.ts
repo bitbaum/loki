@@ -91,7 +91,13 @@ export function spoken(project: string): string {
   return project.replace(/[-_]+/g, " ");
 }
 
-export function composeBriefing(s: FleetSnapshot): string {
+/**
+ * `hints: false` drops the "Say …" follow-ups. They are spoken commands, so
+ * they belong in no-screen mode, where the person can answer; read once from
+ * a button on /today they would invite a reply nothing is listening for.
+ */
+export function composeBriefing(s: FleetSnapshot, opts: { hints?: boolean } = {}): string {
+  const hints = opts.hints ?? true;
   const lines: string[] = [];
 
   if (s.builderOnline === false) lines.push("The builder is offline, so nothing can run.");
@@ -116,14 +122,14 @@ export function composeBriefing(s: FleetSnapshot): string {
     lines.push("Approvals are locked behind your PIN. Unlock them on screen to hear them.");
   } else if (s.approvals.length > 0) {
     lines.push(
-      `${count(s.approvals.length, "thing is", "things are")} waiting on you. Say "what's waiting" to hear them.`,
+      `${count(s.approvals.length, "thing is", "things are")} waiting on you.${hints ? ` Say "what's waiting" to hear them.` : ""}`,
     );
   }
 
   const failed = s.recentRuns.filter((r) => r.failed);
   if (failed.length > 0) {
     lines.push(
-      `${count(failed.length, "run")} failed: ${list(failed.map((r) => spoken(r.project)))}. Say "what failed" for the errors.`,
+      `${count(failed.length, "run")} failed: ${list(failed.map((r) => spoken(r.project)))}.${hints ? ` Say "what failed" for the errors.` : ""}`,
     );
   }
 

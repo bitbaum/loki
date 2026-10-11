@@ -5240,6 +5240,15 @@
     @apply flex min-h-11 items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
 
+  /* /today's brief: last night's autopilot note, one quiet line that goes to
+     the inbox it came from, and the row that carries "Listen to the brief". */
+  .ui-today-night {
+    @apply flex min-h-11 items-start gap-2 rounded-xl border border-border-subtle bg-surface-base px-3 py-2.5 text-sm text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
+  }
+  .ui-today-brief-row {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
   /* The account menu's styles live in @bitbaum/accountkit (imported at the
      top, colours mapped in :root). The .ui-account-* rules that were here
      drew Loki's own copy, which the shared menu replaced. */

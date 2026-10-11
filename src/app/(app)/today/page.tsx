@@ -36,6 +36,11 @@ import { FIRST_RUN } from "@/lib/constants/today";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { AutoRefresh } from "@/components/shared/AutoRefresh";
 import { REFRESH_CADENCE } from "@/config/refresh";
+import { AwayReturnCard } from "@/components/shell/AwayReturnCard";
+import { LastNightCard } from "@/components/today/LastNightCard";
+import { ListenBriefButton } from "@/components/today/ListenBriefButton";
+import { lastNightNote } from "@/lib/autopilot-night-note";
+import { isFreshNight } from "@/config/autopilot-night";
 
 export const metadata = { title: "Today" };
 
@@ -156,13 +161,20 @@ async function loadTodayInputs() {
 
   // Approvals and alerts join the same list — they used to be two more cards
   // below it, each with its own count and its own wall of detail.
-  const extras = await step("loadNeedsYouExtras", () => loadNeedsYouExtras(userId));
+  // Last night's autopilot note, only on the morning it happened. A failure
+  // here costs the line, never the page.
+  const [extras, night] = await Promise.all([
+    step("loadNeedsYouExtras", () => loadNeedsYouExtras(userId)),
+    lastNightNote(userId).catch(() => null),
+  ]);
+  const nightNote = night && isFreshNight(night.night) ? night.note : null;
 
-  return { name, userId, projects, orgProjects, flagged: needsYou, extras };
+  return { name, userId, projects, orgProjects, flagged: needsYou, extras, nightNote };
 }
 
 export default async function TodayPage() {
-  const { name, userId, projects, orgProjects, flagged, extras } = await loadTodayInputs();
+  const { name, userId, projects, orgProjects, flagged, extras, nightNote } =
+    await loadTodayInputs();
   const isFirstRun = projects.length === 0 && orgProjects.length === 0;
   return (
     <PullToRefresh>
@@ -207,6 +219,17 @@ export default async function TodayPage() {
 
         {!isFirstRun && (
           <>
+            {/* THE BRIEF: what happened while you were gone, then what needs
+                you. "Back in 30 minutes" used to be answered only on Control
+                and the chat's start screen, so the front door — the page a
+                phone opens to — was the one place that did not say what had
+                moved. Each piece renders nothing when it has nothing to say. */}
+            <AwayReturnCard />
+            <LastNightCard note={nightNote} />
+            <div className="ui-today-brief-row">
+              <ListenBriefButton nightNote={nightNote} />
+            </div>
+
             {/* THE ANSWER, FIRST.
 
                 Measured on production 2026-09-22: this page mentioned feedback

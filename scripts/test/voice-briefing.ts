@@ -73,6 +73,12 @@ check(() => {
   assert.match(b, /one run failed: orangecat\./);
   // Lead with the fleet, not with the builder being fine.
   assert.ok(!b.includes("online"));
+  // Read once from /today's Listen button: same facts, no spoken commands
+  // inviting a reply that nothing is listening for.
+  const quiet = composeBriefing(s, { hints: false });
+  assert.match(quiet, /one thing is waiting on you\./);
+  assert.match(quiet, /one run failed: orangecat\./);
+  assert.ok(!quiet.includes("Say "));
 });
 
 check(() => {
