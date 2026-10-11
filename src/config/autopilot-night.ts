@@ -259,6 +259,19 @@ export function nightRunAt(night: string): Date {
   return new Date(`${night}T${hh}:${mm}:00Z`);
 }
 
+/** How long after a night's run its morning note still belongs on /today. */
+export const NIGHT_NOTE_FRESH_HOURS = 20;
+
+/**
+ * Whether the note for `night` is still this morning's news. /feedback shows
+ * the latest night whatever its age; the front door only shows it on the day
+ * it happened, so a week-old night never reads as "last night".
+ */
+export function isFreshNight(night: string, now = Date.now()): boolean {
+  const age = now - nightRunAt(night).getTime();
+  return age >= 0 && age <= NIGHT_NOTE_FRESH_HOURS * 3_600_000;
+}
+
 /** The night the evening plans for: the morning of the next run after `now`. */
 export function upcomingNight(now: Date): string {
   const d = new Date(now);

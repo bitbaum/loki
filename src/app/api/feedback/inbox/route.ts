@@ -3,25 +3,7 @@ import { getSessionUserId } from "@/lib/session";
 import { getFeedbackLoopMetrics, listUserFeedback } from "@/db/queries/site-feedback";
 import { attachFeedbackWork } from "@/lib/feedback/attach-work";
 import { verifyDeployedFixes } from "@/lib/feedback/verify-live";
-import { getLatestAutopilotNight } from "@/db/queries/autopilot-nights";
-import { getOrchestrationRunsByIds } from "@/db/queries/orchestration-runs";
-import { nightNoteText } from "@/config/autopilot-night";
-
-/**
- * The morning note: what the last autopilot night did, with its spend where
- * the runner reported one. Null when there was no night or it did nothing.
- */
-async function lastNightNote(userId: string): Promise<{ night: string; note: string } | null> {
-  const row = await getLatestAutopilotNight(userId).catch(() => null);
-  if (!row) return null;
-  const runIds = [...row.summary.fixes, ...row.summary.reads]
-    .map((r) => r.runId)
-    .filter((id): id is string => !!id);
-  const runs = await getOrchestrationRunsByIds(userId, runIds).catch(() => new Map());
-  const spent = [...runs.values()].reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
-  const note = nightNoteText(row.summary, spent);
-  return note ? { night: row.night, note } : null;
-}
+import { lastNightNote } from "@/lib/autopilot-night-note";
 
 /**
  * The cross-project feedback inbox behind /feedback: every project's rows in

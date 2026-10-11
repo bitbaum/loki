@@ -20,9 +20,9 @@ type AwayResponse = {
  * they are still away it is one quiet line, so a glance at the phone says
  * the fleet knows.
  *
- * Mounted on Control (the operator loop's front door) and on the chat's
- * start screen (where the absence was announced). Renders nothing when
- * nobody said they were leaving.
+ * Mounted on Today (the brief, the page a phone opens to), on Control (the
+ * operator loop's front door) and on the chat's start screen (where the
+ * absence was announced). Renders nothing when nobody said they were leaving.
  */
 export function AwayReturnCard() {
   const { data, refetch } = useFetch<AwayResponse>("/api/away");

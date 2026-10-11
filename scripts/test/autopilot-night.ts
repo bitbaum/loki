@@ -22,6 +22,7 @@ import {
   NIGHT_APPROVAL,
   allowanceDaysLeft,
   nightRunAt,
+  isFreshNight,
   upcomingNight,
 } from "@/config/autopilot-night";
 
@@ -339,6 +340,12 @@ const report = (id: string, projectId: string, over: Partial<NightReport> = {}):
   assert.equal(upcomingNight(new Date("2026-10-11T01:00:00Z")), "2026-10-11");
   assert.equal(upcomingNight(new Date("2026-10-11T03:00:00Z")), "2026-10-12");
   assert.equal(nightRunAt("2026-10-11").toISOString(), "2026-10-11T02:30:00.000Z");
+
+  // /today shows last night's note only on the day it happened.
+  assert.equal(isFreshNight("2026-10-11", Date.parse("2026-10-11T07:30:00Z")), true);
+  assert.equal(isFreshNight("2026-10-11", Date.parse("2026-10-11T22:00:00Z")), true);
+  assert.equal(isFreshNight("2026-10-11", Date.parse("2026-10-12T00:00:00Z")), false);
+  assert.equal(isFreshNight("2026-10-11", Date.parse("2026-10-11T01:00:00Z")), false);
 
   const now = Date.parse("2026-10-10T12:00:00Z");
   const days = (n: number) => new Date(now + n * 86_400_000).toISOString();
