@@ -31,6 +31,11 @@ const FIELDS = [
     ask: "one line per alternative you rejected, as `<option> — <why not>` (repeat the line, at most 3)",
   },
   { label: "Helps", key: "helps", ask: "who benefits and how" },
+  {
+    label: "Next",
+    key: "next",
+    ask: "what else could be done on this front later, and why it was left out of this change (or `nothing`)",
+  },
   { label: "Where", key: "where", ask: "where on the live page to look" },
   {
     label: "For the reporter",
@@ -48,6 +53,9 @@ export type FixNote = {
   why: string | null;
   considered: { option: string; whyNot: string | null }[];
   helps: string | null;
+  /** What else could be done on this front — the developer's honest "not
+   *  yet", so the owner can steer the next step instead of guessing it. */
+  next: string | null;
   where: string | null;
   plain: string | null;
 };
@@ -78,6 +86,7 @@ export function parseFixNote(body: string | null | undefined): FixNote | null {
     why: null,
     considered: [],
     helps: null,
+    next: null,
     where: null,
     plain: null,
   };
@@ -124,7 +133,8 @@ export function parseFixNote(body: string | null | undefined): FixNote | null {
   flush();
 
   const tidy = tidyFixNote(note);
-  const any = tidy.problem || tidy.change || tidy.why || tidy.helps || tidy.where || tidy.plain;
+  const any =
+    tidy.problem || tidy.change || tidy.why || tidy.helps || tidy.next || tidy.where || tidy.plain;
   return any || tidy.considered.length ? tidy : null;
 }
 
@@ -156,7 +166,7 @@ const FOOTER = /\s*(?:🤖\s*)?Generated with \[?Claude Code\]?(?:\([^)]*\))?\.?
  * them forever; the walkthrough runs every stored note through this first.
  * Idempotent, and a no-op on a note this parser wrote.
  */
-export function tidyFixNote(note: FixNote): FixNote {
+export function tidyFixNote(note: Omit<FixNote, "next"> & { next?: string | null }): FixNote {
   const strip = (s: string | null) => {
     const t = s ? s.replace(FOOTER, "").trim() : "";
     return t || null;
@@ -173,6 +183,10 @@ export function tidyFixNote(note: FixNote): FixNote {
     why: strip(note.why),
     considered,
     helps: strip(note.helps),
+    // Absent on notes saved before the field existed.
+    next: /^(nothing|none|n\/a)\.?$/i.test((note.next ?? "").trim())
+      ? null
+      : strip(note.next ?? null),
     where: strip(note.where),
     plain: strip(note.plain),
   };
