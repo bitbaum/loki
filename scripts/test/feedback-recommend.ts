@@ -133,7 +133,10 @@ r = recommendFor(
 )!;
 assert.equal(r.kind, RECOMMEND.CONFIRM);
 assert.equal(r.label, "Close it");
-assert.match(r.why, /^Loki read \/pricing: The footer now reads/);
+assert.match(r.why, /^Loki read \/pricing and the change is there\./);
+// The model's finding is its own line, never spliced into the headline.
+assert.match(r.evidence ?? "", /The footer now reads/);
+assert.ok(r.why.length < 80, `a headline, not a paragraph: ${r.why}`);
 // Settled from a picture: the card says so, since that is a different kind of evidence.
 r = recommendFor(
   {
@@ -151,7 +154,8 @@ r = recommendFor(
   NOW,
 )!;
 assert.equal(r.kind, RECOMMEND.CONFIRM);
-assert.match(r.why, /^Loki looked at a picture of \/pricing: The three plan cards/);
+assert.match(r.why, /^Loki looked at a picture of \/pricing and the change is there\./);
+assert.match(r.evidence ?? "", /The three plan cards/);
 assert.equal(r.runs, 0);
 assert.ok(r.priority > 40);
 // Loki read it and the change is not there: a second run, not a person's eyes.
@@ -168,7 +172,8 @@ r = recommendFor(
   NOW,
 )!;
 assert.equal(r.kind, RECOMMEND.RETRY);
-assert.match(r.why, /could not find the change: The footer still says 2024/);
+assert.match(r.why, /could not find the change\./);
+assert.match(r.evidence ?? "", /The footer still says 2024/);
 // Live but unread, or unreadable from text: the owner's eyes — never "confirm" blind.
 r = recommendFor(
   {
@@ -200,7 +205,8 @@ r = recommendFor(
   NOW,
 )!;
 assert.equal(r.kind, RECOMMEND.LOOK);
-assert.match(r.why, /cards fit on one row/);
+assert.match(r.evidence ?? "", /cards fit on one row/, "what Loki saw rides along");
+assert.doesNotMatch(r.why, /cards fit on one row/, "…on its own line, not in the headline");
 // Live but the agent said "partial": not a confirm — a second run.
 r = recommendFor(
   {

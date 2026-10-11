@@ -11,15 +11,17 @@ import { LookedPicture } from "@/components/feedback/LookedPicture";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { compactRelativeDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+import { decisionFacts } from "@/lib/feedback/decision-facts";
 
 /**
  * One decision Loki has already made, waiting for a yes.
  *
  * The card leads with the tap (Loki's recommendation, as a verb) and the
- * reason in one sentence; the report itself is under them in smaller type,
- * for the reader who has time. One filled button is the yes. "Something
- * else" opens the full row — every other move, the walkthrough, the
- * terminal — for the reader who disagrees. Nothing on the card needs to be
+ * reason in one short sentence. Under it, each fact on its own line — what
+ * was asked, what was done, what could come next, what Loki saw on the live
+ * page — so the card reads in a glance instead of as one long string. One
+ * filled button is the yes; "More" opens the full row — every other move,
+ * sharing the walkthrough, the terminal — for the reader who disagrees. Nothing on the card needs to be
  * read for the tap to be right: that is the contract the recommendation
  * engine (lib/feedback/recommend.ts) signs.
  */
@@ -46,20 +48,41 @@ export function DecisionCard({
   const [other, setOther] = useState(false);
   const cost = rec.kind === RECOMMEND.LOOK ? "your eyes" : rec.runs ? "one agent run" : "free";
   const liveHref = livePageHref(f.liveUrl, f.url, f.page);
+  const facts = decisionFacts(f);
   return (
     <article className={cn("ui-fb-decision", taken && "ui-fb-decision-taken")}>
-      <p className="ui-fb-decision-kicker">
-        {kindWord(rec)} · {cost}
-      </p>
-      <p className="ui-fb-decision-why">{rec.why}</p>
-      <p className="ui-fb-decision-report">
-        <span className="ui-fb-decision-quote">“{excerpt(f.suggestion)}”</span>
+      <div className="ui-fb-decision-top">
+        <p className="ui-fb-decision-kicker">
+          {kindWord(rec)} · {cost}
+        </p>
         <span className="ui-fb-decision-where">
-          {" "}
-          — {project ? `${project.name} · ` : ""}
+          {project ? `${project.name} · ` : ""}
           {f.page && f.page !== "/" ? f.page : "home"} · {compactRelativeDate(f.createdAt)}
         </span>
-      </p>
+      </div>
+      <p className="ui-fb-decision-why">{rec.why}</p>
+      <dl className="ui-fb-decision-facts">
+        <dt className="ui-fb-decision-fact-label">Asked</dt>
+        <dd className="ui-fb-decision-fact-quote">“{facts.asked}”</dd>
+        {facts.done && (
+          <>
+            <dt className="ui-fb-decision-fact-label">Done</dt>
+            <dd className="ui-fb-decision-fact">{facts.done}</dd>
+          </>
+        )}
+        {facts.next && (
+          <>
+            <dt className="ui-fb-decision-fact-label">Next</dt>
+            <dd className="ui-fb-decision-fact">{facts.next}</dd>
+          </>
+        )}
+        {rec.evidence && (
+          <>
+            <dt className="ui-fb-decision-fact-label">Loki saw</dt>
+            <dd className="ui-fb-decision-fact-quiet">{rec.evidence}</dd>
+          </>
+        )}
+      </dl>
       {rec.kind === RECOMMEND.LOOK && (
         // Loki could not settle it, but it took the picture: the owner can
         // often answer from here, without the trip to the site.
@@ -76,7 +99,7 @@ export function DecisionCard({
           // Look first — the walkthrough opens the live page and points at
           // the change — then answer. Both answers are one tap, right here.
           <>
-            {liveHref && <WatchFixButton feedbackId={f.id} liveHref={liveHref} />}
+            {liveHref && <WatchFixButton feedbackId={f.id} liveHref={liveHref} share={false} />}
             <button
               type="button"
               onClick={rowProps.onResolve}
@@ -117,7 +140,7 @@ export function DecisionCard({
             className="ui-fb-row-quiet-btn"
             aria-expanded={other}
           >
-            {other ? "Hide the rest" : "Something else"}
+            {other ? "Less" : "More"}
           </button>
         )}
       </div>
@@ -153,11 +176,4 @@ function kindWord(rec: Recommendation): string {
     case RECOMMEND.LOOK:
       return "Look";
   }
-}
-
-function excerpt(text: string): string {
-  const one = text.replace(/\s+/g, " ").trim();
-  // The agent-filed "--- technical details ---" tail is not the report.
-  const cut = one.split(/\s*---\s*technical details/i)[0];
-  return cut.length > 140 ? `${cut.slice(0, 139)}…` : cut;
 }

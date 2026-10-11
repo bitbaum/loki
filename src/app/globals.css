@@ -5131,14 +5131,31 @@
   .ui-fb-decision-why {
     @apply text-sm font-medium leading-snug text-text-primary;
   }
-  .ui-fb-decision-report {
-    @apply text-xs leading-relaxed text-text-tertiary;
-  }
-  .ui-fb-decision-quote {
-    @apply text-text-secondary;
+  /* The card's top line: what to do (left), whose report and when (right). */
+  .ui-fb-decision-top {
+    @apply flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5;
   }
   .ui-fb-decision-where {
-    @apply text-text-muted;
+    @apply text-xs text-text-muted;
+  }
+  /* Asked / Done / Next / Loki saw — labels in one narrow column so the
+     answers line up and each reads as its own short line, instead of the
+     report, the work and the model's finding running together as one
+     paragraph (the owner, 2026-10-11: "big strings that is hard to read"). */
+  .ui-fb-decision-facts {
+    @apply grid grid-cols-[4.75rem_1fr] gap-x-3 gap-y-1.5 text-sm leading-snug;
+  }
+  .ui-fb-decision-fact-label {
+    @apply pt-px text-xs font-medium uppercase tracking-caps text-text-tertiary;
+  }
+  .ui-fb-decision-fact {
+    @apply min-w-0 text-text-secondary;
+  }
+  .ui-fb-decision-fact-quote {
+    @apply min-w-0 text-text-secondary italic;
+  }
+  .ui-fb-decision-fact-quiet {
+    @apply line-clamp-3 min-w-0 text-text-tertiary;
   }
   .ui-fb-decision-actions {
     @apply mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5;

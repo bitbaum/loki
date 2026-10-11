@@ -38,7 +38,7 @@ type InboxItem = UserFeedbackListItem & { work: FeedbackWorkView };
  * and ONE button that takes all of them (saying what it spends). Each
  * decision is a card: Loki's recommendation as the verb, the reason in one
  * sentence, the report beneath in smaller type, one filled button. Reading
- * is optional; disagreeing is one tap away ("Something else" opens the full
+ * is optional; disagreeing is one tap away ("More" opens the full
  * row). Everything that is not a decision — agents at work, fixes you
  * confirmed, reports filed away — sits in collapsed lines under the queue.
  *
