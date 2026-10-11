@@ -22,7 +22,7 @@ import { readIdParam, readJsonBody } from "@/lib/api/route-helpers";
 import { getCommandById } from "@/db/queries/pending-commands";
 import { getProjectCore } from "@/db/queries/projects";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
-import { getRepoWriteToken } from "@/lib/github-org-token";
+import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
 import { deprovisionGithubRepo, repoSlug, setGithubRepoVisibility } from "@/lib/github-provision";
 import { requestRetireSite } from "@/lib/hosted-runner/provision";
 import { RETIRE_MODES, REPO_ACTIONS, defaultRepoAction } from "@/lib/hosted-runner/retire-site";
@@ -88,9 +88,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     ok: true,
   };
   if (confirm && repoAction !== "keep" && gitUrl) {
-    const write = await getRepoWriteToken(userId);
+    const write = await getRepoWriteToken(userId, {
+      lokiKept: lokiKeepsCode({ gitUrl, codeCustody: userProject?.codeCustody ?? null }),
+    });
     if (!write) {
-      repoResult = { attempted: true, ok: false, error: "No GitHub account linked." };
+      repoResult = {
+        attempted: true,
+        ok: false,
+        error: "Only your own GitHub account can change this repository. Connect it first.",
+      };
     } else {
       const gh =
         repoAction === "private"

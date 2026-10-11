@@ -4,6 +4,7 @@ import { shortTimeAgo } from "@/lib/dates";
 import { BrandMark } from "@/components/shell/BrandMark";
 import { AwayReturnCard } from "@/components/shell/AwayReturnCard";
 import { BuildSuggestions } from "./BuildSuggestions";
+import { ThreadInbox } from "./ThreadInbox";
 import type { ConversationSummary } from "./types";
 
 /** Threads offered for resuming. Four one-line rows fit above the composer on a
@@ -52,6 +53,11 @@ export function StartScreen({
   return (
     <div className="ui-loki-start">
       <AwayReturnCard />
+      {/* One line of truth above the greeting: what needs you, what runs,
+          what came back while you looked elsewhere — each a tap into the
+          first such thread. Claude's list makes you read every row for
+          this; here it is said once. */}
+      <ThreadInbox conversations={conversations} onOpen={onResume} />
       <div className="ui-loki-start-hello">
         <BrandMark showWordmark={false} />
         <h1 className="ui-loki-start-title">What are we working on?</h1>

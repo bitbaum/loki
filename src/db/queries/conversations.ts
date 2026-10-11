@@ -32,27 +32,54 @@ export function deriveConversationTitle(text: string): string | null {
  *  projectKeys filter keeps only threads tagged with at least one given key.
  *  The inner join deliberately hides abandoned placeholders left by clients
  *  that created a thread but never sent a first message. */
+/** What the rail knows about a thread's last message — enough to say what
+ *  the thread needs from the person (lib/loki/thread-state.ts) without
+ *  loading it. */
+export type ConversationLastMessage = {
+  preview: string;
+  lastRole: string | null;
+  lastKind: string | null;
+  lastAt: Date | null;
+  lastOk: boolean | null;
+  lastOutcome: string | null;
+  lastNeedsProject: boolean | null;
+};
+
+export type ConversationListRow = Pick<
+  Conversation,
+  "id" | "title" | "projectKeys" | "updatedAt" | "lastReadAt" | "pinnedAt"
+> &
+  ConversationLastMessage;
+
 export async function listConversations(
   userId: string,
   opts: { projectKeys?: string[] } = {},
-): Promise<
-  (Pick<Conversation, "id" | "title" | "projectKeys" | "updatedAt"> & { preview: string })[]
-> {
-  // The last line of each thread, for the rail: a title says what a thread is
-  // about, the last message says where it stopped — which is what decides
-  // whether to reopen it. One correlated subquery, no second round trip.
-  const preview = sql<string>`coalesce((
-    select left(m.content, 160) from conversation_messages m
+): Promise<ConversationListRow[]> {
+  // The last message of each thread, for the rail: a title says what a
+  // thread is about, the last message says where it stopped and what it
+  // asks of the person — which is what decides whether to reopen it. Each
+  // column is one correlated subquery over the same (indexed) row; no
+  // second round trip.
+  const last = (expr: string) => sql`(
+    select ${sql.raw(expr)} from conversation_messages m
     where m.conversation_id = ${conversations.id}
     order by m.created_at desc limit 1
-  ), '')`;
+  )`;
   const rows = await db
     .select({
       id: conversations.id,
       title: conversations.title,
       projectKeys: conversations.projectKeys,
       updatedAt: conversations.updatedAt,
-      preview,
+      lastReadAt: conversations.lastReadAt,
+      pinnedAt: conversations.pinnedAt,
+      preview: sql<string>`coalesce(${last("left(m.content, 160)")}, '')`,
+      lastRole: sql<string | null>`${last("m.role")}`,
+      lastKind: sql<string | null>`${last("m.kind")}`,
+      lastAt: sql<Date | null>`${last("m.created_at")}`,
+      lastOk: sql<boolean | null>`${last("(m.meta->>'ok')::boolean")}`,
+      lastOutcome: sql<string | null>`${last("m.meta->>'outcome'")}`,
+      lastNeedsProject: sql<boolean | null>`${last("(m.meta->>'needsProject')::boolean")}`,
     })
     .from(conversations)
     .innerJoin(conversationMessages, eq(conversationMessages.conversationId, conversations.id))
@@ -62,6 +89,8 @@ export async function listConversations(
       conversations.title,
       conversations.projectKeys,
       conversations.updatedAt,
+      conversations.lastReadAt,
+      conversations.pinnedAt,
     )
     .orderBy(desc(conversations.updatedAt));
 
@@ -140,6 +169,35 @@ export async function updateConversationTitle(
   const [row] = await db
     .update(conversations)
     .set({ title, updatedAt: new Date() })
+    .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+    .returning();
+  return row ?? null;
+}
+
+/** The person has the thread open now: everything written so far is read.
+ *  User-scoped; a thread that is not theirs is left alone and reported. */
+export async function markConversationRead(
+  userId: string,
+  id: string,
+  at: Date = new Date(),
+): Promise<boolean> {
+  const rows = await db
+    .update(conversations)
+    .set({ lastReadAt: at })
+    .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+    .returning({ id: conversations.id });
+  return rows.length > 0;
+}
+
+/** Pin a thread to the top of the rail, or let it go. User-scoped. */
+export async function setConversationPinned(
+  userId: string,
+  id: string,
+  pinned: boolean,
+): Promise<Conversation | null> {
+  const [row] = await db
+    .update(conversations)
+    .set({ pinnedAt: pinned ? new Date() : null })
     .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
     .returning();
   return row ?? null;

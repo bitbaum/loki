@@ -147,6 +147,22 @@ export const userProjects = pgTable(
     hostedApp: text("hosted_app"),
     // The Solon organisation this project is governed by, if any.
     solonOrgSlug: text("solon_org_slug"),
+    /**
+     * Who holds this project's code.
+     *
+     * "loki": Loki created the repository, in the fleet's organisation, with the
+     * server's own token, for a person who never had to open an account anywhere
+     * else. Loki keeps it, builds it, and may archive it when the project is
+     * deleted. "own": the person took it to their own GitHub (handover), or
+     * linked a repository of theirs. Null: linked before custody was recorded —
+     * treated as "own", so no server credential ever acts on it.
+     *
+     * The column is what lets the org token serve everyone for CREATING code
+     * without becoming a credential anyone can aim at the org's other
+     * repositories: a destructive org-token write is allowed only on a row
+     * that says "loki", and only the create paths may write that value.
+     */
+    codeCustody: text("code_custody").$type<CodeCustody>(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -161,6 +177,13 @@ export const userProjects = pgTable(
     uniqueIndex("uq_user_projects_user_name").on(t.userId, t.name),
   ],
 );
+
+/** See `codeCustody` above. */
+export type CodeCustody = "loki" | "own";
+export const CODE_CUSTODY = { LOKI: "loki", OWN: "own" } as const satisfies Record<
+  string,
+  CodeCustody
+>;
 
 export type UserProject = typeof userProjects.$inferSelect;
 export type NewUserProject = typeof userProjects.$inferInsert;

@@ -6629,6 +6629,17 @@
   .ui-loki-start {
     @apply flex min-h-0 flex-1 flex-col gap-4 sm:flex-none sm:gap-6;
   }
+  /* The inbox line above the greeting: what needs you, what runs, what
+     came back — each part a tap. Centred like the greeting it sits over. */
+  .ui-loki-start-inbox {
+    @apply flex flex-wrap items-center justify-center gap-2;
+  }
+  .ui-loki-start-inbox-item {
+    @apply inline-flex min-h-9 items-center gap-1 rounded-full border border-border-subtle px-3 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
+  }
+  .ui-loki-start-inbox-needs {
+    @apply border-status-warning/40 font-medium text-text-primary;
+  }
   .ui-loki-start-hello {
     @apply flex flex-1 flex-col items-center justify-center gap-3 text-center sm:flex-none;
   }
@@ -6819,7 +6830,18 @@
     @apply mt-0.5 truncate text-xs text-text-secondary;
   }
   .ui-loki-convo-meta {
-    @apply mt-0.5 truncate text-xs text-text-tertiary;
+    @apply mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-text-tertiary;
+  }
+  /* What the thread needs from you, in words, with a dot or a spinner —
+     the one thing a list ordered by last touch could never say. */
+  .ui-loki-convo-state {
+    @apply inline-flex items-center gap-1 text-text-secondary;
+  }
+  .ui-loki-convo-state-needs {
+    @apply font-medium text-text-primary;
+  }
+  .ui-loki-convo-pinned {
+    @apply mr-1 inline h-3 w-3 align-[-1px] text-text-tertiary;
   }
 
   /* Conversation row wrapper — holds the select button + a delete action that
@@ -6837,10 +6859,15 @@
   .ui-loki-convo-delete-armed {
     @apply opacity-100 text-status-negative bg-status-negative-subtle;
   }
+  /* Pin sits one slot left of delete; same reveal, no destructive colour. */
+  .ui-loki-convo-pin {
+    @apply absolute right-10 top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded p-1.5 text-text-muted opacity-0 transition-all hover:bg-surface-overlay hover:text-text-primary focus-visible:opacity-100;
+  }
   /* Touch devices have no hover, so the delete would be permanently invisible.
      Show it (dimmed) there; desktop keeps the reveal-on-hover behaviour. */
   @media (hover: none) {
-    .ui-loki-convo-delete {
+    .ui-loki-convo-delete,
+    .ui-loki-convo-pin {
       @apply opacity-60;
     }
   }
@@ -7238,6 +7265,23 @@
   }
   .ui-loki-rail-more {
     @apply mt-1 inline-flex h-9 items-center gap-1 self-start rounded-lg px-2 text-xs text-text-tertiary transition-colors hover:text-text-primary;
+  }
+  /* "What needs me" / "By project": two quiet words, one of them on. */
+  .ui-loki-rail-modes {
+    @apply flex shrink-0 items-center gap-1 px-1;
+  }
+  .ui-loki-rail-mode {
+    @apply min-h-8 rounded-lg px-2 text-xs text-text-tertiary transition-colors hover:text-text-primary;
+  }
+  .ui-loki-rail-mode-on {
+    @apply bg-surface-raised text-text-primary;
+  }
+  /* A project's header in the by-project rail: its name and what it asks. */
+  .ui-loki-rail-group {
+    @apply flex min-h-8 items-center justify-between gap-2 px-3 text-micro uppercase tracking-wider text-text-muted;
+  }
+  .ui-loki-rail-group-counts {
+    @apply shrink-0 normal-case tracking-normal text-text-secondary;
   }
 
   /* ── Model picker ─────────────────────────────────────────────────────────
@@ -7747,6 +7791,7 @@
   .ui-theme-cycle-btn,
   .ui-topbar-btn,
   .ui-loki-convo-delete,
+  .ui-loki-convo-pin,
   .ui-loki-topbar-btn,
   .ui-loki-jump {
     min-height: 2.75rem;

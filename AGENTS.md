@@ -72,6 +72,20 @@ place the owner is decided, creation goes to the org and fails loudly if it
 cannot, and `scripts/test/repos-are-created-in-the-org.ts` fails on any path
 that does otherwise. `gh repo list catomean` should show one repo (the profile).
 
+**Nobody is sent to GitHub to start.** Most people arriving with an idea have
+no GitHub account and should never need one: Loki creates the repository with
+the server's own org token for EVERY signed-in account and keeps the code
+(`user_projects.code_custody = 'loki'`). That column is the whole safety
+boundary — the org token may act destructively (archive, rewire, hand over)
+only on a row that says `loki`, and only the two paths that created the
+repository with that token may write it (`lib/kickoff/steps.ts`,
+`api/projects/create-with-github`). A repository a person linked by hand is
+theirs: their own token or nothing. `scripts/test/github-org-token.ts` pins
+the rule. Once the site is live, Project settings offers to move the
+repository to the person's own GitHub (`api/projects/[id]/handover`); after
+that it is theirs to manage there. Keeping code is free; if it ever incurs a
+real cost it becomes part of a paid plan, never a gate in front of starting.
+
 ## What agents Loki dispatches are told about the fleet
 
 Every prompt Loki assembles for a repo in the `bitbaum` org carries the fleet

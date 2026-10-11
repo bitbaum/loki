@@ -1,8 +1,9 @@
 "use client";
 
 // "Start a new project from scratch" without local runtime.
-// Creates a brand new GitHub repo + Loki project record in one shot.
-// After, the user can `git clone` it on any machine — no Fleet Runner needed.
+// Makes a place for the code (a repository Loki keeps, in the fleet's
+// organisation) + the Loki project record in one shot. No GitHub account is
+// needed; a person who has one can `git clone` it on any machine afterwards.
 //
 // Companion to BootstrapModal which does the full local stack scaffold but
 // only works when the local runner is running.
@@ -41,6 +42,9 @@ type CreateResponse = {
   error?: string;
   detail?: string;
   hasGithub?: boolean;
+  /** False when the repository is private and the person holds no credential
+   *  that opens it — Loki keeps it for them; a link would 404. */
+  viewerCanOpenRepo?: boolean;
 };
 
 /**
@@ -160,31 +164,34 @@ function NewFromScratchForm() {
                 <li className="flex items-start gap-2 text-sm text-text-secondary">
                   <Check className="h-4 w-4 mt-0.5 shrink-0 text-status-positive" />
                   <span>
-                    <GitBranch className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />
-                    {result.repo.private ? "Private" : "Public"} GitHub repo{" "}
-                    <a
-                      href={result.repo.gitUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-accent-text underline break-all"
-                    >
-                      {result.repo.full_name}
-                    </a>
+                    <GitBranch className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />A{" "}
+                    {result.repo.private ? "private" : "public"} place for the code, kept by Loki
+                    {result.viewerCanOpenRepo === false ? "" : " — "}
+                    {result.viewerCanOpenRepo !== false && (
+                      <a
+                        href={result.repo.gitUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent-text underline break-all"
+                      >
+                        {result.repo.full_name}
+                      </a>
+                    )}
                   </span>
                 </li>
                 {seededLabel && (
                   <li className="flex items-start gap-2 text-sm text-text-secondary">
                     <Check className="h-4 w-4 mt-0.5 shrink-0 text-status-positive" />
                     <span>
-                      <strong>{seededLabel}</strong> starter scaffolded into the repo
+                      <strong>{seededLabel}</strong> starter scaffolded into it
                     </span>
                   </li>
                 )}
                 {result.template && result.template !== "bare" && !result.templateSeeded && (
                   <li className="flex items-start gap-2 text-sm text-status-warning">
                     <span>
-                      ⚠ Starter seeding failed — the repo has just a README; the agent will scaffold
-                      the stack instead.
+                      ⚠ Starter seeding failed — there is just a README so far; the agent will
+                      scaffold the stack instead.
                     </span>
                   </li>
                 )}
@@ -244,7 +251,7 @@ function NewFromScratchForm() {
                 <Link href="/download" className="text-accent-text underline">
                   Connect Fleet Runner
                 </Link>{" "}
-                on the machine you&apos;ll build from — it clones the repo and runs this task
+                on the machine you&apos;ll build from — it fetches the code and runs this task
                 automatically. No runner yet? The task queues until one connects.
               </div>
 

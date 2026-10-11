@@ -458,3 +458,79 @@ export async function disableGithubActions(
     return false;
   }
 }
+
+/** Where a repository lives once GitHub has moved it to `newOwner`. Pure. */
+export function repoUrlAfterTransfer(gitUrl: string, newOwner: string): string | null {
+  const parsed = parseGithubRepoUrl(gitUrl);
+  if (!parsed) return null;
+  return `https://github.com/${newOwner}/${parsed.repo}`;
+}
+
+/** The GitHub login behind a person's own OAuth token, or null. */
+export async function githubLoginFor(userToken: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${GITHUB_API_BASE}/user`, {
+      headers: {
+        Authorization: `Bearer ${userToken}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      signal: AbortSignal.timeout(HTTP_TIMEOUT_SHORT_MS),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { login?: unknown };
+    return typeof body.login === "string" && body.login ? body.login : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hand a repository Loki keeps over to the person's own GitHub account.
+ *
+ * GitHub's transfer is a two-sided act: the org's token offers, and the new
+ * owner accepts from the e-mail GitHub sends them (the offer lasts a day).
+ * Until they accept, the repository stays where it is and keeps working; once
+ * they do, the old address redirects to the new one. So the caller may record
+ * the new address at once — a clone of either reaches the same code.
+ */
+export async function transferGithubRepo(
+  token: string,
+  gitUrl: string,
+  newOwner: string,
+): Promise<DeprovisionResult> {
+  const parsed = parseGithubRepoUrl(gitUrl);
+  if (!parsed)
+    return { ok: false, status: 400, error: "Linked repo is not a GitHub repository URL." };
+  let res: Response;
+  try {
+    res = await fetch(`${GITHUB_API_BASE}/repos/${parsed.owner}/${parsed.repo}/transfer`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ new_owner: newOwner }),
+      signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
+    });
+  } catch {
+    return { ok: false, status: 502, error: "GitHub did not respond in time." };
+  }
+  // 202 Accepted is the normal answer: the transfer waits on the new owner.
+  if (res.ok) return { ok: true };
+  let detail = "";
+  try {
+    const body = await res.json();
+    detail = body?.errors?.[0]?.message ?? body?.message ?? "";
+  } catch {
+    /* ignore */
+  }
+  return {
+    ok: false,
+    status: res.status,
+    error: `GitHub would not move ${parsed.owner}/${parsed.repo} to ${newOwner} (${res.status})`,
+    detail,
+  };
+}

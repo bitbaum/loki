@@ -185,8 +185,8 @@ export function ProjectsWorkspace({
           </EmptyState>
         ) : (
           <EmptyState icon={FolderKanban} title="No projects yet">
-            Register your first project with “Add” above — connect a repo and the fleet can start
-            working on it.
+            Add your first project above — a name and a sentence are enough. Loki keeps the code and
+            an agent can start building it; no account anywhere else needed.
           </EmptyState>
         )
       ) : (

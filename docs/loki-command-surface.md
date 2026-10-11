@@ -65,6 +65,12 @@ The Loki page (`/loki`) is live and in daily use as the dogfood surface. Confirm
 - **Fast project load:** `/loki` server-prefetches the project list and conversation
   history (no stuck "Loading…" panes). `?project=loki` auto-selects that project;
   a sole registered project is selected by default.
+- **The rail is an inbox (2026-10-11):** every row says what the thread needs —
+  a project pick, a run that failed, a run that finished since you last looked,
+  nothing — derived from its last message (`lib/loki/thread-state.ts`) and the
+  thread's `last_read_at`. Rows sort by that before recency; pinned threads stay on
+  top; "By project" folds the same rows under one header per project with its
+  counts. The start screen carries the same counts as one line of taps.
 
 Open questions §6 #1 (chat vs command — both, routed by intent resolution) and #2
 (dispatches go to the project's existing session; the conversation is the human-readable
