@@ -69,7 +69,7 @@ assert.equal(parseFixNote(`## ${FIX_NOTE_HEADING}\n- Problem: <what was actually
     .join("\n");
   const note = parseFixNote(`## ${FIX_NOTE_HEADING}\n${filled}`);
   assert.ok(note);
-  for (const k of ["problem", "change", "why", "helps", "where", "plain"] as const)
+  for (const k of ["problem", "change", "why", "helps", "next", "where", "plain"] as const)
     assert.equal(note[k], "filled in", `instruction and parser agree on ${k}`);
   assert.equal(note.considered[0]?.option, "filled in");
 }
@@ -153,6 +153,19 @@ assert.equal(parseFixNote(`## ${FIX_NOTE_HEADING}\n- Problem: <what was actually
   assert.equal(tidy.considered.length, 3);
   assert.equal(tidy.considered[0].whyNot, "wastes space.");
   assert.deepEqual(tidyFixNote(tidy), tidy, "idempotent");
+}
+
+// ---- "Next": what else could be done, or honestly nothing ----
+{
+  const note = parseFixNote(
+    "## Walkthrough\n- Change: c\n- Next: Lazy-load the gallery — left out to keep this change small.",
+  );
+  assert.match(note?.next ?? "", /Lazy-load/);
+  assert.equal(parseFixNote("## Walkthrough\n- Change: c\n- Next: nothing")?.next, null);
+  // Notes saved before the field existed still read.
+  const { next: _drop, ...old } = note!;
+  void _drop;
+  assert.equal(tidyFixNote(old).next, null);
 }
 
 console.log("fix-note: ok");
