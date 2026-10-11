@@ -111,6 +111,9 @@ const ENVELOPE_BLOCK_PATTERNS: RegExp[] = [
   // comment warns about; scripts/test/dispatch-headings-stripped.ts now fails
   // when a pipeline heading has no pattern here.
   /^##[ \t]*Relevant context from your other projects\b[\s\S]*?(?=\n#{1,3}[ \t]|\nProject context & goals\b|(?![\s\S]))/im,
+  // The fleet brief (lib/fleet-brief) ends on its own sentinel line, so an
+  // unheaded intent body after it survives.
+  /^##[ \t]*bitbaum house rules\b[\s\S]*?(?:\nEnd of bitbaum house rules\.|(?=\n#{1,3}[ \t]|\nProject context & goals\b)|(?![\s\S]))/im,
   /^##[ \t]*Escalation state\b[\s\S]*?(?=\n#{1,3}[ \t]|\nProject context & goals\b|(?![\s\S]))/im,
   // The project brief block ends with its own sentinel line, not a heading.
   /^Project context & goals\b[\s\S]*?Favor the next step that most advances these goals\.?/im,

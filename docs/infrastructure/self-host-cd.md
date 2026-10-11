@@ -116,9 +116,14 @@ idle minutes. See [sleep-when-idle.md](sleep-when-idle.md).
 
 ## Loki kickoff (existing repo → CD)
 
-`scripts/hetzner/new-site.sh` scaffolds a **new** site from `scripts/site-template`.
-Loki **Make it happen** creates a different kind of repo (agent starters via
-`/api/projects/[id]/provision`). To put that repo on the same CD path:
+`scripts/hetzner/new-site.sh` scaffolds a **new** site from `scripts/site-template`,
+which is bitbaum/fleet `templates/app` (the fleet starter) pinned to a fleet
+commit — change it in fleet, then `scripts/templates/sync-starter.sh`; CI proves
+the copy is exact. Loki **Make it happen** with the Next.js starter seeds the
+SAME app (minus its workflows) into a new repo via
+`/api/projects/[id]/provision`. Both paths give the site its database and
+auth/seal secrets on the box (`scripts/hetzner/provision-db-on-box.sh`). To
+put a kickoff repo on the same CD path:
 
 1. Kickoff calls `POST /api/projects/[id]/register-cd` after provision.
 2. That seeds `.github/workflows/deploy.yml` (when missing) and, on the studio

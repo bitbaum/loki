@@ -41,7 +41,21 @@ export type CreateProjectRequest = {
   /** Normalized slug when the user named it; null when they said "create entity and go". */
   name: string | null;
   dispatchAfter: boolean;
+  /**
+   * What to build, when the line carries it: "create project plant-log and
+   * build it: a page that logs watering". Loki ends a scoping answer with
+   * exactly that line, so the scope it just wrote reaches the agent instead of
+   * a bare "continue from our discussion" the agent has never seen.
+   */
+  task: string | null;
 };
+
+const CREATE_TASK_RE =
+  /\b(?:and|then|let['']?s)\s+(?:go|develop|build|start|dispatch|run)(?:\s+it)?\s*[:\u2014-]\s*([\s\S]{8,})$/i;
+
+function createTask(text: string): string | null {
+  return text.match(CREATE_TASK_RE)?.[1]?.trim().replace(/\*+$/, "").trim() || null;
+}
 
 export function parseCreateProjectRequest(text: string): CreateProjectRequest | null {
   const trimmed = text.trim();
@@ -50,10 +64,18 @@ export function parseCreateProjectRequest(text: string): CreateProjectRequest | 
     const raw = named[1].replace(/\s+(and|then)\s+.*$/i, "").trim();
     const slug = normalizeProjectName(raw);
     if (!slug) return null;
-    return { name: slug, dispatchAfter: DISPATCH_AFTER_CREATE_RE.test(trimmed) };
+    return {
+      name: slug,
+      dispatchAfter: DISPATCH_AFTER_CREATE_RE.test(trimmed),
+      task: createTask(trimmed),
+    };
   }
   if (CREATE_GENERIC_RE.test(trimmed)) {
-    return { name: null, dispatchAfter: DISPATCH_AFTER_CREATE_RE.test(trimmed) };
+    return {
+      name: null,
+      dispatchAfter: DISPATCH_AFTER_CREATE_RE.test(trimmed),
+      task: createTask(trimmed),
+    };
   }
   return null;
 }

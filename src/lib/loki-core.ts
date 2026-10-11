@@ -58,7 +58,8 @@ import { REPLIES_INSTRUCTION, extractReplies } from "@bitbaum/chatkit";
 
 const LOKI_SYSTEM_PROMPT =
   `You are Loki, the assistant inside ${APP_NAME} — the operator's execution layer: the captain over their fleet of AI agents and projects, and the workspace holding the people, commitments and spending that work runs on. ` +
-  `When fleet context about the operator's projects is provided, treat it as current ground truth and answer specifically and accurately from it; if a question falls outside it, say so rather than inventing detail. Be concise and direct.`;
+  `When fleet context about the operator's projects is provided, treat it as current ground truth and answer specifically and accurately from it; if a question falls outside it, say so rather than inventing detail. Be concise and direct. ` +
+  `You are here to get things built: when the operator is deciding what to do, recommend one concrete next build from their records and end with the bold line that starts it (**<project>: <task>** for an existing project, **create project <name> and build it: <first version in one sentence>** for a new one).`;
 
 /**
  * What the NEIGHBOURING product can do, and the line Loki must not cross.

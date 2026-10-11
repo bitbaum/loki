@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, isNotNull, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { promoteDevLogEntry } from "@/lib/integrations/orangecat-publish";
 import {
@@ -276,6 +276,57 @@ export async function getUserProjectByEntityId(
     where: and(eq(userProjects.userId, userId), eq(userProjects.entityProjectId, entityProjectId)),
   });
   return row ?? null;
+}
+
+/**
+ * The git URL of the project a dispatch names by key — the caller's own row
+ * first, then its entity, then a project an org peer owns (inject resolves
+ * team projects the same way). Exact case-insensitive match, never a pattern:
+ * a key is not allowed to wildcard its way onto another project's repo.
+ * Null when nothing matches or nothing is recorded.
+ */
+export async function getProjectGitUrlByKey(
+  userId: string,
+  projectKey: string,
+): Promise<string | null> {
+  const key = projectKey.trim().toLowerCase();
+  if (!key) return null;
+  const own = await db
+    .select({ gitUrl: userProjects.gitUrl, entityGitUrl: entities.gitUrl })
+    .from(userProjects)
+    .leftJoin(entities, eq(entities.id, userProjects.entityProjectId))
+    .where(and(eq(userProjects.userId, userId), eq(sql`lower(${userProjects.name})`, key)))
+    .limit(1);
+  const ownUrl = own[0]?.gitUrl ?? own[0]?.entityGitUrl;
+  if (ownUrl) return ownUrl;
+  const entity = await db
+    .select({ gitUrl: entities.gitUrl })
+    .from(entities)
+    .where(
+      and(
+        eq(entities.userId, userId),
+        eq(entities.type, ENTITY_TYPE.PROJECT),
+        eq(sql`lower(${entities.name})`, key),
+        isNotNull(entities.gitUrl),
+      ),
+    )
+    .limit(1);
+  if (entity[0]?.gitUrl) return entity[0].gitUrl;
+  const peerIds = await getOrgPeerIds(userId);
+  if (peerIds.length === 0) return null;
+  const team = await db
+    .select({ gitUrl: userProjects.gitUrl })
+    .from(userProjects)
+    .where(
+      and(
+        inArray(userProjects.userId, peerIds),
+        eq(userProjects.isActive, true),
+        eq(sql`lower(${userProjects.name})`, key),
+        isNotNull(userProjects.gitUrl),
+      ),
+    )
+    .limit(1);
+  return team[0]?.gitUrl ?? null;
 }
 
 /**

@@ -3,6 +3,7 @@
 import { shortTimeAgo } from "@/lib/dates";
 import { BrandMark } from "@/components/shell/BrandMark";
 import { AwayReturnCard } from "@/components/shell/AwayReturnCard";
+import { BuildSuggestions } from "./BuildSuggestions";
 import type { ConversationSummary } from "./types";
 
 /** Threads offered for resuming. Four one-line rows fit above the composer on a
@@ -18,18 +19,25 @@ const RESUME_LIMIT = 4;
  * pushed the composer's purpose out of the first screen and read as a second
  * history page. The rail and the drawer already ARE the history; this screen
  * is a beginning, with a short way back into what was in flight.
+ *
+ * Under it, "Build next": the question answered for them, from their own
+ * projects, reports, goals and notes and from open demand on OrangeCat — each
+ * a tap away from an agent doing it (see BuildSuggestions).
  */
 export function StartScreen({
   conversations,
   loading,
   onResume,
   onBrowseAll,
+  onBuild,
   railVisible,
 }: {
   conversations: ConversationSummary[];
   loading: boolean;
   onResume: (id: string) => void;
   onBrowseAll: () => void;
+  /** A "Build next" suggestion was tapped: send it, scoped to its project. */
+  onBuild: (prompt: string, project: string | null) => void;
   /** The rail is already on screen, listing these very threads. */
   railVisible: boolean;
 }) {
@@ -81,6 +89,8 @@ export function StartScreen({
           </ul>
         </nav>
       )}
+
+      <BuildSuggestions onSend={onBuild} />
     </div>
   );
 }

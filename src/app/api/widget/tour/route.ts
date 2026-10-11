@@ -34,6 +34,7 @@ import {
 } from "@/lib/feedback/tour-plan";
 import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import type { FixShipping } from "@/lib/feedback/fix-shipping";
+import { tidyFixNote } from "@/lib/feedback/fix-note";
 import { appUrl } from "@/lib/email";
 import { buildPageHref } from "@/config/build-paths";
 import { PALETTE } from "@/lib/palette";
@@ -145,6 +146,7 @@ export async function POST(req: NextRequest) {
   const run = f.dispatchedRunId ? await getOrchestrationRunById(f.userId, f.dispatchedRunId) : null;
   const fix = (run?.payload as { fix?: FixShipping } | null)?.fix ?? null;
   const didLine = firstSentence((run?.summary as { done?: string } | null)?.done);
+  const note = fix?.pr?.note ? tidyFixNote(fix.pr.note) : null;
 
   if (data.followUp) {
     // A shared link shows the change; it does not file work in the owner's name.
@@ -227,7 +229,7 @@ export async function POST(req: NextRequest) {
     prTitle: fix?.pr?.title ?? null,
     selectors: (f.selectedElements ?? []).map((el) => el.selector).filter(Boolean),
     outline,
-    note: fix?.pr?.note ?? null,
+    note,
     audience,
   };
 
@@ -276,7 +278,7 @@ export async function POST(req: NextRequest) {
         ? "A change was just made to this site. Here it is, live."
         : `You asked: “${short}” — let me show you what changed.`,
     steps,
-    beats: buildTourBeats({ audience, asked, note: fix?.pr?.note ?? null, didLine, steps, before }),
+    beats: buildTourBeats({ audience, asked, note, didLine, steps, before }),
     outro: tourOutro(audience),
     ...end,
     // The pull request is the maintainer's business (reporter-view.ts).

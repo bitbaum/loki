@@ -93,12 +93,8 @@ export function parseFixNote(body: string | null | undefined): FixNote | null {
     buffer = "";
     if (!current || !text || /^<.*>$/.test(text)) return;
     if (current === "considered") {
-      if (note.considered.length >= CONSIDERED_MAX) return;
-      const [option, ...rest] = text.split(/\s+[—–-]{1,2}\s+/);
-      note.considered.push({
-        option: cap(option),
-        whyNot: rest.length ? cap(rest.join(" — ")) : null,
-      });
+      note.considered.push(...splitAlternatives(text));
+      note.considered.length = Math.min(note.considered.length, CONSIDERED_MAX);
     } else if (!note[current]) {
       note[current] = cap(text);
     }
@@ -106,6 +102,15 @@ export function parseFixNote(body: string | null | undefined): FixNote | null {
 
   for (const raw of lines.slice(start + 1)) {
     if (/^#{1,6}\s/.test(raw.trim())) break;
+    // A blank line ends the field: what follows a list is not part of its
+    // last line. The PR footer ("🤖 Generated with …") sits exactly there, and
+    // was read into the reporter's sentence on every note this parser saw
+    // in its first week (substrata#169, 2026-10-09).
+    if (!raw.trim()) {
+      flush();
+      current = null;
+      continue;
+    }
     const m = raw.match(labelRe);
     const key = m ? byLabel.get(m[1].trim().toLowerCase()) : undefined;
     if (m && key) {
@@ -118,6 +123,57 @@ export function parseFixNote(body: string | null | undefined): FixNote | null {
   }
   flush();
 
-  const any = note.problem || note.change || note.why || note.helps || note.where || note.plain;
-  return any || note.considered.length ? note : null;
+  const tidy = tidyFixNote(note);
+  const any = tidy.problem || tidy.change || tidy.why || tidy.helps || tidy.where || tidy.plain;
+  return any || tidy.considered.length ? tidy : null;
+}
+
+/** "<option> — <why not>" as one alternative. */
+function toAlternative(text: string): { option: string; whyNot: string | null } {
+  const [option, ...rest] = text.split(/\s+[—–-]{1,2}\s+/);
+  return { option: cap(option), whyNot: rest.length ? cap(rest.join(" — ")) : null };
+}
+
+/**
+ * One `Considered:` line may carry several alternatives — agents write them as
+ * sentences, each "<option> — <why not>." A sentence with its own dash starts
+ * a new alternative; one without continues the reason before it.
+ */
+function splitAlternatives(text: string): { option: string; whyNot: string | null }[] {
+  const groups: string[] = [];
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    if (/\s[—–]\s/.test(sentence) || groups.length === 0) groups.push(sentence);
+    else groups[groups.length - 1] += ` ${sentence}`;
+  }
+  return groups.map(toAlternative);
+}
+
+const FOOTER = /\s*(?:🤖\s*)?Generated with \[?Claude Code\]?(?:\([^)]*\))?\.?\s*$/i;
+
+/**
+ * Repair a note read by an earlier parser. The fix ledger stops asking GitHub
+ * once a fix is live, so a note saved with last week's mistakes would keep
+ * them forever; the walkthrough runs every stored note through this first.
+ * Idempotent, and a no-op on a note this parser wrote.
+ */
+export function tidyFixNote(note: FixNote): FixNote {
+  const strip = (s: string | null) => {
+    const t = s ? s.replace(FOOTER, "").trim() : "";
+    return t || null;
+  };
+  const considered = note.considered
+    .flatMap((alt) => {
+      const whole = strip(alt.whyNot ? `${alt.option} — ${alt.whyNot}` : alt.option);
+      return whole ? splitAlternatives(whole) : [];
+    })
+    .slice(0, CONSIDERED_MAX);
+  return {
+    problem: strip(note.problem),
+    change: strip(note.change),
+    why: strip(note.why),
+    considered,
+    helps: strip(note.helps),
+    where: strip(note.where),
+    plain: strip(note.plain),
+  };
 }

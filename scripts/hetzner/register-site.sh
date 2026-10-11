@@ -225,8 +225,35 @@ else
   say "/opt/$SLUG/shared/.env present"
 fi
 
+# ------------------------------------------------------- database + secrets
+# A repo seeded from the fleet starter keeps its accounts in Postgres and
+# signs sessions with BETTER_AUTH_SECRET. Without them the site serves pages
+# while /api/health is red and nobody can sign up, so a starter gets its
+# database and secrets here — ON THE BOX, where they are generated and stay
+# (provision-db-on-box.sh). Non-fatal like the widget: the register row then
+# carries db '-' and the summary says what is missing.
+echo "→ database + secrets"
+DB_NAME="-"
+DB_TODO=""
+if [ -d "$REPO_DIR/drizzle" ] && ls "$REPO_DIR"/drizzle/[0-9]*.sql >/dev/null 2>&1; then
+  if [ "$DRY" = 1 ]; then
+    say "DRY  bash $HERE/provision-db-on-box.sh $SLUG"
+  elif DB_NAME=$(bash "$HERE/provision-db-on-box.sh" "$SLUG"); then
+    say "database $DB_NAME and the auth/seal secrets are in /opt/$SLUG/shared/.env"
+  else
+    DB_NAME="-"
+    DB_TODO="
+  The site has NO database yet, so accounts are off and /api/health is red:
+       bash $HERE/provision-db-on-box.sh $SLUG
+     then set the db column of its apps.conf row to the name it prints and redeploy."
+    say "⚠ could not provision the database — see the summary"
+  fi
+else
+  say "no drizzle/ migrations in the repo — no database needed"
+fi
+
 # --------------------------------------------------------------- workflows
-# deploy.yml (the CD shim), ci.yml and auto-merge.yml (from site-template) are
+# deploy.yml (the CD shim) and the starter's other workflows (from site-template) are
 # written to the remote through the GitHub Contents API, never through the
 # clone. The clone under DEV_ROOT is the box agent's WORKSPACE: on 2026-09-11
 # this step committed auto-merge.yml onto the agent's feature branch there and
@@ -265,11 +292,74 @@ YML
 # directory; the durable checkout follows main and has the files.
 SITE_TEMPLATE_WF="$HERE/../site-template/.github/workflows"
 [ -d "$FC_REPO/scripts/site-template/.github/workflows" ] && SITE_TEMPLATE_WF="$FC_REPO/scripts/site-template/.github/workflows"
+# Which workflows the repo gets from the starter. A repo made from the fleet
+# starter (kickoff "nextjs-tailwind", or new-site.sh) gets all of them; their
+# ci.yml runs the starter's own `verify` and integration suite, which another
+# repo does not have — so anything else gets auto-merge.yml from the starter
+# and the golden CI floor (`pnpm run verify`) written below, and an existing
+# ci.yml there is never overwritten.
+STARTER_WORKFLOWS="ci.yml auto-merge.yml live-check.yml codeql.yml secret-scan.yml dependency-audit.yml"
+is_starter_repo() {
+  [ -f "$REPO_DIR/package.json" ] || return 1
+  node -e 'const s=require(process.argv[1]).scripts||{}; process.exit(s.verify && s["test:integration"] ? 0 : 1)' \
+    "$REPO_DIR/package.json" 2>/dev/null
+}
+write_floor_ci() {
+  cat > "$WF_TMP/ci.yml" <<'YML'
+name: CI
+
+# The golden CI floor (bitbaum/fleet templates/ci): `pnpm run verify` is the
+# one definition of verified, run verbatim. Seeded by Loki's register-site.sh.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || 'branch' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Next.js build
+        uses: actions/cache@v6
+        with:
+          path: .next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            nextjs-${{ runner.os }}-
+      - run: pnpm run verify
+YML
+}
+SIDECARS=""
 write_sidecar_workflows() {
   local f
-  for f in ci.yml auto-merge.yml; do
+  if is_starter_repo; then
+    SIDECARS="$STARTER_WORKFLOWS"
+  else
+    SIDECARS="auto-merge.yml ci.yml"
+    write_floor_ci
+  fi
+  for f in $SIDECARS; do
+    [ -f "$WF_TMP/$f" ] && continue
     [ -f "$SITE_TEMPLATE_WF/$f" ] || { say "⚠ site-template has no $f — skipping"; continue; }
-    sed "s|__SLUG__|$SLUG|g; s|__WORKFLOW_OWNER__|$WORKFLOW_OWNER|g" "$SITE_TEMPLATE_WF/$f" > "$WF_TMP/$f"
+    sed "s|__SLUG__|$SLUG|g; s|__HOST__|$SLUG.$BASE_DOMAIN|g; s|__WORKFLOW_OWNER__|$WORKFLOW_OWNER|g" "$SITE_TEMPLATE_WF/$f" > "$WF_TMP/$f"
   done
 }
 gh_host() { env -u GH_TOKEN -u GITHUB_TOKEN gh "$@"; }
@@ -300,7 +390,7 @@ put_workflow() {
 write_deploy_yml
 write_sidecar_workflows
 if [ "$DRY" = 1 ]; then
-  say "DRY  would write deploy.yml, ci.yml and auto-merge.yml (from site-template) to $GH_REPO via the Contents API"
+  say "DRY  would write deploy.yml and $SIDECARS (from site-template) to $GH_REPO via the Contents API"
 else
   if ! workflow_on_remote deploy.yml; then
     put_workflow deploy.yml "chore: add self-host deploy shim for $SLUG" || true
@@ -314,11 +404,13 @@ else
   # A sidecar already on the remote is refreshed when the template moved on:
   # the site-template is the one copy of "how a site verifies and ships", and
   # a site registered last week must not keep last week's CI forever.
-  for f in ci.yml auto-merge.yml; do
+  for f in $SIDECARS; do
     [ -f "$WF_TMP/$f" ] || continue
     if ! workflow_on_remote "$f"; then
-      put_workflow "$f" "ci: verify and auto-merge (seeded by Loki register)" \
+      put_workflow "$f" "ci: $f (seeded by Loki register from the fleet starter)" \
         || say "⚠ $f is not on $GH_REPO — agent PRs on this site will wait for a human merge"
+    elif [ "$f" = ci.yml ] && ! is_starter_repo; then
+      say "ci.yml already on the remote — a non-starter repo keeps its own"
     elif ! remote_workflow_body "$f" | cmp -s - "$WF_TMP/$f"; then
       put_workflow "$f" "ci: refresh $f from the Loki site-template" || say "⚠ $f on $GH_REPO is stale and could not be refreshed"
     else
@@ -366,10 +458,10 @@ echo "→ register"
 if [ "$ALREADY" = 1 ]; then
   say "apps.conf row already present — not appending"
 elif [ "$DRY" = 1 ]; then
-  LINE="$SLUG|$PORT|$SLUG.$BASE_DOMAIN|$REPO_DIR|.|-|$OWNER|$KIND|$STATUS|$PLAN|$PRICE|$(date -u +%Y-%m-%d)"
+  LINE="$SLUG|$PORT|$SLUG.$BASE_DOMAIN|$REPO_DIR|.|$DB_NAME|$OWNER|$KIND|$STATUS|$PLAN|$PRICE|$(date -u +%Y-%m-%d)"
   say "DRY  append: $LINE"
 else
-  LINE="$SLUG|$PORT|$SLUG.$BASE_DOMAIN|$REPO_DIR|.|-|$OWNER|$KIND|$STATUS|$PLAN|$PRICE|$(date -u +%Y-%m-%d)"
+  LINE="$SLUG|$PORT|$SLUG.$BASE_DOMAIN|$REPO_DIR|.|$DB_NAME|$OWNER|$KIND|$STATUS|$PLAN|$PRICE|$(date -u +%Y-%m-%d)"
   printf '%s\n' "$LINE" >> "$MANIFEST"
   say "appended to $MANIFEST"
   publish_register_row "$SLUG" "$LINE"
@@ -414,6 +506,7 @@ if [ "$ALREADY" != 1 ]; then
        cd $(dirname "$MANIFEST")/../.. && git add scripts/hetzner/apps.conf && git commit
 
   2. If first deploy failed, fix the app until \`next build\` works, then push main (or workflow_dispatch Deploy).
+${DB_TODO}
 NEXT
 else
   cat <<NEXT

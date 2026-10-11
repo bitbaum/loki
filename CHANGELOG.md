@@ -21,6 +21,49 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   every row's details.
 - A server with no browser says so on the card, in words, instead of a
   silent "cannot tell".
+## 2026-10-11 — Loki suggests what to build next, from your own work
+
+- **"Build next" on the Loki start screen.** Under "What are we working on?"
+  there is now a row of things you could build, picked from your own records:
+  visitor reports nobody has fixed, a project with code but no live site, the
+  next step your last session left, a goal stuck at zero, an idea from your
+  sticky notes, and needs people have posted on OrangeCat (the ones closest to
+  what you already build come first). Each one names why it is there.
+- **One tap starts the work.** Tapping a suggestion for one of your projects
+  sends it to an agent on that project. A new idea opens the new-project form
+  already filled in, which leads straight into a kickoff. "Other ideas" shows
+  the next set. With nothing set up yet, you get first builds that each end in
+  something live: your own site, a page for your offer, a booking page.
+- **Loki pushes to get it built.** Ask "what should I build?" and Loki answers
+  from the same list, recommends one thing and why, scopes the smallest first
+  version, and ends with the exact line that starts it.
+
+## 2026-10-11 — Every new site starts as the same complete app
+
+- **New sites start with accounts, three languages and strict security.**
+  Both ways Loki creates a site — "Make it happen" with the Next.js starter,
+  and a new site on the box — now produce the same app: the bitbaum starter.
+  People can create an account with a password, a sign-in link or a passkey
+  (and with OrangeCat once the site is registered there), add two-factor
+  sign-in, and use it in English, German or French.
+  It ships with strict security headers, a health check, tests and the
+  pipeline that deploys each change.
+- **A new site gets its own database.** Its accounts live in a database made
+  for it on the server, with its secrets generated there and never shown.
+
+## 2026-10-11 — Agents building a bitbaum product get the house rules
+
+- **Every agent Loki sends into a bitbaum repo is now told what already
+  exists.** Alongside the project's own profile, the dispatch carries the
+  studio's rules: read fleet's AGENTS.md, STACK.md and SHARED.md first, start a
+  new product from the fleet app template, use the shared packages (each with
+  its one-line purpose and install command) instead of writing another health
+  route, model call or set of security headers, keep the security bar, and
+  count work as done only once it is merged, deployed and checked live.
+- The package list and the stack are read from bitbaum/fleet when the agent
+  is sent, so they are never a copy kept in Loki. If GitHub is slow or down,
+  the dispatch goes ahead with the last saved list.
+- Repositories outside the bitbaum org get nothing extra.
 
 ## 2026-10-10 — Loki looks before it asks you to
 

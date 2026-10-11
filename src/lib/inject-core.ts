@@ -56,6 +56,7 @@ import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { buildOperatorContextSection } from "@/lib/dispatch-operator-context";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { findInjectProject } from "@/lib/inject-project";
+import { fleetBriefForProject } from "@/lib/fleet-brief/for-project";
 
 type ResolvedAdapter = (typeof ORCHESTRATION_ADAPTER_IDS)[number];
 
@@ -198,22 +199,26 @@ async function buildLocalPrompt(args: {
   // near-term deadlines, so local dispatches serve the captain's objectives
   // too, not just the per-project task. Both best-effort; both mirror the
   // cloud assembleInjectPrompt path so local and remote dispatch match.
-  const [projectContext, fleetBlock, operatorSection, escalationBlock] = await Promise.all([
-    getProjectContext(userId, canonical).catch(() => null),
-    ragQuery
-      ? retrieveFleetContextBlock(userId, ragQuery, { excludeProject: canonical }).catch(() => "")
-      : Promise.resolve(""),
-    buildOperatorContextSection(userId).catch(() => ""),
-    // Open escalation ladder — the last failure fed back to the agent with a
-    // rung-specific instruction. Mirrors assembleInjectPrompt.
-    getOpenEscalationBlock(userId, canonical).catch(() => ""),
-  ]);
+  const [projectContext, fleetBlock, operatorSection, escalationBlock, houseRules] =
+    await Promise.all([
+      getProjectContext(userId, canonical).catch(() => null),
+      ragQuery
+        ? retrieveFleetContextBlock(userId, ragQuery, { excludeProject: canonical }).catch(() => "")
+        : Promise.resolve(""),
+      buildOperatorContextSection(userId).catch(() => ""),
+      // Open escalation ladder — the last failure fed back to the agent with a
+      // rung-specific instruction. Mirrors assembleInjectPrompt.
+      getOpenEscalationBlock(userId, canonical).catch(() => ""),
+      // bitbaum house rules for a repo in the org. Mirrors assembleInjectPrompt.
+      fleetBriefForProject(userId, canonical).catch(() => ""),
+    ]);
   const contextBlock = renderProjectContextBlock(projectContext ?? undefined);
   const withContext = (body: string) =>
     [
       contextBlock || null,
       operatorSection || null,
       fleetBlock || null,
+      houseRules || null,
       escalationBlock || null,
       body,
     ]

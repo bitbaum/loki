@@ -1,0 +1,150 @@
+{
+  "_generated": "by scripts/generate-fleet-brief-snapshot.ts from bitbaum/fleet registers/packages.json + STACK.md. Do not edit by hand: run pnpm run generate:fleet-brief.",
+  "fetchedAt": "2026-10-11T19:38:56.202Z",
+  "registerGeneratedAt": "2026-10-05T15:18:55.021Z",
+  "packages": [
+    {
+      "name": "@bitbaum/ai-kit",
+      "purpose": null,
+      "install": "pnpm add @bitbaum/ai-kit"
+    },
+    {
+      "name": "bip-kit",
+      "purpose": "Building in Public, as a content contract: parse markdown into typed blocks…",
+      "install": "pnpm add bip-kit"
+    },
+    {
+      "name": "@bitbaum/mail-kit",
+      "purpose": "The fleet's one email layer: Resend over raw fetch, zero dependencies, honest…",
+      "install": "pnpm add @bitbaum/mail-kit"
+    },
+    {
+      "name": "limitkit",
+      "purpose": "Rate limiting as a decision, not a middleware: fixed and sliding windows over…",
+      "install": "pnpm add limitkit"
+    },
+    {
+      "name": "ai-forms",
+      "purpose": "Headless AI form filling and conversational refinement",
+      "install": "pnpm add ai-forms"
+    },
+    {
+      "name": "@bitbaum/design-tokens",
+      "purpose": "Design SSOT for OrangeCat, Loki and Solon — tokens, self-hosted faces, and the…",
+      "install": "pnpm add @bitbaum/design-tokens"
+    },
+    {
+      "name": "listkit",
+      "purpose": "A list as a query: a closed set of facet kinds, a URL codec that copies rather…",
+      "install": "pnpm add github:bitbaum/listkit#v0.1.0"
+    },
+    {
+      "name": "@bitbaum/chatkit",
+      "purpose": "One chat for every product: a composer with a microphone that always works, a…",
+      "install": "pnpm add github:bitbaum/chatkit#v0.1.0"
+    },
+    {
+      "name": "threadkit",
+      "purpose": "Headless multi-participant message threads",
+      "install": "pnpm add threadkit"
+    },
+    {
+      "name": "@bitbaum/accountkit",
+      "purpose": "One account for every bitbaum product: the account menu, and Sign in with…",
+      "install": "pnpm add github:bitbaum/accountkit#v0.2.0"
+    },
+    {
+      "name": "@bitbaum/sitekit",
+      "purpose": "A website as data: a closed union of section shapes validated at runtime, one…",
+      "install": "pnpm add @bitbaum/sitekit"
+    },
+    {
+      "name": "@bitbaum/speechkit",
+      "purpose": "Measure how somebody spoke — pauses, rate, where they searched for a word…",
+      "install": "pnpm add @bitbaum/speechkit"
+    },
+    {
+      "name": "@bitbaum/paykit",
+      "purpose": "Let a website get paid without holding the money",
+      "install": "pnpm add @bitbaum/paykit"
+    }
+  ],
+  "stack": [
+    {
+      "job": "Framework",
+      "blessed": "Next.js (App Router)"
+    },
+    {
+      "job": "Language",
+      "blessed": "TypeScript (strict)"
+    },
+    {
+      "job": "Styling",
+      "blessed": "Tailwind CSS"
+    },
+    {
+      "job": "Validation",
+      "blessed": "zod"
+    },
+    {
+      "job": "ORM / DB access",
+      "blessed": "Drizzle ORM + pg driver"
+    },
+    {
+      "job": "Database",
+      "blessed": "Postgres"
+    },
+    {
+      "job": "Auth — who the user is",
+      "blessed": "Federate to OrangeCat (OIDC, openid profile email)"
+    },
+    {
+      "job": "Auth — client-owned apps",
+      "blessed": "better-auth 1.x + Drizzle/Postgres, magic link via…"
+    },
+    {
+      "job": "Test runner (apps)",
+      "blessed": "Vitest"
+    },
+    {
+      "job": "Test runner (packages)",
+      "blessed": "node:test (zero-dep)"
+    },
+    {
+      "job": "E2E",
+      "blessed": "Playwright"
+    },
+    {
+      "job": "Email",
+      "blessed": "@bitbaum/mail-kit from npm"
+    },
+    {
+      "job": "i18n",
+      "blessed": "next-intl"
+    },
+    {
+      "job": "AI",
+      "blessed": "@bitbaum/ai-kit from npm"
+    },
+    {
+      "job": "Forms",
+      "blessed": "react-hook-form (+ ai-forms for AI fill)"
+    },
+    {
+      "job": "Package manager",
+      "blessed": "pnpm 11"
+    },
+    {
+      "job": "Runtime",
+      "blessed": "Node LTS (currently 24), nodesource on the box"
+    },
+    {
+      "job": "Deploy",
+      "blessed": "push → PR → CI → auto-merge sweep → CD → box"
+    },
+    {
+      "job": "Maps & globes",
+      "blessed": "d3-geo + topojson-client, drawn on Canvas 2D; country…"
+    }
+  ]
+}

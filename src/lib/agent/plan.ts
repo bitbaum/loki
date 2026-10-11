@@ -21,6 +21,7 @@
  */
 import {
   APPROVAL_CUES,
+  BUILD_CUES,
   CAPTURE_CUES,
   COMMITMENT_CUES,
   CREW_CUES,
@@ -55,6 +56,7 @@ export const SOURCE_IDS = [
   "people",
   "knowledge",
   "economy",
+  "builds",
   "projects",
   "fleet_map",
 ] as const;
@@ -96,6 +98,8 @@ export const SOURCE_LIMITS: Record<SourceId, { lead: number; background: number 
   people: { lead: 12, background: 4 },
   knowledge: { lead: 6, background: 2 },
   economy: { lead: 3, background: 0 },
+  // Already ranked and varied server-side; six is the row the start screen shows.
+  builds: { lead: 6, background: 0 },
   // A question ABOUT projects gets the whole fleet ("how many projects am I
   // tracking" must not be answered from a sample). A question about anything
   // else gets a glance: measured live, 38 project facts were the bulk of a
@@ -136,6 +140,9 @@ export function planRetrieval(message: string): RetrievalPlan {
   // "goal" is a goal question even when it also says "stuck", and "stuck" is
   // a run word — testing runs first made "which goal is stuck at 0%" lead with
   // runs and shed the goals to the tail. Named noun beats shared adjective.
+  // Asked for direction: the ranked suggestions lead, because they already
+  // fold in feedback, dev-log next steps, goals, notes and demand.
+  if (BUILD_CUES.test(m)) push("builds");
   if (FEEDBACK_CUES.test(m)) push("feedback");
   if (APPROVAL_CUES.test(m)) push("approvals");
   if (GOAL_CUES.test(m)) push("goals");
@@ -234,6 +241,7 @@ const TOOLS_FOR_SOURCE: Record<SourceId, readonly string[]> = {
   people: ["search_people", "propose_action"],
   knowledge: ["search_knowledge"],
   economy: [],
+  builds: ["suggest_builds"],
   projects: ["list_projects"],
   // The map is a computed view (register + profiles + runs); no tool reads it.
   fleet_map: [],

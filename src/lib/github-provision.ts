@@ -4,6 +4,7 @@
 // /api/projects/[id]/provision (link a repo to an existing project).
 
 import { TEMPLATES, renderTemplate, type TemplateId } from "@/lib/project-templates";
+import { widgetEnvFile } from "@/lib/starter-app";
 import { GITHUB_API_BASE } from "@/lib/github-api";
 import { GITHUB_REPO_OWNER } from "@/config/github-owner";
 import { HTTP_TIMEOUT_SHORT_MS, HTTP_TIMEOUT_MS } from "@/lib/constants/time";
@@ -57,7 +58,7 @@ export async function seedTemplate(
       // Each step is a small metadata call — a hung one would eat the route's
       // whole maxDuration budget. Time out fast; the catch below makes it
       // non-fatal (repo stays bare).
-      signal: AbortSignal.timeout(HTTP_TIMEOUT_SHORT_MS),
+      signal: init?.signal ?? AbortSignal.timeout(HTTP_TIMEOUT_SHORT_MS),
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github+json",
@@ -78,31 +79,36 @@ export async function seedTemplate(
     const baseCommitSha = branchData.commit.sha;
     const baseTreeSha = branchData.commit.commit.tree.sha;
 
-    const blobs = await Promise.all(
-      Object.entries(template.files).map(async ([path, body]) => {
-        let content = renderTemplate(body, values);
-        if (path === "src/app/layout.tsx" && feedback) {
-          content =
-            'import Script from "next/script";\n' +
-            content.replace(
-              "{children}</body>",
-              `{children}<Script src={${JSON.stringify(feedback.appUrl.replace(/\/$/, "") + "/widget.js")}} data-fc-project={${JSON.stringify(feedback.token)}} strategy="afterInteractive" /></body>`,
-            );
-        }
-        const blobRes = await gh(`${repoPath}/git/blobs`, {
-          method: "POST",
-          body: JSON.stringify({ content, encoding: "utf-8" }),
-        });
-        if (!blobRes.ok) throw new Error(`blob create failed for ${path}`);
-        const { sha } = (await blobRes.json()) as { sha: string };
-        return { path, mode: "100644" as const, type: "blob" as const, sha };
-      }),
-    ).catch(() => null);
-    if (!blobs) return false;
+    const render = template.render ?? renderTemplate;
+    const files: Record<string, string> = Object.fromEntries(
+      Object.entries(template.files).map(([path, body]) => [
+        path,
+        render(body, { ...values, owner: ownerLogin, repo: repoName }),
+      ]),
+    );
+    // The starter renders the feedback widget from NEXT_PUBLIC_FC_WIDGET_TOKEN
+    // (and its CSP allows Loki only then), so the project's token rides in the
+    // repo's production env. It is public by design — every page prints it —
+    // and the starter's .gitleaks.toml allows NEXT_PUBLIC_* for that reason.
+    if (feedback && templateId === "nextjs-tailwind") {
+      files[".env.production"] = widgetEnvFile(feedback.token);
+    }
 
+    // One request, contents inline: the Trees API creates each blob itself.
+    // A blob POST per file was ~85 parallel content-creating calls for the
+    // fleet starter — past GitHub's secondary rate limit, which would leave the
+    // repo bare on exactly the starter people pick most.
+    const tree = Object.entries(files).map(([path, content]) => ({
+      path,
+      mode: "100644" as const,
+      type: "blob" as const,
+      content,
+    }));
     const treeRes = await gh(`${repoPath}/git/trees`, {
       method: "POST",
-      body: JSON.stringify({ base_tree: baseTreeSha, tree: blobs }),
+      body: JSON.stringify({ base_tree: baseTreeSha, tree }),
+      // The one heavy call (the whole starter); the rest stay on the short timeout.
+      signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
     });
     if (!treeRes.ok) return false;
     const { sha: newTreeSha } = (await treeRes.json()) as { sha: string };

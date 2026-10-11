@@ -5260,6 +5260,15 @@
     @apply flex min-h-11 items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary;
   }
 
+  /* /today's brief: last night's autopilot note, one quiet line that goes to
+     the inbox it came from, and the row that carries "Listen to the brief". */
+  .ui-today-night {
+    @apply flex min-h-11 items-start gap-2 rounded-xl border border-border-subtle bg-surface-base px-3 py-2.5 text-sm text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
+  }
+  .ui-today-brief-row {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
   /* The account menu's styles live in @bitbaum/accountkit (imported at the
      top, colours mapped in :root). The .ui-account-* rules that were here
      drew Loki's own copy, which the shared menu replaced. */
@@ -6597,6 +6606,25 @@
   }
   .ui-loki-start-more {
     @apply min-h-11 rounded-lg px-1 text-xs text-text-tertiary transition-colors hover:text-text-primary;
+  }
+
+  /* "Build next": suggestion chips ranked from the person's own records.
+     One scrolling row on every width — the row scrolls, never the page, so
+     min-w-0 on the section and overflow on the list are both load-bearing. */
+  .ui-loki-build {
+    @apply flex min-w-0 flex-col gap-1;
+  }
+  .ui-loki-build-row {
+    @apply -mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1;
+  }
+  .ui-loki-build-chip {
+    @apply inline-flex min-h-11 max-w-72 items-center gap-2 rounded-full border border-border-default bg-surface-raised px-4 text-sm text-text-primary transition-colors hover:border-border-strong;
+  }
+  .ui-loki-build-icon {
+    @apply h-4 w-4 shrink-0 text-text-secondary;
+  }
+  .ui-loki-build-label {
+    @apply min-w-0 truncate;
   }
 
   /* Needs-project picker. A grid, not a wrapped chip cloud: nine variable-width

@@ -2,8 +2,13 @@
 #
 # The scaffold's CI floor must not drift.
 #
-# `scripts/site-template/.github/workflows/ci.yml` is the THIRD copy of the
-# golden CI floor. The other two live in fleet/templates/ci/ (ci-npm.yml and
+# scripts/site-template is bitbaum/fleet templates/app, copied at a pinned
+# fleet commit by scripts/templates/sync-starter.sh (CI proves the copy is
+# exact). This suite asserts the properties Loki's own pipeline depends on, so
+# a fleet change that would break new-site.sh or the box is caught here too.
+#
+# `scripts/site-template/.github/workflows/ci.yml` was once the THIRD copy of
+# the golden CI floor. The other two live in fleet/templates/ci/ (ci-npm.yml and
 # ci-pnpm.yml). On 2026-09-07 a fleet sweep found 14 of 32 repos rebuilding Next
 # from scratch on every CI run and fixed both fleet templates — and missed this
 # one, which is the copy the scaffold actually uses. Every site created in
@@ -41,7 +46,6 @@ AM="$HERE/../site-template/.github/workflows/auto-merge.yml"
 grep -q 'auto-merge-sweep.yml@main' "$AM" || { echo "  ✗ auto-merge.yml does not call the fleet sweep"; exit 1; }
 grep -q 'ci_workflow: ci.yml' "$AM" && grep -q 'deploy_workflow: deploy.yml' "$AM" \
   || { echo "  ✗ auto-merge.yml must name ci.yml as CI and deploy.yml as the deploy"; exit 1; }
-grep -q -- '--if-present lint' "$CI" || { echo "  ✗ ci.yml must tolerate a starter without a lint script"; exit 1; }
 ok "the scaffold ships an auto-merge.yml that names its CI and Deploy"
 
 # Without this the chain after an auto-merge is: token merge (no push event) →
@@ -96,9 +100,18 @@ else
 fi
 want "installs from the lockfile (pnpm install --frozen-lockfile)" \
      '^[[:space:]]*-[[:space:]]*run:[[:space:]]*pnpm install --frozen-lockfile[[:space:]]*$'
-want "type-checks" '(run:.*type-check)'
-want "lints (tolerating a starter without a lint script)" '(run:.*pnpm run (--if-present )?lint)'
-want "builds"      '(run:.*pnpm run build)'
+# One definition of verified: the starter's package.json `verify` (format,
+# lint, typecheck, tests, build), run verbatim and unsoftened.
+want "runs the verify SSOT (pnpm run verify)" '^[[:space:]]*run:[[:space:]]*pnpm run verify[[:space:]]*$'
+if grep -qE 'pnpm run (--if-present )?verify.*--if-present|--if-present[[:space:]]+verify' <<< "$src"; then
+  bad "verify is softened with --if-present"
+else
+  ok "verify cannot pass by being absent"
+fi
+PKGV="$(node -e 'process.stdout.write(require(process.argv[1]).scripts?.verify ?? "")' "$HERE/../site-template/package.json")"
+for gate in lint typecheck test build; do
+  if grep -qE "pnpm run ${gate}( |$)" <<< "$PKGV"; then ok "verify runs $gate"; else bad "verify does not run $gate"; fi
+done
 want "runs on pull_request, not only on push" '^[[:space:]]*pull_request:'
 want "declares a concurrency group" '^concurrency:'
 
@@ -174,7 +187,9 @@ fi
 # see. It used to render a note to the developer ("This is a new site scaffolded
 # by new-site.sh. Replace this page"), which is a TODO left on a public URL
 # under someone else's name.
-PAGE="$HERE/../site-template/app/page.tsx"
+PAGE="$HERE/../site-template/app/[locale]/page.tsx"
+SECURITY="$HERE/../site-template/lib/security.ts"
+MESSAGES="$HERE/../site-template/messages/en.json"
 if [ ! -f "$PAGE" ]; then
   bad "the scaffold ships no app/page.tsx"
 else
@@ -184,7 +199,7 @@ else
   # the site themselves. A day-zero page with no way forward makes the studio
   # the only route to a change, which is the dependency the widget, the repo
   # and this whole scaffold exist to remove.
-  if grep -q 'loki\.orangecat\.ch' <<< "$page"; then
+  if grep -q 'LOKI_ORIGIN' <<< "$page" && grep -q 'https://loki\.orangecat\.ch' "$SECURITY"; then
     ok "the day-zero page routes its owner to Loki"
   else
     bad "the day-zero page has no route to Loki — a dead end for its owner"
@@ -193,7 +208,13 @@ else
   # Instructions to a developer, rendered at a client. Checked in the JSX only:
   # the file's own comments explain why this rule exists and must be allowed to
   # name what they forbid, or the rule can only survive by being deleted.
-  jsx="$(printf '%s\n' "$page" | sed 's|//.*||' | sed '/^\s*\*/d; /\/\*/,/\*\//d')"
+  #
+  # Comments are stripped by perl, as comments — NOT by `sed '/^\s*\*/d;
+  # /\/\*/,/\*\//d'`: that deletes a doc comment's closing ` */` line before the
+  # range can see it, so the range runs to EOF and every check below passed
+  # against an empty string (SHARED.md, "a sed range never matches its end").
+  jsx="$(printf '%s\n' "$page" | perl -0777 -pe 's{/\*.*?\*/}{}gs; s{(^|\s)//[^\n]*}{$1}gm')"
+  [ -n "$(tr -d '[:space:]' <<< "$jsx")" ] || bad "the comment stripper left nothing of the page — every check below would be vacuous"
   if grep -qE 'new-site\.sh|Replace this page' <<<"$jsx"; then
     bad "the day-zero page renders build instructions at the visitor"
   else
@@ -209,7 +230,10 @@ else
   else
     bad "no OrangeCat link — the project is public there and nothing points at it"
   fi
-  if printf '%s\n' "$jsx" | grep -B2 'bg-accent[^-]' | grep -q 'ocHref'; then
+  # The primary action is the `button` class (bg-accent); the OrangeCat link
+  # must carry the quiet `link` class.
+  if grep -qE 'href=\{ocHref\}[^>]*className=\{button\}' <<< "$jsx" \
+     || ! grep -qE 'href=\{ocHref\}[^>]*className=\{link\}' <<< "$jsx"; then
     bad "the OrangeCat link is styled as the primary action — Loki is the primary"
   else
     ok "the primary action is Loki; OrangeCat stays secondary"
@@ -221,8 +245,9 @@ else
   # the widget, because provisioning failed non-fatally and nothing tied the
   # sentence to the fact. A claim must be gated on the same value as the thing
   # it describes.
-  if grep -q 'change it from here' <<< "$jsx"; then
-    if grep -q 'NEXT_PUBLIC_FC_WIDGET_TOKEN' <<< "$page"; then
+  # The sentence lives in messages/en.json (Home.widget); the page renders it.
+  if grep -q 'change it from here' "$MESSAGES" && grep -q 't("widget")' <<< "$jsx"; then
+    if grep -q 'NEXT_PUBLIC_FC_WIDGET_TOKEN' <<< "$page" && grep -q 'hasWidget && ' <<< "$jsx"; then
       ok "the 'edit from this page' claim is gated on the widget actually shipping"
     else
       bad "the page claims it can be edited in place without checking the widget token"
@@ -243,13 +268,21 @@ CSS="$HERE/../site-template/app/globals.css"
 if [ ! -f "$CSS" ]; then
   bad "the scaffold ships no app/globals.css"
 else
-  if node "$HERE/check-template-contrast.mjs" > /tmp/tpl-contrast.$$ 2>&1; then
-    ok "every token pair meets AA in both colour schemes (real WCAG ratios)"
+  # The palette is @bitbaum/design-tokens (the brand SSOT OrangeCat, Loki and
+  # Solon share), whose own suite computes its contrast ratios. What can go
+  # wrong HERE is a local token redefined on top of it — the drift that made
+  # three products look like three companies — so assert there is none.
+  css_decl="$(perl -0777 -pe 's{/\*.*?\*/}{}gs' "$CSS")"
+  if grep -q '@bitbaum/design-tokens/tokens.css' <<< "$css_decl"; then
+    ok "globals.css takes its palette from @bitbaum/design-tokens"
   else
-    bad "token pairs below AA:"
-    sed 's/^/      /' /tmp/tpl-contrast.$$
+    bad "globals.css does not import @bitbaum/design-tokens/tokens.css"
   fi
-  rm -f /tmp/tpl-contrast.$$
+  if grep -qE -- '--[a-z-]+:[[:space:]]*(#|oklch|rgb|hsl)' <<< "$css_decl"; then
+    bad "globals.css redefines a colour token locally"
+  else
+    ok "no colour token is redefined locally"
+  fi
 
   # The palette must belong to something we own. The template shipped an
   # invented mid-blue matching neither Loki nor OrangeCat, and a site
@@ -358,7 +391,7 @@ else
   else
     bad "a failed widget provision is only warned about mid-run, where it scrolls away"
   fi
-  if grep -qE '^\$\{WIDGET_TODO\}$' "$NS"; then
+  if grep -qE '^\$\{WIDGET_TODO\}(\$\{DB_TODO\})?$' "$NS"; then
     ok "the summary interpolates it, so it reaches the operator"
   else
     bad "WIDGET_TODO is assembled but never printed in the summary"
@@ -371,6 +404,44 @@ else
     ok "the repair pushes the value to the box, which is the env SSOT"
   else
     bad "the repair only edits a local file — after the first deploy that changes nothing"
+  fi
+
+  # The database is the same shape of non-fatal step, so it gets the same
+  # treatment: recorded, and printed where the operator reads.
+  if grep -q 'DB_TODO=' "$NS" && grep -qE '^\$\{WIDGET_TODO\}\$\{DB_TODO\}$' "$NS"; then
+    ok "a failed database provision reaches the summary too"
+  else
+    bad "a failed database provision is not carried to the summary"
+  fi
+  if grep -q 'provision-db-on-box.sh' <<< "$ns_live"; then
+    ok "the database and its secrets are provisioned on the box"
+  else
+    bad "new-site.sh does not provision the starter's database"
+  fi
+fi
+
+# ── the database provisioner keeps secrets on the box ───────────────────────
+PDB="$HERE/provision-db-on-box.sh"
+if [ ! -f "$PDB" ]; then
+  bad "provision-db-on-box.sh is missing"
+else
+  pdb_live="$(sed 's/#.*//' "$PDB")"
+  # Secrets are generated with openssl INSIDE the quoted box heredoc, so they
+  # never exist on the operator's machine.
+  if grep -q "<<'BOX'" "$PDB" && grep -q 'openssl rand' <<< "$pdb_live"; then
+    ok "secrets are generated on the box, inside a quoted heredoc"
+  else
+    bad "secrets are not generated on the box"
+  fi
+  if grep -qE 'has (DATABASE_URL|BETTER_AUTH_SECRET|SECRET_SEAL_KEY) +\|\| add' <<< "$pdb_live"; then
+    ok "an existing secret is never replaced (rotation is a decision)"
+  else
+    bad "provisioning could overwrite an existing secret"
+  fi
+  if grep -qE 'echo .*\$pass|printf .*\$pass[^|]' <<< "$(sed -n '/<<.BOX./,/^BOX$/p' "$PDB" | grep -v '>> "\$CREDS"')"; then
+    bad "the provisioner prints a password"
+  else
+    ok "nothing prints a password"
   fi
 fi
 

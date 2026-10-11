@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import {
   fixNoteInstruction,
   parseFixNote,
+  tidyFixNote,
   FIX_NOTE_HEADING,
 } from "../../src/lib/feedback/fix-note";
 import { deriveShippingFromPr } from "../../src/lib/feedback/fix-shipping";
@@ -97,6 +98,61 @@ assert.equal(parseFixNote(`## ${FIX_NOTE_HEADING}\n- Problem: <what was actually
     "2026-10-07T00:00:00Z",
   );
   assert.equal(fix.pr?.note?.change, "kept on the ledger");
+}
+
+// ---- what agents actually wrote (substrata#169, 2026-10-09) ----
+// Three alternatives on ONE Considered line, and the PR footer after a blank
+// line. The first parser merged the alternatives into one and read the footer
+// into the reporter's sentence — which a stranger would have seen.
+{
+  const body = [
+    "## Walkthrough",
+    "- Considered: Making everything 48px on desktop too — wastes space where a mouse pointer is precise. Invisible enlarged tap areas around the small numbers — measuring tools would still see a 16px box. Making links inside sentences 48px tall — it breaks the line of text.",
+    "- For the reporter: Thanks — every button you pointed at is now big enough to tap.",
+    "",
+    "🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  ].join("\n");
+  const note = parseFixNote(body);
+  assert.equal(note?.considered.length, 3, "one alternative per dashed sentence");
+  assert.equal(note?.considered[1].option, "Invisible enlarged tap areas around the small numbers");
+  assert.equal(note?.considered[2].whyNot, "it breaks the line of text.");
+  assert.equal(note?.plain, "Thanks — every button you pointed at is now big enough to tap.");
+
+  // A reason that runs to a second sentence without a dash stays one alternative.
+  const two = parseFixNote(
+    "## Walkthrough\n- Considered: A modal — it blocks the page. People closed it unread.",
+  );
+  assert.equal(two?.considered.length, 1);
+  assert.equal(two?.considered[0].whyNot, "it blocks the page. People closed it unread.");
+
+  // Labelled lines after a blank line still count.
+  const spaced = parseFixNote("## Walkthrough\n- Problem: a\n\n- Change: b");
+  assert.equal(spaced?.change, "b");
+}
+
+// ---- notes saved by the first parser are repaired on the way out ----
+{
+  const stored = {
+    problem: "p",
+    change: "c",
+    why: null,
+    considered: [
+      {
+        option: "Making everything 48px on desktop too",
+        whyNot:
+          "wastes space. Invisible tap areas — tools would still see 16px. Inline links 48px — breaks the text.",
+      },
+    ],
+    helps: null,
+    where: null,
+    plain:
+      "Thanks — it is bigger now. 🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  };
+  const tidy = tidyFixNote(stored);
+  assert.equal(tidy.plain, "Thanks — it is bigger now.");
+  assert.equal(tidy.considered.length, 3);
+  assert.equal(tidy.considered[0].whyNot, "wastes space.");
+  assert.deepEqual(tidyFixNote(tidy), tidy, "idempotent");
 }
 
 console.log("fix-note: ok");

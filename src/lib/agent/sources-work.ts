@@ -22,6 +22,7 @@ import { listOpenHumanTasks } from "@/db/queries/human-tasks";
 import { listCaptures } from "@/db/queries/captures";
 import { HUMAN_TASK_STATUS_LABEL, formatFee } from "@/config/crew";
 import { dateLabel, agoLabel, excerpt } from "@/lib/agent/fact-utils";
+import { loadBuildSuggestions } from "@/lib/build-suggestions/load";
 
 const CAPTURE_MAX = 300;
 
@@ -160,6 +161,33 @@ export async function captureFacts(userId: string, limit: number): Promise<Fact[
         note: excerpt(c.body, CAPTURE_MAX),
         captured: dateLabel(c.createdAt),
         age: agoLabel(c.createdAt),
+      },
+    }),
+  );
+}
+
+/**
+ * What the operator could build next — the same ranked list the /loki start
+ * screen shows as "Build next" (src/lib/build-suggestions), so asking Loki
+ * "what should I build?" and looking at the row give one answer. Each fact
+ * carries the stored reason and the exact next move: the instruction to
+ * dispatch, or the create link for a new build.
+ */
+export async function buildSuggestionFacts(userId: string, limit: number): Promise<Fact[]> {
+  const { suggestions } = await loadBuildSuggestions(userId, { limit }).catch(() => ({
+    suggestions: [],
+  }));
+  return suggestions.map((s) =>
+    makeFact({
+      kind: "document",
+      subject: s.label,
+      source: `build suggestions (ranked from the operator's own records) · ${s.kind}`,
+      values: {
+        title: s.label,
+        source: s.project
+          ? `build suggestion · project ${s.project}`
+          : `build suggestion · ${s.kind}`,
+        excerpt: `${s.why} Next move: ${s.prompt ?? `start it as a new project — ${s.href}`}`,
       },
     }),
   );

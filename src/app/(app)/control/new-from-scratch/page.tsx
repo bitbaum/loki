@@ -12,7 +12,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, GitBranch, Check, Copy } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
-import { TEMPLATES, type TemplateId } from "@/lib/project-templates";
+// The light half only: the starters' file bodies (the fleet starter is ~0.5 MB)
+// must never reach a client bundle.
+import {
+  PROVISION_TEMPLATES,
+  type ProvisionTemplateId as TemplateId,
+} from "@/config/project-templates";
 import { setDraft } from "@/lib/draft-storage";
 import { LinkGithubButton } from "@/components/onboarding/LinkGithubButton";
 
@@ -139,7 +144,7 @@ function NewFromScratchForm() {
   if (result?.ok && result.repo && result.project) {
     const seededLabel =
       result.template && result.template !== "bare" && result.templateSeeded
-        ? TEMPLATES[result.template].label
+        ? (PROVISION_TEMPLATES.find((t) => t.id === result.template)?.label ?? null)
         : null;
     const infra = result.infra ?? [];
     const firstTask = result.firstTask ?? "";
@@ -420,7 +425,7 @@ function NewFromScratchForm() {
                     idea.
                   </p>
                   <div className="space-y-2">
-                    {Object.values(TEMPLATES).map((t) => (
+                    {PROVISION_TEMPLATES.map((t) => (
                       <label
                         key={t.id}
                         className="flex items-start gap-2 cursor-pointer ui-card-shell p-3"
