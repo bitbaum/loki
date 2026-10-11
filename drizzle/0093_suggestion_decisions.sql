@@ -2,7 +2,7 @@
 -- A suggestion is derived from their records on every load; only the answer
 -- ("taken" / "dismissed", when) is stored. It hides the suggestion for a
 -- window and is the record behind the page's own numbers. Hand-written,
--- like 0073–0090.
+-- like 0073–0092.
 CREATE TABLE IF NOT EXISTS suggestion_decisions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

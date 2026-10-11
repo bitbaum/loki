@@ -1,0 +1,230 @@
+/**
+ * Inline tests for the person's budget view (lib/ai/budget-view.ts).
+ *
+ * The property under test is not the arithmetic — fair-share.ts already pins
+ * that — it is that the screen never says something the gate would contradict:
+ *
+ *   - "N answers now" is zero exactly when the gate would refuse the next turn,
+ *     whatever the person's cheap real turns suggest;
+ *   - paced, spent and pool-spent are three different sentences, because they
+ *     have three different remedies (wait · wait for midnight · nothing today);
+ *   - a vendor nobody heard from today is NOT the pool being spent;
+ *   - the per-answer cost becomes the person's own measurement once they have
+ *     a few turns, and stays the constant before that.
+ *
+ * Numbers are chosen to be checkable by hand: a 100_000-token day, one user,
+ * at noon UTC — so the share is 100k and the paced allowance is 75k.
+ *
+ * Run: npx tsx scripts/test/ai-budget-view.ts
+ */
+import {
+  headroomNote,
+  nextUtcMidnight,
+  userBudgetView,
+  type BudgetInput,
+} from "@/lib/ai/budget-view";
+import { ESTIMATED_TURN_TOKENS } from "@/lib/ai-budget/gate";
+import { TOKENS_PER_ANSWER, type QuotaRowView } from "@/lib/ai/quota-view";
+
+function assert(condition: boolean, message: string): void {
+  if (!condition) throw new Error(message);
+}
+
+let passed = 0;
+const check = (label: string, fn: () => void) => {
+  fn();
+  passed += 1;
+  console.log(`  ✓ ${label}`);
+};
+
+const NOON = new Date("2026-08-15T12:00:00Z");
+const CHAIN = [
+  { provider: "groq", model: "openai/gpt-oss-120b" },
+  { provider: "openrouter", model: "qwen/qwen3-32b:free" },
+];
+
+function input(over: Partial<BudgetInput> = {}): BudgetInput {
+  return {
+    now: NOON,
+    dayCapacityTokens: 100_000,
+    activeUsers: 1,
+    userSpentTokens: 0,
+    userTurns: 0,
+    chain: CHAIN,
+    vendorRows: [],
+    ownKeys: [],
+    ...over,
+  };
+}
+
+function row(over: Partial<QuotaRowView>): QuotaRowView {
+  return {
+    provider: "groq",
+    model: "openai/gpt-oss-120b",
+    state: "known",
+    answers: 40,
+    detail: "240,000 of 300,000 tokens today",
+    refills: "in 12 hours",
+    consequence: "",
+    level: 0.8,
+    urgent: false,
+    ...over,
+  };
+}
+
+console.log("ai-budget-view");
+
+check("a fresh day: answers now and today, counted at the constant, bar at zero", () => {
+  const v = userBudgetView(input());
+  const p = v.freePool;
+  assert(p.state === "ok", `state ${p.state}`);
+  assert(p.shareTokens === 100_000, `share ${p.shareTokens}`);
+  assert(p.allowanceTokens === 75_000, `allowance ${p.allowanceTokens}`);
+  assert(!p.measured && p.tokensPerAnswer === TOKENS_PER_ANSWER, "constant before any turn");
+  // One admission while the 20k estimate fits, then one per real answer above it.
+  const admissions = (left: number) =>
+    1 + Math.floor((left - ESTIMATED_TURN_TOKENS) / TOKENS_PER_ANSWER);
+  assert(p.answersNow === admissions(75_000), `now ${p.answersNow}`);
+  assert(p.answersToday === admissions(100_000), `today ${p.answersToday}`);
+  assert(p.usedLevel === 0, "nothing used");
+  assert(p.answersToday > p.answersNow && /unlocks through the day/.test(p.line), p.line);
+  assert(/resets in 12 hours/.test(p.line), p.line);
+  assert(v.headline.startsWith("About "), v.headline);
+  assert(v.resetsAt === "2026-08-16T00:00:00.000Z", v.resetsAt);
+});
+
+check("the per-answer cost is the person's own mean once they have a few turns", () => {
+  const p = userBudgetView(input({ userSpentTokens: 30_000, userTurns: 3 })).freePool;
+  assert(p.measured && p.tokensPerAnswer === 10_000, `${p.tokensPerAnswer} measured=${p.measured}`);
+  // 75k allowance − 30k spent = 45k left now: one admission at the 20k
+  // estimate, then two more at the measured 10k. Today: 70k left → 1 + 5.
+  assert(p.answersNow === 3, `now ${p.answersNow}`);
+  assert(p.answersToday === 6, `today ${p.answersToday}`);
+  assert(Math.abs(p.usedLevel - 0.3) < 1e-9, `level ${p.usedLevel}`);
+  const one = userBudgetView(input({ userSpentTokens: 30_000, userTurns: 1 })).freePool;
+  assert(!one.measured, "one turn is a sample, not a mean");
+});
+
+check("'answers now' is zero exactly when the gate would refuse, however cheap the turns", () => {
+  // 75k allowance, 60k spent, measured 2k per answer: 15k left looks like 7
+  // answers, but the gate estimates 20k and refuses — so the screen says 0.
+  const p = userBudgetView(input({ userSpentTokens: 60_000, userTurns: 30 })).freePool;
+  assert(p.tokensPerAnswer === 2_000, `${p.tokensPerAnswer}`);
+  assert(p.state === "paced" && p.answersNow === 0, `${p.state} now=${p.answersNow}`);
+  // 40k left today at 2k an answer is NOT 20: the first must fit the 20k estimate.
+  assert(p.answersToday === 11, `today ${p.answersToday}`);
+  assert(typeof p.unlocksIn === "string" && /^in /.test(p.unlocksIn), `unlocks ${p.unlocksIn}`);
+  assert(/next answer unlocks in/.test(p.line), p.line);
+  // Right at the edge the next turn is admitted and counts as one.
+  const edge = userBudgetView(
+    input({ userSpentTokens: 75_000 - ESTIMATED_TURN_TOKENS, userTurns: 30 }),
+  ).freePool;
+  assert(edge.state === "ok" && edge.answersNow === 1, `${edge.state} now=${edge.answersNow}`);
+});
+
+check("spent is a different sentence from paced: waiting does not help", () => {
+  const p = userBudgetView(input({ userSpentTokens: 95_000, userTurns: 10 })).freePool;
+  assert(p.state === "spent", p.state);
+  assert(p.answersNow === 0 && p.answersToday === 0, "nothing left today");
+  assert(p.unlocksIn === null, "no 'unlocks in' on a spent share");
+  assert(/resets in 12 hours/.test(p.line), p.line);
+  assert(/Bring your own key/.test(p.consequence), p.consequence);
+});
+
+check("no free provider at all is said as such, not as an empty share", () => {
+  const v = userBudgetView(input({ dayCapacityTokens: 0, chain: [] }));
+  assert(v.freePool.state === "none", v.freePool.state);
+  assert(/No free pool/.test(v.headline), v.headline);
+});
+
+check("the pool is spent only when EVERY model's vendor refused — unknown is not a refusal", () => {
+  const spentGroq = row({ state: "exhausted", answers: 0, refills: "in 3 hours", urgent: true });
+  const half = userBudgetView(input({ vendorRows: [spentGroq] })).freePool;
+  assert(half.state === "ok", `one vendor spent, other unheard: ${half.state}`);
+  const spentOr = row({
+    provider: "openrouter",
+    model: "qwen/qwen3-32b:free",
+    state: "exhausted",
+    answers: 0,
+    refills: null,
+    urgent: true,
+  });
+  const all = userBudgetView(input({ vendorRows: [spentGroq, spentOr] })).freePool;
+  assert(all.state === "pool-spent", all.state);
+  assert(/every vendor, not just your share/.test(all.line), all.line);
+  assert(/back in 3 hours/.test(all.line), all.line);
+  // A reading for a model outside the chain says nothing about the pool.
+  const stray = row({ model: "whisper-large-v3", state: "exhausted", answers: 0, urgent: true });
+  assert(userBudgetView(input({ vendorRows: [stray] })).models.length === 0, "stray row dropped");
+});
+
+check("per-model headroom speaks only when there is something to act on", () => {
+  assert(headroomNote(row({})) === null, "a healthy counter is silent");
+  assert(headroomNote(row({ state: "unknown", answers: null })) === null, "unknown is silent");
+  const low = headroomNote(row({ answers: 3, urgent: true, refills: "in 40 minutes" }));
+  assert(low === "Running low — about 3 answers left, refills in 40 minutes", `${low}`);
+  const out = headroomNote(row({ state: "exhausted", answers: 0, refills: "in 3 hours" }));
+  assert(out === "Out of free budget, back in 3 hours — Auto moves past it", `${out}`);
+  const skip = headroomNote(row({ state: "skipped", answers: null }));
+  assert(skip === "Never reached — prompts exceed its budget", `${skip}`);
+  const v = userBudgetView(input({ vendorRows: [row({ answers: 3, urgent: true })] }));
+  assert(
+    v.models.length === 1 && v.models[0]!.id === "groq/openai/gpt-oss-120b",
+    "keyed as the picker keys it",
+  );
+});
+
+check("own keys: their own line, no Loki cap, and the pool becomes the fallback", () => {
+  const v = userBudgetView(
+    input({
+      ownKeys: [
+        {
+          vendor: "anthropic",
+          label: "Anthropic",
+          model: "claude-sonnet-5",
+          billingUrl: "https://console.anthropic.com/settings/billing",
+          limit: "spend limit",
+          usage: { tokensToday: 3_200, callsToday: 4, tokens30d: 48_000, calls30d: 51 },
+        },
+        {
+          vendor: "custom",
+          label: "MacBook Ollama",
+          model: "llama3",
+          billingUrl: null,
+          limit: null,
+          usage: null,
+        },
+      ],
+    }),
+  );
+  const [a, b] = v.ownKeys;
+  assert(
+    a!.line === "Today 3,200 tokens in 4 answers · 30 days 48,000 tokens in 51 answers.",
+    a!.line,
+  );
+  assert(
+    /No cap from Loki — Anthropic bills you directly — set a spend limit there/.test(
+      a!.consequence,
+    ),
+    a!.consequence,
+  );
+  assert(b!.line === "Nothing spent on it yet." && !/set a/.test(b!.consequence), b!.consequence);
+  assert(
+    /Your keys answer first/.test(v.headline) && /free answers behind them/.test(v.headline),
+    v.headline,
+  );
+  assert(/only what catches a turn they miss/.test(v.freePool.consequence), v.freePool.consequence);
+});
+
+check("midnight UTC is the reset, from any hour", () => {
+  assert(
+    nextUtcMidnight(new Date("2026-08-15T23:59:59Z")).toISOString() === "2026-08-16T00:00:00.000Z",
+    "late",
+  );
+  assert(
+    nextUtcMidnight(new Date("2026-08-15T00:00:00Z")).toISOString() === "2026-08-16T00:00:00.000Z",
+    "exact midnight rolls to the next",
+  );
+});
+
+console.log(`\n${passed} checks passed`);

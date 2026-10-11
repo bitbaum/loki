@@ -319,6 +319,13 @@ async function main() {
         reason: "guests on the invitation",
       };
     },
+    browserTask: async (_u, recipe, params) => {
+      calls.push(`browser:${recipe}`);
+      // The real service resolves through config/browser-tasks.ts; so does this.
+      const { resolveBrowserTask } = await import("../../src/config/browser-tasks");
+      const task = resolveBrowserTask(recipe, params);
+      return task ? { commandId: "c-1", title: task.title, button: task.handoff.button } : null;
+    },
     projects: async () => [
       {
         name: "loki",
@@ -433,7 +440,7 @@ async function main() {
 
   // ── scope gating: the consent screen must not lie ─────────────────────────
   const chat = caller([MCP_SCOPE.chat]);
-  for (const name of ["loki_dispatch", "loki_book", "loki_decide"] as const) {
+  for (const name of ["loki_dispatch", "loki_book", "loki_decide", "loki_browser_task"] as const) {
     calls.length = 0;
     const r = await call(
       name,
@@ -444,6 +451,8 @@ async function main() {
         start: "2026-10-01",
         action_id: "8337d0fe",
         decision: "approve",
+        recipe: "npm-trusted-publisher",
+        params: { package: "x", owner: "a", repo: "b", workflow: "p.yml" },
       },
       chat,
     );
@@ -502,6 +511,40 @@ async function main() {
   check(
     "a conversation_id with odd characters is refused",
     (await call("ask_loki", { message: "x", conversation_id: "a:b" }, chat)).isError === true,
+  );
+
+  calls.length = 0;
+  const handoff = await call("loki_browser_task", {
+    recipe: "npm-trusted-publisher",
+    params: {
+      package: "@bitbaum/chatkit",
+      owner: "bitbaum",
+      repo: "chatkit",
+      workflow: "publish.yml",
+    },
+  });
+  check(
+    "loki_browser_task queues the form and says the owner presses the button — never that it is done",
+    !handoff.isError &&
+      calls.includes("browser:npm-trusted-publisher") &&
+      handoff.content[0].text.includes('stops at "Set up connection"') &&
+      !/\b(done|configured|set up)\b(?! connection)/i.test(
+        handoff.content[0].text.replace(/Set up connection/g, ""),
+      ),
+  );
+  calls.length = 0;
+  const badParams = await call("loki_browser_task", {
+    recipe: "npm-trusted-publisher",
+    params: { package: "@bitbaum/chatkit", owner: "bitbaum" },
+  });
+  check(
+    "loki_browser_task with missing params → isError naming what it needs",
+    badParams.isError === true && badParams.content[0].text.includes("repo, workflow"),
+  );
+  check(
+    "loki_browser_task refuses a recipe that is not in config",
+    (await call("loki_browser_task", { recipe: "open-anything", params: { url: "https://x" } }))
+      .isError === true,
   );
 
   const booked = await call("loki_book", {

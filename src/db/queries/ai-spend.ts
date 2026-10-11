@@ -14,6 +14,14 @@ export type DayUsage = {
   /** What this user has drawn today. */
   userSpentTokens: number;
   /**
+   * Turns this user took today. Read from the same row as the tokens, so it
+   * costs nothing, and it is what turns the per-answer constant in
+   * lib/ai/quota-view.ts into a measurement: tokens ÷ turns is what THIS
+   * person's answers actually cost today, which is the number "about N more
+   * answers" should be built on.
+   */
+  userTurns: number;
+  /**
    * Distinct users who drew today, INCLUDING this one even if they have not
    * spent yet. The divisor must count the requester or a newcomer is rationed
    * against a split that does not include them, briefly over-committing the day.
@@ -27,7 +35,7 @@ export async function getDayUsage(userId: string, now = new Date()): Promise<Day
 
   const [mine, others] = await Promise.all([
     db
-      .select({ tokens: aiSpend.tokens })
+      .select({ tokens: aiSpend.tokens, turns: aiSpend.turns })
       .from(aiSpend)
       .where(and(eq(aiSpend.userId, userId), eq(aiSpend.day, day)))
       .limit(1),
@@ -35,11 +43,12 @@ export async function getDayUsage(userId: string, now = new Date()): Promise<Day
   ]);
 
   const userSpentTokens = mine[0]?.tokens ?? 0;
+  const userTurns = mine[0]?.turns ?? 0;
   const spenders = others[0]?.n ?? 0;
   // A user with no row today is not yet counted in `spenders`, so add them.
   const activeUsers = mine.length > 0 ? spenders : spenders + 1;
 
-  return { userSpentTokens, activeUsers: Math.max(1, activeUsers) };
+  return { userSpentTokens, userTurns, activeUsers: Math.max(1, activeUsers) };
 }
 
 /**

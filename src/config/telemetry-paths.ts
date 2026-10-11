@@ -156,6 +156,17 @@ export const TELEMETRY_PATHS: TelemetryPath[] = [
     because: "Dispatch-driven; measured worst normal gap 6d3h.",
   },
   {
+    table: "operator_usage_events",
+    timeColumn: "created_at",
+    label: "Operator usage events",
+    writer:
+      "the operator showing, tapping or rotating a surface listed in src/config/usage-surfaces.ts",
+    monitored: false,
+    because:
+      "Human-driven: written when the operator opens /loki. A quiet week is a " +
+      "quiet operator, and that is what Loki is meant to read from it, not alert on.",
+  },
+  {
     table: "control_audit_events",
     timeColumn: "created_at",
     label: "Control audit trail",

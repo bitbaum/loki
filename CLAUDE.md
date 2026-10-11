@@ -405,7 +405,11 @@ and change it THERE, because a fix made here would reach nobody.
   triggers on `workflow_run` of CI and assume automated merges reach it — give
   it `workflow_dispatch` and drive it from the sweep.
 - **After merging, confirm the commit is LIVE, not just merged.** Green CI plus
-  a merge is not a deploy; check the running site.
+  a merge is not a deploy; check the running site. `pnpm run ship:report --
+  /route --focus '<selector>'` does the check and writes the proof — the live
+  URL, phone and desktop screenshots of the deployed page, what was and was
+  not verified. That report, not a merge notice, is what a finished message
+  carries. See `docs/development/ship-report.md` for the message it replaces.
 
 ## Dev Commands
 

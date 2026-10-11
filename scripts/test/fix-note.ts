@@ -8,6 +8,7 @@ import {
   parseFixNote,
   tidyFixNote,
   FIX_NOTE_HEADING,
+  NOTE_NONE,
 } from "../../src/lib/feedback/fix-note";
 import { deriveShippingFromPr } from "../../src/lib/feedback/fix-shipping";
 
@@ -167,5 +168,67 @@ assert.equal(parseFixNote(`## ${FIX_NOTE_HEADING}\n- Problem: <what was actually
   void _drop;
   assert.equal(tidyFixNote(old).next, null);
 }
+
+// ---- behind the scenes: what changed, and the proof (owner, 2026-10-11) ----
+// "Something that you cannot screenshot and show … it still should explain
+// exactly what was done. And how this change benefits users."
+{
+  const note = parseFixNote(
+    [
+      "## Walkthrough",
+      "- Change: The nightly import retries a failed batch.",
+      "- Shows: behind the scenes",
+      "- Under the hood: When the supplier's server times out, the import now waits a minute and tries that batch again, up to three times, instead of skipping it.",
+      "- Helps: Shop prices no longer go stale for a day when the supplier hiccups.",
+      "- Proof: A test forces two timeouts and checks every row lands; last night's log shows 0 skipped batches.",
+    ].join("\n"),
+  );
+  assert.equal(note?.shows, "behind");
+  assert.match(note?.detail ?? "", /tries that batch again/);
+  assert.match(note?.proof ?? "", /0 skipped batches/);
+  assert.match(note?.helps ?? "", /no longer go stale/);
+  assert.equal(parseFixNote("## Walkthrough\n- Change: c\n- Shows: on the page")?.shows, "page");
+  assert.equal(
+    parseFixNote("## Walkthrough\n- Change: c\n- Shows: no, backend only")?.shows,
+    "behind",
+  );
+  // Older notes have none of it and still read.
+  const { shows: _s, detail: _d, proof: _p, ...old } = note!;
+  void _s;
+  void _d;
+  void _p;
+  const tidy = tidyFixNote(old);
+  assert.equal(tidy.shows, null);
+  assert.equal(tidy.detail, null);
+}
+
+// ---- downsides, costs, benefit to us: "none" is a finding, said as "None" ----
+{
+  const note = parseFixNote(
+    [
+      "## Walkthrough",
+      "- Change: c",
+      "- Benefits us: Fewer support emails.",
+      "- Downsides: none",
+      "- Costs: No extra cost.",
+    ].join("\n"),
+  );
+  assert.equal(note?.us, "Fewer support emails.");
+  assert.equal(note?.downsides, NOTE_NONE);
+  assert.equal(note?.costs, NOTE_NONE);
+  const real = parseFixNote(
+    "## Walkthrough\n- Change: c\n- Downsides: No caching, so the page is 40ms slower.\n- Costs: about $2/month more in AI calls",
+  );
+  assert.match(real?.downsides ?? "", /40ms slower/, "a real downside starting with 'No' is kept");
+  assert.match(real?.costs ?? "", /\$2\/month/);
+  assert.match(fixNoteInstruction(), /state its downsides and costs/);
+  assert.match(fixNoteInstruction(), /how it benefits us/);
+}
+
+// ---- the instruction asks for the benefit on every change ----
+assert.match(
+  fixNoteInstruction(),
+  /Every change must say how it helps the people who use the product/,
+);
 
 console.log("fix-note: ok");

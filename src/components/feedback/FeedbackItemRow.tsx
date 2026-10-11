@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
  *   4. what happens now       — one sentence: what is wanted of you, or
  *                               that nothing is
  *   5. the moves              — every control is a verb that names its
- *                               destination ("See the fix on the site",
+ *                               destination ("Watch the fix",
  *                               "Watch in Terminal", "It worked", "File
  *                               away"). No bare icons; the one filled button
  *                               is the move the sentence above asks for.

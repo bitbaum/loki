@@ -21,7 +21,7 @@ import {
   Sparkles,
   TerminalSquare,
 } from "lucide-react";
-import { nextStepPrompt, type RunHandoff } from "@/lib/run-handoff";
+import { nextStepPrompt, type RunFollow, type RunHandoff } from "@/lib/run-handoff";
 import type { CitationMap } from "@/components/ui/markdown-text";
 import {
   deriveMultiDispatchView,
@@ -38,6 +38,7 @@ export const KIND_LABEL: Record<string, string> = {
   dispatch: "Dispatched",
   chat: "Loki",
   command: "Needs project",
+  outcome: "Update",
 };
 
 /** Outcome footer under a dispatch bubble — tells the operator whether the work
@@ -164,6 +165,7 @@ export function DispatchFooter({
           {pinned && `Agent: ${pinned}`}
         </p>
       )}
+      {live?.terminal && live.follow && <RunFollowLine follow={live.follow} />}
       {handoff && (
         <RunHandoffBlock
           handoff={handoff}
@@ -188,6 +190,59 @@ export function DispatchFooter({
             </Link>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+const LOOKED_WORDS: Record<NonNullable<RunFollow["looked"]>["verdict"], string> = {
+  looks_fixed: "Loki looked at the live page — it's there",
+  not_visible: "Loki looked at the live page — it isn't showing yet",
+  cannot_tell: "Loki looked at the live page — can't tell from here",
+};
+
+/**
+ * Where the change went after the agent stopped: PR → merged → live, then
+ * what Loki saw when it read the live page. "Completed" was where the card
+ * used to end, on a change that was still an unmerged pull request.
+ */
+function RunFollowLine({ follow }: { follow: RunFollow }) {
+  return (
+    <div className="ui-loki-handoff">
+      <div className="ui-loki-dispatch-status">
+        <span className={dispatchToneDotClass(follow.tone)} />
+        <span className="font-medium text-text-primary">{follow.label}</span>
+        {follow.prUrl && (
+          <a
+            href={follow.prUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ui-loki-dispatch-secondary"
+          >
+            Pull request
+          </a>
+        )}
+        {follow.liveUrl && (
+          <a
+            href={follow.liveUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ui-loki-dispatch-secondary"
+          >
+            Open it
+          </a>
+        )}
+      </div>
+      {follow.looked && (
+        <p className="ui-loki-dispatch-detail">
+          <span className="font-medium text-text-secondary">
+            {LOOKED_WORDS[follow.looked.verdict]}.
+          </span>{" "}
+          {follow.looked.evidence}
+        </p>
+      )}
+      {!follow.looked && follow.liveUrl && !follow.settled && (
+        <p className="ui-loki-dispatch-detail">Loki is reading the live page…</p>
       )}
     </div>
   );

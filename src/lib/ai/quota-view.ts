@@ -120,6 +120,26 @@ export function refillsIn(resetAt: Date | string | null, now: number): string | 
 }
 
 /**
+ * What the chain falls to after `provider` — the consequence half of a row.
+ *
+ * Chain order is fallback order, so this is simply the next link at a
+ * DIFFERENT vendor; a smaller model at the same vendor draws on the same
+ * exhausted budget and is no fallback at all. Null when nothing follows.
+ */
+export function nextProviderAfter(
+  chain: readonly { provider: { id: string } }[],
+  provider: string,
+): string | null {
+  const idx = chain.findIndex((l) => l.provider.id === provider);
+  if (idx === -1) return null;
+  for (let i = idx + 1; i < chain.length; i++) {
+    const next = chain[i];
+    if (next && next.provider.id !== provider) return next.provider.id;
+  }
+  return null;
+}
+
+/**
  * Render one counter.
  *
  * `nextProvider` is what the chain would fall to — the consequence half. When

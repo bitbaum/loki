@@ -2,6 +2,8 @@
 
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { readWork } from "@/lib/loki/work";
+import { readProgressUpdate } from "@/lib/loki/progress-update";
+import { ProgressUpdateCard } from "./ProgressUpdateCard";
 import { AnswerActions } from "./AnswerActions";
 import { ProvenanceFooter } from "./ProvenanceFooter";
 import { WorkTrail } from "./WorkTrail";
@@ -69,19 +71,27 @@ export function MessageTurn({
   // had apparently cost nothing.
   const work = readWork(message.meta);
 
+  // An update Loki posted when work moved (a PR opened, a fix went live):
+  // the structured card, not its plain-text twin in `content`.
+  const update = readProgressUpdate(message.meta);
+
   return (
     <div className="ui-loki-turn group/turn">
       {kind && <span className="ui-loki-kind">{kind}</span>}
 
       {work.length > 0 && <WorkTrail work={work} live={false} />}
 
-      <div className="ui-loki-answer">
-        <MarkdownText
-          text={message.content}
-          className="space-y-2"
-          citations={citationsFrom(message.meta)}
-        />
-      </div>
+      {update ? (
+        <ProgressUpdateCard update={update} />
+      ) : (
+        <div className="ui-loki-answer">
+          <MarkdownText
+            text={message.content}
+            className="space-y-2"
+            citations={citationsFrom(message.meta)}
+          />
+        </div>
+      )}
 
       {message.kind === "command" && onPickProject && (
         <NeedsProjectPicker

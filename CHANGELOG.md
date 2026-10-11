@@ -25,6 +25,28 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **Private fronts stay private.** People, Money and Habits are read only
   while your PIN zone is unlocked; locked, the page says so and offers the
   unlock.
+## 2026-10-11 — Shipped means you can see it, and Loki watches whether it gets used
+
+- **A finished change comes with proof.** Agents now report shipped work as
+  the live link first, screenshots of the real deployed page (phone first),
+  and a plain list of what was and was not checked. `pnpm run ship:report`
+  produces it: it confirms the site is running the shipped build and
+  photographs the page, instead of announcing a merge and hoping.
+- **Loki remembers how you use "Build next".** Each time the row is shown,
+  tapped, or rotated past is recorded, and Loki reads it back: ask "how am I
+  using Build next?" and it says what gets tapped and what it keeps offering
+  for nothing — and it uses the same record when you ask what to build, so
+  it leads with the kind of suggestion you actually take.
+## 2026-10-11 — Nothing waits on a command someone has to remember
+
+- **The evening plan now actually arrives.** The 19:00 proposal for the
+  night shipped yesterday, but its timer only reached the server when
+  someone ran a setup command there by hand, so no plan was made. Every
+  deploy now installs the scheduled jobs itself, and a test fails if that
+  ever stops.
+- **Fix checks have their browser.** The picture Loki takes of a live page
+  needs a browser on the server. The deploy installs it too, so the first
+  visual fix gets a real verdict instead of "no browser".
 
 ## 2026-10-11 — Loki looks at a picture when words cannot tell
 

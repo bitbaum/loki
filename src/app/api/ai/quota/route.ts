@@ -7,6 +7,7 @@ import { isGatewayConfigured } from "@/lib/openclaw-gateway";
 import {
   bindingRows,
   describeQuota,
+  nextProviderAfter,
   unknownQuota,
   summarise,
   dedupeConsequences,
@@ -47,15 +48,7 @@ export async function GET() {
 
   // Chain order is fallback order, so "what serves this next" is simply the
   // following link — that is the consequence half of every row.
-  const nextAfter = (provider: string): string | null => {
-    const idx = chain.findIndex((l) => l.provider.id === provider);
-    if (idx === -1) return null;
-    for (let i = idx + 1; i < chain.length; i++) {
-      const next = chain[i];
-      if (next && next.provider.id !== provider) return next.provider.id;
-    }
-    return null;
-  };
+  const nextAfter = (provider: string) => nextProviderAfter(chain, provider);
 
   // One row per counter comes out of the table; one row per MODEL goes to the
   // page, carrying whichever counter is actually blocking. See bindingRows.
