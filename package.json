@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "npx tsx scripts/generate-bash-state-vocab.ts && npx tsx scripts/generate-widget-theme.ts && pnpm run build:widget",
+    "build:extension": "npx tsx scripts/build-extension.ts",
     "build:widget": "esbuild widget/main.ts --bundle --minify --format=iife --outfile=public/widget.js --log-level=warning",
     "build": "next build",
     "postbuild": "bash scripts/record-build-ref.sh && bash scripts/deploy-local.sh",
@@ -17,7 +18,7 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "check:schema": "npx tsx scripts/check-schema-drift.ts",
-    "lint": "eslint --cache --cache-location node_modules/.cache/eslint src/ home/ widget/",
+    "lint": "eslint --cache --cache-location node_modules/.cache/eslint src/ home/ widget/ extension/src/",
     "check:design": "bash scripts/check-design-system.sh",
     "check:file-inputs": "chatkit-check-file-inputs src widget",
     "check:desktop": "bash scripts/check-desktop.sh",

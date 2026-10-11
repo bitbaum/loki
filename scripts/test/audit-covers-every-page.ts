@@ -82,7 +82,11 @@ function auditLists(): { measured: Set<string>; excluded: Set<string> } {
     ? [...excludedBlock[1].matchAll(/"(\/[^"]*)"\s*:\s*"([^"]+)"/g)].map((m) => m[1])
     : [];
   return {
-    measured: new Set([...arrayOf("PAGES"), ...arrayOf("PUBLIC_PAGES")]),
+    // A page may be measured with a query (/fill takes the form to show); the
+    // route it covers is the path before it.
+    measured: new Set(
+      [...arrayOf("PAGES"), ...arrayOf("PUBLIC_PAGES")].map((p) => p.split("?")[0]),
+    ),
     excluded: new Set(excluded),
   };
 }

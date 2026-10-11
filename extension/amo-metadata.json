@@ -1,0 +1,8 @@
+{
+  "version": { "license": "MIT" },
+  "categories": ["other"],
+  "summary": {
+    "en-US": "Loki fills forms for you and stops at the final button, so the one click that is yours stays yours."
+  },
+  "homepage": { "en-US": "https://loki.orangecat.ch/fill" }
+}

@@ -7,7 +7,7 @@
  *   dispatch          → injectPrompt       (POST /api/inject, as the skill calls it)
  *   book              → enqueueAction      (POST /api/actions/propose, as `book` calls it)
  *   projects          → getUserProjects    (the list inject resolves names against)
- *   browserTask       → enqueueBrowserTaskCommand (the chat's fill_web_form calls it too)
+ *   browserTask       → browserTaskPath   (the /fill link the chat's fill_web_form gives too)
  *
  * The only module under lib/mcp that touches the database; the route is its
  * only importer, so the dispatcher and tools stay loadable without one.
@@ -21,8 +21,8 @@ import { decideAction } from "@/lib/actions/decide-action";
 import { enqueueAction } from "@/lib/actions/enqueue-action";
 import { enqueueReport } from "@/lib/actions/enqueue-report";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
-import { enqueueBrowserTaskCommand } from "@/db/queries/pending-commands";
-import { resolveBrowserTask, type BrowserRecipeId } from "@/config/browser-tasks";
+import { APP_DOMAIN } from "@/config/brand";
+import { browserTaskPath, resolveBrowserTask, type BrowserRecipeId } from "@/config/browser-tasks";
 import type { BookRequest, McpServices } from "@/lib/mcp/types";
 
 /**
@@ -41,15 +41,11 @@ function eventPayload(req: BookRequest): Record<string, unknown> {
 }
 
 export const lokiMcpServices: McpServices = {
-  browserTask: async (userId, recipe, params) => {
+  browserTask: async (_userId, recipe, params) => {
     const task = resolveBrowserTask(recipe, params);
     if (!task) return null;
-    const commandId = await enqueueBrowserTaskCommand(userId, {
-      recipe: recipe as BrowserRecipeId,
-      params,
-      channel: "local",
-    });
-    return { commandId, title: task.title, button: task.handoff.button };
+    const link = `https://${APP_DOMAIN}${browserTaskPath(recipe as BrowserRecipeId, params)}`;
+    return { link, title: task.title, button: task.handoff.button };
   },
 
   ask: (userId, message, { sessionKey, readOnly }) =>
