@@ -111,6 +111,9 @@ export function installWatch(opts: {
   onNotice?: (notice: Notice) => void;
   /** The site moved to another page (SPA navigation) — time to look at it. */
   onPage?: () => void;
+  /** One of the widget's OWN calls to Loki finished — not the site's business,
+   *  but Loki's (self-watch.ts). */
+  onOwnRequest?: (method: string, url: string, status: number | null, ms: number) => void;
 }): { trail: () => TrailEntry[]; note: (kind: TrailEntry["kind"], text: string) => void } {
   let trail: TrailEntry[] = readStoredTrail(opts.token);
   const add = (kind: TrailEntry["kind"], text: string) => {
@@ -255,7 +258,11 @@ export function installWatch(opts: {
   });
 
   const onRequest = (method: string, url: string, status: number | null, ms: number) => {
-    if (opts.isOwnRequest(new URL(url, location.href).href)) return;
+    const href = new URL(url, location.href).href;
+    if (opts.isOwnRequest(href)) {
+      if (opts.isActive()) opts.onOwnRequest?.(method, href, status, ms);
+      return;
+    }
     // The page answered the tap, so the button was not dead.
     streak = null;
     const text = describeRequest(method, url, status);
@@ -610,6 +617,8 @@ export function startWatchMode(opts: {
   known?: (key: string) => KnownFix | null;
   /** Settles once the owner's fixes have been read, so Watch looks before it speaks. */
   knownReady?: () => Promise<void>;
+  /** The widget's own calls to Loki (self-watch.ts). */
+  onOwnRequest?: (method: string, url: string, status: number | null, ms: number) => void;
 }): WatchSession {
   let paused = readWatchPaused(opts.token);
   const sent = new Set<string>();
@@ -638,7 +647,10 @@ export function startWatchMode(opts: {
   // launcher nor the open panel can say that Loki is watching (a page that
   // blocks every corner, or one that hides the launcher). Re-checked each
   // second — the launcher hides and returns as the page changes under it.
-  const syncBar = () => pill.setVisible(!opts.statusShown());
+  // A modal the site opened (a sheet, a dialog) is what the person is doing
+  // right now; the bar used to sit on top of it, over the sheet's own title
+  // (operator's phone, 2026-10-11: "Choose a model" under "Loki noticed…").
+  const syncBar = () => pill.setVisible(!opts.statusShown() && !hostModalOpen(opts.host));
   syncBar();
   window.setInterval(syncBar, 1000);
   /** What the pill shows now — a remark never covers "Loki is fixing it". */
@@ -788,6 +800,7 @@ export function startWatchMode(opts: {
     onNotice: (n) => remark(noticeSignature(location.pathname, n), explainNotice(n)),
     onPage: scheduleChecks,
     onChange: (trail) => opts.onTrail?.(trail),
+    onOwnRequest: opts.onOwnRequest,
   });
   if (!paused) {
     show(watching());
@@ -817,6 +830,29 @@ export type WatchSession = {
    *  stopped, when nothing may travel. */
   diagnostics: () => ReportDiagnostics | null;
 };
+
+/** The site has a modal open — a `<dialog open>` shown modally or an
+ *  `aria-modal` element on screen — that is not Loki's own. */
+export function hostModalOpen(host: HTMLElement): boolean {
+  for (const el of Array.from(
+    document.querySelectorAll<HTMLElement>('[aria-modal="true"], dialog[open]'),
+  )) {
+    if (isOurNode(el, host)) continue;
+    if (el instanceof HTMLDialogElement) {
+      // showModal() vs show(): only the first blocks the page. A browser
+      // without :modal counts every open dialog — erring toward stepping aside.
+      let modal = true;
+      try {
+        modal = el.matches(":modal");
+      } catch {
+        /* no :modal support */
+      }
+      if (!modal) continue;
+    }
+    if (el.getClientRects().length > 0) return true;
+  }
+  return false;
+}
 
 /** Page checks must never take the review down with them. */
 function safePageChecks(): string[] {
