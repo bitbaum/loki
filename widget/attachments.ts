@@ -9,6 +9,8 @@ export type Attachments = {
   render(): void;
   attach(file: Blob | null | undefined): Promise<void>;
   attachMany(files: FileList | null): Promise<void>;
+  /** Pasting an image anywhere inside `el` attaches it (text pastes as usual). */
+  listenPaste(el: HTMLElement): void;
   reset(): void;
 };
 
@@ -79,6 +81,15 @@ export function createAttachments(opts: {
     render,
     attach,
     attachMany,
+    listenPaste: (el) =>
+      el.addEventListener("paste", (e: ClipboardEvent) => {
+        const images = Array.from(e.clipboardData?.items ?? []).filter((i) =>
+          i.type.startsWith("image/"),
+        );
+        if (!images.length) return;
+        e.preventDefault();
+        for (const item of images) void attach(item.getAsFile());
+      }),
     reset: () => {
       shots = [];
     },
