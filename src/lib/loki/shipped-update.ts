@@ -29,10 +29,15 @@ export type ShippedUpdateInput = {
 /** Pure: the update for a fix that went live or failed to deploy. */
 export function buildShippedUpdate(input: ShippedUpdateInput): ProgressUpdate {
   const live = input.announcement === "live";
+  // A change that works behind the scenes has nothing on the page to watch:
+  // the update explains it and shows its proof instead of a walkthrough
+  // pointing at a page that did not change.
+  const visible = input.fix.pr?.note?.shows !== "behind";
   const links: UpdateLink[] = [];
-  if (live && input.livePageUrl)
+  if (live && visible && input.livePageUrl) {
     links.push({ label: "Watch the fix", href: watchFixPath(input.feedbackId), primary: true });
-  if (live && input.livePageUrl) links.push({ label: "The page", href: input.livePageUrl });
+    links.push({ label: "The page", href: input.livePageUrl });
+  }
   if (!live && input.fix.deploy?.url)
     links.push({ label: "The failed deploy", href: input.fix.deploy.url, primary: true });
   if (input.fix.pr?.url) links.push({ label: "What changed", href: input.fix.pr.url });

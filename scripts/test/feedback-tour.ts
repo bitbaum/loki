@@ -256,6 +256,34 @@ const outline = [
   assert.ok(total > 25_000 && total < 90_000, `a full owner story reads in ~a minute (${total}ms)`);
 }
 
+// ---- behind the scenes: no cursor on an unchanged page; the story tells it ----
+{
+  const beats = buildTourBeats({
+    audience: "owner",
+    asked: "prices were stale",
+    note: {
+      problem: null,
+      change: "The import retries.",
+      why: null,
+      considered: [],
+      helps: "Prices stay current.",
+      shows: "behind",
+      detail: "A timed-out batch is retried up to three times.",
+      proof: "0 skipped batches last night.",
+      next: null,
+      where: null,
+      plain: null,
+    },
+    didLine: null,
+    steps: [{ target: 1, action: "point", say: "a guess" }],
+    before: null,
+  });
+  assert.ok(!beats.some((b) => typeof b.target === "number"), "nothing to point at");
+  const chapters = beats.map((b) => b.chapter);
+  for (const c of [TOUR_CHAPTER.UNDER_HOOD, TOUR_CHAPTER.HELPS, TOUR_CHAPTER.PROOF])
+    assert.ok(chapters.includes(c), `has "${c}"`);
+}
+
 // ---- caption clears the host's bottom bar ----
 // 2026-10-07: on Substrata at 390px the phone tab bar and the floating ASK
 // button sat on top of the caption and its "Looks right" button.

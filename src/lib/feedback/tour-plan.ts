@@ -179,7 +179,9 @@ export const TOUR_CHAPTER = {
   SEE_IT: "Here it is",
   WHY: "Why this way",
   CONSIDERED: "Also considered",
-  HELPS: "Who it helps",
+  HELPS: "How it helps users",
+  UNDER_HOOD: "Under the hood",
+  PROOF: "Proof it works",
   NEXT: "What could come next",
   FOR_YOU: "What changed for you",
 } as const;
@@ -251,7 +253,23 @@ export function buildTourBeats(story: TourStory): TourBeat[] {
     beats.push({ chapter: TOUR_CHAPTER.PROBLEM, action: "say", say: note.problem });
   const change = note?.change ?? story.didLine;
   if (change) beats.push({ chapter: TOUR_CHAPTER.CHANGE, action: "say", say: change });
-  beats.push(...live(TOUR_CHAPTER.CHANGE));
+  if (note?.shows === "behind") {
+    // Nothing on the page changed, so the cursor has nothing honest to point
+    // at: the story says exactly what changed in the system instead.
+    beats.push({
+      chapter: TOUR_CHAPTER.UNDER_HOOD,
+      action: "say",
+      say:
+        note.detail ??
+        "This change works behind the scenes — nothing on this page looks different.",
+    });
+  } else {
+    beats.push(...live(TOUR_CHAPTER.CHANGE));
+  }
+  // Every change owes the people using the product a reason: said straight
+  // after what changed, before the argument for how.
+  if (note?.helps) beats.push({ chapter: TOUR_CHAPTER.HELPS, action: "say", say: note.helps });
+  if (note?.proof) beats.push({ chapter: TOUR_CHAPTER.PROOF, action: "say", say: note.proof });
   if (note?.why) beats.push({ chapter: TOUR_CHAPTER.WHY, action: "say", say: note.why });
   for (const alt of note?.considered ?? []) {
     beats.push({
@@ -260,7 +278,6 @@ export function buildTourBeats(story: TourStory): TourBeat[] {
       say: alt.whyNot ? `${alt.option} — not chosen: ${alt.whyNot}` : alt.option,
     });
   }
-  if (note?.helps) beats.push({ chapter: TOUR_CHAPTER.HELPS, action: "say", say: note.helps });
   if (note?.next) beats.push({ chapter: TOUR_CHAPTER.NEXT, action: "say", say: note.next });
   return beats;
 }

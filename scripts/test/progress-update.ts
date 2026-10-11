@@ -50,8 +50,8 @@ const note = {
   assert.match(u.headline, /live on the home page/, 'never "live on /"');
   assert.deepEqual(
     UPDATE_SECTIONS.map((s) => s.key),
-    ["asked", "problem", "done", "why", "next", "checks"],
-    "asked → wrong → done → why → next: the order the owner asked for",
+    ["asked", "problem", "done", "detail", "helps", "why", "next", "checks"],
+    "asked → wrong → done → how it helps users → why → next → proof: the order the owner asked for",
   );
 
   const text = progressUpdateText(u);
@@ -59,6 +59,7 @@ const note = {
     "Asked",
     "What was wrong",
     "What was done",
+    "How it helps users",
     "Why this way",
     "Also considered",
     "What could come next",
@@ -190,6 +191,58 @@ const note = {
   assert.equal(m.meta.update.checks, "tests: 42 passed");
   assert.equal(m.meta.update.links[0].label, "What changed");
   assert.match(m.content, /Pull request: /, "the plain text twin is unchanged for older clients");
+}
+
+// ---- behind the scenes: explained, proven, no walkthrough to nowhere ----
+{
+  const behindNote = {
+    ...note,
+    shows: "behind" as const,
+    detail: "The import now retries a timed-out batch up to three times.",
+    proof: "A test forces two timeouts; last night's log shows 0 skipped batches.",
+  };
+  const u = buildShippedUpdate({
+    announcement: "live",
+    projectKey: "evig",
+    feedbackId: "f2",
+    asked: "prices were stale",
+    hasScreenshot: false,
+    fix: {
+      state: "deployed",
+      checkedAt: "",
+      pr: { number: 1, url: "https://github.com/o/r/pull/1", title: "t", note: behindNote },
+    } as never,
+    livePageUrl: "https://evig.orangecat.ch/shop",
+    didLine: null,
+    summaryNext: null,
+  });
+  assert.ok(u.behindTheScenes);
+  assert.match(u.headline, /behind the scenes/);
+  assert.equal(u.detail, behindNote.detail, "exactly what changed in the system");
+  assert.equal(u.checks, behindNote.proof, "the proof is the evidence");
+  assert.equal(u.helps, note.helps, "and how it helps users");
+  assert.ok(
+    !u.links.some((l) => l.label === "Watch the fix"),
+    "no walkthrough of a page that did not change",
+  );
+  assert.ok(u.links.some((l) => l.label === "What changed"));
+  const text = progressUpdateText(u);
+  assert.ok(text.indexOf("Under the hood") < text.indexOf("How it helps users"));
+  assert.ok(text.indexOf("How it helps users") < text.indexOf("Why this way"));
+}
+
+// ---- nobody said how it helps users: an honest gap, not a guess ----
+{
+  const u = buildProgressUpdate({
+    stage: UPDATE_STAGE.READY,
+    project: "p",
+    didLine: "Did a thing.",
+  });
+  assert.equal(u.helps, null);
+  assert.ok(u.helpsMissing);
+  assert.match(progressUpdateText(u), /How it helps users:\*\* Not stated by the developer/);
+  const nothing = buildProgressUpdate({ stage: UPDATE_STAGE.NOT_DONE, project: "p" });
+  assert.ok(!nothing.helpsMissing, "a run that did nothing owes no benefit");
 }
 
 console.log("progress-update: ok");

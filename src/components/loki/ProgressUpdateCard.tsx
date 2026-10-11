@@ -1,6 +1,7 @@
 import { ExternalLink, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  HELPS_MISSING,
   UPDATE_SECTIONS,
   UPDATE_STAGE_LABEL,
   type ProgressUpdate,
@@ -27,6 +28,7 @@ export function ProgressUpdateCard({ update }: { update: ProgressUpdate }) {
     <article className="ui-loki-update" aria-label={`${update.project}: ${stage.label}`}>
       <header className="ui-loki-update-head">
         <span className={cn("ui-tag", TONE_TAG[stage.tone])}>{stage.label}</span>
+        {update.behindTheScenes && <span className="ui-tag">Behind the scenes</span>}
         <span className="ui-loki-update-project">{update.project}</span>
       </header>
       <p className="ui-loki-update-headline">{update.headline}</p>
@@ -51,9 +53,15 @@ export function ProgressUpdateCard({ update }: { update: ProgressUpdate }) {
               </section>
             ) : null;
           const value = update[s.key];
+          const missing = !value && s.key === "helps" && update.helpsMissing;
           return [
             alternatives,
-            value ? (
+            missing ? (
+              <section key={s.key}>
+                <h4 className="ui-loki-update-label">{s.label}</h4>
+                <p className="ui-loki-update-missing">{HELPS_MISSING}</p>
+              </section>
+            ) : value ? (
               <section key={s.key}>
                 <h4 className="ui-loki-update-label">{s.label}</h4>
                 <p className={s.key === "asked" ? "ui-loki-update-asked" : "ui-loki-update-text"}>

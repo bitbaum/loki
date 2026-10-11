@@ -168,4 +168,43 @@ assert.equal(parseFixNote(`## ${FIX_NOTE_HEADING}\n- Problem: <what was actually
   assert.equal(tidyFixNote(old).next, null);
 }
 
+// ---- behind the scenes: what changed, and the proof (owner, 2026-10-11) ----
+// "Something that you cannot screenshot and show … it still should explain
+// exactly what was done. And how this change benefits users."
+{
+  const note = parseFixNote(
+    [
+      "## Walkthrough",
+      "- Change: The nightly import retries a failed batch.",
+      "- Shows: behind the scenes",
+      "- Under the hood: When the supplier's server times out, the import now waits a minute and tries that batch again, up to three times, instead of skipping it.",
+      "- Helps: Shop prices no longer go stale for a day when the supplier hiccups.",
+      "- Proof: A test forces two timeouts and checks every row lands; last night's log shows 0 skipped batches.",
+    ].join("\n"),
+  );
+  assert.equal(note?.shows, "behind");
+  assert.match(note?.detail ?? "", /tries that batch again/);
+  assert.match(note?.proof ?? "", /0 skipped batches/);
+  assert.match(note?.helps ?? "", /no longer go stale/);
+  assert.equal(parseFixNote("## Walkthrough\n- Change: c\n- Shows: on the page")?.shows, "page");
+  assert.equal(
+    parseFixNote("## Walkthrough\n- Change: c\n- Shows: no, backend only")?.shows,
+    "behind",
+  );
+  // Older notes have none of it and still read.
+  const { shows: _s, detail: _d, proof: _p, ...old } = note!;
+  void _s;
+  void _d;
+  void _p;
+  const tidy = tidyFixNote(old);
+  assert.equal(tidy.shows, null);
+  assert.equal(tidy.detail, null);
+}
+
+// ---- the instruction asks for the benefit on every change ----
+assert.match(
+  fixNoteInstruction(),
+  /Every change must say how it helps the people who use the product/,
+);
+
 console.log("fix-note: ok");

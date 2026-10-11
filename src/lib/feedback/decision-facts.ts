@@ -16,7 +16,13 @@ import type { FeedbackWorkView } from "@/lib/feedback/work-phase";
 export type DecisionFacts = {
   asked: string;
   done: string | null;
+  /** How it benefits the people using the product — every change owes it. */
+  helps: string | null;
+  /** How the developer knows it works — the only evidence a change nobody
+   *  can see on a page has. */
+  proof: string | null;
   next: string | null;
+  behindTheScenes: boolean;
 };
 
 const cut = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
@@ -30,10 +36,15 @@ export function decisionFacts(item: {
   const asked = cut(one.split(/\s*---\s*technical details/i)[0], 160);
   const raw = item.work?.ship?.pr?.note ?? null;
   const note = raw ? tidyFixNote(raw) : null;
-  const done = note?.change ?? item.work?.didLine ?? null;
+  const behind = note?.shows === "behind";
+  // Behind the scenes, "what changed in the system" IS what was done.
+  const done = (behind ? note?.detail : null) ?? note?.change ?? item.work?.didLine ?? null;
   return {
     asked,
     done: done ? cut(done, 220) : null,
+    helps: note?.helps ? cut(note.helps, 200) : null,
+    proof: behind && note?.proof ? cut(note.proof, 200) : null,
     next: note?.next ? cut(note.next, 220) : null,
+    behindTheScenes: behind,
   };
 }

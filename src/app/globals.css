@@ -7412,6 +7412,10 @@
   .ui-loki-update-text {
     @apply mt-0.5 text-sm leading-relaxed text-text-secondary;
   }
+  /* "Nobody said how this helps users" — a visible gap, not a guess. */
+  .ui-loki-update-missing {
+    @apply mt-0.5 text-sm leading-relaxed text-text-tertiary italic;
+  }
   .ui-loki-update-asked {
     @apply mt-0.5 border-l-2 border-border-default pl-3 text-sm leading-relaxed text-text-secondary italic;
   }

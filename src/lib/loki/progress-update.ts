@@ -59,11 +59,22 @@ export type ProgressUpdate = {
   asked: string | null;
   problem: string | null;
   done: string | null;
+  /** For a change nobody can see: exactly what changed in the system. */
+  detail: string | null;
+  /** How the change benefits the people who use the product. Every change
+   *  owes this (the owner, 2026-10-11: "every change should benefit users"). */
+  helps: string | null;
+  /** True when work was done but nobody said how it helps users — shown as
+   *  an honest gap, never papered over with a guess. */
+  helpsMissing: boolean;
   why: string | null;
   considered: { option: string; whyNot: string | null }[];
   next: string | null;
-  /** Evidence the work was checked: tests, typecheck, a live verification. */
+  /** Evidence it works: the developer's proof, else the tests it ran. */
   checks: string | null;
+  /** The change works behind the scenes — there is nothing to point at on a
+   *  page, so the update explains it instead of offering a walkthrough. */
+  behindTheScenes: boolean;
   images: UpdateImage[];
   links: UpdateLink[];
 };
@@ -111,7 +122,9 @@ function headlineFor(input: ProgressUpdateInput): string {
     case UPDATE_STAGE.PUSHED:
       return "Pushed straight to the branch — no pull request, so nothing merges by itself.";
     case UPDATE_STAGE.LIVE:
-      return `It's live${where}. Watch the walkthrough to see the change on the real page.`;
+      return input.note?.shows === "behind"
+        ? "It's live. Nothing changes on the page — it works behind the scenes, so here is exactly what changed and how it was checked."
+        : `It's live${where}. Watch the walkthrough to see the change on the real page.`;
     case UPDATE_STAGE.DEPLOY_FAILED:
       return `${input.deployName ?? "The deploy"} failed after the merge, so the site still shows the old version.`;
     case UPDATE_STAGE.PARTIAL:
@@ -121,9 +134,18 @@ function headlineFor(input: ProgressUpdateInput): string {
   }
 }
 
+/** Stages where work was actually done, so "how it helps" is owed. */
+const DID_WORK: ReadonlySet<UpdateStage> = new Set([
+  UPDATE_STAGE.READY,
+  UPDATE_STAGE.PUSHED,
+  UPDATE_STAGE.LIVE,
+  UPDATE_STAGE.PARTIAL,
+]);
+
 export function buildProgressUpdate(input: ProgressUpdateInput): ProgressUpdate {
   const note = input.note ?? null;
   const summaryNext = tidy(input.summaryNext);
+  const helps = tidy(note?.helps);
   return {
     v: 1,
     stage: input.stage,
@@ -132,13 +154,17 @@ export function buildProgressUpdate(input: ProgressUpdateInput): ProgressUpdate 
     asked: tidy(input.asked, ASKED_MAX),
     problem: tidy(note?.problem),
     done: tidy(note?.change ?? input.didLine),
+    detail: tidy(note?.detail),
+    helps,
+    helpsMissing: !helps && DID_WORK.has(input.stage),
     why: tidy(note?.why),
     considered: (note?.considered ?? []).map((c) => ({
       option: tidy(c.option, 200) ?? "",
       whyNot: tidy(c.whyNot, 300),
     })),
     next: tidy(note?.next) ?? (summaryNext && !NOTHING.test(summaryNext) ? summaryNext : null),
-    checks: tidy(input.checks, 200),
+    checks: tidy(note?.proof, 400) ?? tidy(input.checks, 200),
+    behindTheScenes: note?.shows === "behind",
     images: (input.images ?? []).slice(0, 4),
     links: input.links ?? [],
   };
@@ -149,10 +175,16 @@ export const UPDATE_SECTIONS = [
   { key: "asked", label: "Asked" },
   { key: "problem", label: "What was wrong" },
   { key: "done", label: "What was done" },
+  { key: "detail", label: "Under the hood" },
+  { key: "helps", label: "How it helps users" },
   { key: "why", label: "Why this way" },
   { key: "next", label: "What could come next" },
-  { key: "checks", label: "Checked" },
+  { key: "checks", label: "Proof it works" },
 ] as const;
+
+/** Said when work was done but nobody said what it does for people. */
+export const HELPS_MISSING =
+  "Not stated by the developer — worth asking what this changes for the people using it.";
 
 /** The plain-text rendering stored in `content`: readable on its own, in the
  *  same order as the card, links as real markdown links. */
@@ -168,6 +200,8 @@ export function progressUpdateText(u: ProgressUpdate): string {
     }
     const value = u[s.key];
     if (value) lines.push("", `**${s.label}:** ${value}`);
+    else if (s.key === "helps" && u.helpsMissing)
+      lines.push("", `**${s.label}:** ${HELPS_MISSING}`);
   }
   if (u.links.length) lines.push("", u.links.map((l) => `[${l.label}](${l.href})`).join(" · "));
   return lines.join("\n");
@@ -187,6 +221,10 @@ export function readProgressUpdate(meta: unknown): ProgressUpdate | null {
     asked: typeof u.asked === "string" ? u.asked : null,
     problem: typeof u.problem === "string" ? u.problem : null,
     done: typeof u.done === "string" ? u.done : null,
+    detail: typeof u.detail === "string" ? u.detail : null,
+    helps: typeof u.helps === "string" ? u.helps : null,
+    helpsMissing: u.helpsMissing === true,
+    behindTheScenes: u.behindTheScenes === true,
     why: typeof u.why === "string" ? u.why : null,
     considered: Array.isArray(u.considered)
       ? u.considered.filter((c) => c && typeof c.option === "string")

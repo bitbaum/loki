@@ -173,21 +173,25 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
             fix,
             livePageUrl: livePageHref(item.liveUrl, item.url, item.page),
           });
-          // The same moment, told in the chat with room for the story.
+          // The same moment, told in the chat with room for the story — for a
+          // fix that has no chat of its own. A build dispatched FROM a chat
+          // is followed to live by its dispatch card there (lib/run-follow,
+          // #1146); posting again would say it twice.
           const summary = run.summary as { done?: string; next?: string } | null;
-          void postShippedUpdate({
-            userId,
-            conversationId: run.payload?.conversationId ?? null,
-            announcement: announce,
-            projectKey: run.projectKey,
-            feedbackId: item.id,
-            asked: item.suggestion,
-            hasScreenshot: item.hasScreenshots === true,
-            fix,
-            livePageUrl: livePageHref(item.liveUrl, item.url, item.page),
-            didLine: summary?.done ?? null,
-            summaryNext: summary?.next ?? null,
-          });
+          if (!run.payload?.conversationId)
+            void postShippedUpdate({
+              userId,
+              conversationId: null,
+              announcement: announce,
+              projectKey: run.projectKey,
+              feedbackId: item.id,
+              asked: item.suggestion,
+              hasScreenshot: item.hasScreenshots === true,
+              fix,
+              livePageUrl: livePageHref(item.liveUrl, item.url, item.page),
+              didLine: summary?.done ?? null,
+              summaryNext: summary?.next ?? null,
+            });
         }
       }),
     );

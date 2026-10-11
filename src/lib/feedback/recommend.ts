@@ -183,6 +183,19 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
               runs: 1,
               priority: 35,
             };
+          // Behind the scenes (a backend, data or speed fix): there is nothing
+          // on the page to look at, and asking the owner to "look" — or a
+          // model to read the page — would only ever come back "can't tell".
+          // The design note's account and proof are the evidence; read them,
+          // then close it.
+          if (fix.pr?.note?.shows === "behind")
+            return {
+              kind: RECOMMEND.CONFIRM,
+              label: "Close it",
+              why: "Live, behind the scenes — nothing to see on the page.",
+              runs: 0,
+              priority: 60,
+            };
           const look = fix.verify ?? null;
           // Loki read the page. Its verdict is the recommendation; the
           // evidence is the reason, so the owner can disagree from the card.
@@ -209,7 +222,7 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
             kind: RECOMMEND.LOOK,
             label: "See it on the site",
             why: look
-              ? `Live on ${pageWord(input.page)}. Loki could not tell from the text — one look settles it.`
+              ? `Live on ${pageWord(input.page)}. Loki could not tell from the page — one look settles it.`
               : `Live on ${pageWord(input.page)}. One look settles it.`,
             evidence: look?.evidence ?? null,
             runs: 0,

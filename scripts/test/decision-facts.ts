@@ -52,4 +52,37 @@ const note = {
   assert.equal(f.done, null);
 }
 
+// Every card says how it helps users; behind the scenes, what changed and the proof.
+{
+  const f = decisionFacts({
+    suggestion: "prices were stale",
+    work: {
+      didLine: null,
+      ship: {
+        state: "deployed",
+        checkedAt: "",
+        pr: {
+          number: 1,
+          url: "u",
+          title: "t",
+          note: {
+            ...note,
+            shows: "behind",
+            detail: "Retries a timed-out batch.",
+            proof: "0 skipped batches last night.",
+          },
+        },
+      } as never,
+    },
+  });
+  assert.equal(f.helps, note.helps);
+  assert.ok(f.behindTheScenes);
+  assert.equal(
+    f.done,
+    "Retries a timed-out batch.",
+    "behind the scenes, what changed in the system is what was done",
+  );
+  assert.equal(f.proof, "0 skipped batches last night.");
+}
+
 console.log("decision-facts: ok");

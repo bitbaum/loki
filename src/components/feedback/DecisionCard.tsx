@@ -70,6 +70,18 @@ export function DecisionCard({
             <dd className="ui-fb-decision-fact">{facts.done}</dd>
           </>
         )}
+        {facts.helps && (
+          <>
+            <dt className="ui-fb-decision-fact-label">Helps</dt>
+            <dd className="ui-fb-decision-fact">{facts.helps}</dd>
+          </>
+        )}
+        {facts.proof && (
+          <>
+            <dt className="ui-fb-decision-fact-label">Proof</dt>
+            <dd className="ui-fb-decision-fact">{facts.proof}</dd>
+          </>
+        )}
         {facts.next && (
           <>
             <dt className="ui-fb-decision-fact-label">Next</dt>

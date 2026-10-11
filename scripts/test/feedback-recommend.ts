@@ -300,4 +300,27 @@ assert.deepEqual(s, { total: 5, runs: 1, confirms: 1, files: 1, looks: 1, takeab
 assert.equal(doAllLabel(s), "Do all 3 · starts 1 run, closes 1, files 1 away");
 assert.equal(looksLine(s), "1 is live and needs your eyes — Loki could not tell from the page.");
 
+// Live, behind the scenes: nothing on the page to look at, so no "look".
+r = recommendFor(
+  {
+    ...base,
+    status: FEEDBACK_STATUS.DISPATCHED,
+    work: work({
+      phase: FEEDBACK_WORK_PHASE.NEEDS_VERIFY,
+      ship: ship(FIX_SHIP_STATE.DEPLOYED, {
+        pr: { number: 1, url: "u", title: "t", note: { shows: "behind" } },
+      } as never),
+      checkLive: true,
+    }),
+  },
+  NOW,
+)!;
+assert.equal(
+  r.kind,
+  RECOMMEND.CONFIRM,
+  "a backend fix is confirmed by its account, not by looking",
+);
+assert.match(r.why, /behind the scenes/);
+assert.ok(r.why.length < 80);
+
 console.log("✓ feedback recommend tests passed");
