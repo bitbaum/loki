@@ -184,6 +184,19 @@ the pool counts as spent only when every vendor in the chain has refused, a
 vendor nobody heard from today being unknown, not empty. And a budget that
 cannot be read is absent, never "nothing left".
 
+The card also carries the half a meter leaves out, from `meaning` on the
+same view: a **pace** line (at today's rate the share lasts the day, or
+runs out around 16:40 UTC — said only once there are two turns and a few
+percent of the day to project from), the **week** from the same per-day
+rows, what Loki actually **remembers** between turns (the last eight, each
+trimmed — the number a person meets as "it forgot what I said", now stated
+so it can be planned around), a "What these numbers mean" disclosure that
+explains answers vs tokens, the share, the pacing and the reset in plain
+words, and the **levers** as buttons with their consequence: wait (when
+paced), bring a key, or let Auto spend less (one PUT to the routing
+preference). The test it is built to: a person who reads "57% used" should
+also learn whether that pace lasts the day and what to press if not.
+
 `GET /api/ai/budget` is the read; `/api/ai/quota` beside it stays the
 operator's. The view is pure and fleet-shaped (a source is a kind with a
 sentence and a lever) so it can go the way `fairShare` went — into

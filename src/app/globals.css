@@ -4102,6 +4102,11 @@
   .ui-budget-model-note {
     @apply text-status-warning;
   }
+  /* A lever and its consequence on one line: the button never stands alone,
+     because a bare verb is a guess and a verb with its effect is a decision. */
+  .ui-budget-action {
+    @apply flex flex-wrap items-center gap-x-3 gap-y-1;
+  }
   .ui-list-item {
     @apply flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-raised px-4 py-3;
   }

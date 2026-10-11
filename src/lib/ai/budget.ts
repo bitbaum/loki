@@ -1,9 +1,11 @@
 import { dayCapacityTokens, usableChatChain } from "@/config/chat-models";
 import { CUSTOM_VENDOR_ID, vendorById } from "@/config/model-vendors";
-import { getDayUsage } from "@/db/queries/ai-spend";
+import { getDayUsage, getWeekSpend } from "@/db/queries/ai-spend";
 import { ownUsageByVendor } from "@/db/queries/own-model-usage";
 import { listQuota } from "@/db/queries/provider-quota";
 import { listOwnModels } from "@/db/queries/user-model-keys";
+import { getUserPreferences } from "@/db/queries/user-preferences";
+import { HISTORY_CHARS_PER_TURN, HISTORY_TURNS } from "@/lib/agent/loop";
 import { userBudgetView, type BudgetView } from "@/lib/ai/budget-view";
 import { bindingRows, describeQuota, nextProviderAfter } from "@/lib/ai/quota-view";
 
@@ -23,11 +25,13 @@ import { bindingRows, describeQuota, nextProviderAfter } from "@/lib/ai/quota-vi
  */
 export async function readUserBudget(userId: string, now = new Date()): Promise<BudgetView> {
   const chain = usableChatChain();
-  const [usage, own, ownUsage, rows] = await Promise.all([
+  const [usage, own, ownUsage, rows, week, prefs] = await Promise.all([
     getDayUsage(userId, now).catch(() => ({ userSpentTokens: 0, userTurns: 0, activeUsers: 1 })),
     listOwnModels(userId).catch(() => []),
     ownUsageByVendor(userId, now).catch(() => []),
     listQuota(),
+    getWeekSpend(userId, now).catch(() => undefined),
+    getUserPreferences(userId).catch(() => null),
   ]);
 
   const vendorRows = bindingRows(
@@ -59,6 +63,9 @@ export async function readUserBudget(userId: string, now = new Date()): Promise<
     userTurns: usage.userTurns,
     chain: chain.map((l) => ({ provider: l.provider.id, model: l.model })),
     vendorRows,
+    ...(week ? { week } : {}),
+    memory: { turns: HISTORY_TURNS, charsPerTurn: HISTORY_CHARS_PER_TURN },
+    ...(prefs ? { stance: prefs.modelStance } : {}),
     ownKeys: own.map((m) => {
       const vendor = vendorById(m.vendor);
       const u = usageByVendor.get(m.vendor);

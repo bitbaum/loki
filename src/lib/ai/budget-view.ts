@@ -110,12 +110,42 @@ export type ModelHeadroom = {
   note: string | null;
 };
 
+/** One thing the person can do about the numbers, in order of use right now. */
+export type BudgetAction = {
+  id: "bring-key" | "thrifty" | "wait";
+  label: string;
+  /** The consequence, so the button is never a bare verb. */
+  why: string;
+  /** Where it goes; absent for an action the card performs itself. */
+  href?: string;
+};
+
+/**
+ * What the numbers MEAN — the half a meter leaves out. A usage screen that
+ * says "57% used, resets in 1 h 33 min" is accurate and tells you nothing you
+ * can do: whether that pace lasts the day, what the limit is a limit OF, why
+ * it moves, and what to press. This is that half, stated once here so the
+ * card, the picker and the assistant say the same words.
+ */
+export type BudgetMeaning = {
+  /** "At today's pace your share lasts the day" or "…runs out around 16:40 UTC". Null before two turns. */
+  pace: string | null;
+  /** The last seven UTC days on the free pool, or null when nothing was recorded. */
+  week: { tokens: number; turns: number; days: number; line: string } | null;
+  /** What Loki carries from one turn to the next — stated, because an unstated limit is a bug report. */
+  memory: { turns: number; charsPerTurn: number; line: string };
+  /** Each number in plain words, for a "What this means" disclosure. */
+  explain: { title: string; body: string }[];
+  actions: BudgetAction[];
+};
+
 export type BudgetView = {
   /** One line for a strip or a chat answer. */
   headline: string;
   freePool: FreePoolBudget;
   ownKeys: OwnKeyBudget[];
   models: ModelHeadroom[];
+  meaning: BudgetMeaning;
   /** When the free pool refills, as an ISO instant, for a client that wants a countdown. */
   resetsAt: string;
 };
@@ -139,6 +169,12 @@ export type BudgetInput = {
     limit: string | null;
     usage: { tokensToday: number; callsToday: number; tokens30d: number; calls30d: number } | null;
   }[];
+  /** The last seven UTC days on the free pool, today included. Absent when the ledger could not be read. */
+  week?: { tokens: number; turns: number; days: number };
+  /** What the loop carries between turns (HISTORY_TURNS / HISTORY_CHARS_PER_TURN in lib/agent/loop.ts). */
+  memory: { turns: number; charsPerTurn: number };
+  /** How Auto spends the person's own keys; "thrifty" is the lever this view can offer. */
+  stance?: "thrifty" | "balanced" | "best";
 };
 
 /** Bounds on a measured per-answer cost, so one odd day cannot make the count absurd. */
@@ -368,6 +404,117 @@ function headline(pool: FreePoolBudget, ownKeys: OwnKeyBudget[]): string {
   }
 }
 
+/** "16:40 UTC" for a fraction of the day. */
+function clockAt(dayFraction: number): string {
+  const mins = Math.round(clamp01(dayFraction) * 24 * 60);
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} UTC`;
+}
+
+/**
+ * At today's rate, does the share last the day? Said only once there is a
+ * rate to speak of — two turns and a few percent of the day — because a
+ * single early answer projected over 24 hours is a scare, not a forecast.
+ */
+function paceLine(input: BudgetInput, pool: FreePoolBudget): string | null {
+  const elapsed = utcDayElapsed(input.now);
+  if (pool.state === "none" || pool.turnsToday < MEASURED_AFTER_TURNS || elapsed < 0.05)
+    return null;
+  if (pool.state === "spent" || pool.state === "pool-spent") return null;
+  const projected = pool.spentTokens / elapsed;
+  if (projected <= pool.shareTokens) {
+    return "At today's pace your share lasts the whole day.";
+  }
+  const runsOutAt = clamp01(pool.shareTokens / projected);
+  return `At today's pace your share runs out around ${clockAt(runsOutAt)} — pacing will slow you down before that, not stop you.`;
+}
+
+function meaningOf(
+  input: BudgetInput,
+  pool: FreePoolBudget,
+  ownKeys: OwnKeyBudget[],
+): BudgetMeaning {
+  const week =
+    input.week && input.week.turns > 0
+      ? {
+          ...input.week,
+          line: `This week: ${plural(input.week.turns, "answer")} on the free pool, ${count(input.week.tokens)} tokens, over ${plural(input.week.days, "day")}.`,
+        }
+      : null;
+
+  const memory = {
+    ...input.memory,
+    line:
+      `In a chat Loki reads your last ${input.memory.turns} turns, each trimmed to about ` +
+      `${count(input.memory.charsPerTurn)} characters — anything older it no longer sees. ` +
+      `Ask it to save a fact to memory and it lasts beyond that.`,
+  };
+
+  const actions: BudgetAction[] = [];
+  if (pool.state === "paced" && pool.unlocksIn) {
+    actions.push({
+      id: "wait",
+      label: `More unlocks ${pool.unlocksIn}`,
+      why: "Waiting is enough — your share for today is not spent, only ahead of the pace.",
+    });
+  }
+  if (ownKeys.length === 0 && pool.state !== "none") {
+    actions.push({
+      id: "bring-key",
+      label: "Bring your own key",
+      why: "Your chats run on your vendor account with no daily share, and the free pool stays for everyone else.",
+      href: "/models",
+    });
+  }
+  if (ownKeys.length > 0 && input.stance && input.stance !== "thrifty") {
+    actions.push({
+      id: "thrifty",
+      label: "Let Auto spend less",
+      why: "Light turns go to your cheapest capable model; heavy ones still get the strong one.",
+    });
+  }
+
+  const explain: BudgetMeaning["explain"] = [
+    {
+      title: "Answers, not tokens",
+      body:
+        "A token is a fragment of a word, and one answer costs a few thousand of them depending on how " +
+        "much Loki has to read first. Tokens are what the vendors meter; answers are what you spend, so " +
+        "the big number is answers and the tokens are underneath for checking.",
+    },
+    {
+      title: "Your share",
+      body:
+        "The free models' vendors give this server a fixed amount a day. It is split between everyone " +
+        "who chats today — recomputed on every turn — so your share grows on a quiet day and shrinks " +
+        "on a busy one. Nothing is taken back once spent.",
+    },
+    {
+      title: "Unlocks through the day",
+      body:
+        "A whole day's share could be spent before breakfast, leaving nothing for the evening. So it " +
+        "unlocks gradually, with a head start for the first turns, which is what keeps capacity for " +
+        'whoever arrives later. "Paced" means waiting helps; "spent" means it does not until midnight.',
+    },
+    {
+      title: "Resets at midnight UTC",
+      body: "Because that is when the vendors refill — the share follows their clock, not yours.",
+    },
+    { title: "What Loki remembers", body: memory.line },
+  ];
+  if (ownKeys.length > 0) {
+    explain.push({
+      title: "Your keys",
+      body:
+        "A turn on your key never touches the pool. Loki counts its tokens so you can check the " +
+        "vendor's invoice — it does not hold their price lists, so it never guesses a franc.",
+    });
+  }
+
+  return { pace: paceLine(input, pool), week, memory, explain, actions };
+}
+
 /** The person's budget across every source they can draw on, from the ledgers to the screen. */
 export function userBudgetView(input: BudgetInput): BudgetView {
   const ownKeys = input.ownKeys.map(ownKey);
@@ -387,6 +534,7 @@ export function userBudgetView(input: BudgetInput): BudgetView {
     freePool: pool,
     ownKeys,
     models,
+    meaning: meaningOf(input, pool, ownKeys),
     resetsAt: nextUtcMidnight(input.now).toISOString(),
   };
 }

@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Gauge, KeyRound, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, ExternalLink, Gauge, KeyRound, Loader2, RefreshCw } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
-import type { BudgetView, FreePoolBudget, OwnKeyBudget } from "@/lib/ai/budget-view";
+import type { BudgetAction, BudgetView, FreePoolBudget, OwnKeyBudget } from "@/lib/ai/budget-view";
+import { ownModelRequest } from "@/lib/own-model-client";
 import { describeChatModel } from "@/lib/loki/models";
 import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 
@@ -67,10 +69,94 @@ export function AiBudgetSettings() {
           {data.ownKeys.map((k) => (
             <OwnKeySource key={`${k.vendor}/${k.model}`} source={k} />
           ))}
-          <FreePoolSource pool={data.freePool} models={data.models} ownKeys={data.ownKeys} />
+          <FreePoolSource
+            pool={data.freePool}
+            models={data.models}
+            ownKeys={data.ownKeys}
+            meaning={data.meaning}
+          />
+          <Actions actions={data.meaning.actions} onChanged={refetch} />
+          <WhatThisMeans explain={data.meaning.explain} />
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * The levers, as buttons. A number without a way to act on it is decoration;
+ * these are the ways. "Let Auto spend less" is performed here (one PUT, the
+ * same one Settings → AI's routing panel makes); the rest are places to go.
+ */
+function Actions({ actions, onChanged }: { actions: BudgetAction[]; onChanged: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  if (actions.length === 0) return null;
+
+  async function thrifty() {
+    setBusy("thrifty");
+    setError(null);
+    try {
+      await ownModelRequest("/api/settings/model/routing", "PUT", { stance: "thrifty" });
+      onChanged();
+    } catch {
+      setError("Couldn't change how Auto spends — try it from the routing panel below.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {actions.map((a) => (
+        <div key={a.id} className="ui-budget-action">
+          {a.href ? (
+            <Link href={a.href} className="ui-btn-secondary min-h-9 shrink-0 px-3 text-xs">
+              {a.label} →
+            </Link>
+          ) : a.id === "thrifty" ? (
+            <button
+              type="button"
+              onClick={thrifty}
+              disabled={busy !== null}
+              className="ui-btn-secondary min-h-9 shrink-0 px-3 text-xs"
+            >
+              {busy === "thrifty" && <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden />}
+              {a.label}
+            </button>
+          ) : (
+            <span className="ui-badge shrink-0">{a.label}</span>
+          )}
+          <span className="ui-quota-consequence">{a.why}</span>
+        </div>
+      ))}
+      {error && <p className="ui-error text-xs">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * Each number in plain words, one tap away. The meters above answer "how
+ * much"; this answers "of what, and why does it move" — the question a
+ * person has the first time they see a share that was 40 answers yesterday
+ * and is 12 today.
+ */
+function WhatThisMeans({ explain }: { explain: BudgetView["meaning"]["explain"] }) {
+  return (
+    <details className="ui-disclosure">
+      <summary className="ui-disclosure-summary">
+        <ChevronDown className="ui-disclosure-chevron" aria-hidden="true" />
+        <span>What these numbers mean</span>
+      </summary>
+      <div className="ui-disclosure-body space-y-3">
+        {explain.map((e) => (
+          <div key={e.title}>
+            <p className="text-sm font-medium text-text-primary">{e.title}</p>
+            <p className="text-xs leading-relaxed text-text-secondary">{e.body}</p>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -78,10 +164,12 @@ function FreePoolSource({
   pool,
   models,
   ownKeys,
+  meaning,
 }: {
   pool: FreePoolBudget;
   models: BudgetView["models"];
   ownKeys: OwnKeyBudget[];
+  meaning: BudgetView["meaning"];
 }) {
   const tone =
     pool.state === "spent" || pool.state === "pool-spent"
@@ -125,6 +213,11 @@ function FreePoolSource({
             counted at {pool.measured ? "your own" : "about"}{" "}
             {pool.tokensPerAnswer.toLocaleString("en-US")} tokens an answer
           </p>
+          {/* The forecast and the week: what the meter is NOT saying. "57%
+              used" is true at 09:00 and at 21:00 and means opposite things;
+              the pace line is the difference. */}
+          {meaning.pace && <p className="ui-quota-detail">{meaning.pace}</p>}
+          {meaning.week && <p className="ui-quota-detail">{meaning.week.line}</p>}
         </>
       )}
 
