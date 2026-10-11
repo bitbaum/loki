@@ -53,6 +53,7 @@ function input(over: Partial<BudgetInput> = {}): BudgetInput {
     chain: CHAIN,
     vendorRows: [],
     ownKeys: [],
+    memory: { turns: 8, charsPerTurn: 600 },
     ...over,
   };
 }
@@ -225,6 +226,79 @@ check("midnight UTC is the reset, from any hour", () => {
     nextUtcMidnight(new Date("2026-08-15T00:00:00Z")).toISOString() === "2026-08-16T00:00:00.000Z",
     "exact midnight rolls to the next",
   );
+});
+
+check("meaning: pace is said only once there is a rate, and says whether the day lasts", () => {
+  // No turns yet: nothing to project.
+  assert(userBudgetView(input()).meaning.pace === null, "no pace before any turn");
+  // Noon, 30k of a 100k share at 3 turns: 60k projected → lasts the day.
+  const fine = userBudgetView(input({ userSpentTokens: 30_000, userTurns: 3 })).meaning.pace;
+  assert(fine === "At today's pace your share lasts the whole day.", `${fine}`);
+  // Noon, 60k spent: 120k projected → runs out at 100/120 of the day = 20:00.
+  const hot = userBudgetView(input({ userSpentTokens: 60_000, userTurns: 30 })).meaning.pace;
+  assert(hot !== null && /runs out around 20:00 UTC/.test(hot), `${hot}`);
+  // Spent: no projection, the sentence on the pool already says it.
+  assert(
+    userBudgetView(input({ userSpentTokens: 95_000, userTurns: 10 })).meaning.pace === null,
+    "spent",
+  );
+});
+
+check("meaning: the week, memory and explanations are stated, with the levers that apply", () => {
+  const v = userBudgetView(input({ week: { tokens: 84_000, turns: 12, days: 3 } }));
+  assert(
+    v.meaning.week?.line === "This week: 12 answers on the free pool, 84,000 tokens, over 3 days.",
+    `${v.meaning.week?.line}`,
+  );
+  assert(
+    /last 8 turns, each trimmed to about 600 characters/.test(v.meaning.memory.line),
+    v.meaning.memory.line,
+  );
+  assert(
+    v.meaning.explain.some((e) => e.title === "Your share"),
+    "share explained",
+  );
+  assert(!v.meaning.explain.some((e) => e.title === "Your keys"), "no keys, no key explanation");
+  assert(
+    v.meaning.actions.map((a) => a.id).join(",") === "bring-key",
+    `${v.meaning.actions.map((a) => a.id)}`,
+  );
+  assert(
+    userBudgetView(input({ week: { tokens: 0, turns: 0, days: 0 } })).meaning.week === null,
+    "an empty week is absent, not zero",
+  );
+  const paced = userBudgetView(input({ userSpentTokens: 60_000, userTurns: 30 }));
+  assert(paced.meaning.actions[0]!.id === "wait", "paced leads with waiting");
+  const keyed = userBudgetView(
+    input({
+      stance: "balanced",
+      ownKeys: [
+        {
+          vendor: "xai",
+          label: "xAI",
+          model: "grok-4",
+          billingUrl: null,
+          limit: null,
+          usage: null,
+        },
+      ],
+    }),
+  );
+  assert(
+    keyed.meaning.actions.map((a) => a.id).join(",") === "thrifty",
+    `${keyed.meaning.actions.map((a) => a.id)}`,
+  );
+  assert(
+    keyed.meaning.explain.some((e) => e.title === "Your keys"),
+    "keys explained",
+  );
+  const thrifty = userBudgetView(
+    input({
+      stance: "thrifty",
+      ownKeys: keyed.ownKeys.map((k) => ({ ...k, billingUrl: null, limit: null, usage: null })),
+    }),
+  );
+  assert(thrifty.meaning.actions.length === 0, "already thrifty: nothing to press");
 });
 
 console.log(`\n${passed} checks passed`);

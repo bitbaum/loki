@@ -83,8 +83,14 @@ const MAX_CALLS_PER_ROUND = 4;
 /** Total facts carried. Past this, small models answer about the wrong record. */
 const MAX_FACTS = 48;
 /** Prior turns carried into the prompt, and how much of each. */
-const HISTORY_TURNS = 8;
-const HISTORY_CHARS_PER_TURN = 600;
+/**
+ * Exported so the budget card can SAY what Loki carries between turns. The
+ * number a person meets as "it forgot what I said" is this one, and a limit
+ * that is stated is a limit a person can plan around (save it to memory);
+ * an unstated one is a bug report.
+ */
+export const HISTORY_TURNS = 8;
+export const HISTORY_CHARS_PER_TURN = 600;
 /**
  * Used only when no provider is configured (the unit suite injects a model
  * and never reads the chain). In production the budget is the largest usable
