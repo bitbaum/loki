@@ -6,6 +6,17 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-11 — Nothing waits on a command someone has to remember
+
+- **The evening plan now actually arrives.** The 19:00 proposal for the
+  night shipped yesterday, but its timer only reached the server when
+  someone ran a setup command there by hand, so no plan was made. Every
+  deploy now installs the scheduled jobs itself, and a test fails if that
+  ever stops.
+- **Fix checks have their browser.** The picture Loki takes of a live page
+  needs a browser on the server. The deploy installs it too, so the first
+  visual fix gets a real verdict instead of "no browser".
+
 ## 2026-10-11 — Loki looks at a picture when words cannot tell
 
 - **Visual fixes get a verdict too.** A layout, a colour, a thing that

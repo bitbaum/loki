@@ -12,6 +12,7 @@ import { deriveDispatchLiveStatus, type CommandLiveInput } from "@/lib/dispatch-
 import { autoReimplementAfterRunnerNack } from "@/lib/feedback/auto-reimplement";
 import { autoRetryProjectRunAfterNack } from "@/lib/project-retry";
 import { runHandoff } from "@/lib/run-handoff";
+import { followRun } from "@/lib/run-follow";
 
 // GET /api/control/commands/:id — live dispatch status the transcript footer
 // polls so a dispatch shows queued → picked up → ran/failed instead of a frozen
@@ -48,6 +49,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({
     ...view,
     handoff: runHandoff(run?.finishedAt ? run.summary : null),
+    // …and where the change went after that, while the card is open.
+    follow: view.terminal && run ? await followRun(userId, run).catch(() => null) : null,
   });
 }
 

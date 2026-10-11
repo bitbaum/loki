@@ -1,4 +1,4 @@
-import type { RunHandoff } from "@/lib/run-handoff";
+import type { RunFollow, RunHandoff } from "@/lib/run-handoff";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import type { StatusTone, BuilderChannel } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
@@ -137,6 +137,8 @@ export type DispatchLiveView = {
   terminal: boolean;
   /** The finished run's own summary, in the chat's terms (lib/run-handoff). */
   handoff?: RunHandoff | null;
+  /** After the run: the change's way to the live site, and Loki's look at it. */
+  follow?: RunFollow | null;
 };
 
 /**

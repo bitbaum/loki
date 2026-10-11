@@ -504,3 +504,34 @@ if [ "$RUNNER_CHANGED" = 1 ]; then
 else
   echo "  ✓ runner code unchanged — restart skipped (in-flight agents undisturbed)"
 fi
+
+# ── Box state the code depends on, kept in step with the code ────────────────
+# Both of these used to be a command someone had to remember to run on the box
+# after a merge. Neither happened on its own, so a feature could be live and
+# verified while the thing it needs did not exist: the 19:00 evening proposal
+# had no timer, and the fix check had no browser to take its picture with.
+# Each is idempotent and warn-only — the app above is already live and
+# verified, and nothing here may turn that into a failed deploy.
+
+# 1. Scheduled jobs: SCHED in install-hetzner-crons.sh is the SSOT; a job added
+#    there gets its timer from the deploy of the merge that adds it.
+step "cron timers"
+if timeout 120 bash "$PROJECT_DIR/scripts/install-hetzner-crons.sh" >/dev/null 2>&1; then
+  echo "  ✓ cron timers match scripts/install-hetzner-crons.sh"
+else
+  echo "  ⚠ could not refresh the cron timers — run scripts/install-hetzner-crons.sh by hand" >&2
+fi
+
+# 2. A browser for the app user. The fix check (src/lib/feedback/page-picture.ts)
+#    takes a phone-sized picture of a live page when text cannot settle a fix.
+#    It uses Playwright's own Chromium, at the revision the shipped Playwright
+#    expects, from the app user's cache. The runner directory has the full
+#    dependency install, so its Playwright CLI is the one to ask; installing an
+#    already-present revision is a no-op.
+step "browser for fix checks"
+APP_USER="${LOKI_APP_USER:-ubuntu}"
+if timeout 300 ssh "$HOST" "sudo -u $APP_USER -H bash -c 'cd $RUNNER_DIR && ./node_modules/.bin/playwright install chromium'" >/dev/null 2>&1; then
+  echo "  ✓ Chromium present for $APP_USER (fix checks can take pictures)"
+else
+  echo "  ⚠ could not install Chromium for $APP_USER — fix checks will say \"no browser\" on the card" >&2
+fi
