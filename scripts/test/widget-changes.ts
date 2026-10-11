@@ -180,8 +180,8 @@ assert.match(
 const watchFix = readFileSync("src/app/(app)/feedback/[id]/watch-fix/route.ts", "utf8");
 assert.match(
   watchFix,
-  /if \(!status\.live\) return projectInbox;/,
-  "no walkthrough of a change that is not there yet",
+  /if \(!status\.live\) \{(?:(?!tourSiteUrl)[\s\S])*?\/watch\?run=(?:(?!tourSiteUrl)[\s\S])*?return projectInbox;\s*\}/,
+  "no walkthrough of a change that is not there yet — its live run, or the inbox",
 );
 const ingest = readFileSync("src/app/api/feedback/route.ts", "utf8");
 assert.match(
