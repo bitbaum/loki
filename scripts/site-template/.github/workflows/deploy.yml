@@ -1,7 +1,7 @@
 name: Deploy
 
-# Push to main → deploy to bitbaum. All logic lives in one place:
-# bitbaum/loki/.github/workflows/selfhost-deploy.yml
+# Push to main → deploy to the box. All logic lives in one place:
+# __WORKFLOW_OWNER__/loki/.github/workflows/selfhost-deploy.yml
 #
 # THIS IS THE ONLY FILE IN THIS REPOSITORY THAT KNOWS ABOUT OUR INFRASTRUCTURE.
 # Delete it and this becomes an ordinary Next app the owner can host anywhere —
@@ -10,6 +10,13 @@ on:
   workflow_dispatch: {}
   push:
     branches: [main]
+
+# The shared deploy refuses a commit whose CI is red by reading this commit's
+# workflow runs. On a PRIVATE repo the default token cannot read Actions, so
+# that gate saw "API unreachable" and passed every deploy (2026-09-26).
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   deploy:

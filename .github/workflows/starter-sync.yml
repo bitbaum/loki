@@ -1,0 +1,56 @@
+name: Starter sync
+
+# scripts/site-template is bitbaum/fleet templates/app — the one starter every
+# new product is created from — pinned to a fleet commit. When fleet's starter
+# moves, this opens the pull request that moves the copy (and the kickoff's
+# generated file map) with it; CI and the auto-merge sweep take it from there.
+# Daily, and on demand after a fleet change that should reach new sites now.
+on:
+  schedule:
+    - cron: "37 4 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: starter-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Copy fleet's starter at its current main
+        run: bash scripts/templates/sync-starter.sh
+      - name: Open the pull request, if anything moved
+        env:
+          # A PR opened with GITHUB_TOKEN starts no CI; the org PAT does.
+          GH_TOKEN: ${{ secrets.FLEET_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard scripts/site-template)" ]; then
+            echo "scripts/site-template already matches fleet main"
+            exit 0
+          fi
+          sha="$(cat scripts/site-template/.fleet-source)"
+          branch="starter-sync/${sha:0:12}"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
+            echo "$branch already open"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A scripts/site-template src/lib/starter-app.generated.ts
+          git commit -m "chore(starter): sync scripts/site-template to bitbaum/fleet@${sha:0:12}"
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "chore(starter): sync to bitbaum/fleet@${sha:0:12}" \
+            --body "Copies bitbaum/fleet templates/app at ${sha} into scripts/site-template and regenerates the kickoff's file map. Opened by starter-sync.yml."

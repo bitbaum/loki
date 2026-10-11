@@ -22,9 +22,15 @@ const NOT_CONFIG = new Set([
   "NEXT_PUBLIC_X",
 ]);
 
+// The fleet starter's source, held as DATA for the kickoff to seed: its reads
+// are the seeded app's, named in that app's own .env.example
+// (scripts/site-template/.env.example, checked in fleet), never Loki's.
+const NOT_LOKI_CODE = new Set([join("src", "lib", "starter-app.generated.ts")]);
+
 function* files(dir: string): Generator<string> {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
+    if (NOT_LOKI_CODE.has(p)) continue;
     if (statSync(p).isDirectory()) yield* files(p);
     else if (/\.tsx?$/.test(name)) yield p;
   }

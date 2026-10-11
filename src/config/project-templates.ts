@@ -13,20 +13,21 @@
  * stack. A cold-start flow that stops to ask "which starter?" has already lost:
  * the profile it just filled in already says what this is built with.
  *
- * TWO PATHS (do not conflate):
+ * TWO PATHS, ONE APP for "nextjs-tailwind":
  * - Kickoff / GitHub provision seeds these TEMPLATES → agent-ready code repo.
  * - Live Hetzner site + CD uses `scripts/hetzner/new-site.sh` +
  *   `scripts/site-template` (apps.conf, deploy.yml → selfhost-deploy, secrets).
- * Provisioned starters intentionally omit the self-host CD shim; registering a
- * live URL is the new-site path, not an implied side effect of Create repo.
+ * Both produce bitbaum/fleet templates/app (src/lib/starter-app.ts). The
+ * kickoff omits the workflows; registering a live URL (register-site.sh) adds
+ * them, the CD shim included, rather than Create repo implying a deploy.
  */
 
 export const PROVISION_TEMPLATES = [
   {
     id: "nextjs-tailwind",
-    label: "Next.js 16 + Tailwind v4",
+    label: "Next.js 16 — the bitbaum starter",
     description:
-      "App Router, TypeScript, Tailwind v4, standalone output. `pnpm install && pnpm dev` and you're live.",
+      "The fleet starter: accounts (password, link, passkey, 2FA, OrangeCat), English/German/French, strict security headers, Postgres, tests and CI. Deploys to *.orangecat.ch.",
     keywords: ["next.js", "nextjs", "react", "tailwind", "vercel", "shadcn"],
   },
   {

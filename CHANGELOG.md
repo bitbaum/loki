@@ -6,6 +6,19 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-11 — Every new site starts as the same complete app
+
+- **New sites start with accounts, three languages and strict security.**
+  Both ways Loki creates a site — "Make it happen" with the Next.js starter,
+  and a new site on the box — now produce the same app: the bitbaum starter.
+  People can create an account with a password, a sign-in link or a passkey
+  (and with OrangeCat once the site is registered there), add two-factor
+  sign-in, and use it in English, German or French.
+  It ships with strict security headers, a health check, tests and the
+  pipeline that deploys each change.
+- **A new site gets its own database.** Its accounts live in a database made
+  for it on the server, with its secrets generated there and never shown.
+
 ## 2026-10-11 — Agents building a bitbaum product get the house rules
 
 - **Every agent Loki sends into a bitbaum repo is now told what already

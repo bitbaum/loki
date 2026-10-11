@@ -1,18 +1,33 @@
-# pnpm 11 refuses to run a dependency's build script unless it is approved here,
-# and it EXITS NON-ZERO when one is unapproved — so without this file a fresh
-# scaffold cannot install at all, the deploy dies before it reaches the build,
-# and the brand-new site serves 502 from a fully provisioned host.
-#
-# Both of these need their build step:
-#   sharp          native image codec; next uses it for image optimisation
-#   unrs-resolver  native module resolver used by eslint-config-next
-#
-# This lives here and NOT in package.json's "pnpm" field: pnpm 11 no longer
-# reads that field and ignores it with a warning, which makes the setting look
-# present while doing nothing — a checker grepping for the key would pass.
-#
-# Diplodoctor hit exactly this on 2026-09-10 and fixed it in its own repository.
-# The template is where it belongs, so the next site does not rediscover it.
+# pnpm 11 refuses to run a dependency's build script unless it is approved
+# here, and it EXITS NON-ZERO when one is neither approved nor refused — so
+# without this file a fresh product cannot install, the deploy dies before the
+# build, and a fully provisioned host serves 502. pnpm 11 no longer reads the
+# "pnpm" field in package.json; a setting written there is present and inert.
 allowBuilds:
+  # native image codec next uses for image optimisation
   sharp: true
+  # native resolver used by eslint-config-next
   unrs-resolver: true
+  # Vitest and drizzle-kit need esbuild's binary
+  esbuild: true
+  # prebuilt binaries ship with these; their install scripts are not needed
+  "@parcel/watcher": false
+  "@swc/core": false
+
+# Our own packages are published by our own tagged workflows and are refused by
+# minimumReleaseAge until they age, which fails `pnpm install --frozen-lockfile`
+# with a bare exit 1. Exempt them BY NAME (fleet SHARED.md, "If one breaks").
+minimumReleaseAgeExclude:
+  - "@bitbaum/ai-kit"
+  - "@bitbaum/design-tokens"
+  - "@bitbaum/mail-kit"
+  - limitkit
+  - bip-kit
+
+# drizzle-kit still reaches esbuild <=0.24 through the legacy @esbuild-kit
+# loader (GHSA-67mh-4wv8-2f99: its dev server answers any website). Nothing
+# here runs that server, but a known advisory in the lockfile is a standing
+# alert on every product made from this starter — so the loader gets the
+# patched esbuild. `pnpm run db:generate` is exercised by the template check.
+overrides:
+  "@esbuild-kit/core-utils>esbuild": ^0.25.0

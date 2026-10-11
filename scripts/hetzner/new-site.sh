@@ -218,7 +218,9 @@ if [ "$DRY" = 0 ]; then
   # that was verified is not the site that ships. `--lockfile-only` writes
   # pnpm-lock.yaml without unpacking node_modules, which keeps this to a few
   # seconds and leaves nothing behind for .gitignore to catch.
-  if command -v pnpm >/dev/null 2>&1; then
+  if [ -f "$REPO_DIR/pnpm-lock.yaml" ]; then
+    say "pnpm-lock.yaml shipped with the starter"
+  elif command -v pnpm >/dev/null 2>&1; then
     if (cd "$REPO_DIR" && pnpm install --lockfile-only >/dev/null 2>&1); then
       say "pnpm-lock.yaml resolved"
     else
@@ -326,9 +328,35 @@ else
   say "could not set HETZNER_IP — a private repo's Deploy will fail until it is set."
 fi
 
+# ------------------------------------------------------- database + secrets
+# The starter keeps accounts in Postgres and signs sessions with
+# BETTER_AUTH_SECRET. provision-db-on-box.sh creates the database and writes
+# those secrets into the box env — generated there, never on this machine —
+# seeding that env from .env.selfhost.local first so the widget token and
+# site URL above still reach it. Before the register row, because the row's
+# db column is what makes every deploy apply drizzle/ (apply-schema.sh).
+# Non-fatal like the widget, and carried to the summary like it.
+echo "→ database + secrets (on the box)"
+DB_NAME="-"
+DB_TODO=""
+if [ "$DRY" = 1 ]; then
+  say "DRY  bash $HERE/provision-db-on-box.sh $SLUG $REPO_DIR/.env.selfhost.local"
+elif DB_NAME=$(bash "$HERE/provision-db-on-box.sh" "$SLUG" "$REPO_DIR/.env.selfhost.local"); then
+  say "database $DB_NAME; DATABASE_URL, BETTER_AUTH_SECRET and SECRET_SEAL_KEY are in the box env"
+else
+  DB_NAME="-"
+  say "⚠ could not provision the database — see the summary"
+  DB_TODO="
+  5. This site has NO database, so accounts are off and /api/health is red.
+       bash $HERE/provision-db-on-box.sh $SLUG
+     then put the name it prints in the db column of its apps.conf row and
+       bash $HERE/deploy.sh $SLUG
+"
+fi
+
 # ------------------------------------------------------------------- register
 echo "→ register"
-LINE="$SLUG|$PORT|$SLUG.$BASE_DOMAIN|$REPO_DIR|.|-|$OWNER|$KIND|$STATUS|$PLAN|$PRICE|$(date -u +%Y-%m-%d)"
+LINE="$SLUG|$PORT|$SLUG.$BASE_DOMAIN|$REPO_DIR|.|$DB_NAME|$OWNER|$KIND|$STATUS|$PLAN|$PRICE|$(date -u +%Y-%m-%d)"
 if [ "$DRY" = 1 ]; then say "DRY  append: $LINE"; else
   printf '%s\n' "$LINE" >> "$MANIFEST"
   say "appended to $MANIFEST"
@@ -360,9 +388,12 @@ cat <<NEXT
 
   Still yours to do:
 
-  1. Change app/globals.css. It ships in Loki's palette on purpose, so a
-     new site reads as "made with Loki" rather than "generated" — but a
-     bespoke site that STAYS in it is the one thing this studio must not ship.
+  1. It is the fleet starter (bitbaum/fleet templates/app): accounts, three
+     languages, strict security headers, wearing bitbaum's design tokens. For
+     a CLIENT's site, replace the @bitbaum/design-tokens import in
+     app/globals.css and the preset in tailwind.config.mjs with the client's
+     own tokens — a bespoke site that stays in ours is the one thing this
+     studio must not ship, and a retheme of ours would repaint theirs.
 
   2. Commit the register change:
        cd $(dirname "$MANIFEST") && git add apps.conf && git commit
@@ -374,5 +405,5 @@ cat <<NEXT
      There is no OrangeCat project by default — new-site.sh does not create one,
      so the link simply does not render until this is set. That is deliberate:
      a link to a page that does not exist is worse than no link.
-${WIDGET_TODO}
+${WIDGET_TODO}${DB_TODO}
 NEXT

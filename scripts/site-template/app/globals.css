@@ -1,113 +1,23 @@
+@import "@bitbaum/design-tokens/tokens.css";
 @import "tailwindcss";
+@config "../tailwind.config.mjs";
 
-/**
- * __TITLE__ — design tokens. The only place a colour, font or radius is defined.
+/*
+ * The product owns almost no design of its own. Every colour, face, weight,
+ * tracking and radius is @bitbaum/design-tokens (imported above), the brand
+ * SSOT OrangeCat, Loki and Solon share. Do not redefine a token here; only
+ * compositions of shared tokens belong below.
  *
- * THE DEFAULT IS LOKI'S LANGUAGE, ON PURPOSE.
- *
- * It used to be an invented mid-blue (#4a6fa5) that belonged to nothing we own.
- * A site sitting in it did not read as "new", it read as "generated" — a
- * template nobody had touched. The palette below is Loki's own, taken
- * from its globals.css: monochrome, with a single warm accent used sparingly.
- *
- * That is deliberate. Until its owner builds it, this site IS a Loki
- * surface and should look like one — "made with Loki, not yet yours"
- * rather than "unfinished template".
- *
- * ⚠️  ONCE IT IS THEIRS, THESE VALUES MUST CHANGE.
- *
- * The studio's whole claim is that these are real, bespoke sites — not a
- * template farm. sinktattoo, annushka, vitareba and petvity look nothing like
- * each other, and that is the product. Share the SYSTEM (semantic token names,
- * the spacing scale, accessibility, no webfont fetch) and let the expression
- * diverge completely.
- *
- * Structure:
- *   Tier 1  primitives — raw values, never used by a component
- *   Tier 2  semantics  — what components use, always
- * Retheming is then editing this file and nothing else.
- *
- * Colours are oklch, matching Loki. Perceptual lightness means a scheme
- * can be inverted by moving L and leaving hue and chroma alone.
+ * A CLIENT-owned app replaces the import above and the preset in
+ * tailwind.config.mjs with the client's own tokens (fleet SHARED.md).
  */
-@theme {
-  /* System stack on purpose: next/font fetches at BUILD time, so a webfont
-     makes every new site's first deploy depend on a third party being up. */
-  --font-heading: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-
-  --tracking-display: -0.035em;
-  --tracking-caps: 0.14em;
-  --spacing-shell: 68rem;
-  --radius-card: 0.5rem;
-
-  /* Tier 1 — primitives. Replace these first. */
-  --primitive-ink-950: oklch(0.15 0 0);
-  --primitive-ink-050: oklch(0.98 0 0);
-  --primitive-warm-500: oklch(0.52 0.18 41);
-  --primitive-warm-300: oklch(0.75 0.16 41);
-  --primitive-green-500: oklch(0.52 0.15 145);
-  --primitive-green-300: oklch(0.75 0.16 145);
-
-  /* Tier 2 — semantics. Components only ever use these. */
-  --color-surface-page: oklch(0.97 0 0);
-  --color-surface-raised: oklch(0.94 0 0);
-  --color-fg-primary: var(--primitive-ink-950);
-  --color-fg-secondary: oklch(0.4 0 0);
-  /* 0.53, not 0.55. At 0.55 this is 4.45:1 on the page ground — a fifth of a
-     point under AA, which is exactly the kind of miss that survives an eyeball
-     and dies to the arithmetic in check-template-contrast.mjs. */
-  --color-fg-muted: oklch(0.53 0 0);
-  --color-border-subtle: oklch(0.87 0 0);
-
-  /* An accent is THREE tokens, not one, and collapsing them is an
-     accessibility bug rather than a simplification:
-       accent           the primary action as a SURFACE
-       accent-contrast  the label ON that surface
-       accent-fg        the accent as TEXT, on the page ground
-     No single value serves all three. Loki's primary action is
-     monochrome and INVERTS between schemes (near-black on light, near-white
-     on dark), so `accent` and `accent-contrast` must swap together — while
-     `accent-fg` is the warm accent and moves independently of both. Every
-     pair is contrast-checked by scripts/hetzner/check-template-contrast.mjs,
-     which computes the real WCAG ratio rather than trusting this comment. */
-  --color-accent: var(--primitive-ink-950);
-  --color-accent-contrast: var(--primitive-ink-050);
-  --color-accent-fg: var(--primitive-warm-500);
-
-  /* "This host is answering." Status only, never decoration — it keeps
-     meaning something only if nothing else uses it. */
-  --color-signal-live: var(--primitive-green-500);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --color-surface-page: oklch(0.12 0 0);
-    --color-surface-raised: oklch(0.17 0 0);
-    --color-fg-primary: oklch(0.95 0 0);
-    --color-fg-secondary: oklch(0.75 0 0);
-    --color-fg-muted: oklch(0.62 0 0);
-    --color-border-subtle: oklch(0.28 0 0);
-
-    /* The primary action inverts, so BOTH halves move together — a near-white
-       surface carrying a near-black label. Moving one without the other is
-       exactly the failure this pairing exists to prevent. */
-    --color-accent: oklch(0.95 0 0);
-    --color-accent-contrast: oklch(0.13 0 0);
-    /* The warm accent only lightens; it is text on the page, not a surface. */
-    --color-accent-fg: var(--primitive-warm-300);
-    --color-signal-live: var(--primitive-green-300);
-  }
-}
 
 html {
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
-body {
-  background-color: var(--color-surface-page);
-  color: var(--color-fg-primary);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
+/* The tokens' dark theme is the `.dark` class; layout.tsx sets it from the
+   reader's system preference before the first paint. */
+html.dark {
+  color-scheme: dark;
 }

@@ -1,0 +1,14 @@
+# Secret scanning (.github/workflows/secret-scan.yml): gitleaks' default rules,
+# with ONE allowance. A NEXT_PUBLIC_* value is compiled into every page this
+# app serves — it is public by definition, never a secret (the Loki widget
+# token is printed into the HTML as data-fc-project). Anything else that looks
+# like a key is still a finding.
+title = "starter"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "NEXT_PUBLIC_* values are shipped to every browser"
+regexTarget = "line"
+regexes = ['''^\s*NEXT_PUBLIC_[A-Z0-9_]+\s*=''']

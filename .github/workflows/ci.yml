@@ -134,6 +134,15 @@ jobs:
       - name: Database tests
         run: pnpm run test:db
 
+      # scripts/site-template is bitbaum/fleet templates/app at the commit pinned
+      # in its .fleet-source. Hand edits here would fork the starter every new
+      # product is made from, so CI proves the copy is exact (the kickoff's
+      # generated file map is held to the directory by test:unit). Pinned, not
+      # "fleet main": a fleet change never turns an unrelated PR here red —
+      # starter-sync.yml brings it in as its own PR.
+      - name: The site template is fleet's starter, unedited
+        run: bash scripts/templates/sync-starter.sh --check
+
       # Merge→live latency (Cato 2026-09-16): full `verify` is ~60m. PRs keep it.
       # Squash merges onto main already passed that gate on the PR — re-running
       # doubles merge→live for no new signal. Fast `verify:main` on those tips;

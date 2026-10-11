@@ -1,16 +1,12 @@
 name: CI
 
-# WHY THIS FILE EXISTS, AND WHY IT IS NOT OPTIONAL
+# "Verified" is defined ONCE, in package.json `verify` (format, lint,
+# typecheck, unit tests, build), and run here verbatim — green locally means
+# green here. The integration job adds what verify cannot do hermetically:
+# the real Postgres schema and the real auth flow, end to end.
 #
-# loki's ci-gate.sh treats "CI green" and "no CI at all" identically —
-# both exit 0 and let the deploy proceed. That is a sane default for a repo
-# that has not set CI up yet, and it means a site WITHOUT this file deploys
-# every push completely unverified while looking exactly like one that passed.
-#
-# Substrata shipped to production that way. So the scaffold emits this file with
-# every new site: the gate has something real to wait for from the first commit.
-#
-# Runs the same bundle as `pnpm run verify` locally — one definition of verified.
+# Without this file Loki's deploy gate treats "no CI" like "CI green" and
+# every push would deploy unverified.
 
 on:
   push:
@@ -19,62 +15,40 @@ on:
     branches: [main]
   workflow_dispatch: {}
 
-# A newer push supersedes an older run. ci-gate.sh understands cancelled-and-
-# superseded as a clean skip rather than a failure.
+# On main the group is keyed per COMMIT: a newer merge must never cancel an
+# older commit's run, because deploys key off that run (fleet templates/ci).
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || 'branch' }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      # pnpm BEFORE setup-node: `cache: pnpm` needs the binary to resolve the
-      # store path, and setup-node fails outright if pnpm is not on PATH yet.
-      - uses: pnpm/action-setup@v4
+      # pnpm BEFORE setup-node: `cache: pnpm` needs the binary. No `version:`
+      # input — package.json `packageManager` is the one source.
+      - uses: pnpm/action-setup@v6
 
-      # Sites scaffolded before the starter shipped .nvmrc have none, and
-
-      # setup-node fails on a missing version file (kaffeeklappe-sep11 #3,
-
-      # 2026-09-11). Default to the fleet's Node line; a committed .nvmrc wins.
-
-      - name: Node version file
-
-        run: "[ -f .nvmrc ] || echo 22 > .nvmrc"
-
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: ".nvmrc"
           cache: pnpm
 
-      # pnpm, not npm: the box deploys with `pnpm run build`, and this template
-      # previously scaffolded an npm CI over a repo that had no package-lock.json
-      # — so `npm ci` could never succeed and a new site's CI was red or absent
-      # from its first commit. .nvmrc is pinned to 22 for the same reason: pnpm 11
-      # imports node:sqlite, which does not exist before Node 22.13.
       - run: pnpm install --frozen-lockfile
 
-      # Next keeps its compiler output in .next/cache, and this job BUILDS. With
-      # nothing restoring it, every run of every scaffolded site recompiles from
-      # scratch — and the deploy then compiles a second time.
-      #
-      # This file is the third copy of the golden CI floor. The other two live in
-      # fleet/templates/ci/, and they gained this step on 2026-09-07 when a fleet
-      # sweep found 14 of 32 repos building cold. This one is the copy the
-      # scaffold ACTUALLY uses, so it was the one that mattered and the one that
-      # was missed — every site created between then and now started cold by
-      # construction. Held fleet-wide by fleet's cicd-hygiene-audit.sh, but that
-      # ratchet can only flag a repo after it exists; a template fixes it before.
-      #
-      # Keyed on the lockfile so a dependency change invalidates it. The bare
-      # restore-key is last on purpose: a stale cache still beats no cache, and
-      # Next validates its own entries rather than trusting them.
+      # Next keeps its compiler output in .next/cache and verify BUILDS; keyed
+      # on the lockfile so a dependency change invalidates it.
       - name: Cache Next.js build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
@@ -82,47 +56,59 @@ jobs:
             nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
             nextjs-${{ runner.os }}-
 
-      - name: Type check
-        run: pnpm run type-check
+      - name: Verify
+        run: pnpm run verify
 
-      - name: Lint
-        # The Loki starter declares no linter yet; a missing script must
-        # not fail the site's first CI run.
-        run: pnpm run --if-present lint
-
-      # The build is the real test for a content site: a broken import or a bad
-      # config surfaces here and nowhere earlier.
-      - name: Build
-        run: pnpm run build
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app -d app_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Accounts against a real Postgres
+        env:
+          DATABASE_URL: postgres://app:app@localhost:5432/app_test
+        run: pnpm run test:integration
 
   # A sweep merge uses GITHUB_TOKEN, and a push made with that token triggers
-  # no workflows; the CI the sweep then re-arms is itself a dispatch, whose
-  # workflow_run event GitHub also suppresses. So after an agent's PR is
-  # auto-merged here, NOTHING starts Deploy — kaffeeklappe-sep11 sat an hour
-  # on 2026-09-11 with the change merged, CI green, and the site serving the
-  # previous release. The sweep's reconciler catches it on its next tick,
-  # which is correct, self-healing, and up to ten minutes late.
-  #
-  # A dispatch is not a push, so this job may start Deploy directly the moment
-  # CI proves main green. Same shape as bitbaum/loki's own ci.yml.
-  #
-  # Only for workflow_dispatch: a real push to main chains through
-  # workflow_run by itself, and dispatching here too would ship twice.
+  # no workflows; the CI the sweep re-arms is a dispatch whose workflow_run
+  # GitHub also suppresses. So after an auto-merge nothing would start Deploy
+  # until the sweep's reconciler tick. A dispatch is not a push, so this job
+  # starts Deploy the moment CI proves main green — only for workflow_dispatch,
+  # since a real push chains through workflow_run by itself.
   ship:
-    needs: verify
+    needs: [verify, integration]
     if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    # contents: read is not optional. A job-level permissions block turns
-    # everything it does not list OFF, and on a PRIVATE repo a token without
-    # contents cannot even check out its own code: "Repository not found",
-    # CI red on main, and the fleet sweep never ships a red main — so a new
-    # private site stopped one step before going live (probe-loop, 2026-09-26).
+    # contents: read is not optional: a job-level block turns everything it
+    # does not list OFF, and a private repo then cannot check itself out.
     permissions:
       actions: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Dispatch Deploy now that main is green
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run deploy.yml --ref main
+        run: |
+          if [ -f .github/workflows/deploy.yml ]; then
+            gh workflow run deploy.yml --ref main
+          else
+            echo "no deploy.yml — this repository does not deploy yet"
+          fi
