@@ -194,7 +194,7 @@ export function renderFleetBrief(facts: FleetFacts): string {
     `- A NEW product starts from the fleet app template (${FLEET_REPO.owner}/${FLEET_REPO.repo} templates/app), not from a blank scaffold.`,
     "- Before writing a health route, model call, security headers, language routing, auth, mail, rate limiting, chat or date input of your own, check the shared packages below and SHARED.md. If one does the job, use it.",
     "- Security bar: never weaken CSP or other security headers, anonymisation, or sealed secrets. No vendor AI SDK and no hand-rolled model fetch: every model call goes through @bitbaum/ai-kit. No new auth package (STACK.md → Identity).",
-    "- Done means merged, deployed and checked live on the running site. An open PR, a green CI or a merge alone is not done.",
+    "- Done means merged, deployed and checked live on the running site. An open PR, a green CI or a merge alone is not done. Report it as the live URL first, a screenshot of the deployed page, and what was and was not verified — never as a description of a screen you did not open.",
   ];
 
   const stack = facts.stack.map((row) => `- ${row.job}: ${row.blessed}`);

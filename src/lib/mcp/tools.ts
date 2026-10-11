@@ -20,6 +20,7 @@ import {
   type McpToolName,
 } from "@/config/mcp";
 import type { McpCaller, McpServices } from "@/lib/mcp/types";
+import { BROWSER_RECIPES, BROWSER_RECIPE_IDS } from "@/config/browser-tasks";
 
 export type McpToolResult = {
   content: Array<{ type: "text"; text: string }>;
@@ -241,6 +242,29 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
           runId: body.runId ?? null,
           warning: body.warning ?? null,
         },
+      );
+    },
+  }),
+
+  loki_browser_task: define({
+    title: "Fill a web form for the owner",
+    description: `Open a known web form in Loki's browser window on the owner's own computer (Fleet Runner), fill every field, and stop at the final button for the owner to press — use it whenever a step needs the owner's account on a site (a settings page behind their login or passkey) instead of telling them which fields to type. It never submits. Recipes and their params: ${BROWSER_RECIPE_IDS.map((id) => `${id} (${BROWSER_RECIPES[id].params.join(", ")})`).join("; ")}. Say the form is filled and waiting for them on their computer; do not claim the change is made.`,
+    input: z.object({
+      recipe: z.enum(BROWSER_RECIPE_IDS as [string, ...string[]]),
+      params: z.record(z.string(), z.string().trim().min(1).max(200)),
+    }),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    async run(args, { userId, services }) {
+      const queued = await services.browserTask(userId, args.recipe, args.params);
+      if (!queued) {
+        const recipe = BROWSER_RECIPES[args.recipe as keyof typeof BROWSER_RECIPES];
+        return toolError(
+          `Those parameters don't fit ${args.recipe}. It needs: ${recipe.params.join(", ")}.`,
+        );
+      }
+      return text(
+        `Queued for Fleet Runner on the owner's computer: "${queued.title}". Loki opens the page in its own browser window, fills it, and stops at "${queued.button}" — the owner presses that (and confirms any passkey). If the site asks them to sign in first, Loki waits and then carries on. Fleet Runner must be running on that computer.`,
+        { commandId: queued.commandId },
       );
     },
   }),

@@ -6,6 +6,48 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-11 — Suggestions: every front of your life, one tap each
+
+- **A Suggestions page.** The "Build next" row on the Loki start screen only
+  knew about code. The new page under Now reads every front Loki keeps records
+  on — Build, Business, Goals, People, Money, Habits — and offers one thing to
+  do per fact: the report nobody fixed, the delivery waiting on your yes, the
+  goal due Friday at 40%, the subscription renewing Tuesday, the friend you
+  have not spoken to in forty days, the twelve-day streak not checked off
+  yet. Every card says which record it came from.
+- **Two answers, no typing.** "Do it" hands the ask to Loki, already written
+  and already scoped to the project, or opens the one place only you can do
+  it (checking off a habit, accepting a delivery). "Not now" puts it away for
+  a month, with an undo. What you put away stays away on the start screen and
+  on Control too.
+- **It keeps score, from records.** Taken this week, days in a row, taken in
+  all — counted from the decisions you actually made, never estimated.
+- **Private fronts stay private.** People, Money and Habits are read only
+  while your PIN zone is unlocked; locked, the page says so and offers the
+  unlock.
+## 2026-10-11 — Shipped means you can see it, and Loki watches whether it gets used
+
+- **A finished change comes with proof.** Agents now report shipped work as
+  the live link first, screenshots of the real deployed page (phone first),
+  and a plain list of what was and was not checked. `pnpm run ship:report`
+  produces it: it confirms the site is running the shipped build and
+  photographs the page, instead of announcing a merge and hoping.
+- **Loki remembers how you use "Build next".** Each time the row is shown,
+  tapped, or rotated past is recorded, and Loki reads it back: ask "how am I
+  using Build next?" and it says what gets tapped and what it keeps offering
+  for nothing — and it uses the same record when you ask what to build, so
+  it leads with the kind of suggestion you actually take.
+## 2026-10-11 — Nothing waits on a command someone has to remember
+
+- **The evening plan now actually arrives.** The 19:00 proposal for the
+  night shipped yesterday, but its timer only reached the server when
+  someone ran a setup command there by hand, so no plan was made. Every
+  deploy now installs the scheduled jobs itself, and a test fails if that
+  ever stops.
+- **Fix checks have their browser.** The picture Loki takes of a live page
+  needs a browser on the server. The deploy installs it too, so the first
+  visual fix gets a real verdict instead of "no browser".
+
 ## 2026-10-11 — Loki looks at a picture when words cannot tell
 
 - **Visual fixes get a verdict too.** A layout, a colour, a thing that

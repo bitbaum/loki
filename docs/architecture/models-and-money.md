@@ -154,6 +154,57 @@ The cap itself is set at the vendor — five francs with a monthly limit is
 enough to compare how two models think, and a cap there protects the person
 whatever Loki does.
 
+### Seeing your budget before you are refused
+
+Until 2026-10-11 the first a person heard of the daily share was the refusal
+("you've used your share of today's free AI budget"). Every number behind
+that refusal already existed — `ai_spend` for what they drew, `fairShare` for
+their share and how much of it pacing had unlocked, `own_model_usage` for
+their keys, `provider_quota` for what each vendor last said — and none of it
+was shown to the person it was about. The one capacity card was the
+operator's: vendor counters for the whole box.
+
+`lib/ai/budget-view.ts` is the person's view, one pure function from those
+ledgers to the screen, and `lib/ai/budget.ts` is the only place they are
+joined for a user. Three surfaces read it, so they cannot disagree:
+
+| Surface | What it shows |
+|---|---|
+| Settings → AI, "Your AI budget today" (first card) | Each key: today / 30 days, no cap from Loki, the vendor's billing page. The free pool: answers now and by the end of the day, the share used as a bar, who is sharing it, and what each model's vendor last said. |
+| The composer's model picker | One line above the rows (the same `headline`), and on a free row whose vendor is spent or low, that fact on the row. |
+| Loki itself (`sources-fleet.ts`, `ai_budget_today`) | The same `headline`, so "how much do I have left?" in the chat matches the card. |
+
+Three things it is careful about. Answers are counted the way the gate admits
+them — each turn must first fit the gate's 20k estimate, then costs what the
+person's turns really cost (their own tokens ÷ turns once they have a few) —
+so the screen never promises ten cheap answers on a remainder the gate
+refuses after one. *Paced*, *spent* and *pool spent* are three sentences
+because they have three remedies (wait · wait for midnight · nothing today);
+the pool counts as spent only when every vendor in the chain has refused, a
+vendor nobody heard from today being unknown, not empty. And a budget that
+cannot be read is absent, never "nothing left".
+
+The card also carries the half a meter leaves out, from `meaning` on the
+same view: a **pace** line (at today's rate the share lasts the day, or
+runs out around 16:40 UTC — said only once there are two turns and a few
+percent of the day to project from), the **week** from the same per-day
+rows, what Loki actually **remembers** between turns (the last eight, each
+trimmed — the number a person meets as "it forgot what I said", now stated
+so it can be planned around), a "What these numbers mean" disclosure that
+explains answers vs tokens, the share, the pacing and the reset in plain
+words, and the **levers** as buttons with their consequence: wait (when
+paced), bring a key, or let Auto spend less (one PUT to the routing
+preference). The test it is built to: a person who reads "57% used" should
+also learn whether that pace lasts the day and what to press if not.
+
+`GET /api/ai/budget` is the read; `/api/ai/quota` beside it stays the
+operator's. The view is pure and fleet-shaped (a source is a kind with a
+sentence and a lever) so it can go the way `fairShare` went — into
+`@bitbaum/ai-kit` once a second app wants the same card. The natural next
+source is OrangeCat's own (`/api/cat/quota`: messages left today, Cat
+Credits), read with the OrangeCat token Loki already holds, so one screen
+answers for both products.
+
 ### The store: the whole landscape, not ten vendors
 
 `/models` is where the choice is made, and since 2026-10-10 it is the

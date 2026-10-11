@@ -26,6 +26,7 @@ import {
   MessagesSquare,
   Handshake,
   LayoutGrid,
+  Lightbulb,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -53,6 +54,15 @@ export const NAV = {
     icon: Sun,
     active: true,
     mobile: true,
+  },
+  suggestions: {
+    id: "suggestions",
+    label: "Suggestions",
+    description: "What to do next, across every front — one tap and Loki takes it",
+    href: "/suggestions",
+    icon: Lightbulb,
+    active: true,
+    mobile: false,
   },
   loki: {
     id: "loki",
@@ -340,7 +350,10 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     id: "now",
     label: "Now",
     question: "What needs me?",
-    items: [NAV.today, NAV.approvals, NAV.feedback],
+    // Suggestions sits beside Approvals on purpose: both are Loki offering a
+    // next step for a yes/no. Approvals is what Loki already drafted;
+    // Suggestions is what the records say is worth asking for.
+    items: [NAV.today, NAV.suggestions, NAV.approvals, NAV.feedback],
   },
   {
     id: "fleet",

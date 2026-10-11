@@ -163,6 +163,18 @@ docs-only push runs nothing at all.
   rename was implemented as the `db:generate` flow above.)
 - Every table has `user_id` (multi-user); UUID primary keys; JSONB for metadata.
 
+## Done means seen
+
+A finished change is reported with the live URL first, screenshots of the
+real deployed page (phone width first, the built section cropped), and two
+lists: what was verified and what was not. `pnpm run ship:report -- /route
+--focus '<selector>'` produces all three and exits non-zero while the build is
+not live. A merge notice, a CI link or "it should go live on its own" is not a
+report; `docs/development/ship-report.md` keeps the message that taught this.
+After it ships, Loki records how the operator uses the surface
+(`src/config/usage-surfaces.ts`) and reads it back, so a row nobody taps is a
+finding and not a mystery.
+
 ## Self-host deploy path
 
 - Prod host: Hetzner box (`167.233.22.31`), app at `/opt/loki/app`,

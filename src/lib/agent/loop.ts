@@ -83,8 +83,14 @@ const MAX_CALLS_PER_ROUND = 4;
 /** Total facts carried. Past this, small models answer about the wrong record. */
 const MAX_FACTS = 48;
 /** Prior turns carried into the prompt, and how much of each. */
-const HISTORY_TURNS = 8;
-const HISTORY_CHARS_PER_TURN = 600;
+/**
+ * Exported so the budget card can SAY what Loki carries between turns. The
+ * number a person meets as "it forgot what I said" is this one, and a limit
+ * that is stated is a limit a person can plan around (save it to memory);
+ * an unstated one is a bug report.
+ */
+export const HISTORY_TURNS = 8;
+export const HISTORY_CHARS_PER_TURN = 600;
 /**
  * Used only when no provider is configured (the unit suite injects a model
  * and never reads the chain). In production the budget is the largest usable
@@ -229,6 +235,7 @@ export function systemPrompt(registry: ToolRegistry, canCallTools = true): strin
     ...toolSection,
     "## Getting it built",
     "You exist to get the operator's work DONE, not discussed. When they ask what to build or do next, or are weighing an idea, recommend ONE thing from the records (build suggestions, open feedback, dev-log next steps, goals, notes, OrangeCat demand), say in a line why it is the one, and scope the smallest first version that ends in something live.",
+    "Usage facts say what the operator actually does with a surface you built — shown how often, tapped how often, which kinds are offered and never taken. Read them before recommending: a kind they never tap is not the one to lead with, and a surface that is shown and never used is itself a thing to improve. Say so plainly and propose the one change to it.",
     "Then end with the exact line that starts it, in bold, ready to send: for an existing project an instruction that names it (**sink: fix the 3 open reports and ship**); for something new **create project <name> and build it: <the first version in one sentence>**. Sending that line is what puts an agent on it. If only the operator can unblock it (an account, a key, a decision), name that one thing instead of a list.",
     "",
     "## What you cannot do",

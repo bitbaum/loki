@@ -169,3 +169,26 @@ export async function updateConversationProjects(
     .returning();
   return row ?? null;
 }
+
+/**
+ * The thread behind a named channel (conversations.channel), created on first
+ * use. Insert-or-nothing then read, so two updates racing for a brand-new
+ * project still land in ONE thread — the unique (user_id, channel) index
+ * decides, not whichever request happened to look first.
+ */
+export async function getOrCreateChannelConversation(
+  userId: string,
+  channel: string,
+  init: { title: string; projectKeys: string[] },
+): Promise<Conversation> {
+  await db
+    .insert(conversations)
+    .values({ userId, channel, title: init.title, projectKeys: init.projectKeys })
+    .onConflictDoNothing({ target: [conversations.userId, conversations.channel] });
+  const [row] = await db
+    .select()
+    .from(conversations)
+    .where(and(eq(conversations.userId, userId), eq(conversations.channel, channel)))
+    .limit(1);
+  return row;
+}

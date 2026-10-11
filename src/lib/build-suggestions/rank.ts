@@ -259,10 +259,15 @@ function candidates(inputs: SuggestionInputs): BuildSuggestion[] {
  */
 export function rankBuildSuggestions(
   inputs: SuggestionInputs,
-  opts: { limit?: number; offset?: number } = {},
+  opts: { limit?: number; offset?: number; exclude?: ReadonlySet<string> } = {},
 ): { suggestions: BuildSuggestion[]; total: number } {
   const limit = opts.limit ?? SUGGESTION_LIMIT;
-  const ranked = candidates(inputs).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  // `exclude` is what the person already decided on at /suggestions ("Not
+  // now", or "Do it" within the week) — the row honours it, so a dismissed
+  // idea does not greet them again on the next screen.
+  const ranked = candidates(inputs)
+    .filter((s) => !opts.exclude?.has(s.id))
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 
   const seen = new Set<string>();
   const perKind = new Map<string, number>();

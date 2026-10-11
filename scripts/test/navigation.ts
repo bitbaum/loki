@@ -19,7 +19,7 @@ import {
 // unrepresentable.
 
 const LOOP = [
-  { id: "now", items: ["today", "approvals", "feedback"] },
+  { id: "now", items: ["today", "suggestions", "approvals", "feedback"] },
   { id: "fleet", items: ["control", "projects", "activity", "system"] },
   // No-screen (/voice) sits beside Loki: the same "say it" altitude with the
   // screen off, not a fourth altitude.

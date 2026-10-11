@@ -5,7 +5,8 @@
 // Run: npx tsx scripts/test/run-handoff.ts
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { nextStepPrompt, runHandoff } from "@/lib/run-handoff";
+import { nextStepPrompt, runFollow, runHandoff } from "@/lib/run-handoff";
+import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
 
 assert.equal(runHandoff(null), null, "no summary, no handoff");
 assert.equal(
@@ -46,5 +47,56 @@ for (const route of [
 ]) {
   assert.match(readFileSync(route, "utf8"), /handoff: runHandoff\(run/, `${route} carries it`);
 }
+
+// ---- after the run: PR → merged → live → Loki's look ----
+const at = "2026-10-11T00:00:00.000Z";
+const pr = { number: 7, url: "https://github.com/o/r/pull/7", title: "t" };
+const ship = (over: Partial<FixShipping>): FixShipping => ({
+  state: FIX_SHIP_STATE.PR_OPEN,
+  checkedAt: at,
+  pr,
+  ...over,
+});
+assert.equal(runFollow(null, "https://site.test"), null, "nothing found, nothing to follow");
+assert.equal(
+  runFollow(ship({ state: FIX_SHIP_STATE.NO_EVIDENCE }), "https://site.test"),
+  null,
+  "no PR, push or commit: the card says nothing rather than guess",
+);
+const open = runFollow(ship({}), "https://site.test");
+assert.ok(open && !open.settled && open.prUrl === pr.url && open.liveUrl === null);
+assert.match(open.label, /waiting to merge/);
+const merged = runFollow(ship({ state: FIX_SHIP_STATE.MERGED }), "https://site.test");
+assert.ok(merged && !merged.settled && merged.liveUrl === null, "merged is not live");
+const deployed = runFollow(ship({ state: FIX_SHIP_STATE.DEPLOYED }), "https://site.test");
+assert.ok(deployed && deployed.label === "Live" && deployed.liveUrl === "https://site.test");
+assert.equal(deployed.settled, false, "live but not looked at yet: keep asking");
+const noSite = runFollow(ship({ state: FIX_SHIP_STATE.DEPLOYED }), null);
+assert.ok(noSite && noSite.settled, "live with no page to read: nothing left to wait for");
+const looked = runFollow(
+  ship({
+    state: FIX_SHIP_STATE.DEPLOYED,
+    verify: {
+      verdict: "not_visible",
+      evidence: "The heading still says To review.",
+      at,
+      url: "https://site.test/page",
+    },
+  }),
+  "https://site.test",
+);
+assert.ok(looked && looked.settled && looked.looked?.verdict === "not_visible");
+assert.equal(looked.liveUrl, "https://site.test/page", "the page Loki read is the one offered");
+assert.ok(runFollow(ship({ state: FIX_SHIP_STATE.PR_CLOSED }), "https://x.test")?.settled);
+
+// Only a person's open card asks — never a timer (no-free-background-ai.ts).
+const follow = readFileSync("src/lib/run-follow.ts", "utf8");
+assert.match(follow, /autoShip: null/, "following never merges — the repo's own path decides");
+assert.match(follow, /checkAiBudget\(userId\)/, "the look spends the owner's budget, checked");
+assert.match(
+  follow,
+  /> FOLLOW_WINDOW_MS\) return runFollow\(fix, liveUrl\)/,
+  "an old thread's cards read their ledger — no GitHub call, no look",
+);
 
 console.log("run-handoff: ok");

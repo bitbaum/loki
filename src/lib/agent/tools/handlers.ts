@@ -29,6 +29,8 @@ import { HOUR_MS } from "@/lib/constants/time";
 import { askGatewayAgent, isGatewayConfigured } from "@/lib/openclaw-gateway";
 import { makeFact } from "@bitbaum/ai-kit/grounding";
 import { setAway } from "@/lib/away";
+import { BROWSER_RECIPES, BROWSER_RECIPE_IDS, resolveBrowserTask } from "@/config/browser-tasks";
+import { enqueueBrowserTaskCommand } from "@/db/queries/pending-commands";
 import { AWAY_MAX_MINUTES } from "@/lib/away-rules";
 import {
   alertFacts,
@@ -639,6 +641,51 @@ const setAwayTool = defineTool({
 });
 
 /**
+ * "Set this up on npm for me." A step behind the operator's own login used to
+ * end in Loki listing fields to type. Now Fleet Runner opens the page in
+ * Loki's browser window on their computer, fills it, and stops at the final
+ * button (config/browser-tasks.ts). Proposing it is safe by construction: the
+ * window never submits, so the operator's press IS the approval.
+ */
+const fillWebFormTool = defineTool({
+  name: "fill_web_form",
+  kind: "propose",
+  description: `Fill a known web form for the operator in Loki's browser window on their computer (Fleet Runner), stopping at the final button for them to press. Use instead of telling them which fields to type. Recipes: ${BROWSER_RECIPE_IDS.map((id) => `${id} (params: ${BROWSER_RECIPES[id].params.join(", ")})`).join("; ")}.`,
+  params: z.object({
+    recipe: z.enum(BROWSER_RECIPE_IDS as [string, ...string[]]),
+    params: z.record(z.string(), z.string()),
+  }),
+  example:
+    'TOOL: fill_web_form\nARGS: {"recipe": "npm-trusted-publisher", "params": {"package": "@bitbaum/chatkit", "owner": "bitbaum", "repo": "chatkit", "workflow": "publish.yml"}}',
+  handler: async ({ recipe, params }, ctx) => {
+    const task = resolveBrowserTask(recipe, params);
+    if (!task) {
+      const needs = BROWSER_RECIPES[recipe as keyof typeof BROWSER_RECIPES].params.join(", ");
+      return empty(`Those parameters don't fit ${String(recipe)}; it needs ${needs}.`);
+    }
+    await enqueueBrowserTaskCommand(ctx.userId, {
+      recipe: recipe as keyof typeof BROWSER_RECIPES,
+      params: params as Record<string, string>,
+      channel: "local",
+    });
+    return {
+      facts: [
+        makeFact({
+          kind: "browser_task",
+          subject: task.title,
+          source: "Fleet Runner",
+          values: {
+            page: task.url,
+            your_step: `press "${task.handoff.button}"`,
+            then: "Say in one line: the form opens filled in Loki's browser on their computer and waits for their press; if the site asks them to sign in, Loki carries on after. Do not say the change is made.",
+          },
+        }),
+      ],
+    };
+  },
+});
+
+/**
  * "What should I build?" — answered from the operator's own records, not from
  * the model's imagination. Same ranking as the start screen's "Build next".
  */
@@ -679,5 +726,6 @@ export const LOKI_TOOLS: ToolRegistry = Object.fromEntries(
     proposeActionTool,
     proposeHumanTaskTool,
     setAwayTool,
+    fillWebFormTool,
   ].map((t) => [t.name, t]),
 );

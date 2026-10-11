@@ -187,6 +187,9 @@ export function needsVerify(item: {
     !!fix &&
     fix.state === FIX_SHIP_STATE.DEPLOYED &&
     !fix.verify &&
+    // A behind-the-scenes change has nothing on the page to find; reading
+    // the page would spend the owner's budget to learn "can't tell".
+    fix.pr?.note?.shows !== "behind" &&
     !!livePageHref(item.liveUrl, item.url, item.page)
   );
 }

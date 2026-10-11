@@ -8,6 +8,7 @@ import { AppearanceSettings } from "./AppearanceSettings";
 import { PrivacySettings } from "./PrivacySettings";
 import { LocationSettings } from "./LocationSettings";
 import { VoiceSettings } from "./VoiceSettings";
+import { AiBudgetSettings } from "./AiBudgetSettings";
 import { AiQuotaSettings } from "./AiQuotaSettings";
 import { OwnModelSettings } from "./OwnModelSettings";
 import { ProviderOrderSettings } from "./ProviderOrderSettings";
@@ -196,6 +197,7 @@ export function SettingsTabs({
         {activeTab === "ai" && (
           <div className="space-y-6">
             {/* Your own model first: it is the way past the shared pool below. */}
+            <AiBudgetSettings />
             <OwnModelSettings />
             <AiQuotaSettings />
           </div>
