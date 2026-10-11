@@ -256,6 +256,86 @@ const outline = [
   assert.ok(total > 25_000 && total < 90_000, `a full owner story reads in ~a minute (${total}ms)`);
 }
 
+// ---- behind the scenes: no cursor on an unchanged page; the story tells it ----
+{
+  const beats = buildTourBeats({
+    audience: "owner",
+    asked: "prices were stale",
+    note: {
+      problem: null,
+      change: "The import retries.",
+      why: null,
+      considered: [],
+      helps: "Prices stay current.",
+      shows: "behind",
+      detail: "A timed-out batch is retried up to three times.",
+      proof: "0 skipped batches last night.",
+      next: null,
+      where: null,
+      plain: null,
+    },
+    didLine: null,
+    steps: [{ target: 1, action: "point", say: "a guess" }],
+    before: null,
+  });
+  assert.ok(!beats.some((b) => typeof b.target === "number"), "nothing to point at");
+  const chapters = beats.map((b) => b.chapter);
+  for (const c of [TOUR_CHAPTER.UNDER_HOOD, TOUR_CHAPTER.HELPS, TOUR_CHAPTER.PROOF])
+    assert.ok(chapters.includes(c), `has "${c}"`);
+}
+
+// ---- downsides & costs are told, and "none" is said out loud ----
+{
+  const base = {
+    problem: null,
+    change: "c",
+    why: null,
+    considered: [],
+    helps: "h",
+    shows: null,
+    detail: null,
+    proof: null,
+    next: null,
+    where: null,
+    plain: null,
+  };
+  const none = buildTourBeats({
+    audience: "owner",
+    asked: "a",
+    didLine: null,
+    steps: [],
+    before: null,
+    note: { ...base, us: "Fewer emails.", downsides: "None", costs: "None" },
+  });
+  const t = none.find((b) => b.chapter === TOUR_CHAPTER.TRADEOFFS);
+  assert.match(t?.say ?? "", /no downsides and no extra cost/);
+  assert.ok(none.some((b) => b.chapter === TOUR_CHAPTER.FOR_US));
+  const real = buildTourBeats({
+    audience: "owner",
+    asked: "a",
+    didLine: null,
+    steps: [],
+    before: null,
+    note: { ...base, us: null, downsides: "Slower by 40ms.", costs: "None" },
+  });
+  assert.equal(
+    real.find((b) => b.chapter === TOUR_CHAPTER.TRADEOFFS)?.say,
+    "Downside: Slower by 40ms. No extra cost.",
+  );
+  // The reporter never hears the maintainer's trade-offs.
+  const rep = buildTourBeats({
+    audience: "reporter",
+    asked: "a",
+    didLine: null,
+    steps: [],
+    before: null,
+    note: { ...base, us: "u", downsides: "d", costs: "c" },
+  });
+  assert.ok(
+    !rep.some((b) => b.chapter === TOUR_CHAPTER.TRADEOFFS || b.chapter === TOUR_CHAPTER.FOR_US),
+  );
+}
+
 // ---- caption clears the host's bottom bar ----
 // 2026-10-07: on Substrata at 390px the phone tab bar and the floating ASK
 // button sat on top of the caption and its "Looks right" button.

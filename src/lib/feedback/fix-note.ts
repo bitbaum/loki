@@ -23,14 +23,48 @@ export const FIX_NOTE_HEADING = "Walkthrough";
 /** Line label → field. Order is the order the agent is asked to write them. */
 const FIELDS = [
   { label: "Problem", key: "problem", ask: "what was actually wrong, in one or two sentences" },
-  { label: "Change", key: "change", ask: "what you changed, as the user will see it" },
+  { label: "Change", key: "change", ask: "what you changed, in plain words" },
+  {
+    label: "Shows",
+    key: "shows",
+    ask: "`on the page` if a person can see the change, or `behind the scenes` if they cannot (backend, data, speed, reliability, security)",
+  },
+  {
+    label: "Under the hood",
+    key: "detail",
+    ask: "exactly what changed in the system, in words someone who does not code can follow — required when it is behind the scenes",
+  },
   { label: "Why", key: "why", ask: "why this approach" },
   {
     label: "Considered",
     key: "considered",
     ask: "one line per alternative you rejected, as `<option> — <why not>` (repeat the line, at most 3)",
   },
-  { label: "Helps", key: "helps", ask: "who benefits and how" },
+  {
+    label: "Helps",
+    key: "helps",
+    ask: "how this benefits the people who use the product — every change must; for a behind-the-scenes change, the effect they will notice (faster, fewer errors, nothing lost, safer data)",
+  },
+  {
+    label: "Benefits us",
+    key: "us",
+    ask: "how it benefits us, the people who run this product — revenue, trust, less support, lower running cost — or `none`",
+  },
+  {
+    label: "Downsides",
+    key: "downsides",
+    ask: "what could get worse or go wrong — risks, trade-offs, anything removed — or `none` if you checked and there are none",
+  },
+  {
+    label: "Costs",
+    key: "costs",
+    ask: "what it costs to run or keep — money, AI or API spend, hosting, maintenance, page speed — or `none` if you checked and there are none",
+  },
+  {
+    label: "Proof",
+    key: "proof",
+    ask: "how you know it works — the test, measurement or log that shows it; essential when nothing is visible",
+  },
   {
     label: "Next",
     key: "next",
@@ -53,6 +87,23 @@ export type FixNote = {
   why: string | null;
   considered: { option: string; whyNot: string | null }[];
   helps: string | null;
+  /** Can a person see this change on a page, or does it work behind the
+   *  scenes? A backend fix has nothing to point a cursor at; saying so is what
+   *  lets the walkthrough explain it instead of pointing at the wrong thing. */
+  shows: "page" | "behind" | null;
+  /** How it benefits the people who run the product (us, not the users). */
+  us: string | null;
+  /** Risks, trade-offs, anything that gets worse. NOTE_NONE when the
+   *  developer checked and there are none — which is said out loud, never
+   *  left blank: a blank reads the same as "nobody looked". */
+  downsides: string | null;
+  /** What it costs to run or keep: money, AI spend, hosting, maintenance,
+   *  speed. NOTE_NONE when there are none. */
+  costs: string | null;
+  /** For a change nobody can see: exactly what changed, in plain words. */
+  detail: string | null;
+  /** How the developer knows it works — the test, measurement or log. */
+  proof: string | null;
   /** What else could be done on this front — the developer's honest "not
    *  yet", so the owner can steer the next step instead of guessing it. */
   next: string | null;
@@ -63,7 +114,7 @@ export type FixNote = {
 /** The instruction appended to every fix prompt. */
 export function fixNoteInstruction(): string {
   return [
-    `In the pull request description, include a section headed \`## ${FIX_NOTE_HEADING}\` with these lines — Loki plays it to the owner and the reporter as a guided walkthrough of the change on the live site, so write for a person, not a reviewer:`,
+    `In the pull request description, include a section headed \`## ${FIX_NOTE_HEADING}\` with these lines — Loki plays it to the owner and the reporter as a guided walkthrough of the change on the live site, so write for a person, not a reviewer. Every change must say how it helps the people who use the product and how it benefits us, and must state its downsides and costs — write \`none\` only when you checked and there are none; a change nobody can see must say exactly what changed and how you know it works:`,
     ...FIELDS.map((f) => `- ${f.label}: <${f.ask}>`),
   ].join("\n");
 }
@@ -86,6 +137,12 @@ export function parseFixNote(body: string | null | undefined): FixNote | null {
     why: null,
     considered: [],
     helps: null,
+    us: null,
+    downsides: null,
+    costs: null,
+    shows: null,
+    detail: null,
+    proof: null,
     next: null,
     where: null,
     plain: null,
@@ -104,6 +161,8 @@ export function parseFixNote(body: string | null | undefined): FixNote | null {
     if (current === "considered") {
       note.considered.push(...splitAlternatives(text));
       note.considered.length = Math.min(note.considered.length, CONSIDERED_MAX);
+    } else if (current === "shows") {
+      note.shows ??= readShows(text);
     } else if (!note[current]) {
       note[current] = cap(text);
     }
@@ -134,7 +193,14 @@ export function parseFixNote(body: string | null | undefined): FixNote | null {
 
   const tidy = tidyFixNote(note);
   const any =
-    tidy.problem || tidy.change || tidy.why || tidy.helps || tidy.next || tidy.where || tidy.plain;
+    tidy.problem ||
+    tidy.change ||
+    tidy.detail ||
+    tidy.why ||
+    tidy.helps ||
+    tidy.next ||
+    tidy.where ||
+    tidy.plain;
   return any || tidy.considered.length ? tidy : null;
 }
 
@@ -166,7 +232,26 @@ const FOOTER = /\s*(?:🤖\s*)?Generated with \[?Claude Code\]?(?:\([^)]*\))?\.?
  * them forever; the walkthrough runs every stored note through this first.
  * Idempotent, and a no-op on a note this parser wrote.
  */
-export function tidyFixNote(note: Omit<FixNote, "next"> & { next?: string | null }): FixNote {
+/** "on the page" / "behind the scenes", however an agent phrased it. */
+function readShows(text: string): FixNote["shows"] {
+  if (/behind|backend|server|not visible|invisible|under the hood|\bno\b/i.test(text))
+    return "behind";
+  if (/page|visible|screen|\byes\b|ui\b/i.test(text)) return "page";
+  return null;
+}
+
+/** Fields added after the first notes were saved; absent on those. */
+type LateFields = "next" | "shows" | "detail" | "proof" | "us" | "downsides" | "costs";
+
+/** What a note says when the developer checked and there is nothing to say. */
+export const NOTE_NONE = "None";
+const SAYS_NONE =
+  /^(none|nothing|no|zero|n\/a|\$?0|none (that i|i) (know|can see|found)|no (known )?(downsides?|costs?|risks?|trade-?offs?|extra cost))\b[.!]?$/i;
+const noneOr = (s: string | null) => (s && SAYS_NONE.test(s.trim()) ? NOTE_NONE : s);
+
+export function tidyFixNote(
+  note: Omit<FixNote, LateFields> & Partial<Pick<FixNote, LateFields>>,
+): FixNote {
   const strip = (s: string | null) => {
     const t = s ? s.replace(FOOTER, "").trim() : "";
     return t || null;
@@ -183,6 +268,12 @@ export function tidyFixNote(note: Omit<FixNote, "next"> & { next?: string | null
     why: strip(note.why),
     considered,
     helps: strip(note.helps),
+    us: noneOr(strip(note.us ?? null)),
+    downsides: noneOr(strip(note.downsides ?? null)),
+    costs: noneOr(strip(note.costs ?? null)),
+    shows: note.shows === "page" || note.shows === "behind" ? note.shows : null,
+    detail: strip(note.detail ?? null),
+    proof: strip(note.proof ?? null),
     // Absent on notes saved before the field existed.
     next: /^(nothing|none|n\/a)\.?$/i.test((note.next ?? "").trim())
       ? null

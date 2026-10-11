@@ -5131,14 +5131,35 @@
   .ui-fb-decision-why {
     @apply text-sm font-medium leading-snug text-text-primary;
   }
-  .ui-fb-decision-report {
-    @apply text-xs leading-relaxed text-text-tertiary;
-  }
-  .ui-fb-decision-quote {
-    @apply text-text-secondary;
+  /* The card's top line: what to do (left), whose report and when (right). */
+  .ui-fb-decision-top {
+    @apply flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5;
   }
   .ui-fb-decision-where {
-    @apply text-text-muted;
+    @apply text-xs text-text-muted;
+  }
+  /* Asked / Done / Next / Loki saw — labels in one narrow column so the
+     answers line up and each reads as its own short line, instead of the
+     report, the work and the model's finding running together as one
+     paragraph (the owner, 2026-10-11: "big strings that is hard to read"). */
+  .ui-fb-decision-facts {
+    @apply grid grid-cols-[5.75rem_1fr] gap-x-3 gap-y-1.5 text-sm leading-snug;
+  }
+  .ui-fb-decision-fact-label {
+    @apply pt-px text-xs font-medium uppercase tracking-caps text-text-tertiary;
+  }
+  .ui-fb-decision-fact {
+    @apply min-w-0 text-text-secondary;
+  }
+  .ui-fb-decision-fact-quote {
+    @apply min-w-0 text-text-secondary italic;
+  }
+  /* "None" for downsides/costs: a finding, shown plainly and positively. */
+  .ui-fb-decision-fact-none {
+    @apply inline-flex min-w-0 items-center gap-1.5 font-medium text-status-positive;
+  }
+  .ui-fb-decision-fact-quiet {
+    @apply line-clamp-3 min-w-0 text-text-tertiary;
   }
   .ui-fb-decision-actions {
     @apply mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5;
@@ -7367,6 +7388,68 @@
   }
   /* Outcome card under a dispatch bubble — status, target, and the two
      operational destinations the operator needs next: Control + Terminal. */
+  /* A progress update Loki posts into a thread (lib/loki/progress-update.ts):
+     the team updating the person it works for. Sections in a fixed order —
+     asked, what was wrong, what was done, why, also considered, next — so
+     one update reads like the last and a glance finds the part it needs.
+     Labels are small capitals above the text, never inline with it: a long
+     paragraph opened by a bold "What was done:" read as one undivided block
+     (the owner, 2026-10-11: "big strings that are hard to read"). */
+  .ui-loki-update {
+    @apply mt-1 max-w-full space-y-3 rounded-xl border border-border-subtle bg-surface-base p-4 sm:max-w-[85%];
+  }
+  .ui-loki-update-head {
+    @apply flex flex-wrap items-center gap-2;
+  }
+  .ui-loki-update-project {
+    @apply text-xs text-text-tertiary;
+  }
+  .ui-loki-update-headline {
+    @apply text-sm leading-snug text-text-primary;
+  }
+  .ui-loki-update-sections {
+    @apply space-y-2.5;
+  }
+  .ui-loki-update-label {
+    @apply text-xs font-medium uppercase tracking-caps text-text-tertiary;
+  }
+  .ui-loki-update-text {
+    @apply mt-0.5 text-sm leading-relaxed text-text-secondary;
+  }
+  /* "Nobody said how this helps users" — a visible gap, not a guess. */
+  .ui-loki-update-missing {
+    @apply mt-0.5 text-sm leading-relaxed text-text-tertiary italic;
+  }
+  /* An owed section answered "none" — downsides, costs: shown plainly, in the
+     positive tone, so "there are none" never looks like "nobody said". */
+  .ui-loki-update-none {
+    @apply mt-0.5 inline-flex items-center gap-1.5 text-sm font-medium text-status-positive;
+  }
+  .ui-loki-update-asked {
+    @apply mt-0.5 border-l-2 border-border-default pl-3 text-sm leading-relaxed text-text-secondary italic;
+  }
+  .ui-loki-update-alt {
+    @apply mt-0.5 space-y-1 text-sm leading-relaxed text-text-secondary;
+  }
+  .ui-loki-update-alt-option {
+    @apply text-text-primary;
+  }
+  .ui-loki-update-shots {
+    @apply grid grid-cols-1 gap-2 sm:grid-cols-2;
+  }
+  .ui-loki-update-shot {
+    @apply block overflow-hidden rounded-lg border border-border-subtle bg-surface-raised;
+  }
+  .ui-loki-update-shot img {
+    @apply block max-h-64 w-full object-contain;
+  }
+  .ui-loki-update-shot-caption {
+    @apply block px-2 py-1.5 text-xs text-text-tertiary;
+  }
+  .ui-loki-update-actions {
+    @apply flex flex-wrap items-center gap-2 pt-1;
+  }
+
   .ui-loki-dispatch-card {
     @apply mt-2 max-w-full rounded-xl border border-border-subtle bg-surface-base px-3 py-2 text-xs text-text-secondary sm:max-w-[75%];
   }

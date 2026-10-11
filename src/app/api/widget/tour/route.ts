@@ -236,9 +236,12 @@ export async function POST(req: NextRequest) {
   const key = plannedKey(feedbackId, audience, outline);
   const kept = planned.get(key);
   let steps: TourStep[] = kept && Date.now() - kept.at < PLANNED_TTL_MS ? kept.steps : [];
+  // Behind the scenes: nothing on the page changed, so there is nothing to
+  // point at — no model call, no guessed step; the story tells it.
+  const behind = note?.shows === "behind";
   // The reporter's own picked element is the most reliable anchor; a model is
   // only needed to find the change when nobody pointed at it.
-  if (steps.length === 0 && input.selectors.length === 0 && outline.length > 0) {
+  if (!behind && steps.length === 0 && input.selectors.length === 0 && outline.length > 0) {
     const budget = await checkAiBudget(f.userId).catch(() => ({ allowed: false }));
     if (budget.allowed) {
       try {
@@ -257,7 +260,7 @@ export async function POST(req: NextRequest) {
       }
     }
   }
-  if (steps.length === 0) steps = fallbackTourSteps(input);
+  if (!behind && steps.length === 0) steps = fallbackTourSteps(input);
 
   const asked = f.suggestion.replace(/\s+/g, " ").trim();
   const short = asked.length > 140 ? `${asked.slice(0, 139)}…` : asked;

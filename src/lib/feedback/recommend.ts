@@ -47,8 +47,14 @@ export type Recommendation = {
   kind: RecommendKind;
   /** The button, as a verb. */
   label: string;
-  /** Why this tap, in one sentence. */
+  /** Why this tap, in one SHORT sentence — the card's headline. */
   why: string;
+  /** What Loki saw when it read the live page, in its own words. Shown on its
+   *  own quieter line, never spliced into `why`: a headline that carried a
+   *  model's 240-character finding read as one undivided string ("Live on
+   *  /projects. The provided page text does not contain any terminal status
+   *  surface …", the owner's phone, 2026-10-11). */
+  evidence?: string | null;
   /** What the tap spends: 0 = free, 1 = one agent run on the owner's builder. */
   runs: 0 | 1;
   /** Sort key — the surest, cheapest decisions first. Higher is first. */
@@ -177,6 +183,19 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
               runs: 1,
               priority: 35,
             };
+          // Behind the scenes (a backend, data or speed fix): there is nothing
+          // on the page to look at, and asking the owner to "look" — or a
+          // model to read the page — would only ever come back "can't tell".
+          // The design note's account and proof are the evidence; read them,
+          // then close it.
+          if (fix.pr?.note?.shows === "behind")
+            return {
+              kind: RECOMMEND.CONFIRM,
+              label: "Close it",
+              why: "Live, behind the scenes — nothing to see on the page.",
+              runs: 0,
+              priority: 60,
+            };
           const look = fix.verify ?? null;
           // Loki read the page. Its verdict is the recommendation; the
           // evidence is the reason, so the owner can disagree from the card.
@@ -185,7 +204,8 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
             return {
               kind: RECOMMEND.CONFIRM,
               label: "Close it",
-              why: `${checked}: ${look.evidence}`,
+              why: `${checked} and the change is there.`,
+              evidence: look.evidence,
               runs: 0,
               priority: 70,
             };
@@ -193,7 +213,8 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
             return {
               kind: RECOMMEND.RETRY,
               label: "Try again",
-              why: `${checked} and could not find the change: ${look.evidence}`,
+              why: `${checked} and could not find the change.`,
+              evidence: look.evidence,
               runs: 1,
               priority: 36,
             };
@@ -201,8 +222,9 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
             kind: RECOMMEND.LOOK,
             label: "See it on the site",
             why: look
-              ? `Live on ${pageWord(input.page)}. ${look.evidence} One look settles it.`
-              : `Live on ${pageWord(input.page)}; Loki has not read the page yet. One look settles it.`,
+              ? `Live on ${pageWord(input.page)}. Loki could not tell from the page — one look settles it.`
+              : `Live on ${pageWord(input.page)}. One look settles it.`,
+            evidence: look?.evidence ?? null,
             runs: 0,
             priority: 55,
           };

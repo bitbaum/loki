@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 /**
@@ -21,10 +21,17 @@ export const conversations = pgTable(
     /** Project keys (user_projects.name) this thread is scoped to. Drives the
      *  right-pane filter; empty = unscoped. */
     projectKeys: text("project_keys").array().notNull().default([]),
+    /** A thread Loki itself writes to, named so it is found again however the
+     *  person renames it: `updates:<projectKey>` is a project's progress
+     *  channel (lib/loki/updates-thread.ts). NULL for ordinary threads. */
+    channel: text("channel"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("idx_conversations_user_id").on(table.userId)],
+  (table) => [
+    index("idx_conversations_user_id").on(table.userId),
+    uniqueIndex("uq_conversations_user_channel").on(table.userId, table.channel),
+  ],
 );
 
 export const conversationMessages = pgTable(

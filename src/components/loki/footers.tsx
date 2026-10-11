@@ -38,6 +38,7 @@ export const KIND_LABEL: Record<string, string> = {
   dispatch: "Dispatched",
   chat: "Loki",
   command: "Needs project",
+  outcome: "Update",
 };
 
 /** Outcome footer under a dispatch bubble — tells the operator whether the work

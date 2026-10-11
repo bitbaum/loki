@@ -92,9 +92,12 @@ function parseBlocks(text: string): Block[] {
   return blocks;
 }
 
-// Inline spans: `code`, **bold**, and [text](url) links. One split keeps the
-// order they appear; everything else is plain text.
-const INLINE_RE = /(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)\s]+\)|\[[FD]\d+(?:,\s*[FD]\d+)*\])/g;
+// Inline spans: `code`, **bold**, [text](url) links and bare https URLs. One
+// split keeps the order they appear; everything else is plain text. Bare URLs
+// joined late: run outcomes wrote "Pull request: https://…" and it rendered
+// as text you could not tap, on the one surface meant to save the trip.
+const INLINE_RE =
+  /(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)\s]+\)|\[[FD]\d+(?:,\s*[FD]\d+)*\]|https?:\/\/[^\s<>()"']+[^\s<>()"'.,;:!?])/g;
 
 /**
  * What a grounded answer's [F8] / [D1] handle refers to.
@@ -159,6 +162,19 @@ function renderInline(text: string, citations?: CitationMap): ReactNode {
       return (
         <a key={i} href={link[2]} target="_blank" rel="noopener noreferrer" className={linkClass}>
           {link[1]}
+        </a>
+      );
+    }
+    if (/^https?:\/\//.test(part)) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="break-all text-accent-text underline underline-offset-2 hover:text-text-primary"
+        >
+          {part.replace(/^https?:\/\//, "")}
         </a>
       );
     }
