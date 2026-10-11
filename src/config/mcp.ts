@@ -56,6 +56,7 @@ export const MCP_TOOL_SCOPES = {
   loki_decide: MCP_SCOPE.act,
   loki_dispatch: MCP_SCOPE.act,
   loki_book: MCP_SCOPE.act,
+  loki_browser_task: MCP_SCOPE.act,
 } as const satisfies Record<string, McpScope>;
 
 export type McpToolName = keyof typeof MCP_TOOL_SCOPES;

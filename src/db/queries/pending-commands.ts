@@ -14,6 +14,7 @@ import { eq, gte, isNull, isNotNull, and, inArray, notInArray, desc, sql } from 
 import type { FailedCommand } from "@/lib/control-types";
 import { olderOpenRunSql } from "./orchestration-runs";
 import { requireNotDemo } from "@/lib/demo-guard";
+import type { BrowserTaskPayload } from "@/config/browser-tasks";
 
 export async function getCommandById(id: string) {
   const [row] = await db.select().from(pendingCommands).where(eq(pendingCommands.id, id)).limit(1);
@@ -432,6 +433,15 @@ export async function enqueuePeekCommand(
   payload: TabPayload,
 ): Promise<string> {
   return enqueuePendingCommand({ userId, type, payload });
+}
+
+/** A form for Loki's browser window on the operator's own machine
+ *  (config/browser-tasks.ts). Callers resolve the recipe first. */
+export async function enqueueBrowserTaskCommand(
+  userId: string,
+  payload: BrowserTaskPayload,
+): Promise<string> {
+  return enqueuePendingCommand({ userId, type: "browser_task", payload });
 }
 
 /** Re-enqueues a failed (or delivered-but-unverified) command verbatim.

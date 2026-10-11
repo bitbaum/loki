@@ -74,6 +74,7 @@ import { validateCommand } from './command-validator'
 import { loadToken, clearToken, isDevBaseOverride } from './token-store'
 import { fleetSessionsDir } from '@/lib/session-paths'
 import { FLEET_RUNNER_COMMAND_TYPES_PARAM } from '@/lib/pending-command-contract'
+import { openBrowserHandoff } from './browser-handoff'
 
 /** Where Claude (and our handoff parser) writes the per-tab session file.
  *  Used by post-flight verification: if the file's mtime advances within a
@@ -794,6 +795,18 @@ async function handleCommand(
       case 'peek_stop': {
         stopPeek(validation.command.payload.tab)
         ok = true
+        break
+      }
+      case 'browser_task': {
+        // Not awaited: the operator may take minutes to sign in, and the
+        // command loop must keep serving agent work meanwhile. The ack says
+        // the window is open; the window itself says when it is their turn.
+        const { task } = validation.command.payload
+        void openBrowserHandoff(task).then((outcome) =>
+          console.log(`[poller] browser_task "${task.title}": ${outcome.state}`),
+        )
+        ok = true
+        text = `Opened "${task.title}" in Loki's browser on this computer. Loki fills it and stops at "${task.handoff.button}".`
         break
       }
     }

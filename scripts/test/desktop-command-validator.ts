@@ -51,7 +51,44 @@ const invalidCases = [
   { command: { type: "peek_tab", payload: {} }, error: "tab" },
   { command: { type: "transcribe", payload: {} }, error: "does not handle" },
   { command: { type: "repair_helper", payload: {} }, error: "does not handle" },
+  // A row can only name a recipe — never a raw url or free-form steps.
+  {
+    command: { type: "browser_task", payload: { url: "https://evil.example" } },
+    error: "unknown recipe",
+  },
+  {
+    command: {
+      type: "browser_task",
+      payload: {
+        recipe: "npm-trusted-publisher",
+        params: { package: "x", owner: "a b", repo: "r", workflow: "p.yml" },
+      },
+    },
+    error: "invalid params",
+  },
 ] as const;
+
+const browser = validateCommand({
+  type: "browser_task",
+  payload: {
+    recipe: "npm-trusted-publisher",
+    params: {
+      package: "@bitbaum/chatkit",
+      owner: "bitbaum",
+      repo: "chatkit",
+      workflow: "publish.yml",
+    },
+    channel: "local",
+  },
+});
+assert.equal(browser.ok, true, "browser_task with a known recipe validates");
+if (browser.ok && browser.command.type === "browser_task") {
+  assert.equal(
+    browser.command.payload.task.url,
+    "https://www.npmjs.com/package/@bitbaum/chatkit/access",
+  );
+  assert.equal(browser.command.payload.task.handoff.button, "Set up connection");
+}
 
 for (const { command, error } of invalidCases) {
   const result = validateCommand(command);

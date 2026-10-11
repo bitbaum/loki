@@ -72,4 +72,11 @@ export type McpServices = {
   dispatch(userId: string, project: string, task: string): Promise<InjectResult>;
   book(userId: string, request: BookRequest): Promise<EnqueueReport>;
   projects(userId: string): Promise<ProjectSummary[]>;
+  /** Queue a form for Loki's browser window on the owner's machine. Null when
+   *  the recipe or its parameters are refused. */
+  browserTask(
+    userId: string,
+    recipe: string,
+    params: Record<string, string>,
+  ): Promise<{ commandId: string; title: string; button: string } | null>;
 };

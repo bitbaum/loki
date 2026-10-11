@@ -29,6 +29,18 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.41",
+    tag: "fleet-runner-v0.8.41",
+    date: "2026-10-11T22:00:00Z",
+    highlights: [
+      "Loki can fill a web form for you: it opens the page in its own browser window on this computer, fills every field, and stops at the final button for you to press.",
+      "The first form is npm's trusted publisher setup. If the site asks you to sign in, sign in once and Loki carries on — the window remembers the sign-in next time.",
+    ],
+    breaking: [],
+    notes:
+      "Some steps need you on purpose — a passkey, a final Submit. Everything before them shouldn't: Loki now does the finding, typing and ticking, outlines the button that is yours, and never presses it.",
+  },
+  {
     version: "0.8.40",
     tag: "fleet-runner-v0.8.40",
     date: "2026-10-05T16:00:00Z",
