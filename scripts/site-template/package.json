@@ -2,28 +2,53 @@
   "name": "__SLUG__",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "lint": "eslint .",
-    "type-check": "tsc --noEmit",
-    "verify": "pnpm run type-check && pnpm run lint"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.mts",
+    "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "role:grant": "node scripts/grant-role.mjs"
   },
-  "packageManager": "pnpm@11.25.0",
   "dependencies": {
-    "next": "16.3.8",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "@better-auth/passkey": "^1.7.7",
+    "@bitbaum/ai-kit": "^1.20.1",
+    "@bitbaum/design-tokens": "^1.1.0",
+    "@bitbaum/mail-kit": "^0.1.1",
+    "better-auth": "^1.7.7",
+    "bip-kit": "^0.6.0",
+    "drizzle-orm": "^0.45.4",
+    "limitkit": "^0.2.0",
+    "next": "16.4.0",
+    "next-intl": "^4.14.9",
+    "pg": "^8.23.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^22",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.8",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^10.12.0",
+    "eslint-config-next": "16.4.0",
+    "prettier": "3.9.10",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
   }
 }

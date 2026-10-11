@@ -11,11 +11,14 @@
 // Adding a starter: append a new TEMPLATES entry with its file map. Keep each
 // starter small (< 15 files) so the commit stays under GitHub's tree-size
 // limits and the choice list stays scannable.
+//
+// EXCEPT "nextjs-tailwind", which is not written here at all: it is the fleet
+// starter (bitbaum/fleet templates/app), the same app new-site.sh scaffolds
+// from scripts/site-template — see src/lib/starter-app.ts.
 
 import { APP_URL } from "@/config/brand";
 import { PROVISION_TEMPLATES, type ProvisionTemplateId } from "@/config/project-templates";
-import { STARTER_LOCK_FILE } from "@/lib/starter-locks/config";
-import { NEXTJS_TAILWIND_PNPM_LOCK } from "@/lib/starter-locks/nextjs-tailwind.generated";
+import { renderStarterFile, starterSeedFiles, starterValues } from "@/lib/starter-app";
 
 /** Ids + labels come from the light config so pickers can import them without
  *  pulling every starter's file bodies into their bundle. */
@@ -37,208 +40,19 @@ export interface TemplateMeta {
    *  the stack needs (dependencies, database + schema, dev server) — the
    *  auto-infra step, done where the code actually runs. {{NAME}} substituted. */
   firstTask: string;
+  /** How a file body becomes the repo's file. Default: `renderTemplate`
+   *  ({{NAME}} placeholders). The fleet starter uses its own (__SLUG__ …). */
+  render?: (body: string, values: RenderValues) => string;
 }
 
-const NEXTJS_PAGE_TSX = `export default function Home() {
-  return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8">
-      <div className="max-w-2xl text-center space-y-4">
-        <h1 className="text-4xl font-bold tracking-tight">{ {{NAME_JSON}} }</h1>
-        <p className="text-lg text-gray-600 dark:text-gray-400">
-          { {{DESCRIPTION_JSON}} }
-        </p>
-        <p className="text-sm text-gray-500 mt-8">
-          Edit <code className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-xs">src/app/page.tsx</code> to get started.
-        </p>
-      </div>
-    </main>
-  );
+/** What a seed knows when it renders a file. */
+export interface RenderValues {
+  name: string;
+  description: string;
+  /** GitHub owner and repo the starter is being seeded into. */
+  owner?: string;
+  repo?: string;
 }
-`;
-
-const NEXTJS_LAYOUT_TSX = `import type { Metadata } from "next";
-import "./globals.css";
-
-export const metadata: Metadata = {
-  title: {{NAME_JSON}},
-  description: {{DESCRIPTION_JSON}},
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body className="antialiased">{children}</body>
-    </html>
-  );
-}
-`;
-
-const NEXTJS_GLOBALS_CSS = `@import "tailwindcss";
-
-@theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
-}
-
-:root {
-  color-scheme: light dark;
-}
-`;
-
-const NEXTJS_PACKAGE_JSON = `{
-  "name": {{SLUG_JSON}},
-  "version": "0.1.0",
-  "packageManager": "pnpm@11.25.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "type-check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "next": "16.3.4",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/postcss": "^4.0.0",
-    "typescript": "^5"
-  }
-}
-`;
-
-const NEXTJS_TSCONFIG = `{
-  "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "plugins": [{ "name": "next" }],
-    "paths": { "@/*": ["./src/*"] }
-  },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
-}
-`;
-
-const NEXTJS_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#111"/><circle cx="32" cy="32" r="14" fill="#fff"/></svg>
-`;
-
-const NEXTJS_NEXT_CONFIG = `import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  output: "standalone",
-};
-
-export default nextConfig;
-`;
-
-const NEXTJS_POSTCSS = `module.exports = {
-  plugins: {
-    "@tailwindcss/postcss": {},
-  },
-};
-`;
-
-const NEXTJS_GITIGNORE = `# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files
-.env*.local
-.env
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-`;
-
-const NEXTJS_README = `# {{NAME}}
-
-{{DESCRIPTION}}
-
-> Generated by [Loki](${APP_URL}/) — the captain-mode command center for your AI agent fleet.
-
-## Stack
-
-- [Next.js 16](https://nextjs.org) (App Router, Server Components)
-- [Tailwind CSS v4](https://tailwindcss.com)
-- TypeScript
-
-## Get started
-
-\`\`\`bash
-git clone <this-repo-url>
-cd {{NAME}}
-pnpm install
-pnpm dev
-\`\`\`
-
-Open [http://localhost:3000](http://localhost:3000).
-
-## What's here
-
-\`\`\`
-src/app/
-├── layout.tsx     ← root layout
-├── page.tsx       ← home page
-└── globals.css    ← Tailwind v4 import + theme tokens
-\`\`\`
-
-Edit \`src/app/page.tsx\` to make it yours. Tailwind classes work out of the box.
-
-## What's next
-
-- Add a database: \`pnpm add drizzle-orm postgres\` + see [Drizzle docs](https://orm.drizzle.team)
-- Add auth: \`pnpm add next-auth@beta\` + see [Auth.js docs](https://authjs.dev)
-- Local/self-host: build, then run \`next start\` behind your reverse proxy
-- Live site on bitbaum (Loki CD): after kickoff provision, register-cd
-  seeds deploy.yml and runs (or returns) \`scripts/hetzner/register-site.sh\` —
-  the CD half of new-site.sh (apps.conf + secret + sync-infra). Greenfield
-  from scratch still uses \`new-site.sh\` + \`scripts/site-template\`.
-
-## Need help?
-
-Open this project in Loki's Control panel to dispatch AI agents at it.
-`;
 
 // ── Python + FastAPI (uv) ────────────────────────────────────────────────
 
@@ -520,7 +334,7 @@ node_modules
 // ── Registry ──────────────────────────────────────────────────────────────
 
 /** What a starter actually seeds — the half too heavy for a picker to import. */
-type TemplateBuild = Pick<TemplateMeta, "files" | "infra" | "firstTask">;
+type TemplateBuild = Pick<TemplateMeta, "files" | "infra" | "firstTask" | "render">;
 
 const TEMPLATE_BUILDS: Record<TemplateId, TemplateBuild> = {
   bare: {
@@ -530,28 +344,22 @@ const TEMPLATE_BUILDS: Record<TemplateId, TemplateBuild> = {
       'This is a fresh empty repo for "{{NAME}}". Set it up from scratch: pick the simplest stack that fits the project goal, scaffold it, install dependencies, set up any database the project needs (a local Postgres or SQLite — your call, create a .env with the connection string and keep secrets out of git), and get a dev server running. Then tell me the stack you chose and the exact command + URL to run it.',
   },
   "nextjs-tailwind": {
-    files: {
-      "package.json": NEXTJS_PACKAGE_JSON,
-      "tsconfig.json": NEXTJS_TSCONFIG,
-      "next.config.ts": NEXTJS_NEXT_CONFIG,
-      "postcss.config.js": NEXTJS_POSTCSS,
-      ".gitignore": NEXTJS_GITIGNORE,
-      "README.md": NEXTJS_README,
-      "src/app/page.tsx": NEXTJS_PAGE_TSX,
-      "src/app/layout.tsx": NEXTJS_LAYOUT_TSX,
-      "src/app/globals.css": NEXTJS_GLOBALS_CSS,
-      // Next serves app/icon.svg as the favicon; without it every page logs a
-      // 404 for /favicon.ico in the console (kaffeeklappe-sep11, 2026-09-11).
-      "src/app/icon.svg": NEXTJS_ICON_SVG,
-      // setup-node in the seeded ci.yml reads the toolchain from here.
-      ".nvmrc": "22\n",
-      // Resolved once by scripts/templates/refresh-starter-lock.ts: the deploy
-      // workflow installs with --frozen-lockfile and refuses a repo without one.
-      [STARTER_LOCK_FILE]: NEXTJS_TAILWIND_PNPM_LOCK,
-    },
-    infra: ["pnpm install", "Database (Postgres via Drizzle, or SQLite)", "Dev server on :3000"],
+    // The fleet starter, workflows excluded (register-site.sh adds them with
+    // the site's CD). Its lockfile is part of it, so the first install is
+    // --frozen-lockfile like CI's and the box's.
+    files: starterSeedFiles(),
+    render: (body, values) =>
+      renderStarterFile(
+        body,
+        starterValues({ name: values.name, owner: values.owner ?? "", repo: values.repo ?? "" }),
+      ),
+    infra: [
+      "pnpm install",
+      "Postgres database + migrations (pnpm run db:migrate)",
+      "Dev server on :3000",
+    ],
     firstTask:
-      'Set up this Next.js 16 project "{{NAME}}" end to end so it runs locally: run `pnpm install` (the repo ships a pnpm lockfile — do not switch package managers); if the project needs persistence, add a database (Drizzle ORM + a local Postgres, or SQLite for a quick start), define an initial schema and migration, and create a `.env.local` with the connection string (never commit it); then start the dev server with `pnpm dev`. Confirm it builds and renders at http://localhost:3000, then summarize what you set up and how to run it.',
+      'Set up this project "{{NAME}}" end to end so it runs locally. It is the bitbaum starter (Next.js 16, accounts, English/German/French, strict security headers); read AGENTS.md first. Run `pnpm install` (the repo ships a pnpm lockfile — do not switch package managers); create a local Postgres database, copy `.env.example` to `.env.local` and set `DATABASE_URL` there (never commit it); run `pnpm run db:migrate`; start the dev server with `pnpm dev` and confirm http://localhost:3000/en renders and an account can be created at /en/sign-up. Finish with `pnpm run verify` green, then summarize what you set up and how to run it.',
   },
   "python-fastapi": {
     files: {

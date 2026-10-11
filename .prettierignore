@@ -41,3 +41,10 @@ yarn.lock
 # Format desktop/ in the same PR as the next real runner change, where the bump
 # and the release notes are true anyway.
 desktop
+
+# bitbaum/fleet templates/app, copied verbatim at a pinned commit and formatted
+# THERE (its own .prettierrc); scripts/templates/sync-starter.sh --check proves
+# the copy is exact, so reformatting it here would only make it differ.
+scripts/site-template/
+# Generated from it (scripts/templates/generate-starter-files.ts).
+src/lib/starter-app.generated.ts

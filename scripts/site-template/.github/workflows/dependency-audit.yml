@@ -1,0 +1,33 @@
+name: Dependency audit
+
+# Known vulnerabilities in what this app SHIPS (production dependencies), at
+# high or critical severity. Runs when the lockfile changes, on main, and daily,
+# because a new advisory arrives against an unchanged lockfile. Dependabot
+# (.github/dependabot.yml) opens the fix; this makes sure nobody merges past it.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths: ["pnpm-lock.yaml", "package.json"]
+  schedule:
+    - cron: "41 5 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      # No cache on purpose: `pnpm audit` reads only the lockfile, and a cache
+      # step whose store was never created fails its own post-step.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level high

@@ -1,0 +1,69 @@
+name: Live check
+
+# After every deploy, ask the live site from outside whether the product
+# works: every language answers, the security headers are on, and the health
+# route says the database is reachable and accounts are switched on. A red
+# Live check means the product is not working, whatever Deploy said.
+on:
+  workflow_run:
+    workflows: ["Deploy"]
+    types: [completed]
+  workflow_dispatch: {}
+  schedule:
+    - cron: "23 */6 * * *"
+
+permissions:
+  contents: read
+
+env:
+  SITE: https://__HOST__
+
+jobs:
+  live:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every language answers
+        run: |
+          set -uo pipefail
+          fail=0
+          for path in /en /de /fr /en/sign-in /de/sign-up /fr/roadmap /en/changelog; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$SITE$path")
+            echo "::notice::$path → $code"
+            [ "$code" = "200" ] || fail=1
+          done
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$SITE/")
+          echo "::notice::/ → $code (expected a redirect to a language)"
+          [ "$code" = "307" ] || [ "$code" = "308" ] || fail=1
+          exit $fail
+
+      - name: Security headers are on
+        run: |
+          set -uo pipefail
+          h=$(curl -s -D - -o /dev/null --max-time 20 "$SITE/en" | tr -d '\r')
+          fail=0
+          for want in \
+            "content-security-policy: default-src 'self'" \
+            "strict-transport-security: max-age=63072000" \
+            "x-frame-options: deny" \
+            "referrer-policy: no-referrer" \
+            "x-content-type-options: nosniff" \
+            "permissions-policy: camera=()"; do
+            if grep -qi "^$want" <<<"$h"; then echo "::notice::ok — $want"; else echo "::error::missing — $want"; fail=1; fi
+          done
+          csp=$(grep -i '^content-security-policy:' <<<"$h" || true)
+          for want in "'strict-dynamic'" "'nonce-" "connect-src 'self'" "frame-ancestors 'none'"; do
+            if grep -qF "$want" <<<"$csp"; then echo "::notice::csp — $want"; else echo "::error::csp lacks $want"; fail=1; fi
+          done
+          if grep -qi '^x-powered-by' <<<"$h"; then echo "::error::x-powered-by is exposed"; fail=1; fi
+          exit $fail
+
+      - name: Health is green
+        run: |
+          set -uo pipefail
+          body=$(curl -s --max-time 20 "$SITE/api/health")
+          echo "::notice::health $body"
+          grep -q '"db":"up"' <<<"$body" || { echo "::error::the database is not reachable from the app (or its tables are not readable)"; exit 1; }
+          grep -q '"accounts":true' <<<"$body" || { echo "::error::accounts are off: BETTER_AUTH_SECRET is missing in the box env"; exit 1; }
+          grep -q '"ok":true' <<<"$body" || exit 1

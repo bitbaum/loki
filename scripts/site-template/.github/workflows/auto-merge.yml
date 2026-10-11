@@ -1,13 +1,9 @@
+# Auto-merge — nobody is in the merge loop. The policy lives ONCE, in
+# bitbaum/fleet scripts/ci/auto-merge-sweep.sh; this file only says "run it,
+# with these settings" (fleet templates/ci/auto-merge.yml). Never copy the
+# script. To stop it: delete this file, or add a `hold` label to a PR.
 name: Auto-merge
 
-# A green PR on this site merges itself; nobody has to open GitHub. The policy
-# lives once, in bitbaum/fleet (auto-merge-sweep.yml); this file only says
-# which workflow is CI and which one deploys. Without it every PR an agent
-# opens on a fresh site waits for a human forever — the last manual click on
-# the brief → repo → live site → feedback → live change loop (2026-09-11).
-#
-# `token` is optional: without an org PAT the sweep uses GITHUB_TOKEN, which
-# can merge anything except a PR that edits .github/workflows/*.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -16,6 +12,8 @@ on:
     - cron: "*/10 * * * *"
   workflow_dispatch: {}
 
+# Declared on the caller too: a called workflow's token is capped by what the
+# caller grants, and a read-only token merges nothing while exiting 0.
 permissions:
   contents: write
   pull-requests: write

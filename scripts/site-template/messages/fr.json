@@ -1,0 +1,184 @@
+{
+  "Meta": {
+    "description": "{site} — privé par défaut, en français, allemand et anglais."
+  },
+  "Nav": {
+    "skip": "Aller au contenu",
+    "beta": "Bêta",
+    "label": "Navigation principale",
+    "account": "Votre compte",
+    "signIn": "Se connecter",
+    "language": "Langue"
+  },
+  "Footer": {
+    "label": "À propos de ce site",
+    "roadmap": "Feuille de route",
+    "changelog": "Nouveautés",
+    "source": "Code source"
+  },
+  "Home": {
+    "waiting": "attend sa première page.",
+    "lede": "Tout ce qu’il y a dessous fonctionne déjà : comptes, langues, sécurité et la chaîne qui livre chaque modification. Ce qui manque, seul·e son ou sa propriétaire peut le décider — ce que ce site doit dire, et à qui.",
+    "build": "Le construire avec Loki",
+    "createAccount": "Créer un compte",
+    "yourAccount": "Votre compte",
+    "followOnOrangecat": "Le suivre sur OrangeCat",
+    "points": {
+      "private": {
+        "title": "Privé par défaut",
+        "body": "Pas besoin de votre vrai nom, aucun traceur, et rien de ce que vous écrivez ne quitte ce site sans que vous l’envoyiez."
+      },
+      "accounts": {
+        "title": "Votre façon d’entrer",
+        "body": "Un mot de passe, une clé d’accès, un lien par e-mail — ou un clic avec un compte que vous avez déjà."
+      },
+      "languages": {
+        "title": "Trois langues",
+        "body": "Français, allemand et anglais, choisis d’après votre navigateur et modifiables sur chaque page."
+      }
+    },
+    "widget": "Vous pouvez aussi le modifier d’ici. Montrez un élément de cette page, dites ce qui ne va pas, et cela devient une pull request — la même qu’ouvrirait un agent."
+  },
+  "Records": {
+    "roadmap": "Feuille de route",
+    "changelog": "Nouveautés",
+    "home": "Accueil",
+    "profile": "Profil sur Loki",
+    "beta": "Bêta",
+    "source": "Source",
+    "unavailable": "Les entrées n’ont pas pu être chargées pour l’instant.",
+    "emptyRoadmap": "Rien n’est encore prévu.",
+    "emptyChangelog": "Rien n’a encore changé.",
+    "progress": "Avancement",
+    "target": "Objectif",
+    "englishOnly": "Les entrées sont tenues en anglais, dans les mots où elles ont été écrites.",
+    "readFile": "À lire directement dans le dépôt :"
+  },
+  "Auth": {
+    "signIn": "Se connecter",
+    "signInTitle": "Se connecter",
+    "signUpTitle": "Créer un compte",
+    "signUpLede": "Pas besoin de votre vrai nom. Choisissez la façon d’entrer qui vous convient ; vous pourrez en ajouter d’autres plus tard.",
+    "createAccount": "Créer un compte",
+    "withSignin": "Continuer avec Google, Apple, GitHub, X ou Facebook",
+    "withOrangecat": "Continuer avec OrangeCat",
+    "withPasskey": "Se connecter avec une clé d’accès",
+    "withLink": "M’envoyer plutôt un lien de connexion par e-mail",
+    "signUpWithLink": "S’inscrire plutôt avec un lien par e-mail",
+    "orEmail": "ou par e-mail",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "passwordHint": "Au moins 12 caractères. Une longue phrase se retient mieux que des symboles.",
+    "displayName": "Nom affiché",
+    "displayNameHint": "Facultatif. Ce que vous voulez — ce n’est pas forcément votre vrai nom.",
+    "checkInbox": "Nous avons envoyé un lien à {email}. Ouvrez-le sur cet appareil pour continuer. Il est valable 10 minutes.",
+    "confirmInbox": "Nous avons envoyé un lien à {email}. Ouvrez-le pour confirmer votre adresse et terminer la création de votre compte.",
+    "back": "Retour",
+    "backHome": "Retour à l’accueil",
+    "totpPrompt": "Saisissez le code à 6 chiffres de votre application d’authentification.",
+    "backupPrompt": "Saisissez l’un des codes de secours enregistrés lors de la configuration de la connexion à deux facteurs.",
+    "totpCode": "Code",
+    "backupCode": "Code de secours",
+    "trustDevice": "Faire confiance à cet appareil pendant 30 jours",
+    "verify": "Vérifier",
+    "useTotp": "Utiliser plutôt l’application d’authentification",
+    "useBackup": "Utiliser plutôt un code de secours",
+    "resendVerification": "Renvoyer le lien de confirmation",
+    "noAccount": "Pas encore de compte ?",
+    "haveAccount": "Vous avez déjà un compte ?",
+    "unavailable": "Les comptes ne sont pas encore activés sur ce site. Tout ce qui ne nécessite pas de compte fonctionne quand même.",
+    "errors": {
+      "rateLimited": "Trop de tentatives. Attendez quelques minutes, puis réessayez.",
+      "unavailable": "Les comptes ne sont pas disponibles pour le moment. Réessayez un peu plus tard.",
+      "generic": "Cela n’a pas fonctionné. Réessayez ou choisissez une autre façon de vous connecter.",
+      "emailFirst": "Saisissez d’abord votre adresse e-mail.",
+      "INVALID_EMAIL_OR_PASSWORD": "Cet e-mail et ce mot de passe ne correspondent pas. Vérifiez les deux ou connectez-vous plutôt avec un lien.",
+      "EMAIL_NOT_VERIFIED": "Confirmez d’abord votre adresse e-mail — le lien est dans votre boîte de réception.",
+      "USER_ALREADY_EXISTS": "Un compte existe déjà avec cette adresse. Connectez-vous plutôt.",
+      "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Un compte existe déjà avec cette adresse. Connectez-vous plutôt.",
+      "PASSWORD_TOO_SHORT": "Le mot de passe doit comporter au moins 12 caractères.",
+      "PASSWORD_TOO_LONG": "Le mot de passe peut comporter au plus 128 caractères.",
+      "INVALID_EMAIL": "Cela ne ressemble pas à une adresse e-mail.",
+      "INVALID_CODE": "Ce code est incorrect ou a expiré. Essayez le plus récent.",
+      "INVALID_TWO_FACTOR_CODE": "Ce code est incorrect ou a expiré. Essayez le plus récent.",
+      "SESSION_EXPIRED": "Par sécurité, reconnectez-vous avant de modifier ceci.",
+      "INVALID_PASSWORD": "Ce mot de passe est incorrect."
+    }
+  },
+  "Account": {
+    "title": "Votre compte",
+    "profile": "Profil",
+    "noEmail": "aucun — ajoutez une connexion par mot de passe pour utiliser l’e-mail",
+    "unverified": "pas encore confirmé",
+    "role": "Rôle",
+    "roles": {
+      "customer": "Client·e",
+      "helper": "Aide",
+      "professional": "Professionnel·le",
+      "staff": "Équipe",
+      "admin": "Administration"
+    },
+    "save": "Enregistrer",
+    "saved": "Enregistré.",
+    "methods": "Façons de se connecter",
+    "methodPassword": "E-mail et mot de passe",
+    "link": "Ajouter {method}",
+    "passkeys": "Clés d’accès",
+    "passkeysLede": "Connectez-vous avec votre empreinte, votre visage ou le code de votre appareil au lieu d’un mot de passe.",
+    "passkeyDefaultName": "Clé d’accès",
+    "remove": "Retirer",
+    "addPasskey": "Ajouter une clé d’accès",
+    "twoFactor": "Connexion à deux facteurs",
+    "twoFactorOn": "Activée. La connexion demande un code de votre application d’authentification.",
+    "twoFactorOff": "Désactivée. Activez-la pour demander un code d’une application d’authentification à chaque connexion.",
+    "currentPassword": "Mot de passe actuel",
+    "currentPasswordHint": "Nécessaire si votre compte a un mot de passe. Sinon, reconnectez-vous d’abord.",
+    "scan": "Ajoutez ce compte à votre application d’authentification, puis saisissez le code qu’elle affiche.",
+    "openAuthenticator": "Ouvrir dans l’application d’authentification",
+    "backupCodes": "Gardez ces codes de secours en lieu sûr. Chacun fonctionne une fois si vous perdez votre téléphone.",
+    "turnOn": "Activer",
+    "turnOff": "Désactiver",
+    "setUp": "Configurer",
+    "leave": "Se déconnecter ou partir",
+    "signOut": "Se déconnecter",
+    "deleteConfirm": "Pour supprimer votre compte et tout son contenu, tapez {word}",
+    "deleteWord": "supprimer",
+    "delete": "Supprimer mon compte"
+  },
+  "OwnModel": {
+    "title": "Votre propre modèle",
+    "lede": "Utilisez le modèle le plus puissant auquel vous avez accès. Votre clé est vérifiée auprès du fournisseur, stockée chiffrée et jamais réaffichée.",
+    "savedAs": "{model} avec votre clé {hint}.",
+    "remove": "Retirer la clé",
+    "unavailable": "L’enregistrement de votre propre clé n’est pas encore activé sur ce site.",
+    "provider": "Fournisseur",
+    "getKey": "Obtenir une clé chez {provider}",
+    "key": "Clé d’API",
+    "checking": "Vérification de la clé…",
+    "couldNotCheck": "La clé n’a pas pu être vérifiée pour l’instant. Réessayez dans un moment.",
+    "model": "Modèle",
+    "save": "Enregistrer",
+    "errors": {
+      "model": "Cette clé ne permet pas d’utiliser ce modèle. Choisissez-en un dans la liste.",
+      "save": "La clé n’a pas pu être enregistrée. Vérifiez-la et réessayez."
+    }
+  },
+  "Mail": {
+    "verify": {
+      "subject": "Confirmez votre e-mail pour {site}",
+      "lead": "Confirmez cette adresse pour terminer la création de votre compte sur {site}.",
+      "action": "Confirmer mon e-mail"
+    },
+    "magicLink": {
+      "subject": "Votre lien de connexion à {site}",
+      "lead": "Utilisez ce lien pour vous connecter à {site}. Il fonctionne une fois, pendant 10 minutes.",
+      "action": "Se connecter"
+    },
+    "reset": {
+      "subject": "Réinitialiser votre mot de passe pour {site}",
+      "lead": "Quelqu’un a demandé à réinitialiser le mot de passe de votre compte sur {site}.",
+      "action": "Choisir un nouveau mot de passe"
+    },
+    "ignore": "Si ce n’était pas vous, ignorez cet e-mail — rien ne change."
+  }
+}

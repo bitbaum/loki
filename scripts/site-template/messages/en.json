@@ -1,0 +1,184 @@
+{
+  "Meta": {
+    "description": "{site} — private by default, in English, German and French."
+  },
+  "Nav": {
+    "skip": "Skip to content",
+    "beta": "Beta",
+    "label": "Main",
+    "account": "Your account",
+    "signIn": "Sign in",
+    "language": "Language"
+  },
+  "Footer": {
+    "label": "About this site",
+    "roadmap": "Roadmap",
+    "changelog": "Changelog",
+    "source": "Source code"
+  },
+  "Home": {
+    "waiting": "is waiting for its first page.",
+    "lede": "Everything underneath already runs: accounts, languages, security and the pipeline that ships each change. What is missing is the part only its owner can decide — what this should say, and who it should say it to.",
+    "build": "Build this with Loki",
+    "createAccount": "Create an account",
+    "yourAccount": "Your account",
+    "followOnOrangecat": "Follow it on OrangeCat",
+    "points": {
+      "private": {
+        "title": "Private by default",
+        "body": "No real name needed, no trackers, and nothing you write leaves this site unless you send it."
+      },
+      "accounts": {
+        "title": "Your way in",
+        "body": "A password, a passkey, a link by email — or one click with an account you already have."
+      },
+      "languages": {
+        "title": "Three languages",
+        "body": "English, German and French, chosen from your browser and switchable on every page."
+      }
+    },
+    "widget": "You can also change it from here. Point at anything on this page, say what is wrong, and it becomes a pull request — the same one an agent would open."
+  },
+  "Records": {
+    "roadmap": "Roadmap",
+    "changelog": "Changelog",
+    "home": "Home",
+    "profile": "Profile on Loki",
+    "beta": "Beta",
+    "source": "Source",
+    "unavailable": "The record could not be loaded just now.",
+    "emptyRoadmap": "Nothing is planned yet.",
+    "emptyChangelog": "Nothing has changed yet.",
+    "progress": "Progress",
+    "target": "Target",
+    "englishOnly": "The records are kept in English, in the words they were written in.",
+    "readFile": "Read it directly in the repository:"
+  },
+  "Auth": {
+    "signIn": "Sign in",
+    "signInTitle": "Sign in",
+    "signUpTitle": "Create an account",
+    "signUpLede": "No real name needed. Choose whatever way in suits you; you can add more later.",
+    "createAccount": "Create an account",
+    "withSignin": "Continue with Google, Apple, GitHub, X or Facebook",
+    "withOrangecat": "Continue with OrangeCat",
+    "withPasskey": "Sign in with a passkey",
+    "withLink": "Email me a sign-in link instead",
+    "signUpWithLink": "Sign up with a link by email instead",
+    "orEmail": "or with email",
+    "email": "Email",
+    "password": "Password",
+    "passwordHint": "At least 12 characters. A long phrase is easier to remember than symbols.",
+    "displayName": "Display name",
+    "displayNameHint": "Optional. Anything you like — it does not have to be your real name.",
+    "checkInbox": "We sent a link to {email}. Open it on this device to continue. It works for 10 minutes.",
+    "confirmInbox": "We sent a link to {email}. Open it to confirm your address and finish creating your account.",
+    "back": "Back",
+    "backHome": "Back to the home page",
+    "totpPrompt": "Enter the 6-digit code from your authenticator app.",
+    "backupPrompt": "Enter one of the backup codes you saved when you set up two-factor sign-in.",
+    "totpCode": "Code",
+    "backupCode": "Backup code",
+    "trustDevice": "Trust this device for 30 days",
+    "verify": "Verify",
+    "useTotp": "Use the authenticator app instead",
+    "useBackup": "Use a backup code instead",
+    "resendVerification": "Send the confirmation link again",
+    "noAccount": "No account yet?",
+    "haveAccount": "Already have an account?",
+    "unavailable": "Accounts are not switched on for this site yet. Everything that does not need an account still works.",
+    "errors": {
+      "rateLimited": "Too many attempts. Wait a few minutes, then try again.",
+      "unavailable": "Accounts are not available right now. Try again in a little while.",
+      "generic": "That did not work. Try again, or choose another way to sign in.",
+      "emailFirst": "Enter your email address first.",
+      "INVALID_EMAIL_OR_PASSWORD": "That email and password do not match. Check both, or sign in with a link instead.",
+      "EMAIL_NOT_VERIFIED": "Confirm your email address first — the link is in your inbox.",
+      "USER_ALREADY_EXISTS": "There is already an account with this address. Sign in instead.",
+      "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "There is already an account with this address. Sign in instead.",
+      "PASSWORD_TOO_SHORT": "The password needs at least 12 characters.",
+      "PASSWORD_TOO_LONG": "The password can have at most 128 characters.",
+      "INVALID_EMAIL": "That does not look like an email address.",
+      "INVALID_CODE": "That code is not right, or it has expired. Try the newest one.",
+      "INVALID_TWO_FACTOR_CODE": "That code is not right, or it has expired. Try the newest one.",
+      "SESSION_EXPIRED": "For your safety, sign in again before changing this.",
+      "INVALID_PASSWORD": "That password is not right."
+    }
+  },
+  "Account": {
+    "title": "Your account",
+    "profile": "Profile",
+    "noEmail": "none — add a password sign-in to use email",
+    "unverified": "not confirmed yet",
+    "role": "Role",
+    "roles": {
+      "customer": "Customer",
+      "helper": "Helper",
+      "professional": "Professional",
+      "staff": "Staff",
+      "admin": "Administrator"
+    },
+    "save": "Save",
+    "saved": "Saved.",
+    "methods": "Ways to sign in",
+    "methodPassword": "Email and password",
+    "link": "Add {method}",
+    "passkeys": "Passkeys",
+    "passkeysLede": "Sign in with your fingerprint, face or device PIN instead of a password.",
+    "passkeyDefaultName": "Passkey",
+    "remove": "Remove",
+    "addPasskey": "Add a passkey",
+    "twoFactor": "Two-factor sign-in",
+    "twoFactorOn": "On. Signing in asks for a code from your authenticator app.",
+    "twoFactorOff": "Off. Turn it on to ask for a code from an authenticator app at every sign-in.",
+    "currentPassword": "Current password",
+    "currentPasswordHint": "Needed if your account has a password. Without one, sign in again first.",
+    "scan": "Add this account to your authenticator app, then enter the code it shows.",
+    "openAuthenticator": "Open in your authenticator app",
+    "backupCodes": "Keep these backup codes somewhere safe. Each one works once if you lose your phone.",
+    "turnOn": "Turn on",
+    "turnOff": "Turn off",
+    "setUp": "Set up",
+    "leave": "Sign out or leave",
+    "signOut": "Sign out",
+    "deleteConfirm": "To delete your account and everything in it, type {word}",
+    "deleteWord": "delete",
+    "delete": "Delete my account"
+  },
+  "OwnModel": {
+    "title": "Your own model",
+    "lede": "Use the strongest model you have access to. Your key is checked with its provider, stored encrypted and never shown again.",
+    "savedAs": "Using {model} with your key {hint}.",
+    "remove": "Remove key",
+    "unavailable": "Saving your own key is not switched on for this site yet.",
+    "provider": "Provider",
+    "getKey": "Get a key from {provider}",
+    "key": "API key",
+    "checking": "Checking the key…",
+    "couldNotCheck": "The key could not be checked just now. Try again in a moment.",
+    "model": "Model",
+    "save": "Save",
+    "errors": {
+      "model": "That key cannot use this model. Choose one from the list.",
+      "save": "The key could not be saved. Check it and try again."
+    }
+  },
+  "Mail": {
+    "verify": {
+      "subject": "Confirm your email for {site}",
+      "lead": "Confirm this address to finish creating your account at {site}.",
+      "action": "Confirm my email"
+    },
+    "magicLink": {
+      "subject": "Your sign-in link for {site}",
+      "lead": "Use this link to sign in to {site}. It works once, for 10 minutes.",
+      "action": "Sign in"
+    },
+    "reset": {
+      "subject": "Reset your password for {site}",
+      "lead": "Someone asked to reset the password of your account at {site}.",
+      "action": "Choose a new password"
+    },
+    "ignore": "If this was not you, ignore this email — nothing changes."
+  }
+}
