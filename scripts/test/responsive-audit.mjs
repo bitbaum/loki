@@ -28,19 +28,15 @@
  *
  * AUTH
  *
- * Needs a session. Resolution order:
- *   LOKI_SESSION_TOKEN  — set it and nothing else is needed
- *   AUDIT_DATABASE_URL        — mints a JWT itself (see scripts/db-tunnel.sh
- *                               for reaching a firewalled Postgres over SSH)
- * Deliberately NOT reusing print-session-token.ts: that resolves a DIRECT box
- * connection from .env.hetzner.local, which is exactly what is unreachable from
- * a sandboxed or CI runner. Taking the URL explicitly is what makes this
- * runnable from somewhere other than the founder's laptop.
+ * Needs a session: LOKI_SESSION_TOKEN, or AUDIT_DATABASE_URL + AUTH_SECRET to
+ * mint one. Shared with the ship report in ./lib/session-cookie.mjs, which
+ * says why it does not reuse print-session-token.ts.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
 import { config } from "dotenv";
+import { mintSessionToken, sessionCookies } from "./lib/session-cookie.mjs";
 
 config({ path: ".env.local", quiet: true });
 
@@ -265,50 +261,6 @@ export const NOT_MEASURED = {
 const isPublicPage = (p) => PUBLIC_PAGES.includes(p);
 
 const MIN_TOUCH_PX = 44;
-
-function cookieName() {
-  return BASE.startsWith("https://") ? "__Secure-authjs.session-token" : "authjs.session-token";
-}
-
-/** Mint a session JWT from an explicitly-supplied Postgres URL. */
-async function mintToken() {
-  const fromEnv = process.env.LOKI_SESSION_TOKEN?.trim();
-  if (fromEnv) return fromEnv;
-
-  const dbUrl = process.env.AUDIT_DATABASE_URL?.trim();
-  const secret = process.env.AUTH_SECRET?.trim();
-  if (!dbUrl || !secret) return null;
-
-  const postgres = (await import("postgres")).default;
-  const sql = postgres(dbUrl, { max: 1, ssl: false });
-  try {
-    const rows = await sql`
-      SELECT id, email, name, username, onboarded_at
-      FROM users
-      WHERE is_default = true OR email IS NOT NULL
-      ORDER BY is_default DESC, created_at ASC
-      LIMIT 1
-    `;
-    const u = rows[0];
-    if (!u?.id) return null;
-    const { encode } = await import("@auth/core/jwt");
-    return await encode({
-      token: {
-        id: u.id,
-        email: u.email,
-        name: u.name,
-        username: u.username,
-        onboardedAt: u.onboarded_at,
-        onboardingComplete: Boolean(u.username && u.onboarded_at),
-        sub: u.id,
-      },
-      secret,
-      salt: cookieName(),
-    });
-  } finally {
-    await sql.end({ timeout: 5 }).catch(() => undefined);
-  }
-}
 
 /**
  * Measure one rendered page. Runs in the browser: reports overflow with the
@@ -655,7 +607,7 @@ async function main() {
   // meant the public pages — which need none — could not be audited without
   // credentials, which is a large part of why they never were.
   const needsSession = pages.some((p) => !isPublicPage(p));
-  const token = needsSession ? await mintToken() : null;
+  const token = needsSession ? await mintSessionToken(BASE) : null;
   if (needsSession && !token) {
     console.error(
       "✗ no session. Set LOKI_SESSION_TOKEN, or AUDIT_DATABASE_URL + AUTH_SECRET.\n" +
@@ -681,34 +633,7 @@ async function main() {
       hasTouch: vp.touch,
       deviceScaleFactor: 1,
     });
-    // No token when auditing only public routes — and a cookie with an
-    // undefined value is not "no cookie", it is a malformed one that Playwright
-    // rejects. So the session cookie is added only when there is a session.
-    const cookies = token
-      ? [
-          {
-            name: cookieName(),
-            value: token,
-            domain: new URL(BASE).hostname,
-            path: "/",
-            httpOnly: true,
-            secure: BASE.startsWith("https://"),
-          },
-        ]
-      : [];
-    const pz = process.env.LOKI_PRIVATE_ZONE_COOKIE?.trim();
-    const pzEq = pz ? pz.indexOf("=") : -1;
-    if (pzEq > 0) {
-      cookies.push({
-        name: pz.slice(0, pzEq),
-        value: pz.slice(pzEq + 1),
-        domain: new URL(BASE).hostname,
-        path: "/",
-        httpOnly: true,
-        secure: BASE.startsWith("https://"),
-      });
-    }
-    await ctx.addCookies(cookies);
+    await ctx.addCookies(sessionCookies(BASE, token));
 
     for (const route of pages) {
       const page = await ctx.newPage();

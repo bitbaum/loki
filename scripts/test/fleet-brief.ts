@@ -175,6 +175,8 @@ async function main() {
       "never weaken CSP",
       "sealed secrets",
       "merged, deployed and checked live",
+      "live URL first",
+      "was and was not verified",
     ]) {
       assert.ok(brief.includes(needle), `missing: ${needle}`);
     }

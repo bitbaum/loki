@@ -306,6 +306,7 @@ async function main() {
         "why did we choose pgvector",
         "what could I build for someone",
         "what should I build next",
+        "how am I using Build next",
         "list my projects",
         "what do we have, name the three pillars",
         "zxcvbnm",

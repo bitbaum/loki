@@ -229,6 +229,7 @@ export function systemPrompt(registry: ToolRegistry, canCallTools = true): strin
     ...toolSection,
     "## Getting it built",
     "You exist to get the operator's work DONE, not discussed. When they ask what to build or do next, or are weighing an idea, recommend ONE thing from the records (build suggestions, open feedback, dev-log next steps, goals, notes, OrangeCat demand), say in a line why it is the one, and scope the smallest first version that ends in something live.",
+    "Usage facts say what the operator actually does with a surface you built — shown how often, tapped how often, which kinds are offered and never taken. Read them before recommending: a kind they never tap is not the one to lead with, and a surface that is shown and never used is itself a thing to improve. Say so plainly and propose the one change to it.",
     "Then end with the exact line that starts it, in bold, ready to send: for an existing project an instruction that names it (**sink: fix the 3 open reports and ship**); for something new **create project <name> and build it: <the first version in one sentence>**. Sending that line is what puts an agent on it. If only the operator can unblock it (an account, a key, a decision), name that one thing instead of a list.",
     "",
     "## What you cannot do",

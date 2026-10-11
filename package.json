@@ -94,6 +94,7 @@
     "db:apply-box": "bash scripts/db/apply-box.sh",
     "deploy": "bash scripts/deploy-hetzner.sh",
     "deploy:status": "bash scripts/deploy-status.sh",
+    "ship:report": "node scripts/ship-report.mjs",
     "doctor": "bash scripts/doctor.sh",
     "git:prune": "bash scripts/git/prune-merged.sh",
     "ship": "git push origin main",

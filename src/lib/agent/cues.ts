@@ -86,6 +86,14 @@ export const ECONOMY_CUES =
 export const BUILD_CUES =
   /\b(what (?:should|could|can|shall) (?:i|we) (?:build|make|ship|work on|do next|start)|what to build|what (?:should|shall) (?:i|we) do next|any ideas?|ideas? for|what do you suggest|suggest (?:something|what|a build)|where (?:do|should) (?:i|we) start|build (?:something|next)|next build)\b/i;
 
+/**
+ * How the operator USES a surface Loki built — shown vs tapped, what they
+ * ignore. Answered from operator_usage_events, never from the model's guess
+ * about what people usually click.
+ */
+export const USAGE_CUES =
+  /\b(how (?:am i|do i|have i been|often do i) us(?:e|ing)|do i (?:ever |actually )?(?:use|tap|click|open)|am i using|usage|used it|tapped|clicked|(?:i|we) (?:keep |always |just )?ignor(?:e|ed|ing)|never (?:use|tap|touch)|which (?:chips?|suggestions?|ideas?) do i)\b/i;
+
 /** Projects by name or in aggregate. */
 /**
  * The studio as a whole: what exists, which pillars, what is live, what is
