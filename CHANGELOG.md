@@ -6,6 +6,20 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-11 — Agents building a bitbaum product get the house rules
+
+- **Every agent Loki sends into a bitbaum repo is now told what already
+  exists.** Alongside the project's own profile, the dispatch carries the
+  studio's rules: read fleet's AGENTS.md, STACK.md and SHARED.md first, start a
+  new product from the fleet app template, use the shared packages (each with
+  its one-line purpose and install command) instead of writing another health
+  route, model call or set of security headers, keep the security bar, and
+  count work as done only once it is merged, deployed and checked live.
+- The package list and the stack are read from bitbaum/fleet when the agent
+  is sent, so they are never a copy kept in Loki. If GitHub is slow or down,
+  the dispatch goes ahead with the last saved list.
+- Repositories outside the bitbaum org get nothing extra.
+
 ## 2026-10-10 — Loki looks before it asks you to
 
 - **"Confirm it worked" is gone.** You could not know whether a fix worked

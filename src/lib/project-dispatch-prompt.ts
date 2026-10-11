@@ -5,6 +5,11 @@
  * and because a route file cannot export anything but its handlers, so while it
  * sat there the prompts were untestable. They are the product: every "Make it
  * happen" run is only as good as this text.
+ *
+ * The bitbaum house rules (lib/fleet-brief) are NOT added here: this text
+ * travels through injectPrompt, and the assemblers there add the brief to
+ * every dispatch into a bitbaum repo, this one included. Adding it here too
+ * would send it twice.
  */
 import { HEALTH_SIGNAL_BASE } from "@/components/projects/project-detail-types";
 import type { ProjectDossier } from "@/db/queries/project-dossier";

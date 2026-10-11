@@ -50,6 +50,7 @@ import { AttachmentsField, foldAttachmentsIntoPrompt } from "@/lib/composer-atta
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
 import { getProjectContext } from "@/db/queries/project-context";
 import { buildOperatorContextSection } from "@/lib/dispatch-operator-context";
+import { fleetBriefForProject } from "@/lib/fleet-brief/for-project";
 import { enqueueDispatchCommand } from "@/db/queries/pending-commands";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
 import { logDebug } from "@/db/queries/debug-logs";
@@ -210,6 +211,9 @@ async function dispatchViaCloudQueue(
   // cloud-queued dispatch serves the captain's objectives too (mirrors the
   // inject-prompt/inject-core paths). Best-effort background section.
   const operatorSection = await buildOperatorContextSection(userId).catch(() => "");
+  // bitbaum house rules for a repo in the org (lib/fleet-brief) — instruction,
+  // placed above the task like the other dispatch assemblers place it.
+  const houseRules = await fleetBriefForProject(userId, request.projectKey).catch(() => "");
   // Exit contract — WITHOUT it a box-executed agent finishes real work, writes
   // no ~/.loki/sessions/<tab>.md handoff, and gets reaped as a timeout (the
   // same gap inject-prompt.ts:66-74 closes for the inject path). The local
@@ -218,7 +222,7 @@ async function dispatchViaCloudQueue(
   // (renderTaskForAdapter does not include it) so every dispatch path lands a
   // handoff. Tilde-relative on purpose: the agent expands HOME, not the server.
   const sessionFileRef = `${FLEET_SESSIONS_DISPLAY_PATH}/${request.projectKey}.md`;
-  const prompt = `${[operatorSection, renderTaskForAdapter(request)].filter(Boolean).join("\n\n")}\n\n${exitContractFor(sessionFileRef)}`;
+  const prompt = `${[operatorSection, houseRules, renderTaskForAdapter(request)].filter(Boolean).join("\n\n")}\n\n${exitContractFor(sessionFileRef)}`;
   const cloudRunId = await createCloudTrackedRun(request, userId, announceOnClose);
   // Enqueue a `dispatch` (not bare `inject`): the runner ensures the tab,
   // launches the agent if none is running, then injects — so "Next best" on
@@ -568,12 +572,14 @@ async function dispatchCodexOrGemini(
   opts: {
     intent: ResolvedIntent;
     effectiveKey: string;
+    /** bitbaum house rules (lib/fleet-brief) — "" outside the org. */
+    houseRules: string;
     restoreConsumedQueueItem: () => Promise<void>;
   },
 ): Promise<NextResponse> {
-  const { intent, effectiveKey, restoreConsumedQueueItem } = opts;
+  const { intent, effectiveKey, houseRules, restoreConsumedQueueItem } = opts;
   try {
-    const basePrompt = renderTaskForAdapter(request);
+    const basePrompt = [houseRules, renderTaskForAdapter(request)].filter(Boolean).join("\n\n");
     const prompt = buildPromptWithSession(
       basePrompt,
       effectiveKey,
@@ -880,8 +886,13 @@ export async function POST(req: NextRequest) {
   // Life-OS half: the operator's top-level goals + near-term deadlines, prepended
   // as a background section so tab-injected and queued-behind dispatches serve the
   // captain's objectives too (mirrors inject-core/inject-prompt). Best-effort.
-  const operatorSection = await buildOperatorContextSection(userId).catch(() => "");
-  const withOperator = (body: string) => [operatorSection, body].filter(Boolean).join("\n\n");
+  const [operatorSection, houseRules] = await Promise.all([
+    buildOperatorContextSection(userId).catch(() => ""),
+    // bitbaum house rules for a repo in the org (lib/fleet-brief).
+    fleetBriefForProject(userId, request.projectKey).catch(() => ""),
+  ]);
+  const withOperator = (body: string) =>
+    [operatorSection, houseRules, body].filter(Boolean).join("\n\n");
   // Log every dispatch regardless of adapter — foundation for reuse suggestions and analytics
   const resolvedPromptBody = withOperator(renderTaskForAdapter(request));
   // (Written AFTER the run row below, so the prompt can carry the run's id.
@@ -945,6 +956,7 @@ export async function POST(req: NextRequest) {
     return await dispatchCodexOrGemini(request, userId, {
       intent,
       effectiveKey,
+      houseRules,
       restoreConsumedQueueItem,
     });
   }
