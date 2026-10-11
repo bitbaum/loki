@@ -110,7 +110,7 @@ async function main() {
   await check("a user well inside their share is admitted", async () => {
     const v = await checkAiBudget("u1", NOON, {
       capacity: plenty,
-      readUsage: async () => ({ userSpentTokens: 0, activeUsers: 1 }),
+      readUsage: async () => ({ userSpentTokens: 0, activeUsers: 1, userTurns: 0 }),
     });
     assert(v.allowed, "refused a turn with a million tokens available");
   });
@@ -131,7 +131,7 @@ async function main() {
   await check("a capacity of zero refuses, and says there is nothing to draw on", async () => {
     const v = await checkAiBudget("u1", NOON, {
       capacity: () => 0,
-      readUsage: async () => ({ userSpentTokens: 0, activeUsers: 1 }),
+      readUsage: async () => ({ userSpentTokens: 0, activeUsers: 1, userTurns: 0 }),
     });
     assert(!v.allowed, "admitted a turn with no capacity");
     assert(
@@ -150,7 +150,11 @@ async function main() {
     // unlocked allowance, still inside the day's share. That is `paced`.
     const v = await checkAiBudget("u1", NOON, {
       capacity: () => 8 * ESTIMATED_TURN_TOKENS,
-      readUsage: async () => ({ userSpentTokens: 2.5 * ESTIMATED_TURN_TOKENS, activeUsers: 2 }),
+      readUsage: async () => ({
+        userSpentTokens: 2.5 * ESTIMATED_TURN_TOKENS,
+        activeUsers: 2,
+        userTurns: 3,
+      }),
     });
     assert(!v.allowed, "expected a refusal");
     if (v.allowed) return;
@@ -165,7 +169,11 @@ async function main() {
     // whole 4·EST share, so no amount of waiting unlocks another turn today.
     const v = await checkAiBudget("u1", NOON, {
       capacity: () => 8 * ESTIMATED_TURN_TOKENS,
-      readUsage: async () => ({ userSpentTokens: 4 * ESTIMATED_TURN_TOKENS, activeUsers: 2 }),
+      readUsage: async () => ({
+        userSpentTokens: 4 * ESTIMATED_TURN_TOKENS,
+        activeUsers: 2,
+        userTurns: 3,
+      }),
     });
     assert(!v.allowed, "expected a refusal");
     if (v.allowed) return;
@@ -182,7 +190,7 @@ async function main() {
     for (const at of ["2026-08-15T00:01:00Z", "2026-08-15T12:00:00Z", "2026-08-15T23:00:00Z"]) {
       const v = await checkAiBudget("newcomer", new Date(at), {
         capacity: () => 16 * ESTIMATED_TURN_TOKENS,
-        readUsage: async () => ({ userSpentTokens: 0, activeUsers: 4 }),
+        readUsage: async () => ({ userSpentTokens: 0, activeUsers: 4, userTurns: 0 }),
       });
       assert(v.allowed, `newcomer refused at ${at}`);
     }
