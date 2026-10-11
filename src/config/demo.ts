@@ -271,6 +271,7 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
   "robots",
   "sessions",
   "setup",
+  "suggestions", // The board and the caller's own yes/no on it — their own records, nothing sent anywhere.
   "site-consult", // Public, anonymous already: reads one public page by rules, no AI spend, no write.
   "share",
   "solon",

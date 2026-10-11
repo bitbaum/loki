@@ -13,6 +13,8 @@ import { getStuckGoals, listUpcomingCommitments } from "@/db/queries/today";
 import { listCaptures } from "@/db/queries/captures";
 import { fetchOpenDemand } from "@/lib/integrations/orangecat-demand";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
+import { listSuggestionDecisions } from "@/db/queries/suggestion-decisions";
+import { hiddenIds } from "@/lib/suggestions/board";
 import { DAY_MS } from "@/lib/constants/time";
 import { toLocalDateStr } from "@/lib/dates";
 import type { UserProject } from "@/db/schema/user-projects";
@@ -77,5 +79,9 @@ export async function loadBuildSuggestions(
   userId: string,
   opts: { limit?: number; offset?: number } = {},
 ): Promise<{ suggestions: BuildSuggestion[]; total: number }> {
-  return rankBuildSuggestions(await loadSuggestionInputs(userId), opts);
+  const [inputs, decisions] = await Promise.all([
+    loadSuggestionInputs(userId),
+    listSuggestionDecisions(userId).catch(() => []),
+  ]);
+  return rankBuildSuggestions(inputs, { ...opts, exclude: hiddenIds(decisions, new Date()) });
 }

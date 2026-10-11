@@ -121,6 +121,9 @@ const PAGES = [
   "/control",
   "/projects",
   "/approvals",
+  // Six avenues of cards plus a filter strip: a page built to be thumbed
+  // through on a phone, so it is measured from the day it ships.
+  "/suggestions",
   // /feedback and /robots were reachable from the sidebar and audited by
   // neither list — the same hole the paragraph above describes, still open.
   // /feedback is where an operator spends the triage half of their day, and its

@@ -6647,6 +6647,70 @@
     @apply text-xs text-text-secondary;
   }
 
+  /* /suggestions — the whole board (components/suggestions). The cards are
+     the Control idle cards grown an actions row; the momentum strip is three
+     recorded numbers, set large because they are the page's own score. */
+  .ui-sugg-board {
+    @apply flex min-w-0 flex-col gap-6;
+  }
+  .ui-sugg-momentum {
+    @apply grid grid-cols-3 gap-2;
+  }
+  .ui-sugg-momentum-cell {
+    @apply flex min-w-0 flex-col items-start gap-0.5 rounded-xl border border-border-subtle bg-surface-base px-4 py-3;
+  }
+  .ui-sugg-momentum-n {
+    @apply text-2xl font-semibold tabular-nums text-text-primary;
+  }
+  .ui-sugg-momentum-k {
+    @apply text-micro uppercase tracking-wider text-text-muted;
+  }
+  .ui-sugg-avenue {
+    @apply flex min-w-0 flex-col gap-3;
+  }
+  .ui-sugg-avenue-head {
+    @apply flex min-w-0 items-baseline justify-between gap-3;
+  }
+  .ui-sugg-avenue-title {
+    @apply text-sm font-semibold text-text-primary;
+  }
+  .ui-sugg-avenue-q {
+    @apply hidden min-w-0 truncate text-xs text-text-tertiary sm:inline;
+  }
+  .ui-sugg-avenue-source {
+    @apply shrink-0 text-xs text-text-tertiary transition-colors hover:text-text-primary;
+  }
+  .ui-sugg-list {
+    @apply grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2;
+  }
+  .ui-sugg-card {
+    @apply flex min-w-0 flex-col gap-3 rounded-xl border border-border-default bg-surface-raised px-4 py-3 transition-colors hover:border-border-strong;
+  }
+  .ui-sugg-card-top {
+    @apply flex min-w-0 items-start gap-3;
+  }
+  .ui-sugg-card-label {
+    @apply text-sm font-medium text-text-primary wrap-anywhere;
+  }
+  .ui-sugg-card-why {
+    @apply mt-0.5 text-xs text-text-secondary wrap-anywhere;
+  }
+  .ui-sugg-card-actions {
+    @apply mt-auto flex items-center gap-2;
+  }
+  .ui-sugg-undo {
+    @apply flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-base px-4 py-2 text-sm text-text-secondary;
+  }
+  .ui-sugg-quiet {
+    @apply text-sm text-text-tertiary;
+  }
+  .ui-sugg-link {
+    @apply text-text-secondary underline-offset-2 transition-colors hover:text-text-primary hover:underline;
+  }
+  .ui-sugg-empty {
+    @apply flex flex-col items-center gap-3 rounded-xl border border-border-subtle bg-surface-base px-4 py-8 text-center;
+  }
+
   /* Needs-project picker. A grid, not a wrapped chip cloud: nine variable-width
      chips reflow into a ragged block that reads as noise on a phone, and the
      one thing the operator needs — find my project, or leave — is buried in it. */

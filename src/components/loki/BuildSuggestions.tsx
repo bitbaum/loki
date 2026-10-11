@@ -15,9 +15,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
+import { NAV } from "@/config/navigation";
 import type { BuildSuggestion, BuildSuggestionKind } from "@/lib/build-suggestions/rank";
 
-const KIND_ICON: Record<BuildSuggestionKind, LucideIcon> = {
+/** Exported so the full board (components/suggestions) draws the same icons. */
+export const BUILD_KIND_ICON: Record<BuildSuggestionKind, LucideIcon> = {
   fix: Bug,
   ship: Globe,
   continue: Play,
@@ -68,20 +70,26 @@ export function BuildSuggestions({
     <section aria-label="Build next" className="ui-loki-build">
       <div className="ui-loki-start-recent-head">
         <span className="ui-micro-label">{title}</span>
-        {canRotate && (
-          <button
-            type="button"
-            className="ui-loki-start-more inline-flex items-center gap-1"
-            onClick={() => setOffset((o) => o + 1)}
-          >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            Other ideas
-          </button>
-        )}
+        <span className="inline-flex items-center gap-3">
+          {canRotate && (
+            <button
+              type="button"
+              className="ui-loki-start-more inline-flex items-center gap-1"
+              onClick={() => setOffset((o) => o + 1)}
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              Other ideas
+            </button>
+          )}
+          {/* The row is the short list; the board is every front of life. */}
+          <Link href={NAV.suggestions.href} className="ui-loki-start-more">
+            All suggestions
+          </Link>
+        </span>
       </div>
       <ul className={cards ? "ui-loki-build-cards" : "ui-loki-build-row"} aria-busy={loading}>
         {suggestions.map((s) => {
-          const Icon = KIND_ICON[s.kind];
+          const Icon = BUILD_KIND_ICON[s.kind];
           const body = cards ? (
             <>
               <Icon className="ui-loki-build-icon mt-0.5" aria-hidden />
