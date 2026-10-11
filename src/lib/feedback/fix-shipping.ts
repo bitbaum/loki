@@ -74,6 +74,11 @@ export type FixShipping = {
     evidence: string;
     at: string;
     url: string;
+    /** What settled it: the page as text, or a picture of it. Absent = text. */
+    via?: "text" | "picture";
+    /** A phone-sized picture of the page was taken and kept on the run
+     *  (payload.fixPicture); /api/feedback/[id]/looked serves it. */
+    picture?: boolean;
   } | null;
   /** No GitHub token / API failure: the state is what the handoff claimed, unverified. */
   unverified?: boolean;

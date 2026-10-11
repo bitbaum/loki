@@ -13,6 +13,13 @@
  *   cannot_tell  — the question is not answerable from page text (layout,
  *                  colour, a flow); one look by a person will settle it
  *
+ * When text cannot tell, Loki LOOKS: one phone-sized picture of the page
+ * (page-picture.ts) is put to a vision model with the same question, and its
+ * verdict replaces the text one (`via: "picture"`). The picture stays on the
+ * run so the owner sees exactly what Loki saw, on the card. What a picture
+ * cannot settle either — a flow, a sound, a page behind a login — is still
+ * cannot_tell, and the card says which of the two Loki tried.
+ *
  * The verdict is cached on the run's fix ledger (payload.fix.verify), so it
  * is asked once per shipped fix, charged to the owner's AI budget, and only
  * from the inbox read a person made — never from a timer
@@ -33,6 +40,9 @@ export const FIX_VERDICT = {
 } as const;
 export type FixVerdict = (typeof FIX_VERDICT)[keyof typeof FIX_VERDICT];
 
+export const VERIFY_VIA = { TEXT: "text", PICTURE: "picture" } as const;
+export type VerifyVia = (typeof VERIFY_VIA)[keyof typeof VERIFY_VIA];
+
 export type FixVerify = {
   verdict: FixVerdict;
   /** One sentence, in Loki's words, naming what it saw on the page. */
@@ -41,7 +51,24 @@ export type FixVerify = {
   at: string;
   /** The page that was read. */
   url: string;
+  /** What settled it. */
+  via: VerifyVia;
+  /** A picture was taken and kept; /api/feedback/[id]/looked serves it. */
+  picture: boolean;
 };
+
+/** A picture is worth taking only when text left the question open. */
+export function wantsPicture(text: { verdict: FixVerdict } | null): boolean {
+  return !text || text.verdict === FIX_VERDICT.CANNOT_TELL;
+}
+
+/**
+ * The picture, kept on the run as a data URL; bigger than this and it is
+ * dropped (the verdict stands), so one noisy page cannot bloat a row.
+ */
+export const PICTURE_MAX_CHARS = 400_000;
+/** What one picture read costs the owner's budget, since the vision chain reports no tokens. */
+export const PICTURE_TOKENS_ESTIMATE = 1_500;
 
 /** Live pages are read at most this many per inbox load — one read is one model call. */
 export const VERIFY_MAX_PER_REQUEST = 2;
@@ -92,6 +119,49 @@ export function verifyPrompt(input: {
     "The live page, as text:",
     input.text || "(empty)",
   ].join("\n\n");
+}
+
+export function pictureSystemPrompt(): string {
+  return [
+    "You check whether a website change is visible, for the site's owner, who will not look themselves if you can answer.",
+    "You are given the report that asked for the change, what the agent said it did, and a picture of the live page on a phone (390px wide).",
+    'Reply with JSON only: {"verdict":"looks_fixed"|"not_visible"|"cannot_tell","evidence":"<one sentence>"}.',
+    "looks_fixed: the picture shows what the report asked for — say what you see, where on the screen.",
+    "not_visible: the report asked for something the picture would show, and it is not there — say what is missing or still wrong.",
+    "cannot_tell: the change is below the fold, behind a tap, or not a thing a still picture can show — say which.",
+    "Never claim to see something that is not in the picture. Be short.",
+  ].join("\n");
+}
+
+export function picturePrompt(input: {
+  report: string;
+  didLine: string | null;
+  pointedAt: string | null;
+}): string {
+  return [
+    `The report: ${input.report.replace(/\s+/g, " ").trim().slice(0, 600)}`,
+    input.pointedAt ? `The reporter pointed at: ${input.pointedAt}` : null,
+    input.didLine ? `The agent said it did: ${input.didLine}` : "The agent left no summary.",
+    input.pointedAt
+      ? "The picture is the live page now, scrolled to what the reporter pointed at."
+      : "The picture is the top of the live page now, on a phone.",
+  ]
+    .filter((line): line is string => !!line)
+    .join("\n\n");
+}
+
+/** The element the reporter pointed at, in words a model can look for. */
+export function pointedAtLine(
+  els: Array<{ elementType?: string | null; elementText?: string | null }> | null | undefined,
+): string | null {
+  if (!els || els.length === 0) return null;
+  const parts = els.slice(0, 3).map((el) => {
+    const text = el.elementText?.replace(/\s+/g, " ").trim().slice(0, 80);
+    return text
+      ? `${el.elementType || "an element"} reading “${text}”`
+      : el.elementType || "an element";
+  });
+  return parts.join("; ");
 }
 
 /** The model's answer, or null when it did not answer the question. */

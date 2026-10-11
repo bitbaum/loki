@@ -7,6 +7,9 @@ import {
   pageText,
   parseVerdict,
   verifyPrompt,
+  picturePrompt,
+  pointedAtLine,
+  wantsPicture,
   needsVerify,
   FIX_VERDICT,
 } from "@/lib/feedback/verify-live-rules";
@@ -62,5 +65,29 @@ assert.equal(
 assert.equal(needsVerify(row({ work: { ship: fix(FIX_SHIP_STATE.PR_OPEN) } })), false);
 assert.equal(needsVerify(row({ status: FEEDBACK_STATUS.RESOLVED })), false);
 assert.equal(needsVerify(row({ liveUrl: null })), false, "nowhere to read");
+
+// A picture is taken only when text left the question open — never to
+// second-guess a verdict text already settled.
+assert.equal(wantsPicture(null), true, "no text answer: look");
+assert.equal(wantsPicture({ verdict: FIX_VERDICT.CANNOT_TELL }), true);
+assert.equal(wantsPicture({ verdict: FIX_VERDICT.LOOKS_FIXED }), false);
+assert.equal(wantsPicture({ verdict: FIX_VERDICT.NOT_VISIBLE }), false);
+
+// The picture's question names what the reporter pointed at, so the model
+// looks there; with nothing pointed at it says nothing about it.
+assert.equal(
+  pointedAtLine([{ elementType: "footer", elementText: "© 2024 Harbourlight" }]),
+  "footer reading “© 2024 Harbourlight”",
+);
+assert.equal(pointedAtLine([{ elementType: "img", elementText: "" }]), "img");
+assert.equal(pointedAtLine(null), null);
+const pic = picturePrompt({
+  report: "The cards are squeezed into one row.",
+  didLine: "One column on phones.",
+  pointedAt: pointedAtLine([{ elementType: "section", elementText: "Plans" }]),
+});
+assert.match(pic, /The reporter pointed at: section reading “Plans”/);
+assert.match(pic, /The agent said it did: One column on phones\./);
+assert.doesNotMatch(picturePrompt({ report: "x", didLine: null, pointedAt: null }), /pointed at/);
 
 console.log("✓ feedback verify-live tests passed");

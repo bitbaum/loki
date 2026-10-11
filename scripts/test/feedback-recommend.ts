@@ -26,8 +26,19 @@ const work = (over: Partial<FeedbackWorkView>): FeedbackWorkView => ({
 });
 const ship = (state: string, over: Partial<FixShipping> = {}) =>
   ({ state, ...over }) as unknown as FixShipping;
-const seen = (verdict: "looks_fixed" | "not_visible" | "cannot_tell", evidence: string) => ({
-  verify: { verdict, evidence, at: new Date(NOW).toISOString(), url: "https://x/pricing" },
+const seen = (
+  verdict: "looks_fixed" | "not_visible" | "cannot_tell",
+  evidence: string,
+  via: "text" | "picture" = "text",
+) => ({
+  verify: {
+    verdict,
+    evidence,
+    at: new Date(NOW).toISOString(),
+    url: "https://x/pricing",
+    via,
+    picture: via === "picture",
+  },
 });
 const base = {
   status: FEEDBACK_STATUS.NEW,
@@ -122,7 +133,25 @@ r = recommendFor(
 )!;
 assert.equal(r.kind, RECOMMEND.CONFIRM);
 assert.equal(r.label, "Close it");
-assert.match(r.why, /Loki checked \/pricing: The footer now reads/);
+assert.match(r.why, /^Loki read \/pricing: The footer now reads/);
+// Settled from a picture: the card says so, since that is a different kind of evidence.
+r = recommendFor(
+  {
+    ...base,
+    status: FEEDBACK_STATUS.DISPATCHED,
+    work: work({
+      phase: FEEDBACK_WORK_PHASE.NEEDS_VERIFY,
+      ship: ship(
+        FIX_SHIP_STATE.DEPLOYED,
+        seen("looks_fixed", "The three plan cards sit one under another.", "picture"),
+      ),
+      checkLive: true,
+    }),
+  },
+  NOW,
+)!;
+assert.equal(r.kind, RECOMMEND.CONFIRM);
+assert.match(r.why, /^Loki looked at a picture of \/pricing: The three plan cards/);
 assert.equal(r.runs, 0);
 assert.ok(r.priority > 40);
 // Loki read it and the change is not there: a second run, not a person's eyes.

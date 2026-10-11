@@ -7,6 +7,7 @@ import { RECOMMEND, type Recommendation } from "@/lib/feedback/recommend";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import { FeedbackItemRow } from "@/components/feedback/FeedbackItemRow";
 import { WatchFixButton } from "@/components/feedback/WatchFixButton";
+import { LookedPicture } from "@/components/feedback/LookedPicture";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { compactRelativeDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,11 @@ export function DecisionCard({
           {f.page && f.page !== "/" ? f.page : "home"} · {compactRelativeDate(f.createdAt)}
         </span>
       </p>
+      {rec.kind === RECOMMEND.LOOK && (
+        // Loki could not settle it, but it took the picture: the owner can
+        // often answer from here, without the trip to the site.
+        <LookedPicture feedbackId={f.id} verify={f.work.ship?.verify} lead />
+      )}
       <div className="ui-fb-decision-actions">
         {taken ? (
           <span className="ui-fb-decision-done">Done — {rec.label.toLowerCase()}</span>
