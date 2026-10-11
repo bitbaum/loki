@@ -216,12 +216,18 @@ export function ProjectKickoff({
       {/* The repository choice used to be a bordered box of checkbox, select
           and a two-sentence explanation — the most visible thing on the card
           after the button, for a default almost nobody changes. One line says
-          what will happen; Change opens the controls. */}
+          what will happen; Change opens the controls.
+
+          It says "Loki keeps the code", not "creates a GitHub repository":
+          most people who arrive with an idea have no GitHub account and no
+          wish to open one, and nothing here requires it. The code is theirs
+          to take to GitHub later, from Project settings, once there is
+          something worth taking. */}
       {!steps && !hasRepo && !repoOptionsOpen && (
         <p className="text-xs text-text-secondary">
           {wantRepo
-            ? `Also creates a ${visibility} GitHub repository for the code.`
-            : "No repository — an agent can plan, but has nowhere to write code."}{" "}
+            ? `Loki keeps the code for you${visibility === "public" ? ", in the open" : ", privately"} — yours to take to your own GitHub whenever you want.`
+            : "Nowhere to keep code — an agent can plan, but has nowhere to write it."}{" "}
           <button
             type="button"
             onClick={() => setRepoOptionsOpen(true)}
@@ -240,17 +246,17 @@ export function ProjectKickoff({
               onChange={(e) => setWantRepo(e.target.checked)}
               className="h-5 w-5 shrink-0"
             />
-            Create the GitHub repository
+            Keep the code (Loki holds it for you)
           </label>
           {wantRepo && (
             <select
               className="ui-input-compact"
               value={visibility}
               onChange={(e) => setVisibility(e.target.value as "private" | "public")}
-              aria-label="Repository visibility"
+              aria-label="Who can see the code"
             >
               <option value="private">Private</option>
-              <option value="public">Public</option>
+              <option value="public">Public (open source)</option>
             </select>
           )}
         </div>
@@ -394,16 +400,20 @@ function KickoffNextStep({
   );
 
   if (needsGithub) {
-    // The one fix, as the one button: connecting GitHub returns here with
-    // ?kickoff=auto, so the build resumes by itself from the step that stopped.
+    // Reached only when Loki cannot keep the code itself (a server with no org
+    // token, or a repository the person linked by hand) — on loki.orangecat.ch
+    // every account gets a place for its code without this. The one fix, as
+    // the one button: connecting GitHub returns here with ?kickoff=auto, so
+    // the build resumes by itself from the step that stopped.
     return (
       <div className="space-y-2 border-t border-border-subtle pt-3">
         <p className="text-sm font-medium text-text-primary">
           Connect GitHub and the build carries on.
         </p>
         <p className="text-xs leading-relaxed text-text-secondary">
-          The code for this project lives in a GitHub repository. Connect your account and you come
-          straight back here — everything above is saved, and the build picks up where it stopped.
+          Loki could not make a place for this project&apos;s code here, so it needs your GitHub
+          account to put it there. Connect it and you come straight back — everything above is
+          saved, and the build picks up where it stopped.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <LinkGithubButton callbackUrl={kickoffAutoHref(`/projects/${projectId}`)} />

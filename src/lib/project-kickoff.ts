@@ -22,7 +22,7 @@ export type KickoffStepId = (typeof KICKOFF_STEPS)[number];
 export const KICKOFF_STEP_LABEL: Record<KickoffStepId, string> = {
   profile: "Filling the profile",
   milestones: "Planning the milestones",
-  repo: "Creating the repository",
+  repo: "Making a place for the code",
   dispatch: "Putting an agent on it",
 };
 

@@ -2,7 +2,8 @@ import { and, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { userProjects } from "@/db/schema";
 import { getProjectCore } from "@/db/queries/projects";
-import { getRepoWriteToken } from "@/lib/github-org-token";
+import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
+import { findCodeCustodyByGitUrl } from "@/db/queries/user-projects";
 import { parseGithubRepoUrl } from "@/lib/github-provision";
 import { checkProjectSiteDeployment } from "@/lib/site-cd-register";
 import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
@@ -41,7 +42,13 @@ export async function reconcileSiteLiveUrl(
   const project = await getProjectCore(userId, entityProjectId).catch(() => null);
   const parsed = project?.gitUrl ? parseGithubRepoUrl(project.gitUrl) : null;
   if (!project || !parsed) return "skipped";
-  const token = (await getRepoWriteToken(userId).catch(() => null))?.token ?? null;
+  const custody = await findCodeCustodyByGitUrl(userId, project.gitUrl!).catch(() => null);
+  const token =
+    (
+      await getRepoWriteToken(userId, {
+        lokiKept: lokiKeepsCode({ gitUrl: project.gitUrl, codeCustody: custody }),
+      }).catch(() => null)
+    )?.token ?? null;
   if (!token) return "skipped";
 
   const result = await checkProjectSiteDeployment({

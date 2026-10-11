@@ -171,11 +171,13 @@ export default function QuickstartPage() {
             </li>
             <li>
               <strong>Press Make it happen.</strong> Loki runs four steps in order and shows each
-              one as it goes: filling the profile, planning the milestones, creating the repository,
-              and putting an agent on it. It keeps going if you lock your phone or leave the page.
+              one as it goes: filling the profile, planning the milestones, making a place for the
+              code, and putting an agent on it. It keeps going if you lock your phone or leave the
+              page.
             </li>
             <li>
-              <strong>Your code gets a home.</strong> The repository is created in the{" "}
+              <strong>Loki keeps the code.</strong> You need no account anywhere else: the code
+              lives in a repository Loki holds for you, in the{" "}
               <a
                 href="https://github.com/bitbaum"
                 className="ui-public-link"
@@ -184,8 +186,9 @@ export default function QuickstartPage() {
               >
                 bitbaum organisation on GitHub
               </a>
-              , not in a personal account. You choose a starter: Next.js, Python with FastAPI, Hono
-              on Cloudflare Workers, plain HTML, or an empty repository.
+              , for free. It is yours: once you have seen the site, Project settings offers to move
+              it to your own GitHub, and from then on you manage it there. You choose a starter:
+              Next.js, Python with FastAPI, Hono on Cloudflare Workers, plain HTML, or empty.
             </li>
             <li>
               <strong>Your site goes up.</strong> For the Next.js and empty starters, Loki can put
