@@ -7,6 +7,16 @@ export type ConversationSummary = Pick<Conversation, "id" | "title" | "projectKe
   /** The thread's last message, cut short — where it stopped. Absent on
    *  rows from before the rail showed it. */
   preview?: string;
+  /** The last message's shape, so the rail can say what the thread needs
+   *  (lib/loki/thread-state.ts). Absent on a row the client made itself. */
+  lastRole?: string | null;
+  lastKind?: string | null;
+  lastAt?: string | null;
+  lastOk?: boolean | null;
+  lastOutcome?: string | null;
+  lastNeedsProject?: boolean | null;
+  lastReadAt?: string | null;
+  pinnedAt?: string | null;
 };
 
 /** A transcript message as it arrives over the wire (createdAt is an ISO

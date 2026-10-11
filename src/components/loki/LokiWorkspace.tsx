@@ -8,6 +8,7 @@ import { initialLokiSelection } from "@/lib/loki/project-selection";
 import { conversationIdFromParam } from "@/lib/loki/conversation-param";
 import { useSendQueue } from "@/hooks/use-send-queue";
 import { useDispatchOutcome } from "@/hooks/use-dispatch-outcome";
+import { useThreadInbox } from "@/hooks/use-thread-inbox";
 import { QueuedMessages } from "./QueuedMessages";
 import { clearLokiDraft, lokiDraftKey } from "@/lib/loki/draft";
 import { rememberFleetProject } from "@/lib/fleet-context";
@@ -327,6 +328,8 @@ export function LokiWorkspace({
 
   useDispatchOutcome(activeId, messages, setMessages);
 
+  const inbox = useThreadInbox(activeId, transcriptLoading, messages.length, setConversations);
+
   /**
    * The persisted turn arriving off the stream.
    *
@@ -353,13 +356,9 @@ export function LokiWorkspace({
 
       // Sync the list so the server's auto-title (derived from the first
       // message) and the recency order appear live, not only after a reload.
-      void getJson<{ conversations: ConversationSummary[] }>("/api/conversations")
-        .then((d) => setConversations(d.conversations))
-        .catch(() => {
-          /* keep the existing list on a transient failure */
-        });
+      inbox.syncConversations(message.conversationId);
     },
-    [projects],
+    [projects, inbox],
   );
 
   const stream = useLokiStream({ onMessage: handleMessage });
@@ -558,8 +557,9 @@ export function LokiWorkspace({
   // no longer matching when the operator moves to another thread.
   const [saveFor, setSaveFor] = useState<string | null>(null);
   const saveOpen = saveFor === (activeId ?? "new");
-  const threadTitle =
-    (activeId && conversations.find((c) => c.id === activeId)?.title) || "New chat";
+  const activeThread = activeId ? conversations.find((c) => c.id === activeId) : undefined;
+  const threadTitle = activeThread?.title || "New chat";
+  const pinnedNow = Boolean(activeThread?.pinnedAt);
 
   const chatBody = (
     <>
@@ -670,6 +670,9 @@ export function LokiWorkspace({
       loading={convosLoading}
       error={convosError}
       onRetry={() => void reloadConversations()}
+      mode={inbox.railMode}
+      onModeChange={inbox.setRailMode}
+      onPin={inbox.pinConversation}
       onSelect={(id) => {
         // A deliberate switch: release the just-created claim so the transcript
         // is fetched even when they click back into the thread they just made.
@@ -759,6 +762,8 @@ export function LokiWorkspace({
             onNewChat={startNewConversation}
             onOpenProjects={() => setFilterOpen(true)}
             onSaveContext={messages.length > 0 ? () => setSaveFor(activeId ?? "new") : undefined}
+            pinned={pinnedNow}
+            onTogglePin={activeId ? () => inbox.pinConversation(activeId, !pinnedNow) : undefined}
           />
         ) : (
           <TopbarPortal>{topbarButtons}</TopbarPortal>

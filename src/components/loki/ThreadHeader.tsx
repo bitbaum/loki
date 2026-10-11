@@ -8,6 +8,8 @@ import {
   History,
   MoreVertical,
   PanelLeft,
+  Pin,
+  PinOff,
   SquarePen,
 } from "lucide-react";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
@@ -26,6 +28,8 @@ export function ThreadHeader({
   onNewChat,
   onOpenProjects,
   onSaveContext,
+  pinned = false,
+  onTogglePin,
 }: {
   title: string;
   projects: string[];
@@ -36,6 +40,9 @@ export function ThreadHeader({
   /** Save the exchange into a project's context — an occasional act, so it
    *  lives here rather than as a line under every phone conversation. */
   onSaveContext?: () => void;
+  /** A phone has no hover to reveal the rail's pin, so it lives here too. */
+  pinned?: boolean;
+  onTogglePin?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const close = useCallback(() => setMenuOpen(false), []);
@@ -106,6 +113,8 @@ export function ThreadHeader({
               {item("All chats", History, onOpenLokis)}
               {item("Projects", FolderKanban, onOpenProjects)}
               {onSaveContext && item("Save to project context", BookmarkPlus, onSaveContext)}
+              {onTogglePin &&
+                item(pinned ? "Unpin" : "Pin to the top", pinned ? PinOff : Pin, onTogglePin)}
             </div>
           </>
         )}
