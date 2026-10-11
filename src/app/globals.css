@@ -5122,6 +5122,26 @@
   .ui-fb-decision-row {
     @apply mt-2 rounded-xl border border-border-subtle bg-surface-base px-4;
   }
+  /* The picture Loki took of the live page: a phone-sized crop, the whole page on a tap. */
+  .ui-fb-looked {
+    @apply mt-1 flex flex-col gap-1;
+  }
+  .ui-fb-looked-btn {
+    @apply block w-full max-w-xs overflow-hidden rounded-xl border border-border-subtle bg-surface-base text-left;
+    max-height: 9rem;
+  }
+  .ui-fb-looked-lead .ui-fb-looked-btn {
+    max-height: 14rem;
+  }
+  .ui-fb-looked-open .ui-fb-looked-btn {
+    max-height: none;
+  }
+  .ui-fb-looked-btn img {
+    @apply block w-full;
+  }
+  .ui-fb-looked-cap {
+    @apply text-xs text-text-muted;
+  }
   /* What is not a decision: one line each, open on demand. */
   .ui-fb-section > summary {
     @apply flex min-h-11 cursor-pointer list-none flex-col justify-center gap-0.5 px-1 py-2;

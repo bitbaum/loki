@@ -6,6 +6,21 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-11 — Loki looks at a picture when words cannot tell
+
+- **Visual fixes get a verdict too.** A layout, a colour, a thing that
+  overlapped: page text could not say whether the fix worked, so those were
+  the ones still sent to your eyes. Now, when text cannot tell, Loki takes a
+  phone-sized picture of the live page — scrolled to what the reporter
+  pointed at — and asks a vision model the same question. The card says
+  which it did: "Loki read /pricing" or "Loki looked at a picture of
+  /pricing".
+- **You see what Loki saw.** When even the picture cannot settle it, the
+  picture is on the card, under the reason, so "It worked / Not fixed" can
+  usually be answered right there. Tap it for the whole page; it is also in
+  every row's details.
+- A server with no browser says so on the card, in words, instead of a
+  silent "cannot tell".
 ## 2026-10-11 — Loki suggests what to build next, from your own work
 
 - **"Build next" on the Loki start screen.** Under "What are we working on?"

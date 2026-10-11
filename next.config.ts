@@ -45,7 +45,11 @@ const nextConfig: NextConfig = {
   // (shiki no longer needs to be external: bip-kit 0.2.1's setHighlighterLoader
   // seam — registered in ThoughtArticleBody — puts the literal import("shiki")
   // in our own code, so the bundler ships it like any other dependency.)
-  serverExternalPackages: ["node-pty", "undici"],
+  // playwright drives a real browser from a server route (feedback/page-picture.ts
+  // takes the picture Loki reads a shipped fix against); it must stay external
+  // like node-pty, and the import in that file is what makes the standalone
+  // tracer carry it.
+  serverExternalPackages: ["node-pty", "undici", "playwright"],
   env: {
     NEXT_PUBLIC_APP_VERSION: PKG_VERSION,
     NEXT_PUBLIC_BUILD_SHA: buildSha(),

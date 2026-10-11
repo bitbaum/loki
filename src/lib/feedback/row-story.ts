@@ -178,15 +178,16 @@ export function rowStory(input: RowStoryInput, now = Date.now()): RowStory {
       switch (fix.state) {
         case FIX_SHIP_STATE.DEPLOYED: {
           const seen = fix.verify ?? null;
+          const how = seen?.via === "picture" ? "Loki looked" : "Loki read it";
           if (seen?.verdict === "looks_fixed")
             return {
-              headline: `The fix is live on ${pageWord(input.page)} — Loki checked.`,
+              headline: `The fix is live on ${pageWord(input.page)} — ${how}.`,
               next: `${seen.evidence} Close it, or look yourself first.`,
               tone: "you",
             };
           if (seen?.verdict === "not_visible")
             return {
-              headline: `Live on ${pageWord(input.page)}, but Loki could not find the change.`,
+              headline: `Live on ${pageWord(input.page)}, but ${how} and could not find the change.`,
               next: `${seen.evidence} Try again, or look yourself.`,
               tone: "you",
             };
