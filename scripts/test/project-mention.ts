@@ -18,6 +18,7 @@
  *
  * Run: npx tsx scripts/test/project-mention.ts (or npm run test:unit)
  */
+import { resolveFleetCommandProjectKey } from "@/lib/loki-fleet-commands";
 import {
   projectMentionedIn,
   resolveProjectFromContext,
@@ -94,6 +95,19 @@ eq(
   "orangecat",
   "falls back to the name in the text",
 );
+
+console.log("\nproject-mention — a fast path follows the project you name");
+eq(
+  resolveFleetCommandProjectKey("write the business plan for Orange Cat", "loki", FLEET),
+  "orangecat",
+  "named in the message beats the selection the last answer left behind",
+);
+eq(
+  resolveFleetCommandProjectKey("write the business plan", "loki", FLEET),
+  "loki",
+  "no name: the selection",
+);
+eq(resolveFleetCommandProjectKey("write the business plan", undefined, FLEET), null, "neither");
 
 console.log("\nproject-mention — naming something we don't have");
 const noOrangeCat = FLEET.filter((p) => p !== "orangecat");

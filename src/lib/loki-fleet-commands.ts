@@ -5,7 +5,7 @@
  */
 import type { UserProject } from "@/db/schema";
 import { normalizeProjectName } from "@/lib/project-name";
-import { resolveProjectFromContext } from "@/lib/project-mention";
+import { projectMentionedIn } from "@/lib/project-mention";
 
 const LIST_PROJECTS_RE =
   /\b(list|show|name|tell me)\b.*\b(my )?(projects?|fleet)\b|\b(what|which)\s+projects?\b|\bprojects?\s+do\s+i\s+have\b/i;
@@ -86,13 +86,22 @@ export function projectNameFromConversationTitle(title: string): string | null {
   return slug || null;
 }
 
-/** Resolve which fleet project a fast path applies to — selection wins, then name in text. */
+/**
+ * Which fleet project a fast path applies to: a project NAMED in the message
+ * first, then the selection.
+ *
+ * It was selection first. But the selection is no longer an explicit pick:
+ * after every answer it follows the project that answer used, so in one chat
+ * that moves between projects, "write the business plan for orangecat" sent
+ * after a loki build went to loki. The main path already lets the name win
+ * (resolveDispatchTargets); the fast paths now agree with it.
+ */
 export function resolveFleetCommandProjectKey(
   text: string,
   selectedProject: string | undefined,
   projectNames: string[],
 ): string | null {
-  return resolveProjectFromContext(text, selectedProject, projectNames);
+  return projectMentionedIn(text, projectNames) ?? (selectedProject || null);
 }
 
 const BUSINESS_PLAN_VERB_RE =

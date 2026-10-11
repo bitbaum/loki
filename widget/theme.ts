@@ -188,6 +188,11 @@ ${spiralCSS(theme)}
   /* The sheet's handle: the grip and the header both drag (sheet.ts). */
   .grip { display: block; width: 36px; height: 4px; border-radius: 999px; background: ${theme.borderDark}; margin: -8px auto 10px; touch-action: none; }
   .hdr { touch-action: none; }
+  /* Keyboard up (sheet.ts keyboardInset): the panel stands on the keyboard
+     and fits what is visible, so the starters and the way into Loki step
+     aside and the thread keeps the room. They return when the keyboard goes. */
+  .panel.kb .starters, .panel.kb .continue { display: none; }
+  .panel.kb { padding-bottom: 12px; }
 }
 .hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 /* The text column SHRINKS and the actions do not: with Review + Stop watching
@@ -315,6 +320,17 @@ a.yours-row:hover .yours-text { color: ${theme.accent}; }
 .sendcard textarea { min-height: 64px; }
 .sendcard .err { margin-top: 0; }
 @media (pointer: coarse) { .segbtn, .watchbtn { padding: 10px 8px; } .act { padding: 8px 0; } }
+/* After the base .seg rule on purpose — same specificity, so order decides. */
+@media (max-width: 480px) {
+  /* What the message is about: ONE row that scrolls sideways, not two that
+     wrap. With touch-sized tabs, "Loki itself" fell to a second line and the
+     "About" label floated beside both (owner's phone, 2026-10-11). The label
+     goes; the group keeps its name for screen readers (aria-label). */
+  .ctxbar { min-width: 0; }
+  .ctx-label { display: none; }
+  .seg { flex-wrap: nowrap; overflow-x: auto; min-width: 0; scrollbar-width: none; gap: 0 4px; }
+  .seg::-webkit-scrollbar { display: none; }
+}
 
 textarea, input {
   width: 100%; font-size: 13px; line-height: 1.45; color: ${theme.text};
