@@ -21,7 +21,7 @@ export async function sendSelfReport(
     ownerPass?: string;
     screenshots?: string[];
   },
-): Promise<void> {
+): Promise<{ building: boolean; note?: string; followUrl?: string }> {
   const res = await fetch(`${apiBase}/api/widget/self-report`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -36,8 +36,16 @@ export async function sendSelfReport(
       screenshots: fields.screenshots?.length ? fields.screenshots : undefined,
     }),
   });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(body?.error ?? `Request failed (${res.status})`);
-  }
+  const body = (await res.json().catch(() => null)) as {
+    error?: string;
+    building?: boolean;
+    buildNote?: string;
+    followUrl?: string;
+  } | null;
+  if (!res.ok) throw new Error(body?.error ?? `Request failed (${res.status})`);
+  return {
+    building: body?.building === true,
+    ...(body?.buildNote ? { note: body.buildNote.slice(0, 500) } : {}),
+    ...(body?.followUrl ? { followUrl: body.followUrl.slice(0, 1000) } : {}),
+  };
 }

@@ -133,6 +133,15 @@ not to the site. Two ways:
   unasked — a visitor never agreed to that. A 4xx from Loki is Loki answering
   on purpose and is not a defect.
 
+**Loki improving Loki.** When the person is Loki's *own* owner — using Loki's
+widget on one of their sites — a note about the widget, a crash, or a panel
+that did not fit starts a fix on the spot, the same way an owner's note on
+their own site does ("the owner's word is the decision"): one agent builds it
+into Loki, the PR merges and deploys itself, and the receipt in the thread
+says "On it" with *Follow the build →*. A slow or failed call to Loki only
+files (it may be the network's bad minute); its duplicate count is the signal.
+Anyone else's report waits in Loki's inbox for that owner to start.
+
 Code: `widget/self-watch.ts` (what counts), `widget/self-report.ts` (the
 POST), `src/lib/widget/self-report.ts` + `src/app/api/widget/self-report/route.ts`
 (the words and the row). `scripts/test/widget-self-report.ts` holds both sides

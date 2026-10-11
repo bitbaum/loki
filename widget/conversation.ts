@@ -40,6 +40,7 @@ import {
 } from "./thread";
 import { createContinueRow } from "./continue-row";
 import { greetingFor, ownerDoor } from "./greeting";
+import { receiptLinkLabel, receiptText } from "./receipt";
 
 /** The ingest's cap on `suggestion` (api/feedback FeedbackBody). */
 export const MAX_LEN = 2000;
@@ -334,23 +335,9 @@ export function createConversation(opts: {
         });
         log.appendChild(m);
       } else {
-        const m = bubble(
-          "bot sent from-loki",
-          "Loki",
-          item.toLoki
-            ? `Sent to the people who build Loki: “${item.text}”. Thank you — it helps the panel you're using get better.`
-            : item.owner
-              ? item.building
-                ? `On it — “${item.text}” is in Your changes above. One agent builds it; it goes live here by itself and Loki tells you.`
-                : `Saved “${item.text}”. ${item.note ?? "It waits in Loki under Feedback."}`
-              : `Sent to whoever builds this site: “${item.text}”. Thank you.`,
-        );
+        const m = bubble("bot sent from-loki", "Loki", receiptText(item));
         if (item.claimUrl) {
-          const t = h(
-            "a",
-            "track",
-            item.owner ? "Follow the build →" : "Track what happens next →",
-          );
+          const t = h("a", "track", receiptLinkLabel(item));
           t.href = item.claimUrl;
           t.target = "_blank";
           t.rel = "noopener noreferrer";
@@ -496,7 +483,7 @@ export function createConversation(opts: {
   /** A note about the widget itself, to Loki's own project — no confirmation
    *  card: there is no builder of this site to introduce yourself to. */
   async function toLoki(body: string) {
-    await sendSelfReport(opts.apiBase, {
+    const res = await sendSelfReport(opts.apiBase, {
       token: opts.token,
       kind: "note",
       note: body,
@@ -511,6 +498,9 @@ export function createConversation(opts: {
       text: body.slice(0, 300),
       owner: false,
       toLoki: true,
+      ...(res.building ? { building: true } : {}),
+      ...(res.note ? { note: res.note } : {}),
+      ...(res.followUrl ? { claimUrl: res.followUrl } : {}),
     });
     render(true);
   }

@@ -69,10 +69,11 @@ const SAY: Record<Finding["kind"], string> = {
   overflow: "my panel didn't fit this screen",
 };
 
-export function selfSay(kind: Finding["kind"], sent: boolean): string {
-  return sent
-    ? `About me, not this page: ${SAY[kind]}. I've sent it to the people who build Loki — nothing for you to do.`
-    : `About me, not this page: ${SAY[kind]}. I couldn't send it to Loki just now.`;
+export function selfSay(kind: Finding["kind"], sent: boolean, building = false): string {
+  if (!sent) return `About me, not this page: ${SAY[kind]}. I couldn't send it to Loki just now.`;
+  return building
+    ? `About me, not this page: ${SAY[kind]}. I've started fixing it in Loki itself — it goes live by itself.`
+    : `About me, not this page: ${SAY[kind]}. I've sent it to the people who build Loki — nothing for you to do.`;
 }
 
 const saidKey = (token: string) => `loki-self:${token}`;
@@ -121,7 +122,7 @@ export function installSelfWatch(opts: {
       detail: f.detail,
       ownerPass: pass,
     })
-      .then(() => opts.onFinding(selfSay(f.kind, true)))
+      .then((r) => opts.onFinding(selfSay(f.kind, true, r.building)))
       // Reporting a failure must not become a failure loop: the report call is
       // itself a call to Loki, and it is not handed back to ownRequest.
       .catch(() => opts.onFinding(selfSay(f.kind, false)));

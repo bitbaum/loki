@@ -38,6 +38,17 @@ export function selfReportNeedsOwner(kind: WidgetSelfKind): boolean {
   return kind !== "note";
 }
 
+/**
+ * Which of Loki's own owner's reports start a fix on the spot. A note and a
+ * defect the widget can pin on itself (a crash, a panel that does not fit)
+ * do; a slow or failed call to Loki may be the network or the box having a
+ * bad minute, and a build started on every one of those would be noise —
+ * those wait in the inbox with their duplicate count, which is the signal.
+ */
+export function selfReportStartsBuild(kind: WidgetSelfKind): boolean {
+  return kind === "note" || kind === "error" || kind === "overflow";
+}
+
 const LABEL: Record<Exclude<WidgetSelfKind, "note">, string> = {
   error: "The widget threw an error",
   request: "A call from the widget to Loki failed",

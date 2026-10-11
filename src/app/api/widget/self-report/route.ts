@@ -13,9 +13,13 @@ import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
 import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
+import { startOwnerBuild } from "@/lib/feedback/owner-build";
+import { watchFixPath } from "@/lib/feedback/tour-token";
+import { appUrl } from "@/lib/email";
 import {
   buildSelfReport,
   selfReportNeedsOwner,
+  selfReportStartsBuild,
   WIDGET_SELF_DETAIL_MAX,
   WIDGET_SELF_KINDS,
   WIDGET_SELF_NOTE_MAX,
@@ -95,11 +99,10 @@ export async function POST(req: NextRequest) {
   if (!isWidgetOriginAllowed({ tokenOrigins: host.origins, origin, allowMissingOrigin: false })) {
     return corsError("Origin not allowed for this widget", 403);
   }
-  if (selfReportNeedsOwner(data.kind)) {
-    const pass = data.ownerPass ? verifyOwnerPass(data.ownerPass) : null;
-    if (!pass || pass.projectId !== host.projectId || pass.userId !== host.userId) {
-      return corsError("Only the site's owner's widget reports on its own", 403);
-    }
+  const pass = data.ownerPass ? verifyOwnerPass(data.ownerPass) : null;
+  const fromOwner = !!pass && pass.projectId === host.projectId && pass.userId === host.userId;
+  if (selfReportNeedsOwner(data.kind) && !fromOwner) {
+    return corsError("Only the site's owner's widget reports on its own", 403);
   }
   // Per install: one broken page cannot fill Loki's inbox from many IPs.
   if (!checkRateLimit(`widget-self:token:${host.id}`, 60, RATE_LIMIT_WINDOW_LONG_MS)) {
@@ -119,13 +122,30 @@ export async function POST(req: NextRequest) {
     url: data.url ?? origin,
     viewport: data.viewport,
   });
+  // Loki improving Loki. When the person is Loki's OWN owner — using Loki's
+  // widget on one of their sites — a report about the widget is the owner's
+  // word on their own product, and the owner's word IS the decision (api/
+  // feedback): the fix starts now, and the receipt follows the build to live.
+  // Anyone else's lands in the inbox for that owner to start.
+  const lokiOwner = fromOwner && pass.userId === loki.userId;
+  const build = async (id: string) => {
+    if (!lokiOwner || !selfReportStartsBuild(data.kind)) return {};
+    const started = await startOwnerBuild(loki.userId, loki.projectId, id);
+    return { owner: true, ...started, followUrl: `${appUrl()}${watchFixPath(id)}` };
+  };
+
   const contentHash = feedbackContentHash(report.suggestion, WIDGET_SELF_PAGE);
   const bumped =
     (report.noticeKey
       ? await bumpDuplicateFeedbackByNotice(loki.projectId, report.noticeKey)
       : null) ?? (await bumpDuplicateFeedback(loki.projectId, contentHash));
   if (bumped) {
-    return NextResponse.json({ ok: true, duplicateOf: bumped }, { headers: CORS_HEADERS });
+    // Saying it again means "do it" — a failed attempt starts again, one
+    // already running answers "already on it" (startOwnerBuild).
+    return NextResponse.json(
+      { ok: true, duplicateOf: bumped, ...(await build(bumped)) },
+      { headers: CORS_HEADERS },
+    );
   }
 
   const created = await insertSiteFeedback({
@@ -147,5 +167,8 @@ export async function POST(req: NextRequest) {
   });
   if (!created) return corsError("Could not store the report, try again later", 500);
   void notifyFeedbackReceived(created);
-  return NextResponse.json({ ok: true, id: created.id }, { headers: CORS_HEADERS });
+  return NextResponse.json(
+    { ok: true, id: created.id, ...(await build(created.id)) },
+    { headers: CORS_HEADERS },
+  );
 }

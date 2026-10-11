@@ -9,12 +9,14 @@ import {
   buildSelfReport,
   hostOrigin,
   selfReportNeedsOwner,
+  selfReportStartsBuild,
   WIDGET_SELF_DETAIL_MAX,
   WIDGET_SELF_KINDS,
   WIDGET_SELF_NOTE_MAX,
 } from "../../src/lib/widget/self-report";
 import { classifyOwnRequest, panelOverflow, SELF_SLOW_MS, selfSay } from "../../widget/self-watch";
 import { SELF_DETAIL_MAX, SELF_NOTE_MAX } from "../../widget/self-report";
+import { receiptLinkLabel, receiptText } from "../../widget/receipt";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../..");
@@ -80,6 +82,17 @@ check(() => {
   );
 });
 
+check(() => {
+  // Loki improving Loki: the owner's note and a defect the widget can pin on
+  // itself start a fix; a slow or failed call may be the network's bad minute.
+  assert.equal(selfReportStartsBuild("note"), true);
+  assert.equal(selfReportStartsBuild("error"), true);
+  assert.equal(selfReportStartsBuild("overflow"), true);
+  assert.equal(selfReportStartsBuild("slow"), false);
+  assert.equal(selfReportStartsBuild("request"), false);
+  assert.match(selfSay("error", true, true), /started fixing it in Loki itself/);
+});
+
 // ---- the widget's judgement ----
 check(() => {
   assert.equal(
@@ -121,6 +134,32 @@ check(() => {
   assert.match(selfSay("request", false), /couldn't send/);
 });
 
+check(() => {
+  // The receipt says where it went and what happens next, per destination.
+  const base = { kind: "sent" as const, at: 1, text: "Panel covers the keyboard" };
+  assert.match(
+    receiptText({ ...base, owner: false, toLoki: true, building: true }),
+    /built into Loki itself/,
+  );
+  assert.match(
+    receiptText({
+      ...base,
+      owner: false,
+      toLoki: true,
+      note: "Saved, but it could not start: no repo.",
+    }),
+    /could not start: no repo/,
+  );
+  assert.match(receiptText({ ...base, owner: false, toLoki: true }), /people who build Loki/);
+  assert.match(receiptText({ ...base, owner: true, building: true }), /Your changes above/);
+  assert.match(receiptText({ ...base, owner: false }), /whoever builds this site/);
+  assert.equal(
+    receiptLinkLabel({ ...base, owner: false, toLoki: true, building: true }),
+    "Follow the build →",
+  );
+  assert.equal(receiptLinkLabel({ ...base, owner: false }), "Track what happens next →");
+});
+
 // ---- the two sides agree ----
 check(() => {
   assert.equal(SELF_DETAIL_MAX, WIDGET_SELF_DETAIL_MAX);
@@ -136,6 +175,11 @@ check(() => {
   // signed out, or every self-report from a customer site is a 401.
   const proxy = readFileSync(join(repoRoot, "src/proxy.ts"), "utf8");
   assert.ok(/\|api\/widget\/self-report\|/.test(proxy), "proxy excludes api/widget/self-report");
+  // The build starts only for Loki's own owner — never because a host site's
+  // owner pass checked out, which is a different person on a different project.
+  const route = readFileSync(join(repoRoot, "src/app/api/widget/self-report/route.ts"), "utf8");
+  assert.ok(/lokiOwner = fromOwner && pass\.userId === loki\.userId/.test(route));
+  assert.ok(/if \(!lokiOwner \|\| !selfReportStartsBuild\(data\.kind\)\) return \{\};/.test(route));
 });
 check(() => {
   // Watch hands the widget's own requests over instead of dropping them, and
