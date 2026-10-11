@@ -23,6 +23,7 @@
 
 import { isFleetRunnerCommandType } from '@/lib/pending-command-contract'
 import { parseAgentImages, type AgentImage } from '@/lib/agent-attachments'
+import { resolveBrowserTask, type BrowserTask } from '@/config/browser-tasks'
 
 export interface InjectCommand {
   type: 'inject'
@@ -121,6 +122,13 @@ export interface PeekStreamCommand {
   }
 }
 
+/** A form to fill in Loki's browser window. Resolved from a named recipe on
+ *  THIS side too, so a row can never carry free-form steps or a raw url. */
+export interface BrowserTaskCommand {
+  type: 'browser_task'
+  payload: { task: BrowserTask }
+}
+
 /** Every command type the desktop is allowed to execute today. Adding a
  *  new type means: extend this union + write a guard + handle it in poller. */
 export type ValidatedCommand =
@@ -133,6 +141,7 @@ export type ValidatedCommand =
   | InstallCliCommand
   | PeekTabCommand
   | PeekStreamCommand
+  | BrowserTaskCommand
 
 export type ValidationResult =
   | { ok: true; command: ValidatedCommand }
@@ -183,6 +192,11 @@ export function validateCommand(raw: unknown): ValidationResult {
     case 'peek_start':
     case 'peek_stop':
       return validatePeekStream(type, payload)
+    case 'browser_task': {
+      const task = resolveBrowserTask(payload.recipe, payload.params)
+      if (!task) return { ok: false, error: `browser_task: unknown recipe or invalid params (${String(payload.recipe)})` }
+      return { ok: true, command: { type: 'browser_task', payload: { task } } }
+    }
   }
 }
 
