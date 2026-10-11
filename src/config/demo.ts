@@ -271,6 +271,7 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
   "robots",
   "sessions",
   "setup",
+  "usage", // A tally of the caller's own taps on their own tenant's surfaces; bounded body, no spend, no mail.
   "site-consult", // Public, anonymous already: reads one public page by rules, no AI spend, no write.
   "share",
   "solon",

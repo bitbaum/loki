@@ -42,6 +42,7 @@ import {
   projectFacts,
   runFacts,
   sessionFacts,
+  usageFacts,
 } from "@/lib/agent/sources";
 import { buildDailyBrief, buildFleetBrief } from "@/lib/agent/brief";
 import {
@@ -111,6 +112,8 @@ async function fetchSource(
       return economyFacts(message, limit);
     case "builds":
       return buildSuggestionFacts(userId, limit);
+    case "usage":
+      return usageFacts(userId, limit);
     case "projects":
       // The message is passed so a project the operator NAMED is ranked to the
       // front before either slice. Without it the two slices below are a

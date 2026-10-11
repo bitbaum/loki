@@ -6,6 +6,19 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-11 — Shipped means you can see it, and Loki watches whether it gets used
+
+- **A finished change comes with proof.** Agents now report shipped work as
+  the live link first, screenshots of the real deployed page (phone first),
+  and a plain list of what was and was not checked. `pnpm run ship:report`
+  produces it: it confirms the site is running the shipped build and
+  photographs the page, instead of announcing a merge and hoping.
+- **Loki remembers how you use "Build next".** Each time the row is shown,
+  tapped, or rotated past is recorded, and Loki reads it back: ask "how am I
+  using Build next?" and it says what gets tapped and what it keeps offering
+  for nothing — and it uses the same record when you ask what to build, so
+  it leads with the kind of suggestion you actually take.
+
 ## 2026-10-11 — Loki suggests what to build next, from your own work
 
 - **"Build next" on the Loki start screen.** Under "What are we working on?"

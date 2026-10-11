@@ -29,6 +29,7 @@ import { rankProjectsByMessage } from "@/lib/agent/project-ranking";
 export { dateLabel, timeLabel, agoLabel } from "@/lib/agent/fact-utils";
 export * from "@/lib/agent/sources-work";
 export * from "@/lib/agent/sources-fleet";
+export * from "@/lib/agent/sources-usage";
 
 const PEOPLE_LIMIT = 12;
 const PROJECT_LIMIT = 40;

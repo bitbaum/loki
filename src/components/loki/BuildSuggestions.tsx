@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Bug,
@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import type { BuildSuggestion, BuildSuggestionKind } from "@/lib/build-suggestions/rank";
+import { trackUsage } from "@/lib/usage/track";
+
+const SURFACE = "loki.build-next";
 
 const KIND_ICON: Record<BuildSuggestionKind, LucideIcon> = {
   fix: Bug,
@@ -39,6 +42,11 @@ const KIND_ICON: Record<BuildSuggestionKind, LucideIcon> = {
  *
  * The refresh button rotates through everything that qualified rather than
  * re-rolling, so nothing real is skipped for good.
+ *
+ * Every show, tap and rotate is recorded (src/config/usage-surfaces.ts), so
+ * Loki can later say which kinds of suggestion this person takes and which it
+ * keeps offering for nothing — the row improves from being used, not only
+ * from being built.
  */
 export function BuildSuggestions({
   onSend,
@@ -51,6 +59,24 @@ export function BuildSuggestions({
     { timeoutMs: 12_000 },
   );
   const suggestions = data?.suggestions ?? [];
+  // One "shown" per load, carrying what was offered — a tap only means
+  // something next to what it was chosen from.
+  useEffect(() => {
+    if (!data || data.suggestions.length === 0) return;
+    trackUsage({
+      surface: SURFACE,
+      action: "shown",
+      meta: {
+        offset,
+        kinds: data.suggestions.map((s) => s.kind),
+        ids: data.suggestions.map((s) => s.id),
+      },
+    });
+    // `offset` is already part of `data`: the fetch URL carries it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+  const tapped = (s: BuildSuggestion) =>
+    trackUsage({ surface: SURFACE, action: "tap", target: s.id });
   // Nothing to suggest is not an error worth a box; the question above stands.
   if (!loading && suggestions.length === 0) return null;
   const canRotate = (data?.total ?? 0) > suggestions.length;
@@ -63,7 +89,10 @@ export function BuildSuggestions({
           <button
             type="button"
             className="ui-loki-start-more inline-flex items-center gap-1"
-            onClick={() => setOffset((o) => o + 1)}
+            onClick={() => {
+              trackUsage({ surface: SURFACE, action: "rotate", meta: { offset: offset + 1 } });
+              setOffset((o) => o + 1);
+            }}
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
             Other ideas
@@ -82,7 +111,12 @@ export function BuildSuggestions({
           return (
             <li key={s.id} className="shrink-0">
               {s.href ? (
-                <Link href={s.href} className="ui-loki-build-chip" title={s.why}>
+                <Link
+                  href={s.href}
+                  className="ui-loki-build-chip"
+                  title={s.why}
+                  onClick={() => tapped(s)}
+                >
                   {body}
                 </Link>
               ) : (
@@ -90,7 +124,10 @@ export function BuildSuggestions({
                   type="button"
                   className="ui-loki-build-chip"
                   title={s.why}
-                  onClick={() => s.prompt && onSend(s.prompt, s.project)}
+                  onClick={() => {
+                    tapped(s);
+                    if (s.prompt) onSend(s.prompt, s.project);
+                  }}
                 >
                   {body}
                 </button>

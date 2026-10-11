@@ -36,6 +36,7 @@ import {
   PROJECT_CUES,
   RECENCY_CUES,
   RUN_CUES,
+  USAGE_CUES,
   FLEET_MAP_CUES,
 } from "@/lib/agent/cues";
 
@@ -57,6 +58,7 @@ export const SOURCE_IDS = [
   "knowledge",
   "economy",
   "builds",
+  "usage",
   "projects",
   "fleet_map",
 ] as const;
@@ -100,6 +102,8 @@ export const SOURCE_LIMITS: Record<SourceId, { lead: number; background: number 
   economy: { lead: 3, background: 0 },
   // Already ranked and varied server-side; six is the row the start screen shows.
   builds: { lead: 6, background: 0 },
+  // One fact per surface Loki records use of (src/config/usage-surfaces.ts).
+  usage: { lead: 4, background: 1 },
   // A question ABOUT projects gets the whole fleet ("how many projects am I
   // tracking" must not be answered from a sample). A question about anything
   // else gets a glance: measured live, 38 project facts were the bulk of a
@@ -142,7 +146,15 @@ export function planRetrieval(message: string): RetrievalPlan {
   // runs and shed the goals to the tail. Named noun beats shared adjective.
   // Asked for direction: the ranked suggestions lead, because they already
   // fold in feedback, dev-log next steps, goals, notes and demand.
-  if (BUILD_CUES.test(m)) push("builds");
+  // Asked about USE ("how am I using Build next"), usage leads — tested first,
+  // because "build next" is also a build cue. A build recommendation is in
+  // turn informed by what the person actually taps, so usage trails the
+  // suggestions whenever they lead.
+  if (USAGE_CUES.test(m)) push("usage");
+  if (BUILD_CUES.test(m)) {
+    push("builds");
+    push("usage");
+  }
   if (FEEDBACK_CUES.test(m)) push("feedback");
   if (APPROVAL_CUES.test(m)) push("approvals");
   if (GOAL_CUES.test(m)) push("goals");
@@ -242,6 +254,8 @@ const TOOLS_FOR_SOURCE: Record<SourceId, readonly string[]> = {
   knowledge: ["search_knowledge"],
   economy: [],
   builds: ["suggest_builds"],
+  // A computed tally; Loki reads it as a seed fact, no tool needed.
+  usage: [],
   projects: ["list_projects"],
   // The map is a computed view (register + profiles + runs); no tool reads it.
   fleet_map: [],
