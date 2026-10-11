@@ -9,9 +9,16 @@ import { ProjectWatch } from "@/components/projects/ProjectWatch";
 export const metadata = { title: "Watch it work" };
 
 /** A project's latest run as a live, readable thread — see ProjectWatch. */
-export default async function ProjectWatchPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectWatchPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ run?: string }>;
+}) {
   const userId = await requirePageUserId();
   const { id } = await params;
+  const { run } = await searchParams;
   if (!isValidUuid(id)) notFound();
   const project = await getProjectCore(userId, id);
   if (!project) notFound();
@@ -25,7 +32,11 @@ export default async function ProjectWatchPage({ params }: { params: Promise<{ i
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {project.name}
       </Link>
       <h1 className="ui-page-title">Watch it work</h1>
-      <ProjectWatch projectId={id} profileHref={`/projects/${id}`} />
+      <ProjectWatch
+        projectId={id}
+        profileHref={`/projects/${id}`}
+        runId={run && isValidUuid(run) ? run : undefined}
+      />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import type { RunHandoff } from "@/lib/run-handoff";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import type { StatusTone, BuilderChannel } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
@@ -134,6 +135,8 @@ export type DispatchLiveView = {
   tone: StatusTone;
   /** true once the command reached a settled state — the footer stops polling. */
   terminal: boolean;
+  /** The finished run's own summary, in the chat's terms (lib/run-handoff). */
+  handoff?: RunHandoff | null;
 };
 
 /**

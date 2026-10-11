@@ -54,6 +54,7 @@ export function Thread({
   stopped,
   onStop,
   onPickProject,
+  onContinue,
   onAnswerAnyway,
   onAnswerFree,
   onRetry,
@@ -69,6 +70,8 @@ export function Thread({
   stopped: boolean;
   onStop: () => void;
   onPickProject?: (project: string, pendingText: string) => void;
+  /** A finished run's next step was tapped: send it, on that project. */
+  onContinue?: (text: string, project: string) => void;
   onAnswerAnyway?: (pendingText: string) => void;
   /** Under a turn the person's own model failed: the free chain, same words. */
   onAnswerFree?: (pendingText: string) => void;
@@ -163,6 +166,7 @@ export function Thread({
                   : null
               }
               onPickProject={onPickProject}
+              onContinue={onContinue}
               onAnswerAnyway={onAnswerAnyway}
               onAnswerFree={onAnswerFree}
               onRetry={onRetry && m.id === lastAssistant?.id ? onRetry : undefined}

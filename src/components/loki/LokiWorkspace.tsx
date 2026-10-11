@@ -72,6 +72,20 @@ type SendOpts = {
 };
 
 /**
+ * "Just answer" — the way out of a needs-project prompt the operator never
+ * asked for. dispatchOnly skips the optimistic bubble (their message is
+ * already in the transcript); chatOnly forces the answer path server-side.
+ * `pool: "free"`: the same path under a turn the person's own model failed —
+ * the same words on the free chain, chosen by them, never silently.
+ */
+const answerAnywayScope = (pool?: "free"): SendOpts => ({
+  selectedProjectsOverride: [],
+  dispatchOnly: true,
+  chatOnly: true,
+  ...(pool ? { pool } : {}),
+});
+
+/**
  * A "Build next" suggestion that names a project goes to it (and dispatches).
  * One that names none — a goal, a deadline, a need on OrangeCat — is answered
  * by Loki, who scopes it and hands back the line that starts it. Never scoped
@@ -502,19 +516,9 @@ export function LokiWorkspace({
     void send(pendingText, {}, [], { selectedProjectsOverride: [projectName], dispatchOnly: true });
   };
 
-  // "Just answer" — the way out of a needs-project prompt the operator never
-  // asked for. dispatchOnly skips the optimistic bubble (their message is
-  // already in the transcript); chatOnly forces the answer path server-side.
-  // `pool: "free"`: the same path under a turn the person's own model failed —
-  // the same words on the free chain, chosen by them, never silently.
   const answerWithoutProject = (pendingText: string, pool?: "free") => {
     if (!activeId || !pendingText.trim()) return;
-    void send(pendingText, {}, [], {
-      selectedProjectsOverride: [],
-      dispatchOnly: true,
-      chatOnly: true,
-      ...(pool ? { pool } : {}),
-    });
+    void send(pendingText, {}, [], answerAnywayScope(pool));
   };
 
   // Hands-free voice chat: what is said is sent like a typed message, and the
@@ -579,6 +583,8 @@ export function LokiWorkspace({
         stopped={stream.stopped}
         onStop={stream.stop}
         onPickProject={dispatchWithProject}
+        // A finished run's next step goes on in this thread, on its project.
+        onContinue={(text, p) => void send(text, {}, [], { selectedProjectsOverride: [p] })}
         onAnswerAnyway={answerWithoutProject}
         onAnswerFree={(text) => answerWithoutProject(text, "free")}
         onRetry={lastSent ? retryLast : undefined}
