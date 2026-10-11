@@ -6626,6 +6626,18 @@
   .ui-loki-build-label {
     @apply min-w-0 truncate;
   }
+  /* One chat moving to another project: a quiet labelled rule (project-switches.ts). */
+  .ui-loki-project-switch {
+    @apply flex min-w-0 items-center gap-3 text-xs text-text-tertiary;
+  }
+  .ui-loki-project-switch::before,
+  .ui-loki-project-switch::after {
+    @apply h-px flex-1 bg-border-subtle;
+    content: "";
+  }
+  .ui-loki-project-switch > span {
+    @apply min-w-0 truncate;
+  }
   /* A finished run's own account, under the dispatch card (run-handoff.ts). */
   .ui-loki-handoff {
     @apply mt-2 flex min-w-0 flex-col gap-3 border-t border-border-subtle pt-3;
