@@ -652,6 +652,13 @@
       "when": 1791701000000,
       "tag": "0092_updates_channel",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1791755845333,
+      "tag": "0093_suggestion_decisions",
+      "breakpoints": true
     }
   ]
 }

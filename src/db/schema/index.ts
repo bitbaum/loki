@@ -32,6 +32,7 @@ export * from "./password-reset-tokens";
 export * from "./email-verification-tokens";
 export * from "./pending-commands";
 export * from "./captures";
+export * from "./suggestion-decisions";
 export * from "./habit-goals";
 export * from "./beacon-settings";
 export * from "./prompts";

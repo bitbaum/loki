@@ -6,6 +6,25 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-11 — Suggestions: every front of your life, one tap each
+
+- **A Suggestions page.** The "Build next" row on the Loki start screen only
+  knew about code. The new page under Now reads every front Loki keeps records
+  on — Build, Business, Goals, People, Money, Habits — and offers one thing to
+  do per fact: the report nobody fixed, the delivery waiting on your yes, the
+  goal due Friday at 40%, the subscription renewing Tuesday, the friend you
+  have not spoken to in forty days, the twelve-day streak not checked off
+  yet. Every card says which record it came from.
+- **Two answers, no typing.** "Do it" hands the ask to Loki, already written
+  and already scoped to the project, or opens the one place only you can do
+  it (checking off a habit, accepting a delivery). "Not now" puts it away for
+  a month, with an undo. What you put away stays away on the start screen and
+  on Control too.
+- **It keeps score, from records.** Taken this week, days in a row, taken in
+  all — counted from the decisions you actually made, never estimated.
+- **Private fronts stay private.** People, Money and Habits are read only
+  while your PIN zone is unlocked; locked, the page says so and offers the
+  unlock.
 ## 2026-10-11 — Shipped means you can see it, and Loki watches whether it gets used
 
 - **A finished change comes with proof.** Agents now report shipped work as
