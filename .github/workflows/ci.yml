@@ -98,8 +98,11 @@ jobs:
       # the feedback launcher never sits on a host page's controls. It FAILS
       # under CI when Chromium is missing (it only skips on a laptop without
       # one), so this step is what lets it run rather than pass vacuously.
-      - name: Install Chromium (widget placement browser test)
-        run: pnpm exec playwright install --with-deps --only-shell chromium
+      # Full Chromium, not only the headless shell: scripts/test/browser-extension.ts
+      # loads the built Loki for Firefox extension, and the shell cannot run
+      # extensions — it would fail here (CI requires the browser) rather than skip.
+      - name: Install Chromium (widget placement + extension browser tests)
+        run: pnpm exec playwright install --with-deps chromium
 
       # ONE canonical bundle — the exact `pnpm run verify` you run locally
       # (tsc + lint + check:design + check:desktop + test:unit + test:home +

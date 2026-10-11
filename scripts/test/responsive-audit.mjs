@@ -117,6 +117,10 @@ const PAGES = [
   "/control",
   "/projects",
   "/approvals",
+  // Where a form hand-off starts, and it is opened on a PHONE more than
+  // anywhere — the point of it is filling a form from the device in hand.
+  // Measured with a real recipe so the value chips are on the page.
+  "/fill?recipe=npm-trusted-publisher&package=%40bitbaum%2Fchatkit&owner=bitbaum&repo=chatkit&workflow=publish.yml",
   // Six avenues of cards plus a filter strip: a page built to be thumbed
   // through on a phone, so it is measured from the day it ships.
   "/suggestions",
@@ -723,7 +727,10 @@ async function main() {
         // never had.
         const landed = new URL(page.url()).pathname;
         if (landed !== route) notes.push(`${route} @${vp.name}: landed on ${landed}`);
-        const shot = path.join(OUT, `${route.replace(/\//g, "") || "root"}-${vp.name}.png`);
+        const shot = path.join(
+          OUT,
+          `${route.split("?")[0].replace(/\//g, "") || "root"}-${vp.name}.png`,
+        );
         await page.screenshot({ path: shot, fullPage: false });
 
         // HARD failures: the page is broken, not merely imperfect.

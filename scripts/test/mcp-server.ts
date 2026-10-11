@@ -324,7 +324,13 @@ async function main() {
       // The real service resolves through config/browser-tasks.ts; so does this.
       const { resolveBrowserTask } = await import("../../src/config/browser-tasks");
       const task = resolveBrowserTask(recipe, params);
-      return task ? { commandId: "c-1", title: task.title, button: task.handoff.button } : null;
+      return task
+        ? {
+            link: "https://loki.orangecat.ch/fill?recipe=x",
+            title: task.title,
+            button: task.handoff.button,
+          }
+        : null;
     },
     projects: async () => [
       {
@@ -524,13 +530,12 @@ async function main() {
     },
   });
   check(
-    "loki_browser_task queues the form and says the owner presses the button — never that it is done",
+    "loki_browser_task gives the /fill link, says the owner presses the button, never that it is done",
     !handoff.isError &&
       calls.includes("browser:npm-trusted-publisher") &&
+      handoff.content[0].text.includes("https://loki.orangecat.ch/fill?") &&
       handoff.content[0].text.includes('stops at "Set up connection"') &&
-      !/\b(done|configured|set up)\b(?! connection)/i.test(
-        handoff.content[0].text.replace(/Set up connection/g, ""),
-      ),
+      handoff.content[0].text.includes("not done until they press it"),
   );
   calls.length = 0;
   const badParams = await call("loki_browser_task", {

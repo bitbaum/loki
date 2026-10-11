@@ -167,6 +167,21 @@ widget/            → The embeddable feedback widget customer sites load as
                      (scripts/test/widget-theme-from-tokens.ts fails on drift).
                      Never type a colour into widget/ or palette.ts — change the
                      tokens and regenerate.
+
+extension/         → Loki for Firefox (Android and desktop): fills a form Loki
+                     hands it and stops at the final button — the phone half
+                     of what Fleet Runner's browser window does on a computer.
+                     A web page cannot type into another site, so on a phone
+                     an extension is the only way. Recipes are SSOT in
+                     src/config/browser-tasks.ts and the filler is the same
+                     src/lib/browser-fill.ts Fleet Runner runs; the manifest is
+                     GENERATED from the recipe hosts (scripts/build-extension.ts
+                     → extension/dist, gitignored). Every hand-off starts at
+                     /fill, which picks the filler this device has.
+                     scripts/test/browser-extension.ts loads the built
+                     extension in Chromium end to end. Shipped to AMO by
+                     .github/workflows/extension-release.yml once the AMO key
+                     secrets exist.
 ```
 
 ## Key Conventions

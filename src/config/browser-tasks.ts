@@ -45,6 +45,9 @@ export type BrowserTask = {
 
 type Recipe<P extends string> = {
   title: string;
+  /** The one host this recipe fills. The Firefox extension asks for no other
+   *  site: its content scripts are generated from these (scripts/build-extension.ts). */
+  host: string;
   params: readonly P[];
   /** null when a parameter is malformed — the row is refused, never guessed. */
   build: (params: Record<P, string>) => BrowserTask | null;
@@ -56,6 +59,7 @@ const WORKFLOW_FILE = /^[A-Za-z0-9_.-]+\.ya?ml$/;
 
 const npmTrustedPublisher: Recipe<"package" | "owner" | "repo" | "workflow"> = {
   title: "npm trusted publisher",
+  host: "www.npmjs.com",
   params: ["package", "owner", "repo", "workflow"],
   build: ({ package: pkg, owner, repo, workflow }) => {
     if (!NPM_PACKAGE.test(pkg) || !GITHUB_NAME.test(owner) || !GITHUB_NAME.test(repo)) return null;
@@ -63,7 +67,7 @@ const npmTrustedPublisher: Recipe<"package" | "owner" | "repo" | "workflow"> = {
     return {
       title: `Let ${owner}/${repo} publish ${pkg}`,
       url: `https://www.npmjs.com/package/${pkg}/access`,
-      host: "www.npmjs.com",
+      host: npmTrustedPublisher.host,
       steps: [
         { kind: "click", text: "GitHub Actions", unless: "Repository" },
         // GitHub names are case-insensitive but npm matches the OIDC claim
@@ -114,3 +118,32 @@ export function resolveBrowserTask(recipe: unknown, params: unknown): BrowserTas
   }
   return def.build(values);
 }
+
+/** Hosts any recipe fills — what the extension's content scripts match. */
+export const BROWSER_RECIPE_HOSTS = [...new Set(Object.values(BROWSER_RECIPES).map((r) => r.host))];
+
+/**
+ * Where a hand-off starts: Loki's /fill page, which hands the form to
+ * whichever filler this device has — the Loki extension in Firefox (phones
+ * included), Fleet Runner on a computer — or offers to send it to the computer.
+ */
+export function browserTaskPath(recipe: BrowserRecipeId, params: Record<string, string>): string {
+  const q = new URLSearchParams({ recipe, ...params });
+  return `/fill?${q.toString()}`;
+}
+
+/**
+ * The page ↔ extension handshake. The extension's script on Loki's own origin
+ * marks the document so the page knows it is there, and accepts a task only
+ * as a message posted by that same page — another site cannot reach it.
+ */
+/** Where people install Loki for Firefox. Null until the addons.mozilla.org
+ *  listing is approved; the /fill page then offers no dead link, only the
+ *  ways that work today. */
+export const BROWSER_EXTENSION_LISTING_URL: string | null = null;
+
+export const BROWSER_EXTENSION = {
+  marker: "lokiExtension",
+  request: "loki:browser-task",
+  reply: "loki:browser-task-opened",
+} as const;

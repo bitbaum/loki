@@ -1,0 +1,89 @@
+# Loki for Firefox — build the extension and submit it to addons.mozilla.org.
+#
+# Firefox on Android installs extensions from addons.mozilla.org (AMO), so a
+# listed, signed release there is the only way the phone gets it. Signing
+# needs an AMO API key, which only the account owner can create (AMO →
+# Tools → Manage API Keys), stored as two repo secrets:
+#
+#   AMO_JWT_ISSUER, AMO_JWT_SECRET
+#
+# Until both exist this run skips GREEN and says so in its summary — a red
+# run that means "nobody has set this up yet" trains everyone to ignore it.
+#
+# Releases are driven by EXTENSION_VERSION in scripts/build-extension.ts: a
+# merge that does not change it re-submits the same version, which AMO refuses
+# as a duplicate, and that is treated as already-released.
+name: Extension release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "extension/**"
+      - "scripts/build-extension.ts"
+      - "src/config/browser-tasks.ts"
+      - "src/lib/browser-fill.ts"
+  workflow_dispatch: {}
+
+concurrency:
+  group: extension-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Is signing set up?
+        id: keys
+        env:
+          ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [ -n "$ISSUER" ] && [ -n "$SECRET" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "Loki for Firefox was not submitted: AMO_JWT_ISSUER / AMO_JWT_SECRET are not set."
+              echo "Create an API key at https://addons.mozilla.org/developers/addon/api/key/ and add both as repository secrets."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.keys.outputs.ready == 'true'
+
+      - uses: pnpm/action-setup@v6
+        if: steps.keys.outputs.ready == 'true'
+
+      - run: pnpm config set store-dir ~/.pnpm-store --global
+        if: steps.keys.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v7
+        if: steps.keys.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.keys.outputs.ready == 'true'
+
+      - run: pnpm run build:extension
+        if: steps.keys.outputs.ready == 'true'
+
+      - name: Sign and submit to addons.mozilla.org
+        if: steps.keys.outputs.ready == 'true'
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          set +e
+          out=$(npx --yes web-ext@8 sign --source-dir extension/dist --artifacts-dir extension/artifacts \
+            --channel listed --amo-metadata extension/amo-metadata.json 2>&1)
+          code=$?
+          echo "$out"
+          if [ $code -ne 0 ] && echo "$out" | grep -qi "already exists"; then
+            echo "This version is already on addons.mozilla.org — nothing to do." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          [ $code -eq 0 ] && echo "Submitted Loki for Firefox to addons.mozilla.org." >> "$GITHUB_STEP_SUMMARY"
+          exit $code

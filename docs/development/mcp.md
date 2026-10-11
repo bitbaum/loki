@@ -94,7 +94,7 @@ and a 401 would send the client back through OAuth for nothing.
 | `loki_projects` | `loki.chat` | Registered projects with a one-line status — the names `loki_dispatch` accepts. |
 | `loki_dispatch` | `loki.act` | Send a coding task to a project's agent. The outcome arrives later as a notification. |
 | `loki_book` | `loki.act` | Propose a calendar event through the approval queue; reports `auto-approved` or `awaiting-approval` truthfully. |
-| `loki_browser_task` | `loki.act` | Open a known form (a recipe in `src/config/browser-tasks.ts`) in Loki's browser window on the owner's computer via Fleet Runner, fill it, and stop at the final button. Never submits; the owner presses it. |
+| `loki_browser_task` | `loki.act` | Return the `/fill` link for a known form (a recipe in `src/config/browser-tasks.ts`). The page fills it on the owner's device — the Loki extension in Firefox, or Fleet Runner on a computer — and stops at the final button. Never submits; the owner presses it. |
 | `loki_decide` | `loki.act` | Approve or reject one queued action. Approving executes it. |
 
 A tool called without its scope answers with an MCP tool error naming the

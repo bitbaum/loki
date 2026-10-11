@@ -72,3 +72,7 @@ squashfs-root/
 # binary in a public repository's history, where it could not be removed
 # without a rewrite.
 desktop/resources/bin/
+
+# Loki for Firefox build output (scripts/build-extension.ts)
+/extension/dist/
+/extension/artifacts/

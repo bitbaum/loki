@@ -28,6 +28,7 @@
     "src/**/*.tsx",
     "home/**/*.ts",
     "widget/**/*.ts",
+    "extension/src/**/*.ts",
     "**/*.mts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
