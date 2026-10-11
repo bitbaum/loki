@@ -50,8 +50,20 @@ const note = {
   assert.match(u.headline, /live on the home page/, 'never "live on /"');
   assert.deepEqual(
     UPDATE_SECTIONS.map((s) => s.key),
-    ["asked", "problem", "done", "detail", "helps", "why", "next", "checks"],
-    "asked → wrong → done → how it helps users → why → next → proof: the order the owner asked for",
+    [
+      "asked",
+      "problem",
+      "done",
+      "detail",
+      "helps",
+      "us",
+      "downsides",
+      "costs",
+      "why",
+      "next",
+      "checks",
+    ],
+    "asked → wrong → done → helps users → benefits us → downsides → costs → why → next → proof",
   );
 
   const text = progressUpdateText(u);
@@ -239,10 +251,47 @@ const note = {
     didLine: "Did a thing.",
   });
   assert.equal(u.helps, null);
-  assert.ok(u.helpsMissing);
+  assert.deepEqual(u.missing, ["helps", "us", "downsides", "costs"], "every owed section is named");
   assert.match(progressUpdateText(u), /How it helps users:\*\* Not stated by the developer/);
+  assert.match(progressUpdateText(u), /Downsides:\*\* Not stated by the developer/);
   const nothing = buildProgressUpdate({ stage: UPDATE_STAGE.NOT_DONE, project: "p" });
-  assert.ok(!nothing.helpsMissing, "a run that did nothing owes no benefit");
+  assert.deepEqual(nothing.missing, [], "a run that did nothing owes nothing");
+}
+
+// ---- downsides, costs, benefit to us — and "none" said clearly ----
+// The owner, 2026-10-11: "if there are no downsides and no costs, that should
+// be very clearly shown."
+{
+  const u = buildProgressUpdate({
+    stage: UPDATE_STAGE.LIVE,
+    project: "p",
+    note: {
+      ...note,
+      us: "Fewer support emails about stale prices.",
+      downsides: "None",
+      costs: "None",
+    },
+  });
+  assert.equal(u.us, "Fewer support emails about stale prices.");
+  assert.equal(u.downsides, "None");
+  assert.deepEqual(u.missing, []);
+  const text = progressUpdateText(u);
+  assert.match(text, /Downsides:\*\* None ✓/);
+  assert.match(text, /Costs:\*\* None ✓/);
+  assert.ok(text.indexOf("How it helps users") < text.indexOf("How it benefits us"));
+  assert.ok(text.indexOf("How it benefits us") < text.indexOf("Downsides"));
+
+  const real = buildProgressUpdate({
+    stage: UPDATE_STAGE.READY,
+    project: "p",
+    note: {
+      ...note,
+      us: "u",
+      downsides: "The import takes up to 3 minutes longer on a bad night.",
+      costs: "None",
+    },
+  });
+  assert.match(progressUpdateText(real), /Downsides:\*\* The import takes up to 3 minutes longer/);
 }
 
 console.log("progress-update: ok");

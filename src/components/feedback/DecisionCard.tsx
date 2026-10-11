@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { RECOMMEND, type Recommendation } from "@/lib/feedback/recommend";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import { FeedbackItemRow } from "@/components/feedback/FeedbackItemRow";
@@ -12,6 +12,7 @@ import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { compactRelativeDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { decisionFacts } from "@/lib/feedback/decision-facts";
+import { NOTE_NONE } from "@/lib/feedback/fix-note";
 
 /**
  * One decision Loki has already made, waiting for a yes.
@@ -74,6 +75,42 @@ export function DecisionCard({
           <>
             <dt className="ui-fb-decision-fact-label">Helps</dt>
             <dd className="ui-fb-decision-fact">{facts.helps}</dd>
+          </>
+        )}
+        {facts.us && (
+          <>
+            <dt className="ui-fb-decision-fact-label">For us</dt>
+            <dd className="ui-fb-decision-fact">{facts.us}</dd>
+          </>
+        )}
+        {facts.noTradeoffs ? (
+          <>
+            <dt className="ui-fb-decision-fact-label">Downsides</dt>
+            <dd className="ui-fb-decision-fact-none">
+              <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              None — no downsides, no extra cost
+            </dd>
+          </>
+        ) : (
+          <>
+            {facts.downsides && (
+              <>
+                <dt className="ui-fb-decision-fact-label">Downsides</dt>
+                <TradeoffValue value={facts.downsides} />
+              </>
+            )}
+            {facts.costs && (
+              <>
+                <dt className="ui-fb-decision-fact-label">Costs</dt>
+                <TradeoffValue value={facts.costs} />
+              </>
+            )}
+          </>
+        )}
+        {facts.notStated.length > 0 && (
+          <>
+            <dt className="ui-fb-decision-fact-label">Not stated</dt>
+            <dd className="ui-fb-decision-fact-quiet">{facts.notStated.join(", ")}</dd>
           </>
         )}
         {facts.proof && (
@@ -188,4 +225,16 @@ function kindWord(rec: Recommendation): string {
     case RECOMMEND.LOOK:
       return "Look";
   }
+}
+
+/** A downside or cost: the developer's words, or a clear "None". */
+function TradeoffValue({ value }: { value: string }) {
+  if (value === NOTE_NONE)
+    return (
+      <dd className="ui-fb-decision-fact-none">
+        <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        None
+      </dd>
+    );
+  return <dd className="ui-fb-decision-fact">{value}</dd>;
 }

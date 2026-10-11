@@ -1,7 +1,8 @@
-import { ExternalLink, Play } from "lucide-react";
+import { Check, ExternalLink, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  HELPS_MISSING,
+  NOT_STATED,
+  isNone,
   UPDATE_SECTIONS,
   UPDATE_STAGE_LABEL,
   type ProgressUpdate,
@@ -53,13 +54,23 @@ export function ProgressUpdateCard({ update }: { update: ProgressUpdate }) {
               </section>
             ) : null;
           const value = update[s.key];
-          const missing = !value && s.key === "helps" && update.helpsMissing;
+          const missing = !value && (update.missing as string[]).includes(s.key);
           return [
             alternatives,
             missing ? (
               <section key={s.key}>
                 <h4 className="ui-loki-update-label">{s.label}</h4>
-                <p className="ui-loki-update-missing">{HELPS_MISSING}</p>
+                <p className="ui-loki-update-missing">{NOT_STATED}</p>
+              </section>
+            ) : value && isNone(value) ? (
+              // Said out loud: "no downsides" is a finding, and a blank would
+              // read the same as "nobody looked".
+              <section key={s.key}>
+                <h4 className="ui-loki-update-label">{s.label}</h4>
+                <p className="ui-loki-update-none">
+                  <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  None
+                </p>
               </section>
             ) : value ? (
               <section key={s.key}>

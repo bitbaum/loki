@@ -85,4 +85,38 @@ const note = {
   assert.equal(f.proof, "0 skipped batches last night.");
 }
 
+// Downsides and costs: "None" on both is one clear line; gaps are named.
+{
+  const done = {
+    didLine: null,
+    ship: {
+      state: "deployed",
+      checkedAt: "",
+      pr: {
+        number: 1,
+        url: "u",
+        title: "t",
+        note: { ...note, us: "Fewer emails.", downsides: "None", costs: "None" },
+      },
+    } as never,
+  };
+  const f = decisionFacts({ suggestion: "x", work: done });
+  assert.ok(f.noTradeoffs, "no downsides and no costs, said as one line");
+  assert.equal(f.us, "Fewer emails.");
+  assert.deepEqual(f.notStated, []);
+
+  const silent = decisionFacts({ suggestion: "x", work: { didLine: "Added it.", ship: null } });
+  assert.deepEqual(silent.notStated, [
+    "how it helps users",
+    "how it benefits us",
+    "downsides",
+    "costs",
+  ]);
+  assert.deepEqual(
+    decisionFacts({ suggestion: "x", work: null }).notStated,
+    [],
+    "nothing done, nothing owed",
+  );
+}
+
 console.log("decision-facts: ok");

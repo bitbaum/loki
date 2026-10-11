@@ -1,4 +1,4 @@
-import type { FixNote } from "@/lib/feedback/fix-note";
+import { NOTE_NONE, type FixNote } from "@/lib/feedback/fix-note";
 
 /**
  * A progress update Loki posts into a chat thread — the way an engineering
@@ -64,9 +64,15 @@ export type ProgressUpdate = {
   /** How the change benefits the people who use the product. Every change
    *  owes this (the owner, 2026-10-11: "every change should benefit users"). */
   helps: string | null;
-  /** True when work was done but nobody said how it helps users — shown as
-   *  an honest gap, never papered over with a guess. */
-  helpsMissing: boolean;
+  /** How it benefits us — the people who run the product. */
+  us: string | null;
+  /** Risks and trade-offs. "None" when the developer checked and there are none. */
+  downsides: string | null;
+  /** Running and upkeep costs. "None" when there are none. */
+  costs: string | null;
+  /** What every change owes and this one did not say — shown as an honest
+   *  gap, never papered over with a guess. */
+  missing: OwedKey[];
   why: string | null;
   considered: { option: string; whyNot: string | null }[];
   next: string | null;
@@ -134,7 +140,17 @@ function headlineFor(input: ProgressUpdateInput): string {
   }
 }
 
-/** Stages where work was actually done, so "how it helps" is owed. */
+/**
+ * What every change must state, whatever it is: how it helps the people using
+ * the product, how it benefits us, its downsides and its costs. The owner,
+ * 2026-10-11: "every change should benefit users … potential downsides are
+ * important and how it benefits us is important … if there are no downsides
+ * and no costs, that should be very clearly shown."
+ */
+export const OWED = ["helps", "us", "downsides", "costs"] as const;
+export type OwedKey = (typeof OWED)[number];
+
+/** Stages where work was actually done, so the owed sections are owed. */
 const DID_WORK: ReadonlySet<UpdateStage> = new Set([
   UPDATE_STAGE.READY,
   UPDATE_STAGE.PUSHED,
@@ -145,7 +161,12 @@ const DID_WORK: ReadonlySet<UpdateStage> = new Set([
 export function buildProgressUpdate(input: ProgressUpdateInput): ProgressUpdate {
   const note = input.note ?? null;
   const summaryNext = tidy(input.summaryNext);
-  const helps = tidy(note?.helps);
+  const owed = {
+    helps: tidy(note?.helps),
+    us: tidy(note?.us),
+    downsides: tidy(note?.downsides),
+    costs: tidy(note?.costs),
+  };
   return {
     v: 1,
     stage: input.stage,
@@ -155,8 +176,8 @@ export function buildProgressUpdate(input: ProgressUpdateInput): ProgressUpdate 
     problem: tidy(note?.problem),
     done: tidy(note?.change ?? input.didLine),
     detail: tidy(note?.detail),
-    helps,
-    helpsMissing: !helps && DID_WORK.has(input.stage),
+    ...owed,
+    missing: DID_WORK.has(input.stage) ? OWED.filter((k) => !owed[k]) : [],
     why: tidy(note?.why),
     considered: (note?.considered ?? []).map((c) => ({
       option: tidy(c.option, 200) ?? "",
@@ -177,14 +198,18 @@ export const UPDATE_SECTIONS = [
   { key: "done", label: "What was done" },
   { key: "detail", label: "Under the hood" },
   { key: "helps", label: "How it helps users" },
+  { key: "us", label: "How it benefits us" },
+  { key: "downsides", label: "Downsides" },
+  { key: "costs", label: "Costs" },
   { key: "why", label: "Why this way" },
   { key: "next", label: "What could come next" },
   { key: "checks", label: "Proof it works" },
 ] as const;
 
-/** Said when work was done but nobody said what it does for people. */
-export const HELPS_MISSING =
-  "Not stated by the developer — worth asking what this changes for the people using it.";
+/** Said for an owed section the developer left out. */
+export const NOT_STATED = "Not stated by the developer — worth asking.";
+/** An owed section the developer answered with "none". */
+export const isNone = (v: string | null): boolean => v === NOTE_NONE;
 
 /** The plain-text rendering stored in `content`: readable on its own, in the
  *  same order as the card, links as real markdown links. */
@@ -199,9 +224,9 @@ export function progressUpdateText(u: ProgressUpdate): string {
       );
     }
     const value = u[s.key];
-    if (value) lines.push("", `**${s.label}:** ${value}`);
-    else if (s.key === "helps" && u.helpsMissing)
-      lines.push("", `**${s.label}:** ${HELPS_MISSING}`);
+    if (value) lines.push("", `**${s.label}:** ${isNone(value) ? "None ✓" : value}`);
+    else if ((u.missing as string[]).includes(s.key))
+      lines.push("", `**${s.label}:** ${NOT_STATED}`);
   }
   if (u.links.length) lines.push("", u.links.map((l) => `[${l.label}](${l.href})`).join(" · "));
   return lines.join("\n");
@@ -223,7 +248,12 @@ export function readProgressUpdate(meta: unknown): ProgressUpdate | null {
     done: typeof u.done === "string" ? u.done : null,
     detail: typeof u.detail === "string" ? u.detail : null,
     helps: typeof u.helps === "string" ? u.helps : null,
-    helpsMissing: u.helpsMissing === true,
+    us: typeof u.us === "string" ? u.us : null,
+    downsides: typeof u.downsides === "string" ? u.downsides : null,
+    costs: typeof u.costs === "string" ? u.costs : null,
+    missing: Array.isArray(u.missing)
+      ? u.missing.filter((k): k is OwedKey => (OWED as readonly string[]).includes(k))
+      : [],
     behindTheScenes: u.behindTheScenes === true,
     why: typeof u.why === "string" ? u.why : null,
     considered: Array.isArray(u.considered)

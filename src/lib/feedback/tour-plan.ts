@@ -1,5 +1,5 @@
 import type { TourBeat, TourOutlineItem, TourStep } from "../../../widget/tour";
-import type { FixNote } from "./fix-note";
+import { NOTE_NONE, type FixNote } from "./fix-note";
 import type { TourAudience } from "./tour-token";
 
 /**
@@ -181,6 +181,8 @@ export const TOUR_CHAPTER = {
   CONSIDERED: "Also considered",
   HELPS: "How it helps users",
   UNDER_HOOD: "Under the hood",
+  FOR_US: "How it benefits us",
+  TRADEOFFS: "Downsides & costs",
   PROOF: "Proof it works",
   NEXT: "What could come next",
   FOR_YOU: "What changed for you",
@@ -269,6 +271,9 @@ export function buildTourBeats(story: TourStory): TourBeat[] {
   // Every change owes the people using the product a reason: said straight
   // after what changed, before the argument for how.
   if (note?.helps) beats.push({ chapter: TOUR_CHAPTER.HELPS, action: "say", say: note.helps });
+  if (note?.us) beats.push({ chapter: TOUR_CHAPTER.FOR_US, action: "say", say: note.us });
+  const tradeoffs = tradeoffLine(note);
+  if (tradeoffs) beats.push({ chapter: TOUR_CHAPTER.TRADEOFFS, action: "say", say: tradeoffs });
   if (note?.proof) beats.push({ chapter: TOUR_CHAPTER.PROOF, action: "say", say: note.proof });
   if (note?.why) beats.push({ chapter: TOUR_CHAPTER.WHY, action: "say", say: note.why });
   for (const alt of note?.considered ?? []) {
@@ -280,6 +285,23 @@ export function buildTourBeats(story: TourStory): TourBeat[] {
   }
   if (note?.next) beats.push({ chapter: TOUR_CHAPTER.NEXT, action: "say", say: note.next });
   return beats;
+}
+
+/**
+ * Downsides and costs in one sentence. "None" is said out loud — the owner
+ * asked that no downsides and no costs be "very clearly shown" (2026-10-11),
+ * and silence reads the same as nobody having looked.
+ */
+function tradeoffLine(note: FixNote | null): string | null {
+  if (!note || (!note.downsides && !note.costs)) return null;
+  const none = (v: string | null) => v === NOTE_NONE;
+  if (none(note.downsides) && none(note.costs))
+    return "None — no downsides and no extra cost. The developer checked.";
+  const parts = [
+    note.downsides && (none(note.downsides) ? "No downsides." : `Downside: ${note.downsides}`),
+    note.costs && (none(note.costs) ? "No extra cost." : `Cost: ${note.costs}`),
+  ].filter((p): p is string => !!p);
+  return parts.join(" ");
 }
 
 /**

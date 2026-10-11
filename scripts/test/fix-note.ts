@@ -8,6 +8,7 @@ import {
   parseFixNote,
   tidyFixNote,
   FIX_NOTE_HEADING,
+  NOTE_NONE,
 } from "../../src/lib/feedback/fix-note";
 import { deriveShippingFromPr } from "../../src/lib/feedback/fix-shipping";
 
@@ -199,6 +200,29 @@ assert.equal(parseFixNote(`## ${FIX_NOTE_HEADING}\n- Problem: <what was actually
   const tidy = tidyFixNote(old);
   assert.equal(tidy.shows, null);
   assert.equal(tidy.detail, null);
+}
+
+// ---- downsides, costs, benefit to us: "none" is a finding, said as "None" ----
+{
+  const note = parseFixNote(
+    [
+      "## Walkthrough",
+      "- Change: c",
+      "- Benefits us: Fewer support emails.",
+      "- Downsides: none",
+      "- Costs: No extra cost.",
+    ].join("\n"),
+  );
+  assert.equal(note?.us, "Fewer support emails.");
+  assert.equal(note?.downsides, NOTE_NONE);
+  assert.equal(note?.costs, NOTE_NONE);
+  const real = parseFixNote(
+    "## Walkthrough\n- Change: c\n- Downsides: No caching, so the page is 40ms slower.\n- Costs: about $2/month more in AI calls",
+  );
+  assert.match(real?.downsides ?? "", /40ms slower/, "a real downside starting with 'No' is kept");
+  assert.match(real?.costs ?? "", /\$2\/month/);
+  assert.match(fixNoteInstruction(), /state its downsides and costs/);
+  assert.match(fixNoteInstruction(), /how it benefits us/);
 }
 
 // ---- the instruction asks for the benefit on every change ----

@@ -5143,7 +5143,7 @@
      report, the work and the model's finding running together as one
      paragraph (the owner, 2026-10-11: "big strings that is hard to read"). */
   .ui-fb-decision-facts {
-    @apply grid grid-cols-[4.75rem_1fr] gap-x-3 gap-y-1.5 text-sm leading-snug;
+    @apply grid grid-cols-[5.75rem_1fr] gap-x-3 gap-y-1.5 text-sm leading-snug;
   }
   .ui-fb-decision-fact-label {
     @apply pt-px text-xs font-medium uppercase tracking-caps text-text-tertiary;
@@ -5153,6 +5153,10 @@
   }
   .ui-fb-decision-fact-quote {
     @apply min-w-0 text-text-secondary italic;
+  }
+  /* "None" for downsides/costs: a finding, shown plainly and positively. */
+  .ui-fb-decision-fact-none {
+    @apply inline-flex min-w-0 items-center gap-1.5 font-medium text-status-positive;
   }
   .ui-fb-decision-fact-quiet {
     @apply line-clamp-3 min-w-0 text-text-tertiary;
@@ -7415,6 +7419,11 @@
   /* "Nobody said how this helps users" — a visible gap, not a guess. */
   .ui-loki-update-missing {
     @apply mt-0.5 text-sm leading-relaxed text-text-tertiary italic;
+  }
+  /* An owed section answered "none" — downsides, costs: shown plainly, in the
+     positive tone, so "there are none" never looks like "nobody said". */
+  .ui-loki-update-none {
+    @apply mt-0.5 inline-flex items-center gap-1.5 text-sm font-medium text-status-positive;
   }
   .ui-loki-update-asked {
     @apply mt-0.5 border-l-2 border-border-default pl-3 text-sm leading-relaxed text-text-secondary italic;

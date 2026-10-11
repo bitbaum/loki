@@ -1,4 +1,4 @@
-import { tidyFixNote } from "@/lib/feedback/fix-note";
+import { NOTE_NONE, tidyFixNote } from "@/lib/feedback/fix-note";
 import type { FeedbackWorkView } from "@/lib/feedback/work-phase";
 
 /**
@@ -23,6 +23,15 @@ export type DecisionFacts = {
   proof: string | null;
   next: string | null;
   behindTheScenes: boolean;
+  /** How it benefits us, the people who run the product. */
+  us: string | null;
+  /** NOTE_NONE when the developer checked and there are none. */
+  downsides: string | null;
+  costs: string | null;
+  /** No downsides AND no extra cost — said as one clear line. */
+  noTradeoffs: boolean;
+  /** What a done change owed and did not say, in words for the card. */
+  notStated: string[];
 };
 
 const cut = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
@@ -46,5 +55,19 @@ export function decisionFacts(item: {
     proof: behind && note?.proof ? cut(note.proof, 200) : null,
     next: note?.next ? cut(note.next, 220) : null,
     behindTheScenes: behind,
+    us: note?.us ? cut(note.us, 200) : null,
+    downsides: note?.downsides ? cut(note.downsides, 200) : null,
+    costs: note?.costs ? cut(note.costs, 200) : null,
+    noTradeoffs: note?.downsides === NOTE_NONE && note?.costs === NOTE_NONE,
+    // Only once something was done — a report nobody has worked on owes
+    // nothing yet.
+    notStated: done
+      ? [
+          !note?.helps && "how it helps users",
+          !note?.us && "how it benefits us",
+          !note?.downsides && "downsides",
+          !note?.costs && "costs",
+        ].filter((w): w is string => !!w)
+      : [],
   };
 }
