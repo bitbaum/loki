@@ -25,6 +25,13 @@ export const conversations = pgTable(
      *  person renames it: `updates:<projectKey>` is a project's progress
      *  channel (lib/loki/updates-thread.ts). NULL for ordinary threads. */
     channel: text("channel"),
+    /** When the person last had this thread open. Anything an assistant
+     *  wrote after it — an answer, a run's outcome, a question — is news,
+     *  and the rail says so (lib/loki/thread-state.ts). */
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }),
+    /** Pinned threads stay at the top of the rail: the few being juggled
+     *  today, chosen by the person, not guessed from recency. */
+    pinnedAt: timestamp("pinned_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
