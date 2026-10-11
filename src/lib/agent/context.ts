@@ -25,6 +25,7 @@ import { type Directive } from "@bitbaum/ai-kit/grounding";
 import { buildLokiContext } from "@/lib/agent/grounded-context";
 import {
   alertFacts,
+  buildSuggestionFacts,
   captureFacts,
   commitmentFacts,
   crewFacts,
@@ -108,6 +109,8 @@ async function fetchSource(
       return documentFacts(userId, message, limit);
     case "economy":
       return economyFacts(message, limit);
+    case "builds":
+      return buildSuggestionFacts(userId, limit);
     case "projects":
       // The message is passed so a project the operator NAMED is ranked to the
       // front before either slice. Without it the two slices below are a

@@ -6,6 +6,23 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-11 — Loki suggests what to build next, from your own work
+
+- **"Build next" on the Loki start screen.** Under "What are we working on?"
+  there is now a row of things you could build, picked from your own records:
+  visitor reports nobody has fixed, a project with code but no live site, the
+  next step your last session left, a goal stuck at zero, an idea from your
+  sticky notes, and needs people have posted on OrangeCat (the ones closest to
+  what you already build come first). Each one names why it is there.
+- **One tap starts the work.** Tapping a suggestion for one of your projects
+  sends it to an agent on that project. A new idea opens the new-project form
+  already filled in, which leads straight into a kickoff. "Other ideas" shows
+  the next set. With nothing set up yet, you get first builds that each end in
+  something live: your own site, a page for your offer, a booking page.
+- **Loki pushes to get it built.** Ask "what should I build?" and Loki answers
+  from the same list, recommends one thing and why, scopes the smallest first
+  version, and ends with the exact line that starts it.
+
 ## 2026-10-11 — Every new site starts as the same complete app
 
 - **New sites start with accounts, three languages and strict security.**

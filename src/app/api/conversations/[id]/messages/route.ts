@@ -338,9 +338,11 @@ const createProjectTurn: TurnHandler = async (ctx) => {
       conversationId: ctx.conversationId,
       existing: ctx.existing,
       projectKey: projectName,
-      prompt: "Continue from our discussion and implement the plan we agreed.",
+      prompt: createReq.task
+        ? `Build the first version of this new project: ${createReq.task}. Put it live and report the URL.`
+        : "Continue from our discussion and implement the plan we agreed.",
       sourceText: ctx.text,
-      intentId: "next_best",
+      intentId: createReq.task ? null : "next_best",
       attachmentSuffix: ctx.attachmentSuffix,
       agent: ctx.agent,
       model: ctx.model,

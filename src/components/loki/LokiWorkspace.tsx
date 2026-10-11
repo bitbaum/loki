@@ -71,6 +71,18 @@ type SendOpts = {
   pool?: "free";
 };
 
+/**
+ * A "Build next" suggestion that names a project goes to it (and dispatches).
+ * One that names none — a goal, a deadline, a need on OrangeCat — is answered
+ * by Loki, who scopes it and hands back the line that starts it. Never scoped
+ * by whatever the project filter holds, and never a "which project?" picker
+ * for a question nobody asked about a project.
+ */
+const suggestionScope = (project: string | null): SendOpts =>
+  project
+    ? { selectedProjectsOverride: [project] }
+    : { selectedProjectsOverride: [], chatOnly: true };
+
 export function LokiWorkspace({
   initialProjects,
   initialConversations,
@@ -555,6 +567,7 @@ export function LokiWorkspace({
           loading={convosLoading}
           onResume={(id) => setActiveId(id)}
           onBrowseAll={() => (wide ? setHistoryPinned(true) : setHistoryOpen(true))}
+          onBuild={(prompt, project) => void send(prompt, {}, [], suggestionScope(project))}
         />
       )}
 

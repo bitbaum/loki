@@ -20,17 +20,26 @@ export const metadata = { title: "Projects" };
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ new?: string; name?: string; open?: string; project?: string }>;
+  searchParams: Promise<{
+    new?: string;
+    name?: string;
+    description?: string;
+    open?: string;
+    project?: string;
+  }>;
 }) {
   const userId = await requirePageUserId();
   // Deep link from OrangeCat (and anywhere else): /projects?new=1&name=<prefill>
-  // opens the create dialog immediately, optionally prefilled.
+  // opens the create dialog immediately, optionally prefilled. `description`
+  // carries what a "Build next" suggestion on /loki already knows about it.
   const params = await searchParams;
   // Canonicalize the retired drawer links. Browser history now records one real
   // project page instead of a list URL whose meaning depended on client state.
   if (params.open && isValidUuid(params.open)) redirect(`/projects/${params.open}`);
   const autoOpenCreate = params.new === "1";
   const prefillName = typeof params.name === "string" ? params.name : undefined;
+  const prefillDescription =
+    typeof params.description === "string" ? params.description.slice(0, 500) : undefined;
   const [ownProjects, orgProjects, lastDispatchByProject, feedbackSummary] = await Promise.all([
     getProjects(userId),
     getOrgEntityProjects(userId),
@@ -65,7 +74,13 @@ export default async function ProjectsPage({
         // that hides it just feels arbitrary.
         subtitle="Every project you run — flagged first, then by most recent agent run."
         maxWidth="max-w-5xl"
-        right={<NewProjectButton autoOpen={autoOpenCreate} initialName={prefillName} />}
+        right={
+          <NewProjectButton
+            autoOpen={autoOpenCreate}
+            initialName={prefillName}
+            initialDescription={prefillDescription}
+          />
+        }
       >
         <Suspense fallback={<CardSkeleton />}>
           <ProjectsWorkspace

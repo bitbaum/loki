@@ -270,6 +270,7 @@ async function main() {
       ask_openclaw: "external",
       list_crew: "crew",
       list_human_tasks: "human_tasks",
+      suggest_builds: "builds",
     };
 
     check("every READ tool has a seed source — no tool-only data", () => {
@@ -304,6 +305,7 @@ async function main() {
         "who is Elena",
         "why did we choose pgvector",
         "what could I build for someone",
+        "what should I build next",
         "list my projects",
         "what do we have, name the three pillars",
         "zxcvbnm",
