@@ -74,6 +74,13 @@ assert.deepEqual(parseWidgetSurfaceModes("nonsense"), ["report", "ask"]);
         building: true,
         claimUrl: "data:x",
       },
+      {
+        kind: "sent",
+        at: now - 790,
+        text: "The panel covers the keyboard",
+        owner: false,
+        toLoki: true,
+      },
       { kind: "you", at: now - THREAD_MAX_AGE_MS - 1, text: "from an earlier visit" },
       { kind: "you", at: now + 60_000, text: "from the future" },
       { kind: "you", at: now - 10, text: "   " },
@@ -83,7 +90,7 @@ assert.deepEqual(parseWidgetSurfaceModes("nonsense"), ["report", "ask"]);
     ],
     now,
   );
-  assert.equal(restored.length, 3, `only valid, fresh items survive (${JSON.stringify(restored)})`);
+  assert.equal(restored.length, 4, `only valid, fresh items survive (${JSON.stringify(restored)})`);
   const loki = restored[1] as Extract<ThreadItem, { kind: "loki" }>;
   assert.equal(loki.speaker, "cat");
   assert.equal(loki.changes?.length, 2, "non-string changes dropped");
@@ -96,6 +103,8 @@ assert.deepEqual(parseWidgetSurfaceModes("nonsense"), ["report", "ask"]);
   const sent = restored[2] as Extract<ThreadItem, { kind: "sent" }>;
   assert.equal(sent.claimUrl, undefined, "a non-http claim link is dropped");
   assert.equal(sent.building, true);
+  const toLoki = restored[3] as Extract<ThreadItem, { kind: "sent" }>;
+  assert.equal(toLoki.toLoki, true, "a note about Loki itself is remembered as such");
   assert.deepEqual(restoreThread("not an array", now), []);
 }
 

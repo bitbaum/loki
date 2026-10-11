@@ -4,10 +4,12 @@ import { db } from "@/db";
 import { promptHistory } from "@/db/schema/prompt-history";
 import { getSessionUserId } from "@/lib/session";
 import { readIdParam } from "@/lib/api/route-helpers";
+import { isValidUuid } from "@/lib/utils";
 import { getProjectAutopilotOverride, getProjectCore } from "@/db/queries/projects";
 import { getBeaconSettings } from "@/db/queries/beacon-settings";
 import {
   getLatestRunForProjectKey,
+  getOrchestrationRunById,
   getProjectOrchestrationRuns,
 } from "@/db/queries/orchestration-runs";
 import { listRunEventsForRun } from "@/db/queries/run-events";
@@ -26,8 +28,11 @@ import { providerLabel } from "@/config/quota-alternatives";
  * thread (lib/project-watch), plus the phase line and where to go next. The
  * same hydrate + work-phase as Terminal's rail and Feedback's Watch, so every
  * surface gives one answer about the same run.
+ *
+ * `?run=<id>` pins one run of THIS project — the widget's "Follow the build"
+ * for one change must keep showing that change, not whatever ran last.
  */
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const idOrResp = await readIdParam(params);
@@ -37,7 +42,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const kickoff = getServerKickoff(userId, idOrResp);
+  const pinnedId = req.nextUrl.searchParams.get("run");
+  const pinned =
+    pinnedId && isValidUuid(pinnedId) ? await getOrchestrationRunById(userId, pinnedId) : null;
   const run =
+    (pinned && pinned.projectId === idOrResp ? pinned : null) ??
     (await getProjectOrchestrationRuns(userId, idOrResp, 1))[0] ??
     (await getLatestRunForProjectKey(userId, project.name)) ??
     null;

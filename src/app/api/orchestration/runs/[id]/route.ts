@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getOrchestrationRunById } from "@/db/queries/orchestration-runs";
 import { deriveDispatchLiveStatus } from "@/lib/dispatch-status";
 import { getApiUserId } from "@/lib/session";
+import { runHandoff } from "@/lib/run-handoff";
+import { followRun } from "@/lib/run-follow";
 
 // GET /api/orchestration/runs/:id - live status for direct Loki dispatches.
 // The run query is user-scoped so a guessed UUID cannot expose another
@@ -24,5 +26,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       payload: run.payload ? { error: run.payload.error } : null,
     },
   });
-  return NextResponse.json(view, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(
+    {
+      ...view,
+      handoff: runHandoff(run.finishedAt ? run.summary : null),
+      follow: view.terminal ? await followRun(userId, run).catch(() => null) : null,
+    },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }

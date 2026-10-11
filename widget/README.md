@@ -116,6 +116,41 @@ visitors without the pass get no pill and no recording.
 Code: `widget/watch.ts` (page), `widget/watch-trail.ts` (pure, tested);
 proven in a browser by `scripts/test/widget-watch-browser.ts`.
 
+## The widget on itself
+
+The widget is part of Loki, so what is wrong with the WIDGET goes to Loki,
+not to the site. Two ways:
+
+- **About: Loki itself** — a fourth chip in the composer. "This panel covers
+  my keyboard" (with a screenshot, if you like) goes to Loki's own project —
+  the one `FEEDBACK_WIDGET_TOKEN` belongs to, where the dogfood widget and a
+  thumbs-down on a Loki answer already land — never to whoever builds the site.
+- **Self-watch** (owner, while watching): the widget's own errors, its own
+  calls to Loki failing or taking more than 20s, and a panel that does not fit
+  the screen it opened on are filed there automatically, once per kind per
+  tab, and said in the conversation in one line ("About me, not this page…")
+  so the owner knows it went somewhere. Only the owner's browser speaks
+  unasked — a visitor never agreed to that. A 4xx from Loki is Loki answering
+  on purpose and is not a defect.
+
+**Loki improving Loki.** When the person is Loki's *own* owner — using Loki's
+widget on one of their sites — a note about the widget, a crash, or a panel
+that did not fit starts a fix on the spot, the same way an owner's note on
+their own site does ("the owner's word is the decision"): one agent builds it
+into Loki, the PR merges and deploys itself, and the receipt in the thread
+says "On it" with *Follow the build →*. A slow or failed call to Loki only
+files (it may be the network's bad minute); its duplicate count is the signal.
+Anyone else's report waits in Loki's inbox for that owner to start.
+
+Code: `widget/self-watch.ts` (what counts), `widget/self-report.ts` (the
+POST), `src/lib/widget/self-report.ts` + `src/app/api/widget/self-report/route.ts`
+(the words and the row). `scripts/test/widget-self-report.ts` holds both sides
+to the same caps.
+
+The owner's top bar also steps aside while the site has a modal open (a
+`<dialog>` shown modally, or `aria-modal`): it used to sit on top of the
+sheet's own title.
+
 ## "Watch the fix" — the walkthrough
 
 When a fix has shipped, Loki's feedback row offers **Watch the fix**. It opens

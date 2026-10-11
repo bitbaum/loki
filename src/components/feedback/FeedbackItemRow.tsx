@@ -11,6 +11,7 @@ import type { FeedbackListItem } from "@/db/queries/site-feedback";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import { FeedbackReportText } from "@/components/feedback/FeedbackReportText";
 import { WatchFixButton } from "@/components/feedback/WatchFixButton";
+import { LookedPicture } from "@/components/feedback/LookedPicture";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import { fleetSurfaceHref, withTerminalView } from "@/lib/fleet-context";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
@@ -429,8 +430,16 @@ function RowDetails({
   work: ReturnType<typeof deriveFeedbackWork>;
 }) {
   const pr = work.ship?.pr ?? null;
+  const looked = work.ship?.verify ?? null;
   const items: React.ReactNode[] = [];
   if (work.didLine) items.push(<li key="did">The agent said: “{work.didLine}”</li>);
+  if (looked)
+    items.push(
+      <li key="looked">
+        Loki {looked.via === "picture" ? "looked at a picture of" : "read"} the live page{" "}
+        {compactRelativeDate(looked.at)}: {looked.evidence}
+      </li>,
+    );
   if (pr)
     items.push(
       <li key="pr">
@@ -458,6 +467,7 @@ function RowDetails({
     <details className="ui-fb-row-details">
       <summary>Details</summary>
       {items.length > 0 && <ul>{items}</ul>}
+      {looked?.picture && <LookedPicture feedbackId={f.id} verify={looked} />}
       {f.hasScreenshots && <ScreenshotsThumbnails feedbackId={f.id} />}
     </details>
   );

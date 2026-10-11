@@ -69,6 +69,11 @@ export type RecommendInput = {
 
 const DAY_MS = 86_400_000;
 const pageWord = (page: string | null) => (page && page !== "/" ? page : "the home page");
+/** "Loki read /pricing" when text settled it; "Loki looked at a picture of /pricing" when a picture did. */
+const lookedWord = (look: { via?: "text" | "picture" } | null, page: string | null) =>
+  look?.via === "picture"
+    ? `Loki looked at a picture of ${pageWord(page)}`
+    : `Loki read ${pageWord(page)}`;
 
 /** How old a report nobody touched may get before filing it away is the right call. */
 export function staleAfterDays(source: string | null): number {
@@ -175,11 +180,12 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
           const look = fix.verify ?? null;
           // Loki read the page. Its verdict is the recommendation; the
           // evidence is the reason, so the owner can disagree from the card.
+          const checked = lookedWord(look, input.page);
           if (look?.verdict === "looks_fixed")
             return {
               kind: RECOMMEND.CONFIRM,
               label: "Close it",
-              why: `Loki checked ${pageWord(input.page)}: ${look.evidence}`,
+              why: `${checked}: ${look.evidence}`,
               runs: 0,
               priority: 70,
             };
@@ -187,7 +193,7 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
             return {
               kind: RECOMMEND.RETRY,
               label: "Try again",
-              why: `Loki checked ${pageWord(input.page)} and could not find the change: ${look.evidence}`,
+              why: `${checked} and could not find the change: ${look.evidence}`,
               runs: 1,
               priority: 36,
             };

@@ -38,6 +38,7 @@ import {
 import { createLauncher } from "./launcher";
 import { createPicker } from "./picker";
 import { startWatchMode, type WatchSession } from "./watch";
+import { installSelfWatch } from "./self-watch";
 import { askAdvisor, READ_QUESTION } from "./loki-api";
 import { createConversation } from "./conversation";
 import { createChanges } from "./changes";
@@ -253,6 +254,9 @@ interface LokiApi {
       launcher.reposition();
     };
 
+    // The widget watching ITSELF (self-watch.ts) — the owner's, like Watch.
+    let selfWatch: ReturnType<typeof installSelfWatch> | null = null;
+
     // ---- panel (built once, shown on demand) ----
     const backdrop = h("div", "backdrop");
     backdrop.addEventListener("click", closePanel);
@@ -409,6 +413,11 @@ interface LokiApi {
       conversation.refresh(true);
       document.addEventListener("keydown", onKeydown, true);
       conversation.focus();
+      // Measured once it has laid out: a panel too wide for this phone is
+      // Loki's bug, and Loki should hear about it from here.
+      setTimeout(() => {
+        if (panel.isConnected) selfWatch?.checkPanel(panel);
+      }, 400);
     }
 
     function closePanel() {
@@ -453,8 +462,17 @@ interface LokiApi {
     // the launcher. The top bar appears only when neither can be seen.
     const watchOpts = { root, host, theme, token, apiBase, pass: () => ownerPass };
     if (ownerPass)
+      selfWatch = installSelfWatch({
+        apiBase,
+        token,
+        pass: () => ownerPass,
+        active: () => watchSession?.on() ?? false,
+        onFinding: (say) => conversation.selfNote(say),
+      });
+    if (ownerPass)
       watchSession = startWatchMode({
         ...watchOpts,
+        onOwnRequest: (method, url, status, ms) => selfWatch?.ownRequest(method, url, status, ms),
         onShow: () => {
           if (!panel.isConnected) openPanel();
         },

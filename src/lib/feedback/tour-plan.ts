@@ -180,6 +180,7 @@ export const TOUR_CHAPTER = {
   WHY: "Why this way",
   CONSIDERED: "Also considered",
   HELPS: "Who it helps",
+  NEXT: "What could come next",
   FOR_YOU: "What changed for you",
 } as const;
 
@@ -260,6 +261,7 @@ export function buildTourBeats(story: TourStory): TourBeat[] {
     });
   }
   if (note?.helps) beats.push({ chapter: TOUR_CHAPTER.HELPS, action: "say", say: note.helps });
+  if (note?.next) beats.push({ chapter: TOUR_CHAPTER.NEXT, action: "say", say: note.next });
   return beats;
 }
 

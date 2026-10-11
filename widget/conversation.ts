@@ -18,6 +18,7 @@
  * site. Links come from the server's map and only http(s) become anchors.
  */
 import { h, spiralMark, keepInViewOnFocus } from "./dom";
+import { createAboutBar } from "./about-bar";
 import { answerLinks, richBody } from "./rich-text";
 import { suggestionBox } from "./suggestions";
 import type { Picker } from "./picker";
@@ -26,6 +27,7 @@ import { createVoiceControl } from "./voice-control";
 import { mergeTranscript } from "./voice";
 import { buildSuggestion, formatDiagnostics, type ReportDiagnostics } from "./report-payload";
 import { sendReport } from "./send-report";
+import { sendSelfReport } from "./self-report";
 import { knownLabel, type KnownFix } from "./known-fixes";
 import { askAdvisor, askConcierge, REVIEW_QUESTION, type Answer } from "./loki-api";
 import {
@@ -38,6 +40,7 @@ import {
 } from "./thread";
 import { createContinueRow } from "./continue-row";
 import { greetingFor, ownerDoor } from "./greeting";
+import { receiptLinkLabel, receiptText } from "./receipt";
 
 /** The ingest's cap on `suggestion` (api/feedback FeedbackBody). */
 export const MAX_LEN = 2000;
@@ -118,7 +121,6 @@ export function createConversation(opts: {
 }) {
   let thread = readThread(opts.token);
   let busy = false;
-  let scopeSite = false;
   let draftOpen: HTMLElement | null = null;
 
   const el = h("div", "convo");
@@ -127,34 +129,16 @@ export function createConversation(opts: {
   log.setAttribute("aria-live", "polite");
   const starters = h("div", "starters");
 
-  // ---- what the next message is about: this page, the whole site, or an
-  // element you point at — for a question to Loki and for feedback alike ----
-  const ctx = h("div", "ctxbar");
-  ctx.appendChild(h("span", "ctx-label", "About"));
-  const seg = h("div", "seg");
-  seg.setAttribute("role", "radiogroup");
-  seg.setAttribute("aria-label", "What this is about");
-  const pageBtn = h("button", "segbtn", "This page");
-  const siteBtn = h("button", "segbtn", "Whole site");
-  const pointBtn = h("button", "segbtn", "An element");
-  for (const b of [pageBtn, siteBtn, pointBtn]) {
-    b.type = "button";
-    b.setAttribute("role", "radio");
-    seg.appendChild(b);
-  }
-  pageBtn.addEventListener("click", () => {
-    opts.picker.clearSelection();
-    scopeSite = false;
-    syncContext();
+  // What the next message is about (about-bar.ts): the chips, and whether
+  // it is about the site at all or about Loki itself.
+  const ctx = createAboutBar({
+    picked: () => opts.picker.selected().length,
+    onPick: () => opts.picker.start(),
+    onChange: () => {
+      opts.picker.clearSelection();
+      syncContext();
+    },
   });
-  siteBtn.addEventListener("click", () => {
-    opts.picker.clearSelection();
-    scopeSite = true;
-    syncContext();
-  });
-  // Tapping it again while something is picked picks again (adds/changes).
-  pointBtn.addEventListener("click", () => opts.picker.start());
-  ctx.append(seg);
 
   const shots = h("div", "shots");
   const err = h("div", "err");
@@ -228,7 +212,7 @@ export function createConversation(opts: {
   // send it. "About" used to be its own bordered bar floating above a
   // free-standing textarea — two boxes for one sentence.
   const form = h("div", "composer");
-  form.append(ctx, input, shots, actions);
+  form.append(ctx.el, input, shots, actions);
 
   // The way out of the card and into Loki itself (continue-row.ts).
   const cont = createContinueRow({
@@ -239,33 +223,18 @@ export function createConversation(opts: {
   });
   el.append(log, starters, form, cont.el, err);
 
-  el.addEventListener("paste", (e: ClipboardEvent) => {
-    const images = Array.from(e.clipboardData?.items ?? []).filter((i) =>
-      i.type.startsWith("image/"),
-    );
-    if (!images.length) return;
-    e.preventDefault();
-    for (const item of images) void attachments.attach(item.getAsFile());
-  });
+  attachments.listenPaste(el);
 
   const owner = () => opts.ownerPass() !== null;
 
   function syncContext() {
-    const picked = opts.picker.selected().length;
-    const now = scope();
-    for (const [b, s] of [
-      [pageBtn, "page"],
-      [siteBtn, "site"],
-      [pointBtn, "element"],
-    ] as const) {
-      b.classList.toggle("on", now === s);
-      b.setAttribute("aria-checked", now === s ? "true" : "false");
-    }
-    pointBtn.textContent = picked ? `${picked} element${picked > 1 ? "s" : ""}` : "An element";
-    pointBtn.title = picked ? "Tap to pick again" : "Point at something on the page";
+    ctx.sync();
+    const now = ctx.about();
+    const loki = now === "loki";
     const a = opts.assistant();
-    input.placeholder =
-      now === "element"
+    input.placeholder = loki
+      ? "What should be better about this panel?"
+      : now === "element"
         ? "What about what you picked?"
         : owner()
           ? "Say what to change, or ask Loki…"
@@ -273,16 +242,16 @@ export function createConversation(opts: {
             ? "What should change?"
             : "What should change — or ask Loki anything…";
     // With no AI on this embed, feedback is the only way, so it leads.
-    feedbackBtn.textContent = owner() ? "Build it" : "Send as feedback";
-    feedbackBtn.className = a === "none" ? "go feedback" : "ghost feedback";
+    // About Loki itself there is no site to advise on and nothing to build
+    // here: one way, and it leads.
+    feedbackBtn.textContent = loki ? "Send to Loki" : owner() ? "Build it" : "Send as feedback";
+    feedbackBtn.className = a === "none" || loki ? "go feedback" : "ghost feedback";
     sendBtn.textContent = "Ask Loki";
-    sendBtn.style.display = a === "none" ? "none" : "";
+    sendBtn.style.display = a === "none" || loki ? "none" : "";
     cont.sync();
   }
 
-  function scope(): "element" | "page" | "site" {
-    return opts.picker.selected().length ? "element" : scopeSite ? "site" : "page";
-  }
+  const scope = ctx.scope;
 
   // ---- rendering ----
   function bubble(cls: string, who: string | null, text: string): HTMLElement {
@@ -366,21 +335,9 @@ export function createConversation(opts: {
         });
         log.appendChild(m);
       } else {
-        const m = bubble(
-          "bot sent from-loki",
-          "Loki",
-          item.owner
-            ? item.building
-              ? `On it — “${item.text}” is in Your changes above. One agent builds it; it goes live here by itself and Loki tells you.`
-              : `Saved “${item.text}”. ${item.note ?? "It waits in Loki under Feedback."}`
-            : `Sent to whoever builds this site: “${item.text}”. Thank you.`,
-        );
+        const m = bubble("bot sent from-loki", "Loki", receiptText(item));
         if (item.claimUrl) {
-          const t = h(
-            "a",
-            "track",
-            item.owner ? "Follow the build →" : "Track what happens next →",
-          );
+          const t = h("a", "track", receiptLinkLabel(item));
           t.href = item.claimUrl;
           t.target = "_blank";
           t.rel = "noopener noreferrer";
@@ -509,11 +466,43 @@ export function createConversation(opts: {
    * when they choose "Edit first".
    */
   function build(text: string, key?: string) {
+    if (ctx.about() === "loki" && !key) {
+      err.textContent = "";
+      toLoki(text).catch((e) => {
+        err.textContent = e instanceof Error ? e.message : "Could not send it to Loki — try again.";
+      });
+      return;
+    }
     if (!owner()) return openDraft(text);
     err.textContent = "";
     deliver(text, "", opts.watch()?.diagnostics() ?? null, key).catch((e) => {
       err.textContent = e instanceof Error ? e.message : "Could not start it — try again.";
     });
+  }
+
+  /** A note about the widget itself, to Loki's own project — no confirmation
+   *  card: there is no builder of this site to introduce yourself to. */
+  async function toLoki(body: string) {
+    const res = await sendSelfReport(opts.apiBase, {
+      token: opts.token,
+      kind: "note",
+      note: body,
+      ownerPass: opts.ownerPass() ?? undefined,
+      screenshots: attachments.shots(),
+    });
+    attachments.reset();
+    attachments.render();
+    remember({
+      kind: "sent",
+      at: Date.now(),
+      text: body.slice(0, 300),
+      owner: false,
+      toLoki: true,
+      ...(res.building ? { building: true } : {}),
+      ...(res.note ? { note: res.note } : {}),
+      ...(res.followUrl ? { claimUrl: res.followUrl } : {}),
+    });
+    render(true);
   }
 
   /** File the note; the receipt lands in the thread. Throws the server's words. */
@@ -657,6 +646,11 @@ export function createConversation(opts: {
         ...(remark.key ? { key: remark.key } : {}),
         ...(remark.again ? { again: true } : {}),
       });
+      render();
+    },
+    /** Loki on Loki (self-watch.ts) — quiet: never moves your reading place. */
+    selfNote: (text: string) => {
+      remember({ kind: "loki", at: Date.now(), speaker: "loki", text });
       render();
     },
     /** Loki says something unprompted (e.g. "this site is not yours"). */

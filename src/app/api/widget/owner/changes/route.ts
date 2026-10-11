@@ -7,7 +7,7 @@ import { getWidgetProjectKey, getWidgetTokenByToken } from "@/db/queries/widget-
 import { listProjectFeedback } from "@/db/queries/site-feedback";
 import { attachFeedbackWork } from "@/lib/feedback/attach-work";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
-import { createTourToken, tourSiteUrl } from "@/lib/feedback/tour-token";
+import { createTourToken, tourSiteUrl, watchFixPath } from "@/lib/feedback/tour-token";
 import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 import { appUrl } from "@/lib/email";
@@ -148,7 +148,9 @@ export async function POST(req: NextRequest) {
           : inbox
         : status.needsYou
           ? inbox
-          : null;
+          : item.dispatchedRunId
+            ? `${appUrl()}${watchFixPath(item.id)}`
+            : null;
       return {
         id: item.id,
         text: item.suggestion.slice(0, OWNER_CHANGE_TEXT_MAX),
@@ -165,7 +167,9 @@ export async function POST(req: NextRequest) {
             : "Open in Loki"
           : status.needsYou
             ? "Open in Loki"
-            : null,
+            : item.dispatchedRunId
+              ? "Watch it"
+              : null,
       };
     });
   return corsJson({ ok: true, owner: true, changes, known, inbox, visitors });

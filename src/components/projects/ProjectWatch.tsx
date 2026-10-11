@@ -71,9 +71,12 @@ const TAIL_MS = 6_000;
 export function ProjectWatch({
   projectId,
   profileHref,
+  runId,
 }: {
   projectId: string;
   profileHref: string;
+  /** One run to follow (the widget's "Follow the build"); default: the latest. */
+  runId?: string;
 }) {
   const [data, setData] = useState<WatchPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +90,9 @@ export function ProjectWatch({
   // Every setState lives in a promise callback, so effects can start a load.
   const load = useCallback(
     () =>
-      fetch(`/api/projects/${projectId}/watch`, { cache: "no-store" })
+      fetch(`/api/projects/${projectId}/watch${runId ? `?run=${encodeURIComponent(runId)}` : ""}`, {
+        cache: "no-store",
+      })
         .then(async (res) => {
           const body = (await res.json().catch(() => ({}))) as WatchPayload & { error?: string };
           if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -97,7 +102,7 @@ export function ProjectWatch({
         .catch((e: unknown) => {
           setError(e instanceof Error ? e.message : "Could not load the run");
         }),
-    [projectId],
+    [projectId, runId],
   );
 
   useEffect(() => {

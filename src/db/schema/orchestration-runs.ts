@@ -55,6 +55,10 @@ export type OrchestrationRunPayload = {
    *  (stampRunDelivered). The close paths use it as the handoff-freshness
    *  floor so a handoff from before delivery can never close this run. */
   deliveredAt?: string;
+  /** The picture Loki took of the live page to settle a shipped fix
+   *  (feedback/verify-live.ts) — a JPEG data URL, phone-sized. Kept here, not
+   *  in payload.fix, so the inbox list never carries the bytes. */
+  fixPicture?: string;
   /** Repo-side work evidence attached when the reaper corrects a timeout
    *  verdict (reap-evidence.ts). */
   evidence?: { kind: string; url: string; title: string; atMs: number };

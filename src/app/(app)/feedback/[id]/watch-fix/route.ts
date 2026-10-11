@@ -25,7 +25,10 @@ import { ownerStatusFor } from "@/lib/feedback/owner-view";
  * receipt carries this link the moment an agent starts, and this route used
  * to tour the unchanged page with "let me show you what changed" — the one
  * thing more confusing than no tour. While the change is still being built
- * the owner lands on the inbox row that says so.
+ * the owner lands on Watch it work for THAT run — the request, the agent's
+ * screen, its steps and its summary, as one thread — because "Follow the
+ * build" that opened an inbox row was a status, not a build to follow.
+ * No run yet (waiting, in line) still lands on the inbox row that says so.
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -48,6 +51,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const status = ownerStatusFor(
     deriveFeedbackWork(row.feedback.status, runToFeedbackSnapshot(run)),
   );
-  if (!status.live) return projectInbox;
+  if (!status.live) {
+    // Watch reads runs by the signed-in user, so only the owner can follow one.
+    if (run && userId === row.ownerUserId && run.projectId === row.feedback.projectId)
+      return NextResponse.redirect(
+        `${APP_URL}/projects/${encodeURIComponent(row.feedback.projectId)}/watch?run=${encodeURIComponent(run.id)}`,
+      );
+    return projectInbox;
+  }
   return NextResponse.redirect(tourSiteUrl(live, createTourToken(row.feedback.id)));
 }
