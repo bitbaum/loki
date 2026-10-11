@@ -47,6 +47,15 @@ import {
 const FETCH_TIMEOUT_MS = 10_000;
 type Answer = { verdict: FixVerdict; evidence: string };
 
+/** What the look is checking for: what was asked, what the agent said it did,
+ *  and (from a feedback report) what the reporter pointed at. */
+export type PageAsk = {
+  report: string;
+  didLine: string | null;
+  selector: string | null;
+  pointedAt: string | null;
+};
+
 async function readPage(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
@@ -64,14 +73,14 @@ async function readPage(url: string): Promise<string | null> {
 /** Look 1: the page as text. Null when the page or the model did not answer. */
 async function askText(
   userId: string,
-  item: FeedbackListItemWithWork,
+  ask: PageAsk,
   url: string,
 ): Promise<{ answer: Answer | null; read: boolean }> {
   const text = await readPage(url);
   if (!text) return { answer: null, read: false };
   try {
     const answered = await callTextDetailed(
-      verifyPrompt({ report: item.suggestion, didLine: item.work.didLine ?? null, text }),
+      verifyPrompt({ report: ask.report, didLine: ask.didLine, text }),
       {
         feature: "fix-verify",
         systemPrompt: verifySystemPrompt(),
@@ -95,14 +104,14 @@ async function askText(
  */
 async function askPicture(
   userId: string,
-  item: FeedbackListItemWithWork,
+  ask: PageAsk,
   url: string,
   /** False when the owner's AI budget (or the server's capacity) says no model
    *  call today: the picture is still taken — it costs nothing and the owner's
    *  eyes are the fallback — and only the asking is skipped. */
   mayAsk: boolean,
 ): Promise<{ answer: Answer | null; dataUrl: string | null; failed: string | null }> {
-  const shot = await takePagePicture(url, item.selectedElements?.[0]?.selector ?? null);
+  const shot = await takePagePicture(url, ask.selector);
   if (!shot.ok) {
     return {
       answer: null,
@@ -118,11 +127,7 @@ async function askPicture(
   try {
     const seen = await analyzeImages({
       systemPrompt: pictureSystemPrompt(),
-      prompt: picturePrompt({
-        report: item.suggestion,
-        didLine: item.work.didLine ?? null,
-        pointedAt: pointedAtLine(item.selectedElements),
-      }),
+      prompt: picturePrompt({ report: ask.report, didLine: ask.didLine, pointedAt: ask.pointedAt }),
       images: [{ mimeType: shot.mimeType, dataBase64: shot.base64, name: "live page" }],
       maxTokens: 300,
       timeoutMs: HTTP_TIMEOUT_LONG_MS,
@@ -161,35 +166,14 @@ export async function verifyDeployedFixes<T extends FeedbackListItemWithWork>(
       const url = livePageHref(item.liveUrl, item.url, item.page);
       const fix = item.work.ship;
       if (!url || !fix || !item.dispatchedRunId) return;
-      const text = mayAsk ? await askText(userId, item, url) : { answer: null, read: true };
-      let answer = text.answer;
-      let via: FixVerify["via"] = VERIFY_VIA.TEXT;
-      let picture: string | null = null;
-      let pictureFailed: string | null = null;
-      if (wantsPicture(answer)) {
-        const looked = await askPicture(userId, item, url, mayAsk);
-        picture = looked.dataUrl;
-        pictureFailed = looked.failed;
-        if (looked.answer) {
-          answer = looked.answer;
-          via = VERIFY_VIA.PICTURE;
-        }
-      }
-      const kept = !!picture && picture.length <= PICTURE_MAX_CHARS;
-      const verify: FixVerify = {
-        verdict: answer?.verdict ?? FIX_VERDICT.CANNOT_TELL,
-        evidence: answer?.evidence || fallbackEvidence(text.read, pictureFailed, kept, mayAsk),
-        at: new Date().toISOString(),
-        url,
-        via,
-        picture: kept,
-      };
-      // The ledger is replaced whole, so start from the newest copy on the run.
       const run = runs.get(item.dispatchedRunId);
       const current = (run?.payload as { fix?: FixShipping } | null)?.fix ?? fix;
-      await stampRunFix(item.dispatchedRunId, userId, { ...current, verify }).catch(() => {});
-      if (kept && picture)
-        await mergeRunPayload(item.dispatchedRunId, { fixPicture: picture }).catch(() => {});
+      const verify = await lookAndRecord(userId, item.dispatchedRunId, current, url, mayAsk, {
+        report: item.suggestion,
+        didLine: item.work.didLine ?? null,
+        selector: item.selectedElements?.[0]?.selector ?? null,
+        pointedAt: pointedAtLine(item.selectedElements),
+      });
       verified.set(item.id, verify);
     }),
   );
@@ -199,6 +183,48 @@ export async function verifyDeployedFixes<T extends FeedbackListItemWithWork>(
     if (!verify || !item.work.ship) return item;
     return { ...item, work: { ...item.work, ship: { ...item.work.ship, verify } } };
   });
+}
+
+/**
+ * The look itself, for any run whose change is live: text first, a picture
+ * only if text left it open, and the verdict written onto the run's ledger
+ * (replaced whole, so `current` must be the newest copy). The feedback inbox
+ * and the Loki chat card (lib/run-follow.ts) both come through here.
+ */
+export async function lookAndRecord(
+  userId: string,
+  runId: string,
+  current: FixShipping,
+  url: string,
+  mayAsk: boolean,
+  ask: PageAsk,
+): Promise<FixVerify> {
+  const text = mayAsk ? await askText(userId, ask, url) : { answer: null, read: true };
+  let answer = text.answer;
+  let via: FixVerify["via"] = VERIFY_VIA.TEXT;
+  let picture: string | null = null;
+  let pictureFailed: string | null = null;
+  if (wantsPicture(answer)) {
+    const looked = await askPicture(userId, ask, url, mayAsk);
+    picture = looked.dataUrl;
+    pictureFailed = looked.failed;
+    if (looked.answer) {
+      answer = looked.answer;
+      via = VERIFY_VIA.PICTURE;
+    }
+  }
+  const kept = !!picture && picture.length <= PICTURE_MAX_CHARS;
+  const verify: FixVerify = {
+    verdict: answer?.verdict ?? FIX_VERDICT.CANNOT_TELL,
+    evidence: answer?.evidence || fallbackEvidence(text.read, pictureFailed, kept, mayAsk),
+    at: new Date().toISOString(),
+    url,
+    via,
+    picture: kept,
+  };
+  await stampRunFix(runId, userId, { ...current, verify }).catch(() => {});
+  if (kept && picture) await mergeRunPayload(runId, { fixPicture: picture }).catch(() => {});
+  return verify;
 }
 
 /** When no model answered, say in one line which looks were tried and why they stopped. */
