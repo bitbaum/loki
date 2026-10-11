@@ -10,6 +10,7 @@ export function ProjectTeardown({
   hasSite,
   hasRepo,
   repoUrl,
+  codeKeptByLoki = false,
   hasLocalPath,
   onDeleted,
 }: {
@@ -23,6 +24,9 @@ export function ProjectTeardown({
   hasRepo: boolean;
   /** The linked repository, so deleting it on GitHub is one click away. */
   repoUrl?: string | null;
+  /** Loki keeps the code: the person has no GitHub to delete it on, and the
+   *  words "GitHub repository" mean nothing to them. */
+  codeKeptByLoki?: boolean;
   hasLocalPath: boolean;
   onDeleted: () => void;
 }) {
@@ -81,7 +85,9 @@ export function ProjectTeardown({
                   checked={deprovision === "none"}
                   onChange={() => setDeprovision("none")}
                 />
-                Keep linked GitHub repository
+                {codeKeptByLoki
+                  ? "Keep the code where Loki holds it"
+                  : "Keep linked GitHub repository"}
               </label>
               <label className="flex min-h-11 items-center gap-2">
                 <input
@@ -90,7 +96,8 @@ export function ProjectTeardown({
                   checked={deprovision === "archive-repo"}
                   onChange={() => setDeprovision("archive-repo")}
                 />
-                <Archive className="h-3.5 w-3.5" aria-hidden="true" /> Archive GitHub repository
+                <Archive className="h-3.5 w-3.5" aria-hidden="true" />{" "}
+                {codeKeptByLoki ? "Put the code away (archive)" : "Archive GitHub repository"}
               </label>
               {/* No "delete the repository" option, and not an oversight: no
                   credential Loki holds carries GitHub's delete_repo
@@ -98,9 +105,10 @@ export function ProjectTeardown({
                   cannot be recovered. Offering a button that always fails
                   would be worse than sending people where it works. */}
               <p className="text-xs text-text-tertiary">
-                Deleting the repository outright happens on GitHub — Loki can archive it, but never
-                destroy it.{" "}
-                {repoUrl && (
+                {codeKeptByLoki
+                  ? "Archived code is kept, read-only, and can be brought back — Loki never destroys code."
+                  : "Deleting the repository outright happens on GitHub — Loki can archive it, but never destroy it."}{" "}
+                {repoUrl && !codeKeptByLoki && (
                   <a
                     className="inline-flex items-center gap-1 underline hover:text-text-secondary"
                     href={`${repoUrl.replace(/\.git$/, "")}/settings`}

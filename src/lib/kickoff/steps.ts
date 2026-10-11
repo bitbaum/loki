@@ -4,7 +4,8 @@ import { z } from "zod";
 import { upsertWidgetToken } from "@/db/queries/widget-tokens";
 import { appUrl } from "@/lib/email";
 import { planSiteCd } from "@/lib/site-cd";
-import { getRepoWriteToken } from "@/lib/github-org-token";
+import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
+import { CODE_CUSTODY } from "@/db/schema/user-projects";
 import { isRepoCopyProject } from "@/lib/repo-brief";
 import {
   disableGithubActions,
@@ -186,6 +187,15 @@ const DEV_ROOT = process.env.LOKI_BOX_DEV_ROOT || path.join(os.homedir(), "dev")
 const ACTIONS_OFF_FAILED =
   "The repository was created, but GitHub Actions could not be switched off for it. Nothing was imported. Try again.";
 
+/**
+ * Loki keeps the code for every account when the server holds an org token
+ * (github-org-token.ts), so this is reached only on a server without one, or
+ * for a repository the person linked themselves: then their own GitHub is
+ * the only credential that can write, and the message says so.
+ */
+export const NO_PLACE_FOR_CODE =
+  "Loki cannot keep the code on this server, so it needs your GitHub account to put it there. Connect GitHub and try again.";
+
 export const ProvisionBody = z.object({
   visibility: z.enum(["private", "public"]).default("private"),
   // "auto" resolves from the project's own stack attribute — the kickoff flow
@@ -202,12 +212,19 @@ export async function provisionStep(
   const project = await getProjectCore(userId, id);
   if (!project) return json({ error: "Not found" }, 404);
 
-  const write = await getRepoWriteToken(userId);
+  // The org token serves anyone for a repository Loki will create or already
+  // keeps; on a repository the person linked themselves it is their own token
+  // or nothing (github-org-token.ts). `up` is fetched once more below, after
+  // the create, so the row written is the row as it stands then.
+  const upBefore = await getUserProjectByEntityId(userId, id);
+  const write = await getRepoWriteToken(userId, {
+    lokiKept: lokiKeepsCode({
+      gitUrl: project.gitUrl ?? upBefore?.gitUrl ?? null,
+      codeCustody: upBefore?.codeCustody ?? null,
+    }),
+  });
   if (!write) {
-    return json(
-      { error: "No GitHub account linked. Sign in with GitHub first.", hasGithub: false },
-      400,
-    );
+    return json({ error: NO_PLACE_FOR_CODE, hasGithub: false }, 400);
   }
   const token = write.token;
 
@@ -310,8 +327,18 @@ export async function provisionStep(
   // The entity patch comes last: it only mirrors gitUrl for the dossier and
   // the "already provisioned" 409 guard, so a crash before it just means the
   // guard doesn't trip — the project itself is already fully dispatchable.
+  // Custody is written here and in create-with-github, nowhere else: it is
+  // the one fact that lets the server token act on this repository for this
+  // person later (archive on delete, handover), so only the path that made
+  // the repository with that token may claim it.
   const up = await getUserProjectByEntityId(userId, id);
-  if (up) await updateUserProject(up.id, userId, { gitUrl: result.repo.html_url, dirPath });
+  if (up) {
+    await updateUserProject(up.id, userId, {
+      gitUrl: result.repo.html_url,
+      dirPath,
+      codeCustody: write.source === "org" ? CODE_CUSTODY.LOKI : CODE_CUSTODY.OWN,
+    });
+  }
   await patchProject(userId, id, { gitUrl: result.repo.html_url });
 
   // Linked first, so a retry finds this repo instead of creating a second one.
@@ -363,12 +390,9 @@ export async function registerCdStep(
     return json({ error: "No user_projects row for this entity — cannot record liveUrl." }, 400);
   }
 
-  const token = (await getRepoWriteToken(userId))?.token ?? null;
+  const token = (await getRepoWriteToken(userId, { lokiKept: lokiKeepsCode(up) }))?.token ?? null;
   if (!token) {
-    return json(
-      { error: "No GitHub account linked. Sign in with GitHub first.", hasGithub: false },
-      400,
-    );
+    return json({ error: NO_PLACE_FOR_CODE, hasGithub: false }, 400);
   }
 
   const access = await getExecutionAccess(userId);

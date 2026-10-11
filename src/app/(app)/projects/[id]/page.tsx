@@ -10,6 +10,8 @@ import { isSiteOperator } from "@/db/queries/users";
 import { createOwnerPass } from "@/lib/feedback/owner-pass";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import { reconcileSiteLiveUrl } from "@/lib/site-live-reconcile";
+import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
+import { getGithubToken } from "@/lib/github-token";
 
 export const metadata = { title: "Project" };
 
@@ -33,6 +35,14 @@ export default async function ProjectPage({
   // operator's call, not the project owner's — and the operator features other
   // tenants' work, so this is asked about the VIEWER rather than the dossier.
   const viewerIsSiteOperator = await isSiteOperator(session.user.id).catch(() => false);
+  // Whether a link into the fleet's GitHub organisation would open for this
+  // viewer, and whether they have anywhere of their own to take the code.
+  const [viewerMayOpenOrgRepo, viewerHasGithub] = await Promise.all([
+    isFleetInfrastructureAllowed(session.user.id).catch(() => false),
+    getGithubToken(session.user.id)
+      .then((t) => Boolean(t))
+      .catch(() => false),
+  ]);
 
   // The owner looking at a project with a repository but no live URL is the
   // moment to ask again whether its site went live since registration. Not
@@ -67,6 +77,8 @@ export default async function ProjectPage({
       autoKickoff={isKickoffAuto(kickoff)}
       autoInterview={isInterviewAuto(interview)}
       viewerIsSiteOperator={viewerIsSiteOperator}
+      viewerMayOpenOrgRepo={viewerMayOpenOrgRepo}
+      viewerHasGithub={viewerHasGithub}
       // Only the owner gets a pass: it is what makes their widget notes build.
       ownerPass={dossier.ownerId === session.user.id ? createOwnerPass(id, session.user.id) : null}
       shareAction={

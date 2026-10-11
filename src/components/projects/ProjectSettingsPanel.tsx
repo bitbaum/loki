@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
+import { ProjectCodeCustody } from "./ProjectCodeCustody";
 import { ProjectProvision } from "./ProjectProvision";
 import { ProjectTeardown } from "./ProjectTeardown";
 import { SiteRetirePanel } from "./SiteRetirePanel";
@@ -13,6 +14,8 @@ export function ProjectSettingsPanel({
   repoUrl,
   hasLocalPath,
   liveUrl,
+  codeKeptByLoki = false,
+  hasGithub = false,
 }: {
   projectId: string;
   projectName: string;
@@ -21,6 +24,10 @@ export function ProjectSettingsPanel({
   hasLocalPath: boolean;
   /** The public site, when this project has one. */
   liveUrl?: string | null;
+  /** user_projects.code_custody === "loki": Loki made and keeps the code. */
+  codeKeptByLoki?: boolean;
+  /** The viewer has a GitHub account connected — where a handover goes. */
+  hasGithub?: boolean;
 }) {
   const router = useRouter();
 
@@ -31,6 +38,7 @@ export function ProjectSettingsPanel({
       </summary>
       <div className="space-y-5 border-t border-border-subtle py-5">
         {!hasRepo && <ProjectProvision projectId={projectId} onReload={() => router.refresh()} />}
+        {codeKeptByLoki && <ProjectCodeCustody projectId={projectId} hasGithub={hasGithub} />}
         {liveUrl && <SiteRetirePanel projectId={projectId} liveUrl={liveUrl} />}
         <ProjectTeardown
           hasSite={Boolean(liveUrl)}
@@ -38,6 +46,7 @@ export function ProjectSettingsPanel({
           projectId={projectId}
           hasRepo={hasRepo}
           repoUrl={repoUrl}
+          codeKeptByLoki={codeKeptByLoki}
           hasLocalPath={hasLocalPath}
           onDeleted={() => router.push("/projects")}
         />

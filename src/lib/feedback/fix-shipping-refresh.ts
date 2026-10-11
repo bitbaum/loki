@@ -10,7 +10,8 @@
  * GitHub calls a minute at worst.
  */
 import { GITHUB_API_BASE } from "@/lib/github-api";
-import { getRepoWriteToken } from "@/lib/github-org-token";
+import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
+import { findCodeCustodyByGitUrl } from "@/db/queries/user-projects";
 import { stampRunFix } from "@/db/queries/orchestration-runs";
 import { decideAutoShip, prOpenedByRun, prPredatesRun } from "@/lib/feedback/auto-ship";
 import {
@@ -283,7 +284,14 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
       // account a credential the rest of the app withholds — and an external
       // user whose org refuses their token gets the honest `unverified` row
       // below rather than a silent escalation.
-      const picked = await getRepoWriteToken(input.userId);
+      // Loki-kept code reads with the server's token for whoever owns it;
+      // a repository the person linked themselves reads with theirs.
+      const custody = input.gitUrl
+        ? await findCodeCustodyByGitUrl(input.userId, input.gitUrl).catch(() => null)
+        : null;
+      const picked = await getRepoWriteToken(input.userId, {
+        lokiKept: lokiKeepsCode({ gitUrl: input.gitUrl ?? null, codeCustody: custody }),
+      });
       if (!picked) fix = claimed;
       else {
         const pr = await fetchPr(ref, picked.token);

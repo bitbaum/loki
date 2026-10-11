@@ -1,9 +1,10 @@
 "use client";
 
 // One-click provisioning: turn a registered idea into a real, dispatchable
-// project. Creates the GitHub repo (seeded starter), links it, and sets the
-// dir path the runner clones into — so it appears in Control. No `gh`, no
-// `~/dev`, no terminal. Shown only while a project has no repo linked yet.
+// project. Makes a place for the code (a repository Loki keeps, seeded with a
+// starter), links it, and sets the dir path the runner clones into — so it
+// appears in Control. No GitHub account, no `gh`, no `~/dev`, no terminal.
+// Shown only while a project has no repo linked yet.
 
 import { useState } from "react";
 import { Loader2, Rocket, GitBranch } from "lucide-react";
@@ -55,11 +56,7 @@ export function ProjectProvision({
     return (
       <p className="text-xs text-status-positive inline-flex items-center gap-1.5">
         <GitBranch className="h-3.5 w-3.5" />
-        Provisioned{" "}
-        <a href={done.repo.gitUrl} target="_blank" rel="noreferrer" className="underline">
-          {done.repo.full_name}
-        </a>{" "}
-        — now in Control, ready to dispatch.
+        The code has a place now — this project is in Control, ready to dispatch.
       </p>
     );
   }
@@ -81,16 +78,16 @@ export function ProjectProvision({
           // see it: this button is on /projects/[id] and the audit visits
           // /projects only.
           className="ui-btn-chip ui-tap gap-1.5 px-3 text-xs"
-          title="Create the GitHub repo + starter, link it, and make this project dispatchable in Control — no terminal needed."
+          title="Make a place for the code with a starter in it, and make this project dispatchable in Control — no account anywhere else needed."
         >
           <Rocket className="h-3.5 w-3.5 text-accent-text" />
-          Provision repo &amp; set up
+          Make a place for the code
         </button>
       ) : (
         <div className="space-y-2 rounded-lg border border-border-subtle bg-surface-raised p-3">
           <p className="text-xs text-text-secondary">
-            Creates a GitHub repo, seeds a starter, and links it so this project is dispatchable in
-            Control.
+            Loki keeps the code for you, seeded with a starter, so an agent can start building. It
+            stays yours — take it to your own GitHub any time from Project settings.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <select
@@ -109,10 +106,10 @@ export function ProjectProvision({
               className="ui-input-compact"
               value={visibility}
               onChange={(e) => setVisibility(e.target.value as "private" | "public")}
-              aria-label="Repo visibility"
+              aria-label="Who can see the code"
             >
               <option value="private">Private</option>
-              <option value="public">Public</option>
+              <option value="public">Public (open source)</option>
             </select>
           </div>
           <div className="flex items-center gap-2">

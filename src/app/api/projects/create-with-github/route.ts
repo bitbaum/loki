@@ -11,6 +11,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUserId } from "@/lib/session";
 import { getRepoWriteToken } from "@/lib/github-org-token";
+import { NO_PLACE_FOR_CODE } from "@/lib/kickoff/steps";
+import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
+import { getUserProjectByEntityId, updateUserProject } from "@/db/queries/user-projects";
+import { CODE_CUSTODY } from "@/db/schema/user-projects";
 import { createProject } from "@/db/queries/projects";
 import { SOURCE_LOKI_UI } from "@/lib/constants";
 import { TEMPLATES, renderTemplate } from "@/lib/project-templates";
@@ -42,17 +46,11 @@ export async function POST(req: NextRequest) {
   }
   const { name, description, visibility, init_readme, template } = parsed.data;
 
-  const write = await getRepoWriteToken(userId);
+  // A brand-new repository is Loki's to keep, for any signed-in account.
+  const write = await getRepoWriteToken(userId, { lokiKept: true });
   const token = write?.token ?? null;
   if (!token) {
-    return NextResponse.json(
-      {
-        error:
-          "No GitHub account linked. Sign in with GitHub or use the Connect GitHub button on /control/import.",
-        hasGithub: false,
-      },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: NO_PLACE_FOR_CODE, hasGithub: false }, { status: 400 });
   }
 
   const result = await provisionGithubRepo(token, {
@@ -81,6 +79,14 @@ export async function POST(req: NextRequest) {
     );
     projectId = project.id;
     projectName = project.name;
+    // Custody: the server's token made this repository, so Loki keeps it for
+    // the person (and may archive it or hand it over later).
+    const up = await getUserProjectByEntityId(userId, project.id).catch(() => null);
+    if (up) {
+      await updateUserProject(up.id, userId, {
+        codeCustody: write?.source === "org" ? CODE_CUSTODY.LOKI : CODE_CUSTODY.OWN,
+      }).catch(() => null);
+    }
     scheduleProjectProfileReindexByEntityId(userId, project.id);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -102,9 +108,16 @@ export async function POST(req: NextRequest) {
     description: description ?? `Started from Loki · ${name}`,
   });
 
+  // A link to a private repository in the fleet's org is a 404 for a person
+  // who holds no credential there. The page shows the link only when they can
+  // open it: their own token made it, or they are entitled to the org.
+  const viewerCanOpenRepo =
+    write?.source === "user" || !repo.private || (await isFleetInfrastructureAllowed(userId));
+
   return NextResponse.json({
     ok: true,
     project: { id: projectId, name: projectName },
+    viewerCanOpenRepo,
     repo: {
       name: repo.name,
       full_name: repo.full_name,

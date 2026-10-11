@@ -27,6 +27,8 @@ import { getHealthSignals, HEALTH_SIGNAL_CONFIG } from "./project-badges";
 import { computeProjectHealth } from "@/lib/project-health";
 import { FixSignalButton } from "./ProjectActionButtons";
 import { ProjectKickoff } from "./ProjectKickoff";
+import { ProjectCodeCustody } from "./ProjectCodeCustody";
+import { CODE_CUSTODY } from "@/db/schema/user-projects";
 import { ProjectInterview } from "./ProjectInterview";
 import { ProjectShareMenu } from "./ProjectShareMenu";
 import { AssistantContextBridge } from "./AssistantContextBridge";
@@ -45,6 +47,8 @@ export function ProjectWorkspaceView({
   autoInterview = false,
   viewerIsSiteOperator = false,
   ownerPass = null,
+  viewerMayOpenOrgRepo = false,
+  viewerHasGithub = false,
 }: {
   dossier: ProjectDossier;
   shareAction?: React.ReactNode;
@@ -56,12 +60,23 @@ export function ProjectWorkspaceView({
   viewerIsSiteOperator?: boolean;
   /** Signed server-side for the project's owner only (feedback/owner-pass.ts). */
   ownerPass?: string | null;
+  /** The viewer holds a credential for the fleet's organisation, so a link
+   *  to a private repository Loki keeps there opens for them. For everyone
+   *  else that link is a 404, and is not shown. */
+  viewerMayOpenOrgRepo?: boolean;
+  /** The viewer has GitHub connected — where a code handover goes. */
+  viewerHasGithub?: boolean;
 }) {
   const { detail, userProject } = dossier;
   const project = detail.project;
   const attrs = detail.attrs;
   const workspaceKey = userProject?.name ?? project.name;
   const links = getProjectLinks(attrs, userProject?.gitUrl ?? project.gitUrl, userProject?.liveUrl);
+  // Loki made and keeps this code (user_projects.code_custody). The person
+  // may hold no GitHub account at all, so the page speaks of "the code", not
+  // "the repository", and links to GitHub only where they can follow.
+  const codeKeptByLoki = userProject?.codeCustody === CODE_CUSTODY.LOKI;
+  const showRepoLink = Boolean(links.repo) && (!codeKeptByLoki || viewerMayOpenOrgRepo);
   // A site this studio serves can move to its own domain; the button names the
   // domain once it has one. The box's working register is read as well as the
   // shipped one: an attach writes there first and reaches the release only
@@ -259,7 +274,7 @@ export function ProjectWorkspaceView({
                 liveUrl={userProject?.liveUrl ?? links.prodUrl}
               />
             )}
-            {links.repo && (
+            {showRepoLink && links.repo && (
               <a
                 href={links.repo}
                 target="_blank"
@@ -271,6 +286,16 @@ export function ProjectWorkspaceView({
                 <span className="sm:hidden">Repo</span>
                 <span className="hidden sm:inline">Repository</span>
               </a>
+            )}
+            {/* The offer to own the code, made where it was promised: once
+                the site is live and there is something worth owning. Before
+                that it waits in Project settings. */}
+            {!dossier.readonly && codeKeptByLoki && links.prodUrl && (
+              <ProjectCodeCustody
+                projectId={project.id}
+                hasGithub={viewerHasGithub}
+                variant="line"
+              />
             )}
             {primaryOrangeCatLink && (
               <a
@@ -557,6 +582,8 @@ export function ProjectWorkspaceView({
                         repoUrl={links.repo}
                         hasLocalPath={Boolean(userProject?.dirPath)}
                         liveUrl={userProject?.liveUrl ?? links.prodUrl}
+                        codeKeptByLoki={codeKeptByLoki}
+                        hasGithub={viewerHasGithub}
                       />
                     </>
                   ),

@@ -21,7 +21,7 @@ import { getProjectActivity } from "@/db/queries/activity";
 import { getProjectStateByProjectId } from "@/db/queries/project-states";
 import { getUserProjectByEntityId, setProjectFeatured } from "@/db/queries/user-projects";
 import { isSiteOperator } from "@/db/queries/users";
-import { getRepoWriteToken } from "@/lib/github-org-token";
+import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
 import { deprovisionGithubRepo } from "@/lib/github-provision";
 
 function getLinkedJobs(projectId: string, projectName: string) {
@@ -123,10 +123,17 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         { error: "No GitHub repo is linked to this project." },
         { status: 400 },
       );
-    const token = (await getRepoWriteToken(userId))?.token ?? null;
+    // Archiving with the server's token is allowed only on a repository Loki
+    // made for this person; anything else needs their own GitHub.
+    const token =
+      (
+        await getRepoWriteToken(userId, {
+          lokiKept: lokiKeepsCode({ gitUrl, codeCustody: userProject?.codeCustody ?? null }),
+        })
+      )?.token ?? null;
     if (!token)
       return NextResponse.json(
-        { error: "No GitHub account linked. Sign in with GitHub first." },
+        { error: "Only your own GitHub account can archive this repository. Connect it first." },
         { status: 400 },
       );
     const gh = await deprovisionGithubRepo(

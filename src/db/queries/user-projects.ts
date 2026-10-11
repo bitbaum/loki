@@ -462,6 +462,7 @@ export async function updateUserProject(
       | "isActive"
       | "notes"
       | "resources"
+      | "codeCustody"
     >
   >,
 ): Promise<UserProject | null> {
@@ -471,6 +472,22 @@ export async function updateUserProject(
     .where(and(eq(userProjects.id, id), eq(userProjects.userId, userId)))
     .returning();
   return row ?? null;
+}
+
+/**
+ * Who holds the code at this repository URL, for the caller's own projects.
+ * Null when no row of theirs links it, or the row predates custody — both
+ * read as "the person's own", so no server credential acts on it.
+ */
+export async function findCodeCustodyByGitUrl(
+  userId: string,
+  gitUrl: string,
+): Promise<UserProject["codeCustody"]> {
+  const row = await db.query.userProjects.findFirst({
+    where: and(eq(userProjects.userId, userId), eq(userProjects.gitUrl, gitUrl)),
+    columns: { codeCustody: true },
+  });
+  return row?.codeCustody ?? null;
 }
 
 export async function deleteUserProject(id: string, userId: string): Promise<void> {

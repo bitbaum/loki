@@ -369,7 +369,9 @@ export default function OnboardingPage() {
                     placeholder="/home/you/my-app"
                   />
                 </AuthField>
-                <AuthField label="GitHub URL (optional)">
+                {/* Optional, and said so: a person starting from an idea has
+                    no code anywhere yet, and Loki keeps it for them. */}
+                <AuthField label="Already have the code on GitHub? (optional)">
                   <AuthInput
                     value={gitUrl}
                     onChange={(e) => setGitUrl(e.target.value)}
