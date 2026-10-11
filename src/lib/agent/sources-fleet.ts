@@ -25,8 +25,7 @@ import { getOpenAgentTurns } from "@/db/queries/agent-sessions";
 import { getActiveAlerts } from "@/db/queries/alerts";
 import { getRunnerConnected } from "@/db/queries/runner-presence";
 import { getPendingActions } from "@/db/queries/actions";
-import { getDayUsage } from "@/db/queries/ai-spend";
-import { dayCapacityTokens } from "@/config/chat-models";
+import { readUserBudget } from "@/lib/ai/budget";
 import { inlineUntrusted } from "@/lib/feedback/untrusted";
 import { FEEDBACK_STATUS, type FeedbackStatus } from "@/lib/constants/statuses";
 import { ORCH_STATE, type OrchestrationState } from "@/lib/orchestration/contract";
@@ -166,7 +165,7 @@ export async function alertFacts(userId: string, limit: number): Promise<Fact[]>
  * makes "what needs me?" answerable on a single call with no tools.
  */
 export async function fleetStatusFacts(userId: string): Promise<Fact[]> {
-  const [runner, runs24h, waiting, sessions, alerts, approvals, feedbackNew, usage] =
+  const [runner, runs24h, waiting, sessions, alerts, approvals, feedbackNew, budget] =
     await Promise.all([
       getRunnerConnected(userId).catch(() => null),
       countRunsByStateSince(userId, DAY_MS).catch(() => null),
@@ -177,19 +176,18 @@ export async function fleetStatusFacts(userId: string): Promise<Fact[]> {
       listUserFeedback(userId, 200)
         .then((rows) => rows.filter((r) => r.status === FEEDBACK_STATUS.NEW))
         .catch(() => null),
-      getDayUsage(userId).catch(() => null),
+      readUserBudget(userId).catch(() => null),
     ]);
 
   const n = (v: unknown[] | null) => (v === null ? null : String(v.length));
   const oldestWaiting = waiting && waiting.length > 0 ? waiting[waiting.length - 1] : null;
-  const capacity = dayCapacityTokens();
 
   return [
     makeFact({
       kind: "fleet_status",
       subject: "fleet status right now",
       source:
-        "computed from runner_presence, orchestration_runs, agent_sessions, alerts, actions, site_feedback, ai_spend",
+        "computed from runner_presence, orchestration_runs, agent_sessions, alerts, actions, site_feedback, ai_spend, own_model_usage, provider_quota",
       values: {
         runner: runner === null ? null : runner ? "connected" : "OFFLINE — nothing can run",
         agents_working_now: n(sessions),
@@ -209,10 +207,9 @@ export async function fleetStatusFacts(userId: string): Promise<Fact[]> {
         open_alerts: n(alerts),
         approvals_pending: n(approvals),
         feedback_unread: n(feedbackNew),
-        ai_budget_today:
-          usage === null
-            ? null
-            : `${usage.userSpentTokens.toLocaleString("en-US")} of ~${Math.round(capacity / Math.max(1, usage.activeUsers)).toLocaleString("en-US")} tokens used`,
+        // The same sentence Settings → AI and the picker show, so Loki's answer
+        // to "how much do I have left" cannot disagree with the screen.
+        ai_budget_today: budget === null ? null : budget.headline,
       },
     }),
   ];

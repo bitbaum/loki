@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, KeyRound, Lock, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, Gauge, KeyRound, Lock, Sparkles, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getJson } from "@/lib/api/fetch";
+import type { BudgetView } from "@/lib/ai/budget-view";
 import { describeChatModel, type LokiModelsResponse } from "@/lib/loki/models";
-import { MODEL_STORE_PATH } from "@/lib/own-model-path";
+import { MODEL_STORE_PATH, OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 
 /**
  * Which model starts the turn.
@@ -27,6 +28,13 @@ import { MODEL_STORE_PATH } from "@/lib/own-model-path";
  * a failed turn. The way out is in the same menu: the last row is the link to
  * add your own key, and a model you brought sits at the top marked as yours —
  * so the picker is never a list of things you cannot have.
+ *
+ * ── What is left, before the pick ────────────────────────────────────────────
+ * The line above the rows is the person's budget (`/api/ai/budget`): how many
+ * free answers are left now, or that their keys answer first with no cap. A
+ * free row whose vendor is spent or low says so on the row. Until this, the
+ * first a person heard of the daily share was the refusal — a picker that
+ * offers a row it will then refuse is the locked-row mistake in a new coat.
  */
 export function ModelPicker({
   value,
@@ -40,6 +48,7 @@ export function ModelPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<LokiModelsResponse | null>(null);
+  const [budget, setBudget] = useState<BudgetView | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const phone = useMediaQuery("(max-width: 767px)");
 
@@ -61,6 +70,14 @@ export function ModelPicker({
             addKeyHref: MODEL_STORE_PATH,
           });
       });
+    // Alongside, never instead: the rows must render whether or not the
+    // budget can be read, and a budget that cannot be read is simply absent —
+    // "could not look" must never draw as "nothing left".
+    getJson<BudgetView>("/api/ai/budget")
+      .then((b) => {
+        if (live) setBudget(b);
+      })
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -89,11 +106,23 @@ export function ModelPicker({
 
   const current = value ? describeChatModel(value).name : "Auto";
 
+  // What a vendor last said about a free row, keyed as the rows are.
+  const headroom = new Map((budget?.models ?? []).map((m) => [m.id, m.note]));
+  // What the person's own key spent today, matched by the label the row shows.
+  const ownSpend = (label: string, model: string) =>
+    budget?.ownKeys.find((k) => k.label === label && k.model === model) ?? null;
+
   // One list, two containers: a popover above the composer on a laptop, a
   // bottom sheet on a phone (where a popover is a cramped box under a thumb).
   const list = (
     <>
       <div className="ui-loki-model-card" role="listbox" aria-label="Model">
+        {budget && (
+          <a href={OWN_MODEL_SETTINGS_PATH} className="ui-loki-model-budget">
+            <Gauge className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-text" aria-hidden />
+            <span>{budget.headline}</span>
+          </a>
+        )}
         <ModelRow
           name="Auto"
           blurb={
@@ -109,15 +138,21 @@ export function ModelPicker({
         {data === null && <p className="ui-loki-model-note">Loading models…</p>}
         {(data?.options ?? []).map((option) => {
           const { name, blurb } = describeChatModel(option.id);
+          const note = headroom.get(`${option.provider}/${option.id}`) ?? null;
+          const spend = option.own ? ownSpend(option.provider, option.id) : null;
           return (
             <ModelRow
               key={`${option.provider}/${option.id}`}
               name={name}
               blurb={
                 option.own
-                  ? `Your key · ${providerName(option.provider)}`
+                  ? spend && spend.callsToday > 0
+                    ? `Your key · ${providerName(option.provider)} · ${spend.tokensToday.toLocaleString("en-US")} tokens today`
+                    : `Your key · ${providerName(option.provider)}`
                   : option.usable
-                    ? `${blurb} · ${providerName(option.provider)}`
+                    ? note
+                      ? `${note} · ${providerName(option.provider)}`
+                      : `${blurb} · ${providerName(option.provider)}`
                     : `${providerName(option.provider)} has no key here — add yours below`
               }
               title={option.reason}
