@@ -49,6 +49,7 @@ squashfs-root/
 
 .env.vercel.production.snapshot.OLD
 /public/widget.js
+/public/widget-chat.js
 
 # Scratch files used to compose commit messages and PR bodies (never content).
 .commitmsg

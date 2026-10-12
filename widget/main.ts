@@ -6,7 +6,10 @@
  *
  * Constraints that shape this file:
  * - Zero dependencies, one bundle: it must mount on ANY site (static HTML,
- *   WordPress, Next, ...) — no React, no shared chunks.
+ *   WordPress, Next, ...) — no React. The one other file is opt-in and lazy:
+ *   with data-fc-chat="kit" the conversation is drawn by the shared chat
+ *   (public/widget-chat.js, widget/chat/), fetched on first open, and the
+ *   panel draws its own if that chunk cannot load.
  * - All UI lives in a Shadow DOM so host CSS and widget CSS can't bleed
  *   into each other. The ONE exception: element-picking highlights must
  *   style host-page elements, so a tiny fcw-* stylesheet is injected into
@@ -41,6 +44,8 @@ import { startWatchMode, type WatchSession } from "./watch";
 import { installSelfWatch } from "./self-watch";
 import { askAdvisor, READ_QUESTION } from "./loki-api";
 import { createConversation } from "./conversation";
+import { loadChat } from "./chat-loader";
+import { chatkitVars } from "./chat/theme";
 import { createChanges } from "./changes";
 import { assistantFor } from "./thread";
 import { showHideToast, watchOfferView } from "./panel-views";
@@ -111,6 +116,11 @@ interface LokiApi {
   // about improving THIS site. Chat stays opt-in: it is a studio front desk, and
   // this bundle also runs on pilot sites that never asked for one.
   const modesAttr = script?.getAttribute("data-fc-modes") ?? null;
+  // `data-fc-chat="kit"`: draw the conversation with the shared chat (chatkit,
+  // the one Loki's own chat uses), loaded as its own chunk on first open.
+  // Rolled out on Loki's own widget first; without it, the panel draws its own.
+  const useKitChat = script?.getAttribute("data-fc-chat") === "kit";
+  const scriptNonce = script?.nonce || undefined;
 
   /** Filled by boot() before mount(); the launcher never paints without it. */
   let placement: Placement = { ...DEFAULT_PLACEMENT };
@@ -411,6 +421,13 @@ interface LokiApi {
       syncWatch();
       // Opening is to see what is new: land on the newest message.
       conversation.refresh(true);
+      if (useKitChat && !conversation.kit())
+        void loadChat(apiBase, scriptNonce).then((mod) => {
+          // No chunk (CSP, offline): the panel keeps drawing its own — no dead end.
+          if (!mod || conversation.kit()) return;
+          conversation.useKit(mod, chatkitVars(theme));
+          if (panel.isConnected) conversation.focus();
+        });
       root.addEventListener("keydown", onKeydown as EventListener);
       document.addEventListener("keydown", onDocumentKeydown);
       conversation.focus();
