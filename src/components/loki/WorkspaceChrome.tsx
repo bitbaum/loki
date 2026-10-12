@@ -1,0 +1,87 @@
+"use client";
+
+import { TopbarPortal } from "@/components/shell/TopbarSlot";
+import { LokiTopbarButtons, ThreadHeader } from "./ThreadHeader";
+import { ThreadTitle } from "./ThreadTitle";
+
+/**
+ * The chat's chrome above the transcript, for both widths.
+ *
+ * ONE control, not four. This used to be a "Chats" button and a "New" button
+ * sitting above the transcript, duplicating the rail that was already on
+ * screen and the global sidebar above that. The rail itself owns "new chat"
+ * now, so what is left is the only thing the rail cannot do: reveal itself.
+ *
+ * Phones: in a thread, the thread's own one-line header (back, name, menu);
+ * outside one, the same two buttons live in the app top bar's empty left half
+ * (TopbarPortal) instead of a second header row under it. From md up: the
+ * reveal button, and the open thread's name, which is where it is renamed.
+ *
+ * Lifted out of LokiWorkspace, which is at its line cap.
+ */
+export function WorkspaceChrome({
+  inThread,
+  activeId,
+  title,
+  projects,
+  pinned,
+  historyPinned,
+  canSaveContext,
+  onToggleHistoryPinned,
+  onOpenHistory,
+  onNewChat,
+  onOpenProjects,
+  onSaveContext,
+  onTogglePin,
+  onRename,
+}: {
+  inThread: boolean;
+  activeId: string | null;
+  title: string;
+  projects: string[];
+  pinned: boolean;
+  historyPinned: boolean;
+  canSaveContext: boolean;
+  onToggleHistoryPinned: () => void;
+  onOpenHistory: () => void;
+  onNewChat: () => void;
+  onOpenProjects: () => void;
+  onSaveContext: () => void;
+  onTogglePin: (id: string, pinned: boolean) => void;
+  onRename: (id: string, title: string) => void;
+}) {
+  const buttons = (
+    <LokiTopbarButtons
+      pinned={historyPinned}
+      onTogglePinned={onToggleHistoryPinned}
+      onOpenLokis={onOpenHistory}
+      onNewChat={onNewChat}
+    />
+  );
+  return (
+    <>
+      {inThread ? (
+        <ThreadHeader
+          title={title}
+          projects={projects}
+          onBack={onNewChat}
+          onOpenLokis={onOpenHistory}
+          onNewChat={onNewChat}
+          onOpenProjects={onOpenProjects}
+          onSaveContext={canSaveContext ? onSaveContext : undefined}
+          pinned={pinned}
+          onTogglePin={activeId ? () => onTogglePin(activeId, !pinned) : undefined}
+          onRename={activeId ? (t) => onRename(activeId, t) : undefined}
+        />
+      ) : (
+        <TopbarPortal>{buttons}</TopbarPortal>
+      )}
+      <div className="ui-loki-topbar max-md:hidden">
+        {buttons}
+        {inThread && activeId && (
+          <ThreadTitle title={title} onRename={(t) => onRename(activeId, t)} />
+        )}
+      </div>
+    </>
+  );
+}

@@ -71,6 +71,12 @@ The Loki page (`/loki`) is live and in daily use as the dogfood surface. Confirm
   thread's `last_read_at`. Rows sort by that before recency; pinned threads stay on
   top; "By project" folds the same rows under one header per project with its
   counts. The start screen carries the same counts as one line of taps.
+- **Threads are named for what they are about (2026-10-12):** once the first answer
+  lands, Loki asks the fast model for a 2–6 word title from the exchange
+  (`lib/loki/thread-title.ts`, `POST /api/conversations/[id]/title`). It replaces only
+  a title that is still the placeholder or the derived opening line — a person's own
+  name is never overwritten. Rename by clicking the title in the desktop top bar, or
+  "Rename" in the phone's thread menu. Neither naming nor renaming bumps recency.
 
 Open questions §6 #1 (chat vs command — both, routed by intent resolution) and #2
 (dispatches go to the project's existing session; the conversation is the human-readable

@@ -23,10 +23,9 @@ import { useSiteHandoff } from "@/hooks/use-site-handoff";
 import { Thread } from "./Thread";
 import { LokiComposer } from "./Composer";
 import { SaveContextBar } from "./SaveContextBar";
-import { TopbarPortal } from "@/components/shell/TopbarSlot";
 import { useImmersiveChat } from "@/hooks/use-immersive-chat";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { LokiTopbarButtons, ThreadHeader } from "./ThreadHeader";
+import { WorkspaceChrome } from "./WorkspaceChrome";
 import { ProjectFilter } from "./ProjectFilter";
 import { VoiceConversation } from "./VoiceConversation";
 import { useVoiceConversation } from "@/hooks/use-voice-conversation";
@@ -721,15 +720,6 @@ export function LokiWorkspace({
     </>
   );
 
-  const topbarButtons = (
-    <LokiTopbarButtons
-      pinned={historyPinned}
-      onTogglePinned={() => setHistoryPinned((open) => !open)}
-      onOpenLokis={() => setHistoryOpen(true)}
-      onNewChat={startNewConversation}
-    />
-  );
-
   return (
     <div
       className={historyPinned ? "ui-loki-workspace ui-loki-workspace-split" : "ui-loki-workspace"}
@@ -741,34 +731,22 @@ export function LokiWorkspace({
       )}
 
       <div className="ui-loki-main">
-        {/*
-          ONE control, not four.
-
-          This used to be a "Chats" button and a "New" button sitting above the
-          transcript, duplicating the rail that was already on screen and the
-          global sidebar above that. The rail itself owns "new chat" now, so
-          what is left here is the only thing the rail cannot do: reveal itself.
-          It is hidden entirely when the rail is already pinned open on a wide
-          screen, because a toggle for something you are looking at is noise.
-        */}
-        {/* Phones: the same two buttons live in the app top bar's empty left
-            half (TopbarPortal) instead of a second header row under it. */}
-        {inThread ? (
-          <ThreadHeader
-            title={threadTitle}
-            projects={selectedProjects}
-            onBack={startNewConversation}
-            onOpenLokis={() => setHistoryOpen(true)}
-            onNewChat={startNewConversation}
-            onOpenProjects={() => setFilterOpen(true)}
-            onSaveContext={messages.length > 0 ? () => setSaveFor(activeId ?? "new") : undefined}
-            pinned={pinnedNow}
-            onTogglePin={activeId ? () => inbox.pinConversation(activeId, !pinnedNow) : undefined}
-          />
-        ) : (
-          <TopbarPortal>{topbarButtons}</TopbarPortal>
-        )}
-        <div className="ui-loki-topbar max-md:hidden">{topbarButtons}</div>
+        <WorkspaceChrome
+          inThread={inThread}
+          activeId={activeId}
+          title={threadTitle}
+          projects={selectedProjects}
+          pinned={pinnedNow}
+          historyPinned={historyPinned}
+          canSaveContext={messages.length > 0}
+          onToggleHistoryPinned={() => setHistoryPinned((open) => !open)}
+          onOpenHistory={() => setHistoryOpen(true)}
+          onNewChat={startNewConversation}
+          onOpenProjects={() => setFilterOpen(true)}
+          onSaveContext={() => setSaveFor(activeId ?? "new")}
+          onTogglePin={inbox.pinConversation}
+          onRename={inbox.renameConversation}
+        />
 
         <section
           className={

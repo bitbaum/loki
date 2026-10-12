@@ -58,7 +58,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (dataOrResp.title !== undefined) {
-    const row = await updateConversationTitle(userId, idOrResp, dataOrResp.title);
+    const row = await updateConversationTitle(userId, idOrResp, dataOrResp.title, {
+      touch: false,
+    });
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json({ ok: true, readAt: dataOrResp.read ? readAt.toISOString() : null });
