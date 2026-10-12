@@ -127,4 +127,8 @@ export type DispatchPayload = {
   runId?: string;
   /** Native Claude session to resume if no live PTY already owns the project. */
   sessionId?: string;
+  /** When this row was handed to another builder (lib/reroute-queue). The
+   *  stall clock starts here, not at created_at: the new builder has had the
+   *  row for seconds, not for as long as the old one ignored it. */
+  reroutedAt?: string;
 };

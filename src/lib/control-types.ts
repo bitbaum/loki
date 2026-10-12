@@ -244,6 +244,8 @@ export type ControlData = {
     tabs: string[];
     /** Of those, the ones waiting for this computer. */
     localQueued: number;
+    /** …and the ones waiting for the cloud builder. */
+    cloudQueued: number;
   } | null;
   failedCommands: FailedCommand[];
 };

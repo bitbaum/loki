@@ -783,6 +783,64 @@ function runTests(): void {
       cloudOnline: false,
     });
     assert(noWayOut.label === "Stalled", "no online sibling → Stalled");
+    assert(noWayOut.action === "stop_waiting", "…and Stalled still has a button");
+  });
+
+  check("fleet pulse: a stall names the builder holding it and always offers a way out", () => {
+    // 2026-10-12: two dispatches handed to the cloud were reported as
+    // "the builder is connected but not executing them. Restart the desktop
+    // app" — under "This computer offline", with no button.
+    const cloudHeld = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 0,
+      latestRuns: runs(["success"]),
+      executionStall: {
+        stalled: true,
+        stalledCount: 2,
+        oldestSeconds: 300,
+        tabs: ["loki"],
+        localQueued: 0,
+        cloudQueued: 2,
+      },
+      cloudOnline: true,
+      localOnline: false,
+    });
+    assert(cloudHeld.label === "Stalled", `label: ${cloudHeld.label}`);
+    assert(cloudHeld.action === "stop_waiting", "a genuine stall offers Stop waiting");
+    assert(
+      !!cloudHeld.detail && cloudHeld.detail.includes("cloud builder"),
+      `names the cloud builder: ${cloudHeld.detail}`,
+    );
+    assert(
+      !!cloudHeld.detail && !/restart the desktop app/i.test(cloudHeld.detail),
+      "never prescribes restarting a desktop app",
+    );
+    assert(
+      !!cloudHeld.detail && /Retry sends them again/.test(cloudHeld.detail),
+      "states what Stop waiting does before it is tapped",
+    );
+    // Laptop online and holding its own work: Run-in-cloud is not the answer,
+    // and the sentence must not call a connected computer offline.
+    const localHeld = deriveFleetPulse({
+      automationMode: "on",
+      workingCount: 0,
+      latestRuns: runs(["success"]),
+      executionStall: {
+        stalled: true,
+        stalledCount: 1,
+        oldestSeconds: 300,
+        tabs: ["loki"],
+        localQueued: 1,
+        cloudQueued: 0,
+      },
+      cloudOnline: true,
+      localOnline: true,
+    });
+    assert(localHeld.action === "stop_waiting", `action: ${localHeld.action}`);
+    assert(
+      !!localHeld.detail && /this computer, which is connected/.test(localHeld.detail),
+      `says this computer is connected: ${localHeld.detail}`,
+    );
   });
 
   check("fleet pulse: non-stalled execution health leaves Building untouched", () => {
