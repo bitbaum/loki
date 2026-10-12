@@ -9,6 +9,7 @@
  */
 import {
   formatRunCloseMessage,
+  runCloseButtons,
   shouldAnnounceOnClose,
 } from "@/lib/orchestration/notify-close-format";
 
@@ -146,6 +147,16 @@ function runTests(): void {
     assert(
       shouldAnnounceOnClose({ via: "session" }, undefined) === true,
       "undefined is not an opt-out",
+    );
+  });
+
+  check("a failed run links to the project in Control; a success has no button", () => {
+    const failed = runCloseButtons({ projectKey: "loki", outcome: "error" });
+    assert(failed.length === 1 && failed[0].length === 1, "one button for a failure");
+    assert(failed[0][0].url.endsWith("/control?focus=loki"), `url: ${failed[0][0].url}`);
+    assert(
+      runCloseButtons({ projectKey: "loki", outcome: "success" }).length === 0,
+      "none on success",
     );
   });
 

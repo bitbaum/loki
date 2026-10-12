@@ -1,6 +1,6 @@
 import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
 import { logDebug } from "@/db/queries/debug-logs";
-import { formatRunCloseMessage } from "@/lib/orchestration/notify-close-format";
+import { formatRunCloseMessage, runCloseButtons } from "@/lib/orchestration/notify-close-format";
 import { postRunOutcomeToConversation } from "@/lib/orchestration/run-outcome-post";
 import { pushToUser } from "@/lib/push-fanout";
 import { PUSH_TAG_PREFIX } from "@/config/brand-storage";
@@ -47,7 +47,9 @@ export async function notifyRunClosed(run: OrchestrationRun): Promise<void> {
       (async () => {
         const target = selfTelegramTarget();
         if (!target) return;
-        await sendTelegramMessage(target, message).catch(() => undefined);
+        await sendTelegramMessage(target, message, { buttons: runCloseButtons(run) }).catch(
+          () => undefined,
+        );
       })(),
     ]);
 
