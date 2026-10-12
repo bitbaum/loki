@@ -74,7 +74,6 @@ import { validateCommand } from './command-validator'
 import { loadToken, clearToken, isDevBaseOverride } from './token-store'
 import { fleetSessionsDir } from '@/lib/session-paths'
 import { FLEET_RUNNER_COMMAND_TYPES_PARAM } from '@/lib/pending-command-contract'
-import { openBrowserHandoff } from './browser-handoff'
 
 /** Where Claude (and our handoff parser) writes the per-tab session file.
  *  Used by post-flight verification: if the file's mtime advances within a
@@ -802,9 +801,20 @@ async function handleCommand(
         // command loop must keep serving agent work meanwhile. The ack says
         // the window is open; the window itself says when it is their turn.
         const { task } = validation.command.payload
-        void openBrowserHandoff(task).then((outcome) =>
-          console.log(`[poller] browser_task "${task.title}": ${outcome.state}`),
-        )
+        // Loaded here, not at the top: browser-handoff imports Electron, and
+        // this poller is also the headless box-runner's, which runs under
+        // plain Node where Electron does not exist. A top-level import
+        // crash-looped the cloud builder from 2026-10-11 22:25 UTC (#1152)
+        // until this — 220 restarts, every dispatch queued behind it.
+        // scripts/test/box-runner-headless.ts keeps Electron out of its graph.
+        void import('./browser-handoff')
+          .then(({ openBrowserHandoff }) => openBrowserHandoff(task))
+          .then((outcome) =>
+            console.log(`[poller] browser_task "${task.title}": ${outcome.state}`),
+          )
+          .catch((e: unknown) =>
+            console.error(`[poller] browser_task "${task.title}" failed:`, (e as Error).message),
+          )
         ok = true
         text = `Opened "${task.title}" in Loki's browser on this computer. Loki fills it and stops at "${task.handoff.button}".`
         break

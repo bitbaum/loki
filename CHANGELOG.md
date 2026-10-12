@@ -6,6 +6,17 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-12 — The cloud builder runs again
+
+- **Work sent to the cloud starts again.** Since 22:25 UTC on 2026-10-11 the
+  cloud builder stopped itself a few seconds after every start — 220 times —
+  so every cloud dispatch waited in the queue. The form-filling window added
+  to Fleet Runner that evening belongs to the desktop app, and the cloud
+  builder, which runs the same code without a screen, tried to load it at
+  start-up. It now loads only when a form arrives, which only happens on a
+  computer. A new check fails the build if anything the cloud builder loads
+  ever needs the desktop app again. Fleet Runner 0.8.42.
+
 ## 2026-10-12 — Loki from another computer: nothing to install
 
 - **No download for an account that has the cloud builder.** Opened on a
