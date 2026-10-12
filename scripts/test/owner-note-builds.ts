@@ -103,7 +103,7 @@ assert.equal(hashWithoutPass(`#${OWNER_PASS_HASH_KEY}=abc`), "");
 assert.equal(hashWithoutPass(`#tab=plan&${OWNER_PASS_HASH_KEY}=abc`), "#tab=plan");
 const widget = readFileSync("widget/main.ts", "utf8");
 assert.match(
-  readFileSync("widget/conversation.ts", "utf8"),
+  readFileSync("widget/conversation-model.ts", "utf8"),
   /ownerPass: pass \?\? undefined/,
   "the widget sends the pass",
 );

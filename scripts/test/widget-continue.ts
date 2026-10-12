@@ -175,7 +175,7 @@ const convo = readFileSync("widget/conversation.ts", "utf8");
 assert.match(convo, /createContinueRow\(/, "and the conversation renders the row");
 assert.match(convo, /ownerDoor\(/, "and the door");
 assert.match(
-  convo,
+  readFileSync("widget/conversation-model.ts", "utf8"),
   /ownerPass: opts\.ownerPass\(\) \?\? undefined/,
   "the owner is the owner to the advisor too",
 );
