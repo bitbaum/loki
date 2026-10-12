@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
 import { initialLokiSelection } from "@/lib/loki/project-selection";
-import { conversationIdFromParam } from "@/lib/loki/conversation-param";
+import { initialThreadId } from "@/lib/loki/conversation-param";
 import { useSendQueue } from "@/hooks/use-send-queue";
 import { useDispatchOutcome } from "@/hooks/use-dispatch-outcome";
 import { useThreadInbox } from "@/hooks/use-thread-inbox";
@@ -138,8 +138,15 @@ export function LokiWorkspace({
   // an empty composer while the thread's follow-up chips still showed
   // (feedback b8a97aef). A plain sidebar visit carries no ?c= and stays the
   // start page.
+  // ?c= names a thread; a ?project= link opens that project's recent thread
+  // instead of minting another (lib/loki/conversation-param.ts).
   const [activeId, setActiveId] = useState<string | null>(() =>
-    conversationIdFromParam(searchParams.get("c")),
+    initialThreadId({
+      c: searchParams.get("c"),
+      project: searchParams.get("project"),
+      q: prefillParam,
+      conversations: initialConversations,
+    }),
   );
   const [messages, setMessages] = useState<LokiMessage[]>([]);
   const [transcriptLoading, setTranscriptLoading] = useState(false);

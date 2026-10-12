@@ -17,7 +17,7 @@ assert.equal(conversationIdFromParam("../etc"), null);
 const src = readFileSync("src/components/loki/LokiWorkspace.tsx", "utf8");
 assert.match(
   src,
-  /conversationIdFromParam\(searchParams\.get\("c"\)\)/,
+  /initialThreadId\(\{\s*c: searchParams\.get\("c"\)/,
   "activeId must seed from ?c=",
 );
 assert.match(src, /params\.set\("c", activeId\)/, "the open thread must be written to ?c=");
