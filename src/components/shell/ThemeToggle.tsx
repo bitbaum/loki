@@ -76,7 +76,7 @@ export function ThemeToggle({
       aria-label={
         mounted ? `Theme: ${currentOption.label}. Switch to ${nextOption.label}.` : "Theme"
       }
-      title={mounted ? `${currentOption.label} — tap for ${nextOption.label}` : "Theme"}
+      title={mounted ? `${currentOption.label} — switch to ${nextOption.label}` : "Theme"}
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
       {showLabel && <span className="truncate">{currentOption.label}</span>}

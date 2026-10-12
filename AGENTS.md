@@ -119,6 +119,15 @@ drizzle/          Versioned migration files + meta/ (journal + snapshot)
 docs/             Architecture + infrastructure notes
 ```
 
+## Writing copy: tap or click
+
+Loki is used from phones and computers, so "tap this" is wrong on half of them.
+Say what happens instead of the gesture ("Open the list", "Pick one", "Choose
+Send"). Where the gesture IS the instruction ("tap the screen, then type"),
+use `usePressVerb()` (`src/hooks/use-press-verb.ts`), which follows the device
+in the person's hand; `widget/press.ts` is the same for the feedback widget.
+Narration of what someone did says "pressed", which is true of both.
+
 ## Dev commands
 
 ```bash

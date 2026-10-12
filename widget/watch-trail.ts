@@ -138,7 +138,7 @@ export function watchReport(
     f.kind === "request"
       ? `While I was using this page a request failed: ${f.text}. Fix it so this works.`
       : f.kind === "dead-tap"
-        ? `I tapped ${f.text} three times and nothing happened. Make it do what it says.`
+        ? `I pressed ${f.text} three times and nothing happened. Make it do what it says.`
         : `While I was using this page it hit an error: ${f.text}. Fix it so this works.`;
   const diagnostics: ReportDiagnostics = {
     "filed by": "Loki watch mode",
@@ -267,8 +267,8 @@ const STATUS_WORDS: Record<number, string> = {
  * background AI on the shared free tier). "Why?" is where a model comes in.
  */
 export function explainNotice(n: Notice): { say: string; fix: string } {
-  const after = n.after ? `After you tapped ${n.after}, ` : "";
-  const afterFix = n.after ? ` after tapping ${n.after}` : "";
+  const after = n.after ? `After you pressed ${n.after}, ` : "";
+  const afterFix = n.after ? ` after pressing ${n.after}` : "";
   const req = /^([A-Z]+) (\S+) → (\d{3}|no response)(?: in ([\d.]+)s)?/.exec(n.text);
   if ((n.kind === "4xx" || n.kind === "slow") && req) {
     const [, , path, status, secs] = req;
@@ -304,12 +304,12 @@ export function explainNotice(n: Notice): { say: string; fix: string } {
       };
     case "noeffect":
       return {
-        say: `You tapped ${n.text} and nothing visibly happened — nothing on the page changed and nothing was sent.`,
-        fix: `Make ${n.text} do something visible when tapped (or say why it can't).`,
+        say: `You pressed ${n.text} and nothing visibly happened — nothing on the page changed and nothing was sent.`,
+        fix: `Make ${n.text} do something visible when pressed (or say why it can't).`,
       };
     case "cls":
       return {
-        say: "Content jumped around on this page while you were looking at it — easy to tap the wrong thing.",
+        say: "Content jumped around on this page while you were looking at it — easy to press the wrong thing.",
         fix: "Stop the content on this page jumping around as it loads (reserve space for what arrives late).",
       };
     default:

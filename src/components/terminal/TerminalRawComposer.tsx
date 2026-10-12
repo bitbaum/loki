@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CornerDownLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePressVerb } from "@/hooks/use-press-verb";
 
 /**
  * Type into the session without fighting the terminal for focus.
@@ -28,7 +29,10 @@ import { cn } from "@/lib/utils";
 export function TerminalRawComposer({
   onSend,
   sessionLabel,
+  focusRequest = 0,
 }: {
+  /** A new value takes the cursor (the screen above was tapped to type). */
+  focusRequest?: number;
   /** Writes verbatim bytes into the session (transport.sendKey). */
   onSend: (bytes: string) => void;
   sessionLabel: string;
@@ -36,6 +40,10 @@ export function TerminalRawComposer({
   const [text, setText] = useState("");
   const [withEnter, setWithEnter] = useState(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const press = usePressVerb();
+  useEffect(() => {
+    if (focusRequest > 0) inputRef.current?.focus();
+  }, [focusRequest]);
 
   const send = () => {
     if (!text) return;
@@ -78,8 +86,8 @@ export function TerminalRawComposer({
         aria-pressed={withEnter}
         title={
           withEnter
-            ? "Send runs the line (Enter is added). Tap to type the text without submitting."
-            : "Send types the text only. Tap to add Enter and run it."
+            ? `Send runs the line (Enter is added). ${press.Verb} to type the text without submitting.`
+            : `Send types the text only. ${press.Verb} to add Enter and run it.`
         }
         className={cn("ui-term-mcomposer-enter", withEnter && "ui-term-mcomposer-enter-on")}
       >

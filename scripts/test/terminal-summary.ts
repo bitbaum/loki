@@ -108,8 +108,8 @@ const buffer = (rows: string[]): ScreenBuffer => ({
   eq(
     read("src/components/terminal/TerminalSurface.tsx").match(/readScreenRef=\{readScreenRef\}/g)
       ?.length,
-    2,
-    "the screen reader reaches both the view and the rail",
+    3,
+    "the screen reader reaches the view, the rail and the strip of things to type",
   );
   eq(
     read("src/components/terminal/TerminalView.tsx").includes(

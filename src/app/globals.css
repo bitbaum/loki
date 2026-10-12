@@ -3210,6 +3210,37 @@
   .ui-term-suggest {
     @apply inline-flex min-h-9 max-w-52 shrink-0 items-center rounded-2xl border border-border-subtle bg-surface-base px-3 py-1 text-left text-xs leading-snug text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
   }
+  /* What the screen needs TYPED (TerminalActions): the agent's own command or
+     a key, with the sentence that says why. Bordered like a note, not a chip
+     row — it is the one thing on the page asking for the person. */
+  .ui-term-actions {
+    @apply flex shrink-0 flex-col gap-1.5 rounded-xl border border-border-interactive bg-surface-raised px-3 py-2;
+  }
+  .ui-term-actions-why {
+    @apply flex items-start gap-1.5 text-xs leading-snug text-text-primary;
+  }
+  .ui-term-action {
+    @apply inline-flex min-h-9 items-center gap-2 rounded-lg border border-border-default bg-surface-base px-2.5 py-1 text-xs font-medium text-text-primary transition-colors hover:border-border-interactive;
+  }
+  .ui-term-action-kbd {
+    @apply shrink-0 rounded border border-border-subtle bg-surface-overlay px-1.5 py-0.5 text-micro text-text-secondary;
+    font-family: var(--font-mono);
+  }
+  .ui-term-commands {
+    @apply rounded-lg border border-border-subtle bg-surface-base;
+  }
+  .ui-term-commands-summary {
+    @apply flex min-h-9 cursor-pointer items-center px-2.5 text-xs text-text-secondary hover:text-text-primary;
+  }
+  .ui-term-commands-list {
+    @apply flex flex-col gap-1 px-1.5 pb-1.5;
+  }
+  .ui-term-command {
+    @apply flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-surface-overlay;
+  }
+  .ui-term-commands-note {
+    @apply px-2.5 pb-2 text-micro text-text-muted;
+  }
   .ui-term-dock-hint {
     @apply px-1 text-micro leading-snug text-text-muted;
   }

@@ -116,7 +116,7 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
         return {
           kind: RECOMMEND.FILE,
           label: "File away",
-          why: `Nobody started this in ${ageDays} days${times}. A report that waited this long was not urgent; it is one tap to bring back.`,
+          why: `Nobody started this in ${ageDays} days${times}. A report that waited this long was not urgent; it takes one step to bring back.`,
           runs: 0,
           priority: 20,
           archiveReason: `Filed away after ${ageDays} days with nothing started. Reopen it to keep it.`,

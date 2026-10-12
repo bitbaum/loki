@@ -190,7 +190,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
         ariaLabel="Describe your website and what should change"
         attach={false}
         disabled={!ready || sending}
-        hint="Type, or tap the mic and say it — in any language."
+        hint="Type it, or use the mic and say it — in any language."
       />
 
       {refresh && (

@@ -9,6 +9,7 @@
 import { h } from "./dom";
 import { ownerSignInUrl } from "./owner-pass";
 import type { Assistant } from "./thread";
+import { pressVerb } from "./press";
 
 export function greetingFor(state: {
   assistant: Assistant;
@@ -17,8 +18,8 @@ export function greetingFor(state: {
 }): string {
   if (state.owner) {
     return state.watching
-      ? "I'm watching as you use your site. Use it as usual — or tap ◎ beside me to show me an element or this screen, and tell me what you'd change."
-      : "Paused — nothing is recorded. Resume above, tap ◎ beside me to show me something, or just tell me what to change.";
+      ? `I'm watching as you use your site. Use it as usual — or ${pressVerb().verb} ◎ beside me to show me an element or this screen, and tell me what you'd change.`
+      : `Paused — nothing is recorded. Resume above, ${pressVerb().verb} ◎ beside me to show me something, or just tell me what to change.`;
   }
   if (state.assistant === "none") {
     return "Tell us what should change — it goes straight to whoever builds this site.";

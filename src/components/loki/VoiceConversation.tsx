@@ -4,15 +4,22 @@ import { X } from "lucide-react";
 import { Drawer } from "@/components/ui/modal";
 import { BRAND_MARK, spiralPathD } from "@/config/brand-mark";
 import type { useVoiceConversation, VoicePhase } from "@/hooks/use-voice-conversation";
+import { usePressVerb } from "@/hooks/use-press-verb";
+import type { PressVerb } from "@/lib/pointer-verb";
 
-const PHASE_COPY: Record<VoicePhase, { label: string; hint: string }> = {
-  off: { label: "", hint: "" },
-  starting: { label: "Starting…", hint: "Allow the microphone if your browser asks." },
-  listening: { label: "Listening", hint: "Talk, then pause. Tap Loki to send now." },
-  transcribing: { label: "Got it", hint: "" },
-  thinking: { label: "Thinking", hint: "" },
-  speaking: { label: "", hint: "Tap Loki to interrupt." },
-  paused: { label: "Paused", hint: "Nothing heard for a while. Tap Loki to talk again." },
+/** Hints name the gesture, so they follow the device: tap on a phone, click
+ *  on a computer (lib/pointer-verb). */
+const PHASE_COPY: Record<VoicePhase, { label: string; hint: (p: PressVerb) => string }> = {
+  off: { label: "", hint: () => "" },
+  starting: { label: "Starting…", hint: () => "Allow the microphone if your browser asks." },
+  listening: { label: "Listening", hint: (p) => `Talk, then pause. ${p.Verb} Loki to send now.` },
+  transcribing: { label: "Got it", hint: () => "" },
+  thinking: { label: "Thinking", hint: () => "" },
+  speaking: { label: "", hint: (p) => `${p.Verb} Loki to interrupt.` },
+  paused: {
+    label: "Paused",
+    hint: (p) => `Nothing heard for a while. ${p.Verb} Loki to talk again.`,
+  },
 };
 
 /** The orb's look per phase: literal names, so the design check can see them. */
@@ -42,10 +49,12 @@ const ORB_CLASS: Record<VoicePhase, string> = {
  */
 export function VoiceConversation({ voice }: { voice: ReturnType<typeof useVoiceConversation> }) {
   const { phase, level, heard, saying, error, tap: onTap, end: onEnd } = voice;
+  const press = usePressVerb();
   // Closed, the only thing to say is why it closed: a microphone that could
   // not be opened, next to the button that tried.
   if (phase === "off") return error ? <p className="ui-error px-1">{error}</p> : null;
-  const copy = PHASE_COPY[phase];
+  const phaseCopy = PHASE_COPY[phase];
+  const copy = { label: phaseCopy.label, hint: phaseCopy.hint(press) };
   const busy = phase === "starting" || phase === "transcribing" || phase === "thinking";
   const words = phase === "speaking" ? saying : busy && heard ? `“${heard}”` : "";
   return (

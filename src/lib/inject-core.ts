@@ -807,7 +807,7 @@ async function executeAndReport(
         ok: false,
         error: "No builder is online to run this.",
         nextAction:
-          "Cloud builder is offline. Ensure loki-box-runner is active on the box, or open Fleet Runner — then tap Implement again.",
+          "Cloud builder is offline. Ensure loki-box-runner is active on the box, or open Fleet Runner — then choose Implement again.",
         code: "builder-offline",
         warning: "runner-offline",
         channel,

@@ -78,7 +78,7 @@ export const PROBLEM_SCALES: readonly ProblemScale[] = [
         id: "small-changes-wait",
         problem: "“Every small change to my site means an email, a quote and a week.”",
         solution:
-          "Open your site from Loki, tap the Loki button and say what to change. An agent makes the change and it goes online by itself, checked on a phone-sized screen on the way.",
+          "Open your site from Loki, press the Loki button and say what to change. An agent makes the change and it goes online by itself, checked on a phone-sized screen on the way.",
         link: { label: "See how changes work", href: howItWorks("change") },
       },
       {

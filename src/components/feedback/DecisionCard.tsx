@@ -175,7 +175,9 @@ export function DecisionCard({
             disabled={busy}
             className="ui-btn-save"
             title={
-              rec.runs ? "Starts one agent run on your builder" : "Free — one tap brings it back"
+              rec.runs
+                ? "Starts one agent run on your builder"
+                : "Free — and one step brings it back"
             }
           >
             {busy && <Loader2 className="ui-spinner-xs" />}

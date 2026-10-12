@@ -86,6 +86,12 @@ src/
 │   │                 terminal-transport (substrate seam), TabVoiceMic.
 │   │                 Modes are SSOT in config/terminal-modes.ts; never add a
 │   │                 second terminal shell — add a transport.
+│   │                 TerminalActions = what the screen needs TYPED (signed
+│   │                 out → /login, a menu → Enter), one click from the
+│   │                 session. The agent CLIs' own commands are SSOT in
+│   │                 config/agent-commands.ts; they are typed as keys, never
+│   │                 injected (inject wraps text in project context).
+│   │                 A press on the read-only screen switches to Type.
 │   │                 Below md the same state drives phone chrome:
 │   │                 TerminalMobileHeader (one line) + TerminalSessionSheet
 │   │                 (all the setup) + TerminalMobileDock = TerminalKeyDeck

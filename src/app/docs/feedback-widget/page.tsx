@@ -112,9 +112,10 @@ export default function FeedbackWidgetDocsPage() {
             <code>data-fc-modes=&quot;report&quot;</code> on the script line turns the answers off.
           </p>
           <p>
-            <strong>Watch</strong> is in the panel&rsquo;s header. On your own site, tap it and sign
-            in with Loki: you come straight back with Loki watching how you use the page, fixing
-            what breaks, and on <em>Review</em> saying what to improve. Visitors are never watched.
+            <strong>Watch</strong> is in the panel&rsquo;s header. On your own site, press it and
+            sign in with Loki: you come straight back with Loki watching how you use the page,
+            fixing what breaks, and on <em>Review</em> saying what to improve. Visitors are never
+            watched.
           </p>
           <p>
             <strong>A studio front desk</strong> instead of site advice: with{" "}

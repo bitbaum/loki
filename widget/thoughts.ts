@@ -28,7 +28,7 @@ export function thoughtFor(e: TrailEntry): Thought {
     case "page":
       return { at, tone: "plain", text: `Opened ${pageName(e.text)}` };
     case "tap":
-      return { at, tone: "plain", text: `You tapped ${e.text}` };
+      return { at, tone: "plain", text: `You pressed ${e.text}` };
     case "look":
       return {
         at,
@@ -70,7 +70,7 @@ export function thoughtsSummary(trail: TrailEntry[], watching: boolean): string 
   const taps = trail.filter((e) => e.kind === "tap").length;
   const seen = [
     `${pages} ${pages === 1 ? "page" : "pages"}`,
-    ...(taps ? [`${taps} ${taps === 1 ? "tap" : "taps"}`] : []),
+    ...(taps ? [`${taps} ${taps === 1 ? "press" : "presses"}`] : []),
   ].join(", ");
   const verdict = problems
     ? `${problems} ${problems === 1 ? "thing" : "things"} to look at`

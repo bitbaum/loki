@@ -35,7 +35,7 @@ export const HOME_STEPS = [
   {
     number: "03",
     title: "Say what to change",
-    body: "Open your site, tap the Loki button and say or type what should be different. An agent makes the change and it goes online by itself. Visitors can leave notes too — those wait for your OK.",
+    body: "Open your site, press the Loki button and say or type what should be different. An agent makes the change and it goes online by itself. Visitors can leave notes too — those wait for your OK.",
   },
 ] as const;
 

@@ -4,6 +4,7 @@
  * back at submit time.
  */
 import { h } from "./dom";
+import { pressVerb } from "./press";
 
 export type SelectedEl = { elementType: string; elementText: string; selector: string };
 
@@ -228,7 +229,7 @@ export function createPicker(opts: {
       // Short enough to survive a phone beside "This screen": the hint is
       // the two buttons' names, not a sentence that ellipsises to "Tap w…".
       pickCount.textContent = "Pick";
-      pickLbl.textContent = "Tap it, or";
+      pickLbl.textContent = `${pressVerb().Verb} it, or`;
       pickDone.disabled = true;
       return;
     }
@@ -238,7 +239,9 @@ export function createPicker(opts: {
     const label = (last.elementText || last.selector).replace(/\s+/g, " ").slice(0, 60);
     pickCount.textContent = `${selected.length} selected`;
     pickLbl.textContent =
-      selected.length === 1 ? `${label} — tap more, or Done` : `last: ${label} — Done when ready`;
+      selected.length === 1
+        ? `${label} — ${pressVerb().verb} more, or Done`
+        : `last: ${label} — Done when ready`;
     pickDone.disabled = false;
   }
 

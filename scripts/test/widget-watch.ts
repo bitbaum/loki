@@ -103,7 +103,7 @@ check(() => {
   g = nextTapStreak(g.streak, "button “Pay”", 9000);
   assert.equal(g.dead, false, "outside the window it starts again");
   const rep = watchReport({ kind: "dead-tap", text: "button “Pay”" }, [], 0);
-  assert.match(rep.message, /tapped button “Pay” three times and nothing happened/);
+  assert.match(rep.message, /pressed button “Pay” three times and nothing happened/);
 });
 
 // ---- Review: what a reviewer remarks on that is not a failure ----
@@ -172,11 +172,11 @@ check(() => {
   });
   assert.equal(
     nf.say,
-    "After you tapped button “Opening hours”, the page asked for /hours and it found nothing there (404).",
+    "After you pressed button “Opening hours”, the page asked for /hours and it found nothing there (404).",
   );
   assert.match(
     nf.fix,
-    /^Fix the request to \/hours after tapping button “Opening hours”: it answers 404\.$/,
+    /^Fix the request to \/hours after pressing button “Opening hours”: it answers 404\.$/,
   );
   // No tap to blame: the sentence still stands on its own.
   assert.match(

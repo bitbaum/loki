@@ -38,6 +38,7 @@ import {
 import { runPageChecks } from "./page-checks";
 import { sendReport } from "./send-report";
 import { remarkVerdict, type KnownFix } from "./known-fixes";
+import { pressVerb } from "./press";
 
 const pausedKey = (token: string) => `loki-watch-paused:${token}`;
 /** Per tab, per site: a multi-page site reloads on every link, and Review must
@@ -392,7 +393,7 @@ function observePerformance(
       if (overlaps)
         notice(
           "longtask",
-          `after ${tap.what} the page froze for ${Math.round(e.duration)}ms (taps go unanswered meanwhile)`,
+          `after ${tap.what} the page froze for ${Math.round(e.duration)}ms (clicks and taps go unanswered meanwhile)`,
         );
     }
   });
@@ -519,7 +520,7 @@ export function createWatchPill(
         break;
       }
       case "not-sent":
-        text.textContent = "Something broke — couldn't reach Loki. Tap Show to send it.";
+        text.textContent = `Something broke — couldn't reach Loki. ${pressVerb().Verb} Show to send it.`;
         break;
     }
   };
@@ -575,7 +576,7 @@ function writeSaid(token: string, said: Set<string>): void {
 /** A failure, in the owner's words (watch files the fix itself). */
 function failureSay(f: Failure): string {
   return f.kind === "dead-tap"
-    ? `You tapped ${f.text} three times and nothing happened.`
+    ? `You pressed ${f.text} three times and nothing happened.`
     : f.kind === "request"
       ? `Something broke: the page asked for ${f.text.replace(/^[A-Z]+ /, "").replace(/ → /, " and got ")}.`
       : `Something broke: the page hit an error — “${f.text}”.`;

@@ -16,16 +16,20 @@ import {
 } from "@/lib/terminal-run-view";
 import { screenText } from "@/lib/terminal-screen";
 import {
+  ASK_SCREEN_CHARS,
   SUMMARY_MAX_CHARS,
   SUMMARY_REQUEST,
   SUMMARY_WINDOW_ROWS,
   screenAttachment,
   splitActions,
   summaryPrompt,
+  terminalContextAttachment,
 } from "@/lib/terminal-summary";
 import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
 import type { LiveTurn } from "@/hooks/use-loki-stream";
+import { commandIn } from "@/lib/terminal-commands";
 import { TerminalComposer } from "./TerminalComposer";
+import { TerminalCommandList } from "./TerminalActions";
 
 /**
  * "12s · Running list_projects" — the live line /loki's own thread prints.
@@ -72,7 +76,15 @@ export function TerminalLokiRail({
   askOnly = false,
   explain,
   initialDraft = null,
+  agent = null,
+  onKey,
 }: {
+  /** The CLI running in the tab — which commands a step may type. */
+  agent?: string | null;
+  /** Types into the session (the keyboard's path). A step that is the agent's
+   *  own command ("/model opus") goes here: Inject would wrap it in project
+   *  context and the agent would read a sentence about a model. */
+  onKey?: (bytes: string) => void;
   /** "What's going on?" asked outside the rail (the phone button, a Watch
    *  deep link). Each new `pending` value is answered once, as soon as the
    *  session's screen is attached — asking before that would explain an empty
@@ -152,11 +164,18 @@ export function TerminalLokiRail({
   };
 
   const screenLines = () => readScreenRef?.current?.(SUMMARY_WINDOW_ROWS) ?? [];
+  // Every Ask from this panel is about THIS session, so it carries the screen
+  // and the agent's commands: "switch to Opus" can then be answered with the
+  // step that does it ("→ /model opus", a button below) instead of an essay.
+  // Read at send time, not render time — the screen is a ref.
+  const askContext = () => [
+    terminalContextAttachment(agent, screenText(screenLines(), ASK_SCREEN_CHARS)),
+  ];
   const summarize = () => {
     if (!project) return;
     const screen = screenText(screenLines(), SUMMARY_MAX_CHARS);
     const run = view ? presentTerminalRun(view, ptyState) : null;
-    void session.ask(summaryPrompt(project), {
+    void session.ask(summaryPrompt(project, agent), {
       attachments: [screenAttachment(screen || "(the terminal is empty)", run)],
       shown: SUMMARY_REQUEST,
     });
@@ -315,17 +334,34 @@ export function TerminalLokiRail({
               if (!actions.length) return null;
               return (
                 <div className="flex flex-wrap gap-1.5" role="group" aria-label="Next steps">
-                  {actions.map((action) => (
-                    <button
-                      key={action}
-                      type="button"
-                      onClick={() => setDraft({ text: action, nonce: Date.now() })}
-                      title="Put this in Inject to check and send"
-                      className="ui-chip-toggle-compact text-left"
-                    >
-                      {action}
-                    </button>
-                  ))}
+                  {actions.map((action) => {
+                    // The agent's own command is TYPED into the terminal, at
+                    // once: it is what the person was told to do, and there is
+                    // nothing to edit in "/login".
+                    const command = onKey ? commandIn(action, agent) : null;
+                    return command ? (
+                      <button
+                        key={action}
+                        type="button"
+                        onClick={() => onKey?.(`${command}\r`)}
+                        title="Type this into the terminal and press Enter"
+                        className="ui-term-action"
+                      >
+                        <span>Type it</span>
+                        <kbd className="ui-term-action-kbd">{command}</kbd>
+                      </button>
+                    ) : (
+                      <button
+                        key={action}
+                        type="button"
+                        onClick={() => setDraft({ text: action, nonce: Date.now() })}
+                        title="Put this in Inject to check and send"
+                        className="ui-chip-toggle-compact text-left"
+                      >
+                        {action}
+                      </button>
+                    );
+                  })}
                 </div>
               );
             }}
@@ -337,7 +373,15 @@ export function TerminalLokiRail({
           same attach, voice and model controls) as Loki chat and the
           Prompt-mode box. It used to be a bare textarea of its own. */}
       <div className="ui-term-loki-composer">
+        {onKey && (
+          <div className="mb-2">
+            <TerminalCommandList agent={agent} onKey={onKey} />
+          </div>
+        )}
         <TerminalComposer
+          agent={agent}
+          onKey={onKey}
+          askContext={askContext}
           project={project}
           tab={tab}
           modes={askOnly ? ["ask"] : ["ask", "inject"]}

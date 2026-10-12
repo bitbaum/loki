@@ -10,6 +10,7 @@ import { TerminalRawComposer } from "./TerminalRawComposer";
 import { TerminalComposer } from "./TerminalComposer";
 import { TabVoiceMic } from "./TabVoiceMic";
 import { TerminalInputSwitch } from "./TerminalInputSwitch";
+import { usePressVerb } from "@/hooks/use-press-verb";
 
 /** What the full-screen dock has open: nothing (watching), the keys, or the
  *  composer. One at a time — two open panels is the stack this replaced. */
@@ -52,9 +53,15 @@ export function TerminalMobileDock({
   onInputModeChange,
   suggestions,
   onKey,
+  agent = null,
+  typeRequest = 0,
   liveKeys,
   immersive,
 }: {
+  /** Bumped when the screen is tapped to type: open the typing box, focused. */
+  typeRequest?: number;
+  /** The CLI in the tab — its commands are typed, never injected. */
+  agent?: string | null;
   tab: string;
   channel: BuilderChannel;
   inputMode: TerminalInputMode;
@@ -68,6 +75,7 @@ export function TerminalMobileDock({
   liveKeys: boolean;
   immersive: boolean;
 }) {
+  const press = usePressVerb();
   const [panel, setPanel] = useState<WatchPanel>(immersive ? "none" : "write");
   // Entering full screen is a request to watch; leaving it, to write again.
   // Adjusted during render (React's pattern for state that follows a prop).
@@ -75,6 +83,12 @@ export function TerminalMobileDock({
   if (layout !== immersive) {
     setLayout(immersive);
     setPanel(immersive ? "none" : "write");
+  }
+  // A tap on the screen asked to type: the typing box opens, with the cursor.
+  const [seenTypeRequest, setSeenTypeRequest] = useState(typeRequest);
+  if (seenTypeRequest !== typeRequest) {
+    setSeenTypeRequest(typeRequest);
+    setPanel("write");
   }
   const toggle = (next: WatchPanel) => setPanel((p) => (p === next ? "none" : next));
 
@@ -93,16 +107,22 @@ export function TerminalMobileDock({
   const writing = (
     <>
       {inputMode === "type" && !liveKeys && (
-        <TerminalRawComposer onSend={onKey} sessionLabel={tab} />
+        <TerminalRawComposer onSend={onKey} sessionLabel={tab} focusRequest={typeRequest} />
       )}
       {inputMode === "type" && liveKeys && (
         <p className="ui-term-dock-hint">
-          Live keystrokes are on — tap the screen above, then type. Turn them off in the session
-          menu to get the typing box back.
+          Live keystrokes are on — {press.verb} the screen above, then type. Turn them off in the
+          session menu to get the typing box back.
         </p>
       )}
       {inputMode === "prompt" && (
-        <TerminalComposer tab={tab} density="compact" suggestions={suggestions} />
+        <TerminalComposer
+          tab={tab}
+          density="compact"
+          suggestions={suggestions}
+          agent={agent}
+          onKey={onKey}
+        />
       )}
       {inputMode === "voice" && (
         <div className="flex items-center justify-center">

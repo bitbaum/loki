@@ -232,7 +232,7 @@ const report = (id: string, projectId: string, over: Partial<NightReport> = {}):
   );
   assert.equal(
     text,
-    "Tonight Loki would start 2 fixes (kestrel, harbourlight) and read ledgerpost — 3 of 4 runs, ~$1.80 (your last 3 runs averaged $0.60, ~156k tokens a run). Filing away 2 old reports is free and one tap to undo.",
+    "Tonight Loki would start 2 fixes (kestrel, harbourlight) and read ledgerpost — 3 of 4 runs, ~$1.80 (your last 3 runs averaged $0.60, ~156k tokens a run). Filing away 2 old reports is free and one step to undo.",
   );
   const quiet = nightProposalText(
     {

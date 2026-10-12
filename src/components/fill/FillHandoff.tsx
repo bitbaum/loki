@@ -162,7 +162,7 @@ export function FillHandoff({
             stops at the final button the same way.
             {BROWSER_EXTENSION_LISTING_URL
               ? ""
-              : " It is on its way to the Firefox add-ons store; until then, send it to your computer or tap the values above to copy them."}
+              : " It is on its way to the Firefox add-ons store; until then, send it to your computer or copy the values above one by one."}
           </p>
           {BROWSER_EXTENSION_LISTING_URL && (
             <a

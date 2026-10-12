@@ -38,13 +38,13 @@ export function SessionModeChip({
       }}
       title={
         pending
-          ? "Switched — Claude Code records the new mode with your next message. Tap again for the next one."
+          ? "Switched — Claude Code records the new mode with your next message. Press again for the next one."
           : "Switch to Claude Code's next mode (Shift+Tab)"
       }
       aria-label={
         pending
           ? `Mode switched from ${mode.label}; the new mode shows after your next message`
-          : `Mode: ${mode.label}. Tap to switch to the next mode`
+          : `Mode: ${mode.label}. Switch to the next mode`
       }
     >
       <Repeat2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
