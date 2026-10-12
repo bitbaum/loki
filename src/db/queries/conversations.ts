@@ -165,10 +165,13 @@ export async function updateConversationTitle(
   userId: string,
   id: string,
   title: string,
+  /** false: a rename or an after-the-fact title is not activity, so it must
+   *  not move the thread to the top of the rail. */
+  opts: { touch?: boolean } = {},
 ): Promise<Conversation | null> {
   const [row] = await db
     .update(conversations)
-    .set({ title, updatedAt: new Date() })
+    .set(opts.touch === false ? { title } : { title, updatedAt: new Date() })
     .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
     .returning();
   return row ?? null;

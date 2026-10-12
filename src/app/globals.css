@@ -6593,6 +6593,21 @@
   .ui-loki-thread-header-title {
     @apply flex min-w-0 flex-1 flex-col items-stretch px-1 py-1 text-center leading-tight;
   }
+  /* The open thread's name in the desktop top bar: quiet until hovered,
+     then the pencil says it can be renamed. */
+  .ui-loki-thread-title {
+    @apply ml-1 inline-flex min-h-9 min-w-0 max-w-md items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised;
+  }
+  .ui-loki-thread-title-pencil {
+    @apply h-3.5 w-3.5 shrink-0 text-text-muted opacity-0 transition-opacity;
+  }
+  .ui-loki-thread-title:hover .ui-loki-thread-title-pencil,
+  .ui-loki-thread-title:focus-visible .ui-loki-thread-title-pencil {
+    @apply opacity-100;
+  }
+  .ui-loki-thread-title-input {
+    @apply min-h-9 w-full min-w-0 max-w-md px-2 text-sm text-text-primary;
+  }
   .ui-loki-thread-header-title > span {
     @apply block min-w-0 max-w-full;
   }

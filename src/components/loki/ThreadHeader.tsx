@@ -8,10 +8,12 @@ import {
   History,
   MoreVertical,
   PanelLeft,
+  Pencil,
   Pin,
   PinOff,
   SquarePen,
 } from "lucide-react";
+import { ThreadTitle } from "./ThreadTitle";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
 
 /**
@@ -30,6 +32,7 @@ export function ThreadHeader({
   onSaveContext,
   pinned = false,
   onTogglePin,
+  onRename,
 }: {
   title: string;
   projects: string[];
@@ -43,8 +46,11 @@ export function ThreadHeader({
   /** A phone has no hover to reveal the rail's pin, so it lives here too. */
   pinned?: boolean;
   onTogglePin?: () => void;
+  /** Rename the open thread — a person's name is kept, never re-derived. */
+  onRename?: (title: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const close = useCallback(() => setMenuOpen(false), []);
   useEscapeToClose(close, !menuOpen);
 
@@ -80,15 +86,21 @@ export function ThreadHeader({
       >
         <ArrowLeft className="h-5 w-5" aria-hidden />
       </button>
-      <button
-        type="button"
-        className="ui-loki-thread-header-title"
-        onClick={onOpenProjects}
-        title="Change project scope"
-      >
-        <span className="truncate text-base font-semibold text-text-primary">{title}</span>
-        <span className="truncate text-xs text-text-tertiary">{subtitle}</span>
-      </button>
+      {renaming && onRename ? (
+        <div className="ui-loki-thread-header-title">
+          <ThreadTitle title={title} onRename={onRename} editing onEditingChange={setRenaming} />
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="ui-loki-thread-header-title"
+          onClick={onOpenProjects}
+          title="Change project scope"
+        >
+          <span className="truncate text-base font-semibold text-text-primary">{title}</span>
+          <span className="truncate text-xs text-text-tertiary">{subtitle}</span>
+        </button>
+      )}
       <div className="relative">
         <button
           type="button"
@@ -115,6 +127,7 @@ export function ThreadHeader({
               {onSaveContext && item("Save to project context", BookmarkPlus, onSaveContext)}
               {onTogglePin &&
                 item(pinned ? "Unpin" : "Pin to the top", pinned ? PinOff : Pin, onTogglePin)}
+              {onRename && item("Rename", Pencil, () => setRenaming(true))}
             </div>
           </>
         )}

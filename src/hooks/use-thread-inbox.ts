@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, type Dispatch, type SetStateAction } from "react";
-import { getJson, patchJson } from "@/lib/api/fetch";
+import { useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
+import { getJson, patchJson, postJson } from "@/lib/api/fetch";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import type { RailMode } from "@/components/loki/ThreadRail";
 import type { ConversationSummary } from "@/components/loki/types";
@@ -12,8 +12,15 @@ const modeSerialize = (v: RailMode) => v;
 const modeDeserialize = (raw: string): RailMode => (raw === "project" ? "project" : "recent");
 
 /**
- * The two small facts the rail keeps per thread, written from the chat:
- * read and pinned (lib/loki/thread-state.ts reads them).
+ * The small facts the rail keeps per thread, written from the chat: read,
+ * pinned, and what the thread is called (lib/loki/thread-state.ts and
+ * lib/loki/thread-title.ts read them).
+ *
+ * Naming: once a thread has its first answer — when it lands, or the first
+ * time an older thread is opened this session — the server is asked once to
+ * name it from the exchange. It declines, without a model call, for a title
+ * a person chose, so asking is always safe; the per-session set only stops
+ * a failed naming from being retried on every message.
  *
  * Having the thread open is reading it. Every message on screen — an
  * answer, a run's outcome the outcome poll brought in, a question — is read
@@ -31,6 +38,8 @@ export function useThreadInbox(
   setConversations: Dispatch<SetStateAction<ConversationSummary[]>>,
 ): {
   pinConversation: (id: string, pinned: boolean) => void;
+  /** A person's own title. Kept as typed (trimmed), never re-derived. */
+  renameConversation: (id: string, title: string) => void;
   railMode: RailMode;
   setRailMode: (mode: RailMode) => void;
   /** Re-read the list from the server, keeping the thread on screen read. */
@@ -62,6 +71,53 @@ export function useThreadInbox(
       current = false;
     };
   }, [activeId, transcriptLoading, messageCount, setConversations]);
+
+  const titled = useRef(new Set<string>());
+  useEffect(() => {
+    if (!activeId || transcriptLoading || messageCount < 2) return;
+    if (titled.current.has(activeId)) return;
+    titled.current.add(activeId);
+    const id = activeId;
+    postJson(`/api/conversations/${id}/title`, {})
+      .then(async (res) => {
+        if (!res.ok) return;
+        const body = (await res.json().catch(() => ({}))) as { title?: string; changed?: boolean };
+        if (!body.changed || !body.title) return;
+        const title = body.title;
+        setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
+      })
+      .catch(() => {
+        /* the thread keeps its opening line as its title */
+      });
+  }, [activeId, transcriptLoading, messageCount, setConversations]);
+
+  const renameConversation = useCallback(
+    (id: string, raw: string) => {
+      const title = raw.trim().slice(0, 200);
+      if (!title) return;
+      let previous: string | undefined;
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          previous = c.title;
+          return { ...c, title };
+        }),
+      );
+      // A person named it: Loki must never rename it again this session.
+      titled.current.add(id);
+      void patchJson(`/api/conversations/${id}`, { title })
+        .then((res) => {
+          if (res.ok) return;
+          throw new Error("rename refused");
+        })
+        .catch(() => {
+          if (previous === undefined) return;
+          const back = previous;
+          setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, title: back } : c)));
+        });
+    },
+    [setConversations],
+  );
 
   const pinConversation = useCallback(
     (id: string, pinned: boolean) => {
@@ -97,7 +153,7 @@ export function useThreadInbox(
 
   // One stable object, so a caller may depend on it as a whole.
   return useMemo(
-    () => ({ pinConversation, railMode, setRailMode, syncConversations }),
-    [pinConversation, railMode, setRailMode, syncConversations],
+    () => ({ pinConversation, renameConversation, railMode, setRailMode, syncConversations }),
+    [pinConversation, renameConversation, railMode, setRailMode, syncConversations],
   );
 }
