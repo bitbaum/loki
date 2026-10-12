@@ -71,6 +71,7 @@ fi
 # Loki health is first — a 503 there means the env guardrail found a
 # fatal/error config issue, so this check doubles as a config-rot alarm.
 TARGETS="loki-health|https://loki.orangecat.ch/api/health|200
+loki-builder|https://loki.orangecat.ch/api/health/builder|200
 loki|https://loki.orangecat.ch/sign-in|200
 orangecat|https://orangecat.ch|200"
 

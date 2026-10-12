@@ -488,6 +488,20 @@ fi
 # the box waits as long as it needs (up to 6h, and never kills a working agent) and restarts when the
 # runner is genuinely idle. `systemd-run` detaches it into its own cgroup, so it
 # survives this ssh closing and cannot be killed by the restart it performs.
+# What the always-on builder is doing BEFORE this deploy touches it — in the
+# CI log, where a person without an ssh session can read it. On 2026-10-11 the
+# deploy scheduled a drain-then-restart and the runner was offline the next
+# morning; the only record was the box journal. Warn-only: a dead runner is a
+# fact to print, not a reason to fail a verified app deploy.
+step "box-runner state"
+ssh "$HOST" "
+  printf '  box-runner: %s (restart unit: %s)\n' \
+    \"\$(systemctl is-active loki-box-runner 2>/dev/null)\" \
+    \"\$(systemctl is-active loki-runner-restart.service 2>/dev/null || true)\"
+  journalctl -u loki-box-runner -n 6 --no-pager -o cat 2>/dev/null | sed 's/^/    │ /'
+  journalctl -t loki-drain -n 3 --no-pager -o cat 2>/dev/null | sed 's/^/    │ drain: /'
+" 2>/dev/null || echo "  ⚠ could not read box-runner state"
+
 step "scheduling runner restart"
 if [ "$RUNNER_CHANGED" = 1 ]; then
   echo "→ runner code changed — scheduling a drain-then-restart on the box"

@@ -170,6 +170,18 @@ function waitingBuilderStep(
   }
 
   // cloud channel, or legacy null (either runner could claim)
+  // The cloud builder is a service on the box. When it is down, "Watch shows
+  // why" is false — nothing anywhere shows why — and Watch sat on exactly this
+  // line for the owner on 2026-10-12. Say the fact, and what it means for the
+  // work.
+  if (channel === "cloud" && cloudOnline === false && localOnline !== true) {
+    return {
+      kind: "waiting_builder",
+      summary: "Cloud builder offline",
+      detail:
+        "This job is on the cloud queue and the cloud builder is offline. Nothing starts until it reconnects; the work is kept and runs the moment it does.",
+    };
+  }
   if (localOnline === true && cloudOnline !== true) {
     return {
       kind: "waiting_builder",
