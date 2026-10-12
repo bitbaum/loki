@@ -16,7 +16,7 @@ export function SuggestionChips({
 }) {
   if (suggestions.length === 0) return null;
   return (
-    <ul className="ui-term-suggests" aria-label="Suggested next steps — tap to send">
+    <ul className="ui-term-suggests" aria-label="Suggested next steps — each one sends when chosen">
       {suggestions.map((s) => (
         <li key={s}>
           <button

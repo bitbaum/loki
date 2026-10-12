@@ -370,7 +370,7 @@ export function nightProposalText(p: NightProposal, e: NightEstimate): string {
   if (p.reads.length) parts.push(`read ${p.reads.map((r) => r.projectName).join(", ")}`);
   const runs = p.fixes.length + p.reads.length;
   const free = p.archive
-    ? ` Filing away ${p.archive} old ${p.archive === 1 ? "report" : "reports"} is free and one tap to undo.`
+    ? ` Filing away ${p.archive} old ${p.archive === 1 ? "report" : "reports"} is free and one step to undo.`
     : "";
   if (runs === 0) {
     return `Tonight Loki has nothing to build: no open report on a project that can take a run.${free}`;

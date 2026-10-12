@@ -29,7 +29,7 @@ const lines = thoughtsFrom(trail);
 assert.equal(lines[0].at, t0 + 20_000, "newest first");
 assert.equal(lines.length, trail.length);
 
-assert.equal(thoughtsSummary(trail, true), "Watching · 2 pages, 1 tap · 2 things to look at");
+assert.equal(thoughtsSummary(trail, true), "Watching · 2 pages, 1 press · 2 things to look at");
 assert.equal(thoughtsSummary(trail.slice(0, 2), true), "Watching · 1 page · nothing wrong so far");
 assert.match(thoughtsSummary([], true), /waiting for the page to settle/);
 assert.match(thoughtsSummary(trail, false), /^Not watching/);

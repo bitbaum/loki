@@ -371,7 +371,7 @@ export function useVoiceConversation({
           const name = err instanceof DOMException ? err.name : "";
           setError(
             name === "NotAllowedError"
-              ? "Microphone blocked — allow it in the browser's site settings, then tap Talk again."
+              ? "Microphone blocked — allow it in the browser's site settings, then choose Talk again."
               : "No microphone available.",
           );
           setPhase("off");

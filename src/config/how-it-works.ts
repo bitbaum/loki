@@ -52,7 +52,7 @@ export const HOW_SHORT: HowSection[] = [
   {
     id: "change",
     title: "4. You say what to change — on the site itself",
-    lede: "Every site Loki builds carries a small Loki button. Open your site from Loki, tap the button and say or type what should be different. The change is built and goes online by itself.",
+    lede: "Every site Loki builds carries a small Loki button. Open your site from Loki, press the button and say or type what should be different. The change is built and goes online by itself.",
     points: [
       "Notes from visitors land in your Feedback inbox and wait for your OK. Whoever left an email hears back when it is fixed.",
       "Repeating a note that is already being built just says “On it”.",

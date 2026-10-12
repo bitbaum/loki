@@ -46,6 +46,7 @@ import type { BuilderPresenceSnapshot } from "@/hooks/use-builder-presence";
 import { TerminalPaneActions } from "./TerminalPaneActions";
 import { useTerminalView } from "./use-terminal-view";
 import { useScreenSuggestions } from "./use-screen-suggestions";
+import { TerminalActions } from "./TerminalActions";
 import { useTerminalTabs } from "./use-terminal-tabs";
 import { activeAgentFor } from "./terminal-agent";
 import { useTerminalTabActions } from "./use-terminal-tab-actions";
@@ -444,6 +445,13 @@ export function TerminalSurface({
     Boolean(initialPrompt),
   );
   const [liveState, setLiveState] = useState<TerminalLiveState>("connecting");
+  // A press on the read-only screen means "let me type": Type mode, and the
+  // cursor to whichever box takes keys (the terminal, or the dock's box).
+  const [typeRequest, setTypeRequest] = useState(0);
+  const typeIntoScreen = () => {
+    setInputMode("type");
+    setTypeRequest((n) => n + 1);
+  };
   // The attached session's rendered screen, for the rail's AI summary.
   const readScreenRef = useRef<((rows: number) => string[]) | null>(null);
   const [geometry, setGeometry] = useState<PtyGeometry | null>(null);
@@ -560,6 +568,8 @@ export function TerminalSurface({
         askOnly={view === "chat"}
         explain={explainer}
         initialDraft={initialPrompt}
+        agent={activeAgentId}
+        onKey={activeTab ? sendKey : undefined}
       />
     ) : null;
 
@@ -762,6 +772,8 @@ export function TerminalSurface({
         // keyboard, so Alt+N tab switching and the composer are not swallowed
         // by the PTY.
         interactive={inputMode === "type" && deck.liveKeys}
+        onActivate={inputMode === "type" && deck.liveKeys ? undefined : typeIntoScreen}
+        autoFocus={typeRequest > 0}
         compactChrome={immersive}
         stalledHint={copy.stalledHint}
         font={font}
@@ -828,6 +840,10 @@ export function TerminalSurface({
         )}
       </div>
 
+      {activeTab && view === "terminal" && (
+        <TerminalActions readScreenRef={readScreenRef} agent={activeAgentId} onKey={sendKey} />
+      )}
+
       {activeTab && projectKey && !railShown && !(railFits && immersive) && (
         <TerminalExplainButton onClick={explainer.ask} />
       )}
@@ -840,7 +856,12 @@ export function TerminalSurface({
           two boxes on one screen for one job. */}
       {activeTab && view === "terminal" && inputMode === "prompt" && !railShown && (
         <div className="hidden md:block">
-          <TerminalComposer tab={activeTab} suggestions={suggestions} />
+          <TerminalComposer
+            tab={activeTab}
+            suggestions={suggestions}
+            agent={activeAgentId}
+            onKey={sendKey}
+          />
         </div>
       )}
       {activeTab && view === "terminal" && inputMode === "voice" && (
@@ -857,6 +878,8 @@ export function TerminalSurface({
           onInputModeChange={setInputMode}
           suggestions={suggestions}
           onKey={sendKey}
+          agent={activeAgentId}
+          typeRequest={typeRequest}
           liveKeys={deck.liveKeys}
           immersive={immersive}
         />

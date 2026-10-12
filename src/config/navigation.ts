@@ -58,7 +58,7 @@ export const NAV = {
   suggestions: {
     id: "suggestions",
     label: "Suggestions",
-    description: "What to do next, across every front — one tap and Loki takes it",
+    description: "What to do next, across every front — pick one and Loki takes it",
     href: "/suggestions",
     icon: Lightbulb,
     active: true,

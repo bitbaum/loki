@@ -20,7 +20,7 @@ export function watchOfferView(signInUrl: string): HTMLElement {
     h(
       "p",
       undefined,
-      "Loki follows what you tap and what the page does, fixes what breaks, and on Review tells you what to improve — design, speed, errors, the flow itself. A bar at the top shows it is on, and nothing you type is ever recorded.",
+      "Loki follows what you press and what the page does, fixes what breaks, and on Review tells you what to improve — design, speed, errors, the flow itself. A bar at the top shows it is on, and nothing you type is ever recorded.",
     ),
     h("p", "sub", "Only the site's owner can switch it on."),
   );

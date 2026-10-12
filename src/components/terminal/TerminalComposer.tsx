@@ -9,7 +9,9 @@ import type { Attachment, ModelChoice } from "@/components/loki/types";
 import type { SessionAsk } from "@/hooks/use-session-ask";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import { dispatchToneDotClass } from "@/lib/dispatch-status";
+import { commandIn } from "@/lib/terminal-commands";
 import { SuggestionChips } from "./SuggestionChips";
+import { TerminalCommandList } from "./TerminalActions";
 import { terminalComposerModes, type SessionComposerMode } from "./terminal-composer-modes";
 
 const SCREENSHOT_ONLY = "Look at the attached screenshot and fix what is wrong.";
@@ -33,7 +35,12 @@ export type InjectAck = { commandId: string | null; runId: string | null };
  * the project's context (mission, conventions, definition of done) and QUEUES
  * them when the builder is offline — that is the difference from typing the
  * same words into the PTY. `/` at the start of an empty draft opens the prompt
- * library inline.
+ * library inline — with the agent's own commands above it, because "/" is
+ * also how a person who has seen `/model` somewhere tries to type it.
+ *
+ * The agent's own commands never take the Inject path: wrapped in project
+ * context, "/model opus" is a paragraph about a model. A draft that is exactly
+ * one of them is typed into the session instead (`onKey`).
  */
 export function TerminalComposer({
   tab,
@@ -47,7 +54,17 @@ export function TerminalComposer({
   density = "comfortable",
   injectPlaceholder,
   suggestions,
+  agent = null,
+  onKey,
+  askContext,
 }: {
+  /** Attachments every Ask carries, read when it is sent (the rail's screen
+   *  and the agent's commands — lib/terminal-summary). */
+  askContext?: () => Attachment[];
+  /** The CLI in the tab — whose commands a draft may be. */
+  agent?: string | null;
+  /** Types into the session. Given → the agent's commands go here, raw. */
+  onKey?: (bytes: string) => void;
   /** The session Inject writes into. null → Inject says why it cannot send. */
   tab: string | null;
   /** The project Ask is about. Required for Ask to be offered. */
@@ -112,10 +129,24 @@ export function TerminalComposer({
     return () => window.clearTimeout(t);
   }, [liveDispatch]);
 
+  const [typedCommand, setTypedCommand] = useState<string | null>(null);
+  useEffect(() => {
+    if (!typedCommand) return;
+    const t = window.setTimeout(() => setTypedCommand(null), 3000);
+    return () => window.clearTimeout(t);
+  }, [typedCommand]);
+
   const inject = async (prompt: string, attachments: Attachment[]): Promise<boolean> => {
     if (!tab) {
       setError("Open a session first — inject writes into the attached PTY.");
       return false;
+    }
+    const command = onKey && attachments.length === 0 ? commandIn(prompt, agent) : null;
+    if (command) {
+      onKey?.(`${command}\r`);
+      setError(null);
+      setTypedCommand(command);
+      return true;
     }
     setInjecting(true);
     setError(null);
@@ -163,7 +194,10 @@ export function TerminalComposer({
     prompt: string,
     choice: ModelChoice,
     attachments: Attachment[],
-  ): Promise<boolean> => (session ? session.ask(prompt, { choice, attachments }) : false);
+  ): Promise<boolean> =>
+    session
+      ? session.ask(prompt, { choice, attachments: [...attachments, ...(askContext?.() ?? [])] })
+      : false;
 
   const asking = mode === "ask";
   const sending = asking ? Boolean(session?.sending) : injecting;
@@ -209,7 +243,15 @@ export function TerminalComposer({
   );
 
   const footer =
-    !asking && tracked ? (
+    !asking && typedCommand ? (
+      <div className="ui-loki-composer-status" role="status">
+        <span className={dispatchToneDotClass("positive")} />
+        <span className="min-w-0 flex-1 truncate">
+          Typed {typedCommand} into the terminal — it is the agent&apos;s own command, so it went in
+          as typed.
+        </span>
+      </div>
+    ) : !asking && tracked ? (
       <div className="ui-loki-composer-status" role="status">
         <span className={dispatchToneDotClass(liveDispatch?.tone ?? "neutral")} />
         <span className="min-w-0 flex-1 truncate">
@@ -235,7 +277,18 @@ export function TerminalComposer({
   return (
     <div className="relative shrink-0">
       {pickerOpen && tab && (
-        <div className="absolute bottom-full left-0 right-0 z-40 mb-1.5">
+        <div className="absolute bottom-full left-0 right-0 z-40 mb-1.5 flex flex-col gap-1.5">
+          {onKey && (
+            <TerminalCommandList
+              agent={agent}
+              open
+              onKey={(bytes) => {
+                onKey(bytes);
+                setTypedCommand(bytes.replace(/\r$/, ""));
+                setPickerOpen(false);
+              }}
+            />
+          )}
           <PromptPicker
             projectName={tab}
             projectScopedOnly

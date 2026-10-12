@@ -15,6 +15,7 @@ import {
   type TerminalSource,
 } from "@/config/terminal-modes";
 import type { TerminalFontControl } from "@/hooks/use-terminal-font";
+import { usePressVerb } from "@/hooks/use-press-verb";
 
 export type SheetTab = { id: string; label: string; badge?: string };
 
@@ -123,6 +124,7 @@ export function TerminalSessionSheet({
   /** Opens the Loki panel for this project; omitted without a project. */
   onOpenLoki?: () => void;
 }) {
+  const press = usePressVerb();
   const sourceOptions = TERMINAL_SOURCES.filter((s) => sources.includes(s.id));
 
   return (
@@ -263,7 +265,7 @@ export function TerminalSessionSheet({
             title="Live keystrokes"
             detail={
               liveKeys
-                ? "Keys go straight to the session as you press them. Tap the screen to focus it first."
+                ? `Keys go straight to the session as you press them. ${press.Verb} the screen to focus it first.`
                 : "Recommended. Type in the composer under the terminal, then Send — no focus fights, no autocorrect."
             }
             active={liveKeys}

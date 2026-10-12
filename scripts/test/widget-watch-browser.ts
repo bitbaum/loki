@@ -245,7 +245,7 @@ async function main() {
     ok(s.reports.length === 1, `a dead button files one report (got ${s.reports.length})`);
     ok(
       (s.reports[0]?.suggestion ?? "").includes(
-        "tapped button “Save” three times and nothing happened",
+        "pressed button “Save” three times and nothing happened",
       ),
       "the report says which button did nothing",
     );

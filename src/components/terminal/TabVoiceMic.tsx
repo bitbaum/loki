@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Mic } from "lucide-react";
 import { useVoiceInput } from "@/hooks/use-voice-input";
+import { usePressVerb } from "@/hooks/use-press-verb";
 import { postJson } from "@/lib/api/fetch";
 import { haptic } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ export function TabVoiceMic({
   compact?: boolean;
 }) {
   const [send, setSend] = useState<SendState>("idle");
+  const press = usePressVerb();
   const [sendError, setSendError] = useState<string | null>(null);
   const confirmTimer = useRef<number | null>(null);
   // Latest tab in a ref so the stable onTranscript callback always dispatches to
@@ -104,7 +106,7 @@ export function TabVoiceMic({
     : sendError
       ? sendError
       : recording
-        ? "Recording — tap to send"
+        ? `Recording — ${press.verb} to send`
         : transcribing
           ? "Transcribing…"
           : send === "sending"

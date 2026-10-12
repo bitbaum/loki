@@ -318,7 +318,7 @@ export const MCP_TOOLS: Record<McpToolName, McpToolDef> = {
         });
       }
       return text(
-        `Waiting for the owner's approval${report.reason ? ` (${report.reason})` : ""} — not booked yet. They have one-tap buttons to approve it.`,
+        `Waiting for the owner's approval${report.reason ? ` (${report.reason})` : ""} — not booked yet. They can approve it with one button.`,
         { status: report.status, id, reason: report.reason ?? null },
       );
     },

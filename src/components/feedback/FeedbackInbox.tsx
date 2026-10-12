@@ -323,7 +323,7 @@ export function FeedbackInbox() {
       />
       <Section
         title={`Done · ${done.length}`}
-        hint="Fixes you confirmed. The walkthrough on the site stays one tap away."
+        hint="Fixes you confirmed. The walkthrough on the site stays one step away."
         items={done}
         rowFor={rowFor}
         projectOf={projectOf}

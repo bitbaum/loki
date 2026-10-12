@@ -56,7 +56,7 @@ export function LookedPicture({
       </button>
       <figcaption className="ui-fb-looked-cap">
         What Loki saw · {read} · {compactRelativeDate(verify.at)}
-        {!open && " · tap to see all of it"}
+        {!open && " · open it to see all of it"}
       </figcaption>
     </figure>
   );

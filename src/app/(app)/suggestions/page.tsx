@@ -18,7 +18,7 @@ export default async function SuggestionsPage() {
   return (
     <PageLayout
       title={NAV.suggestions.label}
-      subtitle="What to do next, from your own records. One tap, and Loki takes it."
+      subtitle="What to do next, from your own records. Pick one, and Loki takes it."
       maxWidth="max-w-5xl"
     >
       <SuggestionsBoard />

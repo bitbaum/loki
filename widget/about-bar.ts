@@ -8,6 +8,7 @@
  * did not write it. That note goes to Loki's own project (self-report.ts).
  */
 import { h } from "./dom";
+import { pressVerb } from "./press";
 
 export type About = "page" | "site" | "element" | "loki";
 
@@ -70,7 +71,9 @@ export function createAboutBar(opts: {
       b.setAttribute("aria-checked", now === s ? "true" : "false");
     }
     pointBtn.textContent = picked ? `${picked} element${picked > 1 ? "s" : ""}` : "An element";
-    pointBtn.title = picked ? "Tap to pick again" : "Point at something on the page";
+    pointBtn.title = picked
+      ? `${pressVerb().Verb} to pick again`
+      : "Point at something on the page";
   };
 
   return {

@@ -23,6 +23,7 @@ import {
 import { createPtySizeSync, watchTerminalHost } from "@/lib/terminal-size-sync";
 import { logicalLines } from "@/lib/terminal-screen";
 import { attachTouchScroll } from "@/lib/terminal-touch-scroll";
+import { usePressVerb } from "@/hooks/use-press-verb";
 import type { TerminalTransport } from "./terminal-transport";
 
 /**
@@ -204,8 +205,17 @@ export function TerminalView({
   actions,
   readScreenRef,
   className,
+  onActivate,
+  autoFocus = false,
 }: {
   transport: TerminalTransport;
+  /** A click or tap on a read-only screen: the person wants to type into it.
+   *  The caller switches to typing (Type mode), so pressing the terminal does
+   *  what everyone expects a terminal to do instead of nothing. */
+  onActivate?: () => void;
+  /** Take the keyboard as soon as an interactive screen mounts — set after
+   *  `onActivate`, so the click that asked for typing ends in a cursor. */
+  autoFocus?: boolean;
   /** Capture keystrokes (onData → transport.sendKey). The PTY is resized to
    *  this view either way — reading a session needs the right width too. */
   interactive?: boolean;
@@ -260,6 +270,13 @@ export function TerminalView({
   const font = fontProp ?? ownFont;
   const fontOverride = font.size;
   const termRef = useRef<import("@xterm/xterm").Terminal | null>(null);
+  const onActivateRef = useRef(onActivate);
+  const autoFocusRef = useRef(autoFocus);
+  useEffect(() => {
+    onActivateRef.current = onActivate;
+    autoFocusRef.current = autoFocus;
+  });
+  const press = usePressVerb();
   useEffect(() => {
     if (!readScreenRef) return;
     readScreenRef.current = (rows) => {
@@ -485,7 +502,16 @@ export function TerminalView({
         host.addEventListener("mousedown", () => {
           term.focus();
         });
+        if (autoFocusRef.current) term.focus();
       }
+      // Read-only screen: a click or tap means "let me type here". Selecting
+      // text to copy also ends in a click, so a selection is left alone; a
+      // touch scroll never becomes a click at all.
+      const activate = () => {
+        if (term.hasSelection()) return;
+        onActivateRef.current?.();
+      };
+      if (!interactive) host.addEventListener("click", activate);
       // Debug/automation handle: reach the live xterm instance from devtools or
       // an e2e harness (e.g. to assert copy/paste wiring) via
       // `document.querySelector('.xterm')._fcTerm`. Harmless in prod.
@@ -661,6 +687,7 @@ export function TerminalView({
         writeDisposable.dispose();
         unwatchHost();
         inputDisposable?.dispose();
+        host.removeEventListener("click", activate);
         term.dispose();
       };
     })();
@@ -726,8 +753,10 @@ export function TerminalView({
     ? "not responding"
     : connected
       ? interactive
-        ? "live · click to focus, type directly"
-        : "live"
+        ? `live · ${press.verb} to focus, type directly`
+        : onActivate
+          ? `live · ${press.verb} the screen to type`
+          : "live"
       : "connecting…";
   // Below the target the grid is narrower than the screen the agent drew, so
   // wide output WILL wrap oddly. Saying which is which costs one chip and turns
@@ -750,7 +779,7 @@ export function TerminalView({
             className={belowTarget ? "ui-term-cols ui-term-cols-warn" : "ui-term-cols"}
             title={
               belowTarget
-                ? `${geometry.cols} columns — this screen is narrower than the ${TERMINAL_TARGET_COLS} an agent TUI draws for, so wide output may wrap. Tap A− for more columns.`
+                ? `${geometry.cols} columns — this screen is narrower than the ${TERMINAL_TARGET_COLS} an agent TUI draws for, so wide output may wrap. Use − for more columns.`
                 : `${geometry.cols}×${geometry.rows} — wide enough for standard agent output.`
             }
           >
