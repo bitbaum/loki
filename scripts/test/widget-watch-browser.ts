@@ -381,9 +381,9 @@ async function main() {
       return m?.innerText ?? "";
     });
     ok(
-      remark.includes("After you tapped button “Find a size”") &&
+      remark.includes("After you pressed button “Find a size”") &&
         remark.includes("found nothing there (404)"),
-      `Loki says it in the conversation, naming the tap (${remark})`,
+      `Loki says it in the conversation, naming the control pressed (${remark})`,
     );
     // The owner's word is the decision: Fix this starts the build, no card.
     await s.p.waitForTimeout(300);
