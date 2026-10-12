@@ -24,6 +24,9 @@ export const EXECUTOR_COPY = {
     cloudOnlyDetail: "This computer offline — cloud builder runs the queue",
     localOnlyDetail: "Cloud builder offline — this computer runs the queue",
     cloudOffline: "Cloud builder offline",
+    // A private cloud is not an offline one: a new account's Terminal read
+    // "Cloud builder offline" beside "private for this account" (2026-10-12).
+    cloudPrivate: "Cloud builder private",
     localComputerOffline: "This computer offline",
     offline: "Builder offline",
     queued: "Queued",
