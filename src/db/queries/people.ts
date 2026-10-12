@@ -10,6 +10,7 @@ import { entities, attributes, entityRelations, interactions } from "@/db/schema
 import { eq, and, sql, desc, inArray, type SQL } from "drizzle-orm";
 import { fetchAttributesByEntityIds } from "./utils";
 import { escapeLike } from "@/lib/sql-escape";
+import { forgivenPersonIds, rankPeople, type PersonNameRow } from "@/lib/people-search";
 import {
   deriveRelationshipHealth,
   type RelationshipHealth,
@@ -68,6 +69,16 @@ function buildHealthHaving(health: RelationshipHealth[]): SQL {
   return sql`HAVING (${sql.join(clauses, sql` OR `)})`;
 }
 
+/** Every person's id, name and aliases — the vocabulary a typo is forgiven against. */
+async function loadPersonNames(userId: string): Promise<PersonNameRow[]> {
+  return db.execute<PersonNameRow>(sql`
+    SELECT e.id, e.name, a.value AS aliases
+    FROM entities e
+    LEFT JOIN attributes a ON a.entity_id = e.id AND a.key = 'aliases'
+    WHERE e.user_id = ${userId} AND e.type = ${ENTITY_TYPE.PERSON}
+  `);
+}
+
 export async function searchPeople(
   userId: string,
   query: string,
@@ -75,13 +86,29 @@ export async function searchPeople(
   offset = 0,
   sort: SortMode = SORT_MODE.RECENT,
   health: RelationshipHealth[] = [],
+  /**
+   * The search box (`/api/people`): also find names one slip away, and put
+   * the best match first. Off for the assistant's lookups on purpose — they
+   * pick ONE person to message or describe, and a forgiven "Jon" there could
+   * quietly become the wrong John.
+   */
+  { forgiveTypos = false }: { forgiveTypos?: boolean } = {},
 ): Promise<{ people: PersonWithAttributes[]; total: number }> {
   // User input — parameterized via sql tagged template (never string-interpolated)
   const q = query.trim();
   const like = q ? "%" + escapeLike(q) + "%" : "";
+  // Ids ILIKE cannot reach ("jonh" → John), best match first.
+  const forgiven = q && forgiveTypos ? forgivenPersonIds(await loadPersonNames(userId), q) : [];
+  const forgivenIds = forgiven.length
+    ? sql`ARRAY[${sql.join(
+        forgiven.map((id) => sql`${id}`),
+        sql`, `,
+      )}]::uuid[]`
+    : null;
   const nameFilter: SQL = q
     ? sql`AND (
         e.name ILIKE ${like}
+        ${forgivenIds ? sql`OR e.id = ANY(${forgivenIds})` : sql``}
         OR EXISTS (
           SELECT 1 FROM attributes a
           WHERE a.entity_id = e.id AND a.user_id = ${userId}
@@ -95,12 +122,17 @@ export async function searchPeople(
     : sql``;
   const having: SQL = buildHealthHaving(health);
 
-  const orderBy: SQL =
+  const sortBy: SQL =
     sort === "name"
       ? sql`e.name ASC`
       : sort === "health"
         ? sql`last_interaction ASC NULLS FIRST`
         : sql`last_interaction DESC NULLS LAST`;
+  // With a typed name, the people it names lead — so the one meant is on the
+  // first page — and the chosen sort orders everyone else.
+  const orderBy: SQL = forgivenIds
+    ? sql`array_position(${forgivenIds}, e.id) ASC NULLS LAST, ${sortBy}`
+    : sortBy;
 
   const [countResult, rows] = await Promise.all([
     db.execute<{ count: string }>(sql`
@@ -143,22 +175,24 @@ export async function searchPeople(
   const peopleIds = rows.map((r) => r.id);
   const attrsByEntity = await fetchAttributesByEntityIds(peopleIds);
 
+  const people = rows.map((r): PersonWithAttributes => {
+    const lastInteraction = r.last_interaction ? new Date(r.last_interaction) : null;
+    return {
+      id: r.id,
+      name: r.name,
+      externalId: r.external_id,
+      description: r.description,
+      source: r.source,
+      attrs: attrsByEntity.get(r.id) ?? {},
+      lastInteraction,
+      interactionCount: Number(r.interaction_count),
+      relationCount: Number(r.relation_count),
+      health: deriveRelationshipHealth(lastInteraction),
+    };
+  });
+
   return {
-    people: rows.map((r) => {
-      const lastInteraction = r.last_interaction ? new Date(r.last_interaction) : null;
-      return {
-        id: r.id,
-        name: r.name,
-        externalId: r.external_id,
-        description: r.description,
-        source: r.source,
-        attrs: attrsByEntity.get(r.id) ?? {},
-        lastInteraction,
-        interactionCount: Number(r.interaction_count),
-        relationCount: Number(r.relation_count),
-        health: deriveRelationshipHealth(lastInteraction),
-      };
-    }),
+    people: forgiveTypos ? rankPeople(people, q) : people,
     total: Number(countResult[0].count),
   };
 }

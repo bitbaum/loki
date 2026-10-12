@@ -8,22 +8,7 @@ import { CompletedGoals } from "./CompletedGoals";
 import { AbandonedGoals } from "./AbandonedGoals";
 import type { GoalWithChildren } from "@/db/queries/goals";
 import { useEscapeKey } from "@/hooks/use-escape-key";
-
-/** True if goal title/description matches query, OR any descendant does */
-function matchesQuery(goal: GoalWithChildren, q: string): boolean {
-  const lower = q.toLowerCase();
-  if (goal.title.toLowerCase().includes(lower)) return true;
-  if (goal.description?.toLowerCase().includes(lower)) return true;
-  return goal.children.some((child) => matchesQuery(child, q));
-}
-
-/** Filter tree, keeping parents whose subtree has a match and pruning non-matching children */
-function filterTree(goals: GoalWithChildren[], q: string): GoalWithChildren[] {
-  if (!q) return goals;
-  return goals
-    .filter((g) => matchesQuery(g, q))
-    .map((g) => ({ ...g, children: filterTree(g.children, q) }));
-}
+import { filterGoalTree } from "@/lib/goal-search";
 
 /** Filter tree to goals linked to a specific project (entityName match) */
 function filterByProject(goals: GoalWithChildren[], project: string): GoalWithChildren[] {
@@ -92,8 +77,8 @@ export function GoalsGrid({
 
   const q = query.trim();
   const byProject = projectFilter ? filterByProject(activeGoals, projectFilter) : activeGoals;
-  const filteredActive = sortGoals(filterTree(byProject, q), sort);
-  const filteredCompleted = filterTree(completedGoals, q);
+  const filteredActive = sortGoals(filterGoalTree(byProject, q), sort);
+  const filteredCompleted = filterGoalTree(completedGoals, q);
   const totalActive = countGoals(activeGoals);
   const matchCount = countGoals(filteredActive);
   const isFiltered = !!q || !!projectFilter;
@@ -180,7 +165,7 @@ export function GoalsGrid({
       ) : null}
 
       <CompletedGoals goals={filteredCompleted} />
-      <AbandonedGoals goals={filterTree(abandonedGoals, q)} />
+      <AbandonedGoals goals={filterGoalTree(abandonedGoals, q)} />
     </>
   );
 }

@@ -88,6 +88,8 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
 
   const spec = fleetListFor(rows);
   const query = parseQuery(params, spec);
+  // Not searchkit: listkit owns this URL-driven list's `q` along with its facets
+  // and sort; typo tolerance for it belongs in listkit, not bolted on here.
   const result = applyQuery(rows, spec, query);
   const s = summarize(rows);
   const money = viewerIsOwner ? commerce(apps) : null;

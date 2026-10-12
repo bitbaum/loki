@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
+import { Highlight } from "@bitbaum/searchkit/react";
 import {
   CATEGORY_META,
   PROMPT_TEMPLATES,
@@ -9,6 +10,10 @@ import {
   type PromptTemplate,
 } from "@/config/prompt-library";
 import { cn } from "@/lib/utils";
+import { PROMPT_SEARCH_SPEC } from "@/lib/prompt-search";
+import { searchHits, type Range } from "@/lib/search";
+
+const PICKER_LIMIT = 40;
 
 /**
  * The prompt library as a *picker*, usable wherever a prompt is being composed.
@@ -42,24 +47,22 @@ export function PromptPicker({
   const [cursor, setCursor] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const matches = useMemo(() => {
+  const matches = useMemo<{ template: PromptTemplate; nameRanges?: readonly Range[] }[]>(() => {
     const pool = projectScopedOnly
       ? PROMPT_TEMPLATES.filter((t) => t.scope === "project")
       : PROMPT_TEMPLATES;
-    const q = query.trim().toLowerCase();
-    if (!q) {
+    if (!query.trim()) {
       // No query → featured first, so the default view is the short useful list
       // rather than 60 rows the user has to read past.
-      return [...pool].sort((a, b) => Number(!!b.featured) - Number(!!a.featured)).slice(0, 40);
+      return [...pool]
+        .sort((a, b) => Number(!!b.featured) - Number(!!a.featured))
+        .slice(0, PICKER_LIMIT)
+        .map((template) => ({ template }));
     }
-    return pool
-      .filter((t) =>
-        [t.name, t.description, CATEGORY_META[t.category].label, ...(t.tags ?? [])]
-          .join(" ")
-          .toLowerCase()
-          .includes(q),
-      )
-      .slice(0, 40);
+    // Best match first, and a slip in a word still finds it ("secuirty").
+    return searchHits(pool, PROMPT_SEARCH_SPEC, query)
+      .slice(0, PICKER_LIMIT)
+      .map((hit) => ({ template: hit.item, nameRanges: hit.matches.name }));
   }, [query, projectScopedOnly]);
 
   // The cursor is clamped at read time rather than reset from an effect: the
@@ -105,7 +108,7 @@ export function PromptPicker({
             } else if (e.key === "Enter") {
               e.preventDefault();
               const t = matches[cursorIndex];
-              if (t) pick(t);
+              if (t) pick(t.template);
             } else if (e.key === "Escape") {
               e.preventDefault();
               onClose();
@@ -124,7 +127,7 @@ export function PromptPicker({
             No prompt matches “{query}”.
           </p>
         ) : (
-          matches.map((template, i) => {
+          matches.map(({ template, nameRanges }, i) => {
             const meta = CATEGORY_META[template.category];
             return (
               <button
@@ -141,7 +144,15 @@ export function PromptPicker({
                 <span className="flex items-center gap-2">
                   <span className="truncate text-xs font-medium text-text-primary">
                     {template.icon ? `${template.icon} ` : ""}
-                    {template.name}
+                    {nameRanges ? (
+                      <Highlight
+                        text={template.name}
+                        ranges={nameRanges}
+                        markClassName="ui-search-mark"
+                      />
+                    ) : (
+                      template.name
+                    )}
                   </span>
                   <span
                     className={cn(

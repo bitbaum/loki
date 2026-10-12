@@ -8,6 +8,15 @@ import { AddEventForm } from "./AddEventForm";
 import type { EventRow } from "@/db/queries/events";
 import { EVENT_STATUS } from "@/lib/constants/statuses";
 import { useEscapeKey } from "@/hooks/use-escape-key";
+import { filterByQuery, type SearchSpec } from "@/lib/search";
+
+const EVENT_SEARCH_SPEC: SearchSpec<EventRow> = {
+  fields: [
+    { name: "name", get: (e) => e.name },
+    { name: "category", get: (e) => e.category },
+    { name: "description", get: (e) => e.description },
+  ],
+};
 
 export function EventsGrid({
   initialEvents,
@@ -29,16 +38,13 @@ export function EventsGrid({
 
   const types = [...new Set(items.map((e) => e.type).filter(Boolean))].sort() as string[];
 
-  const q = query.trim().toLowerCase();
-  const filtered = items.filter((e) => {
-    const matchesQuery =
-      !q ||
-      e.name.toLowerCase().includes(q) ||
-      e.description?.toLowerCase().includes(q) ||
-      e.category?.toLowerCase().includes(q);
-    const matchesType = !typeFilter || e.type === typeFilter;
-    return matchesQuery && matchesType;
-  });
+  const q = query.trim();
+  // The matches keep the list's deadline order; a slip in a word still matches.
+  const filtered = filterByQuery(
+    typeFilter ? items.filter((e) => e.type === typeFilter) : items,
+    EVENT_SEARCH_SPEC,
+    q,
+  );
 
   const withDeadline = filtered.filter((e) => e.deadline);
   const withoutDeadline = filtered.filter((e) => !e.deadline);

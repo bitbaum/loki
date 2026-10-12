@@ -34,6 +34,8 @@ export function SitePages({
 }) {
   const [query, setQuery] = useState("");
 
+  // Not searchkit: these are URL paths, filtered as text ("/blog/20" must hit
+  // mid-segment); word typos and stemming do not apply to a path.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return paths;

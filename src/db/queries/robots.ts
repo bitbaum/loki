@@ -68,6 +68,8 @@ export async function searchRobots(
   limit = 50,
   offset = 0,
 ): Promise<{ robots: RobotWithAttributes[]; total: number }> {
+  // Not searchkit: a household's robots are a handful of rows the grid shows
+  // whole; there is nothing for typo tolerance to recover.
   const nameFilter: SQL = query.trim()
     ? sql`AND e.name ILIKE ${"%" + escapeLike(query.trim()) + "%"}`
     : sql``;

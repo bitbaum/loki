@@ -2,6 +2,7 @@ import type { ProjectGridRow } from "@/components/projects/project-grid-row";
 import { PROJECT_ATTR } from "@/config/project-attrs";
 import { hasAnswer } from "@/lib/project-display";
 import { signalHasExpired } from "@/lib/project-signals";
+import { filterByQuery, type SearchSpec } from "@/lib/search";
 
 export type ProjectsPageFilter = null | "attention" | "next-step" | "team";
 
@@ -88,6 +89,14 @@ export function computeProjectsPageStats(projects: ProjectGridRow[]): ProjectsPa
   };
 }
 
+const PROJECT_SEARCH_SPEC: SearchSpec<ProjectGridRow> = {
+  fields: [
+    { name: "name", get: (p) => p.name },
+    { name: "description", get: (p) => p.description },
+    { name: "attrs", get: (p) => Object.values(p.attrs) },
+  ],
+};
+
 export function filterProjects(
   projects: ProjectGridRow[],
   query: string,
@@ -98,19 +107,15 @@ export function filterProjects(
   lastActivityByProject?: Record<string, string>,
   sort: ProjectsSort = "priority",
 ): ProjectGridRow[] {
-  const q = query.trim().toLowerCase();
-
-  const result = projects.filter((p) => {
+  const onPage = projects.filter((p) => {
     if (pageFilter === "team" && !p.readonly) return false;
     if (pageFilter === "attention" && !hasProjectAttention(p)) return false;
     if (pageFilter === "next-step" && !hasAnswer(p.attrs[PROJECT_ATTR.NEXT_STEP])) return false;
-    if (!q) return true;
-    return (
-      p.name.toLowerCase().includes(q) ||
-      (p.description ?? "").toLowerCase().includes(q) ||
-      Object.values(p.attrs).some((v) => v.toLowerCase().includes(q))
-    );
+    return true;
   });
+  // The query narrows; the chosen sort below still orders. One slip in a
+  // project's name still finds it.
+  const result = filterByQuery(onPage, PROJECT_SEARCH_SPEC, query);
 
   const now = Date.now();
 

@@ -5,8 +5,19 @@ import { useMemo, useState } from "react";
 import { Search, BookOpen } from "lucide-react";
 import { ScrollAffordance } from "@/components/ui/scroll-affordance";
 import type { ThoughtMeta } from "@/lib/thoughts-content";
+import { filterByQuery, type SearchSpec } from "@/lib/search";
 
 type ThoughtArticle = ThoughtMeta & { body: string };
+
+/** "Search essays": the title first, then what it is about. */
+const ESSAY_SEARCH_SPEC: SearchSpec<ThoughtArticle> = {
+  fields: [
+    { name: "title", get: (a) => a.title },
+    { name: "tags", get: (a) => a.tags },
+    { name: "summary", get: (a) => a.summary },
+    { name: "excerpt", get: (a) => a.excerpt },
+  ],
+};
 
 function formatMeta(article: ThoughtArticle) {
   const parts = [article.publishedAt, `${article.readingTimeMin} min`].filter(Boolean);
@@ -48,17 +59,16 @@ export function ThoughtsLibrary({
         );
   const hiddenTagCount = rankedTags.length - Math.min(TOP_TAGS, rankedTags.length);
 
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return articles.filter((article) => {
-      if (activeTag !== "all" && !article.tags.includes(activeTag)) return false;
-      if (!normalized) return true;
-      const haystack = [article.title, article.summary, article.excerpt, article.tags.join(" ")]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(normalized);
-    });
-  }, [activeTag, articles, query]);
+  // Matches keep the library's own order; a slip in a word still matches.
+  const filtered = useMemo(
+    () =>
+      filterByQuery(
+        activeTag === "all" ? articles : articles.filter((a) => a.tags.includes(activeTag)),
+        ESSAY_SEARCH_SPEC,
+        query,
+      ),
+    [activeTag, articles, query],
+  );
 
   const featuredVisible =
     featured && filtered.some((a) => a.slug === featured.slug) ? featured : null;
