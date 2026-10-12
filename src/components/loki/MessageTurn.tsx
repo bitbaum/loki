@@ -7,11 +7,11 @@ import { ProgressUpdateCard } from "./ProgressUpdateCard";
 import { AnswerActions } from "./AnswerActions";
 import { ProvenanceFooter } from "./ProvenanceFooter";
 import { WorkTrail } from "./WorkTrail";
+import { QueuedActionCard } from "./QueuedActionCard";
 import {
   DispatchFooter,
   NeedsProjectPicker,
   OwnModelFallbackOffer,
-  QueuedActionFooter,
   RunOnProjectOffer,
   citationsFrom,
   KIND_LABEL,
@@ -104,7 +104,7 @@ export function MessageTurn({
         <DispatchFooter meta={message.meta} onContinue={onContinue} />
       )}
       {message.kind === "chat" && <ProvenanceFooter meta={message.meta} />}
-      {message.kind === "chat" && <QueuedActionFooter meta={message.meta} />}
+      {message.kind === "chat" && <QueuedActionCard meta={message.meta} />}
       {message.kind === "chat" && onPickProject && (
         <RunOnProjectOffer meta={message.meta} onPick={onPickProject} />
       )}
