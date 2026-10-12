@@ -74,6 +74,37 @@ export const PROJECT_FORM: FormTarget = {
   instructions: ["Project names are short proper nouns, not sentences."],
 };
 
+/**
+ * "Build a preview for…": someone who is not a customer yet. Loki researches
+ * them and builds a first version of their site (src/lib/previews/create.ts).
+ */
+export const PREVIEW_FORM: FormTarget = {
+  key: "preview",
+  name: "Preview",
+  fields: defineFields([
+    {
+      name: "name",
+      label: "Who it is for",
+      type: "text",
+      required: true,
+      maxLength: 80,
+      placeholder: "e.g. Francesco Tarallo",
+    },
+    {
+      name: "about",
+      label: "What you know",
+      type: "textarea",
+      maxLength: 2000,
+      placeholder: "e.g. DJ in Zurich, dub techno. ra.co/dj/francescotarallo",
+      hint: "Links, place, trade. Loki researches the rest.",
+    },
+  ]),
+  instructions: [
+    "The name is the person's or business's own name, as they write it.",
+    "Put links, the place and what they do into 'about'.",
+  ],
+};
+
 export const PERSON_FORM: FormTarget = {
   key: "person",
   name: "Person",
@@ -262,6 +293,7 @@ export const SUBSCRIPTION_FORM: FormTarget = {
 export const AI_FORMS: FormTarget[] = [
   GOAL_FORM,
   PROJECT_FORM,
+  PREVIEW_FORM,
   PERSON_FORM,
   ROBOT_FORM,
   ASSIGNMENT_FORM,

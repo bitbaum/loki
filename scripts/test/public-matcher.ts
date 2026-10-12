@@ -73,6 +73,9 @@ for (const p of [
   "/api/mcp",
   "/.well-known/oauth-protected-resource",
   "/.well-known/oauth-protected-resource/api/mcp",
+  // A prospect preview: the route checks the access code itself.
+  "/p/francesco-tarallo/index.html",
+  "/p/francesco-tarallo/img/portrait.jpg",
 ]) {
   check(`${p} stays public`, !isProtected(p));
 }
@@ -106,6 +109,11 @@ check(
 );
 // A bare "/a" is not an action link and must not ride the exemption.
 check("/a (no token) still requires a session", isProtected("/a"));
+// The preview exemption is `p/`, not `p`: every other page starting with p
+// stays behind the session.
+for (const p of ["/p", "/projects", "/people", "/prompts", "/api/previews"]) {
+  check(`${p} still requires a session`, isProtected(p));
+}
 
 // ── The check can still fail ────────────────────────────────────────────────
 // A regex that stopped matching anything would pass every "is public" assertion

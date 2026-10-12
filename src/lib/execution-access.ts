@@ -3,6 +3,7 @@ import type { BuilderChannelPresence } from "@/lib/builder-presence";
 import { isCloneableGitUrl } from "@/lib/git-url";
 import { DEFAULT_BUILDER_CHANNEL, isBuilderChannel } from "@/lib/constants/statuses";
 import { BOX_DEV_ROOT, sanitizeWorkspaceKey } from "@/lib/agent-execution/box-workspace-path";
+import { isPreviewDir } from "@/lib/previews/root";
 import path from "path";
 
 const CLOUD_BUILDER_PRIVATE_MESSAGE =
@@ -216,6 +217,9 @@ function storedBuilderPref(project: ProjectLocus): RunnerChannel | null {
  */
 export function projectChannelLock(project: ProjectLocus): RunnerChannel | null {
   if (isBoxRootedDir(project?.dirPath)) return "cloud";
+  // A prospect preview is a folder on the box with no GitHub repository, so
+  // no other builder could ever open it (src/lib/previews/root.ts).
+  if (isPreviewDir(project?.dirPath)) return "cloud";
   if (project?.dirPath && !isCloneableGitUrl(project.gitUrl)) return "local";
   return null;
 }

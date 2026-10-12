@@ -1,0 +1,143 @@
+/**
+ * "Build a preview for <name>": the one entry point for prospects.
+ *
+ * Makes the folder (with its own local git history), a Loki project that
+ * points at it and has no GitHub repository, a widget key for it, and the
+ * owner link — then hands the build brief to an agent on the box. The folder
+ * becomes a real repository only when the person says yes (graduation, see
+ * docs/architecture/prospect-previews.md).
+ */
+import { execFile } from "child_process";
+import { existsSync } from "fs";
+import { mkdir, rm, writeFile } from "fs/promises";
+import path from "path";
+import { promisify } from "util";
+import { previewEntryPath } from "@/config/previews";
+import { previewBuildPrompt } from "@/config/preview-brief";
+import { createUserProject } from "@/db/queries/user-projects";
+import { upsertWidgetToken } from "@/db/queries/widget-tokens";
+import { isUniqueViolation } from "@/lib/api/route-helpers";
+import { appUrl } from "@/lib/email";
+import { createOwnerPass } from "@/lib/feedback/owner-pass";
+import { injectPrompt } from "@/lib/inject-core";
+import { previewsRoot, slugifyPreviewName } from "@/lib/previews/root";
+import { ownerSiteUrl } from "../../../widget/owner-pass";
+
+const run = promisify(execFile);
+
+export type CreatePreviewResult =
+  | {
+      ok: true;
+      slug: string;
+      projectId: string;
+      /** The address to send, opened with the access code. */
+      previewUrl: string;
+      /** The same address carrying the owner pass: their notes start a build. */
+      ownerUrl: string;
+      /** Null when the build started; otherwise what to do next. */
+      buildNote: string | null;
+    }
+  | { ok: false; status: number; error: string };
+
+const MAX_SLUG_TRIES = 50;
+
+/** The first free folder for this name: `name`, `name-2`, `name-3`, … */
+function freeSlug(root: string, name: string): string | null {
+  const base = slugifyPreviewName(name);
+  for (let i = 1; i <= MAX_SLUG_TRIES; i++) {
+    const slug = i === 1 ? base : `${base}-${i}`;
+    if (!existsSync(path.join(root, slug))) return slug;
+  }
+  return null;
+}
+
+const PLACEHOLDER = (name: string) => `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${name.replace(/[<&>"]/g, "")}</title></head>
+<body style="font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;padding:0 16px">
+<p>This preview is being built. Check back in a few minutes.</p>
+</body></html>
+`;
+
+async function initFolder(dir: string, name: string): Promise<void> {
+  await mkdir(dir, { recursive: false });
+  await writeFile(path.join(dir, "index.html"), PLACEHOLDER(name));
+  const git = (...args: string[]) =>
+    run("git", ["-c", "user.name=Loki", "-c", "user.email=loki@orangecat.ch", ...args], {
+      cwd: dir,
+    });
+  await git("init", "-q");
+  await git("add", "-A");
+  await git("commit", "-q", "-m", `Start the preview for ${name}`);
+}
+
+export async function createPreview(
+  userId: string,
+  input: { name: string; about?: string },
+): Promise<CreatePreviewResult> {
+  const name = input.name.trim();
+  const root = previewsRoot();
+  if (!root) {
+    return {
+      ok: false,
+      status: 503,
+      error:
+        "Previews are not set up on this server yet. Set LOKI_PREVIEWS_ROOT (or LOKI_BOX_DEV_ROOT) in the app's environment.",
+    };
+  }
+  await mkdir(root, { recursive: true });
+  const slug = freeSlug(root, name);
+  if (!slug) return { ok: false, status: 409, error: "Too many previews with that name already." };
+  const dir = path.join(root, slug);
+
+  await initFolder(dir, name);
+
+  const previewUrl = new URL(previewEntryPath(slug), appUrl()).toString();
+  let project;
+  try {
+    project = await createUserProject({
+      userId,
+      name,
+      description: input.about?.trim() || null,
+      slug,
+      dirPath: dir,
+      liveUrl: previewUrl,
+      builderPref: "cloud",
+    });
+  } catch (e) {
+    await rm(dir, { recursive: true, force: true });
+    if (isUniqueViolation(e)) {
+      return { ok: false, status: 409, error: `You already have a project called "${name}".` };
+    }
+    throw e;
+  }
+  const projectId = project.entityProjectId;
+  if (!projectId) return { ok: false, status: 500, error: "The project was not created fully." };
+
+  await upsertWidgetToken(userId, projectId, { origins: [new URL(appUrl()).origin] });
+  const ownerUrl = ownerSiteUrl(previewUrl, createOwnerPass(projectId, userId));
+
+  // Build on the box: the folder exists there and nowhere else
+  // (execution-access.ts locks preview folders to the cloud builder).
+  const { status, body } = await injectPrompt(
+    {
+      tab: project.name,
+      projectId,
+      allowHostedFallback: false,
+      builderChannel: "cloud",
+      customPrompt: previewBuildPrompt({ name, about: input.about, previewUrl }),
+      notifyOnClose: true,
+    },
+    userId,
+  );
+  const started = status < 400 && typeof body.runId === "string";
+  const buildNote = started
+    ? null
+    : typeof body.nextAction === "string"
+      ? body.nextAction
+      : typeof body.error === "string"
+        ? body.error
+        : "The build did not start. Open the project and start it from there.";
+
+  return { ok: true, slug, projectId, previewUrl, ownerUrl, buildNote };
+}
