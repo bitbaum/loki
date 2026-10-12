@@ -627,7 +627,11 @@ export function TerminalSurface({
 
   // ── Agent sessions ──────────────────────────────────────────────────────
   const body = () => {
-    if (deepLinkMiss) {
+    // A miss while the builder is offline or gated is not a miss: "Start it,
+    // and it opens here" is false when nothing can start. The empty state
+    // below says the builder is down and offers the way forward (owner, on a
+    // second computer, 2026-10-12: "classic dead end").
+    if (deepLinkMiss && !offline && !gatedMessage) {
       return (
         <TerminalSessionMiss
           requestedTab={resolvedInitialTab!}

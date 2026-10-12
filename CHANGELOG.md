@@ -17,6 +17,12 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   tap, the work moves), the empty terminal says “Use the cloud builder”, and
   the Control banner says plainly that there is nothing to install. The
   download is offered only to accounts whose cloud builder is private.
+- **The Terminal no longer says "start it" to a builder that is down.** A
+  deep link to a project with no session read “isn’t running on Cloud
+  builder — start it, and it opens here” while the chip beside it said the
+  cloud builder was offline. Now that screen says the builder is offline and
+  what happens to the work, and the start offer waits for a builder that can
+  take it.
 - **The Mac download is not damaged.** macOS says the app “is damaged and
   can’t be opened” because the build is not yet signed by Apple, and
   right-click → Open does not clear it. `/download` now leads with the
