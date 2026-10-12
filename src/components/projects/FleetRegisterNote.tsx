@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { buildFleetRegister } from "@/lib/register/build";
+import { registerInput } from "@/lib/register/project-input";
 import { getUserProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 
@@ -26,18 +27,11 @@ export async function FleetRegisterNote({ userId }: { userId: string }) {
   let unlinked = 0;
   try {
     const projects = await getUserProjects(userId);
-    const rows = buildFleetRegister(
-      projects.map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        hostedApp: p.hostedApp,
-        gitUrl: p.gitUrl,
-        liveUrl: p.liveUrl,
-        isActive: p.isActive,
-      })),
-      readAppsConf(),
-    );
+    // The operator's own count: client work they have not published is still
+    // a site that needs a project, so nothing is filtered out here.
+    const rows = buildFleetRegister(projects.map(registerInput), readAppsConf(), undefined, {
+      audience: "operator",
+    });
     unlinked = rows.filter((r) => r.site && !r.loki).length;
   } catch {
     // A register that cannot be read must not take the page down with it.

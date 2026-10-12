@@ -3,6 +3,7 @@ import { getUserProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { buildFleetRegister, summarize } from "@/lib/register/build";
+import { registerInput } from "@/lib/register/project-input";
 import { solonClaims } from "@/lib/register/solon";
 
 /**
@@ -14,7 +15,9 @@ import { solonClaims } from "@/lib/register/solon";
  * here is secret: repo names, public URLs, and whether a public profile exists.
  *
  * Scoped to the studio owner's projects (the same identity every hosted
- * dispatch runs for), not "all users" — Loki is multi-tenant in shape.
+ * dispatch runs for), not "all users" — Loki is multi-tenant in shape. Client
+ * work appears only once the client agreed (src/lib/register/client-work.ts):
+ * the builder's default audience is "public".
  */
 export const dynamic = "force-dynamic";
 
@@ -24,27 +27,7 @@ export async function GET() {
     return NextResponse.json({ error: "no owner resolved" }, { status: 503 });
   }
   const [projects, solon] = await Promise.all([getUserProjects(owner.userId), solonClaims()]);
-  const rows = buildFleetRegister(
-    projects.map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      // Omitted until 2026-09-15, which made `description` null on all 35 rows
-      // of a public register whose only prose field it is. `buildFleetRegister`
-      // reads `description` off its input, load-map.ts passed it, this route
-      // did not — and `usefulDescription(undefined)` is null, so the gap
-      // presented exactly like a register nobody had written descriptions for.
-      description: p.description,
-      hostedApp: p.hostedApp,
-      gitUrl: p.gitUrl,
-      liveUrl: p.liveUrl,
-      orangecatProjectId: p.orangecatProjectId,
-      solonOrgSlug: p.solonOrgSlug,
-      isActive: p.isActive,
-    })),
-    readAppsConf(),
-    solon.claims,
-  );
+  const rows = buildFleetRegister(projects.map(registerInput), readAppsConf(), solon.claims);
   return NextResponse.json(
     {
       generatedAt: new Date().toISOString(),

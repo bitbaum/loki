@@ -85,6 +85,9 @@ const rows = buildFleetRegister(
   // The organisation that CLAIMS each project, keyed by project slug — not a set
   // of organisation names. scripts/test/solon-claims.ts pins why.
   new Map([["orangecat", "orangecat"]]),
+  // The join is what this section pins, so it reads the operator's register;
+  // what the public one leaves out is pinned under "consent" below.
+  { audience: "operator" },
 );
 const by = Object.fromEntries(rows.map((r) => [r.slug, r]));
 
@@ -178,6 +181,54 @@ ok(c.pipeline === 0, "no prospects in this fixture");
 const favour = parseAppsConf(`x|1|x.ch|/r|.|-|Client A|client-site|live|favour|0|-`);
 ok(commerce(favour).paying === 0, "a favour at price 0 is an engagement, not revenue");
 ok(commerce(favour).priced === 1, "…but its terms ARE recorded — 'favour' is a decision");
+
+// -------------------------------------------------------------- consent
+// Client work is the client's before it is ours to show. The public register
+// (the default, so a forgotten argument fails closed) carries it only once the
+// client agreed, recorded on the project; the operator's register carries all.
+const consentInput = [
+  { id: "c1", name: "kivvi", gitUrl: null, portfolioConsentAt: new Date("2026-10-01T09:00:00Z") },
+  { id: "c2", name: "aoz-begleitung", gitUrl: null },
+  { id: "c3", name: "Sink client", slug: "s-ink", gitUrl: null, clientWork: false },
+  {
+    id: "c4",
+    name: "Francesco Tarallo",
+    slug: "francesco-tarallo",
+    gitUrl: null,
+    clientWork: true,
+  },
+  { id: "c5", name: "orangecat", gitUrl: null },
+];
+const pub = Object.fromEntries(buildFleetRegister(consentInput, apps).map((r) => [r.slug, r]));
+const op = Object.fromEntries(
+  buildFleetRegister(consentInput, apps, undefined, { audience: "operator" }).map((r) => [
+    r.slug,
+    r,
+  ]),
+);
+ok(op["aoz-begleitung"]?.client.work === true, "a client-owned hosting row is client work");
+ok(!("aoz-begleitung" in pub), "client work without consent is not on the public register");
+ok(
+  pub["kivvi"]?.client.consentedAt === "2026-10-01T09:00:00.000Z",
+  "client work with recorded consent is public, with its date",
+);
+ok(
+  pub["s-ink"]?.client.work === false,
+  "the operator's explicit 'not client work' wins over the hosting row",
+);
+ok(
+  op["francesco-tarallo"]?.client.work === true && !("francesco-tarallo" in pub),
+  "a project marked client work with no hosting row stays private",
+);
+ok(pub["orangecat"]?.client.work === false, "our own work is untouched");
+ok(
+  op["factory-sep11-0110"] !== undefined && pub["factory-sep11-0110"] !== undefined,
+  "our own hosted-only demo is on both",
+);
+ok(
+  op["kivvi"] !== undefined && op["aoz-begleitung"] !== undefined,
+  "the operator's register keeps every row",
+);
 
 console.log(`fleet-register: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

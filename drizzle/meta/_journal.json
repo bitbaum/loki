@@ -680,6 +680,13 @@
       "when": 1791757045333,
       "tag": "0096_conversation_images",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1791758045333,
+      "tag": "0097_client_portfolio_consent",
+      "breakpoints": true
     }
   ]
 }

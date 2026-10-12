@@ -7,8 +7,10 @@ import { PUBLIC_IDENTITY_ATTRS } from "@/config/project-attrs";
 import { getPubliclyListedProjects, getUserProjects } from "@/db/queries/user-projects";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
+import { registerInput } from "@/lib/register/project-input";
 import {
   buildFleetRegister,
+  type RegisterAudience,
   canonicalSlug,
   repoFromGitUrl,
   repoForProjectRecords,
@@ -29,26 +31,21 @@ import {
  * (open runs, last finished run). Shared by the API route and the nightly
  * knowledge reindex so the page and the assistant read the same map.
  */
-export async function loadFleetMap(): Promise<FleetMap | null> {
+export async function loadFleetMap(
+  /**
+   * "public" (default): client work appears only with the client's consent.
+   * Every public caller (the map API that bitbaum copies, /fleet/[slug], the
+   * public chat) takes the default; only the operator's own tools pass
+   * "operator".
+   */
+  audience: RegisterAudience = "public",
+): Promise<FleetMap | null> {
   const owner = await getSelfImprovementTarget();
   if (!owner) return null;
   const [projects, solon] = await Promise.all([getUserProjects(owner.userId), solonClaims()]);
-  const rows = buildFleetRegister(
-    projects.map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      description: p.description,
-      hostedApp: p.hostedApp,
-      gitUrl: p.gitUrl,
-      liveUrl: p.liveUrl,
-      orangecatProjectId: p.orangecatProjectId,
-      solonOrgSlug: p.solonOrgSlug,
-      isActive: p.isActive,
-    })),
-    readAppsConf(),
-    solon.claims,
-  );
+  const rows = buildFleetRegister(projects.map(registerInput), readAppsConf(), solon.claims, {
+    audience,
+  });
 
   // The identity half of the profile lives on the ENTITY, not on user_projects:
   // the four public attributes in `attributes`, the roadmap in `goals`. Both are

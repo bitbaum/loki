@@ -17,11 +17,6 @@ export type FleetSite = {
 /** Ordered by name. Loki itself is absent on purpose. */
 export const FLEET_SITES: readonly FleetSite[] = [
   {
-    name: "AOZ Begleitung",
-    url: "https://aoz.orangecat.ch",
-    blurb: "Gemeinsam wohnen — kompatibilitätsbasierte Wohnplatzierung.",
-  },
-  {
     name: "Botsmann",
     url: "https://botsmann.orangecat.ch",
     blurb: "Private AI that works with your own documents.",
@@ -47,11 +42,6 @@ export const FLEET_SITES: readonly FleetSite[] = [
     blurb: "Schweizerdeutsch verstehen. Wir fangen mit Zürichdeutsch an.",
   },
   {
-    name: "kivvi",
-    url: "https://kivvi.orangecat.ch",
-    blurb: "Open-Source-ERP für Kreislaufbetriebe.",
-  },
-  {
     name: "Petvity",
     url: "https://petvity.orangecat.ch",
     blurb: "Track your pet's health, vets, sitters and essentials.",
@@ -60,11 +50,6 @@ export const FLEET_SITES: readonly FleetSite[] = [
     name: "revamp.info",
     url: "https://revamp-info.orangecat.ch",
     blurb: "Transparentes Fundraising: Finanzen, Wirkung, Strategie.",
-  },
-  {
-    name: "S-Ink Tattoo",
-    url: "https://sinktattoo.com",
-    blurb: "Tattoo studio in Zürich.",
   },
   {
     name: "Solon",
@@ -80,10 +65,5 @@ export const FLEET_SITES: readonly FleetSite[] = [
     name: "Surf Your Life",
     url: "https://surf-your-life.orangecat.ch",
     blurb: "Psychiatry-led burnout recovery in Zürich.",
-  },
-  {
-    name: "Vita",
-    url: "https://vitareba.orangecat.ch",
-    blurb: "Metabolische Psychiatrie und systemische Longevity, Zürich.",
   },
 ];

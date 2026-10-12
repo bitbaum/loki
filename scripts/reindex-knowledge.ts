@@ -208,7 +208,8 @@ async function main() {
     // used to come back as "Not in your data" because no single chunk held the
     // shape of the fleet. Owner-scoped, like the map endpoint it mirrors.
     if (owner && userId === owner.userId) {
-      const map = await loadFleetMap().catch(() => null);
+      // The owner's own index: client work is theirs to know about, consent or not.
+      const map = await loadFleetMap("operator").catch(() => null);
       if (map) {
         items.push({
           sourceType: "fleet_map",
