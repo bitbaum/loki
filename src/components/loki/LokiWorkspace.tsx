@@ -37,6 +37,7 @@ import type {
   ModelChoice,
 } from "./types";
 import { LOKI_PREFILL_EVENT } from "@/lib/client-events";
+import { localMessageImages } from "@/lib/loki/message-images";
 
 const REFETCH_TIMEOUT_MS = 15_000;
 const HISTORY_PIN_KEY = "loki:history-pinned";
@@ -477,7 +478,11 @@ export function LokiWorkspace({
           role: "user",
           kind: null,
           content: text,
-          meta: null,
+          // The pictures show the moment Send is tapped; the stored copies
+          // replace them on the next load of the thread.
+          meta: attachments.some((a) => a.kind === "image")
+            ? { images: localMessageImages(attachments) }
+            : null,
           createdAt: new Date().toISOString(),
         },
       ]);

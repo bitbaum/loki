@@ -4,6 +4,8 @@ import { MarkdownText } from "@/components/ui/markdown-text";
 import { readWork } from "@/lib/loki/work";
 import { readProgressUpdate } from "@/lib/loki/progress-update";
 import { ProgressUpdateCard } from "./ProgressUpdateCard";
+import { MessageImages } from "./MessageImages";
+import { readMessageImages } from "@/lib/loki/message-images";
 import { AnswerActions } from "./AnswerActions";
 import { ProvenanceFooter } from "./ProvenanceFooter";
 import { WorkTrail } from "./WorkTrail";
@@ -54,9 +56,15 @@ export function MessageTurn({
   onContinue?: (text: string, project: string) => void;
 }) {
   if (message.role === "user") {
+    const images = readMessageImages(message.meta);
     return (
       <div className="ui-loki-turn-user">
-        <div className="ui-loki-bubble ui-loki-bubble-user">{message.content}</div>
+        <div className="ui-loki-turn-user-stack">
+          <MessageImages images={images} />
+          {message.content.trim() && (
+            <div className="ui-loki-bubble ui-loki-bubble-user">{message.content}</div>
+          )}
+        </div>
       </div>
     );
   }

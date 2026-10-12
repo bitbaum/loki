@@ -6990,6 +6990,20 @@
   .ui-loki-turn-user {
     @apply flex w-full justify-end;
   }
+  /* A sent message with pictures: the pictures first, right-aligned with the
+     words under them, so a screenshot reads as part of what was said. */
+  .ui-loki-turn-user-stack {
+    @apply flex max-w-full flex-col items-end gap-1.5;
+  }
+  .ui-loki-msg-images {
+    @apply flex max-w-full flex-wrap justify-end gap-1.5 sm:max-w-[75%];
+  }
+  .ui-loki-msg-image {
+    @apply block overflow-hidden rounded-xl border border-border-subtle bg-surface-raised;
+  }
+  .ui-loki-msg-image img {
+    @apply block max-h-56 w-auto max-w-full object-contain;
+  }
   /* Actions stay out of the way until the turn is hovered or focused — but a
      touch device has no hover, so there they are simply always visible. */
   .ui-loki-turn-actions {
