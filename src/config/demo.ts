@@ -119,6 +119,8 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   ["/api/orchestration", "dispatch"],
   ["/api/projects/from-website", "dispatch"],
   ["/api/projects/from-repo", "dispatch"],
+  // Makes a folder on the box and sends an agent to build a prospect preview.
+  ["/api/previews", "dispatch"],
   ["/api/inject", "terminal"],
   ["/api/terminal", "terminal"],
   ["/api/command", "terminal"],
