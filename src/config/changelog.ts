@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.42",
+    tag: "fleet-runner-v0.8.42",
+    date: "2026-10-12T12:00:00Z",
+    highlights: [
+      "The cloud builder runs again. Since 0.8.41 it stopped on start-up every time, so work sent to the cloud waited in the queue; nothing changes on this computer.",
+    ],
+    breaking: [],
+    notes:
+      "0.8.41 taught the runner to open web forms in a browser window. That window is part of the desktop app, and the cloud builder — the same runner, without a screen — tried to load it at start-up and could not. It now loads only when a form actually arrives, which only ever happens on a computer.",
+  },
+  {
     version: "0.8.41",
     tag: "fleet-runner-v0.8.41",
     date: "2026-10-11T22:00:00Z",

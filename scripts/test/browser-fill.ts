@@ -12,7 +12,7 @@
 //   - on another host (a sign-in page) nothing is touched.
 //
 // Needs Chromium; skips with a reason off CI, fails under CI.
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import { build } from "esbuild";
 import { appBundle } from "./lib/npm-form-fixture";
 import { chromium, type Browser, type Page } from "playwright";
@@ -65,11 +65,16 @@ async function bundledScriptFor(): Promise<ScriptFor> {
 /** The filler as Fleet Runner's build actually ships it — the function the
  *  runner stringifies — when that build exists (after `pnpm run check:desktop`). */
 function builtScriptFor(): ScriptFor | null {
-  const out = "desktop/out/main/index.js";
-  if (!existsSync(out)) return null;
-  const bundle = readFileSync(out, "utf8");
+  const dir = "desktop/out/main";
+  if (!existsSync(`${dir}/index.js`)) return null;
+  // The poller loads browser-handoff lazily (the headless box-runner has no
+  // Electron), so electron-vite emits it as its own chunk beside index.js.
+  const bundle = readdirSync(dir)
+    .filter((f) => f.endsWith(".js"))
+    .map((f) => readFileSync(`${dir}/${f}`, "utf8"))
+    .join("\n");
   const m = bundle.match(/\nfunction fillBrowserForm\(task\) \{[\s\S]*?\n\}\n/);
-  if (!m) throw new Error(`${out} has no top-level fillBrowserForm — the runner cannot send it`);
+  if (!m) throw new Error(`${dir} has no top-level fillBrowserForm — the runner cannot send it`);
   const source = m[0].trim();
   return (task) => `(${source})(${JSON.stringify(task)})`;
 }
