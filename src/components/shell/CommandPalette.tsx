@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Highlight } from "@bitbaum/searchkit/react";
 import {
   Search,
   ArrowRight,
@@ -23,6 +24,7 @@ import {
   buildPaletteEntries,
   filterPaletteEntries,
   type PaletteEntry,
+  type PaletteRow,
   type UserProjectLite,
 } from "./palette-entries";
 import { useCommandComposer } from "./use-command-composer";
@@ -136,7 +138,7 @@ export function CommandPalette() {
     [agentPrompts, projects],
   );
 
-  const filtered = useMemo<PaletteEntry[]>(
+  const filtered = useMemo<PaletteRow[]>(
     () =>
       filterPaletteEntries({
         entries,
@@ -291,7 +293,17 @@ export function CommandPalette() {
                   {entry.kind === "pick-project" && <FolderKanban className="h-3.5 w-3.5" />}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-text-primary">{entry.label}</span>
+                  <span className="block truncate text-sm text-text-primary">
+                    {entry.labelMatches ? (
+                      <Highlight
+                        text={entry.label}
+                        ranges={entry.labelMatches}
+                        markClassName="ui-search-mark"
+                      />
+                    ) : (
+                      entry.label
+                    )}
+                  </span>
                   <span className="block truncate text-xs text-text-tertiary">{entry.sub}</span>
                 </span>
                 {recent.includes(entry.key) && !query && (

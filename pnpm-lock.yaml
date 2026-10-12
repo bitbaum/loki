@@ -36,6 +36,9 @@ importers:
       '@bitbaum/mail-kit':
         specifier: ^0.1.1
         version: 0.1.1
+      '@bitbaum/searchkit':
+        specifier: github:bitbaum/orangecat#e6cda794af7eb8da0e88602bdce2c26283616498&path:packages/searchkit
+        version: https://codeload.github.com/bitbaum/orangecat/tar.gz/e6cda794af7eb8da0e88602bdce2c26283616498#path:packages/searchkit(react@19.3.0)
       '@bitbaum/whenkit':
         specifier: github:bitbaum/whenkit#v0.3.2
         version: https://codeload.github.com/bitbaum/whenkit/tar.gz/f5e0a24208187091c2ca792008cdd7695a19910f(react@19.3.0)
@@ -422,6 +425,15 @@ packages:
   '@bitbaum/mail-kit@0.1.1':
     resolution: {integrity: sha512-3JfaeuwkI+8TVGeSDrr8/esaWkv2d7UAcNg1Xu5HHu6k3cBzuSaLGhuzHp0KlAJgGa2QEQIqtE7W1+PosKFOjw==}
     engines: {node: '>=20'}
+
+  '@bitbaum/searchkit@https://codeload.github.com/bitbaum/orangecat/tar.gz/e6cda794af7eb8da0e88602bdce2c26283616498#path:packages/searchkit':
+    resolution: {gitHosted: true, integrity: sha512-0dlR7+JG/7Hh4WlJzP6zLl+OloAE9G86WQmYxrFAJqYBezTLqi7sI4QDb80Qmtd/0RSc1smpMv1oDdTxDYzxsg==, path: packages/searchkit, tarball: https://codeload.github.com/bitbaum/orangecat/tar.gz/e6cda794af7eb8da0e88602bdce2c26283616498}
+    version: 0.2.2
+    peerDependencies:
+      react: '>=18'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@bitbaum/whenkit@https://codeload.github.com/bitbaum/whenkit/tar.gz/f5e0a24208187091c2ca792008cdd7695a19910f':
     resolution: {gitHosted: true, integrity: sha512-y7wjFst8elmua4bfjhbRDw1U+qndxXeMXG32C5N8GokV3UIdGgO1LZYJFu0OrUftfvcgoERXJ7Nl6goITwarpA==, tarball: https://codeload.github.com/bitbaum/whenkit/tar.gz/f5e0a24208187091c2ca792008cdd7695a19910f}
@@ -5227,6 +5239,10 @@ snapshots:
   '@bitbaum/design-tokens@1.1.0': {}
 
   '@bitbaum/mail-kit@0.1.1': {}
+
+  '@bitbaum/searchkit@https://codeload.github.com/bitbaum/orangecat/tar.gz/e6cda794af7eb8da0e88602bdce2c26283616498#path:packages/searchkit(react@19.3.0)':
+    optionalDependencies:
+      react: 19.3.0
 
   '@bitbaum/whenkit@https://codeload.github.com/bitbaum/whenkit/tar.gz/f5e0a24208187091c2ca792008cdd7695a19910f(react@19.3.0)':
     dependencies:

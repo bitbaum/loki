@@ -4148,6 +4148,13 @@
     @apply border-border-strong;
     box-shadow: 0 0 0 2px oklch(1 0 0 / 6%);
   }
+  /* The part of a result a search matched (searchkit's <Highlight> renders a
+     bare <mark>). Weight and a quiet wash, not the browser's yellow: a row
+     already carries status colour, and yellow reads as a warning. A typo
+     match marks the whole word, so the operator sees WHY it was found. */
+  .ui-search-mark {
+    @apply rounded-sm bg-accent-muted font-semibold text-text-primary;
+  }
   .ui-code-surface {
     @apply max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-border-subtle bg-surface-overlay p-4 font-mono text-sm leading-relaxed text-text-secondary;
   }

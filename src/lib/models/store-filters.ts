@@ -1,4 +1,14 @@
 import { valueScore, type StoreModel } from "@/lib/models/store-catalog";
+import { filterByQuery, type SearchSpec } from "@/lib/search";
+
+/** "Search a model or a lab": the name, the routed id, then who made it. */
+const MODEL_SEARCH_SPEC: SearchSpec<StoreModel> = {
+  fields: [
+    { name: "name", get: (m) => m.name },
+    { name: "id", get: (m) => m.id },
+    { name: "lab", get: (m) => m.labLabel },
+  ],
+};
 
 /**
  * The store's filters and sorts — pure, and spelled the same in the URL, the
@@ -87,9 +97,8 @@ export function applyFilters(
   f: StoreFilters,
   reachable: (m: StoreModel) => boolean,
 ): StoreModel[] {
-  const q = f.q.trim().toLowerCase();
-  return models.filter((m) => {
-    if (q && !`${m.name} ${m.id} ${m.labLabel}`.toLowerCase().includes(q)) return false;
+  // The query narrows; the store's sort still orders. A slip in a name still finds it.
+  return filterByQuery(models, MODEL_SEARCH_SPEC, f.q).filter((m) => {
     if (f.open && !m.open) return false;
     if (f.free && !(m.free || m.freeVariant)) return false;
     if (f.vision && !m.vision) return false;

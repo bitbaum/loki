@@ -6,6 +6,20 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-12 — One wrong letter no longer hides what you were looking for
+
+- **Search forgives a slip.** ⌘K, People, Projects, Control's "Find
+  project", Prompts, Goals, Events, chats, essays, the model store and the
+  project pickers all matched the exact letters typed, so "lkoi" found
+  nothing and "jonh" found nobody. Now one wrong, missing, doubled or swapped
+  letter still finds the thing (two in long words), accents need not be typed
+  ("zurich" finds Zürich), and "orange cat" finds OrangeCat.
+- **The best match comes first** in ⌘K, People, Prompts and the pickers, and
+  ⌘K and the prompt picker mark the part of each result that matched. Lists
+  with an order of their own — the sort you picked on Projects, Control and
+  the model store, deadlines, recent chats, the goal tree — keep it; the
+  search only narrows them.
+
 ## 2026-10-12 — The cloud builder runs again
 
 - **Work sent to the cloud starts again.** Since 22:25 UTC on 2026-10-11 the

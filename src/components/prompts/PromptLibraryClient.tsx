@@ -8,6 +8,8 @@ import { GroupBar } from "./GroupBar";
 import { UserPromptsSection, type UserPromptCard } from "./UserPromptsSection";
 import type { Project } from "./types";
 import { useEscapeKey } from "@/hooks/use-escape-key";
+import { PROMPT_SEARCH_SPEC } from "@/lib/prompt-search";
+import { rankByQuery } from "@/lib/search";
 
 export function PromptLibraryClient({
   templates,
@@ -33,22 +35,15 @@ export function PromptLibraryClient({
   const filtered = templates.filter((t) => {
     if (activeGroup !== "all" && groupForCategory(t.category) !== activeGroup) return false;
     if (activeScope !== "all" && t.scope !== activeScope) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        t.name.toLowerCase().includes(q) ||
-        t.description.toLowerCase().includes(q) ||
-        (t.tags ?? []).some((tag) => tag.includes(q))
-      );
-    }
     return true;
   });
 
-  // Featured first, otherwise the config's category order is preserved (stable
-  // sort), so cards still cluster by category within each band.
-  const ordered = [...filtered].sort(
-    (a, b) => Number(b.featured ?? false) - Number(a.featured ?? false),
-  );
+  // Searching: best match first, a slip in a word forgiven. Browsing: featured
+  // first, otherwise the config's category order is preserved (stable sort),
+  // so cards still cluster by category within each band.
+  const ordered = search.trim()
+    ? rankByQuery(filtered, PROMPT_SEARCH_SPEC, search)
+    : [...filtered].sort((a, b) => Number(b.featured ?? false) - Number(a.featured ?? false));
 
   return (
     <div className="space-y-6">

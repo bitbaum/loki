@@ -13,6 +13,15 @@ import {
   type ThreadStateKind,
 } from "@/lib/loki/thread-state";
 import type { ConversationSummary } from "./types";
+import { filterByQuery, type SearchSpec } from "@/lib/search";
+
+/** "Search chats": the title, then the projects a chat was about. */
+const CHAT_SEARCH_SPEC: SearchSpec<ConversationSummary> = {
+  fields: [
+    { name: "title", get: (c) => c.title },
+    { name: "projects", get: (c) => c.projectKeys },
+  ],
+};
 
 /** Below this, a search box is furniture: you can see every thread already. */
 const SEARCH_THRESHOLD = 8;
@@ -96,15 +105,9 @@ export function ThreadRail({
   const [query, setQuery] = useState("");
 
   const needle = query.trim().toLowerCase();
+  // Matches stay in the rail's recency order; a slip in a word still matches.
   const filtered = useMemo(
-    () =>
-      needle
-        ? conversations.filter(
-            (c) =>
-              c.title.toLowerCase().includes(needle) ||
-              c.projectKeys.some((k) => k.toLowerCase().includes(needle)),
-          )
-        : conversations,
+    () => filterByQuery(conversations, CHAT_SEARCH_SPEC, needle),
     [conversations, needle],
   );
   const rows = useMemo(() => filtered.map((c) => ({ ...c, ...stateInputOf(c) })), [filtered]);

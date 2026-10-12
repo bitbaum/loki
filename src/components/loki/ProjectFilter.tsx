@@ -6,6 +6,11 @@ import { Check, Search } from "lucide-react";
 import { LOKI_IMPORT_PROJECT_HREF, LOKI_NEW_PROJECT_HREF } from "@/config/loki-suggested-actions";
 import { LokiPaneBody } from "./LokiPaneBody";
 import type { LokiProject } from "./types";
+import { rankByQuery, type SearchSpec } from "@/lib/search";
+
+const PROJECT_NAME_SPEC: SearchSpec<LokiProject> = {
+  fields: [{ name: "name", get: (p) => p.name }],
+};
 
 export function ProjectFilter({
   projects,
@@ -29,10 +34,11 @@ export function ProjectFilter({
   onClear?: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? projects.filter((p) => p.name.toLowerCase().includes(q)) : projects;
-  }, [projects, query]);
+  // Best match first; one slip in a project's name still finds it.
+  const filtered = useMemo(
+    () => rankByQuery(projects, PROJECT_NAME_SPEC, query),
+    [projects, query],
+  );
 
   return (
     <div className="flex h-full flex-col gap-2">

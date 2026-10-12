@@ -51,6 +51,9 @@ export async function GET(request: Request) {
       (RELATIONSHIP_HEALTH_VALUES as readonly string[]).includes(h),
     );
 
-  const result = await searchPeople(userId, q, limit, offset, sort, health);
+  // The search box: one slip in a name still finds the person, best match first.
+  const result = await searchPeople(userId, q, limit, offset, sort, health, {
+    forgiveTypos: true,
+  });
   return NextResponse.json(result);
 }

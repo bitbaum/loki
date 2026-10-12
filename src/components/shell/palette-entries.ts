@@ -2,6 +2,7 @@ import { AGENT_LABELS, type AnyAgentId } from "@/lib/agent-labels";
 import { NAV_ITEMS, type NavItem } from "@/config/navigation";
 import { PROMPT_TEMPLATES, type PromptTemplate } from "@/config/prompt-library";
 import type { AgentPrompt } from "@/app/api/prompts/agent/route";
+import { rankByQuery, searchHits, TEXT_SPEC, type Range, type SearchSpec } from "@/lib/search";
 
 export type PaletteEntry =
   | { kind: "agent-prompt"; key: string; label: string; sub: string; icon: string; href: string }
@@ -21,6 +22,9 @@ export type PaletteEntry =
       href: null;
       projectName: string;
     };
+
+/** A row as the palette shows it: the entry, plus where the query landed in its label. */
+export type PaletteRow = PaletteEntry & { labelMatches?: readonly Range[] };
 
 export type UserProjectLite = {
   id: string;
@@ -100,6 +104,27 @@ export function buildPaletteEntries(input: {
   return [...projectEntries, ...switchEntries, ...nav, ...agent, ...templates];
 }
 
+/**
+ * The default order of kinds, kept as the last tie-break once something is
+ * typed: between two equally good matches, a project still beats a Go-to row.
+ */
+const KIND_ORDER: readonly PaletteEntry["kind"][] = [
+  "project",
+  "switch-agent",
+  "nav",
+  "agent-prompt",
+  "prompt-template",
+];
+
+/** What the palette searches: the label first, then the line under it. */
+export const PALETTE_SEARCH_SPEC: SearchSpec<PaletteEntry> = {
+  fields: [
+    { name: "label", get: (e) => e.label },
+    { name: "sub", get: (e) => e.sub },
+  ],
+  rank: (e) => -KIND_ORDER.indexOf(e.kind),
+};
+
 /** The rows the palette shows for the current query and composer state. */
 export function filterPaletteEntries(input: {
   entries: PaletteEntry[];
@@ -108,14 +133,13 @@ export function filterPaletteEntries(input: {
   /** Set while a resolved command is waiting for the operator to name a project. */
   pending: boolean;
   projectNames: string[];
-}): PaletteEntry[] {
+}): PaletteRow[] {
   const { entries, query, recent, pending, projectNames } = input;
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
 
   // Project-picker mode: command resolved but project ambiguous — pick one.
   if (pending) {
-    return projectNames
-      .filter((name) => !q || name.toLowerCase().includes(q))
+    return rankByQuery(projectNames, TEXT_SPEC, q)
       .map<PaletteEntry>((name) => ({
         kind: "pick-project",
         key: `pick:${name}`,
@@ -128,21 +152,6 @@ export function filterPaletteEntries(input: {
       .slice(0, PALETTE_RESULT_LIMIT);
   }
 
-  // A free-text query is a candidate command — offer it as the top action,
-  // above any matching navigate/prompt entries.
-  const runRow: PaletteEntry[] = query.trim()
-    ? [
-        {
-          kind: "run-command",
-          key: "__run__",
-          label: `Run: ${query.trim()}`,
-          sub: "Resolve in natural language & dispatch",
-          icon: null,
-          href: null,
-        },
-      ]
-    : [];
-
   if (!q) {
     // Default ordering: recents (in order) → nav → agent → templates.
     const byKey = new Map(entries.map((e) => [e.key, e]));
@@ -151,13 +160,20 @@ export function filterPaletteEntries(input: {
     return [...recentEntries, ...remaining].slice(0, PALETTE_RESULT_LIMIT);
   }
 
-  const matches = entries
-    .filter(
-      (e) =>
-        e.label.toLowerCase().includes(q) ||
-        e.sub.toLowerCase().includes(q) ||
-        e.key.toLowerCase().includes(q),
-    )
-    .slice(0, PALETTE_RESULT_LIMIT - 1);
-  return [...runRow, ...matches];
+  // A free-text query is a candidate command — offer it as the top action,
+  // above any matching navigate/prompt entries.
+  const runRow: PaletteRow = {
+    kind: "run-command",
+    key: "__run__",
+    label: `Run: ${q}`,
+    sub: "Resolve in natural language & dispatch",
+    icon: null,
+    href: null,
+  };
+
+  // One slip in a name still finds it ("lkoi" → Loki), best match first.
+  const matches = searchHits(entries, PALETTE_SEARCH_SPEC, q)
+    .slice(0, PALETTE_RESULT_LIMIT - 1)
+    .map<PaletteRow>((hit) => ({ ...hit.item, labelMatches: hit.matches.label }));
+  return [runRow, ...matches];
 }

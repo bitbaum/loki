@@ -4,10 +4,19 @@ import { useState, useMemo } from "react";
 import { Loader2, Check } from "lucide-react";
 import { LinkGithubButton } from "./LinkGithubButton";
 import { RepoRow, useGithubRepos } from "./repo-list";
+import type { GitHubRepo } from "@/app/api/github/repos/route";
+import { rankByQuery, type SearchSpec } from "@/lib/search";
+
+const REPO_SEARCH_SPEC: SearchSpec<GitHubRepo> = {
+  fields: [
+    { name: "name", get: (r) => r.name },
+    { name: "description", get: (r) => r.description },
+  ],
+};
 
 type Props = {
   onSelectionChange: (selectedIds: number[]) => void;
-  /** Optional filter — hide repos whose name matches this string (case-insensitive substring). */
+  /** Optional filter — show only repos whose name or description matches, best match first. */
   filter?: string;
 };
 
@@ -15,14 +24,8 @@ export function RepoMultiPicker({ onSelectionChange, filter = "" }: Props) {
   const { repos, hasGithub, loading, error } = useGithubRepos();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  // Filtered view of repos.
-  const visibleRepos = useMemo(() => {
-    const f = filter.trim().toLowerCase();
-    if (!f) return repos;
-    return repos.filter(
-      (r) => r.name.toLowerCase().includes(f) || (r.description ?? "").toLowerCase().includes(f),
-    );
-  }, [repos, filter]);
+  // One slip in a repo's name still finds it, best match first.
+  const visibleRepos = useMemo(() => rankByQuery(repos, REPO_SEARCH_SPEC, filter), [repos, filter]);
 
   function toggle(id: number) {
     setSelectedIds((prev) => {

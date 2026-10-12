@@ -9,6 +9,7 @@ import { LOKI_REFRESH_EVENT } from "@/lib/client-events";
 import type { ProjectState } from "@/lib/control-types";
 import type { ProjectOperationsSnapshot } from "./control-presenter";
 import { STATE_DEFINITIONS, type ProjectStateKey } from "@/lib/control-states";
+import { filterByQuery, type SearchSpec } from "@/lib/search";
 import type { AutoInjectMode } from "@/config/beacon";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectAutopilotToggle } from "./ProjectAutopilotToggle";
@@ -16,6 +17,18 @@ import { SendTaskModal } from "./SendTaskModal";
 
 type CardBaseProps = Omit<Parameters<typeof ProjectCard>[0], "snapshot" | "isOnlyReady">;
 type ProjectRailSort = "priority" | "recent" | "az";
+
+/** "Find project": the tab name first, then what the project is and where it lives. */
+const RAIL_SEARCH_SPEC: SearchSpec<ProjectOperationsSnapshot> = {
+  fields: [
+    { name: "tab", get: (s) => s.project.tab },
+    { name: "mission", get: (s) => s.project.profile?.mission },
+    { name: "description", get: (s) => s.project.profile?.description },
+    { name: "dir", get: (s) => s.project.dir },
+    { name: "branch", get: (s) => s.project.git?.branch },
+    { name: "context", get: (s) => s.contextSummary },
+  ],
+};
 
 function snapshotActivityMs(snapshot: ProjectOperationsSnapshot): number {
   const project = snapshot.project;
@@ -130,22 +143,8 @@ export function ProjectOperationsView({
         (snapshot) => STATE_DEFINITIONS[snapshot.phase].counterCategory === categoryFilter,
       )
     : sourceSnapshots;
-  const filtered = normalizedQuery
-    ? inCategory.filter((snapshot) => {
-        const haystack = [
-          snapshot.project.tab,
-          snapshot.project.profile?.mission,
-          snapshot.project.profile?.description,
-          snapshot.project.dir,
-          snapshot.project.git?.branch,
-          snapshot.contextSummary,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return haystack.includes(normalizedQuery);
-      })
-    : inCategory;
+  // Narrow only — the frozen rail order below still decides where rows sit.
+  const filtered = filterByQuery(inCategory, RAIL_SEARCH_SPEC, normalizedQuery);
 
   const setKey = `${sort}|${normalizedQuery}|${categoryFilter ?? ""}|${filtered
     .map((s) => s.project.tab)

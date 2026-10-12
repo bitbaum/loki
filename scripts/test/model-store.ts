@@ -280,6 +280,10 @@ check("filters: open, free, vision, reasoning, mine, lab, price ceiling, search"
   assert.ok(!f({ max: 1 }).includes("openrouter/auto"), "'varies' does not pass a ceiling");
   assert.deepEqual(f({ q: "glm" }), ["z-ai/glm-5.3"]);
   assert.deepEqual(f({ q: "moonshot" }).length, 2, "search matches the lab too");
+  // One slip in a name still finds the model (the search was a substring test).
+  assert.deepEqual(f({ q: "nemotorn" }), ["nvidia/nemotron-3-super-120b-a12b"]);
+  assert.deepEqual(f({ q: "qwne" }).length, 2, "a swapped pair is one slip");
+  assert.ok(f({ q: "moonshto" }).length === 2, "a slip in the lab, too");
 });
 
 check("sorts put what they cannot rank last, never out", () => {

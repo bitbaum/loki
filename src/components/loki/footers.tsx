@@ -28,6 +28,7 @@ import { isDispatchCardAction, presentDispatchCard, watchHref } from "@/lib/disp
 import { cloudBuilderState } from "@/lib/builder-way-forward";
 import { isBuilderChannel } from "@/lib/constants/statuses";
 import { postJson } from "@/lib/api/fetch";
+import { rankByQuery, TEXT_SPEC } from "@/lib/search";
 /** Human-readable label for an assistant turn's kind badge. SSOT for the
  *  small set of kinds the messages route emits. */
 export const KIND_LABEL: Record<string, string> = {
@@ -388,8 +389,8 @@ export function NeedsProjectPicker({
   // an empty workspace): still offer the way through, never an empty footer.
   if (options.length === 0 && !onAnswerAnyway) return null;
 
-  const needle = query.trim().toLowerCase();
-  const shown = needle ? options.filter((name) => name.toLowerCase().includes(needle)) : options;
+  // Best match first; one slip in a project's name still finds it.
+  const shown = rankByQuery(options, TEXT_SPEC, query);
 
   return (
     <div className="ui-loki-picker">
