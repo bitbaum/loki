@@ -57,7 +57,12 @@ export async function POST(req: NextRequest) {
       entityId: body.entityId,
       expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
     },
-    { operatorRequested: body.operatorRequested },
+    // A caller that says nobody asked is also saying no standing rule may
+    // cover it — the two are the same fact about where this came from.
+    {
+      origin: body.operatorRequested ? "operator" : "loki",
+      operatorRequested: body.operatorRequested,
+    },
   );
 
   // Re-proposal of an already-pending title dedupes (partial unique index).

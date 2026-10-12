@@ -239,9 +239,7 @@ export async function notifyActionExecuted(
 
   try {
     const tz = getActiveTimezone(await getUserPreferences(userId).catch(() => null));
-    const isEvent = action.type === ACTION_TYPE.CREATE_EVENT;
-    const head = isEvent ? "📅 Booked" : "✅ Done";
-    const lines = [`${head} — “${action.title}”`, ...describeAction(action, tz)];
+    const lines = [...executedHeadline(action), ...describeAction(action, tz)];
     if (opts.autoApproved) {
       // Name the rule AND where to switch it off, in the same breath. A
       // standing approval the operator cannot find is one they cannot
@@ -273,6 +271,30 @@ export async function notifyActionExecuted(
       err instanceof Error ? err.message : String(err),
     );
   }
+}
+
+/**
+ * The first lines of an "it happened" message — what was done, said as what
+ * it IS rather than what its title sounds like.
+ *
+ * "✅ Done — “Check in with Rajif Rao”" (2026-10-12) read as Loki having
+ * checked in with Rajif. It had written a reminder into the operator's own
+ * commitments list; the title was the reminder's subject, and "Done" stuck to
+ * it as if it were the deed. A commitment therefore says it is on YOUR list,
+ * quotes the commitment itself, and states outright that nobody was contacted
+ * — the one fact the reader most needs and could not otherwise be sure of.
+ */
+export function executedHeadline(action: Pick<ActionRow, "type" | "title" | "payload">): string[] {
+  if (action.type === ACTION_TYPE.CREATE_EVENT) return [`📅 Booked — “${action.title}”`];
+  if (action.type === ACTION_TYPE.CREATE_COMMITMENT) {
+    const p = action.payload ?? {};
+    const what = (typeof p.commitment === "string" && p.commitment.trim()) || action.title;
+    return [
+      `📌 Added to your commitments — “${what}”`,
+      "A reminder for you. Nothing was sent to anyone.",
+    ];
+  }
+  return [`✅ Done — “${action.title}”`];
 }
 
 /**

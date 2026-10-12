@@ -76,7 +76,7 @@ export const lokiMcpServices: McpServices = {
       await enqueueAction(
         userId,
         { type: ACTION_TYPE.CREATE_EVENT, title: req.title, payload: eventPayload(req) },
-        { operatorRequested: true },
+        { origin: "operator", operatorRequested: true },
       ),
     ),
 

@@ -51,20 +51,26 @@ export async function enqueueProposalFromMessage(
       : null;
   const reach = person ? reachFromPerson(person) : null;
 
-  const outcome = await enqueueAction(userId, {
-    type: proposal.type,
-    title:
-      person &&
-      (proposal.type === ACTION_TYPE.SEND_MESSAGE || proposal.type === ACTION_TYPE.SEND_EMAIL)
-        ? `Message ${person.name}`.slice(0, 200)
-        : proposal.title,
-    description: proposal.description,
-    payload: enrichReachPayload(proposal.payload, reach),
-    reasoning: person
-      ? `Matched ${person.name}${reach ? ` on ${reach.channel}` : ""}.`
-      : (proposal.reasoning ?? "Proposed by Loki from chat — approve to run it."),
-    entityId: person?.id ?? null,
-  });
+  const outcome = await enqueueAction(
+    userId,
+    {
+      type: proposal.type,
+      title:
+        person &&
+        (proposal.type === ACTION_TYPE.SEND_MESSAGE || proposal.type === ACTION_TYPE.SEND_EMAIL)
+          ? `Message ${person.name}`.slice(0, 200)
+          : proposal.title,
+      description: proposal.description,
+      payload: enrichReachPayload(proposal.payload, reach),
+      reasoning: person
+        ? `Matched ${person.name}${reach ? ` on ${reach.channel}` : ""}.`
+        : (proposal.reasoning ?? "Proposed by Loki from chat — approve to run it."),
+      entityId: person?.id ?? null,
+      // The operator wrote the message this was read from — it is theirs.
+      // No `operatorRequested`: they are looking at the chat that produced it.
+    },
+    { origin: "operator" },
+  );
   // An already-pending draft title dedupes — nothing new was queued.
   if (outcome.result === "deduped") return null;
 

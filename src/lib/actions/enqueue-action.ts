@@ -22,7 +22,7 @@ import {
 import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
 import { getUserPreferences } from "@/db/queries/user-preferences";
 import { finalizeApproved } from "@/lib/actions/finalize-approved";
-import { standingApprovalVerdict } from "@/lib/actions/standing-approval";
+import { standingApprovalVerdict, type ProposalOrigin } from "@/lib/actions/standing-approval";
 import { notifyActionNeedsDecision, notifyActionExecuted } from "@/lib/actions/notify-decision";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
 import type { ExecuteActionResult } from "@/lib/actions/execute-action";
@@ -36,6 +36,14 @@ export type EnqueueOutcome =
   | { result: "auto"; action: ActionRow; execution: ExecuteActionResult };
 
 export type EnqueueOptions = {
+  /**
+   * Who wanted this — the operator, in words, or Loki on its own. Required:
+   * only `operator` proposals may ride a standing approval (RAIL 0 in
+   * standing-approval.ts). A check-in Loki thought of is not a commitment the
+   * operator mentioned, however small it is. Stamped onto the payload so the
+   * later confirmation (the calendar drain) can say the same thing.
+   */
+  origin: ProposalOrigin;
   /**
    * Did the operator ask for this, in words, just now?
    *
@@ -61,9 +69,12 @@ export type EnqueueOptions = {
 export async function enqueueAction(
   userId: string,
   input: ProposeActionInput,
-  options: EnqueueOptions = {},
+  options: EnqueueOptions,
 ): Promise<EnqueueOutcome> {
-  const created = await proposeAction(userId, input);
+  const created = await proposeAction(userId, {
+    ...input,
+    payload: { ...(input.payload ?? {}), origin: options.origin },
+  });
   // Dedupe (partial unique index on pending titles) — the answer is "it is
   // already queued", which is not a failure and must not be reported as one.
   if (!created) return { result: "deduped", action: null };
@@ -80,6 +91,7 @@ export async function enqueueAction(
     type: created.type,
     payload: created.payload,
     standingApprovals: standing,
+    origin: options.origin,
   });
 
   if (!verdict.auto) {

@@ -147,6 +147,9 @@ export async function POST(req: NextRequest) {
     type: executed.type,
     payload: executed.payload,
     standingApprovals: standing,
+    // Rows from before the origin stamp were all treated as asked-for; keep
+    // that reading for them rather than inventing a different history.
+    origin: executed.payload?.origin === "loki" ? "loki" : "operator",
   }).auto;
   await notifyActionExecuted(userId, executed, { htmlLink: htmlLink ?? null, autoApproved }).catch(
     () => {},

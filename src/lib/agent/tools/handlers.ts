@@ -437,7 +437,7 @@ const proposeActionTool = defineTool({
       // The operator is in this conversation right now — this tool only fires
       // because they asked for something. That is exactly the case a per-item
       // card is for.
-      { operatorRequested: true },
+      { origin: "operator", operatorRequested: true },
     ).catch(() => {
       writeFailed = true;
       return null;
