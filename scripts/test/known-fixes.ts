@@ -150,7 +150,7 @@ check("the owner route answers for every keyed row, beyond the strip's twelve", 
   const watch = readFileSync("widget/watch.ts", "utf8");
   assert.ok(watch.includes("await lookFirst()"), "Watch looks before it speaks");
   assert.ok(watch.includes("noticeKey: key"), "a failure Watch files itself carries its key too");
-  const conv = readFileSync("widget/conversation.ts", "utf8");
+  const conv = readFileSync("widget/conversation-model.ts", "utf8");
   assert.ok(conv.includes("{ noticeKey: key }"), "Fix this files the key with the note");
 });
 

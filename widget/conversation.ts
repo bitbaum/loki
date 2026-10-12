@@ -25,81 +25,27 @@ import type { Picker } from "./picker";
 import { createAttachments } from "./attachments";
 import { createVoiceControl } from "./voice-control";
 import { mergeTranscript } from "./voice";
-import { buildSuggestion, formatDiagnostics, type ReportDiagnostics } from "./report-payload";
-import { sendReport } from "./send-report";
-import { sendSelfReport } from "./self-report";
+import { formatDiagnostics, type ReportDiagnostics } from "./report-payload";
 import { knownLabel, type KnownFix } from "./known-fixes";
-import { askAdvisor, askConcierge, REVIEW_QUESTION, type Answer } from "./loki-api";
-import {
-  historyFor,
-  pushItem,
-  restoreThread,
-  type Assistant,
-  type Link,
-  type ThreadItem,
-} from "./thread";
+import { REVIEW_QUESTION } from "./loki-api";
+import type { Assistant, Link, ThreadItem } from "./thread";
 import { createContinueRow } from "./continue-row";
 import { greetingFor, ownerDoor } from "./greeting";
 import { receiptLinkLabel, receiptText } from "./receipt";
+import {
+  CONCIERGE_GREETING,
+  MAX_LEN,
+  createConversationModel,
+  startersFor,
+  type ConversationWatch,
+  type Draft,
+} from "./conversation-model";
 
-/** The ingest's cap on `suggestion` (api/feedback FeedbackBody). */
-export const MAX_LEN = 2000;
+export { MAX_LEN, type ConversationWatch };
+
 const MAX_SCREENSHOTS = 5;
 /** Stop recording under the server's ~2 min upload cap. */
 const VOICE_MAX_MS = 110_000;
-const ASK_MAX = 1000;
-
-const threadKey = (token: string) => `loki-thread:${token}`;
-
-function readThread(token: string): ThreadItem[] {
-  try {
-    return restoreThread(JSON.parse(sessionStorage.getItem(threadKey(token)) ?? "[]"), Date.now());
-  } catch {
-    return [];
-  }
-}
-
-function writeThread(token: string, thread: ThreadItem[]): void {
-  try {
-    sessionStorage.setItem(threadKey(token), JSON.stringify(thread));
-  } catch {
-    /* storage blocked: the thread lasts for this page view */
-  }
-}
-
-const CONCIERGE_GREETING = [
-  {
-    speaker: "cat" as const,
-    text: "I'm the Cat. Ask me about earning, selling or getting paid — in Bitcoin.",
-  },
-  {
-    speaker: "loki" as const,
-    text: "I'm Loki. Ask me about getting something built or run — or tell me what should change on this site.",
-  },
-];
-
-const STARTERS: Record<Assistant, string[]> = {
-  advisor: [
-    "What would you improve here?",
-    "Is this clear to a first-time visitor?",
-    "Something here is broken",
-  ],
-  concierge: [
-    "What can you build for me?",
-    "I want to earn in Bitcoin",
-    "How do I run AI agents on my code?",
-  ],
-  none: [],
-};
-
-export type ConversationWatch = {
-  /** Watching right now (owner, not paused). */
-  on: () => boolean;
-  /** The session as Review sends it. */
-  session: () => string;
-  /** The watched steps as report lines — null while paused. */
-  diagnostics: () => ReportDiagnostics | null;
-};
 
 export function createConversation(opts: {
   apiBase: string;
@@ -119,10 +65,6 @@ export function createConversation(opts: {
   /** What Loki already did about a remark's key (widget/changes.ts). */
   known?: (key: string) => KnownFix | null;
 }) {
-  let thread = readThread(opts.token);
-  let busy = false;
-  let draftOpen: HTMLElement | null = null;
-
   const el = h("div", "convo");
   const log = h("div", "chatlog");
   log.setAttribute("role", "log");
@@ -165,6 +107,28 @@ export function createConversation(opts: {
     fileInput.value = "";
   });
 
+  // The rules and the calls (conversation-model.ts); this file draws them.
+  const model = createConversationModel({
+    apiBase: opts.apiBase,
+    token: opts.token,
+    assistant: opts.assistant,
+    ownerPass: opts.ownerPass,
+    onPassRefused: opts.onPassRefused,
+    picker: opts.picker,
+    watch: opts.watch,
+    about: () => ctx.about(),
+    scope: () => ctx.scope(),
+    screenshots: {
+      list: () => attachments.shots(),
+      clear: () => {
+        attachments.reset();
+        attachments.render();
+      },
+    },
+    onBusy: opts.onBusy,
+    onSent: opts.onSent,
+  });
+
   // ---- composer ----
   const input = h("textarea", "chatinput");
   input.rows = 2;
@@ -174,7 +138,7 @@ export function createConversation(opts: {
   const sendBtn = h("button", "go");
   sendBtn.type = "button";
   sendBtn.disabled = true;
-  sendBtn.addEventListener("click", () => void submit());
+  sendBtn.addEventListener("click", () => submit());
   const feedbackBtn = h("button", "ghost feedback");
   feedbackBtn.type = "button";
   feedbackBtn.disabled = true;
@@ -183,11 +147,11 @@ export function createConversation(opts: {
     if (!text) return;
     input.value = "";
     syncButtons();
-    build(text);
+    model.build(text);
   });
   const syncButtons = () => {
     const empty = !input.value.trim();
-    sendBtn.disabled = busy || empty;
+    sendBtn.disabled = model.snapshot().pending !== null || empty;
     feedbackBtn.disabled = empty;
   };
   input.addEventListener("input", syncButtons);
@@ -218,7 +182,7 @@ export function createConversation(opts: {
   const cont = createContinueRow({
     apiBase: opts.apiBase,
     token: opts.token,
-    thread: () => thread,
+    thread: () => [...model.snapshot().thread],
     owner: () => opts.ownerPass() !== null,
   });
   el.append(log, starters, form, cont.el, err);
@@ -251,8 +215,6 @@ export function createConversation(opts: {
     cont.sync();
   }
 
-  const scope = ctx.scope;
-
   // ---- rendering ----
   function bubble(cls: string, who: string | null, text: string): HTMLElement {
     const m = h("div", `msg ${cls}`);
@@ -261,6 +223,11 @@ export function createConversation(opts: {
     return m;
   }
 
+  // The open confirmation card keeps its own inputs across re-renders: the
+  // model holds what it is about, the DOM holds what is being typed.
+  let card: { draft: Draft; el: HTMLElement } | null = null;
+  let shownError = "";
+
   /**
    * Rebuild the thread. Follows the newest message only when you were already
    * at the bottom (or it is your own action); reading further up, your place
@@ -268,6 +235,7 @@ export function createConversation(opts: {
    * the button out from under the tap (it did, on loki.orangecat.ch).
    */
   function render(follow = false) {
+    const { thread, pending, error, draft } = model.snapshot();
     const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 24;
     const keep = log.scrollTop;
     log.textContent = "";
@@ -302,7 +270,7 @@ export function createConversation(opts: {
             owner() ? "Build this as written" : "Send to builder as written",
           );
           act.type = "button";
-          act.addEventListener("click", () => build(item.text));
+          act.addEventListener("click", () => model.build(item.text));
           log.appendChild(act);
         }
       } else if (item.kind === "loki") {
@@ -316,8 +284,8 @@ export function createConversation(opts: {
             suggestionBox({
               items: item.changes,
               owner: owner(),
-              onBuild: build,
-              onEdit: openDraft,
+              onBuild: model.build,
+              onEdit: model.openDraft,
             }),
           );
         if (item.links?.length) log.appendChild(answerLinks(item.links));
@@ -326,9 +294,9 @@ export function createConversation(opts: {
           bubble,
           known: item.key ? (opts.known?.(item.key) ?? null) : null,
           owner: owner(),
-          onFix: () => build(item.fix, item.key),
+          onFix: () => model.build(item.fix, item.key),
           onWhy: () =>
-            void ask(
+            model.ask(
               `Why is this a problem, and how would you fix it? ${item.text}`,
               opts.watch()?.session(),
             ),
@@ -346,19 +314,36 @@ export function createConversation(opts: {
         log.appendChild(m);
       }
     });
-    if (draftOpen) log.appendChild(draftOpen);
+    if (pending) {
+      const p = bubble(
+        "bot from-loki pending",
+        "Loki",
+        pending.review ? "Going through what you did…" : "Looking…",
+      );
+      p.querySelector(".who")?.prepend(spiralMark("thinking"));
+      log.appendChild(p);
+    }
+    if (draft) {
+      if (card?.draft !== draft) card = { draft, el: draftCard(draft) };
+      log.appendChild(card.el);
+    } else card = null;
+    // The line is shared with the screenshot tray and the mic, which write
+    // their own errors: the model's replaces it only when the model's changes.
+    if (error !== shownError) err.textContent = shownError = error;
     renderStarters();
+    syncButtons();
     log.scrollTop = follow || atBottom ? log.scrollHeight : keep;
   }
 
   function renderStarters() {
     starters.textContent = "";
-    const list = [...STARTERS[opts.assistant()]];
-    if (opts.watch()?.on()) list.unshift(REVIEW_QUESTION);
-    // Starters are for an empty conversation; after that they are noise.
-    const empty = !thread.some((i) => i.kind === "you" || i.kind === "noticed");
-    starters.style.display = list.length && (empty || opts.watch()?.on()) ? "" : "none";
-    for (const q of empty ? list : list.slice(0, 1)) {
+    const { list } = startersFor(
+      opts.assistant(),
+      model.snapshot().thread,
+      opts.watch()?.on() ?? false,
+    );
+    starters.style.display = list.length ? "" : "none";
+    for (const q of list) {
       const b = h(
         "button",
         q === REVIEW_QUESTION ? "starter primary" : "starter",
@@ -366,190 +351,25 @@ export function createConversation(opts: {
       );
       b.type = "button";
       b.addEventListener("click", () => {
-        if (q === REVIEW_QUESTION) review();
-        else void ask(q);
+        if (q === REVIEW_QUESTION) model.review();
+        else model.ask(q);
       });
       starters.appendChild(b);
     }
   }
 
-  function remember(item: ThreadItem) {
-    thread = pushItem(thread, item);
-    writeThread(opts.token, thread);
-  }
-
-  // ---- asking ----
-  async function ask(question: string, session?: string) {
-    const text = question.trim().slice(0, ASK_MAX);
-    if (busy || !text) return;
-    const a = opts.assistant();
-    if (a === "none") {
-      openDraft(text);
-      return;
-    }
-    busy = true;
-    opts.onBusy?.(true);
-    sendBtn.disabled = true;
-    err.textContent = "";
-    remember({ kind: "you", at: Date.now(), text });
-    render(true);
-    const pending = bubble(
-      "bot from-loki pending",
-      "Loki",
-      session ? "Going through what you did…" : "Looking…",
-    );
-    pending.querySelector(".who")?.prepend(spiralMark("thinking"));
-    log.appendChild(pending);
-    log.scrollTop = log.scrollHeight;
-    const history = historyFor(thread.slice(0, -1), 12, 3000);
-    try {
-      const answer: Answer =
-        a === "concierge"
-          ? await askConcierge({ apiBase: opts.apiBase, token: opts.token, message: text, history })
-          : await askAdvisor({
-              apiBase: opts.apiBase,
-              token: opts.token,
-              question: text,
-              scope: session ? "page" : scope(),
-              selected: opts.picker.selected(),
-              history,
-              session,
-              ownerPass: opts.ownerPass() ?? undefined,
-            });
-      answer.messages.forEach((m, i) =>
-        remember({
-          kind: "loki",
-          at: Date.now(),
-          speaker: m.speaker,
-          text: m.text,
-          // Changes and links follow the last speaker's words.
-          ...(i === answer.messages.length - 1 && answer.changes.length
-            ? { changes: answer.changes }
-            : {}),
-          ...(i === answer.messages.length - 1 && answer.links.length
-            ? { links: answer.links }
-            : {}),
-          ...(answer.degraded ? { degraded: true } : {}),
-        }),
-      );
-    } catch (e) {
-      // No dead end: the question is still in the thread, one tap from the builder.
-      err.textContent = e instanceof Error ? e.message : "Could not reach Loki — try again.";
-    } finally {
-      busy = false;
-      opts.onBusy?.(false);
-      syncContext();
-      render(true);
-      sendBtn.disabled = !input.value.trim();
-    }
-  }
-
-  async function submit() {
+  function submit() {
     const text = input.value.trim();
-    if (!text || busy) return;
+    if (!text || model.snapshot().pending) return;
     input.value = "";
     sendBtn.disabled = true;
-    await ask(text);
+    model.ask(text);
   }
 
-  function review() {
-    const w = opts.watch();
-    if (!w) return;
-    void ask(REVIEW_QUESTION, w.session());
-  }
-
-  // ---- sending to the builder: a confirmation card in the thread ----
-  /**
-   * The owner's word IS the decision: a change starts building straight away,
-   * with the watched steps attached, and its receipt says where it went. The
-   * confirmation card is a visitor's (it asks who they are), or the owner's
-   * when they choose "Edit first".
-   */
-  function build(text: string, key?: string) {
-    if (ctx.about() === "loki" && !key) {
-      err.textContent = "";
-      toLoki(text).catch((e) => {
-        err.textContent = e instanceof Error ? e.message : "Could not send it to Loki — try again.";
-      });
-      return;
-    }
-    if (!owner()) return openDraft(text);
-    err.textContent = "";
-    deliver(text, "", opts.watch()?.diagnostics() ?? null, key).catch((e) => {
-      err.textContent = e instanceof Error ? e.message : "Could not start it — try again.";
-    });
-  }
-
-  /** A note about the widget itself, to Loki's own project — no confirmation
-   *  card: there is no builder of this site to introduce yourself to. */
-  async function toLoki(body: string) {
-    const res = await sendSelfReport(opts.apiBase, {
-      token: opts.token,
-      kind: "note",
-      note: body,
-      ownerPass: opts.ownerPass() ?? undefined,
-      screenshots: attachments.shots(),
-    });
-    attachments.reset();
-    attachments.render();
-    remember({
-      kind: "sent",
-      at: Date.now(),
-      text: body.slice(0, 300),
-      owner: false,
-      toLoki: true,
-      ...(res.building ? { building: true } : {}),
-      ...(res.note ? { note: res.note } : {}),
-      ...(res.followUrl ? { claimUrl: res.followUrl } : {}),
-    });
-    render(true);
-  }
-
-  /** File the note; the receipt lands in the thread. Throws the server's words. */
-  async function deliver(
-    body: string,
-    contact: string,
-    diag: ReportDiagnostics | null,
-    key?: string,
-  ) {
-    const pass = opts.ownerPass();
-    const res = await sendReport(opts.apiBase, {
-      token: opts.token,
-      suggestion: buildSuggestion(body, diag, MAX_LEN),
-      contact,
-      scope: scope(),
-      screenshots: attachments.shots(),
-      selectedElements: opts.picker.selected(),
-      ownerPass: pass ?? undefined,
-      // The finding's key rides with its fix, so the next visit's remark
-      // finds this row instead of filing another.
-      ...(pass && key ? { noticeKey: key } : {}),
-    });
-    if (pass && !res.owner) opts.onPassRefused();
-    draftOpen = null;
-    attachments.reset();
-    attachments.render();
-    opts.picker.clearSelection();
-    remember({
-      kind: "sent",
-      at: Date.now(),
-      text: body.slice(0, 300),
-      owner: res.owner === true,
-      ...(res.building ? { building: true } : {}),
-      ...(res.buildNote ? { note: res.buildNote } : {}),
-      // One link either way: a visitor tracks their report, the owner
-      // follows the build Loki just started.
-      ...(res.claimUrl || res.followUrl ? { claimUrl: res.followUrl ?? res.claimUrl } : {}),
-    });
-    syncContext();
-    render(true);
-    opts.onSent?.();
-  }
-
-  function openDraft(text: string, diagnostics: ReportDiagnostics | null = null) {
-    const diag = diagnostics ?? (owner() ? (opts.watch()?.diagnostics() ?? null) : null);
-    const card = h("div", "sendcard");
-    card.appendChild(
+  /** The confirmation card: what goes to the builder, edited before it does. */
+  function draftCard(draft: Draft): HTMLElement {
+    const el = h("div", "sendcard");
+    el.appendChild(
       h(
         "div",
         "changes-title",
@@ -558,15 +378,16 @@ export function createConversation(opts: {
     );
     const box = h("textarea", "chatinput");
     box.maxLength = MAX_LEN;
-    box.value = text.slice(0, MAX_LEN);
-    card.appendChild(box);
+    box.value = draft.text;
+    el.appendChild(box);
     const contact = h("input");
     contact.type = "text";
     contact.placeholder = "Your name / email (optional)";
     contact.maxLength = 200;
     contact.autocomplete = "off";
     // Loki already knows who the owner is.
-    if (!owner()) card.appendChild(contact);
+    if (!owner()) el.appendChild(contact);
+    const diag = draft.diagnostics;
     const extras = [
       opts.picker.selected().length ? `${opts.picker.selected().length} picked element(s)` : "",
       attachments.shots().length ? `${attachments.shots().length} screenshot(s)` : "",
@@ -576,7 +397,7 @@ export function createConversation(opts: {
       const note = h("div", "diag", `Goes with it: ${extras.join(", ")}`);
       note.style.display = "block";
       if (diag) note.title = formatDiagnostics(diag);
-      card.appendChild(note);
+      el.appendChild(note);
     }
     const row = h("div", "row");
     const go = h("button", "go", owner() ? "Build it" : "Send");
@@ -585,10 +406,9 @@ export function createConversation(opts: {
     cancel.type = "button";
     const cardErr = h("div", "err");
     row.append(go, cancel);
-    card.append(row, cardErr);
+    el.append(row, cardErr);
     cancel.addEventListener("click", () => {
-      draftOpen = null;
-      render();
+      model.closeDraft();
       input.focus();
     });
     go.addEventListener("click", async () => {
@@ -598,19 +418,25 @@ export function createConversation(opts: {
       go.textContent = "Sending…";
       cardErr.textContent = "";
       try {
-        await deliver(body, contact.value, diag);
+        await model.sendDraft(body, contact.value);
       } catch (e) {
         go.disabled = false;
         go.textContent = owner() ? "Build it" : "Send";
         cardErr.textContent = e instanceof Error ? e.message : "Could not send — try again.";
       }
     });
-    draftOpen = card;
-    render(true);
-    box.focus();
-    box.setSelectionRange(box.value.length, box.value.length);
+    // Focus the words once the card is in the thread.
+    queueMicrotask(() => {
+      box.focus();
+      box.setSelectionRange(box.value.length, box.value.length);
+    });
+    return el;
   }
 
+  model.subscribe((follow) => {
+    syncContext();
+    render(follow);
+  });
   syncContext();
   render(true);
 
@@ -624,51 +450,29 @@ export function createConversation(opts: {
       syncContext();
       render(follow);
     },
-    ask: (q: string) => void ask(q),
-    review,
+    ask: (q: string) => model.ask(q),
+    review: model.review,
     /** Host page's report(): straight to the confirmation, prefilled. */
     draft: (message: string, diagnostics: ReportDiagnostics | null) =>
-      openDraft(message, diagnostics),
+      model.openDraft(message, diagnostics),
     /** Watch noticed something: Loki says it in the thread, with Fix this. */
-    noticed: (remark: {
-      say: string;
-      fix: string;
-      filed?: boolean;
-      key?: string;
-      again?: boolean;
-    }) => {
-      remember({
-        kind: "noticed",
-        at: Date.now(),
-        text: remark.say,
-        fix: remark.fix,
-        ...(remark.filed ? { filed: true } : {}),
-        ...(remark.key ? { key: remark.key } : {}),
-        ...(remark.again ? { again: true } : {}),
-      });
-      render();
-    },
+    noticed: model.noticed,
     /** Loki on Loki (self-watch.ts) — quiet: never moves your reading place. */
-    selfNote: (text: string) => {
-      remember({ kind: "loki", at: Date.now(), speaker: "loki", text });
-      render();
-    },
+    selfNote: model.selfNote,
     /** Loki says something unprompted (e.g. "this site is not yours"). */
-    say: (text: string, links?: Link[]) => {
-      remember({ kind: "loki", at: Date.now(), speaker: "loki", text, links });
-      render(true);
-    },
+    say: (text: string, links?: Link[]) => model.say(text, links),
     /** Closing the panel: stop the mic; the thread itself is kept. */
     close: () => {
       voice?.recorder.cancel();
-      draftOpen = null;
+      model.close();
+      card = null;
       err.textContent = "";
     },
     /** Enter asks, Shift+Enter is a newline. */
     onKey(e: KeyboardEvent): boolean {
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.composedPath().includes(input)) {
         e.preventDefault();
-        void submit();
+        submit();
         return true;
       }
       return false;

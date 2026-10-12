@@ -411,7 +411,8 @@ interface LokiApi {
       syncWatch();
       // Opening is to see what is new: land on the newest message.
       conversation.refresh(true);
-      document.addEventListener("keydown", onKeydown, true);
+      root.addEventListener("keydown", onKeydown as EventListener);
+      document.addEventListener("keydown", onDocumentKeydown);
       conversation.focus();
       // Measured once it has laid out: a panel too wide for this phone is
       // Loki's bug, and Loki should hear about it from here.
@@ -427,7 +428,8 @@ interface LokiApi {
       conversation.close();
       backdrop.remove();
       panel.remove();
-      document.removeEventListener("keydown", onKeydown, true);
+      root.removeEventListener("keydown", onKeydown as EventListener);
+      document.removeEventListener("keydown", onDocumentKeydown);
       fab.style.display = fabRest();
     }
 
@@ -436,13 +438,23 @@ interface LokiApi {
       // hotkeys (⌘K, "/", "?") on document, and the event retargets to the
       // shadow HOST, so their "is the user typing?" guard reads the wrong node
       // and steals keystrokes (observed on orangecat.ch and loki.orangecat.ch).
-      // While the panel is open we own the keyboard.
+      // While the panel is open we own the keyboard — stopped here, at the
+      // shadow root on the way OUT, not on document on the way in: stopping
+      // it in the capture phase also kept it from every control inside the
+      // panel that listens for itself (a composer's Enter, a dialog's Escape).
       e.stopPropagation();
       if (conversation.onKey(e)) return;
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !e.defaultPrevented) {
         if (picker.isPicking()) picker.stop();
         else closePanel();
       }
+    }
+
+    /** Escape with focus outside the panel (on the page behind it) still closes it. */
+    function onDocumentKeydown(e: KeyboardEvent) {
+      if (e.key !== "Escape" || e.composedPath().includes(host)) return;
+      if (picker.isPicking()) picker.stop();
+      else closePanel();
     }
 
     // Programmatic entry point: the host's own "Report" control opens the
