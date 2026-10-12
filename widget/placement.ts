@@ -135,8 +135,18 @@ export interface Slot {
 export const SLOT_VERDICTS = ["free", "text", "surface", "layer", "blocked"] as const;
 export type SlotVerdict = (typeof SLOT_VERDICTS)[number];
 
-/** `data-fc-place` values a host can declare. */
-export type PlaceDirective = "left" | "right" | "hidden";
+/**
+ * `data-fc-place` values a host can declare.
+ *
+ * - `left` / `right`: keep the launcher on that side.
+ * - `tab`: this region is busy at its corners (a terminal, a full-width
+ *   composer), so draw the launcher as the slim edge tab instead of the
+ *   floating button. Still on screen, still one tap away.
+ * - `hidden`: no launcher at all while the region is rendered. The host's
+ *   off switch, for a checkout or a full-screen editor; the page should then
+ *   offer its own control that calls `Loki.report()`.
+ */
+export type PlaceDirective = "left" | "right" | "tab" | "hidden";
 
 /** Move a corner to the side a host or visitor asked for, keeping its edge. */
 export function withSide(corner: Corner, side: "left" | "right"): Corner {
@@ -236,7 +246,30 @@ export function resolvePlaceDirective(
   let out: PlaceDirective | null = null;
   for (const raw of values) {
     const v = (raw ?? "").trim().toLowerCase();
-    if (v === "left" || v === "right" || v === "hidden") out = v;
+    if (v === "left" || v === "right" || v === "tab" || v === "hidden") out = v;
   }
   return out;
+}
+
+/**
+ * Where on its side edge the tab sits: the first height (as a fraction of the
+ * viewport) whose verdict is not `blocked`, trying the middle first and then
+ * stepping outward, so it lands in the same place on every page that allows
+ * it. If every height is blocked it stays in the middle: the tab is the shape
+ * the launcher takes precisely so it is never missing, and it is narrow enough
+ * to cover only the outermost sliver of whatever is under it.
+ */
+export const TAB_HEIGHTS = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74] as const;
+
+export function chooseTabTop(
+  viewportHeight: number,
+  tabHeight: number,
+  verdict: (top: number) => SlotVerdict,
+): number {
+  const topAt = (f: number) => Math.round(viewportHeight * f - tabHeight / 2);
+  for (const f of TAB_HEIGHTS) {
+    const top = topAt(f);
+    if (verdict(top) !== "blocked") return top;
+  }
+  return topAt(TAB_HEIGHTS[0]);
 }

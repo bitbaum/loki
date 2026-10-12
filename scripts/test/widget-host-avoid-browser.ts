@@ -364,7 +364,9 @@ async function main() {
       await close();
     }
 
-    // 9. Every slot is a control: hide rather than eat a click.
+    // 9. Every corner slot is a control: the launcher becomes the edge tab —
+    //    narrow, flush against the side — instead of vanishing. A launcher
+    //    that is there on some pages and gone on others reads as broken.
     {
       const grid = Array.from(
         { length: 400 },
@@ -374,9 +376,64 @@ async function main() {
         `<div style="position:fixed;inset:0;display:flex;flex-wrap:wrap;overflow:hidden">${grid}</div>`,
       );
       const { p, close } = await open(browser, html, 390, 844, js);
+      const f = await fab(p);
+      ok(!!f && f.visible, "wall of controls: the launcher is still on screen");
+      ok(!!f && f.right >= 389 && f.right - f.left <= 32, "…as the edge tab, flush right");
+      await close();
+    }
+
+    // 10. data-fc-place="tab" on a region (the Terminal, /loki): edge tab while
+    //     the region is rendered, the corner button once it is gone.
+    {
+      const { p, close } = await open(browser, page(filler), 1440, 900, js);
+      await p.evaluate(() => {
+        const pane = document.createElement("main");
+        pane.id = "pane";
+        pane.setAttribute("data-fc-place", "tab");
+        pane.textContent = "terminal";
+        document.body.prepend(pane);
+      });
+      await settle(p);
+      let f = await fab(p);
       ok(
-        (await fab(p))?.visible === false,
-        "wall of controls: launcher hides instead of covering one",
+        !!f && f.visible && f.right >= 1439 && f.right - f.left <= 32,
+        'data-fc-place="tab": edge tab',
+      );
+      ok(!!f && f.top > 200 && f.bottom < 700, "…at the middle of the edge, where it always is");
+      await p.evaluate(() => document.getElementById("pane")?.remove());
+      await settle(p);
+      f = await fab(p);
+      ok(!!f && f.visible && f.bottom > 800, "region gone: the corner button is back");
+      await close();
+    }
+
+    // 11. The host's own switch: Loki.hide() / Loki.show() / Loki.hidden, and
+    //     the event a host's toggle listens to.
+    {
+      const { p, close } = await open(browser, page(filler), 1440, 900, js);
+      const events = await p.evaluate(async () => {
+        const seen: boolean[] = [];
+        window.addEventListener("loki:visibility", (e) =>
+          seen.push((e as CustomEvent<{ hidden: boolean }>).detail.hidden),
+        );
+        const api = (window as unknown as { Loki: { hide(): void; show(): void; hidden: boolean } })
+          .Loki;
+        api.hide();
+        const afterHide = api.hidden;
+        await new Promise((r) => setTimeout(r, 50));
+        return { seen, afterHide };
+      });
+      ok(events.afterHide === true, "Loki.hide(): hidden is true");
+      ok(events.seen.join() === "true", "Loki.hide(): one loki:visibility event, hidden");
+      ok((await fab(p))?.visible === false, "Loki.hide(): the launcher is gone");
+      await p.evaluate(() => (window as unknown as { Loki: { show(): void } }).Loki.show());
+      await settle(p);
+      ok((await fab(p))?.visible === true, "Loki.show(): the launcher is back");
+      ok(
+        await p.evaluate(
+          () => (window as unknown as { Loki: { hidden: boolean } }).Loki.hidden === false,
+        ),
+        "Loki.show(): hidden is false",
       );
       await close();
     }

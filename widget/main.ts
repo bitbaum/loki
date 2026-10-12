@@ -34,6 +34,7 @@ import { attachSheet } from "./sheet";
 import {
   isHiddenByVisitor,
   readHiddenMarker,
+  VISIBILITY_EVENT,
   readVisitorPlacement,
   restoreRequested,
   writeVisitorPlacement,
@@ -85,6 +86,15 @@ interface LokiApi {
    * button, or the host's own "Report" control would silently do nothing.
    */
   show(): void;
+  /**
+   * Hide the launcher for this person on this site — the same choice as "Hide
+   * on this site" in the launcher's menu, remembered in this browser. For a
+   * host that offers its own on/off switch (Loki's account menu does). Undone
+   * by show(), report(), ask() or `#loki`.
+   */
+  hide(): void;
+  /** Whether this person has the launcher hidden on this site. */
+  readonly hidden: boolean;
 }
 
 (() => {
@@ -153,6 +163,12 @@ interface LokiApi {
   let mounted = false;
   /** Set by mount(): bring back a launcher hidden during this page view. */
   let liveShow: (() => void) | null = null;
+  /** Set by mount(): hide a launcher that is on screen, toast optional. */
+  let liveHide: ((opts: { toast: boolean }) => void) | null = null;
+  const announceVisibility = () =>
+    window.dispatchEvent(
+      new CustomEvent(VISIBILITY_EVENT, { detail: { hidden: isHiddenByVisitor(visitorOverride) } }),
+    );
   /** Show a widget the visitor had hidden, because something asked for it —
    *  mounting it first if it was hidden before this page loaded. */
   const unhide = () => {
@@ -161,6 +177,18 @@ interface LokiApi {
     writeVisitorPlacement(token, null);
     if (liveShow) liveShow();
     else if (bootedTheme && !mounted) mountWhenReady(bootedTheme);
+    announceVisibility();
+  };
+  /** The host's switch: same stored choice as the menu's "Hide on this site",
+   *  without the toast (the host's own control already shows the state). */
+  const hide = () => {
+    if (isHiddenByVisitor(visitorOverride)) return;
+    if (liveHide) liveHide({ toast: false });
+    else {
+      visitorOverride = readHiddenMarker();
+      writeVisitorPlacement(token, { hidden: true });
+      announceVisibility();
+    }
   };
   const api: LokiApi = {
     ready: false,
@@ -175,6 +203,10 @@ interface LokiApi {
       else pendingAsk = question;
     },
     show: unhide,
+    hide,
+    get hidden() {
+      return isHiddenByVisitor(visitorOverride);
+    },
   };
   (window as unknown as { Loki?: LokiApi }).Loki = api;
   // Arriving from the owner link (or returning through the "This is my site" link): open the
@@ -236,7 +268,7 @@ interface LokiApi {
         openPanel();
         picker.start();
       },
-      onHide: hideForVisitor,
+      onHide: () => hideForVisitor(),
     });
     const fab = launcher.fab;
     /** The launcher's resting display: none while the visitor has it hidden. */
@@ -250,14 +282,16 @@ interface LokiApi {
     // "Report" control. Now it is offered in the panel too, it says how to undo
     // it, and #loki, Loki.show(), report() and ask() all restore it.
     let toast: HTMLElement | null = null;
-    function hideForVisitor() {
+    function hideForVisitor({ toast: withToast = true }: { toast?: boolean } = {}) {
       if (panel.isConnected) closePanel();
       visitorOverride = readHiddenMarker();
       writeVisitorPlacement(token, { hidden: true });
       fab.style.display = "none";
       toast?.remove();
-      toast = showHideToast(root, () => api.show());
+      toast = withToast ? showHideToast(root, () => api.show()) : null;
+      announceVisibility();
     }
+    liveHide = hideForVisitor;
     liveShow = () => {
       toast?.remove();
       if (!panel.isConnected) fab.style.display = "";
@@ -333,7 +367,7 @@ interface LokiApi {
     // Visible, not only behind a long-press: a visitor who does not want the
     // button should not have to know a gesture to get rid of it.
     const hideLink = h("button", "hide-link", "Hide this button on this site");
-    hideLink.addEventListener("click", hideForVisitor);
+    hideLink.addEventListener("click", () => hideForVisitor());
     // The one line a stranger gets about Loki itself: where they are and
     // where to get one. Quiet, last, and gone for the owner, who knows.
     const madeWith = h("a", "made-with", "Made with Loki — build something of your own →");

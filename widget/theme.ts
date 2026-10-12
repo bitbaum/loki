@@ -169,6 +169,22 @@ ${spiralCSS(theme)}
 }
 @media (prefers-reduced-motion: reduce) { .fab.watching .dot { animation: none; } }
 
+/* The edge tab: the launcher's second shape (launcher.ts, placeTab). A slim
+   handle flush against the side edge for pages whose corners are busy — the
+   Terminal, a composer, a wall of controls. Same button, same click, same
+   long-press menu; only the shape changes, so it is never "missing". Wins over
+   the narrow-viewport and owner rules above by specificity, not order. */
+.fab.tab, .fab.tab.owner, .fab.tab.scrolling {
+  width: 24px; height: 64px; padding: 0; gap: 0; justify-content: center;
+  border-radius: ${rs} 0 0 ${rs}; border-right: 0;
+  opacity: .7; transform: none; pointer-events: auto;
+  box-shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+.fab.tab.on-left { border-radius: 0 ${rs} ${rs} 0; border-right: 1px solid ${theme.borderDark}; border-left: 0; }
+.fab.tab .fab-label, .fab.tab .fab-icon, .fab.tab .fab-badge { display: none; }
+.fab.tab .dot.spiral { display: inline-flex; width: 14px; height: 14px; }
+.fab.tab:hover, .fab.tab:focus-visible { opacity: 1; width: 30px; transform: none; }
+
 .backdrop { position: fixed; inset: 0; z-index: 2147483001; background: rgba(0,0,0,.35); }
 
 /* ---- panel: Loki's card ---- */

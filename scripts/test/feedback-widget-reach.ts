@@ -69,18 +69,19 @@ for (const p of FEEDBACK_WIDGET_EXCLUDED_PREFIXES) {
   ok(!isFeedbackWidgetRoute(`${p}/nested`), `excluded: ${p}/nested`);
 }
 
-// /terminal reaches the widget without a floating button over the PTY: the page
-// hides the launcher and the terminal header opens the panel (loki#1037).
-ok(
-  isFeedbackWidgetRoute("/terminal"),
-  "widget reaches /terminal (launcher hidden, opened from the header)",
-);
-ok(
-  /data-fc-place="hidden"/.test(
-    readFileSync(join(ROOT, "src/app/(app)/terminal/page.tsx"), "utf8"),
-  ),
-  "the terminal page hides the floating launcher",
-);
+// /terminal and /loki reach the widget without a corner button over the PTY or
+// the composer: both pages ask for the edge-tab shape (loki#1037). Never
+// "hidden" — a page where the launcher silently is not there is exactly the
+// unpredictability this rule exists to end.
+for (const [route, file] of [
+  ["/terminal", "src/app/(app)/terminal/page.tsx"],
+  ["/loki", "src/app/(app)/loki/page.tsx"],
+] as const) {
+  ok(isFeedbackWidgetRoute(route), `widget reaches ${route}`);
+  const src = readFileSync(join(ROOT, file), "utf8");
+  ok(/data-fc-place="tab"/.test(src), `${route} draws the launcher as the edge tab`);
+  ok(!/data-fc-place="hidden"/.test(src), `${route} does not hide the launcher`);
+}
 ok(
   /openFeedback\(/.test(
     readFileSync(join(ROOT, "src/components/terminal/TerminalMobileHeader.tsx"), "utf8"),
@@ -92,16 +93,10 @@ ok(
 // routes is how an allowlist quietly loses pages.
 ok(isFeedbackWidgetRoute("/settings"), "/settings is an app page, not an auth page");
 
-// /loki was in APP_SURFACES above and moved out DELIBERATELY, so this asserts
-// the decision rather than letting a list edit look like a typo.
-//
-// Measured on production at 390px: the launcher's centre resolved to
-// `textarea.ui-loki-composer-input` — it covered the box you type into, on the
-// page that exists for typing into it: a floating button over its composer
-// hides the thing being used. Re-including it needs a new measurement, not an
-// opinion (or, like /terminal, a hidden launcher and a control of its own).
-ok(!isFeedbackWidgetRoute("/loki"), "/loki is excluded: the launcher covered its composer");
-ok(isFeedbackWidgetRoute("/lokis"), "/lokis is not caught by the /loki exclusion");
+// /loki was excluded once, measured: at 390px the corner launcher's centre
+// resolved to `textarea.ui-loki-composer-input`. The edge tab (asserted above)
+// keeps it off the composer, so the page is back in.
+ok(isFeedbackWidgetRoute("/lokis"), "/lokis is a page like any other");
 
 // The claim that justified the old scoping must not silently return. If Loki
 // ever does gain the ability to file feedback, this test should be revisited

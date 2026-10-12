@@ -59,8 +59,8 @@ export default function FeedbackWidgetDocsPage() {
           <p>
             Nothing to set up in the usual case. The button looks for a free corner each time the
             page loads, scrolls or changes, and stays off anything a visitor could click — your
-            links, buttons, form fields, chat bubbles and bottom bars. If every spot is taken, it
-            hides until there is room, because a button that steals a click is worse than none.
+            links, buttons, form fields, chat bubbles and bottom bars. If every corner is taken, it
+            becomes a slim tab on the side edge until a corner clears, so it is never missing.
           </p>
           <p>For the cases it cannot see, mark your page:</p>
           <ul className="list-disc pl-6 space-y-2">
@@ -72,8 +72,14 @@ export default function FeedbackWidgetDocsPage() {
               <code>&lt;html&gt;</code> or on part of a page — keep the button on that side.
             </li>
             <li>
+              <code>data-fc-place=&quot;tab&quot;</code> — show the slim edge tab instead of the
+              corner button while that part of the page is showing, for pages whose corners are busy
+              (a terminal, a chat composer).
+            </li>
+            <li>
               <code>data-fc-place=&quot;hidden&quot;</code> — no button while that part of the page
-              is showing, for example on a checkout or a full-screen editor.
+              is showing, for example on a checkout. Give people another way in there:{" "}
+              <code>Loki.report()</code> from your own link opens the panel.
             </li>
           </ul>
           <p>

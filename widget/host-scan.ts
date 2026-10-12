@@ -18,7 +18,7 @@
  *
  * The host can say what heuristics cannot see (the host contract):
  *   data-fc-avoid                   never overlap this element
- *   data-fc-place="left|right|hidden" on <html> or a page region
+ *   data-fc-place="left|right|tab|hidden" on <html> or a page region
  */
 import { AVOID_GAP, overlaps, resolvePlaceDirective, SLOT_VERDICTS, toRect } from "./placement";
 import type { PlaceDirective, Rect, SlotVerdict } from "./placement";

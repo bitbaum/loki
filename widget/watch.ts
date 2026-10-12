@@ -646,8 +646,8 @@ export function startWatchMode(opts: {
   );
   // The bar is the fallback, not the main signal: shown only when neither the
   // launcher nor the open panel can say that Loki is watching (a page that
-  // blocks every corner, or one that hides the launcher). Re-checked each
-  // second — the launcher hides and returns as the page changes under it.
+  // hides the launcher with data-fc-place="hidden"; a page that blocks every
+  // corner gets the edge tab, which counts as shown). Re-checked each second.
   // A modal the site opened (a sheet, a dialog) is what the person is doing
   // right now; the bar used to sit on top of it, over the sheet's own title
   // (operator's phone, 2026-10-11: "Choose a model" under "Loki noticed…").

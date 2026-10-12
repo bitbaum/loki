@@ -36,7 +36,8 @@ Rules that resolve the trade-offs:
   auto-avoid and never fades on scroll: on their own site, a corner it covers
   is theirs to move it from (long-press), not a reason for it to vanish and
   something else to appear at the top. The top bar exists only for a page that
-  hides the launcher outright (`data-fc-place="hidden"`), and carries the same
+  hides the launcher outright (`data-fc-place="hidden"`; the edge tab counts as
+  shown), and carries the same
   ◎ — the owner said on 2026-10-10 that a bar and a launcher taking turns
   "sure is confusing", and they were right.
 - **Starting and stopping is one tap**, named for what it does (*Stop
@@ -204,9 +205,12 @@ Each slot is hit-tested over the launcher plus a 12px gap and judged:
 | layer | a fixed/sticky bar, a bottom sheet, an inner scroll panel (anything < 60% of the viewport) | only if nothing better |
 | blocked | any control a visitor could click — links, buttons, inputs, `[role=button]`, `[tabindex]`, iframes, `cursor:pointer` — or anything marked `data-fc-avoid` | never |
 
-If every slot is blocked the launcher **hides** until the page changes; a
-launcher that eats a click is worse than none. `window.Loki.report()` still
-works for a host that wires its own "Report" control.
+If every slot is blocked the launcher becomes the **edge tab** — a slim handle
+flush against its side edge, in the middle, or the nearest height that covers
+no control — until a corner clears. It used to hide instead, and from the
+outside that read as "sometimes it is there, sometimes not". The rule now: the
+launcher is on screen, as the corner button or the edge tab, unless someone
+switched it off (see *Hiding it*). The site's owner keeps their corner.
 
 ## The host contract — for what the heuristics cannot see
 
@@ -214,7 +218,8 @@ works for a host that wires its own "Report" control.
 |---|---|---|
 | `data-fc-avoid` | any element | never overlap it (checked by rectangle too, so it works on `pointer-events:none` overlays) |
 | `data-fc-place="left"` / `"right"` | `<html>` or any rendered page region | keep the launcher on that side (it may still climb that edge) |
-| `data-fc-place="hidden"` | `<html>` or any rendered page region | no launcher while that region is rendered — e.g. a checkout or a full-screen editor |
+| `data-fc-place="tab"` | `<html>` or any rendered page region | the edge tab instead of the corner button while that region is rendered — for pages whose corners are busy (Loki's Terminal and chat use it) |
+| `data-fc-place="hidden"` | `<html>` or any rendered page region | no launcher while that region is rendered — e.g. a checkout. The host's off switch: give people another way in (`Loki.report()`) |
 
 `<html>` sets the site default; a rendered region overrides it (the last one in
 document order wins). A region that is `display:none` or unmounted says nothing,
@@ -232,6 +237,7 @@ switches the measuring off but `data-fc-place` still applies.
 | the operator, everywhere | pause the token on the project's Widget card (seconds, no deploy) | un-pause |
 | the host, on a route | `data-fc-place="hidden"` (above) | route leaves |
 | a visitor, for themselves | **Hide this button on this site** at the foot of the panel, or long-press / right-click the launcher → *Hide on this site* | the toast's **Undo**; later, open any page with `#loki` at the end of the address |
+| the host, as a switch for its people | `window.Loki.hide()` / `window.Loki.show()`, state in `window.Loki.hidden`, changes announced as a `loki:visibility` event on `window` (Loki's account menu: *Hide / Show feedback button*) | `Loki.show()` |
 
 A visitor's hide is remembered per site in their browser. It never disables
 the page's own API: `window.Loki.report()` / `ask()` still open the panel (and
@@ -252,5 +258,6 @@ move it to another corner from the same long-press / right-click menu.
 - `scripts/test/widget-placement.ts` — the pure slot order and chooser.
 - `scripts/test/widget-host-avoid-browser.ts` — real Chromium fixtures (bottom
   sheet under the launcher, composer Send, a host Ask button, map + sheet,
-  `data-fc-avoid`, `data-fc-place`, late-mounted sheet, a wall of controls).
+  `data-fc-avoid`, `data-fc-place` (left, tab, hidden), late-mounted sheet, a
+  wall of controls → edge tab, and the `Loki.hide()`/`show()` switch).
   Mutation-proven against the pre-fix bundle: `WIDGET_JS=<old bundle>` fails 7.

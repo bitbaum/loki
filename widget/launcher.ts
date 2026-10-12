@@ -2,11 +2,31 @@
  * The launcher: the FAB, its long-press/right-click escape-hatch menu, and the
  * placement engine that keeps it off other people's chat widgets and off the
  * host page's own controls.
+ *
+ * ── Where it is, predictably ────────────────────────────────────────────────
+ * The launcher is ON SCREEN, in one of two shapes, unless someone switched it
+ * off on purpose:
+ *
+ *   button — the floating button in its corner, moved along the edges by the
+ *            avoid pass so it never sits on a control.
+ *   tab    — a slim handle flush against the side edge, used when no corner
+ *            slot is clear, or when the page region says its corners are busy
+ *            (`data-fc-place="tab"`: a terminal, a full-width composer).
+ *
+ * Off is a decision with an owner and a way back, never a side effect of
+ * measuring: the operator pauses the token, the host renders a region with
+ * `data-fc-place="hidden"`, or the person hides it for themselves (menu, panel
+ * or `Loki.hide()`), undone by `Loki.show()` or `#loki`. It used to vanish for
+ * a visitor whenever every corner slot was blocked, and Loki's own pages hid
+ * it on the phone's tab bar and on the Terminal — from the outside that read
+ * as "sometimes it is there, sometimes not", which is the one thing a way to
+ * report problems must never be.
  */
 import { h, PENCIL_SVG, spiralMark, TARGET_SVG } from "./dom";
 import { writeVisitorPlacement } from "./visitor-placement";
 import {
   chooseSlot,
+  chooseTabTop,
   cornerEdges,
   CORNERS,
   slotOrder,
@@ -36,6 +56,8 @@ export type Launcher = {
   say(text: string): void;
   /** On screen right now — the watch bar only appears when it is not. */
   isShown(): boolean;
+  /** The shape it took on the last pass ("tab" = the edge handle). */
+  shape(): "button" | "tab";
 };
 
 export function createLauncher(opts: {
@@ -107,10 +129,14 @@ export function createLauncher(opts: {
   let pointWanted = false;
   /** Where the launcher was last put (place() below), for the target beside it. */
   let placed: Slot | null = null;
+  /** True while the launcher is drawn as the edge tab (see placeTab). Declared
+   *  up here because syncPoint, which runs during setup, reads it. */
+  let tab = false;
   /** Beside the launcher on its inner side, and only while it is on screen. */
   function syncPoint() {
     const shown =
       pointWanted &&
+      !tab &&
       fab.isConnected &&
       fab.style.display !== "none" &&
       fab.style.visibility !== "hidden";
@@ -158,7 +184,7 @@ export function createLauncher(opts: {
   setOwnerStatus(null);
 
   function say(text: string) {
-    if (fab.style.display === "none" || fab.style.visibility === "hidden") return;
+    if (fab.style.display === "none" || fab.style.visibility === "hidden" || tab) return;
     bubbleText.textContent = text;
     // Anchor beside the launcher's own corner so it opens inward.
     const { x, y } = cornerEdges(current.corner);
@@ -220,8 +246,14 @@ export function createLauncher(opts: {
     const p = current;
     const { x, y } = cornerEdges(p.corner);
     menu.style.left = menu.style.right = menu.style.top = menu.style.bottom = "";
-    menu.style[x] = `${p.offsetX}px`;
-    menu.style[y] = `${p.offsetY + 56}px`;
+    if (tab) {
+      // Beside the tab, opening inward from its edge.
+      menu.style[x] = `${fab.offsetWidth + 8}px`;
+      menu.style.top = `${Math.max(8, fab.offsetTop)}px`;
+    } else {
+      menu.style[x] = `${p.offsetX}px`;
+      menu.style[y] = `${p.offsetY + 56}px`;
+    }
     menu.style.display = "";
     resetBtn.style.display = opts.getVisitorOverride() ? "" : "none";
     document.addEventListener("click", onDocClick, true);
@@ -298,12 +330,33 @@ export function createLauncher(opts: {
     // move to a LEFT corner and the launcher stretched across the whole page
     // ("Move to other corner" did exactly that until the browser test caught
     // it). Only the two anchored edges may hold a length.
+    setTab(false);
     fab.style.left = fab.style.right = fab.style.top = fab.style.bottom = "auto";
     fab.style[x] = `${slot.offsetX}px`;
     fab.style[y] = `${slot.offsetY}px`;
     fab.classList.toggle("on-left", x === "left");
     placed = slot;
     syncPoint();
+  };
+
+  function setTab(on: boolean) {
+    tab = on;
+    fab.classList.toggle("tab", on);
+  }
+  /** The edge tab on `side`, at the first height that covers no control. */
+  const placeTab = (side: "left" | "right", scanner: ReturnType<typeof createHostScanner>) => {
+    setTab(true);
+    fab.style.left = fab.style.right = fab.style.top = fab.style.bottom = "auto";
+    fab.style[side] = "0px";
+    fab.classList.toggle("on-left", side === "left");
+    const top = chooseTabTop(window.innerHeight, fab.offsetHeight, (y) => {
+      fab.style.top = `${y}px`;
+      return scanner.verdict(fab.getBoundingClientRect());
+    });
+    fab.style.top = `${top}px`;
+    placed = null;
+    syncPoint();
+    show(true);
   };
   const show = (visible: boolean) => {
     fab.style.visibility = visible ? "" : "hidden";
@@ -317,8 +370,13 @@ export function createLauncher(opts: {
       show(false);
       return;
     }
+    const side = directive === "left" || directive === "right" ? directive : null;
+    if (directive === "tab") {
+      placeTab(cornerEdges(p.corner).x, createHostScanner(host));
+      return;
+    }
     const base: Slot = {
-      corner: directive ? withSide(p.corner, directive) : p.corner,
+      corner: side ? withSide(p.corner, side) : p.corner,
       offsetX: p.offsetX,
       offsetY: p.offsetY,
     };
@@ -335,7 +393,7 @@ export function createLauncher(opts: {
       size: size.height,
       // A side named by the host or chosen by the visitor is kept: the
       // launcher may climb that edge, never jump across the page.
-      lockSide: directive !== null || opts.getVisitorOverride() !== null,
+      lockSide: side !== null || opts.getVisitorOverride() !== null,
     });
     const pick = chooseSlot(
       slots,
@@ -346,11 +404,17 @@ export function createLauncher(opts: {
       nearBandTop(base, { edgeLength: window.innerHeight, size: size.height }),
     );
     if (!pick) {
-      // Every slot would sit on a host control. For a visitor: hidden until
-      // the page changes (the next reposition re-measures). For the owner:
-      // stays, in its own corner — Loki on their site is never out of sight.
-      place(base);
-      show(owner);
+      // Every corner slot would sit on a host control. The owner keeps their
+      // corner (on their own site it is theirs to move, by long-press). For
+      // everyone else it becomes the edge tab — never gone: a launcher that
+      // vanishes on some pages and not others reads as broken. The next pass
+      // brings the button back as soon as a slot clears.
+      if (owner) {
+        place(base);
+        show(true);
+      } else {
+        placeTab(cornerEdges(base.corner).x, scanner);
+      }
       return;
     }
     place(pick.slot);
@@ -416,5 +480,6 @@ export function createLauncher(opts: {
     say,
     isShown: () =>
       fab.isConnected && fab.style.display !== "none" && fab.style.visibility !== "hidden",
+    shape: () => (tab ? "tab" : "button"),
   };
 }
