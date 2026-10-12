@@ -10,6 +10,7 @@ import {
   CLIMB_STEP,
   NEAR_CLIMB,
   chooseSlot,
+  chooseTabTop,
   cornerEdges,
   resolvePlaceDirective,
   slotOrder,
@@ -290,6 +291,28 @@ ok(
   resolvePlaceDirective(["hidden", "sideways"]) === "hidden",
   "an unknown value is ignored, not guessed",
 );
+ok(resolvePlaceDirective(["tab"]) === "tab", "tab is a directive");
+ok(resolvePlaceDirective(["hidden", "tab"]) === "tab", "a tab region overrides a hidden site");
+
+// ---- chooseTabTop: the edge tab lands in the same place on every page ----
+{
+  const H = 800;
+  const T = 64;
+  const mid = Math.round(H * 0.5 - T / 2);
+  ok(chooseTabTop(H, T, () => "free") === mid, "a clear edge: the tab sits in the middle");
+  ok(chooseTabTop(H, T, () => "text") === mid, "text is not a reason to move");
+  const tried: number[] = [];
+  const top = chooseTabTop(H, T, (y) => {
+    tried.push(y);
+    return y === mid ? "blocked" : "free";
+  });
+  ok(top === Math.round(H * 0.42 - T / 2), "the middle blocked: the next height up");
+  ok(tried[0] === mid, "the middle is always tried first");
+  ok(
+    chooseTabTop(H, T, () => "blocked") === mid,
+    "every height blocked: still shown, in the middle — never missing",
+  );
+}
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

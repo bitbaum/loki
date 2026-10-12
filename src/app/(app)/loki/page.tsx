@@ -14,7 +14,10 @@ export default async function LokiPage() {
   const seed = userId ? await prefetchLokiWorkspace(userId) : null;
 
   return (
-    <div className="app-page ui-loki-page app-viewport-pane flex flex-col">
+    // data-fc-place="tab": the composer spans the bottom of this page, so the
+    // feedback launcher takes its edge-tab shape here rather than a corner
+    // button (config/feedback-widget.ts says why it used to be excluded).
+    <div data-fc-place="tab" className="app-page ui-loki-page app-viewport-pane flex flex-col">
       <Suspense
         fallback={
           <div className="mx-auto h-full w-full max-w-5xl animate-pulse rounded-lg bg-surface-base" />

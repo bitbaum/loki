@@ -47,11 +47,17 @@ const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
   );
 }
 {
-  // One floating thing at a time on a phone: the bottom nav hides Loki's own
-  // feedback launcher, and reporting moves into the account menu.
+  // The phone's tab bar is on every app page, so a launcher directive on it
+  // decides the whole phone. It used to say "hidden" and the button was gone
+  // from every page; now the launcher climbs above the bar, and the account
+  // menu holds the one on/off switch.
   const nav = read("src/components/shell/MobileNav.tsx");
   const menu = read("src/components/shell/AccountMenu.tsx");
-  ok(/ui-mobile-nav"[^>]*data-fc-place="hidden"/.test(nav), "phone nav hides the widget launcher");
+  ok(!/<nav[^>]*data-fc-place=/.test(nav), "phone nav does not hide the widget launcher");
+  ok(
+    menu.includes("Hide feedback button") && menu.includes("Show feedback button"),
+    "menu offers the feedback button's on/off switch",
+  );
   const opener = read("src/lib/open-feedback.ts");
   ok(
     menu.includes("Report a problem") &&

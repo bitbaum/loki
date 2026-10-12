@@ -49,6 +49,13 @@ export function isHiddenByVisitor(p: Placement | null): boolean {
   return !!p && p.offsetX === -1;
 }
 
+/**
+ * Fired on `window` whenever `Loki.hidden` changes (detail: `{ hidden }`), so
+ * a host's own on/off switch stays in step with the menu inside the widget.
+ * Loki's account menu listens for it (src/lib/open-feedback.ts).
+ */
+export const VISIBILITY_EVENT = "loki:visibility";
+
 /** The fragment that brings a hidden launcher back: `https://site/page#loki`. */
 export const RESTORE_HASH = "loki";
 

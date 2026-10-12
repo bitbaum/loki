@@ -29,27 +29,15 @@
  * Matched exactly or by `/prefix/`.
  */
 export const FEEDBACK_WIDGET_EXCLUDED_PREFIXES = [
-  // (/terminal is NOT here. It used to be — a floating button over live PTY
-  // output covers what the operator is reading — but excluding it left the page
-  // used most on a phone with no way to report anything (bitbaum/loki#1037).
-  // The widget now loads there with its launcher hidden by the page
-  // (data-fc-place="hidden" on terminal/page.tsx) and opens from the Feedback
-  // button in the terminal header.)
+  // (/terminal and /loki are NOT here. Both used to be — a floating button over
+  // live PTY output, or on top of the full-width composer at 390px — and both
+  // exclusions left the most-used pages with no visible way to report
+  // anything (bitbaum/loki#1037). They now carry data-fc-place="tab": the
+  // launcher is the slim edge tab there, off the corners those pages use.
+  // The rule a person can predict: the launcher is on every page past sign-in,
+  // as a corner button or an edge tab, unless they switched it off themselves
+  // (account menu → Hide feedback button).)
   //
-  // A full-width composer at the bottom, measured rather than assumed: at 390px the
-  // launcher's centre sits ON TOP of the composer's textarea (`.ck-input`) — the
-  // box you type into on the page whose whole purpose is typing into it.
-  //
-  // Not a failure of the widget's avoidance. `INTERACTIVE` already matches
-  // `textarea` and the 260px shift cap was never reached: autoAvoid moved the
-  // launcher 164px up and correctly found a clear spot, then the composer
-  // reflowed under it once the conversation list loaded. The widget re-checks
-  // at two fixed moments after paint, not on layout change, so a late reflow
-  // wins. Fixing that properly means a ResizeObserver in a bundle that runs on
-  // other people's sites; excluding the one page in this app that puts a
-  // full-width composer at the bottom is the honest small fix, and Loki is
-  // where you would talk to the assistant about a problem anyway.
-  "/loki",
   // Not in the product yet. Feedback here would be about the door, not the
   // room, and an anonymous FAB on a credential form is the wrong invitation.
   "/sign-in",

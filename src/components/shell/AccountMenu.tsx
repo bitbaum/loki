@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Lock, MessageSquareWarning } from "lucide-react";
+import { Eye, EyeOff, Lock, MessageSquareWarning } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { AccountMenu as SharedAccountMenu, type AccountGroup } from "@bitbaum/accountkit";
 import { ACCOUNT_NAV_ITEMS } from "@/config/navigation";
@@ -10,6 +10,7 @@ import { ROUTES } from "@/config/auth";
 import { usePrivateZone } from "@/hooks/use-private-zone";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { openFeedback } from "@/lib/open-feedback";
+import { useFeedbackButton } from "@/hooks/use-feedback-button";
 
 /**
  * The account menu — identity and the actions that belong to it.
@@ -38,6 +39,7 @@ export function AccountMenu() {
   const { data: session } = useSession();
   const { configured, unlocked, lock } = usePrivateZone();
   const user = session?.user;
+  const feedbackButton = useFeedbackButton();
 
   const groups: AccountGroup[] = [
     {
@@ -75,6 +77,23 @@ export function AccountMenu() {
           icon: <MessageSquareWarning className="h-4 w-4" aria-hidden="true" />,
           onSelect: () => openFeedback(() => router.push("/support")),
         },
+        // The one place to switch the floating feedback button off and on
+        // again, named for what it does. Only offered while there is a widget
+        // to switch; the widget's own menu flips the same stored choice.
+        ...(feedbackButton.hidden === null
+          ? []
+          : [
+              {
+                id: "feedback-button",
+                label: feedbackButton.hidden ? "Show feedback button" : "Hide feedback button",
+                icon: feedbackButton.hidden ? (
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
+                ),
+                onSelect: () => feedbackButton.setHidden(!feedbackButton.hidden),
+              },
+            ]),
       ],
     },
   ];

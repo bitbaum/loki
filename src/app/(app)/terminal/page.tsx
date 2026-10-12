@@ -10,11 +10,13 @@ export const metadata: Metadata = { title: "Terminal" };
 export default function TerminalPage() {
   const local = isRuntimeAvailable();
   return (
-    // data-fc-place="hidden": the feedback widget loads here but draws no
-    // floating button — it would sit over live terminal output or the composer.
-    // It opens from the Feedback button in the terminal header instead.
+    // data-fc-place="tab": a corner button would sit over live terminal output
+    // or the composer, so the feedback launcher is the slim edge tab here —
+    // still on screen and one tap away, like on every other page. (It was
+    // "hidden" until 2026-10, which left the desktop terminal with no way to
+    // report anything but the account menu.)
     <div
-      data-fc-place="hidden"
+      data-fc-place="tab"
       className="app-page app-page-compact app-viewport-pane flex flex-col gap-3 md:gap-4"
     >
       {/* Both children are mobile-hidden (the top bar already says "Terminal",

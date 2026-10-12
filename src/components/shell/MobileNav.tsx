@@ -31,10 +31,11 @@ export function MobileNav() {
 
   return (
     <>
-      {/* data-fc-place="hidden": while this bar is on screen (phones), Loki's
-          own feedback launcher stays out of the way — reporting lives in the
-          account menu. See AccountMenu's reportProblem. */}
-      <nav className="ui-mobile-nav" aria-label="Primary" data-fc-place="hidden">
+      {/* No data-fc-place here. This bar used to carry "hidden", which took the
+          feedback launcher off EVERY app page on a phone, since the bar is on
+          all of them. The launcher's avoid pass already treats these links as
+          controls and climbs above the bar (widget/launcher.ts). */}
+      <nav className="ui-mobile-nav" aria-label="Primary">
         {MOBILE_NAV_ITEMS.map((item) => {
           const isActive = isCurrentPath(pathname, item.href);
           const Icon = item.icon;
