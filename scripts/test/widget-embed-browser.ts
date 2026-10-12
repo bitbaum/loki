@@ -426,6 +426,47 @@ async function main() {
     await t.close();
   }
 
+  {
+    // A host page that binds "/" and ⌘K on document (orangecat.ch, Loki
+    // itself). With the panel open, keys typed into it are the panel's: the
+    // host never sees them, AND every control inside the panel that listens
+    // for itself still does — the shared chat's composer handles its own
+    // Enter, and a document capture-phase stop once starved it of every key.
+    const hostKeys = `<script>window.__hostKeys = [];
+      document.addEventListener("keydown", (e) => window.__hostKeys.push(e.key));</script>`;
+    const t = await open(browser, hostKeys + tag(), js);
+    await click(t.p, ".fab");
+    await t.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      const input = r.querySelector(".convo .composer .chatinput") as HTMLTextAreaElement;
+      (window as unknown as { __inner: string[] }).__inner = [];
+      input.addEventListener("keydown", (e) =>
+        (window as unknown as { __inner: string[] }).__inner.push(e.key),
+      );
+      input.focus();
+    });
+    await t.p.keyboard.type("Is / fine?");
+    await t.p.keyboard.press("Enter");
+    await t.p.waitForTimeout(500);
+    const seen = await t.p.evaluate(() => ({
+      host: (window as unknown as { __hostKeys: string[] }).__hostKeys,
+      inner: (window as unknown as { __inner: string[] }).__inner,
+    }));
+    ok(
+      seen.host.length === 0,
+      `the host page's hotkeys never see panel typing (${seen.host.join(",")})`,
+    );
+    ok(
+      seen.inner.includes("/") && seen.inner.includes("Enter"),
+      "a control inside the panel still gets its keys",
+    );
+    ok(t.advised.length === 1, "Enter in the composer asks Loki");
+    await t.p.keyboard.press("Escape");
+    await t.p.waitForTimeout(200);
+    ok((await texts(t.p, ".convo .composer")).length === 0, "Escape closes the panel");
+    await t.close();
+  }
+
   await browser.close();
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail === 0 ? 0 : 1);
