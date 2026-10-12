@@ -6,6 +6,7 @@ import { getProjects, getOrgEntityProjects, getProjectsLastDispatch } from "@/db
 import { listFeedbackSummary } from "@/db/queries/site-feedback";
 import { ProjectsWorkspace } from "@/components/projects/ProjectsWorkspace";
 import { NewProjectButton } from "@/components/projects/NewProjectButton";
+import { NewPreviewButton } from "@/components/projects/NewPreviewButton";
 import { FleetRegisterNote } from "@/components/projects/FleetRegisterNote";
 import type { ProjectGridRow } from "@/components/projects/project-grid-row";
 import { requirePageUserId } from "@/lib/session";
@@ -75,11 +76,14 @@ export default async function ProjectsPage({
         subtitle="Every project you run — flagged first, then by most recent agent run."
         maxWidth="max-w-5xl"
         right={
-          <NewProjectButton
-            autoOpen={autoOpenCreate}
-            initialName={prefillName}
-            initialDescription={prefillDescription}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <NewPreviewButton />
+            <NewProjectButton
+              autoOpen={autoOpenCreate}
+              initialName={prefillName}
+              initialDescription={prefillDescription}
+            />
+          </div>
         }
       >
         <Suspense fallback={<CardSkeleton />}>
