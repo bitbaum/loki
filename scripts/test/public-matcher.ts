@@ -65,6 +65,9 @@ for (const p of [
   "/api/invitations/abc",
   "/blog/some-post",
   "/no-screen",
+  // The widget and its chat chunk load on customer sites, with no Loki session.
+  "/widget.js",
+  "/widget-chat.js",
   // The MCP server authenticates itself; its 401 challenge is how a connector
   // finds OrangeCat, so the middleware must not answer first.
   "/api/mcp",

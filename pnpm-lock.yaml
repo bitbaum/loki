@@ -196,6 +196,9 @@ importers:
       playwright:
         specifier: ^1.63.0
         version: 1.63.0
+      preact:
+        specifier: 10.24.3
+        version: 10.24.3
       prettier:
         specifier: 3.9.9
         version: 3.9.9

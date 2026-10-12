@@ -24,9 +24,9 @@ import { suggestionBox } from "./suggestions";
 import type { Picker } from "./picker";
 import { createAttachments } from "./attachments";
 import { createVoiceControl } from "./voice-control";
-import { mergeTranscript } from "./voice";
+import { mergeTranscript, transcribeAudio } from "./voice";
 import { formatDiagnostics, type ReportDiagnostics } from "./report-payload";
-import { knownLabel, type KnownFix } from "./known-fixes";
+import type { KnownFix } from "./known-fixes";
 import { REVIEW_QUESTION } from "./loki-api";
 import type { Assistant, Link, ThreadItem } from "./thread";
 import { createContinueRow } from "./continue-row";
@@ -40,6 +40,8 @@ import {
   type ConversationWatch,
   type Draft,
 } from "./conversation-model";
+import { kitState, noticedExtras } from "./conversation-kit";
+import type { KitHandle, KitModule } from "./chat/contract";
 
 export { MAX_LEN, type ConversationWatch };
 
@@ -107,6 +109,12 @@ export function createConversation(opts: {
     fileInput.value = "";
   });
 
+  // Drawn by the shared chat (useKit) once its chunk has loaded: screenshots
+  // are attached in chatkit's composer and held here for the next note.
+  let kit: KitHandle | null = null;
+  let kitShots: string[] = [];
+  const shotsNow = () => (kit ? kitShots : attachments.shots());
+
   // The rules and the calls (conversation-model.ts); this file draws them.
   const model = createConversationModel({
     apiBase: opts.apiBase,
@@ -119,8 +127,9 @@ export function createConversation(opts: {
     about: () => ctx.about(),
     scope: () => ctx.scope(),
     screenshots: {
-      list: () => attachments.shots(),
+      list: shotsNow,
       clear: () => {
+        kitShots = [];
         attachments.reset();
         attachments.render();
       },
@@ -190,6 +199,7 @@ export function createConversation(opts: {
   attachments.listenPaste(el);
 
   const owner = () => opts.ownerPass() !== null;
+  let feedbackLabel = "Send as feedback";
 
   function syncContext() {
     ctx.sync();
@@ -208,7 +218,8 @@ export function createConversation(opts: {
     // With no AI on this embed, feedback is the only way, so it leads.
     // About Loki itself there is no site to advise on and nothing to build
     // here: one way, and it leads.
-    feedbackBtn.textContent = loki ? "Send to Loki" : owner() ? "Build it" : "Send as feedback";
+    feedbackLabel = loki ? "Send to Loki" : owner() ? "Build it" : "Send as feedback";
+    feedbackBtn.textContent = feedbackLabel;
     feedbackBtn.className = a === "none" || loki ? "go feedback" : "ghost feedback";
     sendBtn.textContent = "Ask Loki";
     sendBtn.style.display = a === "none" || loki ? "none" : "";
@@ -236,6 +247,10 @@ export function createConversation(opts: {
    */
   function render(follow = false) {
     const { thread, pending, error, draft } = model.snapshot();
+    if (draft) {
+      if (card?.draft !== draft) card = { draft, el: draftCard(draft) };
+    } else card = null;
+    if (kit) return kit.update(currentKitState());
     const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 24;
     const keep = log.scrollTop;
     log.textContent = "";
@@ -323,10 +338,7 @@ export function createConversation(opts: {
       p.querySelector(".who")?.prepend(spiralMark("thinking"));
       log.appendChild(p);
     }
-    if (draft) {
-      if (card?.draft !== draft) card = { draft, el: draftCard(draft) };
-      log.appendChild(card.el);
-    } else card = null;
+    if (card) log.appendChild(card.el);
     // The line is shared with the screenshot tray and the mic, which write
     // their own errors: the model's replaces it only when the model's changes.
     if (error !== shownError) err.textContent = shownError = error;
@@ -390,7 +402,7 @@ export function createConversation(opts: {
     const diag = draft.diagnostics;
     const extras = [
       opts.picker.selected().length ? `${opts.picker.selected().length} picked element(s)` : "",
-      attachments.shots().length ? `${attachments.shots().length} screenshot(s)` : "",
+      shotsNow().length ? `${shotsNow().length} screenshot(s)` : "",
       diag && formatDiagnostics(diag) ? "the steps that led here" : "",
     ].filter(Boolean);
     if (extras.length) {
@@ -409,7 +421,7 @@ export function createConversation(opts: {
     el.append(row, cardErr);
     cancel.addEventListener("click", () => {
       model.closeDraft();
-      input.focus();
+      focus();
     });
     go.addEventListener("click", async () => {
       const body = box.value.trim();
@@ -433,6 +445,63 @@ export function createConversation(opts: {
     return el;
   }
 
+  let door: HTMLElement | null = null;
+  function currentKitState() {
+    door ??= ownerDoor(opts.apiBase, opts.token);
+    return kitState({
+      model,
+      assistant: opts.assistant(),
+      owner: owner(),
+      about: ctx.about(),
+      watch: opts.watch(),
+      placeholder: input.placeholder,
+      feedbackLabel,
+      known: (key) => opts.known?.(key) ?? null,
+      ownerDoor: () => door as HTMLElement,
+      draftCard: card?.el ?? null,
+      header: ctx.el,
+      footer: cont.el,
+      held: kitShots.length,
+    });
+  }
+
+  const focus = () => (kit ? kit.focus() : input.focus());
+
+  /**
+   * Draw the conversation with the shared chat (widget/chat/, loaded as its own
+   * chunk). The vanilla thread and composer step aside; the About chips and
+   * Continue in Loki move into chatkit's composer slots. Same model, same rules.
+   */
+  function useKit(mod: KitModule, vars: string) {
+    if (kit) return;
+    const host = h("div", "kit-host");
+    // chatkit's composer takes pasted screenshots itself; the panel's own tray
+    // (listening on the whole conversation) must not take a second copy.
+    host.addEventListener("paste", (e) => e.stopPropagation());
+    log.style.display = starters.style.display = form.style.display = "none";
+    err.style.display = "none";
+    el.prepend(host);
+    syncContext();
+    kit = mod.mount(
+      host,
+      {
+        send: (mode, text) => {
+          model.clearError();
+          if (mode === "ask") model.ask(text);
+          else model.build(text);
+        },
+        stage: (images) => {
+          kitShots = [...kitShots, ...images].slice(-MAX_SCREENSHOTS);
+          render();
+        },
+        transcribe: (audio) =>
+          transcribeAudio(`${opts.apiBase}/api/widget/transcribe`, opts.token, audio),
+        vars,
+      },
+      currentKitState(),
+    );
+  }
+
   model.subscribe((follow) => {
     syncContext();
     render(follow);
@@ -443,7 +512,10 @@ export function createConversation(opts: {
   return {
     el,
     input,
-    focus: () => input.focus(),
+    focus,
+    useKit,
+    /** True once the shared chat draws the conversation. */
+    kit: () => kit !== null,
     /** Re-read who is speaking (owner/visitor) and what is picked. */
     /** `follow`: jump to the newest message (opening the panel to see it). */
     refresh: (follow = false) => {
@@ -503,33 +575,7 @@ function noticedCard(
     item.again ? "Loki noticed — again" : "Loki noticed",
     item.again ? `${item.text}\n\nLoki fixed this before. It is back.` : item.text,
   );
-  const known = deps.known;
-  const inFlight = !!known && !known.settled;
-  if (known && (inFlight || known.live)) {
-    const st = h("a", `noticed-status tone-${known.tone}`);
-    st.textContent = `${knownLabel(known)} — ${known.detail}`;
-    st.title = known.detail;
-    if (known.href) {
-      st.href = known.href;
-      st.target = "_blank";
-      st.rel = "noopener noreferrer";
-    }
-    m.appendChild(st);
-  }
-  if (!item.filed && !inFlight) {
-    const row = h("div", "noticed-actions");
-    const fix = h(
-      "button",
-      "change-send",
-      deps.owner ? (known?.live ? "Fix again →" : "Fix this →") : "Send to builder →",
-    );
-    fix.type = "button";
-    fix.addEventListener("click", deps.onFix);
-    const why = h("button", "act", "Why does it matter?");
-    why.type = "button";
-    why.addEventListener("click", deps.onWhy);
-    row.append(fix, why);
-    m.appendChild(row);
-  }
+  const extras = noticedExtras(item, deps.known, deps.owner, deps.onFix, deps.onWhy);
+  if (extras) m.appendChild(extras);
   return m;
 }
