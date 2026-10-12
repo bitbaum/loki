@@ -37,8 +37,8 @@ importers:
         specifier: ^0.1.1
         version: 0.1.1
       '@bitbaum/searchkit':
-        specifier: github:bitbaum/orangecat#a868c0a98e91df1075404d0c5f27a7846eb08d97&path:packages/searchkit
-        version: https://codeload.github.com/bitbaum/orangecat/tar.gz/a868c0a98e91df1075404d0c5f27a7846eb08d97#path:packages/searchkit(react@19.3.0)
+        specifier: github:bitbaum/orangecat#6da45621a6bbbadc76d0c2afe455ab7268204fd9&path:packages/searchkit
+        version: https://codeload.github.com/bitbaum/orangecat/tar.gz/6da45621a6bbbadc76d0c2afe455ab7268204fd9#path:packages/searchkit(react@19.3.0)
       '@bitbaum/whenkit':
         specifier: github:bitbaum/whenkit#v0.3.2
         version: https://codeload.github.com/bitbaum/whenkit/tar.gz/f5e0a24208187091c2ca792008cdd7695a19910f(react@19.3.0)
@@ -426,9 +426,9 @@ packages:
     resolution: {integrity: sha512-3JfaeuwkI+8TVGeSDrr8/esaWkv2d7UAcNg1Xu5HHu6k3cBzuSaLGhuzHp0KlAJgGa2QEQIqtE7W1+PosKFOjw==}
     engines: {node: '>=20'}
 
-  '@bitbaum/searchkit@https://codeload.github.com/bitbaum/orangecat/tar.gz/a868c0a98e91df1075404d0c5f27a7846eb08d97#path:packages/searchkit':
-    resolution: {gitHosted: true, integrity: sha512-1JO7yBdII7Lo4/8kvcfCfr954HEVYCtuBvV3YxjMJMiBxfmtDn98X1K4Yp0p95zyTSFBgMqJRf6Nyuw71ptHcQ==, path: packages/searchkit, tarball: https://codeload.github.com/bitbaum/orangecat/tar.gz/a868c0a98e91df1075404d0c5f27a7846eb08d97}
-    version: 0.2.0
+  '@bitbaum/searchkit@https://codeload.github.com/bitbaum/orangecat/tar.gz/6da45621a6bbbadc76d0c2afe455ab7268204fd9#path:packages/searchkit':
+    resolution: {gitHosted: true, integrity: sha512-eT8PyOjGaaMQG8ZkFEWOQ5oHZihEzf6aYSom6fOlKGcTJMUeAg8KRZwjW04pnfkYFpNFcAwy70ERXmsc3dErMw==, path: packages/searchkit, tarball: https://codeload.github.com/bitbaum/orangecat/tar.gz/6da45621a6bbbadc76d0c2afe455ab7268204fd9}
+    version: 0.2.1
     peerDependencies:
       react: '>=18'
     peerDependenciesMeta:
@@ -5240,7 +5240,7 @@ snapshots:
 
   '@bitbaum/mail-kit@0.1.1': {}
 
-  '@bitbaum/searchkit@https://codeload.github.com/bitbaum/orangecat/tar.gz/a868c0a98e91df1075404d0c5f27a7846eb08d97#path:packages/searchkit(react@19.3.0)':
+  '@bitbaum/searchkit@https://codeload.github.com/bitbaum/orangecat/tar.gz/6da45621a6bbbadc76d0c2afe455ab7268204fd9#path:packages/searchkit(react@19.3.0)':
     optionalDependencies:
       react: 19.3.0
 
