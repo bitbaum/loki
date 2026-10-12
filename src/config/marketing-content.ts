@@ -340,7 +340,12 @@ export const DESKTOP_DOWNLOAD = {
       // Gatekeeper refuses an unsigned app outright and SmartScreen interrupts
       // one. The page was already careful about the Linux chmod friction and
       // silent about the two that block.
-      body: "On Linux, the one-line command shown under Download installs the .deb and launches it. On macOS, the builds are not yet signed by Apple, so the first launch needs right-click \u2192 Open, then Open again (a plain double-click is refused). On Windows, SmartScreen shows \u201cWindows protected your PC\u201d \u2014 choose More info \u2192 Run anyway. After the first launch, both open normally.",
+      // On a current Mac the refusal reads “Fleet Runner is damaged and can’t be
+      // opened” — Gatekeeper’s wording for an app without an Apple signature,
+      // not a bad download (the owner read it as a corrupt file, 2026-10-12).
+      // Right-click → Open does not clear that dialog; removing the quarantine
+      // flag does, which is what the one-line command under Download does.
+      body: "On Linux and macOS, the one-line command shown under Download installs Fleet Runner and launches it. The macOS build is not yet signed by Apple, so opened by double-click macOS says the app \u201cis damaged and can\u2019t be opened\u201d \u2014 the file is fine; that is the missing signature, and the command clears it. On Windows, SmartScreen shows \u201cWindows protected your PC\u201d \u2014 choose More info \u2192 Run anyway. After the first launch, all three open normally.",
     },
     {
       number: "02",
@@ -396,19 +401,25 @@ export const DESKTOP_DOWNLOAD = {
       // panel — while /releases said the opposite two files away.
       status: "ready" as const,
       primary: {
-        label: "Download .dmg",
-        note: "Apple Silicon (M1 or newer) · no Intel build yet",
-        url: "https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-mac-arm64.dmg",
+        label: "Download .zip",
+        note: "Apple Silicon (M1 or newer) · no Intel build yet · one line installs it",
+        url: "https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-mac-arm64.zip",
       },
       secondary: [
         {
-          label: ".zip (no installer)",
-          url: "https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-mac-arm64.zip",
+          label: ".dmg (drag to Applications)",
+          url: "https://github.com/bitbaum/loki-releases/releases/latest/download/Fleet-Runner-mac-arm64.dmg",
         },
       ],
+      // The .zip plus one Terminal line is the whole install, and it is the
+      // ONLY path that never shows the “damaged” dialog: ditto unpacks the
+      // bundle intact, xattr drops the quarantine flag Gatekeeper judges, open
+      // launches it. The .dmg stays for people who want the drag-to-
+      // Applications ritual; it meets the dialog and needs the same xattr line.
       afterDownload:
-        'Open the .dmg, drag Fleet Runner to Applications, then launch it. First time only: macOS will warn "Apple cannot check this for malicious software" (we\'re not yet code-signed). Control-click the app → Open → Open. After that one bypass, it launches normally:',
-      command: "open ~/Applications/Fleet\\ Runner.app",
+        'Open Terminal and paste this one line. It puts Fleet Runner in Applications, clears the "damaged" refusal (the build is not yet Apple-signed — the file is fine) and launches it. From the .dmg instead: drag the app to Applications, then run only the xattr part:',
+      command:
+        'ditto -xk ~/Downloads/Fleet-Runner-mac-arm64.zip /Applications && xattr -cr "/Applications/Fleet Runner.app" && open -a "Fleet Runner"',
     },
     {
       id: "win",
@@ -466,7 +477,8 @@ export const DESKTOP_DOWNLOAD = {
 
   // "Coming to more surfaces" — kept in case the homepage section wants it.
   future: {
-    desktop: "Signed installers for macOS and Windows, reducing first-launch security prompts.",
+    desktop:
+      "Apple-signed and notarized macOS builds, so the first launch is a double-click with no Terminal line. Needs an Apple Developer account; see docs/development/desktop-signing.md.",
     mobile:
       "Native iOS and Android apps on the same remote control channel — fleet visibility, queues, and dispatch from your phone.",
   },

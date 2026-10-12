@@ -31,8 +31,20 @@ const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
   const surface = read("src/components/terminal/TerminalSurface.tsx");
   const actions = read("src/components/terminal/TerminalOfflineActions.tsx");
   ok(surface.includes("<TerminalOfflineActions"), "offline/gated empty state offers actions");
-  ok(surface.includes('setSource("machine")'), "offline/gated empty state can switch builders");
+  // The switch moved into the actions component (2026-10-12), which also
+  // decides whether a download is honest for this account — it is, only
+  // while the cloud builder is private; an account with the cloud is offered
+  // the cloud first.
+  ok(surface.includes("onSwitch={setSource}"), "offline/gated empty state can switch builders");
+  ok(
+    actions.includes('onSwitch("machine")') && actions.includes('onSwitch("cloud")'),
+    "…in both directions: to this computer, and to the cloud builder",
+  );
   ok(actions.includes('href="/download"'), "offline/gated empty state links Fleet Runner");
+  ok(
+    actions.includes("downloadIsTheWayForward(way)"),
+    "…only when the download is the way forward for this account",
+  );
 }
 {
   // One floating thing at a time on a phone: the bottom nav hides Loki's own

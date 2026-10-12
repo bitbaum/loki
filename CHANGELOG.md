@@ -6,7 +6,30 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
-## 2026-10-11 — Suggestions: every front of your life, one tap each
+## 2026-10-12 — Loki from another computer: nothing to install
+
+- **No download for an account that has the cloud builder.** Opened on a
+  second computer, Loki said Fleet Runner was not connected “on this computer”
+  and offered one fix: download the desktop app. “This computer” is the one
+  machine where your account’s desktop app runs, so from any other device
+  that offer was a trap — and the account’s cloud builder was online the
+  whole time. Now the card under a dispatch says “Run it in the cloud” (one
+  tap, the work moves), the empty terminal says “Use the cloud builder”, and
+  the Control banner says plainly that there is nothing to install. The
+  download is offered only to accounts whose cloud builder is private.
+- **The Terminal no longer says "start it" to a builder that is down.** A
+  deep link to a project with no session read “isn’t running on Cloud
+  builder — start it, and it opens here” while the chip beside it said the
+  cloud builder was offline. Now that screen says the builder is offline and
+  what happens to the work, and the start offer waits for a builder that can
+  take it.
+- **The Mac download is not damaged.** macOS says the app “is damaged and
+  can’t be opened” because the build is not yet signed by Apple, and
+  right-click → Open does not clear it. `/download` now leads with the
+  `.zip` and one Terminal line that installs, clears the refusal and launches
+  it. Signed builds need an Apple Developer account (USD 99 a year); the
+  pipeline is ready for the certificate.
+
 
 - **A Suggestions page.** The "Build next" row on the Loki start screen only
   knew about code. The new page under Now reads every front Loki keeps records

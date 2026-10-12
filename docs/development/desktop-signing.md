@@ -6,10 +6,30 @@ The multi-platform build+publish pipeline already exists
 them to a draft GitHub Release. This is the only thing standing between
 Mac/Windows users and running an agent.
 
+## What an unsigned Mac build looks like to the person who downloads it
+
+**“Fleet Runner is damaged and can’t be opened. You should move it to the
+Trash.”** That is Gatekeeper’s wording on a current macOS for an app that
+carries no Apple Developer ID signature — not a corrupt download. The owner
+read it as a broken file on 2026-10-12. Control-click → Open does not clear
+this dialog (it only ever cleared the older “unidentified developer” one);
+removing the quarantine flag does:
+
+```
+xattr -cr "/Applications/Fleet Runner.app"
+```
+
+`/download` therefore leads with the `.zip` and one Terminal line
+(`ditto -xk … && xattr -cr … && open -a …`), which is the only install path
+that never meets the dialog. Until the build is signed and notarized, every
+Mac user pays that one pasted line. What signing costs: an Apple Developer
+Program membership (USD 99 a year, enrolled by the owner under their Apple
+ID) plus the steps in B below. Nothing in the pipeline is waiting on code.
+
 ## A. Ship NOW (unsigned) — no certificates needed
 
 macOS/Windows can ship today. The installers build unsigned; the `/download`
-page already carries the Gatekeeper-bypass instructions ("Control-click → Open").
+page carries the one-line install that clears Gatekeeper’s refusal (above).
 
 1. Bump `desktop/package.json` `version`, commit.
 2. Tag and push:

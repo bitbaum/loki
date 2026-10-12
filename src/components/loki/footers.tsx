@@ -30,8 +30,11 @@ import {
   type MultiDispatchAttempt,
 } from "@/lib/dispatch-status";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
-import { presentDispatchCard, watchHref } from "@/lib/dispatch-card";
+import { useBuilderPresence } from "@/hooks/use-builder-presence";
+import { isDispatchCardAction, presentDispatchCard, watchHref } from "@/lib/dispatch-card";
+import { cloudBuilderState } from "@/lib/builder-way-forward";
 import { isBuilderChannel } from "@/lib/constants/statuses";
+import { postJson } from "@/lib/api/fetch";
 /** Human-readable label for an assistant turn's kind badge. SSOT for the
  *  small set of kinds the messages route emits. */
 export const KIND_LABEL: Record<string, string> = {
@@ -78,6 +81,17 @@ export function DispatchFooter({
   const commandId = typeof meta?.commandId === "string" ? meta.commandId : null;
   const runId = typeof meta?.runId === "string" ? meta.runId : null;
   const live = useDispatchLiveStatus(commandId, runId);
+  // Shared poll (one interval for the whole page): what the cloud builder is
+  // to this account decides whether a dispatch waiting for "this computer"
+  // offers the cloud, or a download.
+  const presence = useBuilderPresence();
+  const cloud = cloudBuilderState(presence.cloudBuilderAllowed, presence.builderPresence);
+  // "Run it in the cloud" retargets the queued row in place (same command id,
+  // so the live status keeps polling it). Until the builder claims it, the
+  // stored meta still says "local": these two lines are what the card reads
+  // in that gap, so it says where the work now is, not where it was.
+  const [moved, setMoved] = useState<"idle" | "moving" | "moved">("idle");
+  const [moveError, setMoveError] = useState<string | null>(null);
   if (!meta) return null;
 
   // Fan-out dispatch ("develop these 3 projects") has no single commandId to
@@ -107,8 +121,14 @@ export function DispatchFooter({
   const primaryProject = multiView ? multiView.primaryProject : (projectKeys[0] ?? null);
   const failed = meta.ok === false;
   const runnerConnected = typeof meta.runnerConnected === "boolean" ? meta.runnerConnected : null;
-  const channel = isBuilderChannel(meta.channel) ? meta.channel : null;
-  const reroutedFrom = isBuilderChannel(meta.reroutedFrom) ? meta.reroutedFrom : null;
+  const storedChannel = isBuilderChannel(meta.channel) ? meta.channel : null;
+  const channel = moved === "moved" ? "cloud" : storedChannel;
+  const reroutedFrom =
+    moved === "moved"
+      ? storedChannel
+      : isBuilderChannel(meta.reroutedFrom)
+        ? meta.reroutedFrom
+        : null;
   const { label: staticStatus, warn } = dispatchStatusLabel({
     ok: failed ? false : true,
     mode: typeof meta.mode === "string" ? meta.mode : null,
@@ -139,12 +159,41 @@ export function DispatchFooter({
     : presentDispatchCard({
         live,
         staticLabel: staticStatus,
-        warn,
+        warn: moved === "moved" ? false : warn,
         failed,
         channel,
         project: primaryProject,
         projectCount: projectKeys.length,
+        cloud,
       });
+
+  async function runInCloud() {
+    if (!commandId) return;
+    setMoved("moving");
+    setMoveError(null);
+    try {
+      const res = await postJson("/api/control/reroute", { commandId });
+      const body = (await res.json()) as {
+        error?: string;
+        rerouted?: number;
+        skipped?: { reason: string }[];
+      };
+      if (!res.ok) {
+        setMoveError(body.error ?? `Could not move it (HTTP ${res.status})`);
+        setMoved("idle");
+        return;
+      }
+      if (!body.rerouted) {
+        setMoveError(body.skipped?.[0]?.reason ?? "A builder just picked it up.");
+        setMoved("idle");
+        return;
+      }
+      setMoved("moved");
+    } catch (e) {
+      setMoveError(e instanceof Error ? e.message : "Could not move it");
+      setMoved("idle");
+    }
+  }
   const target = projectKeys.length > 1 ? `${projectKeys.length} projects` : projectKeys[0];
   // The run's own account of itself, once it is over (lib/run-handoff). With
   // it, "successful outcome recorded" is the least useful line on the card.
@@ -176,14 +225,26 @@ export function DispatchFooter({
           }
         />
       )}
+      {moveError && <p className="ui-loki-dispatch-detail text-status-warning">{moveError}</p>}
       {(card.primary || card.secondary.length > 0) && (
         <div className="ui-loki-dispatch-actions">
-          {card.primary && (
-            <Link href={card.primary.href} className="ui-dispatch-watch-link ui-dispatch-primary">
-              {card.primary.label}
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-            </Link>
-          )}
+          {card.primary &&
+            (isDispatchCardAction(card.primary) ? (
+              <button
+                type="button"
+                onClick={runInCloud}
+                disabled={moved === "moving" || !commandId}
+                className="ui-dispatch-watch-link ui-dispatch-primary disabled:opacity-50"
+              >
+                {moved === "moving" ? "Moving…" : card.primary.label}
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            ) : (
+              <Link href={card.primary.href} className="ui-dispatch-watch-link ui-dispatch-primary">
+                {card.primary.label}
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              </Link>
+            ))}
           {card.secondary.map((link) => (
             <Link key={link.href} href={link.href} className="ui-loki-dispatch-secondary">
               {link.label}

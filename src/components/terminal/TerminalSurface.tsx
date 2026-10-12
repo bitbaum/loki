@@ -41,6 +41,8 @@ import { TerminalAgentTabs } from "./TerminalAgentTabs";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
 import { TerminalOfflineActions } from "./TerminalOfflineActions";
+import { cloudBuilderState } from "@/lib/builder-way-forward";
+import type { BuilderPresenceSnapshot } from "@/hooks/use-builder-presence";
 import { TerminalPaneActions } from "./TerminalPaneActions";
 import { useTerminalView } from "./use-terminal-view";
 import { useScreenSuggestions } from "./use-screen-suggestions";
@@ -78,6 +80,30 @@ const COPY: Record<
 
 const channelFor = (source: TerminalSource): BuilderChannel =>
   source === "machine" ? "local" : "cloud";
+
+/**
+ * The line under an empty terminal. The machine source's offline copy names
+ * "here" — the device reading the page — which from a second computer is the
+ * wrong computer. An account with the cloud builder is told the way that
+ * works from anywhere instead.
+ */
+function emptyStateHint(input: {
+  offline: boolean;
+  source: TerminalSource;
+  presence: BuilderPresenceSnapshot;
+  tabHint: string | null;
+}): string {
+  const copy = COPY[input.source === "machine" ? "machine" : "cloud"];
+  if (!input.offline) return input.tabHint ?? copy.emptyHint;
+  if (input.source !== "machine") return copy.offlineHint;
+  const cloud = cloudBuilderState(
+    input.presence.cloudBuilderAllowed,
+    input.presence.builderPresence,
+  );
+  if (cloud === "online") return EXECUTOR_COPY.terminal.thisComputerOfflineCloudHint;
+  if (cloud === "offline") return EXECUTOR_COPY.terminal.thisComputerOfflineCloudDownHint;
+  return copy.offlineHint;
+}
 
 /** Comfortably under the 4000-byte cap the raw-key route enforces on one write.
  *  Multi-byte characters make length-in-chars an under-estimate of bytes, and
@@ -601,7 +627,11 @@ export function TerminalSurface({
 
   // ── Agent sessions ──────────────────────────────────────────────────────
   const body = () => {
-    if (deepLinkMiss) {
+    // A miss while the builder is offline or gated is not a miss: "Start it,
+    // and it opens here" is false when nothing can start. The empty state
+    // below says the builder is down and offers the way forward (owner, on a
+    // second computer, 2026-10-12: "classic dead end").
+    if (deepLinkMiss && !offline && !gatedMessage) {
       return (
         <TerminalSessionMiss
           requestedTab={resolvedInitialTab!}
@@ -635,7 +665,7 @@ export function TerminalSurface({
             // Control to hunt for a button that is not drawn.
             `No live session for “${initialTab}”. If you just dispatched work, check its status in Control. Start a session here when you want to launch an agent directly.`
           : null;
-      const hint = gatedMessage ?? (offline ? copy.offlineHint : (tabHint ?? copy.emptyHint));
+      const hint = gatedMessage ?? emptyStateHint({ offline, source, presence, tabHint });
       // `initialTab` is the ATTACHED tab, which is null on exactly this
       // screen — nothing is running, that is why the empty state renders. Fall
       // back to the workspace project so these two buttons keep the scope the
@@ -672,9 +702,7 @@ export function TerminalSurface({
             </>
           )}
           {(gatedMessage || offline) && (
-            <TerminalOfflineActions
-              onUseThisComputer={source === "cloud" ? () => setSource("machine") : undefined}
-            />
+            <TerminalOfflineActions source={source} presence={presence} onSwitch={setSource} />
           )}
         </div>
       );
