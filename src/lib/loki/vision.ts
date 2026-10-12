@@ -9,9 +9,14 @@
  */
 import { analyzeImages } from "@/lib/vision";
 import type { ImageAttachment } from "@/lib/loki/attachments";
+import { SCREENSHOT_SHOWN_PREFIX } from "@/lib/project-mention";
 
+// The first line is read by code, not only by people: it is how a screenshot
+// sent with "fix this" and no project picked finds the project it is of
+// (projectShownInScreenshot). Keep the prefix in step with SCREENSHOT_SHOWN_PREFIX.
 const SYSTEM = `You analyze UI screenshots and error states for a developer using an AI agent fleet.
-Be concrete: visible bugs, layout issues, clipped elements, error messages, and what to change in code.
+Start with exactly one line: "${SCREENSHOT_SHOWN_PREFIX} <the app or website the screenshot is of — its name, and any URL or domain visible — or "unknown">".
+Then be concrete: visible bugs, layout issues, clipped elements, error messages, and what to change in code.
 No hype, no preamble. Use short paragraphs or bullets.`;
 
 export async function describeAttachedImages(

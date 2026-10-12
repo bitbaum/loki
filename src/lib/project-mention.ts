@@ -170,3 +170,76 @@ export function unknownProjectMention(text: string, projectNames: string[]): str
   }
   return null;
 }
+
+/** The line the vision preflight is asked to open with (lib/loki/vision.ts). */
+export const SCREENSHOT_SHOWN_PREFIX = "Shown:";
+
+/** Hostnames in free text, lowercased, without a leading `www.`. */
+function hostsIn(text: string): Set<string> {
+  const hosts = new Set<string>();
+  for (const m of text.toLowerCase().matchAll(/\b((?:[a-z0-9-]+\.)+[a-z]{2,})\b/g)) {
+    hosts.add(m[1].replace(/^www\./, ""));
+  }
+  return hosts;
+}
+
+function hostOf(url: string | null | undefined): string | null {
+  if (!url?.trim()) return null;
+  try {
+    const u = new URL(/^[a-z]+:\/\//i.test(url) ? url : `https://${url}`);
+    return u.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Which ONE project a screenshot is of, from the vision model's reading of it —
+ * or null when that is not certain.
+ *
+ * "Fix this so it works properly", sent with a screenshot of Loki's own
+ * Control page from a chat with no project picked (2026-10-12), could not be
+ * acted on: the text names nothing, and the picture was only ever described,
+ * never used to choose. The person had to know to pick a project the
+ * screenshot already showed.
+ *
+ * Two pieces of evidence, strongest first, and each must point at exactly one
+ * project — two candidates is a question for the person, not a coin toss:
+ *   1. a project's live site host visible in the screenshot
+ *      (`loki.orangecat.ch` is Loki's site even though it also contains the
+ *      word "orangecat", which is why hosts are compared whole, not as words);
+ *   2. a project named on the analysis's `Shown:` line — the line the vision
+ *      prompt asks for. Only that line: the rest of the analysis lists what is
+ *      ON the screen, and a dashboard naming five projects is still one app.
+ */
+export function projectShownInScreenshot(
+  analysis: string,
+  projects: { name: string; liveUrl?: string | null }[],
+): string | null {
+  if (!analysis.trim() || projects.length === 0) return null;
+
+  const seen = hostsIn(analysis);
+  const byHost = projects.filter((p) => {
+    const host = hostOf(p.liveUrl);
+    return host != null && seen.has(host);
+  });
+  if (byHost.length === 1) return byHost[0].name;
+  if (byHost.length > 1) return null;
+
+  const shownLine = analysis
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l.toLowerCase().startsWith(SCREENSHOT_SHOWN_PREFIX.toLowerCase()));
+  if (!shownLine) return null;
+  // Hostnames on the Shown line were already judged above; as words they would
+  // only re-add the false hits that rule exists to avoid.
+  const words = shownLine
+    .slice(SCREENSHOT_SHOWN_PREFIX.length)
+    .replace(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi, " ");
+  const named = projects.map((p) => p.name).filter((name) => textMentionsProject(words, name));
+  // `aoz` inside `aoz-begleitung` is one project named, not two.
+  const distinct = named.filter(
+    (n) => !named.some((other) => other !== n && squash(other).includes(squash(n))),
+  );
+  return distinct.length === 1 ? distinct[0] : null;
+}
