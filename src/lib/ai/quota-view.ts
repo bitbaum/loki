@@ -24,6 +24,8 @@
  * reason it is unknown is stated.
  */
 
+import { refillsIn } from "@bitbaum/ai-kit";
+
 /** One vendor counter as the UI needs it. */
 export type QuotaRowView = {
   provider: string;
@@ -101,23 +103,11 @@ function ms(v: Date | string | null): number | null {
   return Number.isNaN(t) ? null : t;
 }
 
-/** "in 4 hours", "in 12 minutes", "now". Null when the vendor did not say. */
-export function refillsIn(resetAt: Date | string | null, now: number): string | null {
-  const at = ms(resetAt);
-  if (at === null) return null;
-  const delta = at - now;
-  if (delta <= 0) return "now";
-  // Tested against the raw delta, not the rounded minutes: 40 seconds rounds
-  // UP to 1, so a rounded check never reaches this branch and the sub-minute
-  // case silently reads as "in 1 minute".
-  if (delta < 60_000) return "in under a minute";
-  const mins = Math.round(delta / 60000);
-  if (mins < 60) return `in ${mins} minute${mins === 1 ? "" : "s"}`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `in ${hours} hour${hours === 1 ? "" : "s"}`;
-  const days = Math.round(hours / 24);
-  return `in ${days} day${days === 1 ? "" : "s"}`;
-}
+/**
+ * "in 4 hours", "in 12 minutes", "now". Null when the vendor did not say.
+ * Defined once in @bitbaum/ai-kit so every app words a refill alike.
+ */
+export { refillsIn };
 
 /**
  * What the chain falls to after `provider` — the consequence half of a row.

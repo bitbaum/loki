@@ -17,12 +17,8 @@
  *
  * Run: npx tsx scripts/test/ai-budget-view.ts
  */
-import {
-  headroomNote,
-  nextUtcMidnight,
-  userBudgetView,
-  type BudgetInput,
-} from "@/lib/ai/budget-view";
+import { nextUtcMidnight } from "@bitbaum/ai-kit";
+import { headroomNote, userBudgetView, type BudgetInput } from "@/lib/ai/budget-view";
 import { ESTIMATED_TURN_TOKENS } from "@/lib/ai-budget/gate";
 import { TOKENS_PER_ANSWER, type QuotaRowView } from "@/lib/ai/quota-view";
 
@@ -247,7 +243,7 @@ check("meaning: pace is said only once there is a rate, and says whether the day
 check("meaning: the week, memory and explanations are stated, with the levers that apply", () => {
   const v = userBudgetView(input({ week: { tokens: 84_000, turns: 12, days: 3 } }));
   assert(
-    v.meaning.week?.line === "This week: 12 answers on the free pool, 84,000 tokens, over 3 days.",
+    v.meaning.week?.line === "Last 7 days: 12 answers on the free pool, 84,000 tokens, on 3 days.",
     `${v.meaning.week?.line}`,
   );
   assert(
