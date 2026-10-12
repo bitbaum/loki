@@ -15,6 +15,7 @@
 
 import type { HostedApp } from "./apps-conf";
 import { hostedUrl } from "./apps-conf";
+import { consentIso, isClientWork, mayShowPublicly, OWN_OWNERS } from "./client-work";
 
 /** Older name → canonical repository name. Add here when a rename happens. */
 export const SLUG_ALIASES: Readonly<Record<string, string>> = {
@@ -68,7 +69,18 @@ export type RegisterProjectInput = {
   orangecatProjectId?: string | null;
   solonOrgSlug?: string | null;
   isActive?: boolean;
+  /** user_projects.client_work: the operator's answer; null = the hosting register decides. */
+  clientWork?: boolean | null;
+  /** user_projects.portfolio_consent_at: the client agreed to be shown publicly. */
+  portfolioConsentAt?: Date | string | null;
 };
+
+/**
+ * Who a register is for. "public" (the default, so a forgotten argument fails
+ * closed) drops client work the client has not agreed to show; "operator"
+ * keeps everything, for the studio owner's own views.
+ */
+export type RegisterAudience = "public" | "operator";
 
 export type RegisterRow = {
   slug: string;
@@ -94,6 +106,12 @@ export type RegisterRow = {
   loki: { id: string; liveUrl: string | null } | null;
   orangecat: { projectId: string } | null;
   solon: { slug: string } | null;
+  /**
+   * Work for a real person or organisation (client-work.ts), and when the
+   * client agreed to be shown. On a public register every client row has a
+   * consent date: the others are not on it.
+   */
+  client: { work: boolean; consentedAt: string | null };
 };
 
 /**
@@ -130,7 +148,10 @@ export function buildFleetRegister(
   projects: RegisterProjectInput[],
   apps: HostedApp[],
   solonClaims?: ReadonlyMap<string, string>,
-  { includeUnlinkedSites = true }: { includeUnlinkedSites?: boolean } = {},
+  {
+    includeUnlinkedSites = true,
+    audience = "public",
+  }: { includeUnlinkedSites?: boolean; audience?: RegisterAudience } = {},
 ): RegisterRow[] {
   const bySlug = new Map<string, RegisterRow>();
 
@@ -146,11 +167,15 @@ export function buildFleetRegister(
         loki: null,
         orangecat: null,
         solon: null,
+        client: { work: false, consentedAt: null },
       };
       bySlug.set(slug, r);
     }
     return r;
   };
+
+  /** The project's own answers, by row, until the hosting facts are joined. */
+  const asked = new Map<string, { clientWork: boolean | null; consentedAt: string | null }>();
 
   for (const p of projects) {
     if (p.isActive === false) continue;
@@ -165,6 +190,10 @@ export function buildFleetRegister(
     if (p.orangecatProjectId) r.orangecat = { projectId: p.orangecatProjectId };
     if (p.solonOrgSlug) r.solon = { slug: p.solonOrgSlug };
     if (p.hostedApp) (r as RegisterRow & { hostedApp?: string }).hostedApp = p.hostedApp;
+    asked.set(slug, {
+      clientWork: p.clientWork ?? null,
+      consentedAt: consentIso(p.portfolioConsentAt),
+    });
   }
 
   // Hosted apps attach by explicit hosted_app link first, else by canonical name.
@@ -219,12 +248,26 @@ export function buildFleetRegister(
     }
   }
 
-  for (const r of bySlug.values()) delete (r as RegisterRow & { hostedApp?: string }).hostedApp;
-  return [...bySlug.values()].sort((a, b) => a.slug.localeCompare(b.slug));
+  for (const r of bySlug.values()) {
+    delete (r as RegisterRow & { hostedApp?: string }).hostedApp;
+    // A hosted app with no Loki project has nowhere to record consent, so its
+    // client work is never public: link a project and record it there.
+    const own = asked.get(r.slug);
+    r.client = {
+      work: isClientWork(own?.clientWork, r.site),
+      consentedAt: own?.consentedAt ?? null,
+    };
+  }
+  const rows = [...bySlug.values()];
+  const shown =
+    audience === "operator"
+      ? rows
+      : rows.filter((r) => mayShowPublicly(r.client.work, r.client.consentedAt));
+  return shown.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
-/** Owners that mean "ours", not a client. Everything else is a third party. */
-const OWN = new Set(["bitbaum", "-", ""]);
+/** Owners that mean "ours", not a client (SSOT: client-work.ts). */
+const OWN = OWN_OWNERS;
 
 /**
  * The partner a site is with, as a reader may see it — or null.

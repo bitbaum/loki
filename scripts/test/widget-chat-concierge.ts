@@ -37,6 +37,7 @@ function entry(p: Partial<FleetMapEntry> & Pick<FleetMapEntry, "slug" | "name">)
     layer: "product",
     status: "live",
     owner: "bitbaum",
+    client: null,
     since: null,
     urls: { live: null, repo: null, orangecat: null, solon: null },
     identity: { problem: null, solution: null, mission: null, vision: null },

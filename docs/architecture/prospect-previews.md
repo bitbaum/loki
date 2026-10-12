@@ -100,3 +100,6 @@ Then restart `loki-app`. The folder root is created on the first preview.
 - The code is checked on every request, pages and files alike.
 - Agents building a preview never push and never add a remote.
 - Nothing on a preview is invented. Missing things are shown as "coming soon".
+- A preview's project is client work from the moment it exists, so it stays
+  off every public list until the person agrees to be shown
+  (`docs/architecture/client-work-consent.md`).

@@ -103,6 +103,9 @@ export async function createPreview(
       dirPath: dir,
       liveUrl: previewUrl,
       builderPref: "cloud",
+      // A preview is built for a real business or person who has not said yes:
+      // it stays off every public surface until they agree to be shown.
+      clientWork: true,
     });
   } catch (e) {
     await rm(dir, { recursive: true, force: true });

@@ -38,6 +38,7 @@ const rows: RegisterRow[] = [
     loki: { id: "1", liveUrl: null },
     orangecat: null,
     solon: null,
+    client: { work: true, consentedAt: "2026-09-01T00:00:00.000Z" },
   },
   {
     slug: "loki",
@@ -48,6 +49,7 @@ const rows: RegisterRow[] = [
     loki: { id: "2", liveUrl: "https://loki.orangecat.ch" },
     orangecat: { projectId: "oc-1" },
     solon: null,
+    client: { work: false, consentedAt: null },
   },
   {
     slug: "aoz-demo",
@@ -58,6 +60,7 @@ const rows: RegisterRow[] = [
     loki: null,
     orangecat: null,
     solon: null,
+    client: { work: false, consentedAt: null },
   },
   {
     slug: "next-idea",
@@ -68,6 +71,7 @@ const rows: RegisterRow[] = [
     loki: { id: "3", liveUrl: null },
     orangecat: null,
     solon: null,
+    client: { work: false, consentedAt: null },
   },
   {
     slug: "orangecat",
@@ -78,6 +82,7 @@ const rows: RegisterRow[] = [
     loki: { id: "4", liveUrl: "https://orangecat.ch" },
     orangecat: null,
     solon: { slug: "orangecat" },
+    client: { work: false, consentedAt: null },
   },
 ];
 

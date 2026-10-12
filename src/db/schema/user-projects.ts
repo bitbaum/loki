@@ -163,6 +163,23 @@ export const userProjects = pgTable(
      * that says "loki", and only the create paths may write that value.
      */
     codeCustody: text("code_custody").$type<CodeCustody>(),
+    /**
+     * Is this work FOR someone else: a real person or organisation, paying or
+     * not? Null = not decided here; the hosting register decides (apps.conf
+     * kind client-app/client-site, or an owner other than bitbaum). True/false
+     * = the operator's explicit answer, which wins. Prospect previews are
+     * created true. See src/lib/register/client-work.ts.
+     */
+    clientWork: boolean("client_work"),
+    /**
+     * The client agreed that this work may be shown publicly (our catalogue,
+     * the bitbaum portfolio, the fleet map). Client work never appears on a
+     * public surface without it, whatever listed_publicly or featured_at say.
+     * Null = no consent. Withdrawing sets it back to null.
+     */
+    portfolioConsentAt: timestamp("portfolio_consent_at", { withTimezone: true }),
+    /** How the consent was given ("email from Anna, 12 Oct"), for the record. */
+    portfolioConsentNote: text("portfolio_consent_note"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

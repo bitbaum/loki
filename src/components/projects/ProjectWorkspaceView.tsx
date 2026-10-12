@@ -13,6 +13,9 @@ import { DoneSection, NextSection, NowSection } from "./ProjectDossierSections";
 import { OrangeCatPublishButton } from "./OrangeCatPublishButton";
 import { ProjectPublicListingToggle } from "./ProjectPublicListingToggle";
 import { ProjectFeatureToggle } from "./ProjectFeatureToggle";
+import { ProjectClientConsent } from "./ProjectClientConsent";
+import { projectIsClientWork } from "@/lib/register/portfolio";
+import { consentIso } from "@/lib/register/client-work";
 import { ProjectListingInvitation } from "./ProjectListingInvitation";
 import { shouldInviteToPublicCatalogue } from "@/lib/listing-invitation";
 import { SolonFoundButton } from "./SolonFoundButton";
@@ -127,17 +130,25 @@ export function ProjectWorkspaceView({
       agentRunning: isBuildActive(buildStatus),
     });
 
+  // Client work stays private until the client agrees (lib/register/client-work.ts),
+  // so listing it alone would not show it — say that, and do not invite.
+  const clientWork = userProject ? projectIsClientWork(userProject, readAppsConf()) : false;
+  const clientConsentAt = consentIso(userProject?.portfolioConsentAt);
+  const awaitingClientConsent = clientWork && !clientConsentAt;
+
   // Ask once, per project, and only when there is something worth showing.
   // The rule is in lib/ so it is testable without a browser or a database.
   // Kickoff / active build owns the page — catalogue consent waits.
-  const inviteToCatalogue = shouldInviteToPublicCatalogue({
-    listedPublicly: userProject?.listedPublicly ?? false,
-    dismissedAt: userProject?.listingPromptDismissedAt ?? null,
-    isActive: userProject?.isActive ?? false,
-    gitUrl: userProject?.gitUrl ?? project.gitUrl ?? null,
-    readonly: dossier.readonly,
-    buildBusy: showKickoff || isBuildActive(buildStatus),
-  });
+  const inviteToCatalogue =
+    !awaitingClientConsent &&
+    shouldInviteToPublicCatalogue({
+      listedPublicly: userProject?.listedPublicly ?? false,
+      dismissedAt: userProject?.listingPromptDismissedAt ?? null,
+      isActive: userProject?.isActive ?? false,
+      gitUrl: userProject?.gitUrl ?? project.gitUrl ?? null,
+      readonly: dossier.readonly,
+      buildBusy: showKickoff || isBuildActive(buildStatus),
+    });
 
   /**
    * WHAT IS WRONG, ABOVE WHAT IS HAPPENING.
@@ -325,9 +336,11 @@ export function ProjectWorkspaceView({
                     title: userProject?.listedPublicly
                       ? "Listed in Loki's catalogue"
                       : "Loki's catalogue",
-                    explain: userProject?.listedPublicly
-                      ? "Shown on the public fleet page, credited to you."
-                      : "Not listed. Listing shows it on the public fleet page, credited to you.",
+                    explain: awaitingClientConsent
+                      ? "Client work stays off public pages, listed or not, until the client agrees (below)."
+                      : userProject?.listedPublicly
+                        ? "Shown on the public fleet page, credited to you."
+                        : "Not listed. Listing shows it on the public fleet page, credited to you.",
                     control: (
                       <span className="flex flex-wrap items-center gap-1.5">
                         <ProjectPublicListingToggle
@@ -343,6 +356,25 @@ export function ProjectWorkspaceView({
                         )}
                       </span>
                     ),
+                  },
+                  {
+                    key: "client",
+                    title: clientWork
+                      ? clientConsentAt
+                        ? "Client work, shown with consent"
+                        : "Client work, private"
+                      : "Client work",
+                    explain: clientWork
+                      ? "Built for a real person or organisation. It appears in the public portfolio only once they agree."
+                      : "Our own work. Mark it if it was built for someone else.",
+                    control: userProject ? (
+                      <ProjectClientConsent
+                        projectId={project.id}
+                        clientWork={clientWork}
+                        consentedAt={clientConsentAt}
+                        consentNote={userProject.portfolioConsentNote ?? null}
+                      />
+                    ) : null,
                   },
                   {
                     key: "orangecat",

@@ -5,8 +5,11 @@
 // is a generated file: derived from the hosting SSOT, checked in, and gated by
 // scripts/test/fleet-sites-derived.ts, which fails the moment it drifts.
 //
-// Listed: rows whose status is live or validating and whose kind is a product
-// or client work. Demos, prospects, infra and libraries are not "the fleet".
+// Listed: our own products whose status is live or validating. Demos,
+// prospects, infra and libraries are not "the fleet", and client work is never
+// listed here: this static file cannot know whether a client agreed to be
+// shown (see src/lib/register/client-work.ts). Consented client work appears
+// on the surfaces that read the project's consent (the map, /fleet).
 //
 // Run: npx tsx scripts/generate-fleet-sites.ts            (writes the file)
 //      npx tsx scripts/generate-fleet-sites.ts --stdout   (prints it)
@@ -14,14 +17,21 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { readAppsConf, hostedUrl, type HostedApp } from "@/lib/register/apps-conf";
 import { canonicalSlug } from "@/lib/register/build";
+import { hostingSaysClient } from "@/lib/register/client-work";
 import { FLEET_SITE_COPY } from "@/config/fleet-site-copy";
 
 const LISTED_STATUS = new Set(["live", "validating"]);
-const LISTED_KIND = new Set(["product", "client-app", "client-site"]);
+const LISTED_KIND = new Set(["product"]);
 
 export function listedSites(apps: HostedApp[]) {
   return apps
-    .filter((a) => LISTED_STATUS.has(a.status) && LISTED_KIND.has(a.kind) && hostedUrl(a))
+    .filter(
+      (a) =>
+        LISTED_STATUS.has(a.status) &&
+        LISTED_KIND.has(a.kind) &&
+        !hostingSaysClient(a) &&
+        hostedUrl(a),
+    )
     .map((a) => {
       const slug = canonicalSlug(a.name);
       const copy = FLEET_SITE_COPY[slug];

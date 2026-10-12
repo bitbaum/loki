@@ -16,6 +16,7 @@ import { findProjectEntityByName } from "./project-merge";
 import { isPublicTestArtifact } from "@/lib/project-display";
 import { getProjectByOrangeCatEntity } from "./orangecat-links";
 import { PUBLIC_CATALOGUE_WHERE, PUBLIC_SHOWCASE_WHERE, SHOWCASE_LIMIT } from "./public-visibility";
+import { withoutPrivateClientWork } from "@/lib/register/portfolio";
 
 export async function getUserProjects(userId: string): Promise<UserProject[]> {
   return db
@@ -114,8 +115,10 @@ export async function getPublicProjects(userId: string): Promise<UserProject[]> 
     .orderBy(asc(userProjects.position), asc(userProjects.createdAt));
   // Defense-in-depth for the public face (landing hero, /u profiles): never
   // surface a smoke/dogfood artifact even if one leaks into the DB. See
-  // isPublicTestArtifact.
-  return rows.filter((p) => !isPublicTestArtifact(p.name));
+  // isPublicTestArtifact. Client work only with the client's consent
+  // (src/lib/register/client-work.ts): a profile is the user speaking, but the
+  // work belongs to the client too.
+  return withoutPrivateClientWork(rows.filter((p) => !isPublicTestArtifact(p.name)));
 }
 
 /**
@@ -139,7 +142,8 @@ export async function getPubliclyListedProjects(): Promise<UserProject[]> {
     .from(userProjects)
     .where(PUBLIC_CATALOGUE_WHERE)
     .orderBy(asc(userProjects.position), asc(userProjects.createdAt));
-  return rows.filter((p) => !isPublicTestArtifact(p.name));
+  // Listing is the owner's consent; client work also needs the client's.
+  return withoutPrivateClientWork(rows.filter((p) => !isPublicTestArtifact(p.name)));
 }
 
 /**
@@ -166,9 +170,11 @@ export async function getShowcaseProjects(limit = SHOWCASE_LIMIT): Promise<Showc
     .where(PUBLIC_SHOWCASE_WHERE)
     .orderBy(desc(userProjects.featuredAt))
     .limit(limit);
-  return rows
-    .filter((r) => !isPublicTestArtifact(r.project.name))
-    .map((r) => ({ ...r.project, owner: { username: r.username, name: r.name } }));
+  return withoutPrivateClientWork(
+    rows
+      .filter((r) => !isPublicTestArtifact(r.project.name))
+      .map((r) => ({ ...r.project, owner: { username: r.username, name: r.name } })),
+  );
 }
 
 /**

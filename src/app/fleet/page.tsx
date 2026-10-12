@@ -21,6 +21,7 @@ import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { publicProfilePath } from "@/lib/register/map";
 import { buildFleetRegister, commerce, summarize, type RegisterRow } from "@/lib/register/build";
+import { registerInput } from "@/lib/register/project-input";
 import { solonClaims } from "@/lib/register/solon";
 import { orangecatProjectsThatResolve } from "@/lib/register/orangecat";
 import {
@@ -73,24 +74,16 @@ export default async function FleetRegisterPage({ searchParams }: { searchParams
   const canOpenProjects = !!viewerId;
 
   const rows = buildFleetRegister(
-    projects.map((p) => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      slug: p.slug,
-      hostedApp: p.hostedApp,
-      gitUrl: p.gitUrl,
-      liveUrl: p.liveUrl,
-      orangecatProjectId: p.orangecatProjectId,
-      solonOrgSlug: p.solonOrgSlug,
-      isActive: p.isActive,
-    })),
+    projects.map(registerInput),
     apps,
     solon.claims,
     // A hosted site with no project here is the OPERATOR's to-do item, not a
     // public listing. apps.conf describes one box; letting it mint rows on a
     // multi-tenant page published that box's inventory as "the fleet".
-    { includeUnlinkedSites: viewerIsOwner },
+    // Always the PUBLIC audience, the operator included: this page is what the
+    // internet sees, so client work without the client's consent is not on it
+    // for anyone (src/lib/register/client-work.ts).
+    { includeUnlinkedSites: viewerIsOwner, audience: "public" },
   );
 
   const spec = fleetListFor(rows);

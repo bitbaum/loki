@@ -1,4 +1,5 @@
 import { publicOwner, type RegisterRow } from "./build";
+import { hostingSaysClient, OWN_OWNERS } from "./client-work";
 import { orangeCatProjectUrl } from "@/config/orangecat";
 import { PUBLIC_IDENTITY_ATTRS, type PublicIdentityAttr } from "@/config/project-attrs";
 import type { RepoRecords } from "./repo-records";
@@ -35,6 +36,13 @@ export type FleetMapEntry = {
   status: string;
   /** Who it is for: "bitbaum" = ours; anything else is a client. */
   owner: string;
+  /**
+   * Client work (built for a real person or organisation) and when the client
+   * agreed to be shown. Null = our own. The public map carries a client entry
+   * only once the client has agreed (src/lib/register/client-work.ts), so a
+   * consumer that wants a portfolio section filters on this, not on owner.
+   */
+  client: { consentedAt: string | null } | null;
   since: string | null;
   urls: {
     live: string | null;
@@ -162,7 +170,7 @@ export type MapRoadmapItem = {
 
 export type MapChangelogEntry = { date: string; done: string };
 
-const OWN = new Set(["bitbaum", "-", ""]);
+const OWN = OWN_OWNERS;
 
 /**
  * A project's PUBLIC profile path — the only Loki URL about one project that
@@ -179,9 +187,15 @@ export function publicProfilePath(slug: string): string {
   return `/fleet/${encodeURIComponent(slug)}`;
 }
 
+/** Client work, by the register's verdict, or the hosting row's for a row built elsewhere. */
+function rowIsClient(row: RegisterRow): boolean {
+  return row.client?.work ?? hostingSaysClient(row.site);
+}
+
 export function layerFor(row: RegisterRow): MapLayer {
   const pillar = PILLARS.find((p) => p.slug === row.slug);
   if (pillar) return pillar.layer;
+  if (rowIsClient(row)) return "client";
   const s = row.site;
   if (!s) return "next";
   if (s.kind === "demo" || s.status === "demo") return "demo";
@@ -367,6 +381,7 @@ export function buildFleetMap(
       // for "is it served", the register row only adds kind/owner/since.
       status: row.site?.status ?? (row.loki?.liveUrl ? "live" : "not live"),
       owner: row.site?.owner ?? "bitbaum",
+      client: rowIsClient(row) ? { consentedAt: row.client?.consentedAt ?? null } : null,
       since: row.site?.since && row.site.since !== "-" ? row.site.since : null,
       urls: {
         live: row.site?.url ?? row.loki?.liveUrl ?? null,

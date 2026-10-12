@@ -53,6 +53,20 @@ export const PatchProjectBody = z
      *  page; there is no un-dismiss, because the toggle beside it is the way
      *  back in and a second prompt would be the nagging this prevents. */
     dismissListingPrompt: z.literal(true).optional(),
+    /** Is this work for a real person or organisation? true/false pins the
+     *  answer; null hands it back to the hosting register (apps.conf owner and
+     *  kind). See src/lib/register/client-work.ts. */
+    clientWork: z.union([z.boolean(), z.null()]).optional(),
+    /** The client agreed to be shown publicly. The note says how (an email,
+     *  a call, the signed offer), because "they said yes" is the one fact we
+     *  must be able to point back to. null withdraws it: the project leaves
+     *  every public surface on the next read. */
+    portfolioConsent: z
+      .union([
+        z.object({ note: z.string().trim().min(1, "say how they agreed").max(500) }),
+        z.null(),
+      ])
+      .optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "Nothing to update" });
 
@@ -124,12 +138,27 @@ export async function patchProject(userId: string, id: string, data: PatchProjec
   // what /fleet reads — so it is written separately rather than folded into the
   // entities patch above. Always scoped by userId: consent is the owner's to
   // give, and an id alone must never be enough to publish someone's project.
-  if (updated && (data.listedPublicly !== undefined || data.dismissListingPrompt)) {
+  // Client-work consent rides the same row and the same owner scope.
+  const consent = data.portfolioConsent;
+  if (
+    updated &&
+    (data.listedPublicly !== undefined ||
+      data.dismissListingPrompt ||
+      data.clientWork !== undefined ||
+      consent !== undefined)
+  ) {
     await db
       .update(userProjects)
       .set({
         ...(data.listedPublicly !== undefined ? { listedPublicly: data.listedPublicly } : {}),
         ...(data.dismissListingPrompt ? { listingPromptDismissedAt: new Date() } : {}),
+        ...(data.clientWork !== undefined ? { clientWork: data.clientWork } : {}),
+        ...(consent !== undefined
+          ? {
+              portfolioConsentAt: consent ? new Date() : null,
+              portfolioConsentNote: consent ? consent.note : null,
+            }
+          : {}),
         updatedAt: new Date(),
       })
       .where(and(eq(userProjects.userId, userId), eq(userProjects.entityProjectId, id)));
