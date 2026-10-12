@@ -47,6 +47,7 @@ export * from "./push-subscriptions";
 export * from "./control-audit-events";
 export * from "./runner-presence";
 export * from "./conversations";
+export * from "./conversation-images";
 export * from "./frontier-digests";
 export * from "./frontier-proposals";
 export * from "./project-shares";

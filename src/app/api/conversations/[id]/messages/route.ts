@@ -25,12 +25,14 @@ import { getUserById } from "@/db/queries/users";
 import {
   getConversationWithMessages,
   addMessage,
+  saveConversationImages,
   updateConversationProjects,
   updateConversationTitle,
   deriveConversationTitle,
   DEFAULT_CONVERSATION_TITLE,
 } from "@/db/queries/conversations";
 import type { Conversation, ConversationMessage } from "@/db/schema/conversations";
+import { conversationImagePath } from "@/lib/loki/message-images";
 import {
   resolveCommand,
   isGenericDevelopHandoff,
@@ -739,9 +741,26 @@ async function persistUserTurn(
   conversationId: string,
   existing: { conversation: Conversation; messages: ConversationMessage[] },
   text: string,
-  attachmentNote: string,
+  attachments: Attachment[] | undefined,
 ) {
-  await addMessage(conversationId, { role: "user", content: text + attachmentNote });
+  // Pictures are kept with the thread and shown in the bubble; only text
+  // files still need naming in the message itself.
+  const images = (attachments ?? []).filter(
+    (a): a is Extract<Attachment, { kind: "image" }> => a.kind === "image",
+  );
+  const ids = await saveConversationImages(userId, conversationId, images).catch(() => []);
+  const kept = ids.map((id, i) => ({
+    src: conversationImagePath(conversationId, id),
+    caption: images[i].name,
+  }));
+  // A picture that could not be stored is still named, never silently lost.
+  const unsaved = ids.length === images.length ? [] : images;
+  const named = [...(attachments ?? []).filter((a) => a.kind !== "image"), ...unsaved];
+  await addMessage(conversationId, {
+    role: "user",
+    content: text + attachmentNoteLabel(named),
+    ...(kept.length > 0 ? { meta: { images: kept } } : {}),
+  });
   const titleForAuto = existing.conversation.title.trim();
   if (
     existing.messages.length === 0 &&
@@ -774,7 +793,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const text = rawText.trim() || DEFAULT_VISION_QUESTION;
   const attachments = rawAttachments?.map(normalizeAttachment);
   const hasImages = (attachments ?? []).some((a) => a.kind === "image");
-  const attachmentNote = attachmentNoteLabel(attachments);
 
   // Read the thread BEFORE opening the stream. Everything that can still answer
   // with a plain status code belongs on this side of the boundary — a 404
@@ -803,7 +821,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const attachmentSuffix = await buildAttachmentSuffix(attachments, text);
 
       if (!dispatchOnly) {
-        await persistUserTurn(userId, conversationId, existing, text, attachmentNote);
+        await persistUserTurn(userId, conversationId, existing, text, attachments);
       }
 
       const projects = await getUserProjects(userId);

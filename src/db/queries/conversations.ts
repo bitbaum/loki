@@ -6,6 +6,7 @@
  */
 import { and, desc, eq, asc, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { conversationImages } from "@/db/schema/conversation-images";
 import {
   conversations,
   conversationMessages,
@@ -252,4 +253,50 @@ export async function getOrCreateChannelConversation(
     .where(and(eq(conversations.userId, userId), eq(conversations.channel, channel)))
     .limit(1);
   return row;
+}
+
+/**
+ * Keep the pictures a person sent with a message (schema/conversation-images.ts).
+ * Returns their ids in order. Callers MUST have verified the conversation is
+ * the user's (getConversationWithMessages).
+ */
+export async function saveConversationImages(
+  userId: string,
+  conversationId: string,
+  images: { name: string; mimeType: string; dataBase64: string }[],
+): Promise<string[]> {
+  if (images.length === 0) return [];
+  const rows = await db
+    .insert(conversationImages)
+    .values(
+      images.map((img) => ({
+        userId,
+        conversationId,
+        name: img.name,
+        mimeType: img.mimeType,
+        data: Buffer.from(img.dataBase64, "base64"),
+      })),
+    )
+    .returning({ id: conversationImages.id });
+  return rows.map((r) => r.id);
+}
+
+/** One stored picture, only if it is the user's and belongs to that thread. */
+export async function getConversationImage(
+  userId: string,
+  conversationId: string,
+  imageId: string,
+): Promise<{ mimeType: string; data: Buffer } | null> {
+  const [row] = await db
+    .select({ mimeType: conversationImages.mimeType, data: conversationImages.data })
+    .from(conversationImages)
+    .where(
+      and(
+        eq(conversationImages.id, imageId),
+        eq(conversationImages.conversationId, conversationId),
+        eq(conversationImages.userId, userId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
 }

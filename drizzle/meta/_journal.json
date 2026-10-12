@@ -673,6 +673,13 @@
       "when": 1791756045333,
       "tag": "0095_conversation_read_pin",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1791757045333,
+      "tag": "0096_conversation_images",
+      "breakpoints": true
     }
   ]
 }
