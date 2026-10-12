@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { activityHref } from "@/components/activity/activity-shared";
 import { ArrowRight, Plus, Radio, Settings2, WifiOff } from "lucide-react";
@@ -10,6 +11,9 @@ import { RUNNER_STATE_DEFINITIONS, deriveRunnerStateKey } from "@/lib/control-st
 import { builderCompactLabel, builderPresenceDetail } from "@/lib/builder-presence";
 import type { BuilderChannelPresence } from "@/lib/builder-presence";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
+
+/** How long a queue action's report stays under the hero. */
+const QUEUE_NOTICE_MS = 15_000;
 
 /**
  * What the working / awaiting-input / idle chips actually count.
@@ -59,8 +63,12 @@ type Props = {
     oldestSeconds: number;
     localQueued?: number;
   } | null;
-  /** Hand everything waiting for this computer to the cloud builder. */
-  onRunInCloud?: () => void;
+  /** Hand everything waiting for this computer to the cloud builder. Resolves
+   *  to the sentence saying what actually moved. */
+  onRunInCloud?: () => Promise<string>;
+  /** Turn a stall's stuck dispatches into failed ones (Retry / Dismiss).
+   *  Resolves to the sentence saying what happened. */
+  onStopWaiting?: () => Promise<string>;
   lastUpdated: number | null;
   /** Truthful hero headline — deriveFleetPulse(), computed by ControlPanel. */
   fleetPulse: FleetPulse;
@@ -105,7 +113,26 @@ export function ControlFleetStatus({
   onNewProject,
   onFocusCategory,
   onRunInCloud,
+  onStopWaiting,
 }: Props) {
+  // What the last queue action did, said where it was tapped. It is a
+  // past-tense report ("Handed 2 dispatches to the cloud builder"), so it stays
+  // true after the headline changes — but only for a moment, so it never sits
+  // under a card describing a later state.
+  const [queueNotice, setQueueNotice] = useState<string | null>(null);
+  const [queueBusy, setQueueBusy] = useState(false);
+  useEffect(() => {
+    if (!queueNotice) return;
+    const t = setTimeout(() => setQueueNotice(null), QUEUE_NOTICE_MS);
+    return () => clearTimeout(t);
+  }, [queueNotice]);
+  const runQueueAction = (action: (() => Promise<string>) | undefined) => {
+    if (!action || queueBusy) return;
+    setQueueBusy(true);
+    void action()
+      .then(setQueueNotice)
+      .finally(() => setQueueBusy(false));
+  };
   // Vocabulary AND arithmetic reconciled with ProjectOperationsView's rail.
   // The triad is "X working · Y awaiting input · Z idle" — three
   // mutually-exclusive buckets, every project in exactly one, all sourced from
@@ -286,10 +313,14 @@ export function ControlFleetStatus({
   // button is the way out. "Restart the desktop app" was an instruction for
   // a hung runner, printed under a queue that was merely waiting.
   const canRunInCloud =
-    fleetPulse.key === "stalled" &&
+    fleetPulse.action === "run_in_cloud" &&
     (runnerExecutionStall?.localQueued ?? 0) > 0 &&
     Boolean(builderPresence?.cloud) &&
     Boolean(onRunInCloud);
+  // Every other stall gets a way out too. It used to get a sentence telling
+  // the operator to restart a desktop app — on a phone, about work the cloud
+  // was holding — and no button at all (2026-10-12).
+  const canStopWaiting = fleetPulse.action === "stop_waiting" && Boolean(onStopWaiting);
 
   return (
     <section className="ui-control-hero">
@@ -363,8 +394,23 @@ export function ControlFleetStatus({
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       ) : canRunInCloud ? (
-        <button type="button" onClick={onRunInCloud} className="ui-hero-action ui-btn-primary">
-          Run it in the cloud
+        <button
+          type="button"
+          onClick={() => runQueueAction(onRunInCloud)}
+          disabled={queueBusy}
+          className="ui-hero-action ui-btn-primary"
+        >
+          {queueBusy ? "Handing it over…" : "Run it in the cloud"}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+      ) : canStopWaiting ? (
+        <button
+          type="button"
+          onClick={() => runQueueAction(onStopWaiting)}
+          disabled={queueBusy}
+          className="ui-hero-action ui-btn-primary"
+        >
+          {queueBusy ? "Stopping…" : "Stop waiting"}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       ) : fleetPulse.key === "failing" ? (
@@ -382,6 +428,12 @@ export function ControlFleetStatus({
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       ) : null}
+
+      {queueNotice && (
+        <p className="ui-hero-sub" role="status">
+          {queueNotice}
+        </p>
+      )}
 
       {/* The foot carries what used to be four tappable chips and a runner
           line. Counts stay clickable where clicking does something; the rest

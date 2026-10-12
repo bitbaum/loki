@@ -20,6 +20,7 @@
  */
 import { resolveFleetCommandProjectKey } from "@/lib/loki-fleet-commands";
 import {
+  projectShownInScreenshot,
   projectMentionedIn,
   resolveProjectFromContext,
   textMentionsProject,
@@ -175,5 +176,52 @@ check(
   "an action question still dispatches",
   looksLikeDispatchTask("can you fix the failing types in lifeops?"),
 );
+
+console.log("\nproject-mention — a screenshot names the project it is of");
+// 2026-10-12: "Fix this so it works properly" + a screenshot of Loki's Control
+// page, sent with no project picked, could not be acted on.
+const SITES = [
+  { name: "loki", liveUrl: "https://loki.orangecat.ch" },
+  { name: "orangecat", liveUrl: "https://orangecat.ch" },
+  { name: "aoz", liveUrl: null },
+  { name: "aoz-begleitung", liveUrl: "https://aoz.orangecat.ch" },
+];
+const analysis = (shown: string, body = "") =>
+  `\n\n--- Attached image analysis (s.png, via m) ---\nShown: ${shown}\n${body}`;
+eq(
+  projectShownInScreenshot(analysis("Loki — the Control screen"), SITES),
+  "loki",
+  "the Shown line names the project",
+);
+eq(
+  projectShownInScreenshot(analysis("a web app at loki.orangecat.ch"), SITES),
+  "loki",
+  "a project's own host wins, even though it also contains 'orangecat'",
+);
+eq(
+  projectShownInScreenshot(analysis("unknown", "The page loads https://orangecat.ch/about"), SITES),
+  "orangecat",
+  "a host anywhere in the analysis counts",
+);
+eq(
+  projectShownInScreenshot(
+    analysis("Loki — Control", "Cards for orangecat, aoz-begleitung and substrata are stalled."),
+    SITES,
+  ),
+  "loki",
+  "projects listed ON the screen do not compete with the app it is",
+);
+eq(
+  projectShownInScreenshot(analysis("Loki and OrangeCat side by side"), SITES),
+  null,
+  "two projects shown is a question, not a guess",
+);
+eq(
+  projectShownInScreenshot(analysis("the AOZ Begleitung portal"), SITES),
+  "aoz-begleitung",
+  "a name containing another project's name is still one project",
+);
+eq(projectShownInScreenshot(analysis("unknown"), SITES), null, "unknown stays unknown");
+eq(projectShownInScreenshot("", SITES), null, "no analysis, no guess");
 
 console.log(`\n${passed}/${passed} project-mention cases passed`);

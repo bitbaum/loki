@@ -211,6 +211,10 @@ export type FleetPulse = {
   /** Secondary sentence for the failing/stalled states ("failing" renders
    *  with an Activity link; "stalled" names the stuck projects inline). */
   detail: string | null;
+  /** The one button a stall offers. Every stall has one — "Restart the
+   *  desktop app" printed under a card with no button was a dead end, and the
+   *  desktop app was not even what was holding the work (2026-10-12). */
+  action?: "run_in_cloud" | "stop_waiting";
 };
 
 /**
@@ -342,9 +346,12 @@ export function deriveFleetPulse(input: {
     oldestSeconds: number;
     tabs?: string[];
     localQueued?: number;
+    cloudQueued?: number;
   } | null;
   /** The cloud builder is online — a local-queued stall has a way out. */
   cloudOnline?: boolean;
+  /** This computer's runner is online — says which builder is ignoring work. */
+  localOnline?: boolean;
   /** The "Needs you" queue — feedback awaiting triage plus sites missing the
    *  widget. The hero's whole brief is "is anything waiting on me?", and until
    *  this argument existed it answered that question without reading the one
@@ -367,17 +374,34 @@ export function deriveFleetPulse(input: {
     const plural = n === 1 ? "" : "es";
     // Waiting for a laptop that is shut is not a hung runner: it is a queue
     // with a known way out, and the hero's one button is that way out.
-    if ((stall.localQueued ?? 0) > 0 && input.cloudOnline) {
+    if ((stall.localQueued ?? 0) > 0 && input.cloudOnline && !input.localOnline) {
       return {
         key: "stalled",
         label: "Waiting for this computer",
         detail: `${n} dispatch${plural} queued ${mins}m for this computer${who}, which is offline. The cloud builder is online and can take it now.`,
+        action: "run_in_cloud",
       };
     }
+    // Name the builder that is actually holding the work. The old sentence
+    // said "the builder is connected" and prescribed restarting the desktop
+    // app, under a foot line reading "This computer offline" — work the CLOUD
+    // held, blamed on a laptop that was shut, with no button at all.
+    const them = n === 1 ? "it" : "them";
+    const holder =
+      (stall.cloudQueued ?? 0) > 0 && (stall.localQueued ?? 0) === 0
+        ? input.cloudOnline === false
+          ? "for the cloud builder, which is offline"
+          : "for the cloud builder, which is connected but has not picked " + them + " up"
+        : (stall.localQueued ?? 0) > 0 && (stall.cloudQueued ?? 0) === 0
+          ? input.localOnline
+            ? "for this computer, which is connected but has not picked " + them + " up"
+            : "for this computer, which is offline — and so is the cloud builder"
+          : "and no builder has picked " + them + " up";
     return {
       key: "stalled",
       label: "Stalled",
-      detail: `${n} dispatch${plural} queued for ${mins}m${who} — the builder is connected but not executing them. Restart the desktop app or check the cloud builder if this persists.`,
+      detail: `${n} dispatch${plural}${who} waited ${mins}m ${holder}. Stop waiting moves ${them} to failed dispatches, where Retry sends ${them} again.`,
+      action: "stop_waiting",
     };
   }
   if (input.workingCount > 0) {

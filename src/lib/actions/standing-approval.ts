@@ -17,8 +17,17 @@
  *   action type. There is still no bypass — an action with no approval of
  *   either kind does not run.
  *
- * WHAT KEEPS THIS SAFE — three rails, in this file, not in a docblock:
+ * WHAT KEEPS THIS SAFE — four rails, in this file, not in a docblock:
  *
+ *  0. ONLY WHAT THE OPERATOR ASKED FOR. The setting reads "Record commitments
+ *     I mention", and it used to cover commitments nobody mentioned. Loki's
+ *     own check-in producer writes "Check in with <name>" as a commitment, so
+ *     on 2026-10-12 one rode the rule straight through and Telegram announced
+ *     "✅ Done — Check in with Rajif Rao". Nothing reached Rajif — a commitment
+ *     is a row in the operator's own list — but a message that reads as if
+ *     Loki contacted a person, about something the operator never asked for,
+ *     is exactly the trust a standing rule spends. Every caller now states
+ *     where the proposal came from, and only `operator` can ride a rule.
  *  1. ELIGIBILITY IS HARD-CODED. Only types whose worst case is private and
  *     reversible can ever carry a standing rule. A stored preference naming
  *     `send_email` is ignored, not obeyed: widening the set is an edit here,
@@ -102,9 +111,21 @@ export const STANDING_APPROVAL_OPTIONS: ReadonlyArray<{
   {
     type: ACTION_TYPE.CREATE_COMMITMENT,
     label: "Record commitments I mention",
-    detail: "Written to your own commitments list. Nothing leaves Loki.",
+    detail:
+      "Written to your own commitments list. Nothing leaves Loki. Loki's own suggestions, like check-ins, still wait for your yes.",
   },
 ] as const;
+
+/**
+ * Who wanted this. `operator` — the person asked for it in words (a chat
+ * message, a tool call made because they asked, the MCP connector they use).
+ * `loki` — Loki thought of it on its own (check-ins, the night plan, advice).
+ *
+ * Required, not defaulted: a producer that forgets to say is a producer whose
+ * proposals would otherwise be treated as asked-for, and RAIL 0 exists because
+ * that is precisely the mistake that was made.
+ */
+export type ProposalOrigin = "operator" | "loki";
 
 export type StandingVerdict =
   | { auto: true }
@@ -126,12 +147,21 @@ export function standingApprovalVerdict(input: {
   type: ActionType;
   payload: ActionPayload | null | undefined;
   standingApprovals: readonly string[] | null | undefined;
+  origin: ProposalOrigin;
   now?: number;
 }): StandingVerdict {
   const { type, payload } = input;
   const now = input.now ?? Date.now();
 
   if (!ELIGIBLE.has(type)) return NO_RULE;
+  // RAIL 0 — a standing rule is permission for what the operator asks for.
+  // Loki's own ideas wait for a tap, however small and reversible they are.
+  if (input.origin !== "operator") {
+    return {
+      auto: false,
+      reason: "Loki suggested this itself — standing approvals cover only what you ask for",
+    };
+  }
   if (!sanitizeStandingApprovals(input.standingApprovals).includes(type)) return NO_RULE;
 
   if (type === ACTION_TYPE.CREATE_EVENT) {

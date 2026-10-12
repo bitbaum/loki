@@ -1,6 +1,7 @@
 import { ORCHESTRATION_OUTCOME } from "@/db/schema/orchestration-runs";
 import type { OrchestrationRun } from "@/db/schema/orchestration-runs";
 import { runReportText } from "@/lib/orchestration/summary";
+import { APP_URL } from "@/config/brand";
 
 /** Longest summary/error excerpt a close notification carries into chat. */
 const SUMMARY_MAX_CHARS = 600;
@@ -48,4 +49,27 @@ export function formatRunCloseMessage(
     ...(summary ? [summary.slice(0, SUMMARY_MAX_CHARS)] : []),
   ];
   return lines.join("\n");
+}
+
+/**
+ * The way forward under a run that did not succeed.
+ *
+ * "❌ loki: run error … choose another AI provider and Retry" arrived on
+ * Telegram with nothing to tap (2026-10-12): it named a Retry the message
+ * itself could not reach. The project's card on Control is where Retry and the
+ * provider switch live, so the message links straight to it. A success needs
+ * no button — there is nothing left to do.
+ */
+export function runCloseButtons(
+  run: Pick<OrchestrationRun, "projectKey" | "outcome">,
+): { text: string; url: string }[][] {
+  if (run.outcome === ORCHESTRATION_OUTCOME.SUCCESS) return [];
+  return [
+    [
+      {
+        text: `Open ${run.projectKey} in Control`,
+        url: `${APP_URL}/control?focus=${encodeURIComponent(run.projectKey)}`,
+      },
+    ],
+  ];
 }

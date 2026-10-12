@@ -306,7 +306,7 @@ export async function proposeNightFor(
       expiresAt: nightRunAt(night),
     },
     // The Telegram card with Approve / Reject goes out only when a tap is owed.
-    { operatorRequested: !verdict.auto },
+    { origin: "loki", operatorRequested: !verdict.auto },
   );
   if (queued.result === "deduped") {
     return { proposal, estimate, outcome: "already_asked", actionId: null };

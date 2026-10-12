@@ -35,8 +35,41 @@ const check = (name: string, cond: boolean) => {
   if (cond) pass++;
 };
 
-const auto = (args: Parameters<typeof standingApprovalVerdict>[0]) =>
-  standingApprovalVerdict({ now: NOW, ...args }).auto;
+type VerdictArgs = Parameters<typeof standingApprovalVerdict>[0];
+// Every case below is an operator request unless it says otherwise: RAIL 0 is
+// asserted on its own, and the other rails must hold even for asked-for work.
+const auto = (args: Omit<VerdictArgs, "origin"> & { origin?: VerdictArgs["origin"] }) =>
+  standingApprovalVerdict({ now: NOW, origin: "operator", ...args }).auto;
+
+// ── RAIL 0: a rule covers what the operator asked for, never Loki's own ideas ─
+// 2026-10-12: a "Check in with <name>" commitment from the check-in producer
+// rode "Record commitments I mention" and was announced as "✅ Done".
+check(
+  "Loki's own commitment (a check-in) ⇒ queues despite the rule",
+  !auto({
+    type: ACTION_TYPE.CREATE_COMMITMENT,
+    payload: { commitment: "Reach out to Rajif Rao", dueDate: "2026-10-15" },
+    standingApprovals: ALL,
+    origin: "loki",
+  }),
+);
+check(
+  "Loki's own calendar event ⇒ queues despite the rule",
+  !auto({ type: ACTION_TYPE.CREATE_EVENT, payload: SOON, standingApprovals: ALL, origin: "loki" }),
+);
+check(
+  "a declined Loki suggestion says why",
+  (() => {
+    const v = standingApprovalVerdict({
+      type: ACTION_TYPE.CREATE_COMMITMENT,
+      payload: { commitment: "x" },
+      standingApprovals: ALL,
+      origin: "loki",
+      now: NOW,
+    });
+    return !v.auto && v.reason.includes("Loki suggested");
+  })(),
+);
 
 // ── RAIL 1: eligibility is code, not data ───────────────────────────────────
 check(
@@ -174,6 +207,7 @@ check(
       type: ACTION_TYPE.CREATE_EVENT,
       payload: { ...SOON, attendees: ["ana@example.com"] },
       standingApprovals: ALL,
+      origin: "operator",
       now: NOW,
     });
     return !v.auto && v.reason.includes("guests");

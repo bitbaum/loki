@@ -81,6 +81,9 @@ export async function rerouteQueuedToCloud(
       ...(payload.projectKey ? { projectKey: payload.projectKey } : {}),
       ...(payload.runId ? { runId: payload.runId } : {}),
       ...(payload.sessionId ? { sessionId: payload.sessionId } : {}),
+      // Restart the stall clock: the cloud has had this row for no time at
+      // all, and must not be blamed for the minutes the laptop ignored it.
+      reroutedAt: new Date().toISOString(),
     };
     const moved = await retargetUnclaimedCommand(userId, row.id, {
       type: "dispatch",

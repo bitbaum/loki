@@ -30,11 +30,48 @@ export async function getCommandById(id: string) {
  * fleet header so a stalled runner is loud instead of masquerading as healthy.
  * (Dogfood 2026-06-19: a hung runner wasted hours while showing "Connected".)
  */
+/**
+ * When a row's wait for its CURRENT builder began: the reroute time when it was
+ * handed over, else when it was queued.
+ *
+ * Measuring from created_at alone made "Run it in the cloud" look broken. Two
+ * dispatches that had waited 118 minutes for a shut laptop were moved to the
+ * cloud, and on the very next refresh Control said "Stalled — 2 dispatches
+ * queued for 118m, the builder is connected but not executing them. Restart the
+ * desktop app" (2026-10-12). The cloud had held them for seconds, and picked
+ * them up a minute later. The button worked; the clock lied about it.
+ */
+const WAITING_SINCE_SQL = sql`coalesce((${pendingCommands.payload}->>'reroutedAt')::timestamptz, ${pendingCommands.createdAt})`;
+
+/** The stalled set — SSOT for both the detector and "Stop waiting", so the
+ *  button can never act on rows the headline did not count. */
+function stalledRowsWhere(userId: string, graceSeconds: number) {
+  return and(
+    eq(pendingCommands.userId, userId),
+    isNull(pendingCommands.executedAt),
+    // In-flight, not stalled: a claimed command is being executed right now
+    // (local dispatch legitimately holds its claim 20-35s; hosted Hermes
+    // runs for minutes). Genuinely dead claims are reclaimed to unclaimed
+    // by reclaimStalePendingCommands and then count again.
+    isNull(pendingCommands.claimedAt),
+    sql`${WAITING_SINCE_SQL} < now() - interval '1 second' * ${graceSeconds}`,
+    sql`${pendingCommands.createdAt} > now() - interval '2 hours'`,
+    // A dispatch waiting its turn behind an older open run for the same
+    // project is QUEUED, not stalled — the claim gate skips it on purpose.
+    // Counting those had Control shouting "Restart the desktop app" every
+    // time a project ran longer than the grace window with a follow-up
+    // queued (any 2-minute run + one queued dispatch = false alarm). Only a
+    // command the runner was ALLOWED to claim and didn't is evidence of a
+    // hung execution loop.
+    fifoEligibilitySql(),
+  );
+}
+
 export async function getRunnerExecutionStall(userId: string, graceSeconds = 120) {
   const [row] = await db
     .select({
       stalledCount: sql<number>`count(*)::int`,
-      oldestSeconds: sql<number>`coalesce(extract(epoch from (now() - min(created_at)))::int, 0)`,
+      oldestSeconds: sql<number>`coalesce(extract(epoch from (now() - min(${WAITING_SINCE_SQL})))::int, 0)`,
       // Which projects the stuck commands target — so the banner can say
       // "2 dispatches for orangecat" instead of an untraceable count.
       tabs: sql<
@@ -43,29 +80,12 @@ export async function getRunnerExecutionStall(userId: string, graceSeconds = 120
       // How many of them wait for this computer specifically — the case with
       // a one-tap way out (rerouteQueuedToCloud) rather than a restart.
       localQueued: sql<number>`count(*) filter (where payload->>'channel' = 'local')::int`,
+      // …and how many wait for the cloud builder, so the headline can name the
+      // builder that is actually holding them instead of guessing.
+      cloudQueued: sql<number>`count(*) filter (where payload->>'channel' = 'cloud')::int`,
     })
     .from(pendingCommands)
-    .where(
-      and(
-        eq(pendingCommands.userId, userId),
-        isNull(pendingCommands.executedAt),
-        // In-flight, not stalled: a claimed command is being executed right now
-        // (local dispatch legitimately holds its claim 20-35s; hosted Hermes
-        // runs for minutes). Genuinely dead claims are reclaimed to unclaimed
-        // by reclaimStalePendingCommands and then count again.
-        isNull(pendingCommands.claimedAt),
-        sql`created_at < now() - interval '1 second' * ${graceSeconds}`,
-        sql`created_at > now() - interval '2 hours'`,
-        // A dispatch waiting its turn behind an older open run for the same
-        // project is QUEUED, not stalled — the claim gate skips it on purpose.
-        // Counting those had Control shouting "Restart the desktop app" every
-        // time a project ran longer than the grace window with a follow-up
-        // queued (any 2-minute run + one queued dispatch = false alarm). Only a
-        // command the runner was ALLOWED to claim and didn't is evidence of a
-        // hung execution loop.
-        fifoEligibilitySql(),
-      ),
-    );
+    .where(stalledRowsWhere(userId, graceSeconds));
   const stalledCount = row?.stalledCount ?? 0;
   return {
     stalled: stalledCount > 0,
@@ -73,7 +93,39 @@ export async function getRunnerExecutionStall(userId: string, graceSeconds = 120
     oldestSeconds: row?.oldestSeconds ?? 0,
     tabs: (row?.tabs ?? []).slice(0, 5),
     localQueued: row?.localQueued ?? 0,
+    cloudQueued: row?.cloudQueued ?? 0,
   };
+}
+
+/**
+ * "Stop waiting" — the way out of a stall no button could otherwise reach.
+ *
+ * The stuck rows are not deleted. Each is closed as a failed command with the
+ * reason stated, which is exactly the shape the failed-dispatch list already
+ * offers Retry and Dismiss for (getRecentFailedCommands, retryFailedCommand).
+ * So the work is never lost: it moves from a queue nobody is draining to a list
+ * the operator can act on, where Retry sends it again verbatim once a builder
+ * is executing. Returns the rows it closed, so the caller can close their runs.
+ */
+export async function stopWaitingOnStalledCommands(
+  userId: string,
+  graceSeconds = 120,
+): Promise<{ id: string; runId: string | null }[]> {
+  const rows = await db
+    .update(pendingCommands)
+    .set({
+      executedAt: new Date(),
+      result: {
+        ok: false,
+        error: "Stopped waiting from Control — no builder picked this up. Retry sends it again.",
+      },
+    })
+    .where(stalledRowsWhere(userId, graceSeconds))
+    .returning({ id: pendingCommands.id, payload: pendingCommands.payload });
+  return rows.map((r) => {
+    const runId = (r.payload as { runId?: unknown } | null)?.runId;
+    return { id: r.id, runId: typeof runId === "string" ? runId : null };
+  });
 }
 
 /**

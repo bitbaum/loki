@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { STATE_DEFINITIONS } from "@/lib/control-states";
 import { deriveRunnerPresence, latestRunSignals } from "./control-presenter";
 import { postJson } from "@/lib/api/fetch";
+import { runQueueInCloud, stopWaitingOnQueue } from "./hero-actions";
 import { useControlData } from "@/hooks/use-control-data";
 import { cloudBuilderState } from "@/lib/builder-way-forward";
 import { useLaunchModal } from "@/hooks/use-launch-modal";
@@ -194,6 +195,7 @@ export function ControlPanel() {
     // out server-side) outrank "Building" — see deriveFleetPulse.
     executionStall: data?.runnerExecutionStall ?? null,
     cloudOnline: Boolean(builderPresence?.cloud),
+    localOnline: Boolean(builderPresence?.local),
     latestRuns: latestRunSignals(data?.projects ?? [], nowS),
   });
   const liveTabRows = useMemo(
@@ -453,8 +455,15 @@ export function ControlPanel() {
               ?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
           onOpenSettings={() => setFleetSettingsOpen(true)}
-          onRunInCloud={() => {
-            void postJson("/api/control/reroute", {}).then(() => refresh(true));
+          onRunInCloud={async () => {
+            const said = await runQueueInCloud();
+            refresh(true);
+            return said;
+          }}
+          onStopWaiting={async () => {
+            const said = await stopWaitingOnQueue();
+            refresh(true);
+            return said;
           }}
           onNewProject={() => (runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true))}
           onFocusCategory={(category) => {

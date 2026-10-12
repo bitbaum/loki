@@ -64,11 +64,14 @@ export async function proposeCheckins(userId: string, nowMs: number): Promise<Ch
 
   const proposed: QueuedActionSummary[] = [];
   for (const contact of selected) {
-    // operatorRequested: false — nobody asked for these. A check-in is Loki's
-    // own idea, so it belongs in the hourly digest rather than as a Telegram
-    // card per contact; that distinction is the whole reason the flag exists.
-    // (They are send_message rows in any case, which no standing rule covers.)
+    // Nobody asked for these. A check-in is Loki's own idea, so it belongs in
+    // the hourly digest rather than as a Telegram card per contact, and it
+    // waits for a tap even when the operator has a standing approval for
+    // commitments: that rule covers commitments THEY mention. (These are
+    // create_commitment rows — an earlier comment here called them
+    // send_message, and that mistake is how one rode the rule on 2026-10-12.)
     const outcome = await enqueueAction(userId, buildCheckinProposal(contact, nowMs), {
+      origin: "loki",
       operatorRequested: false,
     });
     if (outcome.result === "deduped") continue; // an identical draft is pending

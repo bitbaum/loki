@@ -56,7 +56,11 @@ import { describeAttachedImages } from "@/lib/loki/vision";
 import { dispatchAssistantContent } from "@/lib/dispatch-status";
 import { isBuilderChannel } from "@/lib/constants/statuses";
 import { buildLokiChatPrompt, resolveLokiChatProjectKey } from "@/lib/loki/chat-context";
-import { projectMentionedIn, unknownProjectMention } from "@/lib/project-mention";
+import {
+  projectMentionedIn,
+  projectShownInScreenshot,
+  unknownProjectMention,
+} from "@/lib/project-mention";
 import {
   formatProjectList,
   isBusinessPlanRequest,
@@ -133,6 +137,9 @@ type DispatchOpts = {
   agent?: AdapterId;
   model?: string;
   attachments?: Attachment[];
+  /** Said after the dispatch line when Loki chose the project itself, so a
+   *  guess is never presented as something the person picked. */
+  projectNote?: string;
 };
 
 async function buildAttachmentSuffix(
@@ -195,7 +202,8 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
   const commandId = typeof inject.body.commandId === "string" ? inject.body.commandId : null;
   const runId = typeof inject.body.runId === "string" ? inject.body.runId : null;
   const content = ok
-    ? dispatchAssistantContent(opts.projectKey, dispatchInput)
+    ? dispatchAssistantContent(opts.projectKey, dispatchInput) +
+      (opts.projectNote ? `\n\n${opts.projectNote}` : "")
     : `Could not dispatch to ${opts.projectKey}: ${
         typeof inject.body.error === "string" ? inject.body.error : "dispatch failed"
       }`;
@@ -472,13 +480,18 @@ const profileUpdateTurn: TurnHandler = async (ctx) => {
 };
 
 const screenshotTurn: TurnHandler = async (ctx) => {
-  const screenshotProject = resolveFleetCommandProjectKey(
-    ctx.text,
-    ctx.selectedProjects[0],
-    ctx.projectNames,
-  );
+  const named = resolveFleetCommandProjectKey(ctx.text, ctx.selectedProjects[0], ctx.projectNames);
+  // Nothing picked and nothing named: the screenshot itself may say which
+  // project it is of. Without this, "fix this" + a screenshot from a chat
+  // with no project fell through to an answer, and nothing got fixed.
+  const shown =
+    named || !ctx.hasImages ? null : projectShownInScreenshot(ctx.attachmentSuffix, ctx.projects);
+  const screenshotProject = named ?? shown;
   if (!shouldDispatchScreenshot(ctx.text, ctx.hasImages, screenshotProject)) return null;
   return persistDispatch({
+    projectNote: shown
+      ? `I picked **${shown}** because that is what your screenshot shows. If it is a different project, pick it under Project and send again.`
+      : undefined,
     userId: ctx.userId,
     conversationId: ctx.conversationId,
     existing: ctx.existing,
