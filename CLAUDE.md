@@ -160,7 +160,10 @@ home/              → Agent orchestration library. Pure pieces that tail one
 widget/            → The embeddable feedback widget customer sites load as
                      <script src=".../widget.js">. Zero-dependency vanilla TS,
                      bundled by esbuild on `prebuild` into public/widget.js
-                     (gitignored — built, never committed). main.ts is the UI
+                     (gitignored — built, never committed). widget/chat/ is the
+                     one exception to zero-dependency: the conversation drawn
+                     by @bitbaum/chatkit (on Preact), its own lazy chunk
+                     public/widget-chat.js, opt-in by data-fc-chat="kit". main.ts is the UI
                      (Shadow DOM, so host CSS cannot reach it), voice.ts is
                      speak-your-feedback, report-payload.ts is the shared
                      budgeting the ingest route also relies on.

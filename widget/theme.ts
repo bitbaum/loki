@@ -422,6 +422,17 @@ input { margin-bottom: 10px; }
    the first recommendation reads as the next step. */
 .chat { display: flex; flex-direction: column; gap: 10px; }
 .chatlog { display: flex; flex-direction: column; gap: 14px; max-height: min(46vh, 380px); overflow-y: auto; padding: 2px; }
+/* The shared chat (widget/chat/): the same bounded thread as .chatlog; the
+   widget's own actions sit under an answer, the card after the last turn. */
+.fc-kit { display: flex; flex-direction: column; gap: 8px; }
+.fc-kit .ck-thread-wrap { max-height: min(46vh, 380px); }
+/* The panel's own field styles (textarea:focus below) must not reach chatkit's
+   input: it lives inside chatkit's composer frame, which draws the edge. Two
+   rows, like the panel's own composer, so the placeholder is never cut. */
+.fc-kit .ck-input, .fc-kit .ck-input:hover, .fc-kit .ck-input:focus { min-height: 3.25em; border: 0; background: transparent; box-shadow: none; border-radius: 0; }
+.fc-kit-footer, .fc-kit-after { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 6px; }
+.fc-kit-after { padding: 0 2px; }
+.fc-kit-after .sendcard { align-self: stretch; }
 /* Loki's words are prose on the panel itself — no box — and yours are a
    pill, the way every good chat reads. Bordered bubbles on both sides plus
    bordered cards under them made the thread a stack of boxes. */

@@ -45,9 +45,15 @@ function specifiers(source: string): string[] {
   return [...source.matchAll(/\bfrom\s+"([^"]+)"/g)].map((m) => m[1]);
 }
 
+// The panel may reach into chat/ for the seam alone: the types, the theme
+// mapping and the loader's global name. Anything else there is the chatkit
+// chunk, and importing it would pull preact and chatkit into every page load.
+const SEAM = new Set(["./chat/contract", "./chat/theme"]);
 for (const file of files) {
   const source = readFileSync(join(widgetDir, file), "utf8");
-  const bad = specifiers(source).filter((spec) => !spec.startsWith("./"));
+  const bad = specifiers(source).filter(
+    (spec) => !spec.startsWith("./") || (spec.startsWith("./chat/") && !SEAM.has(spec)),
+  );
   ok(
     bad.length === 0,
     `widget/${file} imports only its own siblings${bad.length ? ` (found: ${bad.join(", ")})` : ""}`,
@@ -56,7 +62,12 @@ for (const file of files) {
 
 // Every sibling a module imports must actually exist — a rename that misses one
 // import breaks the embed on every customer site at once, not just a page here.
-const known = new Set(files.map((f) => f.replace(/\.ts$/, "")));
+const chatDir = join(widgetDir, "chat");
+const chatFiles = readdirSync(chatDir).filter((f) => /\.tsx?$/.test(f) && !f.endsWith(".d.ts"));
+const known = new Set([
+  ...files.map((f) => f.replace(/\.ts$/, "")),
+  ...chatFiles.map((f) => `chat/${f.replace(/\.tsx?$/, "")}`),
+]);
 for (const file of files) {
   const source = readFileSync(join(widgetDir, file), "utf8");
   const missing = specifiers(source)
@@ -64,6 +75,32 @@ for (const file of files) {
     .map((spec) => spec.slice(2))
     .filter((name) => !known.has(name));
   ok(missing.length === 0, `widget/${file} resolves every sibling import`);
+}
+
+// widget/chat/ is the separate chat chunk (public/widget-chat.js): the one
+// place a dependency is allowed, and only the shared chat itself — React
+// there is Preact at bundle time (scripts/build-widget-chat.ts). The seam
+// files are bundled into the panel too, so they stay dependency-free.
+const CHUNK_DEPS = new Set([
+  "react",
+  "react-dom/client",
+  "@bitbaum/chatkit",
+  "@bitbaum/chatkit/react",
+  "@bitbaum/chatkit/styles.css",
+]);
+for (const file of chatFiles) {
+  const name = `chat/${file.replace(/\.tsx?$/, "")}`;
+  const seam = SEAM.has(`./${name}`);
+  const source = readFileSync(join(chatDir, file), "utf8");
+  const bad = specifiers(source).filter((spec) => {
+    if (spec.startsWith("./")) return !known.has(`chat/${spec.slice(2)}`);
+    if (spec === "../theme") return false;
+    return seam || !CHUNK_DEPS.has(spec);
+  });
+  ok(
+    bad.length === 0,
+    `widget/${name} imports only ${seam ? "siblings (it is bundled into the panel)" : "siblings and the shared chat"}${bad.length ? ` (found: ${bad.join(", ")})` : ""}`,
+  );
 }
 
 // The one exception the architecture allows: fcw-* classes on HOST elements.

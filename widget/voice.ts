@@ -239,24 +239,43 @@ export function createVoiceRecorder(opts: VoiceOptions): VoiceRecorder {
       return;
     }
     try {
-      const form = new FormData();
-      // Extension matters: the provider sniffs it when the container is
-      // ambiguous, and a mislabelled clip transcribes as silence.
-      const ext = type.includes("mp4") ? "mp4" : type.includes("ogg") ? "ogg" : "webm";
-      form.append("audio", blob, `feedback.${ext}`);
-      form.append("token", opts.token);
-      const res = await fetch(opts.endpoint, { method: "POST", body: form });
-      const json = (await res.json().catch(() => null)) as { text?: string; error?: string } | null;
-      if (!res.ok || !json?.text) {
-        set("error", { error: json?.error || "Could not transcribe that, try again" });
-        return;
-      }
-      opts.onTranscript(json.text);
+      opts.onTranscript(await transcribeAudio(opts.endpoint, opts.token, blob, type));
       set("idle");
-    } catch {
-      set("error", { error: "Could not reach the server, try again" });
+    } catch (e) {
+      set("error", {
+        error: e instanceof Error ? e.message : "Could not transcribe that, try again",
+      });
     }
   }
 
   return { start, stop, cancel, state: () => state };
+}
+
+/**
+ * One take to the widget's transcription endpoint (multipart `audio` + the
+ * embed `token`) → its words. Throws a sentence to show. Shared by the
+ * recorder above and the shared chat's microphone (widget/chat/).
+ */
+export async function transcribeAudio(
+  endpoint: string,
+  token: string,
+  blob: Blob,
+  type = blob.type,
+): Promise<string> {
+  const form = new FormData();
+  // Extension matters: the provider sniffs it when the container is
+  // ambiguous, and a mislabelled clip transcribes as silence.
+  const ext = type.includes("mp4") ? "mp4" : type.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", blob, `feedback.${ext}`);
+  form.append("token", token);
+  let res: Response;
+  try {
+    res = await fetch(endpoint, { method: "POST", body: form });
+  } catch {
+    throw new Error("Could not reach the server, try again");
+  }
+  const json = (await res.json().catch(() => null)) as { text?: string; error?: string } | null;
+  if (!res.ok || !json?.text)
+    throw new Error(json?.error || "Could not transcribe that, try again");
+  return json.text;
 }
