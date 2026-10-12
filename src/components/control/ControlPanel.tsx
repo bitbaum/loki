@@ -5,6 +5,7 @@ import { STATE_DEFINITIONS } from "@/lib/control-states";
 import { deriveRunnerPresence, latestRunSignals } from "./control-presenter";
 import { postJson } from "@/lib/api/fetch";
 import { useControlData } from "@/hooks/use-control-data";
+import { cloudBuilderState } from "@/lib/builder-way-forward";
 import { useLaunchModal } from "@/hooks/use-launch-modal";
 import { useCreateProject } from "@/hooks/use-create-project";
 import {
@@ -361,6 +362,7 @@ export function ControlPanel() {
           runtimeAvailable={runtimeAvailable}
           hasProjects={(data?.projects.length ?? 0) > 0}
           onRefresh={() => refresh(true)}
+          cloud={cloudBuilderState(data?.cloudBuilderAllowed, builderPresence)}
         />
       )}
 

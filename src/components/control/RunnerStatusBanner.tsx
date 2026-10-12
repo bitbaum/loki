@@ -9,6 +9,11 @@ import { APP_URL } from "@/config/brand";
 import { postJson } from "@/lib/api/fetch";
 import "@/components/desktop/types"; // declare global window.fleetRunner
 import { useInsideFleetRunner } from "@/hooks/use-inside-fleet-runner";
+import {
+  builderWayForward,
+  downloadIsTheWayForward,
+  type CloudBuilderState,
+} from "@/lib/builder-way-forward";
 
 type Props = {
   runnerNeverSeen: boolean;
@@ -22,6 +27,12 @@ type Props = {
   hasProjects?: boolean;
   /** Caller refreshes its data view after the Fleet Runner connection changes. */
   onRefresh?: () => void;
+  /**
+   * The cloud builder as this account sees it. An account that has it never
+   * needs the desktop app to build, so this banner must not pitch one at it —
+   * which it did, on every screen, to the owner on a second computer.
+   */
+  cloud?: CloudBuilderState;
 };
 
 export function RunnerStatusBanner({
@@ -31,6 +42,7 @@ export function RunnerStatusBanner({
   runtimeAvailable = false,
   hasProjects = false,
   onRefresh,
+  cloud = "unknown",
 }: Props) {
   const [dismissed, setDismissed] = useState(false);
   // Detect Fleet Runner so we can short-circuit the "Install Fleet Runner"
@@ -90,6 +102,11 @@ export function RunnerStatusBanner({
   if (dismissed || (!runnerNeverSeen && !runnerOffline)) return null;
 
   const lastSeen = runnerLastPushedAt ? timeAgo(new Date(runnerLastPushedAt).getTime()) : null;
+  const way = builderWayForward({ cloud });
+  // The cloud is this account's builder: the setup pitch and the reconnect
+  // guide below are both about an app this account does not need.
+  const hasCloud = way === "run-in-cloud" || way === "wait-for-cloud";
+  const offerDownload = downloadIsTheWayForward(way) || way === "unknown";
 
   if (!runnerNeverSeen && !expanded) {
     return (
@@ -122,16 +139,33 @@ export function RunnerStatusBanner({
       <div className="min-w-0 flex-1 space-y-2">
         <div>
           <span className="font-medium text-text-primary">
-            {runnerNeverSeen
-              ? EXECUTOR_COPY.runnerBanner.neverSeenTitle
-              : EXECUTOR_COPY.runnerBanner.offlineTitle}
+            {hasCloud
+              ? runnerNeverSeen
+                ? EXECUTOR_COPY.runnerBanner.cloudTitle
+                : EXECUTOR_COPY.runnerBanner.cloudOfflineTitle
+              : runnerNeverSeen
+                ? EXECUTOR_COPY.runnerBanner.neverSeenTitle
+                : EXECUTOR_COPY.runnerBanner.offlineTitle}
           </span>
           {!runnerNeverSeen && lastSeen && (
             <span className="ml-2 text-xs text-text-tertiary">last seen {lastSeen}</span>
           )}
         </div>
 
-        {runnerNeverSeen ? (
+        {hasCloud ? (
+          <>
+            <p className="text-text-secondary leading-relaxed">
+              {runnerNeverSeen
+                ? EXECUTOR_COPY.runnerBanner.cloudNeverSeenBody
+                : EXECUTOR_COPY.runnerBanner.cloudOfflineBody}
+            </p>
+            {runnerNeverSeen && (
+              <Link href="/download" className="text-xs text-text-tertiary underline">
+                {EXECUTOR_COPY.runnerBanner.alsoThisComputer}
+              </Link>
+            )}
+          </>
+        ) : runnerNeverSeen ? (
           <>
             <p className="text-text-secondary leading-relaxed">
               {hasProjects
@@ -192,12 +226,12 @@ export function RunnerStatusBanner({
                     {pairError && <p className="text-xs text-status-warning">{pairError}</p>}
                   </div>
                 )
-              ) : (
+              ) : offerDownload ? (
                 <Link href="/download" className="ui-btn-primary self-start gap-1.5 text-xs">
                   <Download className="h-3.5 w-3.5" aria-hidden="true" />
                   Get the desktop app
                 </Link>
-              )}
+              ) : null}
             </div>
 
             <details className="text-xs text-text-tertiary mt-1">

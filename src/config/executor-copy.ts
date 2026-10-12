@@ -104,6 +104,16 @@ export const EXECUTOR_COPY = {
     reconnectHint: "Using this computer? Open the desktop app from the menu bar. Still stuck?",
     settingsLink: "Settings → Agent tokens",
     downloadLink: "re-install the desktop app",
+    // An account that HAS the cloud builder never needs the desktop app to
+    // build. The lines above were written for accounts that do not, and read
+    // from a second computer they sent the owner to a download (2026-10-12).
+    cloudTitle: "Agents run on the cloud builder",
+    cloudNeverSeenBody:
+      "This account builds on Loki's cloud builder — there is nothing to install. Connect a computer of yours only when an agent should work on files that live there.",
+    cloudOfflineTitle: "Cloud builder offline",
+    cloudOfflineBody:
+      "The cloud builder is offline. Work stays queued — nothing is lost, and nothing needs installing: it is a service on the box that reconnects on its own once it is back.",
+    alsoThisComputer: "Also run agents on a computer of yours",
   },
 
   fleetKick: {
@@ -202,6 +212,14 @@ export const EXECUTOR_COPY = {
       "Start an agent below to run it on your computer. Future project dispatches follow the project's Runs on setting in Control.",
     thisComputerOfflineHint:
       "Fleet Runner isn't connected here. Open the desktop app to run this project's work on your computer.",
+    // "Here" is the device reading the page; "this computer" is the account's
+    // one desktop runner. From any other device the first line is a trap, so
+    // an account with the cloud builder gets the way that works from anywhere.
+    thisComputerOfflineCloudHint:
+      "Fleet Runner isn't connected on your computer. The cloud builder is online and runs this project from anywhere — nothing to install.",
+    thisComputerOfflineCloudDownHint:
+      "Fleet Runner isn't connected on your computer, and the cloud builder is offline too. Work stays queued until either is back.",
+    useCloudBuilder: "Use the cloud builder",
     thisComputerLoading: "Looking for sessions on this computer…",
   },
 } as const;

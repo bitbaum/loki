@@ -56,6 +56,7 @@ import { gateAndCloseRun, closingRuns } from "@/lib/orchestration/gate-and-close
 import { getSessionUserId } from "@/lib/session";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
+import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
 import { isHeartbeatFresh } from "@/lib/builder-presence";
 import { isAgentId, listAgentRegistry } from "@/lib/agent-registry";
 import { inferAdapterFromTabName } from "@/components/control/control-presenter";
@@ -855,6 +856,9 @@ export async function GET() {
           // served stale while it refreshes, so cached heartbeat timestamps age
           // out and report a live builder as offline.
           await getBuilderPresence(userId, runnerVersion).catch(() => null)
+        : null,
+      cloudBuilderAllowed: !isRuntimeAvailable()
+        ? await isFleetInfrastructureAllowed(userId).catch(() => null)
         : null,
       // Execution health (≠ push heartbeat): a runner can keep pushing snapshots
       // while its command loop is hung, so dispatches silently queue forever.

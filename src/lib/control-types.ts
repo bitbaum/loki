@@ -231,6 +231,10 @@ export type ControlData = {
   builderVersions: { cloud: string | null; local: string | null } | null;
   /** Cloud vs local builder SSE channels (bridge). null on local runtime host. */
   builderPresence: { cloud: boolean; local: boolean; any: boolean } | null;
+  /** May this account use the shared cloud builder? Decides whether "connect
+   *  Fleet Runner" is ever the way forward (lib/builder-way-forward). null on
+   *  local runtime host. */
+  cloudBuilderAllowed: boolean | null;
   /** Execution health: a runner can push snapshots while its command loop is
    *  hung, queuing dispatches forever. null when runtime is local. */
   runnerExecutionStall: {

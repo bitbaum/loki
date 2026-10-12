@@ -2,8 +2,8 @@
 
 ---
 created_date: 2026-05-21
-last_modified_date: 2026-09-11
-last_modified_summary: Cloud is the stored default tier; local is a per-project choice; every builder drives owned PTYs (zellij removed, Fleet Runner 0.8.19).
+last_modified_date: 2026-10-12
+last_modified_summary: "This computer" is per account, not per device — from a second computer an account with the cloud builder is offered the cloud, never a download (lib/builder-way-forward).
 ---
 
 Loki is a **hybrid** product: the hosted web app (cloud control plane) owns auth, the database, and the UI. Agents run via the **builder** — the cloud service on Hetzner (box-runner) and/or the optional desktop app on your computer.
@@ -62,6 +62,32 @@ Fleet Runner embeds the `home/` orchestration library and owns execution end-to-
 | **Append-only event log** | `~/.loki/events.jsonl` is the single source of truth for crash recovery |
 | **Connection-based presence** | Runner online/offline is the live bridge SSE connection, not a heartbeat (see `runner_presence`). Presence tells you whether queued work will run now; it never selects the builder |
 | **Auto-continue pause** | `/tmp/loki-auto-continue-<project>` sentinel is applied by the runner; it controls continuation and does not route the project's builder. |
+
+## From another computer
+
+Presence is one row per **account**, so “This computer” means the one machine
+where this account’s Fleet Runner is connected — not the device reading the
+page. Open Loki on a second computer and every builder sentence is still about
+the first one.
+
+What follows from that, and what the product now does (2026-10-12, after the
+owner was sent to download Fleet Runner on a second Mac while the account’s
+cloud builder sat online):
+
+- **An account that has the cloud builder needs no install, anywhere.** The
+  way forward for such an account is “Run it in the cloud” (the dispatch
+  card under a Loki message, the Control hero) or “Use the cloud builder”
+  (the empty terminal). The SSOT is `src/lib/builder-way-forward.ts`; the
+  download is offered only when the cloud is private for the account.
+- **Work queued for a shut laptop moves with one tap.** `POST
+  /api/control/reroute` retargets the unclaimed row to the cloud when the
+  project can be cloned there; the stored preference is untouched.
+- **A project whose files exist only on one machine waits for that machine.**
+  That is the locus lock, and it is correct — there is nowhere else for the
+  work to go. Give the project a cloneable repository to free it.
+- **The desktop app is for one thing:** an agent that must touch files or
+  tools on a particular computer of yours. It is never the way to use Loki
+  from a different computer.
 
 ## Component roles (builder vs web app)
 
