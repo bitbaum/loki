@@ -23,6 +23,13 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   cloud builder was offline. Now that screen says the builder is offline and
   what happens to the work, and the start offer waits for a builder that can
   take it.
+- **The cloud builder's pulse is public.** `/api/health/builder` answers 200
+  while the shared cloud builder is connected and 503 when it is not, so the
+  box watchdog and the fleet sweep alert on it the way they already alert on
+  a dead site. It was offline all night on 2026-10-11 and only a chip inside
+  a signed-in page knew. Each deploy now prints the builder's state and its
+  last journal lines into the CI log, and the feedback queue says “Cloud
+  builder offline” instead of “Watch shows why” when that is the case.
 - **The Mac download is not damaged.** macOS says the app “is damaged and
   can’t be opened” because the build is not yet signed by Apple, and
   right-click → Open does not clear it. `/download` now leads with the

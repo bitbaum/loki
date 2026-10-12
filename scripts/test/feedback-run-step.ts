@@ -19,6 +19,24 @@ const waitingCloud = summarizeRunStep({
 });
 assert.equal(waitingCloud.kind, "waiting_builder");
 assert.match(waitingCloud.summary, /cloud builder/i);
+// 2026-10-12: the cloud builder was offline all night and this read "Command
+// is in the cloud queue. If this stays put, Watch shows why" — nothing showed
+// why. Offline is a fact the line has to state.
+assert.match(waitingCloud.summary, /offline/i);
+assert.match(waitingCloud.detail ?? "", /nothing starts until it reconnects/i);
+assert.doesNotMatch(waitingCloud.detail ?? "", /Watch shows why/);
+
+const waitingCloudUp = summarizeRunStep({
+  latestKind: "dispatched",
+  deliveredAt: null,
+  lastProgressAt: null,
+  pendingUnclaimed: true,
+  channel: "cloud",
+  localOnline: false,
+  cloudOnline: true,
+});
+assert.equal(waitingCloudUp.kind, "waiting_builder");
+assert.match(waitingCloudUp.summary, /waiting for cloud builder to claim/i);
 
 const waitingLocal = summarizeRunStep({
   latestKind: "dispatched",

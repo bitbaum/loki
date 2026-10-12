@@ -78,6 +78,41 @@ const COPY: Record<
   },
 };
 
+/**
+ * The builder chip, scoped to THIS source. Using any-builder `runnerConnected`
+ * on the cloud tab labelled a laptop-only online state as "Cloud builder
+ * online", and the inverse (null while presence loads) as "Cloud builder
+ * offline" while the box was shipping. Live tabs are the tie-break when
+ * channels disagree with presence — same rule as useTerminalTabs.offline.
+ * A private cloud is not an offline one: a new account read "Cloud builder
+ * offline" beside "private for this account" (2026-10-12).
+ */
+function terminalHonesty(input: {
+  source: TerminalSource;
+  gatedMessage: string | null;
+  presence: BuilderPresenceSnapshot;
+  tabs: string[];
+  local: boolean;
+}): ReturnType<typeof deriveExecutorHonestyLabel> {
+  const { source, gatedMessage, presence, tabs, local } = input;
+  if (source === "cloud" && gatedMessage) {
+    return {
+      kind: "needs-builder",
+      label: EXECUTOR_COPY.builder.cloudPrivate,
+      title: gatedMessage,
+    };
+  }
+  if (presence.builderPresence == null && tabs.length === 0) return null;
+  const channelOnline =
+    source === "machine" ? presence.builderPresence?.local : presence.builderPresence?.cloud;
+  const runnerConnected = channelOnline ?? tabs.length > 0;
+  return deriveExecutorHonestyLabel(
+    source === "machine"
+      ? { runnerConnected, runtimeAvailable: false, scope: "machine" }
+      : { runnerConnected, runtimeAvailable: local || presence.runtimeAvailable, scope: "cloud" },
+  );
+}
+
 const channelFor = (source: TerminalSource): BuilderChannel =>
   source === "machine" ? "local" : "cloud";
 
@@ -413,29 +448,7 @@ export function TerminalSurface({
   const readScreenRef = useRef<((rows: number) => string[]) | null>(null);
   const [geometry, setGeometry] = useState<PtyGeometry | null>(null);
 
-  // Scope the chip to THIS source. Using any-builder `runnerConnected` on the
-  // cloud tab labelled a laptop-only online state as "Cloud builder online",
-  // and the inverse (null while presence loads) as "Cloud builder offline"
-  // while the box was shipping. Live tabs are the tie-break when channels
-  // disagree with presence — same rule as useTerminalTabs.offline.
-  const channelOnline =
-    source === "machine" ? presence.builderPresence?.local : presence.builderPresence?.cloud;
-  const honesty =
-    presence.builderPresence == null && tabs.length === 0
-      ? null
-      : deriveExecutorHonestyLabel(
-          source === "machine"
-            ? {
-                runnerConnected: channelOnline ?? (tabs.length > 0 ? true : false),
-                runtimeAvailable: false,
-                scope: "machine",
-              }
-            : {
-                runnerConnected: channelOnline ?? (tabs.length > 0 ? true : false),
-                runtimeAvailable: local || presence.runtimeAvailable,
-                scope: "cloud",
-              },
-        );
+  const honesty = terminalHonesty({ source, gatedMessage, presence, tabs, local });
 
   // Agent roster derived from context (already fetched above for tab resolution)
   const agents = useMemo(

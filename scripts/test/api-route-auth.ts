@@ -126,6 +126,8 @@ const PUBLIC: Record<string, string> = {
   // — Intentional, with the reasoning recorded at the route itself.
   "debug-log": "client error reporter — see the route's own comment on why it takes no auth",
   health: "liveness probe; must answer before anything else works",
+  "health/builder":
+    "liveness of the shared cloud builder — one boolean and one timestamp about a service the operator runs, so the box watchdog can alert on it flipping (2026-10-12: it was offline all night and only a signed-in chip knew)",
   newsletter: "public marketing signup — email address only",
   "control/transcribe": "one-line re-export of /api/beacon/transcribe, which carries the guard",
 };
