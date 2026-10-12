@@ -39,7 +39,12 @@ const img = "9a1b2c3d-1111-4222-8333-944455556666";
     { src: "https://evil.example/x.png", caption: "x" },
     { src: "javascript:alert(1)", caption: "x" },
     { src: "data:image/svg+xml;base64,PHN2Zz4=", caption: "x" },
-    { src: `/api/conversations/${convo}/images/../../users`, caption: "x" },
+    // Joined, not written as one literal: scripts/test/internal-paths-resolve.ts
+    // reads path-shaped strings as links, and this one is deliberately broken.
+    {
+      src: ["", "api", "conversations", convo, "images", "..", "..", "users"].join("/"),
+      caption: "x",
+    },
     { src: 42, caption: "x" },
   ];
   assert.deepEqual(readMessageImages({ images: bad }), []);
