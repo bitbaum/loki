@@ -7637,8 +7637,25 @@
   .ui-dispatch-watch-link {
     @apply inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
   }
-  .ui-loki-queued-action {
-    @apply mt-2 inline-flex max-w-full items-center gap-1.5 rounded-xl border border-accent-muted bg-accent-muted/10 px-3 py-2 text-xs text-text-secondary transition-colors hover:border-accent-primary hover:text-text-primary;
+  /* The action an answer queued, decided under it: one line saying where
+     it stands, and the buttons while it is still a draft. */
+  .ui-loki-queued-card {
+    @apply mt-2 flex max-w-full flex-col gap-2 rounded-xl border border-accent-muted bg-accent-muted/10 px-3 py-2 text-xs text-text-secondary;
+  }
+  .ui-loki-queued-card-positive {
+    @apply border-status-positive/30 bg-status-positive-subtle;
+  }
+  .ui-loki-queued-card-warning {
+    @apply border-status-warning/40 bg-status-warning-subtle;
+  }
+  .ui-loki-queued-line {
+    @apply flex items-start gap-1.5 text-text-primary;
+  }
+  .ui-loki-queued-actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+  .ui-loki-queued-review {
+    @apply inline-flex min-h-8 items-center text-xs text-text-tertiary underline-offset-2 hover:text-text-primary hover:underline;
   }
 
   /* Composer (center pane, bottom). Grok-like: one large command object with

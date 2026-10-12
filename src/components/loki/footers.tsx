@@ -13,14 +13,7 @@
  */
 import { useState } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  CornerDownRight,
-  ListChecks,
-  MessageCircle,
-  Sparkles,
-  TerminalSquare,
-} from "lucide-react";
+import { ArrowRight, CornerDownRight, MessageCircle, Sparkles, TerminalSquare } from "lucide-react";
 import { nextStepPrompt, type RunFollow, type RunHandoff } from "@/lib/run-handoff";
 import type { CitationMap } from "@/components/ui/markdown-text";
 import {
@@ -360,37 +353,6 @@ function RunHandoffBlock({
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * Footer when a chat turn turned into a real action.
- *
- * Two outcomes, two sentences, and the difference is not cosmetic. Under a
- * standing approval the action is ALREADY RUNNING, and the old copy — "added
- * to your approval queue, review to run it" — would send the operator to a
- * queue that no longer holds it, to approve something already approved. That
- * is the same class of untruth as claiming a booking that never happened, just
- * pointing the other way.
- */
-export function QueuedActionFooter({ meta }: { meta: Record<string, unknown> | null }) {
-  const id = typeof meta?.queuedActionId === "string" ? meta.queuedActionId : null;
-  if (!id) return null;
-  const title = typeof meta?.queuedActionTitle === "string" ? meta.queuedActionTitle : "an action";
-  const auto = meta?.queuedActionAutoApproved === true;
-  return (
-    <Link href={auto ? "/approvals" : "/today#actions"} className="ui-loki-queued-action">
-      <ListChecks className="h-3.5 w-3.5" />
-      {auto ? (
-        <span>
-          Doing it now: <strong>{title}</strong> — your standing approval covers this
-        </span>
-      ) : (
-        <span>
-          Added to your approval queue: <strong>{title}</strong> — review to run it
-        </span>
-      )}
-    </Link>
   );
 }
 

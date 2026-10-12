@@ -77,6 +77,14 @@ The Loki page (`/loki`) is live and in daily use as the dogfood surface. Confirm
   a title that is still the placeholder or the derived opening line — a person's own
   name is never overwritten. Rename by clicking the title in the desktop top bar, or
   "Rename" in the phone's thread menu. Neither naming nor renaming bumps recency.
+- **Approve where it was proposed (2026-10-12):** an answer that queued an action
+  (a message, an event, a commitment) carries a card under it with **Do it** and
+  **Not now**, decided through the same `/api/actions/[id]/decision` path as the
+  Approvals page. It reads the action's real status on load
+  (`/api/actions/[id]/status`), asks for the private-zone PIN in place when the zone
+  is locked, and says plainly what happened: done, waiting in Approvals because no
+  executor exists for that kind, failed with the reason, declined, or expired
+  (`lib/loki/queued-action-view.ts`).
 
 Open questions §6 #1 (chat vs command — both, routed by intent resolution) and #2
 (dispatches go to the project's existing session; the conversation is the human-readable
