@@ -99,6 +99,7 @@ export function defineTool<S extends z.ZodTypeAny>(def: {
   params: S;
   example: string;
   operatorOnly?: boolean;
+  acts?: boolean;
   handler: (args: z.infer<S>, ctx: ToolContext) => Promise<ToolResult>;
 }): ToolDef {
   return def as unknown as ToolDef;
