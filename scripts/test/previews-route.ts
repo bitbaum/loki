@@ -36,6 +36,7 @@ const deps = (overrides: Partial<PreviewDeps> = {}): PreviewDeps => ({
   },
   allowAttempt: () => ++attempts <= 3,
   secureCookies: true,
+  appOrigin: "https://loki.example",
   ...overrides,
 });
 
@@ -174,6 +175,72 @@ async function main() {
   ok(
     !(await res.text()).includes("data-fc-project"),
     "no widget key: the page is served without one",
+  );
+
+  // ---- on its own address (<label>.orangecat.ch, the preview IS the root) ----
+  const ROOT = "https://francesco.orangecat.ch/p/francesco-tarallo";
+  const rooted = (p: string, init: RequestInit = {}) =>
+    new Request(`${ROOT}${p}`, {
+      ...init,
+      headers: { ...(init.headers as Record<string, string>), "x-preview-root": "1" },
+    });
+  res = await handlePreviewGet(
+    rooted("/index.html"),
+    "francesco-tarallo",
+    seg("index.html"),
+    deps(),
+  );
+  body = await res.text();
+  ok(
+    res.status === 401 && body.includes('action="/"'),
+    "own address: the gate posts to /, not /p/…",
+  );
+  res = await handlePreviewPost(
+    rooted("", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: "aaaaaa11" }),
+    }),
+    "francesco-tarallo",
+    "203.0.113.9",
+    deps({ allowAttempt: () => true }),
+  );
+  const rootedCookie = res.headers.get("set-cookie") ?? "";
+  ok(/;\s*Path=\/(;|$)/.test(rootedCookie), "own address: the cookie reaches every path");
+  res = await handlePreviewPost(
+    rooted("", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "code=aaaaaa11",
+    }),
+    "francesco-tarallo",
+    "203.0.113.9",
+    deps({ allowAttempt: () => true }),
+  );
+  ok(
+    res.status === 303 && res.headers.get("location") === "https://francesco.orangecat.ch/",
+    "own address: after the code, back to /",
+  );
+  res = await handlePreviewGet(
+    rooted("/index.html", { headers: { cookie: rootedCookie.split(";")[0] } }),
+    "francesco-tarallo",
+    seg("index.html"),
+    deps(),
+  );
+  body = await res.text();
+  ok(
+    res.status === 200 && body.includes('src="https://loki.example/widget.js"'),
+    "own address: the widget loads from Loki, not from the preview's own host",
+  );
+  res = await handlePreviewPost(
+    post("aaaaaa11"),
+    "francesco-tarallo",
+    "203.0.113.9",
+    deps({ allowAttempt: () => true }),
+  );
+  ok(
+    /;\s*Path=\/p(;|$)/.test(res.headers.get("set-cookie") ?? ""),
+    "under /p/…: the cookie stays scoped to /p",
   );
 
   // ---- the code changes ----

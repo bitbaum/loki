@@ -499,3 +499,24 @@ prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is online;
 | Memory | /memory | Knowledge graph stats and recent activity |
 | Thoughts | /thoughts | Published essays on architecture and execution systems |
 | Settings | /settings | Profile + team invite management |
+
+## Websites for people: "create website for <Name>"
+
+The flow is one command and it ends with a link, not a list of steps. Say
+"create website for Murphy's Bar" and the result is `murphys-bar.orangecat.ch`,
+behind the access code, with the feedback widget on it, built by the cloud
+builder, with no repository and nothing public. Ask at most one question (the
+address, default from the name). Full flow:
+`docs/architecture/prospect-previews.md` → "Create website for <name>".
+
+- **Their name is the address**: `<label>.orangecat.ch`, via
+  `scripts/hetzner/attach-preview-host.sh`. A domain they buy later is
+  `attach-domain.sh`.
+- **The code is one value for every preview**, `LOKI_PREVIEW_CODE` in the box
+  env (`/opt/loki/app/.env`), easy to change in one line. It is never written
+  into a repo: this one is public.
+- **Client work is private until they agree** (`docs/architecture/client-work-consent.md`).
+- **No repository per prospect.** Only on "they said yes".
+- Work fast and finish it: use the shared packages, check it at 390px, give the
+  link. Do not explain the machinery to the operator; do the thing.
+

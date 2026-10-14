@@ -20,7 +20,10 @@ import { isUniqueViolation } from "@/lib/api/route-helpers";
 import { appUrl } from "@/lib/email";
 import { createOwnerPass } from "@/lib/feedback/owner-pass";
 import { injectPrompt } from "@/lib/inject-core";
+import { isPreviewAddress } from "@/lib/previews/address";
+import { attachPreviewHost } from "@/lib/previews/host";
 import { previewsRoot, slugifyPreviewName } from "@/lib/previews/root";
+import { unpackArchive } from "@/lib/previews/unpack";
 import { ownerSiteUrl } from "../../../widget/owner-pass";
 
 const run = promisify(execFile);
@@ -36,6 +39,8 @@ export type CreatePreviewResult =
       ownerUrl: string;
       /** Null when the build started; otherwise what to do next. */
       buildNote: string | null;
+      /** Null when the preview has its own address; otherwise why it is on the /p/ path. */
+      addressNote: string | null;
     }
   | { ok: false; status: number; error: string };
 
@@ -73,7 +78,7 @@ async function initFolder(dir: string, name: string): Promise<void> {
 
 export async function createPreview(
   userId: string,
-  input: { name: string; about?: string },
+  input: { name: string; about?: string; address?: string; archive?: Uint8Array },
 ): Promise<CreatePreviewResult> {
   const name = input.name.trim();
   const root = previewsRoot();
@@ -86,13 +91,45 @@ export async function createPreview(
     };
   }
   await mkdir(root, { recursive: true });
-  const slug = freeSlug(root, name);
+  // The address is the folder and the subdomain: <address>.orangecat.ch. Asked
+  // for, it is taken as written or refused; not asked for, it follows the name.
+  const address = input.address?.trim().toLowerCase();
+  if (address && !isPreviewAddress(address)) {
+    return {
+      ok: false,
+      status: 400,
+      error: "An address is lowercase letters, digits and dashes, and not a reserved name.",
+    };
+  }
+  if (address && existsSync(path.join(root, address))) {
+    return { ok: false, status: 409, error: `${address} is already taken. Pick another address.` };
+  }
+  const slug = address || freeSlug(root, name);
   if (!slug) return { ok: false, status: 409, error: "Too many previews with that name already." };
   const dir = path.join(root, slug);
 
   await initFolder(dir, name);
 
-  const previewUrl = new URL(previewEntryPath(slug), appUrl()).toString();
+  // A site that already exists replaces the placeholder and is committed as it
+  // arrived; nothing is built, because there is nothing to build yet.
+  if (input.archive) {
+    const unpacked = await unpackArchive(input.archive, dir);
+    if (!unpacked.ok) {
+      await rm(dir, { recursive: true, force: true });
+      return { ok: false, status: 400, error: unpacked.error };
+    }
+    const git = (...args: string[]) =>
+      run("git", ["-c", "user.name=Loki", "-c", "user.email=loki@orangecat.ch", ...args], {
+        cwd: dir,
+      });
+    await git("add", "-A");
+    await git("commit", "-q", "-m", `Bring in the site for ${name}`);
+  }
+
+  // Its own address when this server can set one; the /p/ path when it cannot.
+  const host = await attachPreviewHost(slug);
+  const previewUrl = host.ok ? host.url : new URL(previewEntryPath(slug), appUrl()).toString();
+  const addressNote = host.ok ? null : host.reason;
   let project;
   try {
     project = await createUserProject({
@@ -117,8 +154,15 @@ export async function createPreview(
   const projectId = project.entityProjectId;
   if (!projectId) return { ok: false, status: 500, error: "The project was not created fully." };
 
-  await upsertWidgetToken(userId, projectId, { origins: [new URL(appUrl()).origin] });
+  // The widget loads from Loki but runs on the preview's own address too.
+  await upsertWidgetToken(userId, projectId, {
+    origins: [new URL(appUrl()).origin, ...(host.ok ? [new URL(previewUrl).origin] : [])],
+  });
   const ownerUrl = ownerSiteUrl(previewUrl, createOwnerPass(projectId, userId));
+
+  if (input.archive) {
+    return { ok: true, slug, projectId, previewUrl, ownerUrl, buildNote: null, addressNote };
+  }
 
   // Build on the box: the folder exists there and nowhere else
   // (execution-access.ts locks preview folders to the cloud builder).
@@ -142,5 +186,5 @@ export async function createPreview(
         ? body.error
         : "The build did not start. Open the project and start it from there.";
 
-  return { ok: true, slug, projectId, previewUrl, ownerUrl, buildNote };
+  return { ok: true, slug, projectId, previewUrl, ownerUrl, buildNote, addressNote };
 }

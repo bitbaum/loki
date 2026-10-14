@@ -56,7 +56,7 @@ export type OwnDomainResult =
   | { status: "failed"; reason: string; command: string };
 
 /** attach-domain.sh's last line is LIVE_URL=<url>; exit codes in its header. */
-function runAttachScript(
+export function runAttachScript(
   scriptPath: string,
   deployKeyPath: string,
   args: string[],

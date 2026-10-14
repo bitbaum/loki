@@ -98,9 +98,18 @@ export const PREVIEW_FORM: FormTarget = {
       placeholder: "e.g. DJ in Zurich, dub techno. ra.co/dj/francescotarallo",
       hint: "Links, place, trade. Loki researches the rest.",
     },
+    {
+      name: "address",
+      label: "Address",
+      type: "text",
+      maxLength: 48,
+      placeholder: "e.g. francesco",
+      hint: "Becomes <address>.orangecat.ch. Empty uses the name.",
+    },
   ]),
   instructions: [
     "The name is the person's or business's own name, as they write it.",
+    "The address is short, lowercase, letters, digits and dashes: a person's first name or a business's whole name (murphys-bar).",
     "Put links, the place and what they do into 'about'.",
   ],
 };

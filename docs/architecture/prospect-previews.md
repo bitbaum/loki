@@ -93,6 +93,54 @@ Then restart `loki-app`. The folder root is created on the first preview.
    (`preview.orangecat.ch`), add a Caddy site that proxies to Loki's `/p/`. The
    app works without it.
 
+## Its own address
+
+Every preview is served at `/p/<address>/`, and when this server can set it up
+it is also the whole of `<address>.orangecat.ch` (`francesco.orangecat.ch`).
+That is what the prospect is sent: it reads like their own site, and the day
+they buy a domain the move is `attach-domain.sh`, nothing else.
+
+- **Wildcard DNS** (`*.orangecat.ch`) already points every label at the box, so
+  there is no record to set. The Caddy vhost is the switch.
+- `scripts/hetzner/attach-preview-host.sh <address>` writes
+  `/etc/caddy/apps.d/preview-<address>.caddy` (`lib.sh` → `preview_vhost`),
+  validates and reloads Caddy. It refuses reserved labels and any host the
+  register already serves. `--detach` removes it. Pinned by
+  `scripts/hetzner/test-preview-host.sh`.
+- The vhost rewrites `/` to the entry file and everything else under
+  `/p/<address>/`, and sends `X-Preview-Root: 1`. With that header Loki scopes
+  the cookie to `/`, posts the gate to `/`, and loads the widget from Loki's own
+  origin (a relative `/widget.js` would be asked of the preview). Without it
+  nothing changes (`handle.ts`, `ROOTED_HEADER`).
+- The widget token's origins include the new address, or its feedback would
+  stop at the new host.
+- When the server cannot do this itself, the preview still works at its
+  `/p/` path and the creation result says why (`addressNote`).
+
+## A site that already exists
+
+"Build a preview" can take a finished site as a `.zip` (index.html at the top;
+one wrapping folder is stripped). `src/lib/previews/unpack.ts` extracts it with
+python's zipfile: no absolute or `..` paths, no symlinks, no `.git`, a byte
+count that does not trust headers, 25 MB in, 150 MB out. It is committed to the
+folder's own git history as it arrived and nothing is built. Pinned by
+`scripts/test/preview-unpack.ts`.
+
+## Create website for <name>
+
+The whole flow, from "create website for Murphy's Bar":
+
+1. The name, and the address it should have (`murphys-bar` unless told
+   otherwise): one question at most.
+2. `POST /api/previews { name, about, address }` (the Build a preview dialog).
+   It makes the folder and local git history, the project (client work, so
+   private), the widget token and owner link, attaches
+   `<address>.orangecat.ch`, and hands the brief to the cloud builder.
+3. The result is the address to send, opened with the access code, and the owner
+   link whose notes start changes. No repository, no PR, nothing public.
+4. "They said yes": record consent, then graduate (repository) and
+   `attach-domain.sh` for their own domain.
+
 ## Rules that must not drift
 
 - A preview never gets a GitHub repository or a public domain before the
