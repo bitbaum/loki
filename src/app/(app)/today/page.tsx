@@ -41,6 +41,7 @@ import { LastNightCard } from "@/components/today/LastNightCard";
 import { ListenBriefButton } from "@/components/today/ListenBriefButton";
 import { lastNightNote } from "@/lib/autopilot-night-note";
 import { isFreshNight } from "@/config/autopilot-night";
+import { StartMyDay } from "@/components/control/StartMyDay";
 
 export const metadata = { title: "Today" };
 
@@ -225,6 +226,7 @@ export default async function TodayPage() {
                 phone opens to — was the one place that did not say what had
                 moved. Each piece renders nothing when it has nothing to say. */}
             <AwayReturnCard />
+            <StartMyDay />
             <LastNightCard note={nightNote} />
             <div className="ui-today-brief-row">
               <ListenBriefButton nightNote={nightNote} />

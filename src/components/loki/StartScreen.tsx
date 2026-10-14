@@ -6,6 +6,7 @@ import { AwayReturnCard } from "@/components/shell/AwayReturnCard";
 import { BuildSuggestions } from "./BuildSuggestions";
 import { ThreadInbox } from "./ThreadInbox";
 import type { ConversationSummary } from "./types";
+import { StartMyDay } from "@/components/control/StartMyDay";
 
 /** Threads offered for resuming. Four one-line rows fit above the composer on a
  *  390px phone without pushing the greeting off-screen; the rest are one tap
@@ -53,6 +54,7 @@ export function StartScreen({
   return (
     <div className="ui-loki-start">
       <AwayReturnCard />
+      <StartMyDay />
       {/* One line of truth above the greeting: what needs you, what runs,
           what came back while you looked elsewhere — each a tap into the
           first such thread. Claude's list makes you read every row for

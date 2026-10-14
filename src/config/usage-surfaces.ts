@@ -35,6 +35,12 @@ type UsageSurfaceSpec = {
 };
 
 export const USAGE_SURFACES = {
+  "loki.start-my-day": {
+    label: "Start my day",
+    path: "/today",
+    actions: ["shown", "tap"],
+    target: "the owned project id, or selected for a batch",
+  },
   "loki.build-next": {
     label: "Build next (Loki start screen)",
     path: "/loki",
