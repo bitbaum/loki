@@ -6,6 +6,30 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-14 — Package updates arrive on their own, and you choose how
+
+- **Each project says how updates reach it.** Under "Built from", one setting
+  with three choices: **Automatic** (the default — an update merges itself
+  once the project's tests pass), **Ask me** (each update waits for you on
+  Approvals) and **Stay on these versions** (nothing updates until you change
+  it back). The line under it says what will happen, and a change reaches the
+  updates already open straight away, or within 15 minutes.
+- **Breaking updates always ask.** A new major version, or a new minor under
+  1.0, waits for you whatever the setting, because the project's code may need
+  changes to take it.
+- **Updates waiting for you are on Approvals.** Each card says which project,
+  which packages from which version to which, whether it is breaking, whether
+  its checks pass, and links to the pull request. **Update** takes it (a
+  breaking one is merged as soon as its checks pass), **Not now** hides it
+  for a week, **Stay on this version** tells Dependabot to stop offering it.
+- **You can see every update in flight.** "Built from" and each package's
+  page show an open update under the package it changes: waiting on tests,
+  held for you, or ready.
+- **Nothing new runs in the projects.** The update pull requests are
+  Dependabot's and the merging is the fleet's auto-merge, as before; Loki
+  only puts a `hold` label on what should wait and takes off only the holds
+  it put on — a hold someone added by hand on GitHub stays.
+
 ## 2026-10-14 — See what every project is built from
 
 - **A Packages page.** Under Fleet, Packages lists every shared package the
