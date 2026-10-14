@@ -9,6 +9,7 @@ import { NewProjectButton } from "@/components/projects/NewProjectButton";
 import { NewPreviewButton } from "@/components/projects/NewPreviewButton";
 import { FleetRegisterNote } from "@/components/projects/FleetRegisterNote";
 import type { ProjectGridRow } from "@/components/projects/project-grid-row";
+import { getPreviewCode } from "@/db/queries/preview-code";
 import { requirePageUserId } from "@/lib/session";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { AutoRefresh } from "@/components/shared/AutoRefresh";
@@ -62,6 +63,8 @@ export default async function ProjectsPage({
     redirect(`/projects?q=${encodeURIComponent(requested)}`);
   }
 
+  const previewCode = await getPreviewCode(userId).catch(() => null);
+
   return (
     <PullToRefresh>
       <PageLayout
@@ -77,7 +80,7 @@ export default async function ProjectsPage({
         maxWidth="max-w-5xl"
         right={
           <div className="flex flex-wrap items-center gap-2">
-            <NewPreviewButton />
+            <NewPreviewButton savedCode={previewCode ?? ""} />
             <NewProjectButton
               autoOpen={autoOpenCreate}
               initialName={prefillName}

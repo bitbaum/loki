@@ -15,17 +15,17 @@ import { PREVIEW_FORM } from "@/config/ai-forms";
  * access code, and Loki's widget on it so they can say what to change.
  * Lands on the new project, which shows the link and the owner link.
  */
-export function NewPreviewButton() {
+export function NewPreviewButton({ savedCode = "" }: { savedCode?: string }) {
   const form = useAiForm({
     target: PREVIEW_FORM.key,
     fields: PREVIEW_FORM.fields,
-    initialValues: { name: "", about: "", address: "" },
+    initialValues: { name: "", about: "", address: "", code: savedCode },
   });
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [archive, setArchive] = useState<File | null>(null);
   const { create, saving, error, setError } = useCreateMutation<
-    { name: string; about?: string; address?: string },
+    { name: string; about?: string; address?: string; code?: string },
     { preview?: { projectId?: string } }
   >({
     // A finished site travels as multipart; otherwise it is asked for as JSON.
@@ -48,7 +48,7 @@ export function NewPreviewButton() {
       triggerLabel="Build a preview"
       submitLabel="Build it"
       savingLabel="Starting…"
-      canSubmit={!!form.text("name").trim()}
+      canSubmit={!!form.text("name").trim() && form.text("code").trim().length >= 3}
       saving={saving}
       error={error}
       onSubmit={() =>
@@ -56,6 +56,7 @@ export function NewPreviewButton() {
           name: form.text("name").trim(),
           about: form.text("about").trim() || undefined,
           address: form.text("address").trim() || undefined,
+          code: form.text("code").trim() || undefined,
         })
       }
       onReset={() => {
@@ -89,6 +90,17 @@ export function NewPreviewButton() {
           value={form.text("address")}
           onChange={(e) => form.setValue("address", e.target.value)}
           placeholder="e.g. francesco  →  francesco.orangecat.ch"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="ui-input"
+        />
+      </Field>
+      <Field label="Access code (you tell it to them; remembered for next time)" required>
+        <input
+          value={form.text("code")}
+          onChange={(e) => form.setValue("code", e.target.value)}
+          placeholder="any word, e.g. cat"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}

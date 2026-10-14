@@ -93,6 +93,23 @@ Then restart `loki-app`. The folder root is created on the first preview.
    (`preview.orangecat.ch`), add a Caddy site that proxies to Loki's `/p/`. The
    app works without it.
 
+## The access code
+
+One code per operator, chosen in the app: the **Access code** field in *Build a
+preview* (or said to the chat) is remembered in `user_preferences.preview_code`
+and opens every preview that operator owns, old and new. No server edit. A
+preview checks its owner's code first, then `LOKI_PREVIEW_CODE` in the server
+env as the fallback; with neither, it refuses to be created rather than make a
+preview nobody can open. Change it by typing a new one; every visitor who
+entered the old one is asked again (the cookie carries a fingerprint of the
+code).
+
+## Ask Loki
+
+In Loki's chat, "create website for Murphy's Bar" runs the `create_website` tool
+(`src/lib/agent/tools/handlers.ts`): same `createPreview`, no dialog. The
+answer is the link and the code to tell them.
+
 ## Its own address
 
 Every preview is served at `/p/<address>/`, and when this server can set it up

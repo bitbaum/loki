@@ -12,6 +12,8 @@ const Body = z.object({
   about: z.string().trim().max(2000).optional(),
   /** The subdomain: <address>.orangecat.ch. Defaults to the name. */
   address: z.string().trim().max(48).optional(),
+  /** The access code for all your previews; remembered once given. */
+  code: z.string().trim().min(3, "A code needs at least 3 characters.").max(40).optional(),
 });
 
 /**
@@ -31,7 +33,12 @@ export async function POST(req: NextRequest) {
       const value = form?.get(key);
       return typeof value === "string" && value.trim() ? value : undefined;
     };
-    raw = { name: field("name"), about: field("about"), address: field("address") };
+    raw = {
+      name: field("name"),
+      about: field("about"),
+      address: field("address"),
+      code: field("code"),
+    };
     const file = form?.get("archive");
     if (file instanceof File && file.size > 0) {
       if (file.size > MAX_ARCHIVE_BYTES) {
@@ -49,9 +56,9 @@ export async function POST(req: NextRequest) {
   }
   const result = await createPreview(userId, { ...parsed.data, archive });
   if (!result.ok) return jsonError(result.error, result.status);
-  const { slug, projectId, previewUrl, ownerUrl, buildNote, addressNote } = result;
+  const { slug, projectId, previewUrl, ownerUrl, buildNote, addressNote, accessCode } = result;
   return jsonOk(
-    { preview: { slug, projectId, previewUrl, ownerUrl, buildNote, addressNote } },
+    { preview: { slug, projectId, previewUrl, ownerUrl, buildNote, addressNote, accessCode } },
     { status: 201 },
   );
 }

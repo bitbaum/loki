@@ -70,6 +70,12 @@ export type ToolDef<S extends z.ZodTypeAny = z.ZodTypeAny> = {
    * withoutOperatorTools; see that function for why filtering, not a check.
    */
   operatorOnly?: boolean;
+  /**
+   * Carried out at once on the operator's own explicit command, rather than
+   * drafted for approval (a private, reversible act they just asked for). The
+   * catalog says so, so the model does not tell them it "needs approval".
+   */
+  acts?: boolean;
   handler: (args: z.infer<S>, ctx: ToolContext) => Promise<ToolResult>;
 };
 
@@ -93,6 +99,7 @@ export function defineTool<S extends z.ZodTypeAny>(def: {
   params: S;
   example: string;
   operatorOnly?: boolean;
+  acts?: boolean;
   handler: (args: z.infer<S>, ctx: ToolContext) => Promise<ToolResult>;
 }): ToolDef {
   return def as unknown as ToolDef;
@@ -143,7 +150,7 @@ export function renderToolCatalog(registry: ToolRegistry): string {
   const lines = Object.values(registry).map((t) => {
     const shape = describeParams(t.params);
     return [
-      `### ${t.name}${t.kind === "propose" ? "  (proposes a draft — needs the operator's approval)" : ""}`,
+      `### ${t.name}${t.kind === "propose" ? (t.acts ? "  (carried out at once, on the operator's command)" : "  (proposes a draft — needs the operator's approval)") : ""}`,
       t.description,
       shape ? `Arguments: ${shape}` : "Arguments: none",
       `Example:`,

@@ -20,7 +20,8 @@ export const PREVIEWS = {
    * `img/a.jpg` to /p/img/a.jpg.
    */
   entryFile: "index.html",
-  // The access code is LOKI_PREVIEW_CODE in the box env, one value for every
+  // The access code is the operator's own (user_preferences.preview_code, set in
+  // the app); LOKI_PREVIEW_CODE in the box env is the fallback, one value for every
   // preview (src/lib/previews/access.ts). Changing it is one line in
   // /opt/loki/app/.env and a restart; every visitor who entered the old one is
   // asked again. Unset = previews answer "switched off".

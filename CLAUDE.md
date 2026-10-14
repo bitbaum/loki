@@ -512,9 +512,11 @@ address, default from the name). Full flow:
 - **Their name is the address**: `<label>.orangecat.ch`, via
   `scripts/hetzner/attach-preview-host.sh`. A domain they buy later is
   `attach-domain.sh`.
-- **The code is one value for every preview**, `LOKI_PREVIEW_CODE` in the box
-  env (`/opt/loki/app/.env`), easy to change in one line. It is never written
-  into a repo: this one is public.
+- **The code is the operator's, chosen in the app** (the Access code field in
+  Build a preview, or said to the chat), remembered in
+  `user_preferences.preview_code`; `LOKI_PREVIEW_CODE` in the server env is only
+  the fallback. Never write a real code into a repo: this one is public.
+- **Ask Loki**: "create website for <Name>" in the chat runs `create_website`.
 - **Client work is private until they agree** (`docs/architecture/client-work-consent.md`).
 - **No repository per prospect.** Only on "they said yes".
 - Work fast and finish it: use the shared packages, check it at 390px, give the

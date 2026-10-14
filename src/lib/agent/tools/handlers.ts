@@ -29,6 +29,9 @@ import { HOUR_MS } from "@/lib/constants/time";
 import { askGatewayAgent, isGatewayConfigured } from "@/lib/openclaw-gateway";
 import { makeFact } from "@bitbaum/ai-kit/grounding";
 import { setAway } from "@/lib/away";
+import { createPreview } from "@/lib/previews/create";
+import { RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
+import { checkRateLimit } from "@/lib/rate-limit";
 import {
   BROWSER_RECIPES,
   BROWSER_RECIPE_IDS,
@@ -708,6 +711,61 @@ const suggestBuildsTool = defineTool({
   },
 });
 
+/**
+ * "Create website for Murphy's Bar." One sentence from the operator, and the
+ * answer is a link and a code to send: a private site at
+ * <address>.orangecat.ch with the feedback widget on it, built by the cloud
+ * builder, no repository and nothing public (docs/architecture/prospect-previews.md).
+ * It acts on the operator's own explicit command, the way set_away does.
+ */
+const createWebsiteTool = defineTool({
+  name: "create_website",
+  kind: "propose",
+  acts: true,
+  description:
+    "The operator asks for a website for a person or business ('create website for Murphy's Bar', 'make a site for my dentist'). Creates a private site at <address>.orangecat.ch behind their access code, with the feedback widget on it, and starts building it. Pass the name as they said it; the address defaults from it. Pass a code only if they state one; otherwise the one they saved is used.",
+  params: z.object({
+    name: z.string().min(1).max(80).describe("the person's or business's own name"),
+    address: z
+      .string()
+      .max(48)
+      .optional()
+      .describe("lowercase address label, only if they ask for one"),
+    about: z.string().max(2000).optional().describe("links, place and trade they mentioned"),
+    code: z.string().min(3).max(40).optional().describe("the access code, only if they state one"),
+  }),
+  example:
+    'TOOL: create_website\nARGS: {"name": "Murphy\'s Bar", "about": "Irish pub in Witikon, Zurich"}',
+  handler: async ({ name, address, about, code }, ctx) => {
+    if (!checkRateLimit(`preview-create:${ctx.userId}`, 20, RATE_LIMIT_WINDOW_LONG_MS)) {
+      return empty("That is a lot of sites in an hour. Try again a little later.");
+    }
+    const made = await createPreview(ctx.userId, {
+      name: name as string,
+      address: address as string | undefined,
+      about: about as string | undefined,
+      code: code as string | undefined,
+    });
+    if (!made.ok) return empty(made.error);
+    return {
+      facts: [
+        makeFact({
+          kind: "website",
+          subject: name as string,
+          source: "Loki",
+          values: {
+            link: made.previewUrl,
+            access_code: made.accessCode ?? "the server's preview code",
+            build: made.buildNote ?? "started: it is being built now",
+            ...(made.addressNote ? { address_note: made.addressNote } : {}),
+            then: "Say it in two short lines: the link, and the code to tell them. If build is not 'started', say what it says. Do not describe the machinery.",
+          },
+        }),
+      ],
+    };
+  },
+});
+
 export const LOKI_TOOLS: ToolRegistry = Object.fromEntries(
   [
     searchPeopleTool,
@@ -731,5 +789,6 @@ export const LOKI_TOOLS: ToolRegistry = Object.fromEntries(
     proposeHumanTaskTool,
     setAwayTool,
     fillWebFormTool,
+    createWebsiteTool,
   ].map((t) => [t.name, t]),
 );

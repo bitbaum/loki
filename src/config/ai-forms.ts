@@ -106,6 +106,13 @@ export const PREVIEW_FORM: FormTarget = {
       placeholder: "e.g. francesco",
       hint: "Becomes <address>.orangecat.ch. Empty uses the name.",
     },
+    {
+      name: "code",
+      label: "Access code",
+      type: "text",
+      maxLength: 40,
+      aiExcluded: true,
+    },
   ]),
   instructions: [
     "The name is the person's or business's own name, as they write it.",
