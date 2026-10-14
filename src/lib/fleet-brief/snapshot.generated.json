@@ -1,7 +1,7 @@
 {
   "_generated": "by scripts/generate-fleet-brief-snapshot.ts from bitbaum/fleet registers/packages.json + STACK.md. Do not edit by hand: run pnpm run generate:fleet-brief.",
-  "fetchedAt": "2026-10-14T08:12:34.896Z",
-  "registerGeneratedAt": "2026-10-12T16:05:57.263Z",
+  "fetchedAt": "2026-10-14T09:26:16.175Z",
+  "registerGeneratedAt": "2026-10-14T09:06:54.333Z",
   "packages": [
     {
       "name": "@bitbaum/ai-kit",
@@ -54,9 +54,19 @@
       "install": "pnpm add github:bitbaum/listkit#v0.1.0"
     },
     {
+      "name": "@bitbaum/searchkit",
+      "purpose": "Search that finds what was meant: typo budgets by word length, prefix while…",
+      "install": "pnpm add github:bitbaum/searchkit#v0.2.2"
+    },
+    {
       "name": "threadkit",
       "purpose": "Headless multi-participant message threads",
       "install": "pnpm add threadkit"
+    },
+    {
+      "name": "@bitbaum/geo-kit",
+      "purpose": "Versioned, on-demand geography resources and sourced boundary assertions for…",
+      "install": "pnpm add github:bitbaum/geo-kit#a337aec928cf7804fecf459c308d366b90f4b2fa"
     },
     {
       "name": "@bitbaum/sitekit",
@@ -355,6 +365,17 @@
       "adopterNames": ["bitbaum", "hirnli", "loki", "orangecat", "skif", "substrata"]
     },
     {
+      "slug": "searchkit",
+      "name": "@bitbaum/searchkit",
+      "repo": "bitbaum/searchkit",
+      "summary": "Search that finds what was meant: typo budgets by word length, prefix while typing, German spellings without umlauts, joined and split…",
+      "description": "Search that finds what was meant: typo budgets by word length, prefix while typing, German spellings without umlauts, joined and split words, Algolia-order tie-break ranking, highlight ranges, query expansion for any database, and a generated typo regression suite. Zero dependencies; React optional.",
+      "registerVersion": "0.2.2",
+      "installSource": "git",
+      "install": "pnpm add github:bitbaum/searchkit#v0.2.2",
+      "adopterNames": ["evig", "heidi", "loki", "orangecat", "solon", "substrata"]
+    },
+    {
       "slug": "threadkit",
       "name": "threadkit",
       "repo": "bitbaum/threadkit",
@@ -364,6 +385,17 @@
       "installSource": "npm",
       "install": "pnpm add threadkit",
       "adopterNames": ["heidi", "orangecat", "skif", "substrata", "vitareba"]
+    },
+    {
+      "slug": "geo-kit",
+      "name": "@bitbaum/geo-kit",
+      "repo": "bitbaum/geo-kit",
+      "summary": "Versioned, on-demand geography resources and sourced boundary assertions for web applications",
+      "description": "Versioned, on-demand geography resources and sourced boundary assertions for web applications.",
+      "registerVersion": "0.1.1",
+      "installSource": "git",
+      "install": "pnpm add github:bitbaum/geo-kit#a337aec928cf7804fecf459c308d366b90f4b2fa",
+      "adopterNames": ["orangecat", "solon", "substrata"]
     },
     {
       "slug": "sitekit",
