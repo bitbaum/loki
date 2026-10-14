@@ -28,3 +28,22 @@ export async function attachPreviewHost(label: string): Promise<AttachPreviewHos
     return { ok: false, reason: ran.output.trim().slice(-300) || "attach failed" };
   return { ok: true, url: ran.liveUrl ?? previewHostUrl(label) };
 }
+
+/**
+ * Does the address answer over HTTPS? Any HTTP status counts (a preview with
+ * no access code answers 503, with one 401): what must not happen is no TLS at
+ * all, which is what a browser shows as ERR_SSL_PROTOCOL_ERROR. A fresh host
+ * needs a few seconds for its certificate, so this waits.
+ */
+export async function waitForHost(url: string, totalMs = 45_000): Promise<boolean> {
+  const until = Date.now() + totalMs;
+  while (Date.now() < until) {
+    try {
+      await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(6_000), redirect: "manual" });
+      return true;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+    }
+  }
+  return false;
+}

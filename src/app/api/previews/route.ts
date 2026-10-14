@@ -56,9 +56,21 @@ export async function POST(req: NextRequest) {
   }
   const result = await createPreview(userId, { ...parsed.data, archive });
   if (!result.ok) return jsonError(result.error, result.status);
-  const { slug, projectId, previewUrl, ownerUrl, buildNote, addressNote, accessCode } = result;
+  const { slug, projectId, previewUrl, ownerUrl, buildNote, addressNote, codeNote, accessCode } =
+    result;
   return jsonOk(
-    { preview: { slug, projectId, previewUrl, ownerUrl, buildNote, addressNote, accessCode } },
+    {
+      preview: {
+        slug,
+        projectId,
+        previewUrl,
+        ownerUrl,
+        buildNote,
+        addressNote,
+        codeNote,
+        accessCode,
+      },
+    },
     { status: 201 },
   );
 }

@@ -110,6 +110,25 @@ In Loki's chat, "create website for Murphy's Bar" runs the `create_website` tool
 (`src/lib/agent/tools/handlers.ts`): same `createPreview`, no dialog. The
 answer is the link and the code to tell them.
 
+## An address that never shows a browser error
+
+A host with no vhost has no certificate, and a browser shows
+`ERR_SSL_PROTOCOL_ERROR` for it. That was found on a phone four times, so three
+things now stand behind every preview address:
+
+1. **Creation proves it.** `createPreview` waits until the address answers
+   over HTTPS (`waitForHost`) and reports `addressNote` plainly when it does
+   not. It never says "done" on hope.
+2. **`.github/workflows/previews.yml`** (`scripts/hetzner/ensure-preview.sh`):
+   `create` makes a preview as the operator on the box (no access code goes
+   through a public repo's Actions) and fails the run unless its address
+   answers; `heal` runs every six hours and re-attaches and re-checks every
+   preview folder, so a lost vhost is put back before anyone opens the link.
+3. **No code, still an answer.** A preview with no access code yet answers 503
+   ("switched off"), which proves the address and certificate work. Set the
+   code by saying "set the preview code to ..." in Loki's chat
+   (`set_preview_code`) or in the Access code field.
+
 ## Its own address
 
 Every preview is served at `/p/<address>/`, and when this server can set it up

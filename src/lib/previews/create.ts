@@ -23,7 +23,7 @@ import { createOwnerPass } from "@/lib/feedback/owner-pass";
 import { injectPrompt } from "@/lib/inject-core";
 import { previewCodeFor } from "@/lib/previews/access";
 import { isPreviewAddress } from "@/lib/previews/address";
-import { attachPreviewHost } from "@/lib/previews/host";
+import { attachPreviewHost, waitForHost } from "@/lib/previews/host";
 import { previewsRoot, slugifyPreviewName } from "@/lib/previews/root";
 import { unpackArchive } from "@/lib/previews/unpack";
 import { ownerSiteUrl } from "../../../widget/owner-pass";
@@ -43,8 +43,10 @@ export type CreatePreviewResult =
       ownerUrl: string;
       /** Null when the build started; otherwise what to do next. */
       buildNote: string | null;
-      /** Null when the preview has its own address; otherwise why it is on the /p/ path. */
+      /** Null when the preview has its own address and it answers; otherwise what is wrong. */
       addressNote: string | null;
+      /** Null when a code opens it; otherwise that it stays closed until one is set. */
+      codeNote: string | null;
     }
   | { ok: false; status: number; error: string };
 
@@ -89,6 +91,9 @@ export async function createPreview(
     /** Saved as the operator's code for every preview, now and later. */
     code?: string;
     archive?: Uint8Array;
+    /** Refuse to create one nobody could open (the chat and the dialog); the
+     *  box-side create leaves the code to be set in the app. */
+    requireCode?: boolean;
   },
 ): Promise<CreatePreviewResult> {
   const name = input.name.trim();
@@ -107,13 +112,17 @@ export async function createPreview(
   const given = input.code?.trim();
   if (given) await setPreviewCode(userId, given);
   const accessCode = given || (await getPreviewCode(userId));
-  if (!previewCodeFor(accessCode)) {
+  const hasCode = Boolean(previewCodeFor(accessCode));
+  if (!hasCode && input.requireCode) {
     return {
       ok: false,
       status: 400,
       error: "Choose an access code (any word) so only the people you tell can open it.",
     };
   }
+  const codeNote = hasCode
+    ? null
+    : "No access code yet: it stays closed until you set one (say 'set the preview code to ...' in Loki).";
 
   // The address is the folder and the subdomain: <address>.orangecat.ch. Asked
   // for, it is taken as written or refused; not asked for, it follows the name.
@@ -153,7 +162,13 @@ export async function createPreview(
   // Its own address when this server can set one; the /p/ path when it cannot.
   const host = await attachPreviewHost(slug);
   const previewUrl = host.ok ? host.url : new URL(previewEntryPath(slug), appUrl()).toString();
-  const addressNote = host.ok ? null : host.reason;
+  // Attached is not the same as reachable: wait until the address answers over
+  // HTTPS, and say so plainly when it does not (never report success on hope).
+  const addressNote = !host.ok
+    ? host.reason
+    : (await waitForHost(host.url))
+      ? null
+      : "The address is set up but not answering over HTTPS yet. Its certificate is still being issued; try again in a minute.";
   let project;
   try {
     project = await createUserProject({
@@ -193,6 +208,7 @@ export async function createPreview(
       ownerUrl,
       buildNote: null,
       addressNote,
+      codeNote,
       accessCode,
     };
   }
@@ -219,5 +235,15 @@ export async function createPreview(
         ? body.error
         : "The build did not start. Open the project and start it from there.";
 
-  return { ok: true, slug, projectId, previewUrl, ownerUrl, buildNote, addressNote, accessCode };
+  return {
+    ok: true,
+    slug,
+    projectId,
+    previewUrl,
+    ownerUrl,
+    buildNote,
+    addressNote,
+    codeNote,
+    accessCode,
+  };
 }
