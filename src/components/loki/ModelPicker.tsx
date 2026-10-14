@@ -12,7 +12,7 @@ import {
   type LokiModelOption,
   type LokiModelsResponse,
 } from "@/lib/loki/models";
-import { MODEL_STORE_PATH, OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
+import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 
 /**
  * Which model starts the turn.
@@ -65,9 +65,6 @@ export function ModelPicker({
   useEffect(() => {
     if (!open) return;
     let live = true;
-    setData(null);
-    setBudget(null);
-    setLoadError(null);
     getJson<LokiModelsResponse>("/api/loki/models")
       .then((d) => {
         if (live) setData(d);
@@ -103,6 +100,12 @@ export function ModelPicker({
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  const clearLoad = () => {
+    setData(null);
+    setBudget(null);
+    setLoadError(null);
+  };
 
   const pick = (model: string | undefined) => {
     onChange(model);
@@ -177,7 +180,10 @@ export function ModelPicker({
             <button
               type="button"
               className="ui-btn-secondary mt-2"
-              onClick={() => setReload((n) => n + 1)}
+              onClick={() => {
+                clearLoad();
+                setReload((n) => n + 1);
+              }}
             >
               Retry
             </button>
@@ -218,7 +224,10 @@ export function ModelPicker({
       <button
         type="button"
         className="ui-loki-model-trigger"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (!open) clearLoad();
+          setOpen((v) => !v);
+        }}
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
