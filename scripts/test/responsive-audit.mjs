@@ -116,6 +116,11 @@ const PAGES = [
   "/voice",
   "/control",
   "/projects",
+  // Package rows carry a name, a version and up to four tags that wrap; a
+  // long package name must break, not push the row sideways. The detail
+  // sample is a package every fleet register lists (it is the AI layer).
+  "/packages",
+  "/packages/ai-kit",
   "/approvals",
   // Where a form hand-off starts, and it is opened on a PHONE more than
   // anywhere — the point of it is filling a form from the device in hand.
