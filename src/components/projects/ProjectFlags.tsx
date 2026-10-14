@@ -7,7 +7,7 @@ import { HEALTH_SIGNAL_CONFIG } from "./project-badges";
 import { setAttr, removeAttr } from "@/lib/api/attrs";
 import { timeAgo } from "@/lib/dates";
 import type { AttrProvenance } from "@/lib/project-signals";
-import { signalHasExpired } from "@/lib/project-signals";
+import { signalHasExpired, signalIsLive } from "@/lib/project-signals";
 
 /**
  * Raise, read and clear a project's flags — the half of the lifecycle that
@@ -82,16 +82,19 @@ export function ProjectFlags({
         Flags
       </h2>
       <p className="mt-1 text-sm text-text-secondary">
-        A flag is a note someone wrote — an agent or you. Nothing here scans the project; a flag
-        exists because it was written, and it stays until it is cleared. While one is set this
-        project sorts to the top of Projects and loses a health point.
+        A flag is a note someone wrote — an agent or you. Nothing here scans the project. One you
+        confirm here sorts to the top of Projects and costs a health point. A note imported from an
+        old snapshot, or one that restates a retired fact, stays on the page and does neither —
+        clear it, or rewrite it if it is still true.
       </p>
 
       <div className="mt-4 divide-y divide-border-subtle border-y border-border-subtle">
         {HEALTH_SIGNAL_CONFIG.map((cfg) => {
           const raw = attrs[cfg.key];
           const expired = signalHasExpired(attrMeta, cfg.key);
-          const set = Boolean(raw?.trim()) && !expired;
+          const live = signalIsLive(attrMeta, cfg.key, raw);
+          const held = Boolean(raw?.trim()) && !live;
+          const set = live;
           const meta = attrMeta?.[cfg.key];
           const isEditing = editing === cfg.key;
           const isBusy = busy === cfg.key;
@@ -108,12 +111,18 @@ export function ProjectFlags({
                     {meta?.source ? ` by ${meta.source}` : null}
                   </span>
                 ) : (
-                  <span className="text-micro text-text-muted">{expired ? "expired" : "none"}</span>
+                  <span className="text-micro text-text-muted">
+                    {expired ? "expired" : held ? "not counted" : "none"}
+                    {held && meta?.source ? ` · ${meta.source}` : null}
+                  </span>
                 )}
               </div>
 
               {set && !isEditing && (
                 <p className="mt-1 text-sm leading-relaxed text-text-secondary">{raw}</p>
+              )}
+              {held && !isEditing && (
+                <p className="mt-1 text-sm leading-relaxed text-text-muted">{raw}</p>
               )}
 
               {isEditing ? (
@@ -156,14 +165,14 @@ export function ProjectFlags({
                       disabled={isBusy}
                       onClick={() => {
                         setEditing(cfg.key);
-                        setDraft(set ? raw : "");
+                        setDraft(set || held ? raw : "");
                       }}
                       className="ui-btn-secondary ui-btn-xs"
                     >
-                      {set ? "Edit" : <Plus className="h-3 w-3" aria-hidden />}
-                      {set ? null : "Raise flag"}
+                      {set ? "Edit" : held ? "Rewrite" : <Plus className="h-3 w-3" aria-hidden />}
+                      {set || held ? null : "Raise flag"}
                     </button>
-                    {set && (
+                    {(set || held) && (
                       <button
                         type="button"
                         disabled={isBusy}

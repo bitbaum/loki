@@ -90,13 +90,14 @@ export function ProjectWorkspaceView({
   const siteAddress = userProject?.liveUrl
     ? siteAddresses(userProject.liveUrl, [...readAppsConf(), ...readAppsConf(studioRepoRoot())])
     : null;
-  const healthSignals = getHealthSignals(attrs);
+  const healthSignals = getHealthSignals(attrs, detail.attrMeta);
   const health = computeProjectHealth({
     description: project.description,
     gitUrl: userProject?.gitUrl ?? project.gitUrl,
     dirPath: userProject?.dirPath,
     liveUrl: userProject?.liveUrl,
     attrs,
+    attrMeta: detail.attrMeta,
   });
   // ≥2 consecutive most-recent finished runs timing out is a pattern worth a
   // one-click diagnosis, not something the user should discover by scrolling.

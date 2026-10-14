@@ -116,6 +116,40 @@ eq(
   "live_url column earns the live point",
 );
 
+// An imported snapshot is not an open issue, even when the words are a real
+// bug. Confirming it means rewriting it in Loki, which changes the source.
+const confirmedInput = {
+  description: "Brief",
+  gitUrl: "https://github.com/x/y",
+  attrs: {
+    mission: "m",
+    production_url: "u",
+    status: "production",
+    next_step: "n",
+    definition_of_done: "`npm run verify` passes",
+    security_vulnerability: "Email verification bypass",
+  },
+  attrMeta: {
+    security_vulnerability: {
+      updatedAt: "2026-04-01T00:00:00.000Z",
+      source: "loki-ui",
+      validUntil: null,
+    },
+  },
+};
+const imported = computeProjectHealth({
+  ...confirmedInput,
+  attrMeta: {
+    security_vulnerability: {
+      updatedAt: "2026-04-01T00:00:00.000Z",
+      source: "knowledge.sqlite",
+      validUntil: null,
+    },
+  },
+});
+eq(imported.score, 10, "an imported security note does not cost the point");
+eq(computeProjectHealth(confirmedInput).score, 9, "a note confirmed in Loki still costs the point");
+
 if (fail === 0) console.log(`✓ project-health: ${pass} checks passed`);
 else {
   console.error(`${fail} failed`);

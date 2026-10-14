@@ -113,7 +113,7 @@ check("an empty queue is SAID, not left blank", () => {
 
 check("flagged projects are NAMED with their own words", () => {
   assert(page.includes("hasProjectAttention"), "flags use a different predicate than the list");
-  assert(page.includes("signalHasExpired"), "an expired flag would still be counted here");
+  assert(page.includes("signalIsLive"), "an expired or imported flag would still be counted here");
   assert(
     /reason/.test(verdict) && /p\.name/.test(verdict),
     "the verdict shows a count rather than the project and what it says",

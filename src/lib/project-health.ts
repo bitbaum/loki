@@ -11,6 +11,7 @@
  */
 import { cleanDescription, hasAnswer } from "@/lib/project-display";
 import { HEALTH_SIGNAL_BASE } from "@/components/projects/project-detail-types";
+import { signalIsLive, type AttrProvenance } from "@/lib/project-signals";
 
 export type ProjectHealthInput = {
   description: string | null;
@@ -19,6 +20,8 @@ export type ProjectHealthInput = {
   /** First-class live_url on user_projects. Attrs are the fallback. */
   liveUrl?: string | null;
   attrs: Record<string, string>;
+  /** Per-key source and expiry. Absent means the note is taken as written. */
+  attrMeta?: AttrProvenance;
 };
 
 /**
@@ -207,39 +210,45 @@ export function computeProjectHealth(input: ProjectHealthInput): ProjectHealth {
       },
     },
     // The three attention signals: an open callout costs a point until fixed.
-    ...HEALTH_SIGNAL_BASE.map((signal) => ({
-      key: signal.key,
-      label: signal.clearLabel,
-      // What to call this check WHEN IT IS FAILING.
-      //
-      // `label` is the goal state ("No security risks open"), which is right
-      // in the tooltip's "missing: …" list — the missing thing really is that
-      // state. It is wrong as a heading, because the panel prints the actual
-      // risk directly beneath it, so the row read:
-      //
-      //     No security risks open
-      //     Email verification bypass: anyone can register @revamp-it.ch…
-      //
-      // A headline contradicting the sentence under it. Failing rows name the
-      // problem; passing rows keep naming the goal.
-      failLabel: signal.label,
-      pass: !hasAnswer(attrs[signal.key]),
-      // Machine-built from `label` this read "No broken" / "No open broken
-      // recorded." — a sentence with its noun missing, on every project page.
-      // The wording is written per signal now (clearLabel) instead of derived.
-      detail: hasAnswer(attrs[signal.key])
-        ? // THE EVIDENCE, not a preview of it. These three are the only checks
-          // whose detail is a report someone wrote rather than a field's value,
-          // and the panel is the place you open to read it — so clamping at 80
-          // characters cut the sentence you came for: "anyone can register
-          // @revamp-it.ch domain and get Sta…". The panel already scrolls.
-          // Still bounded, because a pathological note should not be able to
-          // push the actions off the bottom of the screen.
-          truncate(attrs[signal.key], EVIDENCE_MAX)
-        : `Nothing flagged — this point is lost if one is recorded.`,
-      rule: signal.clearRule,
-      fix: { kind: "clear" as const, attr: signal.key },
-    })),
+    ...HEALTH_SIGNAL_BASE.map((signal) => {
+      const note = attrs[signal.key];
+      // An import, an expiry, or a retired sentence is not an open issue.
+      // The point comes back without anyone having to "fix" a door that is
+      // already closed. A note written in Loki, with no expiry, still costs it.
+      const open = signalIsLive(input.attrMeta, signal.key, note);
+      return {
+        key: signal.key,
+        label: signal.clearLabel,
+        // What to call this check WHEN IT IS FAILING.
+        //
+        // `label` is the goal state ("No security risks open"), which is right
+        // in the tooltip's "missing: …" list — the missing thing really is that
+        // state. It is wrong as a heading, because the panel prints the actual
+        // risk directly beneath it, so the row read:
+        //
+        //     No security risks open
+        //     Email verification bypass: anyone can register @revamp-it.ch…
+        //
+        // A headline contradicting the sentence under it. Failing rows name the
+        // problem; passing rows keep naming the goal.
+        failLabel: signal.label,
+        pass: !open,
+        // Machine-built from `label` this read "No broken" / "No open broken
+        // recorded." — a sentence with its noun missing, on every project page.
+        // The wording is written per signal now (clearLabel) instead of derived.
+        detail: open
+          ? // THE EVIDENCE, not a preview of it. These three are the only checks
+            // whose detail is a report someone wrote rather than a field's value,
+            // and the panel is the place you open to read it. Still bounded, so
+            // a pathological note cannot push the actions off the screen.
+            truncate(note, EVIDENCE_MAX)
+          : hasAnswer(note)
+            ? "Not counted. This note is expired, imported, or a retired claim — it does not cost the point. Clear it, or rewrite it here if it is still true."
+            : `Nothing flagged — this point is lost if one is recorded.`,
+        rule: signal.clearRule,
+        fix: { kind: "clear" as const, attr: signal.key },
+      };
+    }),
     {
       key: "next",
       label: "Next step queued",

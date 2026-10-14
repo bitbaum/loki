@@ -1,7 +1,7 @@
 import type { ProjectGridRow } from "@/components/projects/project-grid-row";
 import { PROJECT_ATTR } from "@/config/project-attrs";
 import { hasAnswer } from "@/lib/project-display";
-import { signalHasExpired } from "@/lib/project-signals";
+import { signalIsLive } from "@/lib/project-signals";
 import { filterByQuery, type SearchSpec } from "@/lib/search";
 
 export type ProjectsPageFilter = null | "attention" | "next-step" | "team";
@@ -63,9 +63,8 @@ export function hasProjectAttention(
   // on it explaining why, and the "Site issues" chip counts a flag the reader
   // cannot see. One predicate, three surfaces.
   return (
-    ATTENTION_KEYS.some(
-      (k) => Boolean(project.attrs[k]) && !signalHasExpired(project.attrMeta, k),
-    ) || isSiteDown(project)
+    ATTENTION_KEYS.some((k) => signalIsLive(project.attrMeta, k, project.attrs[k])) ||
+    isSiteDown(project)
   );
 }
 

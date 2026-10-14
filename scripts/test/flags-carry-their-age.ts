@@ -84,6 +84,27 @@ check("an expiry in the future is not an expiry", () => {
   assert(getHealthSignals(attrs, live).length === 1, "a flag was cleared before its own deadline");
 });
 
+check("an imported snapshot is not a live flag", () => {
+  // knowledge.sqlite is a copy of an older brief. It must not hoist the
+  // project or put the sentence back in front of an agent. Rewriting the
+  // note in Loki changes the source; that is the confirmation.
+  const imported = meta({ source: "knowledge.sqlite" });
+  assert(getHealthSignals(attrs, imported).length === 0, "an import still renders as a live flag");
+  assert(hasProjectAttention(row(imported)) === false, "an import still counts as attention");
+});
+
+check("a retired claim does not stand just because someone saved it in Loki", () => {
+  const retired = {
+    ...attrs,
+    [SEC]:
+      "Email verification bypass: anyone can register @revamp-it.ch domain and get Staff role with admin access to 14 areas",
+  };
+  assert(
+    getHealthSignals(retired, meta()).length === 0,
+    "the retired staff-domain sentence still renders as a live flag",
+  );
+});
+
 check("THE LINE: no expiry means it stands forever, however old", () => {
   // Not auto-decay. A two-year-old security note with no valid_until is still
   // a security note; guessing a deadline for it would be worse than staleness.

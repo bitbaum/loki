@@ -69,6 +69,7 @@ export function ProjectRow({
     dirPath: project.dirPath,
     liveUrl: project.liveUrl,
     attrs,
+    attrMeta: project.attrMeta,
   });
 
   const stage = resolveProjectStage(attrs["status"]);

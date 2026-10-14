@@ -15,6 +15,7 @@ import { HEALTH_SIGNAL_BASE } from "@/components/projects/project-detail-types";
 import type { ProjectDossier } from "@/db/queries/project-dossier";
 import { MINUTE_MS } from "@/lib/constants/time";
 import { answer, cleanDescription } from "@/lib/project-display";
+import { factReachesAgent, signalIsLive } from "@/lib/project-signals";
 import type { ProjectDispatchKind } from "@/lib/project-dispatch";
 
 export type ComposedPrompt = { prompt: string; error?: never } | { prompt?: never; error: string };
@@ -54,12 +55,23 @@ export function composeDispatchPrompt(
 ): ComposedPrompt {
   const attrs = dossier.detail.attrs;
   const name = dossier.detail.project.name;
-  const closing = dispatchClosing(answer(attrs.definition_of_done));
+  const dodRaw = answer(attrs.definition_of_done);
+  const dod =
+    dodRaw && factReachesAgent(dodRaw, dossier.detail.attrMeta?.definition_of_done?.source ?? null)
+      ? dodRaw
+      : null;
+  const closing = dispatchClosing(dod);
 
   if (kind === "fix_signal") {
     const signal = HEALTH_SIGNAL_BASE.find((s) => s.key === signalKey);
     const issue = signal ? answer(attrs[signal.key]) : null;
     if (!signal || !issue) return { error: "That issue is no longer recorded on the profile." };
+    if (!signalIsLive(dossier.detail.attrMeta, signal.key, issue)) {
+      return {
+        error:
+          "That note is an import or a retired claim. It is not a live issue — clear it, or rewrite it if it is still true.",
+      };
+    }
     return {
       prompt: `Fix this called-out issue on ${name}.\n\n${signal.label.toUpperCase()}: ${issue}\n\nScope: fix exactly this issue — no unrelated refactors. ${closing}`,
     };
@@ -79,23 +91,28 @@ export function composeDispatchPrompt(
       return { error: "Describe the project first — there is nothing to brief an agent with." };
     }
 
+    const meta = dossier.detail.attrMeta;
     const profile = (
       [
-        ["Mission", attrs.mission],
-        ["Problem", attrs.problem],
-        ["Solution", attrs.solution],
-        ["Distribution", attrs.distribution],
-        ["Go-to-market", attrs.gtm],
-        ["Stack", attrs.stack],
-        ["Architecture", attrs.architecture],
-        ["Conventions", attrs.conventions],
-      ] as Array<[string, string | undefined]>
+        ["Mission", "mission", attrs.mission],
+        ["Problem", "problem", attrs.problem],
+        ["Solution", "solution", attrs.solution],
+        ["Distribution", "distribution", attrs.distribution],
+        ["Go-to-market", "gtm", attrs.gtm],
+        ["Stack", "stack", attrs.stack],
+        ["Architecture", "architecture", attrs.architecture],
+        ["Conventions", "conventions", attrs.conventions],
+      ] as Array<[string, string, string | undefined]>
     )
       // answer(), not truthiness: a field the extractor filled with "Unknown"
-      // must not reach the agent as "STACK: Unknown".
-      .map(([label, value]) => [label, answer(value)] as const)
-      .filter((row): row is readonly [string, string] => row[1] !== null)
-      .map(([label, value]) => `${label.toUpperCase()}: ${value}`);
+      // must not reach the agent as "STACK: Unknown". An imported snapshot or
+      // a retired sentence must not reach it either.
+      .map(([label, key, value]) => {
+        const text = answer(value);
+        if (!text || !factReachesAgent(text, meta?.[key]?.source ?? null)) return null;
+        return `${label.toUpperCase()}: ${text}`;
+      })
+      .filter((row): row is string => row !== null);
 
     const roadmap = milestones.map(
       (goal, i) => `${i + 1}. ${goal.title}${goal.description ? ` — ${goal.description}` : ""}`,
@@ -121,7 +138,13 @@ export function composeDispatchPrompt(
   }
 
   if (kind === "next_step") {
-    const next = answer(dossier.detail.devLog?.at(-1)?.next) ?? answer(attrs.next_step);
+    const fromLog = answer(dossier.detail.devLog?.at(-1)?.next);
+    const fromAttr = answer(attrs.next_step);
+    const next =
+      fromLog ??
+      (fromAttr && factReachesAgent(fromAttr, dossier.detail.attrMeta?.next_step?.source ?? null)
+        ? fromAttr
+        : null);
     if (!next) return { error: "No queued next step to dispatch." };
     return {
       prompt: `Execute the queued next step for ${name}:\n\n${next}\n\n${closing}`,
