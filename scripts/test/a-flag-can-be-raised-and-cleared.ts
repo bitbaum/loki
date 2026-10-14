@@ -80,10 +80,14 @@ check("ALL THREE are offered, not only the ones already set", () => {
 
 check("it is mounted where a person writes about a project", () => {
   assert(VIEW.includes("<ProjectFlags"), "the panel is not mounted anywhere");
-  const at = VIEW.indexOf("<ProjectFlags");
-  const around = VIEW.slice(Math.max(0, at - 800), at);
+  // The Context (Story) tab's content runs from its id to the next tab's id.
+  // Measured by tab, not by distance: an 800-character window broke the
+  // first time another panel ("Planned", 2026-10-14) sat between the two.
+  const tab = VIEW.indexOf('id: "context"');
+  const next = VIEW.indexOf('id: "', tab + 1);
+  const story = tab >= 0 ? VIEW.slice(tab, next > tab ? next : undefined) : "";
   assert(
-    around.includes("ProjectContextEditor"),
+    story.includes("<ProjectContextEditor") && story.includes("<ProjectFlags"),
     "the panel is not on the Context tab, beside the other things a person writes",
   );
 });
