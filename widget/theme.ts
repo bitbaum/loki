@@ -159,7 +159,7 @@ ${spiralCSS(theme)}
   border: 1px solid ${theme.accent}; border-radius: ${rs}; box-shadow: 0 8px 32px rgba(0,0,0,.45);
 }
 .fab-bubble-text { min-width: 0; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-.fab-bubble-x { flex: none; color: ${theme.textSecondary}; font-size: 11px; padding: 0 2px; }
+.fab-bubble-x { flex: none; color: ${theme.textSecondary}; font-size: 11px; min-width: 44px; min-height: 44px; margin: -10px -10px -10px 0; }
 @media (max-width: 480px) {
   .fab.owner { width: auto; padding: 0 12px; }
   .fab.owner .fab-label { display: inline; font-size: 12px; }
@@ -182,6 +182,7 @@ ${spiralCSS(theme)}
 }
 .fab.tab.on-left { border-radius: 0 ${rs} ${rs} 0; border-right: 1px solid ${theme.borderDark}; border-left: 0; }
 .fab.tab .fab-label, .fab.tab .fab-icon, .fab.tab .fab-badge { display: none; }
+.fab.tab.owner .fab-badge { display: block; top: 2px; right: 2px; min-width: 16px; padding: 0 2px; font-size: 10px; }
 .fab.tab .dot.spiral { display: inline-flex; width: 14px; height: 14px; }
 .fab.tab:hover, .fab.tab:focus-visible { opacity: 1; width: 30px; transform: none; }
 

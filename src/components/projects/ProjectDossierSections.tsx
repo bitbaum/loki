@@ -82,16 +82,18 @@ export function NowSection({
   // two hours after its agent died and would have read as "Agent process
   // running" here forever — sessionUpdatedAt was null, so `stale` never fired.
   const agentLive = !!state?.agentRunning && isRuntimeObservationFresh(state, dossier.builtAtMs);
-  const liveLabel = stale
-    ? "Idle"
-    : agentLive
-      ? state?.currentPromptLabel
-        ? `Working — ${state.currentPromptLabel}`
-        : "Agent process running"
+  // An old handoff cannot overrule a fresh runner observation. A new agent
+  // may be working before it has written its first handoff.
+  const liveLabel = agentLive
+    ? state?.currentPromptLabel
+      ? `Working — ${state.currentPromptLabel}`
+      : "Agent process running"
+    : stale
+      ? "No live agent observed"
       : state?.sessionStatus === SESSION_STATUS.READY
         ? "Ready for the next task"
-        : "No live agent";
-  const liveActive = !stale && agentLive;
+        : "No live agent observed";
+  const liveActive = agentLive;
 
   // Stack is shown in the Technology card below — don't repeat it here.
   const briefRows: Array<[string, string]> = showBrief
@@ -109,7 +111,7 @@ export function NowSection({
   })();
 
   return (
-    <SectionShell kicker="Now" title="Status quo">
+    <SectionShell kicker="Activity" title="Agent and repository">
       <div className="space-y-1.5">
         <p className="text-sm text-text-primary">
           <span
@@ -126,7 +128,7 @@ export function NowSection({
           ) : handoffMs != null ? (
             <span className="text-xs text-text-muted">
               {" · "}
-              {stale ? `last active ${timeAgo(handoffMs)}` : `handoff ${timeAgo(handoffMs)}`}
+              {`last handoff ${timeAgo(handoffMs)}`}
             </span>
           ) : null}
         </p>

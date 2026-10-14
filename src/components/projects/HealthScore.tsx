@@ -209,7 +209,7 @@ export function HealthScoreBar({
     </span>
   ) : (
     <>
-      <span className="ui-health-label">Health</span>
+      <span className="ui-health-label">Checks</span>
       {bar}
       <span className="ui-health-score">
         {score}/{health.max}
@@ -234,7 +234,7 @@ export function HealthScoreBar({
           compact ? " ui-health-chip-compact" : ""
         }`}
         aria-expanded={open}
-        aria-label={`Health ${score} of ${health.max}${missing > 0 ? `, ${missing} outstanding` : ""} — show the breakdown`}
+        aria-label={`Project checks ${score} of ${health.max}${missing > 0 ? `, ${missing} outstanding` : ""} — show the breakdown`}
       >
         {readout}
         {/* The count, not just the ratio: "4 to do" is the sentence a person
@@ -253,11 +253,11 @@ export function HealthScoreBar({
       {open && (
         <div className="ui-health-panel">
           <p className="ui-micro-label">
-            Health · {score} of {health.max}
+            Project checks · {score} of {health.max}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-text-secondary">
-            Ten facts about this project, one point each. Nothing is estimated — each point is a
-            field that is either filled in or not.
+            Stored project details and reported flags, one point each. Test results and deployment
+            status appear in Now.
           </p>
 
           {missing === 0 ? (

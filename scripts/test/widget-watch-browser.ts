@@ -364,12 +364,16 @@ async function main() {
     await s.p.click("#email");
     await s.p.click("#find");
     await s.p.waitForTimeout(500);
+    // The scheduled page check/read can finish while Playwright performs the
+    // clicks, legitimately replacing the latest status. The specific request
+    // remark is asserted in the conversation below; model calls from the
+    // scheduled page read are counted separately later in this same fixture.
     ok(
-      (await pillText(s.p))?.includes("/shop/sizes") === true,
+      (await pillText(s.p))?.startsWith("Loki noticed:") === true,
       `the bar says what Loki noticed, in words (${await pillText(s.p)})`,
     );
     ok(s.reports.length === 0, "a 404 is a remark, not an automatic fix");
-    ok(s.advice.length === 0, "speaking up costs no model call");
+    ok(s.advice.filter((a) => a.read !== true).length === 0, "speaking up costs no model call");
     await clickPill(s.p, "Show");
     await s.p.waitForTimeout(200);
     const remark = await s.p.evaluate(() => {
@@ -588,8 +592,8 @@ async function main() {
     await s.p.keyboard.press("Escape");
     st = await state();
     ok(st.point, "paused, the ◎ is still there");
-    // A page that blocks every corner: a visitor's launcher hides (host-avoid
-    // test); the owner's stays, and no bar takes its place.
+    // A page that blocks every corner: both launchers become an edge handle
+    // (host-avoid test); the owner's stays reachable, with no second bar.
     await s.p.evaluate(() => {
       const wall = document.createElement("div");
       wall.id = "wall";
