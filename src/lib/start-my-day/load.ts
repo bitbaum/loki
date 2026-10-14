@@ -8,6 +8,7 @@ import { hasOpenPendingForProject } from "@/db/queries/pending-commands";
 import { loadProjectOverrides } from "@/lib/fleet-kick";
 import { getGithubToken } from "@/lib/github-token";
 import { fetchRecentGithubCommits } from "@/lib/github-commits";
+import { coldStartWorkspaceDir } from "@/lib/execution-access";
 import { NAV } from "@/config/navigation";
 import { rankDayProjects, type DayPlan, type DayProjectInput } from "./rank";
 
@@ -16,7 +17,8 @@ export async function loadDayPlan(userId: string): Promise<DayPlan> {
     getDayCatalog(userId),
     getDayPreferences(userId),
   ]);
-  const owners = [...new Set(projects.map((p) => p.userId))];
+  const mainProjects = projects.filter((p) => preferences.mainProjectIds.includes(p.id));
+  const owners = [...new Set(mainProjects.map((p) => p.userId))];
   const ownerData = new Map(
     await Promise.all(
       owners.map(async (ownerId) => {
@@ -41,7 +43,7 @@ export async function loadDayPlan(userId: string): Promise<DayPlan> {
   );
   let githubChecked = true;
   const inputs = await Promise.all(
-    projects.map(async (p): Promise<DayProjectInput> => {
+    mainProjects.map(async (p): Promise<DayProjectInput> => {
       const { states, overrides, runs, token } = ownerData.get(p.userId)!;
       const stateByKey = new Map(states.map((s) => [s.projectKey.toLowerCase(), s]));
       const runByKey = new Map(runs.map((r) => [r.key, r.at]));
@@ -70,7 +72,7 @@ export async function loadDayPlan(userId: string): Promise<DayPlan> {
         main: preferences.mainProjectIds.includes(p.id),
         accessReason: p.canStart ? undefined : "View only — a builder or owner can start work",
         href: p.entityProjectId ? `${NAV.projects.href}/${p.entityProjectId}` : NAV.control.href,
-        runnable: Boolean(p.dirPath),
+        runnable: Boolean(p.dirPath || coldStartWorkspaceDir(p.name, p.gitUrl)),
         paused: overrides.get(key) === "off",
         busy: busy || pending,
         activity,
@@ -78,15 +80,15 @@ export async function loadDayPlan(userId: string): Promise<DayPlan> {
     }),
   );
   const ranked = rankDayProjects(inputs);
-  const catalog = inputs
+  const catalog = projects
     .map((p) => ({
       id: p.id,
-      name: p.name,
-      href: p.href,
-      main: Boolean(p.main),
+      name: preferences.labels[p.id] || p.displayName,
+      href: p.entityProjectId ? `${NAV.projects.href}/${p.entityProjectId}` : NAV.control.href,
+      main: preferences.mainProjectIds.includes(p.id),
       lastActiveAt: "",
-      why: p.accessReason ?? "",
-      unavailable: p.accessReason ?? null,
+      why: p.canStart ? "" : "View only — a builder or owner can start work",
+      unavailable: p.canStart ? null : "View only — a builder or owner can start work",
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
   return {

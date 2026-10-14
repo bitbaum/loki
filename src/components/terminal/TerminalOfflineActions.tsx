@@ -52,7 +52,7 @@ export function TerminalOfflineActions({
           Use this computer
         </button>
       )}
-      {(downloadIsTheWayForward(way) || way === "unknown") && (
+      {downloadIsTheWayForward(way) && (
         <Link href="/download" className="ui-btn-ghost ui-btn-sm">
           Get Fleet Runner
         </Link>

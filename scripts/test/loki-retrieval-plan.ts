@@ -154,6 +154,18 @@ async function main() {
   // Cheap, always relevant, and the reason a question Loki did not anticipate
   // still gets a grounded answer instead of an empty page.
   {
+    check(
+      "a website review leads with the project rather than contacts or a broad life sample",
+      () => {
+        const plan = planRetrieval(
+          "Review this website, browse the other pages and let me know what to improve in the code.",
+        );
+        assert.equal(plan.broad, false);
+        assert.equal(plan.sources[0], "projects");
+        assert(!plan.sources.includes("people"), "let me know is not a contact lookup");
+        assert(toolsForPlan(plan).has("read_website"));
+      },
+    );
     check("every plan includes the fleet pulse and projects", () => {
       for (const message of ["who is Elena", "asdfgh", "what's my next step", ""]) {
         const plan = planRetrieval(message);

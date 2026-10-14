@@ -64,7 +64,7 @@ export function rankDayProjects(inputs: DayProjectInput[], now = Date.now()) {
               : p.busy
                 ? "Already working or queued"
                 : !p.runnable
-                  ? "Set up a project path first"
+                  ? "Connect a repository or project folder first"
                   : null),
         },
       ];

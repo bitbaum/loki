@@ -106,7 +106,15 @@ export function RunnerStatusBanner({
   // The cloud is this account's builder: the setup pitch and the reconnect
   // guide below are both about an app this account does not need.
   const hasCloud = way === "run-in-cloud" || way === "wait-for-cloud";
-  const offerDownload = downloadIsTheWayForward(way) || way === "unknown";
+  const offerDownload = downloadIsTheWayForward(way);
+
+  if (way === "unknown") {
+    return (
+      <p className="text-sm text-text-secondary" role="status">
+        Checking your builder connection…
+      </p>
+    );
+  }
 
   if (!runnerNeverSeen && !expanded) {
     return (

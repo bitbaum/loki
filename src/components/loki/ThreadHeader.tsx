@@ -7,6 +7,7 @@ import {
   FolderKanban,
   History,
   MoreVertical,
+  MessageSquareWarning,
   PanelLeft,
   Pencil,
   Pin,
@@ -30,6 +31,7 @@ export function ThreadHeader({
   onNewChat,
   onOpenProjects,
   onSaveContext,
+  onReportProblem,
   pinned = false,
   onTogglePin,
   onRename,
@@ -43,6 +45,7 @@ export function ThreadHeader({
   /** Save the exchange into a project's context — an occasional act, so it
    *  lives here rather than as a line under every phone conversation. */
   onSaveContext?: () => void;
+  onReportProblem?: () => void;
   /** A phone has no hover to reveal the rail's pin, so it lives here too. */
   pinned?: boolean;
   onTogglePin?: () => void;
@@ -124,6 +127,7 @@ export function ThreadHeader({
               {item("New chat", SquarePen, onNewChat)}
               {item("All chats", History, onOpenLokis)}
               {item("Projects", FolderKanban, onOpenProjects)}
+              {onReportProblem && item("Report a problem", MessageSquareWarning, onReportProblem)}
               {onSaveContext && item("Save to project context", BookmarkPlus, onSaveContext)}
               {onTogglePin &&
                 item(pinned ? "Unpin" : "Pin to the top", pinned ? PinOff : Pin, onTogglePin)}

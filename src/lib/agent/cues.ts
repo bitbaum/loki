@@ -46,7 +46,7 @@ export const COMMITMENT_CUES =
 
 /** People and outreach. */
 export const PEOPLE_CUES =
-  /\b(who|contact|contacts|person|people|reach|email|message|call|phone|whatsapp|telegram|intro|introduce|met|know)\b/i;
+  /\b(who|contact|contacts|person|people|reach|email|message|call|phone|whatsapp|telegram|intro|introduce|met|do i know|do we know|do you know|know anyone|know someone|know somebody|people i know)\b/i;
 
 /**
  * The crew and delegated work.
@@ -105,8 +105,11 @@ export const USAGE_CUES =
 export const FLEET_MAP_CUES =
   /\b(what (?:do|did) we have|what (?:are|is) (?:our|the) (?:projects?|products?|pillars?|studio|fleet|portfolio|ventures?)|which (?:projects?|products?|sites?|apps?) (?:are|is) live|pillars?|the studio|bitbaum|portfolio|ventures?|all (?:our |the )?projects|every project|how many projects|what is happening|what'?s happening|what is loki for|what is orangecat for|what is solon for)\b/i;
 
+/** Website review language is a project topic, even when it contains "let me know". */
+export const WEBSITE_CUES = /\b(website|webpage|homepage|codebase|source code)\w*/i;
+
 export const PROJECT_CUES =
-  /\b(project|projects|repo|repos|repository|app|apps|site|sites|stack|codebase|product|products)\w*/i;
+  /\b(project|projects|repo|repos|repository|app|apps|site|sites|stack|codebase|code|website|webpage|homepage|product|products)\w*/i;
 
 /**
  * Words that mark "most recent / latest / last" — the shape of question where

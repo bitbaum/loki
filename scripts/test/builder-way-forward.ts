@@ -1,3 +1,8 @@
+import React, { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { TerminalOfflineActions } from "../../src/components/terminal/TerminalOfflineActions";
+import { RunnerStatusBanner } from "../../src/components/control/RunnerStatusBanner";
+Object.assign(globalThis, { React });
 /**
  * The way forward from "nothing is running this work", per account.
  * Case from the report (2026-10-12): the owner on a second computer was sent
@@ -56,5 +61,41 @@ check(
 );
 check("…not while the cloud is merely down", !downloadIsTheWayForward("wait-for-cloud"));
 check("…not before we know", !downloadIsTheWayForward("unknown"));
+
+for (const cloud of ["unknown", "online", "offline", "private"] as const) {
+  const banner = renderToStaticMarkup(
+    createElement(RunnerStatusBanner, {
+      runnerNeverSeen: true,
+      runnerOffline: false,
+      runnerLastPushedAt: null,
+      cloud,
+    }),
+  );
+  check(
+    `banner ${cloud}: primary install only for private access`,
+    banner.includes("Get the desktop app") === (cloud === "private"),
+  );
+  if (cloud === "unknown")
+    check(
+      "unknown banner checks connection without install guidance",
+      !banner.includes("/download"),
+    );
+  const actions = renderToStaticMarkup(
+    createElement(TerminalOfflineActions, {
+      source: "machine",
+      onSwitch() {},
+      presence: {
+        runnerConnected: false,
+        runtimeAvailable: false,
+        cloudBuilderAllowed: cloud === "unknown" ? null : cloud !== "private",
+        builderPresence: cloud === "unknown" ? null : cloud === "online" ? online : dark,
+      },
+    }),
+  );
+  check(
+    `terminal ${cloud}: download only for private access`,
+    actions.includes("/download") === (cloud === "private"),
+  );
+}
 
 console.log(`\n${passed}/${passed} builder-way-forward cases passed`);

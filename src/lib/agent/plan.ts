@@ -36,6 +36,7 @@ import {
   PROJECT_CUES,
   RECENCY_CUES,
   RUN_CUES,
+  WEBSITE_CUES,
   USAGE_CUES,
   FLEET_MAP_CUES,
 } from "@/lib/agent/cues";
@@ -177,6 +178,7 @@ export function planRetrieval(message: string): RetrievalPlan {
     push("feedback");
     push("approvals");
   }
+  if (WEBSITE_CUES.test(m)) push("projects");
   if (PEOPLE_CUES.test(m)) push("people");
   if (ECONOMY_CUES.test(m)) push("economy");
   // The studio map leads any fleet-shaped question, before the per-project
