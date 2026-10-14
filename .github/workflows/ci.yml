@@ -165,12 +165,6 @@ jobs:
             pnpm run verify
           fi
 
-      - name: Model fixture format diagnostics
-        if: failure() && github.event_name == 'pull_request'
-        run: |
-          pnpm exec prettier --write scripts/test/model-store.ts
-          git diff -- scripts/test/model-store.ts
-
       # `next build` is intentionally NOT here — the App-Router pages do
       # DB queries during static pre-render, so a real Postgres would
       # need to be set up + migrated + seeded before the build can run.

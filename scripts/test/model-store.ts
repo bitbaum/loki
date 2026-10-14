@@ -344,10 +344,8 @@ check("batch labels cannot bypass the interactive catalog filter", () => {
 });
 
 check("a future listing is not new activity already observed", () => {
-  const future = shapeStoreCatalog(
-    [{ ...RAW[0]!, created: Math.floor((NOW + DAY) / 1000) }],
-    NOW,
-  ).models[0]!;
+  const future = shapeStoreCatalog([{ ...RAW[0]!, created: Math.floor((NOW + DAY) / 1000) }], NOW)
+    .models[0]!;
   assert.equal(future.isNew, false);
 });
 
