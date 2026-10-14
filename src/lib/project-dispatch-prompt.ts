@@ -44,6 +44,13 @@ export function composeDispatchPrompt(
   kind: ProjectDispatchKind,
   signalKey: string | undefined,
   dossier: ProjectDossier,
+  /**
+   * Kickoff only: the "Built from" plan (lib/kit-plan/prompt.ts) — which fleet
+   * packages this site is wired with, and for client work, whose tokens it
+   * wears. Rendered by the caller, which holds the live catalogue; this
+   * function stays pure.
+   */
+  extras: { builtFrom?: string } = {},
 ): ComposedPrompt {
   const attrs = dossier.detail.attrs;
   const name = dossier.detail.project.name;
@@ -102,6 +109,7 @@ export function composeDispatchPrompt(
         roadmap.length > 0
           ? `\nBUILD ROADMAP (tracked as this project's goals):\n${roadmap.join("\n")}`
           : "",
+        extras.builtFrom ? `\n${extras.builtFrom}` : "",
         target
           ? `\nYOUR TARGET THIS RUN: ${target.title}${target.description ? `\n${target.description}` : ""}`
           : "\nYOUR TARGET THIS RUN: get the project to its first working, runnable state (a real site or app the person can open).",

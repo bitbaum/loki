@@ -41,6 +41,11 @@ import { routeAroundSpent } from "@/lib/provider-switch";
 import { resolveImplementAdapter } from "@/lib/feedback/implement";
 import { mergeRunPayload } from "@/db/queries/orchestration-runs";
 import { getBriefKind } from "@/db/queries/brief-projects";
+import { kitPlanForProject } from "@/lib/kit-plan/for-project";
+import { recordKitPlan } from "@/lib/kit-plan/record";
+import { renderKickoffKitBlocks } from "@/lib/kit-plan/prompt";
+import { projectIsClientWork } from "@/lib/register/portfolio";
+import { readAppsConf } from "@/lib/register/apps-conf";
 
 /**
  * The project setup steps, callable without an HTTP request.
@@ -460,7 +465,25 @@ export async function dispatchStep(
   const dossier = await getProjectDossierByOwner(access.ownerUserId, id);
   if (!dossier) return json({ error: "Project not found" }, 404);
 
-  const composed = composeDispatchPrompt(input.kind, input.signalKey, dossier);
+  // The first build is told which fleet packages to wire (lib/kit-plan), so
+  // it does not write search, booking, mail or payments from scratch.
+  const kit =
+    input.kind === "kickoff"
+      ? await kitPlanForProject({
+          name: dossier.detail.project.name,
+          entityId: id,
+          description: dossier.detail.project.description,
+          attrs: dossier.detail.attrs,
+          goals: dossier.detail.linkedGoals,
+          gitUrl: dossier.userProject?.gitUrl ?? dossier.detail.project.gitUrl ?? null,
+          clientWork: dossier.userProject
+            ? projectIsClientWork(dossier.userProject, readAppsConf())
+            : false,
+        })
+      : null;
+  const composed = composeDispatchPrompt(input.kind, input.signalKey, dossier, {
+    builtFrom: kit?.applies ? renderKickoffKitBlocks(kit.plan, kit) : undefined,
+  });
   if (composed.error) return json({ error: composed.error }, 409);
 
   // Don't walk into a known wall: the same pre-dispatch check Feedback's
@@ -496,6 +519,11 @@ export async function dispatchStep(
   const runId = typeof result.body.runId === "string" ? result.body.runId : null;
   if (runId && reroutedFrom) {
     await mergeRunPayload(runId, { reroutedFrom }).catch(() => undefined);
+  }
+  // Record the plan only once it reached an agent (sent or queued), so the
+  // project's "planned" line never names a plan nobody was briefed with.
+  if (kit?.applies && result.body.ok && !result.body.blocked) {
+    await recordKitPlan({ ownerId: owner, userProjectId: up?.id ?? null, runId, kit });
   }
   return result;
 }

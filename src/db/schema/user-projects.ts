@@ -12,6 +12,7 @@ import {
 import { users } from "./users";
 import { entities } from "./entities";
 import { orgs } from "./orgs";
+import type { KitPlanRecord } from "@/lib/kit-plan/types";
 
 export type DevLogEntry = {
   date: string;
@@ -85,6 +86,15 @@ export const userProjects = pgTable(
      * has none (drizzle/0023): the enum is owned by the TS config.
      */
     packageUpdates: text("package_updates").notNull().default("auto"),
+    /**
+     * The fleet packages the kickoff planned this site to be built from
+     * (src/lib/kit-plan), recorded when the first build was briefed with them.
+     * A PLAN, not an observation: what the repository actually depends on is
+     * project_packages, read from its lockfile. The "Built from" panel shows
+     * planned-but-not-yet-installed beside those rows. Null = no plan (an
+     * older project, a repository not seeded from the fleet starter).
+     */
+    kitPlan: jsonb("kit_plan").$type<KitPlanRecord>(),
     position: integer("position").default(0), // user-defined sort order
     isActive: boolean("is_active").default(true).notNull(),
     // Consent to appear in Loki's OWN public catalogue at /fleet. Default false,

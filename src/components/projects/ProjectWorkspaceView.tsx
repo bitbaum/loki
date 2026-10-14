@@ -41,6 +41,8 @@ import { kickoffAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
 import { deriveBuildStatus, isBuildActive } from "@/lib/project-build-status";
 import { ProjectBuildStatus } from "./ProjectBuildStatus";
 import { ProjectBuiltFrom } from "@/components/packages/ProjectBuiltFrom";
+import { KitPlanPreview } from "./KitPlanPreview";
+import { ProjectPlannedKits } from "./ProjectPlannedKits";
 import { answer, cleanDescription, projectHeadline } from "@/lib/project-display";
 import { formatBtc } from "@/lib/format";
 
@@ -467,6 +469,7 @@ export function ProjectWorkspaceView({
                     }
                   />
                 )}
+                {showKickoff && <KitPlanPreview dossier={dossier} clientWork={clientWork} />}
                 {/* Before anything is built, "No live agent" and "Advance: X"
                     only restate the kickoff card (which now names the first
                     target itself). They earn their place once work exists. */}
@@ -518,6 +521,14 @@ export function ProjectWorkspaceView({
                     hasRepo={Boolean(userProject?.gitUrl)}
                     readonly={dossier.readonly || !ownerPass}
                   />
+                  {userProject && (
+                    <ProjectPlannedKits
+                      ownerId={dossier.ownerId}
+                      entityProjectId={project.id}
+                      userProjectId={userProject.id}
+                      plan={userProject.kitPlan ?? null}
+                    />
+                  )}
                 </div>
                 {/* On Context, beside the other things a person WRITES about a
                     project. The three flag attrs are excluded from the
