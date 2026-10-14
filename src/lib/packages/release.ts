@@ -26,8 +26,7 @@ import { ciStateFrom, type CiState } from "./update-policy";
 // ── who may ─────────────────────────────────────────────────────────────────
 
 export type AccessDecision =
-  | { ok: true; via: "project" | "github" }
-  | { ok: false; reason: string; connectGithub: boolean };
+  { ok: true; via: "project" | "github" } | { ok: false; reason: string; connectGithub: boolean };
 
 /**
  * The owner rule (src/config/package-releases.ts), with what was looked up.
@@ -177,8 +176,7 @@ export function releaseBlocker(state: ReleaseState): string | null {
 }
 
 export type StartResult =
-  | { ok: true; message: string; version: string }
-  | { ok: false; status: number; message: string };
+  { ok: true; message: string; version: string } | { ok: false; status: number; message: string };
 
 /**
  * Start release.yml for exactly the version the person was shown. The state

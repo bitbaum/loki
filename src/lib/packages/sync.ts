@@ -207,13 +207,11 @@ async function syncOne(project: UserProject, ctx: SyncContext): Promise<ProjectS
     store: dbUpdateStore,
     now: new Date(),
     pauses: ctx.pauses,
-  }).catch(
-    (err): ProjectUpdatesResult => ({
-      open: 0,
-      held: 0,
-      error: err instanceof Error ? err.message.slice(0, 200) : "failed",
-    }),
-  );
+  }).catch((err): ProjectUpdatesResult => ({
+    open: 0,
+    held: 0,
+    error: err instanceof Error ? err.message.slice(0, 200) : "failed",
+  }));
   return { ...result, updates };
 }
 

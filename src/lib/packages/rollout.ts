@@ -16,15 +16,7 @@ import type { PackageUse, UpdateRequestView } from "./view";
 import { OPEN_UPDATE_STATES } from "./update-policy";
 
 export type RolloutBucket =
-  | "on"
-  | "red"
-  | "paused"
-  | "held"
-  | "ready"
-  | "waiting"
-  | "behind"
-  | "newer"
-  | "unknown";
+  "on" | "red" | "paused" | "held" | "ready" | "waiting" | "behind" | "newer" | "unknown";
 
 /** The buckets in the order a row shows them, each with its words. */
 export const ROLLOUT_BUCKETS: ReadonlyArray<{ id: RolloutBucket; label: string }> = [
