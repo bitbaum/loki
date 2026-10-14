@@ -7,10 +7,10 @@ import { isPreviewDir } from "@/lib/previews/root";
 import path from "path";
 
 const CLOUD_BUILDER_PRIVATE_MESSAGE =
-  "Cloud builder access is private for this account. Connect Fleet Runner on this computer to run agent work.";
+  "Cloud builder access is private for this account. Connect Fleet Runner on a computer you control to run agent work.";
 
 const BUILDER_REQUIRED_MESSAGE =
-  "No builder is connected for this account. Open Fleet Runner on this computer, then dispatch again.";
+  "No builder is connected for this account. Open Fleet Runner on your connected computer, then dispatch again.";
 
 /**
  * May this account use FLEET-OWNED infrastructure — the shared cloud builder,
