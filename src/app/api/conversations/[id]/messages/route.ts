@@ -100,6 +100,8 @@ import { encodeLokiEvent, type LokiStreamEvent, type WireMessage } from "@/lib/l
 const Body = z
   .object({
     text: z.string().trim().max(4000),
+    // Short label for a generated request; the full text remains model input.
+    displayText: z.string().trim().min(1).max(240).optional(),
     selectedProjects: z.array(z.string().trim().min(1).max(120)).max(50).default([]),
     agent: z.enum(ORCHESTRATION_ADAPTER_IDS).optional(),
     model: z.string().trim().min(1).max(60).optional(),
@@ -755,6 +757,7 @@ async function persistUserTurn(
   existing: { conversation: Conversation; messages: ConversationMessage[] },
   text: string,
   attachments: Attachment[] | undefined,
+  displayText?: string,
 ) {
   // Pictures are kept with the thread and shown in the bubble; only text
   // files still need naming in the message itself.
@@ -772,14 +775,17 @@ async function persistUserTurn(
   await addMessage(conversationId, {
     role: "user",
     content: text + attachmentNoteLabel(named),
-    ...(kept.length > 0 ? { meta: { images: kept } } : {}),
+    meta: {
+      ...(kept.length > 0 ? { images: kept } : {}),
+      ...(displayText ? { displayText } : {}),
+    },
   });
   const titleForAuto = existing.conversation.title.trim();
   if (
     existing.messages.length === 0 &&
     (titleForAuto === "" || titleForAuto === DEFAULT_CONVERSATION_TITLE)
   ) {
-    const title = deriveConversationTitle(text);
+    const title = deriveConversationTitle(displayText ?? text);
     if (title) await updateConversationTitle(userId, conversationId, title);
   }
 }
@@ -796,6 +802,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (dataOrResp instanceof NextResponse) return dataOrResp;
   const {
     text: rawText,
+    displayText,
     selectedProjects,
     agent,
     model,
@@ -834,7 +841,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const attachmentSuffix = await buildAttachmentSuffix(attachments, text);
 
       if (!dispatchOnly) {
-        await persistUserTurn(userId, conversationId, existing, text, attachments);
+        await persistUserTurn(userId, conversationId, existing, text, attachments, displayText);
       }
 
       const projects = await getUserProjects(userId);

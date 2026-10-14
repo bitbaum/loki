@@ -101,6 +101,7 @@ export function useSessionAsk(project: string | null): SessionAsk {
       text,
       selectedProjects: project ? [project] : [],
       chatOnly: true,
+      ...(opts.shown ? { displayText: opts.shown } : {}),
       ...(opts.choice?.model ? { model: opts.choice.model } : {}),
       ...(attachments.length ? { attachments } : {}),
     });

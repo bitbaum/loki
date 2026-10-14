@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown, Gauge, KeyRound, Lock, Sparkles, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getJson } from "@/lib/api/fetch";
 import type { BudgetView } from "@/lib/ai/budget-view";
-import { describeChatModel, type LokiModelsResponse } from "@/lib/loki/models";
+import {
+  describeChatModel,
+  partitionModelOptions,
+  type LokiModelOption,
+  type LokiModelsResponse,
+} from "@/lib/loki/models";
 import { MODEL_STORE_PATH, OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 
 /**
@@ -49,26 +54,26 @@ export function ModelPicker({
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<LokiModelsResponse | null>(null);
   const [budget, setBudget] = useState<BudgetView | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const headingId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const phone = useMediaQuery("(max-width: 767px)");
 
-  // Fetched on first open, not on mount: most turns never touch this control,
-  // and the composer should not cost a request to render.
+  // Refresh when opened: availability can change while this chat stays mounted.
+  // Both requests share only the close guard; one finishing cannot cancel the other.
   useEffect(() => {
-    if (!open || data) return;
+    if (!open) return;
     let live = true;
+    setData(null);
+    setBudget(null);
+    setLoadError(null);
     getJson<LokiModelsResponse>("/api/loki/models")
       .then((d) => {
         if (live) setData(d);
       })
       .catch(() => {
-        if (live)
-          setData({
-            options: [],
-            autoStartsAt: null,
-            autoSummary: null,
-            addKeyHref: MODEL_STORE_PATH,
-          });
+        if (live) setLoadError("Couldn't load model choices. Try again.");
       });
     // Alongside, never instead: the rows must render whether or not the
     // budget can be read, and a budget that cannot be read is simply absent —
@@ -81,7 +86,7 @@ export function ModelPicker({
     return () => {
       live = false;
     };
-  }, [open, data]);
+  }, [open, reload]);
 
   useEffect(() => {
     if (!open) return;
@@ -112,11 +117,39 @@ export function ModelPicker({
   const ownSpend = (label: string, model: string) =>
     budget?.ownKeys.find((k) => k.label === label && k.model === model) ?? null;
 
+  const choices = partitionModelOptions(data?.options ?? [], budget?.models ?? []);
+  const row = (option: LokiModelOption, locked: boolean) => {
+    const { name, blurb } = describeChatModel(option.id);
+    const note = headroom.get(`${option.provider}/${option.id}`) ?? null;
+    const spend = option.own ? ownSpend(option.provider, option.id) : null;
+    return (
+      <ModelRow
+        key={`${option.provider}/${option.id}`}
+        name={name}
+        blurb={
+          option.own
+            ? spend && spend.callsToday > 0
+              ? `Your key · ${providerName(option.provider)} · ${spend.tokensToday.toLocaleString("en-US")} tokens today`
+              : `Your key · ${providerName(option.provider)}`
+            : option.usable
+              ? note
+                ? `${note} · ${providerName(option.provider)}`
+                : `${blurb} · ${providerName(option.provider)}`
+              : `${option.reason ?? note ?? "Not available on this connection"} · ${providerName(option.provider)}`
+        }
+        title={option.reason ?? note ?? undefined}
+        selected={value === option.id}
+        locked={locked}
+        onPick={() => pick(option.id)}
+      />
+    );
+  };
+
   // One list, two containers: a popover above the composer on a laptop, a
   // bottom sheet on a phone (where a popover is a cramped box under a thumb).
   const list = (
     <>
-      <div className="ui-loki-model-card" role="listbox" aria-label="Model">
+      <div className="ui-loki-model-card">
         {budget && (
           <a href={OWN_MODEL_SETTINGS_PATH} className="ui-loki-model-budget">
             <Gauge className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-text" aria-hidden />
@@ -128,52 +161,43 @@ export function ModelPicker({
           blurb={
             data?.autoSummary
               ? data.autoSummary.replace(/^Auto · /, "")
-              : data?.autoStartsAt
-                ? `Best available right now — ${describeChatModel(data.autoStartsAt).name}`
-                : "Best available right now"
+              : "Chooses for each request, with available alternatives"
           }
           selected={value === undefined}
           onPick={() => pick(undefined)}
         />
-        {data === null && <p className="ui-loki-model-note">Loading models…</p>}
-        {(data?.options ?? []).map((option) => {
-          const { name, blurb } = describeChatModel(option.id);
-          const note = headroom.get(`${option.provider}/${option.id}`) ?? null;
-          const spend = option.own ? ownSpend(option.provider, option.id) : null;
-          return (
-            <ModelRow
-              key={`${option.provider}/${option.id}`}
-              name={name}
-              blurb={
-                option.own
-                  ? spend && spend.callsToday > 0
-                    ? `Your key · ${providerName(option.provider)} · ${spend.tokensToday.toLocaleString("en-US")} tokens today`
-                    : `Your key · ${providerName(option.provider)}`
-                  : option.usable
-                    ? note
-                      ? `${note} · ${providerName(option.provider)}`
-                      : `${blurb} · ${providerName(option.provider)}`
-                    : `${providerName(option.provider)} has no key here — add yours below`
-              }
-              title={option.reason}
-              selected={value === option.id}
-              locked={!option.usable}
-              onPick={() => pick(option.id)}
-            />
-          );
-        })}
+        {data === null && !loadError && (
+          <p className="ui-loki-model-note" role="status">
+            Loading models…
+          </p>
+        )}
+        {loadError && (
+          <div className="ui-loki-model-note" role="alert">
+            <p>{loadError}</p>
+            <button
+              type="button"
+              className="ui-btn-secondary mt-2"
+              onClick={() => setReload((n) => n + 1)}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        {choices.available.map((option) => row(option, false))}
+        {choices.unavailable.length > 0 && (
+          <details open={choices.unavailable.some((option) => option.id === value)}>
+            <summary className="ui-tap cursor-pointer px-4 text-sm text-text-secondary">
+              Unavailable right now ({choices.unavailable.length})
+            </summary>
+            {choices.unavailable.map((option) => row(option, true))}
+          </details>
+        )}
         {data !== null && (
-          <a
-            href={data.addKeyHref}
-            className="ui-loki-model-row"
-            role="option"
-            aria-selected={false}
-          >
+          <a href={data.addKeyHref} className="ui-loki-model-row">
             <span className="ui-loki-model-row-text">
               <span className="ui-loki-model-row-title">Add your own key</span>
               <span className="ui-loki-model-row-sub">
-                Compare providers and prices — Loki thinks with the model you pay for, and the free
-                budget no longer applies
+                Compare providers and prices, or connect a model you pay for.
               </span>
             </span>
             <KeyRound className="ui-loki-model-check" aria-hidden />
@@ -182,8 +206,8 @@ export function ModelPicker({
       </div>
       {data !== null && (
         <p className="ui-loki-model-note">
-          Loki starts with your pick. If it is busy or out of budget, the next one answers — your
-          turn never just fails.
+          Loki starts with your pick and tries available alternatives if it is busy or out of
+          budget.
         </p>
       )}
     </>
@@ -196,7 +220,7 @@ export function ModelPicker({
         className="ui-loki-model-trigger"
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
         aria-expanded={open}
         title={value ? `Starts at ${current}` : "Auto — best available model"}
       >
@@ -208,13 +232,18 @@ export function ModelPicker({
         />
       </button>
 
-      {open && !phone && <div className="ui-loki-model-menu">{list}</div>}
+      {open && !phone && (
+        <div className="ui-loki-model-menu" role="dialog" aria-label="Choose a model">
+          {list}
+        </div>
+      )}
       {open && phone && (
         <Modal
           onClose={() => setOpen(false)}
           position="bottom-mobile"
           padded={false}
           className="ui-sheet"
+          labelledBy={headingId}
         >
           <div className="ui-sheet-grip" aria-hidden />
           <div className="ui-loki-model-sheet-head">
@@ -226,7 +255,10 @@ export function ModelPicker({
             >
               <X className="h-5 w-5" aria-hidden />
             </button>
-            <h2 className="flex-1 text-center text-base font-semibold text-text-primary">
+            <h2
+              id={headingId}
+              className="flex-1 text-center text-base font-semibold text-text-primary"
+            >
               Choose a model
             </h2>
             <span className="w-11" aria-hidden />
@@ -261,8 +293,7 @@ function ModelRow({
       className={locked ? "ui-loki-model-row ui-loki-model-row-locked" : "ui-loki-model-row"}
       onClick={locked ? undefined : onPick}
       disabled={locked}
-      role="option"
-      aria-selected={selected}
+      aria-pressed={selected}
       title={title}
     >
       <span className="ui-loki-model-row-text">

@@ -1,6 +1,7 @@
 "use client";
 
 import { MarkdownText } from "@/components/ui/markdown-text";
+import { userMessageDisplay } from "@/lib/loki/message-display";
 import { readWork } from "@/lib/loki/work";
 import { readProgressUpdate } from "@/lib/loki/progress-update";
 import { ProgressUpdateCard } from "./ProgressUpdateCard";
@@ -57,12 +58,19 @@ export function MessageTurn({
 }) {
   if (message.role === "user") {
     const images = readMessageImages(message.meta);
+    const displayed = userMessageDisplay(message.content, message.meta);
     return (
       <div className="ui-loki-turn-user">
         <div className="ui-loki-turn-user-stack">
           <MessageImages images={images} />
           {message.content.trim() && (
-            <div className="ui-loki-bubble ui-loki-bubble-user">{message.content}</div>
+            <div className="ui-loki-bubble ui-loki-bubble-user">{displayed}</div>
+          )}
+          {displayed !== message.content && (
+            <details className="max-w-full text-xs text-text-secondary">
+              <summary className="ui-tap cursor-pointer">Request details</summary>
+              <div className="whitespace-pre-wrap break-words pt-2">{message.content}</div>
+            </details>
           )}
         </div>
       </div>
