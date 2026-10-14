@@ -96,6 +96,15 @@ Do not type fleet facts into Loki; change them in fleet.
 `scripts/test/fleet-brief-reaches-every-dispatch.ts` fails when a new prompt
 assembler skips the brief.
 
+The FIRST build of a new site gets one thing more: its "Built from" plan
+(`src/lib/kit-plan/`), the shared packages its brief calls for — search,
+sign-in, booking dates, mail, payments, chat — each with its install line and
+"do not write your own". The trigger words are SSOT in
+`src/config/kit-plan.ts`, keyed by the catalogue's package name; a package
+fleet retires drops out of every plan, and a new one is one entry there.
+Client work is also told to keep the starter's token structure but replace
+`@bitbaum/design-tokens` with the client's own (fleet SHARED.md).
+
 ## Stack
 
 - **Next.js 16** (App Router, Server Components, Server Actions)

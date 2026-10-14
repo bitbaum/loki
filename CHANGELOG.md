@@ -6,6 +6,16 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-14 — A new site is built from the fleet's shared parts
+
+- **The first build wires the fleet's shared parts instead of writing them again.** Its
+  instructions name each shared package, how to install it, what to use it
+  for and not to write that feature itself — so a bakery's search box, pick-up
+  times and Twint payments come from the same packages every other site uses.
+- **Client sites wear the client's look.** For work done for a client, the
+  build keeps the starter's design structure but replaces our colours and
+  fonts with the client's, and does not install our design package.
+
 ## 2026-10-14 — Package updates arrive on their own, and you choose how
 
 - **Each project says how updates reach it.** Under "Built from", one setting

@@ -18,6 +18,7 @@ import type {
   OrchestrationTaskIntentId,
   OrchestrationTaskSummary,
 } from "@/lib/orchestration";
+import type { KitRunRecord } from "@/lib/kit-plan/types";
 
 export type OrchestrationRunPayload = {
   projectId?: string | null;
@@ -76,6 +77,10 @@ export type OrchestrationRunPayload = {
    *  written back into that thread (run-outcome-post.ts) so the person who
    *  typed the request learns what happened without leaving the chat. */
   conversationId?: string;
+  /** A kickoff's "Built from" plan: the packages it planned, and (once the
+   *  repository is read after the build lands) the packages it observed, so
+   *  kit coverage can be computed (src/lib/kit-plan/coverage.ts). */
+  kitPlan?: KitRunRecord;
 };
 
 /** Canonical run outcome values live in @/lib/orchestration/contract (client-

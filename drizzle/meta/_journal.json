@@ -701,6 +701,13 @@
       "when": 1791969300696,
       "tag": "0099_package_updates",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1791972919374,
+      "tag": "0100_kit_plan",
+      "breakpoints": true
     }
   ]
 }
