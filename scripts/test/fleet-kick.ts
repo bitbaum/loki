@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import {
   formatFleetKickReply,
   sortProjectsForKick,
+  normalizeKickScope,
   type FleetKickReplyResult,
 } from "@/lib/fleet-kick-format";
 import { isDevelopAllFleetRequest } from "@/lib/loki-fleet-commands";
@@ -110,6 +111,13 @@ function testFleetKickReplyExplainsSkippedProjects() {
 }
 
 testSortProjectsForKick();
+assert.equal(
+  normalizeKickScope(undefined),
+  null,
+  "omitted scope keeps the explicit whole-fleet command",
+);
+assert.equal(normalizeKickScope([])?.size, 0, "empty selection must never start the whole fleet");
+assert.deepEqual([...normalizeKickScope(["Loki", "LOKI", "Solon"])!], ["loki", "solon"]);
 testDevelopAllFleetPhrases();
 testDispatchTargets();
 testScreenshotDispatch();

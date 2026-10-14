@@ -15,15 +15,15 @@ import { isProjectBusy, STALE_RUN_MINUTES } from "@/db/queries/orchestration-run
 import { getProjectStatesByUserId } from "@/db/queries/project-states";
 import { getUserProjects } from "@/db/queries/user-projects";
 import { getRunnerConnected } from "@/db/queries/runner-presence";
-import { injectPrompt } from "@/lib/inject-core";
+import { injectPrompt, type InjectResult } from "@/lib/inject-core";
 import { DEFAULT_AUTO_INJECT_MODE, MAX_CONCURRENT_BUILDING } from "@/lib/constants/control";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { ENTITY_TYPE, SESSION_STATUS } from "@/lib/constants/statuses";
 import { normalizeAutoInjectMode, type AutoInjectMode } from "@/config/beacon";
-import { sortProjectsForKick } from "@/lib/fleet-kick-format";
+import { normalizeKickScope, sortProjectsForKick } from "@/lib/fleet-kick-format";
 export { formatFleetKickReply, sortProjectsForKick } from "@/lib/fleet-kick-format";
 
-export type FleetKickSource = "play_button" | "loki" | "api" | "control_selected";
+export type FleetKickSource = "play_button" | "loki" | "api" | "control_selected" | "start_my_day";
 
 export type FleetKickDetail = {
   projectKey: string;
@@ -52,11 +52,6 @@ export type FleetKickOptions = {
   requireFleetOn?: boolean;
 };
 
-function normalizeKeySet(keys: string[] | undefined): Set<string> | null {
-  if (!keys || keys.length === 0) return null;
-  return new Set(keys.map((k) => k.toLowerCase()));
-}
-
 async function countActiveRuns(userId: string): Promise<number> {
   const [row] = await db
     .select({ n: sql<number>`count(*)::int` })
@@ -71,7 +66,9 @@ async function countActiveRuns(userId: string): Promise<number> {
   return row?.n ?? 0;
 }
 
-async function loadProjectOverrides(userId: string): Promise<Map<string, AutoInjectMode | null>> {
+export async function loadProjectOverrides(
+  userId: string,
+): Promise<Map<string, AutoInjectMode | null>> {
   const rows = await db
     .select({ name: entities.name, override: entities.autoInjectModeOverride })
     .from(entities)
@@ -114,7 +111,7 @@ export async function kickFleet(userId: string, opts: FleetKickOptions): Promise
     };
   }
 
-  const scope = normalizeKeySet(opts.projectKeys);
+  const scope = normalizeKickScope(opts.projectKeys);
   const [projects, overrides, states, activeBefore] = await Promise.all([
     getUserProjects(userId),
     loadProjectOverrides(userId),
@@ -133,10 +130,17 @@ export async function kickFleet(userId: string, opts: FleetKickOptions): Promise
     .map((p) => ({ name: p.name, dirPath: p.dirPath }));
 
   const projectByName = new Map(activeProjects.map((p) => [p.name.toLowerCase(), p]));
-  const candidates = sortProjectsForKick(
-    activeProjects.map((p) => p.name),
-    readyKeys,
-  ).filter((name) => {
+  const orderedNames =
+    opts.source === "start_my_day" && opts.projectKeys
+      ? opts.projectKeys.flatMap((key) => {
+          const project = projectByName.get(key.toLowerCase());
+          return project ? [project.name] : [];
+        })
+      : sortProjectsForKick(
+          activeProjects.map((p) => p.name),
+          readyKeys,
+        );
+  const candidates = orderedNames.filter((name) => {
     const lower = name.toLowerCase();
     if (scope && !scope.has(lower)) {
       skipped.not_in_scope++;
@@ -145,6 +149,7 @@ export async function kickFleet(userId: string, opts: FleetKickOptions): Promise
     const override = overrides.get(lower);
     if (override === "off") {
       skipped.paused++;
+      details.push({ projectKey: name, outcome: "skipped", reason: "paused" });
       return false;
     }
     return true;
@@ -178,7 +183,17 @@ export async function kickFleet(userId: string, opts: FleetKickOptions): Promise
       continue;
     }
 
-    const inject = await injectPrompt({ tab: projectKey, promptKey: "next_best" }, userId);
+    const inject = await injectPrompt(
+      {
+        tab: projectKey,
+        promptKey: "next_best",
+        notifyOnClose: opts.source === "start_my_day" ? true : undefined,
+      },
+      userId,
+    ).catch((): InjectResult => ({
+      status: 503,
+      body: { error: "Could not confirm dispatch — check Control before retrying" },
+    }));
     if (inject.status >= 400) {
       skipped.inject_failed++;
       const err = typeof inject.body.error === "string" ? inject.body.error : "inject failed";

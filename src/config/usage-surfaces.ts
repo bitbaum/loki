@@ -41,6 +41,12 @@ export const USAGE_SURFACES = {
     actions: ["shown", "tap", "rotate"],
     target: "the suggestion id — `<kind>:<subject>` (src/lib/build-suggestions/rank.ts)",
   },
+  "loki.start-my-day": {
+    label: "Start my day",
+    path: "/today",
+    actions: ["shown", "tap"],
+    target: "the owned project id, or selected for a batch",
+  },
 } as const satisfies Record<string, UsageSurfaceSpec>;
 
 export type UsageSurface = keyof typeof USAGE_SURFACES;
