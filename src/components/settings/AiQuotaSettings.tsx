@@ -76,8 +76,8 @@ export function AiQuotaSettings() {
 
   return (
     <section className="ui-settings-section">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 basis-56">
           <h2 className="font-medium text-text-primary">The free pool</h2>
           <p className="-mt-1 text-sm text-text-secondary">
             Models the vendors let Loki use at no charge, shared by everyone here and rationed per
@@ -258,7 +258,7 @@ function SpendToday({ spend, total }: { spend: SpendRow[]; total: number }) {
         {spend.map((r) => (
           <div key={r.feature}>
             <div className="ui-quota-row-head">
-              <span className="ui-quota-provider">{r.feature}</span>
+              <span className="ui-quota-provider min-w-0 break-all">{r.feature}</span>
               <span className="ui-quota-state">
                 {r.tokens.toLocaleString("en-US")} tokens · {r.calls} call
                 {r.calls === 1 ? "" : "s"}

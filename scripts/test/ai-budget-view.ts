@@ -214,7 +214,7 @@ check("own keys: their own line, no Loki cap, and the pool becomes the fallback"
     /Your keys answer first/.test(v.headline) && /free answers behind them/.test(v.headline),
     v.headline,
   );
-  assert(/only what catches a turn they miss/.test(v.freePool.consequence), v.freePool.consequence);
+  assert(/asks before switching to free/.test(v.freePool.consequence), v.freePool.consequence);
 });
 
 check("midnight UTC is the reset, from any hour", () => {

@@ -3,16 +3,7 @@ import { Check, Laptop } from "lucide-react";
 import { CUSTOM_VENDOR_ID } from "@/config/model-vendors";
 import { ownModelAddPath } from "@/lib/own-model-path";
 
-/**
- * "On your own machine": how a laptop becomes a provider.
- *
- * Honest about the shape of it. Loki's server cannot reach a laptop, so the
- * model has to be reachable on a public https address — a tunnel gives that
- * in one command — and the laptop has to be on. In return the model is free
- * and the data never leaves the machine. Every open-weight model in the
- * table above can be pulled; the recipe names the two tools most people
- * already have.
- */
+/** Optional computer setup; hosted Loki sends requests to this endpoint. */
 export function LocalModels({ hasEndpoint }: { hasEndpoint: boolean }) {
   return (
     <section id="local" aria-labelledby="local-title" className="ui-store-local">
@@ -24,49 +15,54 @@ export function LocalModels({ hasEndpoint }: { hasEndpoint: boolean }) {
               On your own machine
             </h2>
             <p className="mt-1 text-sm text-text-secondary">
-              Any model marked <span className="ui-store-badge-open">Open weights</span> can run on
-              your laptop, and then Loki costs nothing to think with: no key, no bill, and your data
-              never leaves the machine. Loki&apos;s server cannot see your laptop, so it needs a
-              public https address for it — a tunnel does that in one command.
+              You can connect a compatible model running on your own computer. Choose one your
+              hardware can run; open weights alone do not guarantee laptop compatibility. This is
+              optional — you can use Loki from your phone with the shared pool or a provider key.
+              Requests travel through Loki&apos;s server to your endpoint; this is not an offline,
+              device-only chat. Hardware, electricity and hosting may cost you.
             </p>
           </div>
-          <ol className="ui-store-steps">
-            <li>
-              <span className="font-medium text-text-primary">Run a model.</span> Install{" "}
-              <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">
-                Ollama
-              </a>{" "}
-              or{" "}
-              <a href="https://lmstudio.ai" target="_blank" rel="noopener noreferrer">
-                LM Studio
-              </a>
-              , pull a model and start the server:
-              <code>ollama pull qwen3 &amp;&amp; OLLAMA_HOST=0.0.0.0 ollama serve</code>
-            </li>
-            <li>
-              <span className="font-medium text-text-primary">Give it an address.</span> With{" "}
-              <a
-                href="https://tailscale.com/kb/1223/funnel"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Tailscale Funnel
-              </a>
-              , <code className="inline">tailscale funnel 11434</code> — or{" "}
-              <code className="inline">cloudflared tunnel --url http://localhost:11434</code>, or{" "}
-              <code className="inline">ngrok http 11434</code>. Each prints an https URL.
-            </li>
-            <li>
-              <span className="font-medium text-text-primary">Tell Loki.</span> Paste that URL with{" "}
-              <code className="inline">/v1</code> on the end — Ollama and LM Studio both speak the
-              OpenAI shape there. Loki checks it, lists the models it finds, and you pick one.
-            </li>
-          </ol>
+          <details>
+            <summary className="ui-tap text-sm text-text-primary">
+              Computer setup instructions
+            </summary>
+            <ol className="ui-store-steps">
+              <li>
+                <span className="font-medium text-text-primary">Run a model.</span> Install{" "}
+                <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">
+                  Ollama
+                </a>{" "}
+                or{" "}
+                <a href="https://lmstudio.ai" target="_blank" rel="noopener noreferrer">
+                  LM Studio
+                </a>
+                , pull a model and start the server:
+                <code>ollama pull qwen3 &amp;&amp; ollama serve</code>
+              </li>
+              <li>
+                <span className="font-medium text-text-primary">Give it an address.</span> With{" "}
+                <a
+                  href="https://tailscale.com/kb/1223/funnel"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Tailscale Funnel
+                </a>
+                , <code className="inline">tailscale funnel 11434</code> — or{" "}
+                <code className="inline">cloudflared tunnel --url http://localhost:11434</code>, or{" "}
+                <code className="inline">ngrok http 11434</code>. Each prints an https URL.
+              </li>
+              <li>
+                <span className="font-medium text-text-primary">Tell Loki.</span> Paste that URL
+                with <code className="inline">/v1</code> on the end — Ollama and LM Studio both
+                speak the OpenAI shape there. Loki checks it, lists the models it finds, and you
+                pick one.
+              </li>
+            </ol>
+          </details>
           <p className="text-xs text-text-muted">
-            The laptop has to be on and the tunnel up for Loki to use it; when it is not, Loki tells
-            you rather than guessing. A small model answers in a few seconds on a recent laptop; a
-            30B one wants a proper GPU. Loki only ever connects over https, never to a private
-            address, and sends nothing to your endpoint but your own turns.
+            Your computer and HTTPS endpoint must stay online. Protect access to the endpoint before
+            publishing it. Loki sends conversation context to it, not just the latest message.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             {hasEndpoint ? (

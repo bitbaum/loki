@@ -8,13 +8,16 @@ import vm from "node:vm";
 const state = {
   userId: "owner" as string | null,
   locked: false,
-  projects: [{ id: "00000000-0000-4000-8000-000000000001", name: "Loki" }],
+  projects: [
+    { id: "00000000-0000-4000-8000-000000000001", name: "Loki", userId: "owner", canStart: true },
+  ],
+  saved: null as unknown,
   calls: [] as { userId: string; options: { projectKeys: string[]; requireFleetOn: boolean } }[],
 };
 const mocks: Record<string, string> = {
   "@/lib/session": "export async function getApiUserId() { return state.userId; }",
-  "@/db/queries/user-projects":
-    "export async function getUserProjects() { return state.projects; }",
+  "@/lib/start-my-day/catalog":
+    "export async function getDayCatalog() { return state.projects; } export async function saveDayPreferences(userId, prefs) { state.saved={userId,prefs}; }",
   "@/lib/start-my-day/load": "export async function loadDayPlan() { return {projects: []}; }",
   "@/lib/start-my-day/lock":
     "export async function withDayStartLock(userId, fn) { return state.locked ? null : fn(); }",
@@ -46,7 +49,11 @@ async function main() {
     ],
   });
   const module = {
-    exports: {} as { POST: (req: Request) => Promise<Response>; GET: () => Promise<Response> },
+    exports: {} as {
+      PATCH: (req: Request) => Promise<Response>;
+      POST: (req: Request) => Promise<Response>;
+      GET: () => Promise<Response>;
+    },
   };
   vm.runInNewContext(bundled.outputFiles[0].text, {
     module,
@@ -105,6 +112,44 @@ async function main() {
       },
     ],
     "dispatch only the name resolved from an owned ID, even when the browser supplies names",
+  );
+  const patch = (body: unknown) =>
+    module.exports.PATCH(
+      new Request("http://localhost/api/control/start-my-day", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  assert.equal(
+    (await patch({ mainProjectIds: ["00000000-0000-4000-8000-000000000099"], labels: {} })).status,
+    403,
+  );
+  assert.equal(
+    (
+      await patch({
+        mainProjectIds: [state.projects[0].id],
+        labels: { [state.projects[0].id]: "My Loki" },
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await patch({ mainProjectIds: [], labels: { [state.projects[0].id]: "x".repeat(101) } }))
+      .status,
+    400,
+  );
+  assert.equal(
+    (await patch({ mainProjectIds: [], labels: {} })).status,
+    200,
+    "clear selection stays empty",
+  );
+  state.projects[0].canStart = false;
+  assert.equal((await post({ projectIds: [state.projects[0].id] })).status, 403);
+  assert.equal(
+    (await patch({ mainProjectIds: [state.projects[0].id], labels: {} })).status,
+    200,
+    "viewer may mark a personal main project",
   );
   console.log("✓ start-my-day route auth, validation, scope and dispatch tests passed");
 }

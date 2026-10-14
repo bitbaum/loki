@@ -64,6 +64,8 @@ import { enrichReachPayload, reachFromPerson, resolvePersonToReach } from "@/lib
 import { defineTool } from "@/lib/agent/tools/registry";
 import type { ToolRegistry, ToolResult } from "@/lib/agent/tools/registry";
 
+import { readWebsiteTool } from "./read-website";
+
 const LIST_LIMIT = 12;
 
 /** Empty-but-successful result. The note makes "none" legible as an answer. */
@@ -803,6 +805,7 @@ const setPreviewCodeTool = defineTool({
 
 export const LOKI_TOOLS: ToolRegistry = Object.fromEntries(
   [
+    readWebsiteTool,
     searchPeopleTool,
     searchProjectsTool,
     searchKnowledgeTool,

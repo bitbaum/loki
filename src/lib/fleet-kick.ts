@@ -8,6 +8,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { entities } from "@/db/schema/entities";
+import { userProjects } from "@/db/schema/user-projects";
 import { orchestrationRuns } from "@/db/schema/orchestration-runs";
 import { getBeaconSettings } from "@/db/queries/beacon-settings";
 import { hasOpenPendingForProject } from "@/db/queries/pending-commands";
@@ -70,8 +71,19 @@ export async function loadProjectOverrides(
   userId: string,
 ): Promise<Map<string, AutoInjectMode | null>> {
   const rows = await db
-    .select({ name: entities.name, override: entities.autoInjectModeOverride })
+    .select({
+      name: sql<string>`coalesce(${userProjects.name}, ${entities.name})`,
+      override: entities.autoInjectModeOverride,
+    })
     .from(entities)
+    .leftJoin(
+      userProjects,
+      and(
+        eq(userProjects.entityProjectId, entities.id),
+        eq(userProjects.userId, userId),
+        eq(userProjects.isActive, true),
+      ),
+    )
     .where(and(eq(entities.userId, userId), eq(entities.type, ENTITY_TYPE.PROJECT)));
   const map = new Map<string, AutoInjectMode | null>();
   for (const r of rows) {

@@ -268,6 +268,9 @@ async function main() {
       // Exempt because there is no table to seed from, and its answer is labelled
       // an unverified second-hand report wherever it appears.
       ask_openclaw: "external",
+      // Public pages are fetched on request, not stored in Loki tables.
+      // The reader labels its observation time and HTML-only limits.
+      read_website: "external",
       list_crew: "crew",
       list_human_tasks: "human_tasks",
       suggest_builds: "builds",
@@ -371,7 +374,13 @@ async function main() {
       // answers "why did we decide that"; propose_action is the ONLY lever Loki
       // has on the world, and hiding it would remove the product's point.
       const shown = toolsForPlan(planRetrieval("who is Elena"));
-      for (const core of ["fleet_status", "list_projects", "search_knowledge", "propose_action"]) {
+      for (const core of [
+        "read_website",
+        "fleet_status",
+        "list_projects",
+        "search_knowledge",
+        "propose_action",
+      ]) {
         assert.ok(shown.has(core), `${core} must always be offered: [${[...shown].join(", ")}]`);
       }
     });

@@ -26,17 +26,16 @@ const project = (
 const fleet = Array.from({ length: 30 }, (_, i) => project(`project-${i}`, i));
 const plan = rankDayProjects(fleet, now);
 assert.equal(plan.totalRecent, 8, "the seven-day cutoff is inclusive");
-assert.equal(plan.projects.length, 7, "the home card never lists the whole fleet");
-assert.equal(plan.selectedIds.length, MAX_CONCURRENT_BUILDING);
-assert.deepEqual(plan.selectedIds, ["project-0", "project-1", "project-2"]);
+assert.equal(plan.projects.length, 0, "unselected clones must not masquerade as main projects");
+assert.deepEqual(plan.selectedIds, [], "recent activity must not decide importance");
 
 const eligibility = rankDayProjects(
   [
-    project("paused", 0, { paused: true }),
+    project("paused", 0, { paused: true, main: true }),
     project("busy", 0, { busy: true }),
     project("no-path", 0, { runnable: false }),
-    project("working-choice", 2),
-    project("last-week", 6),
+    project("working-choice", 2, { main: true }),
+    project("last-week", 6, { main: true }),
     project("stale", 8),
     project("unknown", 0, { activity: [] }),
     project("invalid", 0, { activity: [{ at: "invalid", source: "run" }] }),
@@ -47,7 +46,9 @@ const eligibility = rankDayProjects(
 assert.deepEqual(eligibility.selectedIds, ["working-choice", "last-week"]);
 assert.equal(eligibility.totalRecent, 5);
 assert.equal(
-  eligibility.projects.find((p) => p.id === "paused")?.unavailable,
+  rankDayProjects([project("paused", 0, { paused: true, main: true })], now).projects.find(
+    (p) => p.id === "paused",
+  )?.unavailable,
   "Paused for this project",
 );
 assert.equal(rankDayProjects([], now).selectedIds.length, 0);
@@ -56,6 +57,7 @@ assert.equal(rankDayProjects([project("old", 30)], now).projects.length, 0, "no 
 const mixed = rankDayProjects(
   [
     project("mixed", 30, {
+      main: true,
       activity: [
         { at: new Date(now - 30 * DAY_MS).toISOString(), source: "dev log" },
         { at: new Date(now - DAY_MS).toISOString(), source: "session" },
@@ -68,7 +70,8 @@ const mixed = rankDayProjects(
 assert.match(mixed.projects[0].why, /Recent session/);
 assert.equal(mixed.projects[0].lastActiveAt, "2026-10-13T08:00:00.000Z");
 assert.deepEqual(
-  rankDayProjects([project("b"), project("a")], now).selectedIds,
+  rankDayProjects([project("b", 1, { main: true }), project("a", 1, { main: true })], now)
+    .selectedIds,
   ["a", "b"],
   "stable ties",
 );
@@ -99,4 +102,31 @@ assert.equal(
   "budget cannot be bypassed by the client",
 );
 
+const mains = rankDayProjects(
+  [
+    project("imported-clone", 0),
+    project("quiet-main", 30, { main: true }),
+    project("shared-main", 2, { main: true }),
+    project("viewer", 1, { main: true, accessReason: "View only" }),
+  ],
+  now,
+);
+assert.deepEqual(mains.selectedIds, ["shared-main", "quiet-main"]);
+assert(!mains.projects.some((p) => p.id === "imported-clone"));
+assert.equal(mains.projects.find((p) => p.id === "viewer")?.unavailable, "View only");
+assert.equal(mains.projects.find((p) => p.id === "quiet-main")?.lastActiveAt, "");
+assert.equal(
+  rankDayProjects(
+    Array.from({ length: 12 }, (_, i) => project(`main-${i}`, 30, { main: true })),
+    now,
+  ).projects.length,
+  12,
+);
+assert.equal(
+  rankDayProjects(
+    Array.from({ length: 12 }, (_, i) => project(`main-${i}`, 30, { main: true })),
+    now,
+  ).selectedIds.length,
+  MAX_CONCURRENT_BUILDING,
+);
 console.log("✓ start-my-day recency, eligibility, selection and scope tests passed");

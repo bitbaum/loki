@@ -23,7 +23,7 @@ function project(over: Partial<SuggestionProject> & { name: string }): Suggestio
     liveUrl: "https://example.org",
     runnable: true,
     nextStep: null,
-    nextStepDate: null,
+    nextStepDate: new Date().toISOString(),
     ...over,
   };
 }
@@ -190,3 +190,32 @@ for (const q of ["what was the latest suggestion from visitors on sink", "what's
 }
 
 console.log("build-suggestions: ok");
+
+const fixedNow = Date.parse("2026-10-14T08:00:00Z");
+for (const date of [null, "invalid", "2026-08-29", "2026-10-15"]) {
+  const stale = rankBuildSuggestions({
+    ...empty,
+    now: fixedNow,
+    projects: [project({ name: "old", nextStep: "448 old test failures", nextStepDate: date })],
+  });
+  assert(
+    !stale.suggestions.some((s) => s.kind === "continue"),
+    "undated, old and future handoffs cannot become current work",
+  );
+}
+const fresh = rankBuildSuggestions({
+  ...empty,
+  now: fixedNow,
+  projects: [
+    project({
+      name: "current",
+      nextStep: "Improve the homepage",
+      nextStepDate: "2026-10-13T08:00:00Z",
+    }),
+  ],
+});
+assert(
+  fresh.suggestions.some(
+    (s) => s.kind === "continue" && s.why.includes("2026-10-13") && !s.why.includes("T08"),
+  ),
+);

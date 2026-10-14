@@ -213,6 +213,7 @@ export function systemPrompt(registry: ToolRegistry, canCallTools = true): strin
     ? [
         "The Records block below was retrieved for THIS question before you were called. Answer from it directly. Call a tool only when the records do not cover what was asked — a filter, a name, a wider window.",
         "",
+        "Stored project records and watch notes do not verify a live website. When asked to inspect a site now, call read_website with its registered or supplied URL before presenting current findings. Report a failed read as a failed read, not as proof the whole site was reviewed.",
         "Call a tool by writing these two lines in your reply, exactly like this:",
         "",
         "TOOL: search_people",

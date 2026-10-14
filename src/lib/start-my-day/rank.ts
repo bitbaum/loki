@@ -7,6 +7,8 @@ export const DAY_PROJECT_LIMIT = 7;
 export type DayProjectInput = {
   id: string;
   name: string;
+  main?: boolean;
+  accessReason?: string;
   href: string;
   runnable: boolean;
   paused: boolean;
@@ -18,6 +20,7 @@ export type DayProject = {
   id: string;
   name: string;
   href: string;
+  main: boolean;
   lastActiveAt: string;
   why: string;
   unavailable: string | null;
@@ -25,6 +28,8 @@ export type DayProject = {
 
 export type DayPlan = {
   projects: DayProject[];
+  catalog?: DayProject[];
+  labels?: Record<string, string>;
   selectedIds: string[];
   totalRecent: number;
   githubChecked: boolean;
@@ -41,40 +46,50 @@ export function rankDayProjects(inputs: DayProjectInput[], now = Date.now()) {
         .map((a) => ({ ...a, ms: Date.parse(a.at) }))
         .filter((a) => Number.isFinite(a.ms) && a.ms >= cutoff && a.ms <= now)
         .sort((a, b) => b.ms - a.ms)[0];
-      if (!latest) return [];
+      if (!latest && !p.main) return [];
       return [
         {
           id: p.id,
           name: p.name,
           href: p.href,
-          lastActiveAt: new Date(latest.ms).toISOString(),
-          why: `Recent ${latest.source} · ${new Date(latest.ms).toISOString().slice(0, 10)}`,
-          unavailable: p.paused
-            ? "Paused for this project"
-            : p.busy
-              ? "Already working or queued"
-              : !p.runnable
-                ? "Set up a project path first"
-                : null,
+          main: Boolean(p.main),
+          lastActiveAt: latest ? new Date(latest.ms).toISOString() : "",
+          why: latest
+            ? `${p.main ? "Main project · " : ""}Recent ${latest.source} · ${new Date(latest.ms).toISOString().slice(0, 10)}`
+            : "Main project · no recent activity observed",
+          unavailable:
+            p.accessReason ??
+            (p.paused
+              ? "Paused for this project"
+              : p.busy
+                ? "Already working or queued"
+                : !p.runnable
+                  ? "Set up a project path first"
+                  : null),
         },
       ];
     })
     .sort(
-      (a, b) => Date.parse(b.lastActiveAt) - Date.parse(a.lastActiveAt) || a.id.localeCompare(b.id),
+      (a, b) =>
+        Number(b.main) - Number(a.main) ||
+        (Date.parse(b.lastActiveAt) || 0) - (Date.parse(a.lastActiveAt) || 0) ||
+        a.id.localeCompare(b.id),
     );
   // Actionable projects lead; working/paused projects still explain their absence
   // from the default selection instead of silently disappearing.
+  const mains = ranked.filter((p) => p.main);
+  const scope = mains;
   const projects = [
-    ...ranked.filter((p) => !p.unavailable),
-    ...ranked.filter((p) => p.unavailable),
-  ].slice(0, DAY_PROJECT_LIMIT);
+    ...scope.filter((p) => !p.unavailable),
+    ...scope.filter((p) => p.unavailable),
+  ].slice(0, mains.length ? Math.max(DAY_PROJECT_LIMIT, mains.length) : DAY_PROJECT_LIMIT);
   return {
     projects,
     selectedIds: projects
-      .filter((p) => !p.unavailable)
+      .filter((p) => p.main && !p.unavailable)
       .slice(0, MAX_CONCURRENT_BUILDING)
       .map((p) => p.id),
-    totalRecent: ranked.length,
+    totalRecent: ranked.filter((p) => p.lastActiveAt).length,
     maxProjects: MAX_CONCURRENT_BUILDING,
   };
 }

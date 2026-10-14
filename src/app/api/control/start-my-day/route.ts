@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiUserId } from "@/lib/session";
 import { jsonError, jsonOk, readJsonBody, z } from "@/lib/api/route-helpers";
-import { getUserProjects } from "@/db/queries/user-projects";
-import { kickFleet } from "@/lib/fleet-kick";
+import { getDayCatalog, saveDayPreferences } from "@/lib/start-my-day/catalog";
+import { kickFleet, type FleetKickResult } from "@/lib/fleet-kick";
 import { MAX_CONCURRENT_BUILDING } from "@/lib/constants/control";
 import { loadDayPlan } from "@/lib/start-my-day/load";
 import { resolveDaySelection } from "@/lib/start-my-day/rank";
@@ -27,20 +27,72 @@ export async function POST(req: NextRequest) {
   if (!userId) return jsonError("Unauthorized", 401);
   const body = await readJsonBody(req, Body);
   if (body instanceof NextResponse) return body;
-  // The lock survives multiple browser tabs and server workers. Try, never
-  // wait: duplicate presses must not accumulate a second batch behind this one.
-  const response = await withDayStartLock(userId, async () => {
-    const projects = resolveDaySelection(body.projectIds, await getUserProjects(userId));
-    if (!projects)
-      return jsonError("The selection changed. Refresh and choose your projects again.", 400);
-    // Names are resolved from owned, active IDs here, never trusted from the
-    // browser. Fleet kick rechecks pauses, busy runs, pending work and capacity.
-    const result = await kickFleet(userId, {
-      source: "start_my_day",
-      projectKeys: projects.map((p) => p.name),
-      requireFleetOn: false,
-    });
-    return jsonOk({ result });
-  });
-  return response ?? jsonError("Already starting your projects. Check Control for progress.", 409);
+  const projects = resolveDaySelection(body.projectIds, await getDayCatalog(userId));
+  if (!projects)
+    return jsonError("The selection changed. Refresh and choose your projects again.", 400);
+  if (projects.some((p) => !p.canStart))
+    return jsonError("You have view-only access to a selected project.", 403);
+  const groups = new Map<string, typeof projects>();
+  for (const p of projects) groups.set(p.userId, [...(groups.get(p.userId) ?? []), p]);
+  const results: FleetKickResult[] = [];
+  const startedIds: string[] = [];
+  for (const [ownerId, group] of groups) {
+    const kick = () =>
+      kickFleet(ownerId, {
+        source: "start_my_day",
+        projectKeys: group.map((p) => p.name),
+        requireFleetOn: false,
+      });
+    // Shared work uses the owner's credentials, capacity and cross-tab lock.
+    const result = await withDayStartLock(ownerId, kick);
+    if (!result && results.length === 0)
+      return jsonError(
+        "This project's owner is already starting work. Check progress before retrying.",
+        409,
+      );
+    if (!result) {
+      results.push({
+        ...results[0],
+        kicked: 0,
+        details: group.map((p) => ({
+          projectKey: p.name,
+          outcome: "skipped" as const,
+          reason: "busy",
+        })),
+      });
+      continue;
+    }
+    results.push(result);
+    startedIds.push(
+      ...group
+        .filter((p) =>
+          result.details.some((d) => d.projectKey === p.name && d.outcome === "kicked"),
+        )
+        .map((p) => p.id),
+    );
+  }
+  const result = {
+    ...results[0],
+    kicked: results.reduce((n, r) => n + r.kicked, 0),
+    details: results.flatMap((r) => r.details),
+    ok: results.every((r) => r.ok),
+  };
+  return jsonOk({ result, startedIds });
+}
+
+const PreferencesBody = z.object({
+  mainProjectIds: z.array(z.string().uuid()).max(200),
+  labels: z.record(z.string().uuid(), z.string().trim().min(1).max(100)),
+});
+
+export async function PATCH(req: NextRequest) {
+  const userId = await getApiUserId();
+  if (!userId) return jsonError("Unauthorized", 401);
+  const body = await readJsonBody(req, PreferencesBody);
+  if (body instanceof NextResponse) return body;
+  const available = new Set((await getDayCatalog(userId)).map((p) => p.id));
+  if ([...body.mainProjectIds, ...Object.keys(body.labels)].some((id) => !available.has(id)))
+    return jsonError("Project access changed. Refresh the list before saving.", 403);
+  await saveDayPreferences(userId, { ...body, mainProjectIds: [...new Set(body.mainProjectIds)] });
+  return jsonOk({ ok: true });
 }
