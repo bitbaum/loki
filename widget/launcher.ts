@@ -83,6 +83,7 @@ export function createLauncher(opts: {
   fabIcon.innerHTML = PENCIL_SVG;
   const fabLabel = h("span", "fab-label", "Feedback");
   const badge = h("span", "fab-badge");
+  badge.style.display = "none";
   fab.append(spiralMark(), fabLabel, fabIcon, badge);
   fab.setAttribute("aria-label", "Give feedback");
   fab.setAttribute("aria-haspopup", "dialog");
@@ -155,24 +156,22 @@ export function createLauncher(opts: {
     attributeFilter: ["style", "class"],
   });
 
-  /** The site's owner: the launcher is their tool and is never hidden for
-   *  them by the avoid pass — on their own site, a corner it covers is theirs
-   *  to move it from (long-press), not a reason for it to vanish and a bar to
-   *  appear somewhere else. */
+  /** Owner status remains reachable even on a crowded page: the same button
+   *  becomes an edge handle rather than covering the work being read. */
   let owner = false;
   function setOwnerStatus(status: OwnerStatus | null) {
     pointWanted = status !== null;
     const wasOwner = owner;
     owner = status !== null;
-    syncPoint();
-    if (owner !== wasOwner) reposition();
+    const previousLabel = fabLabel.textContent;
+    const previousBadge = badge.textContent;
     fab.classList.toggle("owner", status !== null);
     fab.classList.toggle("watching", !!status?.watching);
     fab.classList.toggle("paused", status !== null && !status.watching);
     const label = status ? (status.watching ? "Loki · watching" : "Loki") : "Feedback";
     fabLabel.textContent = label;
     const unread = status?.unread ?? 0;
-    badge.textContent = unread ? String(Math.min(unread, 9)) : "";
+    badge.textContent = unread ? (unread > 9 ? "9+" : String(unread)) : "";
     badge.style.display = unread ? "" : "none";
     fab.setAttribute(
       "aria-label",
@@ -180,20 +179,42 @@ export function createLauncher(opts: {
         ? `Open Loki${status.watching ? " — watching" : ""}${unread ? `, ${unread} new` : ""}`
         : "Give feedback",
     );
+    // Measure after the label, badge and owner styles have changed, including
+    // a watch/pause transition that changes width without changing ownership.
+    syncPoint();
+    if (owner !== wasOwner || previousLabel !== label || previousBadge !== badge.textContent) {
+      reposition();
+    }
   }
-  setOwnerStatus(null);
 
   function say(text: string) {
     if (fab.style.display === "none" || fab.style.visibility === "hidden" || tab) return;
     bubbleText.textContent = text;
+    positionBubble();
+    window.clearTimeout(bubbleTimer);
+    bubbleTimer = window.setTimeout(() => (bubble.style.display = "none"), BUBBLE_SHOWN_MS);
+  }
+
+  function positionBubble() {
     // Anchor beside the launcher's own corner so it opens inward.
     const { x, y } = cornerEdges(current.corner);
     bubble.style.left = bubble.style.right = bubble.style.top = bubble.style.bottom = "auto";
     bubble.style[x] = `${current.offsetX}px`;
     bubble.style[y] = `${current.offsetY + 52}px`;
     bubble.style.display = "";
-    window.clearTimeout(bubbleTimer);
-    bubbleTimer = window.setTimeout(() => (bubble.style.display = "none"), BUBBLE_SHOWN_MS);
+    // Remarks are already in the conversation and unread count. A preview is
+    // optional: never lay one over the paragraph or action being read.
+    const rect = bubble.getBoundingClientRect();
+    if (
+      rect.left < 0 ||
+      rect.top < 0 ||
+      rect.right > window.innerWidth ||
+      rect.bottom > window.innerHeight ||
+      createHostScanner(host).verdict(rect) !== "free"
+    ) {
+      bubble.style.display = "none";
+      return;
+    }
   }
 
   // ---- visitor escape hatch ----
@@ -298,6 +319,7 @@ export function createLauncher(opts: {
   document.addEventListener(
     "scroll",
     () => {
+      bubble.style.display = "none";
       fab.classList.add("scrolling");
       clearTimeout(scrollSettle);
       scrollSettle = window.setTimeout(() => {
@@ -345,6 +367,7 @@ export function createLauncher(opts: {
   }
   /** The edge tab on `side`, at the first height that covers no control. */
   const placeTab = (side: "left" | "right", scanner: ReturnType<typeof createHostScanner>) => {
+    bubble.style.display = "none";
     setTab(true);
     fab.style.left = fab.style.right = fab.style.top = fab.style.bottom = "auto";
     fab.style[side] = "0px";
@@ -362,11 +385,26 @@ export function createLauncher(opts: {
     fab.style.visibility = visible ? "" : "hidden";
   };
 
+  /** Every visible half counts, not just the button carrying the label. */
+  const footprint = () => {
+    const rect = fab.getBoundingClientRect();
+    const parts = [rect];
+    if (point.style.display !== "none") parts.push(point.getBoundingClientRect());
+    if (badge.style.display !== "none") parts.push(badge.getBoundingClientRect());
+    return {
+      left: Math.min(...parts.map((r) => r.left)),
+      right: Math.max(...parts.map((r) => r.right)),
+      top: Math.min(...parts.map((r) => r.top)),
+      bottom: Math.max(...parts.map((r) => r.bottom)),
+    };
+  };
+
   const reposition = () => {
     if (fab.style.display === "none") return; // panel open — rect is degenerate
     const p = effective();
     const directive = readPlaceDirective();
     if (directive === "hidden") {
+      bubble.style.display = "none";
       show(false);
       return;
     }
@@ -375,6 +413,9 @@ export function createLauncher(opts: {
       placeTab(cornerEdges(p.corner).x, createHostScanner(host));
       return;
     }
+    // A previous region may have hidden the button; restore visibility before
+    // measuring so syncPoint includes the target in this pass too.
+    show(true);
     const base: Slot = {
       corner: side ? withSide(p.corner, side) : p.corner,
       offsetX: p.offsetX,
@@ -399,27 +440,31 @@ export function createLauncher(opts: {
       slots,
       (slot) => {
         place(slot);
-        return scanner.verdict(fab.getBoundingClientRect());
+        const rect = footprint();
+        if (
+          rect.left < 0 ||
+          rect.top < 0 ||
+          rect.right > window.innerWidth ||
+          rect.bottom > window.innerHeight
+        ) {
+          return "blocked";
+        }
+        const verdict = scanner.verdict(rect);
+        // The owner's wide status pill must not cover prose or a sheet.
+        // Visitors retain the quieter launcher's existing placement policy.
+        return owner && verdict !== "free" ? "blocked" : verdict;
       },
       nearBandTop(base, { edgeLength: window.innerHeight, size: size.height }),
     );
     if (!pick) {
-      // Every corner slot would sit on a host control. The owner keeps their
-      // corner (on their own site it is theirs to move, by long-press). For
-      // everyone else it becomes the edge tab — never gone: a launcher that
-      // vanishes on some pages and not others reads as broken. The next pass
-      // brings the button back as soon as a slot clears.
-      if (owner) {
-        place(base);
-        show(true);
-      } else {
-        placeTab(cornerEdges(base.corner).x, scanner);
-      }
+      // Keep Loki reachable without forcing the full owner pill onto content.
+      placeTab(cornerEdges(base.corner).x, scanner);
       return;
     }
     place(pick.slot);
     current = pick.slot;
     show(true);
+    if (bubble.style.display !== "none") positionBubble();
   };
 
   reposition();

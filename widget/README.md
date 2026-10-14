@@ -32,10 +32,12 @@ Rules that resolve the trade-offs:
   visitor it is quiet ("quiet until wanted"). For the owner it is full weight —
   one pill, two halves: *Loki · watching* (a count of what Loki said while the
   panel was closed, the newest remark beside it) and **◎**, which points at an
-  element or marks the whole screen. The owner's launcher never hides for the
-  auto-avoid and never fades on scroll: on their own site, a corner it covers
-  is theirs to move it from (long-press), not a reason for it to vanish and
-  something else to appear at the top. The top bar exists only for a page that
+  element or marks the whole screen. Auto-avoid measures the entire pill,
+  including the target and unread badge. The owner pill only uses clear space;
+  on a crowded page it becomes the same edge handle visitors use, keeping the
+  unread count and access to the conversation. Remark previews only appear
+  over clear space and dismiss on scroll or when space becomes occupied; every remark remains
+  in the conversation. The top bar exists only for a page that
   hides the launcher outright (`data-fc-place="hidden"`; the edge tab counts as
   shown), and carries the same
   ◎ — the owner said on 2026-10-10 that a bar and a launcher taking turns
@@ -210,7 +212,8 @@ flush against its side edge, in the middle, or the nearest height that covers
 no control — until a corner clears. It used to hide instead, and from the
 outside that read as "sometimes it is there, sometimes not". The rule now: the
 launcher is on screen, as the corner button or the edge tab, unless someone
-switched it off (see *Hiding it*). The site's owner keeps their corner.
+switched it off (see *Hiding it*). Owners use the edge tab too when no clear
+space fits the whole pill.
 
 ## The host contract — for what the heuristics cannot see
 

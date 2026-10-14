@@ -137,7 +137,7 @@ export function ProjectWorkspaceHeader({
           type="button"
           onClick={() => setDescExpanded((v) => !v)}
           aria-expanded={descExpanded}
-          className="mt-1 text-xs font-medium text-text-tertiary transition-colors hover:text-text-secondary"
+          className="ui-tap mt-1 text-xs font-medium text-text-tertiary transition-colors hover:text-text-secondary"
         >
           {descExpanded ? "Show less" : "Show full description"}
         </button>

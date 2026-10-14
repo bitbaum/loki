@@ -413,6 +413,15 @@ export function ControlFleetStatus({
           {queueBusy ? "Stopping…" : "Stop waiting"}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
+      ) : fleetPulse.key === "inbox" && ready > 0 && onFocusCategory ? (
+        <button
+          type="button"
+          onClick={() => onFocusCategory("waiting")}
+          className="ui-hero-action ui-btn-primary"
+        >
+          Review waiting {ready === 1 ? "project" : "projects"}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </button>
       ) : fleetPulse.key === "failing" ? (
         // Was a hand-written "/activity?window=week" — the one activity link
         // in the app that skipped activityHref, and so the one that carried no
