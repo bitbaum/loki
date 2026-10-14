@@ -3,6 +3,7 @@
 //
 // Pure — no database, no server. The route composes exactly these pieces.
 import path from "path";
+import { isPreviewAddress, previewHostFor, previewHostUrl } from "../../src/lib/previews/address";
 import { PREVIEW_BUILD_RULES, previewBuildPrompt } from "../../src/config/preview-brief";
 import { PREVIEWS, previewEntryPath } from "../../src/config/previews";
 import { projectChannelLock } from "../../src/lib/execution-access";
@@ -176,6 +177,22 @@ ok(
 );
 ok(/do not push/i.test(brief), "the brief keeps the folder off GitHub");
 ok(!/\n\n\n/.test(brief), "no runs of blank lines");
+
+// ---- a preview's own address ----
+ok(isPreviewAddress("francesco") && isPreviewAddress("murphys-bar"), "a name makes an address");
+ok(
+  !isPreviewAddress("loki") && !isPreviewAddress("www") && !isPreviewAddress("p"),
+  "reserved names are not addresses",
+);
+ok(
+  !isPreviewAddress("Murphy's") && !isPreviewAddress("-x") && !isPreviewAddress(""),
+  "malformed labels are not addresses",
+);
+ok(previewHostFor("francesco") === "francesco.orangecat.ch", "the host is <label>.orangecat.ch");
+ok(
+  previewHostUrl("francesco") === "https://francesco.orangecat.ch/",
+  "…and its address opens at the root",
+);
 
 console.log(`\npreviews: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

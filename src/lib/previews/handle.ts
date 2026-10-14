@@ -28,7 +28,18 @@ export type PreviewDeps = {
   /** Wrong-code attempts: true while this visitor may still try. */
   allowAttempt(clientKey: string): boolean;
   secureCookies: boolean;
+  /** Loki's own origin: the widget must load from here when the preview is a host's root. */
+  appOrigin: string;
 };
+
+/**
+ * Is this preview the whole of its own host (<label>.orangecat.ch, via the
+ * Caddy vhost from attach-preview-host.sh) rather than a page under /p/<label>?
+ * Caddy says so; a visitor who sends the header only changes where their own
+ * cookie is scoped and where the gate posts, and the code is still required.
+ */
+export const ROOTED_HEADER = "x-preview-root";
+const isRooted = (req: Request) => req.headers.get(ROOTED_HEADER) === "1";
 
 const PRIVATE_HEADERS: Record<string, string> = {
   "X-Robots-Tag": "noindex, nofollow",
@@ -61,8 +72,12 @@ async function locate(slug: string, deps: PreviewDeps) {
   return dir && project ? { dir, project } : null;
 }
 
-const gateFor = (slug: string, name: string, error?: string) =>
-  previewGatePage({ name, postUrl: `${PREVIEWS.routePrefix}/${slug}`, error });
+const gateFor = (req: Request, slug: string, name: string, error?: string) =>
+  previewGatePage({
+    name,
+    postUrl: isRooted(req) ? "/" : `${PREVIEWS.routePrefix}/${slug}`,
+    error,
+  });
 
 export async function handlePreviewGet(
   req: Request,
@@ -92,7 +107,7 @@ export async function handlePreviewGet(
     const wantsPage =
       !file || isHtmlFile(file) || (req.headers.get("accept") ?? "").includes("text/html");
     if (!wantsPage) return new Response(null, { status: 401, headers: PRIVATE_HEADERS });
-    return htmlResponse(gateFor(slug, found.project.name), 401);
+    return htmlResponse(gateFor(req, slug, found.project.name), 401);
   }
 
   const bytes = file && type ? await deps.readFile(file) : null;
@@ -108,7 +123,11 @@ export async function handlePreviewGet(
     });
   }
   let page = new TextDecoder().decode(bytes);
-  if (found.project.widgetToken) page = injectPreviewWidget(page, found.project.widgetToken);
+  if (found.project.widgetToken) {
+    // On its own host a relative /widget.js would be asked of the preview.
+    const src = isRooted(req) ? `${deps.appOrigin}/widget.js` : undefined;
+    page = injectPreviewWidget(page, found.project.widgetToken, src);
+  }
   return new Response(page, {
     headers: { ...PRIVATE_HEADERS, "Content-Type": type, "Cache-Control": "no-store" },
   });
@@ -139,7 +158,7 @@ export async function handlePreviewPost(
   const fail = (error: string, status: number) =>
     json
       ? Response.json({ error }, { status, headers: PRIVATE_HEADERS })
-      : htmlResponse(gateFor(slug, found.project.name, error), status);
+      : htmlResponse(gateFor(req, slug, found.project.name, error), status);
 
   if (!deps.allowAttempt(clientKey)) {
     return fail("Too many tries. Wait a few minutes and try again.", 429);
@@ -152,7 +171,8 @@ export async function handlePreviewPost(
 
   const setCookie = [
     `${PREVIEWS.cookie}=${cookie}`,
-    `Path=${PREVIEWS.routePrefix}`,
+    // Rooted: the preview is the host, so the cookie must reach every path.
+    `Path=${isRooted(req) ? "/" : PREVIEWS.routePrefix}`,
     `Max-Age=${Math.floor(PREVIEWS.cookieTtlMs / 1000)}`,
     "HttpOnly",
     "SameSite=Lax",
@@ -164,6 +184,9 @@ export async function handlePreviewPost(
     headers.set("Content-Type", "application/json");
     return new Response(JSON.stringify({ ok: true }), { headers });
   }
-  headers.set("Location", new URL(previewEntryPath(slug), req.url).toString());
+  headers.set(
+    "Location",
+    new URL(isRooted(req) ? "/" : previewEntryPath(slug), req.url).toString(),
+  );
   return new Response(null, { status: 303, headers });
 }

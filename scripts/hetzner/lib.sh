@@ -171,6 +171,35 @@ $redirect {
 VHOST
 }
 
+# preview_vhost <label> <host> <port> — the apps.d file that makes a prospect
+# preview the whole of its own address: <label>.orangecat.ch serves Loki's
+# /p/<label>/ as if it were the site's root, behind the same access code.
+#
+# Pure (prints, touches nothing) so it is testable without a box. Two rewrites
+# and no more: "/" opens the entry file (Next would 308 /p/<label>/ to
+# /p/<label>, which the browser then asks this host for again), and every other
+# path moves under /p/<label>. X-Preview-Root tells Loki the preview IS the
+# root, so its cookie and its gate form use "/" rather than "/p".
+preview_vhost() {
+  local label="$1" host="$2" port="$3"
+  cat <<VHOST
+$host {
+  import access_log
+  encode zstd gzip
+  @previewroot path /
+  rewrite @previewroot /p/$label/index.html
+  @previewrest not path /p/$label/*
+  rewrite @previewrest /p/$label{uri}
+  reverse_proxy 127.0.0.1:$port {
+    header_up X-Preview-Root 1
+    flush_interval -1
+    lb_try_duration 20s
+    lb_try_interval 250ms
+  }
+}
+VHOST
+}
+
 # publish_register_row <slug> <line> — make origin/main's register hold <line>
 # as the row for <slug> (append when absent, replace when different), through
 # a branch and a PR, the way every other change reaches main. Best-effort and

@@ -4,6 +4,7 @@ import { PREVIEWS } from "@/config/previews";
 import { findPreviewProject } from "@/db/queries/previews";
 import { getActiveWidgetToken } from "@/db/queries/widget-tokens";
 import { handlePreviewGet, handlePreviewPost, type PreviewDeps } from "@/lib/previews/handle";
+import { appUrl } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
@@ -40,6 +41,7 @@ const deps: PreviewDeps = {
       PREVIEWS.attemptWindowMs,
     ),
   secureCookies: process.env.NODE_ENV === "production",
+  appOrigin: new URL(appUrl()).origin,
 };
 
 export async function GET(req: NextRequest, { params }: Params) {

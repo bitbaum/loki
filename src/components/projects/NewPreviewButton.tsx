@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAiForm } from "@fleet/ai-forms/react";
 import { Field } from "@/components/ui/form";
@@ -18,14 +19,23 @@ export function NewPreviewButton() {
   const form = useAiForm({
     target: PREVIEW_FORM.key,
     fields: PREVIEW_FORM.fields,
-    initialValues: { name: "", about: "" },
+    initialValues: { name: "", about: "", address: "" },
   });
   const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [archive, setArchive] = useState<File | null>(null);
   const { create, saving, error, setError } = useCreateMutation<
-    { name: string; about?: string },
+    { name: string; about?: string; address?: string },
     { preview?: { projectId?: string } }
   >({
-    request: (body) => postJson("/api/previews", body),
+    // A finished site travels as multipart; otherwise it is asked for as JSON.
+    request: (body) => {
+      if (!archive) return postJson("/api/previews", body);
+      const data = new FormData();
+      for (const [key, value] of Object.entries(body)) if (value) data.append(key, value);
+      data.append("archive", archive);
+      return fetch("/api/previews", { method: "POST", body: data });
+    },
     errorLabel: "preview",
     onCreated: (data) => {
       if (data.preview?.projectId) router.push(`/projects/${data.preview.projectId}`);
@@ -45,10 +55,12 @@ export function NewPreviewButton() {
         create({
           name: form.text("name").trim(),
           about: form.text("about").trim() || undefined,
+          address: form.text("address").trim() || undefined,
         })
       }
       onReset={() => {
         form.reset();
+        setArchive(null);
         setError(null);
       }}
       assist={form}
@@ -72,6 +84,34 @@ export function NewPreviewButton() {
           className="ui-input"
         />
       </Field>
+      <Field label="Address (empty uses the name)" aiTouched={form.isAiTouched("address")}>
+        <input
+          value={form.text("address")}
+          onChange={(e) => form.setValue("address", e.target.value)}
+          placeholder="e.g. francesco  →  francesco.orangecat.ch"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="ui-input"
+        />
+      </Field>
+      <div className="flex flex-col gap-1.5">
+        <span className="ui-micro-label">Already have the site? Bring it as a .zip</span>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".zip,application/zip"
+          className="sr-only"
+          onChange={(e) => setArchive(e.target.files?.[0] ?? null)}
+        />
+        <button
+          type="button"
+          className="ui-btn-chip self-start"
+          onClick={() => fileRef.current?.click()}
+        >
+          {archive ? `${archive.name} — change` : "Choose a .zip (index.html at the top)"}
+        </button>
+      </div>
     </ModalForm>
   );
 }
