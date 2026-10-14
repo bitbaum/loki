@@ -191,10 +191,10 @@ export function OwnModelSettings() {
           Power Loki with your own models
         </h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Paste a key from any provider — or point Loki at a model on your own machine — and it
-          thinks with the best model your account can use. Your provider bills you for what you use;
-          Loki charges nothing and the shared daily budget no longer applies to your chats. Add
-          several and Loki tries them in order.{" "}
+          Paste a key from any provider — or point Loki at a model on your own machine — and it Auto
+          chooses a model for each request. Your provider bills you for what you use; Loki charges
+          nothing and the shared daily budget no longer applies to your chats. Add several to give
+          Auto alternatives. You can also choose a specific model in chat.{" "}
           <Link
             href={MODEL_STORE_PATH}
             className="text-accent-text underline-offset-2 hover:underline"
@@ -242,7 +242,7 @@ export function OwnModelSettings() {
                   {rowName(row)} · <span className="break-words">{row.model}</span>
                 </p>
                 <p className="text-xs text-text-secondary">
-                  {index === 0 ? "Loki starts here · " : `Tried ${ordinal(index + 1)} · `}
+                  {index === 0 ? "First provider for Auto · " : `Provider ${index + 1} · `}
                   {row.vendor === CUSTOM_VENDOR_ID && hostOf(row.baseUrl)
                     ? `${hostOf(row.baseUrl)} · `
                     : ""}
@@ -361,7 +361,7 @@ export function OwnModelSettings() {
                   saved.kind === "change"
                     ? `${name} — model changed. Testing it now…`
                     : next[0]?.vendor === saved.vendor
-                      ? `${name} added. Loki starts here now. Testing it…`
+                      ? `${name} added. Added as the first provider for Auto. Testing it…`
                       : `${name} added as your ${ordinal(next.findIndex((m) => m.vendor === saved.vendor) + 1)} model. Testing it…`,
               });
               void test(saved.vendor);

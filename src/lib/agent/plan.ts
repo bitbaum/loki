@@ -269,6 +269,7 @@ const TOOLS_FOR_SOURCE: Record<SourceId, readonly string[]> = {
  * Loki has on the world and must never be hidden from it.
  */
 const CORE_TOOLS: readonly string[] = [
+  "read_website",
   "fleet_status",
   "list_projects",
   "search_knowledge",

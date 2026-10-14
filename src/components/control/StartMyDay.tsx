@@ -32,10 +32,14 @@ export function StartMyDay() {
   const [result, setResult] = useState<FleetKickResult | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [accepted, setAccepted] = useState<string[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [mainIds, setMainIds] = useState<string[]>([]);
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState(false);
   const projects = data?.projects ?? [];
   const selected = (selection ?? data?.selectedIds ?? []).filter((id) =>
-    projects.some((p) => p.id === id && !p.unavailable && !accepted.includes(p.name)),
+    projects.some((p) => p.id === id && !p.unavailable && !accepted.includes(p.id)),
   );
   const visible = expanded ? projects : projects.slice(0, data?.maxProjects ?? 3);
 
@@ -58,12 +62,9 @@ export function StartMyDay() {
       const response = await postJson(ENDPOINT, { projectIds: ids });
       if (!response.ok)
         await throwApiError(response, "Could not start. Check Control before trying again.");
-      const body = (await response.json()) as { result: FleetKickResult };
+      const body = (await response.json()) as { result: FleetKickResult; startedIds: string[] };
       setResult(body.result);
-      const names = body.result.details
-        .filter((d) => d.outcome === "kicked")
-        .map((d) => d.projectKey);
-      setAccepted((prev) => [...new Set([...prev, ...names])]);
+      setAccepted((prev) => [...new Set([...prev, ...body.startedIds])]);
       // Never silently replace started choices with three more projects.
       setSelection(selected.filter((id) => !ids.includes(id)));
       refetch();
@@ -79,6 +80,35 @@ export function StartMyDay() {
     }
   }
 
+  function editProjects() {
+    setMainIds((data?.catalog ?? []).filter((p) => p.main).map((p) => p.id));
+    setLabels(data?.labels ?? {});
+    setQuery("");
+    setEditing(true);
+    setFailure(null);
+  }
+  async function saveProjects() {
+    setBusy(true);
+    setFailure(null);
+    try {
+      // Send only changed labels; preserve saved names for projects outside this edit.
+      const names = Object.fromEntries(Object.entries(labels).filter(([, label]) => label.trim()));
+      const response = await fetch(ENDPOINT, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mainProjectIds: mainIds, labels: names }),
+      });
+      if (!response.ok) await throwApiError(response, "Could not save your main projects.");
+      setSelection(null);
+      setEditing(false);
+      refetch();
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : "Could not save projects.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="ui-away w-full" aria-label="Start my day" data-start-my-day>
       <div className="ui-away-head">
@@ -88,7 +118,7 @@ export function StartMyDay() {
         </Link>
       </div>
       <p className="mt-1 text-sm text-text-secondary">
-        Pick up recent work. Loki chooses the next useful task in each selected project.
+        Choose the projects that matter to you. Loki picks up the next useful task in each one.
       </p>
       {loading && !data && (
         <p className="mt-3 text-sm text-text-muted" role="status">
@@ -105,9 +135,87 @@ export function StartMyDay() {
       )}
       {data && !error && (
         <>
+          <button
+            type="button"
+            className="ui-btn-secondary mt-3"
+            onClick={editProjects}
+            disabled={busy}
+          >
+            Choose main projects
+          </button>
+          {editing && (
+            <div className="mt-3 space-y-3" aria-label="Your main projects">
+              <p className="text-sm text-text-secondary">
+                Main projects stay here even when quiet. Names you set here are personal labels;
+                repositories and other members&apos; names stay unchanged.
+              </p>
+              <input
+                className="ui-input w-full"
+                aria-label="Find an available project"
+                placeholder="Find a project…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <ul className="max-h-80 overflow-y-auto space-y-3">
+                {(data.catalog ?? [])
+                  .filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
+                  .map((p) => (
+                    <li key={p.id} className="min-w-0">
+                      <label className="flex gap-2 items-center ui-tap min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={mainIds.includes(p.id)}
+                          disabled={busy}
+                          onChange={() =>
+                            setMainIds((prev) =>
+                              prev.includes(p.id)
+                                ? prev.filter((id) => id !== p.id)
+                                : [...prev, p.id],
+                            )
+                          }
+                        />
+                        <span className="break-words min-w-0 text-sm">{p.name}</span>
+                      </label>
+                      <input
+                        className="ui-input w-full"
+                        aria-label={`Your name for ${p.name}`}
+                        maxLength={100}
+                        value={labels[p.id] ?? p.name}
+                        onChange={(e) => setLabels((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        disabled={busy}
+                      />
+                      {p.unavailable && (
+                        <p className="text-xs text-text-secondary">{p.unavailable}</p>
+                      )}
+                      <Link href={p.href} className="ui-link-muted inline-flex ui-tap text-xs">
+                        Project details and settings →
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="ui-btn-primary"
+                  disabled={busy}
+                  onClick={() => void saveProjects()}
+                >
+                  {busy ? "Saving…" : "Save main projects"}
+                </button>
+                <button
+                  type="button"
+                  className="ui-btn-ghost"
+                  disabled={busy}
+                  onClick={() => setEditing(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
           {projects.length === 0 ? (
             <p className="mt-3 text-sm text-text-secondary">
-              No development activity found in the past week.{" "}
+              Choose your main projects above to keep them here, including projects shared with you.{" "}
               <Link href={NAV.projects.href} className="ui-link-muted">
                 Choose a project →
               </Link>
@@ -126,11 +234,12 @@ export function StartMyDay() {
                   : `Start selected${selected.length ? ` (${selected.length})` : ""}`}
               </button>
               <p className="mt-2 text-xs text-text-muted">
-                Up to {data.maxProjects} projects at once. Existing autopilot settings still apply.
+                Up to {data.maxProjects} projects at once. Recent activity alone does not select
+                projects for you. Existing autopilot settings still apply.
               </p>
               <ul className="mt-3 space-y-2">
                 {visible.map((p) => {
-                  const submitted = accepted.includes(p.name);
+                  const submitted = accepted.includes(p.id);
                   const disabled = busy || Boolean(p.unavailable) || submitted;
                   return (
                     <li key={p.id} className="flex items-center gap-2 min-w-0">
@@ -190,15 +299,8 @@ export function StartMyDay() {
                   aria-expanded={expanded}
                   onClick={() => setExpanded(!expanded)}
                 >
-                  {expanded
-                    ? "Show fewer"
-                    : `Change selection · ${projects.length} recent projects`}
+                  {expanded ? "Show fewer" : `Change selection · ${projects.length} projects`}
                 </button>
-              )}
-              {data.totalRecent > projects.length && (
-                <Link href={NAV.projects.href} className="ui-link-muted block text-xs mt-2">
-                  All {data.totalRecent} recently active projects →
-                </Link>
               )}
             </>
           )}

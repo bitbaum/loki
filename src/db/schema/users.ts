@@ -33,9 +33,8 @@ export const users = pgTable("users", {
   // / disables their own PIN through Settings → Privacy.
   privateZonePinHash: text("private_zone_pin_hash"),
   privateZonePinSetAt: timestamp("private_zone_pin_set_at", { withTimezone: true }),
-  /** Retired 2026-09-11 with the zellij cold-start (Fleet Runner no longer
-   *  restores a terminal session on boot). Column kept — migrations never
-   *  DROP — and unread; a future setting may reuse it. */
+  /** Personal Start my day preferences live under startMyDay. Older runner
+   * restoration keys are retired and remain unread. */
   fleetSettings: jsonb("fleet_settings").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

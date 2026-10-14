@@ -27,6 +27,8 @@
  *
  * Pure: no DB, no fetch. load.ts gathers the inputs; this decides.
  */
+import { DAY_MS } from "@/lib/constants/time";
+import { RECENT_WORK_DAYS } from "@/lib/start-my-day/rank";
 import { BUILD_STARTERS } from "@/config/build-starters";
 
 export type BuildSuggestionKind =
@@ -62,6 +64,7 @@ export type SuggestionProject = {
 };
 
 export type SuggestionInputs = {
+  now?: number;
   projects: SuggestionProject[];
   /** Open (status "new") visitor reports per project name. Counts only. */
   openFeedback: Record<string, number>;
@@ -139,13 +142,20 @@ function candidates(inputs: SuggestionInputs): BuildSuggestion[] {
       });
     }
 
-    if (p.nextStep) {
+    const nextAt = p.nextStepDate ? Date.parse(p.nextStepDate) : NaN;
+    const now = inputs.now ?? Date.now();
+    if (
+      p.nextStep &&
+      Number.isFinite(nextAt) &&
+      nextAt <= now &&
+      nextAt >= now - RECENT_WORK_DAYS * DAY_MS
+    ) {
       out.push({
         id: `continue:${p.name}`,
         kind: "continue",
         label: `${p.name}: ${p.nextStep}`,
-        why: `The last session on ${p.name}${p.nextStepDate ? ` (${p.nextStepDate})` : ""} left this as the next step.`,
-        prompt: `On ${p.name}, do the next step the last session left: "${clip(p.nextStep, 300)}". Ship it and report back what changed.`,
+        why: `Session note from ${new Date(nextAt).toISOString().slice(0, 10)} on ${p.name}; check current work before continuing.`,
+        prompt: `On ${p.name}, check current code and runs first, then, if still relevant, do the next step recorded on ${new Date(nextAt).toISOString().slice(0, 10)}: "${clip(p.nextStep, 300)}". Ship it and report back what changed.`,
         project: p.name,
         href: null,
         score: 70,

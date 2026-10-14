@@ -264,7 +264,7 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
 
   // With keys, the pool is the fallback; the lever is to keep it that way.
   const lever = hasOwnKeys
-    ? "Your keys answer first, so this is only what catches a turn they miss."
+    ? "Auto uses your keys first. Choosing a shared model uses this pool; an own-key failure asks before switching to free."
     : OWN_KEY_LEVER;
 
   if (decision.reason === "no-capacity") {
