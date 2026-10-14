@@ -125,6 +125,9 @@ export function ModelPicker({
     budget?.models ?? [],
     budget?.freePool?.state,
   );
+  const sharedSelection = [...choices.available, ...choices.unavailable].some(
+    (option) => option.id === value && !option.own,
+  );
   const row = (option: LokiModelOption, locked: boolean) => {
     const { name, blurb } = describeChatModel(option.id);
     const note =
@@ -163,7 +166,9 @@ export function ModelPicker({
         {budget && (
           <a href={OWN_MODEL_SETTINGS_PATH} className="ui-loki-model-budget">
             <Gauge className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-text" aria-hidden />
-            <span>{budget.headline}</span>
+            <span>
+              {sharedSelection && budget.freePool ? budget.freePool.line : budget.headline}
+            </span>
           </a>
         )}
         <ModelRow

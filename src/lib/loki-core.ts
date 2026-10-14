@@ -250,8 +250,9 @@ export type AskLokiOpts = {
 export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskLokiResult> {
   const startedAt = Date.now();
 
-  // A user who brought their own model runs on it: their vendor, their bill.
-  // So none of the free-pool machinery applies — not the ration, not the
+  // Own keys answer first unless the person explicitly chooses a shared
+  // model or pool. On an own-key turn: their vendor, their bill.
+  // None of the free-pool machinery applies — not the ration, not the
   // spend ledger, and not the fallback to the shared chain when their key
   // fails, which would quietly spend the pool they opted out of and hide the
   // one thing they need to hear: that their key stopped working.

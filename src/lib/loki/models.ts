@@ -88,9 +88,7 @@ export function partitionModelOptions(
     const state = quotas.get(`${option.provider}/${option.id}`);
     (option.usable &&
     (option.own ||
-      ((freePoolState === undefined || freePoolState === "ok") &&
-        state !== "exhausted" &&
-        state !== "skipped"))
+      ((freePoolState === undefined || freePoolState === "ok") && state !== "exhausted"))
       ? available
       : unavailable
     ).push(option);

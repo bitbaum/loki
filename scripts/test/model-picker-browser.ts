@@ -25,6 +25,12 @@ async function main() {
     ["grok-4.7"],
     "a spent user share cannot expose free choices as ready, while own keys remain available",
   );
+  assert.ok(
+    partitionModelOptions(options, [
+      { ...exhausted[0], state: "skipped", note: "Last prompt was too large" },
+    ]).available.some((o) => o.id === "gpt-oss-120b"),
+    "a previous prompt-size skip is not measured exhaustion for the next request",
+  );
   const js = (
     await build({
       stdin: {
@@ -85,6 +91,7 @@ async function main() {
           contentType: "application/json",
           body: JSON.stringify({
             headline: `Budget reading ${call}`,
+            freePool: { state: "ok", line: `Free budget ${call}` },
             ownKeys: [],
             models: call === 1 ? exhausted : [{ ...exhausted[0], state: "known", note: null }],
           }),
@@ -117,7 +124,7 @@ async function main() {
     failModels = false;
     await page.getByRole("button", { name: "Retry", exact: true }).click();
     await dialog.getByRole("button", { name: /Grok 4.7/ }).waitFor();
-    await dialog.getByText("Budget reading 4", { exact: true }).waitFor();
+    await dialog.getByText("Free budget 4", { exact: true }).waitFor();
     await page.keyboard.press("Escape");
     assert.equal(await dialog.count(), 0);
     assert.equal(
