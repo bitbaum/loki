@@ -31,6 +31,7 @@ import {
   matchBumps,
   parseDependabotBumps,
 } from "./dependabot";
+import { pauseFor, type ReleasePause } from "./release-pause";
 import type { GithubPull, UpdateGithub, WriteResult } from "./update-github";
 import {
   OPEN_UPDATE_STATES,
@@ -63,6 +64,8 @@ export type UpdateContext = {
   gh: UpdateGithub;
   store: UpdateStore;
   now: Date;
+  /** Releases their package's owner paused everywhere (package_release_pauses). */
+  pauses?: readonly ReleasePause[];
 };
 
 export const UPDATE_MESSAGES = {
@@ -137,6 +140,8 @@ async function reconcilePull(
   }
 
   const previousDecision = existing?.decision ?? null;
+  const pause = pauseFor(bumps, ctx.pauses ?? []);
+  const decidedAt = decisionOverride ? null : (existing?.decidedAt ?? null);
   const plan = decideEnforcement({
     setting: readPackageUpdateSetting(ctx.project.packageUpdates),
     breaking,
@@ -144,6 +149,9 @@ async function reconcilePull(
     heldByLoki: existing?.heldByLoki ?? false,
     decision: decisionOverride ?? previousDecision,
     ciState,
+    paused: pause !== null,
+    decidedBeforePause:
+      pause !== null && decidedAt !== null && decidedAt.getTime() < pause.pausedAt.getTime(),
   });
 
   let heldByLoki = plan.heldByLoki;
@@ -179,7 +187,7 @@ async function reconcilePull(
     }
   }
 
-  const decisionChanged = plan.decision !== previousDecision;
+  const decisionChanged = plan.decision !== previousDecision || plan.decidedNow;
   return {
     state,
     detail,

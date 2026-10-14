@@ -6,6 +6,37 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-14 — Release a shared package from Loki, watch it roll out, pause a bad one
+
+- **Release from the package's page.** Under "Unreleased", a package's page
+  lists what changed since its last release, newest first, each change marked
+  breaking, new or fix, and says which version that makes — a fix or a
+  feature is the next small step, a breaking change the next big one (under
+  1.0, the middle number, which is what every project treats as breaking).
+  **Release vX.Y.Z** asks once, then starts the package repository's own
+  release step: it refuses unless the latest change passed its checks,
+  builds, tags the version and writes the release notes. The panel follows
+  it — releasing, released, or failed with a link to what happened — and the
+  new version reaches every project through its usual updates.
+- **Only the package's owner releases.** That is whoever owns the Loki project
+  that is the package's repository; for a package no project is, anyone whose
+  GitHub access can write to it. Everyone else sees why not, and the way to
+  connect GitHub when that is what is missing.
+- **No dead ends.** A repository without the release step says so and links
+  the fleet's pull request that adds it (or the one-tap way to get one); a
+  failing or still-running check links to it; nothing to release says so.
+- **Rollout per version.** For each recent version: how many of your projects
+  are on it, have an update to it ready, waiting on tests, held or paused, or
+  are behind with none yet. A version whose update fails its tests anywhere
+  is flagged — "Red in 2 projects — their tests fail on v0.3.0" — with the
+  projects and their pull requests.
+- **Pause a release everywhere.** The owner's **Pause vX.Y.Z everywhere** holds
+  every open update to that version, in every project, whatever its setting,
+  at once; those updates show "Paused by the package owner" on Approvals, the
+  project and the package page. **Resume** takes off only the holds the pause
+  added — a project on "Ask me" stays held, a hold someone put on by hand
+  stays. An answer given on a paused update applies when it is resumed.
+
 ## 2026-10-14 — A new site is built from the fleet's shared parts
 
 - **Before the first build, Loki says what the site will be built from.**

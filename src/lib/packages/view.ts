@@ -143,6 +143,8 @@ export type OpenUpdate = {
   status: UpdateStatus;
   /** Loki's last word on it (a refused write, a merge waiting on checks). */
   detail: string | null;
+  /** Its version is paused by the package owner. */
+  paused: boolean;
 };
 
 /** The fields of an update request these views read. */
@@ -157,6 +159,8 @@ export type UpdateRequestView = {
   detail: string | null;
   /** The project's stored setting, raw. */
   packageUpdates: string;
+  /** A version it moves to is paused by its package's owner (matched by the loader). */
+  paused?: boolean;
 };
 
 /** `projectId|packageName` → the open update that bumps it (the newest pull request wins). */
@@ -165,7 +169,7 @@ export function indexOpenUpdates(requests: readonly UpdateRequestView[]): Map<st
   const ordered = [...requests].sort((a, b) => b.prNumber - a.prNumber);
   for (const r of ordered) {
     if (!OPEN_UPDATE_STATES.includes(r.state)) continue;
-    const status = updateStatus(r, readPackageUpdateSetting(r.packageUpdates));
+    const status = updateStatus(r, readPackageUpdateSetting(r.packageUpdates), r.paused === true);
     for (const bump of r.packages) {
       if (!bump.fleet) continue;
       const key = `${r.projectId}|${bump.name}`;
@@ -178,6 +182,7 @@ export function indexOpenUpdates(requests: readonly UpdateRequestView[]): Map<st
         breaking: bump.breaking,
         status,
         detail: r.detail,
+        paused: r.paused === true,
       });
     }
   }
@@ -203,6 +208,8 @@ export type UpdateCard = {
   checks: UpdateStatus;
   why: string;
   detail: string | null;
+  /** Its version is paused by the package owner: an answer given now applies when it is resumed. */
+  paused: boolean;
 };
 
 const CI_TONE: Record<CiState, UpdateStatus["tone"]> = {
@@ -244,6 +251,7 @@ export function buildUpdateCards(
         checks: { label: CI_STATE_LABELS[r.ciState], tone: CI_TONE[r.ciState] },
         why: whyAsked(r.packages),
         detail: r.detail,
+        paused: r.paused === true,
       };
     })
     .sort(

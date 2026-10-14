@@ -40,6 +40,7 @@ import {
   touchPackageScan,
 } from "@/db/queries/project-packages";
 import { dbUpdateStore } from "@/db/queries/package-updates";
+import { listReleasePauses } from "@/db/queries/package-releases";
 import type { UserProject } from "@/db/schema";
 import { getPackageCatalogue } from "./catalogue";
 import type { CataloguePackage } from "./catalogue-parse";
@@ -50,6 +51,7 @@ import {
   parsePnpmLock,
   type LockInfo,
 } from "./manifest";
+import type { ReleasePause } from "./release-pause";
 import { pickReadToken } from "./rules";
 import { githubUpdateClient } from "./update-github";
 import { syncProjectUpdates, type ProjectUpdatesResult } from "./updates";
@@ -182,6 +184,8 @@ type SyncContext = {
   tokenFor: (ref: RepoRef) => string | null;
   force: boolean;
   updatesOnly: boolean;
+  /** Releases paused by their package's owner — they hold updates in every project. */
+  pauses: readonly ReleasePause[];
 };
 
 async function syncOne(project: UserProject, ctx: SyncContext): Promise<ProjectSyncResult> {
@@ -202,11 +206,14 @@ async function syncOne(project: UserProject, ctx: SyncContext): Promise<ProjectS
     gh: githubUpdateClient(ctx.tokenFor(ref)),
     store: dbUpdateStore,
     now: new Date(),
-  }).catch((err): ProjectUpdatesResult => ({
-    open: 0,
-    held: 0,
-    error: err instanceof Error ? err.message.slice(0, 200) : "failed",
-  }));
+    pauses: ctx.pauses,
+  }).catch(
+    (err): ProjectUpdatesResult => ({
+      open: 0,
+      held: 0,
+      error: err instanceof Error ? err.message.slice(0, 200) : "failed",
+    }),
+  );
   return { ...result, updates };
 }
 
@@ -317,11 +324,13 @@ async function runSync(
   userId: string,
   opts: { onlyProjectId?: string; force?: boolean; updatesOnly?: boolean },
 ): Promise<SyncSummary> {
-  const [catalogue, projects, scans, tokenFor] = await Promise.all([
+  const [catalogue, projects, scans, tokenFor, pauses] = await Promise.all([
     getPackageCatalogue(),
     getUserProjects(userId),
     listPackageScans(userId),
     repoTokenPicker(userId),
+    // Unreadable pauses must not stop the sync; they are re-read every 15 minutes.
+    listReleasePauses().catch((): ReleasePause[] => []),
   ]);
   const targets = opts.onlyProjectId
     ? projects.filter((p) => p.id === opts.onlyProjectId)
@@ -334,6 +343,7 @@ async function runSync(
     force: opts.force === true,
     updatesOnly: opts.updatesOnly === true,
     tokenFor: () => null,
+    pauses,
   };
   const results = await mapWithLimit(targets, CONCURRENCY, (project) =>
     syncOne(project, { ...ctx, tokenFor: (ref) => tokenFor(project, ref) }).catch(

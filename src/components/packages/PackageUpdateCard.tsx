@@ -12,6 +12,7 @@ import {
   UPDATE_DECISION_LABELS,
   type UpdateAction,
 } from "@/config/package-updates";
+import { PAUSED_BY_OWNER } from "@/config/package-releases";
 import { LinkGithubButton } from "@/components/onboarding/LinkGithubButton";
 import type { UpdateCard } from "@/lib/packages/view";
 import { BreakingTag, UpdateStatusTag } from "./UpdateStatusTag";
@@ -92,6 +93,7 @@ export function PackageUpdateCard({ update }: { update: UpdateCard }) {
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
         <UpdateStatusTag status={update.checks} />
+        {update.paused && <span className="ui-tag ui-tag-warning shrink-0">{PAUSED_BY_OWNER}</span>}
         <span>{update.why}</span>
       </div>
       {update.detail && <p className="text-xs text-text-tertiary">{update.detail}</p>}

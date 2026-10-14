@@ -68,3 +68,4 @@ export * from "./autopilot-nights";
 export * from "./operator-usage-events";
 export * from "./project-packages";
 export * from "./package-update-requests";
+export * from "./package-release-pauses";

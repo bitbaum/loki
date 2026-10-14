@@ -8,7 +8,7 @@
  * ./catalogue-parse.ts for why there is exactly one.
  */
 import { getFleetFacts } from "@/lib/fleet-brief/brief";
-import type { CataloguePackage } from "./catalogue-parse";
+import { SLUG_RE, type CataloguePackage } from "./catalogue-parse";
 
 export type { CataloguePackage } from "./catalogue-parse";
 
@@ -40,4 +40,10 @@ export function findCataloguePackage(
   slug: string,
 ): CataloguePackage | null {
   return catalogue.find((pkg) => pkg.slug === slug) ?? null;
+}
+
+/** One package by a slug from a URL — refused before any lookup when it is not slug-shaped. */
+export async function getCataloguePackageBySlug(slug: string): Promise<CataloguePackage | null> {
+  if (!SLUG_RE.test(slug)) return null;
+  return findCataloguePackage((await getPackageCatalogue()).packages, slug);
 }

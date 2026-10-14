@@ -22,10 +22,14 @@ import {
   readPackageUpdateSetting,
   type PackageUpdateSetting,
 } from "@/config/package-updates";
+import { listReleasePauses } from "@/db/queries/package-releases";
 import { parseGithubRepo } from "@/lib/github-repo-ref";
 import { findCataloguePackage, getPackageCatalogue, type PackageCatalogue } from "./catalogue";
 import type { CataloguePackage } from "./catalogue-parse";
 import { getLatestVersions, type LatestVersion } from "./latest";
+import { resolveReleaseAccess } from "./release-access";
+import { pauseFor, type ReleasePause } from "./release-pause";
+import { buildRollout, type RolloutRow } from "./rollout";
 import { packagesAreStale } from "./rules";
 import {
   buildBuiltFrom,
@@ -83,6 +87,19 @@ async function readCoverage(userId: string, nowMs: number): Promise<ReadCoverage
   };
 }
 
+/** Every paused release; none when the table cannot be read (a pause is then shown as absent, not invented). */
+async function readPauses(): Promise<ReleasePause[]> {
+  return listReleasePauses().catch(() => []);
+}
+
+/** Mark each update whose version its package's owner paused. */
+function markPaused<T extends { packages: Parameters<typeof pauseFor>[0] }>(
+  rows: readonly T[],
+  pauses: readonly ReleasePause[],
+): Array<T & { paused: boolean }> {
+  return rows.map((r) => ({ ...r, paused: pauseFor(r.packages, pauses) !== null }));
+}
+
 export type PackagesOverview = {
   catalogue: PackageCatalogue;
   rows: PackageListRow[];
@@ -108,6 +125,10 @@ export type PackageDetail = {
   latest: LatestVersion;
   dependents: DependentRow[];
   coverage: ReadCoverage;
+  /** Recent versions and how far each has reached the person's projects. */
+  rollout: RolloutRow[];
+  /** The viewer is the package's owner (may release it, and pause its releases). */
+  owner: boolean;
 };
 
 export async function loadPackageDetail(
@@ -121,20 +142,38 @@ export async function loadPackageDetail(
   ]);
   const pkg = findCataloguePackage(catalogue.packages, slug);
   if (!pkg) {
-    return { catalogue, pkg, latest: { version: null, from: "none" }, dependents: [], coverage };
+    return {
+      catalogue,
+      pkg,
+      latest: { version: null, from: "none" },
+      dependents: [],
+      coverage,
+      rollout: [],
+      owner: false,
+    };
   }
-  const [latestMap, uses, updates] = await Promise.all([
+  const [latestMap, uses, rawUpdates, pauses, access] = await Promise.all([
     getLatestVersions([pkg]),
     listPackageDependents(userId, pkg.name),
     listOpenUpdateRequests(userId).catch(() => []),
+    readPauses(),
+    resolveReleaseAccess(userId, pkg),
   ]);
   const latest = latestMap.get(pkg.name) ?? { version: null, from: "none" as const };
+  const updates = markPaused(rawUpdates, pauses);
   const open = indexOpenUpdates(updates);
   const dependents = buildDependents(uses, latest).map((row) => ({
     ...row,
     update: open.get(`${row.projectId}|${pkg.name}`) ?? null,
   }));
-  return { catalogue, pkg, latest, dependents, coverage };
+  const rollout = buildRollout({
+    packageName: pkg.name,
+    latest: latest.version,
+    dependents,
+    requests: updates,
+    pauses,
+  });
+  return { catalogue, pkg, latest, dependents, coverage, rollout, owner: access.ok };
 }
 
 export type BuiltFrom = {
@@ -146,17 +185,20 @@ export type BuiltFrom = {
 
 /** What one project is built from. The caller has already checked access to it. */
 export async function loadProjectBuiltFrom(projectId: string): Promise<BuiltFrom> {
-  const [catalogue, uses, scan, requests, rawSetting] = await Promise.all([
+  const [catalogue, uses, scan, requests, rawSetting, pauses] = await Promise.all([
     getPackageCatalogue(),
     listProjectPackages(projectId),
     getPackageScanForProject(projectId),
     listProjectUpdateRequests(projectId).catch(() => []),
     getProjectPackageUpdates(projectId).catch(() => null),
+    readPauses(),
   ]);
   const used = catalogue.packages.filter((pkg) => uses.some((u) => u.packageName === pkg.name));
   const latest = await getLatestVersions(used);
   const packageUpdates = rawSetting ?? DEFAULT_PACKAGE_UPDATE_SETTING;
-  const open = indexOpenUpdates(requests.map((r) => ({ ...r, packageUpdates })));
+  const open = indexOpenUpdates(
+    markPaused(requests, pauses).map((r) => ({ ...r, packageUpdates })),
+  );
   const rows = buildBuiltFrom(uses, catalogue.packages, latest).map((row) => ({
     ...row,
     update: open.get(`${projectId}|${row.packageName}`) ?? null,
@@ -166,6 +208,9 @@ export async function loadProjectBuiltFrom(projectId: string): Promise<BuiltFrom
 
 /** The package updates waiting for the person on Approvals. Never throws. */
 export async function loadUpdateCards(userId: string, nowMs = Date.now()): Promise<UpdateCard[]> {
-  const rows = await listOpenUpdateRequests(userId).catch(() => []);
-  return buildUpdateCards(rows, nowMs);
+  const [rows, pauses] = await Promise.all([
+    listOpenUpdateRequests(userId).catch(() => []),
+    readPauses(),
+  ]);
+  return buildUpdateCards(markPaused(rows, pauses), nowMs);
 }

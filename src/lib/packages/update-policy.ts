@@ -15,6 +15,17 @@
  *   - if a person takes Loki's hold off on GitHub, Loki stands aside for that
  *     pull request: it does not put the hold back, and it does not merge it
  *     either — that was their call on GitHub, not the owner's yes in Loki.
+ *
+ * One input outranks the project's setting and the person's answer: the
+ * PACKAGE OWNER paused the version this pull request moves to
+ * (src/config/package-releases.ts). Then Loki holds it, in every project,
+ * whatever the setting, and merges nothing — an approval given meanwhile is
+ * kept and acts once the pause is lifted. The two rules above still apply: a
+ * person who takes the pause hold off on GitHub is left alone, and lifting the
+ * pause takes off only what Loki put on (and only where nothing else — the
+ * setting, a breaking step, a "Not now" — still wants it held). A stand-aside
+ * recorded BEFORE the pause was about an earlier hold, so it does not exempt
+ * the pull request from the pause.
  */
 import {
   LOKI_HOLD_LABEL,
@@ -58,6 +69,10 @@ export type EnforcementInput = {
   /** What the person decided on the Approvals card, if anything. */
   decision: UpdateDecision | null;
   ciState: CiState;
+  /** A fleet package in it moves to a version its owner paused everywhere. */
+  paused?: boolean;
+  /** The recorded `decision` was made before that pause began. */
+  decidedBeforePause?: boolean;
 };
 
 export type Enforcement = {
@@ -73,6 +88,12 @@ export type Enforcement = {
   state: UpdateRequestState;
   /** One sentence for the person, when there is something to say. */
   note: string | null;
+  /**
+   * Loki saw a person take its hold off just now: record `decided_at` as now
+   * even when the decision word is unchanged, so a second release during a
+   * pause is not mistaken for one from before it.
+   */
+  decidedNow: boolean;
 };
 
 export const ENFORCEMENT_NOTES = {
@@ -86,9 +107,11 @@ export const ENFORCEMENT_NOTES = {
   sweepMerges: "Approved. The fleet's auto-merge merges it when its checks pass.",
   releasedOnGithub:
     "Someone took Loki's hold off on GitHub, so Loki leaves this update alone. Merge or close it there.",
+  paused:
+    "Paused by the package owner: this version is held in every project until they resume it. An answer you give now applies then.",
 } as const;
 
-/** The decision table. See the module comment for the two rules it keeps. */
+/** The decision table. See the module comment for the rules it keeps. */
 export function decideEnforcement(input: EnforcementInput): Enforcement {
   const hasLokiLabel = input.labels.includes(LOKI_HOLD_LABEL);
   const lokiHolds = input.heldByLoki && hasLokiLabel;
@@ -96,21 +119,42 @@ export function decideEnforcement(input: EnforcementInput): Enforcement {
   const humanHold = input.labels.some(
     (l) => SWEEP_HOLD_LABELS.includes(l) && !(l === LOKI_HOLD_LABEL && lokiHolds),
   );
+  const paused = input.paused === true;
 
   let decision = input.decision;
-  if (input.heldByLoki && !hasLokiLabel && decision !== UPDATE_DECISION.UPDATE) {
-    decision = RELEASED_ON_GITHUB;
-  }
+  // Loki's hold is gone and Loki did not take it off. While paused that holds
+  // even for an approved update: Loki kept its hold on through the approval.
+  const releasedNow =
+    input.heldByLoki && !hasLokiLabel && (paused || decision !== UPDATE_DECISION.UPDATE);
+  if (releasedNow) decision = RELEASED_ON_GITHUB;
+
+  // Holding for the pause: add Loki's hold unless its label is already there
+  // (Loki's own, or a person's `hold` — which then stays theirs).
+  const holdForPause = (): Enforcement => ({
+    label: hasLokiLabel ? "none" : "add",
+    merge: false,
+    heldByLoki: hasLokiLabel ? input.heldByLoki : true,
+    decision,
+    state: "held",
+    note: ENFORCEMENT_NOTES.paused,
+    decidedNow: false,
+  });
+
   if (decision === RELEASED_ON_GITHUB) {
+    if (paused && !releasedNow && input.decidedBeforePause === true) return holdForPause();
     return {
-      label: "none",
+      // A pause hold still on from before the stand-aside comes off with the pause.
+      label: lokiHolds && !paused ? "remove" : "none",
       merge: false,
-      heldByLoki: false,
+      heldByLoki: lokiHolds && paused,
       decision,
-      state: humanHold ? "held" : "open",
+      state: humanHold || (lokiHolds && paused) ? "held" : "open",
       note: ENFORCEMENT_NOTES.releasedOnGithub,
+      decidedNow: releasedNow,
     };
   }
+
+  if (paused) return holdForPause();
 
   if (decision === UPDATE_DECISION.UPDATE) {
     const label = lokiHolds ? "remove" : "none";
@@ -121,7 +165,15 @@ export function decideEnforcement(input: EnforcementInput): Enforcement {
     else if (input.ciState === "red") note = ENFORCEMENT_NOTES.redChecks;
     else if (input.ciState === "unknown") note = ENFORCEMENT_NOTES.noChecks;
     else if (input.ciState === "pending") note = ENFORCEMENT_NOTES.waitingChecks;
-    return { label, merge, heldByLoki: false, decision, state: "approved", note };
+    return {
+      label,
+      merge,
+      heldByLoki: false,
+      decision,
+      state: "approved",
+      note,
+      decidedNow: false,
+    };
   }
 
   const wantHold =
@@ -134,7 +186,15 @@ export function decideEnforcement(input: EnforcementInput): Enforcement {
     // Loki adds its own `hold` even beside a person's `wip`: theirs may come
     // off for their own reasons, and the setting still has to hold.
     if (!hasLokiLabel) {
-      return { label: "add", merge: false, heldByLoki: true, decision, state: "held", note: null };
+      return {
+        label: "add",
+        merge: false,
+        heldByLoki: true,
+        decision,
+        state: "held",
+        note: null,
+        decidedNow: false,
+      };
     }
     return {
       label: "none",
@@ -143,6 +203,7 @@ export function decideEnforcement(input: EnforcementInput): Enforcement {
       decision,
       state: "held",
       note: null,
+      decidedNow: false,
     };
   }
 
@@ -154,6 +215,7 @@ export function decideEnforcement(input: EnforcementInput): Enforcement {
       decision,
       state: humanHold ? "held" : "open",
       note: humanHold ? ENFORCEMENT_NOTES.humanHold : null,
+      decidedNow: false,
     };
   }
   return {
@@ -163,6 +225,7 @@ export function decideEnforcement(input: EnforcementInput): Enforcement {
     decision,
     state: humanHold ? "held" : "open",
     note: null,
+    decidedNow: false,
   };
 }
 
@@ -206,9 +269,14 @@ export type UpdateStatus = {
 export function updateStatus(
   row: { state: UpdateRequestState; decision: UpdateDecision | null; ciState: CiState },
   setting: PackageUpdateSetting,
+  /** Its version is paused by the package owner. */
+  paused = false,
 ): UpdateStatus {
   if (row.state === "merged") return { label: "merged", tone: "positive" };
   if (row.state === "closed") return { label: "closed", tone: "neutral" };
+  if (paused && row.decision !== RELEASED_ON_GITHUB) {
+    return { label: "paused by the package owner", tone: "warning" };
+  }
   if (row.state === "held") {
     if (row.decision === UPDATE_DECISION.STAY) {
       return { label: "staying on this version", tone: "neutral" };

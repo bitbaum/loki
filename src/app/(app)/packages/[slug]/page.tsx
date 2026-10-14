@@ -3,6 +3,8 @@ import { ExternalLink, PackageX } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PackageDependents } from "@/components/packages/PackageDependents";
+import { PackageRelease } from "@/components/packages/PackageRelease";
+import { PackageRollout } from "@/components/packages/PackageRollout";
 import { PackagesRefresh } from "@/components/packages/PackagesRefresh";
 import { ReadCoverageNote } from "@/components/packages/ReadCoverageNote";
 import { requirePageUserId } from "@/lib/session";
@@ -22,7 +24,10 @@ const LATEST_FROM: Record<LatestVersion["from"], string> = {
 export default async function PackagePage({ params }: { params: Promise<{ slug: string }> }) {
   const userId = await requirePageUserId();
   const { slug } = await params;
-  const { catalogue, pkg, latest, dependents, coverage } = await loadPackageDetail(userId, slug);
+  const { catalogue, pkg, latest, dependents, coverage, rollout, owner } = await loadPackageDetail(
+    userId,
+    slug,
+  );
   const back = { href: "/packages", label: "Packages" };
 
   if (!pkg) {
@@ -117,6 +122,10 @@ export default async function PackagePage({ params }: { params: Promise<{ slug: 
           )}
         </dl>
       </section>
+
+      {pkg.repo && <PackageRelease slug={pkg.slug} />}
+
+      <PackageRollout slug={pkg.slug} rows={rollout} owner={owner} />
 
       <section className="space-y-3" aria-labelledby="package-dependents-title">
         <div>

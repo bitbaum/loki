@@ -9,6 +9,7 @@ import { parseGithubRepo } from "@/lib/github-repo-ref";
 import { repoTokenPicker } from "@/lib/packages/sync";
 import { githubUpdateClient } from "@/lib/packages/update-github";
 import { applyUpdateDecision } from "@/lib/packages/updates";
+import { listReleasePauses } from "@/db/queries/package-releases";
 
 /** Each decision is a few GitHub writes; a double-press must not become a dozen. */
 const DECISIONS_PER_MINUTE = 20;
@@ -35,7 +36,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const ref = parseGithubRepo(found.project.gitUrl);
   if (!ref) return jsonError("This project has no GitHub repository any more.", 409);
 
-  const [catalogue, tokenFor] = await Promise.all([getPackageCatalogue(), repoTokenPicker(userId)]);
+  const [catalogue, tokenFor, pauses] = await Promise.all([
+    getPackageCatalogue(),
+    repoTokenPicker(userId),
+    listReleasePauses().catch(() => []),
+  ]);
   const result = await applyUpdateDecision(
     {
       userId,
@@ -45,6 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       gh: githubUpdateClient(tokenFor(found.project, ref)),
       store: dbUpdateStore,
       now: new Date(),
+      pauses,
     },
     found.request,
     body.decision,
