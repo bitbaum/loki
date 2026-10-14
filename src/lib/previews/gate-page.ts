@@ -49,10 +49,10 @@ button:focus-visible{outline:2px solid ${t.text};outline-offset:2px}
  */
 export function previewGatePage(opts: { name: string; postUrl: string; error?: string }): string {
   return shell(
-    `${opts.name} — private preview`,
+    `${opts.name}`,
     `<div style="display:grid;gap:8px">
-  <h1>A preview for ${esc(opts.name)}</h1>
-  <p>This site is a draft and not published. Enter the access code you were sent to open it.</p>
+  <h1>${esc(opts.name)}</h1>
+  <p>This site is private for now. Enter the access code you were sent to open it.</p>
 </div>
 <form id="gate" method="post" action="${esc(opts.postUrl)}" autocomplete="off">
   <label for="code">Access code</label>
@@ -84,20 +84,20 @@ export function previewGatePage(opts: { name: string; postUrl: string; error?: s
   );
 }
 
-/** Previews are not configured on this deployment: say so, and to whom. */
+/** No access code is set yet (or previews are off here): say so, and to whom. */
 export function previewsOffPage(): string {
   return shell(
-    "Preview unavailable",
-    `<h1>This preview is not available right now</h1>
-<p>Previews are switched off on this server. If you were sent this link, reply to the person who sent it and they can open it again.</p>`,
+    "Not open yet",
+    `<h1>This site is not open yet</h1>
+<p>It is being set up. If you were sent this link, reply to the person who sent it and they will open it for you.</p>`,
   );
 }
 
 /** No preview at this address. */
 export function previewNotFoundPage(): string {
   return shell(
-    "Preview not found",
-    `<h1>There is no preview here</h1>
+    "Nothing here",
+    `<h1>There is no site here</h1>
 <p>Check the link you were sent. If it came from us, reply and we will send the right one.</p>`,
   );
 }

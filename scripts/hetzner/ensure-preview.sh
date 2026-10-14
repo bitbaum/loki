@@ -2,7 +2,7 @@
 #
 # A prospect preview that is actually reachable: its address answers over HTTPS.
 #
-#   ensure-preview.sh create <address> <name> [about]   make it, give it its host, prove it
+#   ensure-preview.sh create <address> <name> [about] [code]   make it, give it its host, prove it
 #   ensure-preview.sh heal                              every preview has its host, and answers
 #
 # Wildcard DNS sends every <label>.orangecat.ch to the box, but a label with no
@@ -50,11 +50,11 @@ bad()  { echo "::error::$*"; fail=1; }
 
 case "$MODE" in
 create)
-  ADDRESS="${2:?address}"; NAME="${3:?name}"; ABOUT="${4:-}"
+  ADDRESS="${2:?address}"; NAME="${3:?name}"; ABOUT="${4:-}"; CODE="${5:-}"
   echo "→ host $ADDRESS.$BASE"
   bash "$HERE/attach-preview-host.sh" "$ADDRESS" || bad "could not attach $ADDRESS.$BASE"
   echo "→ the preview in Loki"
-  ssh_box "bash -s -- $(printf '%q ' "$ADDRESS" "$NAME" "$ABOUT")" < "$HERE/preview-create-on-box.sh" \
+  ssh_box "bash -s -- $(printf '%q ' "$ADDRESS" "$NAME" "$ABOUT" "$CODE")" < "$HERE/preview-create-on-box.sh" \
     || bad "Loki did not create the preview (see the lines above)"
   code=$(answers "$ADDRESS.$BASE")
   note "https://$ADDRESS.$BASE/ → HTTP $code"

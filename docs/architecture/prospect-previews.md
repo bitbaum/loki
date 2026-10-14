@@ -120,8 +120,9 @@ things now stand behind every preview address:
    over HTTPS (`waitForHost`) and reports `addressNote` plainly when it does
    not. It never says "done" on hope.
 2. **`.github/workflows/previews.yml`** (`scripts/hetzner/ensure-preview.sh`):
-   `create` makes a preview as the operator on the box (no access code goes
-   through a public repo's Actions) and fails the run unless its address
+   `create` makes a preview as the operator on the box (an optional `code` input sets the
+   access code: masked in the logs, but a public repo shows a run's inputs, so
+   delete the run right after) and fails the run unless its address
    answers; `heal` runs every six hours and re-attaches and re-checks every
    preview folder, so a lost vhost is put back before anyone opens the link.
 3. **No code, still an answer.** A preview with no access code yet answers 503

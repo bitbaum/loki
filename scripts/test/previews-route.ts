@@ -293,7 +293,7 @@ async function main() {
     deps(),
   );
   ok(
-    res.status === 503 && (await res.text()).includes("not available"),
+    res.status === 503 && (await res.text()).includes("not open yet"),
     "no code configured: previews say they are off",
   );
 

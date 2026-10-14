@@ -8,9 +8,10 @@ name: Previews
 #           Runs on a clock, so a lost Caddy vhost is put back before anyone
 #           opens the link (an address without one shows ERR_SSL_PROTOCOL_ERROR).
 #
-# No access code goes through here: a public repo's run inputs and logs are
-# public. The code is set in the app ("set the preview code to ..." in Loki's
-# chat, or the Access code field in Build a preview).
+# The access code is normally set in the app ("set the preview code to ..." in
+# Loki's chat, or the Access code field in Build a preview). It can also be given
+# here once: it is masked in the logs, but a public repo shows a run's inputs, so
+# delete the run right after.
 on:
   workflow_dispatch:
     inputs:
@@ -26,6 +27,9 @@ on:
         required: false
       about:
         description: "create: links, place, trade"
+        required: false
+      code:
+        description: "create: set the access code (masked in logs; delete the run afterwards)"
         required: false
   schedule:
     - cron: "17 */6 * * *"
@@ -48,6 +52,7 @@ jobs:
       ADDRESS: ${{ inputs.address }}
       NAME: ${{ inputs.name }}
       ABOUT: ${{ inputs.about }}
+      CODE: ${{ inputs.code }}
     steps:
       - uses: actions/checkout@v7
 
@@ -62,8 +67,9 @@ jobs:
         env:
           DEPLOY_KEY_PATH: /home/runner/.ssh/id_deploy
         run: |
+          [ -z "$CODE" ] || echo "::add-mask::$CODE"
           case "$MODE" in
-            create) bash scripts/hetzner/ensure-preview.sh create "$ADDRESS" "$NAME" "$ABOUT" ;;
+            create) bash scripts/hetzner/ensure-preview.sh create "$ADDRESS" "$NAME" "$ABOUT" "$CODE" ;;
             heal)   bash scripts/hetzner/ensure-preview.sh heal ;;
             *)      echo "::error::mode is create or heal"; exit 1 ;;
           esac
