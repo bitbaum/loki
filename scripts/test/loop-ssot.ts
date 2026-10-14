@@ -17,7 +17,7 @@ assert.match(night, /evaluateScheduledDispatch\(/, "the night asks the same gate
 assert.ok(!fs.existsSync("src/app/api/crons/nudge-idle/route.ts"), "nudge-idle is retired");
 
 const fleetKick = fs.readFileSync("src/lib/fleet-kick.ts", "utf8");
-assert.match(fleetKick, /injectPrompt\(\{\s*tab:\s*projectKey,\s*promptKey:\s*"next_best"/s);
+assert.match(fleetKick, /injectPrompt\(\s*\{\s*tab:\s*projectKey,\s*promptKey:\s*"next_best"/s);
 assert.match(fleetKick, /reason:\s*"no_path"/);
 
 console.log("✓ loop SSOT checks passed");

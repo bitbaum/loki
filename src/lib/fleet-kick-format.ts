@@ -1,6 +1,11 @@
 import type { AutoInjectMode } from "@/config/beacon";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 
+/** Omitted means all; an explicit empty selection means none. */
+export function normalizeKickScope(keys: string[] | undefined): Set<string> | null {
+  return keys === undefined ? null : new Set(keys.map((key) => key.toLowerCase()));
+}
+
 export type FleetKickReplyDetail = {
   projectKey: string;
   outcome: "kicked" | "skipped";

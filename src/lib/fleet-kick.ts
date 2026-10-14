@@ -20,7 +20,7 @@ import { DEFAULT_AUTO_INJECT_MODE, MAX_CONCURRENT_BUILDING } from "@/lib/constan
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { ENTITY_TYPE, SESSION_STATUS } from "@/lib/constants/statuses";
 import { normalizeAutoInjectMode, type AutoInjectMode } from "@/config/beacon";
-import { sortProjectsForKick } from "@/lib/fleet-kick-format";
+import { normalizeKickScope, sortProjectsForKick } from "@/lib/fleet-kick-format";
 export { formatFleetKickReply, sortProjectsForKick } from "@/lib/fleet-kick-format";
 
 export type FleetKickSource = "play_button" | "loki" | "api" | "control_selected" | "start_my_day";
@@ -51,11 +51,6 @@ export type FleetKickOptions = {
   /** When false, skip projects whose fleet/user autopilot is off. Loki/API may pass true. */
   requireFleetOn?: boolean;
 };
-
-function normalizeKeySet(keys: string[] | undefined): Set<string> | null {
-  if (!keys) return null;
-  return new Set(keys.map((k) => k.toLowerCase()));
-}
 
 async function countActiveRuns(userId: string): Promise<number> {
   const [row] = await db
@@ -116,7 +111,7 @@ export async function kickFleet(userId: string, opts: FleetKickOptions): Promise
     };
   }
 
-  const scope = normalizeKeySet(opts.projectKeys);
+  const scope = normalizeKickScope(opts.projectKeys);
   const [projects, overrides, states, activeBefore] = await Promise.all([
     getUserProjects(userId),
     loadProjectOverrides(userId),

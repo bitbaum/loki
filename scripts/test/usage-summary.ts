@@ -99,9 +99,14 @@ check("an unregistered surface's rows are still summarised, after the registered
     now,
   });
   assert.equal(out[0].surface, "loki.build-next");
-  assert.equal(out[1].surface, "loki.retired-row");
-  assert.equal(out[1].label, "loki.retired-row");
-  assert.equal(out[1].path, null);
+  assert.deepEqual(
+    out.slice(0, USAGE_SURFACE_IDS.length).map((s) => s.surface),
+    USAGE_SURFACE_IDS,
+  );
+  const retired = out[USAGE_SURFACE_IDS.length];
+  assert.equal(retired.surface, "loki.retired-row");
+  assert.equal(retired.label, "loki.retired-row");
+  assert.equal(retired.path, null);
 });
 
 check("kindOf reads the part before the first colon", () => {
