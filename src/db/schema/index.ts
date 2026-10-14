@@ -66,3 +66,4 @@ export * from "./newsletter-subscribers";
 export * from "./studio-requests";
 export * from "./autopilot-nights";
 export * from "./operator-usage-events";
+export * from "./project-packages";

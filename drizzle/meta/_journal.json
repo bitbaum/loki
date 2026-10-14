@@ -687,6 +687,13 @@
       "when": 1791758045333,
       "tag": "0097_client_portfolio_consent",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1791965662265,
+      "tag": "0098_project_packages",
+      "breakpoints": true
     }
   ]
 }

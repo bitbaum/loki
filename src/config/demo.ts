@@ -267,6 +267,7 @@ export const DEMO_SAFE_FAMILIES: readonly string[] = [
   "notification-preferences",
   "onboarding",
   "orangecat",
+  "packages", // Reads the caller's own projects' package.json from GitHub and writes their own rows. No spend, no mail, no box.
   "project",
   "project-states",
   "projects",

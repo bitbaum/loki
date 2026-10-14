@@ -1,7 +1,7 @@
 {
   "_generated": "by scripts/generate-fleet-brief-snapshot.ts from bitbaum/fleet registers/packages.json + STACK.md. Do not edit by hand: run pnpm run generate:fleet-brief.",
-  "fetchedAt": "2026-10-11T19:38:56.202Z",
-  "registerGeneratedAt": "2026-10-05T15:18:55.021Z",
+  "fetchedAt": "2026-10-14T08:12:34.896Z",
+  "registerGeneratedAt": "2026-10-12T16:05:57.263Z",
   "packages": [
     {
       "name": "@bitbaum/ai-kit",
@@ -19,14 +19,24 @@
       "install": "pnpm add @bitbaum/mail-kit"
     },
     {
+      "name": "@bitbaum/accountkit",
+      "purpose": "One account for every bitbaum product: the account menu, and Sign in with…",
+      "install": "pnpm add github:bitbaum/accountkit#v0.2.1"
+    },
+    {
       "name": "limitkit",
       "purpose": "Rate limiting as a decision, not a middleware: fixed and sliding windows over…",
       "install": "pnpm add limitkit"
     },
     {
-      "name": "ai-forms",
-      "purpose": "Headless AI form filling and conversational refinement",
-      "install": "pnpm add ai-forms"
+      "name": "@bitbaum/whenkit",
+      "purpose": "Dates and times people can pick without typing: day chips, time chips, length…",
+      "install": "pnpm add github:bitbaum/whenkit#v0.3.2"
+    },
+    {
+      "name": "@bitbaum/chatkit",
+      "purpose": "One chat for every product: a composer with a microphone that always works, a…",
+      "install": "pnpm add github:bitbaum/chatkit#163c879163d22c6eb633314b3bd4e25712a01899"
     },
     {
       "name": "@bitbaum/design-tokens",
@@ -34,24 +44,19 @@
       "install": "pnpm add @bitbaum/design-tokens"
     },
     {
+      "name": "ai-forms",
+      "purpose": "Headless AI form filling and conversational refinement",
+      "install": "pnpm add ai-forms"
+    },
+    {
       "name": "listkit",
       "purpose": "A list as a query: a closed set of facet kinds, a URL codec that copies rather…",
       "install": "pnpm add github:bitbaum/listkit#v0.1.0"
     },
     {
-      "name": "@bitbaum/chatkit",
-      "purpose": "One chat for every product: a composer with a microphone that always works, a…",
-      "install": "pnpm add github:bitbaum/chatkit#v0.1.0"
-    },
-    {
       "name": "threadkit",
       "purpose": "Headless multi-participant message threads",
       "install": "pnpm add threadkit"
-    },
-    {
-      "name": "@bitbaum/accountkit",
-      "purpose": "One account for every bitbaum product: the account menu, and Sign in with…",
-      "install": "pnpm add github:bitbaum/accountkit#v0.2.0"
     },
     {
       "name": "@bitbaum/sitekit",
@@ -95,12 +100,8 @@
       "blessed": "Postgres"
     },
     {
-      "job": "Auth — who the user is",
-      "blessed": "Federate to OrangeCat (OIDC, openid profile email)"
-    },
-    {
-      "job": "Auth — client-owned apps",
-      "blessed": "better-auth 1.x + Drizzle/Postgres, magic link via…"
+      "job": "Auth",
+      "blessed": "Every app owns its accounts: better-auth 1.x on Drizzle +…"
     },
     {
       "job": "Test runner (apps)",
@@ -145,6 +146,257 @@
     {
       "job": "Maps & globes",
       "blessed": "d3-geo + topojson-client, drawn on Canvas 2D; country…"
+    }
+  ],
+  "catalogue": [
+    {
+      "slug": "ai-kit",
+      "name": "@bitbaum/ai-kit",
+      "repo": "bitbaum/ai-kit",
+      "summary": null,
+      "description": null,
+      "registerVersion": "1.20.1",
+      "installSource": "npm",
+      "install": "pnpm add @bitbaum/ai-kit",
+      "adopterNames": [
+        "aoz-begleitung",
+        "botsmann",
+        "causius",
+        "datacat",
+        "evig",
+        "heidi",
+        "hirnli",
+        "kivvi",
+        "loki",
+        "orangecat",
+        "sbb-fundbuero",
+        "skif",
+        "substrata",
+        "surf-your-life",
+        "truthseeker",
+        "vitareba"
+      ]
+    },
+    {
+      "slug": "bip-kit",
+      "name": "bip-kit",
+      "repo": "bitbaum/bip-kit",
+      "summary": "Building in Public, as a content contract: parse markdown into typed blocks and render them with a reference React renderer…",
+      "description": "Building in Public, as a content contract: parse markdown into typed blocks and render them with a reference React renderer (bip-kit/react) — blog, roadmap, changelog on your product site, bring your own design tokens.",
+      "registerVersion": "0.6.0",
+      "installSource": "npm",
+      "install": "pnpm add bip-kit",
+      "adopterNames": [
+        "aoz-begleitung",
+        "bitbaum",
+        "botsmann",
+        "causius",
+        "datacat",
+        "evig",
+        "heidi",
+        "kivvi",
+        "loki",
+        "orangecat",
+        "petvity",
+        "skif",
+        "solon",
+        "substrata"
+      ]
+    },
+    {
+      "slug": "mail-kit",
+      "name": "@bitbaum/mail-kit",
+      "repo": "bitbaum/mail-kit",
+      "summary": "The fleet's one email layer: Resend over raw fetch, zero dependencies, honest never-throwing results, sandbox/placeholder guards, and the…",
+      "description": "The fleet's one email layer: Resend over raw fetch, zero dependencies, honest never-throwing results, sandbox/placeholder guards, and the shared-sender convention encoded once.",
+      "registerVersion": "0.1.1",
+      "installSource": "npm",
+      "install": "pnpm add @bitbaum/mail-kit",
+      "adopterNames": [
+        "aoz-begleitung",
+        "botsmann",
+        "evig",
+        "hirnli",
+        "kivvi",
+        "loki",
+        "orangecat",
+        "petvity",
+        "s-ink",
+        "skif",
+        "surf-your-life",
+        "vitareba"
+      ]
+    },
+    {
+      "slug": "accountkit",
+      "name": "@bitbaum/accountkit",
+      "repo": "bitbaum/accountkit",
+      "summary": "One account for every bitbaum product: the account menu, and Sign in with OrangeCat (provider, session refresh, identity rules, error…",
+      "description": "One account for every bitbaum product: the account menu, and Sign in with OrangeCat (provider, session refresh, identity rules, error screen). Styled from @bitbaum/design-tokens.",
+      "registerVersion": "0.2.1",
+      "installSource": "git",
+      "install": "pnpm add github:bitbaum/accountkit#v0.2.1",
+      "adopterNames": [
+        "causius",
+        "datacat",
+        "evig",
+        "heidi",
+        "loki",
+        "petvity",
+        "skif",
+        "solon",
+        "substrata",
+        "surf-your-life"
+      ]
+    },
+    {
+      "slug": "limitkit",
+      "name": "limitkit",
+      "repo": "bitbaum/limitkit",
+      "summary": "Rate limiting as a decision, not a middleware: fixed and sliding windows over an injectable store, a bounded in-memory store, standard…",
+      "description": "Rate limiting as a decision, not a middleware: fixed and sliding windows over an injectable store, a bounded in-memory store, standard RateLimit headers, and client-IP extraction. No HTTP client, no framework.",
+      "registerVersion": "0.2.0",
+      "installSource": "npm",
+      "install": "pnpm add limitkit",
+      "adopterNames": [
+        "botsmann",
+        "causius",
+        "evig",
+        "heidi",
+        "loki",
+        "orangecat",
+        "petvity",
+        "skif",
+        "surf-your-life",
+        "truthseeker"
+      ]
+    },
+    {
+      "slug": "whenkit",
+      "name": "@bitbaum/whenkit",
+      "repo": "bitbaum/whenkit",
+      "summary": "Dates and times people can pick without typing: day chips, time chips, length chips, a readable date field over the native picker, and a…",
+      "description": "Dates and times people can pick without typing: day chips, time chips, length chips, a readable date field over the native picker, and a low-friction booking request that resolves to {startsAt, endsAt} in the provider's zone.",
+      "registerVersion": "0.3.2",
+      "installSource": "git",
+      "install": "pnpm add github:bitbaum/whenkit#v0.3.2",
+      "adopterNames": [
+        "datacat",
+        "evig",
+        "heidi",
+        "hirnli",
+        "loki",
+        "orangecat",
+        "petvity",
+        "substrata",
+        "surf-your-life"
+      ]
+    },
+    {
+      "slug": "chatkit",
+      "name": "@bitbaum/chatkit",
+      "repo": "bitbaum/chatkit",
+      "summary": "One chat for every product: a composer with a microphone that always works, a thread that does not fight the reader, messages with copy…",
+      "description": "One chat for every product: a composer with a microphone that always works, a thread that does not fight the reader, messages with copy and retry, and LLM markdown — the fleet's chat standard as a package.",
+      "registerVersion": "0.7.0",
+      "installSource": "git",
+      "install": "pnpm add github:bitbaum/chatkit#163c879163d22c6eb633314b3bd4e25712a01899",
+      "adopterNames": [
+        "bitbaum",
+        "causius",
+        "evig",
+        "heidi",
+        "loki",
+        "orangecat",
+        "skif",
+        "substrata"
+      ]
+    },
+    {
+      "slug": "design-tokens",
+      "name": "@bitbaum/design-tokens",
+      "repo": "bitbaum/design-tokens",
+      "summary": "Design SSOT for OrangeCat, Loki and Solon — tokens, self-hosted faces, and the Tailwind preset that maps them",
+      "description": "Design SSOT for OrangeCat, Loki and Solon — tokens, self-hosted faces, and the Tailwind preset that maps them.",
+      "registerVersion": "1.1.0",
+      "installSource": "npm",
+      "install": "pnpm add @bitbaum/design-tokens",
+      "adopterNames": [
+        "accountkit",
+        "bitbaum",
+        "causius",
+        "chatkit",
+        "loki",
+        "skif",
+        "solon",
+        "whenkit"
+      ]
+    },
+    {
+      "slug": "ai-forms",
+      "name": "ai-forms",
+      "repo": "bitbaum/ai-forms",
+      "summary": "Headless AI form filling and conversational refinement",
+      "description": "Headless AI form filling and conversational refinement. Provider-agnostic core, React hook, and a server route factory.",
+      "registerVersion": "0.1.3",
+      "installSource": "npm",
+      "install": "pnpm add ai-forms",
+      "adopterNames": ["ai-kit", "aoz-begleitung", "evig", "kivvi", "loki", "surf-your-life"]
+    },
+    {
+      "slug": "listkit",
+      "name": "listkit",
+      "repo": "bitbaum/listkit",
+      "summary": "A list as a query: a closed set of facet kinds, a URL codec that copies rather than rebuilds, a comparator that puts missing values last…",
+      "description": "A list as a query: a closed set of facet kinds, a URL codec that copies rather than rebuilds, a comparator that puts missing values last, and page arithmetic that cannot produce a negative offset. No markup, no React, no HTTP client.",
+      "registerVersion": "0.2.0",
+      "installSource": "git",
+      "install": "pnpm add github:bitbaum/listkit#v0.1.0",
+      "adopterNames": ["bitbaum", "hirnli", "loki", "orangecat", "skif", "substrata"]
+    },
+    {
+      "slug": "threadkit",
+      "name": "threadkit",
+      "repo": "bitbaum/threadkit",
+      "summary": "Headless multi-participant message threads",
+      "description": "Headless multi-participant message threads. Permission is participation, unread is per-person, and an AI can be a participant subject to the same visibility rules as everyone else.",
+      "registerVersion": "0.1.1",
+      "installSource": "npm",
+      "install": "pnpm add threadkit",
+      "adopterNames": ["heidi", "orangecat", "skif", "substrata", "vitareba"]
+    },
+    {
+      "slug": "sitekit",
+      "name": "@bitbaum/sitekit",
+      "repo": "bitbaum/sitekit",
+      "summary": "A website as data: a closed union of section shapes validated at runtime, one set of React renderers, and per-field provenance so a…",
+      "description": "A website as data: a closed union of section shapes validated at runtime, one set of React renderers, and per-field provenance so a generated site can prove it fabricated nothing.",
+      "registerVersion": "0.3.1",
+      "installSource": "npm",
+      "install": "pnpm add @bitbaum/sitekit",
+      "adopterNames": ["camille-boulangerie", "substrata"]
+    },
+    {
+      "slug": "speechkit",
+      "name": "@bitbaum/speechkit",
+      "repo": "bitbaum/speechkit",
+      "summary": "Measure how somebody spoke — pauses, rate, where they searched for a word, grammar a listener would notice — and say only what the…",
+      "description": "Measure how somebody spoke — pauses, rate, where they searched for a word, grammar a listener would notice — and say only what the evidence allows. Language-agnostic; no pronunciation score, on purpose.",
+      "registerVersion": "1.0.0",
+      "installSource": "npm",
+      "install": "pnpm add @bitbaum/speechkit",
+      "adopterNames": ["heidi"]
+    },
+    {
+      "slug": "paykit",
+      "name": "@bitbaum/paykit",
+      "repo": "bitbaum/paykit",
+      "summary": "Let a website get paid without holding the money",
+      "description": "Let a website get paid without holding the money. Classify a pasted Bitcoin receive string, and record a shown code (Twint, another currency) the visitor pays in their own app.",
+      "registerVersion": "0.1.0",
+      "installSource": "npm",
+      "install": "pnpm add @bitbaum/paykit",
+      "adopterNames": []
     }
   ]
 }

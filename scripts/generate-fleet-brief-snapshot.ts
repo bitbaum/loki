@@ -14,13 +14,9 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { FLEET_SOURCES } from "../src/lib/fleet-brief/brief";
-import {
-  FleetSnapshot,
-  LIMITS,
-  parsePackagesRegister,
-  parseStackTable,
-} from "../src/lib/fleet-brief/parse";
+import { FLEET_SOURCES, FleetSnapshotFile } from "../src/lib/fleet-brief/brief";
+import { LIMITS, parsePackagesRegister, parseStackTable } from "../src/lib/fleet-brief/parse";
+import { parseCatalogue } from "../src/lib/packages/catalogue-parse";
 
 const OUT = resolve(import.meta.dirname, "../src/lib/fleet-brief/snapshot.generated.json");
 
@@ -42,16 +38,21 @@ async function main() {
   const fromIdx = process.argv.indexOf("--from");
   const fromDir = fromIdx > 0 ? resolve(process.argv[fromIdx + 1] ?? "") : null;
 
-  const register = parsePackagesRegister(JSON.parse(await readSource("packages", fromDir)));
+  const registerJson: unknown = JSON.parse(await readSource("packages", fromDir));
+  const register = parsePackagesRegister(registerJson);
   if (!register) throw new Error("registers/packages.json did not yield a single valid package");
+  // The Packages pages read the same register in more detail (catalogue-parse.ts).
+  const catalogue = parseCatalogue(registerJson);
+  if (!catalogue) throw new Error("registers/packages.json did not yield a catalogue");
   const stack = parseStackTable(await readSource("stack", fromDir));
   if (!stack) throw new Error("STACK.md has no usable | Job | Blessed | table");
 
-  const snapshot = FleetSnapshot.parse({
+  const snapshot = FleetSnapshotFile.parse({
     fetchedAt: new Date().toISOString(),
     registerGeneratedAt: register.generatedAt,
     packages: register.packages,
     stack,
+    catalogue,
   });
   writeFileSync(
     OUT,
@@ -66,7 +67,7 @@ async function main() {
     )}\n`,
   );
   console.log(
-    `fleet brief snapshot: ${snapshot.packages.length} packages, ${snapshot.stack.length} stack rows → ${OUT}`,
+    `fleet brief snapshot: ${snapshot.packages.length} packages, ${snapshot.stack.length} stack rows, ${snapshot.catalogue.length} catalogue entries → ${OUT}`,
   );
 }
 
