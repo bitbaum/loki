@@ -5,7 +5,19 @@
 import type { CataloguePackage } from "./catalogue-parse";
 import type { LatestVersion } from "./latest";
 import type { PackageSource } from "./manifest";
-import { packageStatus, statusRank, type PackageStatus } from "./status";
+import { packageStatus, parseSemver, statusRank, type PackageStatus } from "./status";
+import type { PackageBump } from "./dependabot";
+import {
+  CI_STATE_LABELS,
+  OPEN_UPDATE_STATES,
+  needsDecision,
+  updateStatus,
+  whyAsked,
+  type CiState,
+  type UpdateRequestState,
+  type UpdateStatus,
+} from "./update-policy";
+import { readPackageUpdateSetting, type UpdateDecision } from "@/config/package-updates";
 
 /** The minimum an observation needs to carry for these views. */
 export type PackageUse = {
@@ -30,7 +42,12 @@ export type PackageListRow = {
   unknown: number;
 };
 
-export type DependentRow = PackageUse & { status: PackageStatus; href: string };
+export type DependentRow = PackageUse & {
+  status: PackageStatus;
+  href: string;
+  /** The open update pull request for this package in this project, if any. */
+  update?: OpenUpdate | null;
+};
 
 /** Where a project's page lives — by its entity id, or found by name. */
 export function projectHref(use: Pick<PackageUse, "entityProjectId" | "projectName">): string {
@@ -113,5 +130,126 @@ export function buildBuiltFrom(
     .sort(
       (a, b) =>
         statusRank(a.status) - statusRank(b.status) || a.packageName.localeCompare(b.packageName),
+    );
+}
+
+/** An open update pull request, as one package's row shows it. */
+export type OpenUpdate = {
+  prNumber: number;
+  prUrl: string;
+  from: string;
+  to: string;
+  breaking: boolean;
+  status: UpdateStatus;
+  /** Loki's last word on it (a refused write, a merge waiting on checks). */
+  detail: string | null;
+};
+
+/** The fields of an update request these views read. */
+export type UpdateRequestView = {
+  projectId: string;
+  prNumber: number;
+  prUrl: string;
+  packages: PackageBump[];
+  state: UpdateRequestState;
+  decision: UpdateDecision | null;
+  ciState: CiState;
+  detail: string | null;
+  /** The project's stored setting, raw. */
+  packageUpdates: string;
+};
+
+/** `projectId|packageName` → the open update that bumps it (the newest pull request wins). */
+export function indexOpenUpdates(requests: readonly UpdateRequestView[]): Map<string, OpenUpdate> {
+  const out = new Map<string, OpenUpdate>();
+  const ordered = [...requests].sort((a, b) => b.prNumber - a.prNumber);
+  for (const r of ordered) {
+    if (!OPEN_UPDATE_STATES.includes(r.state)) continue;
+    const status = updateStatus(r, readPackageUpdateSetting(r.packageUpdates));
+    for (const bump of r.packages) {
+      if (!bump.fleet) continue;
+      const key = `${r.projectId}|${bump.name}`;
+      if (out.has(key)) continue;
+      out.set(key, {
+        prNumber: r.prNumber,
+        prUrl: r.prUrl,
+        from: bump.from,
+        to: bump.to,
+        breaking: bump.breaking,
+        status,
+        detail: r.detail,
+      });
+    }
+  }
+  return out;
+}
+
+/** `0.3.2` / `v0.3.2` → `v0.3.2`; anything not semver (a sha) as it is. */
+export function versionLabel(version: string): string {
+  return parseSemver(version) ? `v${version.trim().replace(/^v/, "")}` : version;
+}
+
+/** One held update on Approvals. */
+export type UpdateCard = {
+  id: string;
+  projectName: string;
+  projectHref: string;
+  prNumber: number;
+  prUrl: string;
+  /** The fleet packages it updates, versions labelled. */
+  bumps: Array<{ name: string; from: string; to: string; breaking: boolean }>;
+  /** Updates in the same pull request to packages outside the fleet. */
+  otherCount: number;
+  checks: UpdateStatus;
+  why: string;
+  detail: string | null;
+};
+
+const CI_TONE: Record<CiState, UpdateStatus["tone"]> = {
+  green: "positive",
+  pending: "neutral",
+  red: "negative",
+  unknown: "neutral",
+};
+
+/** The updates waiting for a decision, as cards, breaking first, then by project. */
+export function buildUpdateCards(
+  rows: ReadonlyArray<
+    UpdateRequestView & {
+      id: string;
+      projectName: string;
+      entityProjectId: string | null;
+      snoozedUntil: Date | null;
+    }
+  >,
+  nowMs: number,
+): UpdateCard[] {
+  return rows
+    .filter((r) => needsDecision(r, readPackageUpdateSetting(r.packageUpdates), nowMs))
+    .map((r) => {
+      const fleet = r.packages.filter((p) => p.fleet);
+      return {
+        id: r.id,
+        projectName: r.projectName,
+        projectHref: projectHref(r),
+        prNumber: r.prNumber,
+        prUrl: r.prUrl,
+        bumps: fleet.map((p) => ({
+          name: p.name,
+          from: versionLabel(p.from),
+          to: versionLabel(p.to),
+          breaking: p.breaking,
+        })),
+        otherCount: r.packages.length - fleet.length,
+        checks: { label: CI_STATE_LABELS[r.ciState], tone: CI_TONE[r.ciState] },
+        why: whyAsked(r.packages),
+        detail: r.detail,
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.bumps.some((x) => x.breaking)) - Number(a.bumps.some((x) => x.breaking)) ||
+        a.projectName.localeCompare(b.projectName) ||
+        a.prNumber - b.prNumber,
     );
 }

@@ -32,6 +32,8 @@ export type PackageSource = "npm" | "git" | "workspace" | "unknown";
 export type ObservedPackage = {
   /** The catalogue name, whatever the project imports it as. */
   packageName: string;
+  /** The key package.json lists it under — how Dependabot names its updates. */
+  depName: string;
   /** The spec as written in package.json. */
   spec: string;
   /** Resolved from the lockfile; null when it cannot be known. */
@@ -312,6 +314,7 @@ export function observePackages(
     if (!version && parsed.kind === "git") version = semverOrNull(parsed.git.ref);
     out.set(pkg.name, {
       packageName: pkg.name,
+      depName,
       spec: spec.slice(0, 300),
       version,
       source:
@@ -328,9 +331,17 @@ export function observePackages(
 }
 
 /**
+ * Bump when a read starts recording something new about each package, so
+ * every repository is read once more even though nothing in it moved. v2:
+ * `dep_name`, which matches Dependabot's update pull requests to packages.
+ */
+const OBSERVATION_VERSION = 2;
+
+/**
  * A short fingerprint of what the catalogue matches on. Stored with each scan,
  * so a project whose head commit has not moved is still re-read when fleet
- * registers a package it might already use.
+ * registers a package it might already use — or when the read itself learns
+ * to record more (OBSERVATION_VERSION).
  */
 export function catalogueKey(catalogue: readonly CataloguePackage[]): string {
   const text = catalogue
@@ -343,5 +354,5 @@ export function catalogueKey(catalogue: readonly CataloguePackage[]): string {
     hash ^= text.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
-  return `${catalogue.length}:${hash.toString(16).padStart(8, "0")}`;
+  return `v${OBSERVATION_VERSION}:${catalogue.length}:${hash.toString(16).padStart(8, "0")}`;
 }

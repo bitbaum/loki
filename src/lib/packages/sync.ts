@@ -17,6 +17,13 @@
  * org's server token only where the person may use it (code Loki keeps, or an
  * entitled account), and only for repositories in that org; the person's own
  * GitHub token for everything else; no token at all for a public repository.
+ *
+ * After a good read, the project's open Dependabot pull requests are read and
+ * its update setting applied (./updates.ts) with the SAME token — the labels
+ * and merges that needs are writes, and a token that may read a repository on
+ * someone's behalf is the one that may hold an update in it on their behalf.
+ * `updatesOnly` skips the package read for repositories read before, which is
+ * what the 15-minute box timer uses: pull requests move faster than lockfiles.
  */
 import { GITHUB_API_BASE } from "@/lib/github-api";
 import { GITHUB_REPO_OWNER } from "@/config/github-owner";
@@ -32,6 +39,7 @@ import {
   replaceProjectPackages,
   touchPackageScan,
 } from "@/db/queries/project-packages";
+import { dbUpdateStore } from "@/db/queries/package-updates";
 import type { UserProject } from "@/db/schema";
 import { getPackageCatalogue } from "./catalogue";
 import type { CataloguePackage } from "./catalogue-parse";
@@ -43,6 +51,8 @@ import {
   type LockInfo,
 } from "./manifest";
 import { pickReadToken } from "./rules";
+import { githubUpdateClient } from "./update-github";
+import { syncProjectUpdates, type ProjectUpdatesResult } from "./updates";
 
 /** How many repositories are read at once. */
 const CONCURRENCY = 4;
@@ -56,6 +66,8 @@ export type ProjectSyncResult = {
   outcome: "updated" | "unchanged" | "no-repo" | "no-manifest" | "unreachable" | "error";
   packages?: number;
   detail?: string;
+  /** The project's open update pull requests, after its setting was applied. */
+  updates?: ProjectUpdatesResult;
 };
 
 export type SyncSummary = {
@@ -169,12 +181,42 @@ type SyncContext = {
   previous: Map<string, { commitSha: string | null; catalogueKey: string | null; outcome: string }>;
   tokenFor: (ref: RepoRef) => string | null;
   force: boolean;
+  updatesOnly: boolean;
 };
 
 async function syncOne(project: UserProject, ctx: SyncContext): Promise<ProjectSyncResult> {
-  const base = { projectId: project.id, projectName: project.name };
   const ref = parseGithubRepo(project.gitUrl);
-  if (!ref) return { ...base, outcome: "no-repo" };
+  if (!ref) return { projectId: project.id, projectName: project.name, outcome: "no-repo" };
+  const prev = ctx.previous.get(project.id);
+  const readBefore = prev?.outcome === "ok";
+  const result =
+    ctx.updatesOnly && readBefore && !ctx.force
+      ? { projectId: project.id, projectName: project.name, outcome: "unchanged" as const }
+      : await readPackages(project, ref, ctx);
+  if (result.outcome !== "updated" && result.outcome !== "unchanged") return result;
+  const updates = await syncProjectUpdates({
+    userId: ctx.userId,
+    project,
+    ref,
+    catalogueNames: new Set(ctx.catalogue.map((pkg) => pkg.name)),
+    gh: githubUpdateClient(ctx.tokenFor(ref)),
+    store: dbUpdateStore,
+    now: new Date(),
+  }).catch((err): ProjectUpdatesResult => ({
+    open: 0,
+    held: 0,
+    error: err instanceof Error ? err.message.slice(0, 200) : "failed",
+  }));
+  return { ...result, updates };
+}
+
+/** Phase 1: what the repository is built from, at its default branch's head. */
+async function readPackages(
+  project: UserProject,
+  ref: RepoRef,
+  ctx: SyncContext,
+): Promise<ProjectSyncResult> {
+  const base = { projectId: project.id, projectName: project.name };
   const token = ctx.tokenFor(ref);
   const scan = { userId: ctx.userId, projectId: project.id, catalogueKey: ctx.catalogueKey };
   let sha: string | null = null;
@@ -239,9 +281,9 @@ const inflight = new Map<string, Promise<SyncSummary>>();
  */
 export async function syncUserPackages(
   userId: string,
-  opts: { onlyProjectId?: string; force?: boolean } = {},
+  opts: { onlyProjectId?: string; force?: boolean; updatesOnly?: boolean } = {},
 ): Promise<SyncSummary> {
-  const key = `${userId}:${opts.onlyProjectId ?? "*"}`;
+  const key = `${userId}:${opts.onlyProjectId ?? "*"}:${opts.updatesOnly ? "u" : "f"}`;
   const running = inflight.get(key);
   if (running) return running;
   const job = runSync(userId, opts).finally(() => inflight.delete(key));
@@ -249,18 +291,38 @@ export async function syncUserPackages(
   return job;
 }
 
-async function runSync(
+/**
+ * The token for one of a person's repositories, read or write — see the module
+ * comment. Resolved once per person, then asked per repository.
+ */
+export async function repoTokenPicker(
   userId: string,
-  opts: { onlyProjectId?: string; force?: boolean },
-): Promise<SyncSummary> {
-  const [catalogue, projects, scans, userToken, entitled] = await Promise.all([
-    getPackageCatalogue(),
-    getUserProjects(userId),
-    listPackageScans(userId),
+): Promise<(project: Pick<UserProject, "gitUrl" | "codeCustody">, ref: RepoRef) => string | null> {
+  const [userToken, entitled] = await Promise.all([
     getGithubToken(userId).catch(() => null),
     isFleetInfrastructureAllowed(userId).catch(() => false),
   ]);
   const orgToken = getOrgGithubToken();
+  return (project, ref) =>
+    pickReadToken({
+      repoOwner: ref.owner,
+      orgOwner: GITHUB_REPO_OWNER,
+      orgToken,
+      orgAllowed: mayUseOrgToken(entitled, { lokiKept: lokiKeepsCode(project) }),
+      userToken,
+    });
+}
+
+async function runSync(
+  userId: string,
+  opts: { onlyProjectId?: string; force?: boolean; updatesOnly?: boolean },
+): Promise<SyncSummary> {
+  const [catalogue, projects, scans, tokenFor] = await Promise.all([
+    getPackageCatalogue(),
+    getUserProjects(userId),
+    listPackageScans(userId),
+    repoTokenPicker(userId),
+  ]);
   const targets = opts.onlyProjectId
     ? projects.filter((p) => p.id === opts.onlyProjectId)
     : projects;
@@ -270,25 +332,18 @@ async function runSync(
     catalogueKey: catalogueKey(catalogue.packages),
     previous: new Map(scans.map((s) => [s.projectId, s])),
     force: opts.force === true,
+    updatesOnly: opts.updatesOnly === true,
     tokenFor: () => null,
   };
   const results = await mapWithLimit(targets, CONCURRENCY, (project) =>
-    syncOne(project, {
-      ...ctx,
-      tokenFor: (ref) =>
-        pickReadToken({
-          repoOwner: ref.owner,
-          orgOwner: GITHUB_REPO_OWNER,
-          orgToken,
-          orgAllowed: mayUseOrgToken(entitled, { lokiKept: lokiKeepsCode(project) }),
-          userToken,
-        }),
-    }).catch((err): ProjectSyncResult => ({
-      projectId: project.id,
-      projectName: project.name,
-      outcome: "error",
-      detail: err instanceof Error ? err.message.slice(0, 200) : "failed",
-    })),
+    syncOne(project, { ...ctx, tokenFor: (ref) => tokenFor(project, ref) }).catch(
+      (err): ProjectSyncResult => ({
+        projectId: project.id,
+        projectName: project.name,
+        outcome: "error",
+        detail: err instanceof Error ? err.message.slice(0, 200) : "failed",
+      }),
+    ),
   );
   return {
     results,

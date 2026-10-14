@@ -3,11 +3,13 @@ import { FolderKanban } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { timeAgo } from "@/lib/dates";
 import type { DependentRow } from "@/lib/packages/view";
+import { OpenUpdateLine } from "./OpenUpdateLine";
 import { PackageStatusTag } from "./PackageStatusTag";
 
 /**
  * Which of the person's projects use one package, and at what version —
- * behind first, because that is the row someone opens this page to find.
+ * behind first, because that is the row someone opens this page to find —
+ * and, where Dependabot has an update open, where that update stands.
  */
 export function PackageDependents({
   rows,
@@ -45,7 +47,7 @@ export function PackageDependents({
             key={row.projectId}
             className="ui-list-row flex flex-col gap-2 px-4 py-3 sm:grid sm:grid-cols-[minmax(0,1fr)_8rem_12rem_6rem] sm:items-center sm:gap-4"
           >
-            <span className="min-w-0">
+            <div className="min-w-0">
               <Link
                 href={row.href}
                 className="wrap-anywhere font-medium text-text-primary hover:underline"
@@ -55,7 +57,12 @@ export function PackageDependents({
               <span className="block truncate font-mono text-xs text-text-muted" title={row.spec}>
                 {row.spec}
               </span>
-            </span>
+              {row.update && (
+                <div className="mt-1.5">
+                  <OpenUpdateLine update={row.update} />
+                </div>
+              )}
+            </div>
             <span className="font-mono text-sm text-text-secondary">
               {row.version ? `v${row.version}` : "—"}
             </span>

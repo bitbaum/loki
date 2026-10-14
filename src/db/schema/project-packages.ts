@@ -38,6 +38,15 @@ export const projectPackages = pgTable(
     observedAt: timestamp("observed_at", { withTimezone: true }).defaultNow().notNull(),
     /** The repository's head commit the observation was read at. */
     commitSha: text("commit_sha"),
+    /**
+     * The key package.json lists it under, when that is not `package_name`
+     * (`@fleet/ai-forms` for an npm alias, `listkit` for a git dependency on
+     * `@bitbaum/listkit`). Dependabot names an update by this key, so it is
+     * how an update pull request is matched back to the catalogue. Null for
+     * rows read before it was recorded: they match by `package_name` only
+     * until the repository is read again.
+     */
+    depName: text("dep_name"),
   },
   (t) => [
     uniqueIndex("uq_project_packages_project_package").on(t.projectId, t.packageName),

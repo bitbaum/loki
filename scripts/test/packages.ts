@@ -405,6 +405,11 @@ packages:
         "npm:ai-forms@^0.1.2",
         "the spec is kept as written",
       );
+      assert.equal(
+        observed.find((o) => o.packageName === "ai-forms")!.depName,
+        "@fleet/ai-forms",
+        "the key it is listed under is kept — Dependabot names updates by it",
+      );
       // whenkit is not in the lock excerpt: the version-shaped tag stands in.
       const noLock = observePackages(PACKAGE_JSON, null, catalogue)!;
       assert.equal(noLock.find((o) => o.packageName === "@bitbaum/whenkit")!.version, "0.3.2");

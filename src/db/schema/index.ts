@@ -67,3 +67,4 @@ export * from "./studio-requests";
 export * from "./autopilot-nights";
 export * from "./operator-usage-events";
 export * from "./project-packages";
+export * from "./package-update-requests";

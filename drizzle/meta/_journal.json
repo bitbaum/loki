@@ -694,6 +694,13 @@
       "when": 1791965662265,
       "tag": "0098_project_packages",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1791969300696,
+      "tag": "0099_package_updates",
+      "breakpoints": true
     }
   ]
 }

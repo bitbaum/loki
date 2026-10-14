@@ -73,6 +73,18 @@ export const userProjects = pgTable(
      * box, not here), so nothing ships itself until a person says so.
      */
     autoShip: boolean("auto_ship"),
+    /**
+     * How shared-package updates reach this project: "auto" (merge on green),
+     * "ask" (each waits on Approvals) or "pinned" (nothing updates). Values and
+     * their wording are SSOT in src/config/package-updates.ts; read it through
+     * readPackageUpdateSetting, which turns an unknown value into "ask".
+     *
+     * A column beside auto_ship rather than a table of its own: it is one
+     * answer per project, read with the project, like the switches around it.
+     * No CHECK constraint, for the reason entities.auto_inject_mode_override
+     * has none (drizzle/0023): the enum is owned by the TS config.
+     */
+    packageUpdates: text("package_updates").notNull().default("auto"),
     position: integer("position").default(0), // user-defined sort order
     isActive: boolean("is_active").default(true).notNull(),
     // Consent to appear in Loki's OWN public catalogue at /fleet. Default false,
