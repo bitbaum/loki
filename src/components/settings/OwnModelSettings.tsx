@@ -191,10 +191,10 @@ export function OwnModelSettings() {
           Power Loki with your own models
         </h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Paste a key from any provider — or point Loki at a model on your own machine — and it Auto
-          chooses a model for each request. Your provider bills you for what you use; Loki charges
-          nothing and the shared daily budget no longer applies to your chats. Add several to give
-          Auto alternatives. You can also choose a specific model in chat.{" "}
+          Add a provider key or a compatible endpoint. Auto chooses a model for each request. Your
+          provider bills calls made with your key; those calls do not use the shared daily budget.
+          Choosing a free model in chat uses the shared pool. Add providers to give Auto
+          alternatives, or choose a specific model in chat.{" "}
           <Link
             href={MODEL_STORE_PATH}
             className="text-accent-text underline-offset-2 hover:underline"
@@ -361,7 +361,7 @@ export function OwnModelSettings() {
                   saved.kind === "change"
                     ? `${name} — model changed. Testing it now…`
                     : next[0]?.vendor === saved.vendor
-                      ? `${name} added. Added as the first provider for Auto. Testing it…`
+                      ? `${name} added as the first provider for Auto. Testing it…`
                       : `${name} added as your ${ordinal(next.findIndex((m) => m.vendor === saved.vendor) + 1)} model. Testing it…`,
               });
               void test(saved.vendor);
