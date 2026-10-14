@@ -57,17 +57,28 @@ const signalCheck = (attrs: Record<string, string>, key: string) =>
 
 console.log("health-panel-shows-the-evidence:");
 
-check("THE BUG: a real security note is not cut mid-sentence", () => {
+check("THE BUG: a long security note is not cut mid-sentence", () => {
+  const note =
+    "Checkout can be completed without paying: the success page renders before Payrexx confirms the charge, and the order is marked paid anyway.";
+  const c = signalCheck({ [PROJECT_ATTR.SECURITY_VULNERABILITY]: note }, "security_vulnerability");
+  assert(!c.pass, "the check should be failing with a note present");
+  assert(
+    c.detail.includes("marked paid anyway"),
+    `the evidence is still truncated — the sentence you opened the panel for is missing: ${c.detail}`,
+  );
+  assert(!c.detail.includes("…"), `still ellipsised: ${c.detail}`);
+});
+
+check("a retired claim is not an open security issue", () => {
   const c = signalCheck(
     { [PROJECT_ATTR.SECURITY_VULNERABILITY]: REAL_NOTE },
     "security_vulnerability",
   );
-  assert(!c.pass, "the check should be failing with a note present");
+  assert(c.pass, "the old staff-domain note still costs a health point");
   assert(
-    c.detail.includes("admin access to 14 areas"),
-    `the evidence is still truncated — the sentence you opened the panel for is missing: ${c.detail}`,
+    c.detail.includes("Not counted"),
+    `the panel still presents the retired note as the problem: ${c.detail}`,
   );
-  assert(!c.detail.includes("…"), `still ellipsised: ${c.detail}`);
 });
 
 check("a comma list of broken features survives whole", () => {

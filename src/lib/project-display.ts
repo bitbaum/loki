@@ -1,3 +1,4 @@
+import { withoutRetiredClaims } from "@/lib/project-signals";
 // Display helpers for project metadata shown on PUBLIC surfaces (hero, profile).
 //
 // The bulk GitHub-import flow stamped every project with a placeholder
@@ -38,7 +39,11 @@ export function projectHeadline(desc: string | null | undefined): string | null 
 export function cleanDescription(desc: string | null | undefined): string | null {
   const d = desc?.trim();
   if (!d) return null;
-  return PLACEHOLDER_DESCRIPTIONS.has(d.toLowerCase()) ? null : d;
+  if (PLACEHOLDER_DESCRIPTIONS.has(d.toLowerCase())) return null;
+  // A brief that only restates a retired fact is not a brief. The sentence
+  // is dropped; anything else in the same text stays. See project-signals.ts.
+  const kept = withoutRetiredClaims(d);
+  return kept || null;
 }
 
 // Operator-facing dumps (CLAUDE.md, dogfood notes, seam contracts) must never

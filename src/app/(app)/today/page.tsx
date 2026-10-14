@@ -24,12 +24,11 @@ import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
 import { getProjects } from "@/db/queries/projects";
 import { hasProjectAttention, isSiteDown } from "@/lib/projects-page-stats";
 import { PROJECT_ATTR } from "@/config/project-attrs";
-import { signalHasExpired } from "@/lib/project-signals";
+import { signalIsLive } from "@/lib/project-signals";
 import { projectAttentionVerdict } from "@/lib/project-attention";
 import { normalizeTabName } from "@/lib/agent-config";
 import { getProjectStatesByUserId } from "@/db/queries/project-states";
 import { getLatestRunsByProjectPaths } from "@/db/queries/orchestration-runs";
-import { hasAnswer } from "@/lib/project-display";
 import { NeedsYouVerdict, type FlaggedProject } from "@/components/today/NeedsYouVerdict";
 import { loadNeedsYouExtras } from "@/lib/needs-you-server";
 import { FIRST_RUN } from "@/lib/constants/today";
@@ -139,7 +138,7 @@ async function loadTodayInputs() {
     .map((p) => {
       // The first live flag's OWN WORDS. The sentence someone wrote is what
       // the operator acts on; a count is a number to go and decode.
-      const key = FLAG_KEYS.find((k) => hasAnswer(p.attrs[k]) && !signalHasExpired(p.attrMeta, k));
+      const key = FLAG_KEYS.find((k) => signalIsLive(p.attrMeta, k, p.attrs[k]));
       const siteDown = isSiteDown(p);
       const raw = key ? p.attrs[key] : siteDown ? "Live site is down" : "";
       return {

@@ -6,7 +6,7 @@ import {
   PROJECT_STAGES,
   resolveProjectStage,
 } from "@/lib/constants/statuses";
-import { signalHasExpired, type AttrProvenance } from "@/lib/project-signals";
+import { signalIsLive, type AttrProvenance } from "@/lib/project-signals";
 import { HEALTH_SIGNAL_BASE } from "./project-detail-types";
 import type { HealthSignalBase, HealthSignalKind } from "./project-detail-types";
 
@@ -42,8 +42,7 @@ export function getHealthSignals(
 ): HealthSignal[] {
   const signals: HealthSignal[] = [];
   for (const cfg of HEALTH_SIGNAL_CONFIG) {
-    if (!attrs[cfg.key]) continue;
-    if (signalHasExpired(meta, cfg.key)) continue;
+    if (!signalIsLive(meta, cfg.key, attrs[cfg.key])) continue;
     if (cfg.kind === "broken") {
       const count = attrs[cfg.key].split(",").length;
       signals.push({

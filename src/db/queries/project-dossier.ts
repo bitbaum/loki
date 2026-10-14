@@ -30,6 +30,7 @@ import {
 } from "./orchestration-runs";
 import { getUserProjectByEntityId } from "./user-projects";
 import { cleanDescription } from "@/lib/project-display";
+import { factReachesAgent } from "@/lib/project-signals";
 import { getProjectShareByToken } from "./project-shares";
 import type { UserProject } from "@/db/schema";
 import type { orchestrationRuns } from "@/db/schema/orchestration-runs";
@@ -206,6 +207,7 @@ export function renderProjectDossierForAgent(dossier: ProjectDossier): string {
       dirPath: userProject?.dirPath,
       liveUrl: userProject?.liveUrl,
       attrs,
+      attrMeta: detail.attrMeta,
     }),
   );
 
@@ -216,8 +218,10 @@ export function renderProjectDossierForAgent(dossier: ProjectDossier): string {
   const profile: Array<[string, string | undefined | null]> = [];
   for (const field of PROJECT_FIELDS) {
     if (!field.inAgentDossier) continue;
-    const value =
+    const raw =
       field.key === PROJECT_ATTR.STACK ? (attrs.stack ?? userProject?.stack) : attrs[field.key];
+    // An imported snapshot or a retired sentence is not a fact to build from.
+    const value = factReachesAgent(raw, detail.attrMeta?.[field.key]?.source ?? null) ? raw : null;
     profile.push([field.dossierLabel ?? field.label, value]);
     if (field.key === PROJECT_ATTR.STATUS) profile.push(["Health", health]);
   }

@@ -29,7 +29,7 @@ what's next) must be one coherent story, not five overlapping surfaces.
 > consolidated /history + /digests; remaining overlap is naming, not
 > architecture. BLOCKER discovered during deploy (2026-06-12): the Vercel team
 > `orangecat` was blocked for fair-use overage — the then-current
-> `loki.vercel.app` / `revampit.vercel.app` and orangecat.ch all served
+> the old Vercel hostnames (Loki's and evig's) and orangecat.ch all served
 > 402 DEPLOYMENT_DISABLED, and new deploys were rejected.
 > RESOLVED: this triggered the full exit off Vercel — Loki and OrangeCat
 > are now self-hosted on the Hetzner `bitbaum` box (Caddy + systemd), serving
