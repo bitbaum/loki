@@ -91,13 +91,31 @@ fi
 # The app's tables live in public; the app's own role owns and reads them.
 psql_su -d "$DB" -c "alter schema public owner to \"$DB\""
 
+# pg_hba.conf is a per-role allowlist (first match wins) ending in a reject
+# block: a role with no line of its own is refused however right its password.
+# Give this role one for 127.0.0.1, above the reject, once, keeping a backup,
+# then reload. Scoped to its own role and its own database, nothing wider.
+hba=$(psql_su -c 'show hba_file')
+if ! sudo grep -qE "^host(ssl|nossl)?[[:space:]]+$DB[[:space:]]+$DB[[:space:]]+127\\.0\\.0\\.1/32" "$hba"; then
+  sudo cp -p "$hba" "$hba.bak-$DB"
+  tmp=$(mktemp)
+  sudo awk -v rule="host    $DB    $DB    127.0.0.1/32    scram-sha-256" '!done && /^[^#].*reject/ { print rule; done=1 } { print } END { if (!done) print rule }' "$hba" > "$tmp"
+  sudo install -o postgres -g postgres -m 640 "$tmp" "$hba"
+  rm -f "$tmp"
+  psql_su -c 'select pg_reload_conf()' >/dev/null
+fi
+
 sudo mkdir -p "/opt/$SLUG/shared"
 sudo chown -R ubuntu:ubuntu "/opt/$SLUG"
 touch "$ENV_FILE"; chmod 600 "$ENV_FILE"
 
 has() { grep -qE "^$1=" "$ENV_FILE"; }
 add() { printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"; }
-has DATABASE_URL       || add DATABASE_URL "postgresql://$DB:$pass@localhost:5432/$DB"
+# 127.0.0.1, never "localhost": it resolves to ::1 first, and a URL saying
+# localhost is refused by the rules below although the role and password are
+# right (diplodoctor, 2026-10-14). Rewrite one an earlier run wrote.
+sed -i -E 's#^(DATABASE_URL=postgres(ql)?://[^@]*@)localhost([:/])#\1127.0.0.1\3#' "$ENV_FILE"
+has DATABASE_URL       || add DATABASE_URL "postgresql://$DB:$pass@127.0.0.1:5432/$DB"
 has BETTER_AUTH_SECRET || add BETTER_AUTH_SECRET "$(openssl rand -base64 48 | tr -d '\n')"
 has SECRET_SEAL_KEY    || add SECRET_SEAL_KEY "$(openssl rand -base64 48 | tr -d '\n')"
 
