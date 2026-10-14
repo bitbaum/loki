@@ -13,6 +13,8 @@ import {
   sanitizeStandingApprovals,
 } from "@/lib/actions/standing-approval";
 import { approvalsSentence } from "@/lib/needs-you";
+import { loadUpdateCards } from "@/lib/packages/load";
+import { PackageUpdateQueue } from "@/components/packages/PackageUpdateQueue";
 
 export const metadata = { title: "Approvals" };
 
@@ -23,9 +25,16 @@ export const metadata = { title: "Approvals" };
  * Approval Queue" — this page is that place, linkable and in the nav, instead
  * of a card buried mid-way down /today that vanishes when the zone is locked.
  * The queue UI itself stays SSOT in ActionQueueCard.
+ *
+ * Package updates a project's setting held for a person sit here too, read
+ * from package_update_requests rather than enqueued as actions: their answer
+ * is one of three (take it, not now, stay on this version), the pull request
+ * on GitHub is the truth they must follow, and they name projects and package
+ * versions — nothing from the private zone — so they show behind the PIN too.
  */
 export default async function ApprovalsPage() {
   const userId = await requirePageUserId();
+  const updates = await loadUpdateCards(userId);
 
   // Locked zone: action contents may reference private entities, so the queue
   // stays hidden — but the page must not dead-end. Show that work is waiting
@@ -53,6 +62,7 @@ export default async function ApprovalsPage() {
             </div>
           </div>
         </Card>
+        <PackageUpdateQueue updates={updates} />
       </PageLayout>
     );
   }
@@ -65,16 +75,19 @@ export default async function ApprovalsPage() {
         options={STANDING_APPROVAL_OPTIONS.map((o) => ({ ...o }))}
         initial={sanitizeStandingApprovals(prefs?.standingApprovals)}
       />
+      <PackageUpdateQueue updates={updates} />
       <ActionQueueCard
         autoOpenTop
         emptyState={
-          <div className="ui-empty-page">
-            <Inbox className="h-5 w-5 text-text-tertiary" />
-            <p className="text-sm text-text-secondary">
-              Nothing waiting for approval. When Loki proposes an email, message, event, or
-              commitment, it lands here for your yes/no.
-            </p>
-          </div>
+          updates.length > 0 ? null : (
+            <div className="ui-empty-page">
+              <Inbox className="h-5 w-5 text-text-tertiary" />
+              <p className="text-sm text-text-secondary">
+                Nothing waiting for approval. When Loki proposes an email, message, event, or
+                commitment, it lands here for your yes/no.
+              </p>
+            </div>
+          )
         }
       />
     </PageLayout>

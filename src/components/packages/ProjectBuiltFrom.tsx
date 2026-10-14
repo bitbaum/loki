@@ -2,13 +2,17 @@ import Link from "next/link";
 import { Package } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
 import { loadProjectBuiltFrom } from "@/lib/packages/load";
+import { PACKAGE_UPDATE_SETTINGS } from "@/config/package-updates";
+import { OpenUpdateLine } from "./OpenUpdateLine";
 import { PackageStatusTag } from "./PackageStatusTag";
+import { PackageUpdateSettingControl } from "./PackageUpdateSettingControl";
 import { PackagesRefresh } from "./PackagesRefresh";
 
 /**
  * "Built from": the fleet packages this project's repository depends on, at
  * the version its lockfile resolved, each linking to the package's page where
- * every other project's version sits beside it.
+ * every other project's version sits beside it — with any update Dependabot
+ * has open for it, and the project's choice of how updates arrive.
  */
 export async function ProjectBuiltFrom({
   userProjectId,
@@ -88,7 +92,7 @@ export async function ProjectBuiltFrom({
               </>
             );
             return (
-              <li key={row.packageName}>
+              <li key={row.packageName} className="space-y-1.5">
                 {row.slug ? (
                   <Link
                     href={`/packages/${row.slug}`}
@@ -101,10 +105,27 @@ export async function ProjectBuiltFrom({
                     {inner}
                   </div>
                 )}
+                {row.update && (
+                  <div className="pl-4 sm:pl-11">
+                    <OpenUpdateLine update={row.update} />
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
+      )}
+      {hasRepo && userProjectId && data && (
+        <div className="mt-5 border-t border-border-subtle pt-4">
+          {readonly ? (
+            <p className="text-sm text-text-secondary">
+              <span className="ui-micro-label mr-2">Updates</span>
+              {PACKAGE_UPDATE_SETTINGS.find((s) => s.id === data.setting)?.consequence}
+            </p>
+          ) : (
+            <PackageUpdateSettingControl projectId={userProjectId} initial={data.setting} />
+          )}
+        </div>
       )}
     </section>
   );

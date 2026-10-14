@@ -12,6 +12,16 @@ import {
   listProjectPackages,
 } from "@/db/queries/project-packages";
 import type { ProjectPackageScanRow } from "@/db/schema";
+import {
+  getProjectPackageUpdates,
+  listOpenUpdateRequests,
+  listProjectUpdateRequests,
+} from "@/db/queries/package-updates";
+import {
+  DEFAULT_PACKAGE_UPDATE_SETTING,
+  readPackageUpdateSetting,
+  type PackageUpdateSetting,
+} from "@/config/package-updates";
 import { parseGithubRepo } from "@/lib/github-repo-ref";
 import { findCataloguePackage, getPackageCatalogue, type PackageCatalogue } from "./catalogue";
 import type { CataloguePackage } from "./catalogue-parse";
@@ -21,9 +31,13 @@ import {
   buildBuiltFrom,
   buildDependents,
   buildPackageList,
+  buildUpdateCards,
+  indexOpenUpdates,
   projectHref,
   type DependentRow,
+  type OpenUpdate,
   type PackageListRow,
+  type UpdateCard,
 } from "./view";
 
 /** How far the reads of the person's repositories got. */
@@ -109,27 +123,49 @@ export async function loadPackageDetail(
   if (!pkg) {
     return { catalogue, pkg, latest: { version: null, from: "none" }, dependents: [], coverage };
   }
-  const [latestMap, uses] = await Promise.all([
+  const [latestMap, uses, updates] = await Promise.all([
     getLatestVersions([pkg]),
     listPackageDependents(userId, pkg.name),
+    listOpenUpdateRequests(userId).catch(() => []),
   ]);
   const latest = latestMap.get(pkg.name) ?? { version: null, from: "none" as const };
-  return { catalogue, pkg, latest, dependents: buildDependents(uses, latest), coverage };
+  const open = indexOpenUpdates(updates);
+  const dependents = buildDependents(uses, latest).map((row) => ({
+    ...row,
+    update: open.get(`${row.projectId}|${pkg.name}`) ?? null,
+  }));
+  return { catalogue, pkg, latest, dependents, coverage };
 }
 
 export type BuiltFrom = {
-  rows: ReturnType<typeof buildBuiltFrom>;
+  rows: Array<ReturnType<typeof buildBuiltFrom>[number] & { update: OpenUpdate | null }>;
   scan: ProjectPackageScanRow | null;
+  /** How updates reach this project. */
+  setting: PackageUpdateSetting;
 };
 
 /** What one project is built from. The caller has already checked access to it. */
 export async function loadProjectBuiltFrom(projectId: string): Promise<BuiltFrom> {
-  const [catalogue, uses, scan] = await Promise.all([
+  const [catalogue, uses, scan, requests, rawSetting] = await Promise.all([
     getPackageCatalogue(),
     listProjectPackages(projectId),
     getPackageScanForProject(projectId),
+    listProjectUpdateRequests(projectId).catch(() => []),
+    getProjectPackageUpdates(projectId).catch(() => null),
   ]);
   const used = catalogue.packages.filter((pkg) => uses.some((u) => u.packageName === pkg.name));
   const latest = await getLatestVersions(used);
-  return { rows: buildBuiltFrom(uses, catalogue.packages, latest), scan };
+  const packageUpdates = rawSetting ?? DEFAULT_PACKAGE_UPDATE_SETTING;
+  const open = indexOpenUpdates(requests.map((r) => ({ ...r, packageUpdates })));
+  const rows = buildBuiltFrom(uses, catalogue.packages, latest).map((row) => ({
+    ...row,
+    update: open.get(`${projectId}|${row.packageName}`) ?? null,
+  }));
+  return { rows, scan, setting: readPackageUpdateSetting(packageUpdates) };
+}
+
+/** The package updates waiting for the person on Approvals. Never throws. */
+export async function loadUpdateCards(userId: string, nowMs = Date.now()): Promise<UpdateCard[]> {
+  const rows = await listOpenUpdateRequests(userId).catch(() => []);
+  return buildUpdateCards(rows, nowMs);
 }
