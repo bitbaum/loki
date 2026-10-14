@@ -278,8 +278,7 @@ function toStoreModel(
     outPerM,
     context: typeof m.context_length === "number" ? m.context_length : null,
     released,
-    isNew:
-      released !== null && released <= now && now - released <= MODEL_STORE_NEW_DAYS * DAY_MS,
+    isNew: released !== null && released <= now && now - released <= MODEL_STORE_NEW_DAYS * DAY_MS,
     free: inPerM === 0 && outPerM === 0,
     freeVariant: !m.id.endsWith(":free") && freeIds.has(freeSibling) ? freeSibling : null,
     open: typeof m.hugging_face_id === "string" && m.hugging_face_id.length > 0,
