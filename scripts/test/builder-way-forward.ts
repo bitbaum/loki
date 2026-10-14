@@ -62,8 +62,6 @@ check(
 check("…not while the cloud is merely down", !downloadIsTheWayForward("wait-for-cloud"));
 check("…not before we know", !downloadIsTheWayForward("unknown"));
 
-
-
 for (const cloud of ["unknown", "online", "offline", "private"] as const) {
   const banner = renderToStaticMarkup(
     createElement(RunnerStatusBanner, {
