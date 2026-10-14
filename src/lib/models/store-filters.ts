@@ -100,7 +100,7 @@ export function applyFilters(
   // The query narrows; the store's sort still orders. A slip in a name still finds it.
   return filterByQuery(models, MODEL_SEARCH_SPEC, f.q).filter((m) => {
     if (f.open && !m.open) return false;
-    if (f.free && !(m.free || m.freeVariant)) return false;
+    if (f.free && !m.free) return false;
     if (f.vision && !m.vision) return false;
     if (f.reasoning && !m.reasoning) return false;
     if (f.mine && !reachable(m)) return false;

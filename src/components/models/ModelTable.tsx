@@ -99,16 +99,20 @@ function ModelRow({
           </span>
           <span className="flex flex-wrap gap-1">
             <span className={m.open ? "ui-store-badge-open" : "ui-store-badge-closed"}>
-              {m.open ? "Open weights" : "Closed"}
+              {m.open ? "Open weights" : "Weights not listed"}
             </span>
             {m.isNew && <span className="ui-tag ui-tag-accent">New</span>}
-            {(m.free || m.freeVariant) && <span className="ui-tag ui-tag-positive">Free tier</span>}
+            {(m.free || m.freeVariant) && (
+              <span className="ui-tag ui-tag-positive">
+                {m.free ? "Free tier" : "Free variant available"}
+              </span>
+            )}
             {m.vision && <span className="ui-tag ui-tag-neutral">Vision</span>}
             {m.reasoning && <span className="ui-tag ui-tag-neutral">Reasoning</span>}
           </span>
         </div>
       </td>
-      <td data-label="Intelligence" className="ui-store-num">
+      <td data-label="Intelligence" className="ui-store-num hidden md:table-cell">
         <span className="flex items-center gap-2">
           <span className="w-6 text-right">{indexLabel(m.index)}</span>
           <span className="ui-store-index" aria-hidden="true">
@@ -129,13 +133,13 @@ function ModelRow({
               <span className="block">Output ${money(m.outPerM)}</span>
             </>
           )}
-          <span className="block text-xs text-text-secondary">USD per 1M tokens</span>
+          <span className="block text-xs text-text-secondary">OpenRouter USD per 1M tokens</span>
         </div>
       </td>
-      <td data-label="Context" className="ui-store-num">
+      <td data-label="Context" className="ui-store-num hidden md:table-cell">
         {contextLabel(m.context).replace(" ctx", "") || "—"}
       </td>
-      <td data-label="Listed" className="ui-store-num">
+      <td data-label="Listed" className="ui-store-num hidden md:table-cell">
         {releasedLabel(m.released) || "—"}
       </td>
       <td data-label="Runs via">
@@ -155,6 +159,23 @@ function ModelRow({
             </span>
           ))}
         </span>
+      </td>
+      <td data-label="" className="md:hidden">
+        <details className="w-full">
+          <summary className="ui-tap text-sm text-text-secondary">Model details</summary>
+          <dl className="mt-2 grid grid-cols-2 gap-2 text-xs text-text-secondary">
+            <dt>Model ID</dt>
+            <dd className="break-all">{m.id}</dd>
+            <dt>Intelligence index</dt>
+            <dd>{m.index === null ? "Not rated" : `${indexLabel(m.index)} / 100`}</dd>
+            <dt>Value score</dt>
+            <dd>{value ?? "Not rated"}</dd>
+            <dt>Context</dt>
+            <dd>{contextLabel(m.context).replace(" ctx", "") || "Not listed"}</dd>
+            <dt>Listed</dt>
+            <dd>{releasedLabel(m.released) || "Not listed"}</dd>
+          </dl>
+        </details>
       </td>
       <td data-label="">
         {live ? (

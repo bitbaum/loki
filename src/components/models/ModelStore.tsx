@@ -197,10 +197,25 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
         </p>
       )}
 
-      <p className="text-xs text-text-muted" aria-live="polite">
-        {visible.length} of {data.models.length} models · {sort.label.toLowerCase()} first (
-        {sort.explains})
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-text-muted" aria-live="polite">
+          {visible.length} of {data.models.length} models · {sort.label.toLowerCase()} first (
+          {sort.explains})
+        </p>
+        <button
+          type="button"
+          className="ui-btn-secondary text-xs"
+          onClick={() => void checkForNew()}
+          disabled={checking}
+        >
+          {checking ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+          Check for new models
+        </button>
+      </div>
 
       <ModelTable
         models={visible.slice(0, shown)}
@@ -229,19 +244,6 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
           published them on Hugging Face. Direct providers and your own endpoint may have different
           costs; check the provider&apos;s billing page.
         </p>
-        <button
-          type="button"
-          className="ui-btn-secondary text-xs"
-          onClick={() => void checkForNew()}
-          disabled={checking}
-        >
-          {checking ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-          ) : (
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          Check for new models
-        </button>
       </footer>
     </div>
   );

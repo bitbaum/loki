@@ -269,12 +269,21 @@ check("every way to run a model is listed, lit when the key is held", () => {
   assert.equal(runsVia(byId["openrouter/auto"]!, new Set()).length, 1, "a router is itself");
 });
 
+check("router-only free variants cannot select a paid direct key or uninstalled endpoint", () => {
+  const free = byId["qwen/qwen3.8-27b:free"]!;
+  for (const quotedFree of [free, { ...free, id: "qwen/free-offer", model: "free-offer" }]) {
+    assert.deepEqual(runsVia(quotedFree, new Set(["alibaba", "custom", "openrouter"])), [
+      { vendor: "openrouter", model: quotedFree.id, connected: true },
+    ]);
+  }
+});
+
 check("filters: open, free, vision, reasoning, mine, lab, price ceiling, search", () => {
   const reach = (m: { vendor: string | null }) => m.vendor === "moonshot";
   const f = (over: Partial<typeof DEFAULT_FILTERS>) =>
     applyFilters(models, { ...DEFAULT_FILTERS, ...over }, reach).map((m) => m.id);
   assert.ok(f({ open: true }).every((id) => byId[id]!.open));
-  assert.deepEqual(f({ free: true }).sort(), ["qwen/qwen3.8-27b", "qwen/qwen3.8-27b:free"]);
+  assert.deepEqual(f({ free: true }).sort(), ["qwen/qwen3.8-27b:free"]);
   assert.deepEqual(f({ vision: true }), ["anthropic/claude-fable-5.1"]);
   assert.ok(f({ reasoning: true }).includes("moonshotai/kimi-k3"));
   assert.deepEqual(f({ mine: true }).sort(), ["moonshotai/kimi-k3"]);

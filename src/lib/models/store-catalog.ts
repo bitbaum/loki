@@ -352,11 +352,12 @@ export type RunsVia = {
  */
 export function runsVia(m: StoreModel, connected: ReadonlySet<string>): RunsVia[] {
   const out: RunsVia[] = [];
-  if (m.vendor && m.vendor !== "openrouter") {
+  const routedVariant = m.free || VARIANT.test(m.model);
+  if (m.vendor && m.vendor !== "openrouter" && !routedVariant) {
     out.push({ vendor: m.vendor, model: m.model, connected: connected.has(m.vendor) });
   }
   out.push({ vendor: "openrouter", model: m.id, connected: connected.has("openrouter") });
-  if (m.open && connected.has(CUSTOM_VENDOR_ID)) {
+  if (m.open && !routedVariant && connected.has(CUSTOM_VENDOR_ID)) {
     out.push({ vendor: CUSTOM_VENDOR_ID, model: m.model, connected: true });
   }
   return out;
