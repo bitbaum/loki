@@ -469,20 +469,7 @@ export function ProjectWorkspaceView({
                     }
                   />
                 )}
-                {/* What the site will be built from, in plain words — the same
-                    plan the first build's prompt carries. Text only: the
-                    kickoff above stays the one button. */}
-                {showKickoff && (
-                  <KitPlanPreview
-                    name={project.name}
-                    entityId={project.id}
-                    description={project.description}
-                    attrs={attrs}
-                    goals={detail.linkedGoals}
-                    gitUrl={userProject?.gitUrl ?? project.gitUrl ?? null}
-                    clientWork={clientWork}
-                  />
-                )}
+                {showKickoff && <KitPlanPreview dossier={dossier} clientWork={clientWork} />}
                 {/* Before anything is built, "No live agent" and "Advance: X"
                     only restate the kickoff card (which now names the first
                     target itself). They earn their place once work exists. */}

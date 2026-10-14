@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Package } from "lucide-react";
 import { kitPlanForProject } from "@/lib/kit-plan/for-project";
 import { kitPlanSentence } from "@/lib/kit-plan/plan";
-import type { KitBriefInput } from "@/lib/kit-plan/brief";
+import { cleanDescription } from "@/lib/project-display";
+import type { ProjectDossier } from "@/db/queries/project-dossier";
 
 /**
  * Before the first build: which shared parts the site will be built from, in
@@ -16,15 +17,24 @@ import type { KitBriefInput } from "@/lib/kit-plan/brief";
  * whether or not it is read, and when the plan looks wrong the way to change
  * it is the Story — what the plan is read from — one link away.
  */
-export async function KitPlanPreview(
-  props: KitBriefInput & {
-    name: string;
-    entityId: string;
-    gitUrl: string | null;
-    clientWork: boolean;
-  },
-) {
-  const kit = await kitPlanForProject(props);
+export async function KitPlanPreview({
+  dossier,
+  clientWork,
+}: {
+  dossier: ProjectDossier;
+  clientWork: boolean;
+}) {
+  const { detail, userProject } = dossier;
+  const project = detail.project;
+  const kit = await kitPlanForProject({
+    name: project.name,
+    entityId: project.id,
+    description: cleanDescription(project.description),
+    attrs: detail.attrs,
+    goals: detail.linkedGoals,
+    gitUrl: userProject?.gitUrl ?? project.gitUrl ?? null,
+    clientWork,
+  });
   const sentence = kitPlanSentence(kit.plan);
   if (!kit.applies || (!sentence && !kit.clientTokens)) return null;
   return (
