@@ -1,3 +1,4 @@
+import { CHAT_CHAIN, providerModels } from "@/config/chat-models";
 /**
  * Loki chat core — SSOT for the assistant logic behind the app.
  *
@@ -377,6 +378,18 @@ async function loadOwnModel(
   try {
     const configs = await getOwnModels(userId);
     if (configs.length === 0) return null;
+    // Picking a listed shared model is an explicit choice of that pool,
+    // rather than permission to bill the default model on an unrelated key.
+    // Own ids win when present in both lists, matching the picker's one row.
+    const picksOwn = configs.some(
+      (c) => c.model === startAt || `${c.vendor}/${c.model}` === startAt,
+    );
+    const picksShared =
+      startAt &&
+      CHAT_CHAIN.some((p) =>
+        providerModels(p).some((model) => model === startAt || `${p.id}/${model}` === startAt),
+      );
+    if (picksShared && !picksOwn) return null;
     if (startAt) return { ...ownModelFrom(configs, { startAt }), userId };
     const route = await routeTurn(userId, configs, message, history).catch(() => null);
     if (!route) return { ...ownModelFrom(configs), userId };

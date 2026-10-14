@@ -20,6 +20,11 @@ async function main() {
     true,
   );
   assert.equal(partitionModelOptions([...options, ownDuplicate], exhausted).unavailable.length, 1);
+  assert.deepEqual(
+    partitionModelOptions(options, [], "spent").available.map((o) => o.id),
+    ["grok-4.7"],
+    "a spent user share cannot expose free choices as ready, while own keys remain available",
+  );
   const js = (
     await build({
       stdin: {

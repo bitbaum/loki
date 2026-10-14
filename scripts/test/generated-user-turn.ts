@@ -74,7 +74,43 @@ async function main() {
   );
   assert.equal(writes[1].meta.displayText, undefined);
   assert.deepEqual(titles, [SUMMARY_REQUEST], "existing titles are preserved");
-  console.log("✓ saved generated request labels, full history, images and legacy display");
+  const coreSource = readFileSync("src/lib/loki-core.ts", "utf8");
+  const coreAst = ts.createSourceFile("core.ts", coreSource, ts.ScriptTarget.Latest, true);
+  const loadNode = coreAst.statements.find(
+    (n) => ts.isFunctionDeclaration(n) && n.name?.text === "loadOwnModel",
+  );
+  assert.ok(loadNode);
+  const loadCode = ts.transpileModule(loadNode.getText(coreAst), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const load = vm.runInNewContext(loadCode + "\nloadOwnModel;", {
+    getOwnModels: async () => [{ vendor: "xai", model: "grok" }],
+    CHAT_CHAIN: [{ id: "groq", models: ["gpt-oss"] }],
+    providerModels: (p: { models: string[] }) => p.models,
+    ownModelFrom: () => ({ vendor: "xai" }),
+    routeTurn: async () => null,
+    console,
+  });
+  assert.equal(
+    await load("owner", "gpt-oss", "question", []),
+    null,
+    "a shared selection cannot bill the unrelated own key",
+  );
+  assert.equal(await load("owner", "groq/gpt-oss", "question", []), null);
+  assert.equal((await load("owner", "grok", "question", [])).vendor, "xai");
+  assert.equal(
+    (await load("owner", undefined, "question", [])).vendor,
+    "xai",
+    "Auto still starts on own keys",
+  );
+  assert.equal(
+    (await load("owner", "unknown", "question", [])).vendor,
+    "xai",
+    "unknown ids do not opt into the shared pool",
+  );
+  console.log(
+    "✓ saved labels, full instructions, images, legacy display and explicit shared routing",
+  );
 }
 main().catch((error) => {
   console.error(error);

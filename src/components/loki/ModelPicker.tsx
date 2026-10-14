@@ -120,10 +120,17 @@ export function ModelPicker({
   const ownSpend = (label: string, model: string) =>
     budget?.ownKeys.find((k) => k.label === label && k.model === model) ?? null;
 
-  const choices = partitionModelOptions(data?.options ?? [], budget?.models ?? []);
+  const choices = partitionModelOptions(
+    data?.options ?? [],
+    budget?.models ?? [],
+    budget?.freePool?.state,
+  );
   const row = (option: LokiModelOption, locked: boolean) => {
     const { name, blurb } = describeChatModel(option.id);
-    const note = headroom.get(`${option.provider}/${option.id}`) ?? null;
+    const note =
+      !option.own && budget?.freePool && budget.freePool.state !== "ok"
+        ? budget.freePool.line
+        : (headroom.get(`${option.provider}/${option.id}`) ?? null);
     const spend = option.own ? ownSpend(option.provider, option.id) : null;
     return (
       <ModelRow

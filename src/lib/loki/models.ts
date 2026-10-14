@@ -1,4 +1,4 @@
-import type { ModelHeadroom } from "@/lib/ai/budget-view";
+import type { FreePoolState, ModelHeadroom } from "@/lib/ai/budget-view";
 
 /**
  * The shape of the composer's model menu.
@@ -74,6 +74,7 @@ export function describeChatModel(id: string): { name: string; blurb: string } {
 export function partitionModelOptions(
   options: readonly LokiModelOption[],
   headroom: readonly ModelHeadroom[],
+  freePoolState?: FreePoolState,
 ) {
   const quotas = new Map(headroom.map((row) => [row.id, row.state]));
   const unique = new Map<string, LokiModelOption>();
@@ -85,7 +86,11 @@ export function partitionModelOptions(
   const unavailable: LokiModelOption[] = [];
   for (const option of unique.values()) {
     const state = quotas.get(`${option.provider}/${option.id}`);
-    (option.usable && (option.own || (state !== "exhausted" && state !== "skipped"))
+    (option.usable &&
+    (option.own ||
+      ((freePoolState === undefined || freePoolState === "ok") &&
+        state !== "exhausted" &&
+        state !== "skipped"))
       ? available
       : unavailable
     ).push(option);
