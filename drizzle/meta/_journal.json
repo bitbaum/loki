@@ -708,6 +708,13 @@
       "when": 1791972919374,
       "tag": "0100_kit_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1791974936696,
+      "tag": "0101_package_release_pauses",
+      "breakpoints": true
     }
   ]
 }

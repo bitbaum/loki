@@ -50,7 +50,8 @@ export const CATALOGUE_LIMITS = {
   adopters: 200,
 } as const;
 
-const SLUG_RE = /^[a-z0-9][a-z0-9._-]{0,60}$/;
+/** What a package slug may look like — also what a `/packages/[slug]` route accepts. */
+export const SLUG_RE = /^[a-z0-9][a-z0-9._-]{0,60}$/;
 const VERSION_RE = /^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 
 const Row = z.object({
