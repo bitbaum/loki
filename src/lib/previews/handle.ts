@@ -6,8 +6,8 @@
  */
 import { PREVIEWS, previewEntryPath } from "@/config/previews";
 import {
-  configuredPreviewCode,
   createPreviewAccessCookie,
+  previewCodeFor,
   previewCodeMatches,
   verifyPreviewAccessCookie,
 } from "@/lib/previews/access";
@@ -22,7 +22,9 @@ import {
 
 export type PreviewDeps = {
   /** The project a preview folder belongs to (by folder path). */
-  findProject(dir: string): Promise<{ name: string; widgetToken: string | null } | null>;
+  findProject(
+    dir: string,
+  ): Promise<{ name: string; widgetToken: string | null; code?: string | null } | null>;
   /** A file's bytes, or null when it is missing or not a file. */
   readFile(file: string): Promise<Uint8Array | null>;
   /** Wrong-code attempts: true while this visitor may still try. */
@@ -96,12 +98,13 @@ export async function handlePreviewGet(
       headers: { Location: new URL(previewEntryPath(slug), req.url).toString() },
     });
   }
-  if (!configuredPreviewCode()) return htmlResponse(previewsOffPage(), 503);
+  const code = previewCodeFor(found.project.code);
+  if (!code) return htmlResponse(previewsOffPage(), 503);
 
   const file = resolvePreviewFile(found.dir, segments);
   const type = file ? previewContentType(file) : null;
 
-  if (!verifyPreviewAccessCookie(readCookie(req, PREVIEWS.cookie))) {
+  if (!verifyPreviewAccessCookie(readCookie(req, PREVIEWS.cookie), Date.now(), code)) {
     // Pages get the gate; files get nothing, so a photo cannot be fetched by
     // guessing its path.
     const wantsPage =
@@ -152,7 +155,8 @@ export async function handlePreviewPost(
 ): Promise<Response> {
   const found = await locate(slug, deps);
   if (!found) return htmlResponse(previewNotFoundPage(), 404);
-  if (!configuredPreviewCode()) return htmlResponse(previewsOffPage(), 503);
+  const code = previewCodeFor(found.project.code);
+  if (!code) return htmlResponse(previewsOffPage(), 503);
 
   const json = (req.headers.get("content-type") ?? "").includes("application/json");
   const fail = (error: string, status: number) =>
@@ -163,10 +167,10 @@ export async function handlePreviewPost(
   if (!deps.allowAttempt(clientKey)) {
     return fail("Too many tries. Wait a few minutes and try again.", 429);
   }
-  if (!previewCodeMatches(await readCode(req))) {
+  if (!previewCodeMatches(await readCode(req), code)) {
     return fail("That code does not open this preview. Check it and try again.", 401);
   }
-  const cookie = createPreviewAccessCookie();
+  const cookie = createPreviewAccessCookie(Date.now(), code);
   if (!cookie) return htmlResponse(previewsOffPage(), 503);
 
   const setCookie = [

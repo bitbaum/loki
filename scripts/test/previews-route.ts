@@ -243,6 +243,37 @@ async function main() {
     "under /p/…: the cookie stays scoped to /p",
   );
 
+  // ---- the owner's own code (set in the app) beats the server's ----
+  const ownDeps = (over: Partial<PreviewDeps> = {}) =>
+    deps({
+      findProject: async (dir) =>
+        dir === DIR ? { name: "Francesco Tarallo", widgetToken: "fcw_abc123", code: "Cat" } : null,
+      allowAttempt: () => true,
+      ...over,
+    });
+  res = await handlePreviewPost(post("cat"), "francesco-tarallo", "198.51.100.1", ownDeps());
+  const ownCookie = (res.headers.get("set-cookie") ?? "").split(";")[0];
+  ok(res.status === 200 && ownCookie.startsWith("loki_preview="), "the owner's code opens it");
+  res = await handlePreviewPost(post("aaaaaa11"), "francesco-tarallo", "198.51.100.1", ownDeps());
+  ok(res.status === 401, "…and the server's code no longer does");
+  res = await handlePreviewGet(
+    get("/index.html", { headers: { cookie: ownCookie } }),
+    "francesco-tarallo",
+    seg("index.html"),
+    ownDeps(),
+  );
+  ok(res.status === 200, "a visitor who entered it gets the page");
+  const envWas = process.env.LOKI_PREVIEW_CODE;
+  delete process.env.LOKI_PREVIEW_CODE;
+  res = await handlePreviewGet(
+    get("/index.html", { headers: { cookie: ownCookie } }),
+    "francesco-tarallo",
+    seg("index.html"),
+    ownDeps(),
+  );
+  ok(res.status === 200, "with no server code at all, the owner's code is enough");
+  process.env.LOKI_PREVIEW_CODE = envWas;
+
   // ---- the code changes ----
   process.env.LOKI_PREVIEW_CODE = "newcode22";
   res = await handlePreviewGet(

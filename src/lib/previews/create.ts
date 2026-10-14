@@ -14,12 +14,14 @@ import path from "path";
 import { promisify } from "util";
 import { previewEntryPath } from "@/config/previews";
 import { previewBuildPrompt } from "@/config/preview-brief";
+import { getPreviewCode, setPreviewCode } from "@/db/queries/preview-code";
 import { createUserProject } from "@/db/queries/user-projects";
 import { upsertWidgetToken } from "@/db/queries/widget-tokens";
 import { isUniqueViolation } from "@/lib/api/route-helpers";
 import { appUrl } from "@/lib/email";
 import { createOwnerPass } from "@/lib/feedback/owner-pass";
 import { injectPrompt } from "@/lib/inject-core";
+import { previewCodeFor } from "@/lib/previews/access";
 import { isPreviewAddress } from "@/lib/previews/address";
 import { attachPreviewHost } from "@/lib/previews/host";
 import { previewsRoot, slugifyPreviewName } from "@/lib/previews/root";
@@ -33,6 +35,8 @@ export type CreatePreviewResult =
       ok: true;
       slug: string;
       projectId: string;
+      /** The code to tell them: the operator's own, or null when the server's applies. */
+      accessCode: string | null;
       /** The address to send, opened with the access code. */
       previewUrl: string;
       /** The same address carrying the owner pass: their notes start a build. */
@@ -78,7 +82,14 @@ async function initFolder(dir: string, name: string): Promise<void> {
 
 export async function createPreview(
   userId: string,
-  input: { name: string; about?: string; address?: string; archive?: Uint8Array },
+  input: {
+    name: string;
+    about?: string;
+    address?: string;
+    /** Saved as the operator's code for every preview, now and later. */
+    code?: string;
+    archive?: Uint8Array;
+  },
 ): Promise<CreatePreviewResult> {
   const name = input.name.trim();
   const root = previewsRoot();
@@ -91,6 +102,19 @@ export async function createPreview(
     };
   }
   await mkdir(root, { recursive: true });
+  // The code that opens it: given now (and remembered), already saved, or the
+  // server's. Without one nobody could get in, so say so before anything is made.
+  const given = input.code?.trim();
+  if (given) await setPreviewCode(userId, given);
+  const accessCode = given || (await getPreviewCode(userId));
+  if (!previewCodeFor(accessCode)) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Choose an access code (any word) so only the people you tell can open it.",
+    };
+  }
+
   // The address is the folder and the subdomain: <address>.orangecat.ch. Asked
   // for, it is taken as written or refused; not asked for, it follows the name.
   const address = input.address?.trim().toLowerCase();
@@ -161,7 +185,16 @@ export async function createPreview(
   const ownerUrl = ownerSiteUrl(previewUrl, createOwnerPass(projectId, userId));
 
   if (input.archive) {
-    return { ok: true, slug, projectId, previewUrl, ownerUrl, buildNote: null, addressNote };
+    return {
+      ok: true,
+      slug,
+      projectId,
+      previewUrl,
+      ownerUrl,
+      buildNote: null,
+      addressNote,
+      accessCode,
+    };
   }
 
   // Build on the box: the folder exists there and nowhere else
@@ -186,5 +219,5 @@ export async function createPreview(
         ? body.error
         : "The build did not start. Open the project and start it from there.";
 
-  return { ok: true, slug, projectId, previewUrl, ownerUrl, buildNote, addressNote };
+  return { ok: true, slug, projectId, previewUrl, ownerUrl, buildNote, addressNote, accessCode };
 }

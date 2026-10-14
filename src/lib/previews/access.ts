@@ -27,6 +27,15 @@ export function configuredPreviewCode(): string | null {
   return code || null;
 }
 
+/**
+ * The code that opens one preview: its owner's own (set in the app), else the
+ * server's. Normalized, or null when previews are switched off for it.
+ */
+export function previewCodeFor(ownerCode?: string | null): string | null {
+  const own = ownerCode ? normalizePreviewCode(ownerCode) : "";
+  return own || configuredPreviewCode();
+}
+
 function digest(value: string): Buffer {
   return createHash("sha256").update(value).digest();
 }

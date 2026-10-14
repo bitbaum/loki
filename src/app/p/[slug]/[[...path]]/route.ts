@@ -2,6 +2,7 @@ import { readFile, stat } from "fs/promises";
 import { NextRequest } from "next/server";
 import { PREVIEWS } from "@/config/previews";
 import { findPreviewProject } from "@/db/queries/previews";
+import { getPreviewCode } from "@/db/queries/preview-code";
 import { getActiveWidgetToken } from "@/db/queries/widget-tokens";
 import { handlePreviewGet, handlePreviewPost, type PreviewDeps } from "@/lib/previews/handle";
 import { appUrl } from "@/lib/email";
@@ -27,7 +28,11 @@ const deps: PreviewDeps = {
     const token = project.entityProjectId
       ? await getActiveWidgetToken(project.userId, project.entityProjectId)
       : null;
-    return { name: project.name, widgetToken: token?.token ?? null };
+    return {
+      name: project.name,
+      widgetToken: token?.token ?? null,
+      code: await getPreviewCode(project.userId),
+    };
   },
   async readFile(file) {
     const info = await stat(file).catch(() => null);

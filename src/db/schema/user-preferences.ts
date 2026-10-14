@@ -22,6 +22,12 @@ export const userPreferences = pgTable(
     // (docs/thoughts-style-guide.md) so AI-written content (Loki, essays) adopts
     // the user's preferred tone. Null = use the house default.
     writingVoice: text("writing_voice"),
+    // The access code for this operator's prospect previews (src/lib/previews).
+    // Theirs to pick and change in the app; null falls back to LOKI_PREVIEW_CODE
+    // in the server env. Stored as typed because the operator reads it back to
+    // tell it to the person the preview is for; it opens private drafts, not
+    // accounts.
+    previewCode: text("preview_code"),
     // Consent: may the fleet build its knowledge index (RAG embeddings) from the
     // user's data? Gates upsertKnowledgeBatch — the single write chokepoint.
     memoryEnabled: boolean("memory_enabled").notNull().default(true),
