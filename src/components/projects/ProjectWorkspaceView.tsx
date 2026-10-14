@@ -40,6 +40,7 @@ import { needsInterview, planInterview } from "@/lib/project-interview";
 import { kickoffAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
 import { deriveBuildStatus, isBuildActive } from "@/lib/project-build-status";
 import { ProjectBuildStatus } from "./ProjectBuildStatus";
+import { ProjectBuiltFrom } from "@/components/packages/ProjectBuiltFrom";
 import { answer, cleanDescription, projectHeadline } from "@/lib/project-display";
 import { formatBtc } from "@/lib/format";
 
@@ -507,6 +508,17 @@ export function ProjectWorkspaceView({
                   resources={detail.resources ?? []}
                   readonly={dossier.readonly}
                 />
+                {/* What it is built from sits with what it is: the stack the
+                    owner describes above, and the shared packages its
+                    repository actually depends on, read from the lockfile.
+                    Only the owner reads it again — the rows are theirs. */}
+                <div className="mt-7">
+                  <ProjectBuiltFrom
+                    userProjectId={userProject?.id ?? null}
+                    hasRepo={Boolean(userProject?.gitUrl)}
+                    readonly={dossier.readonly || !ownerPass}
+                  />
+                </div>
                 {/* On Context, beside the other things a person WRITES about a
                     project. The three flag attrs are excluded from the
                     "Additional context" block by design (a dedicated UI owns

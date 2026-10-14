@@ -27,6 +27,7 @@ import {
   Handshake,
   LayoutGrid,
   Lightbulb,
+  Boxes,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -115,6 +116,15 @@ export const NAV = {
     description: "Your project catalog — health, context & goals",
     href: "/projects",
     icon: FolderKanban,
+    active: true,
+    mobile: false,
+  },
+  packages: {
+    id: "packages",
+    label: "Packages",
+    description: "What the fleet is built from — shared packages and who is on which version",
+    href: "/packages",
+    icon: Boxes,
     active: true,
     mobile: false,
   },
@@ -311,7 +321,7 @@ export const NAV = {
 // questions, and every sidebar section is exactly one of them:
 //
 //   1. What needs me?       → Now     (Today, Approvals, Feedback)
-//   2. What is my fleet doing? → Fleet   (Control, Projects, Activity, System)
+//   2. What is my fleet doing? → Fleet   (Control, Projects, Packages, Activity, System)
 //   3. How do I act on it?  → Command (Loki, Terminal, Prompts)
 //
 // A page that answers none of those three does not belong in the sidebar.
@@ -361,7 +371,9 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     question: "What is my fleet doing?",
     // System belongs here and not in a drawer of its own: "what is running"
     // includes the runtime that runs it — gateway, disk, scheduled jobs.
-    items: [NAV.control, NAV.projects, NAV.activity, NAV.system],
+    // Packages beside Projects: what the fleet is BUILT FROM is part of what
+    // it is, the same question asked one layer down.
+    items: [NAV.control, NAV.projects, NAV.packages, NAV.activity, NAV.system],
   },
   {
     id: "command",

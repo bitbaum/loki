@@ -41,14 +41,14 @@ export const LIMITS = {
   bodyBytes: 512 * 1024,
 } as const;
 
-const PACKAGE_NAME_RE = /^(?:@[a-z0-9][a-z0-9._-]{0,40}\/)?[a-z0-9][a-z0-9._-]{0,60}$/;
+export const PACKAGE_NAME_RE = /^(?:@[a-z0-9][a-z0-9._-]{0,40}\/)?[a-z0-9][a-z0-9._-]{0,60}$/;
 
 /**
  * The only install commands that may reach a prompt: `pnpm add` of one npm
  * name (optionally with a version range), or of one tagged git ref inside the
  * bitbaum org. No flags but `-w`, no shell metacharacters, no second command.
  */
-const INSTALL_RE =
+export const INSTALL_RE =
   /^pnpm add (?:-w )?(?:(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*(?:@[\w.^~<>=|-]+)?|github:bitbaum\/[a-z0-9][a-z0-9._-]*#[\w.-]+)$/i;
 
 /** C0/C1 controls, zero-width, bidi overrides and the BOM, built from code points so

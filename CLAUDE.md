@@ -491,6 +491,7 @@ prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is online;
 | Money | /money | Subscriptions, monthly burn |
 | Goals | /goals | Hierarchical tree, progress, milestones, inline target-date / progress edit |
 | Projects | /projects | registered projects + GitHub CI, inline editors for name/desc/status/maturity; per-project dossier + shareable public link (/share/project/[token], audience-scoped resource visibility) |
+| Packages | /packages | What the fleet is built from: every shared package in bitbaum/fleet's register (read through the fleet brief's one fetch, `lib/packages/catalogue.ts`), its latest version, and which of your projects is on which version (`/packages/[slug]`, behind first). Rows in `project_packages` are OBSERVATIONS read from each repo's package.json + lockfile (`lib/packages/sync.ts`) — never decisions; a project's Story tab shows the same as "Built from" |
 | Habits | /habits | 30-day heatmap per habit, streak indicator, summary stats |
 | Events | /events | Opportunities and deadlines, type-chip filter, archive flow |
 | Prompts | /prompts | Prompt library, run-now via Loki, schedule as cron job |

@@ -31,6 +31,11 @@ import {
   type FleetPackage,
   type FleetStackRow,
 } from "./parse";
+import {
+  CatalogueSnapshot,
+  parseCatalogue,
+  type CataloguePackage,
+} from "@/lib/packages/catalogue-parse";
 import snapshotJson from "./snapshot.generated.json";
 
 /** The repo that produces the facts. Its owner is the org the brief applies to. */
@@ -60,15 +65,25 @@ const MAX_BRIEF_CHARS = 5_000;
 export type FleetFacts = {
   packages: FleetPackage[];
   stack: FleetStackRow[];
+  /**
+   * The same register read for a page rather than a prompt — the Packages
+   * view (src/lib/packages/catalogue.ts). Parsed from the one fetch above and
+   * from the same snapshot, so the two can never describe different registers.
+   */
+  catalogue: CataloguePackage[];
   /** Where each half came from this time — live from fleet, or the committed snapshot. */
   source: { packages: "live" | "snapshot"; stack: "live" | "snapshot" };
   /** When the package register was generated in fleet (null when it did not say). */
   registerGeneratedAt: string | null;
 };
 
+/** The snapshot file: the brief's half plus the catalogue's. */
+export const FleetSnapshotFile = FleetSnapshot.extend({ catalogue: CatalogueSnapshot });
+export type FleetSnapshotFile = FleetSnapshot & { catalogue: CataloguePackage[] };
+
 /** The committed fallback, validated like anything else that reaches a prompt. */
-export function loadSnapshot(raw: unknown = snapshotJson): FleetSnapshot {
-  return FleetSnapshot.parse(raw);
+export function loadSnapshot(raw: unknown = snapshotJson): FleetSnapshotFile {
+  return FleetSnapshotFile.parse(raw);
 }
 
 function snapshotFacts(): FleetFacts {
@@ -76,6 +91,7 @@ function snapshotFacts(): FleetFacts {
   return {
     packages: snap.packages,
     stack: snap.stack,
+    catalogue: snap.catalogue,
     source: { packages: "snapshot", stack: "snapshot" },
     registerGeneratedAt: snap.registerGeneratedAt,
   };
@@ -134,9 +150,12 @@ export async function loadFleetFacts(
     fetchText(FLEET_SOURCES.stack, fetchImpl, timeoutMs).catch(() => null),
   ]);
   let register: ReturnType<typeof parsePackagesRegister> = null;
+  let catalogue: CataloguePackage[] | null = null;
   if (packagesText !== null) {
     try {
-      register = parsePackagesRegister(JSON.parse(packagesText));
+      const json: unknown = JSON.parse(packagesText);
+      register = parsePackagesRegister(json);
+      catalogue = register ? parseCatalogue(json) : null;
     } catch {
       register = null;
     }
@@ -145,6 +164,7 @@ export async function loadFleetFacts(
   return {
     packages: register?.packages ?? fallback.packages,
     stack: stack ?? fallback.stack,
+    catalogue: catalogue ?? fallback.catalogue,
     source: { packages: register ? "live" : "snapshot", stack: stack ? "live" : "snapshot" },
     registerGeneratedAt: register ? register.generatedAt : fallback.registerGeneratedAt,
     ok: register !== null && stack !== null,
@@ -185,7 +205,9 @@ export async function getFleetFacts(
 }
 
 /** The brief itself, from facts. Pure — the tests drive it directly. */
-export function renderFleetBrief(facts: FleetFacts): string {
+export function renderFleetBrief(
+  facts: Pick<FleetFacts, "packages" | "stack" | "source" | "registerGeneratedAt">,
+): string {
   const fleetUrl = `https://github.com/${FLEET_REPO.owner}/${FLEET_REPO.repo}`;
   const rules = [
     FLEET_BRIEF_HEADING,

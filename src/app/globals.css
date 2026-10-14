@@ -4155,6 +4155,10 @@
   .ui-search-mark {
     @apply rounded-sm bg-accent-muted font-semibold text-text-primary;
   }
+  /* A command or identifier inside running text (an install line, a spec). */
+  .ui-code-inline {
+    @apply rounded-md border border-border-subtle bg-surface-overlay px-1.5 py-0.5 font-mono text-text-secondary;
+  }
   .ui-code-surface {
     @apply max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-border-subtle bg-surface-overlay p-4 font-mono text-sm leading-relaxed text-text-secondary;
   }

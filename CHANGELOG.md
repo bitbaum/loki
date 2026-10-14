@@ -6,6 +6,27 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-14 — See what every project is built from
+
+- **A Packages page.** Under Fleet, Packages lists every shared package the
+  fleet registers (bitbaum/fleet `registers/packages.json`) with its latest
+  version and, for each, how many of your projects use it and how many of
+  those are behind. Search finds a package even with a letter wrong.
+- **One page per package.** It says what the package is, how to install it,
+  where its code lives, and lists your projects that use it with the version
+  each one is on — the ones behind first, saying by how much ("2 minor
+  versions behind"), each linking to its project.
+- **"Built from" on every project.** The Story tab now shows the shared
+  packages the project's repository depends on, at the version its lockfile
+  actually installed, with the ones behind marked and linked to the package.
+- **Nothing to set up in the projects.** Loki reads each repository's
+  `package.json` and lockfile from GitHub itself. It reads again when a page
+  is opened and the last read is over six hours old, or when you press
+  Refresh, and skips a repository whose code has not changed. A repository
+  it cannot read is named, with the reason, instead of looking like it uses
+  nothing. This is the read-only first step: choosing versions and rolling
+  updates out come later.
+
 ## 2026-10-12 — One wrong letter no longer hides what you were looking for
 
 - **Search forgives a slip.** ⌘K, People, Projects, Control's "Find
