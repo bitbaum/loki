@@ -29,7 +29,6 @@ import { projectAttentionVerdict } from "@/lib/project-attention";
 import { normalizeTabName } from "@/lib/agent-config";
 import { getProjectStatesByUserId } from "@/db/queries/project-states";
 import { getLatestRunsByProjectPaths } from "@/db/queries/orchestration-runs";
-import { hasAnswer } from "@/lib/project-display";
 import { NeedsYouVerdict, type FlaggedProject } from "@/components/today/NeedsYouVerdict";
 import { loadNeedsYouExtras } from "@/lib/needs-you-server";
 import { FIRST_RUN } from "@/lib/constants/today";
