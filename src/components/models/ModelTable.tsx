@@ -10,7 +10,7 @@ import { contextLabel, indexLabel, money, releasedLabel } from "./format";
 /**
  * The landscape as a table: one row per model, the numbers the decision is
  * made on, every way to run it through Loki, and the one button that does
- * the obvious thing — "Use" on a key you hold, "Add key" when you don't.
+ * a saved preference on a key you hold, or "Add key" when you don't.
  *
  * Under 768px the same markup reads as cards (globals.css turns each row
  * into a block with its cells labelled), so a phone never scrolls sideways.
@@ -48,7 +48,7 @@ export function ModelTable({
               Intelligence
             </th>
             <th scope="col" title="USD per million tokens, in and out">
-              Price
+              Price (USD / 1M tokens)
             </th>
             <th scope="col">Context</th>
             <th scope="col">Listed</th>
@@ -118,20 +118,19 @@ function ModelRow({
         {value !== null && <span className="block text-xs text-text-muted">value {value}</span>}
       </td>
       <td data-label="Price" className="ui-store-num">
-        {m.free ? (
-          <span className="text-status-positive">free</span>
-        ) : m.inPerM === null || m.outPerM === null ? (
-          <span className="text-text-muted">varies</span>
-        ) : (
-          <>
-            <span>${money(m.inPerM)}</span>
-            <span className="text-text-muted"> in</span>
-            <span className="block">
-              ${money(m.outPerM)}
-              <span className="text-text-muted"> out</span>
-            </span>
-          </>
-        )}
+        <div className="min-w-0">
+          {m.free ? (
+            <span className="text-status-positive">Free catalog rate</span>
+          ) : m.inPerM === null || m.outPerM === null ? (
+            <span className="text-text-muted">Price unavailable or variable</span>
+          ) : (
+            <>
+              <span className="block">Input ${money(m.inPerM)}</span>
+              <span className="block">Output ${money(m.outPerM)}</span>
+            </>
+          )}
+          <span className="block text-xs text-text-secondary">USD per 1M tokens</span>
+        </div>
       </td>
       <td data-label="Context" className="ui-store-num">
         {contextLabel(m.context).replace(" ctx", "") || "—"}
@@ -164,14 +163,14 @@ function ModelRow({
             className="ui-btn-secondary text-xs"
             disabled={Boolean(using)}
             onClick={() => onUse(m, live)}
-            title={`Loki thinks with this model on your ${viaLabel(live.vendor)} key`}
+            title={`Save this model preference on your ${viaLabel(live.vendor)} key`}
           >
             {busy && using?.state === "saving" ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
             ) : busy && using?.state === "done" ? (
               <Check className="h-3.5 w-3.5" aria-hidden="true" />
             ) : null}
-            Use
+            Save model
           </button>
         ) : (
           <Link

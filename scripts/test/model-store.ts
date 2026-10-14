@@ -13,6 +13,9 @@
  * Run: npx tsx scripts/test/model-store.ts
  */
 import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { ModelTable } from "@/components/models/ModelTable";
 import {
   labsOf,
   modelFamily,
@@ -211,7 +214,7 @@ check("image generators, speech models and alias namespaces are not in the lands
   assert.ok(!models.some((m) => m.model.includes("banana")));
   assert.ok(!models.some((m) => m.model.includes("whisper")));
   assert.ok(!models.some((m) => m.lab.startsWith("~")));
-  assert.ok(byId["moonshotai/kimi-k3:batch"], "a batch variant is a real, cheaper way to run it");
+  assert.ok(!byId["moonshotai/kimi-k3:batch"], "batch rates cannot be offered for live chat");
   assert.equal(modelFamily("deepseek-v4-pro-0813"), "deepseek-v4-pro");
 });
 
@@ -220,8 +223,8 @@ check("labs are derived from the models, with the direct Loki vendor where one e
   assert.equal(moonshot.label, "Moonshot");
   assert.equal(moonshot.vendor, "moonshot");
   assert.equal(moonshot.region, "CN");
-  assert.equal(moonshot.count, 2);
-  assert.equal(moonshot.openCount, 2);
+  assert.equal(moonshot.count, 1);
+  assert.equal(moonshot.openCount, 1);
   assert.equal(moonshot.topIndex, 69);
   const nvidia = labs.find((l) => l.id === "nvidia")!;
   assert.equal(nvidia.vendor, null, "no direct vendor: via OpenRouter");
@@ -274,16 +277,16 @@ check("filters: open, free, vision, reasoning, mine, lab, price ceiling, search"
   assert.deepEqual(f({ free: true }).sort(), ["qwen/qwen3.8-27b", "qwen/qwen3.8-27b:free"]);
   assert.deepEqual(f({ vision: true }), ["anthropic/claude-fable-5.1"]);
   assert.ok(f({ reasoning: true }).includes("moonshotai/kimi-k3"));
-  assert.deepEqual(f({ mine: true }).sort(), ["moonshotai/kimi-k3", "moonshotai/kimi-k3:batch"]);
+  assert.deepEqual(f({ mine: true }).sort(), ["moonshotai/kimi-k3"]);
   assert.deepEqual(f({ lab: "z-ai" }), ["z-ai/glm-5.3"]);
   assert.ok(f({ max: 1 }).every((id) => (byId[id]!.outPerM ?? 99) <= 1));
   assert.ok(!f({ max: 1 }).includes("openrouter/auto"), "'varies' does not pass a ceiling");
   assert.deepEqual(f({ q: "glm" }), ["z-ai/glm-5.3"]);
-  assert.deepEqual(f({ q: "moonshot" }).length, 2, "search matches the lab too");
+  assert.deepEqual(f({ q: "moonshot" }).length, 1, "search matches the lab too");
   // One slip in a name still finds the model (the search was a substring test).
   assert.deepEqual(f({ q: "nemotorn" }), ["nvidia/nemotron-3-super-120b-a12b"]);
   assert.deepEqual(f({ q: "qwne" }).length, 2, "a swapped pair is one slip");
-  assert.ok(f({ q: "moonshto" }).length === 2, "a slip in the lab, too");
+  assert.ok(f({ q: "moonshto" }).length === 1, "a slip in the lab, too");
 });
 
 check("sorts put what they cannot rank last, never out", () => {
@@ -318,6 +321,49 @@ check("labels read as a person expects", () => {
   assert.equal(contextLabel(null), "");
   assert.equal(releasedLabel(null), "");
   assert.match(releasedLabel(NOW), /Oct 2026/);
+});
+
+check("missing prices cannot be called free or win best value", () => {
+  const unknown = shapeStoreCatalog(
+    [{ ...RAW[0]!, id: "anthropic/unpriced", pricing: { prompt: "", completion: " " } }],
+    NOW,
+  ).models[0]!;
+  assert.equal(unknown.free, false);
+  assert.equal(unknown.inPerM, null);
+  assert.equal(unknown.outPerM, null);
+  assert.equal(valueScore(unknown), null);
+  assert.equal(valueScore({ index: 80, inPerM: 1, outPerM: null }), null);
+});
+
+check("batch labels cannot bypass the interactive catalog filter", () => {
+  const batch = shapeStoreCatalog(
+    [{ ...RAW[0]!, id: "anthropic/discounted", name: "Claude (batch)" }],
+    NOW,
+  );
+  assert.equal(batch.models.length, 0);
+});
+
+check("a future listing is not new activity already observed", () => {
+  const future = shapeStoreCatalog(
+    [{ ...RAW[0]!, created: Math.floor((NOW + DAY) / 1000) }],
+    NOW,
+  ).models[0]!;
+  assert.equal(future.isNew, false);
+});
+
+check("phone cards include price units and a truthful preference action", () => {
+  const html = renderToStaticMarkup(
+    createElement(ModelTable, {
+      models: [byId["anthropic/claude-fable-5.1"]!],
+      connected: new Set(["anthropic"]),
+      using: null,
+      onUse: () => {},
+    }),
+  );
+  assert.match(html, /Input \$10/);
+  assert.match(html, /Output \$50/);
+  assert.match(html, /USD per 1M tokens/);
+  assert.match(html, /Save model/);
 });
 
 console.log(`\nmodel-store: ${passed} passed`);

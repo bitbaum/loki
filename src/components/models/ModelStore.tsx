@@ -113,7 +113,10 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
         via.vendor === CUSTOM_VENDOR_ID
           ? "your endpoint"
           : `your ${vendorById(via.vendor)?.label ?? via.vendor} key`;
-      setNote({ tone: "ok", text: `Loki now thinks with ${m.name} on ${who}.` });
+      setNote({
+        tone: "ok",
+        text: `${m.name} saved on ${who}. Auto can choose another model for each request.`,
+      });
     } catch (e) {
       setUsing(null);
       setNote({ tone: "warn", text: e instanceof Error ? e.message : "Couldn't switch model." });
@@ -139,8 +142,9 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
         <div className="min-w-0 flex-1 text-sm">
           {data.connected.length === 0 ? (
             <p className="text-text-secondary">
-              Loki answers you on its shared free pool. Bring one key — five francs with a spending
-              limit — and any model below is yours; bring two and Auto has a choice.{" "}
+              Loki answers you on its shared free pool. Add a compatible provider key to use its
+              models. Your provider sets the price and spending limit; adding another provider gives
+              Auto alternatives.{" "}
               <Link
                 href={ownModelAddPath("openrouter")}
                 className="text-accent-text underline-offset-2 hover:underline"
@@ -218,10 +222,12 @@ export function ModelStore({ initial }: { initial: ModelStoreData }) {
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4 text-xs text-text-muted">
         <p className="max-w-prose">
-          Prices, context and dates from OpenRouter&apos;s public catalogue
+          Prices are OpenRouter&apos;s quoted USD rates per 1M tokens. Context and dates are from
+          its public catalogue
           {readAt === null ? " — not read yet" : ` (read at ${readAt})`}. Intelligence is Artificial
           Analysis&apos; index as OpenRouter relays it; &quot;open weights&quot; means the lab
-          published them on Hugging Face. The lab&apos;s own page is what you are billed by.
+          published them on Hugging Face. Direct providers and your own endpoint may have different
+          costs; check the provider&apos;s billing page.
         </p>
         <button
           type="button"
