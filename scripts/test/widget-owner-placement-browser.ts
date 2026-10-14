@@ -44,10 +44,22 @@ async function main() {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.setContent(`<style>body{margin:0;font:16px sans-serif}</style>
-      <button id="action" style="position:fixed;bottom:16px;left:155px;width:40px;height:40px">Go</button>`);
+      <button id="action" style="position:fixed;top:0;left:0;width:20px;height:24px">Go</button>`);
     await page.addScriptTag({ content: bundle.outputFiles[0].text });
     const root = page.locator("#loki-feedback-host");
     const parts = [root.locator(".fab"), root.locator(".fab-point"), root.locator(".fab-badge")];
+    // Put a small action under the target's outer half, beyond the main
+    // button's existing safety gap. Font widths cannot make this vacuous.
+    await page.evaluate(() => {
+      const point = document
+        .getElementById("loki-feedback-host")!
+        .shadowRoot!.querySelector(".fab-point")!;
+      const rect = point.getBoundingClientRect();
+      const action = document.getElementById("action")!;
+      action.style.left = `${rect.left + 2}px`;
+      action.style.top = `${rect.top + 8}px`;
+    });
+    await page.evaluate("window.fixture.reposition()");
     const action = (await page.locator("#action").boundingBox())!;
     for (const part of parts) {
       const rect = await part.boundingBox();
