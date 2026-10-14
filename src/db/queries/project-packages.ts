@@ -125,6 +125,7 @@ export async function replaceProjectPackages(
         source: pkg.source,
         observedAt: at,
         commitSha: meta.commitSha,
+        depName: pkg.depName,
       };
       await tx
         .insert(projectPackages)

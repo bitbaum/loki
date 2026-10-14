@@ -32,6 +32,8 @@ export type PackageSource = "npm" | "git" | "workspace" | "unknown";
 export type ObservedPackage = {
   /** The catalogue name, whatever the project imports it as. */
   packageName: string;
+  /** The key package.json lists it under — how Dependabot names its updates. */
+  depName: string;
   /** The spec as written in package.json. */
   spec: string;
   /** Resolved from the lockfile; null when it cannot be known. */
@@ -312,6 +314,7 @@ export function observePackages(
     if (!version && parsed.kind === "git") version = semverOrNull(parsed.git.ref);
     out.set(pkg.name, {
       packageName: pkg.name,
+      depName,
       spec: spec.slice(0, 300),
       version,
       source:
