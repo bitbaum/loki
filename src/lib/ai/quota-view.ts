@@ -200,13 +200,17 @@ export function describeQuota(
 
   // A per-minute counter read five minutes ago says nothing about now. Reporting
   // it as current is how a dashboard ends up confidently wrong.
-  if (stale) {
+  const resetMs = ms(row.resetAt);
+  const resetReached = resetMs !== null && resetMs <= opts.now;
+  if (stale || resetReached) {
     return {
       provider: row.provider,
       model: row.model,
       state: "unknown",
       answers: null,
-      detail: "not measured recently — this counter refills every minute",
+      detail: resetReached
+        ? "reset time reached — waiting for a fresh reading"
+        : "not measured recently — this counter refills every minute",
       refills: null,
       consequence,
       level: null,

@@ -371,7 +371,7 @@ export function headroomNote(row: QuotaRowView): string | null {
         ? `Too low for another answer${row.refills ? `, refills ${row.refills}` : ""} — Auto moves past it`
         : `Out of free budget${row.refills ? `, back ${row.refills}` : ""} — Auto moves past it`;
     case "skipped":
-      return "Never reached — prompts exceed its budget";
+      return "Last request was too large for this model";
     case "known":
       if (!row.urgent || row.answers === null) return null;
       return `Running low — about ${plural(row.answers, row.unitNoun?.replace(/s$/, "") ?? "answer")} left${row.refills ? `, refills ${row.refills}` : ""}`;

@@ -74,7 +74,7 @@ export async function listConversations(
       updatedAt: conversations.updatedAt,
       lastReadAt: conversations.lastReadAt,
       pinnedAt: conversations.pinnedAt,
-      preview: sql<string>`coalesce(${last("left(m.content, 160)")}, '')`,
+      preview: sql<string>`coalesce(${last("left(case when m.role = 'user' then coalesce(nullif(m.meta->>'displayText', ''), m.content) else m.content end, 160)")}, '')`,
       lastRole: sql<string | null>`${last("m.role")}`,
       lastKind: sql<string | null>`${last("m.kind")}`,
       lastAt: sql<Date | null>`${last("m.created_at")}`,

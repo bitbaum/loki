@@ -102,6 +102,19 @@ check("a DAY reading from hours ago is still good — it does not refill until r
   assert.equal(v.state, "known", "staleness is per-window, not a single timeout");
 });
 
+check("a reached reset expires both empty and positive counters without inventing capacity", () => {
+  for (const remaining of [0, 900]) {
+    const v = describeQuota(row({ remaining, resetAt: new Date(NOW) }), {
+      now: NOW,
+      nextProvider: null,
+    });
+    assert.equal(v.state, "unknown");
+    assert.equal(v.answers, null);
+    assert.equal(v.refills, null);
+    assert.match(v.detail, /fresh reading/);
+  }
+});
+
 // ── Attention budget ────────────────────────────────────────────────────────
 check("a nearly-full counter is not urgent; a nearly-empty one is", () => {
   assert.equal(

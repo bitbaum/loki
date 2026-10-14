@@ -22,6 +22,7 @@ export function Modal({
   padded = true,
   position = "center",
   disableClose = false,
+  labelledBy,
   className,
   children,
 }: {
@@ -33,6 +34,8 @@ export function Modal({
   position?: "center" | "bottom-mobile";
   /** When true, backdrop click and Esc are ignored (e.g. during async work). */
   disableClose?: boolean;
+  /** Id of the dialog heading, when the caller supplies one. */
+  labelledBy?: string;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -51,6 +54,9 @@ export function Modal({
         onClick={disableClose ? undefined : onClose}
       />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
         className={cn(
           "ui-modal-panel ui-card-shell-raised",
           SIZE_CLASSES[size],

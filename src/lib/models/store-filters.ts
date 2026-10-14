@@ -46,7 +46,7 @@ export const DEFAULT_FILTERS: StoreFilters = {
 };
 
 export const STORE_SORTS: ReadonlyArray<{ id: StoreSort; label: string; explains: string }> = [
-  { id: "value", label: "Best value", explains: "intelligence per dollar" },
+  { id: "value", label: "Best value", explains: "intelligence relative to price" },
   { id: "smart", label: "Smartest", explains: "Artificial Analysis intelligence index" },
   { id: "cheap", label: "Cheapest", explains: "price per million output tokens" },
   { id: "new", label: "Newest", explains: "when the lab listed it" },

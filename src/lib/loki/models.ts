@@ -1,3 +1,5 @@
+import type { FreePoolState, ModelHeadroom } from "@/lib/ai/budget-view";
+
 /**
  * The shape of the composer's model menu.
  *
@@ -64,5 +66,32 @@ export function describeChatModel(id: string): { name: string; blurb: string } {
     )
     .join(" ");
   for (const [re, name, blurb] of known) if (re.test(bare)) return { name: name || pretty, blurb };
-  return { name: pretty, blurb: "Open model on the free chain" };
+  return { name: pretty, blurb: "On the shared model chain" };
+}
+
+/** Keep own keys independent of shared-pool quotas, and one row per selectable
+ * model id: the request wire identifies a model, not a provider/model pair. */
+export function partitionModelOptions(
+  options: readonly LokiModelOption[],
+  headroom: readonly ModelHeadroom[],
+  freePoolState?: FreePoolState,
+) {
+  const quotas = new Map(headroom.map((row) => [row.id, row.state]));
+  const unique = new Map<string, LokiModelOption>();
+  for (const option of options) {
+    const current = unique.get(option.id);
+    if (!current || (option.own && !current.own)) unique.set(option.id, option);
+  }
+  const available: LokiModelOption[] = [];
+  const unavailable: LokiModelOption[] = [];
+  for (const option of unique.values()) {
+    const state = quotas.get(`${option.provider}/${option.id}`);
+    (option.usable &&
+    (option.own ||
+      ((freePoolState === undefined || freePoolState === "ok") && state !== "exhausted"))
+      ? available
+      : unavailable
+    ).push(option);
+  }
+  return { available, unavailable };
 }

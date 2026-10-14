@@ -167,7 +167,7 @@ check("per-model headroom speaks only when there is something to act on", () => 
   const out = headroomNote(row({ state: "exhausted", answers: 0, refills: "in 3 hours" }));
   assert(out === "Out of free budget, back in 3 hours — Auto moves past it", `${out}`);
   const skip = headroomNote(row({ state: "skipped", answers: null }));
-  assert(skip === "Never reached — prompts exceed its budget", `${skip}`);
+  assert(skip === "Last request was too large for this model", `${skip}`);
   const v = userBudgetView(input({ vendorRows: [row({ answers: 3, urgent: true })] }));
   assert(
     v.models.length === 1 && v.models[0]!.id === "groq/openai/gpt-oss-120b",
