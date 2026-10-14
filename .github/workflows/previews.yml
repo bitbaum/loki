@@ -1,0 +1,69 @@
+name: Previews
+
+# Make a prospect preview reachable, and keep every preview reachable.
+#
+#   create  make the preview in Loki (as the operator), give it its own address
+#           <address>.orangecat.ch, and prove that address answers over HTTPS.
+#   heal    every preview folder on the box has its address and answers.
+#           Runs on a clock, so a lost Caddy vhost is put back before anyone
+#           opens the link (an address without one shows ERR_SSL_PROTOCOL_ERROR).
+#
+# No access code goes through here: a public repo's run inputs and logs are
+# public. The code is set in the app ("set the preview code to ..." in Loki's
+# chat, or the Access code field in Build a preview).
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "create or heal"
+        required: true
+        default: "heal"
+      address:
+        description: "create: the subdomain, e.g. francesco"
+        required: false
+      name:
+        description: "create: who it is for, e.g. Francesco Tarallo"
+        required: false
+      about:
+        description: "create: links, place, trade"
+        required: false
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+# One writer of the box's Caddy at a time, and never alongside a deploy.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  previews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+      MODE: ${{ inputs.mode || 'heal' }}
+      ADDRESS: ${{ inputs.address }}
+      NAME: ${{ inputs.name }}
+      ABOUT: ${{ inputs.about }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Ensure
+        env:
+          DEPLOY_KEY_PATH: /home/runner/.ssh/id_deploy
+        run: |
+          case "$MODE" in
+            create) bash scripts/hetzner/ensure-preview.sh create "$ADDRESS" "$NAME" "$ABOUT" ;;
+            heal)   bash scripts/hetzner/ensure-preview.sh heal ;;
+            *)      echo "::error::mode is create or heal"; exit 1 ;;
+          esac

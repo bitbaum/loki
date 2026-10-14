@@ -43,4 +43,14 @@ if [[ "$first" == *.orangecat.ch ]]; then
 fi
 
 echo
+echo "an address must answer, not just be attached"
+bash -n "$HERE/ensure-preview.sh" || fail "ensure-preview.sh must parse"
+bash -n "$HERE/preview-create-on-box.sh" || fail "preview-create-on-box.sh must parse"
+usage=$(bash "$HERE/ensure-preview.sh" bogus 2>&1); [ $? = 2 ] || fail "an unknown mode is a usage error: $usage"
+grep -q "ERR_SSL_PROTOCOL_ERROR\|does not answer over HTTPS" "$HERE/ensure-preview.sh" || fail "the ensure script must fail when the host does not answer"
+grep -q "cron:" "$HERE/../../.github/workflows/previews.yml" || fail "heal must run on a clock"
+grep -q "secrets\.\(PREVIEW\|ACCESS\)" "$HERE/../../.github/workflows/previews.yml" && fail "no access code through a public repo's Actions"
+ok "ensure/heal parse, fail loudly, run on a clock, and carry no code"
+
+echo
 echo "preview-host: $PASSED passed"

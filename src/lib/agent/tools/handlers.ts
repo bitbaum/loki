@@ -29,6 +29,7 @@ import { HOUR_MS } from "@/lib/constants/time";
 import { askGatewayAgent, isGatewayConfigured } from "@/lib/openclaw-gateway";
 import { makeFact } from "@bitbaum/ai-kit/grounding";
 import { setAway } from "@/lib/away";
+import { setPreviewCode } from "@/db/queries/preview-code";
 import { createPreview } from "@/lib/previews/create";
 import { RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -745,6 +746,7 @@ const createWebsiteTool = defineTool({
       address: address as string | undefined,
       about: about as string | undefined,
       code: code as string | undefined,
+      requireCode: true,
     });
     if (!made.ok) return empty(made.error);
     return {
@@ -758,7 +760,40 @@ const createWebsiteTool = defineTool({
             access_code: made.accessCode ?? "the server's preview code",
             build: made.buildNote ?? "started: it is being built now",
             ...(made.addressNote ? { address_note: made.addressNote } : {}),
+            ...(made.codeNote ? { code_note: made.codeNote } : {}),
             then: "Say it in two short lines: the link, and the code to tell them. If build is not 'started', say what it says. Do not describe the machinery.",
+          },
+        }),
+      ],
+    };
+  },
+});
+
+/**
+ * "Set the preview code to cat." One code opens every preview the operator owns
+ * (db/queries/preview-code.ts); changing it asks every visitor again.
+ */
+const setPreviewCodeTool = defineTool({
+  name: "set_preview_code",
+  kind: "propose",
+  acts: true,
+  description:
+    "The operator sets or changes the access code for their website previews ('set the preview code to cat', 'change the password to ...'). One code opens every preview they own. Pass exactly the word they said.",
+  params: z.object({
+    code: z.string().min(3).max(40).describe("the new access code, exactly as said"),
+  }),
+  example: 'TOOL: set_preview_code\nARGS: {"code": "cat"}',
+  handler: async ({ code }, ctx) => {
+    await setPreviewCode(ctx.userId, (code as string).trim());
+    return {
+      facts: [
+        makeFact({
+          kind: "preview_code",
+          subject: "access code for your previews",
+          source: "Loki",
+          values: {
+            code: (code as string).trim(),
+            then: "Say it in one line: the code is set and opens all their previews; anyone who used the old one is asked again.",
           },
         }),
       ],
@@ -790,5 +825,6 @@ export const LOKI_TOOLS: ToolRegistry = Object.fromEntries(
     setAwayTool,
     fillWebFormTool,
     createWebsiteTool,
+    setPreviewCodeTool,
   ].map((t) => [t.name, t]),
 );
