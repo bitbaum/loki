@@ -6682,9 +6682,11 @@
 
   /* Start screen: the spiral and one question centred in the free space, the
      few recent threads docked just above the composer. The stage is
-     justify-end on a phone, so the greeting takes flex-1 and centres itself. */
+     justify-end on a phone, so the greeting takes flex-1 and centres itself.
+     Scroll this content independently: project choices and recent chats must
+     not push the composer out of the viewport. */
   .ui-loki-start {
-    @apply flex min-h-0 flex-1 flex-col gap-4 sm:flex-none sm:gap-6;
+    @apply flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto sm:gap-6;
   }
   /* The inbox line above the greeting: what needs you, what runs, what
      came back — each part a tap. Centred like the greeting it sits over. */
