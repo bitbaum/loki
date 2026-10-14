@@ -120,6 +120,9 @@ export const MODEL_STORE_NEW_DAYS = 30;
 /** Variants of a model that are not a different model: batch pricing, previews, dated snapshots. */
 const VARIANT = /:(batch|free|online|nitro|thinking|extended|exacto)$/;
 const DATED = /-(\d{4}|\d{8})$/;
+// Asynchronous batch prices do not apply to Loki's interactive chat requests.
+const BATCH_ONLY = /:batch$/i;
+const BATCH_LABEL = /\(batch\)/i;
 const NOT_CHAT =
   /embed|whisper|tts|dall-?e|moderation|transcri|audio|realtime|speech|imagen|veo|lyria|image|banana|rerank|guard|computer-use|codex-mini/i;
 
@@ -202,7 +205,7 @@ export function labLabel(ns: string): string {
 }
 
 function perMillion(s: string | undefined): number | null {
-  if (s === undefined) return null;
+  if (s === undefined || !s.trim()) return null;
   const n = Number(s);
   if (!Number.isFinite(n) || n < 0) return null; // -1 = varies (a router)
   return Math.round(n * 1_000_000 * 1000) / 1000;
@@ -235,11 +238,11 @@ export function tierOf(
  * Intelligence per dollar: the index divided by log2(2 + blended price), the
  * blend weighting output three to one because an answer is mostly output.
  * The log keeps a $0.10 model from beating a $1 model by a hundredfold on a
- * two-point difference. Null when the model is unrated — never guessed.
+ * two-point difference. Null when the model is unrated or either price is unavailable — never guessed.
  */
 export function valueScore(m: Pick<StoreModel, "inPerM" | "outPerM" | "index">): number | null {
-  if (m.index === null) return null;
-  const blended = 0.25 * (m.inPerM ?? 0) + 0.75 * (m.outPerM ?? 0);
+  if (m.index === null || m.inPerM === null || m.outPerM === null) return null;
+  const blended = 0.25 * m.inPerM + 0.75 * m.outPerM;
   return Math.round((m.index / Math.log2(2 + blended)) * 10) / 10;
 }
 
@@ -253,7 +256,7 @@ function toStoreModel(
   const lab = m.id.slice(0, slash);
   if (lab.startsWith("~")) return null; // OpenRouter's alias namespaces (~openai/gpt-latest)
   const model = m.id.slice(slash + 1);
-  if (NOT_CHAT.test(model)) return null;
+  if (NOT_CHAT.test(model) || BATCH_ONLY.test(model) || BATCH_LABEL.test(m.name ?? "")) return null;
   const out = m.architecture?.output_modalities;
   if (Array.isArray(out) && (!out.includes("text") || out.includes("image"))) return null;
   const inPerM = perMillion(m.pricing?.prompt);
@@ -275,7 +278,7 @@ function toStoreModel(
     outPerM,
     context: typeof m.context_length === "number" ? m.context_length : null,
     released,
-    isNew: released !== null && now - released <= MODEL_STORE_NEW_DAYS * DAY_MS,
+    isNew: released !== null && released <= now && now - released <= MODEL_STORE_NEW_DAYS * DAY_MS,
     free: inPerM === 0 && outPerM === 0,
     freeVariant: !m.id.endsWith(":free") && freeIds.has(freeSibling) ? freeSibling : null,
     open: typeof m.hugging_face_id === "string" && m.hugging_face_id.length > 0,
@@ -349,11 +352,12 @@ export type RunsVia = {
  */
 export function runsVia(m: StoreModel, connected: ReadonlySet<string>): RunsVia[] {
   const out: RunsVia[] = [];
-  if (m.vendor && m.vendor !== "openrouter") {
+  const routedVariant = m.free || VARIANT.test(m.model);
+  if (m.vendor && m.vendor !== "openrouter" && !routedVariant) {
     out.push({ vendor: m.vendor, model: m.model, connected: connected.has(m.vendor) });
   }
   out.push({ vendor: "openrouter", model: m.id, connected: connected.has("openrouter") });
-  if (m.open && connected.has(CUSTOM_VENDOR_ID)) {
+  if (m.open && !routedVariant && connected.has(CUSTOM_VENDOR_ID)) {
     out.push({ vendor: CUSTOM_VENDOR_ID, model: m.model, connected: true });
   }
   return out;
