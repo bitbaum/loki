@@ -735,6 +735,7 @@ export function LokiWorkspace({
   return (
     <div
       className={historyPinned ? "ui-loki-workspace ui-loki-workspace-split" : "ui-loki-workspace"}
+      data-fc-place={activeId ? "hidden" : undefined}
     >
       {historyPinned && (
         <aside className="ui-loki-history-rail" aria-label="Chats">

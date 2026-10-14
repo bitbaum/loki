@@ -14,7 +14,7 @@ const ENDPOINT = "/api/control/start-my-day";
 const SURFACE = "loki.start-my-day";
 const REASONS: Record<string, string> = {
   paused: "Paused — open the project to resume",
-  no_path: "Needs a project path — open the project to set it up",
+  no_path: "Needs a repository or folder — open the project to connect it",
   pending_command: "Already queued",
   busy: "Already working",
   concurrency_cap: "All work slots are in use — try again when one finishes",
@@ -32,6 +32,7 @@ export function StartMyDay() {
   const [result, setResult] = useState<FleetKickResult | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [accepted, setAccepted] = useState<string[]>([]);
+  const [lastStarted, setLastStarted] = useState<{ id: string; name: string; href: string }[]>([]);
   const [editing, setEditing] = useState(false);
   const [mainIds, setMainIds] = useState<string[]>([]);
   const [labels, setLabels] = useState<Record<string, string>>({});
@@ -64,6 +65,12 @@ export function StartMyDay() {
         await throwApiError(response, "Could not start. Check Control before trying again.");
       const body = (await response.json()) as { result: FleetKickResult; startedIds: string[] };
       setResult(body.result);
+      setLastStarted(
+        body.startedIds.flatMap((id) => {
+          const project = projects.find((p) => p.id === id);
+          return project ? [{ id: project.id, name: project.name, href: project.href }] : [];
+        }),
+      );
       setAccepted((prev) => [...new Set([...prev, ...body.startedIds])]);
       // Never silently replace started choices with three more projects.
       setSelection(selected.filter((id) => !ids.includes(id)));
@@ -122,7 +129,7 @@ export function StartMyDay() {
       </p>
       {loading && !data && (
         <p className="mt-3 text-sm text-text-muted" role="status">
-          Checking the past week…
+          Loading your projects…
         </p>
       )}
       {error && (
@@ -271,10 +278,7 @@ export function StartMyDay() {
                         </span>
                       </label>
                       {p.unavailable || submitted ? (
-                        <Link
-                          href={submitted ? NAV.control.href : p.href}
-                          className="ui-btn-ghost shrink-0"
-                        >
+                        <Link href={p.href} className="ui-btn-ghost shrink-0">
                           {submitted ? "Queued" : "Open"}
                         </Link>
                       ) : (
@@ -323,16 +327,19 @@ export function StartMyDay() {
         <div className="mt-3 space-y-1" role="status">
           <p className="text-sm text-text-primary">
             {result.kicked > 0
-              ? `${result.kicked} project${result.kicked === 1 ? "" : "s"} queued. Follow progress in Control; results will appear in Activity.`
+              ? `${result.kicked} project${result.kicked === 1 ? "" : "s"} queued. Open a project to follow progress.`
               : "No new work started."}
           </p>
           {result.kicked > 0 && (
-            <p className="text-xs text-text-secondary">
-              {result.details
-                .filter((d) => d.outcome === "kicked")
-                .map((d) => d.projectKey)
-                .join(" · ")}
-            </p>
+            <ul className="space-y-1 text-sm">
+              {lastStarted.map((p) => (
+                <li key={p.id}>
+                  <Link href={p.href} className="ui-link-muted inline-flex ui-tap">
+                    {p.name} →
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
           {result.details
             .filter((d) => d.outcome === "skipped")

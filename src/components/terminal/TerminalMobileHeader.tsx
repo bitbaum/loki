@@ -24,7 +24,7 @@ const STATE_LABEL: Record<TerminalLiveState, string> = {
 };
 
 /**
- * The whole terminal header, on one line.
+ * The session name stays readable; on phones the view choices get their own row.
  *
  * What it replaced: a page title, a subtitle, a four-pill source strip, a
  * scrolling tab strip, a source select, a session select, an agent button, an

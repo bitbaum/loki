@@ -16,6 +16,7 @@ import { isProjectBusy, STALE_RUN_MINUTES } from "@/db/queries/orchestration-run
 import { getProjectStatesByUserId } from "@/db/queries/project-states";
 import { getUserProjects } from "@/db/queries/user-projects";
 import { getRunnerConnected } from "@/db/queries/runner-presence";
+import { coldStartWorkspaceDir } from "@/lib/execution-access";
 import { injectPrompt, type InjectResult } from "@/lib/inject-core";
 import { DEFAULT_AUTO_INJECT_MODE, MAX_CONCURRENT_BUILDING } from "@/lib/constants/control";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
@@ -139,7 +140,10 @@ export async function kickFleet(userId: string, opts: FleetKickOptions): Promise
 
   const activeProjects = projects
     .filter((p) => p.isActive !== false)
-    .map((p) => ({ name: p.name, dirPath: p.dirPath }));
+    .map((p) => ({
+      name: p.name,
+      dirPath: p.dirPath || coldStartWorkspaceDir(p.name, p.gitUrl),
+    }));
 
   const projectByName = new Map(activeProjects.map((p) => [p.name.toLowerCase(), p]));
   const orderedNames =

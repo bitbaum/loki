@@ -290,8 +290,8 @@
   /* Semantic tokens — light */
   --text-primary: oklch(0.1 0 0);
   --text-secondary: oklch(0.4 0 0);
-  --text-tertiary: oklch(0.58 0 0);
-  --text-muted: oklch(0.72 0 0);
+  --text-tertiary: oklch(0.5 0 0);
+  --text-muted: oklch(0.52 0 0);
   --text-inverted: oklch(0.98 0 0);
   --surface-page: oklch(0.97 0 0);
   --surface-base: oklch(1 0 0);
@@ -3035,6 +3035,18 @@
     .ui-term-view > svg,
     .ui-term-view-active > svg {
       @apply hidden;
+    }
+  }
+  @media (max-width: 47.99rem) {
+    .ui-term-mhead {
+      @apply flex-wrap;
+    }
+    .ui-term-mhead .ui-term-views {
+      @apply order-4 w-full;
+    }
+    .ui-term-mhead .ui-term-view,
+    .ui-term-mhead .ui-term-view-active {
+      @apply flex-1 justify-center;
     }
   }
   .ui-term-mhead-icon {
@@ -6965,11 +6977,11 @@
     @apply inline-flex items-center gap-1.5 self-start rounded-md px-1.5 py-1 text-xs text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary;
   }
   /* Citation marker in a grounded answer — the [F8]/[D1] handle rendered as a
-     quiet superscript whose tooltip carries the actual record. Deliberately
-     recessive: the claim is the content, the source is available on demand.
+     source button that opens the actual record. The claim stays primary;
+     the source is available on demand, including on phones.
      Raw handles in prose read as plumbing and make the sentence worse. */
   .ui-loki-cite {
-    @apply ml-0.5 cursor-help align-super text-nano font-medium text-text-muted;
+    @apply mx-1 inline-flex min-h-11 items-center rounded-md px-2 align-middle text-xs font-medium text-text-secondary transition-colors hover:bg-surface-raised;
   }
   /* ── The thread ───────────────────────────────────────────────────────────
      The scroll container owns the scroll (flex-1); an `mt-auto` inner column

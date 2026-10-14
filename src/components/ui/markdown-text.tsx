@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { CitationNote } from "./citation-note";
 
 // Renderer for plain LLM output: paragraphs, list bullets, headings, **bold**,
 // `inline code`, [links](url), and ```fenced code blocks```. Deliberately a
@@ -105,7 +106,7 @@ const INLINE_RE =
  * Citations exist so a claim can be traced, but a raw `[F8]` in a sentence is
  * internal plumbing wearing the costume of a source — it tells the reader
  * nothing and makes the prose worse. Given a resolver, each handle renders as a
- * small numbered marker carrying the record in its tooltip; without one, the
+ * source button that opens the record on phones or with a keyboard; without one, the
  * handle is dropped from the text entirely rather than shown bare.
  */
 export type CitationMap = Record<string, { label: string; detail: string }>;
@@ -118,19 +119,9 @@ function renderInline(text: string, citations?: CitationMap): ReactNode {
       // No resolver (or an unknown id) ⇒ show nothing. A dangling handle is
       // strictly worse than clean prose: it implies a source the reader
       // cannot reach.
-      const known = ids.filter((id) => citations?.[id]);
+      const known = [...new Set(ids.filter((id) => citations?.[id]))];
       if (known.length === 0) return null;
-      return (
-        <sup
-          key={i}
-          className="ui-loki-cite"
-          title={known
-            .map((id) => `${id} — ${citations![id].label}\n${citations![id].detail}`)
-            .join("\n\n")}
-        >
-          {known.join(" ")}
-        </sup>
-      );
+      return <CitationNote key={i} records={known.map((id) => ({ id, ...citations![id] }))} />;
     }
     if (part.startsWith("`") && part.endsWith("`")) {
       return (

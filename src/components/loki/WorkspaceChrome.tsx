@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { openFeedback } from "@/lib/open-feedback";
 import { TopbarPortal } from "@/components/shell/TopbarSlot";
 import { LokiTopbarButtons, ThreadHeader } from "./ThreadHeader";
 import { ThreadTitle } from "./ThreadTitle";
@@ -50,6 +52,7 @@ export function WorkspaceChrome({
   onTogglePin: (id: string, pinned: boolean) => void;
   onRename: (id: string, title: string) => void;
 }) {
+  const router = useRouter();
   const buttons = (
     <LokiTopbarButtons
       pinned={historyPinned}
@@ -69,6 +72,7 @@ export function WorkspaceChrome({
           onNewChat={onNewChat}
           onOpenProjects={onOpenProjects}
           onSaveContext={canSaveContext ? onSaveContext : undefined}
+          onReportProblem={() => openFeedback(() => router.push("/support"))}
           pinned={pinned}
           onTogglePin={activeId ? () => onTogglePin(activeId, !pinned) : undefined}
           onRename={activeId ? (t) => onRename(activeId, t) : undefined}
