@@ -196,7 +196,8 @@ export const EXECUTOR_COPY = {
     cloudHelp: "Choose a session to read its messages or use its terminal.",
     cloudLoading: "Looking for cloud builder sessions…",
     cloudEmpty: "No live sessions on the cloud builder.",
-    cloudEmptyHint: "Start an agent below to open a session here.",
+    cloudEmptyHint:
+      "Start an agent below to open a cloud builder session. Choose its location with Runs on.",
     cloudOfflineHint:
       "The cloud builder is offline. Work sent there will wait until it reconnects.",
     // Connected to the peek stream but no screen frames arrived → the runner is
@@ -208,7 +209,8 @@ export const EXECUTOR_COPY = {
       "Your connected computer stopped sending session updates. Check that Fleet Runner is open there.",
     thisComputerHelp: "Choose a session on your connected computer to follow or steer the agent.",
     thisComputerEmpty: "No active sessions on your connected computer.",
-    thisComputerEmptyHint: "Start a session below when Fleet Runner is connected.",
+    thisComputerEmptyHint:
+      "Start a session on your computer when Fleet Runner is connected. Choose its location with Runs on.",
     thisComputerOfflineHint:
       "Open Fleet Runner on the computer you want to use to bring its sessions online.",
     // "Here" is the device reading the page; "this computer" is the account's
