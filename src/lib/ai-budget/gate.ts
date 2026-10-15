@@ -138,8 +138,12 @@ export async function checkAiBudget(
     });
 
     if (decision.allowed) return { allowed: true };
+    // Only a refusal that names a time needs the person's zone, and only then
+    // is their settings row read.
     const timeZone =
-      deps.timeZone !== undefined ? deps.timeZone : await personZone(userId, now).catch(() => null);
+      deps.timeZone !== undefined || decision.reason === "no-capacity"
+        ? (deps.timeZone ?? null)
+        : await personZone(userId, now).catch(() => null);
     return {
       allowed: false,
       message: explain(decision, now, timeZone),

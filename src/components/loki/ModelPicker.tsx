@@ -99,7 +99,9 @@ export function ModelPicker({
     let live = true;
     getJson<BudgetView>("/api/ai/budget")
       .then((b) => {
-        if (live) setBudget(b);
+        // Only a reading with the free count in it is a budget. Read on load
+        // now, not only on open, so a malformed reply must not crash the chat.
+        if (live && isBudgetView(b)) setBudget(b);
       })
       .catch(() => {});
     return () => {
@@ -413,6 +415,18 @@ function ModelRow({
         selected && <Check className="ui-loki-model-check" aria-hidden />
       )}
     </button>
+  );
+}
+
+function isBudgetView(b: unknown): b is BudgetView {
+  if (!b || typeof b !== "object") return false;
+  const v = b as Partial<BudgetView>;
+  return (
+    typeof v.headline === "string" &&
+    !!v.freePool &&
+    typeof v.freePool.state === "string" &&
+    Array.isArray(v.ownKeys) &&
+    Array.isArray(v.models)
   );
 }
 

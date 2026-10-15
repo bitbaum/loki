@@ -109,6 +109,7 @@ async function main() {
 
   await check("a user well inside their share is admitted", async () => {
     const v = await checkAiBudget("u1", NOON, {
+      timeZone: "Europe/Zurich",
       capacity: plenty,
       readUsage: async () => ({ userSpentTokens: 0, activeUsers: 1, userTurns: 0 }),
     });
@@ -119,6 +120,7 @@ async function main() {
     "A LEDGER ERROR ADMITS THE TURN — rationing must never become an outage",
     async () => {
       const v = await checkAiBudget("u1", NOON, {
+        timeZone: "Europe/Zurich",
         capacity: plenty,
         readUsage: async () => {
           throw new Error("connection refused");
@@ -130,6 +132,7 @@ async function main() {
 
   await check("a capacity of zero refuses, and says there is nothing to draw on", async () => {
     const v = await checkAiBudget("u1", NOON, {
+      timeZone: "Europe/Zurich",
       capacity: () => 0,
       readUsage: async () => ({ userSpentTokens: 0, activeUsers: 1, userTurns: 0 }),
     });
@@ -196,6 +199,7 @@ async function main() {
     // impression. The one-turn floor is what carries this case.
     for (const at of ["2026-08-15T00:01:00Z", "2026-08-15T12:00:00Z", "2026-08-15T23:00:00Z"]) {
       const v = await checkAiBudget("newcomer", new Date(at), {
+        timeZone: "Europe/Zurich",
         capacity: () => 16 * ESTIMATED_TURN_TOKENS,
         readUsage: async () => ({ userSpentTokens: 0, activeUsers: 4, userTurns: 0 }),
       });
