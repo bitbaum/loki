@@ -76,3 +76,21 @@ export function suggestFromReply(reply: string): string[] {
 export function sameSuggestions(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((s, i) => s === b[i]);
 }
+
+const FEEDBACK_NOUN_RE =
+  /\b(feedback|user (?:reports?|messages|reviews|complaints|voice)|widget (?:submissions|reports|data)|survey responses)\b/i;
+const NEEDS_IT_RE =
+  /(needs input|need (?:an? |the )?(?:export|access|reports?|feedback)|couldn'?t (?:find|reach|read|see)|could not (?:find|reach|read|see)|can'?t (?:find|reach|access|read|see)|cannot (?:find|reach|access|read|see)|no (?:user )?feedback|found no\b|export (?:the|an?|of)|paste (?:the|them|emails)|send me|give me|provide (?:the|an?))/i;
+
+/**
+ * The agent says it needs feedback it cannot reach — "needs input: an export
+ * of substrata's feedback-widget submissions". Loki holds those reports, so
+ * the box offers to attach them instead of a chip that says "Yes, go ahead."
+ * Only the closing lines count: a reply that MENTIONS feedback while working
+ * is not asking for it.
+ */
+export function asksForFeedback(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const tail = text.split("\n").slice(-15).join("\n");
+  return FEEDBACK_NOUN_RE.test(tail) && NEEDS_IT_RE.test(tail);
+}

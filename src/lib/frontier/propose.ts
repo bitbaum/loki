@@ -14,7 +14,7 @@
 // votes. That is what makes the judge strictly harder to fool than the
 // generator — the whole point of the loop.
 
-import { callGroqText } from "@/lib/groq";
+import { callGroqText, GROQ_STRONG_MODEL } from "@/lib/groq";
 import { stripReasoning } from "@/lib/agent/llm";
 import { safeParseModelJson } from "@/lib/ai/model-json";
 import type { FrontierItem } from "./types";
@@ -349,7 +349,7 @@ export async function generateProposals(
 // token headroom for their <think> preamble (stripped before parsing).
 export type Judge = { model: string; maxTokens: number };
 export const VERIFIER_PANEL: Judge[] = [
-  { model: "openai/gpt-oss-120b", maxTokens: 600 }, // OpenAI lineage
+  { model: GROQ_STRONG_MODEL, maxTokens: 600 }, // OpenAI lineage
   { model: "qwen/qwen3.6-27b", maxTokens: 3500 }, // Qwen / Alibaba lineage (reasoning — needs room for <think>)
 ];
 

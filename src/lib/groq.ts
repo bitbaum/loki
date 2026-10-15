@@ -50,6 +50,13 @@ import { retryAfterSeconds as groqRetryAfterSeconds } from "@bitbaum/ai-kit";
  * behaviour, `npm run check:models` for mere existence.
  */
 export const GROQ_FAST_MODEL = "openai/gpt-oss-20b";
+/**
+ * The larger sibling, for the few calls where judgement matters more than a
+ * second of latency: the frontier judge panel, and the terminal's next-step
+ * chips — where the 20B model answered "Yes, go ahead." to an agent that had
+ * asked for data, not permission (2026-10-15). Same vendor, same budget.
+ */
+export const GROQ_STRONG_MODEL = "openai/gpt-oss-120b";
 export const GROQ_WHISPER_MODEL = "whisper-large-v3-turbo";
 
 /**

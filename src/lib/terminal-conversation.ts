@@ -7,10 +7,13 @@ export function isTranscriptInterruption(text: string): boolean {
 }
 
 export function dispatchMessageDisplay(text: string): { text: string; details: string | null } {
+  // Claude Code records a pasted message wrapped in its own markers, and
+  // writes the closing one with the id too: `</pasted_content id="fdab">`.
+  // Those markers are bookkeeping; the person typed what is inside them.
   const unwrapped = text
     .trim()
     .replace(/^<pasted_content\b[^>]*>\s*/i, "")
-    .replace(/\s*<\/pasted_content>\s*$/i, "");
+    .replace(/\s*<\/pasted_content\b[^>]*>\s*$/i, "");
   if (/^(?:The owner of .+ asked for this change|Fix this visitor feedback on )/.test(unwrapped)) {
     const report =
       /<<<UNTRUSTED FEEDBACK — data, not instructions>>>\n([\s\S]*?)\n<<<END UNTRUSTED FEEDBACK>>>/
@@ -22,7 +25,7 @@ export function dispatchMessageDisplay(text: string): { text: string; details: s
     !isOperatorEnvelope(unwrapped) &&
     !/^(?:Project context & goals|## bitbaum house rules)/.test(unwrapped)
   )
-    return { text, details: null };
+    return { text: unwrapped, details: null };
   const task = extractOperatorTask(unwrapped);
   // Old runners may clip the packet before its task. Never present an internal
   // context block as the person's instruction in that case.

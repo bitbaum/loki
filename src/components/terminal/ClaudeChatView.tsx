@@ -10,16 +10,17 @@ import {
   describeToolStep,
   groupTranscript,
   sessionMode,
+  sessionModel,
   turnElapsedLabel,
   type TranscriptBlock,
   type TranscriptItem,
 } from "@/lib/claude-transcript";
 import type { BuilderChannel } from "@/lib/constants/statuses";
-import { suggestFromReply } from "@/lib/terminal-suggestions";
+import { asksForFeedback, suggestFromReply } from "@/lib/terminal-suggestions";
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
 import { useStableSteps } from "@/hooks/use-stable-steps";
 import { SessionComposer } from "./SessionComposer";
-import { SessionModeChip } from "./SessionModeChip";
+import { SessionInfo } from "./SessionInfo";
 import {
   dispatchMessageDisplay,
   isTranscriptInterruption,
@@ -53,7 +54,10 @@ export function ClaudeChatView({
   onLive,
   onExplain,
   draft,
+  project = null,
 }: {
+  /** The project's name in Loki — whose records the box can attach. */
+  project?: string | null;
   /** "What's going on?" — Loki explains the session (first chip above the box). */
   onExplain?: () => void;
   /** Words for the box from Loki's summary, for the person to check and send. */
@@ -187,13 +191,20 @@ export function ClaudeChatView({
           agent="claude"
           agentLabel="Claude"
           suggestions={suggestions}
+          project={project}
+          offerFeedback={asksForFeedback(reply)}
           onExplain={onExplain}
           draft={draft}
           working={working}
           onShowTerminal={onShowTerminal}
           onSent={() => setFollowing(true)}
           tools={
-            mode ? <SessionModeChip mode={mode} lastMessageId={lastMine} onKey={onKey} /> : null
+            <SessionInfo
+              model={sessionModel(items)}
+              mode={mode}
+              lastMessageId={lastMine}
+              onKey={onKey}
+            />
           }
         />
       </div>

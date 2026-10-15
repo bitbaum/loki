@@ -40,6 +40,14 @@ assert.deepEqual(dispatchMessageDisplay("A normal message\nwith a second line.")
 const clipped =
   '<pasted_content id="old">\n# Loki operator dispatch\nInternal framing.\n\n## The operator\'s goals & deadlines\nPrivate life goal.';
 assert.equal(dispatchMessageDisplay(clipped).text, "Task sent by Loki");
+// A library prompt pasted into the session: Claude Code wraps it in markers
+// (closing one carrying the id) and the bubble showed them (2026-10-15).
+assert.deepEqual(
+  dispatchMessageDisplay(
+    '<pasted_content id="fdab">\nSynthesize user feedback for substrata.\n\n1. Read the reports.\n</pasted_content id="fdab">',
+  ),
+  { text: "Synthesize user feedback for substrata.\n\n1. Read the reports.", details: null },
+);
 const feedback = `The owner of loki asked for this change while looking at their live site. Make it.\n${UNTRUSTED_PREAMBLE}\n\n${fenceUntrusted("FEEDBACK", "Make the menu readable.")}`;
 assert.equal(dispatchMessageDisplay(feedback).text, "Make the menu readable.");
 assert.equal(dispatchMessageDisplay(feedback).details, feedback);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Paperclip, Sparkles } from "lucide-react";
 
 /**
  * The row above the session box: "What's going on?" first, then the next
@@ -16,15 +16,18 @@ export function SuggestionChips({
   suggestions,
   onPick,
   onExplain,
+  actions,
   disabled = false,
 }: {
+  /** Things Loki can do itself, offered before the steps (attach a file). */
+  actions?: readonly { key: string; label: string; onClick: () => void }[];
   suggestions: readonly string[];
   onPick: (prompt: string) => void;
   /** Loki explains the session. Always first, so the row has a fixed start. */
   onExplain?: () => void;
   disabled?: boolean;
 }) {
-  if (suggestions.length === 0 && !onExplain) return null;
+  if (suggestions.length === 0 && !onExplain && !actions?.length) return null;
   return (
     <ul className="ui-term-suggests" aria-label="Next steps — each one sends when chosen">
       {onExplain && (
@@ -39,6 +42,18 @@ export function SuggestionChips({
           </button>
         </li>
       )}
+      {actions?.map((a) => (
+        <li key={a.key}>
+          <button
+            type="button"
+            className="ui-term-suggest ui-term-suggest-explain"
+            onClick={a.onClick}
+          >
+            <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            {a.label}
+          </button>
+        </li>
+      ))}
       {suggestions.map((s) => (
         <li key={s}>
           <button

@@ -24,7 +24,8 @@ export const NEXT_STEPS_SYSTEM_PROMPT = [
   `Reply with exactly ${NEXT_STEPS_MAX} instructions they could send the agent next, one per line, nothing else.`,
   "Each is written as the instruction itself, imperative, specific to what the agent just did or asked,",
   "under 50 characters so it reads whole on a phone, no numbering, no quotes, no markdown.",
-  'If the agent is asking a question or offering options, the first line answers it ("Yes, go ahead.", "Do option 2.").',
+  'Answer "yes" or "go ahead" ONLY when the agent\'s last lines literally ask for permission or a yes/no choice; if it offers numbered options, the first line picks one ("Do option 2.").',
+  "If the agent says it cannot do the task because it is missing data, access or a file, do not approve anything and do not tell it to do what it just said it cannot: suggest the part it CAN do, or a different approach. Loki offers to attach the project's feedback reports on its own, so never suggest exporting or pasting them.",
   "Put first the step you would recommend; the others are real alternatives, not rephrasings.",
   "Never suggest something the agent already reports as done.",
 ].join(" ");

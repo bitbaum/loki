@@ -92,6 +92,14 @@ src/
 │   │                 (bracketed paste + Enter), a screenshot goes via
 │   │                 chat-send, nothing running → tab-inject (starts/queues).
 │   │                 There is no Type / Prompt / Voice switch — never add one.
+│   │                 "/" opens SessionPicker above it (agent commands, Loki's
+│   │                 records, the prompt library), never taller than the room
+│   │                 above the box. The agent cannot read Loki's database, so
+│   │                 Loki's records reach it only as a VISIBLE file on the box
+│   │                 (LokiFiles; feedback via /api/feedback/export, fenced as
+│   │                 untrusted) — a library prompt that needs one declares
+│   │                 `attach` and gets it. SessionInfo (conversation view) names
+│   │                 the model and mode READ from the session log, in words.
 │   │                 Modes are SSOT in config/terminal-modes.ts; never add a
 │   │                 second terminal shell — add a transport.
 │   │                 TerminalActions = what the screen needs TYPED (signed

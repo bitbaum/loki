@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState, type MutableRefObject } from "react";
-import { SUGGESTION_WINDOW_ROWS, suggestPrompts } from "@/lib/terminal-suggestions";
+import {
+  SUGGESTION_WINDOW_ROWS,
+  asksForFeedback,
+  suggestPrompts,
+} from "@/lib/terminal-suggestions";
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
 import { useStableSteps } from "@/hooks/use-stable-steps";
 
@@ -19,7 +23,7 @@ export function useScreenSuggestions(
   enabled: boolean,
   project: string | null,
   hold = false,
-): string[] {
+): { steps: string[]; asksForFeedback: boolean } {
   const [settled, setSettled] = useState<string | null>(null);
   useEffect(() => {
     if (!enabled) return;
@@ -40,5 +44,6 @@ export function useScreenSuggestions(
   const key = enabled ? settled : null;
   const rules = useMemo(() => (key ? suggestPrompts(key.split("\n")) : []), [key]);
   const ai = useAiNextSteps(key, "screen", project);
-  return useStableSteps(key, ai, rules, hold);
+  const steps = useStableSteps(key, ai, rules, hold);
+  return { steps, asksForFeedback: asksForFeedback(key) };
 }

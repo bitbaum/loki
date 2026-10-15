@@ -460,7 +460,7 @@ export function TerminalSurface({
   const chatAvailable = termView.chatAvailable && !transcriptMissing;
   const view = transcriptMissing ? "terminal" : termView.view;
   const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
-  const suggestions = useScreenSuggestions(
+  const screenNext = useScreenSuggestions(
     readScreenRef,
     Boolean(activeTab) && view === "terminal",
     projectKey,
@@ -742,6 +742,7 @@ export function TerminalSurface({
           onShowTerminal={termView.showTerminal}
           onExplain={projectKey ? explainer.ask : undefined}
           draft={sessionDraft}
+          project={projectKey}
           onUnavailable={() =>
             setNoTranscript((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)))
           }
@@ -844,7 +845,9 @@ export function TerminalSurface({
               live={liveState === "live"}
               agent={activeAgentId}
               agentLabel={headerAgent ?? "the agent"}
-              suggestions={suggestions}
+              suggestions={screenNext.steps}
+              offerFeedback={screenNext.asksForFeedback}
+              project={projectKey}
               onExplain={projectKey ? explainer.ask : undefined}
               draft={sessionDraft}
               focusRequest={focusRequest}

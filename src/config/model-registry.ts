@@ -18,7 +18,7 @@
  * is cheap enough to run on a schedule.
  */
 
-import { GROQ_FAST_MODEL, GROQ_WHISPER_MODEL } from "@/lib/groq";
+import { GROQ_FAST_MODEL, GROQ_STRONG_MODEL, GROQ_WHISPER_MODEL } from "@/lib/groq";
 import { VERIFIER_PANEL } from "@/lib/frontier/propose";
 
 export type ModelProvider = "groq" | "openrouter";
@@ -53,6 +53,13 @@ export const REGISTERED_MODELS: RegisteredModel[] = [
     provider: "groq",
     kind: "transcribe",
     usedFor: "voice transcription (callGroqTranscribe) — the mic on every composer",
+  },
+  {
+    id: GROQ_STRONG_MODEL,
+    provider: "groq",
+    kind: "chat",
+    usedFor:
+      "the terminal's next-step chips (falls back to the rule-based chips when it fails) and the frontier judge panel",
   },
   ...VERIFIER_PANEL.map((j) => ({
     id: j.model,

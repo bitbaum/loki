@@ -29,6 +29,8 @@ const Item = z.discriminatedUnion("kind", [
     at: z.string().max(40).nullable(),
     kind: z.literal("assistant"),
     text: z.string().max(20_000),
+    // The model that wrote it (runner with the 2026-10-15 log reader+).
+    model: z.string().max(80).optional(),
   }),
   z.object({
     id: z.string().max(200),
