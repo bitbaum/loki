@@ -103,26 +103,34 @@ async function main() {
       await page.evaluate(() =>
         (window as unknown as { Loki: { report(input: object): void } }).Loki.report({}),
       );
-      await page
-        .getByRole("button", { name: "Speak while browsing", exact: true })
-        .click({ timeout: 5000 })
-        .catch(async (error) => {
-          console.error(
-            "Voice header fixture",
-            await page.evaluate(() => ({
-              header: document
-                .querySelector("#loki-feedback-host")
-                ?.shadowRoot?.querySelector(".hdr-actions")?.outerHTML,
-              microphone: !!navigator.mediaDevices?.getUserMedia,
-              recorder: typeof MediaRecorder,
-              policy: (
-                document as unknown as { featurePolicy?: { allowsFeature(name: string): boolean } }
-              ).featurePolicy?.allowsFeature("microphone"),
-            })),
-            errors,
-          );
-          throw error;
-        });
+      const speak = page.getByRole("button", { name: "Speak while browsing", exact: true });
+      await speak.waitFor({ state: "visible" });
+      assert.equal((await speak.innerText()).trim(), "Speak", "The mic has a visible text label");
+      const icon = await speak.locator("svg").boundingBox();
+      assert(
+        icon && icon.width >= 16 && icon.width <= 24 && icon.height >= 16 && icon.height <= 24,
+        "The microphone icon has a readable rendered size",
+      );
+      const speakBox = await speak.boundingBox();
+      assert(speakBox && speakBox.x >= 0 && speakBox.x + speakBox.width <= (owner ? 320 : 390));
+      await page.screenshot({ path: `${out}/${owner ? 320 : 390}-entry.png` });
+      await speak.click({ timeout: 5000 }).catch(async (error) => {
+        console.error(
+          "Voice header fixture",
+          await page.evaluate(() => ({
+            header: document
+              .querySelector("#loki-feedback-host")
+              ?.shadowRoot?.querySelector(".hdr-actions")?.outerHTML,
+            microphone: !!navigator.mediaDevices?.getUserMedia,
+            recorder: typeof MediaRecorder,
+            policy: (
+              document as unknown as { featurePolicy?: { allowsFeature(name: string): boolean } }
+            ).featurePolicy?.allowsFeature("microphone"),
+          })),
+          errors,
+        );
+        throw error;
+      });
       await page.getByText("Recording 0:00", { exact: true }).waitFor();
       assert.equal(await host.locator(".panel").count(), 0, "Recording leaves the site usable");
       await page.locator("#normal").click();

@@ -225,8 +225,13 @@ ${spiralCSS(theme)}
 
 /* header actions: Watch / Review, then close */
 .hdr-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.speak > span:first-child { display: inline-flex; flex: none; }
+.speak svg { display: block; width: 18px; height: 18px; }
+
 .watchbtn { font-size: 12px; font-weight: 600; padding: 6px 8px; border-radius: ${rc}; color: ${theme.accent}; white-space: nowrap; }
 .watchbtn:hover { background: ${theme.surfaceSubtle}; }
+.speak { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 12px; font-weight: 600; padding: 6px 8px; border-radius: ${rc}; color: ${theme.accent}; white-space: nowrap; }
+.speak:hover { background: ${theme.surfaceSubtle}; }
 .watch-offer { margin: -4px 0 12px; padding: 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; font-size: 12px; line-height: 1.5; color: ${theme.textSecondary}; }
 .watch-offer b { display: block; color: ${theme.text}; font-size: 13px; margin-bottom: 4px; }
 .watch-offer .sub { color: ${theme.textTertiary}; margin-top: 4px; }
