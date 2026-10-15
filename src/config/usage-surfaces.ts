@@ -53,6 +53,12 @@ export const USAGE_SURFACES = {
     actions: ["shown", "tap"],
     target: "section or action id; no project description or user text",
   },
+  "projects.review": {
+    label: "Guided project review",
+    path: "/projects",
+    actions: ["shown", "tap"],
+    target: "review action or scope only; no page URLs, screenshots or discussion text",
+  },
 } as const satisfies Record<string, UsageSurfaceSpec>;
 
 export type UsageSurface = keyof typeof USAGE_SURFACES;

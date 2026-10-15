@@ -54,6 +54,7 @@ const GUARDS = [
   "studioBearer", // spt_* capability for exactly one Bitbaum portal request
   "getWidgetTokenByToken", // fcw_* write-only widget token
   "resolveMcpCaller", // /api/mcp — a ck_* token or an OrangeCat JWT minted for Loki, src/lib/mcp/auth.ts
+  "getWorkerReview", // review-scoped hashed capability, expiry checked in db/queries/site-reviews.ts
   "verifyTourToken", // signed, expiring "Watch the fix" ticket for ONE feedback item, src/lib/feedback/tour-token.ts
   // Signed webhooks from other services
   "WEBHOOK_SECRET",

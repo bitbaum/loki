@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import type { ProjectDossier } from "@/db/queries/project-dossier";
 import { ProjectWorkspaceHeader } from "./ProjectWorkspaceHeader";
@@ -228,6 +229,25 @@ export function ProjectWorkspaceView({
                   setupNeeded={showKickoff}
                   hasNextStep={Boolean(nextStep)}
                 />
+                {!dossier.readonly && (links.prodUrl || links.repo || userProject?.dirPath) && (
+                  <section
+                    className="ui-project-section flex flex-wrap items-center justify-between gap-4"
+                    aria-label="Project review"
+                  >
+                    <div>
+                      <h2 className="text-lg font-semibold">See it through your users’ eyes</h2>
+                      <p className="mt-1 text-base text-text-secondary">
+                        Review the site with Loki and choose what to improve.
+                      </p>
+                    </div>
+                    <Link
+                      href={`/projects/${project.id}/review`}
+                      className="ui-btn-secondary min-h-11"
+                    >
+                      Review project →
+                    </Link>
+                  </section>
+                )}
                 {!dossier.readonly && (!showKickoff || autoInterview) && (
                   <ProjectInterview
                     projectId={project.id}

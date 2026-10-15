@@ -66,6 +66,8 @@ export type InjectParams = {
   allowHostedFallback?: boolean;
   promptKey?: string;
   customPrompt?: string;
+  /** Safe history wording for internal tasks that carry a short-lived capability. */
+  displayPrompt?: string;
   adapter?: ResolvedAdapter;
   /** Per-dispatch model override (e.g. Loki's composer model picker). Wins over
    *  the project's stored modelPref; the runner reads it on auto-launch. */
@@ -427,6 +429,7 @@ type OutcomeContext = {
   promptKey?: string;
   promptLabel: string;
   customPrompt?: string;
+  displayPrompt?: string;
   prompt: string;
   runId?: string;
   runtimeAvailable: boolean;
@@ -520,16 +523,17 @@ function recordInjectSuccess(
     projectPath: ctx.resolvedProjectPath,
     adapter: ctx.eventAdapter,
     intent: ctx.eventIntent ?? "custom",
-    customPrompt: ctx.customPrompt ?? null,
+    customPrompt: ctx.displayPrompt ?? ctx.customPrompt ?? null,
     // Link the prompt to the run it became — the run was opened above, so the
     // id exists by the time the prompt is recorded. Null only when run
     // creation failed or the intent is untrackable; the prompt row survives
     // either way (the ledger must not lose a dispatch to a failed join).
     runId: ctx.runId,
     // `prompt` is the fully assembled body — custom text or rendered intent
-    // template — that was injected into the agent's tab. Persisting it makes
+    // template — that was injected into the agent's tab. Internal tasks carrying
+    // a capability supply safe display wording instead. Persisting it makes
     // "Next best" rows showable as the actual prompt in the activity view.
-    resolvedPrompt: ctx.prompt,
+    resolvedPrompt: ctx.displayPrompt ?? ctx.prompt,
   }).catch((err) => console.error("[inject] db write failed:", err));
 
   if (result.mode === "direct") {
@@ -972,6 +976,7 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
       promptKey,
       promptLabel,
       customPrompt,
+      displayPrompt: params.displayPrompt,
       prompt,
       runId,
       runtimeAvailable,

@@ -124,6 +124,20 @@ check(
 );
 check("the matcher was parsed, not empty", pattern.length > 100);
 
+check(
+  "review worker accepts its own scoped ticket",
+  !isProtected("/api/reviews/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/worker"),
+);
+check("review source is downloadable", !isProtected("/inspection-worker.mjs"));
+check(
+  "review feed remains private",
+  isProtected("/api/reviews/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"),
+);
+check(
+  "review screenshots remain private",
+  isProtected("/api/reviews/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/frame"),
+);
+
 for (const [name, ok] of cases) console.log(`${ok ? "✓" : "✗"} ${name}`);
 console.log(`\n${pass}/${cases.length} passed`);
 if (pass !== cases.length) process.exit(1);

@@ -77,3 +77,5 @@ desktop/resources/bin/
 # Loki for Firefox build output (scripts/build-extension.ts)
 /extension/dist/
 /extension/artifacts/
+
+/public/inspection-worker.mjs
