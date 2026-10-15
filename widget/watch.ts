@@ -756,21 +756,32 @@ export function startWatchMode(opts: {
   // page is for, does the right thing read first, do the parts belong
   // together. One model call per page per visit, the owner's own site only,
   // and silence when nothing stands out: the note says it looked.
+  const readingPages = new Set<string>();
   const readPage = async () => {
     const key = `${location.pathname}|read`;
-    if (!opts.read || paused || said.has(key)) return;
-    said.add(key);
-    writeSaid(opts.token, said);
+    if (!opts.read || paused || said.has(key) || readingPages.has(key)) return;
     // A read whose fix is in flight is not made at all — no model call to
     // say again what Loki is already changing.
     const verdict = remarkVerdict(opts.known?.(key) ?? null);
     if (verdict === "silent") {
+      said.add(key);
+      writeSaid(opts.token, said);
       recorder?.note("look", "read it before — the changes are with Loki");
       return;
     }
+    readingPages.add(key);
     const r = await opts.read().catch(() => null);
+    readingPages.delete(key);
     if (paused) return;
-    if (!r || !r.changes.length) {
+    if (!r) {
+      recorder?.note("look", "could not read this page — try again on your next visit");
+      return;
+    }
+    // A reload can interrupt the async page snapshot before a request is sent.
+    // Only a completed read earns the cross-page marker.
+    said.add(key);
+    writeSaid(opts.token, said);
+    if (!r.changes.length) {
       recorder?.note("look", "read it — nothing stands out");
       return;
     }
