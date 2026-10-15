@@ -3247,6 +3247,27 @@
     @apply shrink-0 rounded border border-border-subtle bg-surface-overlay px-1.5 py-0.5 text-micro text-text-secondary;
     font-family: var(--font-mono);
   }
+  /* The box's "/" panel: commands, Loki's records and the prompt library in
+     ONE scrolling column that never runs off the top of a phone screen. */
+  .ui-session-picker {
+    @apply absolute bottom-full left-0 right-0 z-40 mb-1.5 flex flex-col gap-1.5 overflow-y-auto;
+    /* --picker-room: the space above the box, measured when it opens — on a
+       short phone 70dvh alone ran the panel off the top of the screen. */
+    max-height: min(36rem, 70dvh, var(--picker-room, 70dvh));
+  }
+  .ui-session-picker-row {
+    @apply flex min-h-11 w-full shrink-0 items-center gap-2 rounded-lg border border-border-subtle bg-surface-base px-2.5 py-1.5 text-xs text-text-primary transition-colors hover:border-border-interactive;
+  }
+  /* Files Loki put on the box from its own records (feedback reports). */
+  .ui-loki-files {
+    @apply flex min-w-0 flex-wrap gap-1.5 pb-1.5;
+  }
+  .ui-loki-file {
+    @apply inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-lg border border-border-default bg-surface-raised px-2.5 py-1 text-xs text-text-primary;
+  }
+  .ui-loki-file-note {
+    @apply inline-flex max-w-full items-start gap-1.5 text-xs leading-snug text-text-secondary;
+  }
   .ui-term-commands {
     @apply rounded-lg border border-border-subtle bg-surface-base;
   }
@@ -6599,6 +6620,10 @@
   }
   /* Claude Code's permission mode, a pill in the composer row like the
      Claude app's model pill. */
+  /* One fact in the session sheet: what it is, what it means, one action. */
+  .ui-session-info-row {
+    @apply flex items-start gap-3 border-t border-border-subtle pt-3;
+  }
   .ui-claude-mode {
     @apply inline-flex min-h-9 max-w-40 shrink-0 items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
   }

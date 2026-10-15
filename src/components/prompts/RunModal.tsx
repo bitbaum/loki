@@ -7,6 +7,8 @@ import type { PromptTemplate } from "@/config/prompt-library";
 import type { Project } from "./types";
 import { Modal } from "@/components/ui/modal";
 import { postJson } from "@/lib/api/fetch";
+import { fetchFeedbackFile } from "@/lib/feedback/fetch-export";
+import { renderTextAttachments, type TextAttachment } from "@/lib/loki/attachments";
 import { useClipboard } from "@/hooks/use-clipboard";
 import { useFetch } from "@/hooks/use-fetch";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
@@ -73,6 +75,14 @@ export function RunModal({
     openTabs.find((tab) => tab.toLowerCase() === projectName.toLowerCase()) ??
     (openTabs.length === 1 ? openTabs[0] : null);
 
+  // A prompt that needs Loki's records gets them attached: the agent cannot
+  // read Loki's database (config/prompt-library LokiRecord).
+  const lokiRecords = async (project: string): Promise<TextAttachment[]> => {
+    if (!template.attach?.includes("feedback")) return [];
+    const got = await fetchFeedbackFile(project);
+    return got.ok ? [got.file] : [];
+  };
+
   const handleSendToTerminal = async () => {
     if (!targetTab || dispatching) return;
     setDispatching(true);
@@ -81,9 +91,11 @@ export function RunModal({
     setTrackedCommandId(null);
     setTrackedRunId(null);
     try {
+      const attachments = await lokiRecords(projectName || targetTab);
       const res = await postJson("/api/control/tab-inject", {
         tab: targetTab,
         prompt: resolvedMessage,
+        ...(attachments.length ? { attachments } : {}),
       });
       // postJson never throws on a non-2xx status (it's a bare fetch) — the
       // previous version skipped this check entirely, so a 401/500 from
@@ -123,7 +135,12 @@ export function RunModal({
     setResult(null);
     setError(null);
     try {
-      const res = await postJson("/api/loki", { message: resolvedMessage });
+      // The same file the session gets, folded into the message: the prompt
+      // says "the attached file", and it must be true on both paths.
+      const files = projectName ? await lokiRecords(projectName) : [];
+      const res = await postJson("/api/loki", {
+        message: resolvedMessage + renderTextAttachments(files),
+      });
       const data = await res.json();
       if (data.error) setError(data.error);
       else setResult(data.text ?? "");
@@ -167,6 +184,12 @@ export function RunModal({
           <div>
             <div className="ui-kicker mb-2">Resolved Prompt</div>
             <pre className="ui-code-surface">{resolvedMessage}</pre>
+            {template.attach?.includes("feedback") && (
+              <p className="mt-2 text-xs text-text-secondary">
+                Run with Loki or sent to a session, it carries the project&apos;s feedback reports
+                from Loki as an attached file — the agent cannot see them otherwise.
+              </p>
+            )}
           </div>
 
           {extraVars.length > 0 && (

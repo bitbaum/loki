@@ -20,7 +20,8 @@
  */
 import type { AdapterId } from "@/lib/orchestration/contract";
 
-export type AgentCommandKind = "login" | "model" | "compact" | "clear" | "status" | "help";
+export type AgentCommandKind =
+  "login" | "model" | "effort" | "compact" | "clear" | "status" | "help";
 
 export type AgentCommand = {
   /** What it does, for the situations the screen detectors recognise. */
@@ -63,6 +64,12 @@ const CLAUDE: readonly AgentCommand[] = [
     text: "/model haiku",
     label: "Use Haiku",
     hint: "The quickest and lightest, for small tasks.",
+  },
+  {
+    kind: "effort",
+    text: "/effort",
+    label: "Set how hard it thinks",
+    hint: "Opens the effort levels. Higher thinks longer before answering: slower, and better for planning and analysis.",
   },
   {
     kind: "compact",
@@ -169,3 +176,33 @@ export function commandOfKind(
 ): AgentCommand | null {
   return commandsFor(agent).find((c) => c.kind === kind) ?? null;
 }
+
+/**
+ * Claude Code's permission modes, in words a person can act on. The id is
+ * what Claude Code records on each message (`permissionMode`); the label is
+ * the chip; `means` is what it does to the next step the agent takes.
+ * "Auto" read as nothing to anyone who had not used Claude Code (operator,
+ * 2026-10-15: "I don't know what that auto is").
+ */
+export const CLAUDE_MODES: Record<string, { label: string; means: string }> = {
+  default: {
+    label: "Ask first",
+    means: "Asks you before it changes a file or runs a command.",
+  },
+  acceptEdits: {
+    label: "Edits freely",
+    means: "Changes files without asking; still asks before running other commands.",
+  },
+  plan: {
+    label: "Plan only",
+    means: "Reads and plans, and changes nothing until you approve the plan.",
+  },
+  auto: {
+    label: "Auto",
+    means: "Decides for itself which steps are safe and runs them without asking.",
+  },
+  bypassPermissions: {
+    label: "No checks",
+    means: "Runs everything without asking, including risky commands.",
+  },
+};

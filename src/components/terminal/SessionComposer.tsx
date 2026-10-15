@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertCircle, BookOpen, X } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { Composer } from "@/components/composer/Composer";
-import { PromptPicker } from "@/components/prompts/PromptPicker";
 import type { Attachment } from "@/components/loki/types";
 import type { BuilderChannel } from "@/lib/event-stream-types";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
@@ -12,7 +11,9 @@ import { dispatchToneDotClass } from "@/lib/dispatch-status";
 import { commandIn } from "@/lib/terminal-commands";
 import { ESC, typeMessage } from "@/lib/session-keystrokes";
 import { SuggestionChips } from "./SuggestionChips";
-import { TerminalCommandList } from "./TerminalActions";
+import { LokiFiles } from "./LokiFiles";
+import { SessionPicker } from "./SessionPicker";
+import { useLokiAttachments } from "./use-loki-attachments";
 
 const SCREENSHOT_ONLY = "Look at the attached screenshot and fix what is wrong.";
 
@@ -55,7 +56,14 @@ export function SessionComposer({
   onShowTerminal,
   onSent,
   density = "comfortable",
+  project = null,
+  offerFeedback = false,
 }: {
+  /** The project's name in Loki — whose records (feedback) can be attached. */
+  project?: string | null;
+  /** The agent just asked for feedback it cannot reach: offer Loki's reports
+   *  as a chip, not only from the library. */
+  offerFeedback?: boolean;
   /** Something went out (the conversation view scrolls to the newest). */
   onSent?: () => void;
   tab: string;
@@ -88,6 +96,23 @@ export function SessionComposer({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sent, setSent] = useState<Sent | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const loki = useLokiAttachments(project);
+
+  const openPicker = () => {
+    loki.clearNote();
+    setPickerOpen(true);
+  };
+
+  const attachFeedback = async () => {
+    const attached = await loki.attachFeedback();
+    // A file alone cannot be sent: the box needs words. Say what the file is
+    // for, ready to edit, rather than leave Send greyed out with no reason.
+    if (attached && !text.trim()) {
+      setText(`The attached file holds the feedback reports Loki has for ${project}. Use it.`);
+    }
+    if (attached) window.setTimeout(() => inputRef.current?.focus(), 0);
+  };
 
   const [appliedDraft, setAppliedDraft] = useState<number | null>(null);
   if (draft && draft.nonce !== appliedDraft) {
@@ -125,8 +150,12 @@ export function SessionComposer({
   };
 
   const send = async (message: string, attachments: Attachment[]): Promise<boolean> => {
-    const ok = await deliver(message, attachments);
-    if (ok) onSent?.();
+    const withLoki = loki.files.length > 0 ? [...attachments, ...loki.files] : attachments;
+    const ok = await deliver(message, withLoki);
+    if (ok) {
+      loki.clear();
+      onSent?.();
+    }
     return ok;
   };
 
@@ -172,13 +201,27 @@ export function SessionComposer({
 
   const header = (
     <>
-      {!text.trim() && (onExplain || suggestions.length > 0) && (
+      {/* Hidden while the panel is open: on a short phone they took the room
+          the prompt list needed, and the panel is the choice being made. */}
+      {!pickerOpen && !text.trim() && (onExplain || suggestions.length > 0 || offerFeedback) && (
         <SuggestionChips
           suggestions={suggestions}
           onPick={(s) => void send(s, [])}
           onExplain={onExplain}
+          actions={
+            offerFeedback && project && loki.files.length === 0 && !loki.knownEmpty
+              ? [
+                  {
+                    key: "feedback",
+                    label: `Attach ${project}'s feedback`,
+                    onClick: () => void attachFeedback(),
+                  },
+                ]
+              : undefined
+          }
         />
       )}
+      <LokiFiles loki={loki} />
       {error && (
         <div className="ui-loki-composer-error" role="alert">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -226,28 +269,30 @@ export function SessionComposer({
   ) : null;
 
   return (
-    <div className="relative shrink-0">
+    <div ref={boxRef} className="relative shrink-0">
       {pickerOpen && (
-        <div className="absolute bottom-full left-0 right-0 z-40 mb-1.5 flex flex-col gap-1.5">
-          <TerminalCommandList
-            agent={agent}
-            open
-            onKey={(bytes) => {
-              void onKey(bytes);
-              setSent({ kind: "typed", what: bytes.replace(/\r$/, "") });
-              setPickerOpen(false);
-            }}
-          />
-          <PromptPicker
-            projectName={tab}
-            projectScopedOnly
-            onPick={(resolved) => {
-              setText(resolved);
-              window.setTimeout(() => inputRef.current?.focus(), 0);
-            }}
-            onClose={() => setPickerOpen(false)}
-          />
-        </div>
+        <SessionPicker
+          anchorRef={boxRef}
+          agent={agent}
+          project={project}
+          tab={tab}
+          feedbackEmpty={loki.knownEmpty}
+          onKey={(bytes) => {
+            void onKey(bytes);
+            setSent({ kind: "typed", what: bytes.replace(/\r$/, "") });
+            setPickerOpen(false);
+          }}
+          onAttachFeedback={() => {
+            setPickerOpen(false);
+            void attachFeedback();
+          }}
+          onPick={(resolved, template) => {
+            setText(resolved);
+            if (template.attach?.includes("feedback")) void loki.attachFeedback(true);
+            window.setTimeout(() => inputRef.current?.focus(), 0);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
       )}
       <Composer
         value={text}
@@ -264,7 +309,7 @@ export function SessionComposer({
         attachmentOnlyText={SCREENSHOT_ONLY}
         sending={working && !text.trim()}
         onStop={working ? () => void Promise.resolve(onKey(ESC)).catch(() => {}) : undefined}
-        onEmptySlash={() => setPickerOpen(true)}
+        onEmptySlash={openPicker}
         density={density}
         header={header}
         footer={footer}
@@ -272,7 +317,7 @@ export function SessionComposer({
           <>
             <button
               type="button"
-              onClick={() => setPickerOpen((open) => !open)}
+              onClick={() => (pickerOpen ? setPickerOpen(false) : openPicker())}
               title="Prompt library and the agent's commands (or type /)"
               aria-label="Prompt library"
               aria-expanded={pickerOpen}

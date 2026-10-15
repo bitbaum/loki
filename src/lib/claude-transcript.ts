@@ -15,6 +15,8 @@
  * lands — the browser's upsert replaces the "running" row with the finished one.
  */
 
+import { CLAUDE_MODES } from "@/config/agent-commands";
+
 /** One row in the rendered conversation. */
 export type TranscriptItem =
   | {
@@ -26,7 +28,15 @@ export type TranscriptItem =
        *  (`permissionMode` on the log line). Absent from older runners/logs. */
       mode?: string;
     }
-  | { id: string; at: string | null; kind: "assistant"; text: string }
+  | {
+      id: string;
+      at: string | null;
+      kind: "assistant";
+      text: string;
+      /** The model that wrote this answer (`message.model` on the log line),
+       *  e.g. "claude-opus-5-5". Absent from older runners and synthetic lines. */
+      model?: string;
+    }
   | {
       id: string;
       at: string | null;
@@ -73,7 +83,7 @@ type Line = {
   isSidechain?: boolean;
   isMeta?: boolean;
   permissionMode?: string;
-  message?: { role?: string; content?: string | Block[] };
+  message?: { role?: string; model?: string; content?: string | Block[] };
 };
 
 function clip(text: string, max: number): string {
@@ -153,10 +163,22 @@ export function reduceTranscriptLine(state: TranscriptState, raw: string): Trans
     line.type === "user" && typeof line.permissionMode === "string"
       ? line.permissionMode.slice(0, 40)
       : undefined;
+  // Claude Code writes "<synthetic>" for answers it made up itself (an
+  // interruption notice); that is not a model anyone chose.
+  const model =
+    line.type === "assistant" &&
+    typeof line.message?.model === "string" &&
+    !line.message.model.startsWith("<")
+      ? line.message.model.slice(0, 80)
+      : undefined;
   const text = (kind: "user" | "assistant", id: string, body: string): TranscriptItem =>
-    kind === "user" && mode
-      ? { id, at, kind, text: clip(body, TEXT_CHARS), mode }
-      : { id, at, kind, text: clip(body, TEXT_CHARS) };
+    kind === "user"
+      ? mode
+        ? { id, at, kind, text: clip(body, TEXT_CHARS), mode }
+        : { id, at, kind, text: clip(body, TEXT_CHARS) }
+      : model
+        ? { id, at, kind, text: clip(body, TEXT_CHARS), model }
+        : { id, at, kind, text: clip(body, TEXT_CHARS) };
 
   if (typeof content === "string") {
     if (!content.trim() || isHarnessText(content)) return [];
@@ -259,13 +281,6 @@ const TOOL_VERBS: Record<string, string> = {
  * Claude Code's permission modes, in the words the Claude app uses. A mode
  * this table does not know is shown by its own name rather than hidden.
  */
-const MODE_LABELS: Record<string, string> = {
-  default: "Ask before edits",
-  acceptEdits: "Accept edits",
-  plan: "Plan",
-  auto: "Auto",
-  bypassPermissions: "Bypass permissions",
-};
 
 /** Shift+Tab: what Claude Code's TUI takes to move to the next mode. */
 export const CYCLE_MODE_KEY = "\x1b[Z";
@@ -277,11 +292,38 @@ export const CYCLE_MODE_KEY = "\x1b[Z";
  * Only as of your last message: Claude Code records the mode on what you
  * send, not when you switch it, so a switch shows once you next write.
  */
+/** The model behind the newest answer that names one, or null. */
+export function sessionModel(items: TranscriptItem[]): string | null {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (item.kind === "assistant" && item.model) return item.model;
+  }
+  return null;
+}
+
+/**
+ * "claude-opus-5-5" → "Opus 5.5", "claude-sonnet-4-5-20250929" → "Sonnet 4.5",
+ * "claude-3-5-haiku-20241022" → "Haiku 3.5". Anything else is shown as given:
+ * a model id nobody recognises is still better than a guess.
+ */
+export function modelLabel(id: string): string {
+  const family = /(opus|sonnet|haiku|fable|mythos)/i.exec(id)?.[1];
+  if (!/^claude-/i.test(id) || !family) return id;
+  const name = family[0]!.toUpperCase() + family.slice(1).toLowerCase();
+  const rest = id.replace(/^claude-/i, "").replace(new RegExp(family, "i"), "");
+  const version = rest
+    .split("-")
+    .filter((p) => /^\d{1,2}$/.test(p))
+    .slice(0, 2)
+    .join(".");
+  return version ? `${name} ${version}` : name;
+}
+
 export function sessionMode(items: TranscriptItem[]): { id: string; label: string } | null {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
     if (item.kind === "user" && item.mode) {
-      return { id: item.mode, label: MODE_LABELS[item.mode] ?? item.mode };
+      return { id: item.mode, label: CLAUDE_MODES[item.mode]?.label ?? item.mode };
     }
   }
   return null;

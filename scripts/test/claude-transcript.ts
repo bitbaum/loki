@@ -3,6 +3,8 @@
 import {
   CYCLE_MODE_KEY,
   sessionMode,
+  sessionModel,
+  modelLabel,
   describeToolStep,
   turnElapsedLabel,
   describeToolRun,
@@ -251,9 +253,9 @@ ok(
   const first = sent("u1", "acceptEdits", "fix it");
   ok(first[0]?.kind === "user" && first[0].mode === "acceptEdits", "a message carries its mode");
   const listItems = [...first, ...sent("u2", "plan", [{ type: "text", text: "plan it" }] as never)];
-  ok(sessionMode(listItems)?.label === "Plan", "the newest message's mode wins");
+  ok(sessionMode(listItems)?.label === "Plan only", "the newest message's mode wins");
   ok(sessionMode(sent("u3", "auto", "go"))?.label === "Auto", "auto reads Auto");
-  ok(sessionMode(sent("u4", "default", "go"))?.label === "Ask before edits", "default is named");
+  ok(sessionMode(sent("u4", "default", "go"))?.label === "Ask first", "default is named");
   ok(
     sessionMode(sent("u5", "someNewMode", "go"))?.label === "someNewMode",
     "an unknown mode keeps its name",
@@ -270,6 +272,31 @@ ok(
   );
   ok(asst[0] && !("mode" in asst[0]), "only your messages carry a mode");
   ok(CYCLE_MODE_KEY === "\x1b[Z", "the switch key is Shift+Tab");
+}
+
+{
+  // Which model answered is read off the log, and named in words
+  // (2026-10-15: "I have no idea what model is being used").
+  const st = newTranscriptState();
+  const answer = (uuid: string, model: string) =>
+    reduceTranscriptLine(
+      st,
+      JSON.stringify({
+        type: "assistant",
+        uuid,
+        message: { role: "assistant", model, content: "done" },
+      }),
+    );
+  const items = [...answer("m1", "claude-sonnet-4-5-20250929"), ...answer("m2", "claude-opus-5-5")];
+  ok(sessionModel(items) === "claude-opus-5-5", "the newest answer's model wins");
+  ok(
+    !("model" in (answer("m3", "<synthetic>")[0] ?? {})),
+    "Claude Code's own synthetic lines name no model",
+  );
+  ok(modelLabel("claude-opus-5-5") === "Opus 5.5", "an id reads as a name");
+  ok(modelLabel("claude-sonnet-4-5-20250929") === "Sonnet 4.5", "a dated id drops the date");
+  ok(modelLabel("claude-3-5-haiku-20241022") === "Haiku 3.5", "the old id order still reads");
+  ok(modelLabel("gpt-5") === "gpt-5", "an unknown id is shown as given, not guessed");
 }
 
 console.log(`${pass}/${pass + fail} claude-transcript cases passed`);

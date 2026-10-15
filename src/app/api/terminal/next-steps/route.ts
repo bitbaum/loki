@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonError, jsonOk, readJsonBody, z } from "@/lib/api/route-helpers";
 import { getApiUserId } from "@/lib/session";
-import { callGroqText, GROQ_FAST_MODEL } from "@/lib/groq";
+import { callGroqText, GROQ_STRONG_MODEL } from "@/lib/groq";
 import {
   buildNextStepsPrompt,
   NEXT_STEPS_INPUT_CHARS,
@@ -37,10 +37,13 @@ export async function POST(req: NextRequest) {
       {
         feature: "terminal-next-steps",
         systemPrompt: NEXT_STEPS_SYSTEM_PROMPT,
-        model: GROQ_FAST_MODEL,
-        maxTokens: 160,
-        temperature: 0.4,
-        timeoutMs: 8_000,
+        // The larger model: judging what the agent is waiting on is the whole
+        // job, and the small one answered "Yes, go ahead." to a request for
+        // data (2026-10-15). It reasons, so it gets room to before it answers.
+        model: GROQ_STRONG_MODEL,
+        maxTokens: 700,
+        temperature: 0.3,
+        timeoutMs: 12_000,
       },
     );
     return jsonOk({ steps: parseNextSteps(raw) });

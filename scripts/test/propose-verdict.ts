@@ -29,6 +29,7 @@ require.cache[groqPath] = {
   paths: [],
   exports: {
     GROQ_FAST_MODEL: "stub-model",
+    GROQ_STRONG_MODEL: "stub/strong-model",
     GROQ_WHISPER_MODEL: "stub-whisper",
     callGroqText: async () => {
       if (reply.throws) throw new Error(reply.throws);

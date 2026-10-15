@@ -47,6 +47,15 @@ type PromptScope = "global" | "project";
 
 export type PromptStyle = "primary" | "action" | "more" | "dimension" | "internal" | "danger";
 
+/**
+ * Records only Loki holds that a prompt needs. The agent in a session cannot
+ * reach Loki's database, so a prompt that names one gets it ATTACHED, as a
+ * file the person sees on the box, when it is picked (SessionComposer). A
+ * prompt that told the agent to "check memory" for feedback sent it to look
+ * somewhere it could not see (operator, 2026-10-15).
+ */
+export type LokiRecord = "feedback";
+
 export type PromptTemplate = {
   id: string;
   name: string;
@@ -71,6 +80,8 @@ export type PromptTemplate = {
   dimensionId?: string;
   /** If true: click sends immediately. Default false: click fills textarea. */
   sendNow?: boolean;
+  /** What Loki attaches when this prompt is picked (LokiRecord). */
+  attach?: readonly LokiRecord[];
 };
 
 export const CATEGORY_META: Record<PromptCategory, { label: string; color: string }> = {
@@ -157,7 +168,7 @@ export const PROMPT_TEMPLATES: PromptTemplate[] = [
 
 Before acting:
 1. Run \`git status && git log --oneline -5\` — what was last touched?
-2. Check the session file for any \`next:\` context from the last run
+2. Read the session handoff Loki keeps for this project, if there is one, for a \`next:\` line from the last run
 3. Read CLAUDE.md for project-specific constraints
 
 Pick ONE task using this triage order:
@@ -182,7 +193,7 @@ ${HANDOFF_FIELD_BLOCK}`,
     template: `Continue the current task for {{project_name}}. Pick up exactly where you left off.
 
 1. Run \`git status\` to see what was in progress
-2. Read the session file for context on the last run
+2. Read the session handoff Loki keeps for this project, if there is one, for context on the last run
 3. Resume without re-planning — just continue
 
 Don't re-introduce yourself or summarize what you're about to do. Just do it.`,
@@ -602,7 +613,7 @@ Verify:
 5. Uptime/health endpoint exists?
 6. Database backups configured?
 
-Report: green / amber / red per area.`,
+Report: green / amber / red per area. Where the repo does not show it (backups and monitoring usually live on the server), say "can't tell from the repo" rather than guessing.`,
     suggestedSchedule: "0 9 * * 1",
     tags: ["ci", "deployment", "monitoring"],
   },
@@ -642,11 +653,12 @@ Check:
 1. **Git**: last commit, any uncommitted changes, branch status
 2. **CI**: GitHub Actions status (passing/failing)
 3. **Deployment**: deploy status, last deploy date
-4. **Known issues**: broken features, open bugs from ${APP_NAME} knowledge graph
+4. **Known issues**: open GitHub issues, TODOs that name a bug, and the attached feedback reports from people using it
 5. **Next action**: single most important thing to do right now
 
-Format as a quick-scan card. Green ✓ / Yellow ⚠ / Red ✗ per area.`,
+Format as a quick-scan card. Green ✓ / Yellow ⚠ / Red ✗ per area. If you cannot check an area from here (no CI, no deploy you can see), mark it "can't tell" — do not guess.`,
     suggestedSchedule: "0 9 * * 1",
+    attach: ["feedback"],
     tags: ["status", "ci", "deployment", "health"],
   },
 
@@ -731,7 +743,7 @@ Be direct. Do not repaint the UI yet unless explicitly asked.`,
     template: `Analyze feature gaps for {{project_name}}.
 
 1. List all shipped features
-2. List features in the backlog or milestones
+2. List what is planned — the repo's roadmap or TODO files, and open GitHub issues and milestones
 3. Identify the ONE feature that would most advance the project's primary goal
 4. Estimate effort (S=<1day, M=1-3days, L=1week+)
 5. What's the single highest-ROI next build?
@@ -767,7 +779,7 @@ Focus on the highest-priority unbuilt features. Write 3-5 stories.`,
 Include:
 1. **What's working** — shipped and functional features
 2. **What's broken** — known issues or incomplete features
-3. **Progress vs. goals** — how close to primary milestones?
+3. **Progress vs. goals** — how close to the goals the README or roadmap states? If it states none, say so
 4. **Next 3 actions** — most impactful things to do right now
 5. **Blockers** — anything blocking progress?
 
@@ -811,7 +823,7 @@ Rewrite the headline and subheadline if needed.`,
 4. What do competitors do better (gaps to address)?
 5. What's the unique angle that makes {{project_name}} win?
 
-Be specific with examples from actual competitor products.`,
+Be specific with examples from actual competitor products. Search the web for current pricing and features and say where each fact came from; if you cannot search, say so and mark what comes from memory.`,
     tags: ["competition", "market"],
   },
   {
@@ -820,15 +832,18 @@ Be specific with examples from actual competitor products.`,
     description: "Synthesize feedback, find patterns, extract actionable insights",
     category: "research",
     scope: "project",
-    template: `Synthesize user feedback for {{project_name}}.
+    template: `Synthesize the user feedback for {{project_name}}.
 
-1. Check memory for recent user feedback, messages, or conversations about {{project_name}}
-2. Identify top 3 recurring pain points
-3. Identify top 3 things users love
-4. What feature request comes up most?
-5. What would make users recommend it to a friend?
+The attached file holds every feedback report Loki has for {{project_name}} — visitors' words from the site's feedback widget and Loki's own reviews. Use only what it says; do not invent quotes, counts or users.
 
-Format as: Pain points → Product improvements → Priority order.`,
+1. Group the reports by what they are about. For each group give how many reports said it and quote one or two of them.
+2. The top 3 recurring pain points.
+3. The top 3 things people like.
+4. The feature request that comes up most.
+5. What would make people recommend it to a friend.
+
+Then: Pain point → product improvement → priority, ordered by how many people it affects and how cheap the fix is. If the file says there are no reports, say so in one line and stop.`,
+    attach: ["feedback"],
     tags: ["feedback", "insights"],
   },
 
@@ -848,7 +863,7 @@ For each project:
 
 Then: across all projects, what's the single most important thing to focus on next week?
 
-Check git logs and ${APP_NAME} database for current state.`,
+Use what you can actually see — the agent runs ${APP_NAME} recorded, the projects' CI, goals and commitments, and git history where you have the repository. Say which you used, and say so when a project shows no record rather than guessing what happened.`,
     suggestedSchedule: "0 18 * * 5",
     tags: ["weekly", "review"],
   },
@@ -867,7 +882,7 @@ Check git logs and ${APP_NAME} database for current state.`,
 4. Pick the ONE project that needs attention most today
 5. Outline 3 concrete tasks for that project
 
-Be specific. No more than 150 words.`,
+Be specific. If you could not see something (a calendar, CI), say what instead of guessing. No more than 150 words.`,
     suggestedSchedule: "0 8 * * 1-5",
     tags: ["planning", "daily"],
   },
@@ -880,13 +895,13 @@ Be specific. No more than 150 words.`,
     scope: "global",
     template: `Run my end-of-day wrap-up.
 
-1. Check git commits across all active projects since this morning — what actually shipped?
+1. What actually shipped today — the agent runs ${APP_NAME} recorded, and commits where you can see the repository?
 2. What is currently blocked or waiting on input?
 3. Review open commitments — anything overdue or due tomorrow?
 4. Did I make progress on my highest-priority goal today?
 5. What is the single first task to do tomorrow morning?
 
-Be direct. If nothing shipped, say so. Under 150 words.`,
+Be direct. If nothing shipped, say so. If you could not see something, say what. Under 150 words.`,
     suggestedSchedule: "0 17 * * 1-5",
     tags: ["review", "daily"],
   },
