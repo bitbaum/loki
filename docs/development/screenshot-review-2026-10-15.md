@@ -31,6 +31,16 @@ physical-device verification. Deployment evidence is recorded below separately.
 | 4949–4951 | Long terminal settings sheet and widget on top of it | Source/input explanations simplified; shared modals suppress the embedded floating launcher while open. Agent switching remains explicit because it restarts the current CLI. |
 | 4933 (repeated) | Codex/ChatGPT host app showing compaction and queued messages | This is the external application hosting this conversation, not a Loki screen. No claim is made to change its UI or compaction behavior. |
 
+## Evig security alert
+
+The current source at `bitbaum/evig` main commit
+`56bf64fe3c1a76946b025324c5e2baaba1976551` was inspected. `registerUser`
+assigns the customer role and no staff permissions; JWT staff claims require a
+verified email and the stored staff flag. The public health endpoint reports
+healthy. These are source/health observations, not a reproduction of the
+registration flow or proof that the old private alert was resolved. Its record
+was not dismissed or relabelled without authenticated evidence.
+
 ## OC2 / orangecat-2
 
 GitHub's repository record identifies `bitbaum/orangecat-2` as a non-fork created
