@@ -1,0 +1,62 @@
+# Put the repo's `loki` chat skill on bitbaum — from GitHub, without a laptop.
+#
+# The skill (scripts/openclaw/loki-skill) is what lets the chat agent behind
+# WhatsApp and the Telegram chat DO things: book, remind, note, read the agenda,
+# dispatch, approve. It lives in this repo so it can be reviewed, but it only
+# works once it is on the box, and the old install path (install-loki-skill.sh)
+# needed a laptop with ssh. The last time a skill and the app drifted apart,
+# every chat command died silently for days. So a change to the skill installs
+# itself when it merges, and a person can also run it by hand.
+#
+# It copies ONE directory into the openclaw user's workspace, fixes ownership,
+# and runs a read-only smoke test (list the approval queue as the openclaw
+# user). It changes no config, no credentials and no other skill.
+#
+# The smoke test prints a COUNT only: this repo is public, so run logs are too,
+# and a pending action's title is a thing a person wrote.
+#
+# Same SSH setup as box-doctor.yml (HETZNER_SSH_KEY, HETZNER_IP).
+name: OpenClaw skill install
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "scripts/openclaw/loki-skill/**"
+      - ".github/workflows/openclaw-skill-install.yml"
+
+concurrency:
+  group: openclaw-skill-install
+  cancel-in-progress: false
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Install the skill
+        run: |
+          DEST=/home/openclaw/.openclaw/workspace/skills/loki
+          tar -C scripts/openclaw/loki-skill -cz . \
+            | ssh "root@$HETZNER_IP" "mkdir -p $DEST && tar -xz -C $DEST \
+                && chown -R openclaw:openclaw $DEST && chmod +x $DEST/scripts/loki.sh \
+                && ls -l $DEST $DEST/scripts"
+
+      - name: Smoke test as the openclaw user (read-only)
+        run: |
+          ssh "root@$HETZNER_IP" "sudo -u openclaw bash /home/openclaw/.openclaw/workspace/skills/loki/scripts/loki.sh pending | jq 'length' | sed 's/^/pending actions: /'; \
+            sudo -u openclaw bash /home/openclaw/.openclaw/workspace/skills/loki/scripts/loki.sh help"

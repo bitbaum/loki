@@ -96,6 +96,8 @@ case "$cmd" in
     #     drain within about fifteen seconds, and they get a Telegram
     #     confirmation once it is genuinely in the calendar;
     #   - not covered → it waits, and they get one-tap Approve/Reject buttons.
+    # (Below, an event the operator asked for in their own words and that has no
+    # guests is approved straight away — see the comment at the decision call.)
     # Either way the answer comes back HERE, in `status`, so the agent can tell
     # them what actually happened instead of guessing.
     #
@@ -114,9 +116,56 @@ case "$cmd" in
     fi
     [ -n "$location" ] && when="$when,\"eventLocation\":$(jesc "$location")"
 
-    api POST /api/actions/propose \
-      "{\"type\":\"create_event\",\"title\":$(jesc "$title"),\"operatorRequested\":true,\"payload\":{\"eventTitle\":$(jesc "$title"),$when}}" \
-      | jq '{status, reason, executed, deferred, id: .action.id, title: .action.title, deduped}'
+    out=$(api POST /api/actions/propose \
+      "{\"type\":\"create_event\",\"title\":$(jesc "$title"),\"operatorRequested\":true,\"payload\":{\"eventTitle\":$(jesc "$title"),$when}}")
+    # The operator just asked for this event in words. `book` takes no guests, so
+    # there is no invitation to send and nothing a second "yes" would protect:
+    # asking them to tap Approve for the thing they typed is the friction that
+    # made chat feel worse than the website. Decide it ourselves, and say so.
+    # An event that needs a real decision (a date that did not resolve) still
+    # waits — the API reports that as awaiting-approval with a reason.
+    status=$(echo "$out" | jq -r '.status // empty')
+    id=$(echo "$out" | jq -r '.action.id // empty')
+    reason=$(echo "$out" | jq -r '.reason // empty')
+    if [ "$status" = "awaiting-approval" ] && [ -n "$id" ] && [ -z "${LOKI_BOOK_ASK:-}" ] \
+       && [[ ! "$reason" =~ (guest|date|resolve) ]]; then
+      api POST "/api/actions/$id/decision" '{"decision":"approve"}' >/dev/null \
+        && out=$(echo "$out" | jq '.status = "approved-by-request" | .note = "approved because the operator asked for it in chat"')
+    fi
+    echo "$out" | jq '{status, note, reason, executed, deferred, id: .action.id, title: .action.title, deduped}'
+    ;;
+  remind|todo)
+    # A commitment: something the operator owes or wants to remember. Internal and
+    # reversible (Loki's own table), so a chat request is approved on the spot.
+    text=${2:?usage: loki.sh remind "<what>" [YYYY-MM-DD]}
+    due=${3:-}
+    pl="{\"commitment\":$(jesc "$text")"
+    [ -n "$due" ] && pl="$pl,\"dueDate\":$(jesc "$due")"
+    pl="$pl}"
+    out=$(api POST /api/actions/propose \
+      "{\"type\":\"create_commitment\",\"title\":$(jesc "$text"),\"operatorRequested\":true,\"payload\":$pl}")
+    id=$(echo "$out" | jq -r '.action.id // empty')
+    status=$(echo "$out" | jq -r '.status // empty')
+    if [ "$status" = "awaiting-approval" ] && [ -n "$id" ]; then
+      api POST "/api/actions/$id/decision" '{"decision":"approve"}' | jq '{ok, executed, error}'
+    else
+      echo "$out" | jq '{status, executed, id: .action.id, deduped}'
+    fi
+    ;;
+  note)
+    # A sticky note on the Today page. For "remember that…", links, ideas.
+    text=${2:?usage: loki.sh note "<text>"}
+    api POST /api/captures "{\"body\":$(jesc "$text")}" | jq '{ok, id: .capture.id}'
+    ;;
+  agenda)
+    # Read-only: what is in the calendar. `gog calendar list` reads; only writes are shimmed.
+    days=${2:-7}
+    case "$days" in ''|*[!0-9]*) days=7 ;; esac
+    gog calendar list --json --days "$days" 2>/dev/null \
+      | jq -r 'if type=="array" then . else (.events // []) end
+               | map("\(.start.dateTime // .start.date // .start // "?")  \(.summary // .title // "(no title)")")
+               | .[]' 2>/dev/null \
+      || echo "calendar unavailable right now"
     ;;
   pending)
     api GET /api/actions/pending | jq '.pending'
@@ -131,6 +180,9 @@ case "$cmd" in
   help|*)
     echo "usage: loki.sh dispatch <project> \"<task>\" | hosted <project> \"<task>\""
     echo "       loki.sh book \"<title>\" <start> [end] [location]"
+    echo "       loki.sh remind \"<what>\" [YYYY-MM-DD]   (a commitment / to-do)"
+    echo "       loki.sh note \"<text>\"                 (a sticky note on Today)"
+    echo "       loki.sh agenda [days]                   (read the calendar)"
     echo "       loki.sh pending | decide <id> approve|reject"
     ;;
 esac
