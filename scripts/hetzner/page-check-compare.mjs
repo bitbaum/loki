@@ -28,6 +28,7 @@ export const TEXT_LOSS_LIMIT = 0.5;
  *   brokenImages: number,
  *   textLength: number,
  *   headings: number,
+ *   gated?: boolean,
  * }} PageCheck
  */
 
@@ -45,8 +46,22 @@ export function comparePageChecks(before, after) {
     regressions.push(`the page no longer loads (HTTP ${after.status ?? "no answer"})`);
     return { regressions, notes };
   }
-  if (!before || !before.ok) {
-    notes.push("no earlier version to compare with — checked on its own");
+  // A site that goes behind an access code (a client preview) or comes out
+  // from behind one is not the same page before and after: one side is the
+  // code page. Comparing them read a preview gate as "most of the text
+  // disappeared" and rolled it back (farmaciadelparco, 2026-10-15). The gate
+  // says so in an X-Access-Gate header; across that change there is no
+  // baseline. Gated on BOTH sides is the same page and is compared as usual.
+  const gateChanged = !!before && !!before.gated !== !!after.gated;
+  if (gateChanged) {
+    notes.push(
+      after.gated
+        ? "the site is now behind an access code — the code page is not compared with the open site"
+        : "the site came out from behind its access code — nothing earlier to compare with",
+    );
+  }
+  if (!before || !before.ok || gateChanged) {
+    if (!gateChanged) notes.push("no earlier version to compare with — checked on its own");
     if (after.overflowX) notes.push("the page scrolls sideways on a phone");
     if (after.errors > 0) notes.push(`${after.errors} script error(s) in the browser`);
     if (after.brokenImages > 0) notes.push(`${after.brokenImages} broken image(s)`);
