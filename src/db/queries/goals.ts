@@ -1,7 +1,7 @@
 import { GOAL_STATUS, type GoalStatus } from "@/lib/constants/statuses";
 import { db } from "@/db";
 import { goals, entities, type Milestone } from "@/db/schema";
-import { eq, and, inArray, sql, isNull, asc } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const MilestoneSchema = z.object({
@@ -57,23 +57,6 @@ export async function listActiveGoals(userId: string) {
     .from(goals)
     .where(and(eq(goals.userId, userId), eq(goals.status, GOAL_STATUS.ACTIVE)))
     .orderBy(goals.title);
-}
-
-/** Top-level operator goals — active, NOT tied to any project entity. These are
- *  the captain's overarching objectives; dispatch context injects them so fleet
- *  work aims at what the operator is actually trying to achieve, not just the
- *  per-project task. Project-linked goals already ride in getProjectContext, so
- *  scoping to entityId IS NULL here avoids duplicating them. Soonest target date
- *  first (Postgres sorts NULL targetDate last in ASC — undated goals trail). */
-export async function listTopLevelActiveGoals(userId: string, limit = 6) {
-  return db
-    .select({ title: goals.title, progress: goals.progress, targetDate: goals.targetDate })
-    .from(goals)
-    .where(
-      and(eq(goals.userId, userId), eq(goals.status, GOAL_STATUS.ACTIVE), isNull(goals.entityId)),
-    )
-    .orderBy(asc(goals.targetDate))
-    .limit(limit);
 }
 
 /** Active goals with their descriptions + milestones — used to ground the
