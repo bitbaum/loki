@@ -1,9 +1,16 @@
 /**
- * Widget theme + the two stylesheets built from it.
+ * Widget theme + the stylesheets built from it.
  *
- * The widget cannot see globals.css or Tailwind, so every colour arrives from
- * the boot response (PALETTE.widget, generated from @bitbaum/design-tokens by
- * scripts/generate-widget-theme.ts). Never type a colour in here.
+ * The widget cannot see globals.css or Tailwind, so its colours arrive from
+ * the boot response: Loki's own light and dark themes (WIDGET_THEMES,
+ * generated from src/app/globals.css by scripts/generate-widget-theme.ts).
+ * Never type a colour in here.
+ *
+ * Every stylesheet is written against `varTheme()` — each colour a
+ * `var(--lk-…)` — and `themeVarsCSS()` defines those variables on the shadow
+ * host twice, light and dark. Which one applies is an attribute on the host
+ * (theme-mode.ts), so the panel follows Loki's mode without rebuilding a
+ * single rule, and no variable is ever left undefined to fall back on.
  */
 
 export type WidgetTheme = {
@@ -30,9 +37,95 @@ export type WidgetTheme = {
   success: string;
   error: string;
   errorSurface: string;
+  /** Older boot responses omit these three; see withDefaults. */
+  warning?: string;
+  /** The focus ring. */
+  focus?: string;
+  /** A picked element's outline on the HOST page — must read on any site. */
+  highlight?: string;
   black: string;
   white: string;
 };
+
+export type WidgetThemes = { light: WidgetTheme; dark: WidgetTheme };
+
+/** The colour keys, each of which becomes a `--lk-…` variable. */
+const COLOR_KEYS = [
+  "accent",
+  "accentHover",
+  "accentMuted",
+  "inkOnAccent",
+  "text",
+  "textSecondary",
+  "textTertiary",
+  "textMuted",
+  "surface",
+  "surfaceRaised",
+  "surfaceSubtle",
+  "border",
+  "borderStrong",
+  "borderDark",
+  "success",
+  "warning",
+  "error",
+  "errorSurface",
+  "focus",
+  "highlight",
+  "black",
+  "white",
+] as const;
+type ColorKey = (typeof COLOR_KEYS)[number];
+
+const varName = (k: ColorKey) => `--lk-${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+
+/** A theme from an older boot response, with the keys it predates filled from its own colours. */
+function withDefaults(t: WidgetTheme): Required<WidgetTheme> {
+  return {
+    ...t,
+    inkOnAccent: t.inkOnAccent ?? t.black,
+    radiusControl: t.radiusControl ?? "6px",
+    radiusSurface: t.radiusSurface ?? "8px",
+    fontSans: t.fontSans ?? "system-ui, -apple-system, sans-serif",
+    fontMono: t.fontMono ?? "ui-monospace, SFMono-Regular, Menlo, monospace",
+    warning: t.warning ?? t.accent,
+    focus: t.focus ?? t.accent,
+    highlight: t.highlight ?? t.accent,
+  };
+}
+
+/**
+ * The theme every stylesheet is written against: each colour is its
+ * variable, the rest (radii, fonts) the light theme's — they are the same in
+ * both. Pair with themeVarsCSS in the same shadow root.
+ */
+export function varTheme(themes: WidgetThemes): Required<WidgetTheme> {
+  const base = withDefaults(themes.light);
+  const out = { ...base } as Record<string, string>;
+  for (const k of COLOR_KEYS) out[k] = `var(${varName(k)})`;
+  return out as Required<WidgetTheme>;
+}
+
+/**
+ * The variables, defined on the host: light by default, dark when the host
+ * carries data-lk-theme="dark" (theme-mode.ts sets it). color-scheme makes
+ * the browser's own parts — scrollbars, the textarea caret — match.
+ */
+export function themeVarsCSS(themes: WidgetThemes): string {
+  const block = (t: WidgetTheme) =>
+    COLOR_KEYS.map((k) => `${varName(k)}: ${withDefaults(t)[k]};`).join(" ");
+  return `:host { color-scheme: light; ${block(themes.light)} }
+:host([data-lk-theme="dark"]) { color-scheme: dark; ${block(themes.dark)} }
+`;
+}
+
+/** Both themes from a boot response; an older server sent one (dark) theme. */
+export function themesFrom(body: {
+  theme?: WidgetTheme;
+  themes?: WidgetThemes;
+}): WidgetThemes | null {
+  if (body.themes?.light && body.themes.dark) return body.themes;
+  return body.theme ? { light: body.theme, dark: body.theme } : null;
+}
 
 /**
  * The spiral status mark (dom.ts spiralMark): the logo, drawn in the accent,
@@ -64,7 +157,7 @@ export function buildShadowCSS(theme: WidgetTheme): string {
 :host { all: initial; }
 * { box-sizing: border-box; margin: 0; font-family: ${sans}; -webkit-font-smoothing: antialiased; }
 button { cursor: pointer; border: none; background: none; color: inherit; font: inherit; }
-button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid ${theme.accent}; outline-offset: 2px; }
+button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid ${theme.focus ?? theme.accent}; outline-offset: 2px; }
 .mono { font-family: ${mono}; letter-spacing: .08em; text-transform: uppercase; font-size: 10px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: ${theme.accent}; flex: none; box-shadow: 0 0 0 3px ${theme.accentMuted}; }
 ${spiralCSS(theme)}
@@ -92,12 +185,13 @@ ${spiralCSS(theme)}
   background: ${theme.surface}; color: ${theme.text};
   border: 1px solid ${theme.borderDark};
   font-size: 13px; font-weight: 500; letter-spacing: -.01em;
-  box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
   transition: transform .15s ease, opacity .2s ease, border-color .15s ease, box-shadow .2s ease;
-  opacity: .38;
-  transform: scale(.85);
-  transform-origin: bottom right;
-  box-shadow: none;
+  /* Small, but THERE. At 38% opacity and 85% size with a generic pencil it
+     read as nothing at all: the owner, signed out on their own phone, looked
+     at their site and said the widget was gone (2026-10-15) — and without
+     the launcher there is no way to the sign-in that brings it back. Loki's
+     own mark, at full strength, one hairline and a soft lift off the page. */
+  box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.12);
 }
 .fab .fab-label { display: none; }
 .fab:hover, .fab:focus-visible {
@@ -117,8 +211,8 @@ ${spiralCSS(theme)}
      scrolling — taps during scroll-reading never hit the launcher instead of
      the page. */
   .fab { width: 40px; height: 40px; padding: 0; right: 12px; bottom: 12px; justify-content: center; }
-  .fab .fab-label, .fab .dot { display: none; }
-  .fab .fab-icon { display: block; }
+  .fab .fab-label, .fab .fab-icon { display: none; }
+  .fab .dot.spiral { width: 18px; height: 18px; }
   .fab.scrolling { opacity: .3; pointer-events: none; }
 }
 
@@ -186,20 +280,36 @@ ${spiralCSS(theme)}
 .fab.tab .dot.spiral { display: inline-flex; width: 14px; height: 14px; }
 .fab.tab:hover, .fab.tab:focus-visible { opacity: 1; width: 30px; transform: none; }
 
-.backdrop { position: fixed; inset: 0; z-index: 2147483001; background: rgba(0,0,0,.35); }
+/* No backdrop beside a corner card: the panel says "use your site as usual",
+   so the site stays bright and clickable next to it (2026-10-15: the owner's
+   site sat greyed out behind a panel inviting them to use it). Close is ✕ or
+   Escape. On a phone the sheet is UNDER the thumb, and a tap above it puts
+   it away — there the backdrop stays, light. */
+.backdrop { display: none; }
 
 /* ---- panel: Loki's card ---- */
+/* ONE scroll area. The header and the composer stay where they are; the
+   thread between them takes the room left and scrolls. The whole panel used
+   to scroll too, so on a laptop the composer sat under the fold of its own
+   card and on a phone the thread scrolled inside a scrolling sheet. */
 .panel {
   position: fixed; z-index: 2147483002;
-  right: 16px; bottom: 16px; width: 372px; max-width: calc(100vw - 32px);
-  max-height: min(85vh, 680px); overflow-y: auto;
+  right: 16px; bottom: 16px; width: 380px; max-width: calc(100vw - 32px);
+  max-height: min(calc(100vh - 32px), 720px); overflow: hidden;
+  display: flex; flex-direction: column;
   background: ${theme.surface}; color: ${theme.text};
   border: 1px solid ${theme.borderStrong}; border-radius: 12px;
   box-shadow: 0 1px 2px rgba(0,0,0,.5), 0 24px 64px rgba(0,0,0,.55);
   padding: 16px;
 }
 .grip { display: none; }
+.panel > * { flex: none; }
+.panel > .convo { flex: 1 1 auto; min-height: 0; }
 @media (max-width: 480px) {
+  .backdrop { display: block; position: fixed; inset: 0; z-index: 2147483001; background: rgba(0,0,0,.18); }
+  /* Two thirds of the screen at most until they drag it up (sheet.ts): the
+     site they are talking about stays in view above it. */
+  .panel { max-height: 68vh; }
   .panel { right: 0; bottom: 0; left: 0; width: 100%; max-width: none; border-radius: 12px 12px 0 0; border-bottom: none;
            padding-bottom: calc(16px + env(safe-area-inset-bottom)); transition: transform .2s ease, height .2s ease; }
   /* The sheet's handle: the grip and the header both drag (sheet.ts). */
@@ -218,7 +328,7 @@ ${spiralCSS(theme)}
 .hdr > div:first-child { min-width: 0; flex: 1 1 auto; }
 .hdr .brand { display: flex; align-items: center; gap: 7px; color: ${theme.textSecondary}; margin-bottom: 7px; }
 .hdr b { display: block; font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: ${theme.text}; }
-.hdr .page { font-size: 11px; color: ${theme.textTertiary}; margin-top: 3px; max-width: 100%; font-family: ${mono};
+.hdr .page { font-size: 12px; color: ${theme.textTertiary}; margin-top: 2px; max-width: 100%;
              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .x { color: ${theme.textSecondary}; width: 28px; height: 28px; border-radius: ${rc}; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; flex: none; }
 .x:hover { color: ${theme.text}; background: ${theme.surfaceSubtle}; }
@@ -257,16 +367,24 @@ ${spiralCSS(theme)}
 .thought.bad .thought-text { color: ${theme.error}; }
 
 /* the one conversation */
-.convo { display: flex; flex-direction: column; gap: 10px; }
-.ctxbar { display: flex; align-items: center; gap: 8px; }
-.ctx-label { font-size: 12px; color: ${theme.textMuted}; flex: none; }
-/* "About" — this page / whole site / an element — as the card's top line of
-   text tabs, underlined when chosen. It was a bordered segmented bar of its
-   own above the card: a second box for half a sentence. */
-.seg { display: flex; flex-wrap: wrap; gap: 2px 14px; }
-.segbtn { padding: 3px 0; font-size: 12px; color: ${theme.textTertiary}; white-space: nowrap; border-bottom: 1px solid transparent; }
+.convo { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.convo > * { flex: none; }
+.convo > .chatlog { flex: 1 1 auto; min-height: 96px; }
+.ctxbar { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* "About" — this page / whole site / an element / Loki — one segmented
+   control: four plain words in a row read as a sentence ("This page Whole
+   site An element Loki itself"), and wrapped onto two lines on a laptop. One
+   line always; on a narrow phone it scrolls sideways rather than wrap. */
+.seg { display: flex; gap: 2px; padding: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none;
+       border-radius: ${rc}; background: ${theme.surfaceSubtle}; }
+.seg::-webkit-scrollbar { display: none; }
+.segbtn { flex: none; padding: 4px 8px; min-height: 28px; font-size: 12px; color: ${theme.textSecondary}; white-space: nowrap; border-radius: calc(${rc} - 2px); }
 .segbtn:hover { color: ${theme.text}; }
-.segbtn.on { color: ${theme.text}; border-bottom-color: ${theme.accent}; }
+.segbtn.on { color: ${theme.text}; background: ${theme.surface}; font-weight: 500; box-shadow: 0 0 0 1px ${theme.border}; }
+/* The control names itself (aria-label "What this is about") and the
+   placeholder under it says the rest; a visible "About" cost the room the
+   fourth choice needed on a 380px card. */
+.ctx-label { display: none; }
 /* composer: ONE card — what it is about, the words, then a row: tools left,
    the quiet way and the one accent way to send it right */
 .composer { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid ${theme.borderStrong}; border-radius: ${rs}; background: ${theme.surfaceRaised}; transition: border-color .12s ease, box-shadow .12s ease; }
@@ -433,6 +551,7 @@ input { margin-bottom: 10px; }
 .ghost { height: 34px; font-size: 13px; color: ${theme.textSecondary}; padding: 0 10px; border-radius: ${rs}; }
 .ghost:hover { color: ${theme.text}; background: ${theme.surfaceSubtle}; }
 .err { font-size: 12px; color: ${theme.error}; margin-top: 8px; }
+.err:empty { display: none; }
 .keys { color: ${theme.textMuted}; text-align: center; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .keys .sep { opacity: .6; }
 .ok { text-align: center; padding: 26px 0 16px; }
@@ -448,11 +567,14 @@ input { margin-bottom: 10px; }
    the links under an answer come from the fleet map, styled as quiet chips so
    the first recommendation reads as the next step. */
 .chat { display: flex; flex-direction: column; gap: 10px; }
-.chatlog { display: flex; flex-direction: column; gap: 14px; max-height: min(46vh, 380px); overflow-y: auto; padding: 2px; }
+.chatlog { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; overscroll-behavior: contain; padding: 2px; }
 /* The shared chat (widget/chat/): the same bounded thread as .chatlog; the
    widget's own actions sit under an answer, the card after the last turn. */
 .fc-kit { display: flex; flex-direction: column; gap: 8px; }
-.fc-kit .ck-thread-wrap { max-height: min(46vh, 380px); }
+.fc-kit { flex: 1 1 auto; min-height: 0; }
+/* Flex when chatkit makes the wrap a direct child; the cap bounds it
+   however deep chatkit nests it, so the composer is never pushed out. */
+.fc-kit .ck-thread-wrap { flex: 1 1 auto; min-height: 96px; max-height: min(52vh, 440px); overflow-y: auto; }
 /* The panel's own field styles (textarea:focus below) must not reach chatkit's
    input: it lives inside chatkit's composer frame, which draws the edge. Two
    rows, like the panel's own composer, so the placeholder is never cut. */
@@ -552,12 +674,15 @@ input { margin-bottom: 10px; }
 
 /** Injected into document.head — the only styling that must reach host elements. */
 export function buildDocCSS(theme: WidgetTheme): string {
+  // The HOST page cannot see the panel's variables, so this takes a concrete
+  // theme — and one colour that is the same in light and dark, so a pick
+  // never has to be redrawn when the mode changes.
+  const mark = theme.highlight ?? theme.accent;
   // Solid, not dashed: a dashed outline reads as "broken", and the soft halo
   // makes the pick legible on busy backgrounds without repainting the element.
   return `
-.fcw-hover { outline: 2px solid ${theme.accent} !important; outline-offset: 3px !important; border-radius: 4px !important;
-             box-shadow: 0 0 0 6px ${theme.accentMuted} !important; cursor: crosshair !important; }
-.fcw-selected { outline: 2px solid ${theme.accent} !important; outline-offset: 3px !important; border-radius: 4px !important;
-                box-shadow: 0 0 0 6px ${theme.accentMuted}, 0 0 0 7px ${theme.accent}55 !important; }
+.fcw-hover { outline: 2px solid ${mark} !important; outline-offset: 3px !important; border-radius: 4px !important;
+             cursor: crosshair !important; }
+.fcw-selected { outline: 3px solid ${mark} !important; outline-offset: 3px !important; border-radius: 4px !important; }
 `;
 }

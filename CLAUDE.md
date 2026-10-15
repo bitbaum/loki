@@ -188,11 +188,16 @@ widget/            → The embeddable feedback widget customer sites load as
                      touch, so it earns the same care as src/ — it is covered by
                      `pnpm run lint` and tsc. It cannot see globals.css or
                      Tailwind, so its colours travel differently: the boot
-                     response ships PALETTE.widget, which is GENERATED from
-                     @bitbaum/design-tokens by scripts/generate-widget-theme.ts
+                     response ships PALETTE.widgetThemes — light AND dark,
+                     GENERATED from Loki's own globals.css (:root / .dark) by
+                     scripts/generate-widget-theme.ts, so the panel is Loki's
+                     monochrome, never OrangeCat's orange
                      (scripts/test/widget-theme-from-tokens.ts fails on drift).
-                     Never type a colour into widget/ or palette.ts — change the
-                     tokens and regenerate.
+                     Every widget stylesheet reads var(--lk-…) and the host
+                     says which mode (widget/theme-mode.ts): the owner's Loki
+                     choice (user_preferences.theme, saved by ThemeSync),
+                     everyone else their device's. Never type a colour into
+                     widget/ or palette.ts — change the tokens and regenerate.
 
 extension/         → Loki for Firefox (Android and desktop): fills a form Loki
                      hands it and stops at the final button — the phone half

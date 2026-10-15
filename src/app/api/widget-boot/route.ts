@@ -37,14 +37,18 @@ const CORS_HEADERS = {
  * the launcher paints in one corner and then jumps to another.
  *
  * Theme colors also travel with boot so the widget never hardcodes hex values.
- * Colors come from PALETTE.widget, generated from @bitbaum/design-tokens.
+ * Colors come from PALETTE.widgetThemes (light and dark, generated from
+ * Loki's own globals.css); `theme` is the dark one, for a widget bundle
+ * cached from before there were two.
  *
  * Omitted entirely when the widget will not render — a paused token should
  * leak nothing about the project's configuration.
  */
 function bootResponse(active: boolean, status = 200, placement?: WidgetPlacement): NextResponse {
   return NextResponse.json(
-    active && placement ? { active, placement, theme: PALETTE.widget } : { active },
+    active && placement
+      ? { active, placement, theme: PALETTE.widget, themes: PALETTE.widgetThemes }
+      : { active },
     {
       status,
       headers: CORS_HEADERS,

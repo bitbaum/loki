@@ -15,6 +15,7 @@ import { EmailVerificationBanner } from "@/components/shell/EmailVerificationBan
 import { OrangeCatConnectBanner } from "@/components/shell/OrangeCatConnectBanner";
 import { DemoBanner } from "@/components/shell/DemoBanner";
 import { FleetSurfaceGuide } from "@/components/shell/FleetSurfaceGuide";
+import { ThemeSync } from "@/components/shell/ThemeSync";
 import {
   CommandPaletteProvider,
   useCommandPaletteHotkey,
@@ -59,6 +60,7 @@ export function AppShell({
 
   return (
     <CommandPaletteProvider value={paletteApi}>
+      <ThemeSync />
       <div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary">
         <Sidebar
           collapsed={sidebarCollapsed}

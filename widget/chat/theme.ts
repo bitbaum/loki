@@ -24,9 +24,9 @@ export function chatkitVars(t: WidgetTheme): string {
     "--ck-danger": t.error,
     "--ck-danger-soft": t.errorSurface,
     "--ck-on-danger": t.white,
-    // The boot theme has no warning colour; the accent is the widget's one
-    // attention colour, and a host page's own token must not leak in instead.
-    "--ck-warning": t.accent,
+    // A boot theme from before warning existed falls back to the accent; a
+    // host page's own token must never leak in instead.
+    "--ck-warning": t.warning ?? t.accent,
     "--ck-radius": t.radiusSurface ?? "8px",
     "--ck-radius-sm": t.radiusControl ?? "6px",
     "--ck-font": t.fontSans ?? "system-ui, -apple-system, sans-serif",

@@ -1,53 +1,71 @@
-// The widget's theme is DERIVED from @bitbaum/design-tokens, never typed.
-// This fails when the committed generated file no longer matches the tokens
-// (someone bumped the package or edited the generated file by hand), and it
-// pins the conversion so a wrong HSL→hex cannot ship a wrong colour.
+// The widget's themes are DERIVED from Loki's own tokens (src/app/globals.css),
+// light and dark, never typed. This fails when the committed generated file no
+// longer matches globals.css, and pins what makes the widget Loki's rather than
+// OrangeCat's: the accent is the ink, and the warm orange is only the focus ring
+// and a picked element's outline (2026-10-15, "the widget has OrangeCat's design").
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cssColorToConcrete, buildWidgetTheme, generate } from "../generate-widget-theme";
-import { buildShadowCSS, buildDocCSS } from "../../widget/theme";
+import { buildWidgetThemes, generate, parseTokenBlocks } from "../generate-widget-theme";
+import { buildShadowCSS, buildDocCSS, themeVarsCSS, varTheme } from "../../widget/theme";
+import { followUpCSS } from "../../widget/tour-followup";
 import { PALETTE } from "../../src/lib/palette";
-import { WIDGET_THEME } from "../../src/lib/widget-theme.generated";
+import { WIDGET_THEMES } from "../../src/lib/widget-theme.generated";
 
-// conversion
-assert.equal(cssColorToConcrete("0 0% 4%"), "#0a0a0a");
-assert.equal(cssColorToConcrete("0 0% 100%"), "#ffffff");
-assert.equal(cssColorToConcrete("#FF5C00"), "#ff5c00");
-assert.equal(cssColorToConcrete("0 75% 60%"), "#e64c4c");
-assert.equal(cssColorToConcrete("0 75% 60% / 0.12"), "rgba(230,76,76,0.12)");
+// the mapping reads the right block, and the dark block falls back to :root
+const tinyLoki = `x\n:root {\n  --accent-primary: oklch(0.1 0 0);\n  --accent-hover: oklch(0.2 0 0);\n  --accent-muted: oklch(0.1 0 0 / 8%);\n  --text-inverted: oklch(0.98 0 0);\n  --text-primary: oklch(0.1 0 0);\n  --text-secondary: oklch(0.4 0 0);\n  --text-tertiary: oklch(0.5 0 0);\n  --text-muted: oklch(0.52 0 0);\n  --surface-base: oklch(1 0 0);\n  --surface-raised: oklch(0.96 0 0);\n  --surface-overlay: oklch(0.94 0 0);\n  --border-subtle: oklch(0.9 0 0);\n  --border-default: oklch(0.82 0 0);\n  --border-strong: oklch(0.6 0 0);\n  --status-positive: oklch(0.44 0.16 145);\n  --status-warning: oklch(0.46 0.14 68);\n  --status-negative: oklch(0.5 0.18 25);\n  --status-negative-subtle: oklch(0.5 0.18 25 / 8%);\n  --ring: oklch(0.66 0.21 41 / 55%);\n  --accent-warm: oklch(0.66 0.21 41);\n  --surface-public: oklch(0.04 0 0);\n}\n.dark {\n  --accent-primary: oklch(0.92 0 0); /* the ink */\n  --text-primary: oklch(0.92 0 0);\n  --surface-base: oklch(0.1 0 0);\n}\n`;
+const tinyFleet = `x\n:root {\n  --radius-control: 0.375rem;\n  --radius-surface: 0.5rem;\n  --font-sans: 'Inter', system-ui;\n  --font-mono: 'IBM Plex Mono', monospace;\n}\n.dark {\n}\n`;
+assert.equal(
+  parseTokenBlocks(tinyLoki).dark["accent-primary"],
+  "oklch(0.92 0 0)",
+  "comments dropped",
+);
+const tiny = buildWidgetThemes(tinyLoki, tinyFleet);
+assert.equal(tiny.light.accent, "oklch(0.1 0 0)");
+assert.equal(tiny.dark.accent, "oklch(0.92 0 0)", "dark takes the .dark block");
+assert.equal(tiny.dark.textSecondary, "oklch(0.4 0 0)", "and falls back to :root for the rest");
+assert.equal(tiny.light.radiusSurface, "8px");
 
-// a tiny tokens file is enough to prove the mapping picks the right block
-const tiny = `:root {\n  --public-accent: #ff5c00;\n  --on-accent: 0 0% 8%;\n  --surface-public: 0 0% 4%;\n  --radius-control: 0.375rem;\n  --radius-surface: 0.5rem;\n  --font-sans: 'Inter', system-ui, sans-serif;\n  --font-mono: 'IBM Plex Mono', monospace;\n  --text-primary: 0 0% 10%;\n}\n.dark {\n  --accent-hover: #ff7a33;\n  --text-primary: 0 0% 92%;\n  --text-secondary: 0 0% 65%;\n  --text-tertiary: 0 0% 48%;\n  --text-muted: 0 0% 32%;\n  --surface-page: 0 0% 7%;\n  --surface-hover: 0 0% 13%;\n  --border-subtle: 0 0% 13%;\n  --border-default: 0 0% 20%;\n  --border-strong: 0 0% 24%;\n  --status-positive: 145 55% 50%;\n  --status-negative: 0 75% 60%;\n  --status-negative-subtle: 0 75% 60% / 0.12;\n}\n`;
-const t = buildWidgetTheme(tiny);
-assert.equal(t.text, "#ebebeb", "dark text, not the light block's #1a1a1a");
-assert.equal(t.surface, "#0a0a0a");
-assert.equal(t.inkOnAccent, "#141414");
-assert.equal(t.accentMuted, "rgba(255,92,0,0.16)");
-assert.equal(t.radiusSurface, "8px");
-assert.ok(t.fontSans.startsWith("'Inter'"));
-
-// the committed file is what the tokens produce today
+// the committed file is what globals.css produces today
 const committed = readFileSync(join(process.cwd(), "src/lib/widget-theme.generated.ts"), "utf8");
 assert.equal(committed, generate(), "src/lib/widget-theme.generated.ts is stale — regenerate");
 
 // and it is what the server ships to every widget
-assert.deepEqual(
-  PALETTE.widget,
-  WIDGET_THEME,
-  "PALETTE.widget must be the generated theme, not a hand copy",
-);
+assert.deepEqual(PALETTE.widgetThemes, WIDGET_THEMES, "the server ships the generated themes");
+assert.deepEqual(PALETTE.widget, WIDGET_THEMES.dark, "the single-theme field is the dark one");
+
+// Loki, not OrangeCat: the accent is the ink in both modes, never the warm orange.
+for (const mode of ["light", "dark"] as const) {
+  const t = WIDGET_THEMES[mode];
+  assert.equal(t.accent, t.text, `${mode}: the accent is the text colour — Loki is monochrome`);
+  assert.ok(!/#ff5c00/i.test(JSON.stringify(t)), `${mode}: no OrangeCat orange anywhere`);
+}
+assert.notEqual(WIDGET_THEMES.light.surface, WIDGET_THEMES.dark.surface, "two modes, two surfaces");
 
 // ---- the stylesheets the widget actually ships ----
-// Two faults shipped together in #734 and neither was catchable by tsc: the
-// .modes / .mode rules were pasted INSIDE the .dot rule's declaration block
-// (killing .dot's own declarations and every mode chip on every customer
-// site), and they carried literal hex fallbacks. Pin both.
-const theme = { ...WIDGET_THEME } as unknown as Parameters<typeof buildShadowCSS>[0];
+// Written against variables (varTheme), defined on the host for both modes
+// (themeVarsCSS). Two faults shipped together in #734 and neither was
+// catchable by tsc: rules pasted INSIDE another rule's declarations, and
+// var() with literal fallbacks. Pin both — and that every variable a sheet
+// reads is one the host defines, so nothing ever falls back.
+const theme = varTheme(WIDGET_THEMES);
+const vars = themeVarsCSS(WIDGET_THEMES);
 const sheets: Array<[string, string]> = [
   ["shadow", buildShadowCSS(theme)],
-  ["doc", buildDocCSS(theme)],
+  ["follow-up", followUpCSS(theme)],
+  ["doc", buildDocCSS(WIDGET_THEMES.light)],
 ];
+const defined = new Set([...vars.matchAll(/(--lk-[a-z-]+):/g)].map((m) => m[1]));
+const definedDark = new Set(
+  [...vars.slice(vars.indexOf('data-lk-theme="dark"')).matchAll(/(--lk-[a-z-]+):/g)].map(
+    (m) => m[1],
+  ),
+);
+assert.deepEqual(
+  [...definedDark].sort(),
+  [...defined].sort(),
+  "dark defines every variable light does",
+);
 
 /** Rule bodies, with comments stripped. At-rules may nest one level; nothing else may. */
 function ruleBodies(css: string): Array<{ selector: string; body: string }> {
@@ -96,28 +114,27 @@ for (const [name, css] of sheets) {
         );
       }
     }
-    // The widget's Shadow DOM sets `all: initial` and defines no custom
-    // properties, so any var() resolves to its fallback — a hardcoded colour
-    // wearing a token's clothes. There is nothing for var() to read here.
-    assert.ok(
-      !body.includes("var("),
-      `${name}: rule "${selector}" uses var() — the widget defines no custom properties, so the fallback is what ships`,
-    );
+    // Every variable read is one the host defines, and none carries a
+    // fallback: a fallback would be a hardcoded colour wearing a token's clothes.
+    for (const m of body.matchAll(/var\((--[a-z-]+)([^)]*)\)/g)) {
+      assert.ok(
+        defined.has(m[1]),
+        `${name}: rule "${selector}" reads ${m[1]}, which is never defined`,
+      );
+      assert.equal(m[2].trim(), "", `${name}: rule "${selector}" gives ${m[1]} a fallback`);
+    }
   }
 
-  // Every hex colour in the emitted CSS must be one the tokens supplied.
+  // No colour typed into widget/: the only literals left are the doc sheet's,
+  // which come from the generated theme.
   const allowed = new Set(
-    Object.values(WIDGET_THEME)
-      .flatMap((v) => (typeof v === "string" ? (v.match(/#[0-9a-fA-F]{3,8}/g) ?? []) : []))
-      .map((h) => h.toLowerCase()),
+    Object.values(WIDGET_THEMES.light).filter((v): v is string => typeof v === "string"),
   );
-  for (const hex of css.replace(/\/\*[\s\S]*?\*\//g, "").match(/#[0-9a-fA-F]{3,8}\b/g) ?? []) {
-    const h = hex.toLowerCase();
-    // `${theme.accent}55` — a token colour with an alpha suffix, still derived.
-    const base = h.length === 9 ? h.slice(0, 7) : h;
+  const stripped = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const lit of stripped.match(/#[0-9a-fA-F]{3,8}\b|oklch\([^)]*\)/g) ?? []) {
     assert.ok(
-      allowed.has(h) || allowed.has(base),
-      `${name}: literal colour ${hex} is not in the generated theme — change the tokens, never type a colour into widget/`,
+      allowed.has(lit),
+      `${name}: literal colour ${lit} is not in the generated theme — change the tokens, never type a colour into widget/`,
     );
   }
 }

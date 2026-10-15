@@ -750,6 +750,13 @@
       "when": 1792084000000,
       "tag": "0106_private_portfolio_names",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1792084761448,
+      "tag": "0107_user_theme",
+      "breakpoints": true
     }
   ]
 }

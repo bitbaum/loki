@@ -27,7 +27,16 @@ import { forgetOwnerPass, ownerSignInUrl, takeOwnerDenied, takeOwnerPass } from 
 import { startTourFromFragment } from "./tour";
 import type { ReportDiagnostics } from "./report-payload";
 import { DEFAULT_PLACEMENT, normalizePlacement, type Placement } from "./placement";
-import { buildDocCSS, buildShadowCSS, type WidgetTheme } from "./theme";
+import {
+  buildDocCSS,
+  buildShadowCSS,
+  themesFrom,
+  themeVarsCSS,
+  varTheme,
+  type WidgetTheme,
+  type WidgetThemes,
+} from "./theme";
+import { createThemeMode } from "./theme-mode";
 import { createBrowseVoice } from "./browse-voice";
 import { isVoiceSupported } from "./voice";
 import { h, spiralMark, micIcon } from "./dom";
@@ -112,8 +121,11 @@ interface LokiApi {
     return;
   }
   const apiBase = script?.src ? new URL(script.src).origin : "";
+  // Light or dark, as Loki is (theme-mode.ts): one per page, shared by the
+  // panel and the walkthrough so they never disagree.
+  const themeMode = createThemeMode(token);
   // "Watch the fix" runs apart from the launcher: a hidden button still tours.
-  startTourFromFragment(apiBase, token);
+  startTourFromFragment(apiBase, token, themeMode);
   // The owner, arriving from Loki's "Open your site" link or returning with the
   // pass kept from it. Their notes start the fix instead of waiting in an inbox.
   const ownerState = takeOwnerPass(token);
@@ -161,7 +173,7 @@ interface LokiApi {
   let liveAsk: ((question: string) => void) | null = null;
   /** Set once boot says render, even if the visitor hid the launcher — so an
    *  explicit report()/ask()/show() can still mount it. */
-  let bootedTheme: WidgetTheme | null = null;
+  let bootedThemes: WidgetThemes | null = null;
   let mounted = false;
   /** Set by mount(): bring back a launcher hidden during this page view. */
   let liveShow: (() => void) | null = null;
@@ -178,7 +190,7 @@ interface LokiApi {
     visitorOverride = null;
     writeVisitorPlacement(token, null);
     if (liveShow) liveShow();
-    else if (bootedTheme && !mounted) mountWhenReady(bootedTheme);
+    else if (bootedThemes && !mounted) mountWhenReady(bootedThemes);
     announceVisibility();
   };
   /** The host's switch: same stored choice as the menu's "Hide on this site",
@@ -230,30 +242,35 @@ interface LokiApi {
     if (restoreRequested()) api.show();
   });
 
-  const mountWhenReady = (theme: WidgetTheme) => {
+  const mountWhenReady = (themes: WidgetThemes) => {
     if (mounted) return;
     mounted = true;
     const go = () => {
       w.__lokiWidgetBooting = false;
       if (document.getElementById("loki-feedback-host")) return;
-      mount(theme);
+      mount(themes);
     };
     if (document.body) go();
     else document.addEventListener("DOMContentLoaded", go);
   };
 
-  const mount = (theme: WidgetTheme) => {
+  const mount = (themes: WidgetThemes) => {
+    // Every stylesheet below is written against variables; the host defines
+    // them for light and dark and themeMode says which (theme.ts).
+    const theme: WidgetTheme = varTheme(themes);
     // ---- shadow scaffold ----
     const host = h("div");
     host.id = "loki-feedback-host";
+    themeMode.bind(host);
     const root = host.attachShadow({ mode: "open" });
     const style = h("style");
-    style.textContent = buildShadowCSS(theme);
+    style.textContent = themeVarsCSS(themes) + buildShadowCSS(theme);
     root.appendChild(style);
     document.body.appendChild(host);
 
     const docStyle = h("style");
-    docStyle.textContent = buildDocCSS(theme);
+    // The host page cannot read the panel's variables: concrete colours.
+    docStyle.textContent = buildDocCSS(themes.light);
 
     const launcher = createLauncher({
       root,
@@ -450,6 +467,7 @@ interface LokiApi {
         syncWatch();
         launcher.say(`“${c.text.slice(0, 60)}${c.text.length > 60 ? "…" : ""}” is live`);
       },
+      onTheme: (pref) => themeMode.setPreference(pref),
       onPassRefused: () => {
         forgetOwnerPass(token);
         ownerPass = null;
@@ -671,14 +689,15 @@ interface LokiApi {
         active?: boolean;
         placement?: unknown;
         theme?: WidgetTheme;
+        themes?: WidgetThemes;
       };
       // Theme must come from boot — the widget has no fallback palette.
       // If boot doesn't provide colors, the widget doesn't render.
-      if (body.active !== true || !body.theme) {
+      const themes = themesFrom(body);
+      if (body.active !== true || !themes) {
         w.__lokiWidgetBooting = false;
         return;
       }
-      const theme = body.theme;
       // Placement arrives with the render verdict, so the launcher paints once
       // in its final corner instead of appearing bottom-right and jumping.
       placement = normalizePlacement(body.placement);
@@ -687,7 +706,7 @@ interface LokiApi {
       // page, and silently overriding it would move a launcher they had already
       // positioned by hand.
       if (Number.isFinite(bottomOffset)) placement.offsetY = bottomOffset;
-      bootedTheme = theme;
+      bootedThemes = themes;
       // A report()/ask() made before boot finished is an explicit request.
       if (pendingReport || pendingAsk !== null) unhide();
       // A visitor who dismissed the widget on this site gets no launcher.
@@ -699,7 +718,7 @@ interface LokiApi {
         w.__lokiWidgetBooting = false;
         return;
       }
-      mountWhenReady(theme);
+      mountWhenReady(themes);
     } catch {
       w.__lokiWidgetBooting = false;
     }

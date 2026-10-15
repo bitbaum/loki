@@ -38,9 +38,13 @@ export function createAboutBar(opts: {
   seg.setAttribute("aria-label", "What this is about");
   const pageBtn = h("button", "segbtn", "This page");
   const siteBtn = h("button", "segbtn", "Whole site");
-  const pointBtn = h("button", "segbtn", "An element");
-  const lokiBtn = h("button", "segbtn", "Loki itself");
-  lokiBtn.title = "Something about this panel — sent to the people who build Loki";
+  // Short enough that all four sit on one line of a 320px phone; the titles
+  // say the rest.
+  const pointBtn = h("button", "segbtn", "Element");
+  const lokiBtn = h("button", "segbtn", "Loki");
+  pageBtn.title = "About the page you are on";
+  siteBtn.title = "About the whole site";
+  lokiBtn.title = "About this panel itself — sent to the people who build Loki";
   const chips: [HTMLButtonElement, About][] = [
     [pageBtn, "page"],
     [siteBtn, "site"],
@@ -70,7 +74,7 @@ export function createAboutBar(opts: {
       b.classList.toggle("on", now === s);
       b.setAttribute("aria-checked", now === s ? "true" : "false");
     }
-    pointBtn.textContent = picked ? `${picked} element${picked > 1 ? "s" : ""}` : "An element";
+    pointBtn.textContent = picked ? `${picked} element${picked > 1 ? "s" : ""}` : "Element";
     pointBtn.title = picked
       ? `${pressVerb().Verb} to pick again`
       : "Point at something on the page";

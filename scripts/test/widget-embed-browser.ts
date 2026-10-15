@@ -274,7 +274,7 @@ async function main() {
     await click(t.p, ".fab");
     ok(
       JSON.stringify(await texts(t.p, ".segbtn")) ===
-        JSON.stringify(["This page", "Whole site", "An element", "Loki itself"]),
+        JSON.stringify(["This page", "Whole site", "Element", "Loki"]),
       "feedback is about this page, the whole site, an element — or Loki itself",
     );
     await click(t.p, ".segbtn", 2);
