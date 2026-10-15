@@ -8,6 +8,7 @@ import {
   ne,
   sql,
   gt,
+  gte,
   lt,
   like,
   isNotNull,
@@ -347,6 +348,16 @@ export async function getPendingActions(userId: string) {
       ),
     )
     .orderBy(desc(actions.createdAt));
+}
+
+/** Every action this user proposed since `since`, whatever its status. */
+export async function getActionsCreatedSince(userId: string, since: Date) {
+  return db
+    .select()
+    .from(actions)
+    .where(and(eq(actions.userId, userId), gte(actions.createdAt, since)))
+    .orderBy(desc(actions.createdAt))
+    .limit(50);
 }
 
 export async function getRecentActions(userId: string, limit = 20) {

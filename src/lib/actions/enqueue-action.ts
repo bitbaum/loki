@@ -14,6 +14,7 @@
  * something is true in the database and unknown to the human.
  */
 import {
+  getActionsCreatedSince,
   proposeAction,
   approveAction,
   type ActionRow,
@@ -24,12 +25,15 @@ import { getUserPreferences } from "@/db/queries/user-preferences";
 import { finalizeApproved } from "@/lib/actions/finalize-approved";
 import { standingApprovalVerdict, type ProposalOrigin } from "@/lib/actions/standing-approval";
 import { notifyActionNeedsDecision, notifyActionExecuted } from "@/lib/actions/notify-decision";
-import { ACTION_TYPE } from "@/lib/constants/statuses";
+import { ACTION_STATUS, ACTION_TYPE } from "@/lib/constants/statuses";
+import { isSameRequest, SAME_REQUEST_WINDOW_MS } from "@/lib/actions/same-request";
 import type { ExecuteActionResult } from "@/lib/actions/execute-action";
 
 export type EnqueueOutcome =
-  /** An identical draft title was already pending — nothing new was queued. */
-  | { result: "deduped"; action: null }
+  /** Already asked for — an identical draft is pending (`action` null), or
+   *  the same request was made moments ago (`action` is that one). Nothing
+   *  new was queued. */
+  | { result: "deduped"; action: ActionRow | null }
   /** Waiting on the operator. `reason` is set when a standing rule declined. */
   | { result: "queued"; action: ActionRow; reason?: string }
   /** A standing rule approved it; `execution` is what the executor then did. */
@@ -71,6 +75,18 @@ export async function enqueueAction(
   input: ProposeActionInput,
   options: EnqueueOptions,
 ): Promise<EnqueueOutcome> {
+  // The same ask, from the other producer of the same chat turn — see
+  // same-request.ts. Only for the operator's own asks: the other producers
+  // (check-ins, reports, autopilot) keep their own dedupe rules.
+  if (options.origin === "operator") {
+    const recent = await getActionsCreatedSince(
+      userId,
+      new Date(Date.now() - SAME_REQUEST_WINDOW_MS),
+    ).catch(() => []);
+    const same = recent.find((r) => r.status !== ACTION_STATUS.REJECTED && isSameRequest(r, input));
+    if (same) return { result: "deduped", action: same };
+  }
+
   const created = await proposeAction(userId, {
     ...input,
     payload: { ...(input.payload ?? {}), origin: options.origin },

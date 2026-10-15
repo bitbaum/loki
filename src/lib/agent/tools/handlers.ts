@@ -23,7 +23,12 @@ import { enqueueAction } from "@/lib/actions/enqueue-action";
 import { listCrew } from "@/db/queries/crew";
 import { createHumanTask } from "@/db/queries/human-tasks";
 import { TASK_ACTOR } from "@/config/crew";
-import { ACTION_TYPE, type ActionType, type FeedbackStatus } from "@/lib/constants/statuses";
+import {
+  ACTION_STATUS,
+  ACTION_TYPE,
+  type ActionType,
+  type FeedbackStatus,
+} from "@/lib/constants/statuses";
 import { ORCHESTRATION_STATES, type OrchestrationState } from "@/lib/orchestration/contract";
 import { HOUR_MS } from "@/lib/constants/time";
 import { askGatewayAgent, isGatewayConfigured } from "@/lib/openclaw-gateway";
@@ -453,8 +458,14 @@ const proposeActionTool = defineTool({
       return empty(`Could not write that draft to the approval queue. Nothing was queued.`);
     }
     if (outcome.result === "deduped") {
+      const same = outcome.action;
+      if (same && same.status !== ACTION_STATUS.DRAFT) {
+        return empty(
+          `This was already asked for moments ago as "${same.title}", and it is approved and being carried out — not queued twice. Report that one.`,
+        );
+      }
       return empty(
-        `A draft titled "${a.title}" is already waiting in the approval queue — not duplicated.`,
+        `A draft titled "${same?.title ?? a.title}" is already waiting in the approval queue — not duplicated.`,
       );
     }
 
