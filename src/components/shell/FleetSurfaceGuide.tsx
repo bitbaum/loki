@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { FLEET_SURFACES } from "@/config/navigation";
 import { fleetSurfaceHref, type FleetWorkspaceSurfaceId } from "@/lib/fleet-context";
 import { useFleetProject } from "@/hooks/use-fleet-project";
+import { isProjectWorkspacePath } from "@/lib/navigation";
 
 const ICONS = {
   profile: FolderKanban,
@@ -22,6 +23,7 @@ const ICONS = {
 export function FleetSurfaceGuide() {
   const pathname = usePathname();
   const isProjectProfile = pathname.startsWith("/projects/");
+  const hasProjectNavigation = isProjectWorkspacePath(pathname);
   const currentIndex = FLEET_SURFACES.findIndex((s) =>
     s.id === "profile"
       ? isProjectProfile
@@ -32,7 +34,7 @@ export function FleetSurfaceGuide() {
   // Loki is the start/continue surface, not a project-workspace tab. The
   // Profile/Chat/Control/Terminal strip duplicates the bottom nav on phones
   // and answers a question the composer already answers.
-  if (pathname === "/loki" || currentIndex === -1) return null;
+  if (pathname === "/loki" || hasProjectNavigation || currentIndex === -1) return null;
 
   // No project, no strip.
   //

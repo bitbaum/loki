@@ -16,7 +16,7 @@
  * who asked for the change wanted to know.
  */
 import Link from "next/link";
-import { Rocket } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { BuildStatus } from "@/lib/project-build-status";
 import { projectStateSentence } from "@/lib/project-state-sentence";
 import { MakeItHappenButton } from "./ProjectActionButtons";
@@ -52,13 +52,14 @@ export function ProjectBuildStatus({
   const canStart = !readonly && !setupNeeded;
   const sentence = projectStateSentence(status, { liveUrl });
   const tone =
-    sentence.tone === "working" || sentence.tone === "live"
-      ? "ui-dot-positive"
-      : sentence.tone === "waiting"
-        ? "ui-dot-warning"
-        : "ui-dot-neutral";
+    status.kind === "queued"
+      ? "ui-dot-neutral"
+      : sentence.tone === "working" || sentence.tone === "live"
+        ? "ui-dot-positive"
+        : sentence.tone === "waiting"
+          ? "ui-dot-warning"
+          : "ui-dot-neutral";
   const { headline, detail } = sentence;
-  const KICKER = { live: "Live", working: "Build", waiting: "Waiting on you", quiet: "Build" };
   // Where to look, beside the sentence: the site once it is live, the change
   // while it is on its way. The action slot stays the one button that starts
   // work, so this is a link in the text, never a second button.
@@ -74,13 +75,13 @@ export function ProjectBuildStatus({
   if (status.kind === "building") {
     action = (
       <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11 gap-2">
-        <Rocket className="h-4 w-4" aria-hidden="true" /> Watch it work
+        View progress <ArrowRight className="h-4 w-4" aria-hidden="true" />
       </Link>
     );
   } else if (status.kind === "queued") {
     action = (
       <Link href={`/projects/${projectId}/watch`} className="ui-btn-secondary min-h-11">
-        Watch it start
+        View request <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
       </Link>
     );
   }
@@ -95,15 +96,12 @@ export function ProjectBuildStatus({
   }
 
   return (
-    <section
-      className="ui-card-shell flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
-      aria-labelledby="project-build-status-title"
-    >
+    <section className="ui-project-current-work" aria-labelledby="project-build-status-title">
       <div className="min-w-0">
-        <p className="ui-kicker">{KICKER[sentence.tone]}</p>
+        <p className="text-sm font-medium text-text-tertiary">Current work</p>
         <h2
           id="project-build-status-title"
-          className="mt-1 flex items-center gap-2 text-lg font-semibold text-text-primary"
+          className="mt-3 flex items-center gap-2 text-xl font-semibold text-text-primary"
         >
           <span className={`ui-dot ${tone}`} aria-hidden="true" />
           {headline}

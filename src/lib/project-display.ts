@@ -143,8 +143,8 @@ export function answer(value: string | null | undefined): string | null {
 /**
  * A short lead for a dossier/card header — the first sentence(s) up to ~maxChars.
  * Descriptions are frequently the entire CLAUDE.md dumped in (400+ words); the
- * header wants a summary, not an essay. Prefers whole-sentence boundaries and
- * appends an ellipsis when it trims.
+ * header wants a summary, not an essay. Prefers whole-sentence boundaries;
+ * a sentence cut short ends with an ellipsis.
  */
 export function summarizeDescription(
   desc: string | null | undefined,
@@ -159,7 +159,8 @@ export function summarizeDescription(
     out += " " + sentences[i];
   }
   if (out.length > maxChars) out = out.slice(0, maxChars).replace(/\s+\S*$/, "");
-  return `${out.trimEnd()}…`;
+  const summary = out.trimEnd();
+  return /[.!?]$/.test(summary) ? summary : `${summary}…`;
 }
 
 /** A handoff/run older than this reads as stale: the dossier's "Status quo" must

@@ -120,7 +120,7 @@ export function LiveUrlField({
               : undefined
           }
         >
-          <Globe className="h-4 w-4" aria-hidden="true" /> Live
+          <Globe className="h-4 w-4" aria-hidden="true" /> Website
         </a>
         {!readonly && (
           <button

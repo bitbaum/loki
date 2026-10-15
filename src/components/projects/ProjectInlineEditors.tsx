@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Loader2, Pencil } from "lucide-react";
 import { StatusBadge } from "./project-badges";
 import { useInlineEdit } from "@/hooks/use-inline-edit";
@@ -15,18 +16,28 @@ export function DescriptionEditor({
   value: string | null;
   editable?: boolean;
   onSave: (next: string) => Promise<void>;
-  size?: "compact" | "lead";
+  size?: "compact" | "lead" | "full";
 }) {
   const ie = useInlineEdit<string>("");
 
-  const commit = () => ie.commit(() => onSave(ie.draft.trim()));
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const commit = async () => {
+    setSaveError(null);
+    if (!(await ie.commit(() => onSave(ie.draft.trim())))) {
+      setSaveError("Could not save. Your draft is still here; try again.");
+    }
+  };
 
   if (!editable) {
     return value ? (
       <p
         className={cn(
           "mt-0.5 w-full cursor-default text-left leading-relaxed text-text-secondary",
-          size === "lead" ? "line-clamp-3 text-sm sm:text-base" : "ui-link-subtle",
+          size === "lead"
+            ? "line-clamp-3 text-sm sm:text-base"
+            : size === "full"
+              ? "text-sm sm:text-base"
+              : "ui-link-subtle",
         )}
       >
         {value}
@@ -45,11 +56,11 @@ export function DescriptionEditor({
             if (e.key === "Enter" && e.metaKey) commit();
           }}
           autoFocus
-          rows={2}
+          rows={size === "full" ? 6 : 2}
           placeholder="Add a description…"
           className={cn(
             "ui-input-inline w-full resize-none px-2 py-1.5 text-text-primary placeholder:text-text-muted",
-            size === "lead" ? "text-sm sm:text-base" : "text-xs",
+            size !== "compact" ? "text-sm sm:text-base" : "text-xs",
           )}
         />
         <div className="flex items-center gap-2">
@@ -60,18 +71,26 @@ export function DescriptionEditor({
             Cancel
           </button>
         </div>
+        {saveError && (
+          <p className="ui-error text-sm" role="alert">
+            {saveError}
+          </p>
+        )}
       </div>
     );
   }
 
   return (
     <button
-      onClick={() => ie.start(value ?? "")}
+      onClick={() => {
+        setSaveError(null);
+        ie.start(value ?? "");
+      }}
       className={cn(
         "group/desc mt-0.5 flex min-h-11 w-full items-center gap-1.5 text-left leading-relaxed text-text-secondary",
-        size === "lead" ? "text-sm sm:text-base" : "ui-link-subtle",
+        size !== "compact" ? "text-sm sm:text-base" : "ui-link-subtle",
       )}
-      title="Click to edit description"
+      title="Edit description"
     >
       <span className="flex-1">
         {value ?? <span className="italic text-text-muted">Add a description…</span>}
@@ -144,3 +163,70 @@ export function StatusEditor({
 
 // MaturityEditor (the 1–10 slider) is retired: the health score is now derived
 // from named checks (src/lib/project-health.ts) instead of hand-typed.
+
+/** Name and description share the same inline-edit lifecycle and API owner. */
+export function ProjectNameEditor({
+  value,
+  editable,
+  onSave,
+}: {
+  value: string;
+  editable: boolean;
+  onSave: (name: string) => Promise<void>;
+}) {
+  const edit = useInlineEdit(value);
+  const [error, setError] = useState(false);
+  const save = async () => {
+    if (!edit.draft.trim()) return;
+    setError(!(await edit.commit(() => onSave(edit.draft.trim()))));
+  };
+  if (!editable) return <p className="text-sm text-text-primary">{value}</p>;
+  if (!edit.editing)
+    return (
+      <button
+        type="button"
+        className="ui-btn-ghost min-h-11 gap-2"
+        aria-label="Edit project name"
+        onClick={() => {
+          setError(false);
+          edit.start(value);
+        }}
+      >
+        {value}
+        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    );
+  return (
+    <div className="space-y-2">
+      <input
+        autoFocus
+        aria-label="Project name"
+        className="ui-input w-full"
+        value={edit.draft}
+        onChange={(event) => edit.setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") edit.cancel();
+          if (event.key === "Enter") void save();
+        }}
+      />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="ui-btn-save min-h-11"
+          onClick={() => void save()}
+          disabled={edit.saving || !edit.draft.trim()}
+        >
+          {edit.saving ? "Saving…" : "Save"}
+        </button>
+        <button type="button" className="ui-btn-ghost min-h-11" onClick={edit.cancel}>
+          Cancel
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="ui-error text-sm">
+          Could not save the name. Your draft is still here.
+        </p>
+      )}
+    </div>
+  );
+}

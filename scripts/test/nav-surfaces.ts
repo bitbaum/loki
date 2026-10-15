@@ -4,7 +4,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MOBILE_NAV_ITEMS, SIDEBAR_SECTIONS, FLEET_SURFACES } from "../../src/config/navigation";
 import { fleetSurfaceHref } from "../../src/lib/fleet-context";
-import { isCurrentPath } from "../../src/lib/navigation";
+import { isCurrentPath, isProjectWorkspacePath } from "../../src/lib/navigation";
+
+assert.equal(isProjectWorkspacePath("/projects/example"), true);
+assert.equal(isProjectWorkspacePath("/projects/example/"), true);
+assert.equal(isProjectWorkspacePath("/projects"), false);
+assert.equal(isProjectWorkspacePath("/projects/example/watch"), false);
 
 // ─── How many things are telling the user where they are? ────────────────────
 // Loki ran six navigation surfaces at once: the sidebar, the top bar, the

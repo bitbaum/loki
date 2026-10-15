@@ -8,7 +8,7 @@ import { NotificationsPill } from "./NotificationsPill";
 import { FleetRunnerStatusPill } from "@/components/desktop/FleetRunnerStatusPill";
 import { AccountMenu } from "@/components/shell/AccountMenu";
 import { MOBILE_NAV_ITEMS, NAV_ITEMS } from "@/config/navigation";
-import { isCurrentPath } from "@/lib/navigation";
+import { isCurrentPath, isProjectWorkspacePath } from "@/lib/navigation";
 
 /**
  * Slim app-shell top bar. Universal across every authenticated route.
@@ -54,7 +54,8 @@ export function AppTopBar({
   // page's own heading. It earns its place on every OTHER page, where the
   // bottom bar can only show "Menu" and genuinely cannot tell you.
   const onBottomBarTab = MOBILE_NAV_ITEMS.some((item) => isCurrentPath(pathname, item.href));
-  const pageLabel = onBottomBarTab ? "" : (currentNavItem?.label ?? "");
+  const pageLabel =
+    onBottomBarTab || isProjectWorkspacePath(pathname) ? "" : (currentNavItem?.label ?? "");
 
   return (
     <header className="ui-app-topbar">

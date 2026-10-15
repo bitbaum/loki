@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useOverlayLock } from "@/hooks/use-overlay-lock";
 import { useEscapeToClose } from "@/hooks/use-escape-to-close";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 
 const SIZE_CLASSES = {
   sm: "max-w-sm",
@@ -40,6 +41,7 @@ export function Modal({
   children: React.ReactNode;
 }) {
   useEscapeToClose(onClose, disableClose);
+  const panelRef = useDialogFocus();
   useOverlayLock(true);
   const containerPos =
     position === "bottom-mobile" ? "items-end md:items-center" : "items-end md:items-center";
@@ -58,6 +60,8 @@ export function Modal({
       />
       <div
         role="dialog"
+        ref={panelRef}
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby={labelledBy}
         className={cn(
@@ -92,6 +96,7 @@ export function Drawer({
   children: React.ReactNode;
 }) {
   useEscapeToClose(onClose, disableClose);
+  const panelRef = useDialogFocus();
   useOverlayLock(true);
   // The opener often sits under this full-screen backdrop. Ignore the
   // leftover click from the same gesture so the drawer does not open+close.
@@ -120,6 +125,8 @@ export function Drawer({
       <div
         role="dialog"
         aria-modal="true"
+        ref={panelRef}
+        tabIndex={-1}
         className={cn(
           "relative flex h-full w-full max-w-full flex-col overflow-hidden sm:border-l border-border-subtle shadow-panel-strong",
           SIZE_CLASSES[size],

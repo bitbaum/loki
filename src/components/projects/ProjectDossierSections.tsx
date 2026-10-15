@@ -27,21 +27,10 @@ const OUTCOME_TAG: Record<string, string> = {
   timeout: "ui-tag ui-tag-negative",
 };
 
-function SectionShell({
-  kicker,
-  title,
-  children,
-}: {
-  kicker: string;
-  title: string;
-  children: React.ReactNode;
-}) {
+function SectionShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="ui-card-shell p-4 sm:p-5 space-y-3">
-      <div>
-        <p className="ui-kicker">{kicker}</p>
-        <h2 className="font-medium text-text-primary">{title}</h2>
-      </div>
+    <section className="ui-project-detail-block">
+      <h2 className="ui-project-section-title">{title}</h2>
       {children}
     </section>
   );
@@ -111,7 +100,7 @@ export function NowSection({
   })();
 
   return (
-    <SectionShell kicker="Activity" title="Agent and repository">
+    <SectionShell title="Agent and repository">
       <div className="space-y-1.5">
         <p className="text-sm text-text-primary">
           <span
@@ -207,7 +196,7 @@ export function NextSection({
     (topOpenGoal ? `Advance: ${topOpenGoal.title}` : null);
 
   return (
-    <SectionShell kicker="Next" title="What happens next">
+    <SectionShell title="Next step">
       {next ? (
         <p className="text-sm leading-relaxed text-text-primary">
           <span className="font-medium text-accent-text">→ </span>
@@ -258,7 +247,7 @@ export function DoneSection({ dossier }: { dossier: ProjectDossier }) {
   const hiddenRunCount = runs.length - shownRuns.length;
 
   return (
-    <SectionShell kicker="Done" title="Report — what has shipped">
+    <SectionShell title="Recent work">
       {entries.length === 0 && runs.length === 0 && (dossier.commits?.length ?? 0) === 0 && (
         <p className="text-sm text-text-muted">
           Nothing recorded yet. Dispatches and finished agent sessions land here automatically.
