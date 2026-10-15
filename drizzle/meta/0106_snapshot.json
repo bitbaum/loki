@@ -1,5 +1,5 @@
 {
-  "id": "5fe6d905-1a18-4b43-873d-9014a76cb641",
+  "id": "e84d174e-24df-4f69-9897-6623e6b0bd9b",
   "prevId": "02835240-92a8-4142-afeb-3cb4ceff035d",
   "version": "7",
   "dialect": "postgresql",
@@ -7960,12 +7960,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'balanced'"
-        },
-        "theme": {
-          "name": "theme",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "away_since": {
           "name": "away_since",

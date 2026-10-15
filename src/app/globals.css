@@ -7361,7 +7361,16 @@
      must not compete with the input for attention. Opens UPWARD — it lives at
      the bottom of the screen and a downward menu would open off it. */
   .ui-loki-model-trigger {
-    @apply inline-flex h-9 max-w-36 items-center gap-1.5 rounded-full px-2.5 text-xs text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary disabled:opacity-45 sm:max-w-52;
+    @apply inline-flex h-9 max-w-36 items-center gap-1.5 rounded-full px-2.5 text-xs text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary disabled:opacity-45 sm:max-w-64;
+  }
+  .ui-loki-model-name {
+    @apply truncate;
+  }
+  /* On a phone the button holds the count, not the name ("✦ 12 left ▾"):
+     the row has ~200px for this and the project chip together, the name was
+     already cut to "A…" there, and the name is first in the menu. */
+  .ui-loki-model-name-counted {
+    @apply max-sm:hidden;
   }
   .ui-loki-model-caret {
     @apply h-3 w-3 shrink-0 transition-transform;
@@ -7534,6 +7543,29 @@
      made, so the picker is never a list of rows that will refuse. */
   .ui-loki-model-budget {
     @apply flex items-start gap-2 px-4 py-2.5 text-xs text-text-secondary;
+  }
+  /* What is left, on the model button ("· 12 left") — never truncated, the
+     model name gives way first. */
+  .ui-loki-model-left {
+    @apply shrink-0 whitespace-nowrap text-text-secondary;
+  }
+  .ui-loki-model-left-out {
+    @apply text-status-warning;
+  }
+  /* Under 380px even "next 14:35" crowds the project chip: the bare figure
+     ("12", "14:35") stands in, and the caret goes. */
+  .ui-loki-model-left-long {
+    @apply max-[379px]:hidden;
+  }
+  .ui-loki-model-left-tiny {
+    @apply hidden max-[379px]:inline;
+  }
+  .ui-loki-model-caret-counted {
+    @apply max-[379px]:hidden;
+  }
+  /* What is left on one model, under its description in the menu. */
+  .ui-loki-model-row-left {
+    @apply block text-xs text-text-secondary;
   }
 
   @keyframes ui-loki-dot {
@@ -8088,6 +8120,17 @@
 }
 :is(.ui-loki-stage, .ui-claude-chat) .ck-tools > .ui-loki-scope-pill {
   min-width: 5rem;
+}
+/* The count on the model button is never squeezed under the project chip:
+   the chip (which truncates) gives way instead — down to 3.5rem on the
+   narrowest phones. */
+:is(.ui-loki-stage, .ui-claude-chat) .ck-tools > .relative:has(.ui-loki-model-left) {
+  flex-shrink: 0;
+}
+@media (max-width: 379px) {
+  :is(.ui-loki-stage, .ui-claude-chat) .ck-tools > .ui-loki-scope-pill {
+    min-width: 3.5rem;
+  }
 }
 
 /* A review has one stage, one conversation and explicit evidence below. */

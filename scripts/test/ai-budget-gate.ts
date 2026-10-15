@@ -109,6 +109,7 @@ async function main() {
 
   await check("a user well inside their share is admitted", async () => {
     const v = await checkAiBudget("u1", NOON, {
+      timeZone: "Europe/Zurich",
       capacity: plenty,
       readUsage: async () => ({ userSpentTokens: 0, activeUsers: 1, userTurns: 0 }),
     });
@@ -119,6 +120,7 @@ async function main() {
     "A LEDGER ERROR ADMITS THE TURN — rationing must never become an outage",
     async () => {
       const v = await checkAiBudget("u1", NOON, {
+        timeZone: "Europe/Zurich",
         capacity: plenty,
         readUsage: async () => {
           throw new Error("connection refused");
@@ -130,6 +132,7 @@ async function main() {
 
   await check("a capacity of zero refuses, and says there is nothing to draw on", async () => {
     const v = await checkAiBudget("u1", NOON, {
+      timeZone: "Europe/Zurich",
       capacity: () => 0,
       readUsage: async () => ({ userSpentTokens: 0, activeUsers: 1, userTurns: 0 }),
     });
@@ -149,6 +152,7 @@ async function main() {
     // i.e. 3·EST. Spending 2.5·EST leaves a request of 3.5·EST: past the
     // unlocked allowance, still inside the day's share. That is `paced`.
     const v = await checkAiBudget("u1", NOON, {
+      timeZone: "Europe/Zurich",
       capacity: () => 8 * ESTIMATED_TURN_TOKENS,
       readUsage: async () => ({
         userSpentTokens: 2.5 * ESTIMATED_TURN_TOKENS,
@@ -161,13 +165,16 @@ async function main() {
     assert(typeof v.retryAfterSeconds === "number", "paced refusal must carry a retry");
     // "so everyone gets a turn" is the difference between a reason a person
     // accepts and an unexplained refusal that reads as breakage.
-    assert(/everyone/i.test(v.message), `message does not explain the rationing: ${v.message}`);
+    assert(/through the day/i.test(v.message), `message does not explain the wait: ${v.message}`);
+    assert(/the next one is ready at \d\d:\d\d/.test(v.message), `no clock time: ${v.message}`);
+    assert(!/share|budget|tops up/i.test(v.message), `jargon in the refusal: ${v.message}`);
   });
 
   await check("'share-spent' promises NO retry — waiting cannot help today", async () => {
     // Same 8·EST day, same two users — but this one has already spent their
     // whole 4·EST share, so no amount of waiting unlocks another turn today.
     const v = await checkAiBudget("u1", NOON, {
+      timeZone: "Europe/Zurich",
       capacity: () => 8 * ESTIMATED_TURN_TOKENS,
       readUsage: async () => ({
         userSpentTokens: 4 * ESTIMATED_TURN_TOKENS,
@@ -178,7 +185,10 @@ async function main() {
     assert(!v.allowed, "expected a refusal");
     if (v.allowed) return;
     assert(v.retryAfterSeconds === undefined, "offered a retry that cannot succeed today");
-    assert(/resets at midnight/i.test(v.message), `message must say when it resets: ${v.message}`);
+    assert(
+      /full again tomorrow at 02:00 \(midnight UTC\)/.test(v.message),
+      `message must say when it starts over, on the person's clock: ${v.message}`,
+    );
   });
 
   await check("a newcomer among many users still gets their first turn", async () => {
@@ -189,6 +199,7 @@ async function main() {
     // impression. The one-turn floor is what carries this case.
     for (const at of ["2026-08-15T00:01:00Z", "2026-08-15T12:00:00Z", "2026-08-15T23:00:00Z"]) {
       const v = await checkAiBudget("newcomer", new Date(at), {
+        timeZone: "Europe/Zurich",
         capacity: () => 16 * ESTIMATED_TURN_TOKENS,
         readUsage: async () => ({ userSpentTokens: 0, activeUsers: 4, userTurns: 0 }),
       });
