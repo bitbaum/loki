@@ -2,11 +2,13 @@
  * Prompt composition for feedback → agent dispatch.
  * SSOT so single-row Implement and batch "Implement all as one" stay aligned.
  */
+import type { FeedbackCaptureContext } from "../../../widget/capture-context";
 import { fenceUntrusted, inlineUntrusted, UNTRUSTED_PREAMBLE } from "@/lib/feedback/untrusted";
 import { fixNoteInstruction } from "@/lib/feedback/fix-note";
 
 export type FeedbackPromptFields = {
   suggestion: string;
+  captureContext?: FeedbackCaptureContext | null;
   duplicateCount: number;
   url: string | null;
   page: string | null;
@@ -69,6 +71,10 @@ export function composeFeedbackFixPrompt(
   ];
   if (feedback.scope) lines.push(`Scope the visitor selected: ${feedback.scope}`);
   lines.push(...renderElements(feedback));
+  if (feedback.captureContext)
+    lines.push(
+      fenceUntrusted("PAGE CONTEXT WHEN COMMENTING", JSON.stringify(feedback.captureContext)),
+    );
   lines.push(
     "",
     "Scope: address exactly this feedback — no unrelated refactors.",
@@ -107,6 +113,8 @@ export function composeFeedbackBatchFixPrompt(
     lines.push(`Page: ${inlineUntrusted(f.url ?? f.page ?? "unknown", 1000)}`);
     if (f.scope) lines.push(`Scope: ${f.scope}`);
     lines.push(...renderElements(f));
+    if (f.captureContext)
+      lines.push(fenceUntrusted("PAGE CONTEXT WHEN COMMENTING", JSON.stringify(f.captureContext)));
     lines.push("");
   });
   return lines.join("\n");

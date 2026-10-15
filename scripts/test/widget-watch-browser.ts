@@ -197,7 +197,20 @@ async function main() {
           watching: fab.classList.contains("watching"),
           badge: (r.querySelector(".fab-badge") as HTMLElement).innerText,
           bar: getComputedStyle(bar).display !== "none",
-          bubble: getComputedStyle(bubble).display !== "none" ? bubble.innerText : "",
+          bubble:
+            getComputedStyle(bubble).display !== "none"
+              ? (bubble.querySelector(".fab-bubble-text")?.textContent ?? "")
+              : "",
+          latest: (bar.querySelector(".wtext") as HTMLElement).innerText.replace(
+            /^Loki noticed: /,
+            "",
+          ),
+          requestNoted: JSON.parse(sessionStorage.getItem("loki-thread:fcw_fixture") ?? "[]").some(
+            (item: { kind: string; text?: string }) =>
+              item.kind === "noticed" &&
+              item.text?.includes("/shop/sizes") &&
+              item.text.includes("404"),
+          ),
         };
       });
     let st = await state();
@@ -213,7 +226,13 @@ async function main() {
       st.badge === "1" || st.badge === "2",
       `what Loki said while closed is counted (${st.badge})`,
     );
-    ok(st.bubble.includes("/shop/sizes"), `…and shown beside the launcher (${st.bubble})`);
+    // Performance observations can legitimately arrive after the request.
+    // Keep the specific error and preview the latest notice, whichever arrived last.
+    ok(st.requestNoted, "the failed request stays in the conversation");
+    ok(
+      !!st.bubble && st.bubble === st.latest,
+      `the latest notice is shown beside the launcher (${st.bubble}; latest: ${st.latest})`,
+    );
     await s.p.evaluate(() =>
       (
         document
@@ -400,8 +419,17 @@ async function main() {
 
     // A trail survives a full page load: a multi-page site is one visit —
     // and what Loki already said, it does not say again.
+    const pendingRead = s.advice.some((item) => item.read === true)
+      ? null
+      : s.p.waitForResponse(
+          (response) =>
+            response.url().endsWith("/api/widget/advise") &&
+            response.request().postDataJSON()?.read === true,
+          { timeout: 15000 },
+        );
     await s.p.reload();
     await s.p.waitForTimeout(3500);
+    if (pendingRead) await pendingRead;
     const repeats = await s.p.evaluate(
       () =>
         JSON.parse(sessionStorage.getItem("loki-thread:fcw_fixture") ?? "[]").filter(

@@ -1,4 +1,14 @@
-import { pgTable, uuid, text, jsonb, timestamp, index, integer } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  text,
+  jsonb,
+  timestamp,
+  index,
+  integer,
+  boolean,
+} from "drizzle-orm/pg-core";
+import type { FeedbackCaptureContext } from "../../../widget/capture-context";
 import { users } from "./users";
 import { entities } from "./entities";
 import { widgetTokens } from "./widget-tokens";
@@ -43,6 +53,9 @@ export const siteFeedback = pgTable(
     tokenId: uuid("token_id").references(() => widgetTokens.id, { onDelete: "set null" }),
 
     suggestion: text("suggestion").notNull(),
+    /** A review observation is not permission for autopilot to make a change. */
+    requiresReview: boolean("requires_review").notNull().default(false),
+    captureContext: jsonb("capture_context").$type<FeedbackCaptureContext>(),
     /** Optional name/email the visitor left for follow-up. */
     contact: text("contact"),
     page: text("page"),

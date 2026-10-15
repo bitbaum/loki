@@ -65,33 +65,35 @@ function WidgetChat({
       >
         <Dom node={state.after} className="fc-kit-after" />
       </ChatThread>
-      <Composer
-        inputRef={inputRef}
-        placeholder={state.placeholder}
-        sending={state.sending}
-        modes={state.modes.length > 1 ? state.modes : undefined}
-        mode={current?.id}
-        onModeChange={setMode}
-        labels={{ send: current?.send ?? "Send" }}
-        attach={{ maxFiles: 5, maxImageEdge: 1024 }}
-        heldAttachments={state.held}
-        voice={{ transcribe: deps.transcribe, rememberKey: null, maxRecordingMs: 110_000 }}
-        above={
-          state.starters.length ? (
-            <ChatReplies
-              replies={state.starters.map((s) => s.label)}
-              onPick={(label) => state.starters.find((s) => s.label === label)?.pick()}
-            />
-          ) : undefined
-        }
-        header={<Dom node={state.header} />}
-        footer={<Dom node={state.footer} />}
-        onSend={(text, atts) => {
-          const images = asDataUrls(atts);
-          if (images.length) deps.stage(images);
-          deps.send(current?.id ?? "ask", text);
-        }}
-      />
+      {!state.reviewingNote && (
+        <Composer
+          inputRef={inputRef}
+          placeholder={state.placeholder}
+          sending={state.sending}
+          modes={state.modes.length > 1 ? state.modes : undefined}
+          mode={current?.id}
+          onModeChange={setMode}
+          labels={{ send: current?.send ?? "Send" }}
+          attach={{ maxFiles: 5, maxImageEdge: 1024 }}
+          heldAttachments={state.held}
+          voice={{ transcribe: deps.transcribe, rememberKey: null, maxRecordingMs: 110_000 }}
+          above={
+            state.starters.length ? (
+              <ChatReplies
+                replies={state.starters.map((s) => s.label)}
+                onPick={(label) => state.starters.find((s) => s.label === label)?.pick()}
+              />
+            ) : undefined
+          }
+          header={<Dom node={state.header} />}
+          footer={<Dom node={state.footer} />}
+          onSend={(text, atts) => {
+            const images = asDataUrls(atts);
+            if (images.length) deps.stage(images);
+            deps.send(current?.id ?? "ask", text);
+          }}
+        />
+      )}
     </div>
   );
 }

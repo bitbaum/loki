@@ -20,6 +20,18 @@ launcher sits, how it avoids host UI, and the host contract (`data-fc-avoid`,
 `data-fc-place`, legacy `data-fc-bottom`) are documented once, in
 [`widget/README.md`](../../widget/README.md).
 
+## Voice review while browsing
+
+The header's **Speak while browsing** leaves the host site interactive and
+captures the page position or explicitly selected element at speaking time.
+Done opens one focused, editable note. **Save note** persists an observation
+held out of automatic work; a verified owner's **Request fix** explicitly
+starts the existing feedback dispatch pipeline. The receipt remains in the
+same widget thread and links to the project Feedback view or run. Visitors
+can save notes without a Loki account but cannot authorize development.
+Unsent text/context survives same-tab page loads; audio cannot survive a full
+navigation. [Design, verification and limits](../development/contextual-voice-feedback.md).
+
 ## Captain loop (one-click north star)
 
 ```

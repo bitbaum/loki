@@ -65,6 +65,9 @@ export async function feedbackFacts(
           report: inlineUntrusted(r.suggestion, SUGGESTION_MAX),
           page: r.page,
           status: r.status,
+          review_note: r.requiresReview
+            ? "Observation only — ask the owner before requesting a fix"
+            : null,
           filed: timeLabel(r.createdAt),
           age: agoLabel(r.createdAt),
           source: r.source,

@@ -205,5 +205,6 @@ export function kitState(i: KitInputs): KitState {
     footer: i.footer,
     held: i.held,
     sending: pending !== null,
+    reviewingNote: model.snapshot().draft?.intent === "note",
   };
 }

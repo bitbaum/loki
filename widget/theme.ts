@@ -336,6 +336,11 @@ a.yours-row:hover .yours-text { color: ${theme.accent}; }
 .sendcard { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid ${theme.accent}; border-radius: ${rs}; background: ${theme.surfaceRaised}; }
 .sendcard textarea { min-height: 64px; }
 .sendcard .err { margin-top: 0; }
+.voice-note { gap: 14px; padding: 16px; border-color: ${theme.borderStrong}; }
+.voice-note .changes-title { font: 500 16px/1.4 ${theme.fontSans ?? "system-ui,sans-serif"}; color: ${theme.text}; text-transform: none; letter-spacing: normal; }
+.voice-note textarea { min-height: 160px; }
+.voice-note .diag { font-size: 13px; line-height: 1.5; border: 0; padding: 0; margin: 0; background: transparent; }
+.voice-note .row { flex-wrap: wrap; gap: 8px; }
 @media (pointer: coarse) { .segbtn, .watchbtn { padding: 10px 8px; } .act { padding: 8px 0; } }
 /* After the base .seg rule on purpose — same specificity, so order decides. */
 @media (max-width: 480px) {

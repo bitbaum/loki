@@ -282,12 +282,35 @@ export function FeedbackItemRow({
   return (
     <article className={cn("ui-fb-row", archived && "opacity-70")}>
       <p className={cn("ui-fb-row-headline", `ui-fb-row-headline-${story.tone}`)}>
-        {story.headline}
+        {f.requiresReview && f.status === FEEDBACK_STATUS.NEW
+          ? "Review note · waiting for your decision"
+          : story.headline}
       </p>
       <FeedbackReportText text={f.suggestion} />
       <ElementTarget f={f} />
       <WhereLine f={f} project={project} />
-      {story.next && <p className="ui-fb-row-next">{story.next}</p>}
+      {f.requiresReview && f.status === FEEDBACK_STATUS.NEW ? (
+        <p className="ui-fb-row-next">
+          Saved as an observation. No change starts until you request it.
+        </p>
+      ) : (
+        story.next && <p className="ui-fb-row-next">{story.next}</p>
+      )}
+      {f.captureContext && (
+        <details className="mt-3 text-sm">
+          <summary className="min-h-11 cursor-pointer py-2 text-text-secondary">
+            Where this was recorded
+          </summary>
+          <dl className="space-y-2">
+            {Object.entries(f.captureContext).map(([label, value]) => (
+              <div key={label}>
+                <dt className="font-medium text-text-secondary">{label}</dt>
+                <dd className="break-words leading-relaxed">{String(value ?? "")}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
 
       {(moves || quiet) && (
         <div className="ui-fb-row-actions">

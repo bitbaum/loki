@@ -135,6 +135,7 @@ export function createVoiceRecorder(opts: VoiceOptions): VoiceRecorder {
   let tick: ReturnType<typeof setInterval> | null = null;
   let capTimer: ReturnType<typeof setTimeout> | null = null;
   let aborted = false;
+  let take = 0;
 
   function set(next: VoiceState, detail?: { error?: string; elapsedMs?: number }) {
     state = next;
@@ -158,13 +159,20 @@ export function createVoiceRecorder(opts: VoiceOptions): VoiceRecorder {
   }
 
   async function start() {
-    if (state === "recording" || state === "requesting") return;
+    if (state === "recording" || state === "requesting" || state === "transcribing") return;
+    const operation = ++take;
     aborted = false;
     chunks = [];
     set("requesting");
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const granted = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (operation !== take) {
+        granted.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      stream = granted;
     } catch (err) {
+      if (operation !== take) return;
       const name = (err as Error)?.name ?? "";
       // NotAllowedError covers both "denied now" and "denied permanently".
       const msg =
@@ -186,19 +194,26 @@ export function createVoiceRecorder(opts: VoiceOptions): VoiceRecorder {
       return;
     }
 
+    const currentRecorder = recorder;
+    const currentStream = stream;
+    const currentChunks = chunks;
     recorder.addEventListener("dataavailable", (e) => {
-      if (e.data && e.data.size > 0) chunks.push(e.data);
+      if (e.data && e.data.size > 0) currentChunks.push(e.data);
     });
 
     recorder.addEventListener("stop", () => {
-      const type = recorder?.mimeType || mime || "audio/webm";
-      const collected = chunks;
+      if (operation !== take) {
+        currentStream?.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      const type = currentRecorder.mimeType || mime || "audio/webm";
+      const collected = currentChunks;
       teardown();
       if (aborted) {
         set("idle");
         return;
       }
-      void upload(new Blob(collected, { type }), type);
+      void upload(new Blob(collected, { type }), type, operation);
     });
 
     startedAt = Date.now();
@@ -226,22 +241,24 @@ export function createVoiceRecorder(opts: VoiceOptions): VoiceRecorder {
 
   function cancel() {
     aborted = true;
+    take++;
     if (recorder && recorder.state !== "inactive") recorder.stop();
-    else {
-      teardown();
-      set("idle");
-    }
+    teardown();
+    set("idle");
   }
 
-  async function upload(blob: Blob, type: string) {
+  async function upload(blob: Blob, type: string, operation: number) {
     if (blob.size < 1000) {
-      set("error", { error: "That was too short — hold the button and speak" });
+      set("error", { error: "That was too short. Record a longer note." });
       return;
     }
     try {
-      opts.onTranscript(await transcribeAudio(opts.endpoint, opts.token, blob, type));
+      const transcript = await transcribeAudio(opts.endpoint, opts.token, blob, type);
+      if (operation !== take) return;
+      opts.onTranscript(transcript);
       set("idle");
     } catch (e) {
+      if (operation !== take) return;
       set("error", {
         error: e instanceof Error ? e.message : "Could not transcribe that, try again",
       });

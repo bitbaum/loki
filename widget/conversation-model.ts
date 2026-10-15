@@ -10,6 +10,8 @@
  * What stays in the view: the About chips, the screenshots tray, the picker
  * and the inputs — they reach the model only as the readers passed in `opts`.
  */
+import { CAPTURE_CONTEXT_LIMITS } from "./capture-context";
+import type { FeedbackCapture } from "./feedback-capture";
 import { buildSuggestion, type ReportDiagnostics } from "./report-payload";
 import { sendReport } from "./send-report";
 import { sendSelfReport } from "./self-report";
@@ -82,7 +84,79 @@ export type ConversationWatch = {
 };
 
 /** A confirmation card in the thread: what will be sent, before it is. */
-export type Draft = { text: string; diagnostics: ReportDiagnostics | null };
+export type Draft = {
+  text: string;
+  diagnostics: ReportDiagnostics | null;
+  capture?: FeedbackCapture;
+  intent?: "note" | "fix";
+};
+
+const draftKey = (token: string) => `loki-voice-draft:${token}`;
+function readRecordedDraft(token: string): Draft | null {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(draftKey(token)) ?? "null") as Draft | null;
+    if (
+      !raw ||
+      raw.intent !== "note" ||
+      typeof raw.text !== "string" ||
+      raw.text.length > 12000 ||
+      !raw.capture ||
+      typeof raw.capture.url !== "string" ||
+      !/^https?:\/\//.test(raw.capture.url) ||
+      typeof raw.capture.page !== "string" ||
+      !Array.isArray(raw.capture.selected) ||
+      raw.capture.selected.length > 10 ||
+      !raw.capture.diagnostics ||
+      typeof raw.capture.diagnostics !== "object"
+    )
+      return null;
+    const selected = raw.capture.selected
+      .filter(
+        (item) =>
+          typeof item.elementType === "string" &&
+          typeof item.elementText === "string" &&
+          typeof item.selector === "string",
+      )
+      .map((item) => ({
+        elementType: item.elementType.slice(0, 100),
+        elementText: item.elementText.slice(0, 300),
+        selector: item.selector.slice(0, 500),
+      }));
+    const diagnostics = Object.fromEntries(
+      Object.entries(raw.capture.diagnostics)
+        .slice(0, CAPTURE_CONTEXT_LIMITS.fields)
+        .filter(
+          ([, value]) =>
+            typeof value === "string" ||
+            typeof value === "boolean" ||
+            typeof value === "number" ||
+            value === null,
+        )
+        .map(([key, value]) => [
+          key.slice(0, CAPTURE_CONTEXT_LIMITS.keyChars),
+          typeof value === "string" ? value.slice(0, CAPTURE_CONTEXT_LIMITS.valueChars) : value,
+        ]),
+    );
+    const capture = {
+      url: raw.capture.url.slice(0, 1000),
+      page: raw.capture.page.slice(0, 300),
+      title: String(raw.capture.title ?? "").slice(0, 300),
+      selected,
+      diagnostics,
+    };
+    return { text: raw.text, intent: "note", capture, diagnostics };
+  } catch {
+    return null;
+  }
+}
+function keepRecordedDraft(token: string, draft: Draft | null) {
+  try {
+    if (draft?.intent === "note") sessionStorage.setItem(draftKey(token), JSON.stringify(draft));
+    else sessionStorage.removeItem(draftKey(token));
+  } catch {
+    /* The current note remains available when storage is blocked. */
+  }
+}
 
 export type ConversationSnapshot = {
   thread: readonly ThreadItem[];
@@ -133,7 +207,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
   let thread = readThread(opts.token);
   let pending: ConversationSnapshot["pending"] = null;
   let error = "";
-  let draft: Draft | null = null;
+  let draft: Draft | null = readRecordedDraft(opts.token);
   const listeners = new Set<(follow: boolean) => void>();
 
   const owner = () => opts.ownerPass() !== null;
@@ -214,6 +288,11 @@ export function createConversationModel(opts: ConversationModelOpts) {
    * when they choose "Edit first".
    */
   function build(text: string, key?: string) {
+    if (draft?.intent === "note") {
+      error = "Save or cancel your current note before requesting another change.";
+      changed(true);
+      return;
+    }
     error = "";
     if (opts.about() === "loki" && !key) {
       toLoki(text).catch((e) => fail(e, "Could not send it to Loki — try again."));
@@ -255,13 +334,17 @@ export function createConversationModel(opts: ConversationModelOpts) {
     contact: string,
     diag: ReportDiagnostics | null,
     key?: string,
+    capture?: FeedbackCapture,
+    intent?: "note" | "fix",
   ) {
     const pass = opts.ownerPass();
     const res = await sendReport(opts.apiBase, {
       token: opts.token,
-      suggestion: buildSuggestion(body, diag, MAX_LEN),
+      intent,
+      capture,
+      suggestion: capture ? body.trim().slice(0, MAX_LEN) : buildSuggestion(body, diag, MAX_LEN),
       contact,
-      scope: opts.scope(),
+      scope: capture ? (capture.selected.length ? "element" : "page") : opts.scope(),
       screenshots: opts.screenshots.list(),
       selectedElements: opts.picker.selected(),
       ownerPass: pass ?? undefined,
@@ -271,6 +354,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
     });
     if (pass && !res.owner) opts.onPassRefused();
     draft = null;
+    keepRecordedDraft(opts.token, null);
     opts.screenshots.clear();
     opts.picker.clearSelection();
     remember({
@@ -279,6 +363,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
       text: body.slice(0, 300),
       owner: res.owner === true,
       ...(res.building ? { building: true } : {}),
+      ...(res.savedOnly ? { savedOnly: true } : {}),
       ...(res.buildNote ? { note: res.buildNote } : {}),
       // One link either way: a visitor tracks their report, the owner
       // follows the build Loki just started.
@@ -289,6 +374,11 @@ export function createConversationModel(opts: ConversationModelOpts) {
   }
 
   function openDraft(text: string, diagnostics: ReportDiagnostics | null = null) {
+    if (draft?.intent === "note") {
+      error = "Save or cancel your current note first.";
+      changed(true);
+      return;
+    }
     const diag = diagnostics ?? (owner() ? (opts.watch()?.diagnostics() ?? null) : null);
     draft = { text: text.slice(0, MAX_LEN), diagnostics: diag };
     changed(true);
@@ -308,12 +398,34 @@ export function createConversationModel(opts: ConversationModelOpts) {
     openDraft,
     /** Send the open confirmation card, as edited. Throws the server's words
      *  for the card to show beside its button. */
-    sendDraft: (body: string, contact: string) => {
+    sendDraft: (body: string, contact: string, intent?: "note" | "fix") => {
+      if (body.trim().length > MAX_LEN)
+        return Promise.reject(
+          new Error(
+            `Shorten this note to ${MAX_LEN} characters before sending. Your full recording text is kept here.`,
+          ),
+        );
       const diag = draft?.diagnostics ?? null;
-      return deliver(body, contact, diag);
+      return deliver(body, contact, diag, undefined, draft?.capture, intent ?? draft?.intent);
+    },
+    recorded(text: string, capture: FeedbackCapture) {
+      draft = {
+        text,
+        diagnostics: capture.diagnostics,
+        capture,
+        intent: "note",
+      };
+      keepRecordedDraft(opts.token, draft);
+      changed(true);
+    },
+    editDraft(text: string) {
+      if (!draft) return;
+      draft.text = text;
+      keepRecordedDraft(opts.token, draft);
     },
     closeDraft: () => {
       draft = null;
+      keepRecordedDraft(opts.token, null);
       changed();
     },
     clearError: () => {
@@ -346,7 +458,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
     },
     /** Closing the panel: the card and the error go; the thread is kept. */
     close() {
-      draft = null;
+      if (draft?.intent !== "note") draft = null;
       error = "";
     },
   };

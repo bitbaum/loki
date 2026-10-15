@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
   const inbox = `${appUrl()}/feedback${key ? `?project=${encodeURIComponent(key)}` : ""}`;
   const known: KnownFix[] = withWork.flatMap((item) => {
     if (!item.noticeKey) return [];
-    const status = ownerStatusFor(item.work);
+    const status = ownerStatusFor(item.work, item.requiresReview);
     const liveHref = livePageHref(item.liveUrl, item.url, item.page);
     return [
       {
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
   const changes: OwnerChange[] = withWork
     .filter((item) => mine.some((m) => m.id === item.id))
     .map((item) => {
-      const status = ownerStatusFor(item.work);
+      const status = ownerStatusFor(item.work, item.requiresReview);
       const liveHref = livePageHref(item.liveUrl, item.url, item.page);
       // "See it" is the walkthrough of THIS change on the live page, minted for
       // the owner; it is offered only once the change is actually live.
