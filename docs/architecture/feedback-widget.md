@@ -381,6 +381,25 @@ matters):
 
 ## Since v1 (2026-08-24)
 
+- **2026-10-15 — Loki's look, in Loki's mode, with one scroll.** The widget's
+  colours came from the fleet's shared tokens, whose accent is OrangeCat's
+  warm orange, and it was dark only: on a client's light site the owner saw an
+  orange-ringed black panel and asked why Loki's widget looked like OrangeCat.
+  Now `scripts/generate-widget-theme.ts` reads Loki's own `globals.css`
+  (`:root` and `.dark`) into `WIDGET_THEMES` — the accent is the ink, the warm
+  colour only the focus ring and a picked element's outline on the host page.
+  Every widget stylesheet reads `var(--lk-…)`; `themeVarsCSS` defines both
+  modes on the shadow host and `widget/theme-mode.ts` sets `data-lk-theme`:
+  the owner's choice in Loki (`user_preferences.theme`, saved by
+  `ThemeSync` → `PUT /api/me/theme`, returned by `/api/widget/owner/changes`
+  and remembered per site), everyone else their device's setting, followed
+  live. The panel is one column with ONE scroll area — the thread — between a
+  fixed header and composer (the whole card used to scroll too, which hid the
+  composer below a laptop's fold and nested a scroll inside a scroll on
+  phones); a phone sheet opens at two thirds of the screen; the desktop card no
+  longer greys out the site it invites you to use; About is a segmented
+  control that fits a 320px phone on one line.
+
 - **2026-10-15 — Loki answers what was asked.** On a client's site the owner
   said a description field had no microphone and asked, twice, whether the
   site used the fleet's packages; Loki answered with the same advice about one

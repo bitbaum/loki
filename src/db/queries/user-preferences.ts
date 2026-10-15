@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { userPreferences } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { isThemeModeValue, type ThemeModeValue } from "@/config/theme";
 import { DEFAULT_TIMEZONE } from "@/lib/constants";
 import { WEATHER_CITY } from "@/lib/constants/today";
 import { ACTION_TYPE } from "@/lib/constants/statuses";
@@ -141,4 +142,26 @@ function toRow(d: UserPreferencesData) {
     // record, and the only values that may ever land in it are the eligible ones.
     standingApprovals: sanitizeStandingApprovals(d.standingApprovals),
   };
+}
+
+/**
+ * The light/dark choice made in Loki (user_preferences.theme) — read by the
+ * site widget for its owner (api/widget/owner/changes), written by Loki's
+ * theme control (api/me/theme). Kept apart from the preferences object: it is
+ * a display choice, not something the settings form edits.
+ */
+export async function getUserTheme(userId: string): Promise<ThemeModeValue | null> {
+  const [row] = await db
+    .select({ theme: userPreferences.theme })
+    .from(userPreferences)
+    .where(eq(userPreferences.userId, userId))
+    .limit(1);
+  return isThemeModeValue(row?.theme) ? row.theme : null;
+}
+
+export async function setUserTheme(userId: string, theme: ThemeModeValue): Promise<void> {
+  await db
+    .insert(userPreferences)
+    .values({ userId, theme })
+    .onConflictDoUpdate({ target: userPreferences.userId, set: { theme } });
 }

@@ -15,7 +15,15 @@
  * scoped to one feedback item, and expires. Nothing else starts a tour.
  */
 import { h, spiralMark } from "./dom";
-import { spiralCSS, type WidgetTheme } from "./theme";
+import {
+  spiralCSS,
+  themesFrom,
+  themeVarsCSS,
+  varTheme,
+  type WidgetTheme,
+  type WidgetThemes,
+} from "./theme";
+import type { ThemeModeHandle } from "./theme-mode";
 import { followUpCSS, mountFollowUp } from "./tour-followup";
 
 export const TOUR_HASH_KEY = "loki-tour";
@@ -53,6 +61,8 @@ export type TourBeat = {
 type TourPlan = {
   ok: true;
   theme: WidgetTheme;
+  /** Light and dark (theme.ts); a server from before the two sends `theme` only. */
+  themes?: WidgetThemes;
   title: string;
   intro: string;
   /** Kept for a widget bundle cached from before chapters existed. */
@@ -223,7 +233,10 @@ function tourCSS(t: WidgetTheme): string {
 :host { all: initial; }
 * { box-sizing: border-box; margin: 0; font-family: ${sans}; -webkit-font-smoothing: antialiased; }
 .layer { position: fixed; inset: 0; pointer-events: none; z-index: 2147483646; }
-.ring { position: fixed; border: 2px solid ${t.accent}; border-radius: ${rc};
+/* The ring sits on the HOST page, not on Loki's card: the warm highlight,
+   which reads on a white site and a black one alike (the ink would vanish
+   on one of them). */
+.ring { position: fixed; border: 2px solid ${t.highlight ?? t.accent}; border-radius: ${rc};
   box-shadow: 0 0 0 4px ${t.accentMuted}; opacity: 0;
   transition: all .7s cubic-bezier(.2,.8,.2,1), opacity .3s; }
 .ring.on { opacity: 1; }
@@ -303,6 +316,7 @@ export async function runTour(
   apiBase: string,
   token: string,
   projectToken: string | null = null,
+  mode: ThemeModeHandle | null = null,
 ): Promise<void> {
   if (document.getElementById("loki-tour-host")) return;
   // Let the page settle (fonts, client components) before reading it.
@@ -324,17 +338,22 @@ export async function runTour(
   } catch {
     return;
   }
-  const t = plan.theme;
+  const themes = themesFrom(plan) ?? { light: plan.theme, dark: plan.theme };
+  // Written against variables, defined for both modes on this host — the
+  // card follows Loki's mode exactly as the panel does.
+  const t = varTheme(themes);
 
   const host = h("div");
   host.id = "loki-tour-host";
+  mode?.bind(host);
   const root = host.attachShadow({ mode: "open" });
   const style = h("style");
-  style.textContent = tourCSS(t) + followUpCSS(t);
+  style.textContent = themeVarsCSS(themes) + tourCSS(t) + followUpCSS(t);
   const layer = h("div", "layer");
   const ring = h("div", "ring");
   const cursor = h("div", "cursor");
-  cursor.innerHTML = CURSOR_SVG(t);
+  // SVG attributes cannot read variables; the cursor is white and black in both modes.
+  cursor.innerHTML = CURSOR_SVG(themes.light);
   const card = h("div", "card");
   card.setAttribute("role", "dialog");
   card.setAttribute("aria-live", "polite");
@@ -658,7 +677,7 @@ export async function runTour(
       // The token is still valid; the page is read again from the top.
       close();
       window.scrollTo({ top: 0, behavior: "smooth" });
-      void runTour(apiBase, token, projectToken);
+      void runTour(apiBase, token, projectToken, mode);
     }),
   );
   // Sharing the page itself, without a walkthrough: the address as it is now
@@ -728,7 +747,11 @@ function shareButton(url: string, place: (field: HTMLInputElement) => void): HTM
 
 /** Start a walkthrough if this page load carried a tour token. The site's
  *  widget token lets "Not quite" offer the mic. */
-export function startTourFromFragment(apiBase: string, projectToken: string | null = null): void {
+export function startTourFromFragment(
+  apiBase: string,
+  projectToken: string | null = null,
+  mode: ThemeModeHandle | null = null,
+): void {
   const token = takeTourToken();
-  if (token) void runTour(apiBase, token, projectToken);
+  if (token) void runTour(apiBase, token, projectToken, mode);
 }

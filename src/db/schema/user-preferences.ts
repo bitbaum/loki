@@ -68,6 +68,14 @@ export const userPreferences = pgTable(
      * pick under every stance — lib/models/auto-picks.ts has the table.
      */
     modelStance: text("model_stance").notNull().default("balanced"),
+    /**
+     * Light, dark or system — the choice made with Loki's theme control
+     * (components/shell/ThemeSync.tsx saves it). Kept on the account, not
+     * only in the browser, because the widget on the owner's own SITE shows
+     * in that mode too (widget/theme-mode.ts), and the site is another origin
+     * that cannot read Loki's localStorage. Null = never chosen.
+     */
+    theme: text("theme"),
     awaySince: timestamp("away_since", { withTimezone: true }),
     awayUntil: timestamp("away_until", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -5,6 +5,8 @@ import { RATE_LIMIT_WINDOW_SHORT_MS } from "@/lib/constants/time";
 import { FEEDBACK_SOURCE, FEEDBACK_STATUS, WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
 import { getWidgetProjectKey, getWidgetTokenByToken } from "@/db/queries/widget-tokens";
 import { listProjectFeedback } from "@/db/queries/site-feedback";
+import { getUserTheme } from "@/db/queries/user-preferences";
+import { DEFAULT_THEME_MODE } from "@/config/theme";
 import { attachFeedbackWork } from "@/lib/feedback/attach-work";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { createTourToken, tourSiteUrl, watchFixPath } from "@/lib/feedback/tour-token";
@@ -90,9 +92,12 @@ export async function POST(req: NextRequest) {
     return corsJson({ ok: true, owner: false, changes: [] });
   }
 
-  const [all, key] = await Promise.all([
+  const [all, key, theme] = await Promise.all([
     listProjectFeedback(token.userId, token.projectId, OWNER_CHANGES_FETCH),
     getWidgetProjectKey(token.projectId, token.userId),
+    // The mode they chose in Loki, so their site's panel shows in it too
+    // (widget/theme-mode.ts). Never chosen = what Loki shows them: dark.
+    getUserTheme(token.userId).catch(() => null),
   ]);
   // "Your changes" means yours: what the owner asked for, and what Loki filed
   // on its own while watching or reviewing. A stranger's "so nice picture!"
@@ -172,5 +177,13 @@ export async function POST(req: NextRequest) {
               : null,
       };
     });
-  return corsJson({ ok: true, owner: true, changes, known, inbox, visitors });
+  return corsJson({
+    ok: true,
+    owner: true,
+    changes,
+    known,
+    inbox,
+    visitors,
+    theme: theme ?? DEFAULT_THEME_MODE,
+  });
 }

@@ -275,6 +275,7 @@ export async function POST(req: NextRequest) {
   return corsJson({
     ok: true,
     theme: PALETTE.widget,
+    themes: PALETTE.widgetThemes,
     title: audience === "reporter" ? "Your fix" : "Watch the fix",
     intro:
       audience === "viewer"

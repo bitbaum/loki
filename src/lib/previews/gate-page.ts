@@ -3,8 +3,8 @@
  * says previews are switched off. Plain HTML, because a preview route answers
  * with the prospect's own files and has no React tree to render into.
  *
- * Colours come from PALETTE.widget, which is generated from
- * @bitbaum/design-tokens: no colour is typed here.
+ * Colours come from PALETTE.widget — Loki's dark theme, generated from
+ * src/app/globals.css: no colour is typed here.
  */
 import { PALETTE } from "@/lib/palette";
 

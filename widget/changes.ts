@@ -16,6 +16,7 @@
  */
 import { h } from "./dom";
 import { knownFor, parseKnown, type KnownFix } from "./known-fixes";
+import { isThemePreference, type ThemePreference } from "./theme-mode";
 
 export type OwnerChange = {
   id: string;
@@ -133,6 +134,8 @@ export function createChanges(opts: {
   onLive: (change: OwnerChange) => void;
   /** The server no longer honours the pass. */
   onPassRefused: () => void;
+  /** The owner's light/dark choice in Loki, each time the server reports it. */
+  onTheme?: (pref: ThemePreference) => void;
   /** The list was re-read: cards keyed to a fix follow its status. */
   onUpdate?: () => void;
 }) {
@@ -238,12 +241,15 @@ export function createChanges(opts: {
         owner?: boolean;
         inbox?: unknown;
         visitors?: unknown;
+        theme?: unknown;
       } | null;
       if (!res.ok || !body) return;
       if (body.owner === false) {
         opts.onPassRefused();
         return;
       }
+      // The mode the owner chose in Loki — the panel follows it (theme-mode.ts).
+      if (isThemePreference(body.theme)) opts.onTheme?.(body.theme);
       const next = parseChanges(body);
       known = parseKnown(body);
       opts.onUpdate?.();

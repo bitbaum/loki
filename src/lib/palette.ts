@@ -1,4 +1,4 @@
-import { WIDGET_THEME } from "./widget-theme.generated";
+import { WIDGET_THEME, WIDGET_THEMES } from "./widget-theme.generated";
 
 // JS mirrors of globals.css design tokens for contexts that cannot read CSS
 // vars (satori OG images, email HTML, Next metadata themeColor, xterm).
@@ -57,14 +57,13 @@ export const PALETTE = {
   },
   /** Plain white — email card surface + button/header text on dark fills. */
   white: "#ffffff",
-  /** Widget theme — mirrors the app's dark-mode design tokens for the embed.
-   *  The widget is always dark (works on any host page background), so these
-   *  map to .dark tokens in globals.css. Change both places together. */
   /**
-   * The feedback widget's theme — DERIVED from @bitbaum/design-tokens by
-   * scripts/generate-widget-theme.ts, never typed here. It used to be a hand
-   * copy, which is how the widget drifted into "does not look like part of
-   * Loki". scripts/test/widget-theme-from-tokens.ts fails on drift.
+   * The feedback widget's themes, light and dark — DERIVED from Loki's own
+   * tokens (src/app/globals.css) by scripts/generate-widget-theme.ts, never
+   * typed here. scripts/test/widget-theme-from-tokens.ts fails on drift.
+   * `widget` is the dark one, for surfaces that are always dark (the preview
+   * gate) and for a widget bundle cached from before there were two.
    */
   widget: WIDGET_THEME,
+  widgetThemes: WIDGET_THEMES,
 } as const;
