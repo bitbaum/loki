@@ -150,6 +150,21 @@ check(() => {
 });
 
 check(() => {
+  // 2026-10-15: minutes spent talking to Loki in the panel reached Review as
+  // silence and came back as "the page never responded for 194 s". A talk
+  // step makes that time what it was, and survives a page load's restore.
+  const t: TrailEntry[] = [
+    { at: 0, kind: "page", text: "/stellen/1/bearbeiten" },
+    { at: 2_000, kind: "talk", text: "«there's no way to speak into this field»" },
+    { at: 196_000, kind: "talk", text: "«are we using the packages?»" },
+  ];
+  const s = sessionForReview(t, [], 200_000);
+  assert.match(s, /talk «there's no way to speak into this field»/);
+  assert.ok(!/nothing for 19\ds/.test(s), "the conversation is not the site going quiet");
+  assert.equal(freshTrail(t, 200_000).length, 3, "talk steps survive a restore");
+});
+
+check(() => {
   // Too long: the OLDEST steps go, the checks and the newest steps stay.
   const t: TrailEntry[] = Array.from({ length: TRAIL_MAX }, (_, i) => ({
     at: i,

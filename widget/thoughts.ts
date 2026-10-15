@@ -45,6 +45,8 @@ export function thoughtFor(e: TrailEntry): Thought {
     }
     case "notice":
       return { at, tone: "warn", text: `Noticed: ${e.text}` };
+    case "talk":
+      return { at, tone: "plain", text: `You asked me: ${e.text}` };
     case "error":
       return { at, tone: "bad", text: `The page hit an error: ${e.text}` };
     case "request": {

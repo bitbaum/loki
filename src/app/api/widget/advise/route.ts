@@ -7,7 +7,12 @@ import {
   RATE_LIMIT_WINDOW_SHORT_MS,
 } from "@/lib/constants/time";
 import { WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
-import { getWidgetProjectBrief, getWidgetTokenByToken } from "@/db/queries/widget-tokens";
+import {
+  getWidgetBuildFacts,
+  getWidgetProjectBrief,
+  getWidgetTokenByToken,
+} from "@/db/queries/widget-tokens";
+import { renderBuildFacts } from "@/lib/widget-advise/build-facts";
 import { callTextDetailed } from "@/lib/groq";
 import { stripReasoning } from "@/lib/agent/llm";
 import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
@@ -121,7 +126,12 @@ export async function POST(req: NextRequest) {
   const owner = !!pass && pass.projectId === token.projectId && pass.userId === token.userId;
 
   try {
-    const project = await getWidgetProjectBrief(token.projectId).catch(() => null);
+    const [project, buildFacts] = await Promise.all([
+      getWidgetProjectBrief(token.projectId).catch(() => null),
+      // A failed read is "no record", which the advisor says aloud — never a
+      // reason to refuse the question.
+      getWidgetBuildFacts(token.projectId, token.userId).catch(() => null),
+    ]);
     const answered = await callTextDetailed(advisePrompt(data.history ?? [], data.question), {
       feature: "widget-advise",
       systemPrompt: adviseSystemPrompt({
@@ -131,6 +141,7 @@ export async function POST(req: NextRequest) {
         session: data.session,
         owner,
         read: data.read === true && owner,
+        build: renderBuildFacts(buildFacts),
       }),
       // Reasoning models spend hidden tokens before the first visible word; a
       // session review answers through five lenses and needs the room.

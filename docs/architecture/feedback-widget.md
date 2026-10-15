@@ -1,8 +1,8 @@
 # Loki Feedback Widget
 
 **Created:** 2026-07-17  
-**Last modified:** 2026-10-09
-**Last modified summary:** The loop closes on the site: **Your changes** in the owner's panel (Building · On its way · Live · Needs you, from the inbox's own phase), Loki announcing a change that went live since the last look; Continue in Loki (the thread carried into `/loki` or `/terminal`); the advisor knows the owner by their pass and never hands the builder's job back to the client; the owner's sign-in is on the first screen; "Follow the build" never tours a page that has not changed; the header fits a phone.
+**Last modified:** 2026-10-15
+**Last modified summary:** Loki on the site knows how the site is built (the packages its code uses, the kickoff's plan, the owner's build conventions — `src/config/build-conventions.ts`) and answers "is this using our packages?" from that; talking to Loki is a step in a Review, never silence; one page read at a time. Before that: The loop closes on the site: **Your changes** in the owner's panel (Building · On its way · Live · Needs you, from the inbox's own phase), Loki announcing a change that went live since the last look; Continue in Loki (the thread carried into `/loki` or `/terminal`); the advisor knows the owner by their pass and never hands the builder's job back to the client; the owner's sign-in is on the first screen; "Follow the build" never tours a page that has not changed; the header fits a phone.
 
 **Status**: COMPLETE 2026-07-28. Phases 1–4 implemented 2026-07-17 — four
 `feat(feedback):` commits (ingest spine, embed bundle, inbox + dispatch,
@@ -380,6 +380,25 @@ matters):
    before trusting any "not yet" in this file.
 
 ## Since v1 (2026-08-24)
+
+- **2026-10-15 — Loki answers what was asked.** On a client's site the owner
+  said a description field had no microphone and asked, twice, whether the
+  site used the fleet's packages; Loki answered with the same advice about one
+  textarea twice, in German, and its Review called the minutes spent talking
+  to it "the page never responded for 194 s". Now: the advisor receives how
+  the site is BUILT (`src/lib/widget-advise/build-facts.ts` from
+  `project_packages`, `project_package_scans` and `user_projects.kit_plan`,
+  via `getWidgetBuildFacts`) and the owner's **build conventions**
+  (`src/config/build-conventions.ts` — the one list, also carried by every
+  dispatch through `renderOperatingPrinciples`); naming a package is not
+  "explaining how to edit"; a point about every form is answered as a rule
+  across the site; it never repeats an earlier answer; it replies in the
+  language of the latest message. What the owner says to Loki is a `talk`
+  step in Watch's trail (`watch-trail.ts`), so a Review reads that time as
+  talking, and Review may not name an endpoint the evidence does not show.
+  Loki's unasked read of a page skips test data and replaces the previous
+  read in the thread instead of stacking one per page (`thread.ts
+  pushPageRead`).
 
 - **2026-10-09 — fixes go as one, and watch notices what taps do.**
   Suggested changes are one decision (`widget/suggestions.ts`): every row

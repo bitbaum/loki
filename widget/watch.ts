@@ -826,6 +826,11 @@ export function startWatchMode(opts: {
     session,
     trail: () => recorder?.trail() ?? [],
     diagnostics: () => (paused ? null : diagnostics("Loki watch mode")),
+    talked: (text: string) => {
+      if (paused) return;
+      const line = text.replace(/\s+/g, " ").trim();
+      recorder?.note("talk", line.length > 80 ? `«${line.slice(0, 79)}…»` : `«${line}»`);
+    },
   };
 }
 
@@ -841,6 +846,9 @@ export type WatchSession = {
   /** The trail as report lines, for a change sent while watching — null when
    *  stopped, when nothing may travel. */
   diagnostics: () => ReportDiagnostics | null;
+  /** The owner said something to Loki in the panel — a step in the visit, so
+   *  a Review reads the time it took as talking, never as the site stalling. */
+  talked: (text: string) => void;
 };
 
 /** The site has a modal open — a `<dialog open>` shown modally or an

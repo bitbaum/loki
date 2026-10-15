@@ -19,6 +19,9 @@ import {
   adviseSystemPrompt,
   splitAdvice,
 } from "@/lib/widget-advise/advisor";
+import { BUILD_FACTS_MAX, renderBuildFacts } from "@/lib/widget-advise/build-facts";
+import { BUILD_CONVENTIONS } from "@/config/build-conventions";
+import { renderOperatingPrinciples } from "@/config/operating-principles";
 import {
   ADVISE_MAX_HISTORY as WIDGET_MAX_HISTORY,
   ADVISE_MAX_QUESTION as WIDGET_MAX_QUESTION,
@@ -169,7 +172,54 @@ assert.match(widgetSrc, /session\.slice\(0, REVIEW_SESSION_MAX\)/, "the widget c
     "the session leads, the outline is context",
   );
   const huge = adviseSystemPrompt({ scope: "page", snapshot: "", session: "x".repeat(50_000) });
-  assert.ok(huge.length < ADVISE_MAX_SESSION + 6_000, "an oversized session is clamped");
+  assert.ok(huge.length < ADVISE_MAX_SESSION + 7_000, "an oversized session is clamped");
+}
+
+// ---- what Loki knows about how the site is built (2026-10-15) ----
+{
+  // "Are we using our packages?" asked twice on the owner's own site got the
+  // same advice about one textarea twice: the advisor could not see the build.
+  const built = renderBuildFacts({
+    hasRepository: true,
+    planned: ["@bitbaum/chatkit", "ai-forms"],
+    observed: [{ name: "ai-forms", version: "0.1.2" }],
+    readAt: new Date("2026-10-14T08:00:00Z"),
+  });
+  assert.match(built, /ai-forms — every form/, "a package is named with what it does");
+  assert.match(built, /version 0\.1\.2/);
+  assert.match(built, /Planned at the start but not found in its code: @bitbaum\/chatkit/);
+  assert.match(built, /gets a microphone/, "the owner's conventions travel with the facts");
+  assert.ok(built.length <= BUILD_FACTS_MAX);
+  const unread = renderBuildFacts({
+    hasRepository: false,
+    planned: [],
+    observed: null,
+    readAt: null,
+  });
+  assert.match(unread, /not been read .* never guess/, "unknown is said, not guessed");
+  assert.match(renderBuildFacts(null), /no record of how this site is built/);
+  for (const c of BUILD_CONVENTIONS) {
+    assert.ok(renderOperatingPrinciples().includes(c.rule), `every dispatch carries ${c.id}`);
+  }
+
+  const owner = adviseSystemPrompt({
+    scope: "element",
+    snapshot: "x",
+    owner: true,
+    build: built,
+  });
+  assert.ok(owner.includes("ai-forms — every form"), "the build facts reach the prompt");
+  assert.match(owner, /never deflect them/, "the owner's how-is-it-built question is answered");
+  assert.match(owner, /is NOT explaining how to edit it/, "naming a package is not a how-to");
+  assert.match(owner, /Never repeat an earlier answer/);
+  assert.match(owner, /answer at that level/, "a rule is answered as a rule, not one patch");
+  assert.match(owner, /their latest message, even when the site is in another language/);
+  assert.ok(!/they never edit the site themselves/.test(owner));
+  const review = adviseSystemPrompt({ scope: "page", snapshot: "x", session: "talk «hi»" });
+  assert.match(review, /Steps marked 'talk'/, "talking to Loki is not the site freezing");
+  assert.match(review, /Never name an endpoint/);
+  const read = adviseSystemPrompt({ scope: "page", snapshot: "x", owner: true, read: true });
+  assert.match(read, /test or demo data/, "a TEST record is not the design");
 }
 
 // ---- answers are shown as text: markdown emphasis is unwrapped, not shown ----

@@ -7,7 +7,9 @@ import assert from "node:assert/strict";
 import {
   assistantFor,
   historyFor,
+  isPageReadKey,
   pushItem,
+  pushPageRead,
   restoreThread,
   THREAD_MAX,
   THREAD_MAX_AGE_MS,
@@ -158,6 +160,32 @@ assert.deepEqual(parseWidgetSurfaceModes("nonsense"), ["report", "ask"]);
   for (let i = 0; i < THREAD_MAX + 7; i++) t = pushItem(t, { kind: "you", at: i, text: `m${i}` });
   assert.equal(t.length, THREAD_MAX);
   assert.equal((t[0] as { text: string }).text, "m7", "the oldest go first");
+}
+
+// ---- Loki's unasked page reads: only the newest stays ----
+{
+  // 2026-10-15: one read per page browsed, four stacked above the owner's own
+  // words. A new read replaces the last; every other item is untouched.
+  const read = (at: number, key: string): ThreadItem => ({
+    kind: "noticed",
+    at,
+    text: `read ${at}`,
+    fix: "f",
+    key,
+  });
+  let t: ThreadItem[] = [];
+  t = pushPageRead(t, read(1, "/a|read"));
+  t = pushItem(t, { kind: "noticed", at: 2, text: "slow", fix: "f", key: "/a|notice|slow" });
+  t = pushItem(t, { kind: "you", at: 3, text: "hello" });
+  t = pushPageRead(t, read(4, "/b|read"));
+  assert.deepEqual(
+    t.map((i) => i.at),
+    [2, 3, 4],
+    "the earlier read goes; a measured notice and your words stay",
+  );
+  assert.ok(
+    isPageReadKey("/b|read") && !isPageReadKey("/a|notice|slow") && !isPageReadKey(undefined),
+  );
 }
 
 // ---- the thread as model history ----
