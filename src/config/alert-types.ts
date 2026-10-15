@@ -122,6 +122,11 @@ export const ALERT_TYPES = {
     audience: "operator",
     producer: "src/lib/feedback/notify-needs-you.ts",
   },
+  gateway_down: {
+    label: "WhatsApp and the Telegram chat are not being read — the gateway is down",
+    audience: "system",
+    producer: "src/app/api/crons/check-gateway/route.ts",
+  },
   orangecat_link_broken: {
     label: "OrangeCat rejected the account's token — publishing is paused",
     audience: "system",
