@@ -8,6 +8,13 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-10-15 — Notifications you can actually turn on
 
+- **Chat does more, with less ceremony.** From WhatsApp or Telegram you can now
+  say "add dentist Friday 3pm" and it is booked without a second tap (events you
+  ask for have no guests, so there is nothing to protect), ask "what's on this
+  week", add a reminder or a note, and forward a screenshot, photo or voice note
+  that implies one of those. Sending email stays off by design: Loki writes the
+  draft, you send it. The chat skill now installs itself on the box when it
+  changes, so it can no longer drift from the app.
 - **Loki tells you when WhatsApp and the Telegram chat stop being read.** The
   gateway behind them died on Oct 8 and nothing noticed for a week. Now a check
   every ten minutes raises an alert and one Telegram message when it is down,

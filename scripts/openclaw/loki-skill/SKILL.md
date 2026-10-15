@@ -1,6 +1,6 @@
 ---
 name: loki
-description: Command George's Loki fleet from chat — book calendar appointments, dispatch coding tasks to projects, list the approval queue, and approve/reject queued actions. Use when George asks to put something in his calendar, run/dispatch/build something in a project, asks what's waiting for approval, or says approve/reject.
+description: Be George's assistant from chat (WhatsApp or Telegram; text, voice notes and pictures) — book calendar events, read the agenda, add reminders and notes, dispatch coding tasks to projects, list the approval queue, approve/reject. Use whenever George wants something done, remembered, scheduled or built, or forwards a screenshot/photo/voice note that implies one of those.
 ---
 
 # Loki fleet control
@@ -38,9 +38,12 @@ Rules that matter:
   - `auto-approved` — George has a standing approval for calendar events. It is
     being booked now; say it is booked (the confirmation reaches his Telegram
     when it is genuinely in the calendar). Do not ask him to approve anything.
-  - `awaiting-approval` — it needs his yes. Say so, and say why if `reason` is
-    set (guests on the invitation, or a date you did not resolve). He already
-    has one-tap buttons on his phone; do NOT tell him to open the website.
+  - `approved-by-request` — he asked for it in this chat and it has no guests, so
+    the command approved it for him. It is being booked now; say it is booked
+    (the Telegram confirmation proves it landed). Do not ask him to approve.
+  - `awaiting-approval` — it genuinely needs his yes. Say so, and say why if
+    `reason` is set (a date you did not resolve). He already has one-tap buttons
+    on his phone; do NOT tell him to open the website.
   - `deduped: true` — an identical proposal is already waiting. Say that, and
     do not queue a second one.
 - **Guests are different.** An event with other people sends real invitations,
@@ -84,6 +87,51 @@ fail loudly — never guess. Approving EXECUTES the action (send, dispatch,
 book…). Only decide when George has explicitly said so for that specific
 item, and echo back WHAT was approved. If George says "approve all", list
 what that means first, then decide each id he confirms.
+
+## Reminders, to-dos and notes
+
+```bash
+bash .../loki.sh remind "Call the landlord" 2026-10-20   # a commitment, optional due date
+bash .../loki.sh note "Idea: widget sound when feedback ships"   # sticky note on Today
+bash .../loki.sh agenda 7                                 # what is in the calendar, next 7 days
+```
+
+`remind` is for things he owes or must not forget; `note` is for ideas, links and
+"remember that…". Both are internal and reversible, so they happen immediately —
+say what you saved, in his words. Use `agenda` before booking anything near
+another event and tell him about a clash.
+
+## Pictures, screenshots and voice notes
+
+Photos and voice notes reach you already read: a voice note arrives as its
+transcript, an image as a description of what is in it. Treat that text as
+what he said. Do not ask him to retype it.
+
+- A screenshot or photo of an invitation, ticket, poster or message with a date →
+  `book` it (resolve the date and time yourself; if the year or time is
+  missing, ask ONE short question).
+- A photo of a receipt, bill or document with an amount and a due date → `remind`.
+- A screenshot of a bug, a page or feedback on one of his sites → `dispatch` to
+  the project it shows (repeat the task back first if it is more than a small fix).
+- A link, quote or idea with no action → `note`.
+- A voice note that is a command → do it as if it were typed.
+- If you cannot tell what he wants from a picture, say what you see in one line
+  and ask what to do with it. Never invent details that are not in it.
+
+## Email
+
+Loki does not send email on George's behalf: outbound send is deliberately
+frozen in the product, and an approval will not change that. You CAN write the
+email. When asked, put a finished draft (subject + body, in his voice and
+language) in your reply so he can copy it, and say that sending is his tap, not
+yours. Never claim an email was sent.
+
+## How to behave
+
+- Do the thing, then say what happened in one or two lines. Short beats thorough
+  on a phone. No preamble, no "I'll now…".
+- Answer in the language he wrote in.
+- If a command errors, show the error text once; do not pretend it worked.
 
 ## Rules
 
