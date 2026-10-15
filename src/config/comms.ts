@@ -124,4 +124,14 @@ export const COMMS_COPY = {
     testNone: "No device is subscribed yet, so nothing was sent.",
     testFailed: "The test could not be sent.",
   },
+  /** The OpenClaw gateway carries WhatsApp and the Telegram chat; when it is down, nothing sent there is read. */
+  gateway: {
+    downTitle: "WhatsApp and the Telegram chat are not being read",
+    downBody: (detail: string) =>
+      `The OpenClaw gateway is not answering (${detail}). Messages you send Loki on WhatsApp or Telegram wait unread. Restart it: run the "OpenClaw gateway up" workflow in GitHub Actions.`,
+    downTelegram: (detail: string) =>
+      `🔌 Loki: the gateway behind WhatsApp and the Telegram chat is down (${detail}). Messages to Loki there are not being read. Restart it: run "OpenClaw gateway up" in GitHub Actions.`,
+    upTelegram:
+      "✅ Loki: the gateway is back. WhatsApp and the Telegram chat are being read again.",
+  },
 } as const;
