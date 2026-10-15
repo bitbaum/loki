@@ -736,6 +736,13 @@
       "when": 1792066568857,
       "tag": "0104_feedback_review_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1792080000000,
+      "tag": "0105_private_client_portfolio",
+      "breakpoints": true
     }
   ]
 }
