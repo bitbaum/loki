@@ -185,12 +185,13 @@ ${spiralCSS(theme)}
   background: ${theme.surface}; color: ${theme.text};
   border: 1px solid ${theme.borderDark};
   font-size: 13px; font-weight: 500; letter-spacing: -.01em;
-  box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
   transition: transform .15s ease, opacity .2s ease, border-color .15s ease, box-shadow .2s ease;
-  opacity: .38;
-  transform: scale(.85);
-  transform-origin: bottom right;
-  box-shadow: none;
+  /* Small, but THERE. At 38% opacity and 85% size with a generic pencil it
+     read as nothing at all: the owner, signed out on their own phone, looked
+     at their site and said the widget was gone (2026-10-15) — and without
+     the launcher there is no way to the sign-in that brings it back. Loki's
+     own mark, at full strength, one hairline and a soft lift off the page. */
+  box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.12);
 }
 .fab .fab-label { display: none; }
 .fab:hover, .fab:focus-visible {
@@ -210,8 +211,8 @@ ${spiralCSS(theme)}
      scrolling — taps during scroll-reading never hit the launcher instead of
      the page. */
   .fab { width: 40px; height: 40px; padding: 0; right: 12px; bottom: 12px; justify-content: center; }
-  .fab .fab-label, .fab .dot { display: none; }
-  .fab .fab-icon { display: block; }
+  .fab .fab-label, .fab .fab-icon { display: none; }
+  .fab .dot.spiral { width: 18px; height: 18px; }
   .fab.scrolling { opacity: .3; pointer-events: none; }
 }
 
