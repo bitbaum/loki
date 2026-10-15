@@ -60,7 +60,7 @@ Navigation:
 | Page title | `PageTitle` | Hides when it duplicates `AppTopBar` label |
 | Modals | `Modal` | Bottom-anchored on phones; `--mobile-chrome-bottom` inset |
 | Drawers | `Drawer` + `ui-drawer-body` | Full width; safe-area padding on scroll body |
-| The composer | `components/composer/Composer` (`ui-loki-composer`, `-compact`) | ONE component for Loki chat, the terminal's Ask/Inject rail, Prompt mode and Control's quick send; stacks textarea + toolbar row on `<sm` |
+| The composer | `components/composer/Composer` (`ui-loki-composer`, `-compact`) | ONE component for Loki chat, the terminal's Loki rail, the session box (`terminal/SessionComposer`) and Control's quick send; stacks textarea + toolbar row on `<sm` |
 | Control project rail | `ui-control-project-list` | Vertical list on phones; horizontal scroll removed |
 | Horizontal filters | `overflow-x-auto ui-scroll-fade-right` | Today, Projects, Events, Prompts chip rows |
 | Touch targets | the `pointer: coarse` floor in `globals.css` | Never restate the 44px number in JSX |
@@ -201,7 +201,7 @@ is in flight. State stays on the page.
 ## Voice and pictures
 
 The shared composer (`components/composer/Composer.tsx` — Loki chat, the
-terminal's Ask/Inject rail and Prompt-mode box, Control's quick send) and
+terminal's Loki rail and session box, Control's quick send) and
 Control's `PromptInput` take voice (Whisper, already wired) and images/text
 files by picker or paste via `useAttachments`. A screenshot with no text is a valid send — the picture is the
 instruction.
@@ -215,17 +215,17 @@ and that failure is silent.
 
 ## Terminal page (`/terminal`)
 
-Below `md` the terminal is three pieces and nothing else: a one-line header (`TerminalMobileHeader` — session name, live dot, the **Claude | Terminal** view switch (named after the agent in the session), full-screen toggle), the screen, and the dock (`TerminalMobileDock`, terminal view only — the conversation view has its own composer). Everything that is *setup* rather than *state* — source, session list, agent, input mode, the run summary panel, text size, live-keystrokes — lives in `TerminalSessionSheet`, one tap behind the session name. The view switch is one component (`TerminalViewSwitch`) drawn in the phone header and in the desktop session bar, so both views always have the way to the other; "Loki" names only the supervisor panel (the desktop pane button and the sheet section); the conversation view is named after the agent, because that is who it shows you talking to. The desktop chrome (source bar, tab strip, session bar, status row) is `hidden md:block`; there is one `TerminalView` shared by both.
+Below `md` the terminal is three pieces and nothing else: a one-line header (`TerminalMobileHeader` — session name, live dot, the **Claude | Terminal** view switch (named after the agent in the session), full-screen toggle), the screen, and the dock (`TerminalMobileDock` — the session box, the same `SessionComposer` the conversation view shows). Everything that is *setup* rather than *state* — source, session list, agent, the run summary panel, text size, live-keystrokes — lives in `TerminalSessionSheet`, one tap behind the session name. The view switch is one component (`TerminalViewSwitch`) drawn in the phone header and in the desktop session bar, so both views always have the way to the other; "Loki" names only the supervisor panel (the desktop pane button and the sheet section); the conversation view is named after the agent, because that is who it shows you talking to. The desktop chrome (source bar, tab strip, session bar, status row) is `hidden md:block`; there is one `TerminalView` shared by both.
 
-The Prompt box offers prompts that fit the screen (`lib/terminal-suggestions.ts`; a tap fills, never sends), and while the soft keyboard is up the bottom nav hides (`fc-keyboard-open`, set by `MobileNav`) so it never covers the box being typed into.
+Above the session box sit "What's going on?" and up to three next steps that fit the screen (`lib/terminal-suggestions.ts` + the fast model), chosen once the screen settles and then held still (`lib/stable-steps.ts`); two on a phone. One press sends a step, and while the soft keyboard is up the bottom nav hides (`fc-keyboard-open`, set by `MobileNav`) so it never covers the box being typed into.
 
 **The key deck is the point.** A soft keyboard has no arrows, no Esc, no Tab and no Ctrl — exactly the keys an agent TUI asks its questions with — so `TerminalKeyDeck` supplies them as buttons that write raw bytes through `transport.sendKey`. Sequences are SSOT in `config/terminal-keys.ts`; the deck is layout, hold-to-repeat and haptics. Arrows and Backspace auto-repeat when held; Enter and the control codes deliberately do not. Keys fire on `pointerdown` with `preventDefault()` so a tap never moves focus and dismisses the keyboard.
 
-Typing goes through `TerminalRawComposer`, not the xterm canvas: a real `<textarea>` (with `autoCorrect="off"`) that sends the line on Send, appending `\r` unless the ⏎ chip is toggled off. `liveKeys` (session sheet) hands the keyboard back to xterm and defaults per device — off on a phone, on at desktop widths. `useKeyboardInset` pads the surface by the height `visualViewport` says the soft keyboard is covering, so the deck sits on the keyboard rather than behind it.
+Writing goes through the session box, not the xterm canvas: one textarea with the microphone and screenshots, typed into a live session as a bracketed paste plus Enter. Pressing the screen puts the cursor there. The deck opens from **Keys** in the box's tool row and is keys only — an exact-keystrokes text line used to sit in it and read as a second box. `liveKeys` (session sheet) hands the keyboard back to xterm and defaults per device — off on a phone, on at desktop widths. `useKeyboardInset` pads the surface by the height `visualViewport` says the soft keyboard is covering, so the deck sits on the keyboard rather than behind it.
 
 **Expand** (`TerminalMobileShell`, at every width — the phone header's button and the desktop status row's) switches to `.ui-term-mobile-fullscreen`: fixed `100svh`, hides mobile nav and top bar, body class `fc-terminal-fullscreen` locks scroll — and there the keyboard inset is exact, since `.app-main`'s nav padding is zeroed. Esc leaves it, except when the key is typed into the xterm (it interrupts the agent) or a dialog/picker already handled it (`lib/terminal-expand.ts`).
 
-**Expanded is for watching.** On a phone the dock collapses to one bar (`ui-term-watchbar`): **Keys** opens the deck, **Write** opens the input switch + composer — one panel at a time — and Esc / ⏎ stay on the bar so answering "Continue?" is one tap. It used to keep the whole dock (two key rows, mode chips, composer: more than half the screen), so "full screen" bought a few rows and read as four toolbars stacked under the session. The phone switch hides Voice (the composer's mic dictates) and has no Loki chip (the header's Loki button is the one entry point).
+**Expanded is for watching.** On a phone the dock collapses to one bar (`ui-term-watchbar`): **Message** brings the session box back, **Keys** opens the deck, and Esc / ⏎ stay on the bar so answering "Continue?" is one tap. It used to keep the whole dock (two key rows, mode chips, composer: more than half the screen), so "full screen" bought a few rows and read as four toolbars stacked under the session. There is no Type / Prompt / Voice switch any more (2026-10-15): one box, with its own microphone.
 
 **Scrolling back.** xterm 6 scrolls on the wheel only, so a swipe moved nothing on a phone. `lib/terminal-touch-scroll.ts` turns a vertical swipe into `scrollLines` (sub-row movement carried, momentum after a flick, an 8px slop so a tap still focuses and opens links). While scrolled back a **Live** button (`ui-term-jump`) returns to the newest output in one tap.
 

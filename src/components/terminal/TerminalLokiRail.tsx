@@ -30,7 +30,6 @@ import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
 import type { LiveTurn } from "@/hooks/use-loki-stream";
 import { commandIn } from "@/lib/terminal-commands";
 import { TerminalComposer } from "./TerminalComposer";
-import { TerminalCommandList } from "./TerminalActions";
 
 /**
  * "12s · Running list_projects" — the live line /loki's own thread prints.
@@ -77,6 +76,7 @@ export function TerminalLokiRail({
   askOnly = false,
   explain,
   initialDraft = null,
+  onStep,
   agent = null,
   onKey,
 }: {
@@ -108,6 +108,9 @@ export function TerminalLokiRail({
   readScreenRef?: MutableRefObject<((rows: number) => string[]) | null>;
   /** Words to start the composer with (`?q=`), in Inject, unsent. */
   initialDraft?: string | null;
+  /** Where a summary's step goes to be checked and sent — the session box,
+   *  when the page has one. Without it the step lands in this panel's Inject. */
+  onStep?: (text: string) => void;
 }) {
   const [view, setView] = useState<TerminalRunView | null>(null);
   const [loading, setLoading] = useState(false);
@@ -363,8 +366,10 @@ export function TerminalLokiRail({
                       <button
                         key={action}
                         type="button"
-                        onClick={() => setDraft({ text: action, nonce: Date.now() })}
-                        title="Put this in Inject to check and send"
+                        onClick={() =>
+                          onStep ? onStep(action) : setDraft({ text: action, nonce: Date.now() })
+                        }
+                        title="Put this in the message box to check and send"
                         className="ui-chip-toggle-compact text-left"
                       >
                         {action}
@@ -380,13 +385,8 @@ export function TerminalLokiRail({
 
       {/* THE composer, in Ask/Inject form — the same component (and the
           same attach, voice and model controls) as Loki chat and the
-          Prompt-mode box. It used to be a bare textarea of its own. */}
+          session box. It used to be a bare textarea of its own. */}
       <div className="ui-term-loki-composer">
-        {onKey && (
-          <div className="mb-2">
-            <TerminalCommandList agent={agent} onKey={onKey} />
-          </div>
-        )}
         <TerminalComposer
           agent={agent}
           onKey={onKey}

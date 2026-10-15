@@ -5,19 +5,16 @@ import { ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   TERMINAL_SOURCES,
-  terminalInputHint,
-  type TerminalInputMode,
   type TerminalViewMode,
   type TerminalSource,
 } from "@/config/terminal-modes";
 import { AgentSwitcherPopover, type AgentEntry } from "@/components/control/agent-switcher-popover";
 import { ExecutorHonestyChip } from "@/components/executor/ExecutorHonestyChip";
 import type { ExecutorHonestyLabel } from "@/lib/executor-honesty";
-import { TerminalInputSwitch } from "./TerminalInputSwitch";
 import { TerminalViewSwitch } from "./TerminalViewSwitch";
 
 /** One segmented control. Kept local — the chip classes it composes are
- *  already the design-system SSOT. Input mode has its own (TerminalInputSwitch). */
+ *  already the design-system SSOT. */
 function Segment<T extends string>({
   options,
   value,
@@ -51,7 +48,7 @@ function Segment<T extends string>({
  * Source bar — *which* sessions the tab strip below is listing.
  *
  * Split from the session controls deliberately. Source is a scope: it decides
- * what tabs exist, so it belongs above the strip. Agent and input mode act on
+ * what tabs exist, so it belongs above the strip. The agent and the view act on
  * the one tab you have selected, so they belong below it. Rendering all of them
  * in a single row put "switch the agent in this tab" above the tab picker,
  * which reads as a global setting and is not one.
@@ -105,8 +102,6 @@ export function TerminalSourceBar({
  * including its availability rules, rather than becoming a bare segment.
  */
 export function TerminalSessionBar({
-  inputMode,
-  onInputModeChange,
   agents,
   activeAgentId,
   onSwitchAgent,
@@ -115,8 +110,6 @@ export function TerminalSessionBar({
   view,
   onViewChange,
 }: {
-  inputMode: TerminalInputMode;
-  onInputModeChange: (mode: TerminalInputMode) => void;
   agents: AgentEntry[];
   activeAgentId: string | null;
   onSwitchAgent: (agentId: string) => void;
@@ -170,20 +163,7 @@ export function TerminalSessionBar({
             />
           )}
         </div>
-
-        {/* Input modes are how words reach the TERMINAL; the conversation
-            view has its own composer, so the switch would change nothing. */}
-        {view === "terminal" && (
-          <TerminalInputSwitch inputMode={inputMode} onInputModeChange={onInputModeChange} />
-        )}
       </div>
-
-      {/* One line of consequence for the selected input mode. Replaces the
-          permanent yellow callout that used to sit above every terminal
-          repeating the same paragraph regardless of what you were doing. */}
-      {view === "terminal" && (
-        <p className="text-micro leading-snug text-text-muted">{terminalInputHint(inputMode)}</p>
-      )}
     </div>
   );
 }

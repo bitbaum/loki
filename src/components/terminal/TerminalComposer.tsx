@@ -24,10 +24,10 @@ export type InjectAck = { commandId: string | null; runId: string | null };
  *
  * One component for every place that sends words at a terminal session:
  *   • the Loki rail beside the terminal — Ask (a chat-only question about the
- *     project, on the rail's own thread: see useSessionAsk) or Inject (a task
- *     into the attached session);
- *   • the Prompt-mode box under the terminal and in the phone dock — Inject;
+ *     project, on the rail's own thread: see useSessionAsk);
  *   • Control's quick send to any open tab — Inject.
+ * The box under the terminal is not this one: words for the agent IN a
+ * session go through SessionComposer, which types into a live session.
  * They used to be three components with three looks and three feature sets;
  * the rail's was a bare textarea with no attachments and no voice.
  *

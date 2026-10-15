@@ -1,33 +1,61 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { Highlight } from "@bitbaum/searchkit/react";
 import {
   CATEGORY_META,
+  GROUP_META,
+  PROMPT_GROUPS,
   PROMPT_TEMPLATES,
+  groupForCategory,
   substituteProjectName,
+  type PromptGroup,
   type PromptTemplate,
 } from "@/config/prompt-library";
+import { ScrollAffordance } from "@/components/ui/scroll-affordance";
 import { cn } from "@/lib/utils";
-import { PROMPT_SEARCH_SPEC } from "@/lib/prompt-search";
-import { searchHits, type Range } from "@/lib/search";
+import { collapseDuplicates } from "@/lib/prompt-duplicates";
+import {
+  PROMPT_ENTRY_SEARCH_SPEC,
+  savedPromptAsTemplate,
+  searchPrompts,
+  type PromptEntry,
+  type SavedPrompt,
+} from "@/lib/prompt-search";
+import { type Range } from "@/lib/search";
 
 const PICKER_LIMIT = 40;
 
+type Filter = "all" | "yours" | PromptGroup;
+
+/** Your saved prompts, read at most once a minute — the picker opens often,
+ *  and a prompt saved a minute ago on /prompts should still turn up. */
+const SAVED_TTL_MS = 60_000;
+let savedCache: { at: number; rows: Promise<SavedPrompt[]> } | null = null;
+function loadSaved(): Promise<SavedPrompt[]> {
+  if (savedCache && Date.now() - savedCache.at < SAVED_TTL_MS) return savedCache.rows;
+  const rows = fetch("/api/prompts")
+    .then((r) => (r.ok ? r.json() : { prompts: [] }))
+    .then((d: { prompts?: SavedPrompt[] }) => collapseDuplicates(d.prompts ?? []).visible)
+    .catch(() => {
+      savedCache = null;
+      return [] as SavedPrompt[];
+    });
+  savedCache = { at: Date.now(), rows };
+  return rows;
+}
+
 /**
- * The prompt library as a *picker*, usable wherever a prompt is being composed.
+ * The prompt library as a *picker*, in every box where words are written for
+ * an agent. It lists YOUR prompts first, then Loki's library, and one search
+ * finds either by name, tag, category, description or the words inside them.
  *
- * Until now the library had two disconnected UIs over one config file: the
- * `/prompts` page (search + run-via-Loki-chat) and Control's collapsible
- * `ProjectPromptLibrary` (featured-only grid that fills a textarea). A prompt
- * you could read on one page could not be sent from the surface you were
- * working on. This component is the third, shared answer: a keyboard-navigable
- * list that resolves `{{project_name}}` and hands back finished text — the
- * caller decides whether that text is typed, dispatched, or previewed.
- *
- * Filtering is by name, description, category label and tags, so "security"
- * finds the category and "deps" finds the tag.
+ * Until 2026-10-15 it listed only Loki's 44 built-in prompts: the ones a
+ * person had saved on /prompts were not in it at all (operator: "picking the
+ * right prompt from the prompt library is great, but it's not that easy to
+ * find them"). The chips narrow to Yours or a group without typing.
  */
 export function PromptPicker({
   projectName,
@@ -44,33 +72,70 @@ export function PromptPicker({
   className?: string;
 }) {
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
   const [cursor, setCursor] = useState(0);
+  const [saved, setSaved] = useState<SavedPrompt[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const matches = useMemo<{ template: PromptTemplate; nameRanges?: readonly Range[] }[]>(() => {
-    const pool = projectScopedOnly
-      ? PROMPT_TEMPLATES.filter((t) => t.scope === "project")
-      : PROMPT_TEMPLATES;
+  useEffect(() => {
+    let live = true;
+    void loadSaved().then((rows) => {
+      if (live) setSaved(rows);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const entries = useMemo<PromptEntry[]>(() => {
+    const own = saved.map((p) => ({
+      template: savedPromptAsTemplate(p),
+      own: true,
+      uses: p.runCount,
+    }));
+    const library = (
+      projectScopedOnly ? PROMPT_TEMPLATES.filter((t) => t.scope === "project") : PROMPT_TEMPLATES
+    ).map((template) => ({ template, own: false, uses: 0 }));
+    return [...own, ...library];
+  }, [saved, projectScopedOnly]);
+
+  const groups = useMemo(
+    () =>
+      PROMPT_GROUPS.filter((g) =>
+        entries.some((e) => !e.own && groupForCategory(e.template.category) === g),
+      ),
+    [entries],
+  );
+
+  const matches = useMemo<{ entry: PromptEntry; nameRanges?: readonly Range[] }[]>(() => {
+    const pool = entries.filter((e) =>
+      filter === "all"
+        ? true
+        : filter === "yours"
+          ? e.own
+          : !e.own && groupForCategory(e.template.category) === filter,
+    );
     if (!query.trim()) {
-      // No query → featured first, so the default view is the short useful list
-      // rather than 60 rows the user has to read past.
+      // Browsing: yours first (as saved), then Loki's featured prompts.
       return [...pool]
-        .sort((a, b) => Number(!!b.featured) - Number(!!a.featured))
+        .sort(
+          (a, b) =>
+            Number(b.own) - Number(a.own) ||
+            Number(!!b.template.featured) - Number(!!a.template.featured),
+        )
         .slice(0, PICKER_LIMIT)
-        .map((template) => ({ template }));
+        .map((entry) => ({ entry }));
     }
     // Best match first, and a slip in a word still finds it ("secuirty").
-    return searchHits(pool, PROMPT_SEARCH_SPEC, query)
+    return searchPrompts(pool, PROMPT_ENTRY_SEARCH_SPEC, (e) => e.template.template, query)
       .slice(0, PICKER_LIMIT)
-      .map((hit) => ({ template: hit.item, nameRanges: hit.matches.name }));
-  }, [query, projectScopedOnly]);
+      .map((hit) => ({ entry: hit.item, nameRanges: hit.matches.name }));
+  }, [entries, filter, query]);
 
-  // The cursor is clamped at read time rather than reset from an effect: the
-  // result set shrinks as the query narrows, and a stale index must never point
-  // past the list (Enter would then dispatch nothing).
+  // Clamped at read time: the list shrinks as the query narrows, and a stale
+  // index must never point past it (Enter would then pick nothing).
   const cursorIndex = Math.min(cursor, Math.max(matches.length - 1, 0));
 
-  // Keep the highlighted row in view during keyboard navigation.
   useEffect(() => {
     listRef.current
       ?.querySelector<HTMLElement>(`[data-idx="${cursorIndex}"]`)
@@ -81,6 +146,21 @@ export function PromptPicker({
     onPick(substituteProjectName(template.template, projectName), template);
     onClose();
   };
+
+  const chip = (id: Filter, label: string) => (
+    <button
+      key={id}
+      type="button"
+      onClick={() => {
+        setFilter(filter === id && id !== "all" ? "all" : id);
+        setCursor(0);
+      }}
+      aria-pressed={filter === id}
+      className={cn("shrink-0", filter === id ? "ui-chip-filter-active" : "ui-chip-filter")}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div
@@ -107,37 +187,54 @@ export function PromptPicker({
               setCursor(Math.max(cursorIndex - 1, 0));
             } else if (e.key === "Enter") {
               e.preventDefault();
-              const t = matches[cursorIndex];
-              if (t) pick(t.template);
+              const m = matches[cursorIndex];
+              if (m) pick(m.entry.template);
             } else if (e.key === "Escape") {
               e.preventDefault();
               onClose();
             }
           }}
-          placeholder="Search the prompt library…"
-          aria-label="Search the prompt library"
+          placeholder="Search prompts — names or the words in them…"
+          aria-label="Search your prompts and Loki's library"
           className="ui-tap min-w-0 flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
         />
-        <span className="shrink-0 text-micro text-text-muted">↑↓ · Enter · Esc</span>
+        {/* Keyboard keys mean nothing on a touch screen. */}
+        <span className="hidden shrink-0 text-micro text-text-muted pointer-fine:inline">
+          ↑↓ · Enter · Esc
+        </span>
+      </div>
+
+      <div className="shrink-0 border-b border-border-subtle px-3 py-2">
+        <ScrollAffordance childCount={groups.length + 2} threshold={4}>
+          <div className="ui-filter-chip-row ui-scroll-fade-right gap-1.5">
+            {chip("all", "All")}
+            {saved.length > 0 && chip("yours", `Yours (${saved.length})`)}
+            {groups.map((g) => chip(g, GROUP_META[g].label))}
+          </div>
+        </ScrollAffordance>
       </div>
 
       <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
         {matches.length === 0 ? (
           <p className="px-3 py-4 text-center text-xs text-text-muted">
-            No prompt matches “{query}”.
+            {query.trim() ? `No prompt matches “${query}”.` : "Nothing here yet."}{" "}
+            <Link href="/prompts" className="underline underline-offset-2">
+              Write your own
+            </Link>
           </p>
         ) : (
-          matches.map(({ template, nameRanges }, i) => {
+          matches.map(({ entry, nameRanges }, i) => {
+            const { template, own } = entry;
             const meta = CATEGORY_META[template.category];
             return (
               <button
-                key={template.id}
+                key={`${own ? "own" : "lib"}:${template.id}`}
                 type="button"
                 data-idx={i}
                 onMouseEnter={() => setCursor(i)}
                 onClick={() => pick(template)}
                 className={cn(
-                  "flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors",
+                  "flex min-h-11 w-full flex-col justify-center gap-0.5 px-3 py-2 text-left transition-colors",
                   i === cursorIndex ? "bg-surface-raised" : "hover:bg-surface-raised",
                 )}
               >
@@ -154,17 +251,21 @@ export function PromptPicker({
                       template.name
                     )}
                   </span>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full border px-1.5 py-0.5 text-micro font-medium",
-                      meta.color,
-                    )}
-                  >
-                    {meta.label}
-                  </span>
+                  {own ? (
+                    <span className="ui-badge shrink-0">Yours</span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full border px-1.5 py-0.5 text-micro font-medium",
+                        meta.color,
+                      )}
+                    >
+                      {meta.label}
+                    </span>
+                  )}
                 </span>
                 <span className="line-clamp-1 text-micro leading-snug text-text-muted">
-                  {template.description}
+                  {template.description || template.template}
                 </span>
               </button>
             );

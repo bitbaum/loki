@@ -8,8 +8,7 @@ import { GroupBar } from "./GroupBar";
 import { UserPromptsSection, type UserPromptCard } from "./UserPromptsSection";
 import type { Project } from "./types";
 import { useEscapeKey } from "@/hooks/use-escape-key";
-import { PROMPT_SEARCH_SPEC } from "@/lib/prompt-search";
-import { rankByQuery } from "@/lib/search";
+import { PROMPT_SEARCH_SPEC, searchPrompts } from "@/lib/prompt-search";
 
 export function PromptLibraryClient({
   templates,
@@ -42,15 +41,14 @@ export function PromptLibraryClient({
   // first, otherwise the config's category order is preserved (stable sort),
   // so cards still cluster by category within each band.
   const ordered = search.trim()
-    ? rankByQuery(filtered, PROMPT_SEARCH_SPEC, search)
+    ? searchPrompts(filtered, PROMPT_SEARCH_SPEC, (t) => t.template, search).map((h) => h.item)
     : [...filtered].sort((a, b) => Number(b.featured ?? false) - Number(a.featured ?? false));
 
   return (
     <div className="space-y-6">
-      {/* User-owned prompts render first — they grow with use and become more
-          relevant than the seed catalog. */}
-      <UserPromptsSection prompts={userPrompts} projects={projects} />
-
+      {/* Search first: one box finds your own prompts AND Loki's, by name,
+          tag, description or the words inside them. It used to sit below your
+          prompts and search only Loki's. */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted" />
@@ -63,7 +61,7 @@ export function PromptLibraryClient({
                 (e.target as HTMLInputElement).blur();
               }
             }}
-            placeholder="Search prompts…"
+            placeholder="Search all prompts — names or the words in them…"
             className="ui-input pl-12"
           />
         </div>
@@ -79,6 +77,10 @@ export function PromptLibraryClient({
           ))}
         </div>
       </div>
+
+      {/* User-owned prompts render first — they grow with use and become more
+          relevant than the seed catalog. */}
+      <UserPromptsSection prompts={userPrompts} projects={projects} query={search} />
 
       <GroupBar active={activeGroup} templates={templates} onSelect={setActiveGroup} />
 

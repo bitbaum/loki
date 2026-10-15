@@ -11,7 +11,6 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Loader2, X, Pencil, Zap, Clock } from "lucide-react";
 import type { Project } from "./types";
-import type { PromptTemplate } from "@/config/prompt-library";
 import { RunModal } from "./RunModal";
 import { ScheduleModal } from "./ScheduleModal";
 import { SAVED_PROMPTS_TITLE } from "@/config/control-labels";
@@ -19,27 +18,11 @@ import { RowActions } from "@/components/ui/row-actions";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { timeAgo } from "@/lib/dates";
 import { collapseDuplicates, dupeKey } from "@/lib/prompt-duplicates";
-
-/**
- * Adapt a user-owned prompt into the PromptTemplate shape the existing
- * RunModal / ScheduleModal consume. Run + Schedule are identical flows for
- * user prompts and FC defaults — the only difference is where the body comes
- * from — so we reuse the exact same modals instead of re-rolling the run UI.
- *
- * Scope mapping: the modals only understand "global" | "project". An "org"
- * prompt has no per-project picker, so it runs as "global" (the body is the
- * whole instruction; org just controls who can see it in the library).
- */
-function asTemplate(p: UserPromptCard): PromptTemplate {
-  return {
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    category: "fleet",
-    scope: p.scope === "project" ? "project" : "global",
-    template: p.body,
-  };
-}
+import {
+  SAVED_PROMPT_SEARCH_SPEC,
+  savedPromptAsTemplate,
+  searchPrompts,
+} from "@/lib/prompt-search";
 
 export interface UserPromptCard {
   id: string;
@@ -60,9 +43,12 @@ export interface UserPromptCard {
 export function UserPromptsSection({
   prompts,
   projects,
+  query = "",
 }: {
   prompts: UserPromptCard[];
   projects: Project[];
+  /** The page's search box: it finds your own prompts too, best match first. */
+  query?: string;
 }) {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
@@ -92,7 +78,10 @@ export function UserPromptsSection({
   const runningPrompt = runId ? (prompts.find((p) => p.id === runId) ?? null) : null;
   const schedulingPrompt = scheduleId ? (prompts.find((p) => p.id === scheduleId) ?? null) : null;
 
-  const { visible: visiblePrompts, copies } = collapseDuplicates(prompts);
+  const { visible: allVisible, copies } = collapseDuplicates(prompts);
+  const visiblePrompts = query.trim()
+    ? searchPrompts(allVisible, SAVED_PROMPT_SEARCH_SPEC, (p) => p.body, query).map((h) => h.item)
+    : allVisible;
 
   return (
     <section className="space-y-3">
@@ -104,9 +93,11 @@ export function UserPromptsSection({
         <div className="min-w-0">
           <h2 className="ui-page-subtitle">{SAVED_PROMPTS_TITLE}</h2>
           <p className="text-sm text-text-muted">
-            {visiblePrompts.length === 0
-              ? "Reusable templates you write — separate from dispatches on Control."
-              : `${visiblePrompts.length} saved · most-recent first`}
+            {query.trim() && allVisible.length > 0
+              ? `${visiblePrompts.length} of ${allVisible.length} saved match · best match first`
+              : visiblePrompts.length === 0
+                ? "Reusable templates you write — separate from dispatches on Control."
+                : `${visiblePrompts.length} saved · most-recent first`}
           </p>
         </div>
         <button
@@ -144,7 +135,9 @@ export function UserPromptsSection({
           dead band — costly on mobile. One muted line keeps the fork pointer. */}
       {visiblePrompts.length === 0 && !isCreating && (
         <p className="text-xs text-text-muted">
-          …or fork a Loki default below to make it your own.
+          {query.trim() && allVisible.length > 0
+            ? "None of your own prompts match — Loki's below may."
+            : "…or fork a Loki default below to make it your own."}
         </p>
       )}
 
@@ -288,14 +281,14 @@ export function UserPromptsSection({
 
       {runningPrompt && (
         <RunModal
-          template={asTemplate(runningPrompt)}
+          template={savedPromptAsTemplate(runningPrompt)}
           projects={projects}
           onClose={() => setRunId(null)}
         />
       )}
       {schedulingPrompt && (
         <ScheduleModal
-          template={asTemplate(schedulingPrompt)}
+          template={savedPromptAsTemplate(schedulingPrompt)}
           projects={projects}
           onClose={() => setScheduleId(null)}
         />

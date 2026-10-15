@@ -67,22 +67,17 @@ const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
   );
 }
 {
-  // The dock is one bar with one panel open in BOTH phone layouts — never the
-  // old stack of key rows + chips + composer.
+  // Under the phone's terminal: the session box, with Keys one button inside
+  // it — never a bar of modes to choose between before saying anything.
   const dock = read("src/components/terminal/TerminalMobileDock.tsx");
-  ok(!dock.includes("if (!immersive)"), "no separate stacked layout for the normal page");
+  ok(dock.includes("{box}"), "the dock shows the session box");
   ok(
-    dock.includes('immersive ? "none" : "write"'),
-    "normal opens on Write, full screen on nothing",
+    !/Type|Prompt|TerminalInputSwitch/.test(dock.replace(/\/\*[\s\S]*?\*\//g, "")),
+    "no Type / Prompt switch",
   );
-  ok(dock.includes("ui-term-watchbar"), "the single bar is rendered");
-  // ONE switch on that bar: the input modes ARE the bar's chips. The old
-  // Keys | Write bar opened a second Type | Prompt switch inside Write.
-  ok(!/>\s*Write\s*</.test(dock), "no separate Write chip");
-  ok(
-    /ui-term-watchbar[\s\S]*<TerminalInputSwitch[\s\S]*selected=\{panel === "write"\}/.test(dock),
-    "input modes live on the bar, pressed only while their panel is open",
-  );
+  ok(dock.includes("useState(!immersive)"), "normal opens writing, full screen opens watching");
+  ok(dock.includes("ui-term-watchbar"), "full screen keeps a slim bar with Esc and Enter");
+  ok(dock.includes("<TerminalKeyDeck"), "the keys a phone lacks are one button away");
 }
 
 console.log(`${fail ? "✗" : "✓"} phone-chrome: ${pass} passed, ${fail} failed`);

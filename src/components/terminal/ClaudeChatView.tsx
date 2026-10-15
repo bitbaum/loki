@@ -2,8 +2,6 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowDown, ChevronRight, Loader2, MessageCircle, TerminalSquare } from "lucide-react";
-import { Composer } from "@/components/composer/Composer";
-import type { Attachment } from "@/components/loki/types";
 import { AnswerActions } from "@/components/loki/AnswerActions";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { useClaudeTranscript } from "@/hooks/use-claude-transcript";
@@ -17,11 +15,10 @@ import {
   type TranscriptItem,
 } from "@/lib/claude-transcript";
 import type { BuilderChannel } from "@/lib/constants/statuses";
-import { postJson } from "@/lib/api/fetch";
 import { suggestFromReply } from "@/lib/terminal-suggestions";
-import { mergeSteps } from "@/lib/terminal-next-steps";
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
-import { SuggestionChips } from "./SuggestionChips";
+import { useStableSteps } from "@/hooks/use-stable-steps";
+import { SessionComposer } from "./SessionComposer";
 import { SessionModeChip } from "./SessionModeChip";
 import {
   dispatchMessageDisplay,
@@ -30,13 +27,6 @@ import {
   toolWasInterrupted,
 } from "@/lib/terminal-conversation";
 
-/** Bracketed paste: newlines stay inside the message instead of submitting it. */
-const PASTE_START = "\x1b[200~";
-const PASTE_END = "\x1b[201~";
-const ENTER = "\r";
-const ESC = "\x1b";
-/** Claude Code's TUI needs a beat between a paste and the Enter that sends it. */
-const SUBMIT_DELAY_MS = 150;
 /** No frame after this long → say so, and offer the raw terminal. */
 const SILENCE_HINT_MS = 8000;
 const FOLLOW_THRESHOLD_PX = 120;
@@ -61,7 +51,13 @@ export function ClaudeChatView({
   onShowTerminal,
   onUnavailable,
   onLive,
+  onExplain,
+  draft,
 }: {
+  /** "What's going on?" — Loki explains the session (first chip above the box). */
+  onExplain?: () => void;
+  /** Words for the box from Loki's summary, for the person to check and send. */
+  draft?: { text: string; nonce: number } | null;
   onLive?: (state: "live" | "connecting" | "stalled") => void;
   tab: string;
   channel: BuilderChannel;
@@ -83,17 +79,13 @@ export function ClaudeChatView({
   const now = useSecondTick(last?.kind === "user" || last?.kind === "tool");
   const activity = transcriptActivity(items, now, connected);
   const working = activity.working;
-  // The draft, so the send slot can be Stop while the box is empty and Send
-  // once you type — a message written mid-run is QUEUED by Claude Code, the
-  // way the Claude app lets you line up the next thing while it works.
-  const [draft, setDraft] = useState("");
   const liveStatus = activity.label;
   // Claude has finished and is waiting for you: its last reply says what it
   // is waiting on, so the next step is one tap. The rules answer at once; the
   // fast model reads the whole reply and its steps lead once they arrive.
   const reply = last?.kind === "assistant" ? last.text : null;
   const aiSteps = useAiNextSteps(reply, "reply", tab);
-  const suggestions = reply && !draft.trim() ? mergeSteps(aiSteps, suggestFromReply(reply)) : [];
+  const suggestions = useStableSteps(reply, aiSteps, reply ? suggestFromReply(reply) : []);
   // How long this turn has been going, from your last message — the Claude
   // app's "✳ 13 s". A run with no clock reads the same at second 2 and
   // minute 20, which is how a stuck turn hides.
@@ -129,45 +121,6 @@ export function ClaudeChatView({
   useLayoutEffect(() => {
     if (following) endRef.current?.scrollIntoView({ block: "end" });
   }, [items, following]);
-
-  const [sendError, setSendError] = useState<string | null>(null);
-  const send = async (text: string, attachments: Attachment[]): Promise<boolean> => {
-    setSendError(null);
-    if (attachments.length > 0) {
-      // A screenshot cannot ride the keystroke lane: it goes as an inject the
-      // runner turns into files, so Claude opens the image itself
-      // (api/control/chat-send, lib/agent-attachments).
-      try {
-        const res = await postJson("/api/control/chat-send", { tab, text, attachments, channel });
-        if (!res.ok) {
-          const data = (await res.json().catch(() => ({}))) as { error?: unknown };
-          setSendError(
-            typeof data.error === "string"
-              ? data.error
-              : `Could not send the screenshot (HTTP ${res.status}).`,
-          );
-          return false;
-        }
-      } catch (e) {
-        setSendError(e instanceof Error ? e.message : "Could not send the screenshot.");
-        return false;
-      }
-      setFollowing(true);
-      return true;
-    }
-    try {
-      await onKey(`${PASTE_START}${text}${PASTE_END}`);
-      await new Promise<void>((resolve) => window.setTimeout(resolve, SUBMIT_DELAY_MS));
-      await onKey(ENTER);
-      setFollowing(true);
-      return true;
-    } catch {
-      setSendError(
-        "Send was not confirmed. Your draft is still here; check the terminal before retrying.",
-      );
-      return false;
-    }
-  };
 
   return (
     <div className="ui-claude-chat" data-fc-place="hidden">
@@ -223,44 +176,25 @@ export function ClaudeChatView({
             )}
           </div>
         )}
-        <Composer
-          value={draft}
-          onValueChange={setDraft}
-          onSend={(text, _choice, attachments) => send(text, attachments)}
-          placeholder={working ? "Queue a message…" : "Message Claude…"}
-          ariaLabel={`Message Claude in ${tab}`}
-          attachmentOnlyText="Look at the attached screenshot and fix what is wrong."
-          header={
-            sendError || suggestions.length > 0 ? (
-              <>
-                <SuggestionChips
-                  suggestions={suggestions}
-                  onPick={(prompt) => void send(prompt, [])}
-                />
-                {sendError && (
-                  <div className="space-y-1">
-                    <p className="ui-error">{sendError}</p>
-                    <button type="button" className="ui-btn-ghost ui-tap" onClick={onShowTerminal}>
-                      Check terminal
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : undefined
-          }
+        {/* THE session box — the same one the terminal view shows, so a
+            message is written the same way in either view. A message written
+            mid-run is QUEUED by Claude Code; Stop is Esc. */}
+        <SessionComposer
+          tab={tab}
+          channel={channel}
+          onKey={onKey}
+          live={connected}
+          agent="claude"
+          agentLabel="Claude"
+          suggestions={suggestions}
+          onExplain={onExplain}
+          draft={draft}
+          working={working}
+          onShowTerminal={onShowTerminal}
+          onSent={() => setFollowing(true)}
           tools={
             mode ? <SessionModeChip mode={mode} lastMessageId={lastMine} onKey={onKey} /> : null
           }
-          sendBlockedReason={
-            !connected ? "Reconnecting to the session. Your draft is safe here." : null
-          }
-          sending={working && !draft.trim()}
-          // Stop = Esc, exactly what interrupting Claude Code takes.
-          onStop={() => {
-            void Promise.resolve(onKey(ESC)).catch(() =>
-              setSendError("Could not confirm the stop. Check the terminal before retrying."),
-            );
-          }}
         />
       </div>
     </div>
