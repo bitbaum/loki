@@ -24,6 +24,8 @@ const result = {
   brokenImages: 0,
   textLength: 0,
   headings: 0,
+  // The response came from an access-code page (X-Access-Gate), not the site.
+  gated: false,
 };
 
 // One deadline for the whole look. Each Playwright call has its own timeout,
@@ -72,6 +74,7 @@ try {
     .goto(url, { waitUntil: "networkidle", timeout: 45_000 })
     .catch(() => null);
   result.status = response?.status() ?? null;
+  result.gated = Boolean(response?.headers()["x-access-gate"]);
   // Let late scripts and images settle; errors they raise belong to the page.
   await page.waitForTimeout(1500);
   const seen = await page.evaluate(() => ({

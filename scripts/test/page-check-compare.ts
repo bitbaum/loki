@@ -29,6 +29,31 @@ assert.match(worse({ textLength: 400 }).regressions[0]!, /text disappeared/);
 assert.match(worse({ headings: 0 }).regressions.join(" "), /every heading disappeared/);
 assert.deepEqual(worse({ textLength: 600 }).regressions, [], "a 40% edit is an edit, not a wipe");
 
+// A client preview behind an access code: going behind the gate (or out from
+// behind it) is not "the text disappeared"; gated on both sides is compared.
+const gate = { ...good, textLength: 180, headings: 0, gated: true };
+assert.deepEqual(
+  comparePageChecks(good, gate).regressions,
+  [],
+  "going behind a gate is no regression",
+);
+assert.match(comparePageChecks(good, gate).notes.join(" "), /behind an access code/);
+assert.deepEqual(
+  comparePageChecks(gate, good).regressions,
+  [],
+  "coming out from a gate has no baseline",
+);
+assert.match(
+  comparePageChecks(gate, { ...gate, overflowX: true }).regressions[0]!,
+  /scrolls sideways/,
+  "a gated page is still compared with the gated page before it",
+);
+assert.match(
+  comparePageChecks(good, { ...gate, ok: false, status: 500 }).regressions[0]!,
+  /no longer loads/,
+  "a gate does not excuse a page that does not load",
+);
+
 // Only what the change added: a page that already had the problem is not worse.
 const already = { ...good, overflowX: true, errors: 3, brokenImages: 1 };
 assert.deepEqual(comparePageChecks(already, already).regressions, []);
