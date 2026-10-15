@@ -14,15 +14,18 @@ import { useState } from "react";
 import { Bot, ChevronDown, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/dates";
+import { dispatchMessageDisplay } from "@/lib/terminal-conversation";
 import type { WatchItem } from "@/lib/project-watch";
 
 export function UserMessage({ text, at }: { text: string; at: string }) {
   const [open, setOpen] = useState(false);
   // Collapsed, show the first paragraph whole rather than clamping mid-way
   // through a blank line (which drew a lone "…").
-  const firstPara = text.split(/\n\s*\n/)[0] ?? text;
-  const long = text.length > 320 || firstPara.length < text.length;
-  const shown = long && !open ? firstPara : text;
+  const display = dispatchMessageDisplay(text);
+  const visibleText = display.text;
+  const firstPara = visibleText.split(/\n\s*\n/)[0] ?? visibleText;
+  const long = visibleText.length > 320 || firstPara.length < visibleText.length;
+  const shown = long && !open ? firstPara : visibleText;
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="ui-chat-user">
@@ -35,6 +38,14 @@ export function UserMessage({ text, at }: { text: string; at: string }) {
           </button>
         )}
       </div>
+      {display.details && (
+        <details className="w-full text-xs">
+          <summary className="ui-tap">Dispatch details</summary>
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words">
+            {display.details}
+          </pre>
+        </details>
+      )}
       <span className="ui-chat-meta pr-1">You · {timeAgo(new Date(at).getTime())}</span>
     </div>
   );

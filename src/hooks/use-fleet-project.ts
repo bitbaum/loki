@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   FLEET_PROJECT_EVENT,
   projectFromFleetRoute,
   readRememberedFleetProject,
+  fleetProjectForLocation,
   rememberFleetProject,
 } from "@/lib/fleet-context";
 
@@ -36,22 +37,20 @@ function subscribe(onStoreChange: () => void) {
  */
 export function useFleetProject(): string | null {
   const pathname = usePathname();
+  const query = useSearchParams().toString();
 
   const read = useCallback(() => {
-    const routeProject = projectFromFleetRoute(
+    return fleetProjectForLocation(
       pathname,
-      new URLSearchParams(window.location.search),
+      new URLSearchParams(query),
+      readRememberedFleetProject(),
     );
-    return routeProject ?? readRememberedFleetProject();
-  }, [pathname]);
+  }, [pathname, query]);
 
   useEffect(() => {
-    const routeProject = projectFromFleetRoute(
-      pathname,
-      new URLSearchParams(window.location.search),
-    );
+    const routeProject = projectFromFleetRoute(pathname, new URLSearchParams(query));
     if (routeProject) rememberFleetProject(routeProject);
-  }, [pathname]);
+  }, [pathname, query]);
 
   return useSyncExternalStore(subscribe, read, () => null);
 }

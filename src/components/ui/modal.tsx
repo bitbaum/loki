@@ -48,7 +48,10 @@ export function Modal({
       ? "ui-modal-panel-mobile-bottom"
       : "ui-modal-panel-mobile-clearance";
   return (
-    <div className={cn("fixed inset-0 z-[60] flex justify-center p-4", containerPos)}>
+    <div
+      data-fc-place="hidden"
+      className={cn("fixed inset-0 z-[60] flex justify-center p-4", containerPos)}
+    >
       <div
         className="absolute inset-0 ui-backdrop-strong"
         onClick={disableClose ? undefined : onClose}
@@ -104,7 +107,11 @@ export function Drawer({
         ? "bg-surface-modal"
         : "bg-surface-page";
   return (
-    <div className="fixed inset-0 z-[60] flex justify-end" role="presentation">
+    <div
+      data-fc-place="hidden"
+      className="fixed inset-0 z-[60] flex justify-end"
+      role="presentation"
+    >
       <div
         className="absolute inset-0 ui-backdrop"
         onClick={disableClose || !backdropArmed ? undefined : onClose}

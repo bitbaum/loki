@@ -191,9 +191,18 @@ export async function retrieveFleetContextBlock(
   if (!embeddingsEnabled() || !query.trim()) return "";
   const k = opts?.k ?? 4;
   const ex = opts?.excludeProject?.toLowerCase();
-  const hits = await searchKnowledge(userId, query, { k: k + 3 }).catch(() => []);
+  // Coding dispatches may reuse project work, not personal goals, contacts,
+  // commitments or thoughts from the same account's broader memory.
+  const sourceTypes: KnowledgeSourceType[] = [
+    "project_profile",
+    "dev_log",
+    "orchestration_outcome",
+    "repo_doc",
+  ];
+  const hits = await searchKnowledge(userId, query, { k: k + 3, sourceTypes }).catch(() => []);
   const filtered = hits
     .filter((h) => {
+      if (!sourceTypes.includes(h.sourceType as KnowledgeSourceType)) return false;
       const proj = ((h.metadata?.project as string | undefined) ?? h.sourceId).toLowerCase();
       return !ex || (proj !== ex && !proj.startsWith(`${ex}:`));
     })

@@ -6589,15 +6589,16 @@
   .ui-claude-tool-done {
     @apply bg-status-positive;
   }
+  .ui-claude-tool-stopped {
+    @apply bg-text-muted;
+  }
   .ui-claude-tool-error {
     @apply bg-status-negative;
   }
   .ui-claude-tool-result {
     @apply mb-2 max-h-60 overflow-auto rounded-lg bg-surface-raised p-2 font-mono text-micro leading-relaxed whitespace-pre-wrap break-words text-text-secondary;
   }
-  /* What Claude is doing right now — a slowly turning mark in the accent,
-     the one moving thing on screen, so "is it still working?" is answered
-     without reading a word. */
+  /* Connection, interruption and recent activity are distinct states. */
   .ui-claude-live {
     @apply flex min-w-0 items-center gap-2 px-2 text-sm font-medium text-accent-text;
   }
@@ -6610,31 +6611,6 @@
   .ui-claude-live-time {
     @apply ml-auto shrink-0 text-xs font-normal tabular-nums text-text-tertiary;
   }
-  .ui-claude-live-mark {
-    @apply inline-block shrink-0 text-base leading-none;
-    animation: ui-claude-turn 2.4s linear infinite;
-  }
-  @keyframes ui-claude-turn {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .ui-claude-live-mark {
-      animation: none;
-    }
-  }
-  /* Claude asks before an unlisted tool; answer with a tap, not a digit. */
-  .ui-claude-approve {
-    @apply flex items-center gap-1.5 rounded-2xl border border-status-warning/30 bg-status-warning-subtle py-1 pr-1 pl-3;
-  }
-  .ui-claude-approve-yes {
-    @apply inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-accent-primary px-3 text-sm font-medium text-text-inverted;
-  }
-  .ui-claude-approve-btn {
-    @apply inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full px-2 text-sm text-text-secondary hover:bg-surface-raised;
-  }
-
   /* Phone thread header: back · title/scope · menu. One line, like a texting
      app; hidden from md, where the shell's chrome stays. */
   .ui-loki-thread-header {

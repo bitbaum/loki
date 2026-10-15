@@ -3,8 +3,12 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requirePageUserId } from "@/lib/session";
 import { isValidUuid } from "@/lib/utils";
+import { getProjectAccess } from "@/db/queries/project-access";
 import { getProjectCore } from "@/db/queries/projects";
 import { ProjectWatch } from "@/components/projects/ProjectWatch";
+
+import { FleetProjectRoute } from "@/components/projects/FleetProjectRoute";
+import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 
 export const metadata = { title: "Watch it work" };
 
@@ -20,11 +24,18 @@ export default async function ProjectWatchPage({
   const { id } = await params;
   const { run } = await searchParams;
   if (!isValidUuid(id)) notFound();
-  const project = await getProjectCore(userId, id);
+  const access = await getProjectAccess(userId, id);
+  const executionUserId = access?.ownerUserId ?? userId;
+  const project = await getProjectCore(executionUserId, id);
   if (!project) notFound();
+  const registered = await getUserProjectByEntityId(executionUserId, id);
 
   return (
     <div className="app-page mx-auto max-w-2xl space-y-4">
+      <FleetProjectRoute
+        pathname={`/projects/${id}/watch`}
+        project={registered?.name ?? project.name}
+      />
       <Link
         href={`/projects/${id}`}
         className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary"
@@ -33,6 +44,7 @@ export default async function ProjectWatchPage({
       </Link>
       <h1 className="ui-page-title">Watch it work</h1>
       <ProjectWatch
+        key={`${id}:${run ?? "latest"}`}
         projectId={id}
         profileHref={`/projects/${id}`}
         runId={run && isValidUuid(run) ? run : undefined}

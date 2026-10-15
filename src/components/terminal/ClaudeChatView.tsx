@@ -1,15 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  ArrowDown,
-  Check,
-  ChevronRight,
-  Loader2,
-  MessageCircle,
-  TerminalSquare,
-  X,
-} from "lucide-react";
+import { ArrowDown, ChevronRight, Loader2, MessageCircle, TerminalSquare } from "lucide-react";
 import { Composer } from "@/components/composer/Composer";
 import type { Attachment } from "@/components/loki/types";
 import { AnswerActions } from "@/components/loki/AnswerActions";
@@ -21,7 +13,6 @@ import {
   groupTranscript,
   sessionMode,
   turnElapsedLabel,
-  looksBlockedOnApproval,
   type TranscriptBlock,
   type TranscriptItem,
 } from "@/lib/claude-transcript";
@@ -32,6 +23,12 @@ import { mergeSteps } from "@/lib/terminal-next-steps";
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
 import { SuggestionChips } from "./SuggestionChips";
 import { SessionModeChip } from "./SessionModeChip";
+import {
+  dispatchMessageDisplay,
+  isTranscriptInterruption,
+  transcriptActivity,
+  toolWasInterrupted,
+} from "@/lib/terminal-conversation";
 
 /** Bracketed paste: newlines stay inside the message instead of submitting it. */
 const PASTE_START = "\x1b[200~";
@@ -78,15 +75,14 @@ export function ClaudeChatView({
   const { items, connected, received, sessionId } = useClaudeTranscript(tab, channel);
   const blocks = groupTranscript(items);
   const last = items[items.length - 1];
-  const maybeWaiting = looksBlockedOnApproval(items);
-  // Working: the last thing in the log is yours (Claude has not answered yet)
-  // or a tool still running. Drives Stop in the send slot.
-  const working = !!last && (last.kind === "user" || maybeWaiting);
+  const now = useSecondTick(last?.kind === "user" || last?.kind === "tool");
+  const activity = transcriptActivity(items, now, connected);
+  const working = activity.working;
   // The draft, so the send slot can be Stop while the box is empty and Send
   // once you type — a message written mid-run is QUEUED by Claude Code, the
   // way the Claude app lets you line up the next thing while it works.
   const [draft, setDraft] = useState("");
-  const liveStatus = !working ? null : last?.kind === "tool" ? describeToolRun([last]) : "Thinking";
+  const liveStatus = activity.label;
   // Claude has finished and is waiting for you: its last reply says what it
   // is waiting on, so the next step is one tap. The rules answer at once; the
   // fast model reads the whole reply and its steps lead once they arrive.
@@ -99,7 +95,6 @@ export function ClaudeChatView({
   const turnStart = working
     ? ([...items].reverse().find((i) => i.kind === "user")?.at ?? null)
     : null;
-  const now = useSecondTick(turnStart !== null);
   const mode = sessionMode(items);
   const lastMine = [...items].reverse().find((i) => i.kind === "user")?.id ?? null;
   const elapsed = turnElapsedLabel(turnStart, now);
@@ -155,14 +150,22 @@ export function ClaudeChatView({
       setFollowing(true);
       return true;
     }
-    await onKey(`${PASTE_START}${text}${PASTE_END}`);
-    window.setTimeout(() => void onKey(ENTER), SUBMIT_DELAY_MS);
-    setFollowing(true);
-    return true;
+    try {
+      await onKey(`${PASTE_START}${text}${PASTE_END}`);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, SUBMIT_DELAY_MS));
+      await onKey(ENTER);
+      setFollowing(true);
+      return true;
+    } catch {
+      setSendError(
+        "Send was not confirmed. Your draft is still here; check the terminal before retrying.",
+      );
+      return false;
+    }
   };
 
   return (
-    <div className="ui-claude-chat">
+    <div className="ui-claude-chat" data-fc-place="hidden">
       <div ref={scrollRef} className="ui-loki-thread" onScroll={onScroll}>
         <div className="ui-loki-thread-inner ui-claude-chat-inner">
           {!received || items.length === 0 ? (
@@ -195,39 +198,25 @@ export function ClaudeChatView({
       )}
 
       <div className="ui-claude-chat-dock">
-        {maybeWaiting && last?.kind === "tool" && (
-          // Claude Code asks before a tool outside its allowlist and logs
-          // nothing until answered — so a call with no result MAY be a
-          // question on screen. Worded as one, with the keys Claude offers.
-          <div className="ui-claude-approve" role="group" aria-label="Answer Claude">
-            <p className="min-w-0 flex-1 truncate text-xs text-text-secondary">
-              <span className="font-medium text-text-primary">{last.name}</span>{" "}
-              {last.summary || "is running"} — waiting for you?
-            </p>
-            <button type="button" className="ui-claude-approve-yes" onClick={() => onKey("1")}>
-              <Check className="h-4 w-4" aria-hidden /> Allow
-            </button>
-            <button type="button" className="ui-claude-approve-btn" onClick={() => onKey("2")}>
-              Always
-            </button>
-            <button
-              type="button"
-              className="ui-claude-approve-btn"
-              onClick={() => onKey(ESC)}
-              aria-label="Deny"
-            >
-              <X className="h-4 w-4" aria-hidden />
-            </button>
+        {liveStatus && (
+          <div className="ui-claude-live" role="status" aria-live="polite">
+            {working && !activity.quiet && (
+              <Loader2 className="ui-spinner h-4 w-4 shrink-0" aria-hidden />
+            )}
+            <span className="min-w-0 flex-1">{liveStatus}</span>
+            {working && !activity.quiet && elapsed && (
+              <span className="ui-claude-live-time">{elapsed}</span>
+            )}
+            {(activity.quiet || last?.kind === "tool") && (
+              <button
+                type="button"
+                className="ui-btn-ghost ui-tap shrink-0"
+                onClick={onShowTerminal}
+              >
+                View terminal
+              </button>
+            )}
           </div>
-        )}
-        {liveStatus && !maybeWaiting && (
-          <p className="ui-claude-live" role="status" aria-live="polite">
-            <span className="ui-claude-live-mark" aria-hidden>
-              ✳
-            </span>
-            <span className="min-w-0 truncate">{liveStatus}…</span>
-            {elapsed && <span className="ui-claude-live-time">{elapsed}</span>}
-          </p>
         )}
         <Composer
           value={draft}
@@ -243,16 +232,30 @@ export function ClaudeChatView({
                   suggestions={suggestions}
                   onPick={(prompt) => void send(prompt, [])}
                 />
-                {sendError && <p className="ui-error">{sendError}</p>}
+                {sendError && (
+                  <div className="space-y-1">
+                    <p className="ui-error">{sendError}</p>
+                    <button type="button" className="ui-btn-ghost ui-tap" onClick={onShowTerminal}>
+                      Check terminal
+                    </button>
+                  </div>
+                )}
               </>
             ) : undefined
           }
           tools={
             mode ? <SessionModeChip mode={mode} lastMessageId={lastMine} onKey={onKey} /> : null
           }
+          sendBlockedReason={
+            !connected ? "Reconnecting to the session. Your draft is safe here." : null
+          }
           sending={working && !draft.trim()}
           // Stop = Esc, exactly what interrupting Claude Code takes.
-          onStop={() => onKey(ESC)}
+          onStop={() => {
+            void Promise.resolve(onKey(ESC)).catch(() =>
+              setSendError("Could not confirm the stop. Check the terminal before retrying."),
+            );
+          }}
         />
       </div>
     </div>
@@ -323,9 +326,22 @@ function Block({ block }: { block: TranscriptBlock }) {
   if (block.type === "tools") return <ToolRun tools={block.items} />;
   const { item } = block;
   if (item.kind === "user") {
+    if (isTranscriptInterruption(item.text))
+      return <p className="ui-claude-live">Stopped by you</p>;
+    const display = dispatchMessageDisplay(item.text);
     return (
       <div className="ui-loki-turn-user">
-        <div className="ui-loki-bubble ui-loki-bubble-user">{item.text}</div>
+        <div className="ui-loki-bubble ui-loki-bubble-user">
+          <p className="whitespace-pre-wrap break-words">{display.text}</p>
+          {display.details && (
+            <details className="mt-2">
+              <summary className="ui-tap text-xs">Dispatch details</summary>
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">
+                {display.details}
+              </pre>
+            </details>
+          )}
+        </div>
       </div>
     );
   }
@@ -355,7 +371,8 @@ function useSecondTick(on: boolean): number {
 function ToolRun({ tools }: { tools: ToolItem[] }) {
   const [open, setOpen] = useState(false);
   const running = tools.some((t) => t.status === "running");
-  const failed = tools.some((t) => t.status === "error");
+  const failed = tools.some((t) => t.status === "error" && !toolWasInterrupted(t));
+  const interrupted = tools.some(toolWasInterrupted);
   const step = tools.length === 1 ? describeToolStep(tools[0]) : null;
   return (
     <div className="ui-claude-tools">
@@ -375,6 +392,7 @@ function ToolRun({ tools }: { tools: ToolItem[] }) {
           <span className="min-w-0 truncate">{describeToolRun(tools)}</span>
         )}
         {failed && <span className="ui-claude-tools-failed">failed</span>}
+        {interrupted && !failed && <span className="text-xs">stopped</span>}
         <ChevronRight
           className={
             open
@@ -406,7 +424,10 @@ function ToolRow({ tool }: { tool: ToolItem }) {
         aria-expanded={open}
         disabled={!tool.result}
       >
-        <span className={`ui-claude-tool-dot ui-claude-tool-${tool.status}`} aria-hidden />
+        <span
+          className={`ui-claude-tool-dot ui-claude-tool-${toolWasInterrupted(tool) ? "stopped" : tool.status}`}
+          aria-hidden
+        />
         <span className="shrink-0 font-medium text-text-secondary">{tool.name}</span>
         <span className="min-w-0 truncate font-mono text-text-tertiary">{tool.summary}</span>
       </button>

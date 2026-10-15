@@ -117,3 +117,30 @@ export function rememberFleetProject(project: string | null): void {
   }
   window.dispatchEvent(new CustomEvent(FLEET_PROJECT_EVENT, { detail: { project: value } }));
 }
+
+// Route-owned identity lasts only while that authorized page is mounted.
+const routeProjects = new Map<string, string>();
+export function readFleetRouteProject(pathname: string): string | null {
+  return routeProjects.get(pathname) ?? null;
+}
+export function registerFleetRouteProject(pathname: string, project: string): () => void {
+  routeProjects.set(pathname, project);
+  rememberFleetProject(project);
+  return () => {
+    if (routeProjects.get(pathname) === project) routeProjects.delete(pathname);
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(FLEET_PROJECT_EVENT));
+  };
+}
+
+/** A UUID project page cannot borrow identity from an unrelated previous view. */
+export function fleetProjectForLocation(
+  pathname: string,
+  search: URLSearchParams,
+  remembered: string | null,
+): string | null {
+  return (
+    projectFromFleetRoute(pathname, search) ??
+    readFleetRouteProject(pathname) ??
+    (pathname.startsWith("/projects/") ? null : remembered)
+  );
+}

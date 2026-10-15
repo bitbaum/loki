@@ -49,7 +49,6 @@ import { getApiActor } from "@/lib/session";
 import { AttachmentsField, foldAttachmentsIntoPrompt } from "@/lib/composer-attachments";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
 import { getProjectContext } from "@/db/queries/project-context";
-import { buildOperatorContextSection } from "@/lib/dispatch-operator-context";
 import { fleetBriefForProject } from "@/lib/fleet-brief/for-project";
 import { enqueueDispatchCommand } from "@/db/queries/pending-commands";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
@@ -207,10 +206,6 @@ async function dispatchViaCloudQueue(
   const intent = getOrchestrationIntent(request.intent as OrchestrationTaskIntentId);
   // Aim the agent at the project's roadmap: brief + active goals (getProjectContext).
   request.projectContext = (await getProjectContext(userId, request.projectKey)) ?? undefined;
-  // Life-OS half: the operator's top-level goals + near-term deadlines, so this
-  // cloud-queued dispatch serves the captain's objectives too (mirrors the
-  // inject-prompt/inject-core paths). Best-effort background section.
-  const operatorSection = await buildOperatorContextSection(userId).catch(() => "");
   // bitbaum house rules for a repo in the org (lib/fleet-brief) — instruction,
   // placed above the task like the other dispatch assemblers place it.
   const houseRules = await fleetBriefForProject(userId, request.projectKey).catch(() => "");
@@ -222,7 +217,7 @@ async function dispatchViaCloudQueue(
   // (renderTaskForAdapter does not include it) so every dispatch path lands a
   // handoff. Tilde-relative on purpose: the agent expands HOME, not the server.
   const sessionFileRef = `${FLEET_SESSIONS_DISPLAY_PATH}/${request.projectKey}.md`;
-  const prompt = `${[operatorSection, houseRules, renderTaskForAdapter(request)].filter(Boolean).join("\n\n")}\n\n${exitContractFor(sessionFileRef)}`;
+  const prompt = `${[houseRules, renderTaskForAdapter(request)].filter(Boolean).join("\n\n")}\n\n${exitContractFor(sessionFileRef)}`;
   const cloudRunId = await createCloudTrackedRun(request, userId, announceOnClose);
   // Enqueue a `dispatch` (not bare `inject`): the runner ensures the tab,
   // launches the agent if none is running, then injects — so "Next best" on
@@ -883,16 +878,9 @@ export async function POST(req: NextRequest) {
 
   // Aim the agent at the project's roadmap: brief + active goals (getProjectContext).
   request.projectContext = (await getProjectContext(userId, request.projectKey)) ?? undefined;
-  // Life-OS half: the operator's top-level goals + near-term deadlines, prepended
-  // as a background section so tab-injected and queued-behind dispatches serve the
-  // captain's objectives too (mirrors inject-core/inject-prompt). Best-effort.
-  const [operatorSection, houseRules] = await Promise.all([
-    buildOperatorContextSection(userId).catch(() => ""),
-    // bitbaum house rules for a repo in the org (lib/fleet-brief).
-    fleetBriefForProject(userId, request.projectKey).catch(() => ""),
-  ]);
-  const withOperator = (body: string) =>
-    [operatorSection, houseRules, body].filter(Boolean).join("\n\n");
+  // Coding work receives project context and house rules, not personal life data.
+  const houseRules = await fleetBriefForProject(userId, request.projectKey).catch(() => "");
+  const withOperator = (body: string) => [houseRules, body].filter(Boolean).join("\n\n");
   // Log every dispatch regardless of adapter — foundation for reuse suggestions and analytics
   const resolvedPromptBody = withOperator(renderTaskForAdapter(request));
   // (Written AFTER the run row below, so the prompt can carry the run's id.
