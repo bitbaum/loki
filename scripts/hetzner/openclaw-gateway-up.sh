@@ -10,6 +10,13 @@
 # working and nothing said so — the health sweep had stopped watching the
 # gateway the same day, on the belief that it was retired. It was not.
 #
+# THE FIRST RUN (2026-10-15) SHOWED THE REAL CAUSE: linger was already on, the
+# user manager's bus socket EXISTED, and every `systemctl --user` call was
+# refused ("Failed to connect to user scope bus ... Connection refused") — a
+# stale socket left by a user manager that is not running. So step 2 restarts
+# that manager. If it still will not answer, the script stops and prints why;
+# it does NOT install anything new to work around that.
+#
 # What it does, and only this (each step prints what it found first):
 #   1. enable-linger for the openclaw user. Without linger the user's systemd
 #      manager exists only while someone is logged in, so a reboot (the box
@@ -39,11 +46,18 @@ RT="/run/user/$uid"
 as_oc() {
   runuser -u openclaw -- env XDG_RUNTIME_DIR="$RT" DBUS_SESSION_BUS_ADDRESS="unix:path=$RT/bus" "$@"
 }
-gw_http() { curl -s -o /dev/null -m 4 -w '%{http_code}' http://127.0.0.1:18789/ 2>/dev/null || echo 000; }
+gw_http() {
+  local c
+  c="$(curl -s -o /dev/null -m 4 -w '%{http_code}' http://127.0.0.1:18789/ 2>/dev/null)" || true
+  echo "${c:-000}"
+}
+user_manager_ok() { as_oc systemctl --user show-environment >/dev/null 2>&1; }
 
 hr "before"
 echo "linger: $(loginctl show-user openclaw -p Linger 2>/dev/null | cut -d= -f2)"
-echo "user manager bus: $([ -S "$RT/bus" ] && echo present || echo ABSENT)"
+echo "user manager bus socket: $([ -S "$RT/bus" ] && echo present || echo ABSENT)"
+echo "user manager answering:  $(user_manager_ok && echo yes || echo NO)"
+echo "user@${uid}.service: $(systemctl is-active "user@${uid}.service" 2>&1) / $(systemctl is-enabled "user@${uid}.service" 2>&1)"
 echo "unit file: $([ -f /home/openclaw/.config/systemd/user/$UNIT ] && echo present || echo MISSING)"
 echo "gateway processes: $(pgrep -u openclaw -f 'gateway' 2>/dev/null | wc -l)"
 echo "HTTP :18789 -> $(gw_http)"
@@ -53,16 +67,30 @@ if [ ! -f "/home/openclaw/.config/systemd/user/$UNIT" ]; then
 fi
 
 hr "1. linger"
-loginctl enable-linger openclaw && echo "enabled (the user manager now starts at boot and stays up)"
-for i in $(seq 1 20); do [ -S "$RT/bus" ] && break; sleep 1; done
-if [ ! -S "$RT/bus" ]; then
-  echo "✗ the user manager did not come up (no $RT/bus after 20s)"
-  systemctl status "user@${uid}.service" --no-pager 2>&1 | head -12 | red
-  exit 1
-fi
-echo "user manager bus: present"
+loginctl enable-linger openclaw && echo "enabled (the user manager starts at boot and stays up)"
 
-hr "2. enable and start $UNIT"
+hr "2. get the openclaw user's systemd manager answering"
+if user_manager_ok; then
+  echo "already answering"
+else
+  echo "not answering — restarting user@${uid}.service (a stale bus socket is what a dead manager leaves behind)"
+  systemctl restart "user@${uid}.service" 2>&1 | red
+  for i in $(seq 1 20); do user_manager_ok && break; sleep 1; done
+  if user_manager_ok; then
+    echo "answering now (after ~${i}s)"
+  else
+    echo "✗ still not answering. What the box says about user@${uid}.service:"
+    systemctl status "user@${uid}.service" --no-pager 2>&1 | head -14 | red
+    echo "-- its journal:"
+    journalctl -u "user@${uid}.service" -n 20 --no-pager -q 2>&1 | red
+    echo "-- masked? $(systemctl is-enabled user@.service 2>&1)"
+    echo "-- sessions: $(loginctl list-sessions --no-legend 2>/dev/null | wc -l) | runtime dir: $(ls -ld "$RT" 2>&1 | awk '{print $1,$3,$4}')"
+    echo "Nothing was installed. The next step needs a decision (run the gateway as a system service instead)."
+    exit 1
+  fi
+fi
+
+hr "2b. enable and start $UNIT"
 as_oc systemctl --user daemon-reload
 as_oc systemctl --user enable --now "$UNIT" 2>&1 | red
 echo "is-enabled: $(as_oc systemctl --user is-enabled "$UNIT" 2>&1)"
