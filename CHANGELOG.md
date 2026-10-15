@@ -8,6 +8,10 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-10-15 — Notifications you can actually turn on
 
+- **Loki tells you when WhatsApp and the Telegram chat stop being read.** The
+  gateway behind them died on Oct 8 and nothing noticed for a week. Now a check
+  every ten minutes raises an alert and one Telegram message when it is down,
+  and another when it is back.
 - **Turn on notifications on your phone.** Settings → Notifications now has an
   "On this phone" card: turn them on, send yourself a test, turn them off. It
   says plainly when a browser cannot (on iPhone: add Loki to the Home Screen
