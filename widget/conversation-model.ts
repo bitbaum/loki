@@ -18,7 +18,9 @@ import { sendSelfReport } from "./self-report";
 import { askAdvisor, askConcierge, REVIEW_QUESTION, type Answer } from "./loki-api";
 import {
   historyFor,
+  isPageReadKey,
   pushItem,
+  pushPageRead,
   restoreThread,
   type Assistant,
   type Link,
@@ -81,6 +83,9 @@ export type ConversationWatch = {
   session: () => string;
   /** The watched steps as report lines — null while paused. */
   diagnostics: () => ReportDiagnostics | null;
+  /** Record that the owner talked to Loki, so Review does not read the time
+   *  as the site doing nothing. Optional: a view without Watch has none. */
+  talked?: (text: string) => void;
 };
 
 /** A confirmation card in the thread: what will be sent, before it is. */
@@ -234,6 +239,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
     error = "";
     opts.onBusy?.(true);
     remember({ kind: "you", at: Date.now(), text });
+    if (!session) opts.watch()?.talked?.(text);
     changed(true);
     const history = historyFor(thread.slice(0, -1), 12, 3000);
     try {
@@ -435,7 +441,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
     },
     /** Watch noticed something: Loki says it in the thread, with Fix this. */
     noticed(remark: { say: string; fix: string; filed?: boolean; key?: string; again?: boolean }) {
-      remember({
+      const item: ThreadItem = {
         kind: "noticed",
         at: Date.now(),
         text: remark.say,
@@ -443,7 +449,11 @@ export function createConversationModel(opts: ConversationModelOpts) {
         ...(remark.filed ? { filed: true } : {}),
         ...(remark.key ? { key: remark.key } : {}),
         ...(remark.again ? { again: true } : {}),
-      });
+      };
+      if (isPageReadKey(remark.key)) {
+        thread = pushPageRead(thread, item);
+        writeThread(opts.token, thread);
+      } else remember(item);
       changed();
     },
     /** Loki on Loki (self-watch.ts) — quiet: never moves your reading place. */

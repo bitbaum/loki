@@ -33,7 +33,15 @@ import type { ReportDiagnostics } from "./report-payload";
  * owner could not see before: watch only ever spoke when something was wrong,
  * so between remarks it was impossible to tell what it was doing.
  */
-export type TrailKind = "tap" | "page" | "request" | "error" | "notice" | "look" | "result";
+/**
+ * `talk` is the owner talking to Loki in the panel. Taps inside Loki's own
+ * panel never enter the trail (they are not the site), so before this kind a
+ * Review saw a conversation with Loki as minutes of silence and read it as
+ * the site not responding (operator's phone, 2026-10-15: "the page never
+ * responded for 194 s" — those 194 s were spent asking Loki).
+ */
+export type TrailKind =
+  "tap" | "page" | "request" | "error" | "notice" | "look" | "result" | "talk";
 export type TrailEntry = { at: number; kind: TrailKind; text: string };
 export type Failure = { kind: "error" | "request" | "dead-tap"; text: string };
 
@@ -187,7 +195,16 @@ export function nextTapStreak(
  *  restored from storage after a page load is untrusted input. */
 export function freshTrail(trail: unknown, now: number): TrailEntry[] {
   if (!Array.isArray(trail)) return [];
-  const kinds: TrailKind[] = ["tap", "page", "request", "error", "notice", "look", "result"];
+  const kinds: TrailKind[] = [
+    "tap",
+    "page",
+    "request",
+    "error",
+    "notice",
+    "look",
+    "result",
+    "talk",
+  ];
   return trail
     .filter(
       (e): e is TrailEntry =>

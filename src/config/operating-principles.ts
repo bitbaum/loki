@@ -1,3 +1,5 @@
+import { renderBuildConventions } from "./build-conventions";
+
 /**
  * Global operating principles — the founder's cross-project engineering
  * standards, SEEDED from ~/.claude/CLAUDE.md (the SSOT maintained there). These
@@ -32,5 +34,7 @@ export function renderOperatingPrinciples(): string {
   return [
     "Engineering standards (apply to ALL projects — hold every change to these):",
     ...OPERATING_PRINCIPLES.map((p) => `- ${p}`),
+    "",
+    renderBuildConventions(),
   ].join("\n");
 }

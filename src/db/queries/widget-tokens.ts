@@ -1,7 +1,15 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { entities, userProjects, widgetTokens, type WidgetToken } from "@/db/schema";
+import {
+  entities,
+  projectPackageScans,
+  projectPackages,
+  userProjects,
+  widgetTokens,
+  type WidgetToken,
+} from "@/db/schema";
+import type { WidgetBuildFacts } from "@/lib/widget-advise/build-facts";
 import { ENTITY_TYPE, WIDGET_TOKEN_STATUS, type WidgetTokenStatus } from "@/lib/constants/statuses";
 import { fetchAttributesByEntityIds } from "./utils";
 import { resolveProjectPublicOrigin } from "@/lib/feedback/project-site";
@@ -88,6 +96,55 @@ export async function getWidgetProjectKey(
     .where(eq(entities.id, projectId))
     .limit(1);
   return row?.projectName ?? row?.entityName ?? null;
+}
+
+/**
+ * How the widget's project is built, for the advisor (lib/widget-advise/
+ * build-facts.ts): the owner's active runtime project, what the kickoff
+ * planned, and what the last read of its code observed. Null when the owner
+ * has no runtime project for this entity — the advisor then says it has no
+ * record rather than guessing.
+ */
+export async function getWidgetBuildFacts(
+  projectId: string,
+  ownerUserId: string,
+): Promise<WidgetBuildFacts | null> {
+  const [project] = await db
+    .select({
+      id: userProjects.id,
+      gitUrl: userProjects.gitUrl,
+      dirPath: userProjects.dirPath,
+      kitPlan: userProjects.kitPlan,
+    })
+    .from(userProjects)
+    .where(
+      and(
+        eq(userProjects.entityProjectId, projectId),
+        eq(userProjects.userId, ownerUserId),
+        eq(userProjects.isActive, true),
+      ),
+    )
+    .limit(1);
+  if (!project) return null;
+  const [packages, [scan]] = await Promise.all([
+    db
+      .select({ name: projectPackages.packageName, version: projectPackages.version })
+      .from(projectPackages)
+      .where(eq(projectPackages.projectId, project.id))
+      .orderBy(projectPackages.packageName),
+    db
+      .select({ at: projectPackageScans.scannedAt, outcome: projectPackageScans.outcome })
+      .from(projectPackageScans)
+      .where(eq(projectPackageScans.projectId, project.id))
+      .limit(1),
+  ]);
+  const read = !!scan && (scan.outcome === "ok" || scan.outcome === "no-manifest");
+  return {
+    hasRepository: !!(project.gitUrl || project.dirPath),
+    planned: project.kitPlan?.kits.map((k) => k.name) ?? [],
+    observed: read || packages.length ? packages : null,
+    readAt: scan?.at ?? null,
+  };
 }
 
 /**

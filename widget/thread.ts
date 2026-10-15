@@ -71,6 +71,22 @@ export function pushItem(thread: ThreadItem[], item: ThreadItem): ThreadItem[] {
   return [...thread, item].slice(-THREAD_MAX);
 }
 
+/** A remark's key that marks Loki's own unasked READ of a page (watch.ts). */
+export const isPageReadKey = (key: string | undefined): boolean => !!key?.endsWith("|read");
+
+/**
+ * Add Loki's unasked read of a page, replacing any earlier one. Reads are
+ * about the page the owner is on; four of them stacked above the owner's own
+ * words (one per page browsed) buried the conversation they came to have
+ * (operator's phone, 2026-10-15). An earlier read loses nothing: a fix it
+ * started is tracked under Your changes, and the page is read again on the
+ * next visit.
+ */
+export function pushPageRead(thread: ThreadItem[], item: ThreadItem): ThreadItem[] {
+  const kept = thread.filter((i) => !(i.kind === "noticed" && isPageReadKey(i.key)));
+  return pushItem(kept, item);
+}
+
 const str = (v: unknown, max: number): string | null =>
   typeof v === "string" && v.trim() ? v.slice(0, max) : null;
 
