@@ -209,7 +209,7 @@ export function DispatchFooter({
           {pinned && `Agent: ${pinned}`}
         </p>
       )}
-      {!live?.terminal && live?.milestones && <RunMilestones milestones={live.milestones} />}
+      {live?.milestones && <RunMilestones milestones={live.milestones} />}
       {live?.terminal && live.follow && <RunFollowLine follow={live.follow} />}
       {handoff && (
         <RunHandoffBlock
@@ -297,6 +297,25 @@ function RunFollowLine({ follow }: { follow: RunFollow }) {
           </span>{" "}
           {follow.looked.evidence}
         </p>
+      )}
+      {follow.pictureUrl && (
+        <a
+          href={follow.liveUrl ?? follow.pictureUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ui-loki-update-shot max-w-xs"
+        >
+          {/* An owner-only API image — next/image would fetch it without the session. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={follow.pictureUrl}
+            alt="The live page, as Loki saw it on a phone"
+            loading="lazy"
+          />
+          <span className="ui-loki-update-shot-caption">
+            The live page, as Loki saw it on a phone
+          </span>
+        </a>
       )}
       {!follow.looked && follow.liveUrl && !follow.settled && (
         <p className="ui-loki-dispatch-detail">Loki is reading the live page…</p>

@@ -72,7 +72,7 @@ export async function followRun(
     : null;
   let fix = payload.fix ?? null;
   const liveUrl = project?.liveUrl ?? null;
-  if (now - run.finishedAt!.getTime() > FOLLOW_WINDOW_MS) return runFollow(fix, liveUrl);
+  if (now - run.finishedAt!.getTime() > FOLLOW_WINDOW_MS) return runFollow(fix, liveUrl, run.id);
   if (fixNeedsRefresh(fix)) {
     fix = await refreshFixShipping({
       runId: run.id,
@@ -108,5 +108,5 @@ export async function followRun(
       looking.delete(run.id);
     }
   }
-  return runFollow(fix, liveUrl);
+  return runFollow(fix, liveUrl, run.id);
 }

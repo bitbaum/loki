@@ -30,7 +30,7 @@ export type RepoProgress = {
 };
 
 export type RunMilestone = {
-  key: "picked_up" | "commit" | "pr" | "checks";
+  key: "picked_up" | "commit" | "pr" | "checks" | "finished";
   label: string;
   /** The words the builder wrote: a commit message, a PR title. */
   quote: string | null;
@@ -54,9 +54,18 @@ export function commitHeadline(message: string): string {
 
 const iso = (d: string | Date) => (d instanceof Date ? d.toISOString() : d);
 
+/** How the run ended, in the step that closes the list. */
+const FINISHED: Record<string, { label: string; tone: RunMilestone["tone"] }> = {
+  success: { label: "Finished — the builder reported back", tone: "positive" },
+  partial: { label: "Finished, with something left to do", tone: "warning" },
+  user_abort: { label: "Stopped by you", tone: "neutral" },
+};
+
 export function buildRunMilestones(input: {
   startedAt: string | Date | null;
   repo: RepoProgress | null;
+  /** The run is over: when, and how (its outcome). */
+  finished?: { at: string | Date; outcome: string | null } | null;
 }): RunMilestone[] {
   const out: RunMilestone[] = [];
   if (input.startedAt) {
@@ -92,7 +101,10 @@ export function buildRunMilestones(input: {
     out.push({
       key: "pr",
       label: `Opened pull request #${pr.number}`,
-      quote: pr.title,
+      // Often the same sentence as the commit it carries; say it once.
+      quote: shown.some((c) => commitHeadline(c.message) === commitHeadline(pr.title))
+        ? null
+        : commitHeadline(pr.title),
       href: pr.url,
       at: pr.at,
       tone: "positive",
@@ -113,6 +125,13 @@ export function buildRunMilestones(input: {
         tone: pr.checks === "passed" ? "positive" : pr.checks === "failed" ? "negative" : "neutral",
       });
     }
+  }
+  if (input.finished) {
+    const words = FINISHED[input.finished.outcome ?? ""] ?? {
+      label: "The run ended without finishing",
+      tone: "negative" as const,
+    };
+    out.push({ key: "finished", ...words, quote: null, href: null, at: iso(input.finished.at) });
   }
   // Commits and the PR come from different lists; the reader wants one story.
   return out.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));

@@ -32,9 +32,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       ...view,
       handoff: runHandoff(run.finishedAt ? run.summary : null),
       follow: view.terminal ? await followRun(userId, run).catch(() => null) : null,
-      milestones: view.terminal
-        ? null
-        : await loadRunMilestones(userId, run, run.startedAt).catch(() => null),
+      milestones: await loadRunMilestones(userId, run, run.startedAt).catch(() => null),
     },
     { headers: { "Cache-Control": "no-store" } },
   );

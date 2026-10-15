@@ -45,6 +45,20 @@ assert.ok(commitHeadline("x".repeat(300)).length <= 140);
   );
   assert.equal(m[2].label, "Opened pull request #12");
   assert.equal(m[2].quote, "Keep the menu above the tour");
+  const same = buildRunMilestones({
+    startedAt: null,
+    repo: {
+      commits: [{ sha: "a", message: "feat(x): one thing", at: "2026-10-15T10:05:00Z", url: "u" }],
+      pr: {
+        number: 1,
+        title: "feat(x): one thing",
+        url: "p",
+        at: "2026-10-15T10:06:00Z",
+        checks: null,
+      },
+    },
+  });
+  assert.equal(same[1].quote, null, "the PR does not repeat its only commit");
   assert.equal(m[4].label, "Checks are running");
   assert.equal(m[4].href, "https://github.com/o/r/pull/12/checks");
   assert.equal(m[1].quote, "One");
@@ -89,5 +103,25 @@ assert.equal(
   ]),
   "passed",
 );
+
+// ---- the list stays after the run, and ends by saying how it ended ----
+{
+  const m = buildRunMilestones({
+    startedAt: "2026-10-15T10:00:00Z",
+    repo: null,
+    finished: { at: "2026-10-15T10:20:00Z", outcome: "success" },
+  });
+  assert.deepEqual(
+    m.map((x) => x.key),
+    ["picked_up", "finished"],
+  );
+  assert.equal(m[1].label, "Finished — the builder reported back");
+  const failed = buildRunMilestones({
+    startedAt: null,
+    repo: null,
+    finished: { at: "2026-10-15T10:20:00Z", outcome: "timeout" },
+  });
+  assert.equal(failed[0].tone, "negative");
+}
 
 console.log("run-milestones: ok");
