@@ -106,12 +106,52 @@ function readsAsQuestion(t: string): boolean {
   );
 }
 
+/**
+ * A request about the person's own life — their calendar, a reminder, a
+ * message or email to someone, a commitment — not work for a project.
+ *
+ * Found in production on 2026-10-15 with a fresh account that had one
+ * project: "Put an event in my calendar: dentist appointment on Monday at
+ * 9am" and "Add a commitment for me: send the new bakery menu to Anna by
+ * Friday" were both dispatched to that project as BUILD work (the action-task
+ * fast path below, with its sole-project fallback), failed with "Cloud builder
+ * access is private", and never reached the chat path whose proposal
+ * extractor drafts the event or the message for approval. A personal action
+ * must be answered, and drafted, never built.
+ *
+ * Narrow on purpose: the cue must be personal ("my calendar", "remind me",
+ * "send Anna a WhatsApp", "email the landlord") AND carry no build word, so
+ * "add a calendar page to the app" and "fix the email bug" still dispatch.
+ */
+const PERSONAL_ACTION_RE = new RegExp(
+  [
+    String.raw`\bmy (?:calendar|agenda|schedule|diary)\b`,
+    String.raw`\b(?:remind me|reminder for me)\b`,
+    String.raw`\b(?:add|make|log|note) (?:a |an )?commitment\b`,
+    String.raw`\bcommitment for me\b`,
+    String.raw`\b(?:put|add|create|book|schedule) (?:a |an )?(?:event|appointment)\b`,
+    String.raw`\b(?:schedule|book|arrange|set up)\b[^.]{0,24}\b(?:meeting|call|appointment|dinner|lunch|coffee)\b`,
+    String.raw`\b(?:send|write|draft)\b[^.]{0,30}\b(?:message|text|whatsapp|telegram|sms|email|e-mail)\b`,
+    String.raw`^(?:please\s+)?(?:email|e-mail|message|text|whatsapp|telegram|call|ring|phone)\s+(?!the\s+(?:api|endpoint|function|service)\b)\w`,
+  ].join("|"),
+  "i",
+);
+const BUILD_WORD_RE =
+  /\b(?:implement|build|fix|refactor|deploy|ship|feature|bug|page|component|endpoint|button|ui|screen|app|integration|code|repo|test|tests)\b/i;
+
+export function isPersonalActionRequest(text: string): boolean {
+  const t = text.trim();
+  if (!t || DEVELOP_READY_RE.test(t)) return false;
+  return PERSONAL_ACTION_RE.test(t) && !BUILD_WORD_RE.test(t);
+}
+
 /** True when the message is work to run, not a question for Loki chat. */
 export function looksLikeDispatchTask(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
   // An explicit build handoff outranks everything — "ok, now please build it".
   if (DEVELOP_READY_RE.test(t)) return true;
+  if (isPersonalActionRequest(t)) return false;
   if (CHAT_QUESTION_RE.test(t)) return false;
   if (INFO_REQUEST_RE.test(t)) return false;
   if (YES_NO_QUESTION_RE.test(t)) return false;
@@ -170,6 +210,20 @@ export async function resolveCommand(
       prompt: text,
       needsProject: !projectKey,
       reason: "develop handoff",
+    };
+  }
+
+  // A personal action (calendar, reminder, a message to someone) is answered
+  // and drafted for approval on the chat path — never built, whatever
+  // project happens to be selected or is the only one there is.
+  if (isPersonalActionRequest(text)) {
+    return {
+      kind: "chat",
+      projectKey: null,
+      intentId: null,
+      prompt: text,
+      needsProject: false,
+      reason: "personal action",
     };
   }
 

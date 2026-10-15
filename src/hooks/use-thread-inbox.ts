@@ -6,6 +6,11 @@ import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import type { RailMode } from "@/components/loki/ThreadRail";
 import type { ConversationSummary } from "@/components/loki/types";
 
+/** Naming waits this long after the answer, then retries this often if the
+ *  model was busy (`retry: true` from the title route). */
+const TITLE_FIRST_ASK_MS = 3_000;
+const TITLE_RETRY_DELAYS_MS = [10_000, 30_000];
+
 /** How the rail orders threads: by what needs you, or folded under projects. */
 const RAIL_MODE_KEY = "loki:rail-mode";
 const modeSerialize = (v: RailMode) => v;
@@ -78,17 +83,33 @@ export function useThreadInbox(
     if (titled.current.has(activeId)) return;
     titled.current.add(activeId);
     const id = activeId;
-    postJson(`/api/conversations/${id}/title`, {})
-      .then(async (res) => {
-        if (!res.ok) return;
-        const body = (await res.json().catch(() => ({}))) as { title?: string; changed?: boolean };
-        if (!body.changed || !body.title) return;
-        const title = body.title;
-        setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
-      })
-      .catch(() => {
-        /* the thread keeps its opening line as its title */
-      });
+    // Asked a moment AFTER the answer, and again if the model was busy: the
+    // turn that just answered has used the fast model's minute window, and a
+    // single immediate ask failed often enough in production to leave most
+    // new threads named by their opening line.
+    const ask = (attempt: number) => {
+      postJson(`/api/conversations/${id}/title`, {})
+        .then(async (res) => {
+          if (!res.ok) return;
+          const body = (await res.json().catch(() => ({}))) as {
+            title?: string;
+            changed?: boolean;
+            retry?: boolean;
+          };
+          if (body.changed && body.title) {
+            const title = body.title;
+            setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
+          } else if (body.retry && attempt < TITLE_RETRY_DELAYS_MS.length) {
+            setTimeout(() => ask(attempt + 1), TITLE_RETRY_DELAYS_MS[attempt]);
+          }
+        })
+        .catch(() => {
+          /* the thread keeps its opening line as its title */
+        });
+    };
+    // Deliberately no cleanup that cancels the ask: a person who switches
+    // thread the moment an answer lands still wants it named.
+    setTimeout(() => ask(0), TITLE_FIRST_ASK_MS);
   }, [activeId, transcriptLoading, messageCount, setConversations]);
 
   const renameConversation = useCallback(
