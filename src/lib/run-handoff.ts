@@ -80,6 +80,8 @@ export type RunFollow = {
   /** The live page, once it is deployed and the project has one. */
   liveUrl: string | null;
   looked: { verdict: "looks_fixed" | "not_visible" | "cannot_tell"; evidence: string } | null;
+  /** The picture Loki took of the live page when it looked, when it kept one. */
+  pictureUrl: string | null;
   /** Nothing left to wait for: the card stops asking. */
   settled: boolean;
 };
@@ -99,9 +101,14 @@ const SHIP_WORDS: Record<string, { label: string; tone: StatusTone } | undefined
  * commit was found). `canLook`: the project has a live page Loki may read —
  * without one, "Live" is the end of the story and there is nothing to wait for.
  */
+/** Where the owner reads the picture Loki took of a run's live page. */
+export const runPicturePath = (runId: string) =>
+  `/api/orchestration/runs/${encodeURIComponent(runId)}/picture`;
+
 export function runFollow(
   fix: FixShipping | null | undefined,
   liveUrl: string | null,
+  runId: string | null = null,
 ): RunFollow | null {
   if (!fix) return null;
   const words = SHIP_WORDS[fix.state];
@@ -113,6 +120,7 @@ export function runFollow(
     prUrl: fix.pr?.url ?? null,
     liveUrl: deployed ? (fix.verify?.url ?? liveUrl) : null,
     looked,
+    pictureUrl: runId && fix.verify?.picture ? runPicturePath(runId) : null,
     settled: fix.state === FIX_SHIP_STATE.PR_CLOSED || (deployed && (!!looked || !liveUrl)),
   };
 }

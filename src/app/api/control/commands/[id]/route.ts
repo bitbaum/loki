@@ -52,9 +52,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     handoff: runHandoff(run?.finishedAt ? run.summary : null),
     // …and where the change went after that, while the card is open.
     follow: view.terminal && run ? await followRun(userId, run).catch(() => null) : null,
-    // …and while it runs, what it has pushed so far.
+    // …and every step it took, during the run and after it.
     milestones:
-      !view.terminal && run && command.claimedAt
+      run && command.claimedAt
         ? await loadRunMilestones(userId, run, command.claimedAt).catch(() => null)
         : null,
   });
