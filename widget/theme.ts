@@ -572,7 +572,9 @@ input { margin-bottom: 10px; }
    widget's own actions sit under an answer, the card after the last turn. */
 .fc-kit { display: flex; flex-direction: column; gap: 8px; }
 .fc-kit { flex: 1 1 auto; min-height: 0; }
-.fc-kit .ck-thread-wrap { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }
+/* Flex when chatkit makes the wrap a direct child; the cap bounds it
+   however deep chatkit nests it, so the composer is never pushed out. */
+.fc-kit .ck-thread-wrap { flex: 1 1 auto; min-height: 96px; max-height: min(52vh, 440px); overflow-y: auto; }
 /* The panel's own field styles (textarea:focus below) must not reach chatkit's
    input: it lives inside chatkit's composer frame, which draws the edge. Two
    rows, like the panel's own composer, so the placeholder is never cut. */

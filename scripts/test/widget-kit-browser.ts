@@ -214,11 +214,23 @@ async function main() {
         "the receipt's track link is under its message",
       );
 
-      // The thread is bounded inside the panel.
-      const wrap = await t.p
-        .locator(`${root} .fc-kit .ck-thread-wrap`)
-        .evaluate((e) => getComputedStyle(e).maxHeight);
-      ok(wrap !== "none", `the thread is bounded (${wrap})`);
+      // The thread is bounded inside the panel: it scrolls, and it ends
+      // inside the card. (It was a fixed max-height; the panel is now one
+      // column whose thread takes the room between header and composer —
+      // theme.ts — so what to pin is the outcome, not the old mechanism.)
+      const wrap = await t.p.locator(`${root} .fc-kit .ck-thread-wrap`).evaluate((e) => {
+        const panel = e.closest(".panel")!.getBoundingClientRect();
+        const r = e.getBoundingClientRect();
+        return {
+          scrolls: getComputedStyle(e).overflowY === "auto",
+          inside: r.top >= panel.top - 0.5 && r.bottom <= panel.bottom + 0.5,
+          panelFits: panel.bottom <= innerHeight + 0.5,
+        };
+      });
+      ok(
+        wrap.scrolls && wrap.inside && wrap.panelFits,
+        `the thread is bounded inside the panel (${JSON.stringify(wrap)})`,
+      );
 
       // Escape still closes the panel (chatkit's composer does not swallow it).
       await input.press("Escape");
