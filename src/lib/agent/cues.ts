@@ -118,3 +118,12 @@ export const PROJECT_CUES =
  */
 export const RECENCY_CUES =
   /\b(recent|recently|latest|last|newest|just|today|this morning|tonight)\b/i;
+
+/**
+ * The operator asking about their own conversations with Loki — what they
+ * asked, what was said, where things were left. Answered from their recent
+ * threads (sources-threads.ts); without these, "what did I ask you today?"
+ * was answered from runs alone and reported no record of any request.
+ */
+export const THREAD_CUES =
+  /\b(what (?:did|have) i (?:ask|asked|say|said|tell|told|send|sent)|i (?:asked|told) you|you (?:said|told me)|we (?:talked|discussed|spoke|chatted)|our (?:chats?|conversations?|threads?)|my (?:chats|threads|conversations)|other (?:chats?|threads?|conversations?)|catch me up|recap|where (?:were|was|did) (?:we|i) (?:leave|left|stop)|left off|what was i (?:doing|working on))\b/i;

@@ -71,3 +71,35 @@ export function builderWayForward(input: {
 export function downloadIsTheWayForward(way: BuilderWayForward): boolean {
   return way === "connect-fleet-runner";
 }
+
+/**
+ * Who can build this account's work, in words the operator can act on.
+ *
+ * It used to be "OFFLINE — nothing can run" for every account without a live
+ * builder, and on the live site (2026-10-15) a new account was told to "bring
+ * the runner online" — something it had no way to do: the cloud builder is
+ * not available to that account at all, and the only builder it can ever have
+ * is Fleet Runner on its own computer. Offline and unavailable are different
+ * sentences with different next steps, so the fact says which one is true.
+ */
+export function builderStatusLine(
+  access: {
+    cloudBuilderAllowed: boolean;
+    presence: { cloud: boolean; local: boolean; any: boolean };
+  } | null,
+): string | null {
+  if (!access) return null;
+  if (access.presence.any) {
+    return access.presence.cloud ? "the cloud builder is online" : "Fleet Runner is connected";
+  }
+  const way = builderWayForward({
+    cloud: cloudBuilderState(access.cloudBuilderAllowed, access.presence),
+  });
+  if (way === "connect-fleet-runner") {
+    return "nothing can build for this account yet: the cloud builder is not available to it, and the one way to build is the Fleet Runner desktop app on a computer the operator owns ([Get Fleet Runner](/download)). Nothing they do in this chat changes that";
+  }
+  if (way === "wait-for-cloud") {
+    return "the cloud builder is offline — a problem on Loki's side, nothing for the operator to install or fix; queued work starts when it is back";
+  }
+  return "no builder is connected right now";
+}

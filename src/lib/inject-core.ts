@@ -733,7 +733,18 @@ async function executeAndReport(
     injectFn ?? (() => Promise.reject(new Error("Runtime unavailable"))),
   );
 
-  if (!result.ok) return recordInjectFailure(userId, result, outcome);
+  if (!result.ok) {
+    // The run was opened as WAITING before delivery was tried. Left open, a
+    // refused dispatch read as work in line forever: on the live site
+    // (2026-10-15) an account with no builder piled up six "waiting" runs, and
+    // Loki told it its work was queued when none of it ever could start.
+    if (runId) {
+      await closeRunUndelivered(runId, userId, result.error, { notify: false }).catch((err) =>
+        console.error("[inject] close refused run failed:", err),
+      );
+    }
+    return recordInjectFailure(userId, result, outcome);
+  }
 
   recordInjectSuccess(userId, result, outcome);
 

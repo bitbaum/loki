@@ -257,6 +257,9 @@ export async function closeRunUndelivered(
   runId: string,
   userId: string,
   reason: string,
+  /** False when the caller is already telling the person, in the same reply,
+   *  that the dispatch failed — a second "run closed" message is noise. */
+  opts: { notify?: boolean } = {},
 ): Promise<void> {
   const [closed] = await db
     .update(orchestrationRuns)
@@ -283,7 +286,7 @@ export async function closeRunUndelivered(
     // This path bypasses updateOrchestrationRun, so it must emit its own
     // chat notification — a chat dispatch that never reached a runner is
     // exactly the close the operator most needs to hear about.
-    void notifyRunClosed(closed);
+    if (opts.notify !== false) void notifyRunClosed(closed);
     // ...and advance the ladder, for the reason that notification alone is not
     // enough. `formatRunCloseMessage` self-gates on `payload.notifyOnClose`,
     // which ONLY human-initiated dispatches carry — so for autopilot and cron

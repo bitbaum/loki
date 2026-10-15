@@ -1,3 +1,4 @@
+import { isBareConfirmation, offeredCommand } from "@/lib/loki/confirmation";
 import { conversationDispatchPrompt } from "@/lib/loki/dispatch-context";
 /**
  * The Loki core: turn a human message into one of three outcomes and persist
@@ -723,6 +724,13 @@ async function chatReply(
   return assistant;
 }
 
+/** The line the previous answer offered, when this turn is a bare "yes" to it. */
+function agreedCommand(text: string, messages: ConversationMessage[]): string | null {
+  if (!isBareConfirmation(text)) return null;
+  const last = [...messages].reverse().find((m) => m.role === "assistant");
+  return offeredCommand(last?.content);
+}
+
 /** The classifier path: dispatch, ask which project, or answer. */
 async function resolveAndAnswer(ctx: TurnContext, emit: Emit): Promise<ConversationMessage> {
   const resolution: CommandResolution = ctx.chatOnly
@@ -857,7 +865,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         userId,
         conversationId,
         existing,
-        text,
+        // "Yes, do it" under an answer that ended in a ready-to-send line runs
+        // that line; the thread still shows what the person actually said.
+        text: (!chatOnly && agreedCommand(text, existing.messages)) || text,
         currentTitle: existing.conversation.title.trim(),
         projects,
         projectNames: projects.map((p) => p.name),

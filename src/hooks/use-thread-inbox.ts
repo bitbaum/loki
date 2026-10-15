@@ -83,10 +83,9 @@ export function useThreadInbox(
     if (titled.current.has(activeId)) return;
     titled.current.add(activeId);
     const id = activeId;
-    // Asked a moment AFTER the answer, and again if the model was busy: the
-    // turn that just answered has used the fast model's minute window, and a
-    // single immediate ask failed often enough in production to leave most
-    // new threads named by their opening line.
+    // Asked a moment after the answer, and again if the reply was unusable
+    // (a busy or truncated model): a single ask failed often enough in
+    // production to leave most new threads named by their opening line.
     const ask = (attempt: number) => {
       postJson(`/api/conversations/${id}/title`, {})
         .then(async (res) => {

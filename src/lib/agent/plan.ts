@@ -39,6 +39,7 @@ import {
   WEBSITE_CUES,
   USAGE_CUES,
   FLEET_MAP_CUES,
+  THREAD_CUES,
 } from "@/lib/agent/cues";
 
 /** Every source the seed builder knows how to fetch. */
@@ -62,6 +63,7 @@ export const SOURCE_IDS = [
   "usage",
   "projects",
   "fleet_map",
+  "threads",
 ] as const;
 export type SourceId = (typeof SOURCE_IDS)[number];
 
@@ -114,6 +116,8 @@ export const SOURCE_LIMITS: Record<SourceId, { lead: number; background: number 
   projects: { lead: 40, background: 10 },
   // One fact: the whole studio map as one overview block (lead only).
   fleet_map: { lead: 1, background: 0 },
+  // The operator's own recent chats — only when they ask about them.
+  threads: { lead: 12, background: 0 },
 };
 
 /**
@@ -151,6 +155,12 @@ export function planRetrieval(message: string): RetrievalPlan {
   // because "build next" is also a build cue. A build recommendation is in
   // turn informed by what the person actually taps, so usage trails the
   // suggestions whenever they lead.
+  // "What did I ask you" names the conversations themselves — the most
+  // specific subject there is, so it leads; runs follow to say what happened.
+  if (THREAD_CUES.test(m)) {
+    push("threads");
+    push("runs");
+  }
   if (USAGE_CUES.test(m)) push("usage");
   if (BUILD_CUES.test(m)) {
     push("builds");
@@ -261,6 +271,8 @@ const TOOLS_FOR_SOURCE: Record<SourceId, readonly string[]> = {
   projects: ["list_projects"],
   // The map is a computed view (register + profiles + runs); no tool reads it.
   fleet_map: [],
+  // Read as seed facts when asked about; no tool reads other threads.
+  threads: [],
 };
 
 /**

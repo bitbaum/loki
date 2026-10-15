@@ -28,6 +28,7 @@ import { askGatewayAgent, isGatewayConfigured } from "@/lib/openclaw-gateway";
 import { callGroqText, GROQ_FAST_MODEL } from "@/lib/groq";
 import { normaliseCitations, stripReasoning } from "@/lib/agent/llm";
 import { getUserPreferences } from "@/db/queries/user-preferences";
+import { effectiveTimeZone } from "@/lib/agent/now-line";
 import { isSiteOperator } from "@/db/queries/users";
 import { buildGroundedTurn, directiveEvidence, type RetrievedSource } from "@/lib/agent/context";
 import { runLokiTurn, type LokiTurnEvent } from "@/lib/agent/loop";
@@ -292,13 +293,12 @@ export async function askLoki(message: string, opts?: AskLokiOpts): Promise<AskL
 
   if (toolLoopEnabled(opts?.userId)) {
     try {
-      const voicePref = await getUserPreferences(opts!.userId!)
-        .then((p) => p.writingVoice)
-        .catch(() => null);
+      const prefs = await getUserPreferences(opts!.userId!).catch(() => null);
       const result = await runLokiTurn({
         userId: opts!.userId!,
         message,
-        voice: voicePref,
+        voice: prefs?.writingVoice ?? null,
+        timeZone: effectiveTimeZone(prefs),
         history: opts?.history,
         onEvent: opts?.onEvent,
         readOnly: opts?.readOnly,
@@ -422,13 +422,12 @@ async function askLokiOnOwnModel(
   operator: boolean,
 ): Promise<AskLokiResult> {
   try {
-    const voicePref = await getUserPreferences(opts.userId)
-      .then((p) => p.writingVoice)
-      .catch(() => null);
+    const prefs = await getUserPreferences(opts.userId).catch(() => null);
     const result = await runLokiTurn({
       userId: opts.userId,
       message,
-      voice: voicePref,
+      voice: prefs?.writingVoice ?? null,
+      timeZone: effectiveTimeZone(prefs),
       history: opts.history,
       onEvent: opts.onEvent,
       readOnly: opts.readOnly,

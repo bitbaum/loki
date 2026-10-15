@@ -20,6 +20,7 @@
  * than failing the turn, and the contract adapts — fewer facts permit fewer
  * citations, and none instructs a refusal.
  */
+import { threadFacts } from "@/lib/agent/sources-threads";
 import { assignFactIds, renderFacts, type Fact } from "@bitbaum/ai-kit/grounding";
 import { type Directive } from "@bitbaum/ai-kit/grounding";
 import { buildLokiContext } from "@/lib/agent/grounded-context";
@@ -114,6 +115,8 @@ async function fetchSource(
       return buildSuggestionFacts(userId, limit);
     case "usage":
       return usageFacts(userId, limit);
+    case "threads":
+      return threadFacts(userId, limit);
     case "projects":
       // The message is passed so a project the operator NAMED is ranked to the
       // front before either slice. Without it the two slices below are a

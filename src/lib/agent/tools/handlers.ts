@@ -261,7 +261,7 @@ const fleetStatusTool = defineTool({
   name: "fleet_status",
   kind: "read",
   description:
-    "The fleet's pulse in one record: runner connected or not, agents working now, runs waiting/errored, open alerts, pending approvals, unread feedback, today's AI budget. Use for 'what needs me', 'status', 'is everything ok'.",
+    "The fleet's pulse in one record: who can build for this account right now (and what to do if nothing can), agents working now, runs waiting/errored, open alerts, pending approvals, unread feedback, today's AI budget. Use for 'what needs me', 'status', 'is everything ok'.",
   params: z.object({}),
   example: "TOOL: fleet_status\nARGS: {}",
   handler: async (_args, ctx) => ({ facts: await fleetStatusFacts(ctx.userId) }),

@@ -29,8 +29,8 @@ export const THREAD_TITLE_INPUT_CHARS = 1500;
 export const THREAD_TITLE_SYSTEM_PROMPT = [
   "You name a chat conversation for a list of conversations.",
   "Reply with the title only: 2 to 6 words, in the user's language, no quotes, no trailing punctuation.",
-  "Name the subject and the outcome sought (e.g. 'Checkout bug on kivvi', 'Pricing page copy', 'Plan for the Zurich move').",
-  "If a project is named, start with it. Never start with 'Chat about', 'Question about' or 'Conversation'.",
+  "Name the subject and the outcome sought (e.g. 'Checkout bug', 'Pricing page copy', 'Plan for the Zurich move').",
+  "Leave out the project's name: the list shows it beside every title. Never start with 'Chat about', 'Question about' or 'Conversation'.",
 ].join(" ");
 
 export function buildThreadTitlePrompt(input: {
@@ -43,6 +43,22 @@ export function buildThreadTitlePrompt(input: {
   return `${scope}User wrote:\n${clip(input.question)}\n\nAssistant answered:\n${clip(input.answer)}`;
 }
 
+/**
+ * "Prodtest-bakery: Track multiple projects" under a header that already says
+ * prodtest-bakery (seen on the live site, 2026-10-15). The rail, the start
+ * screen and the thread header all show the project beside the title, so a
+ * title that repeats it spends half a phone row saying it twice.
+ */
+function projectPrefix(project?: string | null): RegExp {
+  const name = project?.trim();
+  if (!name) return /^(?!)/;
+  const words = name
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`^${words.join("[\\s_-]*")}\\s*(?::|-|–|—)\\s*`, "i");
+}
+
 /** Words a model reaches for that make a title worse, not better. */
 const FILLER_PREFIX =
   /^(?:title|chat|conversation|discussion|question)s?\s*(?:about|on|re|:|-|–|—)\s*/i;
@@ -53,7 +69,7 @@ const FILLER_PREFIX =
  * label, drops trailing punctuation, and refuses anything still too long to
  * be a title rather than cutting it mid-word.
  */
-export function parseThreadTitle(raw: string): string | null {
+export function parseThreadTitle(raw: string, project?: string | null): string | null {
   const line = raw
     .split("\n")
     .map((l) => l.trim())
@@ -63,6 +79,7 @@ export function parseThreadTitle(raw: string): string | null {
     .replace(/^[*_`#>\s]+|[*_`\s]+$/g, "")
     .replace(/^["'“”‘’«»]+|["'“”‘’«»]+$/g, "")
     .replace(FILLER_PREFIX, "")
+    .replace(projectPrefix(project), "")
     .replace(/[.!?:;,\s]+$/u, "")
     .replace(/\s+/g, " ")
     .trim();
