@@ -1,0 +1,40 @@
+# Bring the OpenClaw gateway back — from GitHub, without a laptop.
+#
+# WhatsApp and the Telegram chat are carried by the OpenClaw gateway on bitbaum.
+# The messaging doctor (box-doctor.yml) found it dead since 2026-10-08, its unit
+# disabled and its systemd user manager unreachable. scripts/hetzner/
+# openclaw-gateway-up.sh enables linger for the openclaw user, enables and
+# starts the unit (so it survives the next reboot) and prints the gateway's own
+# channel status. It touches nothing else: no config, no credentials, no token.
+#
+# Same SSH setup as box-doctor.yml and openclaw-media.yml (HETZNER_SSH_KEY,
+# HETZNER_IP). Run it from the Actions tab, or:  gh workflow run openclaw-gateway-up.yml
+name: OpenClaw gateway up
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: openclaw-gateway-up
+  cancel-in-progress: false
+
+jobs:
+  up:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Bring the gateway up
+        run: ssh "root@$HETZNER_IP" bash -s < scripts/hetzner/openclaw-gateway-up.sh
