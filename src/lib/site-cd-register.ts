@@ -387,7 +387,7 @@ export async function checkProjectSiteDeployment(
     );
   }
   // next_step is the OWNER's "what should happen next": Control shows it as
-  // "Suggested next" and every dispatch briefs the agent with it. A status is
+  // "Suggested next" and autonomous dispatches brief the agent with it. A status is
   // not a step. This wrote "Live site: <url>" there on success, so Skif's
   // agents were briefed "next: Live site: https://skif.orangecat.ch" and the
   // owner's plan was gone (2026-09-25). Only a failure is a next step (the

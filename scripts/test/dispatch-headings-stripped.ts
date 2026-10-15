@@ -55,6 +55,7 @@ function ok(cond: boolean, label: string) {
 const PIPELINE_SOURCES = [
   "src/lib/inject-prompt.ts",
   "src/lib/inject-core.ts",
+  "src/lib/orchestration/renderers.ts",
   "src/db/queries/knowledge-embeddings.ts",
   "src/lib/orchestration/escalation-ladder.ts",
   "src/lib/fleet-brief/brief.ts",
@@ -66,7 +67,7 @@ const PIPELINE_SOURCES = [
  * "Your task" is the operator's instruction itself — the one block the feed
  * exists to show. It is recovered by TASK_SECTION_RE, not subtracted.
  */
-const KEEP = [/^##\s*Your task\b/i];
+const KEEP = [/^##\s*Your task\b/i, /^##\s*Task\s*$/i];
 
 function headingsIn(file: string): string[] {
   const src = readFileSync(join(repoRoot, file), "utf8");

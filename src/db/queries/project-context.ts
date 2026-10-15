@@ -47,8 +47,8 @@ export async function getProjectContext(
   const dossier = await getProjectDossierByProjectKey(userId, projectKey).catch(() => null);
   if (dossier) return renderProjectDossierForAgent(dossier);
 
-  // Global tier first — the founder's cross-project engineering standards apply
-  // to every dispatch regardless of whether this project has a brief/goals yet.
+  // Global tier first for broad automatic intents. Explicit user tasks skip this
+  // full context so their request is not buried under unrelated project goals.
   const blocks: string[] = [renderOperatingPrinciples()];
 
   // Resolve the project entity by name (case-insensitive, matching the inject

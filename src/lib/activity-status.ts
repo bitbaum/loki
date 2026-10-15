@@ -74,7 +74,10 @@ export function stripHarnessScaffolding(text: string): string {
 // pipeline's guts. Detect it and collapse to the intent label instead.
 const OPERATOR_ENVELOPE = /#\s*Loki operator dispatch/i;
 export function isOperatorEnvelope(text: string): boolean {
-  return OPERATOR_ENVELOPE.test(text.slice(0, 200));
+  return (
+    OPERATOR_ENVELOPE.test(text.slice(0, 200)) ||
+    (/^##[ \t]*Task[ \t]*\n/m.test(text.slice(0, 200)) && EXIT_CONTRACT_PATTERN.test(text))
+  );
 }
 
 // ─── Recovering the human ask from an assembled dispatch ─────────────────────
@@ -121,7 +124,7 @@ const ENVELOPE_BLOCK_PATTERNS: RegExp[] = [
 
 /** The header the pipeline puts directly above a user-typed custom prompt. */
 const TASK_SECTION_RE =
-  /^##[ \t]*Your task \(direct operator instruction\)[ \t]*\n([\s\S]*?)(?=\n#{1,3}[ \t]|$)/im;
+  /^##[ \t]*(?:Task|Your task(?: \(direct operator instruction\))?)[ \t]*\n([\s\S]*?)(?=\n#{1,3}[ \t]|$)/im;
 
 /**
  * The operator's actual instruction, recovered from a fully-assembled dispatch.

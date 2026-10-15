@@ -1,6 +1,7 @@
 /**
- * The fleet brief — the bitbaum studio's house rules, put in front of every
- * agent Loki dispatches to build or change a repo in the bitbaum org.
+ * The fleet brief — the bitbaum studio's house rules and package catalog, kept
+ * available as a reference. Dispatches do not paste this whole catalog into
+ * task prompts; agents read the repository's own instructions when relevant.
  *
  * WHY: the dispatch prompt carried the project's own profile (mission, stack,
  * goals) and nothing about the studio it belongs to. An agent briefed only on
@@ -240,10 +241,9 @@ export function renderFleetBrief(
 }
 
 /**
- * The brief for a dispatch into `gitUrl`, or "" when the repo is not in the
- * fleet's org (a repo elsewhere is not governed by these rules, and an
- * unknown repo is not assumed to be ours). Never throws: the worst case is
- * the snapshot.
+ * The full reference brief for `gitUrl`, or "" when the repo is not in the
+ * fleet's org. This is for explicit reference surfaces, not routine dispatch.
+ * Never throws: the worst case is the snapshot.
  */
 export async function fleetBriefForRepo(
   gitUrl: string | null | undefined,
