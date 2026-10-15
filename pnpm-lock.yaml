@@ -28,8 +28,8 @@ importers:
         specifier: github:bitbaum/accountkit#v0.2.1
         version: https://codeload.github.com/bitbaum/accountkit/tar.gz/ec5654270527757aa0e762f09b5aaabf272389a2(react@19.3.0)
       '@bitbaum/ai-kit':
-        specifier: ^1.20.1
-        version: 1.20.1(react@19.3.0)
+        specifier: ^1.21.0
+        version: 1.21.0(react@19.3.0)
       '@bitbaum/chatkit':
         specifier: github:bitbaum/chatkit#b8b613d0c8984d7fdf902f3a8791fc9d84122b7f
         version: https://codeload.github.com/bitbaum/chatkit/tar.gz/b8b613d0c8984d7fdf902f3a8791fc9d84122b7f(react@19.3.0)
@@ -53,7 +53,7 @@ importers:
         version: 3.2.2(react@19.3.0)
       '@fleet/ai-forms':
         specifier: npm:ai-forms@^0.1.2
-        version: ai-forms@0.1.2(react@19.3.0)
+        version: ai-forms@0.1.3(react@19.3.0)
       '@noble/hashes':
         specifier: ^2.4.0
         version: 2.4.0
@@ -401,8 +401,8 @@ packages:
     peerDependencies:
       react: '>=18'
 
-  '@bitbaum/ai-kit@1.20.1':
-    resolution: {integrity: sha512-mdYcA562q7eWbaWd2jwPlYZTTbWwSTK/XrexiIkG3mW2OiNDihMG8DmnFFlRf7lRcHiBOXHey1E28XCGb43Fsg==}
+  '@bitbaum/ai-kit@1.21.0':
+    resolution: {integrity: sha512-eWOsNrv4nyURMOxA9AoUfAZpj2ajuCSG3IK0z94vpPgAbcbkPviNOXGQpV9e01PRfMBP3EBVIrTa0wLN9gT9pQ==}
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18'
@@ -2252,9 +2252,9 @@ packages:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
 
-  ai-forms@0.1.2:
-    resolution: {integrity: sha512-agadca4pN0iGlZTlNy1Vo2SmnQB+0dNkrQSDE3wCJYeaVxKDs5KaxiwGj5+GL6mVYcI1xZ8pwnT9kL9WcxnBHA==}
-    engines: {node: '>=18'}
+  ai-forms@0.1.3:
+    resolution: {integrity: sha512-jpewuXsyiI7/356qcNCkeiDl6E8ua+5ZjpMxpA+e4XiEcNrjUE9XsUC1bKMr2j0ikzGNDp7/MuQIssKeYVaRhQ==}
+    engines: {node: '>=20'}
     peerDependencies:
       react: '>=18'
     peerDependenciesMeta:
@@ -5226,9 +5226,9 @@ snapshots:
     dependencies:
       react: 19.3.0
 
-  '@bitbaum/ai-kit@1.20.1(react@19.3.0)':
+  '@bitbaum/ai-kit@1.21.0(react@19.3.0)':
     dependencies:
-      ai-forms: 0.1.2(react@19.3.0)
+      ai-forms: 0.1.3(react@19.3.0)
     optionalDependencies:
       react: 19.3.0
 
@@ -6798,7 +6798,7 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai-forms@0.1.2(react@19.3.0):
+  ai-forms@0.1.3(react@19.3.0):
     optionalDependencies:
       react: 19.3.0
 
