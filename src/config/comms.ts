@@ -93,4 +93,35 @@ export const COMMS_COPY = {
   verifySent: "Verification link sent — check your inbox.",
   digestSettingsTitle: "Activity digest emails",
   digestSettingsBody: "What ran, what broke, what moved. This is the mail Loki sends.",
+  /** The "notifications on this phone" card (Settings → Notifications). */
+  phonePush: {
+    title: "On this phone",
+    onHeadline: "Notifications are on for this phone",
+    onBody:
+      "A new report on one of your sites, a fix that went live and a run that needs you arrive here, even with Loki closed.",
+    offHeadline: "Get a ping on this phone",
+    offBody:
+      "When someone leaves feedback on your site, or a fix needs you, this phone buzzes. Nothing else, and you can turn it off here.",
+    onLabel: "Turn on notifications",
+    offLabel: "Turn off",
+    testLabel: "Send a test",
+    retryLabel: "Try again",
+    workingHeadline: "Turning on…",
+    workingBody: "Your browser may ask permission. Say yes.",
+    deniedHeadline: "This browser is blocking notifications",
+    deniedBody:
+      "Allow notifications for this site in the browser's site settings, then come back and turn them on.",
+    unsupportedHeadline: "This browser can't show notifications",
+    unsupportedBody:
+      "Open Loki in a current Chrome, Firefox or Edge, or install it as an app, and turn them on there.",
+    unsupportedIosBody:
+      "On iPhone, share this page and choose Add to Home Screen, open Loki from the new icon, then turn them on here.",
+    errorHeadline: "Couldn't turn them on",
+    errorBody: "Nothing was changed.",
+    keyMissingHeadline: "Notifications aren't set up on this server",
+    keyMissingBody: "The server has no push key. Telegram and email still work.",
+    testSent: (n: number) => `Sent to ${n} device${n === 1 ? "" : "s"}. It should buzz now.`,
+    testNone: "No device is subscribed yet, so nothing was sent.",
+    testFailed: "The test could not be sent.",
+  },
 } as const;

@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-
-type PushStatus =
-  "unsupported" | "denied" | "default" | "granted" | "subscribed" | "registering" | "error";
+import type { PushStatus } from "@/lib/push-card";
 
 type UsePushSubscriptionResult = {
   status: PushStatus;
@@ -22,15 +20,17 @@ const SW_PATH = "/sw.js";
  *   3. If granted, ensure a PushSubscription exists and is mirrored to the
  *      server (POST /api/push/subscribe). Idempotent on endpoint.
  *
- * Reads VAPID public key from NEXT_PUBLIC_VAPID_PUBLIC_KEY. When that's
- * missing the hook returns publicKeyMissing=true so the UI can hint at
- * what to configure rather than failing silently.
+ * Reads the VAPID public key from the server (/api/push/public-key), the same
+ * env the server signs with, so the two cannot disagree. When the server has
+ * none, publicKeyMissing is true and the UI says so rather than failing
+ * silently.
  */
 export function usePushSubscription(): UsePushSubscriptionResult {
   const [status, setStatus] = useState<PushStatus>("default");
   const [error, setError] = useState<string | null>(null);
-
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+  // null = not asked yet; "" = the server has none. Read from the server, not
+  // the build: see /api/push/public-key.
+  const [publicKey, setPublicKey] = useState<string | null>(null);
   const isSupported =
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
@@ -77,14 +77,16 @@ export function usePushSubscription(): UsePushSubscriptionResult {
       setStatus("unsupported");
       return;
     }
-    if (!publicKey) {
-      setError("NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set.");
-      setStatus("error");
-      return;
-    }
     setError(null);
     setStatus("registering");
     try {
+      const key = publicKey ?? (await fetchPublicKey());
+      if (!key) {
+        setPublicKey("");
+        setStatus("default");
+        return;
+      }
+      setPublicKey(key);
       const perm =
         Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
       if (perm !== "granted") {
@@ -100,7 +102,7 @@ export function usePushSubscription(): UsePushSubscriptionResult {
         existing ??
         (await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+          applicationServerKey: urlBase64ToUint8Array(key) as BufferSource,
         }));
 
       const json = sub.toJSON();
@@ -146,7 +148,19 @@ export function usePushSubscription(): UsePushSubscriptionResult {
     }
   }, [isSupported]);
 
-  return { status, error, publicKeyMissing: !publicKey, subscribe, unsubscribe };
+  return { status, error, publicKeyMissing: publicKey === "", subscribe, unsubscribe };
+}
+
+/** The server's VAPID public key, or "" when it has none (push not configured). */
+async function fetchPublicKey(): Promise<string> {
+  try {
+    const res = await fetch("/api/push/public-key");
+    if (!res.ok) return "";
+    const data = (await res.json()) as { publicKey?: unknown };
+    return typeof data.publicKey === "string" ? data.publicKey : "";
+  } catch {
+    return "";
+  }
 }
 
 /** VAPID public key from base64url to a Uint8Array — required by PushManager.subscribe. */

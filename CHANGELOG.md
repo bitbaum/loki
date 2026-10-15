@@ -6,6 +6,19 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-15 — Notifications you can actually turn on
+
+- **Turn on notifications on your phone.** Settings → Notifications now has an
+  "On this phone" card: turn them on, send yourself a test, turn them off. It
+  says plainly when a browser cannot (on iPhone: add Loki to the Home Screen
+  first) or has blocked them. Until today the server could send a push but no
+  screen offered a phone the choice, so a new report on your site reached no
+  device at all.
+- **The server hands out its own push key.** A phone used to subscribe against
+  a key baked in at build time, which a build could lose or get stale; it now
+  asks the server for the same key the server signs with, so the two cannot
+  disagree.
+
 ## 2026-10-14 — Release a shared package from Loki, watch it roll out, pause a bad one
 
 - **Release from the package's page.** Under "Unreleased", a package's page
