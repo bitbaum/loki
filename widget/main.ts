@@ -334,9 +334,9 @@ interface LokiApi {
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
-    const speakBtn = h("button", "x");
+    const speakBtn = h("button", "speak");
     speakBtn.type = "button";
-    speakBtn.append(micIcon());
+    speakBtn.append(micIcon(), h("span", "", "Speak"));
     speakBtn.setAttribute("aria-label", "Speak while browsing");
     speakBtn.title = "Speak while browsing";
     speakBtn.addEventListener("click", () => {
