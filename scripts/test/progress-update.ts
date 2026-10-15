@@ -16,7 +16,7 @@ import {
   UPDATE_SECTIONS,
   UPDATE_STAGE,
 } from "../../src/lib/loki/progress-update";
-import { buildShippedUpdate } from "../../src/lib/loki/shipped-update";
+import { buildShippedUpdate, wantsAfterPicture } from "../../src/lib/loki/shipped-update";
 import { formatRunOutcomeMessage } from "../../src/lib/orchestration/run-outcome-format";
 import { feedbackScreenshotPath } from "../../src/lib/loki/update-images";
 
@@ -292,6 +292,59 @@ const note = {
     },
   });
   assert.match(progressUpdateText(real), /Downsides:\*\* The import takes up to 3 minutes longer/);
+}
+
+// ---- before and after: the report's screenshot, then the live page ----
+// 2026-10-15: the "Live" update showed the reporter's screenshot and nothing
+// of the page as it is now; the owner asked for the after picture beside it.
+{
+  const fix = {
+    state: "deployed",
+    checkedAt: "",
+    pr: { number: 1, url: "https://github.com/o/r/pull/1", title: "t", note },
+  } as never;
+  const after = {
+    src: "/api/conversations/3f0c7a52-1111-4222-8333-944455556666/images/9a1b2c3d-1111-4222-8333-944455556666",
+    caption: "After — the live page now, on a phone",
+  };
+  const base = {
+    announcement: "live" as const,
+    projectKey: "substrata",
+    feedbackId: "f1",
+    asked: "buttons too small",
+    hasScreenshot: true,
+    fix,
+    livePageUrl: "https://substrata.orangecat.ch/",
+    didLine: null,
+    summaryNext: null,
+  };
+  const u = buildShippedUpdate({ ...base, after });
+  assert.deepEqual(
+    u.images.map((i) => i.caption.split(" — ")[0]),
+    ["Before", "After"],
+    "before first, after beside it",
+  );
+  assert.equal(u.images[1].src, after.src);
+  assert.ok(wantsAfterPicture(base));
+
+  // No picture is owed for a failed deploy (the old page) or a change nobody can see.
+  const failed = { ...base, announcement: "deploy_failed" as const };
+  assert.ok(!wantsAfterPicture(failed));
+  assert.ok(!buildShippedUpdate({ ...failed, after }).images.some((i) => i.src === after.src));
+  const behind = {
+    ...base,
+    fix: {
+      ...(fix as object),
+      pr: { number: 1, url: "u", title: "t", note: { ...note, shows: "behind" } },
+    } as never,
+  };
+  assert.ok(!wantsAfterPicture(behind));
+  assert.ok(!buildShippedUpdate({ ...behind, after }).images.some((i) => i.src === after.src));
+  assert.ok(!wantsAfterPicture({ ...base, livePageUrl: null }), "no page, no picture");
+
+  // A missing picture (no browser on the server) still posts the update.
+  assert.equal(buildShippedUpdate({ ...base, after: null }).images.length, 1);
+  assert.equal(readProgressUpdate({ update: u })?.images.length, 2, "both survive the read");
 }
 
 console.log("progress-update: ok");
