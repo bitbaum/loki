@@ -47,6 +47,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return unchanged();
   }
 
+  // `retry: true` tells the client the thread is still Loki's to name and
+  // only the model was not available — it asks again shortly. Found in
+  // production: the first ask lands right after the answer, while that turn
+  // has just spent the fast model's minute window, and fails.
   let title: string | null = null;
   try {
     const raw = await callGroqText(
@@ -64,7 +68,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   } catch {
     title = null;
   }
-  if (!title || title === conversation.title) return unchanged();
+  if (!title) return jsonOk({ title: conversation.title, changed: false, retry: true });
+  if (title === conversation.title) return unchanged();
 
   await updateConversationTitle(userId, conversation.id, title, { touch: false });
   return jsonOk({ title, changed: true });
