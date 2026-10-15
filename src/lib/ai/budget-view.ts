@@ -35,6 +35,17 @@
  * ledger for exactly this, and this is the first reader of it.
  */
 
+import {
+  admissionsLeft,
+  countOf,
+  historyWindowLine,
+  nextUtcMidnight,
+  paceForecast,
+  paceLine as phrasePace,
+  type UsageAction,
+  type UsageExplanation,
+  utcResetExplanation,
+} from "@bitbaum/ai-kit";
 import { fairShare, utcDayElapsed } from "@/lib/ai-budget/fair-share";
 import { ESTIMATED_TURN_TOKENS } from "@/lib/ai-budget/gate";
 import { refillsIn, TOKENS_PER_ANSWER, type QuotaRowView } from "@/lib/ai/quota-view";
@@ -111,14 +122,7 @@ export type ModelHeadroom = {
 };
 
 /** One thing the person can do about the numbers, in order of use right now. */
-export type BudgetAction = {
-  id: "bring-key" | "thrifty" | "wait";
-  label: string;
-  /** The consequence, so the button is never a bare verb. */
-  why: string;
-  /** Where it goes; absent for an action the card performs itself. */
-  href?: string;
-};
+export type BudgetAction = UsageAction<"bring-key" | "thrifty" | "wait">;
 
 /**
  * What the numbers MEAN — the half a meter leaves out. A usage screen that
@@ -135,7 +139,7 @@ export type BudgetMeaning = {
   /** What Loki carries from one turn to the next — stated, because an unstated limit is a bug report. */
   memory: { turns: number; charsPerTurn: number; line: string };
   /** Each number in plain words, for a "What this means" disclosure. */
-  explain: { title: string; body: string }[];
+  explain: UsageExplanation[];
   actions: BudgetAction[];
 };
 
@@ -189,26 +193,14 @@ function clamp01(n: number): number {
 }
 
 const count = (n: number) => n.toLocaleString("en-US");
-const plural = (n: number, word: string) => `${count(n)} ${word}${n === 1 ? "" : "s"}`;
-
-/** Next midnight UTC — when every daily free tier and the share both reset. */
-export function nextUtcMidnight(now: Date): Date {
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0),
-  );
-}
+const plural = (n: number, word: string) => countOf(n, word, { format: count });
 
 /**
- * How many answers `tokens` buys, counted the way the gate will actually
- * admit them: each turn must still fit the gate's ESTIMATE before it starts,
- * and then costs what the person's turns really cost. So the count is the
- * number of successive admissions — one while the estimate fits, plus one for
- * every real answer's worth of room above it — never a bare division, which
- * would promise ten cheap answers on a remainder the gate refuses after one.
+ * Answers `tokens` buys, counted the way the gate admits them — the rule lives
+ * in @bitbaum/ai-kit (`admissionsLeft`) so every app counts a remainder alike.
  */
 function answersIn(tokens: number, perAnswer: number): number {
-  if (tokens < ESTIMATED_TURN_TOKENS) return 0;
-  return 1 + Math.floor((tokens - ESTIMATED_TURN_TOKENS) / perAnswer);
+  return admissionsLeft(tokens, ESTIMATED_TURN_TOKENS, perAnswer);
 }
 
 const OWN_KEY_LEVER = "Bring your own key and the daily share no longer applies to your chats.";
@@ -404,30 +396,19 @@ function headline(pool: FreePoolBudget, ownKeys: OwnKeyBudget[]): string {
   }
 }
 
-/** "16:40 UTC" for a fraction of the day. */
-function clockAt(dayFraction: number): string {
-  const mins = Math.round(clamp01(dayFraction) * 24 * 60);
-  const h = Math.floor(mins / 60) % 24;
-  const m = mins % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} UTC`;
-}
-
 /**
  * At today's rate, does the share last the day? Said only once there is a
- * rate to speak of — two turns and a few percent of the day — because a
- * single early answer projected over 24 hours is a scare, not a forecast.
+ * rate to speak of — two turns (a sample counted in TURNS, not tokens) and a
+ * few percent of the day. The forecast and its wording are @bitbaum/ai-kit's,
+ * so Loki and OrangeCat forecast the same way.
  */
 function paceLine(input: BudgetInput, pool: FreePoolBudget): string | null {
-  const elapsed = utcDayElapsed(input.now);
-  if (pool.state === "none" || pool.turnsToday < MEASURED_AFTER_TURNS || elapsed < 0.05)
-    return null;
-  if (pool.state === "spent" || pool.state === "pool-spent") return null;
-  const projected = pool.spentTokens / elapsed;
-  if (projected <= pool.shareTokens) {
-    return "At today's pace your share lasts the whole day.";
-  }
-  const runsOutAt = clamp01(pool.shareTokens / projected);
-  return `At today's pace your share runs out around ${clockAt(runsOutAt)} — pacing will slow you down before that, not stop you.`;
+  if (pool.state !== "ok" && pool.state !== "paced") return null;
+  if (pool.turnsToday < MEASURED_AFTER_TURNS) return null;
+  return phrasePace(
+    paceForecast({ used: pool.spentTokens, limit: pool.shareTokens, now: input.now, minUsed: 0 }),
+    { subject: "your share", then: " — pacing will slow you down before that, not stop you" },
+  );
 }
 
 function meaningOf(
@@ -439,16 +420,21 @@ function meaningOf(
     input.week && input.week.turns > 0
       ? {
           ...input.week,
-          line: `This week: ${plural(input.week.turns, "answer")} on the free pool, ${count(input.week.tokens)} tokens, over ${plural(input.week.days, "day")}.`,
+          // Seven days ending today, not a calendar week — so it does not say "this week".
+          line: `Last 7 days: ${plural(input.week.turns, "answer")} on the free pool, ${count(input.week.tokens)} tokens, on ${plural(input.week.days, "day")}.`,
         }
       : null;
 
   const memory = {
     ...input.memory,
     line:
-      `In a chat Loki reads your last ${input.memory.turns} turns, each trimmed to about ` +
-      `${count(input.memory.charsPerTurn)} characters — anything older it no longer sees. ` +
-      `Ask it to save a fact to memory and it lasts beyond that.`,
+      historyWindowLine({
+        assistant: "Loki",
+        items: input.memory.turns,
+        unit: "turn",
+        trimmedChars: input.memory.charsPerTurn,
+        format: count,
+      }) + " Ask it to save a fact to memory and it lasts beyond that.",
   };
 
   const actions: BudgetAction[] = [];
@@ -497,10 +483,7 @@ function meaningOf(
         "unlocks gradually, with a head start for the first turns, which is what keeps capacity for " +
         'whoever arrives later. "Paced" means waiting helps; "spent" means it does not until midnight.',
     },
-    {
-      title: "Resets at midnight UTC",
-      body: "Because that is when the vendors refill — the share follows their clock, not yours.",
-    },
+    utcResetExplanation(),
     { title: "What Loki remembers", body: memory.line },
   ];
   if (ownKeys.length > 0) {

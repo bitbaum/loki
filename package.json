@@ -121,7 +121,7 @@
     "@auth/core": "0.41.3",
     "@auth/drizzle-adapter": "^1.11.3",
     "@bitbaum/accountkit": "github:bitbaum/accountkit#v0.2.1",
-    "@bitbaum/ai-kit": "^1.20.1",
+    "@bitbaum/ai-kit": "^1.21.0",
     "@bitbaum/chatkit": "github:bitbaum/chatkit#b8b613d0c8984d7fdf902f3a8791fc9d84122b7f",
     "@bitbaum/mail-kit": "^0.1.1",
     "@bitbaum/searchkit": "github:bitbaum/searchkit#v0.2.2",
