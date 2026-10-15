@@ -1,5 +1,7 @@
 # One-Click Development — implementation plan (2026-06-12)
 
+> Historical implementation record. Inventory counts and production backfills below are dated observations, not the current project register. The current UX reconciliation and verification limits are in [the mobile screenshot review](screenshot-review-2026-10-15.md). Do not rerun historical retirement/backfill actions as part of a UI review.
+
 North star (user's words): sign in, press one button that looks like **play**, and all
 projects get built without supervision. Same button pauses. Per-project play/pause too.
 Project profiles must hold the full static context (what the project should become) —

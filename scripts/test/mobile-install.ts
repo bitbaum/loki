@@ -41,6 +41,11 @@ async function main() {
     assert(unstable_doesProxyMatch({ config: proxyConfig, url }), `${url} stays protected`);
   const manifest = JSON.parse(fs.readFileSync("public/manifest.json", "utf8"));
   assert.equal(manifest.display, "standalone");
+  assert.equal(
+    manifest.id,
+    manifest.start_url,
+    "keep the previous implicit install identity so existing phone installs update",
+  );
   assert.equal(manifest.scope, "/");
   for (const n of [192, 512]) {
     const icon = manifest.icons.find(
