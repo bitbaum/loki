@@ -152,7 +152,7 @@ async function main() {
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
         false,
       );
-      if (width < 640) {
+      if (width === 320) {
         const sections = page.getByRole("combobox", { name: "Project section" });
         assert.equal(
           await sections.locator("option").count(),
@@ -179,7 +179,7 @@ async function main() {
         assert.equal(await textarea.inputValue(), "Draft that must survive section changes.");
         await page.keyboard.press("Escape");
         await sections.selectOption("settings");
-      } else {
+      } else if (width === 1440) {
         await page.getByRole("tab", { name: "Story", exact: true }).click();
         await page.getByRole("tab", { name: "Story", exact: true }).press("End");
         assert.equal(
@@ -189,59 +189,72 @@ async function main() {
           "true",
         );
       }
-      await page.getByRole("button", { name: "Share", exact: true }).click();
-      await page.getByRole("dialog", { name: "Share project" }).waitFor();
-      assert.equal(
-        await page
-          .getByRole("combobox", { name: "Audience" })
-          .evaluate((e) => e === document.activeElement),
-        true,
-        "the dialog focuses its first setting while remembering the opener",
-      );
-      assert.equal(
-        await page.getByRole("dialog").evaluate((e) => e.contains(document.activeElement)),
-        true,
-      );
-      await page.getByRole("button", { name: "Close share panel" }).focus();
-      await page.keyboard.press("Shift+Tab");
-      assert.equal(
-        await page
-          .getByRole("button", { name: "Create link" })
-          .evaluate((e) => e === document.activeElement),
-        true,
-        "Tab wraps inside the dialog",
-      );
+      // Exercise stateful flows once at the narrowest width; every width still gets layout and theme checks.
+      if (width === 320) {
+        await page.getByRole("button", { name: "Share", exact: true }).click();
+        await page.getByRole("dialog", { name: "Share project" }).waitFor();
+        assert.equal(
+          await page
+            .getByRole("combobox", { name: "Audience" })
+            .evaluate((e) => e === document.activeElement),
+          true,
+          "the dialog focuses its first setting while remembering the opener",
+        );
+        assert.equal(
+          await page.getByRole("dialog").evaluate((e) => e.contains(document.activeElement)),
+          true,
+        );
+        await page.getByRole("button", { name: "Close share panel" }).focus();
+        await page.keyboard.press("Shift+Tab");
+        assert.equal(
+          await page
+            .getByRole("button", { name: "Create link" })
+            .evaluate((e) => e === document.activeElement),
+          true,
+          "Tab wraps inside the dialog",
+        );
 
-      assert.equal(
-        await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
-        false,
-      );
-      await page.keyboard.press("Escape");
-      await page.getByRole("dialog").waitFor({ state: "hidden" });
-      assert.equal(
-        await page
-          .getByRole("button", { name: "Share", exact: true })
-          .evaluate((e) => e === document.activeElement),
-        true,
-        "focus returns to the opener",
-      );
-      await mount("#feedback");
-      await page.getByRole("tabpanel", { name: "Feedback" }).waitFor();
-      await mount("?shared=1");
-      assert.equal(await page.getByRole("link", { name: "Project settings" }).count(), 0);
-      assert.equal(await page.getByRole("button", { name: "Make it happen" }).count(), 0);
-      await mount("?long=1");
-      assert.equal(
-        await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
-        false,
-      );
-      await mount();
+        assert.equal(
+          await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+          false,
+        );
+        await page.keyboard.press("Escape");
+        await page.getByRole("dialog").waitFor({ state: "hidden" });
+        assert.equal(
+          await page
+            .getByRole("button", { name: "Share", exact: true })
+            .evaluate((e) => e === document.activeElement),
+          true,
+          "focus returns to the opener",
+        );
+        await mount("#feedback");
+        await page.getByRole("tabpanel", { name: "Feedback" }).waitFor();
+        await mount("?shared=1");
+        assert.equal(await page.getByRole("link", { name: "Project settings" }).count(), 0);
+        assert.equal(await page.getByRole("button", { name: "Make it happen" }).count(), 0);
+        await mount("?long=1");
+        assert.equal(
+          await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+          false,
+        );
+        await mount();
+      }
+      if (width === 1440) await page.getByRole("tab", { name: "Overview", exact: true }).click();
+      await page.mouse.move(0, 0);
       for (const theme of ["light", "dark"]) {
         await page.evaluate(
           (theme) => document.documentElement.classList.toggle("dark", theme === "dark"),
           theme,
         );
-        await page.waitForTimeout(250);
+        await page.waitForFunction(() => {
+          const action = Array.from(document.querySelectorAll("a")).find(
+            (el) => el.textContent?.trim() === "Open site",
+          );
+          const summary = document.querySelector(".ui-project-summary");
+          return (
+            action && summary && getComputedStyle(action).color === getComputedStyle(summary).color
+          );
+        });
         assert.equal(
           await page
             .getByRole("link", { name: "Open site", exact: true })

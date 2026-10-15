@@ -108,6 +108,8 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   ["/api/agents", "dispatch"],
   // Queues a form for Fleet Runner's browser window on the owner's machine.
   ["/api/browser-task", "dispatch"],
+  // Review discussion spends credit and findings can dispatch; the public ticket worker also checks in-handler.
+  ["/api/reviews", "spend"],
   ["/api/agent", "credentials"], // mints ck_* tokens
   ["/api/agent-tokens", "credentials"], // mints ck_* tokens the runner authenticates with
   // Stores a user's own model API key and calls vendors with it. The demo

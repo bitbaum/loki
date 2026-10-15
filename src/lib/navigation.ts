@@ -4,7 +4,7 @@ export function isCurrentPath(pathname: string, href: string) {
   return pathname.startsWith(`${href}/`);
 }
 
-/** The project detail owns its title and navigation; nested run views do not. */
+/** The project detail owns its title and navigation; review views own their title too; nested run views do not. */
 export function isProjectWorkspacePath(pathname: string): boolean {
-  return /^\/projects\/[^/]+\/?$/.test(pathname);
+  return /^\/projects\/[^/]+(?:\/review)?\/?$/.test(pathname);
 }

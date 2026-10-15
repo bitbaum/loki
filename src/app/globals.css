@@ -8086,3 +8086,100 @@
 :is(.ui-loki-stage, .ui-claude-chat) .ck-tools > .ui-loki-scope-pill {
   min-width: 5rem;
 }
+
+/* A review has one stage, one conversation and explicit evidence below. */
+.ui-inspection-workspace {
+  display: grid;
+  gap: 2rem;
+  padding-bottom: 2rem;
+}
+.ui-inspection-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+}
+.ui-inspection-choice:has(input:checked) {
+  border-color: var(--text-primary);
+  background: var(--surface-raised);
+}
+.ui-inspection-choice:has(input:disabled) {
+  opacity: 0.6;
+  cursor: default;
+}
+.ui-inspection-choice input {
+  margin-top: 0.35rem;
+  accent-color: var(--text-primary);
+  flex-shrink: 0;
+}
+.ui-inspection-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  background: var(--surface-base);
+}
+.ui-inspection-layout {
+  display: grid;
+  gap: 2rem;
+  min-width: 0;
+}
+.ui-inspection-browser {
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+}
+.ui-inspection-empty {
+  display: flex;
+  min-height: 18rem;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-xl);
+}
+.ui-inspection-conversation {
+  display: grid;
+  gap: 1.25rem;
+  max-height: 30rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ui-inspection-note {
+  padding: 0.25rem 0;
+}
+.ui-inspection-user {
+  padding: 1rem;
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+}
+@media (min-width: 1024px) {
+  .ui-inspection-layout {
+    grid-template-columns: minmax(0, 1.7fr) minmax(20rem, 1fr);
+    align-items: start;
+  }
+}
+.ui-inspection-viewport {
+  max-height: 36dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.ui-inspection-viewport[data-expanded] {
+  max-height: none;
+}
+@media (min-width: 1024px) {
+  .ui-inspection-viewport {
+    max-height: 65dvh;
+  }
+}
