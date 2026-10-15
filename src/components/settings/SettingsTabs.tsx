@@ -18,6 +18,7 @@ import { BillingSettings, type BillingView } from "./BillingSettings";
 import { ProjectsSettings } from "./ProjectsSettings";
 import { TeamSettings } from "./TeamSettings";
 import { NotificationSettings } from "./NotificationSettings";
+import { PhonePushCard } from "./PhonePushCard";
 import type { UserPreferencesData } from "@/db/queries/user-preferences";
 import type { Plan } from "@/db/schema/users";
 import type { UserProject, Invitation } from "@/db/schema";
@@ -191,7 +192,12 @@ export function SettingsTabs({
             orangecatEnabled={orangecatEnabled}
           />
         )}
-        {activeTab === "notifications" && <NotificationSettings />}
+        {activeTab === "notifications" && (
+          <div className="space-y-6">
+            <PhonePushCard />
+            <NotificationSettings />
+          </div>
+        )}
         {activeTab === "appearance" && <AppearanceSettings />}
         {activeTab === "voice" && <VoiceSettings initialPrefs={userPrefs} />}
         {activeTab === "ai" && (

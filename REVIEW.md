@@ -51,14 +51,14 @@ Two rules, both mechanical:
    `?param=`, open the target and read how it consumes that param (name vs
    id, slug vs uuid). If the two disagree, the target resolves both, and the
    PR says so. Never trust that a page "takes a project".
-2. **Render before claiming.** `node scripts/preview/build-feedback-preview.mjs`
+2. **Render before claiming.** `node scripts/preview/build-feedback-preview.mjs` (or the page's own `build-*-preview.mjs`)
    renders the real `/feedback` inbox with fixture rows at phone and desktop
    widths, in both themes, for every `?project=` shape, and fails on
    horizontal overflow or a console error. Run it and OPEN the PNGs in
    `.tmp/feedback-preview/` — the tool cannot see ugly, only broken. A new
-   surface that has no harness gets one in the same PR (copy that script:
-   esbuild + shims for `next/link` and `next/navigation`, `globals.css`
-   through `@tailwindcss/postcss`, a mocked `fetch`); the harness does not need
+   surface that has no harness gets one in the same PR (a `*.preview.tsx`
+   entry that mocks `fetch`, and a three-line script over
+   `scripts/preview/render-harness.mjs`); the harness does not need
    a database or a session, which is exactly why "I could not test it in the
    sandbox" is not a reason.
 

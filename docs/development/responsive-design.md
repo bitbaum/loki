@@ -132,19 +132,30 @@ Run `pnpm run smoke` with dev server up for route health; Playwright viewport te
 
 ### Rendering a page without a server: `scripts/preview/`
 
-`node scripts/preview/build-feedback-preview.mjs` renders the real
-`FeedbackInbox` component in headless Chromium with fixture rows
-(`feedback-inbox.fixture.ts`) — no database, no session, no dev server. It
-bundles the component with esbuild (shimming `next/link` and
-`next/navigation`), compiles `globals.css` through `@tailwindcss/postcss`,
-mocks `fetch` for the inbox API, and screenshots 390×844 and 1280×900 in dark
-and light for `?project=` empty, by name and by id. It fails on horizontal
-overflow or a console error and writes PNGs to `.tmp/feedback-preview/`.
+Two pages have a harness today, both thin scripts over one shared core
+(`render-harness.mjs`):
+
+- `node scripts/preview/build-feedback-preview.mjs` renders the real
+  `FeedbackInbox` with fixture rows (`feedback-inbox.fixture.ts`) for
+  `?project=` empty, by name and by id → `.tmp/feedback-preview/`.
+- `node scripts/preview/build-push-preview.mjs` renders every state of the
+  Settings → "On this phone" notifications card, stacked
+  (`push-card.preview.tsx`) → `.tmp/push-preview/`.
+
+No database, no session, no dev server. The core bundles the entry with
+esbuild (shimming `next/link` and `next/navigation`, and giving the bundle an
+empty `process`), compiles `globals.css` through `@tailwindcss/postcss`
+(skipping, with a warning, a package stylesheet this machine does not have),
+and screenshots 390×844 and 1280×900 in dark and light. It fails on horizontal
+overflow or a console error. The entry mocks `fetch` itself.
 
 It exists because a page shipped that nobody had rendered (`/feedback?project=
-<uuid>`, 2026-09-28; see REVIEW.md → "Definition of done for a page"). Copy
-the script for any other page that needs the same proof; the PNGs are the
-artefact to look at before saying a page is done.
+<uuid>`, 2026-09-28; see REVIEW.md → "Definition of done for a page"). For any
+other page that needs the same proof, write a `*.preview.tsx` entry and a
+three-line script calling `renderPreview()`; the PNGs are the artefact to look
+at before saying a page is done. Look at them, and measure tap targets: the
+push card's first render had a filled button 8px shorter than its neighbour and
+under 44px, which no assertion would have caught.
 
 ## Control page (`/control`)
 
