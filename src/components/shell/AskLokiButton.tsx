@@ -35,6 +35,7 @@ import { citationsFrom } from "@/components/loki/footers";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { pickProvenance } from "@/lib/loki/provenance";
 import { readReplies } from "@/lib/loki/replies";
+import { isProjectWorkspacePath } from "@/lib/navigation";
 
 /** Prior turns sent with an ask, and how much of each. Matches the loop's own trim. */
 const HISTORY_TURNS = 8;
@@ -475,15 +476,17 @@ export function AskLokiButton() {
         </div>
       )}
 
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className={`ui-fab fixed bottom-7 right-7 ${layer} hidden h-14 w-14 items-center justify-center active:scale-95 md:flex focus-visible:ring-2 focus-visible:ring-accent-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
-        title={open ? "Close Loki (press ?)" : "Open Loki (press ?)"}
-        aria-label={open ? "Close Loki assistant" : "Open Loki assistant"}
-        aria-expanded={open}
-      >
-        <MessageSquare className="h-6 w-6" />
-      </button>
+      {!isProjectWorkspacePath(pathname) && (
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className={`ui-fab fixed bottom-7 right-7 ${layer} hidden h-14 w-14 items-center justify-center active:scale-95 md:flex focus-visible:ring-2 focus-visible:ring-accent-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
+          title={open ? "Close Loki (press ?)" : "Open Loki (press ?)"}
+          aria-label={open ? "Close Loki assistant" : "Open Loki assistant"}
+          aria-expanded={open}
+        >
+          <MessageSquare className="h-6 w-6" />
+        </button>
+      )}
     </>
   );
 }

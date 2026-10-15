@@ -1,7 +1,9 @@
-import Link from "next/link";
-import { ArrowLeft, Cat, ExternalLink, GitBranch } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import type { ProjectDossier } from "@/db/queries/project-dossier";
 import { ProjectWorkspaceHeader } from "./ProjectWorkspaceHeader";
+import { ProjectIdentitySettings } from "./ProjectIdentitySettings";
+import { ProjectConnectionsSection } from "./ProjectConnectionsSection";
+import { ProjectPublishingSettings } from "./ProjectPublishingSettings";
 import { ProjectTabs } from "./ProjectTabs";
 import { ProjectContextEditor } from "./ProjectContextEditor";
 import { ProjectFlags } from "./ProjectFlags";
@@ -10,18 +12,10 @@ import { ProjectSettingsPanel } from "./ProjectSettingsPanel";
 import { ProjectFeedbackSection } from "./ProjectFeedbackSection";
 import { ProjectMembersPanel } from "./ProjectMembersPanel";
 import { DoneSection, NextSection, NowSection } from "./ProjectDossierSections";
-import { OrangeCatPublishButton } from "./OrangeCatPublishButton";
-import { ProjectPublicListingToggle } from "./ProjectPublicListingToggle";
-import { ProjectFeatureToggle } from "./ProjectFeatureToggle";
-import { ProjectClientConsent } from "./ProjectClientConsent";
 import { projectIsClientWork } from "@/lib/register/portfolio";
 import { consentIso } from "@/lib/register/client-work";
 import { ProjectListingInvitation } from "./ProjectListingInvitation";
 import { shouldInviteToPublicCatalogue } from "@/lib/listing-invitation";
-import { SolonFoundButton } from "./SolonFoundButton";
-import { LiveUrlField } from "./LiveUrlField";
-import { RegisterSiteButton } from "./RegisterSiteButton";
-import { OwnDomainButton } from "./OwnDomainButton";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { studioRepoRoot } from "@/lib/site-cd-local";
 import { siteAddresses } from "@/lib/site-domain";
@@ -30,10 +24,8 @@ import { getHealthSignals, HEALTH_SIGNAL_CONFIG } from "./project-badges";
 import { computeProjectHealth } from "@/lib/project-health";
 import { FixSignalButton } from "./ProjectActionButtons";
 import { ProjectKickoff } from "./ProjectKickoff";
-import { ProjectCodeCustody } from "./ProjectCodeCustody";
 import { CODE_CUSTODY } from "@/db/schema/user-projects";
 import { ProjectInterview } from "./ProjectInterview";
-import { ProjectShareMenu } from "./ProjectShareMenu";
 import { AssistantContextBridge } from "./AssistantContextBridge";
 import { needsKickoff } from "@/lib/project-kickoff";
 import { needsInterview, planInterview } from "@/lib/project-interview";
@@ -154,29 +146,7 @@ export function ProjectWorkspaceView({
       buildBusy: showKickoff || isBuildActive(buildStatus),
     });
 
-  /**
-   * WHAT IS WRONG, ABOVE WHAT IS HAPPENING.
-   *
-   * Measured on production 2026-09-22 (evig): the Now tab opened with
-   * "BUILD — Nothing is being built right now" in the page's largest type
-   * beside its only orange button, and THREE live flags sat underneath it as
-   * plain rows — the first of them "Email verification bypass: anyone can
-   * register @revamp-it.ch domain and get Staff role with admin access to 14
-   * areas".
-   *
-   * That is the same fault /today had: the surface reported the MACHINE'S
-   * status where the reader was asking what needs them. Idle is not news.
-   * A security hole is.
-   *
-   * So the flags lead WHEN THERE ARE FLAGS, and the build status leads when
-   * there are none — at which point "nothing is being built" is genuinely
-   * the most useful thing the tab can say.
-   *
-   * Raising, editing and clearing still live in <ProjectFlags> further down,
-   * which is ALWAYS rendered: "how do I flag this?" had no answer anywhere in
-   * the product, and a control that only appears once the thing has already
-   * happened cannot be that answer.
-   */
+  // Attention-worthy flags outrank routine build state.
   const flagsBlock =
     healthSignals.length > 0 ? (
       <section className="ui-project-flags-lead" aria-labelledby="project-flags-title">
@@ -214,7 +184,7 @@ export function ProjectWorkspaceView({
     ) : null;
 
   return (
-    <div className="app-page max-w-5xl space-y-6">
+    <div className="app-page ui-project-workspace" data-fc-place="hidden">
       <AssistantContextBridge
         context={{
           projectId: project.id,
@@ -230,191 +200,20 @@ export function ProjectWorkspaceView({
           readonly: dossier.readonly,
         }}
       />
-      <Link
-        href="/projects"
-        className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All projects
-      </Link>
-
-      {/* Destinations sit BELOW the identity, never beside it.
-          Measured on a 1680px window before this change: the header was a
-          `justify-between` row whose links column was `shrink-0`, so six ghost
-          links took 607px of 960px — 63% — and squeezed the project's name and
-          description into 333px. A 202-word description then wrapped into a
-          twenty-line ribbon with two thirds of the screen empty beside it.
-          That is what read as "a wall of text": mostly layout, not word count.
-
-          A project's name and what it is outrank links to elsewhere, so they
-          get the full measure and the links get a quiet row underneath. */}
-      <header className="border-b border-border-subtle pb-4 sm:pb-6">
-        <div className="flex flex-col gap-3 sm:gap-5">
-          <ProjectWorkspaceHeader
-            projectId={project.id}
-            userProjectId={userProject?.id ?? null}
-            name={project.name}
-            workspaceKey={workspaceKey}
-            description={projectHeadline(project.description)}
-            status={attrs.status ?? null}
-            health={health}
-            readonly={dossier.readonly}
-          />
-          {/* The row holds what an owner opens every day — the live site and the
-              repository — and ONE door for taking the project public. Four
-              such doors used to sit here as peers (List publicly, Publish,
-              Govern, Share) with nothing saying how they differ; George read
-              the row as a Frankenstein (2026-09-25). The "Live site set" chip
-              went too: the Live link says the same thing, and does something. */}
-          {!dossier.readonly && !links.prodUrl && (userProject?.gitUrl || project.gitUrl) && (
-            <p className="text-sm text-text-secondary">No live URL yet.</p>
-          )}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <LiveUrlField
-              userProjectId={userProject?.id ?? null}
-              liveUrl={links.prodUrl}
-              readonly={dossier.readonly}
-              ownerPass={ownerPass}
-            />
-            {!dossier.readonly && siteAddress && (
-              <OwnDomainButton
-                projectId={project.id}
-                ownDomain={siteAddress.ownDomain}
-                freeHost={siteAddress.freeHost}
-              />
-            )}
-            {!dossier.readonly && (
-              <RegisterSiteButton
-                projectId={project.id}
-                hasRepo={Boolean(userProject?.gitUrl ?? project.gitUrl)}
-                liveUrl={userProject?.liveUrl ?? links.prodUrl}
-              />
-            )}
-            {showRepoLink && links.repo && (
-              <a
-                href={links.repo}
-                target="_blank"
-                rel="noreferrer"
-                className="ui-btn-ghost min-h-11 gap-1.5"
-              >
-                <GitBranch className="h-4 w-4" aria-hidden="true" />
-                {/* Short on phones so Live · Repo · Share fit one row. */}
-                <span className="sm:hidden">Repo</span>
-                <span className="hidden sm:inline">Repository</span>
-              </a>
-            )}
-            {/* The offer to own the code, made where it was promised: once
-                the site is live and there is something worth owning. Before
-                that it waits in Project settings. */}
-            {!dossier.readonly && codeKeptByLoki && links.prodUrl && (
-              <ProjectCodeCustody
-                projectId={project.id}
-                hasGithub={viewerHasGithub}
-                variant="line"
-              />
-            )}
-            {primaryOrangeCatLink && (
-              <a
-                href={primaryOrangeCatLink.publicUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="ui-btn-ghost min-h-11 gap-1.5"
-                title="View, share, and fund this project on OrangeCat"
-              >
-                <Cat className="h-4 w-4 text-accent-text" aria-hidden />
-                View and fund
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              </a>
-            )}
-            {!dossier.readonly && (
-              <ProjectShareMenu
-                destinations={[
-                  {
-                    key: "link",
-                    title: "A link to send",
-                    explain:
-                      "A read-only page for someone without an account. You choose what it shows.",
-                    control: shareAction ?? null,
-                  },
-                  {
-                    key: "catalogue",
-                    title: userProject?.listedPublicly
-                      ? "Listed in Loki's catalogue"
-                      : "Loki's catalogue",
-                    explain: awaitingClientConsent
-                      ? "Client work stays off public pages, listed or not, until the client agrees (below)."
-                      : userProject?.listedPublicly
-                        ? "Shown on the public fleet page, credited to you."
-                        : "Not listed. Listing shows it on the public fleet page, credited to you.",
-                    control: (
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        <ProjectPublicListingToggle
-                          projectId={project.id}
-                          listedPublicly={userProject?.listedPublicly ?? false}
-                        />
-                        {viewerIsSiteOperator && (
-                          <ProjectFeatureToggle
-                            projectId={project.id}
-                            featured={Boolean(userProject?.featuredAt)}
-                            listedPublicly={userProject?.listedPublicly ?? false}
-                          />
-                        )}
-                      </span>
-                    ),
-                  },
-                  {
-                    key: "client",
-                    title: clientWork
-                      ? clientConsentAt
-                        ? "Client work, shown with consent"
-                        : "Client work, private"
-                      : "Client work",
-                    explain: clientWork
-                      ? "Built for a real person or organisation. It appears in the public portfolio only once they agree."
-                      : "Our own work. Mark it if it was built for someone else.",
-                    control: userProject ? (
-                      <ProjectClientConsent
-                        projectId={project.id}
-                        clientWork={clientWork}
-                        consentedAt={clientConsentAt}
-                        consentNote={userProject.portfolioConsentNote ?? null}
-                      />
-                    ) : null,
-                  },
-                  {
-                    key: "orangecat",
-                    title: "OrangeCat",
-                    explain: "A public page where people can follow, share and fund it.",
-                    control: <OrangeCatPublishButton projectId={project.id} />,
-                  },
-                  {
-                    key: "solon",
-                    title: "Solon",
-                    explain:
-                      "Found it as a venture others govern with you. Signed with your own wallet, so Loki hands you over.",
-                    control: <SolonFoundButton projectId={project.id} />,
-                  },
-                ]}
-              />
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Tabs, not a scroll. Everything below used to stack into one page:
-          measured at 2,698 words across 17 sections, of which ten answered
-          variations of the same question. The old jump-nav indexed 6 of those
-          17, which its own comment named as the failure — a nav that knows
-          about some sections teaches the reader the others are not there.
-
-          Anchors could not fix it either: scrolling into a wall still leaves
-          the other 2,400 words underneath. A tab removes them. */}
-      {inviteToCatalogue && <ProjectListingInvitation projectId={project.id} />}
+      <ProjectWorkspaceHeader
+        name={project.name}
+        workspaceKey={workspaceKey}
+        description={projectHeadline(project.description)}
+        liveUrl={links.prodUrl}
+        ownerPass={ownerPass}
+        readonly={dossier.readonly}
+      />
 
       <ProjectTabs
         tabs={[
           {
             id: "now",
-            label: "Now",
+            label: "Overview",
             count: healthSignals.length,
             urgent: healthSignals.length > 0,
             content: (
@@ -429,14 +228,6 @@ export function ProjectWorkspaceView({
                   setupNeeded={showKickoff}
                   hasNextStep={Boolean(nextStep)}
                 />
-                {/* Before the kickoff, not beside it: every step below reads the
-                    profile, so the questions are worth asking first. It renders
-                    only while essential fields are still blank. */}
-                {/* One card, one primary button. The interview used to render
-                    as its own orange-buttoned card directly above the kickoff,
-                    so the first thing on the page was two competing "start
-                    here"s. While the kickoff is the hero, the questions are an
-                    optional link inside it (?interview=1 opens them here). */}
                 {!dossier.readonly && (!showKickoff || autoInterview) && (
                   <ProjectInterview
                     projectId={project.id}
@@ -471,16 +262,12 @@ export function ProjectWorkspaceView({
                   />
                 )}
                 {showKickoff && <KitPlanPreview dossier={dossier} clientWork={clientWork} />}
-                {/* Before anything is built, "No live agent" and "Advance: X"
-                    only restate the kickoff card (which now names the first
-                    target itself). They earn their place once work exists. */}
                 {!showKickoff && (
                   <section className="scroll-mt-28" aria-labelledby="project-overview-title">
                     <h2 id="project-overview-title" className="sr-only">
                       Overview
                     </h2>
-                    <div className="grid gap-5 lg:grid-cols-2">
-                      <NowSection dossier={dossier} interactive={false} showBrief={false} />
+                    <div className="space-y-5">
                       <NextSection
                         dossier={dossier}
                         interactive={false}
@@ -504,6 +291,15 @@ export function ProjectWorkspaceView({
             label: "Story",
             content: (
               <>
+                <ProjectIdentitySettings
+                  projectId={project.id}
+                  name={project.name}
+                  userProjectId={userProject?.id ?? null}
+                  description={cleanDescription(project.description)}
+                  status={attrs.status ?? null}
+                  health={health}
+                  readonly={dossier.readonly}
+                />
                 <ProjectContextEditor
                   projectId={project.id}
                   projectName={workspaceKey}
@@ -512,10 +308,6 @@ export function ProjectWorkspaceView({
                   resources={detail.resources ?? []}
                   readonly={dossier.readonly}
                 />
-                {/* What it is built from sits with what it is: the stack the
-                    owner describes above, and the shared packages its
-                    repository actually depends on, read from the lockfile.
-                    Only the owner reads it again — the rows are theirs. */}
                 <div className="mt-7">
                   <ProjectBuiltFrom
                     userProjectId={userProject?.id ?? null}
@@ -531,11 +323,6 @@ export function ProjectWorkspaceView({
                     />
                   )}
                 </div>
-                {/* On Context, beside the other things a person WRITES about a
-                    project. The three flag attrs are excluded from the
-                    "Additional context" block by design (a dedicated UI owns
-                    them) — and until now that dedicated UI did not exist, so
-                    the exclusion just meant there was nowhere to raise one. */}
                 <div className="mt-7">
                   <ProjectFlags
                     projectId={project.id}
@@ -583,11 +370,8 @@ export function ProjectWorkspaceView({
                   >
                     Activity and evidence
                   </h2>
+                  <NowSection dossier={dossier} interactive={false} showBrief={false} />
                   <DoneSection dossier={dossier} />
-                  {/* Funding is evidence, so it reads with the rest of the evidence
-                      instead of above the project's own status. Rendered only when money
-                      actually arrived — a "0 BTC · 0 contributions" panel was a headline
-                      for nothing (the old formatter printed a bare `0` for empty). */}
                   {primaryOrangeCatLink &&
                     dossier.orangecatFunding &&
                     dossier.orangecatFunding.totalBtc > 0 && (
@@ -626,10 +410,25 @@ export function ProjectWorkspaceView({
                   label: "Settings",
                   content: (
                     <>
-                      {/* Who has access lives in Settings, where every other
-                          product puts it. It used to be a collapsed "Editors"
-                          disclosure inside the Feedback tab, where the owner
-                          looking for "invite someone" did not find it. */}
+                      <ProjectConnectionsSection
+                        projectId={project.id}
+                        userProjectId={userProject?.id ?? null}
+                        liveUrl={links.prodUrl}
+                        repoUrl={showRepoLink ? links.repo : null}
+                        hasRepo={Boolean(links.repo)}
+                        ownerPass={ownerPass}
+                        siteAddress={siteAddress}
+                      />
+                      <ProjectPublishingSettings
+                        projectId={project.id}
+                        userProject={userProject}
+                        clientWork={clientWork}
+                        clientConsentAt={clientConsentAt}
+                        awaitingClientConsent={awaitingClientConsent}
+                        viewerIsSiteOperator={viewerIsSiteOperator}
+                        shareAction={shareAction}
+                      />
+                      {inviteToCatalogue && <ProjectListingInvitation projectId={project.id} />}
                       <ProjectMembersPanel projectId={project.id} />
                       <ProjectSettingsPanel
                         projectId={project.id}

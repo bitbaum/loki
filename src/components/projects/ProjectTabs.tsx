@@ -2,33 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { trackUsage } from "@/lib/usage/track";
 
-/**
- * One project, one question at a time.
- *
- * Measured before this existed: the project page rendered 2,698 words across 17
- * sections in a single scroll. Ten of those sections answered variations of the
- * same question — Overview, Status quo, What happens next, Purpose, Product,
- * Reach, Build contract, Resources, Plan and finish line, Next action,
- * Completion contract. Three more carried 2,745 words between them.
- *
- * The cost was not ugliness, it was findability. Widget setup — the reason an
- * operator opens this page when a site needs the embed — sat behind an
- * unlabelled toggle below a thousand words of feedback items. A person looked
- * for it, did not find it, and concluded the feature did not exist. It did.
- *
- * A jump-nav already existed and indexed 6 of the 17 sections, which its own
- * comment correctly identified as the worst option: a nav that knows about some
- * sections teaches the reader the others are not there.
- *
- * So: tabs, not anchors. An anchor scrolls you into a wall and leaves the other
- * 2,400 words below you; a tab removes them. The default tab answers "what is
- * this and what do I do", and everything else is one deliberate click away.
- *
- * Counts on the tab labels do the work the wall of text was failing to do —
- * "Feedback 3" tells you where to go without you reading anything first.
- */
-
+/** One section model drives desktop tabs, the phone selector, and existing deep links. */
 export interface ProjectTab {
   id: string;
   label: string;
@@ -61,10 +37,7 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
 
   const select = (id: string) => {
     setActive(id);
-    // A tab picked near the clipped edge scrolls fully into view.
-    document
-      .getElementById(`tab-${id}`)
-      ?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    trackUsage({ surface: "projects.workspace", action: "tap", target: id });
     // replaceState, not a hash assignment: setting location.hash would scroll
     // the viewport to an element that no longer exists as an anchor, and would
     // stack a history entry per tab click so Back walks tabs instead of leaving.
@@ -76,17 +49,42 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
   /** Arrow keys move between tabs — expected of a tablist, and the only way to
    *  reach them without a pointer. */
   const onKeyDown = (e: React.KeyboardEvent, index: number) => {
-    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(e.key)) return;
     e.preventDefault();
     const next =
-      e.key === "ArrowRight" ? (index + 1) % tabs.length : (index - 1 + tabs.length) % tabs.length;
+      e.key === "Home"
+        ? 0
+        : e.key === "End"
+          ? tabs.length - 1
+          : e.key === "ArrowRight"
+            ? (index + 1) % tabs.length
+            : (index - 1 + tabs.length) % tabs.length;
     select(tabs[next].id);
     document.getElementById(`tab-${tabs[next].id}`)?.focus();
   };
 
   return (
     <>
-      <div role="tablist" aria-label="Project sections" className="ui-tabbar">
+      <div className="ui-project-mobile-sections">
+        <label htmlFor="project-section" className="text-sm text-text-tertiary">
+          Section
+        </label>
+        <select
+          id="project-section"
+          aria-label="Project section"
+          value={active}
+          onChange={(event) => select(event.target.value)}
+          className="ui-project-section-select"
+        >
+          {tabs.map((tab) => (
+            <option key={tab.id} value={tab.id}>
+              {tab.label}
+              {tab.count ? ` (${tab.count})` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div role="tablist" aria-label="Project sections" className="ui-project-tabs">
         {tabs.map((tab, i) => (
           <button
             key={tab.id}
@@ -98,12 +96,7 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
             tabIndex={active === tab.id ? 0 : -1}
             onClick={() => select(tab.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
-            className={cn(
-              "ui-tap inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors sm:px-3",
-              active === tab.id
-                ? "bg-surface-raised text-text-primary"
-                : "text-text-secondary hover:bg-surface-raised hover:text-text-primary",
-            )}
+            className={cn("ui-project-tab", active === tab.id && "ui-project-tab-active")}
           >
             {tab.label}
             {!!tab.count && (

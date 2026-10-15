@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Settings } from "lucide-react";
 import { ProjectCodeCustody } from "./ProjectCodeCustody";
 import { ProjectProvision } from "./ProjectProvision";
 import { ProjectTeardown } from "./ProjectTeardown";
@@ -32,11 +31,11 @@ export function ProjectSettingsPanel({
   const router = useRouter();
 
   return (
-    <details className="border-y border-border-subtle">
-      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary">
-        <Settings className="h-4 w-4" aria-hidden="true" /> Project settings
-      </summary>
-      <div className="space-y-5 border-t border-border-subtle py-5">
+    <section className="ui-project-detail-block" aria-labelledby="project-advanced-title">
+      <h2 id="project-advanced-title" className="ui-project-section-title">
+        Advanced
+      </h2>
+      <div className="mt-4 space-y-5">
         {!hasRepo && <ProjectProvision projectId={projectId} onReload={() => router.refresh()} />}
         {codeKeptByLoki && <ProjectCodeCustody projectId={projectId} hasGithub={hasGithub} />}
         {liveUrl && <SiteRetirePanel projectId={projectId} liveUrl={liveUrl} />}
@@ -51,6 +50,6 @@ export function ProjectSettingsPanel({
           onDeleted={() => router.push("/projects")}
         />
       </div>
-    </details>
+    </section>
   );
 }

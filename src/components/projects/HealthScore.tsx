@@ -257,7 +257,7 @@ export function HealthScoreBar({
           </p>
           <p className="mt-1 text-xs leading-relaxed text-text-secondary">
             Stored project details and reported flags, one point each. Test results and deployment
-            status appear in Now.
+            status appear in Overview.
           </p>
 
           {missing === 0 ? (

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, Copy, ExternalLink, Loader2, Share2, X } from "lucide-react";
 import { deleteJson, postJson, throwApiError } from "@/lib/api/fetch";
 import { useClipboard } from "@/hooks/use-clipboard";
+import { Modal } from "@/components/ui/modal";
 
 type ShareSettings = {
   audience: "advisor" | "team" | "public";
@@ -107,10 +108,12 @@ export function ProjectSharePanel({
         {hasShare ? "Shared" : "Share"}
       </button>
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-[min(92vw,26rem)] rounded-xl border border-border-subtle bg-surface-raised p-4 shadow-xl">
+        <Modal onClose={() => setOpen(false)} labelledBy="project-share-title">
           <div className="mb-3 flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-text-primary">Share project dossier</div>
+              <h2 id="project-share-title" className="ui-project-section-title">
+                Share project
+              </h2>
               <p className="mt-1 text-xs leading-relaxed text-text-muted">
                 Unlisted, read-only, and filtered. Internal controls, private notes, and credential
                 values stay out.
@@ -128,6 +131,7 @@ export function ProjectSharePanel({
 
           <div className="space-y-2">
             <select
+              autoFocus
               value={settings.audience}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -149,7 +153,10 @@ export function ProjectSharePanel({
               ["includeResources", "Resources"],
               ["includeRepo", "Repository link"],
             ].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2 text-xs text-text-secondary">
+              <label
+                key={key}
+                className="flex min-h-11 items-center gap-3 text-sm text-text-secondary"
+              >
                 <input
                   type="checkbox"
                   checked={Boolean(settings[key as keyof ShareSettings])}
@@ -165,14 +172,18 @@ export function ProjectSharePanel({
               type="button"
               onClick={saveShare}
               disabled={busy}
-              className="ui-btn-save gap-1.5"
+              className="ui-btn-save min-h-11 gap-1.5"
             >
               {busy ? <Loader2 className="ui-spinner-xs" /> : <Share2 className="h-3.5 w-3.5" />}
               {share ? `Update (${includeCount})` : "Create link"}
             </button>
             {share && (
               <>
-                <button type="button" onClick={copyLink} className="ui-btn-secondary gap-1.5">
+                <button
+                  type="button"
+                  onClick={copyLink}
+                  className="ui-btn-secondary min-h-11 gap-1.5"
+                >
                   {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied ? "Copied" : "Copy"}
                 </button>
@@ -180,11 +191,16 @@ export function ProjectSharePanel({
                   href={share.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="ui-btn-secondary gap-1.5"
+                  className="ui-btn-secondary min-h-11 gap-1.5"
                 >
                   <ExternalLink className="h-3.5 w-3.5" /> Open
                 </a>
-                <button type="button" onClick={revoke} disabled={busy} className="ui-btn-danger">
+                <button
+                  type="button"
+                  onClick={revoke}
+                  disabled={busy}
+                  className="ui-btn-danger min-h-11"
+                >
                   Revoke
                 </button>
               </>
@@ -192,7 +208,7 @@ export function ProjectSharePanel({
           </div>
           {share && <p className="mt-2 truncate text-xs text-text-tertiary">{share.url}</p>}
           {error && <p className="mt-2 ui-error-xs">{error}</p>}
-        </div>
+        </Modal>
       )}
     </div>
   );
