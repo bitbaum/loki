@@ -19,17 +19,15 @@ function autopilotBody(intentKey: string): string | null {
 
 function renderSharedHandoffBlock(): string {
   return [
-    "When done, update the session handoff with exactly these lines:",
-    "status: <ready | working>     # 'ready' = task fully done; 'working' = still more to do. Auto-inject only fires when 'ready'.",
-    "last-3-same-dir: <yes | no>   # whether the last 3 commits all modify one directory",
-    "wip-or-revert-in-last-5: <yes | no>   # whether a recent commit subject begins with WIP or revert",
-    "tsc: <pass | fail(N)>",
-    "lint: <pass | fail(N errors, M warnings)>",
-    "tests: <N pass · N fail, or 'no suite'>",
-    "todos: <count from TODO/FIXME/HACK scan>",
-    "done: <one sentence what you completed>",
-    "next: <state to resume from; empty when nothing is mid-flight>",
-    "commit: <short SHA you produced this run (`git rev-parse --short HEAD`), or 'none' if you committed nothing>",
+    "Update the session handoff when finished:",
+    "status: ready | working",
+    "done: one sentence",
+    "next: state to resume from, or empty when finished",
+    "tsc: pass | fail",
+    "lint: pass | fail",
+    "tests: pass/fail counts, or no suite",
+    "todos: count",
+    "commit: short SHA, or none",
   ].join("\n");
 }
 
@@ -125,6 +123,11 @@ function renderIntentBody(request: OrchestrationTaskRequest): string {
   return `Work on the project at ${request.projectPath}.`;
 }
 
+/** Explicit user tasks stay short; repo-local instructions are already read by the agent. */
+export function renderDirectTask(customInstructions: string): string {
+  return `## Task\n${customInstructions.trim()}`;
+}
+
 // Surface the user's prompt queue in the dispatched prompt. The agent now
 // sees what's pending and can weigh queue items against other scanning
 // candidates (interrupted work, failing tests, etc). Without this block,
@@ -164,6 +167,9 @@ export function renderTaskForAdapter(
   adapter: AdapterId = request.adapter,
 ): string {
   const intent = getOrchestrationIntent(request.intent);
+  if (request.intent === "custom") {
+    return renderDirectTask(request.customInstructions ?? "");
+  }
   const queueBlock = renderQueueBlock(request.queue);
   const contextBlock = renderProjectContextBlock(request.projectContext);
 
@@ -175,8 +181,7 @@ export function renderTaskForAdapter(
     if (contextBlock) sections.push(contextBlock);
     sections.push(renderIntentBody(request));
     if (queueBlock) sections.push(queueBlock);
-    // For "custom" intent the body IS customInstructions — don't append it again
-    if (request.intent !== "custom" && request.customInstructions?.trim()) {
+    if (request.customInstructions?.trim()) {
       sections.push(`Additional instructions:\n${request.customInstructions.trim()}`);
     }
     return sections.join("\n\n");
@@ -192,8 +197,7 @@ export function renderTaskForAdapter(
 
   if (queueBlock) sections.push(queueBlock);
 
-  // For "custom" intent the body IS customInstructions — don't append it again
-  if (request.intent !== "custom" && request.customInstructions?.trim()) {
+  if (request.customInstructions?.trim()) {
     sections.push(`Additional instructions:\n${request.customInstructions.trim()}`);
   }
 

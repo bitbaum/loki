@@ -53,6 +53,18 @@ check("a user-typed custom prompt is returned verbatim, without any envelope", (
   assert.equal(extractOperatorTask(envelope), "Fix the checkout flow so the BTC amount refreshes.");
 });
 
+check("a concise task plus handoff still displays only the requested task", () => {
+  const envelope = [
+    "## Task\nFix the /de homepage headline.",
+    "## Exit contract (operator requirement)\nUpdate ~/.loki/sessions/petvity.md when finished.",
+  ].join("\n\n");
+  assert.equal(extractOperatorTask(envelope), "Fix the /de homepage headline.");
+  assert.equal(
+    promptDisplay({ resolvedPrompt: envelope, intent: "custom" }).task,
+    "Fix the /de homepage headline.",
+  );
+});
+
 check("an intent dispatch keeps its rendered body — the part with no heading", () => {
   const envelope = [
     PREAMBLE,

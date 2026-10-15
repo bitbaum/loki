@@ -1,10 +1,9 @@
 /**
- * The fleet brief for a dispatch that names its project by key.
+ * Full fleet reference text for a project key.
  *
  * Kept apart from ./brief.ts so the pure half stays importable with no
- * database (the tests and the snapshot generator import it). Every dispatch
- * assembler calls this; scripts/test/fleet-brief-reaches-every-dispatch.ts
- * fails when one that builds an agent's prompt does not.
+ * database. Routine dispatch assemblers intentionally do not call this helper:
+ * the entire stack/package catalog buried each task in unrelated context.
  */
 import { getProjectGitUrlByKey } from "@/db/queries/user-projects";
 import { fleetBriefForRepo } from "./brief";

@@ -16,6 +16,7 @@ import {
   ORCHESTRATION_TASK_INTENT_IDS,
   DEFAULT_ADAPTER_ID,
   renderProjectContextBlock,
+  renderDirectTask,
   type OrchestrationTaskIntentId,
   type AdapterId,
 } from "@/lib/orchestration";
@@ -51,11 +52,9 @@ import { promptFingerprint, recordControlAuditEvent } from "@/db/queries/control
 import { enqueueHostedDispatchCommand } from "@/db/queries/pending-commands";
 import { isHostedBuilderPref } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
-import { retrieveFleetContextBlock } from "@/db/queries/knowledge-embeddings";
 import { assembleInjectPrompt } from "@/lib/inject-prompt";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { findInjectProject } from "@/lib/inject-project";
-import { fleetBriefForProject } from "@/lib/fleet-brief/for-project";
 
 type ResolvedAdapter = (typeof ORCHESTRATION_ADAPTER_IDS)[number];
 
@@ -185,35 +184,23 @@ async function buildLocalPrompt(args: {
   const { userId, canonical, effectiveTab, promptKey, customPrompt, eventAdapter } = args;
   const { readPrompts, readPromptMeta } = await import("@/lib/agent-config");
 
-  // Global + Project tiers (operating principles + brief + active goals) — the
-  // SAME assembler the /api/orchestration/run path uses. Previously this local
-  // inject path skipped it, so quick-send / promptKey dispatches reached the
-  // agent without the founder's standards or the project's roadmap (the
-  // "inject-core bypass"). buildPromptWithSession then adds the Session tier, so
-  // every dispatch now carries all three tiers. Best-effort: never break a
-  // dispatch if context assembly fails.
-  const ragQuery = customPrompt?.trim() ?? "";
-  // Cross-project retrieval needs an actual task; generic intent keys are not
-  // a semantic query. Personal life goals/commitments stay out of coding tasks.
-  const [projectContext, fleetBlock, escalationBlock, houseRules] = await Promise.all([
-    getProjectContext(userId, canonical).catch(() => null),
-    ragQuery
-      ? retrieveFleetContextBlock(userId, ragQuery, { excludeProject: canonical }).catch(() => "")
-      : Promise.resolve(""),
+  // Broad intents can use the project roadmap. Explicit user tasks are kept
+  // focused and rely on the repository's own instructions.
+  const [projectContext, escalationBlock] = await Promise.all([
+    customPrompt ? Promise.resolve(null) : getProjectContext(userId, canonical).catch(() => null),
     // Open escalation ladder — the last failure fed back to the agent with a
     // rung-specific instruction. Mirrors assembleInjectPrompt.
     getOpenEscalationBlock(userId, canonical).catch(() => ""),
-    // bitbaum house rules for a repo in the org. Mirrors assembleInjectPrompt.
-    fleetBriefForProject(userId, canonical).catch(() => ""),
   ]);
   const contextBlock = renderProjectContextBlock(projectContext ?? undefined);
   const withContext = (body: string) =>
-    [contextBlock || null, fleetBlock || null, houseRules || null, escalationBlock || null, body]
-      .filter(Boolean)
-      .join("\n\n");
+    [contextBlock || null, escalationBlock || null, body].filter(Boolean).join("\n\n");
 
   if (customPrompt) {
-    return { prompt: withContext(customPrompt), promptLabel: customPrompt.slice(0, 40) };
+    return {
+      prompt: withContext(renderDirectTask(customPrompt)),
+      promptLabel: customPrompt.slice(0, 40),
+    };
   }
   if (!promptKey) {
     return { status: 400, body: { error: "promptKey or customPrompt required" } };
@@ -246,10 +233,7 @@ async function buildLocalPrompt(args: {
   };
 }
 
-/** Remote (cloud host): assemble the SAME prompt body as orchestration/run —
- *  profile + goals + intent template + fleet RAG — before queueing for the
- *  runner. Previously we queued bare promptKey strings ("next_best"), so
- *  phone/Loki/beacon dispatches reached agents without project context. */
+/** Remote (cloud host): assemble the same task + handoff as Control. */
 async function buildRemotePrompt(args: {
   userId: string;
   canonical: string;

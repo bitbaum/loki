@@ -86,15 +86,15 @@ repository to the person's own GitHub (`api/projects/[id]/handover`); after
 that it is theirs to manage there. Keeping code is free; if it ever incurs a
 real cost it becomes part of a paid plan, never a gate in front of starting.
 
-## What agents Loki dispatches are told about the fleet
+## Fleet references in coding tasks
 
-Every prompt Loki assembles for a repo in the `bitbaum` org carries the fleet
-brief (`src/lib/fleet-brief/`): the house rules plus the shared packages and
-blessed stack, read from bitbaum/fleet's registers at dispatch time with a
-committed snapshot as fallback (`pnpm run generate:fleet-brief` refreshes it).
-Do not type fleet facts into Loki; change them in fleet.
-`scripts/test/fleet-brief-reaches-every-dispatch.ts` fails when a new prompt
-assembler skips the brief.
+Fleet registers are the source of truth for shared packages and stack policy.
+Routine task prompts stay focused and do not paste the full fleet catalog;
+agents read the current repository's `AGENTS.md` and consult fleet references
+when the task involves a shared package or stack decision. The catalogue and
+snapshot remain available to reference surfaces (`src/lib/fleet-brief/`).
+`scripts/test/dispatch-does-not-inject-fleet-catalog.ts` guards against adding
+the full catalog back to every task.
 
 The FIRST build of a new site gets one thing more: its "Built from" plan
 (`src/lib/kit-plan/`), the shared packages its brief calls for — search,

@@ -257,36 +257,18 @@ export function readPrompts(): Record<string, string> {
  * inferred-state context the human sees on the badge hover tooltip.
  * Source: src/lib/control-states.ts -> projectStateDescription(stateKey).
  */
-/**
- * The handoff exit-contract — SSOT for the field block every dispatched agent
- * must write when it finishes. Consumed by buildPromptWithSession (local
- * enrichment path) AND assembleInjectPrompt (cloud/queued path). The cloud
- * path once omitted it entirely, so box-executed agents finished real work,
- * searched ~/.loki/sessions/ for the contract, found nothing, wrote no
- * handoff — and their runs sat "waiting" until reaped as timeouts
- * (2026-07-02; laptop agents only ever complied because the founder's
- * personal global CLAUDE.md happens to describe the same contract).
- *
- * LOOP v2 handoff template (deployed 2026-05-25).
- * Gravity signals (last-3-same-dir, wip-or-revert) come FIRST so the next
- * session reads the drift state before any commit-summary narrative.
- * Replaces the legacy `health:` vanity field (always "good" exactly when
- * the loop was in trouble) with six auto-computed signals + the resume-
- * state-not-a-verb `next:` constraint.
- */
+/** Short handoff contract shared by local, cloud, and queued dispatch paths. */
 export function sessionHandoffContract(sessionFilePath: string): string {
   return [
-    `When done, update ${sessionFilePath} with exactly these lines:`,
-    "status: <ready | working>     # 'ready' = task fully done; 'working' = more to do. Auto-inject only fires when 'ready'.",
-    "last-3-same-dir: <yes | no>   # gravity signal — `git log --format= --name-only -3 | grep -v '^$' | xargs -n1 dirname | sort -u | wc -l` == 1",
-    "wip-or-revert-in-last-5: <yes | no>   # `git log --format=%s -5 | grep -ciE '^(wip|revert)'` > 0",
-    "tsc: <pass | fail(N)>",
-    "lint: <pass | fail(N errors, M warnings)>",
-    "tests: <N pass · N fail, or 'no suite'>",
-    "todos: <N from `rg -c '(TODO|FIXME|HACK)' src/`>",
-    "done: <one sentence what you completed>",
-    "next: <state to resume from — NOT a verb. EMPTY if nothing mid-flight; empty > lie.>",
-    "commit: <short SHA you produced this run — `git rev-parse --short HEAD` — or 'none' if you committed nothing>",
+    `Update ${sessionFilePath} when finished:`,
+    "status: ready | working",
+    "done: one sentence",
+    "next: state to resume from, or empty when finished",
+    "tsc: pass | fail",
+    "lint: pass | fail",
+    "tests: pass/fail counts, or no suite",
+    "todos: count",
+    "commit: short SHA, or none",
   ].join("\n");
 }
 

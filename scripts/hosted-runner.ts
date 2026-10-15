@@ -31,7 +31,6 @@ import {
   siteFactoryEnabled as retireFactoryEnabled,
   validateRetireSiteRequest,
 } from "@/lib/hosted-runner/retire-site";
-import { getProjectContext } from "@/db/queries/project-context";
 import {
   getRecentProjectActivity,
   type RecentProjectActivity,
@@ -44,7 +43,6 @@ import { createOrchestrationEvent } from "@/db/queries/orchestration-events";
 import type { AdapterId, OrchestrationEventType } from "@/lib/orchestration";
 import { analyzeRepo } from "@/lib/hosted-runner/analyze";
 import { runHermesTask } from "@/lib/hosted-runner/run-hermes";
-import { fleetBriefForRepo } from "@/lib/fleet-brief/brief";
 import { settleBackgroundWork } from "@/lib/orchestration/settle-background-work";
 import {
   getOrchestrationRunById,
@@ -298,10 +296,7 @@ async function tick(userId: string): Promise<boolean> {
   }
 
   const p = cmd.payload as HostedAnalyzePayload | HostedDispatchPayload;
-  const [ctx, dbToken] = await Promise.all([
-    getProjectContext(userId, p.projectKey).catch(() => null),
-    getGithubToken(userId).catch(() => null),
-  ]);
+  const dbToken = await getGithubToken(userId).catch(() => null);
   // The owner's linked-OAuth token (DB) is preferred; on a hosted box where no
   // GitHub account is linked, fall back to GITHUB_TOKEN (provided by `gh auth
   // login` on the box → `gh auth token`). Without either, Hermes still runs but
@@ -323,18 +318,11 @@ async function tick(userId: string): Promise<boolean> {
       // Recent-activity context: give Hermes the "what was just done" signal so it
       // doesn't repeat or undo recent work. Single choke point — every hosted
       // dispatch (auto-routed or intentional) gets it here, not per trigger.
-      const [recent, fleetBrief] = await Promise.all([
-        getRecentProjectActivity(userId, p.projectKey).catch(() => []),
-        // bitbaum house rules when the repo is in the org — keyed on the URL
-        // being cloned, so the rules follow the repo actually being changed.
-        fleetBriefForRepo(p.gitUrl).catch(() => ""),
-      ]);
+      const recent = await getRecentProjectActivity(userId, p.projectKey).catch(() => []);
       const res = await runHermesTask({
         gitUrl: p.gitUrl,
         task: p.task,
-        projectContext: ctx,
         recentActivity: renderRecentActivity(recent),
-        fleetBrief,
         token,
         model,
       });

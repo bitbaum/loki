@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
+import { exitContractFor } from "@/lib/agent-config";
+import { renderTaskForAdapter } from "@/lib/orchestration/renderers";
 async function main() {
   const source = fs.readFileSync("src/lib/inject-prompt.ts", "utf8");
   const parsed = ts.createSourceFile("inject.ts", source, ts.ScriptTarget.Latest, true);
@@ -11,21 +13,28 @@ async function main() {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
   }).outputText;
   const retrievals: string[] = [];
+  let projectContextReads = 0;
+  let fleetBriefReads = 0;
   const bindings = {
-    getProjectContext: async () => "Project-specific goals",
+    getProjectContext: async () => {
+      projectContextReads++;
+      return "Project-specific goals";
+    },
     retrieveFleetContextBlock: async (_user: string, query: string) => {
       retrievals.push(query);
       return "Relevant project pattern";
     },
     getOpenEscalationBlock: async () => "",
-    fleetBriefForProject: async () =>
-      "## bitbaum house rules\nUse shared kit.\nEnd of bitbaum house rules.",
+    fleetBriefForProject: async () => {
+      fleetBriefReads++;
+      return "## bitbaum house rules\nBULK SHARED PACKAGE CATALOG\nEnd of bitbaum house rules.";
+    },
     FLEET_SESSIONS_DISPLAY_PATH: "~/.loki/sessions",
     exitContractFor: () => "Handoff contract",
-    renderTaskForAdapter: (request: { customInstructions?: string; projectContext: string }) =>
-      request.projectContext +
-      "\n" +
-      (request.customInstructions ?? "Choose a useful next project task."),
+    renderTaskForAdapter: (request: { customInstructions?: string; projectContext?: string }) =>
+      request.customInstructions
+        ? `## Task\n${request.customInstructions.trim()}`
+        : `${request.projectContext ?? ""}\nChoose a useful next project task.`,
     isOrchestrationIntent: (key: string) => key === "next_best",
     getOrchestrationIntent: () => ({ name: "Next best" }),
     buildOperatorContextSection: () => {
@@ -45,16 +54,33 @@ async function main() {
   const automatic = await assemble({ ...base, promptKey: "next_best" });
   assert(automatic.ok);
   assert.deepEqual(retrievals, [], "an intent key must not retrieve unrelated project documents");
-  for (const body of [
-    automatic.prompt,
-    (await assemble({ ...base, customPrompt: "Fix mobile checkout" })).prompt,
-  ]) {
-    assert(body.includes("Project-specific goals"));
-    assert(body.includes("Use shared kit"));
-    assert(body.includes("Handoff contract"));
-    assert(!body.includes("The operator's goals"));
-  }
-  assert.deepEqual(retrievals, ["Fix mobile checkout"]);
+  assert(automatic.prompt.includes("Project-specific goals"));
+  assert(automatic.prompt.includes("Handoff contract"));
+  const explicit = await assemble({ ...base, customPrompt: "Fix mobile checkout" });
+  assert(explicit.ok);
+  assert.match(explicit.prompt, /^## Task\nFix mobile checkout/m);
+  assert(explicit.prompt.includes("Handoff contract"));
+  assert(!explicit.prompt.includes("Project-specific goals"));
+  assert(!explicit.prompt.includes("BULK SHARED PACKAGE CATALOG"));
+  assert(!explicit.prompt.includes("other projects"));
+  assert.deepEqual(retrievals, [], "explicit tasks must not search unrelated project notes");
+  assert.equal(projectContextReads, 1, "only broad intents read the full project profile");
+  assert.equal(fleetBriefReads, 0, "dispatches do not inject the fleet package/stack catalog");
+  const actualDirectPrompt = [
+    renderTaskForAdapter({
+      projectKey: "petvity",
+      projectPath: "/workspace/petvity",
+      adapter: "claude",
+      intent: "custom",
+      customInstructions: "Fix the /de homepage headline.",
+    }),
+    exitContractFor("~/.loki/sessions/petvity.md"),
+  ].join("\n\n");
+  assert(actualDirectPrompt.includes("Fix the /de homepage headline."));
+  assert(
+    actualDirectPrompt.length < 800,
+    `direct dispatch must stay concise (${actualDirectPrompt.length})`,
+  );
   for (const file of [
     "src/lib/inject-core.ts",
     "src/lib/inject-prompt.ts",
@@ -126,7 +152,7 @@ async function main() {
   assert(!retrieved.includes("PRIVATE"));
   assert(!retrieved.includes("Same project"));
   console.log(
-    "✓ coding dispatches retain project instructions and handoff; personal context stays out and generic intents skip cross-project retrieval",
+    "✓ explicit coding tasks carry only the task and compact handoff; broad intents retain project context",
   );
 }
 main().catch((e) => {

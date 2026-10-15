@@ -27,6 +27,12 @@ const packet = `<pasted_content id="example">\n# Loki operator dispatch\nInterna
 const display = dispatchMessageDisplay(packet);
 assert.equal(display.text, "Fix the homepage spacing.");
 assert.equal(display.details, packet);
+const concisePacket =
+  '<pasted_content id="short">\n## Task\nFix the homepage spacing.\n\n## Exit contract (operator requirement)\nUpdate ~/.loki/sessions/petvity.md.\n</pasted_content>';
+assert.deepEqual(dispatchMessageDisplay(concisePacket), {
+  text: "Fix the homepage spacing.",
+  details: concisePacket,
+});
 assert.deepEqual(dispatchMessageDisplay("A normal message\nwith a second line."), {
   text: "A normal message\nwith a second line.",
   details: null,
