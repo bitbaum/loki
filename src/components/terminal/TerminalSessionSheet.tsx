@@ -6,14 +6,7 @@ import { cn } from "@/lib/utils";
 import { ExecutorHonestyChip } from "@/components/executor/ExecutorHonestyChip";
 import type { ExecutorHonestyLabel } from "@/lib/executor-honesty";
 import type { AgentEntry } from "@/components/control/agent-switcher-popover";
-import {
-  TERMINAL_INPUT_MODES,
-  TERMINAL_SOURCES,
-  terminalInputHint,
-  terminalSourceHint,
-  type TerminalInputMode,
-  type TerminalSource,
-} from "@/config/terminal-modes";
+import { TERMINAL_SOURCES, terminalSourceHint, type TerminalSource } from "@/config/terminal-modes";
 import type { TerminalFontControl } from "@/hooks/use-terminal-font";
 import { usePressVerb } from "@/hooks/use-press-verb";
 
@@ -87,8 +80,6 @@ export function TerminalSessionSheet({
   tabs,
   activeTab,
   onSelectTab,
-  inputMode,
-  onInputModeChange,
   agents,
   activeAgentId,
   onSwitchAgent,
@@ -108,8 +99,6 @@ export function TerminalSessionSheet({
   tabs?: SheetTab[];
   activeTab: string | null;
   onSelectTab?: (id: string) => void;
-  inputMode: TerminalInputMode;
-  onInputModeChange: (mode: TerminalInputMode) => void;
   agents: AgentEntry[];
   activeAgentId: string | null;
   onSwitchAgent: (agentId: string) => void;
@@ -208,23 +197,6 @@ export function TerminalSessionSheet({
           </Section>
         )}
 
-        {activeTab && (
-          <Section label="How you talk to it">
-            {TERMINAL_INPUT_MODES.map((option) => (
-              <OptionRow
-                key={option.id}
-                title={option.label}
-                detail={terminalInputHint(option.id)}
-                active={option.id === inputMode}
-                onSelect={() => {
-                  onInputModeChange(option.id);
-                  onClose();
-                }}
-              />
-            ))}
-          </Section>
-        )}
-
         <Section label="Display">
           <div className="ui-sheet-row">
             <span className="min-w-0 flex-1 text-sm text-text-secondary">
@@ -266,7 +238,7 @@ export function TerminalSessionSheet({
             detail={
               liveKeys
                 ? `Keys go straight to the session as you press them. ${press.Verb} the screen to focus it first.`
-                : "Recommended. Type in the composer under the terminal, then Send — no focus fights, no autocorrect."
+                : `Off (recommended): ${press.verb} the screen and you write in the box under it — with the microphone and screenshots. On: every key goes straight into the session, for a password prompt or a menu's own search.`
             }
             active={liveKeys}
             onSelect={() => onLiveKeysChange(!liveKeys)}

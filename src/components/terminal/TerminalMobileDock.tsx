@@ -1,170 +1,101 @@
 "use client";
 
-import { useState } from "react";
-import { Keyboard } from "lucide-react";
-import type { BuilderChannel } from "@/lib/event-stream-types";
-import type { TerminalInputMode } from "@/config/terminal-modes";
+import { useState, type ReactNode } from "react";
+import { Keyboard, MessageSquare } from "lucide-react";
 import { TERMINAL_KEYS } from "@/config/terminal-keys";
 import { KeyCap, TerminalKeyDeck } from "./TerminalKeyDeck";
-import { TerminalRawComposer } from "./TerminalRawComposer";
-import { TerminalComposer } from "./TerminalComposer";
-import { TabVoiceMic } from "./TabVoiceMic";
-import { TerminalInputSwitch } from "./TerminalInputSwitch";
-import { usePressVerb } from "@/hooks/use-press-verb";
-
-/** What the full-screen dock has open: nothing (watching), the keys, or the
- *  composer. One at a time — two open panels is the stack this replaced. */
-type WatchPanel = "none" | "keys" | "write";
 
 /**
- * Everything below the screen: the keys, then the way you write.
+ * Everything below the phone's terminal: the session box, and the keys a soft
+ * keyboard lacks one press away.
  *
- * The deck is present in all three input modes and that is deliberate. Prompt
- * and Voice send a *task*; the agent answers with a question — "Continue?",
- * "Which of these?", "[✔] scan shell history" — and answering it needs Enter
- * and arrows no matter how the task was dispatched. Modes change how words are
- * delivered; they do not change the fact that a TUI asks yes/no questions.
+ * It used to be a bar of three modes — Type (keystrokes, no microphone),
+ * Prompt (a task, with a microphone), Keys — that a person had to choose
+ * between before they could say anything (operator, 2026-10-15: "this is
+ * awful"). Now there is ONE box, the same one the conversation view uses
+ * (SessionComposer, passed in as `box`), with the microphone, screenshots and
+ * the prompt library. Keys is a button in that box's tool row; it opens the
+ * arrows, Esc, Tab and Ctrl — never a second text box (an exact-keystrokes
+ * line used to sit there and read as a second place to write). Keystrokes
+ * straight into the screen are the session menu's "Live keystrokes".
  *
- * ONE bar, one panel at a time. The dock used to be two rows of keys, a mode
- * switch and a composer stacked together — more than half of a phone screen,
- * and four unrelated toolbars to read (operator, 2026-10-05: "it looks
- * Frankenstein"). Now there is a single bar, and while watching Esc / Enter
- * sit on it because answering a "Continue?" must not take two taps. The two
- * layouts differ only in what starts open: the normal page opens the writing
- * panel (it is where you type), full screen opens nothing (it is for watching).
- *
- * The bar is ONE switch: Type · Prompt · Keys. Each opens its panel above
- * it; tapping the open one closes it (back to watching). It used to be two —
- * Keys | Write on the bar, then Type | Prompt inside Write — two switches and
- * four combinations to hold in your head for what is one choice: how am I
- * talking to this session right now (operator, 2026-10-07). Folding the
- * input modes into the bar also gives the terminal back the row the inner
- * switch took.
- *
- * Voice is not offered on the phone switch: the composer's own mic already
- * dictates (into a box you can read before sending), so a third chip for the
- * same microphone was one more thing to tell apart. Loki lives in the header
- * — one entry point, not two.
+ * Full screen is for watching: the box folds to a bar with Esc and Enter (a
+ * "Continue?" must stay one press) and a button that brings the box back.
  */
 export function TerminalMobileDock({
-  tab,
-  channel,
-  inputMode,
-  onInputModeChange,
-  suggestions,
   onKey,
-  agent = null,
-  typeRequest = 0,
-  liveKeys,
+  box,
+  keysOpen,
+  onKeysOpenChange,
   immersive,
 }: {
-  /** Bumped when the screen is tapped to type: open the typing box, focused. */
-  typeRequest?: number;
-  /** The CLI in the tab — its commands are typed, never injected. */
-  agent?: string | null;
-  tab: string;
-  channel: BuilderChannel;
-  inputMode: TerminalInputMode;
-  onInputModeChange: (mode: TerminalInputMode) => void;
-  /** Prompts that fit the screen, offered above the Prompt box. */
-  suggestions?: readonly string[];
   /** Verbatim bytes into the session. */
   onKey: (bytes: string) => void;
-  /** When on, xterm has the keyboard and the typing box would fight it for
-   *  focus — so the deck stands alone. */
-  liveKeys: boolean;
+  /** The session box (SessionComposer), with the Keys toggle in its tools. */
+  box: ReactNode;
+  keysOpen: boolean;
+  onKeysOpenChange: (open: boolean) => void;
   immersive: boolean;
 }) {
-  const press = usePressVerb();
-  const [panel, setPanel] = useState<WatchPanel>(immersive ? "none" : "write");
+  const [writing, setWriting] = useState(!immersive);
   // Entering full screen is a request to watch; leaving it, to write again.
-  // Adjusted during render (React's pattern for state that follows a prop).
   const [layout, setLayout] = useState(immersive);
   if (layout !== immersive) {
     setLayout(immersive);
-    setPanel(immersive ? "none" : "write");
+    setWriting(!immersive);
   }
-  // A tap on the screen asked to type: the typing box opens, with the cursor.
-  const [seenTypeRequest, setSeenTypeRequest] = useState(typeRequest);
-  if (seenTypeRequest !== typeRequest) {
-    setSeenTypeRequest(typeRequest);
-    setPanel("write");
+
+  const keys = keysOpen && <TerminalKeyDeck onKey={onKey} />;
+
+  if (writing) {
+    return (
+      <div className="ui-term-dock">
+        {keys}
+        {box}
+      </div>
+    );
   }
-  const toggle = (next: WatchPanel) => setPanel((p) => (p === next ? "none" : next));
-
-  // Picking the mode that is already open closes it; any other opens Write in
-  // that mode. The mode itself is remembered while closed (persisted upstream),
-  // so the chip you last used is the one drawn — just not pressed.
-  const pickInput = (mode: TerminalInputMode) => {
-    if (panel === "write" && mode === inputMode) {
-      setPanel("none");
-      return;
-    }
-    onInputModeChange(mode);
-    setPanel("write");
-  };
-
-  const writing = (
-    <>
-      {inputMode === "type" && !liveKeys && (
-        <TerminalRawComposer onSend={onKey} sessionLabel={tab} focusRequest={typeRequest} />
-      )}
-      {inputMode === "type" && liveKeys && (
-        <p className="ui-term-dock-hint">
-          Live keystrokes are on — {press.verb} the screen above, then type. Turn them off in the
-          session menu to get the typing box back.
-        </p>
-      )}
-      {inputMode === "prompt" && (
-        <TerminalComposer
-          tab={tab}
-          density="compact"
-          suggestions={suggestions}
-          agent={agent}
-          onKey={onKey}
-        />
-      )}
-      {inputMode === "voice" && (
-        <div className="flex items-center justify-center">
-          <TabVoiceMic tab={tab} channel={channel} compact={immersive} />
-        </div>
-      )}
-    </>
-  );
 
   return (
-    <div className="ui-term-dock md:hidden">
-      {panel === "keys" && <TerminalKeyDeck onKey={onKey} />}
-      {panel === "write" && writing}
+    <div className="ui-term-dock">
+      {keys}
       <div className="ui-term-watchbar" role="toolbar" aria-label="Session controls">
-        <TerminalInputSwitch
-          inputMode={inputMode}
-          onInputModeChange={pickInput}
-          hide={["voice"]}
-          selected={panel === "write"}
-        />
-        <button
-          type="button"
-          className={panel === "keys" ? "ui-chip-toggle-active gap-1.5" : "ui-chip-toggle gap-1.5"}
-          aria-pressed={panel === "keys"}
-          onClick={() => toggle("keys")}
-        >
-          <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
-          Keys
+        <button type="button" className="ui-chip-toggle gap-1.5" onClick={() => setWriting(true)}>
+          <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+          Message
         </button>
-        {/* Only while watching: the Keys panel has its own Esc/Enter, and
-            beside the composer's Send a second Enter read as the same button. */}
-        {panel === "none" && (
-          <div className="ml-auto flex items-center gap-1.5">
-            <KeyCap keyDef={TERMINAL_KEYS.esc} onKey={onKey} className="ui-term-key" />
-            <KeyCap
-              keyDef={TERMINAL_KEYS.enter}
-              onKey={onKey}
-              className="ui-term-key ui-term-key-accent"
-            />
-          </div>
-        )}
+        <KeysToggle open={keysOpen} onOpenChange={onKeysOpenChange} />
+        <div className="ml-auto flex items-center gap-1.5">
+          <KeyCap keyDef={TERMINAL_KEYS.esc} onKey={onKey} className="ui-term-key" />
+          <KeyCap
+            keyDef={TERMINAL_KEYS.enter}
+            onKey={onKey}
+            className="ui-term-key ui-term-key-accent"
+          />
+        </div>
       </div>
     </div>
+  );
+}
+
+/** The arrows, Esc, Ctrl and exact keystrokes — a soft keyboard has none. */
+export function KeysToggle({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenChange(!open)}
+      aria-pressed={open}
+      title="Arrows, Esc, Ctrl and exact keystrokes"
+      className={open ? "ui-chip-toggle-active gap-1.5" : "ui-chip-toggle gap-1.5"}
+    >
+      <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+      Keys
+    </button>
   );
 }

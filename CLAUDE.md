@@ -75,15 +75,23 @@ src/
 │   │                 See docs/development/responsive-design.md.
 │   ├── composer/  → Composer — THE composer (text, attach, voice, model,
 │   │                 Send/Stop, optional modes). Loki chat (loki/Composer →
-│   │                 LokiComposer), the terminal's Ask/Inject rail + Prompt box
-│   │                 (terminal/TerminalComposer) and Control's quick send all
-│   │                 render it. Never add a second message box — add a prop.
+│   │                 LokiComposer), the terminal's Loki rail + Control's quick send
+│   │                 (terminal/TerminalComposer) and the session box
+│   │                 (terminal/SessionComposer) all render it. Never add a second message box — add a prop.
 │   ├── loki/      → LokiWorkspace, Transcript, LokiComposer, ConversationList (chat assistant)
-│   ├── terminal/  → TerminalSurface (the ONE shell: tab strip + mode bar +
-│   │                 session + composer), TerminalTabStrip, TerminalModeBar,
+│   ├── terminal/  → TerminalSurface (the ONE shell: tab strip + session bar +
+│   │                 session + session box), TerminalTabStrip, TerminalModeBar,
 │   │                 TerminalComposer, ShellWorkspace (server-owned bash PTYs,
 │   │                 local/sandbox only), TerminalView (the one xterm),
-│   │                 terminal-transport (substrate seam), TabVoiceMic.
+│   │                 terminal-transport (substrate seam).
+│   │                 SessionComposer = THE box for the agent in a session,
+│   │                 in the terminal view AND the conversation view, at
+│   │                 every width: microphone, screenshots, prompt library
+│   │                 ("/"), "What's going on?" + held-still next steps above
+│   │                 it. It picks the path: a live session is typed into
+│   │                 (bracketed paste + Enter), a screenshot goes via
+│   │                 chat-send, nothing running → tab-inject (starts/queues).
+│   │                 There is no Type / Prompt / Voice switch — never add one.
 │   │                 Modes are SSOT in config/terminal-modes.ts; never add a
 │   │                 second terminal shell — add a transport.
 │   │                 TerminalActions = what the screen needs TYPED (signed
@@ -91,12 +99,13 @@ src/
 │   │                 session. The agent CLIs' own commands are SSOT in
 │   │                 config/agent-commands.ts; they are typed as keys, never
 │   │                 injected (inject wraps text in project context).
-│   │                 A press on the read-only screen switches to Type.
+│   │                 A press on the read-only screen puts the cursor in the box.
 │   │                 Below md the same state drives phone chrome:
 │   │                 TerminalMobileHeader (one line) + TerminalSessionSheet
 │   │                 (all the setup) + TerminalMobileDock = TerminalKeyDeck
 │   │                 (the arrows/Esc/Tab/Ctrl a soft keyboard lacks — bytes are
-│   │                 SSOT in config/terminal-keys.ts) + TerminalRawComposer.
+│   │                 SSOT in config/terminal-keys.ts), opened by Keys in the
+│   │                 box's tool row — never a second text box.
 │   │                 See docs/development/responsive-design.md.
 │   ├── activity/  → ActivityView, EventStream, DigestPanel (fleet activity timeline + digests)
 │   ├── today/     → StickyNoteCard (captures; Loki "add X to my list"), CalendarCard, WeatherCard, CommitmentsCard, SubscriptionsCard, HabitsList

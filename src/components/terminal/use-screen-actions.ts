@@ -14,8 +14,8 @@ const POLL_MS = 3_000;
 /**
  * What the attached session's screen needs TYPED right now — the agent's own
  * command or a key (lib/terminal-commands). Polls the rendered screen while
- * mounted, in every input mode: a person in Prompt mode is exactly the one who
- * does not know a command exists. An agent with no known commands still gets
+ * mounted: the person writing a task in the box is exactly the one who does
+ * not know a command exists. An agent with no known commands still gets
  * the menu keys, since every CLI draws the same "❯ 1." picker.
  */
 export function useScreenActions(

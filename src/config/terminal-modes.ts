@@ -1,26 +1,21 @@
 /**
- * Terminal modes — SSOT for the two axes the terminal can be switched along.
+ * Terminal modes — SSOT for where a terminal session runs and how it is shown.
  *
- * Before this file the terminal had exactly one switch (Cloud / This computer)
- * rendered as two loose chips, and no way at all to change how you talk to the
- * session. Everything else — picking an agent, composing a prompt with project
- * context, speaking a task — lived on OTHER pages, so driving one agent meant
- * moving between Terminal, Control and Prompts.
+ * SOURCE — *where* the session runs. Changes which transport streams bytes.
+ * VIEW   — *how* it is shown: the agent's conversation, or the raw terminal.
  *
- * The two axes are genuinely orthogonal, which is why they are two lists and
- * not one:
+ * There used to be a third axis, INPUT (Type / Prompt / Voice), which made a
+ * person pick a delivery mechanism before saying anything; Type had no
+ * microphone and Prompt did (operator, 2026-10-15: "isn't prompt supposed to
+ * be the same thing as type?"). It is gone: one session box
+ * (components/terminal/SessionComposer) carries the microphone, screenshots
+ * and the prompt library, and picks the path itself.
  *
- *   SOURCE  — *where* the session runs. Changes which transport streams bytes.
- *   INPUT   — *how* your words reach it. Changes what happens to what you type:
- *             raw bytes, an assembled prompt, or speech.
- *
- * Agent selection is a third switch but it is not enumerable here: the roster
+ * Agent selection is a switch too but it is not enumerable here: the roster
  * comes from the adapter registry at runtime (see /api/terminal/context).
  */
 
 export type TerminalSource = "cloud" | "machine" | "shell";
-
-export type TerminalInputMode = "type" | "prompt" | "voice";
 
 export type TerminalModeOption<T extends string> = {
   id: T;
@@ -53,38 +48,8 @@ export const TERMINAL_SOURCES: TerminalModeOption<TerminalSource>[] = [
   },
 ];
 
-/**
- * Input options. These are three different code paths, not three skins:
- *   type   → transport.sendKey — verbatim bytes, so Ctrl-C, arrows and TUI
- *            keybindings behave exactly as they do in a local terminal.
- *   prompt → /api/control/tab-inject — the text is assembled with project
- *            context first, and is QUEUED if the builder is offline.
- *   voice  → record → Whisper → the same tab-inject path.
- */
-export const TERMINAL_INPUT_MODES: TerminalModeOption<TerminalInputMode>[] = [
-  {
-    id: "type",
-    label: "Type",
-    hint: "Send text and keyboard shortcuts directly to the terminal.",
-  },
-  {
-    id: "prompt",
-    label: "Prompt",
-    hint: "Send a task with your project context. Add screenshots or use the microphone. Offline tasks wait for the connection.",
-  },
-  {
-    id: "voice",
-    label: "Voice",
-    hint: "Dictate a task for this session.",
-  },
-];
-
 export function terminalSourceHint(id: TerminalSource): string {
   return TERMINAL_SOURCES.find((s) => s.id === id)?.hint ?? "";
-}
-
-export function terminalInputHint(id: TerminalInputMode): string {
-  return TERMINAL_INPUT_MODES.find((m) => m.id === id)?.hint ?? "";
 }
 
 /**

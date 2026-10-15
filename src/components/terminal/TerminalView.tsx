@@ -594,7 +594,7 @@ export function TerminalView({
 
       // Fit on mount and on every host resize, and publish the result to the
       // PTY so the program on the other end re-wraps to what is on screen.
-      // Deliberately NOT gated on `interactive`: a Prompt-mode or phone viewer
+      // Deliberately NOT gated on `interactive`: a viewer without live keystrokes
       // captures no keystrokes but still reads the session, and gating the
       // publish on keystroke capture is what left a 79-column grid drawing a
       // 120-column PTY (see terminal-size-sync.ts). The floor for what a viewer

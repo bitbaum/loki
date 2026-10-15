@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Maximize2, MessageSquareWarning, Minimize2, Sparkles } from "lucide-react";
+import { ChevronDown, Maximize2, MessageSquareWarning, Minimize2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { openFeedback } from "@/lib/open-feedback";
 import type { TerminalViewMode } from "@/config/terminal-modes";
@@ -45,9 +45,7 @@ export function TerminalMobileHeader({
   onToggleImmersive,
   view,
   onViewChange,
-  onExplain,
 }: {
-  onExplain?: () => void;
   title: string;
   agent?: string | null;
   state: TerminalLiveState;
@@ -84,17 +82,6 @@ export function TerminalMobileHeader({
 
       {onViewChange && view && (
         <TerminalViewSwitch view={view} onViewChange={onViewChange} agentLabel={agent} />
-      )}
-      {onExplain && (
-        <button
-          type="button"
-          className="ui-term-mhead-icon"
-          onClick={onExplain}
-          aria-label="Summarize this session"
-          title="What's going on?"
-        >
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
-        </button>
       )}
       {/* The feedback widget's floating button is hidden on this page (it would
           cover the terminal and the composer — terminal/page.tsx), so it opens

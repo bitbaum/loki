@@ -21,21 +21,19 @@ import {
   TERMINAL_MODE_STORAGE_KEY,
   TERMINAL_RAIL_QUERY,
   TERMINAL_RAIL_STORAGE_KEY,
-  type TerminalInputMode,
   type TerminalSource,
 } from "@/config/terminal-modes";
 import type { TerminalContext } from "@/app/api/terminal/context/route";
 import { TerminalView } from "./TerminalView";
-import { TerminalExplainButton, TerminalLokiSheet, useTerminalExplain } from "./TerminalExplain";
+import { TerminalLokiSheet, useTerminalExplain } from "./TerminalExplain";
 import { TerminalSessionBar, TerminalSourceBar } from "./TerminalModeBar";
-import { TerminalComposer } from "./TerminalComposer";
+import { SessionComposer } from "./SessionComposer";
 import { TerminalLaunch } from "./TerminalLaunch";
-import { TabVoiceMic } from "./TabVoiceMic";
 import { ShellWorkspace } from "./ShellWorkspace";
 import { TerminalSessionMiss } from "./TerminalSessionMiss";
 import { TerminalMobileHeader, type TerminalLiveState } from "./TerminalMobileHeader";
 import { TerminalSessionSheet } from "./TerminalSessionSheet";
-import { TerminalMobileDock } from "./TerminalMobileDock";
+import { KeysToggle, TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
 import { buildStripTabs } from "./terminal-strip-tabs";
 import { TerminalAgentTabs } from "./TerminalAgentTabs";
@@ -142,9 +140,11 @@ function emptyStateHint(input: {
   return copy.offlineHint;
 }
 
-type TerminalMode = { source: TerminalSource; input: TerminalInputMode };
+// The stored value once also held an input mode (Type / Prompt / Voice). There
+// is one session box now; an old stored `input` is simply ignored.
+type TerminalMode = { source: TerminalSource };
 
-const DEFAULT_MODE: TerminalMode = { source: "cloud", input: "type" };
+const DEFAULT_MODE: TerminalMode = { source: "cloud" };
 
 // Module-level so their identity is stable across renders — useLocalStorageState
 // keeps them in effect dependency arrays.
@@ -154,10 +154,7 @@ const deserializeRail = (raw: string) => raw !== "0";
 const deserializeMode = (raw: string): TerminalMode => {
   try {
     const parsed = JSON.parse(raw) as Partial<TerminalMode>;
-    return {
-      source: parsed.source ?? DEFAULT_MODE.source,
-      input: parsed.input ?? DEFAULT_MODE.input,
-    };
+    return { source: parsed.source ?? DEFAULT_MODE.source };
   } catch {
     return DEFAULT_MODE;
   }
@@ -174,9 +171,10 @@ const deserializeMode = (raw: string): TerminalMode => {
  * and neither half offered any way to change agent or to compose a task — those
  * lived on Control, acting on the same session from another page.
  *
- * Now the chrome is constant: tab strip, mode bar, session, composer. The
- * source picks which transport fills the session; the input mode picks what
- * happens to what you type. Nothing about navigating changes when you switch.
+ * Now the chrome is constant: tab strip, session bar, session, and ONE box
+ * for the agent (SessionComposer) — the same box in the terminal view and the
+ * conversation view. The source picks which transport fills the session.
+ * Nothing about navigating changes when you switch.
  *
  * ── The phone ───────────────────────────────────────────────────────────────
  * Below `md` the same state drives a different chrome, because the desktop one
@@ -347,12 +345,10 @@ export function TerminalSurface({
   // Final resolved tab for the active source
   const resolvedInitialTab = resolveProjectToTab(initialTab, context);
 
-  const inputMode = mode.input;
   const setSource = (next: TerminalSource) => {
     setPickedSource(next);
     setMode((m) => ({ ...m, source: next }));
   };
-  const setInputMode = (next: TerminalInputMode) => setMode((m) => ({ ...m, input: next }));
 
   // Separate user's manual selection from the deep-linked/resolved initial tab.
   // This way, selected automatically updates when resolvedInitialTab changes
@@ -400,6 +396,9 @@ export function TerminalSurface({
   // never be overtaken by the Enter sent after it — and the caller can await
   // the moment the last byte has actually left.
   const sendKey = useTerminalInput(transport);
+  // What the session box sends with: a failed write is reported, so the box
+  // keeps the words instead of clearing them as if they had gone.
+  const sendReported = useCallback((bytes: string) => sendKey(bytes, true), [sendKey]);
 
   // Phone chrome state. Font and stream status are owned here rather than
   // inside TerminalView because the controls that read them now live outside
@@ -409,7 +408,7 @@ export function TerminalSurface({
   const keyboardInset = useKeyboardInset();
   const [sheetOpen, setSheetOpen] = useState(false);
   // The rail beside the session (lg+). Closing it hands its columns to the
-  // terminal; the choice is remembered, like the input mode.
+  // terminal; the choice is remembered, like the source.
   const [railOpen, setRailOpen] = useLocalStorageState<boolean>(
     TERMINAL_RAIL_STORAGE_KEY,
     true,
@@ -419,20 +418,18 @@ export function TerminalSurface({
   // Whether the rail can sit beside the session at this width at all. Below
   // it the rail is a sheet, and the toggle opens that instead.
   const railFits = useMediaQuery(TERMINAL_RAIL_QUERY);
-  const explainer = useTerminalExplain(
-    initialExplain,
-    railFits,
-    () => setRailOpen(true),
-    Boolean(initialPrompt),
-  );
+  const explainer = useTerminalExplain(initialExplain, railFits, () => setRailOpen(true));
   const [liveState, setLiveState] = useState<TerminalLiveState>("connecting");
-  // A press on the read-only screen means "let me type": Type mode, and the
-  // cursor to whichever box takes keys (the terminal, or the dock's box).
-  const [typeRequest, setTypeRequest] = useState(0);
-  const typeIntoScreen = () => {
-    setInputMode("type");
-    setTypeRequest((n) => n + 1);
-  };
+  // A press on the read-only screen means "let me write": the session box
+  // takes the cursor. (Where keystrokes go live, the screen takes them itself.)
+  const [focusRequest, setFocusRequest] = useState(0);
+  const writeToSession = () => setFocusRequest((n) => n + 1);
+  // Words for the session box that the person did not type: `?q=` on arrival,
+  // or a step from Loki's summary. Checked and sent by them.
+  const [sessionDraft, setSessionDraft] = useState<{ text: string; nonce: number } | null>(() =>
+    initialPrompt ? { text: initialPrompt, nonce: 1 } : null,
+  );
+  const [keysOpen, setKeysOpen] = useState(false);
   // The attached session's rendered screen, for the rail's AI summary.
   const readScreenRef = useRef<((rows: number) => string[]) | null>(null);
   const [geometry, setGeometry] = useState<PtyGeometry | null>(null);
@@ -463,8 +460,11 @@ export function TerminalSurface({
   const chatAvailable = termView.chatAvailable && !transcriptMissing;
   const view = transcriptMissing ? "terminal" : termView.view;
   const projectKey = tabContext?.projectName ?? activeTab ?? initialTab ?? null;
-  const promptOpen = Boolean(activeTab) && view === "terminal" && inputMode === "prompt";
-  const suggestions = useScreenSuggestions(readScreenRef, promptOpen, projectKey);
+  const suggestions = useScreenSuggestions(
+    readScreenRef,
+    Boolean(activeTab) && view === "terminal",
+    projectKey,
+  );
 
   const ta = useTerminalTabActions(channel, tabs.length, {
     tab: activeTab,
@@ -524,7 +524,6 @@ export function TerminalSurface({
   const mobileHeader = (
     <TerminalMobileHeader
       title={headerTitle}
-      onExplain={activeTab && projectKey && view === "chat" ? explainer.ask : undefined}
       agent={headerAgent}
       state={headerState}
       onOpenSheet={() => setSheetOpen(true)}
@@ -548,9 +547,14 @@ export function TerminalSurface({
         canSwitchAgent={!agentSwitchDisabledReason}
         onSwitchAgent={(id) => void ta.switchAgent(id)}
         readScreenRef={readScreenRef}
-        askOnly={view === "chat"}
+        // Loki's panel only ASKS: the session box under the terminal is where
+        // words for the agent go, in both views. A summary's step lands there.
+        askOnly
         explain={explainer}
-        initialDraft={initialPrompt}
+        onStep={(text) => {
+          setSessionDraft({ text, nonce: Date.now() });
+          explainer.setSheetOpen(false);
+        }}
         agent={activeAgentId}
         onKey={activeTab ? sendKey : undefined}
       />
@@ -587,8 +591,6 @@ export function TerminalSurface({
       tabs={source === "shell" ? undefined : stripTabs}
       activeTab={source === "shell" ? null : activeTab}
       onSelectTab={source === "shell" ? undefined : setUserSelection}
-      inputMode={inputMode}
-      onInputModeChange={setInputMode}
       agents={agents}
       activeAgentId={activeAgentId}
       onSwitchAgent={(id) => void ta.switchAgent(id)}
@@ -736,8 +738,10 @@ export function TerminalSurface({
           tab={activeTab}
           channel={channel}
           onLive={setLiveState}
-          onKey={(bytes) => sendKey(bytes, true)}
+          onKey={sendReported}
           onShowTerminal={termView.showTerminal}
+          onExplain={projectKey ? explainer.ask : undefined}
+          draft={sessionDraft}
           onUnavailable={() =>
             setNoTranscript((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)))
           }
@@ -749,15 +753,11 @@ export function TerminalSurface({
         key={`${channel}:${activeTab}`}
         transport={transport}
         fill
-        // Only Type mode captures keystrokes, and only where the operator
-        // actually wants the canvas to have the keyboard. In Prompt and Voice
-        // mode — and on a phone by default, where typing happens in the dock's
-        // composer — the session stays readable and the page keeps its own
-        // keyboard, so Alt+N tab switching and the composer are not swallowed
-        // by the PTY.
-        interactive={inputMode === "type" && deck.liveKeys}
-        onActivate={inputMode === "type" && deck.liveKeys ? undefined : typeIntoScreen}
-        autoFocus={typeRequest > 0}
+        // Live keystrokes (on by default on a computer, off on a phone, where
+        // a soft keyboard fights a terminal canvas): pressing the screen gives
+        // it the keyboard. Off, pressing it puts the cursor in the session box.
+        interactive={deck.liveKeys}
+        onActivate={deck.liveKeys ? undefined : writeToSession}
         compactChrome={immersive}
         stalledHint={copy.stalledHint}
         font={font}
@@ -801,8 +801,6 @@ export function TerminalSurface({
       {activeTab && (
         <div className="hidden md:block">
           <TerminalSessionBar
-            inputMode={inputMode}
-            onInputModeChange={setInputMode}
             agents={agents}
             activeAgentId={activeAgentId}
             onSwitchAgent={(id) => void ta.switchAgent(id)}
@@ -828,46 +826,36 @@ export function TerminalSurface({
         <TerminalActions readScreenRef={readScreenRef} agent={activeAgentId} onKey={sendKey} />
       )}
 
-      {activeTab && projectKey && !railShown && !(railFits && immersive) && (
-        <div className={view === "chat" ? "hidden md:block" : undefined}>
-          <TerminalExplainButton onClick={explainer.ask} />
-        </div>
-      )}
-
-      {/* Desktop composers. The phone's live in the dock below, alongside the
-          key deck, so there is exactly one stack of controls under the screen
-          rather than a composer here and a keyboard somewhere else. While the
-          Loki rail is beside the session its Inject IS the prompt composer —
-          the same component — so a second copy under the terminal would be
-          two boxes on one screen for one job. */}
-      {activeTab && view === "terminal" && inputMode === "prompt" && !railShown && (
-        <div className="hidden md:block">
-          <TerminalComposer
-            tab={activeTab}
-            suggestions={suggestions}
-            agent={activeAgentId}
-            onKey={sendKey}
-          />
-        </div>
-      )}
-      {activeTab && view === "terminal" && inputMode === "voice" && (
-        <div className="hidden shrink-0 items-center md:flex">
-          <TabVoiceMic tab={activeTab} channel={channel} compact={immersive} />
-        </div>
-      )}
-
+      {/* ONE box for the agent, at every width — the same SessionComposer the
+          conversation view shows. Microphone, screenshots and the prompt
+          library are in it; "What's going on?" is the first chip above it;
+          the keys a phone lacks are one button in its tool row. */}
       {activeTab && view === "terminal" && (
         <TerminalMobileDock
-          tab={activeTab}
-          channel={channel}
-          inputMode={inputMode}
-          onInputModeChange={setInputMode}
-          suggestions={suggestions}
           onKey={sendKey}
-          agent={activeAgentId}
-          typeRequest={typeRequest}
-          liveKeys={deck.liveKeys}
+          keysOpen={keysOpen}
+          onKeysOpenChange={setKeysOpen}
           immersive={immersive}
+          box={
+            <SessionComposer
+              tab={activeTab}
+              channel={channel}
+              onKey={sendReported}
+              live={liveState === "live"}
+              agent={activeAgentId}
+              agentLabel={headerAgent ?? "the agent"}
+              suggestions={suggestions}
+              onExplain={projectKey ? explainer.ask : undefined}
+              draft={sessionDraft}
+              focusRequest={focusRequest}
+              density={immersive ? "compact" : "comfortable"}
+              tools={
+                <span className="md:hidden">
+                  <KeysToggle open={keysOpen} onOpenChange={setKeysOpen} />
+                </span>
+              }
+            />
+          }
         />
       )}
 

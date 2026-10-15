@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { TERMINAL_RAIL_QUERY } from "@/config/terminal-modes";
 
@@ -21,13 +20,10 @@ export function useTerminalExplain(
   /** The rail can sit beside the session; the answer goes there, not a sheet. */
   railFits: boolean,
   openRail: () => void,
-  /** The rail has words waiting in its composer (`?q=`): open it on a phone
-   *  too, or the person who arrived with a draft would never see it. */
-  openForDraft = false,
 ) {
   const [sheetOpen, setSheetOpen] = useState(
     () =>
-      (initialExplain || openForDraft) &&
+      initialExplain &&
       typeof window !== "undefined" &&
       !window.matchMedia(TERMINAL_RAIL_QUERY).matches,
   );
@@ -46,19 +42,6 @@ export function useTerminalExplain(
       else setSheetOpen(true);
     },
   };
-}
-
-export function TerminalExplainButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="ui-btn-secondary w-full shrink-0 justify-center gap-2"
-    >
-      <Sparkles className="h-4 w-4" aria-hidden="true" />
-      What&apos;s going on?
-    </button>
-  );
 }
 
 /** The Loki rail as a bottom sheet, where it cannot sit beside the session.

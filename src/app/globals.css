@@ -3206,21 +3206,30 @@
      toolbars) it covered every line of the terminal you were picking a prompt
      in answer to; under half the viewport, some of the session always shows. */
   .ui-picker-panel {
-    max-height: min(20rem, 45dvh);
+    max-height: min(26rem, 55dvh);
   }
   /* Wraps rather than scrolls: at 320px the Esc/Enter pair drops to its own
      line instead of pushing a mode chip off screen. */
   .ui-term-watchbar {
     @apply flex min-w-0 flex-wrap items-center gap-1.5;
   }
-  /* Suggested prompts above the Prompt box: one scrolling row, so they cost a
-     line of the phone screen rather than three. */
+  /* Next steps above the session box: they wrap, so each is read whole —
+     a sideways strip of clamped chips hid the end of every sentence. */
   .ui-term-suggests {
-    @apply flex min-w-0 gap-1.5 overflow-x-auto pb-1.5;
-    scrollbar-width: none;
+    @apply flex min-w-0 flex-wrap gap-1.5 pb-1.5;
   }
   .ui-term-suggest {
-    @apply inline-flex min-h-9 max-w-52 shrink-0 items-center rounded-2xl border border-border-subtle bg-surface-base px-3 py-1 text-left text-xs leading-snug text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
+    @apply inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-2xl border border-border-subtle bg-surface-base px-3 py-1 text-left text-xs leading-snug text-text-secondary transition-colors hover:border-border-interactive hover:text-text-primary;
+  }
+  /* A phone shows the first two steps: three full sentences took a third of
+     the screen above the box. The first is the recommended one. */
+  @media (width < 48rem) {
+    .ui-term-suggests > li:nth-child(n + 4) {
+      display: none;
+    }
+  }
+  .ui-term-suggest-explain {
+    @apply border-border-default text-text-primary;
   }
   /* What the screen needs TYPED (TerminalActions): the agent's own command or
      a key, with the sentence that says why. Bordered like a note, not a chip
@@ -3252,28 +3261,6 @@
   }
   .ui-term-commands-note {
     @apply px-2.5 pb-2 text-micro text-text-muted;
-  }
-  .ui-term-dock-hint {
-    @apply px-1 text-micro leading-snug text-text-muted;
-  }
-  .ui-term-mcomposer {
-    @apply flex items-end gap-1.5 rounded-xl border border-border-default bg-surface-raised p-1.5;
-  }
-  /* text-base: this is THE field a phone operator types agent input into, and
-     a sub-16px focus makes Safari zoom the terminal surface out from under the
-     key deck. */
-  .ui-term-mcomposer-input {
-    @apply min-h-11 w-full flex-1 resize-none bg-transparent px-2 py-2.5 text-base leading-snug text-text-primary outline-none placeholder:text-text-muted sm:text-sm;
-    font-family: var(--font-mono);
-  }
-  .ui-term-mcomposer-enter {
-    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border-subtle text-text-muted transition-colors;
-  }
-  .ui-term-mcomposer-enter-on {
-    @apply border-border-interactive bg-surface-overlay text-text-primary;
-  }
-  .ui-term-mcomposer-send {
-    @apply inline-flex h-11 shrink-0 items-center justify-center rounded-lg bg-accent-primary px-4 text-sm font-medium text-text-inverted transition-opacity disabled:opacity-40;
   }
 
   /* ── Bottom sheet ─────────────────────────────────────────────────────────
