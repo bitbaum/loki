@@ -159,5 +159,12 @@ hr "8. Did chat -> Loki ever work lately? (actions Loki queued, newest first —
 psqlq "select to_char(created_at at time zone 'Europe/Zurich','MM-DD HH24:MI') as at_zurich, type, status
   from actions order by created_at desc limit 8"
 
+hr "11. How does the gateway send a message? (CLI help — public documentation text only)"
+printf '%s\n' \
+  '[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc" >/dev/null 2>&1 || true' \
+  'command -v openclaw >/dev/null 2>&1 || for d in "$HOME"/.nvm/versions/node/*/bin; do [ -x "$d/openclaw" ] && PATH="$d:$PATH" && break; done' \
+  'timeout 25 openclaw message send --help 2>&1 | head -45' \
+  | sudo -iu openclaw env XDG_RUNTIME_DIR="/run/user/${uid}" bash -ls 2>&1 | cut -c1-200
+
 echo
 echo "doctor-messaging: done (nothing was changed$([ "$SEND_TEST" = "1" ] && echo ", except one Telegram test message"))."
