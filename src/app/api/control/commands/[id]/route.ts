@@ -13,6 +13,7 @@ import { autoReimplementAfterRunnerNack } from "@/lib/feedback/auto-reimplement"
 import { autoRetryProjectRunAfterNack } from "@/lib/project-retry";
 import { runHandoff } from "@/lib/run-handoff";
 import { followRun } from "@/lib/run-follow";
+import { loadRunMilestones } from "@/lib/run-milestones-load";
 
 // GET /api/control/commands/:id — live dispatch status the transcript footer
 // polls so a dispatch shows queued → picked up → ran/failed instead of a frozen
@@ -51,6 +52,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     handoff: runHandoff(run?.finishedAt ? run.summary : null),
     // …and where the change went after that, while the card is open.
     follow: view.terminal && run ? await followRun(userId, run).catch(() => null) : null,
+    // …and while it runs, what it has pushed so far.
+    milestones:
+      !view.terminal && run && command.claimedAt
+        ? await loadRunMilestones(userId, run, command.claimedAt).catch(() => null)
+        : null,
   });
 }
 

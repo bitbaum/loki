@@ -28,6 +28,7 @@ import { isDispatchCardAction, presentDispatchCard, watchHref } from "@/lib/disp
 import { cloudBuilderState } from "@/lib/builder-way-forward";
 import { isBuilderChannel } from "@/lib/constants/statuses";
 import { postJson } from "@/lib/api/fetch";
+import { RunMilestones } from "@/components/loki/RunMilestones";
 import { rankByQuery, TEXT_SPEC } from "@/lib/search";
 /** Human-readable label for an assistant turn's kind badge. SSOT for the
  *  small set of kinds the messages route emits. */
@@ -208,6 +209,7 @@ export function DispatchFooter({
           {pinned && `Agent: ${pinned}`}
         </p>
       )}
+      {!live?.terminal && live?.milestones && <RunMilestones milestones={live.milestones} />}
       {live?.terminal && live.follow && <RunFollowLine follow={live.follow} />}
       {handoff && (
         <RunHandoffBlock

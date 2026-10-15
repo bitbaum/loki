@@ -6764,6 +6764,22 @@
   .ui-loki-handoff {
     @apply mt-2 flex min-w-0 flex-col gap-3 border-t border-border-subtle pt-3;
   }
+  /* A running build's progress so far, under its dispatch card (run-milestones.ts). */
+  .ui-loki-milestones {
+    @apply mt-2 flex min-w-0 flex-col gap-2 border-t border-border-subtle pt-3;
+  }
+  .ui-loki-milestone {
+    @apply flex min-w-0 items-start gap-2;
+  }
+  .ui-loki-milestone-label {
+    @apply text-sm text-text-primary wrap-anywhere;
+  }
+  .ui-loki-milestone-time {
+    @apply ml-2 text-xs text-text-muted tabular-nums;
+  }
+  .ui-loki-milestone-quote {
+    @apply mt-0.5 text-sm text-text-secondary wrap-anywhere;
+  }
   .ui-loki-handoff-list {
     @apply mt-1 list-disc space-y-1 pl-5 text-sm text-text-primary wrap-anywhere;
   }
