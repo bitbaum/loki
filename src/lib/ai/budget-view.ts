@@ -49,6 +49,7 @@ import {
 import { fairShare, utcDayElapsed } from "@/lib/ai-budget/fair-share";
 import { ESTIMATED_TURN_TOKENS } from "@/lib/ai-budget/gate";
 import { refillsIn, TOKENS_PER_ANSWER, type QuotaRowView } from "@/lib/ai/quota-view";
+import { atClock } from "@/lib/ai/clock-words";
 
 export type FreePoolState =
   /** Within the paced allowance: the next answer is admitted now. */
@@ -83,6 +84,12 @@ export type FreePoolBudget = {
   usedLevel: number;
   /** "in 12 minutes" when paced; null otherwise. */
   unlocksIn: string | null;
+  /** When the next answer frees up, as a clock time ("at 13:35"); null unless paced. */
+  nextAt: string | null;
+  /** When the day starts over, as a clock time ("tomorrow at 02:00"). */
+  fullAgainAt: string;
+  /** Two or three words for the composer's model button ("12 left"); null when there is nothing to count. */
+  short: string | null;
   /** When the day's budget refills — midnight UTC, in words. */
   resetsIn: string;
   activeUsers: number;
@@ -110,7 +117,7 @@ export type OwnKeyBudget = {
   billingUrl: string | null;
 };
 
-/** What a vendor last said about one model in the free pool — for the picker row. */
+/** One free model, for its picker row: what the vendor last said, and what is left on it. */
 export type ModelHeadroom = {
   /** `${provider}/${model}`, the picker's own key for a free-chain row. */
   id: string;
@@ -119,6 +126,12 @@ export type ModelHeadroom = {
   state: QuotaRowView["state"];
   /** One line when there is something to say; null when the model is simply available. */
   note: string | null;
+  /**
+   * What is left on THIS model, always — "12 left today", "None left · back
+   * in 3 hours". Every row says it, not only a row about to run out: a person
+   * running several things wants the number before they pick, not after.
+   */
+  left: string;
 };
 
 /** One thing the person can do about the numbers, in order of use right now. */
@@ -179,6 +192,8 @@ export type BudgetInput = {
   memory: { turns: number; charsPerTurn: number };
   /** How Auto spends the person's own keys; "thrifty" is the lever this view can offer. */
   stance?: "thrifty" | "balanced" | "best";
+  /** The person's zone, so times read as their clock ("at 13:35"). Default: the server's. */
+  timeZone?: string | null;
 };
 
 /** Bounds on a measured per-answer cost, so one odd day cannot make the count absurd. */
@@ -203,7 +218,7 @@ function answersIn(tokens: number, perAnswer: number): number {
   return admissionsLeft(tokens, ESTIMATED_TURN_TOKENS, perAnswer);
 }
 
-const OWN_KEY_LEVER = "Bring your own key and the daily share no longer applies to your chats.";
+const OWN_KEY_LEVER = "Add your own model key and there is no daily limit on your chats.";
 
 function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
   const now = input.now.getTime();
@@ -223,6 +238,7 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
   });
 
   const resetsIn = refillsIn(nextUtcMidnight(input.now), now) ?? "at midnight UTC";
+  const fullAgainAt = atClock(nextUtcMidnight(input.now), input.now, input.timeZone);
   const models = input.chain.map((l) => `${l.provider}/${l.model}`);
   const answersNow = decision.allowed
     ? answersIn(decision.allowanceTokens - spent, tokensPerAnswer)
@@ -252,11 +268,13 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
     resetsIn,
     activeUsers: Math.max(1, Math.floor(input.activeUsers) || 1),
     models,
+    fullAgainAt,
+    nextAt: null as string | null,
   };
 
   // With keys, the pool is the fallback; the lever is to keep it that way.
   const lever = hasOwnKeys
-    ? "Auto uses your keys first. Choosing a shared model uses this pool; an own-key failure asks before switching to free."
+    ? "Auto uses your own keys first. Choosing a free model uses this daily count; if your key fails, Loki asks before switching to free."
     : OWN_KEY_LEVER;
 
   if (decision.reason === "no-capacity") {
@@ -266,7 +284,8 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
       answersNow: 0,
       answersToday: 0,
       unlocksIn: null,
-      line: "No free pool on this server — there is nothing to share.",
+      short: null,
+      line: "No free models on this server.",
       consequence: hasOwnKeys
         ? "Your keys are the only thing answering here."
         : "Bring your own key and Loki answers on it.",
@@ -280,7 +299,8 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
       answersNow: 0,
       answersToday,
       unlocksIn: null,
-      line: `The whole free pool is spent for today${poolBack ? `, back ${poolBack}` : ""} — every vendor, not just your share.`,
+      short: "0 left",
+      line: `The free models are used up for everyone today${poolBack ? ` — back ${poolBack}` : ""}. Not just you: every free model.`,
       consequence: lever,
     };
   }
@@ -292,7 +312,8 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
       answersNow: 0,
       answersToday: 0,
       unlocksIn: null,
-      line: `Your share for today is spent — it resets ${resetsIn}.`,
+      short: "0 left",
+      line: `No free answers left today — full again ${fullAgainAt}.`,
       consequence: lever,
     };
   }
@@ -302,22 +323,26 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
       decision.retryAfterSeconds !== undefined
         ? (refillsIn(new Date(now + decision.retryAfterSeconds * 1000), now) ?? "soon")
         : null;
+    const nextAt =
+      decision.retryAfterSeconds !== undefined
+        ? atClock(new Date(now + decision.retryAfterSeconds * 1000), input.now, input.timeZone)
+        : null;
     return {
       ...base,
       state: "paced",
       answersNow: 0,
       answersToday,
       unlocksIn,
-      line:
-        `Your share for now is used up — the next answer unlocks ${unlocksIn ?? "soon"}, ` +
-        `and about ${plural(answersToday, "more")} ${answersToday === 1 ? "is" : "are"} yours by the end of the day.`,
-      consequence: `It unlocks through the day so everyone here gets a turn. ${lever}`,
+      nextAt,
+      short: nextAt ? `next ${nextAt.replace(/^at /, "")}` : `${count(answersToday)} left`,
+      line: `${plural(answersToday, "free answer")} left today — the next one ${nextAt ?? "soon"}.`,
+      consequence: `They free up through the day, so whoever comes later still gets some. ${lever}`,
     };
   }
 
   const pacedTail =
     answersToday > answersNow
-      ? ` — the rest unlocks through the day so everyone here gets a turn`
+      ? ` (${count(answersNow)} right now, the rest free up through the day)`
       : "";
   return {
     ...base,
@@ -325,9 +350,8 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
     answersNow,
     answersToday,
     unlocksIn: null,
-    line:
-      `About ${plural(answersNow, "more answer")} now, ${count(answersToday)} by the end of the day` +
-      `${pacedTail} · resets ${resetsIn}.`,
+    short: `${count(answersToday)} left`,
+    line: `${plural(answersToday, "free answer")} left today${pacedTail} · full again ${fullAgainAt}.`,
     consequence: lever,
   };
 }
@@ -376,23 +400,40 @@ function headline(pool: FreePoolBudget, ownKeys: OwnKeyBudget[]): string {
   if (ownKeys.length > 0) {
     const behind =
       pool.state === "none"
-        ? "no free pool behind them on this server"
+        ? "no free models behind them on this server"
         : pool.state === "pool-spent" || pool.state === "spent"
-          ? "the free pool behind them is spent for today"
-          : `about ${plural(pool.answersToday, "free answer")} behind them today`;
-    return `Your keys answer first, with no cap from Loki — ${behind}.`;
+          ? "no free answers left behind them today"
+          : `${plural(pool.answersToday, "free answer")} behind them today`;
+    return `Your own keys answer first, with no daily limit from Loki — ${behind}.`;
+  }
+  return pool.line;
+}
+
+/** What is left on one free model, for its row — always a sentence, never blank. */
+export function modelLeft(pool: FreePoolBudget, row: QuotaRowView | null): string {
+  if (row?.state === "exhausted") {
+    return row.refills ? `None left right now — back ${row.refills}` : "None left right now";
   }
   switch (pool.state) {
-    case "ok":
-      return `About ${plural(pool.answersNow, "free answer")} left now, ${count(pool.answersToday)} today · resets ${pool.resetsIn}.`;
-    case "paced":
-      return `Your free share for now is used up — more unlocks ${pool.unlocksIn ?? "soon"}.`;
-    case "spent":
-      return `Your free share for today is spent — resets ${pool.resetsIn}.`;
-    case "pool-spent":
-      return "The free pool is spent for everyone today.";
     case "none":
-      return "No free pool on this server.";
+      return "Not set up on this server";
+    case "pool-spent":
+    case "spent":
+      return `None left today — full again ${pool.fullAgainAt}`;
+    case "paced":
+      return `${count(pool.answersToday)} left today · next one ${pool.nextAt ?? "soon"}`;
+    case "ok": {
+      const low =
+        row?.state === "known" &&
+        row.urgent &&
+        row.answers !== null &&
+        row.answers < pool.answersToday
+          ? row.answers
+          : null;
+      return low !== null
+        ? `Running low — about ${count(low)} left${row?.refills ? `, more ${row.refills}` : ""}`
+        : `${count(pool.answersToday)} left today`;
+    }
   }
 }
 
@@ -407,7 +448,7 @@ function paceLine(input: BudgetInput, pool: FreePoolBudget): string | null {
   if (pool.turnsToday < MEASURED_AFTER_TURNS) return null;
   return phrasePace(
     paceForecast({ used: pool.spentTokens, limit: pool.shareTokens, now: input.now, minUsed: 0 }),
-    { subject: "your share", then: " — pacing will slow you down before that, not stop you" },
+    { subject: "your daily count", then: " — waits get longer before that, they do not stop you" },
   );
 }
 
@@ -421,7 +462,7 @@ function meaningOf(
       ? {
           ...input.week,
           // Seven days ending today, not a calendar week — so it does not say "this week".
-          line: `Last 7 days: ${plural(input.week.turns, "answer")} on the free pool, ${count(input.week.tokens)} tokens, on ${plural(input.week.days, "day")}.`,
+          line: `Last 7 days: ${plural(input.week.turns, "free answer")}, ${count(input.week.tokens)} tokens, on ${plural(input.week.days, "day")}.`,
         }
       : null;
 
@@ -441,15 +482,15 @@ function meaningOf(
   if (pool.state === "paced" && pool.unlocksIn) {
     actions.push({
       id: "wait",
-      label: `More unlocks ${pool.unlocksIn}`,
-      why: "Waiting is enough — your share for today is not spent, only ahead of the pace.",
+      label: `Next one ${pool.nextAt ?? pool.unlocksIn}`,
+      why: "Waiting is enough — you still have free answers today, the next one is just not ready yet.",
     });
   }
   if (ownKeys.length === 0 && pool.state !== "none") {
     actions.push({
       id: "bring-key",
       label: "Bring your own key",
-      why: "Your chats run on your vendor account with no daily share, and the free pool stays for everyone else.",
+      why: "Your chats run on your own account with that provider, with no daily limit from Loki.",
       href: "/models",
     });
   }
@@ -470,18 +511,18 @@ function meaningOf(
         "the big number is answers and the tokens are underneath for checking.",
     },
     {
-      title: "Your share",
+      title: "Why there is a daily count",
       body:
-        "The free models' vendors give this server a fixed amount a day. It is split between everyone " +
-        "who chats today — recomputed on every turn — so your share grows on a quiet day and shrinks " +
-        "on a busy one. Nothing is taken back once spent.",
+        "The free models are free because their makers give this server a fixed amount each day. " +
+        "That amount is divided between everyone who uses Loki that day, so your count is higher on " +
+        "a quiet day and lower on a busy one. All the free models draw on the same count.",
     },
     {
-      title: "Unlocks through the day",
+      title: "Why some answers wait",
       body:
-        "A whole day's share could be spent before breakfast, leaving nothing for the evening. So it " +
-        "unlocks gradually, with a head start for the first turns, which is what keeps capacity for " +
-        'whoever arrives later. "Paced" means waiting helps; "spent" means it does not until midnight.',
+        "If the whole day's answers could be used up before breakfast, there would be none left in " +
+        "the evening. So they free up through the day: when you have to wait, the next one is ready " +
+        "at the time shown. When none are left for today, the count starts over at midnight UTC.",
     },
     utcResetExplanation(),
     { title: "What Loki remembers", body: memory.line },
@@ -502,16 +543,22 @@ function meaningOf(
 export function userBudgetView(input: BudgetInput): BudgetView {
   const ownKeys = input.ownKeys.map(ownKey);
   const pool = freePool(input, ownKeys.length > 0);
-  const chainIds = new Set(pool.models);
-  const models: ModelHeadroom[] = input.vendorRows
-    .filter((r) => chainIds.has(`${r.provider}/${r.model}`))
-    .map((r) => ({
-      id: `${r.provider}/${r.model}`,
-      provider: r.provider,
-      model: r.model,
-      state: r.state,
-      note: headroomNote(r),
-    }));
+  const rowsById = new Map(input.vendorRows.map((r) => [`${r.provider}/${r.model}`, r]));
+  // Every free model gets a row — one the vendor has said nothing about still
+  // has the person's count on it. Only listing rows with a vendor reading left
+  // most of the picker silent.
+  const models: ModelHeadroom[] = input.chain.map((l) => {
+    const id = `${l.provider}/${l.model}`;
+    const r = rowsById.get(id) ?? null;
+    return {
+      id,
+      provider: l.provider,
+      model: l.model,
+      state: r?.state ?? "unknown",
+      note: r ? headroomNote(r) : null,
+      left: modelLeft(pool, r),
+    };
+  });
   return {
     headline: headline(pool, ownKeys),
     freePool: pool,

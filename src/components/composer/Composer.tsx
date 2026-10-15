@@ -106,7 +106,14 @@ export function Composer({
       voice={voice ? { transcribeUrl: TRANSCRIBE_URL, prefer: "server" } : false}
       tools={
         <>
-          {modelPicker && <ModelPicker value={model} onChange={setModel} disabled={disabled} />}
+          {modelPicker && (
+            <ModelPicker
+              value={model}
+              onChange={setModel}
+              disabled={disabled}
+              busy={Boolean(rest.sending)}
+            />
+          )}
           {tools}
         </>
       }
