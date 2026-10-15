@@ -1,5 +1,8 @@
+import assert from "node:assert/strict";
 import {
   asFleetProject,
+  fleetProjectForLocation,
+  registerFleetRouteProject,
   fleetSurfaceHref,
   projectFromFleetRoute,
   withTerminalView,
@@ -68,3 +71,14 @@ if (withTerminalView("/terminal", "chat") !== "/terminal?view=chat") {
 }
 
 console.log("✓ fleet-context tests passed");
+
+const watchPath = "/projects/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/watch";
+assert.equal(fleetProjectForLocation(watchPath, new URLSearchParams(), "petvity"), null);
+const unregister = registerFleetRouteProject(watchPath, "loki");
+assert.equal(fleetProjectForLocation(watchPath, new URLSearchParams(), "petvity"), "loki");
+unregister();
+assert.equal(fleetProjectForLocation(watchPath, new URLSearchParams(), "petvity"), null);
+assert.equal(
+  fleetProjectForLocation("/terminal", new URLSearchParams("project=petvity"), "loki"),
+  "petvity",
+);

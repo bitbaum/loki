@@ -29,8 +29,8 @@ export function AiBudgetSettings() {
 
   return (
     <section className="ui-settings-section" id="budget">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 basis-56">
           <h2 className="font-medium text-text-primary">Your AI budget today</h2>
           <p className="-mt-1 text-sm text-text-secondary">
             What you can still ask, on every source Loki answers from. Only chat on the free pool
@@ -238,20 +238,25 @@ function FreePoolSource({
       </p>
 
       {pool.models.length > 0 && (
-        <ul className="space-y-1" aria-label="Models in the free pool">
-          {pool.models.map((id) => {
-            const [provider, ...rest] = id.split("/");
-            const model = rest.join("/");
-            const note = noteFor.get(id) ?? null;
-            return (
-              <li key={id} className="ui-budget-model">
-                <span className="text-text-primary">{describeChatModel(model).name}</span>
-                <span className="text-text-muted">{provider}</span>
-                {note && <span className="ui-budget-model-note">{note}</span>}
-              </li>
-            );
-          })}
-        </ul>
+        <details className="ui-disclosure">
+          <summary className="ui-disclosure-summary">
+            Models in the free pool · {pool.models.length}
+          </summary>
+          <ul className="ui-disclosure-body space-y-1" aria-label="Models in the free pool">
+            {pool.models.map((id) => {
+              const [provider, ...rest] = id.split("/");
+              const model = rest.join("/");
+              const note = noteFor.get(id) ?? null;
+              return (
+                <li key={id} className="ui-budget-model">
+                  <span className="text-text-primary">{describeChatModel(model).name}</span>
+                  <span className="text-text-muted">{provider}</span>
+                  {note && <span className="ui-budget-model-note">{note}</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </details>
       )}
     </div>
   );

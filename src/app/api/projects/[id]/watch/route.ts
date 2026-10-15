@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { promptHistory } from "@/db/schema/prompt-history";
+import { getProjectAccess } from "@/db/queries/project-access";
+import { dispatchMessageDisplay } from "@/lib/terminal-conversation";
 import { getSessionUserId } from "@/lib/session";
 import { readIdParam } from "@/lib/api/route-helpers";
 import { isValidUuid } from "@/lib/utils";
@@ -38,17 +40,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const idOrResp = await readIdParam(params);
   if (idOrResp instanceof NextResponse) return idOrResp;
 
-  const project = await getProjectCore(userId, idOrResp);
+  const access = await getProjectAccess(userId, idOrResp);
+  const executionUserId = access?.ownerUserId ?? userId;
+  const ownerView = executionUserId === userId;
+  const project = await getProjectCore(executionUserId, idOrResp);
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const kickoff = getServerKickoff(userId, idOrResp);
+  const kickoff = getServerKickoff(executionUserId, idOrResp);
   const pinnedId = req.nextUrl.searchParams.get("run");
+  if (pinnedId && !isValidUuid(pinnedId))
+    return NextResponse.json({ error: "Invalid run" }, { status: 400 });
   const pinned =
-    pinnedId && isValidUuid(pinnedId) ? await getOrchestrationRunById(userId, pinnedId) : null;
+    pinnedId && isValidUuid(pinnedId)
+      ? await getOrchestrationRunById(executionUserId, pinnedId)
+      : null;
+  if (pinnedId && (!pinned || pinned.projectId !== idOrResp))
+    return NextResponse.json({ error: "Run not found for this project" }, { status: 404 });
   const run =
     (pinned && pinned.projectId === idOrResp ? pinned : null) ??
-    (await getProjectOrchestrationRuns(userId, idOrResp, 1))[0] ??
-    (await getLatestRunForProjectKey(userId, project.name)) ??
+    (await getProjectOrchestrationRuns(executionUserId, idOrResp, 1))[0] ??
+    (await getLatestRunForProjectKey(executionUserId, project.name)) ??
     null;
 
   if (!run) {
@@ -59,7 +70,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const [events, promptRow, snap] = await Promise.all([
-    listRunEventsForRun(run.id, userId, 100),
+    listRunEventsForRun(run.id, executionUserId, 100),
     db
       .select({
         resolvedPrompt: promptHistory.resolvedPrompt,
@@ -67,11 +78,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         dispatchedAt: promptHistory.dispatchedAt,
       })
       .from(promptHistory)
-      .where(and(eq(promptHistory.userId, userId), eq(promptHistory.runId, run.id)))
+      .where(and(eq(promptHistory.userId, executionUserId), eq(promptHistory.runId, run.id)))
       .orderBy(desc(promptHistory.dispatchedAt))
       .limit(1)
       .then((rows) => rows[0] ?? null),
-    hydrateFeedbackSnapshot(userId, run),
+    hydrateFeedbackSnapshot(executionUserId, run),
   ]);
 
   const work = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, snap);
@@ -88,7 +99,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // is what the first real Watch showed a person as "You asked".
   const promptText = promptRow?.customPrompt ?? promptRow?.resolvedPrompt ?? null;
   const items = buildWatchTimeline({
-    prompt: promptText ? { text: promptText, at: promptRow!.dispatchedAt } : null,
+    prompt: promptText
+      ? {
+          text: ownerView ? promptText : dispatchMessageDisplay(promptText).text,
+          at: promptRow!.dispatchedAt,
+        }
+      : null,
     events,
     run: {
       outcome: run.outcome ?? null,
@@ -100,9 +116,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const tab = run.payload?.sessionTab ?? project.name;
   const [up, autopilotOverride, beacon] = await Promise.all([
-    getUserProjectByEntityId(userId, idOrResp).catch(() => null),
-    getProjectAutopilotOverride(userId, project.name).catch(() => null),
-    getBeaconSettings(userId),
+    getUserProjectByEntityId(executionUserId, idOrResp).catch(() => null),
+    getProjectAutopilotOverride(executionUserId, project.name).catch(() => null),
+    getBeaconSettings(executionUserId),
   ]);
   const failed = Boolean(run.finishedAt) && (view.phase === "failed" || view.stalled);
   return NextResponse.json(
@@ -123,11 +139,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         stepSummary: view.stepSummary,
         nextAction: view.nextAction,
         stalled: view.stalled,
-        terminalReady: view.terminalReady,
+        terminalReady: ownerView && view.terminalReady,
         lastProgressAt: view.lastProgressAt,
         error: run.payload?.error ?? snap?.error ?? null,
       },
-      tab,
+      tab: ownerView ? tab : undefined,
       provider: {
         current: run.adapter,
         currentLabel: providerLabel(run.adapter),
@@ -139,12 +155,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         quotaDeath: view.quotaDeath,
       },
       // The one tap: a finished run that did not deliver can be sent again.
-      canRetry: failed,
+      canRetry: ownerView && failed,
       userProjectId: up?.id ?? null,
       // Steer or let go: Watch offers the project's real autopilot switch
       // beside the box that steers it, not a description of either.
-      autopilot: { override: autopilotOverride, inherited: beacon.auto_inject_mode },
-      terminalHref: fleetSurfaceHref("terminal", tab, undefined, run.id),
+      autopilot: ownerView
+        ? { override: autopilotOverride, inherited: beacon.auto_inject_mode }
+        : undefined,
+      terminalHref: ownerView ? fleetSurfaceHref("terminal", tab, undefined, run.id) : undefined,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

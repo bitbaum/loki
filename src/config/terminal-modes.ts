@@ -39,17 +39,17 @@ export const TERMINAL_SOURCES: TerminalModeOption<TerminalSource>[] = [
   {
     id: "cloud",
     label: "Cloud builder",
-    hint: "View cloud-builder sessions. Starting directly below will also use the cloud builder; project defaults stay unchanged.",
+    hint: "Run and follow agents in Loki’s cloud. This choice does not change project defaults.",
   },
   {
     id: "machine",
     label: "Your computer",
-    hint: "View sessions on your computer. Starting directly below will also use your computer; project defaults stay unchanged.",
+    hint: "Run and follow agents on your connected computer. Control it from any device.",
   },
   {
     id: "shell",
     label: "Server shell",
-    hint: "A plain bash PTY owned by this server — tabs and splits, no agent.",
+    hint: "An advanced command-line session on this server, without an AI agent.",
   },
 ];
 
@@ -65,17 +65,17 @@ export const TERMINAL_INPUT_MODES: TerminalModeOption<TerminalInputMode>[] = [
   {
     id: "type",
     label: "Type",
-    hint: "Keystrokes go straight to the session. Ctrl-C, arrows and paste all work.",
+    hint: "Send text and keyboard shortcuts directly to the terminal.",
   },
   {
     id: "prompt",
     label: "Prompt",
-    hint: "Compose a task — paste or attach screenshots, or dictate. It is assembled with project context, and queued if the builder is offline.",
+    hint: "Send a task with your project context. Add screenshots or use the microphone. Offline tasks wait for the connection.",
   },
   {
     id: "voice",
     label: "Voice",
-    hint: "Speak a task. It is transcribed and dispatched into this tab.",
+    hint: "Dictate a task for this session.",
   },
 ];
 

@@ -4,8 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Play, TerminalSquare, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { timeAgo } from "@/lib/dates";
-import { answer } from "@/lib/project-display";
+import { controlNextStep } from "@/lib/control-next-step";
+import { useProjectAutopilot } from "@/hooks/use-project-autopilot";
 import { postJson, patchJson } from "@/lib/api/fetch";
 import type { ProjectState } from "@/lib/control-types";
 import type { PromptMeta } from "@/lib/agent-config";
@@ -94,6 +94,10 @@ export function ProjectCard({
    *  the card's staleness math matches the snapshots' (and render stays pure). */
   nowS: number;
 }) {
+  const { effectiveMode, setOverride } = useProjectAutopilot(
+    project.autoInjectModeOverride,
+    automationMode,
+  );
   const [profileOpen, setProfileOpen] = useState(false);
   const [localAgent, setLocalAgent] = useState<string | null>(project.agentPref ?? null);
   const [switchingAgent, setSwitchingAgent] = useState(false);
@@ -163,7 +167,7 @@ export function ProjectCard({
   // banner) once exhausted rather than churning. We act once per distinct
   // session state (mtime + outgoing agent) so a switch landing — which lags the
   // session poll — doesn't re-trigger or flash a false "exhausted".
-  const autopilotOn = automationMode === "on";
+  const autopilotOn = effectiveMode === "on";
   const tabOpen = isProjectTabOpen(project, liveTabs);
   const autoTriedAgentsRef = useRef<Set<string>>(new Set());
   const handledCapacitySignatureRef = useRef<string | null>(null);
@@ -249,31 +253,12 @@ export function ProjectCard({
   // the agent self-reports ready; "off" never does. The queue is drained
   // head-first; nextbest fills in when the queue runs dry. Auto-continue
   // remains a per-project pause/resume toggle independent of the mode.
-  const automaticContinuationEnabled = autoContinueEnabled && automationMode === "on";
-  // The card's "next" line, with its source named. Handoff (dated, written by
-  // the agent when it stopped) beats the profile's undated LLM next_step.
-  const handoffNext = project.session?.next?.trim();
-  // answer(), not .trim(): the enricher writes literal "Unknown" into unfilled
-  // attributes, and a card that prints "Next: Unknown" is worse than no line.
-  const profileNext = answer(project.profile?.attrs?.["next_step"]);
-  const handoffAgeLabel = project.session?.mtime ? timeAgo(project.session.mtime) : null;
-  const nextStep = handoffNext
-    ? {
-        text: handoffNext,
-        label: handoffAgeLabel ? `Next (agent, ${handoffAgeLabel}):` : "Next (agent):",
-        sourceTitle: "From this project's latest agent handoff.",
-      }
-    : profileNext
-      ? {
-          text: profileNext,
-          label: "Suggested next (profile):",
-          sourceTitle: "From the project profile — written during enrichment, not by a recent run.",
-        }
-      : null;
+  const automaticContinuationEnabled = autoContinueEnabled && effectiveMode === "on";
+  const nextStep = controlNextStep(project.session, project.profile?.attrs?.["next_step"], nowS);
   const tabOpenUntracked = display.tone === "idle" && display.tabOpen && !display.isRunning;
   const automationStatusLabel = tabOpenUntracked
     ? "Tab open on your computer — focus the workspace to check the agent, or send a prompt below."
-    : automationMode === "off"
+    : effectiveMode === "off"
       ? "Autopilot off: this project waits for your instruction."
       : !autoContinueEnabled
         ? "Automatic continuation paused for this project."
@@ -497,6 +482,7 @@ export function ProjectCard({
           projectId={project.projectId}
           currentOverride={project.autoInjectModeOverride}
           inheritedMode={automationMode}
+          onOverrideChange={setOverride}
         />
         {/* What pressing play is FOR — visible without opening the profile.
             Play/pause means nothing if you can't see what the fleet intends
@@ -568,7 +554,7 @@ export function ProjectCard({
             runtimeStateKnown={runtimeStateKnown}
             runnerSyncStale={runnerSyncStale}
             isRunning={display.isRunning}
-            autoContinueEnabled={automationMode === "off" ? false : autoContinueEnabled}
+            autoContinueEnabled={effectiveMode === "off" ? false : autoContinueEnabled}
             sending={sending}
             justSent={justSent}
             sendError={sendError}
@@ -577,7 +563,7 @@ export function ProjectCard({
             queue={queue}
             bannerActive={display.isClosed || display.isReady || display.isOrchestrationReady}
             merging={merging}
-            onToggleAutoContinue={automationMode === "off" ? undefined : toggleAutoContinue}
+            onToggleAutoContinue={effectiveMode === "off" ? undefined : toggleAutoContinue}
             onSendIntent={sendIntent}
             onSendCustom={sendCustom}
             onEnqueueCustom={smartEnqueue}
@@ -641,7 +627,7 @@ export function ProjectCard({
             onDismiss={() => setDismissed(true)}
             onSend={send}
             onAutoInject={runtimeAvailable !== false ? handleAutoInject : undefined}
-            onToggleAutoContinue={automationMode === "off" ? undefined : toggleAutoContinue}
+            onToggleAutoContinue={effectiveMode === "off" ? undefined : toggleAutoContinue}
             showKeyHints={isOnlyReady}
             inactiveLabel={undefined}
             countdownSeconds={countdownSeconds}

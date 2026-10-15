@@ -13,6 +13,7 @@
  * the screen, so the card never opens empty.
  */
 
+import { useProjectAutopilot } from "@/hooks/use-project-autopilot";
 import { useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowUp, Check, Loader2, Sparkles } from "lucide-react";
@@ -32,7 +33,9 @@ export function ProjectWatchLive({
   tab,
   terminalHref,
   autopilot,
+  working,
 }: {
+  working: boolean;
   projectId: string;
   provider: string;
   startedAt: string | null;
@@ -44,16 +47,20 @@ export function ProjectWatchLive({
   terminalHref: string | null;
   autopilot: { override: AutoInjectMode | null; inherited: AutoInjectMode } | null;
 }) {
-  const story = useWatchNarration(projectId, screen, true);
+  const story = useWatchNarration(projectId, screen, working);
   const now = story.at(-1)?.narration ?? null;
   const earlier = story.slice(0, -1).reverse();
-  const autopilotOn = (autopilot?.override ?? autopilot?.inherited) === "on";
+  const { effectiveMode, setOverride } = useProjectAutopilot(
+    autopilot?.override,
+    autopilot?.inherited ?? "off",
+  );
+  const autopilotOn = effectiveMode === "on";
 
   return (
     <section className="ui-watch-live" aria-live="polite">
       <p className="ui-watch-live-kicker">
-        <span className="ui-watch-live-dot" aria-hidden="true" />
-        {provider} is working
+        <span className={working ? "ui-watch-live-dot" : "ui-dot-neutral"} aria-hidden="true" />
+        {working ? `${provider} is working` : "Waiting to start"}
         {startedAt && (
           <span className="text-text-muted">
             · started {timeAgo(new Date(startedAt).getTime())}
@@ -98,11 +105,12 @@ export function ProjectWatchLive({
       {tab && <SteerBox tab={tab} />}
 
       {autopilot && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border-subtle pt-3">
+        <div className="flex flex-col items-start gap-3 border-t border-border-subtle pt-3">
           <ProjectAutopilotToggle
             projectId={projectId}
             currentOverride={autopilot.override}
             inheritedMode={autopilot.inherited}
+            onOverrideChange={setOverride}
           />
           <p className="min-w-0 flex-1 text-xs text-text-secondary">
             {autopilotOn

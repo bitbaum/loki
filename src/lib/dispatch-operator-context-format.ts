@@ -1,8 +1,6 @@
-/**
- * Pure formatting for the operator dispatch-context block. DB-free on purpose —
- * the async assembler (dispatch-operator-context.ts) imports @/db/queries and so
- * can't host a DB-free self-test; the layout logic lives here where it can.
- */
+/** Legacy personal-context format, retained for historical dispatch fixtures.
+ * New coding dispatches use project context, without automatically reading
+ * personal goals or commitments. */
 import { isOverdue, toLocalDateStr } from "@/lib/dates";
 
 /** Section heading — SSOT for how the operator block is framed at every dispatch

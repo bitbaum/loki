@@ -54,8 +54,8 @@ export function TerminalSessionMiss({
           again here was a second copy of the same list, with raw ids. */}
       <p className="ui-term-miss-body">
         {hasOthers
-          ? "Nothing is attached, so nothing you type goes anywhere. Pick a session above, or start this one."
-          : "Nothing is attached. Start it, and it opens here."}
+          ? "Choose an available session above, or start this project to continue."
+          : "Start a session for this project to continue here."}
       </p>
 
       <div className="ui-term-miss-actions">

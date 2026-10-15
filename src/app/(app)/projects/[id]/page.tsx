@@ -13,6 +13,8 @@ import { reconcileSiteLiveUrl } from "@/lib/site-live-reconcile";
 import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
 import { getGithubToken } from "@/lib/github-token";
 
+import { FleetProjectRoute } from "@/components/projects/FleetProjectRoute";
+
 export const metadata = { title: "Project" };
 
 /** The one canonical project workspace, rendered from the dossier SSOT. */
@@ -72,20 +74,28 @@ export default async function ProjectPage({
     : null;
 
   return (
-    <ProjectWorkspaceView
-      dossier={dossier}
-      autoKickoff={isKickoffAuto(kickoff)}
-      autoInterview={isInterviewAuto(interview)}
-      viewerIsSiteOperator={viewerIsSiteOperator}
-      viewerMayOpenOrgRepo={viewerMayOpenOrgRepo}
-      viewerHasGithub={viewerHasGithub}
-      // Only the owner gets a pass: it is what makes their widget notes build.
-      ownerPass={dossier.ownerId === session.user.id ? createOwnerPass(id, session.user.id) : null}
-      shareAction={
-        !dossier.readonly ? (
-          <ProjectSharePanel projectId={id} initialShare={shareForClient} />
-        ) : undefined
-      }
-    />
+    <>
+      <FleetProjectRoute
+        pathname={`/projects/${id}`}
+        project={dossier.userProject?.name ?? dossier.detail.project.name}
+      />
+      <ProjectWorkspaceView
+        dossier={dossier}
+        autoKickoff={isKickoffAuto(kickoff)}
+        autoInterview={isInterviewAuto(interview)}
+        viewerIsSiteOperator={viewerIsSiteOperator}
+        viewerMayOpenOrgRepo={viewerMayOpenOrgRepo}
+        viewerHasGithub={viewerHasGithub}
+        // Only the owner gets a pass: it is what makes their widget notes build.
+        ownerPass={
+          dossier.ownerId === session.user.id ? createOwnerPass(id, session.user.id) : null
+        }
+        shareAction={
+          !dossier.readonly ? (
+            <ProjectSharePanel projectId={id} initialShare={shareForClient} />
+          ) : undefined
+        }
+      />
+    </>
   );
 }

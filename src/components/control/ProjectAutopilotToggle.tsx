@@ -15,6 +15,7 @@
 // override instead of storing a redundant one, so "inherit" stays the default
 // and the override count on the fleet hint only reflects real divergence.
 
+import { useProjectAutopilot } from "@/hooks/use-project-autopilot";
 import { useState } from "react";
 import { Loader2, Pause, Play } from "lucide-react";
 import { patchJson } from "@/lib/api/fetch";
@@ -33,6 +34,7 @@ export interface ProjectAutopilotToggleProps {
   variant?: "card" | "rail";
   /** Called after a successful PATCH so the parent can refetch /api/control. */
   onAfter?: () => void;
+  onOverrideChange?: (override: AutoInjectMode | null) => void;
 }
 
 export function ProjectAutopilotToggle({
@@ -41,24 +43,18 @@ export function ProjectAutopilotToggle({
   inheritedMode,
   variant = "card",
   onAfter,
+  onOverrideChange,
 }: ProjectAutopilotToggleProps) {
-  const [localOverride, setLocalOverride] = useState<AutoInjectMode | null>(currentOverride);
+  const {
+    override: localOverride,
+    setOverride: setLocalOverride,
+    effectiveMode,
+  } = useProjectAutopilot(currentOverride, inheritedMode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Server truth wins: when a refetch delivers a new override, drop the local
-  // optimistic value. Guarded render-time adjustment (React's "adjusting state
-  // when a prop changes" pattern) instead of an effect, so the reset lands in
-  // the same render pass without an extra paint.
-  const [prevOverride, setPrevOverride] = useState<AutoInjectMode | null>(currentOverride);
-  if (currentOverride !== prevOverride) {
-    setPrevOverride(currentOverride);
-    setLocalOverride(currentOverride);
-  }
-
   if (!projectId) return null;
 
-  const effectiveMode = localOverride ?? inheritedMode;
   const building = effectiveMode === "on";
   const overridden = localOverride !== null;
 
@@ -67,6 +63,7 @@ export function ProjectAutopilotToggle({
     setError(null);
     const previous = localOverride;
     setLocalOverride(nextOverride);
+    onOverrideChange?.(nextOverride);
     try {
       const res = await patchJson(`/api/projects/${projectId}`, {
         autoInjectModeOverride: nextOverride,
@@ -75,6 +72,7 @@ export function ProjectAutopilotToggle({
         const body = await res.json().catch(() => ({}));
         setError(body.error ?? `HTTP ${res.status}`);
         setLocalOverride(previous);
+        onOverrideChange?.(previous);
         return;
       }
       if (typeof window !== "undefined") {
@@ -84,6 +82,7 @@ export function ProjectAutopilotToggle({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
       setLocalOverride(previous);
+      onOverrideChange?.(previous);
     } finally {
       setSaving(false);
     }
@@ -95,8 +94,8 @@ export function ProjectAutopilotToggle({
   }
 
   const tooltip = building
-    ? `Autopilot is on for this project${overridden ? " (project override)" : " (following fleet: on)"}. Click to pause just this project.`
-    : `Autopilot is paused for this project${overridden ? " (project override)" : " (following fleet: off)"}. Click to resume building.`;
+    ? `Autopilot is on for this project${overridden ? " (project override)" : " (following fleet: on)"}. Pause this project.`
+    : `Autopilot is paused for this project${overridden ? " (project override)" : " (following fleet: off)"}. Resume this project.`;
 
   if (variant === "rail") {
     if (!overridden && building) return null;

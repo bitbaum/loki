@@ -7,7 +7,7 @@ import {
 } from "@/lib/loki/attachments";
 import { describeAttachedImages } from "@/lib/loki/vision";
 import { withImageTokens, type AgentImage } from "@/lib/agent-attachments";
-import { z } from "@/lib/api/route-helpers";
+import { z } from "zod";
 
 /**
  * Turning attachments into something a terminal agent can act on.

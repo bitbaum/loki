@@ -53,7 +53,6 @@ import { isHostedBuilderPref } from "@/lib/constants/statuses";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { retrieveFleetContextBlock } from "@/db/queries/knowledge-embeddings";
 import { assembleInjectPrompt } from "@/lib/inject-prompt";
-import { buildOperatorContextSection } from "@/lib/dispatch-operator-context";
 import { getOpenEscalationBlock } from "@/db/queries/run-escalations";
 import { findInjectProject } from "@/lib/inject-project";
 import { fleetBriefForProject } from "@/lib/fleet-brief/for-project";
@@ -193,35 +192,23 @@ async function buildLocalPrompt(args: {
   // "inject-core bypass"). buildPromptWithSession then adds the Session tier, so
   // every dispatch now carries all three tiers. Best-effort: never break a
   // dispatch if context assembly fails.
-  const ragQuery = customPrompt ?? promptKey ?? "";
-  // Captain RAG: relevant context from the operator's OTHER projects (fleet
-  // vector index). Operator block: the life-OS half — top-level goals +
-  // near-term deadlines, so local dispatches serve the captain's objectives
-  // too, not just the per-project task. Both best-effort; both mirror the
-  // cloud assembleInjectPrompt path so local and remote dispatch match.
-  const [projectContext, fleetBlock, operatorSection, escalationBlock, houseRules] =
-    await Promise.all([
-      getProjectContext(userId, canonical).catch(() => null),
-      ragQuery
-        ? retrieveFleetContextBlock(userId, ragQuery, { excludeProject: canonical }).catch(() => "")
-        : Promise.resolve(""),
-      buildOperatorContextSection(userId).catch(() => ""),
-      // Open escalation ladder — the last failure fed back to the agent with a
-      // rung-specific instruction. Mirrors assembleInjectPrompt.
-      getOpenEscalationBlock(userId, canonical).catch(() => ""),
-      // bitbaum house rules for a repo in the org. Mirrors assembleInjectPrompt.
-      fleetBriefForProject(userId, canonical).catch(() => ""),
-    ]);
+  const ragQuery = customPrompt?.trim() ?? "";
+  // Cross-project retrieval needs an actual task; generic intent keys are not
+  // a semantic query. Personal life goals/commitments stay out of coding tasks.
+  const [projectContext, fleetBlock, escalationBlock, houseRules] = await Promise.all([
+    getProjectContext(userId, canonical).catch(() => null),
+    ragQuery
+      ? retrieveFleetContextBlock(userId, ragQuery, { excludeProject: canonical }).catch(() => "")
+      : Promise.resolve(""),
+    // Open escalation ladder — the last failure fed back to the agent with a
+    // rung-specific instruction. Mirrors assembleInjectPrompt.
+    getOpenEscalationBlock(userId, canonical).catch(() => ""),
+    // bitbaum house rules for a repo in the org. Mirrors assembleInjectPrompt.
+    fleetBriefForProject(userId, canonical).catch(() => ""),
+  ]);
   const contextBlock = renderProjectContextBlock(projectContext ?? undefined);
   const withContext = (body: string) =>
-    [
-      contextBlock || null,
-      operatorSection || null,
-      fleetBlock || null,
-      houseRules || null,
-      escalationBlock || null,
-      body,
-    ]
+    [contextBlock || null, fleetBlock || null, houseRules || null, escalationBlock || null, body]
       .filter(Boolean)
       .join("\n\n");
 

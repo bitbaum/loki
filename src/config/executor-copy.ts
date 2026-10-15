@@ -193,28 +193,26 @@ export const EXECUTOR_COPY = {
     cloudLabel: "Cloud builder",
     cloudLabelLocalHost: "Cloud builder (this server)",
     thisComputerLabel: "Your computer",
-    cloudHelp:
-      "Live sessions on Loki's hosted builder. Select a session, then type to steer that agent.",
+    cloudHelp: "Choose a session to read its messages or use its terminal.",
     cloudLoading: "Looking for cloud builder sessions…",
     cloudEmpty: "No live sessions on the cloud builder.",
     cloudEmptyHint:
-      "Start an agent below to run it on the cloud builder. Future project dispatches follow the project's Runs on setting in Control.",
+      "Start an agent below to open a cloud builder session. Choose its location with Runs on.",
     cloudOfflineHint:
       "The cloud builder is offline. Work sent there will wait until it reconnects.",
     // Connected to the peek stream but no screen frames arrived → the runner is
     // wedged (e.g. its outbound fetch is failing). Honest, actionable — not a
     // black pane labelled "live".
     cloudStalledHint:
-      "Connected, but the cloud builder isn't streaming this session — it may be stuck. Check the box-runner service on Hetzner.",
+      "This session stopped sending updates. Check its latest status in Control, or choose another session.",
     thisComputerStalledHint:
-      "Connected, but Fleet Runner on this computer isn't streaming output — it may be stuck. Quit it from the menu bar and reopen.",
-    thisComputerHelp:
-      "Live sessions started by Fleet Runner on this computer. Select a session, then type to steer that agent.",
-    thisComputerEmpty: "No live sessions on this computer.",
+      "Your connected computer stopped sending session updates. Check that Fleet Runner is open there.",
+    thisComputerHelp: "Choose a session on your connected computer to follow or steer the agent.",
+    thisComputerEmpty: "No active sessions on your connected computer.",
     thisComputerEmptyHint:
-      "Start an agent below to run it on your computer. Future project dispatches follow the project's Runs on setting in Control.",
+      "Start a session on your computer when Fleet Runner is connected. Choose its location with Runs on.",
     thisComputerOfflineHint:
-      "Fleet Runner isn't connected here. Open the desktop app to run this project's work on your computer.",
+      "Open Fleet Runner on the computer you want to use to bring its sessions online.",
     // "Here" is the device reading the page; "this computer" is the account's
     // one desktop runner. From any other device the first line is a trap, so
     // an account with the cloud builder gets the way that works from anywhere.

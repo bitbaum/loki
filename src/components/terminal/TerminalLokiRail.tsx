@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useMemo, useEffect, useRef, useState, type MutableRefObject } from "react";
 import Link from "next/link";
+import { singleFlight } from "@/lib/single-flight";
 import { ArrowUpRight, Loader2, Sparkles } from "lucide-react";
 import { ChatThread } from "@bitbaum/chatkit/react";
 import { useSessionAsk } from "@/hooks/use-session-ask";
@@ -118,36 +119,44 @@ export function TerminalLokiRail({
   );
   const [switching, setSwitching] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!project && !runId) {
-      setView(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const qs = new URLSearchParams();
-      if (project) qs.set("project", project);
-      if (runId) qs.set("run", runId);
-      const res = await fetch(`/api/terminal/run?${qs.toString()}`);
-      const body = (await res.json().catch(() => ({}))) as RunPayload;
-      if (!res.ok) {
-        setError(body.error ?? "Could not load run");
-        setView(null);
-        return;
-      }
-      setView(body.view ?? null);
-    } catch {
-      setError("Could not load run");
-      setView(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [project, runId]);
+  const load = useMemo(
+    () =>
+      singleFlight(async () => {
+        if (!project && !runId) {
+          setView(null);
+          return;
+        }
+        setLoading(true);
+        setError(null);
+        try {
+          const qs = new URLSearchParams();
+          if (project) qs.set("project", project);
+          if (runId) qs.set("run", runId);
+          const res = await fetch(`/api/terminal/run?${qs.toString()}`, {
+            signal: AbortSignal.timeout(15_000),
+          });
+          const body = (await res.json().catch(() => ({}))) as RunPayload;
+          if (!res.ok) {
+            setError(body.error ?? "Could not load run");
+            setView(null);
+            return;
+          }
+          setView(body.view ?? null);
+        } catch {
+          setError("Could not load run");
+          setView(null);
+        } finally {
+          setLoading(false);
+        }
+      }),
+    [project, runId],
+  );
 
   useEffect(() => {
     const first = window.setTimeout(() => void load(), 0);
-    const t = window.setInterval(() => void load(), 8_000);
+    const t = window.setInterval(() => {
+      if (!document.hidden) void load();
+    }, 8_000);
     return () => {
       window.clearTimeout(first);
       window.clearInterval(t);

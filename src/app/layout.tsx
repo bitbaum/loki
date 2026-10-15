@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icon.svg" }],
+    apple: [{ url: "/app-icons/icon-180.png", sizes: "180x180", type: "image/png" }],
   },
   // OpenGraph + Twitter pick up the file-convention opengraph-image.tsx
   // (served at /opengraph-image) and twitter-image.tsx automatically once the

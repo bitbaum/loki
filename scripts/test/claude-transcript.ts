@@ -7,7 +7,6 @@ import {
   turnElapsedLabel,
   describeToolRun,
   groupTranscript,
-  looksBlockedOnApproval,
   mergeTranscriptItems,
   newTranscriptState,
   reduceTranscriptLine,
@@ -71,7 +70,6 @@ ok(
   tool.kind === "tool" && tool.status === "running" && tool.summary === "git status --short",
   "tool call summarised, whitespace folded",
 );
-ok(looksBlockedOnApproval(items), "a running last tool reads as maybe-waiting");
 
 // Its result arrives on a later user line → the SAME item updates in place.
 feed(
@@ -96,7 +94,6 @@ ok(
   done.kind === "tool" && done.status === "done" && done.result === "M src/a.ts",
   "tool row updated with result",
 );
-ok(!looksBlockedOnApproval(items), "finished tool is not waiting");
 
 // Errors are marked.
 feed(

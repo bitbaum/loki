@@ -37,13 +37,11 @@ export interface TerminalTransport {
   sendResize: (cols: number, rows: number) => void;
 }
 
-/** Fire-and-forget JSON POST. Transient failure is fine: the output stream stays
- *  the source of truth and a dropped keystroke is re-typed — so this swallows
- *  the rejection the shared wrapper would otherwise leave unhandled. */
-const post = (url: string, body: unknown): Promise<void> =>
-  postJson(url, body)
-    .then(() => undefined)
-    .catch(() => undefined);
+/** Input callers must know when a message did not reach the session. */
+const post = async (url: string, body: unknown): Promise<void> => {
+  const response = await postJson(url, body);
+  if (!response.ok) throw new Error(`Session input failed (HTTP ${response.status})`);
+};
 
 /**
  * Loki server-owned PTY (LocalPtyExecutor / SandboxExecutor) — real PTY
@@ -73,7 +71,7 @@ export function workspaceTransport(id: string): TerminalTransport {
       return () => source.close();
     },
     sendKey: (data) => post(base, { action: "input", data }),
-    sendResize: (cols, rows) => void post(base, { action: "resize", cols, rows }),
+    sendResize: (cols, rows) => void post(base, { action: "resize", cols, rows }).catch(() => {}),
   };
 }
 
@@ -119,6 +117,6 @@ export function runnerTransport(tab: string, channel?: BuilderChannel): Terminal
         cols,
         rows,
         ...(ch ? { channel: ch } : {}),
-      }),
+      }).catch(() => {}),
   };
 }

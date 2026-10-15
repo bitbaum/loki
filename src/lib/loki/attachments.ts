@@ -4,7 +4,7 @@
  * Text files fold inline into the agent prompt. Images are described server-side
  * via Groq vision (see vision.ts) because terminal agents cannot read raw pixels.
  */
-import { z } from "@/lib/api/route-helpers";
+import { z } from "zod";
 
 /** Max files per message. */
 export const MAX_ATTACHMENTS = 5;

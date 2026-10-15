@@ -222,17 +222,6 @@ export function mergeTranscriptItems(
   return next;
 }
 
-/**
- * Is Claude waiting on a person? True when the newest item is a tool call
- * with no result — Claude Code asks before running anything outside its
- * allowlist and records nothing until it is answered. Not proof (a slow
- * command looks the same), so the UI words it as a question and offers keys.
- */
-export function looksBlockedOnApproval(items: TranscriptItem[]): boolean {
-  const last = items[items.length - 1];
-  return !!last && last.kind === "tool" && last.status === "running";
-}
-
 /** What the conversation view draws: a message, or a run of tool calls folded
  *  into one line ("Ran 3 commands") the way a chat app folds its work log. */
 export type TranscriptBlock =

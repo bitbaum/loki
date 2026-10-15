@@ -14,8 +14,9 @@
  * takes by itself when a builder refuses a run.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import Link from "next/link";
+import { singleFlight } from "@/lib/single-flight";
 import { Loader2, MessagesSquare, RotateCcw } from "lucide-react";
 import { withTerminalView } from "@/lib/fleet-context";
 import { timeAgo } from "@/lib/dates";
@@ -88,26 +89,43 @@ export function ProjectWatch({
   const working = data?.status?.phase === "working" && data.status.terminalReady;
 
   // Every setState lives in a promise callback, so effects can start a load.
-  const load = useCallback(
+  const load = useMemo(
     () =>
-      fetch(`/api/projects/${projectId}/watch${runId ? `?run=${encodeURIComponent(runId)}` : ""}`, {
-        cache: "no-store",
-      })
-        .then(async (res) => {
-          const body = (await res.json().catch(() => ({}))) as WatchPayload & { error?: string };
-          if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-          setData(body);
-          setError(null);
-        })
-        .catch((e: unknown) => {
-          setError(e instanceof Error ? e.message : "Could not load the run");
-        }),
+      singleFlight(() =>
+        fetch(
+          `/api/projects/${projectId}/watch${runId ? `?run=${encodeURIComponent(runId)}` : ""}`,
+          {
+            cache: "no-store",
+            signal: AbortSignal.timeout(15_000),
+          },
+        )
+          .then(async (res) => {
+            const body = (await res.json().catch(() => ({}))) as WatchPayload & { error?: string };
+            if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+            setData(body);
+            setError(null);
+          })
+          .catch((e: unknown) => {
+            setError(
+              e instanceof DOMException && e.name === "TimeoutError"
+                ? "The run is taking too long to load. Try again."
+                : e instanceof Error
+                  ? e.message
+                  : "Could not load the run",
+            );
+          }),
+      ),
     [projectId, runId],
   );
 
   useEffect(() => {
     void load();
-    const id = setInterval(() => void load(), live ? LIVE_POLL_MS : IDLE_POLL_MS);
+    const id = setInterval(
+      () => {
+        if (!document.hidden) void load();
+      },
+      live ? LIVE_POLL_MS : IDLE_POLL_MS,
+    );
     const onVisible = () => document.visibilityState === "visible" && void load();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -194,7 +212,9 @@ export function ProjectWatch({
 
       {p.run && status && runLive && !failed && !status.stalled && (
         <ProjectWatchLive
+          key={p.run.id}
           projectId={projectId}
+          working={Boolean(working)}
           provider={provider?.currentLabel ?? "The agent"}
           startedAt={p.run.startedAt}
           screen={working ? tail : null}

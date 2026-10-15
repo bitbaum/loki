@@ -7,6 +7,7 @@ import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
 import { useFetch } from "@/hooks/use-fetch";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
+import { useTerminalInput } from "@/hooks/use-terminal-input";
 import { useTerminalFont } from "@/hooks/use-terminal-font";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTerminalDeck } from "@/hooks/use-terminal-deck";
@@ -140,11 +141,6 @@ function emptyStateHint(input: {
   if (cloud === "offline") return EXECUTOR_COPY.terminal.thisComputerOfflineCloudDownHint;
   return copy.offlineHint;
 }
-
-/** Comfortably under the 4000-byte cap the raw-key route enforces on one write.
- *  Multi-byte characters make length-in-chars an under-estimate of bytes, and
- *  halving the budget is cheaper than counting UTF-8 at every keystroke. */
-const RAW_KEY_CHUNK = 1500;
 
 type TerminalMode = { source: TerminalSource; input: TerminalInputMode };
 
@@ -403,22 +399,7 @@ export function TerminalSurface({
   // Every write goes through ONE chain, so a long paste split into chunks can
   // never be overtaken by the Enter sent after it — and the caller can await
   // the moment the last byte has actually left.
-  const sendChain = useRef<Promise<void>>(Promise.resolve());
-  const sendKey = useCallback(
-    (bytes: string): Promise<void> => {
-      if (!transport) return Promise.resolve();
-      const run = sendChain.current
-        .then(async () => {
-          for (let i = 0; i < bytes.length; i += RAW_KEY_CHUNK) {
-            await transport.sendKey(bytes.slice(i, i + RAW_KEY_CHUNK));
-          }
-        })
-        .catch(() => {});
-      sendChain.current = run;
-      return run;
-    },
-    [transport],
-  );
+  const sendKey = useTerminalInput(transport);
 
   // Phone chrome state. Font and stream status are owned here rather than
   // inside TerminalView because the controls that read them now live outside
@@ -543,6 +524,7 @@ export function TerminalSurface({
   const mobileHeader = (
     <TerminalMobileHeader
       title={headerTitle}
+      onExplain={activeTab && projectKey && view === "chat" ? explainer.ask : undefined}
       agent={headerAgent}
       state={headerState}
       onOpenSheet={() => setSheetOpen(true)}
@@ -557,6 +539,7 @@ export function TerminalSurface({
   const renderLokiRail = () =>
     projectKey ? (
       <TerminalLokiRail
+        key={`${projectKey}:${initialRunId ?? "latest"}:${channel}`}
         project={projectKey}
         tab={activeTab}
         runId={initialRunId}
@@ -752,7 +735,8 @@ export function TerminalSurface({
           key={`chat:${channel}:${activeTab}`}
           tab={activeTab}
           channel={channel}
-          onKey={sendKey}
+          onLive={setLiveState}
+          onKey={(bytes) => sendKey(bytes, true)}
           onShowTerminal={termView.showTerminal}
           onUnavailable={() =>
             setNoTranscript((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)))
@@ -845,7 +829,9 @@ export function TerminalSurface({
       )}
 
       {activeTab && projectKey && !railShown && !(railFits && immersive) && (
-        <TerminalExplainButton onClick={explainer.ask} />
+        <div className={view === "chat" ? "hidden md:block" : undefined}>
+          <TerminalExplainButton onClick={explainer.ask} />
+        </div>
       )}
 
       {/* Desktop composers. The phone's live in the dock below, alongside the

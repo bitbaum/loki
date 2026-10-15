@@ -1,3 +1,4 @@
+import { conversationDispatchPrompt } from "@/lib/loki/dispatch-context";
 /**
  * The Loki core: turn a human message into one of three outcomes and persist
  * the whole exchange. Steps (docs/loki-command-surface.md §3–§4):
@@ -157,7 +158,14 @@ async function buildAttachmentSuffix(
 }
 
 async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage> {
+  const taskPrompt = conversationDispatchPrompt(
+    opts.prompt,
+    opts.sourceText,
+    opts.projectKey,
+    opts.existing.messages,
+  );
   const useIntentKey =
+    taskPrompt === opts.prompt &&
     Boolean(opts.intentId) &&
     isGenericDevelopHandoff(opts.sourceText) &&
     !(opts.attachments && opts.attachments.length > 0);
@@ -177,7 +185,7 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
         }
       : {
           tab: opts.projectKey,
-          customPrompt: opts.prompt + opts.attachmentSuffix,
+          customPrompt: taskPrompt + opts.attachmentSuffix,
           adapter: opts.agent,
           notifyOnClose: true,
           conversationId: opts.conversationId,
