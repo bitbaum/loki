@@ -37,6 +37,7 @@ export type ThreadItem =
       /** The owner's note starts a build; a visitor's waits for the builder. */
       owner: boolean;
       building?: boolean;
+      savedOnly?: boolean;
       note?: string;
       claimUrl?: string;
       /** Sent about the widget itself, to Loki's own team (self-report.ts). */
@@ -130,6 +131,7 @@ function restoreItem(raw: unknown, now: number): ThreadItem | null {
       text,
       owner: r.owner === true,
       ...(r.building === true ? { building: true } : {}),
+      ...(r.savedOnly === true ? { savedOnly: true } : {}),
       ...(r.toLoki === true ? { toLoki: true } : {}),
       ...(note ? { note } : {}),
       ...(claimUrl ? { claimUrl } : {}),

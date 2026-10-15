@@ -6,6 +6,22 @@ data-fc-project="fcw_…" async></script>`. Architecture, routes and history:
 This file is the part a HOST needs: installing it, what the panel offers,
 where the launcher goes, and how to hide it.
 
+## Voice notes while browsing
+
+Open Loki and choose **Speak while browsing** in the header. The panel closes;
+a small recording dock leaves the site usable. Scroll and tap normally, or use
+the target to point to an element. **Done** makes an editable note. **Save note**
+puts it in the project's Feedback view without starting a change. Verified
+owners also see **Request fix**, which sends the note and captured page/element
+context through Loki's existing development pipeline. Visitors need no account
+to leave a note; they cannot start a fix.
+
+The original location stays attached even if you move before sending. Unsent
+transcripts survive same-tab page loads. Finish recording before following a
+full-page link: audio cannot continue through navigation. Automatic context
+records the visible area, not a video or exact alignment of each spoken word.
+See [capture design and limits](../docs/development/contextual-voice-feedback.md).
+
 ## The design, in one model
 
 Read this before changing the widget; every rule below was learned by using it.

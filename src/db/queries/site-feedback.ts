@@ -431,7 +431,11 @@ export async function markFeedbackDispatchedBulk(
   if (ids.length === 0) return 0;
   const rows = await db
     .update(siteFeedback)
-    .set({ status: FEEDBACK_STATUS.DISPATCHED, ...(runId ? { dispatchedRunId: runId } : {}) })
+    .set({
+      status: FEEDBACK_STATUS.DISPATCHED,
+      requiresReview: false,
+      ...(runId ? { dispatchedRunId: runId } : {}),
+    })
     .where(
       and(
         eq(siteFeedback.userId, userId),
@@ -454,6 +458,7 @@ export async function setFeedbackStatus(
     .update(siteFeedback)
     .set({
       status,
+      ...(status === FEEDBACK_STATUS.DISPATCHED ? { requiresReview: false } : {}),
       ...(dispatchedRunId ? { dispatchedRunId } : {}),
       // Resolution evidence: stamp when the row resolves, clear on reopen so a
       // re-resolved row never shows a stale date.

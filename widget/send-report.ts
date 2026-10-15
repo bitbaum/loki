@@ -8,11 +8,15 @@
  * ingest rejects the WHOLE submission with a bare "Invalid submission" naming
  * no field, so one character over a cap silently loses someone's report.
  */
+import type { FeedbackCapture } from "./feedback-capture";
 import type { SelectedEl } from "./picker";
 
 export type ReportFields = {
   token: string;
   suggestion: string;
+  /** Explicitly save a review note without starting development. */
+  intent?: "note" | "fix";
+  capture?: FeedbackCapture;
   contact?: string;
   scope: "element" | "page" | "site";
   screenshots?: string[];
@@ -27,6 +31,7 @@ export type ReportAnswer = {
   owner?: boolean;
   building?: boolean;
   buildNote?: string;
+  savedOnly?: boolean;
   /** The owner's build, in Loki ("Watch the fix") — the receipt links to it. */
   followUrl?: string;
 };
@@ -34,17 +39,25 @@ export type ReportAnswer = {
 /** File a report about the page the person is on. Throws the server's own
  *  words when it refuses, so the panel can show them. */
 export async function sendReport(apiBase: string, fields: ReportFields): Promise<ReportAnswer> {
+  const { capture, ...report } = fields;
   const res = await fetch(`${apiBase}/api/feedback`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      ...fields,
+      ...report,
+      context: capture?.diagnostics,
       contact: fields.contact?.trim().slice(0, 200) || undefined,
-      page: location.pathname.slice(0, 300),
-      url: location.href.slice(0, 1000),
-      pageTitle: document.title.slice(0, 300) || undefined,
+      page: capture?.page ?? location.pathname.slice(0, 300),
+      url: capture?.url ?? location.href.slice(0, 1000),
+      pageTitle: (capture?.title ?? document.title.slice(0, 300)) || undefined,
       screenshots: fields.screenshots?.length ? fields.screenshots : undefined,
-      selectedElements: fields.selectedElements?.length ? fields.selectedElements : undefined,
+      selectedElements: capture
+        ? capture.selected.length
+          ? capture.selected
+          : undefined
+        : fields.selectedElements?.length
+          ? fields.selectedElements
+          : undefined,
       noticeKey: fields.noticeKey ? fields.noticeKey.slice(0, 300) : undefined,
     }),
   });

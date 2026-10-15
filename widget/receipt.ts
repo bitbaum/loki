@@ -27,5 +27,6 @@ export function receiptText(item: Sent): string {
 
 /** The one link under the receipt: follow a build, or track a report. */
 export function receiptLinkLabel(item: Sent): string {
+  if (item.savedOnly) return "Review the note in Loki →";
   return item.owner || item.building ? "Follow the build →" : "Track what happens next →";
 }

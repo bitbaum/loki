@@ -197,7 +197,7 @@ async function gatherFacts(userId: string, now: number) {
   const userMode = (settings.auto_inject_mode ?? DEFAULT_AUTO_INJECT_MODE) as AutoInjectMode;
   const { projects, liveUrlById } = await gatherProjects(userId, userMode, now);
   const open = (await listUserFeedback(userId)).filter(
-    (f) => f.userId === userId && f.status === FEEDBACK_STATUS.NEW,
+    (f) => f.userId === userId && f.status === FEEDBACK_STATUS.NEW && !f.requiresReview,
   );
   const plan = planNight({
     budget: settings.night_runs,

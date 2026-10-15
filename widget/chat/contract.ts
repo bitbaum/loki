@@ -42,6 +42,8 @@ export type KitState = {
   /** Screenshots held for the next note, shown in the composer. */
   held: number;
   sending: boolean;
+  /** One focused decision before returning to the conversation. */
+  reviewingNote?: boolean;
 };
 
 export type KitDeps = {

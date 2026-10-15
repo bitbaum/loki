@@ -72,7 +72,7 @@ function composeSynthesizePrompt(
     `curl -s -X POST ${ingestUrl} \\`,
     '  -H "Content-Type: application/json" \\',
     `  -H "Origin: ${siteOrigin}" \\`,
-    `  -d '{"token":"${widgetToken}","suggestion":"<the four BRIEF lines as one string, newline-separated, <=2000 chars>","contact":"${SYNTHESIZER_CONTACT}","source":"${FEEDBACK_SOURCE.SYNTHESIZER}","scope":"site","page":"<most-affected pathname or />"}'`,
+    `  -d '{"token":"${widgetToken}","suggestion":"<the four BRIEF lines as one string, newline-separated, <=2000 chars>","contact":"${SYNTHESIZER_CONTACT}","source":"${FEEDBACK_SOURCE.SYNTHESIZER}","scope":"site","intent":"note","page":"<most-affected pathname or />"}'`,
     "```",
     "Verify each POST returns ok:true.",
     "4. HANDOFF: one line per filed brief (theme + evidence count) and how many items stayed un-clustered. If nothing clusters, file nothing and say so.",

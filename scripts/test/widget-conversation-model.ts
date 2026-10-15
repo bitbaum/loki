@@ -27,6 +27,7 @@ const store = new Map<string, string>();
 Object.assign(globalThis, {
   sessionStorage: {
     getItem: (k: string) => store.get(k) ?? null,
+    removeItem: (k: string) => void store.delete(k),
     setItem: (k: string, v: string) => void store.set(k, v),
   },
   location: { href: "https://farm.example/rooms", pathname: "/rooms" },
@@ -43,8 +44,8 @@ globalThis.fetch = (async (url: string, init?: { body?: string }) => {
   return new Response(JSON.stringify(r.body), { status: r.status });
 }) as typeof fetch;
 
-function model(over: Partial<ConversationModelOpts> = {}) {
-  store.clear();
+function model(over: Partial<ConversationModelOpts> = {}, restore = false) {
+  if (!restore) store.clear();
   const follows: boolean[] = [];
   let cleared = 0;
   const m = createConversationModel({
@@ -184,6 +185,66 @@ async function main() {
       again.snapshot().thread.some((i) => i.kind === "loki" && i.text === "Kept across pages."),
       "the thread is restored on the next page",
     );
+  }
+
+  {
+    const capture = {
+      url: "https://farm.example/pricing",
+      page: "/pricing",
+      title: "Pricing",
+      selected: [{ elementType: "button", elementText: "Choose plan", selector: "#price" }],
+      diagnostics: { "Screen when speaking": "390×844; scroll 0,900" },
+    };
+    const ownerOptions = { ownerPass: () => "signed-pass" };
+    const first = model(ownerOptions);
+    first.m.recorded("Original voice words", capture);
+    first.m.editDraft("Edited voice words");
+    first.m.close();
+    ok(
+      first.m.snapshot().draft?.text === "Edited voice words",
+      "closing keeps an unfinished voice note",
+    );
+    const restored = model(ownerOptions, true);
+    ok(
+      restored.m.snapshot().draft?.capture?.page === "/pricing",
+      "voice draft and its original location survive navigation",
+    );
+    (globalThis.location as unknown as { href: string; pathname: string }).href =
+      "https://farm.example/elsewhere";
+    (globalThis.location as unknown as { href: string; pathname: string }).pathname = "/elsewhere";
+    replies = [
+      {
+        status: 200,
+        body: { ok: true, owner: true, savedOnly: true, buildNote: "Saved for review" },
+      },
+    ];
+    await restored.m.sendDraft("Edited voice words", "");
+    const note = posted.at(-1)!.body;
+    ok(
+      note.intent === "note" && note.page === "/pricing",
+      "saved note keeps the captured page instead of the Send page",
+    );
+    ok(
+      note.suggestion === "Edited voice words" && !!note.context,
+      "structured context never truncates the visitor's words",
+    );
+    ok(!store.has("loki-voice-draft:fcw_t"), "successful save clears the recovered draft");
+    restored.m.recorded("x".repeat(2500), capture);
+    let refused = false;
+    try {
+      await restored.m.sendDraft("x".repeat(2500), "");
+    } catch {
+      refused = true;
+    }
+    ok(
+      refused && restored.m.snapshot().draft?.text.length === 2500,
+      "overlong voice text is kept for editing rather than silently cut",
+    );
+    restored.m.closeDraft();
+    restored.m.recorded("Please fix it", capture);
+    replies = [{ status: 200, body: { ok: true, owner: true, building: true } }];
+    await restored.m.sendDraft("Please fix it", "", "fix");
+    ok(posted.at(-1)!.body.intent === "fix", "Request fix is an explicit separate choice");
   }
 
   console.log(`${pass} passed, ${fail} failed`);

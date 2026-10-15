@@ -251,6 +251,8 @@ export function createConversation(opts: {
       if (card?.draft !== draft) card = { draft, el: draftCard(draft) };
     } else card = null;
     if (kit) return kit.update(currentKitState());
+    const reviewingNote = draft?.intent === "note";
+    form.style.display = cont.el.style.display = reviewingNote ? "none" : "";
     const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 24;
     const keep = log.scrollTop;
     log.textContent = "";
@@ -343,6 +345,7 @@ export function createConversation(opts: {
     // their own errors: the model's replaces it only when the model's changes.
     if (error !== shownError) err.textContent = shownError = error;
     renderStarters();
+    if (reviewingNote) starters.style.display = "none";
     syncButtons();
     log.scrollTop = follow || atBottom ? log.scrollHeight : keep;
   }
@@ -380,18 +383,31 @@ export function createConversation(opts: {
 
   /** The confirmation card: what goes to the builder, edited before it does. */
   function draftCard(draft: Draft): HTMLElement {
-    const el = h("div", "sendcard");
+    const el = h("div", draft.intent === "note" ? "sendcard voice-note" : "sendcard");
     el.appendChild(
       h(
         "div",
         "changes-title",
-        owner() ? "Build this on your site" : "Send to whoever builds this site",
+        draft.intent === "note"
+          ? "Review your voice note"
+          : owner()
+            ? "Build this on your site"
+            : "Send to whoever builds this site",
       ),
     );
     const box = h("textarea", "chatinput");
     box.maxLength = MAX_LEN;
     box.value = draft.text;
+    box.addEventListener("input", () => model.editDraft(box.value));
     el.appendChild(box);
+    if (draft.capture)
+      el.appendChild(
+        h(
+          "p",
+          "diag",
+          `About ${draft.capture.page}${draft.capture.selected.length ? ` · ${draft.capture.selected.map((item) => item.elementText).join(", ")}` : ""}`,
+        ),
+      );
     const contact = h("input");
     contact.type = "text";
     contact.placeholder = "Your name / email (optional)";
@@ -401,42 +417,62 @@ export function createConversation(opts: {
     if (!owner()) el.appendChild(contact);
     const diag = draft.diagnostics;
     const extras = [
-      opts.picker.selected().length ? `${opts.picker.selected().length} picked element(s)` : "",
+      (draft.capture?.selected ?? opts.picker.selected()).length
+        ? `${(draft.capture?.selected ?? opts.picker.selected()).length} picked element(s)`
+        : "",
       shotsNow().length ? `${shotsNow().length} screenshot(s)` : "",
-      diag && formatDiagnostics(diag) ? "the steps that led here" : "",
+      diag && formatDiagnostics(diag)
+        ? draft.capture
+          ? "page position when recorded"
+          : "the steps that led here"
+        : "",
     ].filter(Boolean);
-    if (extras.length) {
+    if (extras.length && !draft.capture) {
       const note = h("div", "diag", `Goes with it: ${extras.join(", ")}`);
       note.style.display = "block";
       if (diag) note.title = formatDiagnostics(diag);
       el.appendChild(note);
     }
     const row = h("div", "row");
-    const go = h("button", "go", owner() ? "Build it" : "Send");
+    const sendLabel = draft.intent === "note" ? "Save note" : owner() ? "Build it" : "Send";
+    const go = h("button", "go", sendLabel);
     go.type = "button";
+    const requestFix =
+      owner() && draft.intent === "note" ? h("button", "ghost", "Request fix") : null;
+    if (requestFix) requestFix.type = "button";
     const cancel = h("button", "ghost", "Cancel");
     cancel.type = "button";
     const cardErr = h("div", "err");
-    row.append(go, cancel);
+    row.append(go);
+    if (requestFix) row.append(requestFix);
+    row.append(cancel);
     el.append(row, cardErr);
     cancel.addEventListener("click", () => {
       model.closeDraft();
       focus();
     });
-    go.addEventListener("click", async () => {
+    const send = async (intent?: "note" | "fix") => {
       const body = box.value.trim();
       if (!body) return;
+      if (body.length > MAX_LEN) {
+        cardErr.textContent = `This note is longer than ${MAX_LEN} characters. Shorten it before sending; your full recording text is kept here.`;
+        return;
+      }
       go.disabled = true;
+      if (requestFix) requestFix.disabled = true;
       go.textContent = "Sending…";
       cardErr.textContent = "";
       try {
-        await model.sendDraft(body, contact.value);
+        await model.sendDraft(body, contact.value, intent);
       } catch (e) {
         go.disabled = false;
-        go.textContent = owner() ? "Build it" : "Send";
+        if (requestFix) requestFix.disabled = false;
+        go.textContent = sendLabel;
         cardErr.textContent = e instanceof Error ? e.message : "Could not send — try again.";
       }
-    });
+    };
+    go.addEventListener("click", () => void send());
+    requestFix?.addEventListener("click", () => void send("fix"));
     // Focus the words once the card is in the thread.
     queueMicrotask(() => {
       box.focus();
@@ -465,7 +501,12 @@ export function createConversation(opts: {
     });
   }
 
-  const focus = () => (kit ? kit.focus() : input.focus());
+  const focus = () => {
+    const draftInput = card?.el.querySelector("textarea");
+    if (draftInput) draftInput.focus({ preventScroll: true });
+    else if (kit) kit.focus();
+    else input.focus();
+  };
 
   /**
    * Draw the conversation with the shared chat (widget/chat/, loaded as its own
@@ -528,6 +569,11 @@ export function createConversation(opts: {
     draft: (message: string, diagnostics: ReportDiagnostics | null) =>
       model.openDraft(message, diagnostics),
     /** Watch noticed something: Loki says it in the thread, with Fix this. */
+    hasDraft: () => !!model.snapshot().draft,
+    recorded: (...args: Parameters<typeof model.recorded>) => {
+      model.recorded(...args);
+      focus();
+    },
     noticed: model.noticed,
     /** Loki on Loki (self-watch.ts) — quiet: never moves your reading place. */
     selfNote: model.selfNote,

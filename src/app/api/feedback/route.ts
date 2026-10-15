@@ -1,3 +1,4 @@
+import { FeedbackCaptureContextSchema } from "@/lib/feedback/capture-context-schema";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -49,6 +50,9 @@ function corsError(message: string, status: number): NextResponse {
 const FeedbackBody = z.object({
   token: z.string().startsWith("fcw_").max(100),
   suggestion: z.string().trim().min(1).max(2000),
+  /** Owner review notes are saved; only an explicit fix request starts work. */
+  intent: z.enum(["note", "fix"]).optional(),
+  context: FeedbackCaptureContextSchema.optional(),
   contact: z.string().max(200).optional(),
   page: z.string().max(300).optional(),
   url: z.string().max(1000).optional(),
@@ -147,7 +151,7 @@ export async function POST(req: NextRequest) {
   // Dedupe at ingest: the same complaint filed again bumps the existing open
   // row's duplicate_count instead of creating a new row — volume signal kept,
   // inbox noise dropped. Idempotent for the visitor (they still see success).
-  const contentHash = feedbackContentHash(data.suggestion, data.page ?? null);
+  const contentHash = feedbackContentHash(data.suggestion, data.page ?? null, data);
   // A Watch finding is keyed by what it IS, not by the words this filing
   // carries (the watched steps differ every time): the owner pressing "Fix
   // this" on a finding already being fixed lands on that row.
@@ -159,7 +163,7 @@ export async function POST(req: NextRequest) {
     // The owner saying the same thing again means "do it": a failed attempt
     // starts again, one already running answers "already on it". Answering as
     // a visitor here also made the widget drop a perfectly good pass.
-    if (fromOwner) {
+    if (fromOwner && data.intent !== "note") {
       const build = await startOwnerBuild(token.userId, token.projectId, bumped);
       // The same link the first filing got: a receipt without one was the
       // one place "On it" dead-ended.
@@ -169,6 +173,18 @@ export async function POST(req: NextRequest) {
         { headers: CORS_HEADERS },
       );
     }
+    if (fromOwner)
+      return NextResponse.json(
+        {
+          ok: true,
+          owner: true,
+          savedOnly: true,
+          duplicateOf: bumped,
+          buildNote: "Saved for review. No fix has been started.",
+          followUrl: `${appUrl()}/projects/${token.projectId}#feedback`,
+        },
+        { headers: CORS_HEADERS },
+      );
     const claim = createFeedbackClaimToken(bumped);
     return NextResponse.json(
       { ok: true, duplicateOf: bumped, claimUrl: `${appUrl()}/claim-feedback?token=${claim}` },
@@ -181,6 +197,8 @@ export async function POST(req: NextRequest) {
     userId: token.userId,
     tokenId: token.id,
     suggestion: data.suggestion,
+    requiresReview: data.intent === "note",
+    captureContext: data.context ?? null,
     contact: data.contact ?? null,
     page: data.page ?? null,
     url: data.url ?? null,
@@ -204,7 +222,7 @@ export async function POST(req: NextRequest) {
   // now, through the same path as the Implement button, and tell the widget
   // how it went so the owner is never left guessing. A refusal is reported,
   // not hidden: the note is stored either way and waits in the inbox.
-  if (fromOwner) {
+  if (fromOwner && data.intent !== "note") {
     const build = await startOwnerBuild(token.userId, token.projectId, created.id);
     // The receipt in the widget links to this fix in Loki, so "On it" is never
     // a dead end: the owner follows the build to live from the same thread.
@@ -215,6 +233,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (fromOwner)
+    return NextResponse.json(
+      {
+        ok: true,
+        owner: true,
+        savedOnly: true,
+        buildNote: "Saved for review. No fix has been started.",
+        followUrl: `${appUrl()}/projects/${token.projectId}#feedback`,
+      },
+      { headers: CORS_HEADERS },
+    );
   const claim = createFeedbackClaimToken(created.id);
   return NextResponse.json(
     { ok: true, claimUrl: `${appUrl()}/claim-feedback?token=${claim}` },

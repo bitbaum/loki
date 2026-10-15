@@ -28,7 +28,9 @@ import { startTourFromFragment } from "./tour";
 import type { ReportDiagnostics } from "./report-payload";
 import { DEFAULT_PLACEMENT, normalizePlacement, type Placement } from "./placement";
 import { buildDocCSS, buildShadowCSS, type WidgetTheme } from "./theme";
-import { h, spiralMark } from "./dom";
+import { createBrowseVoice } from "./browse-voice";
+import { isVoiceSupported } from "./voice";
+import { h, spiralMark, micIcon } from "./dom";
 import { createThoughtsView } from "./thoughts-view";
 import { attachSheet } from "./sheet";
 import {
@@ -332,6 +334,19 @@ interface LokiApi {
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
+    const speakBtn = h("button", "x");
+    speakBtn.type = "button";
+    speakBtn.append(micIcon());
+    speakBtn.setAttribute("aria-label", "Speak while browsing");
+    speakBtn.title = "Speak while browsing";
+    speakBtn.addEventListener("click", () => {
+      if (conversation.hasDraft()) {
+        conversation.say("Save or cancel your current note before starting another.");
+        return;
+      }
+      browseVoice?.start();
+    });
+    if (isVoiceSupported()) hdrActions.append(speakBtn);
     hdrActions.append(watchBtn, closeBtn);
     hdr.append(hdrText, hdrActions);
     const watchOffer = watchOfferView(ownerSignInUrl(apiBase, token, location.href));
@@ -375,6 +390,7 @@ interface LokiApi {
     madeWith.target = "_blank";
     madeWith.rel = "noopener";
 
+    let browseVoice: ReturnType<typeof createBrowseVoice> | null = null;
     const modes = parseWidgetSurfaceModes(modesAttr);
     const picker = createPicker({
       root,
@@ -385,6 +401,11 @@ interface LokiApi {
       maxElements: MAX_ELEMENTS,
       onCancel: () => conversation.refresh(),
       onStop: () => {
+        if (browseVoice?.active()) {
+          browseVoice.pointed();
+          closePanel();
+          return;
+        }
         conversation.refresh();
         conversation.focus();
       },
@@ -481,7 +502,7 @@ interface LokiApi {
       panel.remove();
       root.removeEventListener("keydown", onKeydown as EventListener);
       document.removeEventListener("keydown", onDocumentKeydown);
-      fab.style.display = fabRest();
+      fab.style.display = browseVoice?.active() ? "none" : fabRest();
     }
 
     function onKeydown(e: KeyboardEvent) {
@@ -507,6 +528,44 @@ interface LokiApi {
       if (picker.isPicking()) picker.stop();
       else closePanel();
     }
+
+    browseVoice = createBrowseVoice({
+      root,
+      host,
+      theme,
+      token,
+      endpoint: `${apiBase}/api/widget/transcribe`,
+      selected: () => picker.selected(),
+      onPoint: () => {
+        root.addEventListener("keydown", onKeydown as EventListener);
+        document.addEventListener("keydown", onDocumentKeydown);
+        picker.start();
+      },
+      onActive: (active) => {
+        if (active) closePanel();
+        else {
+          if (picker.isPicking()) {
+            picker.stop();
+            closePanel();
+          }
+          if (!panel.isConnected) {
+            fab.style.display = fabRest();
+            root.removeEventListener("keydown", onKeydown as EventListener);
+            document.removeEventListener("keydown", onDocumentKeydown);
+          }
+        }
+        syncWatch();
+      },
+      onTranscript: (text, capture) => {
+        if (picker.isPicking()) picker.stop();
+        openPanel();
+        conversation.recorded(text, capture);
+      },
+      onError: (message) => {
+        openPanel();
+        conversation.say(message);
+      },
+    });
 
     // Programmatic entry point: the host's own "Report" control opens the
     // send confirmation prefilled, with whatever the host attached.
@@ -545,12 +604,12 @@ interface LokiApi {
         },
         onRemark: (r) => {
           conversation.noticed(r);
-          if (panel.isConnected) return;
+          if (panel.isConnected || browseVoice?.active()) return;
           unread++;
           syncWatch();
           launcher.say(r.short ?? r.say.split("\n")[0]);
         },
-        statusShown: () => panel.isConnected || launcher.isShown(),
+        statusShown: () => !!browseVoice?.active() || panel.isConnected || launcher.isShown(),
         onChange: syncWatch,
         onTrail: (trail) => thoughts.update(trail, watchSession?.on() ?? false),
         known: (key) => changes.known(key),

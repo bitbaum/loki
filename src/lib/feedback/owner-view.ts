@@ -41,8 +41,16 @@ const ON_THE_WAY: ReadonlySet<string> = new Set([
   FIX_SHIP_STATE.DEPLOYING,
 ]);
 
-export function ownerStatusFor(work: FeedbackWorkView): OwnerChangeStatus {
+export function ownerStatusFor(work: FeedbackWorkView, requiresReview = false): OwnerChangeStatus {
   const base = { live: false, settled: false, needsYou: false };
+  if (requiresReview && work.phase === FEEDBACK_WORK_PHASE.NOT_STARTED)
+    return {
+      ...base,
+      label: "Review note",
+      tone: "neutral",
+      detail: "Saved as an observation. Choose whether to request a fix in Loki.",
+      needsYou: true,
+    };
   switch (work.phase) {
     case FEEDBACK_WORK_PHASE.NOT_STARTED:
       return {
