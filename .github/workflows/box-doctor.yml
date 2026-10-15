@@ -1,0 +1,60 @@
+# Read-only look at the messaging side of the box — from GitHub, without a laptop.
+#
+# Feedback arriving, Telegram, Web Push and the OpenClaw gateway (WhatsApp and
+# the Telegram chat) all live on bitbaum, and a sandboxed agent session cannot
+# reach it. This workflow can: it reuses exactly the SSH setup openclaw-media.yml
+# and deploy.yml use (HETZNER_SSH_KEY, HETZNER_IP), so nothing new has to be
+# provisioned, and it runs scripts/hetzner/doctor-messaging.sh there.
+#
+# The script is READ-ONLY and prints counts, times and statuses only — this repo
+# is public, so its run logs are too. The one outward action is a single Telegram
+# test message to the operator's own chat, and only if `send_test` is true.
+#
+# Run it from the Actions tab, or:  gh workflow run box-doctor.yml -f hours=72
+name: Box doctor
+
+on:
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: "How far back to look (hours)"
+        required: false
+        default: "72"
+      send_test:
+        description: "Send ONE Telegram test message to the operator's own chat"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: box-doctor
+  cancel-in-progress: false
+
+jobs:
+  doctor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+
+      - name: Look
+        env:
+          HOURS: ${{ inputs.hours }}
+          SEND_TEST: ${{ inputs.send_test }}
+        run: |
+          case "$HOURS" in ''|*[!0-9]*) HOURS=72 ;; esac
+          [ "$SEND_TEST" = "true" ] && T=1 || T=0
+          # The script travels on stdin and is never re-parsed by anything in
+          # between (the lesson of openclaw-media.yml's second run).
+          ssh "root@$HETZNER_IP" bash -s -- "$HOURS" "$T" < scripts/hetzner/doctor-messaging.sh
