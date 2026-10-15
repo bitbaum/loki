@@ -12,7 +12,7 @@
  * — given per item, or in advance via a standing rule (lib/actions/standing-approval.ts).
  */
 import type { ActionType } from "@/lib/constants/statuses";
-import { ACTION_TYPE } from "@/lib/constants/statuses";
+import { ACTION_STATUS, ACTION_TYPE } from "@/lib/constants/statuses";
 import { extractActionProposal } from "@/lib/actions/extract-proposal";
 import { enqueueAction } from "@/lib/actions/enqueue-action";
 import { enrichReachPayload, reachFromPerson, resolvePersonToReach } from "@/lib/people-resolve";
@@ -71,8 +71,19 @@ export async function enqueueProposalFromMessage(
     },
     { origin: "operator" },
   );
-  // An already-pending draft title dedupes — nothing new was queued.
-  if (outcome.result === "deduped") return null;
+  // Already asked for. When it was the same request moments ago (the model's
+  // own propose_action, running beside this producer), show THAT one — the
+  // reply still gets its card, and nothing is booked twice.
+  if (outcome.result === "deduped") {
+    const same = outcome.action;
+    if (!same) return null;
+    return {
+      id: same.id,
+      type: same.type,
+      title: same.title,
+      autoApproved: same.status !== ACTION_STATUS.DRAFT,
+    };
+  }
 
   // No Telegram card from this producer: the operator is looking at the web
   // chat that produced it, and the reply already says what was queued. Pinging
