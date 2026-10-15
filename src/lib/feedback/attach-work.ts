@@ -191,6 +191,8 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
               livePageUrl: livePageHref(item.liveUrl, item.url, item.page),
               didLine: summary?.done ?? null,
               summaryNext: summary?.next ?? null,
+              selector: item.selectedElements?.[0]?.selector ?? null,
+              existingPicture: run.payload?.fixPicture ?? null,
             });
         }
       }),

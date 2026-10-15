@@ -5,6 +5,7 @@ import {
   buildProgressUpdate,
   UPDATE_STAGE,
   type ProgressUpdate,
+  type UpdateImage,
   type UpdateLink,
 } from "@/lib/loki/progress-update";
 import type { FixShipping, ShipAnnouncement } from "@/lib/feedback/fix-shipping";
@@ -24,7 +25,20 @@ export type ShippedUpdateInput = {
   livePageUrl: string | null;
   didLine: string | null;
   summaryNext: string | null;
+  /** A picture of the live page taken once it went live (post-shipped-update.ts). */
+  after?: UpdateImage | null;
 };
+
+/** Does this update owe an "after" picture? Only a live change someone can
+ *  see: a failed deploy shows the old page, and a behind-the-scenes fix
+ *  would be a picture of a page that did not change. */
+export function wantsAfterPicture(
+  input: Pick<ShippedUpdateInput, "announcement" | "fix" | "livePageUrl">,
+): boolean {
+  return (
+    input.announcement === "live" && !!input.livePageUrl && input.fix.pr?.note?.shows !== "behind"
+  );
+}
 
 /** Pure: the update for a fix that went live or failed to deploy. */
 export function buildShippedUpdate(input: ShippedUpdateInput): ProgressUpdate {
@@ -58,14 +72,18 @@ export function buildShippedUpdate(input: ShippedUpdateInput): ProgressUpdate {
     summaryNext: input.summaryNext,
     where,
     deployName: input.fix.deploy?.name ?? null,
-    images: input.hasScreenshot
-      ? [
-          {
-            src: feedbackScreenshotPath(input.feedbackId, 0),
-            caption: "Before — the screenshot that came with the report",
-          },
-        ]
-      : [],
+    // Before beside after: the report's own screenshot, then the live page.
+    images: [
+      ...(input.hasScreenshot
+        ? [
+            {
+              src: feedbackScreenshotPath(input.feedbackId, 0),
+              caption: "Before — the screenshot that came with the report",
+            },
+          ]
+        : []),
+      ...(input.after && wantsAfterPicture(input) ? [input.after] : []),
+    ],
     links,
   });
 }

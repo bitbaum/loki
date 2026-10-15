@@ -7617,7 +7617,7 @@
     @apply text-text-primary;
   }
   .ui-loki-update-shots {
-    @apply grid grid-cols-1 gap-2 sm:grid-cols-2;
+    @apply grid grid-cols-2 gap-2;
   }
   .ui-loki-update-shot {
     @apply block overflow-hidden rounded-lg border border-border-subtle bg-surface-raised;
