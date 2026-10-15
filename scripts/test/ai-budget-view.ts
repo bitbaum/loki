@@ -84,9 +84,14 @@ check("a fresh day: answers now and today, counted at the constant, bar at zero"
   assert(p.answersNow === admissions(75_000), `now ${p.answersNow}`);
   assert(p.answersToday === admissions(100_000), `today ${p.answersToday}`);
   assert(p.usedLevel === 0, "nothing used");
-  assert(p.answersToday > p.answersNow && /unlocks through the day/.test(p.line), p.line);
-  assert(/resets in 12 hours/.test(p.line), p.line);
-  assert(v.headline.startsWith("About "), v.headline);
+  assert(p.answersToday > p.answersNow && /free up through the day/.test(p.line), p.line);
+  // A clock time in the person's zone, not a countdown: noon UTC in August is
+  // 14:00 in Zurich, and midnight UTC is 02:00 there tomorrow.
+  assert(/full again tomorrow at 02:00/.test(p.line), p.line);
+  assert(p.line.startsWith(`${p.answersToday} free answers left today`), p.line);
+  assert(p.short === `${p.answersToday} left`, `${p.short}`);
+  assert(v.headline === p.line, v.headline);
+  assert(!/share|pool|unlock|pac/i.test(p.line), `no jargon: ${p.line}`);
   assert(v.resetsAt === "2026-08-16T00:00:00.000Z", v.resetsAt);
 });
 
@@ -111,7 +116,9 @@ check("'answers now' is zero exactly when the gate would refuse, however cheap t
   // 40k left today at 2k an answer is NOT 20: the first must fit the 20k estimate.
   assert(p.answersToday === 11, `today ${p.answersToday}`);
   assert(typeof p.unlocksIn === "string" && /^in /.test(p.unlocksIn), `unlocks ${p.unlocksIn}`);
-  assert(/next answer unlocks in/.test(p.line), p.line);
+  assert(/^11 free answers left today — the next one at \d\d:\d\d\.$/.test(p.line), p.line);
+  assert(p.nextAt !== null && /^at \d\d:\d\d$/.test(p.nextAt), `${p.nextAt}`);
+  assert(p.short === `next ${p.nextAt!.slice(3)}`, `${p.short}`);
   // Right at the edge the next turn is admitted and counts as one.
   const edge = userBudgetView(
     input({ userSpentTokens: 75_000 - ESTIMATED_TURN_TOKENS, userTurns: 30 }),
@@ -124,14 +131,15 @@ check("spent is a different sentence from paced: waiting does not help", () => {
   assert(p.state === "spent", p.state);
   assert(p.answersNow === 0 && p.answersToday === 0, "nothing left today");
   assert(p.unlocksIn === null, "no 'unlocks in' on a spent share");
-  assert(/resets in 12 hours/.test(p.line), p.line);
-  assert(/Bring your own key/.test(p.consequence), p.consequence);
+  assert(p.line === "No free answers left today — full again tomorrow at 02:00.", p.line);
+  assert(p.short === "0 left", `${p.short}`);
+  assert(/no daily limit/.test(p.consequence), p.consequence);
 });
 
 check("no free provider at all is said as such, not as an empty share", () => {
   const v = userBudgetView(input({ dayCapacityTokens: 0, chain: [] }));
   assert(v.freePool.state === "none", v.freePool.state);
-  assert(/No free pool/.test(v.headline), v.headline);
+  assert(v.headline === "No free models on this server.", v.headline);
 });
 
 check("the pool is spent only when EVERY model's vendor refused — unknown is not a refusal", () => {
@@ -148,11 +156,15 @@ check("the pool is spent only when EVERY model's vendor refused — unknown is n
   });
   const all = userBudgetView(input({ vendorRows: [spentGroq, spentOr] })).freePool;
   assert(all.state === "pool-spent", all.state);
-  assert(/every vendor, not just your share/.test(all.line), all.line);
+  assert(/used up for everyone today/.test(all.line), all.line);
   assert(/back in 3 hours/.test(all.line), all.line);
   // A reading for a model outside the chain says nothing about the pool.
   const stray = row({ model: "whisper-large-v3", state: "exhausted", answers: 0, urgent: true });
-  assert(userBudgetView(input({ vendorRows: [stray] })).models.length === 0, "stray row dropped");
+  const strayModels = userBudgetView(input({ vendorRows: [stray] })).models;
+  assert(
+    strayModels.length === CHAIN.length && strayModels.every((m) => !m.id.includes("whisper")),
+    "one row per free model; a stray reading adds none",
+  );
 });
 
 check("per-model headroom speaks only when there is something to act on", () => {
@@ -165,10 +177,46 @@ check("per-model headroom speaks only when there is something to act on", () => 
   const skip = headroomNote(row({ state: "skipped", answers: null }));
   assert(skip === "Last request was too large for this model", `${skip}`);
   const v = userBudgetView(input({ vendorRows: [row({ answers: 3, urgent: true })] }));
+  assert(v.models[0]!.id === "groq/openai/gpt-oss-120b", "keyed as the picker keys it");
+});
+
+check("every free model says what is left on it — not only the one about to run out", () => {
+  const fresh = userBudgetView(input());
+  const today = fresh.freePool.answersToday;
+  assert(fresh.models.length === CHAIN.length, "a row for every free model");
   assert(
-    v.models.length === 1 && v.models[0]!.id === "groq/openai/gpt-oss-120b",
-    "keyed as the picker keys it",
+    fresh.models.every((m) => m.left === `${today} left today`),
+    fresh.models.map((m) => m.left).join(" | "),
   );
+  const low = userBudgetView(
+    input({ vendorRows: [row({ answers: 3, urgent: true, refills: "in 40 minutes" })] }),
+  );
+  assert(
+    low.models[0]!.left === "Running low — about 3 left, more in 40 minutes",
+    low.models[0]!.left,
+  );
+  const out = userBudgetView(
+    input({
+      vendorRows: [row({ state: "exhausted", answers: 0, refills: "in 3 hours", urgent: true })],
+    }),
+  );
+  assert(out.models[0]!.left === "None left right now — back in 3 hours", out.models[0]!.left);
+  assert(
+    out.models[1]!.left === `${today} left today`,
+    "the other model still has the day's count",
+  );
+  const spent = userBudgetView(input({ userSpentTokens: 95_000, userTurns: 10 }));
+  assert(
+    spent.models.every((m) => m.left === "None left today — full again tomorrow at 02:00"),
+    spent.models.map((m) => m.left).join(" | "),
+  );
+  const paced = userBudgetView(input({ userSpentTokens: 60_000, userTurns: 30 }));
+  assert(
+    /^11 left today · next one at \d\d:\d\d$/.test(paced.models[0]!.left),
+    paced.models[0]!.left,
+  );
+  const tokyo = userBudgetView(input({ timeZone: "Asia/Tokyo" }));
+  assert(/full again tomorrow at 09:00/.test(tokyo.freePool.line), tokyo.freePool.line);
 });
 
 check("own keys: their own line, no Loki cap, and the pool becomes the fallback", () => {
@@ -207,7 +255,8 @@ check("own keys: their own line, no Loki cap, and the pool becomes the fallback"
   );
   assert(b!.line === "Nothing spent on it yet." && !/set a/.test(b!.consequence), b!.consequence);
   assert(
-    /Your keys answer first/.test(v.headline) && /free answers behind them/.test(v.headline),
+    /Your own keys answer first, with no daily limit/.test(v.headline) &&
+      /free answers behind them/.test(v.headline),
     v.headline,
   );
   assert(/asks before switching to free/.test(v.freePool.consequence), v.freePool.consequence);
@@ -229,7 +278,7 @@ check("meaning: pace is said only once there is a rate, and says whether the day
   assert(userBudgetView(input()).meaning.pace === null, "no pace before any turn");
   // Noon, 30k of a 100k share at 3 turns: 60k projected → lasts the day.
   const fine = userBudgetView(input({ userSpentTokens: 30_000, userTurns: 3 })).meaning.pace;
-  assert(fine === "At today's pace your share lasts the whole day.", `${fine}`);
+  assert(fine === "At today's pace your daily count lasts the whole day.", `${fine}`);
   // Noon, 60k spent: 120k projected → runs out at 100/120 of the day = 20:00.
   const hot = userBudgetView(input({ userSpentTokens: 60_000, userTurns: 30 })).meaning.pace;
   assert(hot !== null && /runs out around 20:00 UTC/.test(hot), `${hot}`);
@@ -243,7 +292,7 @@ check("meaning: pace is said only once there is a rate, and says whether the day
 check("meaning: the week, memory and explanations are stated, with the levers that apply", () => {
   const v = userBudgetView(input({ week: { tokens: 84_000, turns: 12, days: 3 } }));
   assert(
-    v.meaning.week?.line === "Last 7 days: 12 answers on the free pool, 84,000 tokens, on 3 days.",
+    v.meaning.week?.line === "Last 7 days: 12 free answers, 84,000 tokens, on 3 days.",
     `${v.meaning.week?.line}`,
   );
   assert(
@@ -251,8 +300,8 @@ check("meaning: the week, memory and explanations are stated, with the levers th
     v.meaning.memory.line,
   );
   assert(
-    v.meaning.explain.some((e) => e.title === "Your share"),
-    "share explained",
+    v.meaning.explain.some((e) => e.title === "Why there is a daily count"),
+    "the daily count explained",
   );
   assert(!v.meaning.explain.some((e) => e.title === "Your keys"), "no keys, no key explanation");
   assert(

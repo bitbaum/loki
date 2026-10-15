@@ -7,6 +7,7 @@ import { listOwnModels } from "@/db/queries/user-model-keys";
 import { getUserPreferences } from "@/db/queries/user-preferences";
 import { HISTORY_CHARS_PER_TURN, HISTORY_TURNS } from "@/lib/agent/loop";
 import { userBudgetView, type BudgetView } from "@/lib/ai/budget-view";
+import { effectiveTimeZone } from "@/lib/agent/now-line";
 import { bindingRows, describeQuota, nextProviderAfter } from "@/lib/ai/quota-view";
 
 /**
@@ -66,6 +67,7 @@ export async function readUserBudget(userId: string, now = new Date()): Promise<
     ...(week ? { week } : {}),
     memory: { turns: HISTORY_TURNS, charsPerTurn: HISTORY_CHARS_PER_TURN },
     ...(prefs ? { stance: prefs.modelStance } : {}),
+    timeZone: effectiveTimeZone(prefs, now),
     ownKeys: own.map((m) => {
       const vendor = vendorById(m.vendor);
       const u = usageByVendor.get(m.vendor);

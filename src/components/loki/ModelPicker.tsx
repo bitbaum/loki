@@ -40,16 +40,26 @@ import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
  * free row whose vendor is spent or low says so on the row. Until this, the
  * first a person heard of the daily share was the refusal — a picker that
  * offers a row it will then refuse is the locked-row mistake in a new coat.
+ *
+ * ── Always visible ───────────────────────────────────────────────────────────
+ * The button itself carries the count ("Auto · 12 left"), refreshed when each
+ * answer finishes. Inside the menu was not enough: a person running several
+ * things wants to know before they type, and asked for exactly that
+ * (2026-10-15) after meeting the limit only as a refusal. Every model row says
+ * what is left on it, not only a row about to run out.
  */
 export function ModelPicker({
   value,
   onChange,
   disabled,
+  busy = false,
 }: {
   /** undefined = Auto (walk the whole chain). */
   value: string | undefined;
   onChange: (model: string | undefined) => void;
   disabled?: boolean;
+  /** An answer is being written; when it finishes, the count is read again. */
+  busy?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<LokiModelsResponse | null>(null);
@@ -72,9 +82,21 @@ export function ModelPicker({
       .catch(() => {
         if (live) setLoadError("Couldn't load model choices. Try again.");
       });
-    // Alongside, never instead: the rows must render whether or not the
-    // budget can be read, and a budget that cannot be read is simply absent —
-    // "could not look" must never draw as "nothing left".
+    return () => {
+      live = false;
+    };
+  }, [open, reload]);
+
+  // The count, kept current without opening anything: on load, whenever an
+  // answer finishes (`busy` falls), when the menu opens, and every two
+  // minutes while the page is visible — answers free up through the day.
+  // A budget that cannot be read is simply absent: "could not look" must
+  // never draw as "nothing left".
+  const [budgetTick, setBudgetTick] = useState(0);
+  const [opens, setOpens] = useState(0);
+  useEffect(() => {
+    if (busy) return;
+    let live = true;
     getJson<BudgetView>("/api/ai/budget")
       .then((b) => {
         if (live) setBudget(b);
@@ -83,7 +105,18 @@ export function ModelPicker({
     return () => {
       live = false;
     };
-  }, [open, reload]);
+  }, [busy, opens, reload, budgetTick]);
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === "visible") setBudgetTick((n) => n + 1);
+    };
+    const id = window.setInterval(tick, BUDGET_REFRESH_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -103,7 +136,6 @@ export function ModelPicker({
 
   const clearLoad = () => {
     setData(null);
-    setBudget(null);
     setLoadError(null);
   };
 
@@ -113,9 +145,22 @@ export function ModelPicker({
   };
 
   const current = value ? describeChatModel(value).name : "Auto";
+  // The count on the button: own keys have no daily limit from Loki; a free
+  // pick (or Auto with no keys) shows the day's free count.
+  const onOwnKey =
+    budget !== null &&
+    budget.ownKeys.length > 0 &&
+    (value === undefined || budget.ownKeys.some((k) => k.model === value));
+  const countLabel = budget ? (onOwnKey ? "your key" : budget.freePool.short) : null;
+  const countOut =
+    !onOwnKey &&
+    budget !== null &&
+    budget.freePool.state !== "ok" &&
+    budget.freePool.state !== "none";
 
-  // What a vendor last said about a free row, keyed as the rows are.
+  // What a vendor last said about a free row, and what is left on it, keyed as the rows are.
   const headroom = new Map((budget?.models ?? []).map((m) => [m.id, m.note]));
+  const leftOn = new Map((budget?.models ?? []).map((m) => [m.id, m.left]));
   // What the person's own key spent today, matched by the label the row shows.
   const ownSpend = (label: string, model: string) =>
     budget?.ownKeys.find((k) => k.label === label && k.model === model) ?? null;
@@ -135,22 +180,26 @@ export function ModelPicker({
         ? budget.freePool.line
         : (headroom.get(`${option.provider}/${option.id}`) ?? null);
     const spend = option.own ? ownSpend(option.provider, option.id) : null;
+    const left = option.own
+      ? spend && spend.callsToday > 0
+        ? `No daily limit · ${spend.callsToday.toLocaleString("en-US")} ${spend.callsToday === 1 ? "answer" : "answers"} today`
+        : "No daily limit"
+      : option.usable && budget
+        ? (leftOn.get(`${option.provider}/${option.id}`) ?? budget.freePool.short ?? undefined)
+        : undefined;
     return (
       <ModelRow
         key={`${option.provider}/${option.id}`}
         name={name}
         blurb={
           option.own
-            ? spend && spend.callsToday > 0
-              ? `Your key · ${providerName(option.provider)} · ${spend.tokensToday.toLocaleString("en-US")} tokens today`
-              : `Your key · ${providerName(option.provider)}`
+            ? `Your key · ${providerName(option.provider)}`
             : option.usable
-              ? note
-                ? `${note} · ${providerName(option.provider)}`
-                : `${blurb} · ${providerName(option.provider)}`
+              ? `${blurb} · ${providerName(option.provider)}`
               : `${option.reason ?? note ?? "Not available on this connection"} · ${providerName(option.provider)}`
         }
         title={option.reason ?? note ?? undefined}
+        left={left}
         selected={value === option.id}
         locked={locked}
         onPick={() => pick(option.id)}
@@ -237,18 +286,51 @@ export function ModelPicker({
         type="button"
         className="ui-loki-model-trigger"
         onClick={() => {
-          if (!open) clearLoad();
+          if (!open) {
+            clearLoad();
+            setOpens((n) => n + 1);
+          }
           setOpen((v) => !v);
         }}
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={value ? `Starts at ${current}` : "Auto — best available model"}
+        aria-label={`Model: ${current}${budget ? ` — ${budget.headline}` : ""}`}
+        title={
+          budget ? budget.headline : value ? `Starts at ${current}` : "Auto — best available model"
+        }
       >
         <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <span className="truncate">{current}</span>
+        <span
+          className={
+            countLabel ? "ui-loki-model-name ui-loki-model-name-counted" : "ui-loki-model-name"
+          }
+        >
+          {current}
+        </span>
+        {countLabel && (
+          <span
+            className={
+              countOut ? "ui-loki-model-left ui-loki-model-left-out" : "ui-loki-model-left"
+            }
+          >
+            <span className="ui-loki-model-left-long">
+              <span className="max-sm:hidden">· </span>
+              {countLabel}
+            </span>
+            <span className="ui-loki-model-left-tiny">
+              {countLabel.replace(/ left$/, "").replace(/^next /, "")}
+            </span>
+          </span>
+        )}
         <ChevronDown
-          className={open ? "ui-loki-model-caret ui-loki-model-caret-open" : "ui-loki-model-caret"}
+          className={[
+            "ui-loki-model-caret",
+            open ? "ui-loki-model-caret-open" : "",
+            countLabel ? "ui-loki-model-caret-counted" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           aria-hidden
         />
       </button>
@@ -295,6 +377,7 @@ export function ModelPicker({
 function ModelRow({
   name,
   blurb,
+  left,
   selected,
   locked = false,
   onPick,
@@ -302,6 +385,8 @@ function ModelRow({
 }: {
   name: string;
   blurb: string;
+  /** What is left on this model, in words — every usable row says it. */
+  left?: string;
   /** The precise reason on hover (e.g. which env var is missing). */
   title?: string;
   selected: boolean;
@@ -320,6 +405,7 @@ function ModelRow({
       <span className="ui-loki-model-row-text">
         <span className="ui-loki-model-row-title">{name}</span>
         <span className="ui-loki-model-row-sub">{blurb}</span>
+        {left && <span className="ui-loki-model-row-left">{left}</span>}
       </span>
       {locked ? (
         <Lock className="ui-loki-model-check" aria-hidden />
@@ -329,6 +415,9 @@ function ModelRow({
     </button>
   );
 }
+
+/** Answers free up through the day; read the count again this often while visible. */
+const BUDGET_REFRESH_MS = 2 * 60_000;
 
 /** "groq" → "Groq", "openrouter" → "OpenRouter". */
 function providerName(id: string): string {

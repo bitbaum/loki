@@ -91,9 +91,10 @@ async function main() {
           contentType: "application/json",
           body: JSON.stringify({
             headline: `Budget reading ${call}`,
-            freePool: { state: "ok", line: `Free budget ${call}` },
+            freePool: { state: "ok", line: `Free budget ${call}`, short: `${call} left` },
             ownKeys: [],
-            models: call === 1 ? exhausted : [{ ...exhausted[0], state: "known", note: null }],
+            // Read once on load and again on every open: the first two readings say spent.
+            models: call <= 2 ? exhausted : [{ ...exhausted[0], state: "known", note: null }],
           }),
         });
       }
@@ -101,19 +102,23 @@ async function main() {
     });
     await page.goto("http://loki.fixture/");
     await page.addScriptTag({ content: js });
-    const trigger = page.getByRole("button", { name: "Auto", exact: true });
+    const trigger = page.locator(".ui-loki-model-trigger");
+    // What is left is on the button itself, before anything is opened.
+    await trigger.getByText("1 left").waitFor();
+    assert.equal(budgetCalls, 1);
     await trigger.click();
     const dialog = page.getByRole("dialog", { name: "Choose a model" });
-    await dialog.getByText("Budget reading 1", { exact: true }).waitFor();
+    await dialog.getByText("Budget reading 2", { exact: true }).waitFor();
     assert.equal(await dialog.getByRole("button", { name: /Grok 4.7/ }).isEnabled(), true);
     assert.equal(await dialog.getByRole("button", { name: /GPT-OSS 120B/ }).isVisible(), false);
     await dialog.getByText("Unavailable right now (2)", { exact: true }).click();
     assert.equal(await dialog.getByRole("button", { name: /GPT-OSS 120B/ }).isDisabled(), true);
     await dialog.getByRole("button", { name: "Close", exact: true }).click();
     await trigger.click();
-    await dialog.getByText("Budget reading 2", { exact: true }).waitFor();
+    await dialog.getByText("Budget reading 3", { exact: true }).waitFor();
     assert.equal(modelCalls, 2);
-    assert.equal(budgetCalls, 2);
+    // Closing reads nothing; each open reads once.
+    assert.equal(budgetCalls, 3);
     await dialog.getByRole("button", { name: /GPT-OSS 120B/ }).click();
     assert.equal(await page.evaluate("window.picked"), "gpt-oss-120b");
     assert.equal(await dialog.count(), 0);
@@ -124,7 +129,7 @@ async function main() {
     failModels = false;
     await page.getByRole("button", { name: "Retry", exact: true }).click();
     await dialog.getByRole("button", { name: /Grok 4.7/ }).waitFor();
-    await dialog.getByText("Free budget 4", { exact: true }).waitFor();
+    await dialog.getByText("Free budget 5", { exact: true }).waitFor();
     await page.keyboard.press("Escape");
     assert.equal(await dialog.count(), 0);
     assert.equal(
@@ -132,7 +137,7 @@ async function main() {
       false,
     );
     console.log(
-      "✓ delayed budget, quota grouping, reopen freshness, selection, retry and sheet dismissal",
+      "✓ count on the button, delayed budget, quota grouping, reopen freshness, selection, retry and sheet dismissal",
     );
   } finally {
     await browser.close();

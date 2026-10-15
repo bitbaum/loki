@@ -3,6 +3,8 @@ import { dayCapacityTokens } from "@/config/chat-models";
 import { humanizeWait } from "@/lib/agent/groq-error";
 import type { DayUsage } from "@/db/queries/ai-spend";
 import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
+import { nextUtcMidnight } from "@bitbaum/ai-kit";
+import { atClock } from "@/lib/ai/clock-words";
 
 /**
  * The ledger is imported LAZILY, for the same reason `loop.ts` does it: `@/db`
@@ -13,6 +15,15 @@ import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
  */
 async function ledger() {
   return import("@/db/queries/ai-spend");
+}
+
+/** Lazily, for the same reason as the ledger: only a refusal needs it. */
+async function personZone(userId: string, now: Date): Promise<string> {
+  const [{ getUserPreferences }, { effectiveTimeZone }] = await Promise.all([
+    import("@/db/queries/user-preferences"),
+    import("@/lib/agent/now-line"),
+  ]);
+  return effectiveTimeZone(await getUserPreferences(userId), now);
 }
 
 /**
@@ -56,21 +67,31 @@ export type BudgetVerdict =
  * that only says "wait" leaves out the one thing that ends the wait now: the
  * person's own key, which Loki uses for their chats with no daily limit.
  */
-const OWN_MODEL_OFFER = `Or [connect your own model](${OWN_MODEL_SETTINGS_PATH}) with a key from any provider you use, and Loki's daily budget no longer applies to your chats.`;
+const OWN_MODEL_OFFER = `Or [add your own model key](${OWN_MODEL_SETTINGS_PATH}) from any provider you use — your chats then have no daily limit.`;
 
-function explain(decision: ShareDecision): string {
+/**
+ * Plain words and a clock time. This used to say "you've used your share of
+ * today's free AI budget for now. It tops up through the day… try again in 19
+ * minutes" while the picker said "resets in 8 hours" — the person who read
+ * both (2026-10-15) could not tell what either meant. The same sentences as
+ * the picker (budget-view.ts), so the two cannot disagree.
+ */
+function explain(decision: ShareDecision, now: Date, timeZone: string | null): string {
   switch (decision.reason) {
     case "paced": {
-      const wait = humanizeWait(decision.retryAfterSeconds ?? null);
-      // Says WHY there is a wait, not just that there is one — "you are being
-      // rationed so someone else can also use this today" is a reason a person
-      // accepts; an unexplained refusal reads as breakage.
-      return `You've used your share of today's free AI budget for now. It tops up through the day so everyone gets a turn${wait ? ` — try again in ${wait}` : ""}. ${OWN_MODEL_OFFER}`;
+      const at =
+        decision.retryAfterSeconds !== undefined
+          ? atClock(new Date(now.getTime() + decision.retryAfterSeconds * 1000), now, timeZone)
+          : null;
+      const wait = at ? null : humanizeWait(decision.retryAfterSeconds ?? null);
+      // Says WHY there is a wait, not just that there is one — a reason a
+      // person accepts; an unexplained refusal reads as breakage.
+      return `No free answer is ready right now — the next one is ready ${at ?? (wait ? `in ${wait}` : "soon")}. Free answers come in through the day so that people who arrive later still get some. ${OWN_MODEL_OFFER}`;
     }
     case "share-spent":
       // No retry offered: waiting cannot help today, and saying otherwise is the
       // same lie as "try again shortly" on an exhausted daily quota.
-      return `You've used your full share of today's free AI budget. It resets at midnight UTC. ${OWN_MODEL_OFFER}`;
+      return `No free answers left today — full again ${atClock(nextUtcMidnight(now), now, timeZone)} (midnight UTC). ${OWN_MODEL_OFFER}`;
     case "no-capacity":
       return `No AI provider is configured on this server. [Connect your own model](${OWN_MODEL_SETTINGS_PATH}) to use Loki now.`;
     case "ok":
@@ -98,6 +119,8 @@ export async function checkAiBudget(
   deps: {
     readUsage?: (userId: string, now: Date) => Promise<DayUsage>;
     capacity?: () => number;
+    /** The person's zone for the clock time in a refusal; read from their settings when absent. */
+    timeZone?: string | null;
   } = {},
 ): Promise<BudgetVerdict> {
   try {
@@ -115,9 +138,11 @@ export async function checkAiBudget(
     });
 
     if (decision.allowed) return { allowed: true };
+    const timeZone =
+      deps.timeZone !== undefined ? deps.timeZone : await personZone(userId, now).catch(() => null);
     return {
       allowed: false,
-      message: explain(decision),
+      message: explain(decision, now, timeZone),
       ...(decision.retryAfterSeconds !== undefined
         ? { retryAfterSeconds: decision.retryAfterSeconds }
         : {}),
