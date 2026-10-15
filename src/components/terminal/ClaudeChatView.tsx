@@ -60,7 +60,9 @@ export function ClaudeChatView({
   onKey,
   onShowTerminal,
   onUnavailable,
+  onLive,
 }: {
+  onLive?: (state: "live" | "connecting" | "stalled") => void;
   tab: string;
   channel: BuilderChannel;
   /** Write raw bytes into the session's PTY (TerminalSurface's sendKey).
@@ -73,6 +75,9 @@ export function ClaudeChatView({
   onUnavailable?: () => void;
 }) {
   const { items, connected, received, sessionId } = useClaudeTranscript(tab, channel);
+  useEffect(() => {
+    onLive?.(!received ? "connecting" : connected ? "live" : "stalled");
+  }, [connected, received, onLive]);
   const blocks = groupTranscript(items);
   const last = items[items.length - 1];
   const now = useSecondTick(last?.kind === "user" || last?.kind === "tool");

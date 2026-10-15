@@ -735,6 +735,7 @@ export function TerminalSurface({
           key={`chat:${channel}:${activeTab}`}
           tab={activeTab}
           channel={channel}
+          onLive={setLiveState}
           onKey={(bytes) => sendKey(bytes, true)}
           onShowTerminal={termView.showTerminal}
           onUnavailable={() =>
