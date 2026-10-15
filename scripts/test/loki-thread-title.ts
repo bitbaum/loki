@@ -46,4 +46,17 @@ const prompt = buildThreadTitlePrompt({
 assert.ok(prompt.startsWith("Project: kivvi"));
 assert.ok(!prompt.includes("q".repeat(THREAD_TITLE_INPUT_CHARS + 1)));
 
+// The list shows the project beside the title — a title never repeats it.
+assert.equal(
+  parseThreadTitle("Prodtest-bakery: Track multiple projects", "prodtest-bakery"),
+  "Track multiple projects",
+);
+assert.equal(parseThreadTitle("prodtest bakery – menu page", "prodtest-bakery"), "Menu page");
+assert.equal(
+  parseThreadTitle("Kivvi checkout bug", "kivvi"),
+  "Kivvi checkout bug",
+  "only a prefix with a separator",
+);
+assert.equal(parseThreadTitle("Bakery: menu", null), "Bakery: menu");
+
 console.log("✓ loki thread title");

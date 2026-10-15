@@ -16,6 +16,7 @@
  * This is the single resolver shared by /api/command/resolve and the Loki
  * /api/conversations/[id]/messages route — neither keeps its own copy.
  */
+import { isBareConfirmation } from "@/lib/loki/confirmation";
 import { callGroqText } from "@/lib/groq";
 import { projectMentionedIn } from "@/lib/project-mention";
 import { ORCHESTRATION_TASK_INTENT_IDS, type OrchestrationTaskIntentId } from "@/lib/orchestration";
@@ -151,7 +152,7 @@ export function looksLikeDispatchTask(text: string): boolean {
   if (!t) return false;
   // An explicit build handoff outranks everything — "ok, now please build it".
   if (DEVELOP_READY_RE.test(t)) return true;
-  if (isPersonalActionRequest(t)) return false;
+  if (isPersonalActionRequest(t) || isBareConfirmation(t)) return false;
   if (CHAT_QUESTION_RE.test(t)) return false;
   if (INFO_REQUEST_RE.test(t)) return false;
   if (YES_NO_QUESTION_RE.test(t)) return false;
@@ -215,15 +216,18 @@ export async function resolveCommand(
 
   // A personal action (calendar, reminder, a message to someone) is answered
   // and drafted for approval on the chat path — never built, whatever
-  // project happens to be selected or is the only one there is.
-  if (isPersonalActionRequest(text)) {
+  // project happens to be selected or is the only one there is. A bare "yes,
+  // do it" is the same: its meaning is in the previous answer, which only the
+  // chat path reads (see lib/loki/confirmation.ts).
+  const personal = isPersonalActionRequest(text);
+  if (personal || isBareConfirmation(text)) {
     return {
       kind: "chat",
       projectKey: null,
       intentId: null,
       prompt: text,
       needsProject: false,
-      reason: "personal action",
+      reason: personal ? "personal action" : "reply to the previous answer",
     };
   }
 

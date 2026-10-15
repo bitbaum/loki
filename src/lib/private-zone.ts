@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { PRIVATE_ZONE_COOKIE, LEGACY_PRIVATE_ZONE_COOKIE } from "@/config/brand-storage";
 import { PRIVATE_ZONE_TTL_MS, verifyPrivateZoneCookieValue } from "@/lib/private-zone-token";
+import { effectivePinHash } from "@/lib/private-zone-pin";
 
 export { PRIVATE_ZONE_COOKIE } from "@/config/brand-storage";
 
@@ -22,25 +23,26 @@ export {
  * Resolve the effective PIN hash for a user.
  *
  * Per-user hashes live on `users.private_zone_pin_hash` and are the canonical
- * source. The legacy `PRIVATE_ZONE_PIN_HASH` env var is honoured only when a
- * user has no PIN of their own — a transitional fallback so the founder's
- * existing env-managed PIN keeps working until they set one in-app. This is
- * deliberately deprecated; new users should set their PIN through Settings →
- * Privacy.
+ * source. The legacy `PRIVATE_ZONE_PIN_HASH` env var is the FOUNDER's PIN —
+ * honoured for the default (owner) account only, while it has no PIN of its
+ * own, so the env-managed PIN keeps working until they set one in-app.
+ *
+ * It used to apply to every account without a PIN. Found on the live site
+ * (2026-10-15): a brand-new account's approvals, commitments and people were
+ * locked behind a PIN it had never chosen ("Enter your PIN … there is no
+ * automatic reset") — a dead end for the newcomer, and the founder's PIN
+ * opened every such account's private zone. A person with no PIN has no gate.
  *
  * `cache()` dedupes the DB lookup within a single request — important when
  * many components on Today / System all call into the gate helpers.
  */
 export const getEffectivePinHash = cache(async (userId: string): Promise<string | null> => {
   const rows = await db
-    .select({ hash: users.privateZonePinHash })
+    .select({ hash: users.privateZonePinHash, isDefault: users.isDefault })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
-  const userHash = rows[0]?.hash?.trim() ?? null;
-  if (userHash) return userHash;
-  const envHash = process.env.PRIVATE_ZONE_PIN_HASH?.trim();
-  return envHash || null;
+  return effectivePinHash(rows[0] ?? null, process.env.PRIVATE_ZONE_PIN_HASH);
 });
 
 export async function isPrivateZoneConfigured(userId: string): Promise<boolean> {

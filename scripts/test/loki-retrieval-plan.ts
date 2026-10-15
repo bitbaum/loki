@@ -305,6 +305,19 @@ async function main() {
       }
     });
 
+    check('"what did I ask you today" leads with my threads, then what ran', () => {
+      for (const q of [
+        "What did I ask you to do today, and did any of it actually get done?",
+        "catch me up across my chats",
+        "where did we leave off?",
+      ]) {
+        const plan = planRetrieval(q);
+        assert.equal(plan.sources[0], "threads", q);
+        assert.ok(plan.sources.includes("runs"), q);
+      }
+      assert.ok(!planRetrieval("what needs me").sources.includes("threads"));
+    });
+
     check("every seed source is reachable by some question — no orphan sources", () => {
       const probes = [
         "what was the most recent feedback sent",
@@ -324,6 +337,7 @@ async function main() {
         "how am I using Build next",
         "list my projects",
         "what do we have, name the three pillars",
+        "what did I ask you to do today",
         "zxcvbnm",
       ];
       const reached = new Set<string>();

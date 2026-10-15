@@ -48,9 +48,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   }
 
   // `retry: true` tells the client the thread is still Loki's to name and
-  // only the model was not available — it asks again shortly. Found in
-  // production: the first ask lands right after the answer, while that turn
-  // has just spent the fast model's minute window, and fails.
+  // only the model's reply was unusable — it asks again shortly.
   let title: string | null = null;
   try {
     const raw = await callGroqText(
@@ -59,12 +57,16 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
         feature: "chat-thread-title",
         systemPrompt: THREAD_TITLE_SYSTEM_PROMPT,
         model: GROQ_FAST_MODEL,
-        maxTokens: 40,
+        // The fast model REASONS before it answers, and that reasoning is
+        // drawn from this same budget. At 40 the title was cut mid-thought on
+        // the live site — a thread named "Bring" (from "Bring the runner
+        // online…") or nothing at all. The title is still capped by the parser.
+        maxTokens: 300,
         temperature: 0.3,
         timeoutMs: 8_000,
       },
     );
-    title = parseThreadTitle(raw);
+    title = parseThreadTitle(raw, conversation.projectKeys[0] ?? null);
   } catch {
     title = null;
   }

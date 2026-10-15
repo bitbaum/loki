@@ -23,7 +23,8 @@ import { listUserFeedback } from "@/db/queries/site-feedback";
 import { listRecentRuns, countRunsByStateSince } from "@/db/queries/orchestration-runs";
 import { getOpenAgentTurns } from "@/db/queries/agent-sessions";
 import { getActiveAlerts } from "@/db/queries/alerts";
-import { getRunnerConnected } from "@/db/queries/runner-presence";
+import { getExecutionAccess } from "@/lib/execution-access";
+import { builderStatusLine } from "@/lib/builder-way-forward";
 import { getPendingActions } from "@/db/queries/actions";
 import { readUserBudget } from "@/lib/ai/budget";
 import { inlineUntrusted } from "@/lib/feedback/untrusted";
@@ -165,9 +166,9 @@ export async function alertFacts(userId: string, limit: number): Promise<Fact[]>
  * makes "what needs me?" answerable on a single call with no tools.
  */
 export async function fleetStatusFacts(userId: string): Promise<Fact[]> {
-  const [runner, runs24h, waiting, sessions, alerts, approvals, feedbackNew, budget] =
+  const [access, runs24h, waiting, sessions, alerts, approvals, feedbackNew, budget] =
     await Promise.all([
-      getRunnerConnected(userId).catch(() => null),
+      getExecutionAccess(userId).catch(() => null),
       countRunsByStateSince(userId, DAY_MS).catch(() => null),
       listRecentRuns(userId, { states: [ORCH_STATE.WAITING], limit: 50 }).catch(() => null),
       getOpenAgentTurns(userId).catch(() => null),
@@ -189,9 +190,9 @@ export async function fleetStatusFacts(userId: string): Promise<Fact[]> {
       source:
         "computed from runner_presence, orchestration_runs, agent_sessions, alerts, actions, site_feedback, ai_spend, own_model_usage, provider_quota",
       values: {
-        runner: runner === null ? null : runner ? "connected" : "OFFLINE — nothing can run",
+        builder: builderStatusLine(access),
         agents_working_now: n(sessions),
-        runs_waiting_for_a_runner: n(waiting),
+        runs_waiting_for_a_builder: n(waiting),
         oldest_waiting_run: oldestWaiting
           ? `${oldestWaiting.projectKey}, waiting since ${timeLabel(oldestWaiting.startedAt)} (${agoLabel(oldestWaiting.startedAt)})`
           : waiting
