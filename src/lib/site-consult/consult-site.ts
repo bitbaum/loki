@@ -1,10 +1,12 @@
 import { CONSULT } from "@/config/site-consult";
 import { fetchPage } from "@/lib/site-consult/fetch-page";
+import { internalLinks, tourSite } from "@/lib/site-consult/crawl";
 import { consult, type Consultation } from "@/lib/site-consult/findings";
 import { readPage } from "@/lib/site-consult/read-page";
 
 /**
- * Fetch, read, judge — and remember for CONSULT.cacheMs, so a visitor who
+ * Fetch the homepage, walk the pages it links to (lib/site-consult/crawl),
+ * read, judge — and remember for CONSULT.cacheMs, so a visitor who
  * signs in mid-way, or reloads, sees the same report without Loki reading
  * their site again. Only reports are kept: a failure may be a passing blip,
  * and the next try should really try. Bounded: the oldest entry goes first.
@@ -22,12 +24,16 @@ export async function consultSite(website: string): Promise<Outcome> {
   const outcome: Outcome = page.ok
     ? {
         ok: true,
-        consultation: consult({
-          finalUrl: page.finalUrl,
-          ms: page.ms,
-          bytes: page.bytes,
-          facts: readPage(page.html, page.finalUrl, page.headers.robots),
-        }),
+        consultation: consult(
+          {
+            finalUrl: page.finalUrl,
+            ms: page.ms,
+            bytes: page.bytes,
+            facts: readPage(page.html, page.finalUrl, page.headers.robots),
+          },
+          undefined,
+          await tourSite(internalLinks(page.html, page.finalUrl)),
+        ),
       }
     : { ok: false, reason: page.reason };
 

@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/session";
 import { WebsiteBuildBody, websiteBuildBrief, websiteProjectName } from "@/lib/website-brief";
 import { startBriefProject } from "@/lib/kickoff/start-brief-project";
+import { startWebsitePreview } from "@/lib/previews/from-website";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
 
-/** The existing project + kickoff pipeline, with the website as its brief.
- *  Repeated delivery of one request resumes its project, never another repo. */
+/** A website brief becomes a private PREVIEW first (lib/previews/from-website):
+ *  no repository until the person says yes. Where this server keeps no
+ *  previews, the project + kickoff pipeline is the fallback. Repeated delivery
+ *  of one request resumes its project, never a second one. */
 export async function POST(req: NextRequest) {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "Sign in to start building." }, { status: 401 });
@@ -23,6 +26,10 @@ export async function POST(req: NextRequest) {
     );
   }
   const input = parsed.data;
+  const preview = await startWebsitePreview(userId, input);
+  if (preview && !preview.ok)
+    return NextResponse.json({ error: preview.error }, { status: preview.status });
+  if (preview) return NextResponse.json(preview);
   const started = await startBriefProject(userId, {
     name: websiteProjectName(input.website, input.mode),
     requestId: input.requestId,

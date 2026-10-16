@@ -32,3 +32,46 @@ export function previewBuildPrompt(opts: { name: string; about?: string; preview
     .filter((line, i, all) => line !== "" || all[i - 1] !== "")
     .join("\n");
 }
+
+/**
+ * The rules for a preview that starts FROM a live website (/change "Improve
+ * this site" or "Make my own, inspired by it"). The preview rules above apply,
+ * except the first: the source is the site the person named, not a research
+ * trip. A refresh also leaves a tour of what changed, because the person it
+ * is for has to SEE the improvement — two sites side by side, compared from
+ * memory, is not seeing it.
+ */
+export const WEBSITE_PREVIEW_RULES = {
+  refresh: [
+    "Start from the live site: read every page listed below (and any others its navigation reaches), and bring over its real content — texts, photos, logo, contact details, opening hours, prices. Download the images you reuse into img/. List every page and source you used in SOURCES.md.",
+    "Write improvements.html in this folder: a plain page for the owner, not linked from the site's navigation, that lists every improvement in their language — what it was on the live site (with a link to that live page), what it is now (with a link to the new page), and why it matters to their visitors. Lead with the change they will notice most. Keep it honest: only what you actually changed.",
+  ],
+  inspired: [
+    "Read the reference site for ideas only, as the request says. Write every word fresh for this person's purpose and use original, generated or properly licensed images. List what you took as inspiration, and from where, in SOURCES.md.",
+  ],
+} as const;
+
+/** The "what changed" tour next to a preview's entry page. */
+export function improvementsUrl(previewUrl: string): string {
+  const base =
+    /\.html?$/i.test(previewUrl) || previewUrl.endsWith("/") ? previewUrl : `${previewUrl}/`;
+  return new URL("improvements.html", base).toString();
+}
+
+export function websitePreviewPrompt(opts: {
+  request: string;
+  mode: keyof typeof WEBSITE_PREVIEW_RULES;
+  previewUrl: string;
+}) {
+  const rules = [...WEBSITE_PREVIEW_RULES[opts.mode], ...PREVIEW_BUILD_RULES.slice(1)];
+  return [
+    opts.request,
+    "",
+    "Rules:",
+    ...rules.map((rule, i) => `${i + 1}. ${rule}`),
+    "",
+    opts.mode === "refresh"
+      ? `When you are done, the new version is at ${opts.previewUrl} and the tour of what changed at ${improvementsUrl(opts.previewUrl)} (both behind the studio's access code). End with a short note: the three improvements the owner will notice most, what you could not bring over, and what they should be asked.`
+      : `When you are done, the preview is at ${opts.previewUrl} (behind the studio's access code). End with a short note: what you built, what was inspired by the reference, and what they should be asked.`,
+  ].join("\n");
+}

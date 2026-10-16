@@ -6,11 +6,20 @@
  * Run: npx tsx scripts/test/site-consult.ts
  */
 import assert from "node:assert/strict";
-import { CONSULT, CONSULT_CHECKS, CONSULT_CHECK_IDS } from "@/config/site-consult";
-import { consult } from "@/lib/site-consult/findings";
+import {
+  CONSULT,
+  CONSULT_CHECKS,
+  CONSULT_CHECK_IDS,
+  CONSULT_QUESTIONS,
+  consultAnswerBrief,
+} from "@/config/site-consult";
+import { consult, siteVerdicts } from "@/lib/site-consult/findings";
 import { fetchPage, type FetchLike, type LookupLike } from "@/lib/site-consult/fetch-page";
 import { readPage } from "@/lib/site-consult/read-page";
-import { WebsiteBuildBody, websiteBuildBrief } from "@/lib/website-brief";
+import { WebsiteBuildBody, websiteBuildBrief, websitePreviewRequest } from "@/lib/website-brief";
+import { internalLinks, tourSite, type PageTour } from "@/lib/site-consult/crawl";
+import { consultTalk, tourForBrief } from "@/lib/site-consult/advice";
+import { improvementsUrl, websitePreviewPrompt } from "@/config/preview-brief";
 import { parseWebsiteDraft } from "@/lib/website-draft";
 
 let passed = 0;
@@ -275,6 +284,135 @@ async function main() {
     );
   });
 
+  console.log("\nthe tour (more than the homepage)");
+  await check("follows the site's own pages in reading order, once each", () => {
+    const html = `<nav><a href="/">Home</a><a href="/angebot">Angebot</a>
+      <a href="https://www.baeckerei.ch/kontakt?ref=nav#form">Kontakt</a>
+      <a href="/kontakt">Kontakt again</a><a href="/menu.pdf">Menu</a>
+      <a href="mailto:a@b.ch">Mail</a><a href="tel:+41441234567">Call</a>
+      <a href="https://instagram.com/baeckerei">Insta</a><a href="#top">Top</a>
+      <a href="/wp-admin/">Admin</a><a href="/%C3%BCber-uns/">Über uns</a></nav>`;
+    const links = internalLinks(html, "https://baeckerei.ch/");
+    assert.deepEqual(links, [
+      "https://baeckerei.ch/angebot",
+      "https://www.baeckerei.ch/kontakt",
+      "https://baeckerei.ch/%C3%BCber-uns/",
+    ]);
+  });
+  await check("never walks further than the budget allows", () => {
+    const html = Array.from({ length: 40 }, (_, i) => `<a href="/p${i}">p${i}</a>`).join("");
+    assert.equal(internalLinks(html, "https://x.ch/").length, CONSULT.crawlPages);
+  });
+  await check(
+    "reads each page through the same guarded fetch, and names the broken ones",
+    async () => {
+      const lookup: LookupLike = async () => [{ address: "93.184.216.34" }];
+      const fetchFn: FetchLike = async (url) =>
+        url.endsWith("/weg")
+          ? new Response("gone", { status: 404, headers: { "content-type": "text/html" } })
+          : new Response(`<title>${new URL(url).pathname}</title><p>hi</p>`, {
+              status: 200,
+              headers: { "content-type": "text/html" },
+            });
+      const tour = await tourSite(["https://x.ch/a", "https://x.ch/weg"], { fetchFn, lookup });
+      assert.equal(tour.length, 2);
+      assert.equal(tour[0].ok, true);
+      assert.equal(tour[0].title, "/a");
+      assert.equal(tour[1].ok, false);
+      assert.equal(tour[1].path, "/weg");
+    },
+  );
+  const home: PageTour = {
+    path: "/",
+    url: "https://x.ch/",
+    ok: true,
+    title: "Muster",
+    hasDescription: true,
+    h1Count: 1,
+    words: 300,
+    ms: 200,
+    problem: null,
+  };
+  await check("site rules: broken links, one title on many pages, thin pages", () => {
+    const tour: PageTour[] = [
+      { ...home, path: "/a", url: "https://x.ch/a", words: 12 },
+      { ...home, path: "/b", url: "https://x.ch/b" },
+      { ...home, path: "/weg", url: "https://x.ch/weg", ok: false, title: null, problem: "404" },
+    ];
+    const v = siteVerdicts(home, tour);
+    const failed = v.filter((x) => !x.ok).map((x) => x.id);
+    assert.deepEqual(failed.sort(), ["broken-pages", "duplicate-titles", "thin-pages"]);
+    assert.deepEqual(siteVerdicts(home, []), [], "one page cannot fail a site rule");
+  });
+  await check("the report carries the tour, and the headline speaks of the site", () => {
+    const tour: PageTour[] = [
+      { ...home, path: "/weg", url: "https://x.ch/weg", ok: false, title: null, problem: "404" },
+    ];
+    const c = consult(page(GOOD), undefined, tour);
+    assert.equal(c.pages.length, 2);
+    assert.ok(c.findings.some((f) => f.id === "broken-pages"));
+    assert.match(c.headline, /on your site/);
+    assert.ok(
+      tourForBrief(c).some((line) => line.includes("/weg") && line.includes("did not open")),
+    );
+  });
+
+  console.log("\nLoki talks");
+  await check("says what it read, what to do first and what already works", () => {
+    const c = consult(page(BAD, "http://muster.ch/", 6_000), 2026);
+    const talk = consultTalk(c);
+    assert.match(talk.opening, /I opened muster\.ch/);
+    assert.equal(talk.firstMove?.title, c.findings[0].title);
+    const good = consultTalk(consult(page(GOOD)));
+    assert.equal(good.firstMove, null);
+    assert.match(good.strengths ?? "", /^What already works: /);
+  });
+  await check("answers become brief lines from config, never browser text", () => {
+    const [goal] = CONSULT_QUESTIONS;
+    const lines = consultAnswerBrief([`goal:${goal.options[1].id}`, "goal:<script>", "nope"]);
+    assert.deepEqual(lines, [`- ${goal.options[1].brief}`]);
+    const input = WebsiteBuildBody.parse({
+      website: "muster.ch",
+      requestId,
+      answers: ["goal:book", "look:keep"],
+    });
+    assert.ok(websiteBuildBrief(input).includes("What the customer told Loki they want"));
+    assert.equal(
+      WebsiteBuildBody.safeParse({ website: "muster.ch", requestId, answers: ["goal:x"] }).success,
+      false,
+    );
+  });
+
+  console.log("\nthe preview it becomes");
+  await check(
+    "a refresh preview starts from the live site and leaves a tour of what changed",
+    () => {
+      const input = WebsiteBuildBody.parse({ website: "muster.ch", requestId, fixes: ["slow"] });
+      const request = websitePreviewRequest(input, ["- /kontakt — “Kontakt”"]);
+      assert.ok(
+        request.includes("Pages Loki found on the live site") && request.includes("/kontakt"),
+      );
+      assert.ok(!request.includes("own repository"), "a preview has no repository");
+      const prompt = websitePreviewPrompt({
+        request,
+        mode: "refresh",
+        previewUrl: "https://muster.orangecat.ch",
+      });
+      assert.ok(prompt.includes("improvements.html") && prompt.includes("Do not add a remote"));
+      assert.ok(prompt.includes("https://muster.orangecat.ch/improvements.html"));
+    },
+  );
+  await check("the tour sits next to the entry page, wherever the preview is served", () => {
+    assert.equal(
+      improvementsUrl("https://muster.orangecat.ch"),
+      "https://muster.orangecat.ch/improvements.html",
+    );
+    assert.equal(
+      improvementsUrl("https://loki.orangecat.ch/p/muster/index.html"),
+      "https://loki.orangecat.ch/p/muster/improvements.html",
+    );
+  });
+
   console.log("\nthe draft");
   await check("a stored draft keeps its fixes and request id", () => {
     const d = parseWebsiteDraft(
@@ -289,6 +427,10 @@ async function main() {
       true,
     );
     assert.deepEqual(d, { website: "m.ch" });
+    assert.deepEqual(
+      parseWebsiteDraft(JSON.stringify({ answers: { goal: "book", look: "evil" } }), false),
+      { answers: { goal: "book" } },
+    );
     assert.deepEqual(parseWebsiteDraft("{not json", false), {});
   });
 

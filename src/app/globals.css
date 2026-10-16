@@ -2513,16 +2513,10 @@
   .ui-change-brief-label {
     @apply block text-xs font-medium uppercase tracking-caps text-text-tertiary;
   }
-  /* /change (2026-10-07): the consultation — what Loki found on the live page,
-     shown BEFORE anything is built. A report, not a form: the headline is the
-     verdict, the snippet is how Google shows the site today, and each finding
-     is one row the owner can keep or drop from the build. */
-  .ui-consult {
-    @apply space-y-5 rounded-2xl border border-border-default bg-surface-base p-4 sm:p-6;
-  }
-  .ui-consult-head {
-    @apply flex flex-wrap items-start justify-between gap-3;
-  }
+  /* /change (2026-10-07): the consultation's pieces — the verdict, how Google
+     shows the site today, and each finding as one row the owner can keep or
+     drop from the build. Since 2026-10-16 they sit inside the conversation
+     (ui-consult-talk below). */
   .ui-consult-headline {
     @apply mt-2 text-xl font-semibold leading-snug tracking-display text-text-primary sm:text-2xl;
   }
@@ -2567,6 +2561,91 @@
   }
   .ui-consult-loading {
     @apply flex items-start gap-3 rounded-2xl border border-border-subtle bg-surface-base p-4 text-sm text-text-secondary sm:p-5;
+  }
+  /* Watch it work (2026-10-16): the preview link the owner sends their client. */
+  .ui-preview-share {
+    @apply space-y-4 rounded-2xl border border-border-default bg-surface-base p-4 sm:p-5;
+  }
+  .ui-preview-share-facts {
+    @apply grid gap-2 rounded-xl border border-border-subtle bg-surface-raised p-3 text-sm;
+  }
+  .ui-preview-share-facts > div {
+    @apply grid min-w-0 grid-cols-[6.5rem_1fr] gap-2;
+  }
+  .ui-preview-share-facts dt {
+    @apply text-text-tertiary;
+  }
+  .ui-preview-share-facts dd {
+    @apply min-w-0 text-text-primary;
+  }
+  /* /change (2026-10-16): the consultation is a CONVERSATION — Loki says what
+     it read, what to do first, what already works, then asks two one-tap
+     questions. Each turn rises in after the one before, so the report reads
+     as someone talking rather than a printout landing all at once. */
+  .ui-consult-talk {
+    @apply space-y-3;
+  }
+  .ui-consult-turn {
+    @apply flex min-w-0 items-start gap-2.5;
+    animation: ui-public-rise 0.45s ease-out both;
+  }
+  .ui-consult-talk > .ui-consult-turn:nth-child(3) {
+    animation-delay: 0.25s;
+  }
+  .ui-consult-talk > .ui-consult-turn:nth-child(4) {
+    animation-delay: 0.5s;
+  }
+  .ui-consult-talk > .ui-consult-turn:nth-child(5) {
+    animation-delay: 0.75s;
+  }
+  .ui-consult-talk > .ui-consult-turn:nth-child(6) {
+    animation-delay: 1s;
+  }
+  .ui-consult-talk > .ui-consult-turn:nth-child(n + 7) {
+    animation-delay: 1.2s;
+  }
+  .ui-consult-avatar {
+    @apply mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border-default bg-surface-raised text-text-primary;
+  }
+  .ui-consult-bubble {
+    @apply min-w-0 flex-1 rounded-2xl rounded-tl-md border border-border-subtle bg-surface-base px-4 py-3 text-sm leading-relaxed text-text-secondary sm:text-base;
+  }
+  .ui-consult-reading-step {
+    @apply mt-1 text-sm text-text-muted;
+    animation: ui-watch-rise 0.35s ease-out;
+  }
+  .ui-consult-advice-kicker {
+    @apply text-xs font-medium uppercase tracking-caps text-accent-text;
+  }
+  .ui-consult-tour {
+    @apply mt-3 flex flex-wrap gap-1.5;
+  }
+  .ui-consult-page {
+    @apply inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-2.5 py-1 text-xs text-text-secondary;
+  }
+  .ui-consult-page > svg {
+    color: var(--status-positive);
+  }
+  .ui-consult-page-broken {
+    @apply text-text-primary;
+    border-color: var(--status-negative);
+  }
+  .ui-consult-page-broken > svg {
+    color: var(--status-negative);
+  }
+  .ui-consult-you {
+    @apply flex items-center justify-end gap-2 pl-10;
+    animation: ui-watch-rise 0.3s ease-out;
+  }
+  .ui-consult-you-bubble {
+    @apply rounded-2xl rounded-tr-md bg-accent-warm px-4 py-2 text-sm font-medium text-on-accent;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ui-consult-turn,
+    .ui-consult-you,
+    .ui-consult-reading-step {
+      animation: none;
+    }
   }
   .ui-public-download-compare-fold {
     @apply mt-10;

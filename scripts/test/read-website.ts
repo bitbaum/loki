@@ -17,11 +17,17 @@ async function main() {
     };
   };
   const pages = await readWebsite("https://petvity.test/", fake);
-  assert.equal(pages.length, 3);
+  assert.equal(pages.length, 4);
   assert.deepEqual(seen, [
     "https://petvity.test/",
     "https://petvity.test/about",
     "https://petvity.test/care",
+    "https://petvity.test/more",
+  ]);
+  assert.deepEqual(pages.siteMap, [
+    "https://petvity.test/about",
+    "https://petvity.test/care",
+    "https://petvity.test/more",
   ]);
   const failure = await readWebsite("https://unavailable.test", async (url) => ({
     ok: false,
@@ -30,7 +36,7 @@ async function main() {
   }));
   assert.equal(failure.length, 1);
   assert.equal(failure[0].ok, false);
-  console.log("✓ fresh site reading follows two same-origin pages and preserves failures");
+  console.log("✓ fresh site reading follows up to five same-origin pages and preserves failures");
 }
 main().catch((e) => {
   console.error(e);

@@ -94,6 +94,10 @@ export async function createPreview(
     /** Refuse to create one nobody could open (the chat and the dialog); the
      *  box-side create leaves the code to be set in the app. */
     requireCode?: boolean;
+    /** The build brief, when the preview starts from something more than a
+     *  name (a live website: lib/previews/from-website). Default: the
+     *  research-from-public-sources brief. */
+    prompt?: (previewUrl: string) => string;
   },
 ): Promise<CreatePreviewResult> {
   const name = input.name.trim();
@@ -221,7 +225,9 @@ export async function createPreview(
       projectId,
       allowHostedFallback: false,
       builderChannel: "cloud",
-      customPrompt: previewBuildPrompt({ name, about: input.about, previewUrl }),
+      customPrompt: input.prompt
+        ? input.prompt(previewUrl)
+        : previewBuildPrompt({ name, about: input.about, previewUrl }),
       notifyOnClose: true,
     },
     userId,

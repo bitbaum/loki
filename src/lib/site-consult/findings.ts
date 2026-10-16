@@ -7,6 +7,7 @@ import {
   type ConsultCheckId,
   type ConsultSeverity,
 } from "@/config/site-consult";
+import type { PageTour } from "@/lib/site-consult/crawl";
 import type { PageFacts } from "@/lib/site-consult/read-page";
 
 /**
@@ -34,6 +35,8 @@ export type Consultation = {
   findings: Finding[];
   passed: { id: ConsultCheckId; label: string }[];
   counts: { urgent: number; improve: number; passed: number };
+  /** Every page Loki read, homepage first — the tour a person sees. */
+  pages: PageTour[];
 };
 
 type Verdict =
@@ -126,18 +129,92 @@ function judge({ finalUrl, ms, bytes, facts: f }: ServedPage, year: number): Ver
   return v;
 }
 
+/**
+ * What only shows across pages: links that lead nowhere, one title on many
+ * pages, pages that say almost nothing. Judged only when the tour read at
+ * least one page beyond the homepage — one page cannot fail a site rule.
+ */
+export function siteVerdicts(home: PageTour, tour: PageTour[]): Verdict[] {
+  if (tour.length === 0) return [];
+  const v: Verdict[] = [];
+  const list = (paths: string[]) =>
+    paths.length > 3
+      ? `${paths.slice(0, 3).join(", ")} and ${paths.length - 3} more`
+      : paths.join(", ");
+
+  const broken = tour.filter((p) => !p.ok);
+  v.push(
+    broken.length
+      ? {
+          id: "broken-pages",
+          ok: false,
+          evidence: `${list(broken.map((p) => p.path))} did not open.`,
+        }
+      : { id: "broken-pages", ok: true },
+  );
+
+  const read = [home, ...tour].filter((p) => p.ok);
+  const byTitle = new Map<string, string[]>();
+  for (const p of read) {
+    const key = p.title?.trim().toLowerCase();
+    if (!key) continue;
+    byTitle.set(key, [...(byTitle.get(key) ?? []), p.path]);
+  }
+  const shared = [...byTitle.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+  if (read.length > 1)
+    v.push(
+      shared && shared[1].length > 1
+        ? {
+            id: "duplicate-titles",
+            ok: false,
+            evidence: `${shared[1].length} pages (${list(shared[1])}) are all titled ${quote(read.find((p) => p.title?.trim().toLowerCase() === shared[0])?.title ?? shared[0])}.`,
+          }
+        : { id: "duplicate-titles", ok: true },
+    );
+
+  const thin = tour.filter((p) => p.ok && p.words < CONSULT.thinPageWords);
+  if (tour.some((p) => p.ok))
+    v.push(
+      thin.length
+        ? {
+            id: "thin-pages",
+            ok: false,
+            evidence: `${list(thin.map((p) => `${p.path} (${p.words} words)`))}.`,
+          }
+        : { id: "thin-pages", ok: true },
+    );
+  return v;
+}
+
 const AREA_ORDER = Object.keys(CONSULT_AREAS) as ConsultArea[];
 
-function headline(urgent: number, improve: number): string {
-  if (urgent === 1) return "One thing on this page is likely costing you visitors right now.";
-  if (urgent > 1) return `${urgent} things on this page are likely costing you visitors right now.`;
+function headline(urgent: number, improve: number, pages: number): string {
+  const where = pages > 1 ? "on your site" : "on this page";
+  if (urgent === 1) return `One thing ${where} is likely costing you visitors right now.`;
+  if (urgent > 1) return `${urgent} things ${where} are likely costing you visitors right now.`;
   if (improve === 1) return "No emergencies — one thing is worth improving.";
   if (improve > 1) return `No emergencies — ${improve} things are worth improving.`;
   return "The basics are in good shape. A new version is about what you want next.";
 }
 
-export function consult(page: ServedPage, year = new Date().getFullYear()): Consultation {
-  const verdicts = judge(page, year);
+export function consult(
+  page: ServedPage,
+  year = new Date().getFullYear(),
+  tour: PageTour[] = [],
+): Consultation {
+  const url0 = new URL(page.finalUrl);
+  const home: PageTour = {
+    path: url0.pathname.replace(/\/+$/, "") || "/",
+    url: page.finalUrl,
+    ok: true,
+    title: page.facts.title,
+    hasDescription: Boolean(page.facts.description),
+    h1Count: page.facts.h1Count,
+    words: page.facts.words,
+    ms: page.ms,
+    problem: null,
+  };
+  const verdicts = [...judge(page, year), ...siteVerdicts(home, tour)];
   const failing = verdicts.filter((x): x is Extract<Verdict, { ok: false }> => !x.ok);
   const findings: Finding[] = failing
     .map((x) => {
@@ -168,9 +245,10 @@ export function consult(page: ServedPage, year = new Date().getFullYear()): Cons
       title: page.facts.title,
       description: page.facts.description,
     },
-    headline: headline(urgent, findings.length - urgent),
+    headline: headline(urgent, findings.length - urgent, 1 + tour.length),
     findings,
     passed,
     counts: { urgent, improve: findings.length - urgent, passed: passed.length },
+    pages: [home, ...tour],
   };
 }

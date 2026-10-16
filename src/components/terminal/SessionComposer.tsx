@@ -199,28 +199,40 @@ export function SessionComposer({
     }
   };
 
+  // The agent cannot read Loki's database, so when it is stuck on feedback it
+  // proposes workarounds ("request access to the widget's storage path and
+  // dump its submissions", substrata, 2026-10-16). The answer is one press:
+  // attach the reports. Such a suggestion is replaced by that action.
+  const canAttachFeedback =
+    offerFeedback && Boolean(project) && loki.files.length === 0 && !loki.knownEmpty;
+  const shownSuggestions = canAttachFeedback
+    ? suggestions.filter((s) => !asksForFeedbackAccess(s))
+    : suggestions;
+
   const header = (
     <>
       {/* Hidden while the panel is open: on a short phone they took the room
           the prompt list needed, and the panel is the choice being made. */}
-      {!pickerOpen && !text.trim() && (onExplain || suggestions.length > 0 || offerFeedback) && (
-        <SuggestionChips
-          suggestions={suggestions}
-          onPick={(s) => void send(s, [])}
-          onExplain={onExplain}
-          actions={
-            offerFeedback && project && loki.files.length === 0 && !loki.knownEmpty
-              ? [
-                  {
-                    key: "feedback",
-                    label: `Attach ${project}'s feedback`,
-                    onClick: () => void attachFeedback(),
-                  },
-                ]
-              : undefined
-          }
-        />
-      )}
+      {!pickerOpen &&
+        !text.trim() &&
+        (onExplain || shownSuggestions.length > 0 || offerFeedback) && (
+          <SuggestionChips
+            suggestions={shownSuggestions}
+            onPick={(s) => void send(s, [])}
+            onExplain={onExplain}
+            actions={
+              canAttachFeedback
+                ? [
+                    {
+                      key: "feedback",
+                      label: `Attach ${project}'s feedback`,
+                      onClick: () => void attachFeedback(),
+                    },
+                  ]
+                : undefined
+            }
+          />
+        )}
       <LokiFiles loki={loki} />
       {error && (
         <div className="ui-loki-composer-error" role="alert">
@@ -331,5 +343,13 @@ export function SessionComposer({
         onSend={(message, _choice, attachments) => send(message, attachments)}
       />
     </div>
+  );
+}
+
+/** A next step that is really "get me the feedback reports" in other words. */
+function asksForFeedbackAccess(suggestion: string): boolean {
+  return (
+    /\b(feedback|submissions?|reports?)\b/i.test(suggestion) &&
+    /\b(access|dump|export|storage|read|readable|fetch|download)\b/i.test(suggestion)
   );
 }

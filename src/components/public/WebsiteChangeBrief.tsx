@@ -6,7 +6,12 @@ import { Composer } from "@/components/composer/Composer";
 import { SiteConsultation } from "@/components/public/SiteConsultation";
 import { COMMISSION, WEBSITE_MODES, WEBSITE_MODE_IDS, type WebsiteMode } from "@/config/commission";
 import { ROUTES } from "@/config/auth";
-import { CONSULT_CHECKS, type ConsultCheckId } from "@/config/site-consult";
+import {
+  CONSULT_CHECKS,
+  CONSULT_QUESTIONS,
+  type ConsultCheckId,
+  type ConsultQuestionId,
+} from "@/config/site-consult";
 import { useSiteConsultation } from "@/hooks/use-site-consultation";
 import { appendToBrief, extractWebsite, saysMoreThanAddress } from "@/lib/website-from-speech";
 import { clearWebsiteDraft, parseWebsiteDraft, saveWebsiteDraft } from "@/lib/website-draft";
@@ -44,6 +49,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
   const [changes, setChanges] = useState("");
   const [mode, setMode] = useState<WebsiteMode>("refresh");
   const [fixes, setFixes] = useState<ConsultCheckId[] | null>(null);
+  const [answers, setAnswers] = useState<Partial<Record<ConsultQuestionId, string>>>({});
   const [editingSite, setEditingSite] = useState(false);
   const [ready, setReady] = useState(false);
   const [sending, setSending] = useState(false);
@@ -67,6 +73,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
       if (draft.changes !== undefined) setChanges(draft.changes);
       if (draft.mode) setMode(draft.mode);
       if (draft.fixes) setFixes(draft.fixes);
+      if (draft.answers) setAnswers(draft.answers);
       if (draft.requestId) requestId.current = draft.requestId;
       if (handoff) history.replaceState(null, "", location.pathname + location.search);
       setReady(true);
@@ -80,14 +87,29 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
   const found = report?.findings.map((f) => f.id) ?? [];
   const selected = new Set(fixes ?? found);
   const chosen = refresh ? found.filter((id) => selected.has(id)) : [];
+  const answerIds = refresh
+    ? CONSULT_QUESTIONS.flatMap((q) => (answers[q.id] ? [`${q.id}:${answers[q.id]}`] : []))
+    : [];
 
   useEffect(() => {
-    if (ready) saveWebsiteDraft({ website, changes, requestId: requestId.current, mode, fixes });
-  }, [website, changes, mode, fixes, ready]);
+    if (ready)
+      saveWebsiteDraft({ website, changes, requestId: requestId.current, mode, fixes, answers });
+  }, [website, changes, mode, fixes, answers, ready]);
+
+  function answer(question: ConsultQuestionId, option: string | null) {
+    requestId.current = "";
+    setAnswers((prev) => {
+      const next = { ...prev };
+      if (option) next[question] = option;
+      else delete next[question];
+      return next;
+    });
+  }
 
   function changeWebsite(next: string) {
     requestId.current = "";
     setFixes(null);
+    setAnswers({});
     setWebsite(next.slice(0, COMMISSION.maxWebsite));
   }
 
@@ -112,10 +134,11 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
   }
 
   async function build() {
-    if (sending || !website.trim() || (!changes.trim() && !chosen.length)) return;
+    if (sending || !website.trim() || (!changes.trim() && !chosen.length && !answerIds.length))
+      return;
     setError("");
     requestId.current ||= crypto.randomUUID();
-    saveWebsiteDraft({ website, changes, requestId: requestId.current, mode, fixes });
+    saveWebsiteDraft({ website, changes, requestId: requestId.current, mode, fixes, answers });
     if (!signedIn) {
       router.push(`${ROUTES.SIGN_UP}?callbackUrl=${encodeURIComponent(COMMISSION.path)}`);
       return;
@@ -131,6 +154,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
           requestId: requestId.current,
           mode,
           fixes: chosen,
+          answers: answerIds,
         }),
       });
       const body = (await response.json()) as {
@@ -155,7 +179,8 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
 
   const hasBrief = changes.trim().length > 0 || website.trim().length > 0;
   const needsSite = hasBrief && !website.trim();
-  const canBuild = !needsSite && (changes.trim().length > 0 || chosen.length > 0);
+  const canBuild =
+    !needsSite && (changes.trim().length > 0 || chosen.length > 0 || answerIds.length > 0);
   const copy = WEBSITE_MODES[mode];
   const action =
     chosen.length > 0
@@ -199,6 +224,8 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
           selected={selected}
           onToggle={toggleFix}
           onRetry={retry}
+          answers={answers}
+          onAnswer={answer}
         />
       )}
 

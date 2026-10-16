@@ -218,7 +218,10 @@ export function ProjectWatch({
           provider={provider?.currentLabel ?? "The agent"}
           startedAt={p.run.startedAt}
           screen={working ? tail : null}
-          fallbackHeadline={(working && tail && latestActivityLine(tail)) || status.label}
+          fallbackHeadline={
+            (working && tail && latestActivityLine(tail)) ||
+            (working ? status.label : waitingHeadline(status.label))
+          }
           tab={status.terminalReady ? (p.tab ?? null) : null}
           terminalHref={status.terminalReady ? (p.terminalHref ?? null) : null}
           autopilot={p.autopilot ?? null}
@@ -371,4 +374,9 @@ function SetupMessage({ kickoff }: { kickoff: KickoffRunState }) {
       </div>
     </AssistantMessage>
   );
+}
+
+/** A one-word state ("Queued") as a headline a person can read. */
+function waitingHeadline(label: string): string {
+  return /^queued$/i.test(label.trim()) ? "Waiting for a builder to pick it up." : label;
 }

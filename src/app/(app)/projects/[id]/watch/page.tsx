@@ -9,6 +9,13 @@ import { ProjectWatch } from "@/components/projects/ProjectWatch";
 
 import { FleetProjectRoute } from "@/components/projects/FleetProjectRoute";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
+import { existsSync } from "fs";
+import path from "path";
+import { PreviewShareCard } from "@/components/projects/PreviewShareCard";
+import { improvementsUrl } from "@/config/preview-brief";
+import { getPreviewCode } from "@/db/queries/preview-code";
+import { createOwnerPass, ownerSiteUrl } from "@/lib/feedback/owner-pass";
+import { isPreviewDir } from "@/lib/previews/root";
 
 export const metadata = { title: "Watch it work" };
 
@@ -29,6 +36,21 @@ export default async function ProjectWatchPage({
   const project = await getProjectCore(executionUserId, id);
   if (!project) notFound();
   const registered = await getUserProjectByEntityId(executionUserId, id);
+  // A preview is built to be shown to someone: put the link, the code and the
+  // tour of what changed right where the owner watches it being built.
+  const isOwner = executionUserId === userId;
+  const preview =
+    isOwner && registered?.liveUrl && isPreviewDir(registered.dirPath)
+      ? {
+          previewUrl: registered.liveUrl,
+          ownerUrl: ownerSiteUrl(registered.liveUrl, createOwnerPass(id, userId)),
+          code: await getPreviewCode(userId).catch(() => null),
+          tourUrl:
+            registered.dirPath && existsSync(path.join(registered.dirPath, "improvements.html"))
+              ? improvementsUrl(registered.liveUrl)
+              : null,
+        }
+      : null;
 
   return (
     <div className="app-page mx-auto max-w-2xl space-y-4">
@@ -43,6 +65,7 @@ export default async function ProjectWatchPage({
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {project.name}
       </Link>
       <h1 className="ui-page-title">Watch it work</h1>
+      {preview && <PreviewShareCard name={registered?.name ?? project.name} {...preview} />}
       <ProjectWatch
         key={`${id}:${run ?? "latest"}`}
         projectId={id}

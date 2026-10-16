@@ -228,7 +228,7 @@ export function installWatch(opts: {
         text:
           el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
             ? null
-            : el.textContent,
+            : controlText(el),
         placeholder: el.getAttribute("placeholder"),
       });
       add("tap", tap);
@@ -275,6 +275,17 @@ export function installWatch(opts: {
     } else if (!/^GET /.test(text)) add("request", text);
   };
 
+  // A page being left cancels whatever it was still asking for, and the
+  // browser reports that as "never answered". That is navigation, not a
+  // broken server: no report for requests cut off while the page goes away
+  // or sits in the background (the "never answered after 0.3s" reports,
+  // 2026-10-16, were Loki's own pages being left mid-poll).
+  let leaving = false;
+  window.addEventListener("pagehide", () => (leaving = true));
+  window.addEventListener("beforeunload", () => (leaving = true));
+  window.addEventListener("pageshow", () => (leaving = false));
+  const cutOff = () => leaving || document.visibilityState === "hidden" || !navigator.onLine;
+
   const originalFetch = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -292,7 +303,7 @@ export function installWatch(opts: {
       return res;
     } catch (err) {
       // An aborted request is the page changing its mind, not a failure.
-      if (!(err instanceof DOMException && err.name === "AbortError"))
+      if (!(err instanceof DOMException && err.name === "AbortError") && !cutOff())
         onRequest(method, url, null, performance.now() - started);
       throw err;
     }
@@ -313,6 +324,7 @@ export function installWatch(opts: {
     const started = performance.now();
     this.addEventListener("loadend", () => {
       const [m, u] = this.__lokiReq ?? ["GET", ""];
+      if (this.status === 0 && cutOff()) return;
       onRequest(m, u, this.status === 0 ? null : this.status, performance.now() - started);
     });
     return (open as (...a: unknown[]) => void).call(this, method, url, ...rest);
@@ -804,9 +816,10 @@ export function startWatchMode(opts: {
   recorder = installWatch({
     host: opts.host,
     token: opts.token,
-    isOwnRequest: (url) =>
-      url.startsWith(`${opts.apiBase}/api/feedback`) ||
-      url.startsWith(`${opts.apiBase}/api/widget`),
+    // Exactly the widget's own calls. A prefix match on /api/feedback also
+    // caught Loki's own app polling /api/feedback/summary, and filed the
+    // app's requests as the widget's failures.
+    isOwnRequest: (url) => isWidgetCall(url, opts.apiBase),
     isActive: () => !paused && opts.pass() !== null,
     onFailure: (failure, trail) => void report(failure, trail),
     onNotice: (n) => remark(noticeSignature(location.pathname, n), explainNotice(n)),
@@ -881,4 +894,41 @@ function safePageChecks(): string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * A control's words as a person reads them. `textContent` glues a count badge
+ * onto its label ("Feedback to triage" + <span>11</span> → "Feedback to
+ * triage11", owner screenshot 2026-10-16), so child elements that are only a
+ * number are left out, decorative (aria-hidden) parts too, and the pieces
+ * are joined with spaces. A control that is nothing but a number keeps it.
+ */
+function controlText(el: Element): string {
+  const words: string[] = [];
+  const counts: string[] = [];
+  const walk = (node: Node) => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        words.push(child.textContent ?? "");
+      } else if (child instanceof Element) {
+        if (child.getAttribute("aria-hidden") === "true") continue;
+        const own = (child.textContent ?? "").trim();
+        if (/^\d+\+?$/.test(own)) {
+          counts.push(own);
+          continue;
+        }
+        walk(child);
+      }
+    }
+  };
+  walk(el);
+  const text = words.join(" ").replace(/\s+/g, " ").trim();
+  return text || counts.join(" ");
+}
+
+/** Is this URL one the widget itself calls (send a note, boot, its own API)? */
+export function isWidgetCall(url: string, apiBase: string): boolean {
+  if (!url.startsWith(apiBase)) return false;
+  const rest = url.slice(apiBase.length);
+  return /^\/api\/feedback(?:[?#]|$)/.test(rest) || /^\/api\/widget/.test(rest);
 }

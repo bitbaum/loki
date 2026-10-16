@@ -163,6 +163,30 @@ count that does not trust headers, 25 MB in, 150 MB out. It is committed to the
 folder's own git history as it arrived and nothing is built. Pinned by
 `scripts/test/preview-unpack.ts`.
 
+## Improve a site that is live (/change)
+
+"Improve this site" (and "Make my own, inspired by it") on `/change` makes a
+preview too, not a repository (`src/lib/previews/from-website.ts`, since
+2026-10-16 — before that every click created a GitHub repo and a kickoff that
+told the agent to "treat the repository as possibly empty").
+
+1. The free consultation reads the homepage **and the pages it links to**
+   (`src/lib/site-consult/crawl.ts`: same site only, at most
+   `CONSULT.crawlPages`, one overall time budget, every hop through the same
+   SSRF-guarded fetch). Site-wide checks (links that lead nowhere, one title on
+   many pages, pages that say almost nothing) join the per-page ones.
+2. Loki says it as a conversation (`src/lib/site-consult/advice.ts`, rules,
+   no model): what it read, the one thing to do first, what already works,
+   then two one-tap questions (`CONSULT_QUESTIONS`) whose answers become brief
+   lines from config, never browser text.
+3. The build brief carries the page tour, the kept fixes and the answers, plus
+   the preview rules — and asks for `improvements.html`, a tour of what changed
+   with links to the live page and the new one, so the client SEES the
+   improvement.
+4. "Watch it work" shows the link, the code (one is created if the operator
+   has none) and the tour, with a ready-to-paste message for the client.
+5. A server with no preview folder falls back to the repository path.
+
 ## Create website for <name>
 
 The whole flow, from "create website for Murphy's Bar":

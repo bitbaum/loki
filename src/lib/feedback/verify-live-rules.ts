@@ -96,6 +96,31 @@ export function pageText(html: string): string {
   return text.length > PAGE_TEXT_MAX ? `${text.slice(0, PAGE_TEXT_MAX)}…` : text;
 }
 
+/**
+ * The evidence is read by the owner on a card, as Loki talking — so it says
+ * what Loki looked at in plain words ("I read /projects: …"), never how it
+ * was fed ("The provided page text does not contain…", owner's phone,
+ * 2026-10-16).
+ */
+const VOICE_RULE =
+  'Write the evidence as Loki speaking to the owner, in the first person and plain words ("I read the page and…", "On the page I see…"). Never mention "the provided text", "the page text", "the picture you were given", the prompt or the report as input.';
+
+/** Machine phrasing a model still slips in, turned into how a person says it. */
+export function speakEvidence(evidence: string | null | undefined): string | null {
+  if (!evidence) return null;
+  const spoken = evidence
+    .replace(
+      /\b(the )?(provided|given|supplied) (live )?(page )?(text|content|excerpt)\b/gi,
+      "the page",
+    )
+    .replace(/\bthe (live )?page text\b/gi, "the page")
+    .replace(/\b(the )?(provided|given|supplied) (picture|image|screenshot)\b/gi, "the screen")
+    .replace(/\bthe page (does not|doesn't) contain\b/gi, "I could not find, on the page,")
+    .replace(/^the page/, "The page")
+    .trim();
+  return spoken || null;
+}
+
 export function verifySystemPrompt(): string {
   return [
     "You check whether a website change is visible, for the site's owner, who will not look themselves if you can answer.",
@@ -105,6 +130,7 @@ export function verifySystemPrompt(): string {
     "not_visible: the report asked for something that page text would show, and it is not there — say what is missing.",
     "cannot_tell: the report is about layout, colour, size, an interaction, or a page you were not given — say why text cannot answer it.",
     "Never claim to have seen something that is not in the text. Be short.",
+    VOICE_RULE,
   ].join("\n");
 }
 
@@ -130,6 +156,7 @@ export function pictureSystemPrompt(): string {
     "not_visible: the report asked for something the picture would show, and it is not there — say what is missing or still wrong.",
     "cannot_tell: the change is below the fold, behind a tap, or not a thing a still picture can show — say which.",
     "Never claim to see something that is not in the picture. Be short.",
+    VOICE_RULE,
   ].join("\n");
 }
 

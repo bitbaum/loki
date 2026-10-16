@@ -265,7 +265,8 @@ export function FeedbackInbox() {
       {open > 0 && (
         <div className="ui-fb-doall">
           <p className="ui-fb-doall-text">
-            Loki has already decided each one. Tap a card to agree, or take them all at once.
+            Loki has picked the next step for every report below. Agree with one card at a time, or
+            with all of them at once.
             {looksLine(summary) && <> {looksLine(summary)}</>}
           </p>
           <button
