@@ -18,7 +18,10 @@ async function main() {
   fs.mkdirSync(out, { recursive: true });
   try {
     for (const owner of [true, false]) {
-      const page = await browser.newPage({ viewport: { width: owner ? 320 : 390, height: 844 } });
+      const page = await browser.newPage({
+        viewport: { width: owner ? 320 : 390, height: 844 },
+        colorScheme: owner ? "dark" : "light",
+      });
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(e.message));
       const posted: Array<Record<string, unknown>> = [];
@@ -65,6 +68,7 @@ async function main() {
           return json({
             active: true,
             theme: PALETTE.widget,
+            themes: PALETTE.widgetThemes,
             placement: { corner: "bottom-right", offsetX: 16, offsetY: 16, autoAvoid: true },
           });
         if (url.pathname === "/api/widget/transcribe")
@@ -103,9 +107,25 @@ async function main() {
       await page.evaluate(() =>
         (window as unknown as { Loki: { report(input: object): void } }).Loki.report({}),
       );
-      const speak = page.getByRole("button", { name: "Speak while browsing", exact: true });
+      assert.equal(
+        await host.getAttribute("data-lk-theme"),
+        owner ? "dark" : "light",
+        "The widget follows the selected Loki theme on this viewport",
+      );
+      const speak = page.getByRole("button", { name: "Record a note while browsing", exact: true });
       await speak.waitFor({ state: "visible" });
-      assert.equal((await speak.innerText()).trim(), "Speak", "The mic has a visible text label");
+      assert.equal(
+        (await speak.innerText()).trim(),
+        "Voice note",
+        "Browse recording is distinct from composer dictation",
+      );
+      assert.equal(
+        await page
+          .getByRole("button", { name: "Dictate a message to Loki by voice", exact: true })
+          .count(),
+        1,
+        "Composer dictation has a separate accessible name",
+      );
       const icon = await speak.locator("svg").boundingBox();
       assert(
         icon && icon.width >= 16 && icon.width <= 24 && icon.height >= 16 && icon.height <= 24,
@@ -113,6 +133,12 @@ async function main() {
       );
       const speakBox = await speak.boundingBox();
       assert(speakBox && speakBox.x >= 0 && speakBox.x + speakBox.width <= (owner ? 320 : 390));
+      const panelBox = await host.locator(".panel").boundingBox();
+      const actionsBox = await host.locator(".composer-actions").boundingBox();
+      assert(
+        panelBox && actionsBox && actionsBox.y + actionsBox.height <= panelBox.y + panelBox.height,
+        "The composer actions stay inside the visible mobile panel",
+      );
       await page.screenshot({ path: `${out}/${owner ? 320 : 390}-entry.png` });
       await speak.click({ timeout: 5000 }).catch(async (error) => {
         console.error(
@@ -203,7 +229,7 @@ async function main() {
         (posted[0].selectedElements as Array<{ selector: string }>)[0].selector,
         "#price",
       );
-      await page.getByRole("button", { name: "Speak while browsing", exact: true }).click();
+      await page.getByRole("button", { name: "Record a note while browsing", exact: true }).click();
       await page.getByRole("button", { name: "Point to what this note is about" }).click();
       await host
         .locator(".browse-voice")

@@ -10,7 +10,7 @@
 //     draws the conversation with chatkit; the vanilla thread steps aside;
 //   - asking (Enter in chatkit's composer) reaches Loki, the answer lands with
 //     its changes under it, and "Send to builder" opens the card that files it;
-//   - the About chips sit in the composer; the thread is bounded, not the page;
+//   - the scope menu sits in the composer; the thread is bounded, not the page;
 //   - the host page's own hotkeys never see what is typed;
 //   - a chunk that cannot load leaves the panel's own conversation working;
 //   - at phone width nothing overflows.
@@ -71,6 +71,7 @@ async function open(
         active: true,
         placement: { corner: "bottom-right", offsetX: 16, offsetY: 16, autoAvoid: true },
         theme: PALETTE.widget,
+        themes: PALETTE.widgetThemes,
       });
     if (url.pathname === "/api/widget/advise") {
       asked.push(JSON.parse(route.request().postData() ?? "{}") as { question: string });
@@ -158,7 +159,12 @@ async function main() {
       ok(/Loki/.test(greeting), `the greeting is in chatkit's thread (${greeting.slice(0, 60)})`);
       ok(
         (await t.p.locator(`${root} .ck-composer .ctxbar`).count()) === 1,
-        "the About chips sit inside chatkit's composer",
+        "the scope menu sits inside chatkit's composer",
+      );
+      const modes = await t.p.locator(`${root} .ck-mode`).allInnerTexts();
+      ok(
+        modes[0] === "Chat with Loki" && modes[1] === "Save feedback",
+        `chat and site feedback are named as two clear intents (${modes.join(" / ")})`,
       );
       // chatkit's colours come from the widget's theme, not the host's tokens,
       // and its rem sizes do not follow the host's 10px root.
@@ -176,7 +182,7 @@ async function main() {
         `the composer is painted (${frame.bg})`,
       );
 
-      // Ask: Enter in chatkit's own composer.
+      // Chat: Enter in chatkit's own composer.
       const input = t.p.locator(`${root} .ck-input`);
       await input.fill("Is the booking button clear?");
       await input.press("Enter");
@@ -254,12 +260,12 @@ async function main() {
         .first()
         .setInputFiles({ name: "shot.png", mimeType: "image/png", buffer: png });
       await t.p.locator(`${root} .ck-attach-item`).waitFor({ timeout: 3000 });
-      await t.p.locator(`${root} .ck-mode`, { hasText: "Send as feedback" }).click();
+      await t.p.locator(`${root} .ck-mode`, { hasText: "Save feedback" }).click();
       const input = t.p.locator(`${root} .ck-input`);
       await input.fill("The phone number is wrong");
       await input.press("Enter");
       await t.p.locator(`${root} .fc-kit-after .sendcard`).waitFor({ timeout: 3000 });
-      ok(t.asked.length === 0, "Send as feedback does not ask Loki");
+      ok(t.asked.length === 0, "Save feedback does not ask Loki");
       const note = await t.p.locator(`${root} .sendcard .diag`).innerText();
       ok(note.includes("1 screenshot"), `the card says the screenshot goes with it (${note})`);
       await t.p.locator(`${root} .sendcard .go`).click();

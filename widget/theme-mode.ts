@@ -38,12 +38,16 @@ function readStored(token: string): ThemePreference | null {
   }
 }
 
-export function createThemeMode(token: string) {
+export function createThemeMode(token: string, initialOverride?: string | null) {
   const hosts = new Set<HTMLElement>();
   let pref = readStored(token);
+  // Optional host-page override is useful when an embed needs to match a
+  // deliberately styled surface rather than the visitor's device setting.
+  let override: ThemePreference | null =
+    initialOverride === "light" || initialOverride === "dark" ? initialOverride : null;
   const media =
     typeof matchMedia === "function" ? matchMedia("(prefers-color-scheme: dark)") : null;
-  const mode = (): ThemeMode => resolveMode(pref, media?.matches ?? false);
+  const mode = (): ThemeMode => resolveMode(override ?? pref, media?.matches ?? false);
   const apply = () => {
     const m = mode();
     hosts.forEach((h) => h.setAttribute("data-lk-theme", m));
@@ -59,7 +63,10 @@ export function createThemeMode(token: string) {
     },
     /** The owner's choice in Loki, as the server reported it. */
     setPreference(next: ThemePreference) {
-      if (next === pref) return;
+      if (next === pref && override === null) return;
+      // A verified owner's current Loki preference supersedes the initial
+      // embed hint and continues to track future app changes.
+      override = null;
       pref = next;
       try {
         localStorage.setItem(storageKey(token), next);

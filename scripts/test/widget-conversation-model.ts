@@ -83,6 +83,11 @@ async function main() {
   ok(startersFor("advisor", said, false).list.length === 0, "starters go once you have spoken");
   const watching = startersFor("advisor", said, true).list;
   ok(watching.length === 1 && watching[0] === REVIEW_QUESTION, "while watching, Review stays");
+  const watchingEmpty = startersFor("advisor", [], true).list;
+  ok(
+    watchingEmpty.length === 1 && watchingEmpty[0] === REVIEW_QUESTION,
+    "an empty watched conversation shows one useful next step",
+  );
 
   {
     // Asking: your words land at once and follow; the answer replaces pending.

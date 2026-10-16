@@ -653,13 +653,13 @@ async function main() {
         offered: !!btn,
         marked: document.querySelectorAll(".fcw-selected").length,
         panel: !!r.querySelector(".panel"),
-        chip: (r.querySelector(".segbtn.on") as HTMLElement | null)?.innerText ?? "",
+        chip: (r.querySelector(".scopebtn") as HTMLElement | null)?.innerText ?? "",
       };
     });
     ok(picked.offered, "◎ offers This screen beside tapping an element");
     ok(picked.marked >= 1, `This screen marks what is on screen (${picked.marked})`);
     ok(
-      picked.panel && /element/.test(picked.chip),
+      picked.panel && /area/.test(picked.chip),
       `…and the conversation opens with it attached (${picked.chip})`,
     );
     ok(s.errors.length === 0, `no page errors (${s.errors.join("; ")})`);

@@ -199,7 +199,7 @@ export function createConversation(opts: {
   attachments.listenPaste(el);
 
   const owner = () => opts.ownerPass() !== null;
-  let feedbackLabel = "Send as feedback";
+  let feedbackLabel = "Save feedback";
 
   function syncContext() {
     ctx.sync();
@@ -211,17 +211,17 @@ export function createConversation(opts: {
       : now === "element"
         ? "What about what you picked?"
         : owner()
-          ? "Say what to change, or ask Loki…"
+          ? "Message Loki about this site…"
           : a === "none"
             ? "What should change?"
-            : "What should change — or ask Loki anything…";
+            : "Message Loki about this site…";
     // With no AI on this embed, feedback is the only way, so it leads.
     // About Loki itself there is no site to advise on and nothing to build
     // here: one way, and it leads.
-    feedbackLabel = loki ? "Send to Loki" : owner() ? "Build it" : "Send as feedback";
+    feedbackLabel = loki ? "Send to Loki" : owner() ? "Request a fix" : "Save feedback";
     feedbackBtn.textContent = feedbackLabel;
     feedbackBtn.className = a === "none" || loki ? "go feedback" : "ghost feedback";
-    sendBtn.textContent = "Ask Loki";
+    sendBtn.textContent = "Chat with Loki";
     sendBtn.style.display = a === "none" || loki ? "none" : "";
     cont.sync();
   }
@@ -229,7 +229,11 @@ export function createConversation(opts: {
   // ---- rendering ----
   function bubble(cls: string, who: string | null, text: string): HTMLElement {
     const m = h("div", `msg ${cls}`);
-    if (who) m.appendChild(h("span", "who", who));
+    // The header already names the assistant. Repeating "Loki" above each
+    // answer makes the embed look like two products stacked together; keep a
+    // speaker label only for the multi-voice concierge conversation.
+    if (who && (who !== "Loki" || opts.assistant() === "concierge"))
+      m.appendChild(h("span", "who", who));
     if (text) m.appendChild(h("span", "said", text));
     return m;
   }
@@ -510,7 +514,7 @@ export function createConversation(opts: {
 
   /**
    * Draw the conversation with the shared chat (widget/chat/, loaded as its own
-   * chunk). The vanilla thread and composer step aside; the About chips and
+   * chunk). The vanilla thread and composer step aside; the scope menu and
    * Continue in Loki move into chatkit's composer slots. Same model, same rules.
    */
   function useKit(mod: KitModule, vars: string) {
