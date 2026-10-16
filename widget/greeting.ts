@@ -24,7 +24,7 @@ export function greetingFor(state: {
   if (state.assistant === "none") {
     return "Tell us what should change — it goes straight to whoever builds this site.";
   }
-  return "Hi, I'm Loki. Ask me anything about this site, or tell me what should change — it goes straight to whoever builds it.";
+  return "Ask about this site or tell me what you would change. Chat first, or save a note for its builder.";
 }
 
 /** The owner's door, under the greeting: a round trip through Loki's sign-in

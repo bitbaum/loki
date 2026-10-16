@@ -27,6 +27,10 @@ export function DogfoodFeedbackWidget({ token }: { token: string }) {
     script.setAttribute("data-fc-project", token);
     // Loki's own widget draws its chat with chatkit first (widget/chat/).
     script.setAttribute("data-fc-chat", "kit");
+    script.setAttribute(
+      "data-fc-theme",
+      document.documentElement.classList.contains("dark") ? "dark" : "light",
+    );
     document.body.appendChild(script);
     return () => {
       script.remove();

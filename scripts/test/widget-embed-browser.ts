@@ -44,9 +44,12 @@ async function open(
   browser: Browser,
   body: string,
   js: string,
-  o: { width?: number; withMic?: boolean } = {},
+  o: { width?: number; withMic?: boolean; colorScheme?: "light" | "dark" } = {},
 ) {
-  const ctx = await browser.newContext({ viewport: { width: o.width ?? 1200, height: 800 } });
+  const ctx = await browser.newContext({
+    viewport: { width: o.width ?? 1200, height: 800 },
+    colorScheme: o.colorScheme,
+  });
   const p = await ctx.newPage();
   // Every real browser has a mic; this test browser does not, and a composer
   // checked only without one shipped with Ask Loki pushed out of the panel.
@@ -79,6 +82,7 @@ async function open(
         active: true,
         placement: { corner: "bottom-right", offsetX: 16, offsetY: 16, autoAvoid: true },
         theme: PALETTE.widget,
+        themes: PALETTE.widgetThemes,
       });
     }
     if (url.pathname === "/api/widget/advise") {
@@ -169,6 +173,31 @@ async function main() {
     logLevel: "silent",
   });
   const js = out.outputFiles[0].text;
+
+  // An embed can pin its surface; without a pin it follows device appearance.
+  for (const [choice, scheme] of [
+    ["light", "dark"],
+    ["dark", "light"],
+  ] as const) {
+    const t = await open(browser, tag(`async data-fc-theme="${choice}"`), js, {
+      colorScheme: scheme,
+    });
+    await click(t.p, ".fab");
+    const mode = await t.p.evaluate(() =>
+      document.getElementById("loki-feedback-host")!.getAttribute("data-lk-theme"),
+    );
+    ok(mode === choice, `${choice} override wins over system appearance (${mode})`);
+    await t.close();
+  }
+  {
+    const t = await open(browser, tag(), js, { colorScheme: "light" });
+    await click(t.p, ".fab");
+    const mode = await t.p.evaluate(() =>
+      document.getElementById("loki-feedback-host")!.getAttribute("data-lk-theme"),
+    );
+    ok(mode === "light", "automatic theme follows the browser appearance");
+    await t.close();
+  }
 
   // ---- installing ----
   for (const [label, body] of [
@@ -272,12 +301,13 @@ async function main() {
   {
     const t = await open(browser, tag(), js);
     await click(t.p, ".fab");
+    await click(t.p, ".scopebtn");
     ok(
       JSON.stringify(await texts(t.p, ".segbtn")) ===
-        JSON.stringify(["This page", "Whole site", "Element", "Loki"]),
-      "feedback is about this page, the whole site, an element — or Loki itself",
+        JSON.stringify(["This page", "Whole site", "Loki itself"]),
+      "the compact scope menu keeps this page, the whole site and Loki itself available",
     );
-    await click(t.p, ".segbtn", 2);
+    await click(t.p, ".pointbtn");
     await t.p.waitForTimeout(150);
     const b = await t.p.$eval("#book", (e) => {
       const r = e.getBoundingClientRect();
@@ -293,8 +323,8 @@ async function main() {
       input.dispatchEvent(new Event("input"));
     });
     ok(
-      (await texts(t.p, ".composer .feedback"))[0] === "Send as feedback",
-      "Send as feedback is right there",
+      (await texts(t.p, ".composer .feedback"))[0] === "Save feedback",
+      "Save feedback is right there",
     );
     await click(t.p, ".composer .feedback");
     ok(
@@ -318,24 +348,44 @@ async function main() {
     const t = await open(browser, tag(), js);
     await click(t.p, ".fab");
     ok((await texts(t.p, ".mode")).length === 0, "no tabs: one conversation, not three tools");
-    ok((await texts(t.p, ".watchbtn"))[0] === "Watch", "Watch is offered in the header");
-    await click(t.p, ".watchbtn");
-    const offer = await t.p.evaluate(() => {
+    ok((await texts(t.p, ".watchbtn")).length === 0, "owner-only Watch is not offered to visitors");
+    const door = await t.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-      const box = r.querySelector(".watch-offer") as HTMLElement;
-      const a = box.querySelector("a") as HTMLAnchorElement;
-      return { shown: box.style.display !== "none", href: a.href };
+      const a = r.querySelector(".door") as HTMLAnchorElement;
+      return a.href;
     });
-    ok(offer.shown, "Watch explains itself to someone Loki does not know as the owner");
-    const signIn = new URL(offer.href);
+    const signIn = new URL(door);
     ok(
       signIn.pathname === "/api/widget/owner" &&
         signIn.searchParams.get("token") === "fcw_fixture" &&
         signIn.searchParams.get("return") === `${ORIGIN}/`,
-      `…with one link through Loki's sign-in back to this page (${offer.href})`,
+      `the owner sign-in stays under the greeting where it is relevant (${door})`,
     );
 
-    await click(t.p, ".segbtn", 1); // About: Whole site
+    await click(t.p, ".scopebtn");
+    const keyboardScope = await t.p.evaluate(() => {
+      const root = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      root.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+      );
+      const moved = root.activeElement?.textContent;
+      root.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      const button = root.querySelector(".scopebtn") as HTMLButtonElement;
+      const escaped =
+        button.getAttribute("aria-expanded") === "false" && root.activeElement === button;
+      button.click();
+      root
+        .querySelector(".hdr .page")!
+        .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true }));
+      return { moved, escaped, outsideClosed: button.getAttribute("aria-expanded") === "false" };
+    });
+    ok(keyboardScope.moved === "Whole site", "scope menu supports arrow-key navigation");
+    ok(keyboardScope.escaped, "Escape closes scope and returns focus");
+    ok(keyboardScope.outsideClosed, "tapping outside the scope menu dismisses it");
+    await click(t.p, ".scopebtn");
+    await click(t.p, ".segbtn", 1); // Whole site
     ok(
       (await t.p.evaluate(
         () =>
@@ -391,7 +441,7 @@ async function main() {
   {
     const t = await open(browser, tag(), js);
     await click(t.p, ".fab");
-    await click(t.p, ".segbtn", 2); // An element → picker
+    await click(t.p, ".pointbtn"); // Point to area → picker
     await t.p.waitForTimeout(150);
     const b = await t.p.$eval("#book", (e) => {
       const r = e.getBoundingClientRect();
@@ -401,7 +451,7 @@ async function main() {
     await t.p.mouse.click(b.x, b.y);
     const done = (await texts(t.p, ".pickbar button")).findIndex((s) => /done/i.test(s));
     await click(t.p, ".pickbar button", done);
-    ok((await texts(t.p, ".segbtn"))[2]?.startsWith("1 element") ?? false, "the pick is shown");
+    ok((await texts(t.p, ".scopebtn"))[0]?.startsWith("1 area") ?? false, "the pick is shown");
     await say(t.p, "Is this button fine?");
     await t.p.waitForTimeout(600);
     const sent = t.advised[0];

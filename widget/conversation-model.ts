@@ -7,7 +7,7 @@
  * rules. Everything a view needs is in `snapshot()`; everything it can do is a
  * method here; it learns of changes through `subscribe()`.
  *
- * What stays in the view: the About chips, the screenshots tray, the picker
+ * What stays in the view: the scope menu, the screenshots tray, the picker
  * and the inputs — they reach the model only as the readers passed in `opts`.
  */
 import { CAPTURE_CONTEXT_LIMITS } from "./capture-context";
@@ -54,11 +54,11 @@ function writeThread(token: string, thread: ThreadItem[]): void {
 export const CONCIERGE_GREETING = [
   {
     speaker: "cat" as const,
-    text: "I'm the Cat. Ask me about earning, selling or getting paid — in Bitcoin.",
+    text: "Ask about earning, selling or getting paid in Bitcoin.",
   },
   {
     speaker: "loki" as const,
-    text: "I'm Loki. Ask me about getting something built or run — or tell me what should change on this site.",
+    text: "Ask about building or running something, or improving this site.",
   },
 ];
 
@@ -182,7 +182,7 @@ export type ConversationModelOpts = {
   onPassRefused: () => void;
   picker: Picker;
   watch: () => ConversationWatch | null;
-  /** What the next message is about (the view's About chips). */
+  /** What the next message is about (the view's scope menu). */
   about: () => About;
   /** The ingest's scope for what is about the SITE. */
   scope: () => "element" | "page" | "site";
@@ -199,13 +199,15 @@ export function startersFor(
   thread: readonly ThreadItem[],
   watching: boolean,
 ): { list: string[]; review: boolean } {
+  // Watching already adds a live status and a tailored review action. Keep
+  // the empty conversation focused on that single next step on small screens.
+  if (watching) return { list: [REVIEW_QUESTION], review: true };
   const all = [...STARTERS[assistant]];
-  if (watching) all.unshift(REVIEW_QUESTION);
   // Starters are for an empty conversation; after that they are noise —
-  // except Review while watching, which stays one tap away.
+  // once the user has begun, they are noise.
   const empty = !thread.some((i) => i.kind === "you" || i.kind === "noticed");
-  if (!all.length || (!empty && !watching)) return { list: [], review: false };
-  return { list: empty ? all : all.slice(0, 1), review: watching };
+  if (!all.length || !empty) return { list: [], review: false };
+  return { list: all, review: false };
 }
 
 export function createConversationModel(opts: ConversationModelOpts) {

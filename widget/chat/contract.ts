@@ -6,7 +6,7 @@
  * conversation says and does (conversation-model.ts, conversation.ts): the
  * words, the actions, the cards. The chunk only draws it with the shared chat
  * (chatkit), the same components Loki's own chat uses. Widget-owned pieces
- * that chatkit has no model for (the About chips, a confirmation card, the
+ * that chatkit has no model for (the scope menu, a confirmation card, the
  * changes checklist under an answer) travel as ready-built DOM nodes the
  * chunk mounts where chatkit leaves a slot.
  */
@@ -32,10 +32,10 @@ export type KitState = {
   /** One-tap questions above the composer. */
   starters: { label: string; pick: () => void }[];
   placeholder: string;
-  /** The ways to send what is typed — Ask Loki, Build it / Send as feedback.
+  /** Chat with Loki or save a focused site request.
    *  One mode: no switch is shown. */
   modes: KitMode[];
-  /** Inside the composer, above the words: the About chips. */
+  /** Inside the composer, above the words: the scope menu. */
   header: HTMLElement | null;
   /** Under the composer: Continue in Loki. */
   footer: HTMLElement | null;

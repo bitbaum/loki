@@ -17,13 +17,13 @@
  * - The token is write-only by design; the API base is derived from this
  *   script's own src, so one snippet works on every deployment.
  *
- * This file owns the panel's frame — header (Loki, the page, Watch), the one
+ * This file owns the panel's frame — header (Loki and the page), the one
  * conversation (widget/conversation.ts), hiding — plus the boot gate and the
  * programmatic window.Loki entry point. The launcher, the element picker,
  * watch mode, the stylesheets and the DOM helpers live in their own modules.
  */
 
-import { forgetOwnerPass, ownerSignInUrl, takeOwnerDenied, takeOwnerPass } from "./owner-pass";
+import { forgetOwnerPass, takeOwnerDenied, takeOwnerPass } from "./owner-pass";
 import { startTourFromFragment } from "./tour";
 import type { ReportDiagnostics } from "./report-payload";
 import { DEFAULT_PLACEMENT, normalizePlacement, type Placement } from "./placement";
@@ -60,7 +60,7 @@ import { loadChat } from "./chat-loader";
 import { chatkitVars } from "./chat/theme";
 import { createChanges } from "./changes";
 import { assistantFor } from "./thread";
-import { showHideToast, watchOfferView } from "./panel-views";
+import { showHideToast } from "./panel-views";
 import { parseWidgetSurfaceModes } from "./surface-modes";
 
 const MAX_ELEMENTS = 10;
@@ -123,7 +123,7 @@ interface LokiApi {
   const apiBase = script?.src ? new URL(script.src).origin : "";
   // Light or dark, as Loki is (theme-mode.ts): one per page, shared by the
   // panel and the walkthrough so they never disagree.
-  const themeMode = createThemeMode(token);
+  const themeMode = createThemeMode(token, script?.getAttribute("data-fc-theme"));
   // "Watch the fix" runs apart from the launcher: a hidden button still tours.
   startTourFromFragment(apiBase, token, themeMode);
   // The owner, arriving from Loki's "Open your site" link or returning with the
@@ -339,23 +339,14 @@ interface LokiApi {
     const hdrPage = h("div", "page");
     hdrText.append(brand, hdrPage);
     const hdrActions = h("div", "hdr-actions");
-    // The header names who and where, and nothing else competes with it: for
-    // the owner, watching is told AND controlled in one place — the notes row
-    // under it (Pause / Resume), and Review is the first suggestion in the
-    // conversation. It used to carry Review + Stop watching pills beside ✕,
-    // two loud buttons repeating what the row and the starter already said.
-    // Someone not yet known as the owner keeps one quiet Watch here.
-    const watchBtn = h("button", "watchbtn", "Watch");
-    watchBtn.type = "button";
-    watchBtn.title = "Let Loki watch you use this site and tell you what isn't working";
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
     const speakBtn = h("button", "speak");
     speakBtn.type = "button";
-    speakBtn.append(micIcon(), h("span", "", "Speak"));
-    speakBtn.setAttribute("aria-label", "Speak while browsing");
-    speakBtn.title = "Speak while browsing";
+    speakBtn.append(micIcon(), h("span", "", "Voice note"));
+    speakBtn.setAttribute("aria-label", "Record a note while browsing");
+    speakBtn.title = "Record a note about this page as you browse";
     speakBtn.addEventListener("click", () => {
       if (conversation.hasDraft()) {
         conversation.say("Save or cancel your current note before starting another.");
@@ -364,27 +355,21 @@ interface LokiApi {
       browseVoice?.start();
     });
     if (isVoiceSupported()) hdrActions.append(speakBtn);
-    hdrActions.append(watchBtn, closeBtn);
+    hdrActions.append(closeBtn);
     hdr.append(hdrText, hdrActions);
-    const watchOffer = watchOfferView(ownerSignInUrl(apiBase, token, location.href));
     // What Loki is seeing while it watches — the owner's, under the header.
     const thoughts = createThoughtsView(() => {
       if (watchSession?.on()) watchSession.stop();
       else watchSession?.resume();
       syncWatch();
     });
-    watchBtn.addEventListener("click", () => {
-      watchOffer.style.display = watchOffer.style.display ? "" : "none";
-    });
     function syncWatch() {
       const on = watchSession?.on() ?? false;
-      watchBtn.style.display = ownerPass ? "none" : "";
       // The spiral in the header turns while Loki watches, stops when it does not.
       brand.classList.toggle("watching", on);
       brand.classList.toggle("paused", !!ownerPass && !on);
       thoughts.el.style.display = ownerPass ? "" : "none";
       thoughts.update(watchSession?.trail() ?? [], on);
-      if (ownerPass) watchOffer.style.display = "none";
       // "Hide this button" is a visitor's way out; the owner's panel is their
       // tool, and the link only took space under the composer on a phone.
       hideLink.style.display = ownerPass ? "none" : "";
@@ -480,7 +465,7 @@ interface LokiApi {
       },
     });
     changesRef = changes;
-    panel.append(hdr, watchOffer, thoughts.el, changes.el, conversation.el, madeWith, hideLink);
+    panel.append(hdr, thoughts.el, changes.el, conversation.el, madeWith, hideLink);
     // On a phone the panel is a sheet: drag its top up for more, down to peek
     // at the page under it, further down to put it away (sheet.ts).
     attachSheet({ panel, handle: hdr, onClose: closePanel });

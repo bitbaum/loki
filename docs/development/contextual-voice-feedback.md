@@ -1,6 +1,6 @@
 # Speaking while using a site
 
-The widget header offers **Speak while browsing** on browsers that support microphone recording. It closes the panel and shows a compact recording dock, leaving the host site interactive. Point selects an element without activating its link or button; Done transcribes into an editable note. Cancel releases the microphone and invalidates late permission/transcription results.
+The widget header offers **Voice note** on browsers that support microphone recording. It closes the panel and shows a compact recording dock, leaving the host site interactive. Point selects an element without activating its link or button; Done transcribes into an editable note. Cancel releases the microphone and invalidates late permission/transcription results.
 
 ## Decisions
 

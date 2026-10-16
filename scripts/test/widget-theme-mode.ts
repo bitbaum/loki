@@ -63,6 +63,13 @@ assert.ok(isThemePreference("system") && !isThemePreference("blue") && !isThemeP
   listeners.forEach((l) => l());
   assert.equal(a.mode(), "dark", "and follows the device when it changes, live");
 
+  const forced = createThemeMode("fcw_forced", "light");
+  const f = host();
+  forced.bind(f as unknown as HTMLElement);
+  assert.equal(f.mode(), "light", "an explicit embed theme wins over system mode");
+  forced.setPreference("dark");
+  assert.equal(f.mode(), "dark", "a verified Loki preference replaces the embed hint");
+
   const owner = createThemeMode("fcw_b");
   const b = host();
   owner.bind(b as unknown as HTMLElement);

@@ -8,7 +8,7 @@ where the launcher goes, and how to hide it.
 
 ## Voice notes while browsing
 
-Open Loki and choose **Speak while browsing** in the header. The panel closes;
+Open Loki and choose **Voice note** in the header. The panel closes;
 a small recording dock leaves the site usable. Scroll and tap normally, or use
 the target to point to an element. **Done** makes an editable note. **Save note**
 puts it in the project's Feedback view without starting a change. Verified
@@ -26,17 +26,25 @@ See [capture design and limits](../docs/development/contextual-voice-feedback.md
 
 Read this before changing the widget; every rule below was learned by using it.
 
-**Two people, one place.** A *visitor* wants to tell whoever builds the site
-something, quickly, and know it arrived. The *owner* wants an expert looking
-over their shoulder: say what is wrong, get it fixed. Both get the same thing —
-**one conversation with Loki** — so there is one place to look and one way of
-doing everything; no tabs, no second tool.
+**One conversation, clear intents.** The panel opens ready to **Chat with
+Loki**. A small intent switch offers **Save feedback** for a visitor or
+**Request a fix** for a verified owner. This is not a model selector: the same
+Loki conversation handles the question, note and follow-up, and approved work
+uses the project's existing builder queue.
 
-**Two ways to say anything, side by side.** *Send as feedback* (straight to the
-builder, no AI, never waits on a model) and *Ask Loki* (a second opinion
-first). About *this page / the whole site / an element* scopes both. Anything
-Loki suggests is one tap from the builder. What was sent comes back as a
-receipt in the same thread, linked to where it can be followed in Loki.
+**Context stays simple.** The current page is the default. A compact scope menu
+can change the message to the whole site or Loki itself; **Point to area** is
+always one tap away. On a phone the widget becomes a full-width bottom sheet;
+on desktop it stays a compact panel.
+
+**One Loki identity.** The fallback view does not repeat Loki's name above every
+answer. The panel header names who is speaking, and the shared chat keeps its
+usual assistant behavior.
+
+**Theme follows Loki.** The widget uses generated light/dark variants from the
+same design tokens as the app. Embedded sites can set `data-fc-theme="light"`
+or `"dark"`; otherwise the browser appearance is followed. Loki's own embed
+passes the active app theme directly.
 
 **Watch is the owner's, and it speaks.** While it watches, Loki says what it
 noticed — in the conversation, in plain words, naming the tap that led there,
@@ -59,7 +67,7 @@ Rules that resolve the trade-offs:
   ◎ — the owner said on 2026-10-10 that a bar and a launcher taking turns
   "sure is confusing", and they were right.
 - **Starting and stopping is one tap**, named for what it does (*Stop
-  watching*, *Watch again*), in the header and wherever the status shows.
+  watching*, *Watch again*), in the conversation and wherever the status shows.
   Stopped means nothing is recorded and nothing is said.
 - **Precision over coverage.** A remark that is wrong teaches the owner to
   ignore Loki. Checks follow the standard they cite (WCAG's spacing exception
@@ -82,21 +90,19 @@ ends up with two copies of the tag still renders one launcher (all proven in
 
 ## What the panel offers
 
-One conversation with Loki. **About: This page · Whole site · An element**
-says what you mean; then write (or speak, or paste a screenshot) and choose:
-**Send as feedback** goes straight to whoever builds the site, **Ask Loki**
-gets a second opinion first. Every change Loki recommends has **Send to
-builder →** too. The confirmation and the receipt (with a link to track it)
-appear in the conversation, which is kept per tab so it survives page loads.
+The composer starts in **Chat with Loki**. Choose **Save feedback** to file a
+visitor note, or **Request a fix** when you are signed in as the site owner.
+The current page is already selected; open the scope menu only when the note
+is about the whole site or Loki. **Point to area** attaches the element you
+select. Recommendations can be sent into the project's builder queue, and the
+receipt stays in the conversation.
 
-**Watch** sits in the header. Anyone not yet known as the owner gets "This is
-my site — sign in with Loki", which comes straight back with Watch on. While it
-watches, a bar at the top says so, Loki **speaks up in the conversation** when
-something does not work or does not look right (a failed request, a frozen
-page, content jumping, unlabelled buttons, broken images — each in plain words,
-with **Fix this** and **Why does it matter?**), and **Stop watching** is one
-tap in the header or the bar. Speaking up is rule-based; a model only runs on
-Why or Review.
+Watching and site review are owner-only. Visitors do not see a Watch control;
+the owner sign-in link sits under the greeting where its purpose is clear.
+Owners see the current watch state and can pause, resume, or review the visit.
+Loki narrates observed problems in the same conversation, with **Fix this** and
+**Why does it matter?**. Rule-based checks speak up without a model; a model
+runs only when the owner asks Loki to review the session.
 
 `data-fc-modes` only decides who answers:
 

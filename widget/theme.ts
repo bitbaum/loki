@@ -333,19 +333,13 @@ ${spiralCSS(theme)}
 .x { color: ${theme.textSecondary}; width: 28px; height: 28px; border-radius: ${rc}; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; flex: none; }
 .x:hover { color: ${theme.text}; background: ${theme.surfaceSubtle}; }
 
-/* header actions: Watch / Review, then close */
+/* Header actions stay secondary to the conversation. */
 .hdr-actions { display: flex; align-items: center; gap: 6px; flex: none; }
 .speak > span:first-child { display: inline-flex; flex: none; }
 .speak svg { display: block; width: 18px; height: 18px; }
 
-.watchbtn { font-size: 12px; font-weight: 600; padding: 6px 8px; border-radius: ${rc}; color: ${theme.accent}; white-space: nowrap; }
-.watchbtn:hover { background: ${theme.surfaceSubtle}; }
 .speak { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 12px; font-weight: 600; padding: 6px 8px; border-radius: ${rc}; color: ${theme.accent}; white-space: nowrap; }
 .speak:hover { background: ${theme.surfaceSubtle}; }
-.watch-offer { margin: -4px 0 12px; padding: 12px; border: 1px solid ${theme.border}; border-radius: ${rs}; background: ${theme.surfaceSubtle}; font-size: 12px; line-height: 1.5; color: ${theme.textSecondary}; }
-.watch-offer b { display: block; color: ${theme.text}; font-size: 13px; margin-bottom: 4px; }
-.watch-offer .sub { color: ${theme.textTertiary}; margin-top: 4px; }
-.watch-offer .track { margin-top: 10px; }
 
 /* "What Loki sees": the running notes of watch mode, one row until opened */
 .thoughts { margin: -4px -16px 12px; padding: 0 16px; border-top: 1px solid ${theme.border}; border-bottom: 1px solid ${theme.border}; }
@@ -370,7 +364,14 @@ ${spiralCSS(theme)}
 .convo { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 .convo > * { flex: none; }
 .convo > .chatlog { flex: 1 1 auto; min-height: 96px; }
-.ctxbar { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ctxbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; min-height: 36px; }
+.scope { position: relative; min-width: 0; }
+.scopebtn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 2px; font-size: 12px; color: ${theme.textSecondary}; }
+.pointbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 2px; font-size: 12px; color: ${theme.accent}; }
+.scopebtn:hover, .pointbtn:hover { color: ${theme.text}; }
+.pointbtn svg { width: 16px; height: 16px; display: block; }
+.scopemenu { position: absolute; z-index: 6; left: -8px; top: calc(100% + 4px); min-width: 152px; padding: 4px; border: 1px solid ${theme.borderStrong}; border-radius: ${rc}; background: ${theme.surfaceRaised}; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.scopemenu[hidden] { display: none; }
 /* "About" — this page / whole site / an element / Loki — one segmented
    control: four plain words in a row read as a sentence ("This page Whole
    site An element Loki itself"), and wrapped onto two lines on a laptop. One
@@ -378,9 +379,9 @@ ${spiralCSS(theme)}
 .seg { display: flex; gap: 2px; padding: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none;
        border-radius: ${rc}; background: ${theme.surfaceSubtle}; }
 .seg::-webkit-scrollbar { display: none; }
-.segbtn { flex: none; padding: 4px 8px; min-height: 28px; font-size: 12px; color: ${theme.textSecondary}; white-space: nowrap; border-radius: calc(${rc} - 2px); }
+.segbtn { display: block; width: 100%; flex: none; padding: 8px 10px; min-height: 40px; text-align: left; font-size: 12px; color: ${theme.textSecondary}; white-space: nowrap; border-radius: calc(${rc} - 2px); }
 .segbtn:hover { color: ${theme.text}; }
-.segbtn.on { color: ${theme.text}; background: ${theme.surface}; font-weight: 500; box-shadow: 0 0 0 1px ${theme.border}; }
+.segbtn.on { color: ${theme.text}; background: ${theme.surfaceSubtle}; font-weight: 500; }
 /* The control names itself (aria-label "What this is about") and the
    placeholder under it says the rest; a visible "About" cost the room the
    fourth choice needed on a 380px card. */
@@ -464,7 +465,7 @@ a.yours-row:hover .yours-text { color: ${theme.accent}; }
 .voice-note textarea { min-height: 160px; }
 .voice-note .diag { font-size: 13px; line-height: 1.5; border: 0; padding: 0; margin: 0; background: transparent; }
 .voice-note .row { flex-wrap: wrap; gap: 8px; }
-@media (pointer: coarse) { .segbtn, .watchbtn { padding: 10px 8px; } .act { padding: 8px 0; } }
+@media (pointer: coarse) { .segbtn { min-height: 44px; padding: 10px; } .act { padding: 8px 0; } }
 /* After the base .seg rule on purpose — same specificity, so order decides. */
 @media (max-width: 480px) {
   /* What the message is about: ONE row that scrolls sideways, not two that
@@ -473,8 +474,6 @@ a.yours-row:hover .yours-text { color: ${theme.accent}; }
      goes; the group keeps its name for screen readers (aria-label). */
   .ctxbar { min-width: 0; }
   .ctx-label { display: none; }
-  .seg { flex-wrap: nowrap; overflow-x: auto; min-width: 0; scrollbar-width: none; gap: 0 4px; }
-  .seg::-webkit-scrollbar { display: none; }
 }
 
 textarea, input {
@@ -635,9 +634,9 @@ input { margin-bottom: 10px; }
 .change-send:disabled { color: ${theme.textMuted}; cursor: default; text-decoration: none; }
 @media (pointer: coarse) { .change-send, .changes-foot .act { padding: 8px 0; } }
 /* ---- hiding: offered in the panel, and always says how to undo it ---- */
-.made-with { display: block; margin: 14px auto 0; font-size: 11px; text-align: center; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; }
+.made-with { display: block; margin: 14px auto 0; font-size: 12px; text-align: center; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; }
 .made-with:hover { color: ${theme.text}; }
-.hide-link { display: block; margin: 10px auto 0; font-size: 11px; color: ${theme.textMuted}; text-decoration: underline; text-underline-offset: 2px; }
+.hide-link { display: block; margin: 10px auto 0; font-size: 12px; color: ${theme.textMuted}; text-decoration: underline; text-underline-offset: 2px; }
 .hide-link:hover { color: ${theme.textSecondary}; }
 @media (pointer: coarse) { .hide-link, .made-with { padding: 12px 8px; } }
 .toast {
