@@ -23,7 +23,7 @@ import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { FEEDBACK_WORK_PHASE, type FeedbackWorkView } from "@/lib/feedback/work-phase";
 import { FIX_SHIP_STATE } from "@/lib/feedback/fix-shipping";
 import { STALE_REPORT_DAYS } from "@/config/autopilot-night";
-import { speakEvidence } from "@/lib/feedback/verify-live-rules";
+import { speakEvidence } from "@/lib/feedback/speak-evidence";
 
 export const RECOMMEND = {
   /** Mark the live fix as done. Free. */

@@ -105,22 +105,6 @@ export function pageText(html: string): string {
 const VOICE_RULE =
   'Write the evidence as Loki speaking to the owner, in the first person and plain words ("I read the page and…", "On the page I see…"). Never mention "the provided text", "the page text", "the picture you were given", the prompt or the report as input.';
 
-/** Machine phrasing a model still slips in, turned into how a person says it. */
-export function speakEvidence(evidence: string | null | undefined): string | null {
-  if (!evidence) return null;
-  const spoken = evidence
-    .replace(
-      /\b(the )?(provided|given|supplied) (live )?(page )?(text|content|excerpt)\b/gi,
-      "the page",
-    )
-    .replace(/\bthe (live )?page text\b/gi, "the page")
-    .replace(/\b(the )?(provided|given|supplied) (picture|image|screenshot)\b/gi, "the screen")
-    .replace(/\bthe page (does not|doesn't) contain\b/gi, "I could not find, on the page,")
-    .replace(/^the page/, "The page")
-    .trim();
-  return spoken || null;
-}
-
 export function verifySystemPrompt(): string {
   return [
     "You check whether a website change is visible, for the site's owner, who will not look themselves if you can answer.",
