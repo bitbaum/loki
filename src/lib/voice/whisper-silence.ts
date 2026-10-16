@@ -23,6 +23,8 @@
 
 export type WhisperSegment = {
   text?: string;
+  /** Seconds from the start of the take. */
+  start?: number;
   no_speech_prob?: number;
   avg_logprob?: number;
 };
@@ -82,4 +84,21 @@ export function spokenText(data: WhisperVerbose): string {
     .filter(Boolean)
     .join(" ")
     .trim();
+}
+
+/**
+ * The spoken words with WHEN each was said — seconds from the start of the
+ * take — for a caller that lines speech up with what was on screen
+ * (widget/browse-voice.ts). Silence lines are dropped exactly as spokenText
+ * drops them; [] when the result carries no segments.
+ */
+export function spokenSegments(data: WhisperVerbose): Array<{ start: number; text: string }> {
+  if (!Array.isArray(data.segments)) return [];
+  return data.segments
+    .filter((s) => !isSilenceSegment(s))
+    .map((s) => ({
+      start: typeof s.start === "number" && Number.isFinite(s.start) ? Math.max(0, s.start) : 0,
+      text: (s.text ?? "").trim(),
+    }))
+    .filter((s) => s.text);
 }

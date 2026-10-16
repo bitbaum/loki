@@ -107,7 +107,14 @@ export async function POST(req: NextRequest) {
 
   const result = await transcribeWithGroq(audio);
   if (result.ok) {
-    return NextResponse.json({ text: result.text }, { headers: CORS_HEADERS });
+    // When each sentence was said lets the widget put it under the part of
+    // the page that was on screen (widget/browse-voice.ts). Bounded: a
+    // two-minute take is a few dozen segments.
+    const segments = (result.segments ?? []).slice(0, 200).map((seg) => ({
+      start: Math.round(seg.start * 10) / 10,
+      text: seg.text.slice(0, 500),
+    }));
+    return NextResponse.json({ text: result.text, segments }, { headers: CORS_HEADERS });
   }
   // `detail` is deliberately not returned: it can carry provider internals, and
   // this response is readable by any visitor on a customer's site.

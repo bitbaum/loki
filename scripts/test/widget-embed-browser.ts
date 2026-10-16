@@ -274,7 +274,7 @@ async function main() {
     await click(t.p, ".fab");
     ok(
       JSON.stringify(await texts(t.p, ".segbtn")) ===
-        JSON.stringify(["This page", "Whole site", "Element", "Loki"]),
+        JSON.stringify(["This page", "Whole site", "Point", "Loki"]),
       "feedback is about this page, the whole site, an element — or Loki itself",
     );
     await click(t.p, ".segbtn", 2);
@@ -318,7 +318,7 @@ async function main() {
     const t = await open(browser, tag(), js);
     await click(t.p, ".fab");
     ok((await texts(t.p, ".mode")).length === 0, "no tabs: one conversation, not three tools");
-    ok((await texts(t.p, ".watchbtn"))[0] === "Watch", "Watch is offered in the header");
+    ok((await texts(t.p, ".watchbtn"))[0] === "Sign in", "Sign in is offered in the header");
     await click(t.p, ".watchbtn");
     const offer = await t.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
@@ -401,7 +401,7 @@ async function main() {
     await t.p.mouse.click(b.x, b.y);
     const done = (await texts(t.p, ".pickbar button")).findIndex((s) => /done/i.test(s));
     await click(t.p, ".pickbar button", done);
-    ok((await texts(t.p, ".segbtn"))[2]?.startsWith("1 element") ?? false, "the pick is shown");
+    ok((await texts(t.p, ".segbtn"))[2]?.startsWith("1 picked") ?? false, "the pick is shown");
     await say(t.p, "Is this button fine?");
     await t.p.waitForTimeout(600);
     const sent = t.advised[0];

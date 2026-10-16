@@ -183,11 +183,11 @@ const api = readFileSync("widget/loki-api.ts", "utf8");
 assert.match(api, /ownerPass: opts\.ownerPass/, "the pass travels with the question");
 const advise = readFileSync("src/app/api/widget/advise/route.ts", "utf8");
 assert.match(advise, /ownerPass: z\.string\(\)/, "and the route accepts it");
-assert.match(advise, /verifyOwnerPass\(data\.ownerPass\)/, "verified, never trusted");
+assert.match(advise, /passHolder\(data\.ownerPass, token\)/, "verified, never trusted");
 assert.match(
-  advise,
-  /pass\.projectId === token\.projectId && pass\.userId === token\.userId/,
-  "for this project and this owner",
+  readFileSync("src/lib/feedback/pass-rule.ts", "utf8"),
+  /pass\.projectId !== site\.projectId\) return false/,
+  "for this project, its owner or an editor (scripts/test/widget-pass-holder.ts)",
 );
 
 // ---- the phone ----

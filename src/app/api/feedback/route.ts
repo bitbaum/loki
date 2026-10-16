@@ -20,7 +20,7 @@ import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
 import { createFeedbackClaimToken } from "@/lib/feedback/claim-token";
 import { appUrl } from "@/lib/email";
 import { watchFixPath } from "@/lib/feedback/tour-token";
-import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
+import { passHolder } from "@/lib/feedback/pass-holder";
 import { startOwnerBuild } from "@/lib/feedback/owner-build";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 
@@ -145,8 +145,8 @@ export async function POST(req: NextRequest) {
 
   // The owner's own note, proven by the pass: same project, and the pass was
   // issued to the person who owns it. Anything else is an ordinary visitor.
-  const pass = data.ownerPass ? verifyOwnerPass(data.ownerPass) : null;
-  const fromOwner = !!pass && pass.projectId === token.projectId && pass.userId === token.userId;
+  // The owner, or someone they gave edit rights (lib/feedback/pass-holder.ts).
+  const fromOwner = !!(await passHolder(data.ownerPass, token));
 
   // Dedupe at ingest: the same complaint filed again bumps the existing open
   // row's duplicate_count instead of creating a new row — volume signal kept,

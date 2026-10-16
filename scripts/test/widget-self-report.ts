@@ -178,7 +178,7 @@ check(() => {
   // The build starts only for Loki's own owner — never because a host site's
   // owner pass checked out, which is a different person on a different project.
   const route = readFileSync(join(repoRoot, "src/app/api/widget/self-report/route.ts"), "utf8");
-  assert.ok(/lokiOwner = fromOwner && pass\.userId === loki\.userId/.test(route));
+  assert.ok(/lokiOwner = !!holder && holder\.userId === loki\.userId/.test(route));
   assert.ok(/if \(!lokiOwner \|\| !selfReportStartsBuild\(data\.kind\)\) return \{\};/.test(route));
 });
 check(() => {

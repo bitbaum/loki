@@ -16,15 +16,19 @@ export function watchOfferView(signInUrl: string): HTMLElement {
   const box = h("div", "watch-offer");
   box.style.display = "none";
   box.append(
-    h("b", undefined, "Let Loki watch you use this site"),
+    h("b", undefined, "Is this your site?"),
     h(
       "p",
       undefined,
-      "Loki follows what you press and what the page does, fixes what breaks, and on Review tells you what to improve — design, speed, errors, the flow itself. A bar at the top shows it is on, and nothing you type is ever recorded.",
+      "Sign in with Loki and this panel works for you: what you ask for gets built, Loki watches as you use the site and tells you what to improve, and the conversation carries on in Loki. If the owner shared the site with you as an editor, the same works for you.",
     ),
-    h("p", "sub", "Only the site's owner can switch it on."),
+    h(
+      "p",
+      "sub",
+      "No Loki account? You can create one on the next screen and come straight back here. Visitors can keep asking and sending notes without one.",
+    ),
   );
-  const go = h("a", "track", "This is my site — sign in with Loki →");
+  const go = h("a", "track", "Sign in with Loki →");
   go.href = signInUrl;
   go.rel = "noopener";
   box.append(go);

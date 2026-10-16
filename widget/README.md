@@ -8,18 +8,43 @@ where the launcher goes, and how to hide it.
 
 ## Voice notes while browsing
 
-Open Loki and choose **Speak while browsing** in the header. The panel closes;
-a small recording dock leaves the site usable. Scroll and tap normally, or use
-the target to point to an element. **Done** makes an editable note. **Save note**
-puts it in the project's Feedback view without starting a change. Verified
-owners also see **Request fix**, which sends the note and captured page/element
-context through Loki's existing development pipeline. Visitors need no account
-to leave a note; they cannot start a fix.
+Open Loki and choose **Speak** in the header. The panel closes; one small
+dock — *Listening 0:12 · Mark · Done · ✕* — leaves the site usable. Scroll and
+talk. Loki notes which part of the page is in view (its nearest heading) when
+you start, each time scrolling settles, and each time you tap **Mark** ("Marked
+“Pricing”"). No video, no screenshots: a page cannot film itself on a phone
+without a permission prompt, and the dock says so. A take stops at 1:50, and
+the clock says so in its last 15 seconds.
+
+**Done** writes it down. Whisper says when each sentence was said, so the note
+comes back with each sentence under the part of the page that was in view
+(`widget/voice-moments.ts`, tested in `scripts/test/widget-voice-moments.ts`):
+
+    On “Nutzen”:
+    This card is empty, there should be a picture.
+
+    On “Unterstützen” (marked):
+    Is the shop open?
+
+The card is titled **What you said**, editable, and never sent by itself.
+**Ask Loki** asks about it in the conversation; visitors can **Send to whoever
+builds this site**; the owner (and the project's editors) can **Build it** or
+**Save note**. The whole note is kept — the receipt quotes its start and folds
+the rest under *Show all you sent*.
 
 The original location stays attached even if you move before sending. Unsent
 transcripts survive same-tab page loads. Finish recording before following a
-full-page link: audio cannot continue through navigation. Automatic context
-records the visible area, not a video or exact alignment of each spoken word.
+full-page link: audio cannot continue through navigation.
+
+## Who is the owner here
+
+**Sign in** in the header explains it, then goes through Loki's sign-in and
+lands back on the page. Whoever owns the site's Loki project, and anyone it is
+shared with as an editor, gets the owner's panel (Watch, Build it, Your
+changes) — `src/lib/feedback/pass-holder.ts`, one rule for every route. No
+Loki account: "Create one free" keeps the way back to the site. Signed in as
+someone else: the panel says this site belongs to another account, and they
+can still ask and send as a visitor.
 See [capture design and limits](../docs/development/contextual-voice-feedback.md).
 
 ## The design, in one model
@@ -34,7 +59,8 @@ doing everything; no tabs, no second tool.
 
 **Two ways to say anything, side by side.** *Send as feedback* (straight to the
 builder, no AI, never waits on a model) and *Ask Loki* (a second opinion
-first). About *this page / the whole site / an element* scopes both. Anything
+first). *This page / Whole site / Point / Loki* scopes both, and a line under
+them says what each means; the box's placeholder changes with it. Anything
 Loki suggests is one tap from the builder. What was sent comes back as a
 receipt in the same thread, linked to where it can be followed in Loki.
 
@@ -47,7 +73,7 @@ Rules that resolve the trade-offs:
 - **The launcher is the status, and the owner has exactly one of it.** For a
   visitor it is quiet ("quiet until wanted"). For the owner it is full weight —
   one pill, two halves: *Loki · watching* (a count of what Loki said while the
-  panel was closed, the newest remark beside it) and **◎**, which points at an
+  panel was closed, the newest remark beside it) and **Point**, which points at an
   element or marks the whole screen. Auto-avoid measures the entire pill,
   including the target and unread badge. The owner pill only uses clear space;
   on a crowded page it becomes the same edge handle visitors use, keeping the
@@ -56,7 +82,7 @@ Rules that resolve the trade-offs:
   in the conversation. The top bar exists only for a page that
   hides the launcher outright (`data-fc-place="hidden"`; the edge tab counts as
   shown), and carries the same
-  ◎ — the owner said on 2026-10-10 that a bar and a launcher taking turns
+  **Point** — the owner said on 2026-10-10 that a bar and a launcher taking turns
   "sure is confusing", and they were right.
 - **Starting and stopping is one tap**, named for what it does (*Stop
   watching*, *Watch again*), in the header and wherever the status shows.
@@ -126,7 +152,7 @@ trail. The
 owner pass makes the report a build, so the pill turns into **Something broke
 — Loki is fixing it · Follow**. One report per distinct cause, at most three
 per page load. **Report** on the pill opens the note with the same trail
-attached, for anything that looks wrong without failing. **◎** — on the
+attached, for anything that looks wrong without failing. **Point** — on the
 launcher, always — is how the owner shows Loki something: tap it, then tap the
 element, or **This screen** to mark everything on screen right now (the blocks
 a screenshot would frame), and say what you would change. Loki answers or

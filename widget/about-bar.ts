@@ -40,7 +40,8 @@ export function createAboutBar(opts: {
   const siteBtn = h("button", "segbtn", "Whole site");
   // Short enough that all four sit on one line of a 320px phone; the titles
   // say the rest.
-  const pointBtn = h("button", "segbtn", "Element");
+  // "Point" — it is an action (pick something on the page), not a place.
+  const pointBtn = h("button", "segbtn", "Point");
   const lokiBtn = h("button", "segbtn", "Loki");
   pageBtn.title = "About the page you are on";
   siteBtn.title = "About the whole site";
@@ -65,7 +66,12 @@ export function createAboutBar(opts: {
   lokiBtn.addEventListener("click", () => choose("loki"));
   // Tapping it again while something is picked picks again (adds/changes).
   pointBtn.addEventListener("click", opts.onPick);
-  el.append(seg);
+  // One line under the choices saying what Loki does with each — the four
+  // words alone left the owner, who built the site, unsure what any of them
+  // did (2026-10-16).
+  const hintEl = h("div", "ctx-hint");
+  hintEl.setAttribute("aria-live", "polite");
+  el.append(seg, hintEl);
 
   const sync = () => {
     const picked = opts.picked();
@@ -74,7 +80,8 @@ export function createAboutBar(opts: {
       b.classList.toggle("on", now === s);
       b.setAttribute("aria-checked", now === s ? "true" : "false");
     }
-    pointBtn.textContent = picked ? `${picked} element${picked > 1 ? "s" : ""}` : "Element";
+    pointBtn.textContent = picked ? `${picked} picked` : "Point";
+    hintEl.textContent = aboutHint(now, picked);
     pointBtn.title = picked
       ? `${pressVerb().Verb} to pick again`
       : "Point at something on the page";
@@ -89,4 +96,18 @@ export function createAboutBar(opts: {
     },
     sync,
   };
+}
+
+/** What Loki does with the choice — one plain line under the control. */
+export function aboutHint(about: About, picked: number): string {
+  switch (about) {
+    case "site":
+      return "Loki reads this page and a few others on the site.";
+    case "element":
+      return `Loki looks at the ${picked === 1 ? "thing" : `${picked} things`} you pointed at. Tap “${picked} picked” to point again.`;
+    case "loki":
+      return "About this panel itself — it goes to the people who build Loki, not this site's builder.";
+    default:
+      return `Loki reads the page you are on. ${pressVerb().Verb} Point to show it one thing.`;
+  }
 }

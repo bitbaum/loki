@@ -31,7 +31,7 @@ import { REVIEW_QUESTION } from "./loki-api";
 import type { Assistant, Link, ThreadItem } from "./thread";
 import { createContinueRow } from "./continue-row";
 import { greetingFor, ownerDoor } from "./greeting";
-import { receiptLinkLabel, receiptText } from "./receipt";
+import { receiptFull, receiptLinkLabel, receiptText } from "./receipt";
 import {
   CONCIERGE_GREETING,
   MAX_LEN,
@@ -40,7 +40,7 @@ import {
   type ConversationWatch,
   type Draft,
 } from "./conversation-model";
-import { kitState, noticedExtras } from "./conversation-kit";
+import { kitState, noticedExtras, sentFull } from "./conversation-kit";
 import type { KitHandle, KitModule } from "./chat/contract";
 
 export { MAX_LEN, type ConversationWatch };
@@ -206,15 +206,16 @@ export function createConversation(opts: {
     const now = ctx.about();
     const loki = now === "loki";
     const a = opts.assistant();
+    // Each choice says what it is about, in the box itself.
     input.placeholder = loki
       ? "What should be better about this panel?"
-      : now === "element"
-        ? "What about what you picked?"
-        : owner()
-          ? "Say what to change, or ask Loki…"
-          : a === "none"
-            ? "What should change?"
-            : "What should change — or ask Loki anything…";
+      : a === "none"
+        ? "What should change?"
+        : now === "element"
+          ? "Ask about what you pointed at, or say what should change…"
+          : now === "site"
+            ? "Ask about the whole site, or say what should change across it…"
+            : "Ask about this page, or say what should change…";
     // With no AI on this embed, feedback is the only way, so it leads.
     // About Loki itself there is no site to advise on and nothing to build
     // here: one way, and it leads.
@@ -321,6 +322,8 @@ export function createConversation(opts: {
         log.appendChild(m);
       } else {
         const m = bubble("bot sent from-loki", "Loki", receiptText(item));
+        const full = receiptFull(item);
+        if (full) m.appendChild(sentFull(full));
         if (item.claimUrl) {
           const t = h("a", "track", receiptLinkLabel(item));
           t.href = item.claimUrl;
@@ -384,30 +387,58 @@ export function createConversation(opts: {
   /** The confirmation card: what goes to the builder, edited before it does. */
   function draftCard(draft: Draft): HTMLElement {
     const el = h("div", draft.intent === "note" ? "sendcard voice-note" : "sendcard");
+    const voice = draft.intent === "note";
     el.appendChild(
       h(
         "div",
         "changes-title",
-        draft.intent === "note"
-          ? "Review your voice note"
+        voice
+          ? "What you said"
           : owner()
             ? "Build this on your site"
             : "Send to whoever builds this site",
       ),
     );
+    // A spoken note is a question as often as it is a change: say both ways,
+    // before the buttons, so nobody has to guess which one answers them
+    // (2026-10-16: a spoken question to Loki was filed with the builder).
+    if (voice)
+      el.appendChild(
+        h(
+          "p",
+          "sendcard-sub",
+          owner()
+            ? "Edit it if you like. Ask Loki about it, have it built, or keep it as a note."
+            : "Edit it if you like. Ask Loki about it, or send it to whoever builds this site.",
+        ),
+      );
     const box = h("textarea", "chatinput");
     box.maxLength = MAX_LEN;
     box.value = draft.text;
     box.addEventListener("input", () => model.editDraft(box.value));
+    // A spoken note is read before it is sent: show it whole, up to the cap
+    // in theme.ts, rather than a five-line window onto two minutes of talk.
+    if (voice)
+      box.rows = Math.min(
+        24,
+        Math.max(6, draft.text.split("\n").length + Math.ceil(draft.text.length / 60)),
+      );
     el.appendChild(box);
-    if (draft.capture)
+    if (draft.capture) {
+      // What Loki saw while they spoke (browse-voice.ts) — the same words that
+      // go with the note, so "does it know what I meant?" has an answer here.
+      const seen = draft.capture.diagnostics["On screen while speaking"];
+      const picked = draft.capture.selected.map((item) => item.elementText).join(", ");
       el.appendChild(
         h(
           "p",
           "diag",
-          `About ${draft.capture.page}${draft.capture.selected.length ? ` · ${draft.capture.selected.map((item) => item.elementText).join(", ")}` : ""}`,
+          typeof seen === "string" && seen
+            ? `Loki noted what was on screen: ${seen}${picked ? ` · pointed at ${picked}` : ""}`
+            : `About ${draft.capture.page}${picked ? ` · ${picked}` : ""}`,
         ),
       );
+    }
     const contact = h("input");
     contact.type = "text";
     contact.placeholder = "Your name / email (optional)";
@@ -433,20 +464,35 @@ export function createConversation(opts: {
       if (diag) note.title = formatDiagnostics(diag);
       el.appendChild(note);
     }
-    const row = h("div", "row");
-    const sendLabel = draft.intent === "note" ? "Save note" : owner() ? "Build it" : "Send";
-    const go = h("button", "go", sendLabel);
+    const row = h("div", "row sendcard-actions");
+    // A voice note: Ask Loki first — talking to it is what the panel is for —
+    // then send it as a change, then (owner) keep it for later.
+    const askBtn = voice ? h("button", "go", "Ask Loki") : null;
+    if (askBtn) askBtn.type = "button";
+    const sendLabel = voice
+      ? owner()
+        ? "Save note"
+        : "Send to whoever builds this site"
+      : owner()
+        ? "Build it"
+        : "Send";
+    const go = h("button", voice ? "ghost outline" : "go", sendLabel);
     go.type = "button";
-    const requestFix =
-      owner() && draft.intent === "note" ? h("button", "ghost", "Request fix") : null;
+    const requestFix = owner() && voice ? h("button", "ghost outline", "Build it") : null;
     if (requestFix) requestFix.type = "button";
-    const cancel = h("button", "ghost", "Cancel");
+    const cancel = h("button", "ghost", voice ? "Discard" : "Cancel");
     cancel.type = "button";
     const cardErr = h("div", "err");
-    row.append(go);
+    if (askBtn) row.append(askBtn);
     if (requestFix) row.append(requestFix);
-    row.append(cancel);
+    row.append(go, cancel);
     el.append(row, cardErr);
+    askBtn?.addEventListener("click", () => {
+      const text = box.value.trim();
+      if (!text) return;
+      model.closeDraft();
+      model.ask(text);
+    });
     cancel.addEventListener("click", () => {
       model.closeDraft();
       focus();

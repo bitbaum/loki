@@ -226,7 +226,8 @@ ${spiralCSS(theme)}
 /* "Show Loki this": the other half of the owner's launcher — flush against
    it, squared on the shared edge, so the two read as one pill: [Loki · watching | ◎] */
 .fab-point {
-  position: fixed; z-index: 2147483000; width: 44px; height: 44px;
+  position: fixed; z-index: 2147483000; min-width: 44px; height: 44px; padding: 0 12px; gap: 6px;
+  font-size: 13px; font-weight: 500;
   /* The launcher sits in a RIGHT corner by default, so the target is on its
      inner (left) side: squared where they meet. */
   border-radius: 999px 0 0 999px;
@@ -236,6 +237,7 @@ ${spiralCSS(theme)}
 }
 .fab-point.left { border-radius: 0 999px 999px 0; }
 .fab-point svg { width: 18px; height: 18px; display: block; }
+.fab-point-label { color: ${theme.text}; }
 .fab-point:hover { border-color: ${theme.accent}; }
 /* The launcher's edge that meets the target is squared too (right corner by
    default; the left one when the launcher sits on the left). */
@@ -385,6 +387,9 @@ ${spiralCSS(theme)}
    placeholder under it says the rest; a visible "About" cost the room the
    fourth choice needed on a 380px card. */
 .ctx-label { display: none; }
+.ctxbar { flex-direction: column; align-items: stretch; gap: 6px; }
+.ctxbar .seg { align-self: flex-start; max-width: 100%; }
+.ctx-hint { font-size: 11px; line-height: 1.4; color: ${theme.textTertiary}; }
 /* composer: ONE card — what it is about, the words, then a row: tools left,
    the quiet way and the one accent way to send it right */
 .composer { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid ${theme.borderStrong}; border-radius: ${rs}; background: ${theme.surfaceRaised}; transition: border-color .12s ease, box-shadow .12s ease; }
@@ -456,14 +461,7 @@ a.yours-row:hover .yours-text { color: ${theme.accent}; }
 .msg.sent { border-left: 2px solid ${theme.success}; padding-left: 10px; }
 .msg .track { display: inline-flex; margin-top: 6px; padding: 0; background: none; color: ${theme.accent}; font-size: 12px; font-weight: 600; }
 .starter.primary { color: ${theme.accent}; border-color: ${theme.accent}; font-weight: 600; }
-.sendcard { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid ${theme.accent}; border-radius: ${rs}; background: ${theme.surfaceRaised}; }
-.sendcard textarea { min-height: 64px; }
-.sendcard .err { margin-top: 0; }
-.voice-note { gap: 14px; padding: 16px; border-color: ${theme.borderStrong}; }
-.voice-note .changes-title { font: 500 16px/1.4 ${theme.fontSans ?? "system-ui,sans-serif"}; color: ${theme.text}; text-transform: none; letter-spacing: normal; }
-.voice-note textarea { min-height: 160px; }
-.voice-note .diag { font-size: 13px; line-height: 1.5; border: 0; padding: 0; margin: 0; background: transparent; }
-.voice-note .row { flex-wrap: wrap; gap: 8px; }
+${sendCardCSS(theme, rs)}
 @media (pointer: coarse) { .segbtn, .watchbtn { padding: 10px 8px; } .act { padding: 8px 0; } }
 /* After the base .seg rule on purpose — same specificity, so order decides. */
 @media (max-width: 480px) {
@@ -673,6 +671,33 @@ input { margin-bottom: 10px; }
 }
 
 /** Injected into document.head — the only styling that must reach host elements. */
+/** The card a note is checked in before it goes, and the receipt after:
+ *  one block, because they are one moment in the conversation. */
+function sendCardCSS(theme: WidgetTheme, rs: string): string {
+  return `
+.sendcard { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid ${theme.accent}; border-radius: ${rs}; background: ${theme.surfaceRaised}; }
+.sendcard textarea { min-height: 64px; }
+.sendcard-sub { font-size: 12px; line-height: 1.45; color: ${theme.textSecondary}; }
+.sendcard .voice-note textarea, .sendcard.voice-note textarea { min-height: 120px; max-height: 45vh; }
+.sendcard-actions { flex-wrap: wrap; align-items: center; }
+.ghost.outline { border: 1px solid ${theme.borderStrong}; color: ${theme.text}; }
+.ghost.outline:hover { border-color: ${theme.borderDark}; }
+/* The whole of a sent note, folded under its receipt. */
+.sent-full { margin-top: 6px; font-size: 12px; }
+.sent-full summary { cursor: pointer; color: ${theme.textSecondary}; font-weight: 500; list-style: none; }
+.sent-full summary::-webkit-details-marker { display: none; }
+.sent-full summary::after { content: " ↓"; }
+.sent-full[open] summary::after { content: " ↑"; }
+.sent-full-text { margin-top: 6px; padding: 8px 10px; border-left: 2px solid ${theme.border}; color: ${theme.textSecondary}; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sendcard .err { margin-top: 0; }
+.voice-note { gap: 14px; padding: 16px; border-color: ${theme.borderStrong}; }
+.voice-note .changes-title { font: 500 16px/1.4 ${theme.fontSans ?? "system-ui,sans-serif"}; color: ${theme.text}; text-transform: none; letter-spacing: normal; }
+.voice-note textarea { min-height: 160px; height: auto; max-height: 45vh; }
+.voice-note .diag { font-size: 13px; line-height: 1.5; border: 0; padding: 0; margin: 0; background: transparent; }
+.voice-note .row { flex-wrap: wrap; gap: 8px; }
+`;
+}
+
 export function buildDocCSS(theme: WidgetTheme): string {
   // The HOST page cannot see the panel's variables, so this takes a concrete
   // theme — and one colour that is the same in light and dark, so a pick

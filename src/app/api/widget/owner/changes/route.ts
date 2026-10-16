@@ -10,7 +10,7 @@ import { DEFAULT_THEME_MODE } from "@/config/theme";
 import { attachFeedbackWork } from "@/lib/feedback/attach-work";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { createTourToken, tourSiteUrl, watchFixPath } from "@/lib/feedback/tour-token";
-import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
+import { passHolder } from "@/lib/feedback/pass-holder";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 import { appUrl } from "@/lib/email";
 import {
@@ -87,8 +87,9 @@ export async function POST(req: NextRequest) {
   }
   // Same test as ingest: this project, this owner, unexpired. The widget
   // forgets a pass the server refuses, so say so plainly rather than 403.
-  const pass = verifyOwnerPass(data.ownerPass);
-  if (!pass || pass.projectId !== token.projectId || pass.userId !== token.userId) {
+  // The owner, or someone they gave edit rights (lib/feedback/pass-holder.ts).
+  const holder = await passHolder(data.ownerPass, token);
+  if (!holder) {
     return corsJson({ ok: true, owner: false, changes: [] });
   }
 
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
     getWidgetProjectKey(token.projectId, token.userId),
     // The mode they chose in Loki, so their site's panel shows in it too
     // (widget/theme-mode.ts). Never chosen = what Loki shows them: dark.
-    getUserTheme(token.userId).catch(() => null),
+    getUserTheme(holder.userId).catch(() => null),
   ]);
   // "Your changes" means yours: what the owner asked for, and what Loki filed
   // on its own while watching or reviewing. A stranger's "so nice picture!"

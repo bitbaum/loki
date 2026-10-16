@@ -18,8 +18,8 @@ export function greetingFor(state: {
 }): string {
   if (state.owner) {
     return state.watching
-      ? `I'm watching as you use your site. Use it as usual — or ${pressVerb().verb} ◎ beside me to show me an element or this screen, and tell me what you'd change.`
-      : `Paused — nothing is recorded. Resume above, ${pressVerb().verb} ◎ beside me to show me something, or just tell me what to change.`;
+      ? `I'm watching as you use your site. Use it as usual and tell me what you'd change — ${pressVerb().verb} Point to show me one thing on the page, or Speak to talk while you scroll.`
+      : `Paused — nothing is recorded. Resume above, ${pressVerb().verb} Point to show me something, or just tell me what to change.`;
   }
   if (state.assistant === "none") {
     return "Tell us what should change — it goes straight to whoever builds this site.";

@@ -22,11 +22,13 @@ launcher sits, how it avoids host UI, and the host contract (`data-fc-avoid`,
 
 ## Voice review while browsing
 
-The header's **Speak while browsing** leaves the host site interactive and
-captures the page position or explicitly selected element at speaking time.
-Done opens one focused, editable note. **Save note** persists an observation
-held out of automatic work; a verified owner's **Request fix** explicitly
-starts the existing feedback dispatch pipeline. The receipt remains in the
+The header's **Speak** leaves the host site interactive. The dock notes the
+part of the page in view (nearest heading) at the start, when scrolling
+settles and on **Mark**; Whisper's sentence timings put each sentence under
+the part that was in view (`widget/voice-moments.ts`). Done opens one
+editable note, **What you said**: **Ask Loki** about it, or send it — a
+visitor to whoever builds the site, the owner or an editor as **Build it** or
+**Save note** (held out of automatic work). The receipt remains in the
 same widget thread and links to the project Feedback view or run. Visitors
 can save notes without a Loki account but cannot authorize development.
 Unsent text/context survives same-tab page loads; audio cannot survive a full
@@ -430,7 +432,7 @@ matters):
   waiting behind another reads **In line**, not "Starting"
   (`owner-view.ts`). Watch waits 1.5 s after each tap on a button or link for
   the page to change, ask the server or navigate, notes which, and says at
-  once when nothing visibly happened. A **◎** is the other half of the
+  once when nothing visibly happened. **Point** is the other half of the
   owner's launcher — there whether Loki watches or is paused — and points at
   something on the page, or marks **This screen** (the blocks in the
   viewport, `picker.ts visibleBlocks`), opening the panel with it attached.

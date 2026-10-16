@@ -11,7 +11,7 @@ import {
 } from "@/db/queries/site-feedback";
 import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
-import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
+import { passHolder } from "@/lib/feedback/pass-holder";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 import { startOwnerBuild } from "@/lib/feedback/owner-build";
 import { watchFixPath } from "@/lib/feedback/tour-token";
@@ -99,8 +99,8 @@ export async function POST(req: NextRequest) {
   if (!isWidgetOriginAllowed({ tokenOrigins: host.origins, origin, allowMissingOrigin: false })) {
     return corsError("Origin not allowed for this widget", 403);
   }
-  const pass = data.ownerPass ? verifyOwnerPass(data.ownerPass) : null;
-  const fromOwner = !!pass && pass.projectId === host.projectId && pass.userId === host.userId;
+  const holder = await passHolder(data.ownerPass, host);
+  const fromOwner = !!holder;
   if (selfReportNeedsOwner(data.kind) && !fromOwner) {
     return corsError("Only the site's owner's widget reports on its own", 403);
   }
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
   // word on their own product, and the owner's word IS the decision (api/
   // feedback): the fix starts now, and the receipt follows the build to live.
   // Anyone else's lands in the inbox for that owner to start.
-  const lokiOwner = fromOwner && pass.userId === loki.userId;
+  const lokiOwner = !!holder && holder.userId === loki.userId;
   const build = async (id: string) => {
     if (!lokiOwner || !selfReportStartsBuild(data.kind)) return {};
     const started = await startOwnerBuild(loki.userId, loki.projectId, id);

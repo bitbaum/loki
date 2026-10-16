@@ -659,7 +659,7 @@ async function main() {
     ok(picked.offered, "◎ offers This screen beside tapping an element");
     ok(picked.marked >= 1, `This screen marks what is on screen (${picked.marked})`);
     ok(
-      picked.panel && /element/.test(picked.chip),
+      picked.panel && /picked|element/.test(picked.chip),
       `…and the conversation opens with it attached (${picked.chip})`,
     );
     ok(s.errors.length === 0, `no page errors (${s.errors.join("; ")})`);

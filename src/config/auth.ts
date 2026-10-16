@@ -32,8 +32,32 @@ export const ROUTES = {
  *  RUNNER_HOME. Without it the landing page is unreachable inside the app. */
 export const SITE_PREVIEW_PARAM = "site";
 
+/**
+ * Arriving from a site's widget ("This is my site — sign in with Loki",
+ * /api/widget/owner): the sign-in page used to look exactly like any other,
+ * and "Create one free" dropped the way back, so someone new landed on Loki's
+ * onboarding and never returned to the site they were on (2026-10-16).
+ */
+export const WIDGET_SIGN_IN_PATH = "/api/widget/owner";
+
+export const fromSiteWidget = (callbackUrl: string): boolean =>
+  callbackUrl.startsWith(WIDGET_SIGN_IN_PATH);
+
+/** A sign-in ⇄ sign-up link that keeps where to go afterwards. */
+export function keepCallback(route: string, callbackUrl: string, fallback: string): string {
+  return callbackUrl && callbackUrl !== fallback
+    ? `${route}?callbackUrl=${encodeURIComponent(callbackUrl)}`
+    : route;
+}
+
 /** Headings for every auth surface — pages import these, they do not invent copy. */
 export const AUTH_COPY = {
+  fromSite: {
+    signIn:
+      "You came from a website Loki works on. Sign in with the account that owns it — or that its owner shared it with — and you go straight back to the page you were on.",
+    signUp:
+      "New to Loki? Create an account and you go straight back to the site. If the site is someone else's, ask them to share it with you in Loki (Project → People) — until then you can still talk to Loki there as a visitor.",
+  },
   signIn: {
     title: "Welcome back",
     description: (appName: string) => `Sign in to your ${appName} account.`,

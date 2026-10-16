@@ -461,7 +461,7 @@ export function createWatchPill(
 .watch-pill .wbtn + .wbtn { margin-left: -4px; }
 .watch-pill .wbtn { flex: none; min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid ${theme.border}; color: ${theme.textSecondary}; font-size: 11px; white-space: nowrap; }
 .watch-pill .wbtn.primary { border-color: ${theme.accent}; background: ${theme.accentMuted}; color: ${theme.text}; font-weight: 600; }
-.watch-pill .wpoint { padding: 0 6px; color: ${theme.accent}; display: inline-flex; align-items: center; }
+.watch-pill .wpoint { padding: 0 8px; color: ${theme.accent}; display: inline-flex; align-items: center; gap: 4px; }
 .watch-pill .wpoint svg { width: 16px; height: 16px; }
 @media (pointer: coarse) { .watch-pill .wbtn { min-height: 32px; } }
 @keyframes wpulse { 50% { opacity: .45; } }
@@ -478,7 +478,7 @@ export function createWatchPill(
   // The same ◎ the launcher carries, so the bar (the fallback when a site
   // hides the launcher) offers exactly what the launcher does.
   const pointBtn = h("button", "wbtn wpoint");
-  pointBtn.innerHTML = TARGET_SVG;
+  pointBtn.innerHTML = `${TARGET_SVG}<span>Point</span>`;
   pointBtn.title = "Show Loki something on this page";
   pointBtn.setAttribute("aria-label", "Show Loki something on this page");
   pointBtn.addEventListener("click", () => onPoint?.());
