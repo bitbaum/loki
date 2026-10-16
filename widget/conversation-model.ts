@@ -15,7 +15,13 @@ import type { FeedbackCapture } from "./feedback-capture";
 import { buildSuggestion, type ReportDiagnostics } from "./report-payload";
 import { sendReport } from "./send-report";
 import { sendSelfReport } from "./self-report";
-import { askAdvisor, askConcierge, REVIEW_QUESTION, type Answer } from "./loki-api";
+import {
+  ADVISE_MAX_QUESTION,
+  askAdvisor,
+  askConcierge,
+  REVIEW_QUESTION,
+  type Answer,
+} from "./loki-api";
 import {
   historyFor,
   isPageReadKey,
@@ -31,7 +37,8 @@ import type { Picker } from "./picker";
 
 /** The ingest's cap on `suggestion` (api/feedback FeedbackBody). */
 export const MAX_LEN = 2000;
-export const ASK_MAX = 1000;
+/** A spoken question can run two minutes; the server takes what the widget sends. */
+export const ASK_MAX = ADVISE_MAX_QUESTION;
 
 const threadKey = (token: string) => `loki-thread:${token}`;
 
@@ -326,7 +333,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
     remember({
       kind: "sent",
       at: Date.now(),
-      text: body.slice(0, 300),
+      text: body.slice(0, MAX_LEN),
       owner: false,
       toLoki: true,
       ...(res.building ? { building: true } : {}),
@@ -368,7 +375,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
     remember({
       kind: "sent",
       at: Date.now(),
-      text: body.slice(0, 300),
+      text: body.slice(0, MAX_LEN),
       owner: res.owner === true,
       ...(res.building ? { building: true } : {}),
       ...(res.savedOnly ? { savedOnly: true } : {}),

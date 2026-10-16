@@ -123,7 +123,8 @@ export interface VoiceOptions {
   /** Hard cap; the server rejects longer uploads, so stop before spending them. */
   maxMs: number;
   onState: (state: VoiceState, detail?: { error?: string; elapsedMs?: number }) => void;
-  onTranscript: (text: string) => void;
+  /** `segments`: when each sentence was said (seconds), when the server knows. */
+  onTranscript: (text: string, segments: Array<{ start: number; text: string }>) => void;
 }
 
 export function createVoiceRecorder(opts: VoiceOptions): VoiceRecorder {
@@ -253,9 +254,9 @@ export function createVoiceRecorder(opts: VoiceOptions): VoiceRecorder {
       return;
     }
     try {
-      const transcript = await transcribeAudio(opts.endpoint, opts.token, blob, type);
+      const { text, segments } = await transcribeAudioTimed(opts.endpoint, opts.token, blob, type);
       if (operation !== take) return;
-      opts.onTranscript(transcript);
+      opts.onTranscript(text, segments);
       set("idle");
     } catch (e) {
       if (operation !== take) return;
@@ -279,6 +280,16 @@ export async function transcribeAudio(
   blob: Blob,
   type = blob.type,
 ): Promise<string> {
+  return (await transcribeAudioTimed(endpoint, token, blob, type)).text;
+}
+
+/** The same, with when each sentence was said (seconds from the start). */
+export async function transcribeAudioTimed(
+  endpoint: string,
+  token: string,
+  blob: Blob,
+  type = blob.type,
+): Promise<{ text: string; segments: Array<{ start: number; text: string }> }> {
   const form = new FormData();
   // Extension matters: the provider sniffs it when the container is
   // ambiguous, and a mislabelled clip transcribes as silence.
@@ -291,8 +302,21 @@ export async function transcribeAudio(
   } catch {
     throw new Error("Could not reach the server, try again");
   }
-  const json = (await res.json().catch(() => null)) as { text?: string; error?: string } | null;
+  const json = (await res.json().catch(() => null)) as {
+    text?: string;
+    error?: string;
+    segments?: unknown;
+  } | null;
   if (!res.ok || !json?.text)
     throw new Error(json?.error || "Could not transcribe that, try again");
-  return json.text;
+  // Untrusted shape: keep only well-formed segments.
+  const segments = (Array.isArray(json.segments) ? json.segments : [])
+    .filter(
+      (s): s is { start: number; text: string } =>
+        !!s &&
+        typeof (s as { start?: unknown }).start === "number" &&
+        typeof (s as { text?: unknown }).text === "string",
+    )
+    .slice(0, 200);
+  return { text: json.text, segments };
 }

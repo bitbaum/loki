@@ -121,9 +121,12 @@ export function createLauncher(opts: {
   // the launcher. Now one thing, in one place, always the same.
   const point = h("button", "fab-point");
   point.type = "button";
+  // Icon AND word: a bare ◎ read as nothing at all ("that aim button, what
+  // does it even mean?", 2026-10-16).
   point.innerHTML = TARGET_SVG;
-  point.setAttribute("aria-label", "Show Loki something on this page");
-  point.title = "Show Loki something on this page";
+  point.appendChild(h("span", "fab-point-label", "Point"));
+  point.setAttribute("aria-label", "Point at something on this page to show Loki");
+  point.title = "Point at something on this page to show Loki";
   point.style.display = "none";
   point.addEventListener("click", () => opts.onPoint?.());
   root.appendChild(point);

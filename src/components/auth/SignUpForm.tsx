@@ -14,7 +14,8 @@ import {
 } from "@/components/auth/AuthShell";
 import { OAuthButtons, hasAnyOAuth, type OAuthEnabledFlags } from "@/components/auth/OAuthButtons";
 import { postJson } from "@/lib/api/fetch";
-import { AUTH_COPY, ROUTES } from "@/config/auth";
+import { AUTH_COPY, fromSiteWidget, keepCallback, ROUTES } from "@/config/auth";
+import { goAfterSignIn } from "@/lib/auth/after-sign-in";
 
 export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
   const router = useRouter();
@@ -59,7 +60,7 @@ export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
         const claimToken =
           claimUrl.pathname === "/claim-feedback" ? claimUrl.searchParams.get("token") : null;
         if (claimToken) await postJson("/api/feedback/claim", { token: claimToken });
-        router.push(safeCallback);
+        goAfterSignIn(router.push, safeCallback);
       } else {
         router.push(ROUTES.SIGN_IN);
       }
@@ -73,6 +74,7 @@ export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
   return (
     <AuthShell>
       <AuthHeading title={AUTH_COPY.signUp.title} description={AUTH_COPY.signUp.description} />
+      {fromSiteWidget(safeCallback) && <p className="ui-auth-hint">{AUTH_COPY.fromSite.signUp}</p>}
 
       <AuthCard>
         {/* OAuth first: signing up via an existing identity (OrangeCat above
@@ -123,7 +125,9 @@ export function SignUpForm({ oauthFlags }: { oauthFlags: OAuthEnabledFlags }) {
         </form>
       </AuthCard>
 
-      <AuthFooterLink href={ROUTES.SIGN_IN}>Already have an account? Sign in →</AuthFooterLink>
+      <AuthFooterLink href={keepCallback(ROUTES.SIGN_IN, safeCallback, ROUTES.ONBOARDING)}>
+        Already have an account? Sign in →
+      </AuthFooterLink>
     </AuthShell>
   );
 }

@@ -539,11 +539,6 @@ interface LokiApi {
       token,
       endpoint: `${apiBase}/api/widget/transcribe`,
       selected: () => picker.selected(),
-      onPoint: () => {
-        root.addEventListener("keydown", onKeydown as EventListener);
-        document.addEventListener("keydown", onDocumentKeydown);
-        picker.start();
-      },
       onActive: (active) => {
         if (active) closePanel();
         else {
@@ -646,7 +641,7 @@ interface LokiApi {
     if (ownerDenied) {
       openPanel();
       conversation.say(
-        "You're signed in to Loki, but this site belongs to another account — so I can't watch here for you. If it should be yours, ask its owner to share the project with you in Loki.",
+        "You're signed in to Loki, but with an account that can't edit this site. If it should be yours, ask its owner to share the project with you in Loki as an editor, then sign in here again. Until then you can still ask me anything and send notes.",
       );
     }
     if (pendingAsk !== null) {

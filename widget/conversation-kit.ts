@@ -13,7 +13,7 @@ import { answerLinks } from "./rich-text";
 import { suggestionBox } from "./suggestions";
 import { knownLabel, type KnownFix } from "./known-fixes";
 import { REVIEW_QUESTION } from "./loki-api";
-import { receiptLinkLabel, receiptText } from "./receipt";
+import { receiptFull, receiptLinkLabel, receiptText } from "./receipt";
 import { greetingFor } from "./greeting";
 import type { Assistant, ThreadItem } from "./thread";
 import type { About } from "./about-bar";
@@ -160,12 +160,17 @@ export function kitState(i: KitInputs): KitState {
       });
     } else {
       let footer: HTMLElement | null = null;
-      if (item.claimUrl) {
-        const t = h("a", "track", receiptLinkLabel(item));
-        t.href = item.claimUrl;
-        t.target = "_blank";
-        t.rel = "noopener noreferrer";
-        footer = t;
+      const full = receiptFull(item);
+      if (full || item.claimUrl) {
+        footer = h("div", "sent-footer");
+        if (full) footer.appendChild(sentFull(full));
+        if (item.claimUrl) {
+          const t = h("a", "track", receiptLinkLabel(item));
+          t.href = item.claimUrl;
+          t.target = "_blank";
+          t.rel = "noopener noreferrer";
+          footer.appendChild(t);
+        }
       }
       messages.push({ id, role: "assistant", content: receiptText(item), speaker: LOKI, footer });
     }
@@ -207,4 +212,11 @@ export function kitState(i: KitInputs): KitState {
     sending: pending !== null,
     reviewingNote: model.snapshot().draft?.intent === "note",
   };
+}
+
+/** The whole of a sent note, folded: one tap to read every word that went. */
+export function sentFull(text: string): HTMLElement {
+  const box = h("details", "sent-full");
+  box.append(h("summary", undefined, "Show all you sent"), h("div", "sent-full-text", text));
+  return box;
 }

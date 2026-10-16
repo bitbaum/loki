@@ -27,7 +27,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
-import { callGroqTranscribe } from "@/lib/groq";
+import { callGroqTranscribe, callGroqTranscribeTimed } from "@/lib/groq";
 
 const execFileAsync = promisify(execFile);
 
@@ -37,7 +37,9 @@ const execFileAsync = promisify(execFile);
  * audio itself is the problem and retrying anywhere is pointless.
  */
 export type TranscribeAttempt =
-  | { ok: true; text: string }
+  /** `segments`: when each sentence was said, for a single take only — a
+   *  downmixed or split recording leaves it out. */
+  | { ok: true; text: string; segments?: Array<{ start: number; text: string }> }
   | { ok: false; recoverable: boolean; status: number; error: string; detail?: string };
 
 /** Below this, the blob cannot contain speech — usually a click-and-release. */
@@ -252,11 +254,12 @@ export async function transcribeWithGroq(audio: File): Promise<TranscribeAttempt
   const mimeType = audio.type || "audio/webm";
   if (planUpload(buf.length) === "downmix") return transcribeLong(buf);
   try {
-    const text = await groqOnce(buf, mimeType);
+    const blob = new Blob([new Uint8Array(buf)], { type: mimeType });
+    const { text, segments } = await callGroqTranscribeTimed(blob, mimeType);
     if (!text) {
       return { ok: false, recoverable: false, status: 422, error: "No speech detected" };
     }
-    return { ok: true, text };
+    return { ok: true, text, segments };
   } catch (err) {
     return groqFailure(err);
   }

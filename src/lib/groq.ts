@@ -27,7 +27,7 @@ import {
 import { readSseChunks } from "@/lib/agent/sse-stream";
 import { recordAIHealthFailure, recordAIHealthSuccess } from "@/lib/ai/health";
 import { recordVendorQuota, recordRefusal } from "@/lib/ai/record-quota";
-import { spokenText, type WhisperVerbose } from "@/lib/voice/whisper-silence";
+import { spokenSegments, spokenText, type WhisperVerbose } from "@/lib/voice/whisper-silence";
 import { retryAfterSeconds as groqRetryAfterSeconds } from "@bitbaum/ai-kit";
 
 /**
@@ -371,6 +371,19 @@ export async function callGroqTranscribe(
   // A mic take answers in seconds; a twenty-minute memo segment does not.
   timeoutMs = HTTP_TIMEOUT_LONG_MS,
 ): Promise<string> {
+  return (await callGroqTranscribeTimed(audio, mimeType, timeoutMs)).text;
+}
+
+/**
+ * The same call, keeping WHEN each sentence was said (seconds from the start)
+ * — what lets the site widget put a sentence under the part of the page that
+ * was on screen while it was spoken.
+ */
+export async function callGroqTranscribeTimed(
+  audio: Blob,
+  mimeType = "audio/webm",
+  timeoutMs = HTTP_TIMEOUT_LONG_MS,
+): Promise<{ text: string; segments: Array<{ start: number; text: string }> }> {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error("GROQ_API_KEY not set");
 
@@ -407,5 +420,6 @@ export async function callGroqTranscribe(
     const body = await res.text().catch(() => "");
     throw new Error(`groq transcribe ${res.status}: ${body.slice(0, 200)}`);
   }
-  return spokenText((await res.json()) as WhisperVerbose);
+  const data = (await res.json()) as WhisperVerbose;
+  return { text: spokenText(data), segments: spokenSegments(data) };
 }

@@ -25,7 +25,7 @@ export type AdviseScope = "element" | "page" | "site";
 export type AdviseTurn = { role: "user" | "assistant"; content: string };
 
 /** Mirrors widget/advise.ts. */
-export const ADVISE_MAX_QUESTION = 1000;
+export const ADVISE_MAX_QUESTION = 2000;
 export const ADVISE_MAX_HISTORY = 8;
 export const ADVISE_MAX_SNAPSHOT = 14_000;
 /** Mirrors REVIEW_SESSION_MAX in widget/watch-trail.ts. */

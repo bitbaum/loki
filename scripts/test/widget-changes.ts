@@ -149,11 +149,11 @@ const ship = (state: string): FixShipping => ({ state }) as FixShipping;
 
 // ---- the route and the receipt link ----
 const route = readFileSync("src/app/api/widget/owner/changes/route.ts", "utf8");
-assert.match(route, /verifyOwnerPass\(data\.ownerPass\)/, "a pass, verified");
+assert.match(route, /passHolder\(data\.ownerPass, token\)/, "a pass, verified");
 assert.match(
-  route,
-  /pass\.projectId !== token\.projectId \|\| pass\.userId !== token\.userId/,
-  "for this project and owner",
+  readFileSync("src/lib/feedback/pass-rule.ts", "utf8"),
+  /pass\.projectId !== site\.projectId\) return false/,
+  "for this project, its owner or an editor (scripts/test/widget-pass-holder.ts)",
 );
 assert.match(
   route,

@@ -55,7 +55,11 @@ assert.match(
   /z\.enum\(FEEDBACK_SELF_ASSERTED_SOURCES\)/,
   "body source uses the restricted list",
 );
-assert.match(ingest, /pass\.projectId === token\.projectId && pass\.userId === token\.userId/);
+assert.match(
+  ingest,
+  /fromOwner = !!\(await passHolder\(data\.ownerPass, token\)\)/,
+  "the owner or an editor, verified",
+);
 // One way an owner's words start a fix, shared by Report and the walkthrough's "Not quite".
 const ownerBuild = readFileSync("src/lib/feedback/owner-build.ts", "utf8");
 assert.match(

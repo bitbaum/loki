@@ -10,6 +10,7 @@ import {
 } from "@/lib/feedback/owner-pass";
 import { WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
 import { appUrl } from "@/lib/email";
+import { canActForSite } from "@/lib/feedback/pass-holder";
 
 /**
  * "This is my site — let Loki watch", from inside the widget.
@@ -49,9 +50,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "That page is not on this project's site" }, { status: 400 });
   }
 
-  // Signed in, but not as the person whose widget this is: say so on the site
-  // they came from rather than leaving them on an error page in Loki.
-  if (token.userId !== userId) {
+  // Signed in, but neither the owner nor someone they gave edit rights: say
+  // so on the site they came from rather than leaving them on an error page.
+  if (!(await canActForSite(userId, token))) {
     return NextResponse.redirect(`${back.split("#")[0]}#${OWNER_DENIED_HASH}`);
   }
   return NextResponse.redirect(ownerSiteUrl(back, createOwnerPass(token.projectId, userId)));

@@ -157,21 +157,16 @@ async function main() {
         );
         throw error;
       });
-      await page.getByText("Recording 0:00", { exact: true }).waitFor();
+      await page.getByText("Listening 0:00", { exact: true }).waitFor();
       assert.equal(await host.locator(".panel").count(), 0, "Recording leaves the site usable");
       await page.locator("#normal").click();
       assert.equal(await page.evaluate(() => (window as unknown as { clicks: number }).clicks), 1);
       await page.locator("#price").scrollIntoViewIfNeeded();
-      await page.getByRole("button", { name: "Point to what this note is about" }).click();
-      const box = await page.locator("#price").boundingBox();
-      assert(box);
-      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-      await host.locator(".pickbar").getByRole("button", { name: "Done", exact: true }).click();
-      assert.equal(
-        await page.evaluate(() => (window as unknown as { clicks: number }).clicks),
-        1,
-        "Pointing selects without activating the host control",
-      );
+      await page
+        .getByRole("button", { name: "Mark the part of the page you are talking about" })
+        .click();
+      await page.getByText("Marked “Pricing”", { exact: true }).waitFor();
+      assert.equal(await host.locator(".pickbar").count(), 0, "Mark never opens a picker");
       assert(
         await host
           .locator(".browse-voice")
@@ -183,9 +178,9 @@ async function main() {
         .locator(".browse-voice")
         .getByRole("button", { name: "Done", exact: true })
         .click();
-      await page.getByText("Review your voice note", { exact: true }).waitFor();
+      await page.getByText("What you said", { exact: true }).waitFor();
       assert.equal(
-        await page.getByRole("button", { name: "Request fix", exact: true }).count(),
+        await page.getByRole("button", { name: "Request a fix", exact: true }).count(),
         owner ? 1 : 0,
       );
       await page.reload();
@@ -195,7 +190,7 @@ async function main() {
       await page.evaluate(() =>
         (window as unknown as { Loki: { report(input: object): void } }).Loki.report({}),
       );
-      await page.getByText("Review your voice note", { exact: true }).waitFor();
+      await page.getByText("What you said", { exact: true }).waitFor();
       assert.equal(await host.locator(".sendcard textarea").inputValue(), transcript);
       assert.equal(await host.locator(".composer").isVisible(), false);
       assert.equal(await host.locator(".starters").isVisible(), false);
@@ -204,7 +199,12 @@ async function main() {
         history.pushState({}, "", "/somewhere-else");
         window.scrollTo(0, 0);
       });
-      await page.getByRole("button", { name: "Save note", exact: true }).click();
+      await page
+        .getByRole("button", {
+          name: owner ? "Save note" : "Save feedback",
+          exact: true,
+        })
+        .click();
       await page.waitForFunction(
         () =>
           document
@@ -223,27 +223,21 @@ async function main() {
         transcript,
         "All transcribed words remain separate from context",
       );
-      assert(JSON.stringify(posted[0].context).includes("Pricing"));
+      assert(JSON.stringify(posted[0]).includes("Pricing (marked)"), "what was marked travels");
       assert(!JSON.stringify(posted[0]).includes("private-password"));
-      assert.equal(
-        (posted[0].selectedElements as Array<{ selector: string }>)[0].selector,
-        "#price",
-      );
       await page.getByRole("button", { name: "Record a note while browsing", exact: true }).click();
-      await page.getByRole("button", { name: "Point to what this note is about" }).click();
       await host
         .locator(".browse-voice")
-        .getByRole("button", { name: "Cancel", exact: true })
+        .getByRole("button", { name: "Cancel this recording", exact: true })
         .click();
       assert.equal(await host.locator(".browse-voice").count(), 0);
-      assert.equal(await host.locator(".pickbar").count(), 0, "Cancelling releases the picker too");
       await page.locator("#normal").click();
       assert.equal(await page.evaluate(() => (window as unknown as { clicks: number }).clicks), 1);
       assert.equal(posted.length, 1, "Cancelling never files another note");
       assert.deepEqual(errors, []);
       await page.close();
       console.log(
-        `Browse voice ${owner ? "owner 320px" : "visitor 390px"}: real clicks, precise picking, editable note, frozen location and no automatic dispatch passed`,
+        `Browse voice ${owner ? "owner 320px" : "visitor 390px"}: real clicks, Mark, editable note, frozen location and no automatic dispatch passed`,
       );
     }
   } finally {

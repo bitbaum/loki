@@ -3,7 +3,8 @@
 import { signIn } from "next-auth/react";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AUTH_COPY, ROUTES } from "@/config/auth";
+import { AUTH_COPY, fromSiteWidget, keepCallback, ROUTES } from "@/config/auth";
+import { goAfterSignIn } from "@/lib/auth/after-sign-in";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/config/demo";
 import { APP_NAME } from "@/config/brand";
 import {
@@ -67,7 +68,7 @@ function FormInner({
     const res = await signIn("email-password", { email, password, redirect: false });
     setLoading(false);
     if (res?.ok) {
-      router.push(safeCallback);
+      goAfterSignIn(router.push, safeCallback);
     } else {
       setError("Incorrect email or password.");
     }
@@ -80,7 +81,7 @@ function FormInner({
     const res = await signIn("local", { password: ownerPwd, redirect: false });
     setLoading(false);
     if (res?.ok) {
-      router.push(safeCallback);
+      goAfterSignIn(router.push, safeCallback);
     } else {
       setError("Wrong owner password.");
     }
@@ -99,7 +100,7 @@ function FormInner({
       redirect: false,
     });
     setDemoLoading(false);
-    if (res?.ok) router.push(safeCallback);
+    if (res?.ok) goAfterSignIn(router.push, safeCallback);
     else setError("The demo is being reset — try again in a moment.");
   }
 
@@ -116,6 +117,7 @@ function FormInner({
         title={AUTH_COPY.signIn.title}
         description={AUTH_COPY.signIn.description(APP_NAME)}
       />
+      {fromSiteWidget(safeCallback) && <p className="ui-auth-hint">{AUTH_COPY.fromSite.signIn}</p>}
 
       {/* Mode tabs — only show owner key tab when LOCAL_AUTH_PASSWORD is configured */}
       {localAuthEnabled && (
@@ -207,7 +209,10 @@ function FormInner({
             />
             <p className="ui-auth-hint">
               No account?{" "}
-              <Link href={ROUTES.SIGN_UP} className="ui-auth-hint-link">
+              <Link
+                href={keepCallback(ROUTES.SIGN_UP, safeCallback, ROUTES.APP_HOME)}
+                className="ui-auth-hint-link"
+              >
                 Create one free →
               </Link>
             </p>

@@ -9,8 +9,28 @@ import type { ThreadItem } from "./thread";
 
 type Sent = Extract<ThreadItem, { kind: "sent" }>;
 
+/**
+ * How much of what was sent the receipt's sentence quotes. The whole note is
+ * kept and shown under it (receiptFull): the receipt used to be the only copy
+ * the person saw, cut at 300 characters, so a 90-second voice note read as if
+ * all but its first sentence had been lost (2026-10-16).
+ */
+export const RECEIPT_QUOTE = 140;
+
+function quote(text: string): string {
+  const t = text.trim();
+  if (t.length <= RECEIPT_QUOTE) return `“${t}”`;
+  const cut = t.slice(0, RECEIPT_QUOTE).replace(/\s+\S*$/, "");
+  return `“${cut}…”`;
+}
+
+/** The whole of what was sent, when the sentence above quoted only its start. */
+export function receiptFull(item: Sent): string | null {
+  return item.text.trim().length > RECEIPT_QUOTE ? item.text.trim() : null;
+}
+
 export function receiptText(item: Sent): string {
-  const q = `“${item.text}”`;
+  const q = quote(item.text);
   if (item.toLoki) {
     if (item.building)
       return `On it — ${q} is being built into Loki itself. It goes live by itself; you'll see it here.`;

@@ -18,7 +18,7 @@ import { REVIEW_SESSION_MAX } from "./watch-trail";
 import { safeHttpUrl, type Link, type Speaker } from "./thread";
 
 /** Mirror ADVISE_MAX_QUESTION / ADVISE_MAX_HISTORY in src/lib/widget-advise/advisor.ts. */
-export const ADVISE_MAX_QUESTION = 1000;
+export const ADVISE_MAX_QUESTION = 2000;
 export const ADVISE_MAX_HISTORY = 8;
 /** Mirror WIDGET_CHAT_MAX_MESSAGE / _MAX_HISTORY in src/app/api/widget/chat/route.ts. */
 export const CHAT_MAX_MESSAGE = 1000;

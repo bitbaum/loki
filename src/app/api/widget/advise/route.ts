@@ -29,7 +29,7 @@ import {
   splitAdvice,
 } from "@/lib/widget-advise/advisor";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
-import { verifyOwnerPass } from "@/lib/feedback/owner-pass";
+import { passHolder } from "@/lib/feedback/pass-holder";
 
 /**
  * The widget's Ask mode (widget/advise.ts): "is this right, should it change,
@@ -122,8 +122,8 @@ export async function POST(req: NextRequest) {
   if (!budget.allowed) return unavailable();
 
   // Same test as ingest (api/feedback): this project, this owner, unexpired.
-  const pass = data.ownerPass ? verifyOwnerPass(data.ownerPass) : null;
-  const owner = !!pass && pass.projectId === token.projectId && pass.userId === token.userId;
+  // The owner, or someone they gave edit rights (lib/feedback/pass-holder.ts).
+  const owner = !!(await passHolder(data.ownerPass, token));
 
   try {
     const [project, buildFacts] = await Promise.all([
