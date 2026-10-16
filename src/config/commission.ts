@@ -27,7 +27,7 @@ export const WEBSITE_MODES = {
     label: "Improve this site",
     changesLabel: "What should change",
     action: "Build a new version",
-    note: "Your live site is not touched — you review the new version first.",
+    note: "Loki builds it as a private preview link first — your live site is not touched, and nothing is set up until you say yes.",
     nameSuffix: "refresh",
     placeholder:
       "Your website, e.g. “my-bakery.ch” — Loki looks at it first and tells you what it finds.",

@@ -193,7 +193,10 @@ async function main() {
         const bar = r.querySelector(".watch-pill") as HTMLElement;
         const bubble = r.querySelector(".fab-bubble") as HTMLElement;
         return {
-          label: fab.innerText.replace(/\s+/g, " ").trim(),
+          // The words, not the pixels: on a phone the owner's label is hidden
+          // (it covered the page) and the accessible name carries it.
+          label: (fab.querySelector(".fab-label")?.textContent ?? "").replace(/\s+/g, " ").trim(),
+          name: fab.getAttribute("aria-label") ?? "",
           watching: fab.classList.contains("watching"),
           badge: (r.querySelector(".fab-badge") as HTMLElement).innerText,
           bar: getComputedStyle(bar).display !== "none",
@@ -215,7 +218,7 @@ async function main() {
       });
     let st = await state();
     ok(
-      st.label.startsWith("Loki · watching") && st.watching,
+      st.label.startsWith("Loki · watching") && st.watching && st.name.includes("watching"),
       `the owner's launcher says so (${st.label})`,
     );
     ok(!st.bar, "with the launcher showing it, the top bar stays off the site");

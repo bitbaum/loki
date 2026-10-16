@@ -60,10 +60,13 @@ export function ProjectWatchLive({
     <section className="ui-watch-live" aria-live="polite">
       <p className="ui-watch-live-kicker">
         <span className={working ? "ui-watch-live-dot" : "ui-dot-neutral"} aria-hidden="true" />
-        {working ? `${provider} is working` : "Waiting to start"}
+        {/* "Waiting to start · started just now" said two opposite things in
+            one line (owner, 2026-10-16). Before the agent is on it, the time
+            is when it was ASKED; it has only started once it is working. */}
+        {working ? `${provider} is working` : "Next in line"}
         {startedAt && (
           <span className="text-text-muted">
-            · started {timeAgo(new Date(startedAt).getTime())}
+            · {working ? "started" : "asked"} {timeAgo(new Date(startedAt).getTime())}
           </span>
         )}
       </p>

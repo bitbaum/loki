@@ -23,6 +23,7 @@ import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { FEEDBACK_WORK_PHASE, type FeedbackWorkView } from "@/lib/feedback/work-phase";
 import { FIX_SHIP_STATE } from "@/lib/feedback/fix-shipping";
 import { STALE_REPORT_DAYS } from "@/config/autopilot-night";
+import { speakEvidence } from "@/lib/feedback/speak-evidence";
 
 export const RECOMMEND = {
   /** Mark the live fix as done. Free. */
@@ -205,7 +206,7 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
               kind: RECOMMEND.CONFIRM,
               label: "Close it",
               why: `${checked} and the change is there.`,
-              evidence: look.evidence,
+              evidence: speakEvidence(look.evidence),
               runs: 0,
               priority: 70,
             };
@@ -214,7 +215,7 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
               kind: RECOMMEND.RETRY,
               label: "Try again",
               why: `${checked} and could not find the change.`,
-              evidence: look.evidence,
+              evidence: speakEvidence(look.evidence),
               runs: 1,
               priority: 36,
             };
@@ -224,7 +225,7 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
             why: look
               ? `Live on ${pageWord(input.page)}. Loki could not tell from the page — one look settles it.`
               : `Live on ${pageWord(input.page)}. One look settles it.`,
-            evidence: look?.evidence ?? null,
+            evidence: speakEvidence(look?.evidence),
             runs: 0,
             priority: 55,
           };

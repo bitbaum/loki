@@ -32,6 +32,13 @@ export const CONSULT = {
   titleMin: 10,
   titleMax: 65,
   altMissingShare: 0.2,
+  /** The tour: how many of the site's own pages are read after the homepage. */
+  crawlPages: 8,
+  crawlConcurrency: 3,
+  /** The whole tour fits in this; pages not reached by then are left out. */
+  crawlBudgetMs: 12_000,
+  /** A page this short across the tour is "says almost nothing". */
+  thinPageWords: 60,
   userAgent:
     "Mozilla/5.0 (compatible; LokiSiteConsultation/1.0; +https://loki.orangecat.ch/change)",
 } as const;
@@ -159,6 +166,30 @@ export const CONSULT_CHECKS = {
     passed: "Has real text to read",
   },
 
+  "broken-pages": {
+    area: "trust",
+    severity: "urgent",
+    title: "Some of your own links lead nowhere",
+    why: "A visitor who clicks a link on your site and lands on an error assumes the business is gone or careless — and usually leaves.",
+    fix: "Repair or remove every internal link that leads to an error page; where a page moved, send the old address on to the new one.",
+    passed: "Every page Loki followed opened",
+  },
+  "duplicate-titles": {
+    area: "found",
+    severity: "improve",
+    title: "Several pages share the same title",
+    why: "Google shows the same headline for different pages, so people cannot tell which result is the one they want — and Google ranks them against each other.",
+    fix: "Give every page its own title that says what is on it (service, place, business name).",
+    passed: "Each page has its own title",
+  },
+  "thin-pages": {
+    area: "customers",
+    severity: "improve",
+    title: "Some pages say almost nothing",
+    why: "A visitor who opens a page and finds a heading and a line leaves without the answer they came for, and Google has nothing to show for it.",
+    fix: "Give the thin pages real content from the business: what it offers, prices or examples, and how to get in touch.",
+    passed: "The pages Loki read all have real content",
+  },
   "no-structured-data": {
     area: "found",
     severity: "improve",
@@ -233,4 +264,90 @@ export const CONSULT_CHECK_IDS = Object.keys(CONSULT_CHECKS) as [
 
 /** What the consultation honestly did — shown under every report. */
 export const CONSULT_SCOPE =
-  "Loki read this one page the way a browser first receives it — before scripts run, without signing in or filling in forms. It is a first look, not a full audit: the build agent goes deeper.";
+  "Loki read your homepage and the pages it links to the way a browser first receives them — before scripts run, without signing in or filling in forms. It is a first look, not a full audit: the build agent goes deeper.";
+
+/**
+ * After the findings, Loki asks — the consultation is a conversation, not a
+ * printout. Each answer is one tap, never typing, and becomes one line of the
+ * build brief (`brief`), written here so the agent never reads text the
+ * browser made up. Every question can be left unanswered; nothing waits on it.
+ */
+export const CONSULT_QUESTIONS = [
+  {
+    id: "goal",
+    ask: "What is the one thing a visitor should do on your site?",
+    options: [
+      {
+        id: "contact",
+        label: "Call or write to us",
+        brief:
+          "The site's main job: get visitors to call or write. Put the phone number and a contact form within one tap on every page.",
+      },
+      {
+        id: "book",
+        label: "Book or reserve",
+        brief:
+          "The site's main job: bookings and reservations. Make booking the first, most visible action on every page.",
+      },
+      {
+        id: "buy",
+        label: "Buy something",
+        brief:
+          "The site's main job: selling. Make products and prices easy to find and the way to buy obvious.",
+      },
+      {
+        id: "visit",
+        label: "Come and visit",
+        brief:
+          "The site's main job: bring people in person. Address, opening hours and directions must be impossible to miss.",
+      },
+      {
+        id: "trust",
+        label: "Trust us and remember us",
+        brief:
+          "The site's main job: build trust. Lead with who they are, real work and real references, and a clear way to get in touch.",
+      },
+    ],
+  },
+  {
+    id: "look",
+    ask: "How far should the new version go?",
+    options: [
+      {
+        id: "keep",
+        label: "Keep my look, fix what’s broken",
+        brief:
+          "Keep the current look, colours, logo and structure; change only what the fixes require.",
+      },
+      {
+        id: "refresh",
+        label: "Same brand, fresher",
+        brief:
+          "Keep the brand (logo, colours, name, tone) but give the design a modern, cleaner refresh.",
+      },
+      {
+        id: "new",
+        label: "A whole new look",
+        brief:
+          "A new design is welcome: keep the name, logo and real content, but rethink the layout and visual style.",
+      },
+    ],
+  },
+] as const;
+
+export type ConsultQuestionId = (typeof CONSULT_QUESTIONS)[number]["id"];
+/** "goal:book" — one answer as it travels to the server. */
+export type ConsultAnswer = `${ConsultQuestionId}:${string}`;
+
+/** Every valid "question:option" pair — the build route accepts these and no others. */
+export const CONSULT_ANSWER_IDS = CONSULT_QUESTIONS.flatMap((q) =>
+  q.options.map((o) => `${q.id}:${o.id}`),
+) as [string, ...string[]];
+
+/** The brief lines for the answers given, in question order; unknown pairs dropped. */
+export function consultAnswerBrief(answers: readonly string[]): string[] {
+  const given = new Set(answers);
+  return CONSULT_QUESTIONS.flatMap((q) =>
+    q.options.filter((o) => given.has(`${q.id}:${o.id}`)).map((o) => `- ${o.brief}`),
+  );
+}

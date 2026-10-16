@@ -1,5 +1,10 @@
 import { COMMISSION, WEBSITE_MODE_IDS, type WebsiteMode } from "@/config/commission";
-import { CONSULT_CHECK_IDS, type ConsultCheckId } from "@/config/site-consult";
+import {
+  CONSULT_CHECK_IDS,
+  CONSULT_QUESTIONS,
+  type ConsultCheckId,
+  type ConsultQuestionId,
+} from "@/config/site-consult";
 
 /**
  * The /change draft — what survives sign-in (sessionStorage) and arrives from
@@ -14,6 +19,8 @@ export type WebsiteDraft = {
   mode: WebsiteMode;
   /** Fixes the person kept from the consultation; null = all it found. */
   fixes: ConsultCheckId[] | null;
+  /** One-tap answers to the consultation's questions, by question. */
+  answers: Partial<Record<ConsultQuestionId, string>>;
 };
 
 export function parseWebsiteDraft(raw: string | null, fromHandoff: boolean): Partial<WebsiteDraft> {
@@ -36,6 +43,15 @@ export function parseWebsiteDraft(raw: string | null, fromHandoff: boolean): Par
     value.fixes.every((id) => CONSULT_CHECK_IDS.includes(id as ConsultCheckId))
   )
     out.fixes = value.fixes as ConsultCheckId[];
+  if (value.answers && typeof value.answers === "object") {
+    const given = value.answers as Record<string, unknown>;
+    const answers: Partial<Record<ConsultQuestionId, string>> = {};
+    for (const q of CONSULT_QUESTIONS) {
+      const pick = given[q.id];
+      if (typeof pick === "string" && q.options.some((o) => o.id === pick)) answers[q.id] = pick;
+    }
+    out.answers = answers;
+  }
   if (!fromHandoff && typeof value.requestId === "string" && /^[a-f\d-]{36}$/.test(value.requestId))
     out.requestId = value.requestId;
   return out;

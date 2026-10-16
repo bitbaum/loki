@@ -324,9 +324,11 @@ export function createLauncher(opts: {
     () => {
       bubble.style.display = "none";
       fab.classList.add("scrolling");
+      point.classList.add("scrolling");
       clearTimeout(scrollSettle);
       scrollSettle = window.setTimeout(() => {
         fab.classList.remove("scrolling");
+        point.classList.remove("scrolling");
         reposition();
       }, 350);
     },
