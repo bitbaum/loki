@@ -18,21 +18,32 @@ export function greetingFor(state: {
 }): string {
   if (state.owner) {
     return state.watching
-      ? `I'm watching as you use your site. Use it as usual and tell me what you'd change — ${pressVerb().verb} Point to show me one thing on the page, or Speak to talk while you scroll.`
-      : `Paused — nothing is recorded. Resume above, ${pressVerb().verb} Point to show me something, or just tell me what to change.`;
+      ? `I'm watching as you use your site. Use it as usual and tell me what you'd change — ${pressVerb().verb} Point to area to show me one thing, or Voice note to talk while you scroll.`
+      : `Paused — nothing is recorded. Resume above, ${pressVerb().verb} Point to area to show me something, or just tell me what to change.`;
   }
   if (state.assistant === "none") {
     return "Tell us what should change — it goes straight to whoever builds this site.";
   }
-  return "Hi, I'm Loki. Ask me anything about this site, or tell me what should change — it goes straight to whoever builds it.";
+  return "Ask about this site or tell me what you would change. Chat first, or save a note for its builder.";
 }
 
 /** The owner's door, under the greeting: a round trip through Loki's sign-in
- *  that lands back on this page with the pass and Watch on. */
-export function ownerDoor(apiBase: string, token: string): HTMLAnchorElement {
+ *  that lands back on this page with the pass and Watch on — and one line
+ *  saying who it is for and what happens without an account, because
+ *  "sign in" alone left the owner asking exactly that (2026-10-16). */
+export function ownerDoor(apiBase: string, token: string): HTMLElement {
+  const wrap = h("div", "door-wrap");
   const mine = h("a", "door", "This is my site — sign in with Loki →");
   mine.href = ownerSignInUrl(apiBase, token, location.href);
   mine.rel = "noopener";
   mine.title = "Then what you say here is built, and this conversation can continue in Loki";
-  return mine;
+  wrap.append(
+    mine,
+    h(
+      "span",
+      "door-sub",
+      "For the site's owner and anyone they added as an editor: Loki watches, builds what you ask, and brings you back here. No Loki account? You can make one on the way.",
+    ),
+  );
+  return wrap;
 }

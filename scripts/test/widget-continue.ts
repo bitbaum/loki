@@ -197,7 +197,16 @@ assert.match(
   /\.hdr > div:first-child \{ min-width: 0; flex: 1 1 auto; \}/,
   "the header's text column shrinks before ✕ leaves the screen",
 );
-assert.match(theme, /\.watchbtn \{[^\n]*white-space: nowrap/, "Stop watching stays one line");
+assert.match(
+  theme,
+  /\.speak \{[^\n]*white-space: nowrap/,
+  "the browse-voice label stays on one line",
+);
+assert.doesNotMatch(
+  theme,
+  /\.watchbtn\s*\{/,
+  "visitors are not shown a confusing Watch header action",
+);
 const main = readFileSync("widget/main.ts", "utf8");
 assert.match(
   main,

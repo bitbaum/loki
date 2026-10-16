@@ -143,13 +143,12 @@ for (const [name, css] of sheets) {
 // old mode chips naked; the one conversation replaced them with these).
 const shadow = buildShadowCSS(theme);
 for (const sel of [
-  ".watchbtn",
-  // The owner's watch control moved from a header pill to the notes row.
   ".thoughts-toggle",
   ".composer",
   ".change-send",
-  ".watch-offer",
-  ".seg",
+  ".scopebtn",
+  ".pointbtn",
+  ".scopemenu",
   ".segbtn",
   ".segbtn.on",
   ".composer-actions",

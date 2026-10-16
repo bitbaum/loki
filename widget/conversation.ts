@@ -199,7 +199,7 @@ export function createConversation(opts: {
   attachments.listenPaste(el);
 
   const owner = () => opts.ownerPass() !== null;
-  let feedbackLabel = "Send as feedback";
+  let feedbackLabel = "Save feedback";
 
   function syncContext() {
     ctx.sync();
@@ -212,17 +212,17 @@ export function createConversation(opts: {
       : a === "none"
         ? "What should change?"
         : now === "element"
-          ? "Ask about what you pointed at, or say what should change…"
+          ? "Ask about the area you picked, or say what should change…"
           : now === "site"
             ? "Ask about the whole site, or say what should change across it…"
             : "Ask about this page, or say what should change…";
     // With no AI on this embed, feedback is the only way, so it leads.
     // About Loki itself there is no site to advise on and nothing to build
     // here: one way, and it leads.
-    feedbackLabel = loki ? "Send to Loki" : owner() ? "Build it" : "Send as feedback";
+    feedbackLabel = loki ? "Send to Loki" : owner() ? "Request a fix" : "Save feedback";
     feedbackBtn.textContent = feedbackLabel;
     feedbackBtn.className = a === "none" || loki ? "go feedback" : "ghost feedback";
-    sendBtn.textContent = "Ask Loki";
+    sendBtn.textContent = "Chat with Loki";
     sendBtn.style.display = a === "none" || loki ? "none" : "";
     cont.sync();
   }
@@ -230,7 +230,11 @@ export function createConversation(opts: {
   // ---- rendering ----
   function bubble(cls: string, who: string | null, text: string): HTMLElement {
     const m = h("div", `msg ${cls}`);
-    if (who) m.appendChild(h("span", "who", who));
+    // The header already names the assistant. Repeating "Loki" above each
+    // answer makes the embed look like two products stacked together; keep a
+    // speaker label only for the multi-voice concierge conversation.
+    if (who && (who !== "Loki" || opts.assistant() === "concierge"))
+      m.appendChild(h("span", "who", who));
     if (text) m.appendChild(h("span", "said", text));
     return m;
   }
@@ -408,8 +412,8 @@ export function createConversation(opts: {
           "p",
           "sendcard-sub",
           owner()
-            ? "Edit it if you like. Ask Loki about it, have it built, or keep it as a note."
-            : "Edit it if you like. Ask Loki about it, or send it to whoever builds this site.",
+            ? "Edit it if you like. Chat with Loki about it, request a fix, or keep it as a note."
+            : "Edit it if you like. Chat with Loki about it, or save it as feedback for whoever builds this site.",
         ),
       );
     const box = h("textarea", "chatinput");
@@ -465,20 +469,20 @@ export function createConversation(opts: {
       el.appendChild(note);
     }
     const row = h("div", "row sendcard-actions");
-    // A voice note: Ask Loki first — talking to it is what the panel is for —
+    // A voice note: Chat with Loki first — talking to it is what the panel is for —
     // then send it as a change, then (owner) keep it for later.
-    const askBtn = voice ? h("button", "go", "Ask Loki") : null;
+    const askBtn = voice ? h("button", "go", "Chat with Loki") : null;
     if (askBtn) askBtn.type = "button";
     const sendLabel = voice
       ? owner()
         ? "Save note"
-        : "Send to whoever builds this site"
+        : "Save feedback"
       : owner()
         ? "Build it"
         : "Send";
     const go = h("button", voice ? "ghost outline" : "go", sendLabel);
     go.type = "button";
-    const requestFix = owner() && voice ? h("button", "ghost outline", "Build it") : null;
+    const requestFix = owner() && voice ? h("button", "ghost outline", "Request a fix") : null;
     if (requestFix) requestFix.type = "button";
     const cancel = h("button", "ghost", voice ? "Discard" : "Cancel");
     cancel.type = "button";
@@ -556,7 +560,7 @@ export function createConversation(opts: {
 
   /**
    * Draw the conversation with the shared chat (widget/chat/, loaded as its own
-   * chunk). The vanilla thread and composer step aside; the About chips and
+   * chunk). The vanilla thread and composer step aside; the scope menu and
    * Continue in Loki move into chatkit's composer slots. Same model, same rules.
    */
   function useKit(mod: KitModule, vars: string) {

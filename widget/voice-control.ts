@@ -28,7 +28,7 @@ export function createVoiceControl(opts: {
   const micBtn = h("button", "mic");
   const micLabel = h("span", undefined, "Record");
   micBtn.append(micIcon(), micLabel);
-  micBtn.setAttribute("aria-label", "Record your feedback by voice");
+  micBtn.setAttribute("aria-label", "Dictate a message to Loki by voice");
 
   const voice = createVoiceRecorder({
     endpoint: opts.endpoint,
@@ -52,7 +52,7 @@ export function createVoiceControl(opts: {
         micBtn.append(h("span", undefined, "Allow mic…"));
       } else {
         micBtn.append(micIcon(), h("span", undefined, "Record"));
-        micBtn.setAttribute("aria-label", "Record your feedback by voice");
+        micBtn.setAttribute("aria-label", "Dictate a message to Loki by voice");
       }
       opts.onError(state === "error" ? (detail?.error ?? "Microphone failed") : "");
     },

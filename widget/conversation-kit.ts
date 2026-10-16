@@ -32,7 +32,7 @@ export type KitInputs = {
   about: About;
   watch: ConversationWatch | null;
   placeholder: string;
-  /** "Build it" / "Send as feedback" / "Send to Loki" — the widget's words. */
+  /** The focused feedback action for this owner or visitor. */
   feedbackLabel: string;
   known: (key: string) => KnownFix | null;
   ownerDoor: () => HTMLElement;
@@ -194,7 +194,7 @@ export function kitState(i: KitInputs): KitState {
   const feedback: KitMode = { id: "feedback", label: i.feedbackLabel, send: i.feedbackLabel };
   const modes: KitMode[] = one
     ? [feedback]
-    : [{ id: "ask", label: "Ask Loki", send: "Ask Loki" }, feedback];
+    : [{ id: "ask", label: "Chat with Loki", send: "Send" }, feedback];
 
   return {
     messages,
