@@ -171,7 +171,7 @@ jobs:
       # silently empty macOS or Windows artifact is how a release ends up
       # Linux-only, which is the failure this workflow now exists to prevent.
       - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: fleet-runner-${{ matrix.os }}
           path: ${{ matrix.artifact_glob }}
