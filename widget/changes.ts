@@ -99,6 +99,25 @@ export function changesSummary(changes: readonly OwnerChange[], visitors = 0): s
   return parts.length ? `Your changes · ${parts.join(" · ")}` : `Your changes · ${changes.length}`;
 }
 
+/**
+ * The one fragment the panel's status line carries about changes: the most
+ * urgent thing, not every count — "1 needs you", else "2 building", … else
+ * "4 live". Empty when there is nothing to say. The full line is
+ * changesSummary, shown when the list is open.
+ */
+export function changesHeadline(changes: readonly OwnerChange[]): string {
+  const count = (...labels: string[]) => changes.filter((c) => labels.includes(c.label)).length;
+  const ranked: Array<[number, string]> = [
+    [count("Needs you"), "needs you"],
+    [count("Building", "Starting"), "building"],
+    [count("In line"), "in line"],
+    [count("On its way"), "on its way"],
+    [changes.filter((c) => c.live).length, "live"],
+  ];
+  const top = ranked.find(([n]) => n > 0);
+  return top ? `${top[0]} ${top[1]}` : "";
+}
+
 export function parseChanges(body: unknown): OwnerChange[] {
   const raw = (body as { changes?: unknown })?.changes;
   if (!Array.isArray(raw)) return [];
@@ -138,21 +157,13 @@ export function createChanges(opts: {
   onTheme?: (pref: ThemePreference) => void;
   /** The list was re-read: cards keyed to a fix follow its status. */
   onUpdate?: () => void;
+  /** Drawn again — the status line that carries changesHeadline repaints. */
+  onRender?: () => void;
 }) {
-  // One line until opened, like the notes above it: "Your changes · 1
-  // building · 2 live ›". It was a header, three rows and a "See it →" line
-  // under each — the busiest block on the panel, open all the time.
-  const el = h("div", "yours");
-  el.style.display = "none";
-  const head = h("button", "yours-head");
-  head.type = "button";
-  head.setAttribute("aria-expanded", "false");
-  const summary = h("span", "yours-sum");
-  const chev = h("span", "thoughts-chev", "›");
-  chev.setAttribute("aria-hidden", "true");
-  head.append(summary, chev);
+  // No line of its own: the panel's one status line carries the most urgent
+  // fragment ("4 live") and opens this list under it (thoughts-view.ts). It
+  // was a header with three rows open all the time, then a second status row.
   const body = h("div", "yours-body");
-  body.style.display = "none";
   const list = h("div", "yours-list");
   const all = h("a", "yours-all");
   all.target = "_blank";
@@ -164,14 +175,6 @@ export function createChanges(opts: {
   visitorsLine.rel = "noopener";
   visitorsLine.style.display = "none";
   body.append(list, all, visitorsLine);
-  el.append(head, body);
-  let open = false;
-  head.addEventListener("click", () => {
-    open = !open;
-    head.setAttribute("aria-expanded", String(open));
-    el.classList.toggle("open", open);
-    body.style.display = open ? "" : "none";
-  });
 
   let changes: OwnerChange[] = [];
   /** Every keyed fix the server knows, open or settled (known-fixes.ts). */
@@ -189,12 +192,6 @@ export function createChanges(opts: {
 
   function render() {
     list.textContent = "";
-    el.style.display = changes.length || visitors ? "" : "none";
-    summary.textContent = changesSummary(changes, visitors);
-    el.classList.toggle(
-      "needs-you",
-      changes.some((c) => c.tone === "warning"),
-    );
     visitorsLine.style.display = visitors && inbox ? "" : "none";
     if (visitors && inbox) {
       visitorsLine.textContent = `${visitors} note${visitors === 1 ? "" : "s"} from visitors, in Loki →`;
@@ -220,6 +217,7 @@ export function createChanges(opts: {
     all.textContent = more > 0 ? `All ${changes.length} in Loki →` : "Open in Loki →";
     all.style.display = inbox ? "" : "none";
     if (inbox) all.href = inbox;
+    opts.onRender?.();
   }
 
   async function refresh(): Promise<void> {
@@ -290,11 +288,17 @@ export function createChanges(opts: {
   }
 
   return {
-    el,
     refresh,
     start,
     stop,
     count: () => changes.length,
+    /** The list itself, for a status line that opens it (thoughts-view.ts). */
+    body,
+    /** The status line's fragment, and whether something needs the owner. */
+    has: () => changes.length > 0 || visitors > 0,
+    headline: () => changesHeadline(changes),
+    summary: () => changesSummary(changes, visitors),
+    attention: () => changes.some((c) => c.tone === "warning"),
     /** The fix a remark's key already has, if any — see known-fixes.ts. */
     known: (key: string) => knownFor(known, key),
     /** Resolves once Loki has answered (or could not), never later than the caller's own wait. */

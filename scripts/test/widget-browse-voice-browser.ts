@@ -112,19 +112,20 @@ async function main() {
         owner ? "dark" : "light",
         "The widget follows the selected Loki theme on this viewport",
       );
-      const speak = page.getByRole("button", { name: "Record a note while browsing", exact: true });
+      const speak = page.getByRole("button", {
+        name: "Talk to Loki — you can scroll the page while you speak",
+        exact: true,
+      });
       await speak.waitFor({ state: "visible" });
       assert.equal(
         (await speak.innerText()).trim(),
-        "Voice note",
-        "Browse recording is distinct from composer dictation",
+        "Talk",
+        "The one microphone says what it does",
       );
       assert.equal(
-        await page
-          .getByRole("button", { name: "Dictate a message to Loki by voice", exact: true })
-          .count(),
+        await host.locator(".mic").count(),
         1,
-        "Composer dictation has a separate accessible name",
+        "One microphone in the panel: talking while scrolling is also plain dictation",
       );
       const icon = await speak.locator("svg").boundingBox();
       assert(
@@ -142,11 +143,11 @@ async function main() {
       await page.screenshot({ path: `${out}/${owner ? 320 : 390}-entry.png` });
       await speak.click({ timeout: 5000 }).catch(async (error) => {
         console.error(
-          "Voice header fixture",
+          "Voice fixture",
           await page.evaluate(() => ({
             header: document
               .querySelector("#loki-feedback-host")
-              ?.shadowRoot?.querySelector(".hdr-actions")?.outerHTML,
+              ?.shadowRoot?.querySelector(".composer-actions")?.outerHTML,
             microphone: !!navigator.mediaDevices?.getUserMedia,
             recorder: typeof MediaRecorder,
             policy: (
@@ -157,8 +158,16 @@ async function main() {
         );
         throw error;
       });
-      await page.getByText("Listening 0:00", { exact: true }).waitFor();
+      await page.getByText("Recording 0:00", { exact: true }).waitFor();
       assert.equal(await host.locator(".panel").count(), 0, "Recording leaves the site usable");
+      // The whole screen says it is recording — a red edge that takes no taps.
+      const frame = await host.locator(".bv-frame").evaluate((el) => {
+        const cs = getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        return { events: cs.pointerEvents, w: r.width, h: r.height, border: cs.borderTopWidth };
+      });
+      assert.equal(frame.events, "none", "the recording frame never takes a tap");
+      assert(frame.w >= (owner ? 319 : 389) && frame.border === "3px", "it edges the whole screen");
       await page.locator("#normal").click();
       assert.equal(await page.evaluate(() => (window as unknown as { clicks: number }).clicks), 1);
       await page.locator("#price").scrollIntoViewIfNeeded();
@@ -185,7 +194,7 @@ async function main() {
         .click();
       await page.getByText("What you said", { exact: true }).waitFor();
       assert.equal(
-        await page.getByRole("button", { name: "Request a fix", exact: true }).count(),
+        await page.getByRole("button", { name: "Fix it", exact: true }).count(),
         owner ? 1 : 0,
       );
       await page.reload();
@@ -206,7 +215,7 @@ async function main() {
       });
       await page
         .getByRole("button", {
-          name: owner ? "Save note" : "Save feedback",
+          name: owner ? "Save" : "Save feedback",
           exact: true,
         })
         .click();
@@ -260,7 +269,12 @@ async function main() {
         "without timings the words belong to the first part, capped by the contract",
       );
       assert(!JSON.stringify(posted[0]).includes("private-password"));
-      await page.getByRole("button", { name: "Record a note while browsing", exact: true }).click();
+      await page
+        .getByRole("button", {
+          name: "Talk to Loki — you can scroll the page while you speak",
+          exact: true,
+        })
+        .click();
       await host
         .locator(".browse-voice")
         .getByRole("button", { name: "Cancel this recording", exact: true })

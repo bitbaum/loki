@@ -22,7 +22,7 @@
  * as "sometimes it is there, sometimes not", which is the one thing a way to
  * report problems must never be.
  */
-import { h, PENCIL_SVG, spiralMark, TARGET_SVG } from "./dom";
+import { h, PENCIL_SVG, spiralMark } from "./dom";
 import { writeVisitorPlacement } from "./visitor-placement";
 import {
   chooseSlot,
@@ -41,10 +41,11 @@ import { createHostScanner, readPlaceDirective } from "./host-scan";
 
 /**
  * For the site's OWNER the launcher is the status of Loki on their site, not
- * a quiet feedback button: it says "Loki · watching", counts what Loki said
- * while the panel was closed, and shows the newest remark as a bubble beside
- * it. Visitors keep the quiet launcher (the "quiet until wanted" rule below
- * was written for strangers on a client's site, not for its owner).
+ * a quiet feedback button: it says "Watching" (or "Paused") at every width,
+ * counts what Loki said while the panel was closed, and shows the newest
+ * remark as a bubble beside it. ONE button, and a tap on it opens Loki.
+ * Visitors keep the quiet launcher (the "quiet until wanted" rule below was
+ * written for strangers on a client's site, not for its owner).
  */
 export type OwnerStatus = { watching: boolean; unread: number };
 
@@ -71,8 +72,6 @@ export function createLauncher(opts: {
   getVisitorOverride(): Placement | null;
   setVisitorOverride(value: Placement | null): void;
   onOpen(): void;
-  /** "Show Loki this" — the owner points at something on the page. */
-  onPoint?(): void;
   /** The visitor chose "Hide on this site" — the panel owns what happens next
    *  (store it, remove the launcher, say how to get it back). */
   onHide(): void;
@@ -111,61 +110,13 @@ export function createLauncher(opts: {
   let bubbleTimer = 0;
   const BUBBLE_SHOWN_MS = 12_000;
 
-  // ---- "Show Loki this" ----
-  // The owner's launcher has a second half: a target, flush against it. Tap
-  // it, tap the thing (or "This screen"), say what is wrong. Watching should
-  // notice everything by itself, but when the owner is not sure it did,
-  // drawing its attention must take one tap — not opening a panel and finding
-  // a tab (owner, 2026-10-09). It is part of the launcher, not a second
-  // floating circle, and it is there whenever the owner is — paused too:
-  // "I don't know when one appears and when the other appears" (2026-10-10)
-  // was the ◎ coming and going with Watch while a top bar came and went with
-  // the launcher. Now one thing, in one place, always the same.
-  const point = h("button", "fab-point");
-  point.type = "button";
-  // Icon AND word: a bare ◎ read as nothing at all ("that aim button, what
-  // does it even mean?", 2026-10-16).
-  point.innerHTML = TARGET_SVG;
-  point.appendChild(h("span", "fab-point-label", "Point"));
-  point.setAttribute("aria-label", "Point at something on this page to show Loki");
-  point.title = "Point at something on this page to show Loki";
-  point.style.display = "none";
-  point.addEventListener("click", () => opts.onPoint?.());
-  root.appendChild(point);
-  let pointWanted = false;
-  /** Where the launcher was last put (place() below), for the target beside it. */
-  let placed: Slot | null = null;
-  /** True while the launcher is drawn as the edge tab (see placeTab). Declared
-   *  up here because syncPoint, which runs during setup, reads it. */
+  /** True while the launcher is drawn as the edge tab (see placeTab). */
   let tab = false;
-  /** Beside the launcher on its inner side, and only while it is on screen. */
-  function syncPoint() {
-    const shown =
-      pointWanted &&
-      !tab &&
-      fab.isConnected &&
-      fab.style.display !== "none" &&
-      fab.style.visibility !== "hidden";
-    point.style.display = shown ? "" : "none";
-    if (!shown || !placed) return;
-    const { x, y } = cornerEdges(placed.corner);
-    point.style.left = point.style.right = point.style.top = point.style.bottom = "auto";
-    // Flush against the launcher's inner edge: one pill, two halves.
-    point.style[x] = `${placed.offsetX + fab.offsetWidth - 1}px`;
-    point.style[y] = `${placed.offsetY}px`;
-    point.style.height = `${fab.offsetHeight}px`;
-    point.classList.toggle("left", x === "left");
-  }
-  new MutationObserver(() => syncPoint()).observe(fab, {
-    attributes: true,
-    attributeFilter: ["style", "class"],
-  });
 
   /** Owner status remains reachable even on a crowded page: the same button
    *  becomes an edge handle rather than covering the work being read. */
   let owner = false;
   function setOwnerStatus(status: OwnerStatus | null) {
-    pointWanted = status !== null;
     const wasOwner = owner;
     owner = status !== null;
     const previousLabel = fabLabel.textContent;
@@ -173,7 +124,9 @@ export function createLauncher(opts: {
     fab.classList.toggle("owner", status !== null);
     fab.classList.toggle("watching", !!status?.watching);
     fab.classList.toggle("paused", status !== null && !status.watching);
-    const label = status ? (status.watching ? "Loki · watching" : "Loki") : "Feedback";
+    // The state in a word, at every width: a turning spiral alone did not
+    // read as "Loki is watching" on a phone (owner, 2026-10-17).
+    const label = status ? (status.watching ? "Watching" : "Paused") : "Feedback";
     fabLabel.textContent = label;
     const unread = status?.unread ?? 0;
     badge.textContent = unread ? (unread > 9 ? "9+" : String(unread)) : "";
@@ -186,7 +139,6 @@ export function createLauncher(opts: {
     );
     // Measure after the label, badge and owner styles have changed, including
     // a watch/pause transition that changes width without changing ownership.
-    syncPoint();
     if (owner !== wasOwner || previousLabel !== label || previousBadge !== badge.textContent) {
       reposition();
     }
@@ -326,11 +278,9 @@ export function createLauncher(opts: {
     () => {
       bubble.style.display = "none";
       fab.classList.add("scrolling");
-      point.classList.add("scrolling");
       clearTimeout(scrollSettle);
       scrollSettle = window.setTimeout(() => {
         fab.classList.remove("scrolling");
-        point.classList.remove("scrolling");
         reposition();
       }, 350);
     },
@@ -364,8 +314,6 @@ export function createLauncher(opts: {
     fab.style[x] = `${slot.offsetX}px`;
     fab.style[y] = `${slot.offsetY}px`;
     fab.classList.toggle("on-left", x === "left");
-    placed = slot;
-    syncPoint();
   };
 
   function setTab(on: boolean) {
@@ -384,19 +332,16 @@ export function createLauncher(opts: {
       return scanner.verdict(fab.getBoundingClientRect());
     });
     fab.style.top = `${top}px`;
-    placed = null;
-    syncPoint();
     show(true);
   };
   const show = (visible: boolean) => {
     fab.style.visibility = visible ? "" : "hidden";
   };
 
-  /** Every visible half counts, not just the button carrying the label. */
+  /** The button and its unread badge, which hangs off its corner. */
   const footprint = () => {
     const rect = fab.getBoundingClientRect();
     const parts = [rect];
-    if (point.style.display !== "none") parts.push(point.getBoundingClientRect());
     if (badge.style.display !== "none") parts.push(badge.getBoundingClientRect());
     return {
       left: Math.min(...parts.map((r) => r.left)),
@@ -421,7 +366,7 @@ export function createLauncher(opts: {
       return;
     }
     // A previous region may have hidden the button; restore visibility before
-    // measuring so syncPoint includes the target in this pass too.
+    // measuring.
     show(true);
     const base: Slot = {
       corner: side ? withSide(p.corner, side) : p.corner,

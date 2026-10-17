@@ -49,8 +49,8 @@ export const MAX_TAKES = 10;
 
 /** The clock — and, on the last take, in its final 15 seconds, that it is
  *  about to stop, so a long note never ends mid-sentence without warning. */
-export function listening(elapsedMs: number, lastTake = true): string {
-  const clock = `Listening ${formatElapsed(elapsedMs)}`;
+export function recordingClock(elapsedMs: number, lastTake = true): string {
+  const clock = `Recording ${formatElapsed(elapsedMs)}`;
   if (!lastTake) return clock;
   const inTake = elapsedMs % MAX_MS;
   return MAX_MS - inTake <= 15_000 && elapsedMs >= MAX_MS * (MAX_TAKES - 1)
@@ -86,19 +86,26 @@ export function createBrowseVoice(opts: {
   cancel.type = "button";
   cancel.setAttribute("aria-label", "Cancel this recording");
   cancel.title = "Cancel this recording";
-  // Said once, as recording starts, and then out of the way.
+  // Said once, as recording starts, and then out of the way. One sentence:
+  // the four it was went unread (owner, 2026-10-17).
   const hint = h(
     "div",
     "bv-hint",
-    `Scroll, tap and talk. Loki notes what is on screen and what you tap as you go — ${pressVerb().verb} Mark for the part you mean. No video; Loki takes the pictures itself afterwards.`,
+    `Talk and scroll — Loki follows along. ${pressVerb().Verb} Mark on the part you mean.`,
   );
+  // The whole screen says it is recording, not only a dot in a bar: a red
+  // edge round the page while Loki listens, grey while it writes it down
+  // ("when it is recording it should be clear on the screen", 2026-10-17).
+  // Nothing under it is blocked — it takes no pointer events.
+  const frame = h("div", "bv-frame");
+  frame.setAttribute("aria-hidden", "true");
   hint.setAttribute("role", "status");
   const style = h("style");
   style.textContent = `
-.browse-voice{position:fixed;bottom:max(12px,env(safe-area-inset-bottom));left:12px;right:12px;margin:auto;width:max-content;max-width:calc(100vw - 24px);z-index:2147483646;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:6px 8px 6px 12px;border:1px solid ${opts.theme.borderStrong};border-radius:${opts.theme.radiusSurface ?? "12px"};background:${opts.theme.surfaceRaised};color:${opts.theme.text};box-shadow:0 5px 24px rgba(0,0,0,.2);font:14px/1.4 ${opts.theme.fontSans ?? "system-ui,sans-serif"}}
-.browse-voice .bv-status{min-width:0;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}.browse-voice .bv-status::before{content:"";display:inline-block;width:8px;height:8px;margin-right:8px;border-radius:50%;background:${opts.theme.error};vertical-align:1px;animation:bvpulse 1.4s ease-in-out infinite}.browse-voice[data-state="transcribing"] .bv-status::before{background:${opts.theme.textMuted};animation:none}@keyframes bvpulse{50%{opacity:.3}}@media (prefers-reduced-motion:reduce){.browse-voice .bv-status::before{animation:none}}.browse-voice .bv-point{border:1px solid ${opts.theme.borderStrong}!important;padding:8px 12px!important;font-weight:500}.browse-voice .bv-point.marked{border-color:${opts.theme.text}!important}.browse-voice .bv-cancel{color:${opts.theme.textSecondary}}.bv-hint{position:absolute;left:0;right:0;bottom:calc(100% + 8px);padding:10px 12px;border-radius:${opts.theme.radiusSurface ?? "12px"};background:${opts.theme.surface};border:1px solid ${opts.theme.border};color:${opts.theme.textSecondary};font-size:13px;line-height:1.45;white-space:normal;box-shadow:0 5px 24px rgba(0,0,0,.15)}.browse-voice.below .bv-hint{bottom:auto;top:calc(100% + 8px)}.browse-voice button{font:inherit;min-width:44px;min-height:44px;border:0;border-radius:${opts.theme.radiusControl ?? "10px"};cursor:pointer;color:inherit;background:transparent;padding:8px}.browse-voice .bv-stop{background:${opts.theme.text};color:${opts.theme.surfaceRaised}}.browse-voice .bv-point svg{width:20px;height:20px}.browse-voice button:focus-visible{outline:2px solid ${opts.theme.text};outline-offset:2px}
+.browse-voice .bv-frame{position:fixed;inset:0;pointer-events:none;border:3px solid ${opts.theme.error};border-radius:0;box-sizing:border-box}.browse-voice[data-state="transcribing"] .bv-frame{border-color:${opts.theme.textMuted}}.browse-voice{position:fixed;bottom:max(12px,env(safe-area-inset-bottom));left:12px;right:12px;margin:auto;width:max-content;max-width:calc(100vw - 24px);z-index:2147483646;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:6px 8px 6px 12px;border:2px solid ${opts.theme.error};border-radius:${opts.theme.radiusSurface ?? "12px"};background:${opts.theme.surfaceRaised};color:${opts.theme.text};box-shadow:0 5px 24px rgba(0,0,0,.2);font:14px/1.4 ${opts.theme.fontSans ?? "system-ui,sans-serif"}}
+.browse-voice[data-state="transcribing"]{border-color:${opts.theme.borderStrong}}.browse-voice .bv-status{min-width:0;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums}.browse-voice .bv-status::before{content:"";display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:50%;background:${opts.theme.error};vertical-align:1px;animation:bvpulse 1.4s ease-in-out infinite}.browse-voice[data-state="transcribing"] .bv-status::before{background:${opts.theme.textMuted};animation:none}@keyframes bvpulse{50%{opacity:.3}}@media (prefers-reduced-motion:reduce){.browse-voice .bv-status::before{animation:none}}.browse-voice .bv-point{border:1px solid ${opts.theme.borderStrong}!important;padding:8px 12px!important;font-weight:500}.browse-voice .bv-point.marked{border-color:${opts.theme.text}!important}.browse-voice .bv-cancel{color:${opts.theme.textSecondary}}.bv-hint{position:absolute;left:0;right:0;bottom:calc(100% + 8px);padding:10px 12px;border-radius:${opts.theme.radiusSurface ?? "12px"};background:${opts.theme.surface};border:1px solid ${opts.theme.border};color:${opts.theme.textSecondary};font-size:13px;line-height:1.45;white-space:normal;box-shadow:0 5px 24px rgba(0,0,0,.15)}.browse-voice.below .bv-hint{bottom:auto;top:calc(100% + 8px)}.browse-voice button{font:inherit;min-width:44px;min-height:44px;border:0;border-radius:${opts.theme.radiusControl ?? "10px"};cursor:pointer;color:inherit;background:transparent;padding:8px}.browse-voice .bv-stop{background:${opts.theme.text};color:${opts.theme.surfaceRaised}}.browse-voice .bv-point svg{width:20px;height:20px}.browse-voice button:focus-visible{outline:2px solid ${opts.theme.text};outline-offset:2px}
 `;
-  dock.append(hint, status, point, stop, cancel);
+  dock.append(frame, hint, status, point, stop, cancel);
   let visible = false;
   let capture: FeedbackCapture | null = null;
   let moments: Moment[] = [];
@@ -279,7 +286,7 @@ export function createBrowseVoice(opts: {
       if (!(next === "recording" && point.classList.contains("marked")))
         status.textContent =
           next === "recording"
-            ? listening(takeOffsetMs + (detail?.elapsedMs ?? 0), takes.length >= MAX_TAKES - 1)
+            ? recordingClock(takeOffsetMs + (detail?.elapsedMs ?? 0), takes.length >= MAX_TAKES - 1)
             : next === "transcribing"
               ? continuing
                 ? "Still listening…"

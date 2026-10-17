@@ -18,13 +18,13 @@ export function greetingFor(state: {
 }): string {
   if (state.owner) {
     return state.watching
-      ? `I'm watching as you use your site. Use it as usual and tell me what you'd change — ${pressVerb().verb} Point to area to show me one thing, or Voice note to talk while you scroll.`
-      : `Paused — nothing is recorded. Resume above, ${pressVerb().verb} Point to area to show me something, or just tell me what to change.`;
+      ? `I'm watching while you use your site. Tell me what you'd change — type it, or ${pressVerb().verb} Talk and keep scrolling while you speak.`
+      : "Paused — nothing is recorded. Resume above, or just tell me what to change.";
   }
   if (state.assistant === "none") {
     return "Tell us what should change — it goes straight to whoever builds this site.";
   }
-  return "Ask about this site or tell me what you would change. Chat first, or save a note for its builder.";
+  return "Ask about this site, or tell me what you'd change for whoever builds it.";
 }
 
 /** The owner's door, under the greeting: a round trip through Loki's sign-in

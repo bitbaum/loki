@@ -80,6 +80,19 @@ export function thoughtsSummary(trail: TrailEntry[], watching: boolean): string 
   return `Watching · ${seen} · ${verdict}`;
 }
 
+/**
+ * The panel's one status line, short: "Watching", "Watching · 2 to look at",
+ * "Paused". The page and press counts stay in thoughtsSummary (its tooltip)
+ * and in the list — on the line itself they were detail nobody asked for.
+ */
+export function watchHeadline(trail: TrailEntry[], watching: boolean): string {
+  if (!watching) return "Paused";
+  const problems = trail
+    .map(thoughtFor)
+    .filter((t) => t.tone === "warn" || t.tone === "bad").length;
+  return problems ? `Watching · ${problems} to look at` : "Watching";
+}
+
 /** "now", "40s", "3m" — how long ago, short enough for a line's margin. */
 export function ago(at: number, now: number): string {
   const s = Math.max(0, Math.round((now - at) / 1000));

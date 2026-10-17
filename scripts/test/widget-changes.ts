@@ -13,6 +13,7 @@ import { FEEDBACK_WORK_PHASE, WAITING_ON, type FeedbackWorkView } from "@/lib/fe
 import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
 import {
   CHANGES_MAX,
+  changesHeadline,
   changesSummary,
   newlyLive,
   parseChanges,
@@ -218,6 +219,11 @@ assert.match(main, /changes\.start\(\)/, "asked for on arrival");
     "Your changes · 1 needs you · 1 live",
   );
   assert.equal(changesSummary([c("Closed")]), "Your changes · 1");
+  // The status line carries the most urgent fragment only.
+  assert.equal(changesHeadline([c("Live", true), c("Needs you"), c("Building")]), "1 needs you");
+  assert.equal(changesHeadline([c("Live", true), c("Starting"), c("Building")]), "2 building");
+  assert.equal(changesHeadline([c("Live", true), c("Live", true)]), "2 live");
+  assert.equal(changesHeadline([c("Closed")]), "", "nothing to say: nothing on the line");
 }
 
 console.log("widget-changes: ok");
