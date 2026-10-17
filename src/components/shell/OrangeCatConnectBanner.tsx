@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
 import { Cat, Loader2, X } from "lucide-react";
@@ -19,8 +19,20 @@ const DISMISS_KEY = "loki-connect-orangecat-dismiss";
  *
  * Reads the link state from /api/me/connected-accounts rather than the
  * session, so a link made in another tab is seen without a sign-out.
+ *
+ * `fallback` is the reminder to show INSTEAD when this one has nothing to say.
+ * A new account used to get this line and the verify-email one stacked, about
+ * a fifth of a phone screen above every page (seen at 390px, 2026-10-17) —
+ * two optional chores outranking the work. One reminder at a time; linking
+ * OrangeCat goes first because its sign-in makes the other one matter less.
  */
-export function OrangeCatConnectBanner({ enabled }: { enabled: boolean }) {
+export function OrangeCatConnectBanner({
+  enabled,
+  fallback = null,
+}: {
+  enabled: boolean;
+  fallback?: ReactNode;
+}) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const [dismissed, setDismissed] = useState(() => {
@@ -32,16 +44,21 @@ export function OrangeCatConnectBanner({ enabled }: { enabled: boolean }) {
     }
   });
   const [connecting, setConnecting] = useState(false);
-  const { data } = useFetch<{ accounts: { provider: string }[] }>(
+  const { data, error } = useFetch<{ accounts: { provider: string }[] }>(
     enabled && status === "authenticated" && !dismissed ? "/api/me/connected-accounts" : null,
   );
 
-  if (!enabled || status !== "authenticated" || dismissed) return null;
+  if (status === "loading") return null;
+  if (!enabled || status !== "authenticated" || dismissed) return <>{fallback}</>;
   // The demo account is shared and cannot link one (its credentials are
   // fixed); the demo strip already holds the top of the screen there.
   if (session?.user?.isDemo) return null;
   if (isBannerFreeRoute(pathname)) return null;
-  if (!data || data.accounts.some((a) => a.provider === "orangecat")) return null;
+  // Could not ask: say nothing of ours, and let the other reminder stand.
+  if (error) return <>{fallback}</>;
+  // Still asking: neither line yet, so the other one does not flash and go.
+  if (!data) return null;
+  if (data.accounts.some((a) => a.provider === "orangecat")) return <>{fallback}</>;
 
   async function connect() {
     setConnecting(true);

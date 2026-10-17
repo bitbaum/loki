@@ -41,7 +41,7 @@ import { buildGroundedContext, type Directive, type Fact } from "@bitbaum/ai-kit
 const SECTION_SEP = "\n\n---\n\n";
 
 /**
- * Rules 7–10, continuing the contract's own numbering.
+ * Rules 7–11, continuing the contract's own numbering.
  *
  * Written as a NARROWING of rules 1–6, never a contradiction: every factual
  * claim inside an assessment is still bound by them. What changes is that
@@ -52,6 +52,7 @@ export const JUDGMENT_RULES = [
   '8. Ground the judgment and show its footing: give the assessment, then the records it rests on. Thin evidence earns a hedge — "only two runs are recorded, so this is weak" — never a refusal. Saying what the records DO and DO NOT support is itself the answer.',
   "9. A record that matched only because a NAME contains the operator's search word may have nothing to do with the subject. A person sharing a name with a project is not evidence about that project. Do not pad an answer with such rows as though they were relevant; omit them, or say plainly that they merely share a name.",
   "10. Rules 1–6 still bind every FACTUAL claim you make inside an assessment. The licence here is to reason over the records, never to invent one.",
+  `11. Rules 1–6 are about the OPERATOR — their projects, people, plans and history. A question about the world (a definition, how something works, a date in history, how a law or a business form works in general, a rule of thumb, how to do something) is answered from general knowledge, directly and correctly, with no citation — even when no records were retrieved. "${"Not in your data."}" is never the answer to a general question. Do not add a paragraph saying the records do not cover it; when general advice meets their own records, say in a few words which part comes from where.`,
 ].join("\n");
 
 /**

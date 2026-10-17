@@ -110,7 +110,58 @@ export function offeredCommand(answer: string | null | undefined): string | null
     if (!/^create (?:a )?(?:new )?project\b/i.test(line) && !/^[a-z0-9][\w.-]*:\s+\S/i.test(line)) {
       break;
     }
+    // An offer only the person can carry out is not a command: "yes" to
+    // "bakery: install the desktop app" must not send an agent to install it.
+    if (isPersonOnlyStep(line)) break;
     offers.push(line);
   }
   return offers.length === 1 ? offers[0] : null;
+}
+
+/**
+ * Steps an agent cannot take for the person: their machine, their accounts,
+ * their keys, their money, their decision.
+ *
+ * Found on the live site (2026-10-17): an answer ended with the bold line
+ * "**prodtest-bakery: install the Fleet Runner desktop app and connect it**" —
+ * shaped exactly like a command, so "yes" would have sent a build agent off to
+ * install software on the operator's own computer. The prompt already says the
+ * line must be agent work; this is the check that does not depend on the model
+ * listening.
+ */
+const PERSON_ONLY = [
+  /\b(install|download)\b.*\b(fleet runner|desktop app|the app|extension|cli|on your (computer|machine|phone|laptop))\b/i,
+  /\b(sign|log) (in|up|into)\b/i,
+  /\bcreate (an|your) account\b/i,
+  /\b(add|enter|paste|provide|give|share|set) (your|an|the|a) (own )?(api )?(key|token|password|credentials?|card)\b/i,
+  /\b(verify|confirm) (your )?(e-?mail|address|phone|identity)\b/i,
+  // Anchored: "approve the request" is theirs, "add a pay button" is a build.
+  /^(approve|pay|buy|purchase|subscribe|top up)\b/i,
+  /\b(restart|reconnect|reinstall|update) (the |your )?(fleet runner|desktop app|builder|runner)\b/i,
+  /\b(decide|choose|pick) (whether|which|between|if)\b/i,
+];
+
+export function isPersonOnlyStep(line: string): boolean {
+  const instruction = line.replace(/^[a-z0-9][\w.-]*:\s+/i, "");
+  return PERSON_ONLY.some((re) => re.test(instruction));
+}
+
+/**
+ * An answer that ended with a person-only step in command shape, rewritten as
+ * the plain sentence it should have been: no bold, no project prefix, so it
+ * reads as something for them to do and nothing offers to send it.
+ */
+export function demotePersonOnlyOffer(answer: string): string {
+  const lines = answer.split(/\r?\n/);
+  let i = lines.length - 1;
+  while (i >= 0 && !lines[i].trim()) i--;
+  if (i < 0) return answer;
+  const m = /^(\s*)\*\*(.+)\*\*([.!]?)\s*$/.exec(lines[i]);
+  if (!m) return answer;
+  const line = m[2].trim();
+  if (!/^[a-z0-9][\w.-]*:\s+\S/i.test(line) || !isPersonOnlyStep(line)) return answer;
+  const step = line.replace(/^[a-z0-9][\w.-]*:\s+/i, "");
+  const sentence = step.charAt(0).toUpperCase() + step.slice(1);
+  lines[i] = `${m[1]}${/[.!?]$/.test(sentence) ? sentence : `${sentence}.`}`;
+  return lines.join("\n");
 }
