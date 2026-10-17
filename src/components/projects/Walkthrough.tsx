@@ -16,7 +16,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NOTE_NONE, type FixNote } from "@/lib/feedback/fix-note";
+import { NOTE_NONE, WALKTHROUGH_LABELS as L, type FixNote } from "@/lib/feedback/fix-note";
 
 const SHOWS_WORD: Record<NonNullable<FixNote["shows"]>, string> = {
   page: "You can see it on the page.",
@@ -54,8 +54,8 @@ export function Walkthrough({ note, liveUrl }: { note: FixNote; liveUrl: string 
         What changed, and why
       </h3>
       <dl className="ui-walk-list">
-        <Row label="The problem" text={note.problem} />
-        <Row label="The change" text={note.change} />
+        <Row label={L.problem} text={note.problem} />
+        <Row label={L.change} text={note.change} />
         {note.shows && (
           <div className="ui-walk-row">
             <dt className="ui-walk-label">Where</dt>
@@ -73,14 +73,14 @@ export function Walkthrough({ note, liveUrl }: { note: FixNote; liveUrl: string 
             </dd>
           </div>
         )}
-        <Row label="For the people using it" text={note.helps} />
+        <Row label={L.helps} text={note.helps} />
         {more && (
           <>
-            <Row label="Under the hood" text={note.detail} />
-            <Row label="Why this way" text={note.why} />
+            <Row label={L.detail} text={note.detail} />
+            <Row label={L.why} text={note.why} />
             {note.considered.length > 0 && (
               <div className="ui-walk-row">
-                <dt className="ui-walk-label">Also considered</dt>
+                <dt className="ui-walk-label">{L.considered}</dt>
                 <dd className="ui-walk-text">
                   <ul className="list-disc space-y-1 pl-4">
                     {note.considered.map((c, i) => (
@@ -93,11 +93,11 @@ export function Walkthrough({ note, liveUrl }: { note: FixNote; liveUrl: string 
                 </dd>
               </div>
             )}
-            <Row label="For us" text={note.us} />
-            <Row label="Downsides" text={note.downsides} />
-            <Row label="What it costs" text={note.costs} />
-            <Row label="How we know it works" text={note.proof} />
-            <Row label="Left for later" text={note.next} />
+            <Row label={L.us} text={note.us} />
+            <Row label={L.downsides} text={note.downsides} />
+            <Row label={L.costs} text={note.costs} />
+            <Row label={L.proof} text={note.proof} />
+            <Row label={L.next} text={note.next} />
           </>
         )}
       </dl>

@@ -2,10 +2,11 @@
  * The access code in front of every prospect preview, and the cookie that
  * remembers a visitor entered it.
  *
- * One code for all previews, read from the box env (LOKI_PREVIEW_CODE), so it
- * is changed in one place. The cookie is an HMAC under AUTH_SECRET over its
- * expiry AND a fingerprint of the code it was issued for: change the code and
- * every earlier cookie stops opening anything, without a list to revoke.
+ * The code is the operator's own (user_preferences.preview_code, set in the
+ * app), and LOKI_PREVIEW_CODE in the box env is the fallback for every preview
+ * without one. The cookie is an HMAC under AUTH_SECRET over its expiry AND a
+ * fingerprint of the code it was issued for: change the code and every earlier
+ * cookie stops opening anything, without a list to revoke.
  */
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { PREVIEWS } from "@/config/previews";

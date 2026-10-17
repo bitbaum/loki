@@ -28,7 +28,7 @@ const NOT_A_SITE = /\.(?:pdf|png|jpe?g|gif|svg|webp|docx?|xlsx?|pptx?|zip|txt|md
 export function extractWebsite(text: string): string | null {
   const match = unspeak(text).match(DOMAIN);
   if (!match) return null;
-  const host = match[1].toLowerCase().replace(/^www\./, "www.");
+  const host = match[1].toLowerCase();
   if (NOT_A_SITE.test(host)) return null;
   const path = (match[2] ?? "").replace(/[.!?]+$/, "").replace(/\/+$/, "");
   return `${host}${path}`;

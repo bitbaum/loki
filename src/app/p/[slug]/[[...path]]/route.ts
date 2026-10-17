@@ -1,4 +1,5 @@
-import { readFile, stat } from "fs/promises";
+import { mkdir, readFile, stat, writeFile } from "fs/promises";
+import path from "path";
 import { NextRequest } from "next/server";
 import { PREVIEWS } from "@/config/previews";
 import { findPreviewProject } from "@/db/queries/previews";
@@ -6,6 +7,7 @@ import { getPreviewCode } from "@/db/queries/preview-code";
 import { getActiveWidgetToken } from "@/db/queries/widget-tokens";
 import { handlePreviewGet, handlePreviewPost, type PreviewDeps } from "@/lib/previews/handle";
 import { appUrl } from "@/lib/email";
+import { takePagePicture } from "@/lib/feedback/page-picture";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
@@ -21,24 +23,47 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 type Params = { params: Promise<{ slug: string; path?: string[] }> };
 
+type Project = Awaited<ReturnType<PreviewDeps["findProject"]>>;
+// A page of a preview asks for its stylesheet, its fonts and every image, and
+// each request looked the project up again (four round trips). The answer is
+// kept for a few seconds — long enough for one page load, short enough that a
+// changed code asks every visitor again within the minute.
+const PROJECT_MEMO_MS = 5_000;
+const projects = new Map<string, { at: number; value: Promise<Project> }>();
+
+async function lookupProject(dir: string): Promise<Project> {
+  const project = await findPreviewProject(dir);
+  if (!project) return null;
+  const token = project.entityProjectId
+    ? await getActiveWidgetToken(project.userId, project.entityProjectId)
+    : null;
+  return {
+    name: project.name,
+    widgetToken: token?.token ?? null,
+    code: await getPreviewCode(project.userId),
+  };
+}
+
 const deps: PreviewDeps = {
-  async findProject(dir) {
-    const project = await findPreviewProject(dir);
-    if (!project) return null;
-    const token = project.entityProjectId
-      ? await getActiveWidgetToken(project.userId, project.entityProjectId)
-      : null;
-    return {
-      name: project.name,
-      widgetToken: token?.token ?? null,
-      code: await getPreviewCode(project.userId),
-    };
+  findProject(dir) {
+    const hit = projects.get(dir);
+    if (hit && Date.now() - hit.at < PROJECT_MEMO_MS) return hit.value;
+    const value = lookupProject(dir);
+    projects.set(dir, { at: Date.now(), value });
+    value.catch(() => projects.delete(dir));
+    if (projects.size > 200) projects.delete(projects.keys().next().value!);
+    return value;
   },
   async readFile(file) {
     const info = await stat(file).catch(() => null);
     if (!info?.isFile()) return null;
     return new Uint8Array(await readFile(file));
   },
+  async writeFile(file, bytes) {
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, bytes);
+  },
+  takePicture: (url, opts) => takePagePicture(url, null, opts),
   allowAttempt: (clientKey) =>
     checkRateLimit(
       `preview-code:${clientKey}`,

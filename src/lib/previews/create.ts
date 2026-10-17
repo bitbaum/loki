@@ -25,9 +25,12 @@ import { injectPrompt } from "@/lib/inject-core";
 import { previewCodeFor } from "@/lib/previews/access";
 import { isPreviewAddress } from "@/lib/previews/address";
 import { attachPreviewHost, waitForHost } from "@/lib/previews/host";
+import { LOKI_DIR, type PreviewSource } from "@/lib/previews/improvements";
+import { writePreviewSource } from "@/lib/previews/folder";
 import { previewsRoot, slugifyPreviewName } from "@/lib/previews/root";
 import { unpackArchive } from "@/lib/previews/unpack";
-import { ownerSiteUrl } from "../../../widget/owner-pass";
+import { ownerSiteUrl } from "@/lib/feedback/owner-pass";
+import { isProjectNameTaken } from "@/db/queries/brief-projects";
 
 const run = promisify(execFile);
 
@@ -71,13 +74,23 @@ const PLACEHOLDER = (name: string) => `<!doctype html>
 </body></html>
 `;
 
-async function initFolder(dir: string, name: string): Promise<void> {
-  await mkdir(dir, { recursive: false });
-  await writeFile(path.join(dir, "index.html"), PLACEHOLDER(name));
-  const git = (...args: string[]) =>
+/** Git in the preview folder, as Loki. */
+const gitIn =
+  (dir: string) =>
+  (...args: string[]) =>
     run("git", ["-c", "user.name=Loki", "-c", "user.email=loki@orangecat.ch", ...args], {
       cwd: dir,
     });
+
+async function initFolder(dir: string, name: string, source?: PreviewSource): Promise<void> {
+  await mkdir(dir, { recursive: false });
+  await writeFile(path.join(dir, "index.html"), PLACEHOLDER(name));
+  // Loki's own files (what the preview was made from, the tour's pictures)
+  // stay out of the site's history: they are not the site, and they must not
+  // travel when the folder becomes a repository.
+  await writeFile(path.join(dir, ".gitignore"), `${LOKI_DIR}/\n`);
+  if (source) await writePreviewSource(dir, source);
+  const git = gitIn(dir);
   await git("init", "-q");
   await git("add", "-A");
   await git("commit", "-q", "-m", `Start the preview for ${name}`);
@@ -99,6 +112,9 @@ export async function createPreview(
      *  name (a live website: lib/previews/from-website). Default: the
      *  research-from-public-sources brief. */
     prompt?: (previewUrl: string) => string;
+    /** The live site this preview is made from, kept in the folder so the
+     *  before-and-after tour knows what "before" is. */
+    source?: PreviewSource;
   },
 ): Promise<CreatePreviewResult> {
   // A preview is a folder on the fleet's own server, built by the cloud
@@ -124,10 +140,11 @@ export async function createPreview(
     };
   }
   await mkdir(root, { recursive: true });
-  // The code that opens it: given now (and remembered), already saved, or the
-  // server's. Without one nobody could get in, so say so before anything is made.
+  // Everything that can refuse, before anything that leaves a trace: a code
+  // saved, a folder made or a host attached for a request that then fails
+  // would change what the operator's other previews do (the code opens all of
+  // them) or leave a vhost pointing at nothing.
   const given = input.code?.trim();
-  if (given) await setPreviewCode(userId, given);
   const accessCode = given || (await getPreviewCode(userId));
   const hasCode = Boolean(previewCodeFor(accessCode));
   if (!hasCode && input.requireCode) {
@@ -154,11 +171,15 @@ export async function createPreview(
   if (address && existsSync(path.join(root, address))) {
     return { ok: false, status: 409, error: `${address} is already taken. Pick another address.` };
   }
+  if (await isProjectNameTaken(name)) {
+    return { ok: false, status: 409, error: `You already have a project called "${name}".` };
+  }
   const slug = address || freeSlug(root, name);
   if (!slug) return { ok: false, status: 409, error: "Too many previews with that name already." };
   const dir = path.join(root, slug);
 
-  await initFolder(dir, name);
+  if (given) await setPreviewCode(userId, given);
+  await initFolder(dir, name, input.source);
 
   // A site that already exists replaces the placeholder and is committed as it
   // arrived; nothing is built, because there is nothing to build yet.
@@ -168,10 +189,7 @@ export async function createPreview(
       await rm(dir, { recursive: true, force: true });
       return { ok: false, status: 400, error: unpacked.error };
     }
-    const git = (...args: string[]) =>
-      run("git", ["-c", "user.name=Loki", "-c", "user.email=loki@orangecat.ch", ...args], {
-        cwd: dir,
-      });
+    const git = gitIn(dir);
     await git("add", "-A");
     await git("commit", "-q", "-m", `Bring in the site for ${name}`);
   }

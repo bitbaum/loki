@@ -9,9 +9,9 @@ import {
 import { siteName } from "@/lib/brief-project-name";
 
 /** A public website address, or null. The build intake never fetches it — the
- *  builder inspects it as untrusted source material. The one server-side read
- *  is the consultation's single page (lib/site-consult/fetch-page), which runs
- *  every address and every redirect through this same gate. */
+ *  builder inspects it as untrusted source material. Every server-side read
+ *  (the consultation's tour, lib/site-consult; the chat's read_website; the
+ *  tour's pictures) runs the address and every redirect through this gate. */
 export function normalizeWebsite(raw: string): string | null {
   try {
     const text = raw.trim();
@@ -59,6 +59,9 @@ export const WebsiteBuildBody = WebsiteBriefBody.extend({
   /** One-tap answers to the consultation's questions ("goal:book"); the text
    *  an agent reads for each comes from config/site-consult. */
   answers: z.array(z.enum(CONSULT_ANSWER_IDS)).max(CONSULT_ANSWER_IDS.length).default([]),
+  /** The access code for the preview, when the person chooses one now; saved
+   *  as theirs for every preview (the same field POST /api/previews takes). */
+  code: z.string().trim().min(3).max(40).optional(),
 }).refine(
   (b) =>
     b.changes.length > 0 || (b.mode === "refresh" && (b.fixes.length > 0 || b.answers.length > 0)),

@@ -2,46 +2,26 @@ import { z } from "zod";
 import { makeFact } from "@bitbaum/ai-kit/grounding";
 import { defineTool } from "./registry";
 import { fetchPage, type PageFetch } from "@/lib/site-consult/fetch-page";
-import { attrs, readPage, visibleText } from "@/lib/site-consult/read-page";
+import { readPage, visibleText } from "@/lib/site-consult/read-page";
 import { consult } from "@/lib/site-consult/findings";
 import { consultTalk } from "@/lib/site-consult/advice";
-import { displayPath, type PageTour } from "@/lib/site-consult/crawl";
+import { displayPath, internalLinks, type PageTour } from "@/lib/site-consult/crawl";
 
 /** Linked pages read after the first: enough to see the site, not crawl it. */
-export const READ_WEBSITE_LINKED_PAGES = 5;
+const READ_WEBSITE_LINKED_PAGES = 5;
+/** How much of the rest of the site is listed (not read) for the model. */
+const SITE_MAP_PAGES = 40;
 
 /** A bounded, fresh HTML read. Every link uses the consultation's existing
- * public-address, redirect, timeout and byte guards. No cookies or credentials. */
+ * public-address, redirect, timeout and byte guards, and the same choice of
+ * pages a visitor meets first (lib/site-consult/crawl: navigation before
+ * footer, one page per section before the second, machinery and small print
+ * left out). No cookies or credentials. */
 export async function readWebsite(url: string, fetcher = fetchPage) {
   const pages: PageFetch[] = [await fetcher(url)];
   const first = pages[0];
   if (!first.ok) return Object.assign(pages, { siteMap: [] as string[] });
-  const origin = new URL(first.finalUrl).origin;
-  const links = new Set<string>();
-  for (const tag of first.html.match(/<a\b[^>]*>/gi) ?? []) {
-    try {
-      const href = attrs(tag).href;
-      if (!href) continue;
-      const next = new URL(href, first.finalUrl);
-      next.hash = "";
-      if (
-        next.origin === origin &&
-        next.href !== first.finalUrl &&
-        !next.search &&
-        !/^\/[a-z]{2}(?:-[a-z]{2})?\/?$/i.test(next.pathname) &&
-        !/\.(pdf|zip|png|jpe?g|svg|webp)$/i.test(next.pathname)
-      )
-        links.add(next.href);
-    } catch {
-      /* A malformed link provides no evidence. */
-    }
-    if (links.size >= 40) break;
-  }
-  const ranked = [...links].sort(
-    (a, b) =>
-      Number(/about|features|pricing|care|contact|ueber|kontakt/.test(new URL(b).pathname)) -
-      Number(/about|features|pricing|care|contact|ueber|kontakt/.test(new URL(a).pathname)),
-  );
+  const ranked = internalLinks(first.html, first.finalUrl, SITE_MAP_PAGES);
   pages.push(
     ...(await Promise.all(ranked.slice(0, READ_WEBSITE_LINKED_PAGES).map((link) => fetcher(link)))),
   );

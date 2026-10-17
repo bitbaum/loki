@@ -19,7 +19,7 @@ import { readPage } from "@/lib/site-consult/read-page";
 import { WebsiteBuildBody, websiteBuildBrief, websitePreviewRequest } from "@/lib/website-brief";
 import { internalLinks, tourSite, type PageTour } from "@/lib/site-consult/crawl";
 import { consultTalk, tourForBrief } from "@/lib/site-consult/advice";
-import { improvementsUrl, websitePreviewPrompt } from "@/config/preview-brief";
+import { beforeAfterUrl, websitePreviewPrompt } from "@/config/preview-brief";
 import { parseWebsiteDraft } from "@/lib/website-draft";
 
 let passed = 0;
@@ -299,6 +299,27 @@ async function main() {
       "https://baeckerei.ch/%C3%BCber-uns/",
     ]);
   });
+  await check("navigation first, footer last, small print and accounts left out", () => {
+    const html = `<header><a href="/catalog/">Каталог</a><a href="/personal/private">Войти</a></header>
+      <main><a href="/catalog/paint">Краски</a><a href="/catalog/doors">Двери</a><a href="/o-nas/nashi-rekvizity">Реквизиты</a>
+      <a href="/servisy">Доставка</a><a href="/catalog/floors">Полы</a></main>
+      <footer><a href="/o-nas">О компании</a><a href="/o-nas/politika-konfidentsialnosti">Политика</a><a href="/kontakty">Контакты</a></footer>`;
+    const links = internalLinks(html, "https://shop.ru/", 6).map((u) => new URL(u).pathname);
+    assert.ok(
+      !links.some((p) => /personal|rekvizity|politika/.test(p)),
+      "no login, no small print",
+    );
+    assert.equal(links[0], "/catalog/", "the header's first page opens the tour");
+    assert.ok(
+      links.indexOf("/servisy") < links.indexOf("/catalog/doors"),
+      "one page per section before the second page of any section",
+    );
+    assert.ok(
+      links.indexOf("/servisy") < links.indexOf("/o-nas"),
+      "within a round, the body before the footer",
+    );
+    assert.equal(links.length, 6);
+  });
   await check("never walks further than the budget allows", () => {
     const html = Array.from({ length: 40 }, (_, i) => `<a href="/p${i}">p${i}</a>`).join("");
     assert.equal(internalLinks(html, "https://x.ch/").length, CONSULT.crawlPages);
@@ -398,18 +419,19 @@ async function main() {
         mode: "refresh",
         previewUrl: "https://muster.orangecat.ch",
       });
-      assert.ok(prompt.includes("improvements.html") && prompt.includes("Do not add a remote"));
-      assert.ok(prompt.includes("https://muster.orangecat.ch/improvements.html"));
+      assert.ok(prompt.includes("improvements.json") && prompt.includes("Do not add a remote"));
+      assert.ok(prompt.includes("first impression, not a migration"));
+      assert.ok(prompt.includes("https://muster.orangecat.ch/_loki/before-after"));
     },
   );
   await check("the tour sits next to the entry page, wherever the preview is served", () => {
     assert.equal(
-      improvementsUrl("https://muster.orangecat.ch"),
-      "https://muster.orangecat.ch/improvements.html",
+      beforeAfterUrl("https://muster.orangecat.ch"),
+      "https://muster.orangecat.ch/_loki/before-after",
     );
     assert.equal(
-      improvementsUrl("https://loki.orangecat.ch/p/muster/index.html"),
-      "https://loki.orangecat.ch/p/muster/improvements.html",
+      beforeAfterUrl("https://loki.orangecat.ch/p/muster/index.html"),
+      "https://loki.orangecat.ch/p/muster/_loki/before-after",
     );
   });
 
