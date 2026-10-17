@@ -1,3 +1,4 @@
+import { isDemoEmail } from "@/config/demo";
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import { ROUTES } from "@/config/auth";
@@ -604,6 +605,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           onboardedAt: (token.onboardedAt as Date | null) ?? null,
           onboardingComplete: token.onboardingComplete === true,
           emailVerified: (token.emailVerified as Date | null) ?? null,
+          // This callback REPLACES auth.config's, so every field the client
+          // reads must be set here too. isDemo was set only there, and the
+          // browser never learned it was the demo: the "you're in the demo"
+          // strip never rendered, so blocked controls read as a broken app.
+          isDemo: isDemoEmail(token.email as string | null | undefined),
         },
       };
     },

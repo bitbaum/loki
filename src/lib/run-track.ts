@@ -127,7 +127,19 @@ export type RunTrackInput = {
    * Omitted means yes.
    */
   followable?: boolean;
+  /** Clock for the one judgement that needs time (PR_LOOK_WINDOW_MS); tests pin it. */
+  now?: number;
 };
+
+/**
+ * How long after the agent finishes "Looking for the pull request" may stay
+ * the answer, inside the window Loki still follows a run in. The fix ledger
+ * is re-read every few minutes while anyone looks (fixNeedsRefresh); a pull
+ * request the agent opened shows up well inside this. Past it, "looking" is
+ * no longer true, and a clock on it read as still going (owner's
+ * walk-through of the demo, 2026-10-17).
+ */
+export const PR_LOOK_WINDOW_MS = 30 * 60_000;
 
 const STARTED: ReadonlySet<RunEventKind> = new Set([
   "claimed",
@@ -186,6 +198,8 @@ type Facts = {
   startedWorkAt: string | null;
   /** Finished well, but older than the window Loki follows a change in. */
   unfollowed: boolean;
+  /** Still followed, finished well, nothing on GitHub, past PR_LOOK_WINDOW_MS. */
+  noPrFound: boolean;
 };
 
 function readFacts(input: RunTrackInput): Facts {
@@ -213,6 +227,8 @@ function readFacts(input: RunTrackInput): Facts {
     // builder picked it up" above "Claude Code finished" is a contradiction.
     started: [...kinds].some((k) => STARTED.has(k)) || finishedWell,
     unfollowed: finishedWell && input.followable === false,
+    noPrFound:
+      input.followable !== false && noPrFound(input, prUrl, commits.length > 0, finishedWell),
     generated: [...kinds].some((k) => GENERATED.has(k)),
     lastKind: input.eventKinds.at(-1) ?? null,
     ship,
@@ -229,6 +245,24 @@ function readFacts(input: RunTrackInput): Facts {
     askedAt: input.askedAt ?? input.run?.startedAt ?? null,
     startedWorkAt: t.generating ?? t.submitted ?? t.launched ?? t.claimed ?? null,
   };
+}
+
+function noPrFound(
+  input: RunTrackInput,
+  prUrl: string | null,
+  committed: boolean,
+  finishedWell: boolean,
+): boolean {
+  const fin = Date.parse(input.run?.finishedAt ?? "");
+  return (
+    finishedWell &&
+    Number.isFinite(fin) &&
+    !prUrl &&
+    !input.evidence &&
+    !committed &&
+    !input.fix?.state &&
+    (input.now ?? Date.now()) - fin > PR_LOOK_WINDOW_MS
+  );
 }
 
 const stage = (
@@ -389,6 +423,12 @@ function prStage(f: Facts): TrackStage {
       note: "The agent finished, but no branch or pull request was found.",
       at: f.input.run?.finishedAt ?? null,
     });
+  if (f.noPrFound)
+    return stage("pr", "No pull request found", "attention", {
+      note: "The agent finished, but Loki found no pull request for it — open the run to see what it left.",
+      // No time: a stage that will not move must not carry a running clock.
+      at: null,
+    });
   if (f.finishedWell)
     return stage("pr", "Looking for the pull request", "now", {
       note: "Checking GitHub.",
@@ -524,7 +564,9 @@ function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
   if (f.finishedWell)
     return f.ship === FIX_SHIP_STATE.NO_EVIDENCE
       ? "The agent finished, but nothing reached GitHub."
-      : `${p} finished — checking where the change is.`;
+      : f.noPrFound
+        ? `${p} finished, but no pull request was found.`
+        : `${p} finished — checking where the change is.`;
   if (f.finished) return f.input.failure ?? `${p} stopped before the change shipped.`;
   if (work.state === "attention") return work.note ?? `${p} needs you.`;
   if (builder.state === "attention") return "Sent, but no builder has picked it up.";
@@ -567,6 +609,7 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
     f.ship === FIX_SHIP_STATE.PR_CLOSED ||
     (f.finished && !f.finishedWell) ||
     (f.finishedWell && f.ship === FIX_SHIP_STATE.NO_EVIDENCE) ||
+    f.noPrFound ||
     (f.finishedWell && f.pushed);
 
   const current =

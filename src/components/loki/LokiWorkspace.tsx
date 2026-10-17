@@ -18,6 +18,7 @@ import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { Drawer } from "@/components/ui/modal";
 import { ThreadRail } from "./ThreadRail";
 import { StartScreen } from "./StartScreen";
+import { DemoChatNotice, useDemoChat } from "./DemoChatNotice";
 import { SiteHandoffCard } from "./SiteHandoffCard";
 import { useSiteHandoff } from "@/hooks/use-site-handoff";
 import { Thread } from "./Thread";
@@ -440,12 +441,15 @@ export function LokiWorkspace({
     }
   };
 
+  const demo = useDemoChat();
   const send = async (
     text: string,
     choice: ModelChoice = {},
     attachments: Attachment[] = [],
     opts: SendOpts = {},
   ) => {
+    // The public demo answers from DemoChatNotice and calls nothing (config/demo.ts).
+    if (demo.isDemo) return demo.show(text);
     const scopedProjects = opts.selectedProjectsOverride ?? selectedProjects;
     const dispatchOnly = opts.dispatchOnly ?? false;
     const chatOnly = opts.chatOnly ?? false;
@@ -575,7 +579,8 @@ export function LokiWorkspace({
   const chatBody = (
     <>
       {isStart && site.handoff && <SiteHandoffCard handoff={site.handoff} onDismiss={site.spend} />}
-      {isStart && !site.handoff && (
+      {demo.asked && <DemoChatNotice asked={demo.asked} />}
+      {isStart && !site.handoff && !demo.asked && (
         <StartScreen
           conversations={conversations}
           railVisible={historyPinned && wide}
