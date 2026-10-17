@@ -117,12 +117,17 @@ export const STUDIO_DOORS: ReadonlyArray<{
  * studio site follows. Owner-built-for projects are pilots: "client" is a
  * provisioning fact, not something to tell a stranger.
  */
-export function stageWord(p: Pick<FleetMapEntry, "status" | "owner">): string {
+export function stageWord(
+  p: Pick<FleetMapEntry, "status" | "owner"> & { urls?: { live: string | null } },
+): string {
+  // A "prospect" with nothing served is a name; one with an address answering
+  // is a first version. The visitor can open the second, so say so.
+  if (p.status === "prospect" && !p.urls?.live) return "named but not built";
   const base: Record<string, string> = {
     live: "in beta",
     demo: "a demo with sample data",
     validating: "being validated",
-    prospect: "named but not built",
+    prospect: "named, with only an early version to look at",
     unverified: "a concept",
     "not live": "in development, not publicly running",
   };
@@ -311,12 +316,35 @@ export function conciergeSystemPrompt(
     "- The answer is only what the visitor reads. Never write notes about these rules, a checklist of what you did, the stage word you used, whether you wrote URLs, or why one of you spoke first.",
     "- If they want to report a problem with this page, tell them to switch to the Report tab.",
     page.url ? `\nThe visitor is on: ${page.title ? `${page.title} — ` : ""}${page.url}` : "",
+    onProjectPage(page.url)
+      ? "- They are on one project's own page. A question like 'what does this do', 'is it free', 'how does it work' or 'can I use it' is about THAT project: answer it from that project's facts first, in one or two sentences, and name the project so it gets its link. Never answer a question about a project by asking what they want to do, and never send them to build something of their own when they asked about the project they are looking at. Nothing on this site is sold: every product is free to try at its stage."
+      : "",
     "",
     facts,
   ].join("\n");
 }
 
 /** The conversation so far, as one prompt: the chain entry point takes a single prompt string. */
+/** The studio site's per-project pages: /<slug>/, not one of its own sections. */
+const SITE_SECTIONS = new Set([
+  "work",
+  "hire",
+  "partners",
+  "studio",
+  "academy",
+  "packages",
+  "map",
+  "roadmap",
+  "changelog",
+  "portal",
+  "private",
+]);
+export function onProjectPage(url: string | undefined): boolean {
+  if (!url) return false;
+  const m = url.match(/^https?:\/\/bitbaum\.orangecat\.ch\/([a-z0-9-]+)\/?(?:[?#]|$)/i);
+  return Boolean(m && !SITE_SECTIONS.has(m[1]!.toLowerCase()));
+}
+
 export function conciergePrompt(history: ConciergeTurn[], message: string): string {
   const past = history
     .slice(-12)

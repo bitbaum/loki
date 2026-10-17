@@ -145,6 +145,23 @@ const map: FleetMap = {
 
 // Stage words: beta, never "live"; a pilot, never a client.
 assert.equal(stageWord({ status: "live", owner: "bitbaum" }), "in beta");
+assert.equal(stageWord({ status: "prospect", owner: "bitbaum" }), "named but not built");
+assert.match(
+  stageWord({ status: "prospect", owner: "bitbaum", urls: { live: "https://d.example" } }),
+  /early version/,
+  "a served prospect is openable, not unbuilt",
+);
+assert.match(
+  conciergeSystemPrompt("facts", { url: "https://bitbaum.orangecat.ch/heidi/", title: "Heidi" }),
+  /about THAT project/,
+  "a project page gets the project-first rule",
+);
+assert.ok(
+  !/about THAT project/.test(
+    conciergeSystemPrompt("facts", { url: "https://bitbaum.orangecat.ch/work/", title: "Work" }),
+  ),
+  "the catalogue does not",
+);
 assert.match(stageWord({ status: "demo", owner: "aoz" }), /pilot built with aoz/);
 
 const facts = renderConciergeFacts(map);
