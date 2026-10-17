@@ -3,6 +3,7 @@ import {
   buildNextStepsPrompt,
   mergeSteps,
   NEXT_STEPS_INPUT_CHARS,
+  nextStepsSystemPrompt,
   parseNextSteps,
 } from "@/lib/terminal-next-steps";
 
@@ -49,5 +50,15 @@ const merged = mergeSteps(["Do option 2.", "yes, go ahead."], rules);
 check("AI leads", merged[0] === "Do option 2.");
 check("no case-only duplicates", merged.filter((s) => /go ahead/i.test(s)).length === 1);
 check("never more than three", mergeSteps(["a", "b", "c"], rules).length === 3);
+
+check(
+  "the instructions name the agent in the session",
+  nextStepsSystemPrompt("Codex").startsWith("You help someone steer a coding agent (Codex) from"),
+);
+check(
+  "an unknown agent is not guessed",
+  nextStepsSystemPrompt(null).startsWith("You help someone steer a coding agent from"),
+);
+check("the rules follow", /ONLY when the agent's last lines/.test(nextStepsSystemPrompt(null)));
 
 console.log(`\n${passed}/${passed} terminal-next-steps cases passed`);

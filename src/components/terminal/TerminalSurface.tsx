@@ -464,6 +464,8 @@ export function TerminalSurface({
     readScreenRef,
     Boolean(activeTab) && view === "terminal",
     projectKey,
+    false,
+    activeAgentId,
   );
 
   const ta = useTerminalTabActions(channel, tabs.length, {

@@ -99,6 +99,12 @@ export type ProjectState = {
   modelPref: string | null;
   /** Stored builder tier (`user_projects.builder_pref`). Null = cloud. */
   builderPref: string | null;
+  /** The builder this project's work runs on (execution-access: locus lock,
+   *  then builder_pref, then cloud). */
+  builderChannel?: "cloud" | "local";
+  /** The agent CLIs THAT builder reported installed; null/absent = it has not
+   *  said, which is unknown rather than none. */
+  builderAgents?: string[] | null;
   session: SessionState | null;
   git: GitState | null;
   sessionLifecycleSignals: boolean;

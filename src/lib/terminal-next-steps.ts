@@ -19,8 +19,19 @@ export const NEXT_STEPS_MAX = 3;
 
 export type NextStepsSource = "screen" | "reply";
 
-export const NEXT_STEPS_SYSTEM_PROMPT = [
-  "You help someone steer a coding agent (Claude Code) from their phone.",
+/**
+ * The instructions for the model, naming the agent actually in the session —
+ * it was always "Claude Code", so a Codex session was steered as if it were
+ * Claude (its commands, its habits). Unknown agent: no name, not a guess.
+ */
+export function nextStepsSystemPrompt(agentLabel: string | null): string {
+  return [
+    `You help someone steer a coding agent${agentLabel ? ` (${agentLabel})` : ""} from their phone.`,
+    ...NEXT_STEPS_RULES,
+  ].join(" ");
+}
+
+const NEXT_STEPS_RULES = [
   `Reply with exactly ${NEXT_STEPS_MAX} instructions they could send the agent next, one per line, nothing else.`,
   "Each is written as the instruction itself, imperative, specific to what the agent just did or asked,",
   "under 50 characters so it reads whole on a phone, no numbering, no quotes, no markdown.",
@@ -28,7 +39,7 @@ export const NEXT_STEPS_SYSTEM_PROMPT = [
   "If the agent says it cannot do the task because it is missing data, access or a file, do not approve anything and do not tell it to do what it just said it cannot: suggest the part it CAN do, or a different approach. Loki offers to attach the project's feedback reports on its own, so never suggest exporting or pasting them.",
   "Put first the step you would recommend; the others are real alternatives, not rephrasings.",
   "Never suggest something the agent already reports as done.",
-].join(" ");
+];
 
 export function buildNextStepsPrompt(
   context: string,

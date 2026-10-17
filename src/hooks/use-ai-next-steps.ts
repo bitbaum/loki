@@ -19,6 +19,8 @@ export function useAiNextSteps(
   context: string | null,
   source: NextStepsSource,
   project: string | null,
+  /** The agent in the session (adapter id), so the steps fit its CLI. */
+  agent: string | null = null,
 ): string[] | null {
   const [result, setResult] = useState<{ context: string; steps: string[] } | null>(null);
   const asked = useRef<string | null>(null);
@@ -32,7 +34,7 @@ export function useAiNextSteps(
         const res = await fetch("/api/terminal/next-steps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ context, source, project }),
+          body: JSON.stringify({ context, source, project, agent }),
           signal: controller.signal,
         });
         const data = (await res.json().catch(() => ({}))) as { steps?: unknown };
@@ -48,7 +50,7 @@ export function useAiNextSteps(
       window.clearTimeout(t);
       controller.abort();
     };
-  }, [context, source, project]);
+  }, [context, source, project, agent]);
 
   return result && result.context === context ? result.steps : null;
 }
