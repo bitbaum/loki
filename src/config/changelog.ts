@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.43",
+    tag: "fleet-runner-v0.8.43",
+    date: "2026-10-17T18:00:00Z",
+    highlights: [
+      "A project set to an agent this computer does not have is no longer started on a terminal that cannot run it. Loki says which agent is missing and that nothing was started.",
+      "A Claude conversation names the model and effort it is using, read from Claude Code's own log.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.42",
     tag: "fleet-runner-v0.8.42",
     date: "2026-10-12T12:00:00Z",
