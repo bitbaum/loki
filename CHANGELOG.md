@@ -6,6 +6,16 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-17 — See what every session is doing
+
+- **Each tab says what its session is doing.** A breathing dot while it works,
+  amber when it is waiting on you, green when it has finished, grey when it is
+  just open — on the phone's row of sessions and on the desktop strip alike.
+- **Hear from the sessions you are not looking at.** When another session
+  finishes or starts waiting on you, one line says so ("orangecat needs you")
+  with **Open** beside it. It goes away on its own, when you open that session,
+  or with ×.
+
 ## 2026-10-17 — Terminal tabs on your phone
 
 - **Several sessions at once, on a phone too.** With more than one session open,

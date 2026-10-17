@@ -37,9 +37,10 @@ async function main() {
       contents: `import React,{useState} from 'react';import{createRoot}from'react-dom/client';
         import{TerminalMobileHeader}from'./src/components/terminal/TerminalMobileHeader';
         import{TerminalNewSessionSheet}from'./src/components/terminal/TerminalNewSessionSheet';
+        import{TerminalSessionNotice}from'./src/components/terminal/TerminalSessionNotice';
         const q=new URLSearchParams(location.search);
-        const all=[{id:'substrata',label:'substrata'},{id:'orangecat',label:'orangecat'},
-          {id:'substrata~1a2b3c4d',label:'substrata 2'},{id:'heidi',label:'heidi'}];
+        const all=[{id:'substrata',label:'substrata',status:'working'},{id:'orangecat',label:'orangecat',status:'needs-you'},
+          {id:'substrata~1a2b3c4d',label:'substrata 2',status:'done'},{id:'heidi',label:'heidi',status:'idle'}];
         function App(){
           const sessions=all.slice(0,Number(q.get('n')||1));
           const [active,setActive]=useState(sessions[0].id);
@@ -50,6 +51,8 @@ async function main() {
               onOpenSheet={()=>{window.__sheet=true}} immersive={false} onToggleImmersive={()=>{}}
               view="chat" onViewChange={()=>{}} sessions={sessions} activeSession={active}
               onSelectSession={setActive} onNewSession={()=>setOpen(true)}/>
+            {q.has('notice')&&<TerminalSessionNotice tabs={sessions} onOpen={setActive}
+              news={{statuses:{},notice:{tab:'orangecat',status:'needs-you'},dismissNotice(){}}}/>}
             {open&&<TerminalNewSessionSheet onClose={()=>setOpen(false)}
               projects={[{name:'substrata',dir:'/d/substrata',agentPref:null},{name:'orangecat',dir:'/d/orangecat',agentPref:null}]}
               agents={[{id:'claude',label:'Claude'}]} defaultAgent="claude" activeProject="substrata"
@@ -130,6 +133,14 @@ async function main() {
       );
       await page.screenshot({ path: path.join(shots, `${width}-four.png`) });
 
+      // Every other tab says what its session is doing, in colour and in words.
+      assert.equal(
+        await page.getByRole("button", { name: "Switch to orangecat — needs you" }).count(),
+        1,
+        "a session waiting on you says so",
+      );
+      assert.equal(await page.locator(".ui-term-mtab .ui-term-live-dot-warn").count(), 1);
+
       // A tap switches; the current one still opens the sheet.
       await page.getByRole("button", { name: "Switch to orangecat" }).click();
       assert.equal(
@@ -141,6 +152,17 @@ async function main() {
         await page.evaluate(() => (window as unknown as { __sheet: boolean }).__sheet),
         true,
       );
+
+      // News from another session: one line, with Open.
+      await mount("?n=4&notice=1");
+      await page.getByRole("status").getByText("needs you").waitFor();
+      await page.getByRole("status").getByRole("button", { name: "Open" }).click();
+      assert.equal(
+        await page.evaluate(() => (window as unknown as { __active: string }).__active),
+        "orangecat",
+      );
+      assert.equal(await overflow(), false);
+      await page.screenshot({ path: path.join(shots, `${width}-notice.png`) });
 
       // "+" on a busy project offers a second session beside it.
       await mount("?n=2&new=1");

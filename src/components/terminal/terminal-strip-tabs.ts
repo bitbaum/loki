@@ -12,6 +12,8 @@ export function laneNumber(tabs: readonly string[], tab: string): number {
 import type { TabAliases } from "./terminal-agent";
 import { arrangeTabs, readableTabName, type TabLayout } from "./terminal-tab-order";
 import type { TerminalTab } from "./TerminalTabStrip";
+import { SESSION_STATUS_DOT } from "./session-status-dot";
+import { SESSION_STATUS_WORDS, type SessionStatus } from "@/lib/terminal-session-status";
 
 /**
  * The strip tells the truth about each tab: the project it resolves to (by
@@ -26,6 +28,7 @@ export function buildStripTabs(
   activeTab: string | null,
   aliases: TabAliases,
   layout: TabLayout,
+  statuses: Readonly<Record<string, SessionStatus>> = {},
 ): TerminalTab[] {
   const projectOf = (tab: string) =>
     context?.tabs.find((t) => t.tab === tab)?.projectName ?? baseProjectKey(tab);
@@ -46,8 +49,22 @@ export function buildStripTabs(
       label,
       original: derived,
       badge,
-      title: [label !== tab ? tab : null, badge].filter(Boolean).join(" — ") || undefined,
-      dot: tab === activeTab ? "ui-dot-positive" : undefined,
+      title:
+        [
+          label !== tab ? tab : null,
+          badge,
+          statuses[tab] ? SESSION_STATUS_WORDS[statuses[tab]] : null,
+        ]
+          .filter(Boolean)
+          .join(" — ") || undefined,
+      // Every tab says what its session is doing; without a status yet, the
+      // one you are in keeps the plain "this one" dot it always had.
+      dot: statuses[tab]
+        ? SESSION_STATUS_DOT[statuses[tab]]
+        : tab === activeTab
+          ? "ui-dot-positive"
+          : undefined,
+      status: statuses[tab] ?? null,
       pinned: pinned.has(tab),
       group: layout.groupByProject ? project : undefined,
     };

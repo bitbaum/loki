@@ -13,6 +13,8 @@ export type TerminalTab = {
   badge?: string;
   /** Dot class (`ui-dot-positive` etc). Omit for no status dot. */
   dot?: string;
+  /** What the session is doing, when known (terminal-session-status.ts). */
+  status?: import("@/lib/terminal-session-status").SessionStatus | null;
   title?: string;
   /** Pinned tabs sit first and keep a pin where the Alt+N ordinal would be. */
   pinned?: boolean;
