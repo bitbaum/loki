@@ -23,7 +23,15 @@ import { githubReleaseClient, type ReleaseGithub } from "./release-github";
 import { repoTokenPicker } from "./sync";
 
 export type ReleaseAccess =
-  | { ok: true; via: "project" | "github"; ref: RepoRef; defaultBranch: string; gh: ReleaseGithub }
+  | {
+      ok: true;
+      via: "project" | "github";
+      ref: RepoRef;
+      defaultBranch: string;
+      gh: ReleaseGithub;
+      /** The token `gh` acts with — for the few writes ReleaseGithub has no method for. */
+      token: string;
+    }
   | { ok: false; reason: string; connectGithub: boolean };
 
 /** Look the owner up for one package and one viewer. Never throws. */
@@ -59,7 +67,7 @@ export async function resolveReleaseAccess(
     });
     if (!decision.ok) return decision;
     if (!repo) return { ok: false, reason: RELEASE_MESSAGES.unreadable, connectGithub: false };
-    return { ...decision, ref, defaultBranch: repo.defaultBranch, gh };
+    return { ...decision, ref, defaultBranch: repo.defaultBranch, gh, token: token as string };
   } catch {
     return { ok: false, reason: RELEASE_MESSAGES.unreadable, connectGithub: false };
   }
