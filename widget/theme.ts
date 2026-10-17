@@ -322,7 +322,7 @@ ${spiralCSS(theme)}
      and fits what is visible, so the starters and the way into Loki step
      aside and the thread keeps the room. They return when the keyboard goes. */
   .panel.kb .starters, .panel.kb .continue { display: none; }
-  .starters, .fc-kit .ck-replies { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .starter, .fc-kit .ck-reply { flex: none; white-space: nowrap; } /* one row to swipe, not a 140px stack */
+  .convo > .starters, .fc-kit .ck-replies { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .convo > .starters > .starter, .fc-kit .ck-reply { flex: none; white-space: nowrap; } .made-with .mw-more { display: none; } /* one row to swipe; "Made with Loki →" — specific enough to beat the base rules below */
   .panel.kb { padding-bottom: 12px; }
 }
 .hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -367,7 +367,7 @@ ${spiralCSS(theme)}
 /* the one conversation */
 .convo { display: flex; flex-direction: column; gap: 10px; overflow: hidden; } /* only the thread scrolls — README "Send is always reachable" */
 .convo > * { flex: none; }
-.convo > .chatlog { flex: 1 1 auto; min-height: 0; }
+.convo > .chatlog { flex: 1 9999 auto; min-height: 0; }
 .ctxbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; min-height: 36px; }
 .scope { position: relative; min-width: 0; }
 .scopebtn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 2px; font-size: 12px; color: ${theme.textSecondary}; }
@@ -607,7 +607,7 @@ input { margin-bottom: 10px; }
   border: 1px solid ${theme.borderStrong}; border-radius: 999px; background: transparent; }
 .chatlink:first-child { color: ${theme.accent}; border-color: ${theme.accent}; }
 .chatlink:hover { border-color: ${theme.accent}; }
-.starters { display: flex; flex-wrap: wrap; gap: 6px; }
+.starters { display: flex; flex-wrap: wrap; gap: 6px; } .convo > .starters { flex: 0 1 auto; min-height: 0; overflow-y: hidden; } /* gives way before the composer does */
 .starter { font-size: 12px; color: ${theme.textSecondary}; padding: 6px 12px; border: 1px solid ${theme.borderStrong}; border-radius: 999px; text-align: left; }
 .starter:hover { color: ${theme.text}; border-color: ${theme.accent}; }
 .chatform { display: flex; gap: 8px; align-items: flex-end; }

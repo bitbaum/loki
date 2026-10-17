@@ -121,6 +121,10 @@ Rules that resolve the trade-offs:
   real heights (390×667, 360×640, 1280×720) in both browser suites, and by
   self-watch on every open. Production broke this on 2026-10-17 at heights no
   test used: a tap on Send opened "Made with Loki" instead.
+  When the room runs out, the thread gives way first, then the starter chips
+  (one swipe row on a phone), never the composer. The suites also assert the
+  causes on phones — starters one row, footer one line ("Made with Loki →") —
+  because a fixture once reached Send while orangecat.ch at 390×667 did not.
 - **Fits on a phone, with a mic.** The panel must never scroll sideways at
   320–1200px with every control present (a composer tested without a mic once
   pushed *Ask Loki* out of the panel).

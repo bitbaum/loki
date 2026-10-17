@@ -279,7 +279,12 @@ async function main() {
         .filter((b) => (b as HTMLElement).offsetParent !== null)
         .filter((b) => {
           const x = b.getBoundingClientRect();
-          return x.right > box.right + 0.5 || x.left < box.left - 0.5;
+          if (x.right <= box.right + 0.5 && x.left >= box.left - 0.5) return false;
+          // A chip in a row you swipe (overflow-x: auto) is clipped by that
+          // row on purpose — on a phone the starters are one such row.
+          for (let e = b.parentElement; e && e !== panel; e = e.parentElement)
+            if (/(auto|scroll)/.test(getComputedStyle(e).overflowX)) return false;
+          return true;
         })
         .map((b) => (b as HTMLElement).innerText || b.getAttribute("aria-label"));
       return {
@@ -308,6 +313,7 @@ async function main() {
     [390, 760],
     [390, 667],
     [360, 640],
+    [320, 568],
     [1280, 720],
   ]) {
     const t = await open(browser, tag(), js, { width, height, withMic: true });
@@ -325,6 +331,23 @@ async function main() {
           hit: hit ? (hit as HTMLElement).className || hit.tagName : null,
         };
       });
+    // The causes, not only the symptom: this fixture reached Send while
+    // orangecat.ch at 390×667 did not, because there the starters were a
+    // 129px stack (the phone rule lost to a later base rule) and the footer
+    // wrapped to two rows. On a phone both must be one row.
+    if (width <= 480 && width >= 360) {
+      const rows = await t.p.evaluate(() => {
+        const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+        return {
+          starters: Math.round(r.querySelector(".starters")?.getBoundingClientRect().height ?? 0),
+          foot: Math.round(r.querySelector(".panel-foot")?.getBoundingClientRect().height ?? 0),
+        };
+      });
+      ok(
+        rows.starters <= 52 && rows.foot <= 48,
+        `${width}×${height}: starters and footer are one row each (${JSON.stringify(rows)})`,
+      );
+    }
     const first = await reach();
     ok(
       first.onScreen && first.reached,
