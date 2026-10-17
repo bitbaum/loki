@@ -35,6 +35,8 @@ import { getProjectShareByToken } from "./project-shares";
 import type { UserProject } from "@/db/schema";
 import type { orchestrationRuns } from "@/db/schema/orchestration-runs";
 import type { ProjectShare } from "@/db/schema/project-shares";
+import type { ProjectRole } from "@/db/schema/project-memberships";
+import { getProjectAccess } from "./project-access";
 import { ENTITY_TYPE } from "@/lib/constants/statuses";
 import { renderOperatingPrinciples } from "@/config/operating-principles";
 import { getGithubToken } from "@/lib/github-token";
@@ -56,6 +58,10 @@ export type ProjectDossier = {
   ownerId: string;
   /** Viewer is an org peer, not the owner — page renders read-only. */
   readonly: boolean;
+  /** How the viewer reaches the project: "owner", their member role, or null
+   *  for an org teammate with no seat of their own. Named in the header so a
+   *  Builder is not told the project is "view only". */
+  viewerRole: "owner" | ProjectRole | null;
   /** Project editor capability is narrower than ownership: editors can work
    * feedback without changing billing, identity, or membership. */
   canEditFeedback: boolean;
@@ -88,6 +94,10 @@ export async function getProjectDossier(
   const resolved = await resolveProjectDetailWithOrgFallback(viewerUserId, projectId);
   if (!resolved) return null;
   const { detail, ownerId, canEdit } = resolved;
+  const viewerRole =
+    ownerId === viewerUserId
+      ? "owner"
+      : ((await getProjectAccess(viewerUserId, projectId).catch(() => null))?.role ?? null);
   const projectKey = detail.project.name;
 
   const [activity, runs, outcomes, userProject] = await Promise.all([
@@ -128,6 +138,7 @@ export async function getProjectDossier(
     detail,
     ownerId,
     readonly: ownerId !== viewerUserId,
+    viewerRole,
     canEditFeedback: canEdit,
     state,
     activity,

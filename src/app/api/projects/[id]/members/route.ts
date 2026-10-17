@@ -17,9 +17,16 @@ import { PROJECT_ROLE_VALUES } from "@/db/schema";
 import { PROJECT_INVITE_TTL_DAYS, projectInvitePath } from "@/lib/project-invites";
 import { appUrl, projectInviteTemplate, sendEmail } from "@/lib/email";
 
+// No email: an open link the owner sends themselves (WhatsApp, a text).
 const AddBody = z.object({
-  email: z.string().email().max(320),
-  role: z.enum(PROJECT_ROLE_VALUES).default("editor"),
+  email: z
+    .string()
+    .trim()
+    .email()
+    .max(320)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  role: z.enum(PROJECT_ROLE_VALUES).default("viewer"),
 });
 const DeleteBody = z.union([
   z.object({ userId: z.string().uuid() }),
@@ -58,6 +65,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await readJsonBody(req, AddBody);
   if (body instanceof NextResponse) return body;
 
+  // An open link: nothing to look up or email — the owner sends it.
+  if (!body.email) {
+    const { invitation, token } = await createProjectInvitation({
+      projectId: result.id,
+      email: null,
+      role: body.role,
+      invitedBy: result.userId,
+    });
+    return jsonOk({
+      invitation: {
+        id: invitation.id,
+        email: null,
+        role: invitation.role,
+        expiresAt: invitation.expiresAt,
+      },
+      link: `${appUrl()}${projectInvitePath(token)}`,
+      emailed: false,
+    });
+  }
+
   // Already has an account: add them directly, as before.
   const user = await getUserByEmail(body.email);
   if (user) {
@@ -94,7 +121,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         inviteUrl: link,
         expiresDays: PROJECT_INVITE_TTL_DAYS,
       });
-      await sendEmail(invitation.email, mail.subject, mail.html, mail.text, {
+      await sendEmail(body.email, mail.subject, mail.html, mail.text, {
         idempotencyKey: `project-invite-${invitation.id}`,
       });
       emailed = true;
