@@ -155,8 +155,11 @@ export function describeQuota(
   // for good: on 2026-10-17 five OpenRouter models read "None left right now"
   // from readings taken on 15 September and 8 October, the picker locked them,
   // and nothing reached them again to take a fresher reading.
+  // The same holds for a counter whose window the vendor never named: a
+  // refusal's "0 tokens left" from 13 September was still locking Nemotron 3
+  // Super on 17 October. Per-minute counters age out above, much sooner.
   const dayStale =
-    row.window === "day" &&
+    row.window !== "minute" &&
     row.resetAt == null &&
     observed !== null &&
     observed < startOfUtcDay(opts.now);

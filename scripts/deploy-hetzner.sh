@@ -394,6 +394,14 @@ ssh "$HOST" "chown -R ubuntu:ubuntu $BRIDGE_DIR \
   && systemctl is-active loki-bridge >/dev/null"
 echo "  ✓ loki-bridge active"
 
+# The agents' standing instructions (~/.claude/CLAUDE.md for the runner user)
+# come from scripts/hetzner/box-agent-claude.md. They used to be written only by
+# install-box-runner.sh, so every later edit to the contract stayed in the repo
+# and never reached the agents. Merge-only and idempotent; read at each session
+# start, so no runner restart. Never fails the deploy.
+LOKI_RUNNER_OWNER="$RUNNER_OWNER" timeout 60 bash "$SCRIPT_DIR/hetzner/apply-box-agent-contract.sh" "$HOST" \
+  || echo "  ⚠ box agent contract not applied (the deploy continues)"
+
 # Cloud builder (box-runner) — separate systemd unit from loki-app so app
 # deploys never kill running agent PTYs. Still sync runner code on every ship
 # so poller/pty-runtime fixes reach the always-on executor.

@@ -153,8 +153,9 @@ export function StartMyDay() {
           {editing && (
             <div className="mt-3 space-y-3" aria-label="Your main projects">
               <p className="text-sm text-text-secondary">
-                Main projects stay here even when quiet. Names you set here are personal labels;
-                repositories and other members&apos; names stay unchanged.
+                Main projects stay here even when quiet, including projects shared with you. Names
+                you set here are personal labels; repositories and other members&apos; names stay
+                unchanged.
               </p>
               <input
                 className="ui-input w-full"
@@ -220,14 +221,11 @@ export function StartMyDay() {
               </div>
             </div>
           )}
-          {projects.length === 0 ? (
-            <p className="mt-3 text-sm text-text-secondary">
-              Choose your main projects above to keep them here, including projects shared with you.{" "}
-              <Link href={NAV.projects.href} className="ui-link-muted">
-                Choose a project →
-              </Link>
-            </p>
-          ) : (
+          {/* Nothing chosen yet: the line above and the button already say
+              it. A third sentence ("Choose your main projects above…") and a
+              "Choose a project →" link that went to a different page are
+              what the card read as on the live demo (2026-10-17). */}
+          {projects.length === 0 ? null : (
             <>
               <button
                 type="button"

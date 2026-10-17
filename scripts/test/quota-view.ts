@@ -494,6 +494,18 @@ check("a daily 'none left' read before today is not today's answer", () => {
     { now: NOW, nextProvider: null },
   );
   assert.equal(fresh.state, "exhausted");
+  // A refusal's reading names no window at all; a month old, it is no answer either.
+  const refusal = describeQuota(
+    row({
+      window: "unknown",
+      scope: "tokens",
+      remaining: 0,
+      resetAt: null,
+      observedAt: new Date(Date.UTC(2026, 7, 13, 16, 24)),
+    }),
+    { now: NOW, nextProvider: null },
+  );
+  assert.equal(refusal.state, "unknown");
 });
 
 console.log(`✓ quota view: ${passed} checks passed`);

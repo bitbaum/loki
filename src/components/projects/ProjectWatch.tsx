@@ -428,7 +428,10 @@ function cardPhase(input: {
   // Settled but waiting on a person (no pull request found): not "Live".
   if (input.track?.stages.some((s) => s.state === "attention")) return "attention";
   if (input.track && !input.track.settled) return "following";
-  return "live";
+  // Settled without reaching the live site and without failing: finished,
+  // not "Live" — a branch with no pull request, or a run older than Loki
+  // follows, said "Live" here with a green dot.
+  return "finished";
 }
 
 /** A one-word state ("Queued") as a headline a person can read. */

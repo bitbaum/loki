@@ -421,49 +421,105 @@ check("what the repository shows rides on the track: commits as facts, checks as
   );
 });
 
-// The demo's kestrel run (owner's walk-through, 2026-10-17): finished well,
-// no claim event, no pull request, two days old. The track said "No builder
-// picked it up" in red above "Claude Code finished" in green, then "Looking
-// for the pull request · 66h 21m".
-check("a run that finished well was picked up, even with no claim event", () => {
-  const t = buildRunTrack({
+check("a run that finished well was picked up, even with no claim on record", () => {
+  // The live demo's seeded run: no claimed/launched events, closed with
+  // success. The card read "No builder picked it up" above "finished".
+  const i: RunTrackInput = {
     ...base,
-    eventKinds: ["dispatched"],
+    eventKinds: ["dispatched", "handoff"],
     run: {
-      startedAt: "2026-10-15T18:44:00Z",
-      finishedAt: "2026-10-15T19:13:00Z",
+      startedAt: "2026-10-14T04:20:00Z",
+      finishedAt: "2026-10-14T04:49:00Z",
       outcome: "success",
     },
     phase: "done",
-    now: Date.parse("2026-10-15T19:20:00Z"),
-  });
-  const builder = t.stages.find((s) => s.id === "builder")!;
-  assert.equal(builder.state, "done");
-  assert.ok(!t.stages.some((s) => s.state === "failed"), "nothing on the track contradicts it");
-  assert.equal(t.stages.find((s) => s.id === "pr")!.label, "Looking for the pull request");
-  assert.equal(t.settled, false, "inside the window it is still looking");
+    builderLabel: "the cloud builder",
+  };
+  const t = buildRunTrack(i);
+  assert.equal(t.stages[1].state, "done");
+  assert.equal(
+    t.stages[1].label,
+    "The cloud builder picked it up",
+    "a label starts with a capital",
+  );
+  assert.ok(!t.stages.some((s) => s.state === "failed"), "no stage contradicts the finish");
 });
 
-check("past the window, no pull request is said plainly and the clock stops", () => {
-  const fin = Date.parse("2026-10-15T19:13:00Z");
-  const t = buildRunTrack({
+check("past the follow window nothing waits forever: no stage is 'now', the track settles", () => {
+  const old: RunTrackInput = {
     ...base,
+    eventKinds: ["dispatched", "claimed", "generating", "handoff"],
     run: {
-      startedAt: "2026-10-15T18:44:00Z",
-      finishedAt: "2026-10-15T19:13:00Z",
+      startedAt: "2026-10-14T04:20:00Z",
+      finishedAt: "2026-10-14T04:49:00Z",
       outcome: "success",
     },
     phase: "done",
-    now: fin + PR_LOOK_WINDOW_MS + 60_000,
+    followable: false,
+  };
+  const t = buildRunTrack(old);
+  assert.ok(!t.stages.some((s) => s.state === "now"), states(old));
+  assert.equal(t.stages.find((s) => s.id === "pr")!.at, null, "no clock on a stage nobody follows");
+  assert.match(t.stages.find((s) => s.id === "pr")!.note!, /two days/);
+  assert.equal(
+    t.stages.find((s) => s.id === "pr")!.label,
+    "No pull request on record",
+    "a stage nobody follows does not say it is looking",
+  );
+  assert.equal(t.settled, true, "the page stops asking");
+  assert.match(t.summary, /^Claude Code finished — this ran more than two days ago/);
+
+  const prOpen = buildRunTrack({ ...old, fix: ledger(FIX_SHIP_STATE.PR_OPEN, { prUrl: PR }) });
+  assert.equal(prOpen.stages.find((s) => s.id === "pr")!.state, "done", "what is on record stays");
+  assert.equal(prOpen.stages.find((s) => s.id === "merged")!.state, "next");
+  assert.equal(prOpen.stages.find((s) => s.id === "merged")!.label, "Merge not on record");
+  assert.match(prOpen.summary, /^Pull request opened — this ran more than two days ago/);
+  assert.equal(prOpen.settled, true);
+
+  const live = buildRunTrack({ ...old, fix: ledger(FIX_SHIP_STATE.DEPLOYED, { prUrl: PR }) });
+  assert.match(
+    live.summary,
+    /^Live on petvity\.orangecat\.ch/,
+    "a finished story is told as it was",
+  );
+
+  // Just finished (inside PR_LOOK_WINDOW_MS as well as the follow window).
+  const recent = buildRunTrack({
+    ...old,
+    followable: true,
+    now: Date.parse("2026-10-14T04:55:00Z"),
   });
+  assert.equal(
+    recent.stages.find((s) => s.id === "pr")!.state,
+    "now",
+    "inside the window it looks",
+  );
+});
+
+// Inside the two days Loki follows a run, but past half an hour with nothing
+// on GitHub: "Looking for the pull request" with a clock was no longer true
+// (owner's walk-through of the demo, 2026-10-17).
+check("followed, finished, no pull request after the look window: said plainly, settled", () => {
+  const fin = Date.parse("2026-10-15T19:13:00Z");
+  const run = {
+    startedAt: "2026-10-15T18:44:00Z",
+    finishedAt: "2026-10-15T19:13:00Z",
+    outcome: "success",
+  };
+  const early = buildRunTrack({ ...base, run, phase: "done", now: fin + 5 * 60_000 });
+  assert.equal(early.stages.find((s) => s.id === "pr")!.label, "Looking for the pull request");
+  assert.equal(early.settled, false, "inside the window it is still looking");
+  const t = buildRunTrack({ ...base, run, phase: "done", now: fin + PR_LOOK_WINDOW_MS + 60_000 });
   const pr = t.stages.find((s) => s.id === "pr")!;
   assert.equal(pr.label, "No pull request found");
   assert.equal(pr.state, "attention");
-  assert.equal(t.settled, true, "nothing will move — the page stops asking");
+  assert.equal(pr.at, null, "no clock on a stage that will not move");
+  assert.equal(t.settled, true);
   assert.match(t.summary, /no pull request was found/);
+  assert.ok(!t.stages.some((s) => s.state === "failed"), "nothing contradicts it");
 });
 
-check("a found pull request is never overridden by the window", () => {
+check("a found pull request is never overridden by the look window", () => {
   const fin = Date.parse("2026-10-15T19:13:00Z");
   const t = buildRunTrack({
     ...base,
@@ -477,6 +533,22 @@ check("a found pull request is never overridden by the window", () => {
     now: fin + 10 * PR_LOOK_WINDOW_MS,
   });
   assert.equal(t.stages.find((s) => s.id === "pr")!.label, "Pull request opened");
+});
+
+check("past the follow window, main's 'not on record' wording wins over the look window", () => {
+  const fin = Date.parse("2026-10-10T19:13:00Z");
+  const t = buildRunTrack({
+    ...base,
+    run: {
+      startedAt: "2026-10-10T18:44:00Z",
+      finishedAt: "2026-10-10T19:13:00Z",
+      outcome: "success",
+    },
+    phase: "done",
+    followable: false,
+    now: fin + 7 * 24 * 3600_000,
+  });
+  assert.equal(t.stages.find((s) => s.id === "pr")!.label, "No pull request on record");
 });
 
 console.log(`\n✓ run-track: ${passed} passed`);

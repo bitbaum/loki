@@ -120,17 +120,24 @@ export type RunTrackInput = {
   providerLabel: string;
   /** Why a failed run stopped, in one sentence (humanizeRunFailure). */
   failure: string | null;
+  /**
+   * Loki still follows this run to GitHub (lib/run-follow FOLLOW_WINDOW_MS:
+   * two days after it ran). Past that nothing is looked up any more, so a
+   * stage still waiting on GitHub would wait — and its clock tick — forever.
+   * Omitted means yes.
+   */
+  followable?: boolean;
   /** Clock for the one judgement that needs time (PR_LOOK_WINDOW_MS); tests pin it. */
   now?: number;
 };
 
 /**
  * How long after the agent finishes "Looking for the pull request" may stay
- * the answer. The fix ledger is re-read every few minutes while anyone looks
- * (fixNeedsRefresh); a pull request the agent opened shows up well inside
- * this. Past it, "looking" is no longer true: the demo's kestrel run sat on
- * "Looking for the pull request · 66h 21m" (owner's walk-through,
- * 2026-10-17), a clock that would never stop.
+ * the answer, inside the window Loki still follows a run in. The fix ledger
+ * is re-read every few minutes while anyone looks (fixNeedsRefresh); a pull
+ * request the agent opened shows up well inside this. Past it, "looking" is
+ * no longer true, and a clock on it read as still going (owner's
+ * walk-through of the demo, 2026-10-17).
  */
 export const PR_LOOK_WINDOW_MS = 30 * 60_000;
 
@@ -189,7 +196,9 @@ type Facts = {
   provider: string;
   askedAt: string | null;
   startedWorkAt: string | null;
-  /** Finished well, no pull request or push found, and past PR_LOOK_WINDOW_MS. */
+  /** Finished well, but older than the window Loki follows a change in. */
+  unfollowed: boolean;
+  /** Still followed, finished well, nothing on GitHub, past PR_LOOK_WINDOW_MS. */
   noPrFound: boolean;
 };
 
@@ -206,13 +215,20 @@ function readFacts(input: RunTrackInput): Facts {
     null;
   const commits = repo?.commits ?? [];
   const t = input.eventTimes;
+  const finishedWell =
+    finished &&
+    (outcome === ORCHESTRATION_OUTCOME.SUCCESS || outcome === ORCHESTRATION_OUTCOME.PARTIAL);
   return {
     input,
     finished,
-    finishedWell:
-      finished &&
-      (outcome === ORCHESTRATION_OUTCOME.SUCCESS || outcome === ORCHESTRATION_OUTCOME.PARTIAL),
-    started: [...kinds].some((k) => STARTED.has(k)),
+    finishedWell,
+    // A run that finished well was run by a builder, whether or not its claim
+    // was recorded — seeded and older runs carry no claim event, and "No
+    // builder picked it up" above "Claude Code finished" is a contradiction.
+    started: [...kinds].some((k) => STARTED.has(k)) || finishedWell,
+    unfollowed: finishedWell && input.followable === false,
+    noPrFound:
+      input.followable !== false && noPrFound(input, prUrl, commits.length > 0, finishedWell),
     generated: [...kinds].some((k) => GENERATED.has(k)),
     lastKind: input.eventKinds.at(-1) ?? null,
     ship,
@@ -228,17 +244,18 @@ function readFacts(input: RunTrackInput): Facts {
     provider: input.providerLabel,
     askedAt: input.askedAt ?? input.run?.startedAt ?? null,
     startedWorkAt: t.generating ?? t.submitted ?? t.launched ?? t.claimed ?? null,
-    noPrFound: noPrFound(input, prUrl, commits.length > 0),
   };
 }
 
-function noPrFound(input: RunTrackInput, prUrl: string | null, committed: boolean): boolean {
+function noPrFound(
+  input: RunTrackInput,
+  prUrl: string | null,
+  committed: boolean,
+  finishedWell: boolean,
+): boolean {
   const fin = Date.parse(input.run?.finishedAt ?? "");
-  const outcome = input.run?.outcome;
-  const well =
-    outcome === ORCHESTRATION_OUTCOME.SUCCESS || outcome === ORCHESTRATION_OUTCOME.PARTIAL;
   return (
-    well &&
+    finishedWell &&
     Number.isFinite(fin) &&
     !prUrl &&
     !input.evidence &&
@@ -285,18 +302,9 @@ function builderStage(f: Facts): TrackStage {
   if (t.launched) facts.push({ text: `Opened an agent session.`, at: t.launched });
   if (t.submitted)
     facts.push({ text: `Delivered your request to ${f.provider}.`, at: t.submitted });
-  // An agent that finished its work was, by that fact, picked up — even when
-  // the claim itself left no event. "No builder picked it up" (red) directly
-  // above "Claude Code finished" (green) is what the demo's track said.
-  if (f.started || f.finishedWell)
+  if (f.started)
     return stage("builder", `${who.charAt(0).toUpperCase()}${who.slice(1)} picked it up`, "done", {
-      at:
-        t.claimed ??
-        t.launched ??
-        t.submitted ??
-        t.generating ??
-        t.progress ??
-        (f.started ? null : (f.input.run?.startedAt ?? null)),
+      at: t.claimed ?? t.launched ?? t.submitted ?? t.generating ?? t.progress ?? null,
       facts,
     });
   // The reason is the card's headline (summaryOf); saying it twice, one line
@@ -418,8 +426,7 @@ function prStage(f: Facts): TrackStage {
   if (f.noPrFound)
     return stage("pr", "No pull request found", "attention", {
       note: "The agent finished, but Loki found no pull request for it — open the run to see what it left.",
-      // No time: a stage that will never move must not carry a running
-      // clock ("57h 29m" read as still going).
+      // No time: a stage that will not move must not carry a running clock.
       at: null,
     });
   if (f.finishedWell)
@@ -568,13 +575,36 @@ function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
   return "Waiting for a builder to pick it up — usually under a minute.";
 }
 
+/** What a stage that was still moving reads once nobody follows it any more. */
+const STALE_LABEL: Partial<Record<TrackStageId, string>> = {
+  pr: "No pull request on record",
+  merged: "Merge not on record",
+  live: "Deploy not on record",
+};
+
 export function buildRunTrack(input: RunTrackInput): RunTrack {
   const f = readFacts(input);
   const builder = builderStage(f);
   const work = workingStage(f);
   const stages = [askedStage(f), builder, work, prStage(f), mergedStage(f), liveStage(f)];
 
+  // Past the window Loki follows a change in, nothing will be looked up again:
+  // a stage still "happening" would happen — and its clock tick — forever.
+  // Say what is on record, mark the rest not followed, and stop asking.
+  const stale = f.unfollowed && stages.some((st) => st.state === "now");
+  if (stale) {
+    for (const st of stages)
+      if (st.state === "now") {
+        st.state = "next";
+        // "Looking for the pull request" over "Not followed" says two things.
+        st.label = STALE_LABEL[st.id] ?? st.label;
+        st.note = "Not followed — Loki follows a change for two days after its run.";
+        st.at = null;
+      }
+  }
+
   const settled =
+    stale ||
     (f.ship === FIX_SHIP_STATE.DEPLOYED && (Boolean(input.fix?.looked) || !f.site)) ||
     f.ship === FIX_SHIP_STATE.PR_CLOSED ||
     (f.finished && !f.finishedWell) ||
@@ -587,7 +617,10 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
     [...stages].reverse().find((s) => s.state === "done")?.id ??
     "asked";
 
-  return { stages, summary: summaryOf(f, builder, work), settled, current };
+  const summary = stale
+    ? `${f.prUrl ? "Pull request opened" : `${f.provider} finished`} — this ran more than two days ago, so what happened after is not on record here.`
+    : summaryOf(f, builder, work);
+  return { stages, summary, settled, current };
 }
 
 // ── Timing ─────────────────────────────────────────────────────────────────

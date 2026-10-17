@@ -11,6 +11,8 @@ import {
   formatFeedbackForAgent,
   type FeedbackExportRow,
 } from "@/lib/feedback/agent-export";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { asksForFeedback } from "@/lib/terminal-suggestions";
 
 let passed = 0;
@@ -72,5 +74,15 @@ check(
   !asksForFeedback("Added a feedback link to the footer and pushed the fix."),
 );
 check("an empty reply asks for nothing", !asksForFeedback(null));
+
+// The box agents' contract tells them which sentence to say; that sentence
+// must be one the box notices, or the "attach" offer never appears.
+const contract = readFileSync(join(__dirname, "../hetzner/box-agent-claude.md"), "utf8");
+const told = /"(I need the feedback reports for <project>\.)"/.exec(contract)?.[1];
+check("the contract names the sentence to say", Boolean(told));
+check(
+  "and the box notices it",
+  asksForFeedback(`Nothing was attached.\n${told?.replace("<project>", "substrata")}`),
+);
 
 console.log(`\n${passed} passed`);
