@@ -7,6 +7,7 @@ import {
   getRecentOutcomesByProjectKeys,
 } from "@/db/queries/orchestration-runs";
 import {
+  getPromptsByRunIds,
   getRecentActivity,
   getRecentCustomPromptsByProjectKeys,
   type RecentCustomPrompt,
@@ -56,6 +57,7 @@ import { gateAndCloseRun, closingRuns } from "@/lib/orchestration/gate-and-close
 import { getSessionUserId } from "@/lib/session";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
+import { taskTitle } from "@/lib/task-title";
 import { isFleetInfrastructureAllowed, pickDispatchChannel } from "@/lib/execution-access";
 import { isHeartbeatFresh } from "@/lib/builder-presence";
 import { isAgentId, listAgentRegistry } from "@/lib/agent-registry";
@@ -377,8 +379,18 @@ async function loadControlSlices(
       return {};
     }),
   ]);
+  // What each project's latest run is ABOUT, for its title — one query for
+  // the whole page, keyed by run id.
+  const runPrompts = await getPromptsByRunIds(
+    userId,
+    [...latestRuns.values()].map((run) => run.id),
+  ).catch((e) => {
+    console.error("[control/GET] runPrompts failed:", e);
+    return new Map<string, { customPrompt: string | null; resolvedPrompt: string | null }>();
+  });
   return {
     latestRuns,
+    runPrompts,
     recentPromptsMap,
     recentOutcomesMap,
     activityByProject,
@@ -561,8 +573,22 @@ function resolveAgentRuntime(args: {
 }
 
 /** The wire shape of the project's most recent orchestration run. */
-function serializeLatestRun(latestRun: NonNullable<LatestRun>) {
+function serializeLatestRun(
+  latestRun: NonNullable<LatestRun>,
+  prompt?: { customPrompt: string | null; resolvedPrompt: string | null },
+) {
+  const payload = latestRun.payload;
   return {
+    id: latestRun.id,
+    outcome: latestRun.outcome ?? null,
+    // What the run is about, in plain words — never the prompt itself, which
+    // carries the agent's instructions and safety fences (lib/task-title).
+    title: taskTitle(prompt?.customPrompt ?? prompt?.resolvedPrompt, latestRun.intent),
+    lastProgressAt: typeof payload?.lastProgressAt === "string" ? payload.lastProgressAt : null,
+    lastStep:
+      payload?.lastStep && typeof payload.lastStep.text === "string" ? payload.lastStep : null,
+    blocked: typeof payload?.blocked === "string" ? payload.blocked : null,
+    sessionTab: typeof payload?.sessionTab === "string" ? payload.sessionTab : null,
     adapter: latestRun.adapter,
     intent: latestRun.intent,
     state: latestRun.state,
@@ -748,7 +774,9 @@ function buildProjectState(entry: ControlProjectEntry, ctx: ProjectStateContext)
       dir,
       slices.effectiveDbProjects,
     ),
-    latestOrchestrationRun: latestRun ? serializeLatestRun(latestRun) : null,
+    latestOrchestrationRun: latestRun
+      ? serializeLatestRun(latestRun, slices.runPrompts.get(latestRun.id))
+      : null,
   };
 }
 

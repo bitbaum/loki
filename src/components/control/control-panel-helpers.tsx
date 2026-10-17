@@ -1,67 +1,13 @@
 "use client";
 
 import React from "react";
-import { Bot, ChevronUp, ChevronDown } from "lucide-react";
+import { Bot } from "lucide-react";
 import { getAdapterLabel } from "@/config/control-intents";
 import { timeAgo } from "@/lib/dates";
 import type { ControlData } from "@/lib/control-types";
 
 type AgentEntry = ControlData["agentRegistry"]["agents"][number];
-type ActivityItem = ControlData["recentActivity"][number];
 type TabResult = { status: string; tab?: string; reason?: string; error?: string };
-
-/** Rows the Recent activity panel renders. The header count is clamped to
- *  this so it never advertises rows the panel won't show. */
-const RECENT_ACTIVITY_ROWS = 20;
-
-export function ActivityLogPanel({
-  activities,
-  open,
-  onToggle,
-}: {
-  activities: ActivityItem[];
-  open: boolean;
-  onToggle: () => void;
-}) {
-  if (activities.length === 0) return null;
-  return (
-    <div className="space-y-3 border-t border-border-subtle pt-4">
-      <button
-        onClick={onToggle}
-        className="ui-tap flex items-center gap-1 text-sm text-text-secondary transition-colors hover:text-text-primary"
-      >
-        <span className="ui-kicker">Recent activity</span>
-        {/* Count what this list SHOWS. The header printed the fetched total
-            (30) over a 20-row body with no "show more" — ten dispatches the
-            user was told about but could never see. */}
-        <span className="text-text-tertiary">
-          ({Math.min(activities.length, RECENT_ACTIVITY_ROWS)})
-        </span>
-        {open ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
-      </button>
-      {open && (
-        <div className="space-y-2">
-          {activities.slice(0, RECENT_ACTIVITY_ROWS).map((item) => (
-            <div key={item.id} className="ui-control-activity-item">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="shrink-0 font-medium text-text-primary">{item.projectKey}</span>
-                <span className="ml-auto shrink-0 text-xs text-text-tertiary">
-                  {timeAgo(new Date(item.dispatchedAt).getTime())}
-                </span>
-              </div>
-              <p
-                className="mt-1 text-sm leading-relaxed text-text-secondary"
-                title={item.displayText}
-              >
-                {item.displayText.slice(0, 120)}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function BrainConfigPanel({
   selectedAgent,

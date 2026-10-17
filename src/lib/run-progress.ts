@@ -47,7 +47,13 @@ export type RunProgressBeat = {
   lastOutputAt: string;
   /** Set when the runner can name why the terminal is quiet. */
   blocked?: RunBlocked | null;
+  /** What the agent is doing now, in a few words (lib/run-step), when the
+   *  runner can read its session log. */
+  step?: string;
 };
+
+/** The longest step a beat may carry. */
+export const RUN_STEP_MAX_CHARS = 160;
 
 export function isRunProgressFresh(
   lastProgressAt: string | null | undefined,
