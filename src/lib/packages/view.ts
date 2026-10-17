@@ -17,7 +17,13 @@ import {
   type UpdateRequestState,
   type UpdateStatus,
 } from "./update-policy";
-import { readPackageUpdateSetting, type UpdateDecision } from "@/config/package-updates";
+import {
+  UPDATE_DECISION,
+  UPDATE_DECISION_LABELS,
+  readPackageUpdateSetting,
+  type UpdateAction,
+  type UpdateDecision,
+} from "@/config/package-updates";
 
 /** The minimum an observation needs to carry for these views. */
 export type PackageUse = {
@@ -260,4 +266,96 @@ export function buildUpdateCards(
         a.projectName.localeCompare(b.projectName) ||
         a.prNumber - b.prNumber,
     );
+}
+
+/** An update the person already answered: what they chose and where it stands now. */
+export type DecidedUpdate = {
+  id: string;
+  projectName: string;
+  projectHref: string;
+  prNumber: number;
+  prUrl: string;
+  /** "kit 0.3.1 → 0.4.0", or the pull request title when no fleet package is in it. */
+  summary: string;
+  /** Their answer, in the words on the button they pressed. */
+  chose: string;
+  /** What happened because of it, now — read from the request, never assumed. */
+  outcome: string;
+  tone: UpdateStatus["tone"];
+  decidedAt: string;
+};
+
+/** Where a decided update stands, in one sentence. Pure: state and checks in, words out. */
+export function decidedOutcome(row: {
+  state: UpdateRequestState;
+  decision: UpdateDecision | null;
+  ciState: CiState;
+  snoozedUntil: Date | null;
+}): { text: string; tone: UpdateStatus["tone"] } {
+  if (row.state === "merged") return { text: "Merged. The project now has it.", tone: "positive" };
+  if (row.decision === UPDATE_DECISION.STAY) {
+    return {
+      text:
+        row.state === "closed"
+          ? "Closed. Dependabot will not propose this version again."
+          : "Staying on this version. Dependabot is being told to stop proposing it.",
+      tone: "neutral",
+    };
+  }
+  if (row.decision === UPDATE_DECISION.LATER) {
+    const until =
+      row.snoozedUntil && row.snoozedUntil.getTime() > Date.now() ? row.snoozedUntil : null;
+    return {
+      text: until
+        ? `Not now. It comes back on ${until.toISOString().slice(0, 10)}.`
+        : "Not now. It is back in the queue.",
+      tone: "neutral",
+    };
+  }
+  if (row.state === "closed") return { text: "Closed on GitHub without merging.", tone: "neutral" };
+  if (row.ciState === "red") {
+    return { text: "Approved, but its tests failed, so it has not merged.", tone: "negative" };
+  }
+  if (row.ciState === "green") {
+    return { text: "Approved and its tests passed. It merges within minutes.", tone: "positive" };
+  }
+  return { text: "Approved. It merges as soon as its tests pass.", tone: "neutral" };
+}
+
+export function buildDecidedUpdates(
+  rows: ReadonlyArray<
+    UpdateRequestView & {
+      id: string;
+      projectName: string;
+      entityProjectId: string | null;
+      snoozedUntil: Date | null;
+      decidedAt: Date | null;
+      title: string;
+    }
+  >,
+): DecidedUpdate[] {
+  return rows.flatMap((r) => {
+    if (!r.decision || !r.decidedAt) return [];
+    const fleet = r.packages.filter((p) => p.fleet);
+    const { text, tone } = decidedOutcome(r);
+    return [
+      {
+        id: r.id,
+        projectName: r.projectName,
+        projectHref: projectHref(r),
+        prNumber: r.prNumber,
+        prUrl: r.prUrl,
+        summary: fleet.length
+          ? fleet.map((p) => `${p.name} ${versionLabel(p.from)} → ${versionLabel(p.to)}`).join(", ")
+          : r.title,
+        chose:
+          r.decision in UPDATE_DECISION_LABELS
+            ? UPDATE_DECISION_LABELS[r.decision as UpdateAction]
+            : "Released on GitHub",
+        outcome: text,
+        tone,
+        decidedAt: r.decidedAt.toISOString(),
+      },
+    ];
+  });
 }

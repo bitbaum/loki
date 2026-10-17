@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   packageUpdateRequests,
@@ -52,6 +52,28 @@ export async function listOpenUpdateRequests(userId: string): Promise<UpdateRequ
       ),
     )
     .orderBy(asc(userProjects.name), asc(packageUpdateRequests.prNumber));
+  return rows.map(({ request, ...project }) => ({ ...request, ...project }));
+}
+
+/** What the person decided on Approvals lately, newest first — the record that outlives the card. */
+export async function listRecentDecidedUpdateRequests(
+  userId: string,
+  since: Date,
+  limit: number,
+): Promise<UpdateRequestWithProject[]> {
+  const rows = await db
+    .select(withProject)
+    .from(packageUpdateRequests)
+    .innerJoin(userProjects, eq(userProjects.id, packageUpdateRequests.projectId))
+    .where(
+      and(
+        eq(packageUpdateRequests.userId, userId),
+        isNotNull(packageUpdateRequests.decision),
+        gte(packageUpdateRequests.decidedAt, since),
+      ),
+    )
+    .orderBy(desc(packageUpdateRequests.decidedAt))
+    .limit(limit);
   return rows.map(({ request, ...project }) => ({ ...request, ...project }));
 }
 

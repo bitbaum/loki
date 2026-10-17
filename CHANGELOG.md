@@ -6,6 +6,15 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-17 — Your answer no longer disappears
+
+- **Answering a package update no longer makes it vanish.** On Approvals, after you
+  press Update, Not now or Stay on this version, the card now stays as a "Just
+  done" line saying what Loki did (merged, merging when tests pass, snoozed until
+  a date, or why it could not), with a link to the pull request. A new "Answered
+  recently" list keeps the last two weeks of answers, with where each one stands
+  now.
+
 ## 2026-10-15 — Notifications you can actually turn on
 
 - **Chat does more, with less ceremony.** From WhatsApp or Telegram you can now
