@@ -423,6 +423,11 @@ export function modelLeft(pool: FreePoolBudget, row: QuotaRowView | null): strin
     case "paced":
       return `${count(pool.answersToday)} left today · next one ${pool.nextAt ?? "soon"}`;
     case "ok": {
+      // Skipped is not empty: the count still stands, but this model could not
+      // take the last request — saying only "17 left" hid why it was walked past.
+      if (row?.state === "skipped") {
+        return `${count(pool.answersToday)} left today · the last request was too large for it`;
+      }
       const low =
         row?.state === "known" &&
         row.urgent &&
