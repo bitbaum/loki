@@ -21,7 +21,7 @@ const DISMISS_KEY = "loki-connect-orangecat-dismiss";
  * session, so a link made in another tab is seen without a sign-out.
  */
 export function OrangeCatConnectBanner({ enabled }: { enabled: boolean }) {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const pathname = usePathname();
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -37,6 +37,9 @@ export function OrangeCatConnectBanner({ enabled }: { enabled: boolean }) {
   );
 
   if (!enabled || status !== "authenticated" || dismissed) return null;
+  // The demo account is shared and cannot link one (its credentials are
+  // fixed); the demo strip already holds the top of the screen there.
+  if (session?.user?.isDemo) return null;
   if (isBannerFreeRoute(pathname)) return null;
   if (!data || data.accounts.some((a) => a.provider === "orangecat")) return null;
 
