@@ -18,13 +18,14 @@ import { CYCLE_MODE_KEY, modelLabel } from "@/lib/claude-transcript";
  * plain words and offers the three things a person can change — the model,
  * how hard it thinks, and the mode — each as the agent's own command or key.
  *
- * Both facts are READ from Claude Code's log (the model on its last answer,
+ * All three are READ from Claude Code's log (the model and effort on its last answer,
  * the mode on your last message), never assumed. Changing the mode is Shift+Tab
  * because the order of modes differs between Claude Code versions; the new
  * one is written down with your next message, and the sheet says so.
  */
 export function SessionInfo({
   model,
+  effort = null,
   mode,
   lastMessageId,
   onKey,
@@ -32,6 +33,8 @@ export function SessionInfo({
 }: {
   /** The model id on the newest answer, or null before one names it. */
   model: string | null;
+  /** How hard the newest answer thought, when the log says. */
+  effort?: { id: string; label: string } | null;
   mode: { id: string; label: string } | null;
   lastMessageId: string | null;
   onKey: (bytes: string) => void | Promise<void>;
@@ -43,7 +46,9 @@ export function SessionInfo({
   if (!model && !mode) return null;
 
   const name = model ? modelLabel(model) : null;
-  const chip = [name, pending ? "mode changing…" : mode?.label].filter(Boolean).join(" · ");
+  const chip = [name, effort?.label.toLowerCase(), pending ? "mode changing…" : mode?.label]
+    .filter(Boolean)
+    .join(" · ");
   const type = (text: string) => {
     void onKey(`${text}\r`);
     setOpen(false);
@@ -111,6 +116,7 @@ export function SessionInfo({
               <section className="ui-session-info-row">
                 <div className="min-w-0 flex-1">
                   <p className="ui-micro-label">Effort</p>
+                  {effort && <p className="text-sm text-text-primary">{effort.label}</p>}
                   <p className="text-xs text-text-secondary">
                     How long it thinks before answering. Higher is slower, and better for planning
                     and hard problems; {agentName} shows the levels when you press Set.

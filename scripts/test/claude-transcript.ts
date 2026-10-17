@@ -4,6 +4,7 @@ import {
   CYCLE_MODE_KEY,
   sessionMode,
   sessionModel,
+  sessionEffort,
   modelLabel,
   describeToolStep,
   turnElapsedLabel,
@@ -297,6 +298,38 @@ ok(
   ok(modelLabel("claude-sonnet-4-5-20250929") === "Sonnet 4.5", "a dated id drops the date");
   ok(modelLabel("claude-3-5-haiku-20241022") === "Haiku 3.5", "the old id order still reads");
   ok(modelLabel("gpt-5") === "gpt-5", "an unknown id is shown as given, not guessed");
+}
+
+{
+  // How hard it thinks is on the same answer line (Claude Code 2.1+: `effort`).
+  const st = newTranscriptState();
+  const answer = (uuid: string, extra: Record<string, unknown>, model = "claude-opus-5-5") =>
+    reduceTranscriptLine(
+      st,
+      JSON.stringify({
+        type: "assistant",
+        uuid,
+        ...extra,
+        message: { role: "assistant", model, content: "done" },
+      }),
+    );
+  const items = [...answer("e1", { effort: "medium" }), ...answer("e2", { effort: "high" })];
+  ok(sessionEffort(items)?.id === "high", "the newest answer's effort wins");
+  ok(sessionEffort(items)?.label === "High effort", "an effort reads in words");
+  ok(sessionEffort(answer("e3", { effort: "xhigh" }))?.label === "Extra-high effort", "xhigh");
+  ok(
+    sessionEffort(answer("e4", { effort: "turbo" }))?.label === "turbo",
+    "an unknown level keeps its name",
+  );
+  ok(sessionEffort(answer("e5", {})) === null, "an older log says nothing about effort");
+  ok(
+    !("effort" in (answer("e6", { effort: "high" }, "<synthetic>")[0] ?? {})),
+    "a synthetic line carries no effort",
+  );
+  ok(
+    !("effort" in (answer("e7", { effort: "<script>" })[0] ?? {})),
+    "only a plain word is taken as an effort",
+  );
 }
 
 console.log(`${pass}/${pass + fail} claude-transcript cases passed`);

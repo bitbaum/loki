@@ -98,8 +98,11 @@ src/
 │   │                 Loki's records reach it only as a VISIBLE file on the box
 │   │                 (LokiFiles; feedback via /api/feedback/export, fenced as
 │   │                 untrusted) — a library prompt that needs one declares
-│   │                 `attach` and gets it. SessionInfo (conversation view) names
-│   │                 the model and mode READ from the session log, in words.
+│   │                 `attach` and gets it; the box agents' contract
+│   │                 (scripts/hetzner/box-agent-claude.md, re-applied on every
+│   │                 deploy) tells them to ask for it in one line. SessionInfo
+│   │                 (conversation view) names the model, effort and mode
+│   │                 READ from the session log, in words.
 │   │                 Modes are SSOT in config/terminal-modes.ts; never add a
 │   │                 second terminal shell — add a transport.
 │   │                 TerminalActions = what the screen needs TYPED (signed

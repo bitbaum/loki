@@ -15,7 +15,7 @@
  * lands — the browser's upsert replaces the "running" row with the finished one.
  */
 
-import { CLAUDE_MODES } from "@/config/agent-commands";
+import { CLAUDE_EFFORTS, CLAUDE_MODES } from "@/config/agent-commands";
 
 /** One row in the rendered conversation. */
 export type TranscriptItem =
@@ -36,6 +36,9 @@ export type TranscriptItem =
       /** The model that wrote this answer (`message.model` on the log line),
        *  e.g. "claude-opus-5-5". Absent from older runners and synthetic lines. */
       model?: string;
+      /** How hard it thought (`effort` on the log line): "low" … "max".
+       *  Absent from older Claude Code versions and older runners. */
+      effort?: string;
     }
   | {
       id: string;
@@ -83,6 +86,7 @@ type Line = {
   isSidechain?: boolean;
   isMeta?: boolean;
   permissionMode?: string;
+  effort?: string;
   message?: { role?: string; model?: string; content?: string | Block[] };
 };
 
@@ -171,14 +175,23 @@ export function reduceTranscriptLine(state: TranscriptState, raw: string): Trans
     !line.message.model.startsWith("<")
       ? line.message.model.slice(0, 80)
       : undefined;
+  const effort =
+    model && typeof line.effort === "string" && /^[a-z]{2,12}$/.test(line.effort)
+      ? line.effort
+      : undefined;
   const text = (kind: "user" | "assistant", id: string, body: string): TranscriptItem =>
     kind === "user"
       ? mode
         ? { id, at, kind, text: clip(body, TEXT_CHARS), mode }
         : { id, at, kind, text: clip(body, TEXT_CHARS) }
-      : model
-        ? { id, at, kind, text: clip(body, TEXT_CHARS), model }
-        : { id, at, kind, text: clip(body, TEXT_CHARS) };
+      : {
+          id,
+          at,
+          kind,
+          text: clip(body, TEXT_CHARS),
+          ...(model ? { model } : {}),
+          ...(effort ? { effort } : {}),
+        };
 
   if (typeof content === "string") {
     if (!content.trim() || isHarnessText(content)) return [];
@@ -285,13 +298,6 @@ const TOOL_VERBS: Record<string, string> = {
 /** Shift+Tab: what Claude Code's TUI takes to move to the next mode. */
 export const CYCLE_MODE_KEY = "\x1b[Z";
 
-/**
- * The session's permission mode as of your last message, or null when the
- * log does not say (an older runner, or nothing sent yet).
- *
- * Only as of your last message: Claude Code records the mode on what you
- * send, not when you switch it, so a switch shows once you next write.
- */
 /** The model behind the newest answer that names one, or null. */
 export function sessionModel(items: TranscriptItem[]): string | null {
   for (let i = items.length - 1; i >= 0; i--) {
@@ -319,6 +325,24 @@ export function modelLabel(id: string): string {
   return version ? `${name} ${version}` : name;
 }
 
+/** How hard the newest answer that says so thought, in words, or null. */
+export function sessionEffort(items: TranscriptItem[]): { id: string; label: string } | null {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (item.kind === "assistant" && item.effort) {
+      return { id: item.effort, label: CLAUDE_EFFORTS[item.effort] ?? item.effort };
+    }
+  }
+  return null;
+}
+
+/**
+ * The session's permission mode as of your last message, or null when the
+ * log does not say (an older runner, or nothing sent yet).
+ *
+ * Only as of your last message: Claude Code records the mode on what you
+ * send, not when you switch it, so a switch shows once you next write.
+ */
 export function sessionMode(items: TranscriptItem[]): { id: string; label: string } | null {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];

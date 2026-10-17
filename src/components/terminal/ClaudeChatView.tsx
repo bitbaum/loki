@@ -9,6 +9,7 @@ import {
   describeToolRun,
   describeToolStep,
   groupTranscript,
+  sessionEffort,
   sessionMode,
   sessionModel,
   turnElapsedLabel,
@@ -201,6 +202,7 @@ export function ClaudeChatView({
           tools={
             <SessionInfo
               model={sessionModel(items)}
+              effort={sessionEffort(items)}
               mode={mode}
               lastMessageId={lastMine}
               onKey={onKey}
