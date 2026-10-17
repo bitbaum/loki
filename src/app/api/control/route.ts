@@ -56,7 +56,7 @@ import { gateAndCloseRun, closingRuns } from "@/lib/orchestration/gate-and-close
 import { getSessionUserId } from "@/lib/session";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
-import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
+import { isFleetInfrastructureAllowed, pickDispatchChannel } from "@/lib/execution-access";
 import { isHeartbeatFresh } from "@/lib/builder-presence";
 import { isAgentId, listAgentRegistry } from "@/lib/agent-registry";
 import { inferAdapterFromTabName } from "@/components/control/control-presenter";
@@ -113,6 +113,10 @@ type SlowCache = {
   builtAt: number;
   runtimeSnapshotUpdatedAt: Date | null;
   installedAgents: string[];
+  /** What each builder reported installed — null when that builder has never
+   *  reported (unknown, not "none"). A project is judged by the builder that
+   *  will run it, not by whichever machine happened to report first. */
+  installedAgentsByChannel: { cloud: string[] | null; local: string[] | null };
   runnerVersion: string | null;
   /** Per-channel builder versions. Two builders can be online at once — one
    *  version string cannot describe both, and last-writer-wins between the
@@ -189,6 +193,10 @@ async function buildSlowData(
     // CLI availability describes the OPERATOR'S machine — the local channel is
     // authoritative when present; the cloud box's list is the fallback.
     installedAgents: localSnapshot?.installedAgents ?? cloudSnapshot?.installedAgents ?? [],
+    installedAgentsByChannel: {
+      cloud: cloudSnapshot?.installedAgents?.length ? cloudSnapshot.installedAgents : null,
+      local: localSnapshot?.installedAgents?.length ? localSnapshot.installedAgents : null,
+    },
     runnerVersion: cloudSnapshot?.runnerVersion ?? localSnapshot?.runnerVersion ?? null,
     builderVersions: {
       cloud: cloudSnapshot?.runnerVersion ?? null,
@@ -237,6 +245,7 @@ type ControlProjectEntry = {
   agentPref: string | null;
   modelPref: string | null;
   builderPref: string | null;
+  gitUrl: string | null;
   ownerUserId: string;
   readonly: boolean;
 };
@@ -255,6 +264,7 @@ function collectControlProjects(
     agentPref: p.agentPref ?? null,
     modelPref: p.modelPref ?? null,
     builderPref: p.builderPref ?? null,
+    gitUrl: p.gitUrl ?? null,
     ownerUserId: p.userId,
     readonly: false as boolean,
   });
@@ -396,6 +406,7 @@ type ProjectStateContext = {
   liveTabs: string[];
   dbStateMap: Map<string, DbProjectState>;
   slices: ControlSlices;
+  installedAgentsByChannel: SlowCache["installedAgentsByChannel"];
 };
 
 /** Only the project's owner writes to project_states. A viewer reading a team
@@ -585,8 +596,22 @@ function serializeLatestRun(latestRun: NonNullable<LatestRun>) {
 }
 
 function buildProjectState(entry: ControlProjectEntry, ctx: ProjectStateContext): ProjectState {
-  const { id, projectId, tab, dir, agentPref, modelPref, builderPref, ownerUserId, readonly } =
-    entry;
+  const {
+    id,
+    projectId,
+    tab,
+    dir,
+    agentPref,
+    modelPref,
+    builderPref,
+    gitUrl,
+    ownerUserId,
+    readonly,
+  } = entry;
+  // The builder this project's work will run on — the same answer dispatch
+  // gives (execution-access) — and what that builder said it has installed.
+  const builderChannel = pickDispatchChannel({ dirPath: dir, gitUrl, builderPref });
+  const builderAgents = ctx.runtimeAvailable ? null : ctx.installedAgentsByChannel[builderChannel];
   const { runtimeAvailable, agentConfig, agentRegistry, gitMap, liveTabs, slices } = ctx;
   const latestRun = slices.latestRuns.get(dir);
   const dbState = ctx.dbStateMap.get(`${ownerUserId}:${normalizeTabName(tab)}`);
@@ -689,6 +714,8 @@ function buildProjectState(entry: ControlProjectEntry, ctx: ProjectStateContext)
     agentPref,
     modelPref,
     builderPref,
+    builderChannel,
+    builderAgents,
     session,
     git: gitMap.get(dir) ?? null,
     sessionLifecycleSignals,
@@ -779,6 +806,7 @@ export async function GET() {
     liveTabs,
     runtimeSnapshotUpdatedAt,
     installedAgents,
+    installedAgentsByChannel,
     runnerVersion,
     builderVersions,
   } = await getSlowData(
@@ -833,6 +861,7 @@ export async function GET() {
     liveTabs,
     dbStateMap,
     slices,
+    installedAgentsByChannel,
   };
   const states: ProjectState[] = projects.map((entry) => buildProjectState(entry, stateContext));
 

@@ -23,6 +23,7 @@
  * watch mode, the stylesheets and the DOM helpers live in their own modules.
  */
 
+import { pageLabel } from "./page-label";
 import { forgetOwnerPass, takeOwnerDenied, takeOwnerPass } from "./owner-pass";
 import { startTourFromFragment } from "./tour";
 import type { ReportDiagnostics } from "./report-payload";
@@ -479,7 +480,7 @@ interface LokiApi {
       unread = 0;
       changes.start();
       fab.style.display = "none";
-      hdrPage.textContent = document.title || location.pathname;
+      hdrPage.textContent = pageLabel(document.title, location.pathname);
       root.append(backdrop, panel);
       syncWatch();
       // Opening is to see what is new: land on the newest message.

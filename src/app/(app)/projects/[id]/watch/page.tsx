@@ -9,12 +9,11 @@ import { ProjectWatch } from "@/components/projects/ProjectWatch";
 
 import { FleetProjectRoute } from "@/components/projects/FleetProjectRoute";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
-import { existsSync } from "fs";
-import path from "path";
 import { PreviewShareCard } from "@/components/projects/PreviewShareCard";
-import { improvementsUrl } from "@/config/preview-brief";
+import { beforeAfterUrl } from "@/config/preview-brief";
 import { getPreviewCode } from "@/db/queries/preview-code";
 import { createOwnerPass, ownerSiteUrl } from "@/lib/feedback/owner-pass";
+import { readPreviewSource } from "@/lib/previews/folder";
 import { isPreviewDir } from "@/lib/previews/root";
 
 export const metadata = { title: "Watch it work" };
@@ -37,7 +36,8 @@ export default async function ProjectWatchPage({
   if (!project) notFound();
   const registered = await getUserProjectByEntityId(executionUserId, id);
   // A preview is built to be shown to someone: put the link, the code and the
-  // tour of what changed right where the owner watches it being built.
+  // before-and-after tour right where the owner watches it being built. The
+  // tour exists for a preview made from a live site (the folder says which).
   const isOwner = executionUserId === userId;
   const preview =
     isOwner && registered?.liveUrl && isPreviewDir(registered.dirPath)
@@ -46,8 +46,8 @@ export default async function ProjectWatchPage({
           ownerUrl: ownerSiteUrl(registered.liveUrl, createOwnerPass(id, userId)),
           code: await getPreviewCode(userId).catch(() => null),
           tourUrl:
-            registered.dirPath && existsSync(path.join(registered.dirPath, "improvements.html"))
-              ? improvementsUrl(registered.liveUrl)
+            registered.dirPath && (await readPreviewSource(registered.dirPath))
+              ? beforeAfterUrl(registered.liveUrl)
               : null,
         }
       : null;

@@ -20,7 +20,14 @@
  *   data-fc-avoid                   never overlap this element
  *   data-fc-place="left|right|tab|hidden" on <html> or a page region
  */
-import { AVOID_GAP, overlaps, resolvePlaceDirective, SLOT_VERDICTS, toRect } from "./placement";
+import {
+  AVOID_GAP,
+  isCornerFloat,
+  overlaps,
+  resolvePlaceDirective,
+  SLOT_VERDICTS,
+  toRect,
+} from "./placement";
 import type { PlaceDirective, Rect, SlotVerdict } from "./placement";
 
 /** Things a click or tap on reaches. `iframe` because an embed (a map, a
@@ -103,7 +110,12 @@ function textAt(x: number, y: number): boolean {
 interface HostScanner {
   /** Verdict for the launcher occupying `rect` (viewport coordinates). */
   verdict(rect: Rect | DOMRect): SlotVerdict;
+  /** Does a host floating button (placement.isCornerFloat) own any of `rect`? */
+  floatingControlIn(rect: Rect, side: "left" | "right"): boolean;
 }
+
+/** Sample spacing for floatingControlIn: under the 24px minimum target size. */
+const FLOAT_STEP = 20;
 
 export function createHostScanner(ownHost: Element): HostScanner {
   const vw = document.documentElement.clientWidth || window.innerWidth;
@@ -182,7 +194,39 @@ export function createHostScanner(ownHost: Element): HostScanner {
     return w;
   }
 
+  /** The fixed-position ancestor that carries a control, if any. */
+  function fixedAncestor(el: Element): Element | null {
+    for (let up: Element | null = el; up && up !== document.body; up = up.parentElement) {
+      if (getComputedStyle(up).position === "fixed") return up;
+    }
+    return null;
+  }
+
+  function floatingControlIn(rect: Rect, side: "left" | "right"): boolean {
+    const own = ownHost as HTMLElement;
+    const prevPointer = own.style.pointerEvents;
+    own.style.pointerEvents = "none";
+    const seen = new Set<Element>();
+    try {
+      for (let x = rect.left + FLOAT_STEP / 2; x < rect.right; x += FLOAT_STEP) {
+        for (let y = rect.top + FLOAT_STEP / 2; y < rect.bottom; y += FLOAT_STEP) {
+          if (x < 0 || y < 0 || x >= vw || y >= vh) continue;
+          const control = document.elementFromPoint(x, y)?.closest(INTERACTIVE);
+          if (!control || seen.has(control)) continue;
+          seen.add(control);
+          const layer = fixedAncestor(control);
+          const box = layer && toRect(layer.getBoundingClientRect());
+          if (box && isCornerFloat(box, side, { width: vw, height: vh })) return true;
+        }
+      }
+      return false;
+    } finally {
+      own.style.pointerEvents = prevPointer;
+    }
+  }
+
   return {
+    floatingControlIn,
     verdict(input) {
       const r = toRect(input);
       const probe: Rect = {

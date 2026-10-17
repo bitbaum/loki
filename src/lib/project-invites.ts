@@ -8,8 +8,9 @@
 
 import { createHash, randomBytes } from "node:crypto";
 
-/** How long an unaccepted invite stays usable. */
-export const PROJECT_INVITE_TTL_DAYS = 14;
+import { OPEN_INVITE_TTL_DAYS, PROJECT_INVITE_TTL_DAYS } from "./project-invite-limits";
+
+export { OPEN_INVITE_TTL_DAYS, PROJECT_INVITE_TTL_DAYS };
 
 /** The link a person opens to accept. The raw token lives only in this URL. */
 export function projectInvitePath(token: string): string {
@@ -31,12 +32,19 @@ export function normalizeInviteEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-export function inviteExpiry(now: Date = new Date()): Date {
-  return new Date(now.getTime() + PROJECT_INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
+export function inviteExpiry(now: Date = new Date(), open = false): Date {
+  const days = open ? OPEN_INVITE_TTL_DAYS : PROJECT_INVITE_TTL_DAYS;
+  return new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 export type InviteState = {
-  email: string;
+  /**
+   * Who may take it. Null is an OPEN link: the owner sends it themselves
+   * (WhatsApp, a text) to someone whose sign-in address they may not know,
+   * and the first person to sign in and accept takes the seat. It works once
+   * and expires in a week, and the owner sees who joined and can remove them.
+   */
+  email: string | null;
   expiresAt: Date;
   acceptedAt: Date | null;
   revokedAt: Date | null;
@@ -46,7 +54,7 @@ export type InviteVerdict =
   | { ok: true }
   | {
       ok: false;
-      reason: "revoked" | "accepted" | "expired" | "wrong-account" | "no-email";
+      reason: "revoked" | "accepted" | "expired" | "wrong-account" | "no-email" | "own" | "member";
       /** What to show the person holding the link. */
       message: string;
     };
@@ -68,7 +76,18 @@ export function evaluateInviteAcceptance(
   invite: InviteState,
   sessionEmail: string | null | undefined,
   now: Date = new Date(),
+  /** Where the signed-in person already stands on this project. */
+  standing: "owner" | "member" | null = null,
 ): InviteVerdict {
+  // First, before spent or expired: the person who took the link taps it again
+  // in the chat to get back in, and "already been used" there is a dead end.
+  // A member opening it also must not quietly change the role they have.
+  if (standing === "member")
+    return {
+      ok: false,
+      reason: "member",
+      message: "You already have access to this project.",
+    };
   if (invite.revokedAt) {
     return {
       ok: false,
@@ -86,6 +105,16 @@ export function evaluateInviteAcceptance(
       message: "This invitation has expired. Ask the project owner to send a new one.",
     };
   }
+  // Opening your own link to check it must not spend it on yourself.
+  if (standing === "owner")
+    return {
+      ok: false,
+      reason: "own",
+      message:
+        "This is your project, so the link does nothing for you. Send it to the person you want to invite — it works once, for whoever opens it first.",
+    };
+  // An open link: the first signed-in person may take it.
+  if (invite.email === null) return { ok: true };
   if (!sessionEmail?.trim()) {
     return {
       ok: false,

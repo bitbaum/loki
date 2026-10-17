@@ -10,10 +10,11 @@ import { consultSite } from "@/lib/site-consult/consult-site";
 const Body = z.object({ website: z.string().trim().min(1).max(COMMISSION.maxWebsite) });
 
 /**
- * The free consultation on /change: one public page read, judged by rules.
- * Public on purpose — it is the first thing a stranger sees, before any
- * account — so it spends no AI, reads exactly one page through the SSRF
- * guard, is rate-limited per visitor, and returns findings, never the page.
+ * The free consultation on /change: the homepage and the pages it links to,
+ * read through the SSRF guard and judged by rules. Public on purpose — it is
+ * the first thing a stranger sees, before any account — so it spends no AI,
+ * is bounded (CONSULT.crawlPages inside CONSULT.crawlBudgetMs), rate-limited
+ * per visitor, and returns findings, never the pages.
  */
 export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json().catch(() => null));

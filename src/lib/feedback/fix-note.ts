@@ -20,8 +20,10 @@
 
 export const FIX_NOTE_HEADING = "Walkthrough";
 
-/** Line label → field. Order is the order the agent is asked to write them. */
-const FIELDS = [
+/** Line label → field. Order is the order the agent is asked to write them.
+ *  Exported so a build that leaves no pull request (a preview folder) can ask
+ *  for the same account under the same keys — lib/previews/improvements. */
+export const FIX_NOTE_FIELDS = [
   { label: "Problem", key: "problem", ask: "what was actually wrong, in one or two sentences" },
   { label: "Change", key: "change", ask: "what you changed, in plain words" },
   {
@@ -111,11 +113,28 @@ export type FixNote = {
   plain: string | null;
 };
 
+/** How the walkthrough names each field to the owner — one list, drawn by the
+ *  watch page (components/projects/Walkthrough) and the preview tour
+ *  (lib/previews/before-after-page) alike. */
+export const WALKTHROUGH_LABELS = {
+  problem: "The problem",
+  change: "The change",
+  helps: "For the people using it",
+  detail: "Under the hood",
+  why: "Why this way",
+  considered: "Also considered",
+  us: "For us",
+  downsides: "Downsides",
+  costs: "What it costs",
+  proof: "How we know it works",
+  next: "Left for later",
+} as const;
+
 /** The instruction appended to every fix prompt. */
 export function fixNoteInstruction(): string {
   return [
     `In the pull request description, include a section headed \`## ${FIX_NOTE_HEADING}\` with these lines — Loki plays it to the owner and the reporter as a guided walkthrough of the change on the live site, so write for a person, not a reviewer. Every change must say how it helps the people who use the product and how it benefits us, and must state its downsides and costs — write \`none\` only when you checked and there are none; a change nobody can see must say exactly what changed and how you know it works:`,
-    ...FIELDS.map((f) => `- ${f.label}: <${f.ask}>`),
+    ...FIX_NOTE_FIELDS.map((f) => `- ${f.label}: <${f.ask}>`),
   ].join("\n");
 }
 
@@ -147,11 +166,11 @@ export function parseFixNote(body: string | null | undefined): FixNote | null {
     where: null,
     plain: null,
   };
-  const byLabel = new Map<string, (typeof FIELDS)[number]["key"]>(
-    FIELDS.map((f) => [f.label.toLowerCase(), f.key]),
+  const byLabel = new Map<string, (typeof FIX_NOTE_FIELDS)[number]["key"]>(
+    FIX_NOTE_FIELDS.map((f) => [f.label.toLowerCase(), f.key]),
   );
   const labelRe = /^\s*(?:[-*]\s*)?\**([A-Za-z][A-Za-z ]{1,24}?)\**\s*:\s*(.*)$/;
-  let current: (typeof FIELDS)[number]["key"] | null = null;
+  let current: (typeof FIX_NOTE_FIELDS)[number]["key"] | null = null;
   let buffer = "";
 
   const flush = () => {

@@ -27,12 +27,26 @@ const files = new Map<string, string>([
   [path.join(DIR, ".git/config"), "[core]"],
 ]);
 let attempts = 0;
+const written = new Map<string, Uint8Array>();
+const taken: { url: string; cookie: boolean; header: boolean }[] = [];
 const deps = (overrides: Partial<PreviewDeps> = {}): PreviewDeps => ({
   findProject: async (dir) =>
     dir === DIR ? { name: "Francesco Tarallo", widgetToken: "fcw_abc123" } : null,
   readFile: async (file) => {
     const body = files.get(file);
-    return body === undefined ? null : new TextEncoder().encode(body);
+    if (body !== undefined) return new TextEncoder().encode(body);
+    return written.get(file) ?? null;
+  },
+  writeFile: async (file, bytes) => {
+    written.set(file, bytes);
+  },
+  takePicture: async (url, opts) => {
+    taken.push({
+      url,
+      cookie: Boolean(opts.cookies?.length),
+      header: opts.headers?.["x-loki-picture"] === "1",
+    });
+    return { ok: true, mimeType: "image/jpeg", base64: Buffer.from("JPEG!").toString("base64") };
   },
   allowAttempt: () => ++attempts <= 3,
   secureCookies: true,
@@ -57,6 +71,7 @@ async function main() {
   let body = await res.text();
   ok(res.status === 401 && body.includes("Access code"), "without the code: the gate");
   ok(!body.includes("<h1>Francesco</h1>"), "…and none of the page");
+  ok(!body.includes("Francesco"), "…and not whose site it is (client work stays private)");
   ok(res.headers.get("x-robots-tag") === "noindex, nofollow", "…and not indexed");
 
   res = await handlePreviewGet(
@@ -176,6 +191,144 @@ async function main() {
     !(await res.text()).includes("data-fc-project"),
     "no widget key: the page is served without one",
   );
+
+  // ---- Loki's own pages inside the preview: the before-and-after tour ----
+  files.set(
+    path.join(DIR, ".loki/source.json"),
+    JSON.stringify({
+      website: "https://francesco.example/",
+      pages: ["https://francesco.example/", "https://francesco.example/music"],
+      createdAt: "2026-10-17T00:00:00.000Z",
+    }),
+  );
+  files.set(path.join(DIR, "music/index.html"), "<html><body><h1>Music</h1></body></html>");
+  res = await handlePreviewGet(
+    get("/_loki/before-after"),
+    "francesco-tarallo",
+    seg("_loki/before-after"),
+    deps(),
+  );
+  ok(res.status === 401, "the tour is behind the code too");
+  res = await handlePreviewGet(
+    get("/_loki/picture?side=before&i=0", { headers: { accept: "image/*" } }),
+    "francesco-tarallo",
+    seg("_loki/picture"),
+    deps(),
+  );
+  ok(res.status === 401 && (await res.text()) === "", "…and so is every picture, empty");
+
+  res = await handlePreviewGet(
+    get("/_loki/before-after", withCookie),
+    "francesco-tarallo",
+    seg("_loki/before-after"),
+    deps(),
+  );
+  body = await res.text();
+  ok(res.status === 200 && body.includes("Before and after"), "with the code: the tour");
+  ok(
+    body.includes("_loki/picture?side=before&amp;i=0") &&
+      body.includes("_loki/picture?side=after&amp;i=1"),
+    "…one row per live page the consultation read, when the build left no list",
+  );
+  ok(body.includes('href="../music/index.html"'), "…linking the new page at the live path");
+  ok(body.includes("https://francesco.example/music"), "…and the live page");
+  ok(body.includes('data-fc-project="fcw_abc123"'), "…with Loki's widget, so notes can be left");
+
+  files.set(
+    path.join(DIR, "improvements.json"),
+    JSON.stringify({
+      headline: "The music page plays.",
+      changes: [{ title: "Music", livePath: "/music", newPath: "music/index.html" }],
+      walkthrough: { problem: "Nothing played.", change: "A player." },
+    }),
+  );
+  res = await handlePreviewGet(
+    get("/_loki/before-after", withCookie),
+    "francesco-tarallo",
+    seg("_loki/before-after"),
+    deps(),
+  );
+  body = await res.text();
+  ok(
+    body.includes("The music page plays.") && !body.includes("i=1"),
+    "the build's own list replaces the inferred rows",
+  );
+  ok(body.includes("Nothing played."), "…and its account is on the page");
+
+  taken.length = 0;
+  res = await handlePreviewGet(
+    get("/_loki/picture?side=before&i=0", withCookie),
+    "francesco-tarallo",
+    seg("_loki/picture"),
+    deps(),
+  );
+  ok(
+    res.status === 200 && res.headers.get("content-type") === "image/jpeg",
+    "a before picture: the live page, photographed",
+  );
+  ok(
+    taken[0]?.url === "https://francesco.example/music" && !taken[0].cookie,
+    "…by its address, with no cookie",
+  );
+  res = await handlePreviewGet(
+    get("/_loki/picture?side=after&i=0", withCookie),
+    "francesco-tarallo",
+    seg("_loki/picture"),
+    deps(),
+  );
+  ok(
+    taken[1]?.url === "https://loki.example/p/francesco-tarallo/music/index.html" &&
+      taken[1].cookie &&
+      taken[1].header,
+    "an after picture: the new page served by Loki, with the access cookie and the picture header",
+  );
+  ok(
+    [...written.keys()].every((f) => f.startsWith(path.join(DIR, ".loki/pictures/"))),
+    "…kept under .loki/pictures, which the route never serves",
+  );
+  const count = taken.length;
+  await handlePreviewGet(
+    get("/_loki/picture?side=after&i=0", withCookie),
+    "francesco-tarallo",
+    seg("_loki/picture"),
+    deps(),
+  );
+  ok(taken.length === count, "the second ask is served from the kept picture");
+  res = await handlePreviewGet(
+    get("/_loki/picture?side=after&i=7", withCookie),
+    "francesco-tarallo",
+    seg("_loki/picture"),
+    deps(),
+  );
+  ok(res.status === 404, "a row that does not exist is a 404");
+  res = await handlePreviewGet(
+    get("/_loki/picture?side=before&i=0", withCookie),
+    "francesco-tarallo",
+    seg("_loki/picture"),
+    deps({
+      takePicture: async () => ({ ok: false, reason: "no-browser" }),
+      readFile: async () => null,
+    }),
+  );
+  ok(res.status === 404, "no browser: no picture, and the page shows the link instead");
+  res = await handlePreviewGet(
+    get("/index.html", { headers: { cookie: cookie, "x-loki-picture": "1" } }),
+    "francesco-tarallo",
+    seg("index.html"),
+    deps(),
+  );
+  ok(
+    !(await res.text()).includes("data-fc-project"),
+    "a page served for a picture carries no widget",
+  );
+  res = await handlePreviewGet(
+    get("/_loki/other", withCookie),
+    "francesco-tarallo",
+    seg("_loki/other"),
+    deps(),
+  );
+  ok(res.status === 404, "nothing else lives under _loki");
+  files.delete(path.join(DIR, "improvements.json"));
 
   // ---- on its own address (<label>.orangecat.ch, the preview IS the root) ----
   const ROOT = "https://francesco.orangecat.ch/p/francesco-tarallo";

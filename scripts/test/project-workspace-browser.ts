@@ -27,7 +27,7 @@ async function main() {
       const query=new URLSearchParams(location.search); const shared=query.has('shared');
       const name=query.has('long')?'A project with a genuinely long name that must wrap on a phone':'Loki';
       const attrs={status:'production',mission:'Help people build useful software.',problem:'Working on software is fragmented.',solution:'One workspace from idea to working result.',customers:'People building projects.',next_step:'Simplify the first screen and make progress easy to follow.'};
-      const dossier={detail:{project:{id,name,description:'Life OS + AI agent fleet command center — the capability layer of the two-product system. '+ 'A long project brief belongs with its story, rather than taking over every page. '.repeat(12),gitUrl:'https://github.com/bitbaum/loki'},attrs,attrMeta:{},linkedGoals:[],linkedJobs:[],resources:[],devLog:[],relations:[]},ownerId:'owner',readonly:shared,canEditFeedback:!shared,state:null,activity:[],outcomes:[],runs:[{id:'run-1',startedAt:new Date(Date.now()-30000),finishedAt:null,state:'running',outcome:null,payload:{},intent:'custom'}],userProject:{id:'catalog',name:'loki',gitUrl:'https://github.com/bitbaum/loki',liveUrl:'https://loki.orangecat.ch',codeCustody:'loki',isActive:true,listedPublicly:true},orangecatLinks:[],orangecatFunding:null,commits:[],builtAtMs:Date.now()};
+      const dossier={detail:{project:{id,name,description:'Life OS + AI agent fleet command center — the capability layer of the two-product system. '+ 'A long project brief belongs with its story, rather than taking over every page. '.repeat(12),gitUrl:'https://github.com/bitbaum/loki'},attrs,attrMeta:{},linkedGoals:[],linkedJobs:[],resources:[],devLog:[],relations:[]},ownerId:'owner',readonly:shared,viewerRole:shared?'viewer':'owner',canEditFeedback:!shared,state:null,activity:[],outcomes:[],runs:[{id:'run-1',startedAt:new Date(Date.now()-30000),finishedAt:null,state:'running',outcome:null,payload:{},intent:'custom'}],userProject:{id:'catalog',name:'loki',gitUrl:'https://github.com/bitbaum/loki',liveUrl:'https://loki.orangecat.ch',codeCustody:'loki',isActive:true,listedPublicly:true},orangecatLinks:[],orangecatFunding:null,commits:[],builtAtMs:Date.now()};
       createRoot(document.getElementById('app')).render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" aria-hidden="true"></div><FleetSurfaceGuide/><main className="app-main"><ProjectWorkspaceView dossier={dossier} shareAction={<ProjectSharePanel projectId={id} initialShare={null}/>}/></main></div><MobileNav/></div>);`,
     },
     bundle: true,
@@ -156,7 +156,7 @@ async function main() {
         const sections = page.getByRole("combobox", { name: "Project section" });
         assert.equal(
           await sections.locator("option").count(),
-          6,
+          7,
           "all sections available without horizontal clipping",
         );
         await sections.selectOption("context");
@@ -232,6 +232,8 @@ async function main() {
         await mount("?shared=1");
         assert.equal(await page.getByRole("link", { name: "Project settings" }).count(), 0);
         assert.equal(await page.getByRole("button", { name: "Make it happen" }).count(), 0);
+        assert.equal(await page.getByText("Shared with you · Viewer").count(), 1, "names the role");
+        assert.equal(await page.getByRole("link", { name: "Invite" }).count(), 0);
         await mount("?long=1");
         assert.equal(
           await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),

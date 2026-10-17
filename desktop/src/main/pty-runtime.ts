@@ -16,6 +16,7 @@
 import { executor } from "@/lib/agent-execution";
 import { provisionAgentWorkspace } from "@/lib/agent-execution/launch";
 import type { AgentOption } from "@/lib/agent-registry";
+import { missingAgentReason } from "@/lib/agents/launch-check";
 import { ensureGrokWorkspaceTrusted } from "./grok-prep";
 import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
 
@@ -68,6 +69,15 @@ export async function launchAgentPty(
   model?: string,
   sessionId?: string,
 ): Promise<void> {
+  // Refuse a CLI this builder does not have before opening a terminal for it:
+  // otherwise the shell says "command not found" and the run reads as an agent
+  // that never answered.
+  const presence = (process.env.LOKI_RUNNER_PRESENCE_CHANNEL ?? "local").trim();
+  const missing = missingAgentReason(
+    agent,
+    presence === "cloud" || presence === "local" ? presence : null,
+  );
+  if (missing) throw new Error(missing);
   let effectiveDir = dir;
   // Box-runner: the dispatch's dir is the LAPTOP path and won't exist here.
   // Resolve a box-local workspace (clone-on-demand + pre-trust for claude)

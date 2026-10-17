@@ -12,10 +12,7 @@ import {
   markBriefProject,
 } from "@/db/queries/brief-projects";
 import { firstFreeName } from "@/lib/brief-project-name";
-
-/** One start per request at a time (two tabs, a double tap): the second waits
- *  for the first and then finds its project instead of naming a second one. */
-const inFlight = new Map<string, Promise<unknown>>();
+import { withInFlight } from "@/lib/in-flight";
 
 /**
  * Create (or resume) a project from a written brief and start its kickoff.
@@ -33,16 +30,7 @@ export async function startBriefProject(
   userId: string,
   opts: { name: string; requestId: string; source: string; template?: KickoffInput["template"] },
 ): Promise<{ projectPath: string } | null> {
-  const key = `${userId}:${opts.requestId}`;
-  const prior = inFlight.get(key);
-  if (prior) await prior.catch(() => undefined);
-  const run = startBriefProjectOnce(userId, opts);
-  inFlight.set(key, run);
-  try {
-    return await run;
-  } finally {
-    if (inFlight.get(key) === run) inFlight.delete(key);
-  }
+  return withInFlight(`${userId}:${opts.requestId}`, () => startBriefProjectOnce(userId, opts));
 }
 
 async function startBriefProjectOnce(

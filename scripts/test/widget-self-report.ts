@@ -204,7 +204,16 @@ check(() => {
   // owner pass checked out, which is a different person on a different project.
   const route = readFileSync(join(repoRoot, "src/app/api/widget/self-report/route.ts"), "utf8");
   assert.ok(/lokiOwner = !!holder && holder\.userId === loki\.userId/.test(route));
-  assert.ok(/if \(!lokiOwner \|\| !selfReportStartsBuild\(data\.kind\)\) return \{\};/.test(route));
+  assert.ok(/if \(lokiOwner && selfReportStartsBuild\(data\.kind\)\)/.test(route));
+  // A stranger's note is not a dead end: it carries a claim link to their own
+  // /my-feedback, the same one api/feedback hands out.
+  assert.ok(
+    /data\.kind === "note" \? \{ claimUrl: `\$\{appUrl\(\)\}\$\{feedbackClaimPath\(id\)\}` \}/.test(
+      route,
+    ),
+  );
+  const model = readFileSync(join(repoRoot, "widget/conversation-model.ts"), "utf8");
+  assert.ok(model.includes("claimUrl: res.followUrl ?? res.claimUrl"), "toLoki keeps the link");
 });
 check(() => {
   // Watch hands the widget's own requests over instead of dropping them, and

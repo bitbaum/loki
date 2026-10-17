@@ -16,6 +16,7 @@ import {
   normalizeInviteEmail,
 } from "@/lib/project-invites";
 import { capabilitiesForRole, OWNER_CAPABILITIES } from "@/lib/project-capabilities";
+import { requireNotDemo } from "@/lib/demo-guard";
 
 export type ProjectAccess = {
   role: "owner" | ProjectRole;
@@ -105,24 +106,30 @@ export async function removeProjectMember(projectId: string, userId: string): Pr
 /** Issue an invite and return the raw token — the only time it exists. */
 export async function createProjectInvitation(input: {
   projectId: string;
-  email: string;
+  /** Null: an open link (lib/project-invites). */
+  email: string | null;
   role: ProjectRole;
   invitedBy: string;
 }): Promise<{ invitation: ProjectInvitation; token: string }> {
-  const email = normalizeInviteEmail(input.email);
+  // The demo account is every visitor at once: an invite from it would let
+  // anyone seat themselves on the demo's projects, in front of the next visitor.
+  await requireNotDemo(input.invitedBy, "tenancy");
+  const email = input.email ? normalizeInviteEmail(input.email) : null;
   // One live invite per (project, email): re-inviting replaces the old link
-  // rather than leaving two valid ones that each grant access.
-  await db
-    .update(projectInvitations)
-    .set({ revokedAt: new Date() })
-    .where(
-      and(
-        eq(projectInvitations.projectId, input.projectId),
-        eq(projectInvitations.email, email),
-        isNull(projectInvitations.acceptedAt),
-        isNull(projectInvitations.revokedAt),
-      ),
-    );
+  // rather than leaving two valid ones that each grant access. Open links are
+  // each their own seat — inviting two people takes two links.
+  if (email)
+    await db
+      .update(projectInvitations)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(
+          eq(projectInvitations.projectId, input.projectId),
+          eq(projectInvitations.email, email),
+          isNull(projectInvitations.acceptedAt),
+          isNull(projectInvitations.revokedAt),
+        ),
+      );
   const token = newInviteToken();
   const [invitation] = await db
     .insert(projectInvitations)
@@ -132,7 +139,7 @@ export async function createProjectInvitation(input: {
       role: input.role,
       tokenHash: hashInviteToken(token),
       invitedBy: input.invitedBy,
-      expiresAt: inviteExpiry(),
+      expiresAt: inviteExpiry(new Date(), email === null),
     })
     .returning();
   return { invitation, token };
@@ -201,6 +208,8 @@ export async function acceptProjectInvitation(
   invitationId: string,
   userId: string,
 ): Promise<{ projectId: string } | null> {
+  // And the reverse: every visitor holding someone's project through the demo.
+  await requireNotDemo(userId, "tenancy");
   return db.transaction(async (tx) => {
     const [spent] = await tx
       .update(projectInvitations)

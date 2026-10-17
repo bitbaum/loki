@@ -243,20 +243,41 @@ async function main() {
       await close();
     }
 
-    // 4. A host's own fixed Ask/chat launcher in the same corner: stack above
-    //    it with a visible gap, never on it.
-    {
+    // 4. REGRESSION (substrata, 2026-10-17): a host's own fixed Ask/chat
+    //    button in our corner. The rule was "stack above it with a gap", and
+    //    that drew two assistants as one tower at 390px and floated ours 300px
+    //    up the edge at 1280px. The corner is the host's: take the other one.
+    for (const [w, hgt] of [
+      [390, 760],
+      [1440, 900],
+    ] as const) {
       const html = page(
-        `${filler}<button id="ask" style="position:fixed;right:20px;bottom:20px;width:60px;height:60px;border-radius:30px">Ask</button>`,
+        `${filler}<div style="position:fixed;right:20px;bottom:84px"><button id="ask" style="width:64px;height:48px;border-radius:24px">Ask</button></div>
+         <nav id="tabbar" style="position:fixed;left:0;right:0;bottom:0;height:64px;background:#eee;display:flex">
+           ${["Home", "Map", "More"].map((t) => `<a href="#${t}" style="flex:1;display:grid;place-items:center">${t}</a>`).join("")}</nav>`,
       );
-      const { p, close } = await open(browser, html, 1440, 900, js);
+      const { p, close } = await open(browser, html, w, hgt, js);
       const f = await fab(p);
-      const ask = await box(p, "#ask");
-      ok(await clickReaches(p, "#ask"), "ask button: receives its click");
+      ok(await clickReaches(p, "#ask"), `ask button ${w}: receives its click`);
+      ok(!!f && f.visible && f.right <= w / 2, `ask button ${w}: launcher takes the other corner`);
       ok(
-        !!f && f.visible && f.bottom <= ask.top - 8,
-        "ask button: launcher stacks above it with a gap",
+        !!f && f.bottom >= hgt - 64 - 272 - 48,
+        `ask button ${w}: …and stays in it, not halfway up the page`,
       );
+      ok(!!f && !overlap(f, await box(p, "#tabbar")), `ask button ${w}: off the tab bar`);
+      await close();
+    }
+
+    // 4b. Both corners hold the host's buttons: the edge tab, never a tower.
+    {
+      const btn = (side: string, id: string) =>
+        `<button id="${id}" style="position:fixed;${side}:20px;bottom:20px;width:60px;height:60px">${id}</button>`;
+      const html = page(`${filler}${btn("right", "ask")}${btn("left", "help")}`);
+      const { p, close } = await open(browser, html, 390, 844, js);
+      const f = await fab(p);
+      ok(!!f && f.visible && f.right >= 389 && f.right - f.left <= 32, "two floats: the edge tab");
+      ok(await clickReaches(p, "#ask"), "two floats: Ask receives its click");
+      ok(await clickReaches(p, "#help"), "two floats: Help receives its click");
       await close();
     }
 

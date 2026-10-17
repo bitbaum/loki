@@ -22,6 +22,10 @@ import {
   type Rect,
   type SlotVerdict,
   nearBandTop,
+  cornerColumn,
+  isCornerFloat,
+  yieldCorner,
+  type Corner,
 } from "../../widget/placement";
 import {
   normalizeWidgetPlacement,
@@ -311,6 +315,67 @@ ok(resolvePlaceDirective(["hidden", "tab"]) === "tab", "a tab region overrides a
   ok(
     chooseTabTop(H, T, () => "blocked") === mid,
     "every height blocked: still shown, in the middle — never missing",
+  );
+}
+
+// ---- a corner holding the host's own floating button is the host's ----
+{
+  const phone = { width: 390, height: 760 };
+  // substrata's ASK dock at 390px, and Heidi's "Practise / Ask Heidi" pill.
+  ok(
+    isCornerFloat(rect(305, 628, 65, 48), "right", phone),
+    "an Ask button in the corner is a float",
+  );
+  ok(isCornerFloat(rect(141, 694, 233, 50), "right", phone), "so is a pill hugging the edge");
+  ok(
+    !isCornerFloat(rect(0, 696, 390, 64), "right", phone),
+    "a tab bar spans the width: not a float",
+  );
+  ok(!isCornerFloat(rect(100, 300, 120, 48), "right", phone), "a centred box is nobody's corner");
+  ok(!isCornerFloat(rect(305, 628, 65, 48), "left", phone), "a right float does not own the left");
+  ok(!isCornerFloat(rect(0, 0, 0, 0), "right", phone), "an unrendered element is nothing");
+
+  const col = cornerColumn(
+    { corner: "bottom-right", offsetX: 16, offsetY: 16 },
+    { width: 40, height: 40 },
+    272,
+    phone,
+  );
+  ok(
+    col.left === 390 - 16 - 40 - 12 && col.right === 390 - 16 + 12 && col.bottom === 760,
+    "the column is the launcher's own strip of the right edge, plus the gap",
+  );
+  ok(col.top === 760 - (272 + 40 + 12), "…up to the top of the near band");
+  const top = cornerColumn(
+    { corner: "top-left", offsetX: 16, offsetY: 16 },
+    { width: 40, height: 40 },
+    272,
+    phone,
+  );
+  ok(top.left === 4 && top.top === 0 && top.bottom === 324, "a top-left column hangs from the top");
+
+  const takenOnly =
+    (...cs: Corner[]) =>
+    (c: Corner) =>
+      cs.includes(c);
+  ok(
+    JSON.stringify(yieldCorner("bottom-right", takenOnly(), false)) ===
+      JSON.stringify({ corner: "bottom-right", yielded: false }),
+    "a corner nobody holds: stay",
+  );
+  ok(
+    JSON.stringify(yieldCorner("bottom-right", takenOnly("bottom-right"), false)) ===
+      JSON.stringify({ corner: "bottom-left", yielded: true }),
+    "the host's button in our corner: take the other one",
+  );
+  ok(
+    yieldCorner("bottom-right", takenOnly("bottom-right", "bottom-left"), false) === "tab",
+    "both corners held: the edge tab, never a tower",
+  );
+  ok(
+    JSON.stringify(yieldCorner("bottom-right", takenOnly("bottom-right"), true)) ===
+      JSON.stringify({ corner: "bottom-right", yielded: false }),
+    "a side the host or the visitor named is kept",
   );
 }
 

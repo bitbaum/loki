@@ -81,14 +81,24 @@ async function browserPath(chromium: { executablePath(): string }): Promise<stri
  * Open the page at phone size, scroll the pointed-at element into view when
  * the report named one, and return a JPEG of the viewport.
  */
+export type PictureOptions = {
+  /** Where the page was scrolled to, when the report recorded it and no
+   *  element was pointed at — the same view the person had. */
+  scrollY?: number | null;
+  /** A cookie the page needs to open — a preview's own access cookie, so Loki
+   *  can photograph a page it keeps behind its code. */
+  cookies?: { name: string; value: string; url: string }[];
+  /** Headers on every request the page makes (a preview served for a picture
+   *  is told so, and leaves its widget out). */
+  headers?: Record<string, string>;
+};
+
 export function takePagePicture(
   url: string,
   selector?: string | null,
-  /** Where the page was scrolled to, when the report recorded it and no
-   *  element was pointed at — the same view the person had. */
-  opts: { scrollY?: number | null } = {},
+  opts: PictureOptions = {},
 ): Promise<PagePicture> {
-  const next = queue.then(() => takeOne(url, selector, opts.scrollY ?? null));
+  const next = queue.then(() => takeOne(url, selector, opts));
   queue = next.catch(() => undefined);
   return next;
 }
@@ -96,8 +106,9 @@ export function takePagePicture(
 async function takeOne(
   url: string,
   selector?: string | null,
-  scrollY: number | null = null,
+  opts: PictureOptions = {},
 ): Promise<PagePicture> {
+  const scrollY = opts.scrollY ?? null;
   let chromium: typeof import("playwright").chromium;
   try {
     ({ chromium } = await import("playwright"));
@@ -115,7 +126,9 @@ async function takeOne(
       isMobile: true,
       hasTouch: true,
       userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Loki fix check",
+      extraHTTPHeaders: opts.headers,
     });
+    if (opts.cookies?.length) await page.context().addCookies(opts.cookies);
     // On a person's own machine (the desktop app) the private network is
     // theirs — their dev server on localhost is the page to look at.
     const seen = new Map<string, boolean>();

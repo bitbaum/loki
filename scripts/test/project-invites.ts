@@ -11,6 +11,7 @@ import {
   maskEmail,
   newInviteToken,
   normalizeInviteEmail,
+  OPEN_INVITE_TTL_DAYS,
   PROJECT_INVITE_TTL_DAYS,
   projectInvitePath,
   type InviteState,
@@ -122,6 +123,71 @@ check("an invite lasts the stated number of days", () => {
 check("stored emails are normalised the same way they are compared", () => {
   assert.equal(normalizeInviteEmail("  A@B.CH "), "a@b.ch");
   assert.equal(maskEmail("GeorgBotsmann@Gmail.com"), "ge•••@gmail.com");
+});
+
+// ---- open links: sent over WhatsApp, no address on them ----
+check("an open link may be taken by whoever signs in first, whatever their address", () => {
+  const open = live({ email: null });
+  assert.deepEqual(evaluateInviteAcceptance(open, "manu@anything.example", NOW), { ok: true });
+  assert.deepEqual(evaluateInviteAcceptance(open, null, NOW), { ok: true }, "no address needed");
+});
+
+check("an open link still grants once, still expires, and can still be withdrawn", () => {
+  const e = "manu@anything.example";
+  assert.equal(
+    (evaluateInviteAcceptance(live({ email: null, acceptedAt: NOW }), e, NOW) as { reason: string })
+      .reason,
+    "accepted",
+  );
+  assert.equal(
+    (evaluateInviteAcceptance(live({ email: null, expiresAt: NOW }), e, NOW) as { reason: string })
+      .reason,
+    "expired",
+  );
+  assert.equal(
+    (evaluateInviteAcceptance(live({ email: null, revokedAt: NOW }), e, NOW) as { reason: string })
+      .reason,
+    "revoked",
+  );
+});
+
+check("an open link lasts a week, an addressed one two", () => {
+  const days = (d: Date) => (d.getTime() - NOW.getTime()) / 86_400_000;
+  assert.equal(days(inviteExpiry(NOW, true)), OPEN_INVITE_TTL_DAYS);
+  assert.equal(OPEN_INVITE_TTL_DAYS, 7);
+  assert.equal(days(inviteExpiry(NOW)), PROJECT_INVITE_TTL_DAYS);
+});
+
+// The owner opening their own link to check it must not spend it on themselves.
+check("the owner opening their own link takes nothing and is told to send it on", () => {
+  const v = evaluateInviteAcceptance(live({ email: null }), "george@x.example", NOW, "owner");
+  assert.equal(!v.ok && v.reason, "own");
+  assert.ok(!v.ok && /Send it to the person/.test(v.message));
+});
+
+check("someone already on the project does not spend it or change their role", () => {
+  const v = evaluateInviteAcceptance(live({ email: null }), "manu@x.example", NOW, "member");
+  assert.equal(!v.ok && v.reason, "member");
+});
+
+check("the person who took the link can tap it again to get back in", () => {
+  const v = evaluateInviteAcceptance(
+    live({ email: null, acceptedAt: new Date(NOW.getTime() - 60_000) }),
+    "manu@x.example",
+    NOW,
+    "member",
+  );
+  assert.equal(!v.ok && v.reason, "member");
+});
+
+check("a spent link says it is spent, even to the owner", () => {
+  const v = evaluateInviteAcceptance(
+    live({ email: null, acceptedAt: NOW }),
+    "g@x.example",
+    NOW,
+    "owner",
+  );
+  assert.equal(!v.ok && v.reason, "accepted");
 });
 
 console.log(`\nproject-invites: ${passed} checks passed`);

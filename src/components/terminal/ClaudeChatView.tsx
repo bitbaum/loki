@@ -89,7 +89,7 @@ export function ClaudeChatView({
   // is waiting on, so the next step is one tap. The rules answer at once; the
   // fast model reads the whole reply and its steps lead once they arrive.
   const reply = last?.kind === "assistant" ? last.text : null;
-  const aiSteps = useAiNextSteps(reply, "reply", tab);
+  const aiSteps = useAiNextSteps(reply, "reply", tab, "claude");
   const suggestions = useStableSteps(reply, aiSteps, reply ? suggestFromReply(reply) : []);
   // How long this turn has been going, from your last message — the Claude
   // app's "✳ 13 s". A run with no clock reads the same at second 2 and
