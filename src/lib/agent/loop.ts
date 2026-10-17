@@ -45,7 +45,7 @@ import {
 } from "@/lib/agent/fact-budget";
 import { buildContract, directiveId, NO_BASIS, type Directive } from "@bitbaum/ai-kit/grounding";
 import { verifyAnswer, buildRepairPrompt, type Violation } from "@bitbaum/ai-kit/grounding";
-import { buildLokiContext } from "@/lib/agent/grounded-context";
+import { buildLokiContext, JUDGMENT_RULES } from "@/lib/agent/grounded-context";
 import { callModelWithTools, type ChatMessage, type ToolCall } from "@/lib/agent/llm";
 import {
   readOnlyRegistry,
@@ -62,7 +62,13 @@ import type { RetrievedSource } from "@/lib/agent/context";
 import { APP_NAME } from "@/config/brand";
 import { REPLIES_INSTRUCTION, extractReplies } from "@bitbaum/chatkit";
 import { looksLikePlan, ANSWER_ONLY } from "@/lib/loki/plan-as-answer";
-import { operatorClaims } from "@/lib/agent/general-knowledge";
+import {
+  GENERAL_ANSWER_SYSTEM,
+  askedQuestion,
+  isBareRefusal,
+  isGeneralQuestion,
+  operatorClaims,
+} from "@/lib/agent/general-knowledge";
 import { demotePersonOnlyOffer } from "@/lib/loki/confirmation";
 
 // The concrete registry and the seed builder reach the database, and @/db
@@ -390,6 +396,49 @@ function takeReplies(text: string, wanted: boolean | undefined) {
  * time, so the model always sees the CURRENT full record set with fresh
  * citation ids rather than a growing transcript of tool chatter.
  */
+/**
+ * One more model call with no tools, kept only when `accept` says it is
+ * better than what it replaces. Used for a round that produced a plan
+ * instead of an answer, and for a general question answered with the
+ * refusal (asked again with no records and no contract — the question is
+ * about the world). Clears what was streamed so the operator does not keep
+ * the first reply above the second. A failed retry leaves the original
+ * answer standing; usage is counted whenever the call returned.
+ */
+async function retryOnce(
+  callModel: ModelCaller,
+  input: Pick<Parameters<typeof runLokiTurn>[0], "own" | "model" | "replies">,
+  sink: { delta: (text: string) => void; reset: () => void } | undefined,
+  why: "plan" | "general",
+  accept: (text: string) => boolean,
+  messages: ChatMessage[],
+): Promise<{
+  usageTokens: number;
+  taken: { text: string; replies: ReturnType<typeof takeReplies>["replies"]; model: string } | null;
+}> {
+  console.warn(`[loki] retrying once (${why})`);
+  sink?.reset();
+  try {
+    const retry = await callModel({
+      own: input.own,
+      model: input.model,
+      feature: "loki-chat",
+      messages,
+      tools: [],
+      validToolNames: [],
+      sink,
+    });
+    const ok = retry.text.trim() !== "" && accept(retry.text);
+    return {
+      usageTokens: retry.usageTokens,
+      taken: ok ? { ...takeReplies(retry.text, input.replies), model: retry.model } : null,
+    };
+  } catch (e) {
+    console.warn(`[loki] ${why} retry failed, keeping the first reply: ${String(e)}`);
+    return { usageTokens: 0, taken: null };
+  }
+}
+
 /** The system prompt for one round: the tool catalog (unless this round must
  *  answer), what Loki is running on, the operator's writing voice, and the
  *  suggested-replies instruction. */
@@ -577,7 +626,7 @@ export async function runLokiTurn(input: {
       for (let attempt = 0; ; attempt++) {
         const trimmed = budget >= fitted.length ? fitted : trimFactsToBudget(fitted, budget);
         const ctxBlock = withNotice(trimmed);
-        const userContent = `${ctxBlock}\n\n---\n\n${input.message}`;
+        const userContent = `${ctxBlock}\n\n---\n\n${askedQuestion(input.message)}`;
         const promptTokens = Math.ceil(overheadChars / 4) + estimateTokens(ctxBlock);
         lastUserContent = userContent;
         lastSystem = system;
@@ -713,40 +762,38 @@ export async function runLokiTurn(input: {
   // 104. That number is the one that mattered: a guard that misfires costs a
   // second model call on a rate-limited free tier.
   if (looksLikePlan(text) && lastUserContent) {
-    console.warn("[loki] round produced a plan instead of an answer — retrying once");
-    // Clear what was streamed, so the operator does not keep the plan on screen
-    // above the real answer.
-    sink?.reset();
-    try {
-      const retry = await callModel({
-        own: input.own,
-        model: input.model,
-        feature: "loki-chat",
-        messages: [
-          { role: "system", content: lastSystem },
-          ...prior,
-          { role: "user", content: lastUserContent + ANSWER_ONLY },
-          ...conversation,
-        ],
-        // No tools on the retry: the model already gathered what it needed, and
-        // the failure was in writing the answer, not in finding it.
-        tools: [],
-        validToolNames: [],
-        sink,
-      });
-      usageTokens += retry.usageTokens;
-      // Only take the retry if it is actually better. A second plan is not an
-      // improvement, and an empty reply is worse than a plan — at least a plan
-      // shows the model understood the question.
-      if (retry.text.trim() && !looksLikePlan(retry.text)) {
-        ({ text, replies } = takeReplies(retry.text, input.replies));
-        model = retry.model;
-      }
-    } catch (e) {
-      // A failed retry leaves the original answer standing. Losing the turn to
-      // protect its formatting would be the worse trade.
-      console.warn(`[loki] plan retry failed, keeping the first reply: ${String(e)}`);
-    }
+    // No tools on the retry: the model already gathered what it needed, and
+    // the failure was in writing the answer, not in finding it. A second plan
+    // is not an improvement, and an empty reply is worse than a plan.
+    const retry = await retryOnce(callModel, input, sink, "plan", (t) => !looksLikePlan(t), [
+      { role: "system", content: lastSystem },
+      ...prior,
+      { role: "user", content: lastUserContent + ANSWER_ONLY },
+      ...conversation,
+    ]);
+    usageTokens += retry.usageTokens;
+    if (retry.taken) ({ text, replies, model } = retry.taken);
+  }
+
+  // A general question answered with the refusal anyway — the model obeyed
+  // the contract's stricter rules over rule 11 and the hint. Ask once more
+  // with no records and no contract: the question is about the world, so the
+  // records are not what it needs.
+  if (isBareRefusal(text, NO_BASIS) && isGeneralQuestion(input.message)) {
+    const retry = await retryOnce(
+      callModel,
+      input,
+      sink,
+      "general",
+      (t) => !isBareRefusal(t, NO_BASIS),
+      [
+        { role: "system", content: GENERAL_ANSWER_SYSTEM },
+        ...prior,
+        { role: "user", content: input.message },
+      ],
+    );
+    usageTokens += retry.usageTokens;
+    if (retry.taken) ({ text, replies, model } = retry.taken);
   }
 
   // Verify against everything gathered. Tool notes count as evidence — a note
@@ -785,7 +832,9 @@ export async function runLokiTurn(input: {
         {
           role: "user",
           content: [
-            buildContract(facts, directives),
+            // With rules 7-11: the bare contract told the repair pass to turn a
+            // general answer back into "Not in your data."
+            `${buildContract(facts, directives)}\n${JUDGMENT_RULES}`,
             "",
             renderFacts(facts),
             "",

@@ -129,3 +129,31 @@ export function operatorClaims(
     .filter((s) => aboutRecords(s, names))
     .join(" ");
 }
+
+/**
+ * Said beside the question when it is general, not only in the contract.
+ *
+ * Rule 11 sits at the end of the grounding contract, after rules 1 and 3 —
+ * which say "every claim must cite a record" and "answer with exactly Not in
+ * your data". On the live site (2026-10-17, after rule 11 shipped) Gemini Flash
+ * still answered the Eiffel Tower and the GmbH question with the refusal: the
+ * earlier, stricter rules won. The line next to the question is the last thing
+ * the model reads before it answers.
+ */
+export const GENERAL_QUESTION_HINT =
+  "(This is a general question, not one about the operator's records. Answer it directly and correctly from general knowledge — rule 11. Use the records only if they bear on it.)";
+
+/** The question as the model reads it: with the hint when it is general. */
+export function askedQuestion(message: string): string {
+  return isGeneralQuestion(message) ? `${GENERAL_QUESTION_HINT}\n\n${message}` : message;
+}
+
+/** The prompt for the one retry when a general question was refused anyway. */
+export const GENERAL_ANSWER_SYSTEM =
+  "You are Loki, a helpful assistant. Answer the question directly and correctly from general knowledge, in a few plain sentences. Write for a person who may not be technical. Do not say that you lack data or records.";
+
+/** Did the model answer with the refusal and little else? */
+export function isBareRefusal(text: string, refusal: string): boolean {
+  const plain = text.replace(/[*_`>#]/g, "").trim();
+  return plain.length < refusal.length + 80 && plain.toLowerCase().includes(refusal.toLowerCase());
+}

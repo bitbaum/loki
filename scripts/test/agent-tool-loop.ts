@@ -758,6 +758,36 @@ async function planAsAnswerChecks() {
   }
 
   console.log("  \u2713 the model's plan is retried, once, and never served");
+
+  // A general question answered with the refusal anyway (Gemini on the live
+  // site, 2026-10-17, after rule 11 shipped) is asked once more without the
+  // records; a question about the operator's records is never re-asked.
+  {
+    const ANSWER = "The Eiffel Tower was finished in 1889.";
+    const model = scriptedModel([{ text: "Not in your data." }, { text: ANSWER }]);
+    const r = await runLokiTurn({
+      userId: "u1",
+      message: "What year was the Eiffel Tower built?",
+      registry: STUB_REGISTRY,
+      callModel: model.fn,
+      seed: SEED,
+    });
+    assert.equal(model.calls(), 2, "a refused general question is asked once more");
+    assert.equal(r.text, ANSWER, "the general answer is served");
+  }
+  {
+    const model = scriptedModel([{ text: "Not in your data." }, { text: "never asked" }]);
+    const r = await runLokiTurn({
+      userId: "u1",
+      message: "who is Elena?",
+      registry: STUB_REGISTRY,
+      callModel: model.fn,
+      seed: SEED,
+    });
+    assert.equal(model.calls(), 1, "a refusal about the operator's records stands");
+    assert.equal(r.text, "Not in your data.");
+  }
+  console.log("  \u2713 a refused general question is answered from general knowledge");
 }
 
 main()
