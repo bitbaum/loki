@@ -35,6 +35,16 @@ ssh_box() {
   fi
 }
 
+# owner_view <host> — open the preview as its owner (preview-check-on-box.sh).
+# The cookie is minted on the box by a script this checkout ships over first,
+# because the box's own Loki checkout is often behind main.
+owner_view() {
+  local host="$1" box_loki="${BOX_LOKI:-/home/ubuntu/dev/loki}"
+  ssh_box "mkdir -p '$box_loki/.tmp' && cat > '$box_loki/.tmp/print-preview-cookie.ts'" < "$HERE/../test/print-preview-cookie.ts" \
+    || { echo "  could not ship the cookie script to the box"; return 1; }
+  ssh_box "bash -s -- $(printf '%q' "$host")" < "$HERE/preview-check-on-box.sh"
+}
+
 # answers <host> — wait up to ~100s (a new certificate takes a few seconds).
 answers() {
   local host="$1" code="000" i
@@ -80,7 +90,7 @@ website)
     note "https://$host/ → HTTP $code"
     [ "$code" != "000" ] || bad "$host does not answer over HTTPS"
     echo "→ as the owner (the build has only just started; the tour fills in as it goes)"
-    ssh_box "bash -s -- $(printf '%q' "$host")" < "$HERE/preview-check-on-box.sh" || note "the owner's view is not open yet"
+    owner_view "$host" || note "the owner's view is not open yet"
   else
     note "no address in the answer (a resumed request, or a server without previews)"
   fi
@@ -89,7 +99,7 @@ check)
   LABEL="${2:?address}"
   host="$LABEL.$BASE"
   echo "→ $host as the owner"
-  ssh_box "bash -s -- $(printf '%q' "$host")" < "$HERE/preview-check-on-box.sh" || bad "$host: the site or its tour did not open"
+  owner_view "$host" || bad "$host: the site or its tour did not open"
   ;;
 heal)
   root=$(ssh_box 'set -a; . /opt/loki/app/.env; set +a; r="${LOKI_PREVIEWS_ROOT:-}"; [ -n "$r" ] || { [ -n "${LOKI_BOX_DEV_ROOT:-}" ] && r="${LOKI_BOX_DEV_ROOT%/}/previews"; }; printf %s "$r"')
