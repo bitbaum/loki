@@ -1097,7 +1097,7 @@ async function main() {
   await check("Approvals and the project page carry the new surfaces", () => {
     assert.match(
       src("src/app/(app)/approvals/page.tsx"),
-      /<PackageUpdateQueue updates=\{updates\} \/>/,
+      /<PackageUpdateQueue updates=\{updates\} recent=\{recentUpdates\} \/>/,
     );
     assert.match(
       src("src/components/packages/ProjectBuiltFrom.tsx"),

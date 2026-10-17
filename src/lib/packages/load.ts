@@ -15,6 +15,7 @@ import type { ProjectPackageScanRow } from "@/db/schema";
 import {
   getProjectPackageUpdates,
   listOpenUpdateRequests,
+  listRecentDecidedUpdateRequests,
   listProjectUpdateRequests,
 } from "@/db/queries/package-updates";
 import {
@@ -35,12 +36,14 @@ import {
   buildBuiltFrom,
   buildDependents,
   buildPackageList,
+  buildDecidedUpdates,
   buildUpdateCards,
   indexOpenUpdates,
   projectHref,
   type DependentRow,
   type OpenUpdate,
   type PackageListRow,
+  type DecidedUpdate,
   type UpdateCard,
 } from "./view";
 
@@ -213,4 +216,17 @@ export async function loadUpdateCards(userId: string, nowMs = Date.now()): Promi
     readPauses(),
   ]);
   return buildUpdateCards(markPaused(rows, pauses), nowMs);
+}
+
+const DECIDED_WINDOW_DAYS = 14;
+const DECIDED_LIMIT = 8;
+
+/** What the person answered on Approvals in the last two weeks. Never throws. */
+export async function loadRecentUpdateDecisions(
+  userId: string,
+  nowMs = Date.now(),
+): Promise<DecidedUpdate[]> {
+  const since = new Date(nowMs - DECIDED_WINDOW_DAYS * 86_400_000);
+  const rows = await listRecentDecidedUpdateRequests(userId, since, DECIDED_LIMIT).catch(() => []);
+  return buildDecidedUpdates(rows);
 }

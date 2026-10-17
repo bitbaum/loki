@@ -23,7 +23,14 @@ import { BreakingTag, UpdateStatusTag } from "./UpdateStatusTag";
  * A refusal from GitHub stays on the card with the buttons, so it can be
  * tried again; "no write access" comes with the way to connect GitHub.
  */
-export function PackageUpdateCard({ update }: { update: UpdateCard }) {
+export function PackageUpdateCard({
+  update,
+  onHandled,
+}: {
+  update: UpdateCard;
+  /** Called once Loki has done it, with the sentence to keep on screen: the card is about to leave the queue. */
+  onHandled?: (update: UpdateCard, decision: UpdateAction, message: string) => void;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<UpdateAction | null>(null);
   const [result, setResult] = useState<{ text: string; error: boolean } | null>(null);
@@ -35,7 +42,9 @@ export function PackageUpdateCard({ update }: { update: UpdateCard }) {
       const res = await postJson(`/api/packages/updates/${update.id}`, { decision });
       const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
       if (!res.ok) throw new Error(body.error ?? "Could not do that just now.");
-      setResult({ text: body.message ?? "Done.", error: false });
+      const message = body.message ?? "Done.";
+      setResult({ text: message, error: false });
+      onHandled?.(update, decision, message);
       router.refresh();
     } catch (err) {
       setResult({

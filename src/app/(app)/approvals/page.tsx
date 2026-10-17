@@ -13,7 +13,7 @@ import {
   sanitizeStandingApprovals,
 } from "@/lib/actions/standing-approval";
 import { approvalsSentence } from "@/lib/needs-you";
-import { loadUpdateCards } from "@/lib/packages/load";
+import { loadRecentUpdateDecisions, loadUpdateCards } from "@/lib/packages/load";
 import { PackageUpdateQueue } from "@/components/packages/PackageUpdateQueue";
 
 export const metadata = { title: "Approvals" };
@@ -34,7 +34,10 @@ export const metadata = { title: "Approvals" };
  */
 export default async function ApprovalsPage() {
   const userId = await requirePageUserId();
-  const updates = await loadUpdateCards(userId);
+  const [updates, recentUpdates] = await Promise.all([
+    loadUpdateCards(userId),
+    loadRecentUpdateDecisions(userId),
+  ]);
 
   // Locked zone: action contents may reference private entities, so the queue
   // stays hidden — but the page must not dead-end. Show that work is waiting
@@ -62,7 +65,7 @@ export default async function ApprovalsPage() {
             </div>
           </div>
         </Card>
-        <PackageUpdateQueue updates={updates} />
+        <PackageUpdateQueue updates={updates} recent={recentUpdates} />
       </PageLayout>
     );
   }
@@ -75,7 +78,7 @@ export default async function ApprovalsPage() {
         options={STANDING_APPROVAL_OPTIONS.map((o) => ({ ...o }))}
         initial={sanitizeStandingApprovals(prefs?.standingApprovals)}
       />
-      <PackageUpdateQueue updates={updates} />
+      <PackageUpdateQueue updates={updates} recent={recentUpdates} />
       <ActionQueueCard
         autoOpenTop
         emptyState={
