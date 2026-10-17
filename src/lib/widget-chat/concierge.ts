@@ -357,17 +357,34 @@ export function linksForReply(
       link: { label: displayName(p), url: projectUrl(p, appBase) },
     });
   }
+  // A door is named by its label too: the prompt tells the model to say
+  // "Build something of your own", and a reply that did so used to get no
+  // button at all (seen live 2026-10-17, the bakery question).
+  const doorUrls = new Set<string>();
   for (const d of STUDIO_DOORS) {
-    const hit = d.keys.find((k) => mentions(reply, k));
-    if (hit)
-      found.push({ at: reply.toLowerCase().indexOf(hit), link: { label: d.label, url: d.url } });
+    const hit = [d.label, ...d.keys].find((k) => mentions(reply, k));
+    if (!hit) continue;
+    doorUrls.add(d.url);
+    found.push({
+      at: reply.toLowerCase().indexOf(hit.toLowerCase()),
+      link: { label: d.label, url: d.url },
+    });
   }
   const seen = new Set<string>();
-  return found
+  const ordered = found
     .sort((a, b) => a.at - b.at)
     .map((f) => f.link)
-    .filter((l) => (seen.has(l.url) ? false : (seen.add(l.url), true)))
-    .slice(0, max);
+    .filter((l) => (seen.has(l.url) ? false : (seen.add(l.url), true)));
+  // A door is the next step the answer asked for; projects merely named (the
+  // pillars in "what is bitbaum?") must not push it off the end.
+  const kept = ordered.slice(0, max);
+  for (const door of ordered.slice(max).filter((l) => doorUrls.has(l.url))) {
+    const drop = kept.map((l) => doorUrls.has(l.url)).lastIndexOf(false);
+    if (drop < 0) break;
+    kept.splice(drop, 1);
+    kept.push(door);
+  }
+  return kept;
 }
 
 /**

@@ -501,4 +501,21 @@ assert.ok(visitorPoolAllows(capacity, new Date("2026-10-18T00:00:01Z")), "midnig
 assert.ok(VISITOR_POOL_SHARE < 0.25, "visitors never take most of the pool");
 resetVisitorPool();
 
+// A door named by its label gets its button, and naming four projects first
+// does not push it off the end.
+assert.deepEqual(
+  linksForReply('Loki: Use the "Build something of your own" option.', map, BASE).map(
+    (l) => l.label,
+  ),
+  ["Build something of your own"],
+);
+assert.deepEqual(
+  linksForReply(
+    "Heidi, OrangeCat, Draftapp and AOZ Housing are here. Next, click See all projects.",
+    map,
+    BASE,
+  ).map((l) => l.label),
+  ["Heidi", "OrangeCat", "Draftapp", "See all projects"],
+);
+
 console.log("widget-chat-concierge: ok");
