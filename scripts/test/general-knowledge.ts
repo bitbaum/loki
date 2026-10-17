@@ -10,6 +10,7 @@
  */
 import { makeFact, assignFactIds, verifyAnswer } from "@bitbaum/ai-kit/grounding";
 import {
+  askedQuestion,
   GENERAL_QUESTION_HINT,
   isBareRefusal,
   isGeneralQuestion,
@@ -135,5 +136,26 @@ check(
   ),
 );
 check("the hint names rule 11", GENERAL_QUESTION_HINT.includes("rule 11"));
+
+// Live after #1261: every chat on a one-project account is project-scoped, and
+// the wrapper's own word "project" made every question about the operator.
+const scoped = (q: string) =>
+  `[Scoped to project: second-cafe]\nProject: second-cafe\nStatus: active\n\n[User message]\n${q}`;
+check("a scoped general question is still general", isGeneralQuestion(scoped(eiffelQ)));
+check("…and so is the GmbH one", isGeneralQuestion(scoped(gmbhQ)));
+check(
+  "a scoped question about the project is not",
+  !isGeneralQuestion(scoped("What should I build next on this project?")),
+);
+check(
+  "a scoped general answer passes the checker",
+  violationsFor(eiffelA, scoped(eiffelQ)).length === 0,
+);
+const asked = askedQuestion(scoped(eiffelQ));
+check(
+  "the hint sits directly above the person's words",
+  asked.endsWith(`${GENERAL_QUESTION_HINT}\n\n${eiffelQ}`) &&
+    asked.startsWith("[Scoped to project: second-cafe]"),
+);
 
 console.log(`\ngeneral-knowledge: ${passed} checks passed`);
