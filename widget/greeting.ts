@@ -33,7 +33,7 @@ export function greetingFor(state: {
  *  "sign in" alone left the owner asking exactly that (2026-10-16). */
 export function ownerDoor(apiBase: string, token: string): HTMLElement {
   const wrap = h("div", "door-wrap");
-  const mine = h("a", "door", "This is my site — sign in with Loki →");
+  const mine = h("a", "door", "I own or build this site — sign in with Loki →");
   mine.href = ownerSignInUrl(apiBase, token, location.href);
   mine.rel = "noopener";
   mine.title = "Then what you say here is built, and this conversation can continue in Loki";
@@ -42,7 +42,7 @@ export function ownerDoor(apiBase: string, token: string): HTMLElement {
     h(
       "span",
       "door-sub",
-      "For the site's owner and anyone they added as an editor: Loki watches, builds what you ask, and brings you back here. No Loki account? You can make one on the way.",
+      "For the owner and the Builders they invited: then what you ask for here is built right away, and you are brought back to this page. No account? You make one on the way.",
     ),
   );
   return wrap;

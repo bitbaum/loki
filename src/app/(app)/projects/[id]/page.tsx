@@ -7,6 +7,7 @@ import { ProjectSharePanel } from "@/components/projects/ProjectSharePanel";
 import { ROUTES } from "@/config/auth";
 import { isInterviewAuto, isKickoffAuto } from "@/lib/integrations/orangecat-handoff-mode";
 import { isSiteOperator } from "@/db/queries/users";
+import { mayHoldPass } from "@/lib/feedback/pass-rule";
 import { createOwnerPass } from "@/lib/feedback/owner-pass";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import { reconcileSiteLiveUrl } from "@/lib/site-live-reconcile";
@@ -23,13 +24,13 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ kickoff?: string; interview?: string }>;
+  searchParams: Promise<{ kickoff?: string; interview?: string; joined?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect(ROUTES.SIGN_IN);
 
   const { id } = await params;
-  const { kickoff, interview } = await searchParams;
+  const { kickoff, interview, joined } = await searchParams;
   const dossier = await getProjectDossier(session.user.id, id).catch(() => null);
   if (!dossier) notFound();
 
@@ -86,10 +87,10 @@ export default async function ProjectPage({
         viewerIsSiteOperator={viewerIsSiteOperator}
         viewerMayOpenOrgRepo={viewerMayOpenOrgRepo}
         viewerHasGithub={viewerHasGithub}
-        // Only the owner gets a pass: it is what makes their widget notes build.
-        ownerPass={
-          dossier.ownerId === session.user.id ? createOwnerPass(id, session.user.id) : null
-        }
+        // The owner and every Builder get a pass: it is what makes a note on
+        // the site build at once (lib/feedback/pass-rule.ts, mayHoldPass).
+        ownerPass={mayHoldPass(dossier.viewerRole) ? createOwnerPass(id, session.user.id) : null}
+        joined={joined === "1"}
         shareAction={
           !dossier.readonly ? (
             <ProjectSharePanel projectId={id} initialShare={shareForClient} />

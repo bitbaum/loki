@@ -54,34 +54,65 @@ const MEMBER_CAPABILITIES: Record<ProjectRole, ProjectCapabilities> = {
 
 /**
  * What each role is called and does, in the words the roster shows. One
- * table, read by the members panel and the invite email, so the label a
- * person is invited under is the label they see once inside.
+ * table, read by the members panel, the invite page and the invite email, so
+ * the label a person is invited under is the label they see once inside.
+ *
+ * Written for someone who is not technical (the first Builder invited was a
+ * doctor, 2026-10-17): no "dispatch", no "agents", no "tenant". The one
+ * thing each role needs to know is what happens to what they ask for.
  */
 export const ROLE_LABELS: Record<
   "owner" | ProjectRole,
-  { label: string; help: string; /** "…so you can {can}" in the invitation. */ can: string }
+  {
+    label: string;
+    /** For the owner choosing a role. Starts with the label. */
+    help: string;
+    /** "…so you can {can}" in the invitation. */
+    can: string;
+  }
 > = {
   owner: {
     label: "Owner",
-    help: "Owner: runs the project in their own tenant and decides who else can reach it.",
+    help: "Owner: runs the project and decides who else is on it.",
     can: "run it as your own",
   },
   editor: {
     label: "Builder",
-    help: "Builder: works through the project's feedback — sorts it and sends fixes to the agents — and follows every run.",
-    can: "work on it with them: sort its feedback, send fixes to the agents and follow every run",
+    help: "Builder: changes the site themselves. What they ask for on the site goes straight to Loki, which builds it — nothing waits for you.",
+    can: "change it yourself: what you ask for goes straight to Loki, which builds it",
   },
   client: {
     label: "Client",
-    help: "Client: the person the project is for — follows it and every fix, cannot dispatch work.",
-    can: "follow it as its client: see every run, every fix and what shipped, and say what you need next",
+    help: "Client: the person the site is for. What they ask for comes to you first; they see every change as it ships.",
+    can: "follow it as its client: say what you need, see every change as it ships",
   },
   viewer: {
     label: "Viewer",
-    help: "Viewer: can follow the project and its feedback, but cannot dispatch work.",
-    can: "follow it: see its runs, feedback and what shipped",
+    help: "Viewer: sees everything. What they ask for comes to you first.",
+    can: "follow it: see what is being built and say what you need",
   },
 };
+
+/**
+ * The manual, three lines long: how a person on the project asks for a change
+ * and what happens next. The invite page shows it before they join and the
+ * project shows it after, so nobody has to be told twice or ask.
+ */
+export function roleGuide(
+  role: ProjectRole,
+  names: { site: string | null; owner: string },
+): { steps: string[]; then: string } {
+  const site = names.site ?? "the site";
+  const steps = [
+    `Open ${site} and tap Feedback in the corner of the page.`,
+    "Say what should change — type it or speak it, and point at the spot if that helps.",
+  ];
+  const then =
+    role === "editor"
+      ? `Loki builds it and you see it on the site. ${names.owner} is kept in the loop; nothing waits for them.`
+      : `${names.owner} sees it first and decides. You are told when it ships.`;
+  return { steps, then };
+}
 
 export function capabilitiesForRole(role: "owner" | ProjectRole): ProjectCapabilities {
   return role === "owner" ? OWNER_CAPABILITIES : MEMBER_CAPABILITIES[role];

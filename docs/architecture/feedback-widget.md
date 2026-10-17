@@ -82,10 +82,16 @@ multi-tenant security boundary:
   `site_feedback.reporter_user_id` and appears at `/my-feedback`. A reporter can
   read their own text, submission timestamp, project name, and implementation
   status. They cannot read the project inbox or call a mutation route.
-- **Editor:** an owner adds an existing Loki account by email in the project's
-  Feedback tab. `project_memberships` grants `editor` or `viewer` per entity
-  project. Editors can read, triage, and Implement feedback; execution still
-  uses the owner's project and runner tenant. Viewers are read-only.
+- **Builder (`editor`):** invited by the owner from the project's People tab —
+  a link sent on WhatsApp, or an email. `project_memberships` grants `editor`,
+  `client` or `viewer` per entity project. A Builder's note on the site builds
+  at once: Loki hands Builders the same pass as the owner
+  (`lib/feedback/pass-rule.ts`, `mayHoldPass`), ingest records them as the
+  reporter, and the owner is told, not asked (`notifyBuilderAsked`). Execution
+  still uses the owner's project and runner tenant. A client's or viewer's
+  note, like a stranger's, waits for the owner. The words a person reads for
+  all of this are `ROLE_LABELS` and `roleGuide` in `lib/project-capabilities.ts`,
+  shown on the invite page and again on the project after joining.
 - **Owner:** the `user_projects.user_id` owner retains project identity,
   runtime credentials, billing, and membership management. Project membership
   never copies or transfers those credentials.
@@ -262,8 +268,9 @@ export const siteFeedback = pgTable("site_feedback", {
 ]);
 ```
 
-Status flow: `new → dispatched → resolved`, or `new → archived`. Mirrors the action
-queue's philosophy: nothing auto-dispatches; the operator triages.
+Status flow: `new → dispatched → resolved`, or `new → archived`. A stranger's
+report never auto-dispatches; the operator triages. A note proven by a pass
+(the owner's or a Builder's) is the decision, and builds at once.
 
 ## Programmatic reports (`window.Loki.report`)
 

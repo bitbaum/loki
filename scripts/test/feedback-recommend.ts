@@ -72,6 +72,20 @@ r = recommendFor(
   NOW,
 )!;
 assert.equal(r.kind, RECOMMEND.BUILD, "the owner's own note is never filed away unasked");
+assert.match(r.why, /Your own note/);
+// A Builder's note carries the owner's source, so the card names who asked.
+r = recommendFor(
+  {
+    ...base,
+    source: FEEDBACK_SOURCE.OWNER,
+    reporterName: "Manu Rigner",
+    reporterIsOwner: false,
+    work: work({}),
+  },
+  NOW,
+)!;
+assert.equal(r.kind, RECOMMEND.BUILD);
+assert.match(r.why, /^Manu Rigner asked for this on your site/);
 
 // Nowhere to run: a link, not a tap.
 r = recommendFor({ ...base, runnable: false, work: work({}) }, NOW)!;

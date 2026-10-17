@@ -148,6 +148,8 @@ export function FeedbackInbox() {
             duplicateCount: f.duplicateCount,
             runnable: f.runnable !== false,
             page: f.page ?? null,
+            reporterName: f.reporterName ?? null,
+            reporterIsOwner: f.reporterUserId ? f.reporterUserId === f.userId : undefined,
           },
           now,
         ),
