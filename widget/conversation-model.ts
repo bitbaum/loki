@@ -348,7 +348,8 @@ export function createConversationModel(opts: ConversationModelOpts) {
       toLoki: true,
       ...(res.building ? { building: true } : {}),
       ...(res.note ? { note: res.note } : {}),
-      ...(res.followUrl ? { claimUrl: res.followUrl } : {}),
+      // The build when one started, else the claim link — never no way to follow.
+      ...(res.followUrl || res.claimUrl ? { claimUrl: res.followUrl ?? res.claimUrl } : {}),
     });
     changed(true);
   }

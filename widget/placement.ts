@@ -273,3 +273,69 @@ export function chooseTabTop(
   }
   return topAt(TAB_HEIGHTS[0]);
 }
+
+/**
+ * A corner that already holds the host's own floating button — its Ask, its
+ * chat bubble — belongs to the host. Climbing that edge stacked two
+ * assistants into one tower: on substrata at 390px the launcher sat 12px above
+ * the site's ASK, and at 1280px it floated 300px up the edge (2026-10-17). So
+ * the launcher yields: the other corner if that is clear, else the edge tab.
+ *
+ * A floating button, as opposed to a bar: compact, and hugging the side edge
+ * it shares with us. A tab bar or a composer spans the width, and its controls
+ * are stepped around as before.
+ */
+export const FLOAT_MAX_WIDTH = 0.75;
+export const FLOAT_MAX_HEIGHT = 0.25;
+export const FLOAT_EDGE = 96;
+
+export function isCornerFloat(
+  box: Rect,
+  side: "left" | "right",
+  viewport: { width: number; height: number },
+): boolean {
+  const w = box.right - box.left;
+  const h = box.bottom - box.top;
+  if (w <= 0 || h <= 0) return false;
+  if (w > viewport.width * FLOAT_MAX_WIDTH || h > viewport.height * FLOAT_MAX_HEIGHT) return false;
+  const gap = side === "right" ? viewport.width - box.right : box.left;
+  return gap >= 0 && gap <= FLOAT_EDGE;
+}
+
+/**
+ * The stretch of edge a corner's launcher would climb through its near band
+ * (plus the avoid gap): where a host's floating button would end up stacked
+ * against ours. In viewport coordinates.
+ */
+export function cornerColumn(
+  slot: Slot,
+  size: { width: number; height: number },
+  nearTop: number,
+  viewport: { width: number; height: number },
+): Rect {
+  const { x, y } = cornerEdges(slot.corner);
+  const left = x === "left" ? slot.offsetX : viewport.width - slot.offsetX - size.width;
+  const reach = nearTop + size.height + AVOID_GAP;
+  return {
+    left: left - AVOID_GAP,
+    right: left + size.width + AVOID_GAP,
+    top: y === "top" ? 0 : Math.max(0, viewport.height - reach),
+    bottom: y === "top" ? Math.min(viewport.height, reach) : viewport.height,
+  };
+}
+
+/**
+ * Which corner to start from once the host's floating buttons are known:
+ * the configured one when it is ours, the mirrored one when only ours is
+ * taken, and "tab" when both are. `locked` (a side the host or the visitor
+ * named) is never overridden — they chose it knowing what is there.
+ */
+export function yieldCorner(
+  corner: Corner,
+  taken: (c: Corner) => boolean,
+  locked: boolean,
+): { corner: Corner; yielded: boolean } | "tab" {
+  if (locked || !taken(corner)) return { corner, yielded: false };
+  const mirror = withSide(corner, corner.endsWith("left") ? "right" : "left");
+  return taken(mirror) ? "tab" : { corner: mirror, yielded: true };
+}

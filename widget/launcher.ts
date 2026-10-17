@@ -27,6 +27,7 @@ import { writeVisitorPlacement } from "./visitor-placement";
 import {
   chooseSlot,
   chooseTabTop,
+  cornerColumn,
   cornerEdges,
   CORNERS,
   slotOrder,
@@ -34,6 +35,7 @@ import {
   type Placement,
   type Slot,
   nearBandTop,
+  yieldCorner,
 } from "./placement";
 import { createHostScanner, readPlaceDirective } from "./host-scan";
 
@@ -434,13 +436,25 @@ export function createLauncher(opts: {
     }
     const scanner = createHostScanner(host);
     const size = fab.getBoundingClientRect();
-    const slots = slotOrder(base, {
-      edgeLength: window.innerHeight,
-      size: size.height,
-      // A side named by the host or chosen by the visitor is kept: the
-      // launcher may climb that edge, never jump across the page.
-      lockSide: side !== null || opts.getVisitorOverride() !== null,
-    });
+    const geometry = { edgeLength: window.innerHeight, size: size.height };
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+    // A side named by the host or chosen by the visitor is kept: the
+    // launcher may climb that edge, never jump across the page.
+    const locked = side !== null || opts.getVisitorOverride() !== null;
+    // A corner holding the host's own floating button is the host's
+    // (placement.yieldCorner): the other corner, or the tab, never a tower.
+    const start = yieldCorner(
+      base.corner,
+      (c) => {
+        const at = { ...base, corner: c };
+        const column = cornerColumn(at, size, nearBandTop(at, geometry), viewport);
+        return scanner.floatingControlIn(column, cornerEdges(c).x);
+      },
+      locked,
+    );
+    if (start === "tab") return placeTab(cornerEdges(base.corner).x, scanner);
+    const from: Slot = { ...base, corner: start.corner };
+    const slots = slotOrder(from, { ...geometry, lockSide: locked || start.yielded });
     const pick = chooseSlot(
       slots,
       (slot) => {
@@ -459,9 +473,11 @@ export function createLauncher(opts: {
         // Visitors retain the quieter launcher's existing placement policy.
         return owner && verdict !== "free" ? "blocked" : verdict;
       },
-      nearBandTop(base, { edgeLength: window.innerHeight, size: size.height }),
+      nearBandTop(from, geometry),
     );
-    if (!pick) {
+    // Yielded to the other corner, it must be a real corner: covering that
+    // side's controls or layers is worse than the tab beside the host's button.
+    if (!pick || (start.yielded && pick.verdict !== "free" && pick.verdict !== "text")) {
       // Keep Loki reachable without forcing the full owner pill onto content.
       placeTab(cornerEdges(base.corner).x, scanner);
       return;

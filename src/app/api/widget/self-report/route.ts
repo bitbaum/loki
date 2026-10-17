@@ -15,6 +15,7 @@ import { passHolder } from "@/lib/feedback/pass-holder";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 import { startOwnerBuild } from "@/lib/feedback/owner-build";
 import { watchFixPath } from "@/lib/feedback/tour-token";
+import { feedbackClaimPath } from "@/lib/feedback/claim-token";
 import { appUrl } from "@/lib/email";
 import {
   buildSelfReport,
@@ -128,10 +129,16 @@ export async function POST(req: NextRequest) {
   // feedback): the fix starts now, and the receipt follows the build to live.
   // Anyone else's lands in the inbox for that owner to start.
   const lokiOwner = !!holder && holder.userId === loki.userId;
-  const build = async (id: string) => {
-    if (!lokiOwner || !selfReportStartsBuild(data.kind)) return {};
-    const started = await startOwnerBuild(loki.userId, loki.projectId, id);
-    return { owner: true, ...started, followUrl: `${appUrl()}${watchFixPath(id)}` };
+  // What the receipt can link to: the build when one started, else — for a
+  // note a person wrote — a claim link, so the visitor can follow what
+  // happens to it in their own My feedback (api/feedback does the same). A
+  // receipt with neither was a dead end.
+  const follow = async (id: string) => {
+    if (lokiOwner && selfReportStartsBuild(data.kind)) {
+      const started = await startOwnerBuild(loki.userId, loki.projectId, id);
+      return { owner: true, ...started, followUrl: `${appUrl()}${watchFixPath(id)}` };
+    }
+    return data.kind === "note" ? { claimUrl: `${appUrl()}${feedbackClaimPath(id)}` } : {};
   };
 
   const contentHash = feedbackContentHash(report.suggestion, WIDGET_SELF_PAGE);
@@ -143,7 +150,7 @@ export async function POST(req: NextRequest) {
     // Saying it again means "do it" — a failed attempt starts again, one
     // already running answers "already on it" (startOwnerBuild).
     return NextResponse.json(
-      { ok: true, duplicateOf: bumped, ...(await build(bumped)) },
+      { ok: true, duplicateOf: bumped, ...(await follow(bumped)) },
       { headers: CORS_HEADERS },
     );
   }
@@ -168,7 +175,7 @@ export async function POST(req: NextRequest) {
   if (!created) return corsError("Could not store the report, try again later", 500);
   void notifyFeedbackReceived(created);
   return NextResponse.json(
-    { ok: true, id: created.id, ...(await build(created.id)) },
+    { ok: true, id: created.id, ...(await follow(created.id)) },
     { headers: CORS_HEADERS },
   );
 }

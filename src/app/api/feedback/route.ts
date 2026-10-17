@@ -18,7 +18,7 @@ import {
 } from "@/db/queries/site-feedback";
 import { feedbackContentHash } from "@/lib/feedback/content-hash";
 import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
-import { createFeedbackClaimToken } from "@/lib/feedback/claim-token";
+import { feedbackClaimPath } from "@/lib/feedback/claim-token";
 import { appUrl } from "@/lib/email";
 import { watchFixPath } from "@/lib/feedback/tour-token";
 import { passHolder } from "@/lib/feedback/pass-holder";
@@ -208,9 +208,8 @@ export async function POST(req: NextRequest) {
         },
         { headers: CORS_HEADERS },
       );
-    const claim = createFeedbackClaimToken(bumped);
     return NextResponse.json(
-      { ok: true, duplicateOf: bumped, claimUrl: `${appUrl()}/claim-feedback?token=${claim}` },
+      { ok: true, duplicateOf: bumped, claimUrl: `${appUrl()}${feedbackClaimPath(bumped)}` },
       { headers: CORS_HEADERS },
     );
   }
@@ -268,9 +267,8 @@ export async function POST(req: NextRequest) {
       },
       { headers: CORS_HEADERS },
     );
-  const claim = createFeedbackClaimToken(created.id);
   return NextResponse.json(
-    { ok: true, claimUrl: `${appUrl()}/claim-feedback?token=${claim}` },
+    { ok: true, claimUrl: `${appUrl()}${feedbackClaimPath(created.id)}` },
     { headers: CORS_HEADERS },
   );
 }
