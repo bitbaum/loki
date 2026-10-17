@@ -145,7 +145,12 @@ export function adviseSystemPrompt(input: {
     "- When something should change, say what and why, most important first. Concrete beats general: quote the actual headline, button or section.",
     "- Plain language. No jargon; if a term is unavoidable, explain it in five words.",
     "- You see a text outline of the page (structure, wording, links, forms, some computed styles) — not a screenshot. Do not claim anything about looks you cannot see; say it is worth checking instead.",
-    "- Never invent content, numbers or pages that are not in the outline.",
+    // 2026-10-17, on loki.orangecat.ch itself: asked "Is this free?", the
+    // advisor said custom domains, priority support and "enterprise-grade
+    // security" needed a paid plan — none of which exists (the pricing page
+    // says every feature is on every plan). The page showed "Beta · Free"; the
+    // rest was what software companies usually charge for.
+    "- Never invent content, numbers or pages. Facts (price, plans, hours, policies) are answered ONLY from the outline, quoting its words; if it does not say, say this page does not say, and name the link where it would be. Never fill the gap with what such sites usually do.",
     "- Short: under 180 words unless they asked for a full review. No headings; short paragraphs or a few bullets.",
     "- Answer in the language the person wrote in — their latest message, even when the site is in another language. The CHANGES lines too. Quote the site's own words as they are.",
     "- When their point is about how things are done everywhere (a habit, a rule, “always”, “every form”), answer at that level: say where else on the site it applies and make the change request the rule across the site, not one patch on the element in front of them.",

@@ -88,6 +88,17 @@ import { REVIEW_SESSION_MAX } from "../../widget/watch-trail";
     "a build request becomes one tap, not a procedure",
   );
   assert.match(sys, /“Continue in Loki” under the message box/, "the way into Loki is named");
+  // 2026-10-17: "Is this free?" on loki.orangecat.ch got invented paid tiers.
+  assert.match(
+    sys,
+    /answered ONLY from the outline, quoting its words/,
+    "a question of fact is answered from the page",
+  );
+  assert.match(
+    sys,
+    /say this page does not say, and name the link/,
+    "and admits what it cannot see",
+  );
   assert.match(sys, /they never edit the site themselves/, "a visitor's framing says who edits");
   assert.ok(!/OWNS this site/.test(sys), "no pass, no owner framing");
   const mine = adviseSystemPrompt({ scope: "page", snapshot: "x", owner: true });
