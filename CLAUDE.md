@@ -66,8 +66,12 @@ src/
 │   │                 sidebar seat — that test is what dissolved "More".
 │   ├── control/   → ControlPanel, ProjectCard, ProjectProfile (fleet command).
 │   │                 There is no ProjectTile
-│   │                 ControlFleetStatus = the hero: ONE question ("is anything
-│   │                 waiting on me?"), the projects by name, at most one button.
+│   │                 ControlNow = the top: one card per job being built (title
+│   │                 from lib/task-title, live step from the runner's beat via
+│   │                 lib/run-step), each opening the live session; ControlDone
+│   │                 = the day's results; ControlFoot = builder + settings.
+│   │                 ControlFleetStatus = the hero, shown ONLY for alarms or
+│   │                 someone needed: ONE question, at most one button.
 │   │                 ControlInbox = one collapsed queue for every small task
 │   │                 (feedback triage + widget coverage) — add a group, never a
 │   │                 new full-width strip. ControlSettingsSheet = autopilot,

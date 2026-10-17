@@ -91,6 +91,13 @@ export type OrchestrationRunPayload = {
    *  repository is read after the build lands) the packages it observed, so
    *  kit coverage can be computed (src/lib/kit-plan/coverage.ts). */
   kitPlan?: KitRunRecord;
+  /** The runner's last progress beat (stampRunProgress, lib/run-progress). */
+  lastProgressAt?: string;
+  /** Why a quiet agent is quiet, when the runner could tell ("auth"). */
+  blocked?: string | null;
+  /** What the agent was doing at the last beat that could read its log
+   *  (lib/run-step) — the line a Control job card shows. */
+  lastStep?: { text: string; at: string };
 };
 
 /** Canonical run outcome values live in @/lib/orchestration/contract (client-

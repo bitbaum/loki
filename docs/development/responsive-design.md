@@ -169,7 +169,17 @@ anything). Both are fixed, and both are easy to undo by accident:
 only exists at `sm:` and up does not exist on a phone. The hero (`ui-hero-*`) is
 the reference: base rules describe 320px, `sm:` only spends the extra room.
 
-**The hero answers one question.** *Is anything waiting on me?* — headline,
+**The top of Control is the work, not the machinery.** `ControlNow` shows one
+card per job being built — what it is (lib/task-title), what the agent is doing
+now (the runner's beat, lib/run-step), how long — and the whole card opens the
+live session (`/terminal?project=…&view=chat`). `ControlDone` lists the last
+day's results with where to look at them. Builder state, New project and
+Settings are one quiet line at the foot (`ControlFoot`). It replaced a hero
+reading "Building · 1 agent working" that could not be tapped, a counter line,
+a raw prompt log and a Workspaces list (2026-10-17: "I tap Building and expect
+to see how it's building"). Workspaces is desktop-only now.
+
+**The hero speaks only when something is wrong or someone is needed.** *Is anything waiting on me?* — headline,
 the projects by name, and at most ONE button. It previously carried five things
 (runner line + versions, refresh, new project, autopilot pulse, Pause fleet, a
 four-chip counter row, an explanatory paragraph) and its loudest control was

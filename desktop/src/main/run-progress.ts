@@ -9,6 +9,9 @@
 import { executor } from '@/lib/agent-execution'
 import { runnerWorkspaceId } from './pty-runtime'
 import { detectAuthFailure } from './agent-auth'
+import { newestLog, readRange } from './transcript-streamer'
+import { newTranscriptState, reduceTranscriptLine, type TranscriptItem } from '@/lib/claude-transcript'
+import { latestRunStep } from '@/lib/run-step'
 import {
   RUN_BLOCKED,
   RUN_PROGRESS_BEAT_MS,
@@ -94,10 +97,12 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
   const decision = shouldBeat(t)
   if (decision === 'stop') { stopRunProgress(runId); return }
   if (decision === 'wait') return
+  const step = await currentStep(t.dir).catch(() => null)
   const beat: RunProgressBeat = {
     outputBytes: t.bytesSinceBeat,
     lastOutputAt: new Date(t.lastOutputAt).toISOString(),
     blocked: t.blocked,
+    ...(step ? { step } : {}),
   }
   t.bytesSinceBeat = 0
   t.lastBeatAt = Date.now()
@@ -117,4 +122,24 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
     // Telemetry: the next tick retries; bytes since then are counted again.
     console.warn('[run-progress] beat failed:', (e as Error).message)
   }
+}
+
+/** Only the end of the log is read: the newest step is all a beat carries. */
+const STEP_TAIL_BYTES = 96_000
+
+/**
+ * What the agent is doing now, from the tail of its own session log — the
+ * same log the conversation view reads, so a Control card can say "Editing
+ * Header.tsx" with nobody watching. Null for agents that keep no Claude log.
+ */
+async function currentStep(dir: string): Promise<string | null> {
+  const log = await newestLog(dir)
+  if (!log) return null
+  const start = Math.max(0, log.size - STEP_TAIL_BYTES)
+  const lines = (await readRange(log.file, start, log.size)).split('\n')
+  if (start > 0) lines.shift()
+  const state = newTranscriptState()
+  const items: TranscriptItem[] = []
+  for (const line of lines) items.push(...reduceTranscriptLine(state, line))
+  return latestRunStep(items)
 }

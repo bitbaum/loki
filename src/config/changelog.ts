@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.45",
+    tag: "fleet-runner-v0.8.45",
+    date: "2026-10-17T21:00:00Z",
+    highlights: [
+      'Control shows what each job is doing right now — "Editing Header.tsx", "Adding the contact form" — read from the agent\'s own session log, with nobody watching the terminal.',
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.44",
     tag: "fleet-runner-v0.8.44",
     date: "2026-10-17T19:00:00Z",
