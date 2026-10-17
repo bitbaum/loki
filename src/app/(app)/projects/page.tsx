@@ -11,6 +11,7 @@ import { FleetRegisterNote } from "@/components/projects/FleetRegisterNote";
 import type { ProjectGridRow } from "@/components/projects/project-grid-row";
 import { getPreviewCode } from "@/db/queries/preview-code";
 import { requirePageUserId } from "@/lib/session";
+import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
 import { PullToRefresh } from "@/components/shared/PullToRefresh";
 import { AutoRefresh } from "@/components/shared/AutoRefresh";
 import { REFRESH_CADENCE } from "@/config/refresh";
@@ -63,7 +64,14 @@ export default async function ProjectsPage({
     redirect(`/projects?q=${encodeURIComponent(requested)}`);
   }
 
-  const previewCode = await getPreviewCode(userId).catch(() => null);
+  // A preview is built on Loki's own computers and published on the fleet's
+  // domain (lib/previews/create.ts), so only an account allowed on them is
+  // offered one. Shown to everyone until 2026-10-17, where it was a whole form
+  // that ended in a refusal — a dead end with a button on it.
+  const [previewCode, canPreview] = await Promise.all([
+    getPreviewCode(userId).catch(() => null),
+    isFleetInfrastructureAllowed(userId).catch(() => false),
+  ]);
 
   return (
     <PullToRefresh>
@@ -80,7 +88,7 @@ export default async function ProjectsPage({
         maxWidth="max-w-5xl"
         right={
           <div className="flex flex-wrap items-center gap-2">
-            <NewPreviewButton savedCode={previewCode ?? ""} />
+            {canPreview && <NewPreviewButton savedCode={previewCode ?? ""} />}
             <NewProjectButton
               autoOpen={autoOpenCreate}
               initialName={prefillName}

@@ -207,6 +207,19 @@ async function main() {
     }
   });
 
+  await check("cheap answers are admitted while room is left for one more", async () => {
+    // Two users on an 8·EST day → 4·EST (80k) each; noon unlocks 60k. 52k spent
+    // over 26 answers of 2k: the old flat 20k reserve wanted 72k and refused,
+    // though eight more such answers fit. The reserve is now the person's own
+    // cost (+25%, floored at 5k), so this turn goes through.
+    const v = await checkAiBudget("u1", NOON, {
+      timeZone: "Europe/Zurich",
+      capacity: () => 8 * ESTIMATED_TURN_TOKENS,
+      readUsage: async () => ({ userSpentTokens: 52_000, activeUsers: 2, userTurns: 26 }),
+    });
+    assert(v.allowed, `refused with room left: ${!v.allowed && v.message}`);
+  });
+
   await check("the admission estimate is conservative, not free", () => {
     // Admitting on a zero estimate would let any number of turns through before
     // the first one is booked.

@@ -58,6 +58,33 @@ async function personZone(userId: string, now: Date): Promise<string> {
  */
 export const ESTIMATED_TURN_TOKENS = 20_000;
 
+/** Turns of a person's own day before their mean is trusted over the estimate. */
+export const MEASURED_AFTER_TURNS = 2;
+/** Margin over the measured mean: admission must still err high. */
+const RESERVE_MARGIN = 1.25;
+/** Below this a "mean" is an artefact (one cached reply), not a turn's cost. */
+const RESERVE_FLOOR = 5_000;
+
+/**
+ * What admission holds back for the next turn: this person's own measured mean
+ * cost today plus a margin, never above the estimate above and never below a
+ * floor; the estimate until two turns have been measured.
+ *
+ * Why: the "answers left" count already divided by the measured mean while
+ * admission kept reserving 20,000 — so with 12,000 tokens of share left and
+ * answers costing 9,000, the count said "1 left" and the gate said no. The
+ * last part of every share went unused (seen 2026-10-17: the test account
+ * shown "17 left" ran out early). Capped at the estimate, so no one is ever
+ * reserved MORE than before; the margin keeps it erring high, as above.
+ */
+export function turnReserveTokens(spentTokens: number, turns: number): number {
+  if (turns < MEASURED_AFTER_TURNS || spentTokens <= 0) return ESTIMATED_TURN_TOKENS;
+  const mean = spentTokens / turns;
+  return Math.round(
+    Math.min(ESTIMATED_TURN_TOKENS, Math.max(RESERVE_FLOOR, mean * RESERVE_MARGIN)),
+  );
+}
+
 export type BudgetVerdict =
   { allowed: true } | { allowed: false; message: string; retryAfterSeconds?: number };
 
@@ -127,13 +154,13 @@ export async function checkAiBudget(
     const capacity = (deps.capacity ?? dayCapacityTokens)();
     const readUsage =
       deps.readUsage ?? (async (u: string, n: Date) => (await ledger()).getDayUsage(u, n));
-    const { userSpentTokens, activeUsers } = await readUsage(userId, now);
+    const { userSpentTokens, userTurns, activeUsers } = await readUsage(userId, now);
 
     const decision = fairShare({
       dayCapacityTokens: capacity,
       activeUsers,
       userSpentTokens,
-      costTokens: ESTIMATED_TURN_TOKENS,
+      costTokens: turnReserveTokens(userSpentTokens, userTurns ?? 0),
       dayElapsed: utcDayElapsed(now),
     });
 

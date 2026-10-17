@@ -116,6 +116,9 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   // account is shared: a key saved there would power every visitor's chat on
   // someone's bill, and the probe would turn the server into a key checker.
   ["/api/settings", "credentials"],
+  // Keeps an npm publish key and writes it into package repositories as a
+  // GitHub secret: a shared account must never hold one.
+  ["/api/packages/npm-key", "credentials"],
   // Operator-only plan grants. The demo account is never the operator (403),
   // but the family is named here so the table stays complete.
   ["/api/orchestration", "dispatch"],

@@ -69,5 +69,6 @@ export * from "./operator-usage-events";
 export * from "./project-packages";
 export * from "./package-update-requests";
 export * from "./package-release-pauses";
+export * from "./npm-publish-keys";
 
 export * from "./site-reviews";

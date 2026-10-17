@@ -10,6 +10,7 @@ import { PREVIEWS, previewEntryPath } from "@/config/previews";
 import type { PagePicture, PictureOptions } from "@/lib/feedback/page-picture";
 import {
   createPreviewAccessCookie,
+  previewAccessSetCookie,
   previewCodeFor,
   previewCodeMatches,
   verifyPreviewAccessCookie,
@@ -334,17 +335,12 @@ export async function handlePreviewPost(
   const cookie = createPreviewAccessCookie(Date.now(), code);
   if (!cookie) return htmlResponse(previewsOffPage(), 503);
 
-  const setCookie = [
-    `${PREVIEWS.cookie}=${cookie}`,
-    // Rooted: the preview is the host, so the cookie must reach every path.
-    `Path=${isRooted(req) ? "/" : PREVIEWS.routePrefix}`,
-    `Max-Age=${Math.floor(PREVIEWS.cookieTtlMs / 1000)}`,
-    "HttpOnly",
-    "SameSite=Lax",
-    ...(deps.secureCookies ? ["Secure"] : []),
-  ].join("; ");
+  // Rooted: the preview is the host, so the cookie must reach every path.
   const headers = new Headers(PRIVATE_HEADERS);
-  headers.append("Set-Cookie", setCookie);
+  headers.append(
+    "Set-Cookie",
+    previewAccessSetCookie(cookie, isRooted(req) ? "/" : PREVIEWS.routePrefix, deps.secureCookies),
+  );
   if (json) {
     headers.set("Content-Type", "application/json");
     return new Response(JSON.stringify({ ok: true }), { headers });
