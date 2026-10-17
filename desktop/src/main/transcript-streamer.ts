@@ -79,7 +79,7 @@ async function projectFolder(dir: string): Promise<string | null> {
 }
 
 /** The newest session log for a project directory, or null. */
-async function newestLog(dir: string): Promise<{ file: string; size: number } | null> {
+export async function newestLog(dir: string): Promise<{ file: string; size: number } | null> {
   const folder = await projectFolder(dir)
   if (!folder) return null
   let names: string[]
@@ -97,7 +97,7 @@ async function newestLog(dir: string): Promise<{ file: string; size: number } | 
   return best ? { file: best.file, size: best.size } : null
 }
 
-async function readRange(file: string, start: number, end: number): Promise<string> {
+export async function readRange(file: string, start: number, end: number): Promise<string> {
   const fh = await fs.open(file, 'r')
   try {
     const length = Math.max(0, end - start)

@@ -76,7 +76,11 @@ function WidgetChat({
           labels={{ send: current?.send ?? "Send" }}
           attach={{ maxFiles: 5, maxImageEdge: 1024 }}
           heldAttachments={state.held}
-          voice={{ transcribe: deps.transcribe, rememberKey: null, maxRecordingMs: 110_000 }}
+          voice={
+            deps.transcribe
+              ? { transcribe: deps.transcribe, rememberKey: null, maxRecordingMs: 110_000 }
+              : false
+          }
           above={
             state.starters.length ? (
               <ChatReplies
@@ -86,6 +90,7 @@ function WidgetChat({
             ) : undefined
           }
           header={<Dom node={state.header} />}
+          tools={state.tools ? <Dom node={state.tools} /> : undefined}
           footer={<Dom node={state.footer} />}
           onSend={(text, atts) => {
             const images = asDataUrls(atts);

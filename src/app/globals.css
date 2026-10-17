@@ -3094,6 +3094,31 @@
   .ui-term-mhead-title {
     @apply min-w-0 flex-1 truncate text-sm font-medium text-text-primary;
   }
+  /* Several sessions: the header's name becomes a row of them, scrolled
+     sideways like a terminal's tabs. The current one is the full button (dot,
+     name, chevron to the sheet); the rest are quiet one-tap switches. */
+  .ui-term-mtabs {
+    @apply flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto;
+    scrollbar-width: none;
+  }
+  .ui-term-mtabs::-webkit-scrollbar {
+    display: none;
+  }
+  .ui-term-mhead-btn-tab {
+    @apply max-w-56 flex-none;
+  }
+  /* Sized by its name inside the row (it only truncates past 70%), where the
+     single-session header lets the name take whatever room is left. */
+  .ui-term-mhead-btn-tab .ui-term-mhead-title {
+    @apply flex-initial;
+  }
+  /* "substrata 2 finished · Open": news from another session, one line. */
+  .ui-term-notice {
+    @apply flex shrink-0 items-center gap-3 rounded-xl border border-border-subtle bg-surface-raised px-3 py-1 text-sm text-text-secondary;
+  }
+  .ui-term-mtab {
+    @apply flex h-11 max-w-36 shrink-0 items-center gap-2 rounded-xl border border-border-subtle px-3 text-sm text-text-secondary transition-colors active:bg-surface-overlay;
+  }
   .ui-term-mhead-agent {
     @apply shrink-0 rounded bg-surface-overlay px-1.5 py-0.5 text-micro uppercase tracking-caps text-text-secondary;
   }
@@ -3203,6 +3228,12 @@
     background-color: var(--status-neutral);
     animation: ui-term-pulse 1.4s ease-in-out infinite;
   }
+  /* A session at work: the accent, breathing — distinct from the grey pulse
+     that means "connecting". */
+  .ui-term-status-working {
+    background-color: var(--accent-primary);
+    animation: ui-term-pulse 1.4s ease-in-out infinite;
+  }
   @keyframes ui-term-pulse {
     0%,
     100% {
@@ -3213,7 +3244,8 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .ui-term-live-dot-pending {
+    .ui-term-live-dot-pending,
+    .ui-term-status-working {
       animation: none;
     }
   }
@@ -5202,6 +5234,89 @@
     @apply text-text-muted;
   }
 
+  /* ── Control: what is being built for you ───────────────────────────────
+     The top of Control answers "what is being made for me right now?" with
+     one card per job, and the whole card is the way in to watching it. Calm
+     on purpose: surface, one quiet border, generous type, a single moving
+     thing (the dot of work in progress). Phone first; nothing here waits for
+     `sm:` to look designed. */
+  .ui-now-header {
+    @apply flex items-center justify-between gap-3;
+  }
+  .ui-now-heading {
+    @apply text-base font-semibold tracking-tight text-text-primary;
+  }
+  .ui-now-empty {
+    @apply rounded-2xl border border-border-subtle bg-surface-base p-4 sm:p-5;
+  }
+  .ui-now-card {
+    @apply flex flex-col gap-1.5 rounded-2xl border border-border-subtle bg-surface-base p-4 text-left transition-colors hover:border-border-interactive hover:bg-surface-raised sm:p-5;
+    box-shadow: var(--shadow-panel);
+  }
+  .ui-now-card-you {
+    @apply border-status-warning/40;
+  }
+  .ui-now-card-top {
+    @apply flex min-w-0 items-center gap-2 text-xs text-text-tertiary;
+  }
+  .ui-now-dot {
+    @apply inline-block h-2 w-2 shrink-0 rounded-full;
+  }
+  .ui-now-dot-working {
+    @apply animate-pulse bg-accent-primary;
+  }
+  .ui-now-dot-you {
+    @apply bg-status-warning;
+  }
+  .ui-now-dot-quiet {
+    @apply bg-border-strong;
+  }
+  .ui-now-dot-ok {
+    @apply bg-status-positive;
+  }
+  .ui-now-title {
+    @apply line-clamp-2 text-base font-medium leading-snug text-text-primary sm:text-lg;
+  }
+  .ui-now-status {
+    @apply line-clamp-2 text-sm leading-snug text-text-secondary;
+  }
+  .ui-now-go {
+    @apply mt-1 inline-flex items-center gap-0.5 self-start text-sm font-medium text-accent-text;
+  }
+  .ui-done-list {
+    @apply divide-y divide-border-subtle rounded-2xl border border-border-subtle bg-surface-base;
+  }
+  .ui-done-row {
+    @apply flex gap-3 px-4 py-3;
+  }
+  .ui-done-icon {
+    @apply mt-0.5 h-4 w-4 shrink-0;
+  }
+  .ui-done-icon-good {
+    @apply text-status-positive;
+  }
+  .ui-done-icon-partial {
+    @apply text-text-tertiary;
+  }
+  .ui-done-icon-bad {
+    @apply text-status-negative;
+  }
+  .ui-done-title {
+    @apply line-clamp-2 text-sm font-medium leading-snug text-text-primary;
+  }
+  .ui-done-result {
+    @apply mt-0.5 text-xs leading-snug text-text-secondary;
+  }
+  .ui-done-links {
+    @apply mt-1 flex flex-wrap gap-x-4;
+  }
+  .ui-done-link {
+    @apply inline-flex min-h-8 items-center gap-0.5 text-xs font-medium text-accent-text hover:underline;
+  }
+  .ui-now-foot {
+    @apply flex flex-wrap items-center gap-2 border-t border-border-subtle pt-3 text-xs text-text-tertiary;
+  }
+
   /* ── Needs-you inbox ──────────────────────────────────────────────────────
      One panel for every small thing waiting on a human. It replaced two
      unbounded strips (widget coverage + feedback) that between them spent
@@ -6232,9 +6347,6 @@
   }
   .ui-control-launch-defaults-body {
     @apply border-t border-border-subtle px-4 pb-4 pt-4 sm:px-5 sm:pb-5 md:px-6;
-  }
-  .ui-control-activity-item {
-    @apply rounded-2xl border border-border-subtle bg-surface-base p-3.5;
   }
   .ui-control-idle-section {
     @apply space-y-3 rounded-xl border border-border-subtle bg-surface-raised/60 p-4 sm:p-5;

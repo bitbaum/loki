@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Loader2, Minus, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Loader2, Minus, Plus, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 import { ExecutorHonestyChip } from "@/components/executor/ExecutorHonestyChip";
@@ -80,6 +81,7 @@ export function TerminalSessionSheet({
   tabs,
   activeTab,
   onSelectTab,
+  onCloseTab,
   agents,
   activeAgentId,
   onSwitchAgent,
@@ -99,6 +101,8 @@ export function TerminalSessionSheet({
   tabs?: SheetTab[];
   activeTab: string | null;
   onSelectTab?: (id: string) => void;
+  /** Ends a session: its agent stops; work it saved stays in the project. */
+  onCloseTab?: (id: string) => void;
   agents: AgentEntry[];
   activeAgentId: string | null;
   onSwitchAgent: (agentId: string) => void;
@@ -114,6 +118,14 @@ export function TerminalSessionSheet({
   onOpenLoki?: () => void;
 }) {
   const press = usePressVerb();
+  // Closing stops a running agent, so the × arms first and a second tap
+  // confirms — the strip's rule on desktop. It disarms on its own.
+  const [armed, setArmed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(null), 3000);
+    return () => clearTimeout(t);
+  }, [armed]);
   const sourceOptions = TERMINAL_SOURCES.filter((s) => sources.includes(s.id));
 
   return (
@@ -140,20 +152,46 @@ export function TerminalSessionSheet({
           <Section label={tabs.length === 1 ? "Session" : `Sessions · ${tabs.length}`}>
             {tabs.length === 0 && (
               <p className="ui-sheet-empty">
-                Nothing is running here yet. Close this and use Start a session.
+                Nothing is running here yet. Close this and use + to start a session.
               </p>
             )}
             {tabs.map((tab) => (
-              <OptionRow
-                key={tab.id}
-                title={tab.label}
-                detail={tab.badge ? `running ${tab.badge}` : undefined}
-                active={tab.id === activeTab}
-                onSelect={() => {
-                  onSelectTab(tab.id);
-                  onClose();
-                }}
-              />
+              <div key={tab.id} className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <OptionRow
+                    title={tab.label}
+                    detail={tab.badge ? `running ${tab.badge}` : undefined}
+                    active={tab.id === activeTab}
+                    onSelect={() => {
+                      onSelectTab(tab.id);
+                      onClose();
+                    }}
+                  />
+                </div>
+                {onCloseTab &&
+                  (armed === tab.id ? (
+                    <button
+                      type="button"
+                      className="ui-btn-danger min-h-11 shrink-0"
+                      onClick={() => {
+                        setArmed(null);
+                        onCloseTab(tab.id);
+                      }}
+                    >
+                      Close?
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ui-term-mhead-icon"
+                      onClick={() => setArmed(tab.id)}
+                      aria-label={`Close ${tab.label}`}
+                      title="Close this session"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  ))}
+              </div>
             ))}
           </Section>
         )}

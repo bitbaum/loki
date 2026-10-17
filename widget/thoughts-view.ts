@@ -1,19 +1,36 @@
 /**
- * "What Loki sees": one line under the panel's header that opens into Loki's
- * running notes while it watches (thoughts.ts words them). Collapsed by
- * default — one row, the spiral turning — so it informs without taking the
- * conversation's room on a phone.
+ * The panel's one status line, the owner's: "● Watching · 2 to look at ·
+ * 4 live ›  Pause". It was two rows — "Watching · 1 page · 2 things to look
+ * at" with Pause, and "Your changes · 4 live · 4 from visitors" under it —
+ * and with the header and composer that made the panel read like a cockpit
+ * (owner, 2026-10-17). One line says the state; opening it shows what Loki
+ * noted and where each change is.
  */
 import { h, spiralMark } from "./dom";
-import { ago, thoughtsFrom, thoughtsSummary } from "./thoughts";
+import { ago, thoughtsFrom, thoughtsSummary, watchHeadline } from "./thoughts";
 import type { TrailEntry } from "./watch-trail";
 
-export function createThoughtsView(onToggleWatch: () => void): {
+/** What the line carries besides watching — the owner's changes (changes.ts). */
+type Extra = {
+  /** There is anything to show at all (changes, or visitors' notes). */
+  has: () => boolean;
+  headline: () => string;
+  summary: () => string;
+  attention: () => boolean;
+  body: HTMLElement;
+};
+
+export function createThoughtsView(
+  onToggleWatch: () => void,
+  extra?: Extra,
+): {
   el: HTMLElement;
   update: (trail: TrailEntry[], watching: boolean) => void;
+  /** Repaint with what is known (the changes changed, not the trail). */
+  repaint: () => void;
 } {
   const el = h("div", "thoughts");
-  // Two controls on one line: the summary opens the notes, the text action
+  // Two controls on one line: the summary opens the details, the text action
   // at the end pauses or resumes watching. Status and its control together.
   const head = h("div", "thoughts-head");
   const row = h("button", "thoughts-row");
@@ -28,9 +45,16 @@ export function createThoughtsView(onToggleWatch: () => void): {
   toggle.type = "button";
   toggle.addEventListener("click", onToggleWatch);
   head.append(row, toggle);
+  const details = h("div", "thoughts-details");
+  details.style.display = "none";
   const list = h("ol", "thoughts-list");
-  list.style.display = "none";
-  el.append(head, list);
+  details.append(list);
+  if (extra) {
+    const changesHead = h("div", "thoughts-sub");
+    extra.body.style.display = "";
+    details.append(changesHead, extra.body);
+  }
+  el.append(head, details);
 
   let open = false;
   let last: { trail: TrailEntry[]; watching: boolean } = { trail: [], watching: false };
@@ -38,7 +62,7 @@ export function createThoughtsView(onToggleWatch: () => void): {
     open = !open;
     row.setAttribute("aria-expanded", String(open));
     el.classList.toggle("open", open);
-    list.style.display = open ? "" : "none";
+    details.style.display = open ? "" : "none";
     paint();
   });
 
@@ -46,7 +70,13 @@ export function createThoughtsView(onToggleWatch: () => void): {
     const { trail, watching } = last;
     mark.classList.toggle("watching", watching);
     mark.classList.toggle("paused", !watching);
-    summary.textContent = thoughtsSummary(trail, watching);
+    el.classList.toggle("watching", watching);
+    const more = extra?.headline() ?? "";
+    summary.textContent = more
+      ? `${watchHeadline(trail, watching)} · ${more}`
+      : watchHeadline(trail, watching);
+    row.title = thoughtsSummary(trail, watching);
+    el.classList.toggle("needs-you", extra?.attention() ?? false);
     toggle.textContent = watching ? "Pause" : "Resume";
     toggle.title = watching
       ? "Loki stops recording what you do here until you resume"
@@ -61,6 +91,12 @@ export function createThoughtsView(onToggleWatch: () => void): {
       li.append(h("span", "thought-at", ago(t.at, now)), h("span", "thought-text", t.text));
       list.appendChild(li);
     }
+    const sub = details.querySelector(".thoughts-sub");
+    if (sub && extra) {
+      const said = extra.has() ? extra.summary() : "";
+      sub.textContent = said;
+      (sub as HTMLElement).style.display = extra.body.style.display = said ? "" : "none";
+    }
   }
 
   // The "how long ago" column ages while the list is open.
@@ -74,5 +110,6 @@ export function createThoughtsView(onToggleWatch: () => void): {
       last = { trail, watching };
       paint();
     },
+    repaint: paint,
   };
 }

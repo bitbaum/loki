@@ -66,8 +66,12 @@ src/
 │   │                 sidebar seat — that test is what dissolved "More".
 │   ├── control/   → ControlPanel, ProjectCard, ProjectProfile (fleet command).
 │   │                 There is no ProjectTile
-│   │                 ControlFleetStatus = the hero: ONE question ("is anything
-│   │                 waiting on me?"), the projects by name, at most one button.
+│   │                 ControlNow = the top: one card per job being built (title
+│   │                 from lib/task-title, live step from the runner's beat via
+│   │                 lib/run-step), each opening the live session; ControlDone
+│   │                 = the day's results; ControlFoot = builder + settings.
+│   │                 ControlFleetStatus = the hero, shown ONLY for alarms or
+│   │                 someone needed: ONE question, at most one button.
 │   │                 ControlInbox = one collapsed queue for every small task
 │   │                 (feedback triage + widget coverage) — add a group, never a
 │   │                 new full-width strip. ControlSettingsSheet = autopilot,
@@ -112,7 +116,9 @@ src/
 │   │                 injected (inject wraps text in project context).
 │   │                 A press on the read-only screen puts the cursor in the box.
 │   │                 Below md the same state drives phone chrome:
-│   │                 TerminalMobileHeader (one line) + TerminalSessionSheet
+│   │                 TerminalMobileHeader (one line; with several sessions a
+│   │                 scrolling row of them + "+", which opens
+│   │                 TerminalNewSessionSheet) + TerminalSessionSheet
 │   │                 (all the setup) + TerminalMobileDock = TerminalKeyDeck
 │   │                 (the arrows/Esc/Tab/Ctrl a soft keyboard lacks — bytes are
 │   │                 SSOT in config/terminal-keys.ts), opened by Keys in the

@@ -82,6 +82,15 @@ export const STUDIO_DOORS: ReadonlyArray<{
     when: "they want to contribute code or build on the stack",
     keys: ["contribute", "contributor", "pull request"],
   },
+  // A person, for what no product and no door covers yet. "Nothing matched"
+  // was a dead end; this is the way forward from it. The public contact
+  // address is SSOT in bitbaum's CLAUDE.md.
+  {
+    label: "Ask a person",
+    url: "mailto:cato@orangecat.ch",
+    when: "nothing here fits yet, the request is unusual, or they would rather talk to a human",
+    keys: ["ask a person", "write to a person", "talk to a person", "cato@orangecat.ch"],
+  },
   // Last on purpose: the tests address the doors above by index. The one door
   // that is Loki's own — a site or app of THEIR own, by whichever of the three
   // ways fits (themselves, a partner, the studio). "Can you build this for me?"
@@ -139,6 +148,23 @@ export const EXPERIMENT_NAME_RE =
   /(^(dogfood|coldstart|factory|probe|e2e|scratch|throwaway)-)|(-(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[0-9]{2}(-[0-9]{3,4})?$)/i;
 
 /**
+ * A website job, not a product: a new version of somebody's existing site, or
+ * a site inspired by one. Those are someone else's before they are ours to
+ * show (lib/register/client-work.ts), and a job that predates that rule can
+ * still reach the map unmarked — seen live 2026-10-17, when the chat offered
+ * strangers "derhochhinhousepartyrenner-ch-refresh-68e1f…", described by its
+ * own build instruction. Recognised by the two shapes such a job leaves: the
+ * old `<host>-refresh-<32 hex>` name (lib/brief-project-name.ts) and the
+ * first line of the build brief (lib/website-brief.ts) as its description.
+ */
+const WEBSITE_JOB_NAME_RE = /-(refresh|inspired)-[0-9a-f]{32}$/i;
+const WEBSITE_JOB_WHAT_RE =
+  /^\s*(develop a new version of this existing website|create a new, independent website inspired by)\b/i;
+export function isWebsiteJob(p: Pick<FleetMapEntry, "slug" | "what">): boolean {
+  return WEBSITE_JOB_NAME_RE.test(p.slug) || WEBSITE_JOB_WHAT_RE.test(p.what ?? "");
+}
+
+/**
  * Projects a visitor can be sent to. Retired ones are history and throwaways
  * were never doors. A project that is not running is included only once
  * someone has written what problem it solves and how: without that there is
@@ -147,25 +173,15 @@ export const EXPERIMENT_NAME_RE =
 export function visibleProjects(map: FleetMap): FleetMapEntry[] {
   return map.projects.filter((p) => {
     if (p.status === "retired" || EXPERIMENT_NAME_RE.test(p.slug)) return false;
+    if (isWebsiteJob(p)) return false;
     // Someone else's work is theirs to show: without recorded consent it is
     // not a door, whatever the rest of the row says. The public map already
     // drops these; the chat holds the same line in case a map ever does not.
     if (p.client && !p.client.consentedAt) return false;
-    // A brief that became a project before anyone named it: its slug is a
-    // request id ("<host>-refresh-<32 hex>") and its purpose is the kickoff
-    // prompt. Seen live, 2026-10-17: the chat told a visitor to "look at
-    // derhochhinhousepartyrenner-ch-refresh-68e1f49…". Not a door either.
-    if (BRIEF_NAME_RE.test(p.slug) || BRIEF_NAME_RE.test(p.name)) return false;
-    if (KICKOFF_PROMPT_RE.test(p.what ?? "")) return false;
     if (p.status === "not live") return Boolean(p.identity.problem && p.identity.solution);
     return true;
   });
 }
-
-/** A project still named by its request: `<host>-refresh-<32 hex>`. */
-export const BRIEF_NAME_RE = /-refresh-[0-9a-f]{32}$/i;
-/** A purpose line that is the kickoff prompt, not a description. */
-export const KICKOFF_PROMPT_RE = /^\s*develop a new version of this existing website\b/i;
 
 const PILLAR_TITLES: Record<string, string> = {
   orangecat: ECOSYSTEM.orangeCat.title,
@@ -279,8 +295,14 @@ export function conciergeSystemPrompt(
     "When the fit is OrangeCat, the Cat recommends itself in the first person ('you can set that up with me on OrangeCat'); when it is Loki, Loki does the same ('sign up and I'll run agents on your code'). Neither talks about itself as 'OrangeCat is…' or 'Loki is…'.",
     "Prefer what the visitor can use themselves today. The studio waitlist is only for having the studio build something FOR them, and the studio is at capacity — never send someone there when a product fits.",
     "",
+    "Who asks: often not a developer — a shop owner, a parent, someone curious. Use everyday words; say 'website', not 'repo' or 'deploy', unless they did. Every answer ends with ONE concrete next step they can take now.",
+    "When the request is vague ('can you build something?', 'help me with research'), ask ONE short question about what they want to achieve — and in the same message name the likeliest fit, so they always have something to click.",
+    "What bitbaum is, if asked: a studio in Zürich that builds AI-native products on shared open infrastructure, so that more than one person can build here. Its three pillars are below; the projects are what is being built on them.",
+    "Wanting a website, shop or app of their own is Loki's to answer: 'Build something of your own' — they describe it in a few sentences and get a first version to look at, without writing code.",
+    "",
     "Rules:",
-    "- Answer only from the facts below. If nothing fits, say so plainly and point to the waitlist or the full catalogue. Never invent a feature, price, date, number or project.",
+    "- Answer only from the facts below. Never invent a feature, price, date, number or project.",
+    "- If nothing fits, say so in one sentence, then give the closest real way forward: 'Build something of your own' when it could be built, 'Ask a person' otherwise. Never stop at 'nothing matched'.",
     "- Say the stage honestly, using the words given (beta, pilot, in development, concept, not built). Never call anything released or finished, and never call anyone a client.",
     "- Do not promise payments, revenue shares or start dates. You may state the partner terms and the published engagement price exactly as the facts give them.",
     "- A builder who wants to work here, build for customers, or asks about partners, the course or the capstone: Loki answers from '# The studio' and points to 'Become a partner' or 'Read the systems design pilot'. Never say the partner programme or the course does not exist.",
@@ -339,23 +361,48 @@ export function linksForReply(
       link: { label: displayName(p), url: projectUrl(p, appBase) },
     });
   }
+  // A door is named by its label too: the prompt tells the model to say
+  // "Build something of your own", and a reply that did so used to get no
+  // button at all (seen live 2026-10-17, the bakery question).
+  const doorUrls = new Set<string>();
   for (const d of STUDIO_DOORS) {
-    const hit = d.keys.find((k) => mentions(reply, k));
-    if (hit)
-      found.push({ at: reply.toLowerCase().indexOf(hit), link: { label: d.label, url: d.url } });
+    const hit = [d.label, ...d.keys].find((k) => mentions(reply, k));
+    if (!hit) continue;
+    doorUrls.add(d.url);
+    found.push({
+      at: reply.toLowerCase().indexOf(hit.toLowerCase()),
+      link: { label: d.label, url: d.url },
+    });
   }
   const seen = new Set<string>();
-  return found
+  const ordered = found
     .sort((a, b) => a.at - b.at)
     .map((f) => f.link)
-    .filter((l) => (seen.has(l.url) ? false : (seen.add(l.url), true)))
-    .slice(0, max);
+    .filter((l) => (seen.has(l.url) ? false : (seen.add(l.url), true)));
+  // A door is the next step the answer asked for; projects merely named (the
+  // pillars in "what is bitbaum?") must not push it off the end.
+  const kept = ordered.slice(0, max);
+  for (const door of ordered.slice(max).filter((l) => doorUrls.has(l.url))) {
+    const drop = kept.map((l) => doorUrls.has(l.url)).lastIndexOf(false);
+    if (drop < 0) break;
+    kept.splice(drop, 1);
+    kept.push(door);
+  }
+  return kept;
 }
 
+/**
+ * Words that carry no need, in the two languages visitors write here. German
+ * was missing, so "Kannst du mir helfen, eine Recherche zu machen?" was scored
+ * on "kannst", "helfen" and "machen" and matched whatever said "help".
+ */
 const STOPWORDS = new Set(
-  "a an and are as at be but by can do does for from have how i if in is it me my of on or so that the this to we what when where which who why with you your".split(
-    " ",
-  ),
+  [
+    "a an and are as at be but by can could do does for from get have help how i if in is it just like make me my need of on or please so some something that the this to want we what when where which who why with would you your",
+    "aber auch auf aus bei bitte das dass dem den der des die du ein eine einem einen einer er es etwas für helfen hilfe ich ihr im in ist kann kannst können machen mein meine mich mir mit möchte nicht noch oder sie sind und von was wer wie will wir wo zu",
+  ]
+    .join(" ")
+    .split(" "),
 );
 
 /**
@@ -374,72 +421,154 @@ function words(text: string): string[] {
     .map(stem);
 }
 
+/** German or not, by its function words: enough to answer in the visitor's language. */
+const GERMAN_HINT =
+  /(^|[^\p{L}])(ich|und|nicht|kannst|können|möchte|eine?n?|für|bitte|mir|meine?|wie|helfen|machen|ist|du|sie|webseite|bäckerei)(?=$|[^\p{L}])/giu;
+export function looksGerman(text: string): boolean {
+  return (text.match(GERMAN_HINT) ?? []).length >= 2;
+}
+
+type Lang = "en" | "de";
+type Said = Record<Lang, string>;
+
+/** The doors the fallback names, by label — never by index, so reordering cannot misroute. */
+function door(label: string): ConciergeLink {
+  const d = STUDIO_DOORS.find((x) => x.label === label)!;
+  return { label: d.label, url: d.url };
+}
+
 /**
- * The answer when no model can be asked — budget spent, every vendor down.
- * Still routes: scores each project by the visitor's words against its name,
- * purpose, problem and solution. A worse answer than the model's, and much
- * better than "try again later" to someone who only wanted to be pointed
- * somewhere.
+ * What a visitor most often wants, recognised without a model. Each names the
+ * way forward that exists today, in both languages. Checked before project
+ * words, because "I want a website for my bakery" is a request to have
+ * something BUILT — the one question project names cannot route.
+ */
+type Intent = { re: RegExp; reply: Said; doors: string[]; pillar?: string };
+const INTENTS: Intent[] = [
+  {
+    re: /(^|[^\p{L}])(research|recherche|recherchieren|study|studie|forschung|forschen|analyse|analysis|analyze|investigate|find out|herausfinden)(?=$|[^\p{L}])/iu,
+    doors: ["Ask a person", "Build something of your own"],
+    reply: {
+      en: "There is no ready-made research assistant here yet. For the research itself, write to a person and say what you want to find out; if you need a tool or a site for your research, Loki can build it with you.",
+      de: "Einen fertigen Recherche-Assistenten gibt es hier noch nicht. Für die Recherche selbst schreib einer Person, was du herausfinden möchtest; brauchst du ein Werkzeug oder eine Webseite dafür, kann Loki es mit dir bauen.",
+    },
+  },
+  {
+    re: /(^|[^\p{L}])(website|websites|webseite|webseiten|web site|homepage|online-?shop|shop|landing ?page|app|apps|portfolio|blog|build|building|bauen|baue|baut|erstellen|erstelle)(?=$|[^\p{L}])/iu,
+    doors: ["Build something of your own"],
+    reply: {
+      en: "Loki can build that with you. Describe it in a few sentences — what it is for and who visits — and you get a first version to look at, no code needed.",
+      de: "Loki kann das mit dir bauen. Beschreibe es in ein paar Sätzen – wofür es ist und wer es besucht – und du bekommst eine erste Version zum Anschauen, ohne Programmieren.",
+    },
+  },
+  {
+    re: /(^|[^\p{L}])(sell|selling|earn|earning|get paid|pay|payment|payments|bitcoin|lightning|fund|funding|donate|donation|verkaufen|verkaufe|bezahlen|bezahlt|geld|zahlung|zahlungen|spende|spenden)(?=$|[^\p{L}])/iu,
+    pillar: "orangecat",
+    doors: [],
+    reply: {
+      en: "For getting paid, selling or raising money, OrangeCat is the place: you set up what you offer, and people pay you in Bitcoin.",
+      de: "Um bezahlt zu werden, etwas zu verkaufen oder Geld zu sammeln, ist OrangeCat der richtige Ort: Du richtest ein, was du anbietest, und Leute bezahlen dich mit Bitcoin.",
+    },
+  },
+];
+
+/**
+ * The answer when no model can be asked — the visitors' pool spent, every
+ * vendor down. It still has to help: a studio door the visitor named, else a
+ * recognised need (get paid, research, have something built), else the
+ * products whose words match, else an honest "not yet" with a person to ask.
+ *
+ * It does not open by apologising. "A full answer isn't available right now"
+ * opened every reply for weeks, which told every visitor the assistant was
+ * broken before saying anything useful — they left on the first sentence.
  */
 export function fallbackAnswer(
   message: string,
   map: FleetMap,
   appBase: string,
 ): { reply: string; links: ConciergeLink[] } {
+  const lang: Lang = looksGerman(message) ? "de" : "en";
+
   // A question about the studio's own doors (partners, the course) is not a
   // project match: say where the door is before guessing from project words.
   const doors = STUDIO_DOORS.filter((d) => d.keys.some((k) => mentions(message, k)));
   if (doors.length > 0) {
+    const list = doors.map((d) => d.label).join(lang === "de" ? " oder " : ", or ");
     return {
-      reply: `The best place to start with that: ${doors.map((d) => d.label).join(", or ")}. Ask again in a moment and the Cat or Loki will answer in full.`,
+      reply: lang === "de" ? `Hier geht es los: ${list}.` : `This is the place to start: ${list}.`,
       links: doors.map((d) => ({ label: d.label, url: d.url })),
     };
   }
+
+  // Products the visitor can open today, ranked by their words. Something not
+  // running is a concept to read about, not an answer to a need.
+  const usable = visibleProjects(map).filter((p) => p.status === "live" || p.status === "demo");
   const wanted = new Set(words(message));
   // A pillar's role line says what it is FOR ("move value … Bitcoin settlement")
   // in the words a visitor uses; its product copy often does not.
   const pillarRole = new Map(map.pillars.map((pl) => [pl.slug, pl.role]));
-  const scored = visibleProjects(map)
+  const scored = usable
     .map((p) => {
       const name = new Set(words(`${p.name} ${p.slug}`));
-      const body = words(
-        [
-          p.what,
-          p.identity.problem,
-          p.identity.solution,
-          p.identity.mission,
-          pillarRole.get(p.slug),
-        ]
-          .filter(Boolean)
-          .join(" "),
+      const body = new Set(
+        words(
+          [
+            p.what,
+            p.identity.problem,
+            p.identity.solution,
+            p.identity.mission,
+            pillarRole.get(p.slug),
+          ]
+            .filter(Boolean)
+            .join(" "),
+        ),
       );
       let score = 0;
       for (const w of wanted) {
-        if (name.has(w)) score += 5;
-        score += Math.min(3, body.filter((b) => b === w).length);
+        if (name.has(w)) score += 3;
+        else if (body.has(w)) score += 1;
       }
       return { p, score };
     })
-    .filter((s) => s.score > 0)
+    // One shared word in a long description is chance, not a fit: that is how
+    // every question used to be answered with the same safety product.
+    .filter((s) => s.score >= 2)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
+    .slice(0, 2);
+  const projectLinks = scored.map((s) => ({
+    label: displayName(s.p),
+    url: projectUrl(s.p, appBase),
+  }));
 
-  if (scored.length === 0) {
+  const intent = INTENTS.find((i) => i.re.test(message));
+  if (intent) {
+    const pillar = intent.pillar ? usable.find((p) => p.slug === intent.pillar) : undefined;
+    const links = [
+      ...(pillar ? [{ label: displayName(pillar), url: projectUrl(pillar, appBase) }] : []),
+      ...intent.doors.map(door),
+      ...projectLinks,
+    ].filter((l, i, a) => a.findIndex((x) => x.url === l.url) === i);
+    return { reply: intent.reply[lang], links: links.slice(0, 3) };
+  }
+
+  if (scored.length > 0) {
+    const names = scored.map((s) => displayName(s.p));
+    const list = names.join(lang === "de" ? " oder " : " or ");
     return {
       reply:
-        "Nothing in the catalogue matches those words yet. The full list of projects is one click away, or join the waitlist to have something built — and ask again in a moment for a fuller answer.",
-      links: [
-        { label: STUDIO_DOORS[2]!.label, url: STUDIO_DOORS[2]!.url },
-        { label: STUDIO_DOORS[0]!.label, url: STUDIO_DOORS[0]!.url },
-      ],
+        lang === "de"
+          ? `Am nächsten an dem, was du beschreibst: ${list}. Wenn es das nicht ist, sag mir in einem Satz, was du erreichen möchtest.`
+          : `Closest to what you describe: ${list}. If that isn't it, tell me in one sentence what you want to get done.`,
+      links: projectLinks,
     };
   }
-  const names = scored.map((s) => displayName(s.p));
-  const list =
-    names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`;
+
   return {
-    reply: `Going by your words, ${list} ${names.length === 1 ? "looks" : "look"} like the closest fit. Open ${names.length === 1 ? "it" : "one"}, or ask again in a moment for a fuller answer.`,
-    links: scored.map((s) => ({ label: displayName(s.p), url: projectUrl(s.p, appBase) })),
+    reply:
+      lang === "de"
+        ? "Dafür habe ich hier noch nichts Passendes gefunden. Sag mir in einem Satz, was du erreichen möchtest – oder schreib direkt einer Person."
+        : "I couldn't find something here for that yet. Tell me in one sentence what you want to get done — or write to a person directly.",
+    links: [door("Ask a person"), door("See all projects")],
   };
 }
 

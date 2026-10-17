@@ -57,7 +57,7 @@ assert.match(
 );
 assert.match(
   ingest,
-  /fromOwner = !!\(await passHolder\(data\.ownerPass, token\)\)/,
+  /const holder = await passHolder\(data\.ownerPass, token\);\s*const fromOwner = holder !== null;/,
   "the owner or an editor, verified",
 );
 // One way an owner's words start a fix, shared by Report and the walkthrough's "Not quite".
@@ -113,11 +113,13 @@ assert.match(
 );
 assert.match(widget, /if \(ownerState\.arrived\) pendingReport = \{\}/, "arriving opens the note");
 
-// Loki hands the pass only to the owner, on the Live link.
+// Loki hands the pass on the Live link to whoever may hold one:
 const page = readFileSync("src/app/(app)/projects/[id]/page.tsx", "utf8");
+// The owner and every Builder (lib/feedback/pass-rule.ts, mayHoldPass) —
+// a viewer's or a client's "Open site" is the plain link.
 assert.match(
   page,
-  /dossier\.ownerId === session\.user\.id \? createOwnerPass\(id, session\.user\.id\) : null/,
+  /mayHoldPass\(dossier\.viewerRole\) \? createOwnerPass\(id, session\.user\.id\) : null/,
 );
 
 // The agent is told the owner asked for it — a request to build, not a report.

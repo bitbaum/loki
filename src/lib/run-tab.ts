@@ -50,3 +50,42 @@ export function baseProjectKey(tab: string): string {
   const i = tab.indexOf(RUN_TAB_SEPARATOR);
   return i === -1 ? tab : tab.slice(0, i);
 }
+
+/**
+ * At most this many extra lanes per project, beside its base tab.
+ *
+ * Each lane is a whole agent: a PTY, a CLI process, a worktree, and a share of
+ * ONE subscription's rate limit. Parallel dispatch (orchestration/parallel-run)
+ * and the terminal's "+" (a second session a person starts by hand) share the
+ * limit, so neither can fan a project out past what the builder can carry.
+ */
+export const MAX_PARALLEL_LANES_PER_PROJECT = 2;
+
+/** The open tabs that belong to one project: its base tab and its lanes. */
+export function sessionsOfProject(tabs: readonly string[], projectKey: string): string[] {
+  const key = projectKey.toLowerCase();
+  return tabs.filter((tab) => baseProjectKey(tab).toLowerCase() === key);
+}
+
+/**
+ * The tab a new session of `projectKey` should open as: the project itself
+ * while nothing of it is open, else a fresh lane. Null once the project has
+ * its base tab and every lane, so the caller can say why instead of launching
+ * into a tab that is already running (which would replace that session).
+ */
+export function nextSessionTab(
+  tabs: readonly string[],
+  projectKey: string,
+  runId: string,
+): string | null {
+  const open = sessionsOfProject(tabs, projectKey);
+  // The project's own tab first, whenever it is free — even beside a lane left
+  // open after the first session closed.
+  if (!open.some((tab) => !isDerivedRunTab(tab))) return projectKey;
+  if (open.length > MAX_PARALLEL_LANES_PER_PROJECT) return null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const tab = deriveRunTab(projectKey, attempt === 0 ? runId : `${attempt}${runId}`);
+    if (!tabs.includes(tab)) return tab;
+  }
+  return null;
+}

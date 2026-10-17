@@ -37,6 +37,9 @@ export type KitState = {
   modes: KitMode[];
   /** Inside the composer, above the words: the scope menu. */
   header: HTMLElement | null;
+  /** In the composer's tool row: Talk, when the widget offers it in place
+   *  of chatkit's own dictation (one microphone). */
+  tools?: HTMLElement | null;
   /** Under the composer: Continue in Loki. */
   footer: HTMLElement | null;
   /** Screenshots held for the next note, shown in the composer. */
@@ -51,8 +54,9 @@ export type KitDeps = {
   send: (mode: string, text: string) => void;
   /** Screenshots attached in the composer, as data URLs, kept for the next note. */
   stage: (images: string[]) => void;
-  /** The widget's own transcription endpoint (it needs the embed token). */
-  transcribe: (audio: Blob, locale: string) => Promise<string>;
+  /** The widget's own transcription endpoint (it needs the embed token).
+   *  Absent when the widget offers Talk instead: then chatkit draws no mic. */
+  transcribe?: (audio: Blob, locale: string) => Promise<string>;
   /** --ck-* variables from the widget's boot theme (chat/theme.ts). */
   vars: string;
 };

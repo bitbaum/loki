@@ -169,7 +169,17 @@ anything). Both are fixed, and both are easy to undo by accident:
 only exists at `sm:` and up does not exist on a phone. The hero (`ui-hero-*`) is
 the reference: base rules describe 320px, `sm:` only spends the extra room.
 
-**The hero answers one question.** *Is anything waiting on me?* — headline,
+**The top of Control is the work, not the machinery.** `ControlNow` shows one
+card per job being built — what it is (lib/task-title), what the agent is doing
+now (the runner's beat, lib/run-step), how long — and the whole card opens the
+live session (`/terminal?project=…&view=chat`). `ControlDone` lists the last
+day's results with where to look at them. Builder state, New project and
+Settings are one quiet line at the foot (`ControlFoot`). It replaced a hero
+reading "Building · 1 agent working" that could not be tapped, a counter line,
+a raw prompt log and a Workspaces list (2026-10-17: "I tap Building and expect
+to see how it's building"). Workspaces is desktop-only now.
+
+**The hero speaks only when something is wrong or someone is needed.** *Is anything waiting on me?* — headline,
 the projects by name, and at most ONE button. It previously carried five things
 (runner line + versions, refresh, new project, autopilot pulse, Pause fleet, a
 four-chip counter row, an explanatory paragraph) and its loudest control was
@@ -215,7 +225,7 @@ and that failure is silent.
 
 ## Terminal page (`/terminal`)
 
-Below `md` the terminal is three pieces and nothing else: a one-line header (`TerminalMobileHeader` — session name, live dot, the **Claude | Terminal** view switch (named after the agent in the session), full-screen toggle), the screen, and the dock (`TerminalMobileDock` — the session box, the same `SessionComposer` the conversation view shows). Everything that is *setup* rather than *state* — source, session list, agent, the run summary panel, text size, live-keystrokes — lives in `TerminalSessionSheet`, one tap behind the session name. The view switch is one component (`TerminalViewSwitch`) drawn in the phone header and in the desktop session bar, so both views always have the way to the other; "Loki" names only the supervisor panel (the desktop pane button and the sheet section); the conversation view is named after the agent, because that is who it shows you talking to. The desktop chrome (source bar, tab strip, session bar, status row) is `hidden md:block`; there is one `TerminalView` shared by both.
+Below `md` the terminal is three pieces and nothing else: a one-line header (`TerminalMobileHeader` — session name, live dot, a "+" that opens `TerminalNewSessionSheet` (the same start form as the desktop strip's "+"; a project that already has a session gets a second one beside it, in its own worktree, never a replacement), and with more than one session a sideways-scrolling row of them where the current one keeps its dot and chevron and the others switch in one tap (`scripts/test/terminal-tabs-browser.ts` pins it at 320 and 390px). Every tab carries its session's status dot (`lib/terminal-session-status.ts`, read from the same `/api/control/stream` Control uses), and `TerminalSessionNotice` says, in one line with Open, when a session you are not looking at finishes or needs you, the **Claude | Terminal** view switch (named after the agent in the session), full-screen toggle), the screen, and the dock (`TerminalMobileDock` — the session box, the same `SessionComposer` the conversation view shows). Everything that is *setup* rather than *state* — source, session list, agent, the run summary panel, text size, live-keystrokes — lives in `TerminalSessionSheet`, one tap behind the session name. The view switch is one component (`TerminalViewSwitch`) drawn in the phone header and in the desktop session bar, so both views always have the way to the other; "Loki" names only the supervisor panel (the desktop pane button and the sheet section); the conversation view is named after the agent, because that is who it shows you talking to. The desktop chrome (source bar, tab strip, session bar, status row) is `hidden md:block`; there is one `TerminalView` shared by both.
 
 Above the session box sit "What's going on?" and up to three next steps that fit the screen (`lib/terminal-suggestions.ts` + the fast model), chosen once the screen settles and then held still (`lib/stable-steps.ts`); two on a phone. One press sends a step, and while the soft keyboard is up the bottom nav hides (`fc-keyboard-open`, set by `MobileNav`) so it never covers the box being typed into.
 

@@ -1,5 +1,5 @@
 import { promptForLane } from "@/lib/orchestration/lane-prompt";
-import { deriveRunTab } from "@/lib/run-tab";
+import { MAX_PARALLEL_LANES_PER_PROJECT, deriveRunTab } from "@/lib/run-tab";
 import { countOpenParallelLanes, mergeRunPayload } from "@/db/queries/orchestration-runs";
 
 /**
@@ -28,18 +28,9 @@ import { countOpenParallelLanes, mergeRunPayload } from "@/db/queries/orchestrat
 /** Opt-in: a worktree per run is a real cost on the builder's disk. */
 export const PARALLEL_DISPATCH_ENABLED = process.env.LOKI_PARALLEL_DISPATCH === "true";
 
-/**
- * At most this many parallel lanes per project, on top of the base lane.
- *
- * Each lane is a whole agent: a PTY, a Claude Code (or other CLI) process, a
- * worktree, and a share of ONE subscription's rate limit. Unbounded, a busy
- * project plus an eager autopilot would fan out until the builder or the
- * account throttles everything at once — which is slower than queueing. Two
- * extra lanes lets Implement start immediately beside a long autopilot run
- * without turning one busy project into a stampede; past it, the queue does
- * its old job.
- */
-export const MAX_PARALLEL_LANES_PER_PROJECT = 2;
+/** Shared with the terminal's "+" — see run-tab.ts for why there is a limit.
+ *  Re-exported so existing callers keep their import. */
+export { MAX_PARALLEL_LANES_PER_PROJECT };
 
 export type ParallelRunPlan = {
   /** The derived tab alias to dispatch against. */

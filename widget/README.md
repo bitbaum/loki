@@ -8,9 +8,10 @@ where the launcher goes, and how to hide it.
 
 ## Voice notes while browsing
 
-Open Loki and choose **Voice note** in the header. The panel closes; one small
-dock — *Listening 0:12 · Mark · Done · ✕* — leaves the site usable. Scroll and
-tap and talk. Loki notes which part of the page is in view (its nearest
+Open Loki and tap **Talk** in the composer — the panel's one microphone. The
+panel closes; one dock — *● Recording 0:12 · Mark · Done · ✕* — and a red edge
+round the whole screen say Loki is listening, and the site stays usable (the
+edge takes no taps). Scroll and tap and talk. Loki notes which part of the page is in view (its nearest
 heading), the text at the reading line, how far you have scrolled, and
 anything you tap on the site (the control's own label, never what you typed)
 — when you start, each time scrolling settles, each time you tap, and each
@@ -33,9 +34,9 @@ comes back with each sentence under the part of the page that was in view
     Is the shop open?
 
 The card is titled **What you said**, editable, and never sent by itself.
-**Chat with Loki** asks about it in the conversation; visitors can **Save
+**Ask** asks Loki about it in the conversation; visitors can **Save
 feedback** for whoever builds the site; the owner (and the project's editors)
-can **Request a fix** or **Save note**. The whole note is kept — the receipt quotes its start and folds
+can **Fix it** or **Save**. The whole note is kept — the receipt quotes its start and folds
 the rest under *Show all you sent*.
 
 The original location stays attached even if you move before sending. Unsent
@@ -49,7 +50,7 @@ See [capture design and limits](../docs/development/contextual-voice-feedback.md
 Under the greeting, **This is my site — sign in with Loki →** says who it is
 for and what happens, goes through Loki's sign-in and lands back on the page.
 Whoever owns the site's Loki project, and anyone it is shared with as an
-editor, gets the owner's panel (Watch, Request a fix, Your changes) —
+editor, gets the owner's panel (Watch, Fix it, Your changes) —
 `src/lib/feedback/pass-holder.ts`, one rule for every route. No Loki account:
 "Create one free" keeps the way back to the site. Signed in as someone else:
 the panel says this site belongs to another account, and they can still chat
@@ -59,14 +60,14 @@ and save feedback as a visitor.
 
 Read this before changing the widget; every rule below was learned by using it.
 
-**One conversation, clear intents.** The panel opens ready to **Chat with
-Loki**. A small intent switch offers **Save feedback** for a visitor or
-**Request a fix** for a verified owner. This is not a model selector: the same
+**One conversation, clear intents.** The panel opens ready to **Ask**. Beside
+it, **Save feedback** for a visitor or **Fix it** for a verified owner — two
+words for two intents; the long labels made the composer read like a form. This is not a model selector: the same
 Loki conversation handles the question, note and follow-up, and approved work
 uses the project's existing builder queue.
 
 **Two ways to say anything, side by side.** *Save feedback* (straight to the
-builder, no AI, never waits on a model) and *Chat with Loki* (a second opinion
+builder, no AI, never waits on a model) and *Ask* (a second opinion
 first). Anything Loki suggests is one tap from the builder. What was sent comes
 back as a receipt in the same thread, linked to where it can be followed in
 Loki. The box's placeholder says what the message is about.
@@ -85,6 +86,13 @@ same design tokens as the app. Embedded sites can set `data-fc-theme="light"`
 or `"dark"`; otherwise the browser appearance is followed. Loki's own embed
 passes the active app theme directly.
 
+**Few controls, each said once.** The owner's panel is a header (Loki, the
+page, ✕), ONE status line — *● Watching · 2 to look at · 4 live › Pause*, which
+opens what Loki noted and where each change is — the conversation, and the
+composer (*Talk · screenshots · Fix it · Ask*). It was two status rows, two
+microphones and a footer before a word was said (owner, 2026-10-17: "too
+intimidating"). *Continue in Loki* appears once there is something to take.
+
 **Watch is the owner's, and it speaks.** While it watches, Loki says what it
 noticed — in the conversation, in plain words, naming the tap that led there,
 each with *Fix this* and *Why does it matter?* — and is otherwise quiet.
@@ -93,16 +101,19 @@ Rules that resolve the trade-offs:
 
 - **The launcher is the status, and the owner has exactly one of it.** For a
   visitor it is quiet ("quiet until wanted"). For the owner it is full weight —
-  one pill, two halves: *Loki · watching* (a count of what Loki said while the
-  panel was closed, the newest remark beside it) and **Point**, which points at an
-  element or marks the whole screen. Auto-avoid measures the entire pill,
-  including the target and unread badge. The owner pill only uses clear space;
+  ONE button that says its state in a word at every width, *● Watching* or
+  *Paused*, with a count of what Loki said while the panel was closed and the
+  newest remark beside it. A tap opens Loki. (It had a second half, **Point**,
+  which on a phone was the labelled, bigger part — so the obvious tap pointed
+  instead of opening, and the state was a turning spiral nobody read,
+  2026-10-17. Pointing is **Point to area** in the composer.) Auto-avoid
+  measures the button and its unread badge. The owner pill only uses clear space;
   on a crowded page it becomes the same edge handle visitors use, keeping the
   unread count and access to the conversation. Remark previews only appear
   over clear space and dismiss on scroll or when space becomes occupied; every remark remains
   in the conversation. The top bar exists only for a page that
   hides the launcher outright (`data-fc-place="hidden"`; the edge tab counts as
-  shown), and carries the same
+  shown), and carries its own
   **Point** — the owner said on 2026-10-10 that a bar and a launcher taking turns
   "sure is confusing", and they were right.
 - **Starting and stopping is one tap**, named for what it does (*Stop
@@ -138,8 +149,8 @@ ends up with two copies of the tag still renders one launcher (all proven in
 
 ## What the panel offers
 
-The composer starts in **Chat with Loki**. Choose **Save feedback** to file a
-visitor note, or **Request a fix** when you are signed in as the site owner.
+The composer starts in **Ask**. Choose **Save feedback** to file a
+visitor note, or **Fix it** when you are signed in as the site owner.
 The current page is already selected; open the scope menu only when the note
 is about the whole site or Loki. **Point to area** attaches the element you
 select. Recommendations can be sent into the project's builder queue, and the
@@ -180,8 +191,8 @@ trail. The
 owner pass makes the report a build, so the pill turns into **Something broke
 — Loki is fixing it · Follow**. One report per distinct cause, at most three
 per page load. **Report** on the pill opens the note with the same trail
-attached, for anything that looks wrong without failing. **Point** — on the
-launcher, always — is how the owner shows Loki something: tap it, then tap the
+attached, for anything that looks wrong without failing. **Point to area** —
+in the composer — is how the owner shows Loki something: tap it, then tap the
 element, or **This screen** to mark everything on screen right now (the blocks
 a screenshot would frame), and say what you would change. Loki answers or
 builds it, in the same conversation. **Pause** on the pill stops recording until **Resume**;

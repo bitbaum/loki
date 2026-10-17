@@ -545,15 +545,24 @@ else
 fi
 
 # 2. A browser for the app user. The fix check (src/lib/feedback/page-picture.ts)
-#    takes a phone-sized picture of a live page when text cannot settle a fix.
-#    It uses Playwright's own Chromium, at the revision the shipped Playwright
-#    expects, from the app user's cache. The runner directory has the full
-#    dependency install, so its Playwright CLI is the one to ask; installing an
-#    already-present revision is a no-op.
-step "browser for fix checks"
+#    and a preview's before-and-after tour take phone-sized pictures of live
+#    pages. Playwright looks for ITS OWN Chromium revision in the app user's
+#    cache, so the install must be run by the Playwright the app ships — the
+#    one in the standalone's node_modules — never by the runner's: the runner
+#    is installed by npm from package.json's ranges while the app is built from
+#    pnpm's lockfile, and the two resolved different Playwright versions, so
+#    the revision installed here was never the one the app asked for, and
+#    /api/health said nothing (2026-10-17: every picture "no-browser"). The
+#    health line's `pictures` field now says whether it worked; the output of
+#    a failed install is kept in the deploy log.
+step "browser for pictures"
 APP_USER="${LOKI_APP_USER:-ubuntu}"
-if timeout 300 ssh "$HOST" "sudo -u $APP_USER -H bash -c 'cd $RUNNER_DIR && ./node_modules/.bin/playwright install chromium'" >/dev/null 2>&1; then
-  echo "  ✓ Chromium present for $APP_USER (fix checks can take pictures)"
+PW_CLI="$APP_DIR/node_modules/playwright/cli.js"
+if ! ssh "$HOST" "test -f $PW_CLI"; then
+  echo "  ⚠ the app ships no Playwright ($PW_CLI missing) — pictures are off until it does" >&2
+elif pw_out=$(timeout 300 ssh "$HOST" "sudo -u $APP_USER -H bash -c 'cd $APP_DIR && /usr/bin/node $PW_CLI install chromium'" 2>&1); then
+  echo "  ✓ Chromium present for $APP_USER at the app's own Playwright revision"
 else
-  echo "  ⚠ could not install Chromium for $APP_USER — fix checks will say \"no browser\" on the card" >&2
+  echo "  ⚠ could not install Chromium for $APP_USER — /api/health will say pictures.ok=false" >&2
+  printf '%s\n' "$pw_out" | tail -15 | sed 's/^/    /' >&2
 fi

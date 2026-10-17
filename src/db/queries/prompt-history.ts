@@ -266,3 +266,31 @@ export async function getProjectPromptActivity(
     .limit(limit);
   return rows.map(toActivityItem);
 }
+
+/**
+ * The prompt each run was dispatched with, by run id — what a run is ABOUT
+ * (lib/task-title reads a title from it). Runs dispatched before run_id was
+ * recorded have no row and are named by their intent instead.
+ */
+export async function getPromptsByRunIds(
+  userId: string,
+  runIds: string[],
+): Promise<Map<string, { customPrompt: string | null; resolvedPrompt: string | null }>> {
+  if (runIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      runId: promptHistory.runId,
+      customPrompt: promptHistory.customPrompt,
+      resolvedPrompt: promptHistory.resolvedPrompt,
+    })
+    .from(promptHistory)
+    .where(and(eq(promptHistory.userId, userId), inArray(promptHistory.runId, runIds)))
+    .orderBy(desc(promptHistory.dispatchedAt));
+  const byRun = new Map<string, { customPrompt: string | null; resolvedPrompt: string | null }>();
+  for (const row of rows) {
+    if (row.runId && !byRun.has(row.runId)) {
+      byRun.set(row.runId, { customPrompt: row.customPrompt, resolvedPrompt: row.resolvedPrompt });
+    }
+  }
+  return byRun;
+}

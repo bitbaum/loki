@@ -919,13 +919,20 @@ export async function stampRunProgress(
   userId: string,
   /** Why the agent is quiet, when the runner can tell. Cleared when it prints. */
   blocked: string | null = null,
+  /** What the agent is doing now (lib/run-step). Kept when a beat has none,
+   *  so a beat from an agent between steps does not blank the card. */
+  step: string | null = null,
 ): Promise<boolean> {
+  const now = new Date().toISOString();
+  const base = sql`jsonb_set(
+        jsonb_set(COALESCE(payload, '{}'), '{lastProgressAt}', ${JSON.stringify(now)}::jsonb),
+        '{blocked}', ${JSON.stringify(blocked)}::jsonb)`;
   const rows = await db
     .update(orchestrationRuns)
     .set({
-      payload: sql`jsonb_set(
-        jsonb_set(COALESCE(payload, '{}'), '{lastProgressAt}', ${JSON.stringify(new Date().toISOString())}::jsonb),
-        '{blocked}', ${JSON.stringify(blocked)}::jsonb)`,
+      payload: step
+        ? sql`jsonb_set(${base}, '{lastStep}', ${JSON.stringify({ text: step, at: now })}::jsonb)`
+        : base,
     })
     .where(
       and(

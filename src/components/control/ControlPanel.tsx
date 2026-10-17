@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import { STATE_DEFINITIONS } from "@/lib/control-states";
 import { deriveRunnerPresence, latestRunSignals } from "./control-presenter";
 import { postJson } from "@/lib/api/fetch";
@@ -16,6 +16,9 @@ import {
   deriveFleetPulse,
 } from "./control-presenter";
 import { rememberFleetProject } from "@/lib/fleet-context";
+import { builderCompactLabel } from "@/lib/builder-presence";
+import { buildDoneJobs, buildNowJobs } from "./control-now";
+import { ControlDone, ControlFoot, ControlNow } from "./ControlNow";
 import { ControlFleetStatus } from "./ControlFleetStatus";
 import { useRouter } from "next/navigation";
 import { BuildSuggestions } from "@/components/loki/BuildSuggestions";
@@ -25,7 +28,6 @@ import { AgentEscalations } from "./AgentEscalations";
 import { ControlInbox } from "./ControlInbox";
 import { useControlInbox } from "@/hooks/use-control-inbox";
 import { RunnerStatusBanner } from "./RunnerStatusBanner";
-import { ActivityLogPanel } from "./control-panel-helpers";
 import {
   ControlEmptyState,
   ControlNotices,
@@ -83,7 +85,6 @@ export function ControlPanel() {
       setTimeout(() => setQueuedNotice(null), 9000);
     });
   };
-  const [activityOpen, setActivityOpen] = useState(false);
   const [selectedTab, setSelectedTab] = useState<string | null>(null);
   /**
    * Has the operator OPENED a project, as opposed to one being auto-selected?
@@ -213,6 +214,17 @@ export function ControlPanel() {
     : null;
 
   const failedCount = data?.failedCommands?.length ?? 0;
+  const nowMs = nowS * 1000;
+  const nowJobs = snapshots ? buildNowJobs(snapshots, nowMs) : [];
+  const doneJobs = snapshots ? buildDoneJobs(snapshots, nowMs) : [];
+  // The status card speaks only when something is wrong or someone is needed.
+  // "Building" and "nothing running" are answered by the job cards above it;
+  // saying them twice is what made this page read as machinery.
+  const heroHasNews =
+    attention.length > 0 ||
+    failedCount > 0 ||
+    !(dashboard?.countsKnown ?? true) ||
+    ["failing", "stalled", "partial", "waiting", "unknown"].includes(fleetPulse.key);
 
   // Keep the selection valid as the snapshot set changes. Guarded render-time
   // adjustment (React's "adjusting state when props change" pattern) instead
@@ -232,9 +244,16 @@ export function ControlPanel() {
     }
   }
 
-  useEffect(() => {
-    if (selectedTab) rememberFleetProject(selectedTab);
-  }, [selectedTab]);
+  // Only a project the person CHOSE becomes "the project you are working on"
+  // (the Profile · Chat · Control · Terminal strip on every page). The guard
+  // above auto-selects one so the desktop detail pane is never empty; writing
+  // that pick into the global choice made the strip name a project nobody had
+  // opened (center-com-3, 2026-10-17).
+  const openProject = (tab: string) => {
+    setSelectedTab(tab);
+    setProjectOpenOnPhone(true);
+    rememberFleetProject(tab);
+  };
 
   useControlDeepLink({
     data,
@@ -384,6 +403,10 @@ export function ControlPanel() {
         />
       )}
 
+      {/* What is being built for you right now — the answer to the question
+          a person opens this page with. Each card opens the live session. */}
+      {data.projects.length > 0 && <ControlNow jobs={nowJobs} nowMs={nowMs} />}
+
       {/* Tier 2 of four — see the ordering note at the top of this return.
           Anything actually waiting on the captain outranks the description of
           a fleet that is fine. AttentionBar used to sit BELOW the status panel
@@ -429,7 +452,7 @@ export function ControlPanel() {
           · All clear"). Hide it in the empty state; the welcome cards are
           the right surface there. Status panel returns as soon as projects
           exist. */}
-      {data && data.projects.length > 0 && (
+      {data && data.projects.length > 0 && heroHasNews && (
         <ControlFleetStatus
           dashboard={dashboard}
           failedCount={failedCount}
@@ -450,7 +473,7 @@ export function ControlPanel() {
           // title to prefer.
           attentionProjects={attention.map((a) => ({ tab: a.project.tab, name: a.project.tab }))}
           onFocusProject={(tab) => {
-            setSelectedTab(tab);
+            openProject(tab);
             document
               .getElementById("control-projects")
               ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -494,7 +517,7 @@ export function ControlPanel() {
         inbox.total === 0 && (
           <BuildSuggestions
             variant="cards"
-            title="Nothing running — worth building next"
+            title="Worth building next"
             onSend={(prompt, project) => {
               const q = new URLSearchParams({ q: prompt });
               if (project) q.set("project", project);
@@ -503,15 +526,14 @@ export function ControlPanel() {
           />
         )}
 
+      <ControlDone jobs={doneJobs} />
+
       <ProjectOperationsView
         categoryFilter={categoryFilter}
         onClearCategoryFilter={() => setCategoryFilter(null)}
         snapshots={snapshots}
         selectedTab={selectedTab}
-        onSelect={(tab) => {
-          setSelectedTab(tab);
-          setProjectOpenOnPhone(true);
-        }}
+        onSelect={openProject}
         projectOpenOnPhone={projectOpenOnPhone}
         onBackToList={() => setProjectOpenOnPhone(false)}
         cardProps={cardProps}
@@ -523,22 +545,32 @@ export function ControlPanel() {
         }}
       />
 
-      <WorkspacesSection
-        detailsRef={liveDetailsRef}
-        tabCount={liveTabRows.length}
-        runnerNeverSeen={runnerNeverSeen}
-        runnerSyncStale={runnerSyncStale}
-      >
-        {livePanel}
-      </WorkspacesSection>
-
-      {data.recentActivity.length > 0 && (
-        <ActivityLogPanel
-          activities={data.recentActivity}
-          open={activityOpen}
-          onToggle={() => setActivityOpen((v) => !v)}
+      {data.projects.length > 0 && (
+        <ControlFoot
+          builderLabel={
+            builderPresence?.any
+              ? builderCompactLabel("connected", runnerVersion, builderPresence)
+              : "No builder connected"
+          }
+          builderOk={Boolean(builderPresence?.any)}
+          onNewProject={() => (runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true))}
+          onOpenSettings={() => setFleetSettingsOpen(true)}
         />
       )}
+
+      {/* The terminal tabs, for an operator at a desk. On a phone the job
+          cards above already open each live session, and this list repeated
+          the project list in machine terms. */}
+      <div className="max-md:hidden">
+        <WorkspacesSection
+          detailsRef={liveDetailsRef}
+          tabCount={liveTabRows.length}
+          runnerNeverSeen={runnerNeverSeen}
+          runnerSyncStale={runnerSyncStale}
+        >
+          {livePanel}
+        </WorkspacesSection>
+      </div>
 
       <LaunchDefaultsSection
         selectedAgent={selectedAgent}

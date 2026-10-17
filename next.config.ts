@@ -46,9 +46,12 @@ const nextConfig: NextConfig = {
   // seam — registered in ThoughtArticleBody — puts the literal import("shiki")
   // in our own code, so the bundler ships it like any other dependency.)
   // playwright drives a real browser from a server route (feedback/page-picture.ts
-  // takes the picture Loki reads a shipped fix against); it must stay external
-  // like node-pty, and the import in that file is what makes the standalone
-  // tracer carry it.
+  // takes the picture Loki reads a shipped fix against, and a preview's tour
+  // photographs the live page and the new one); it must stay external like
+  // node-pty. Being external is NOT enough to be shipped: the tracer never
+  // carried it, so the box's /api/health read pictures.playwright=false from
+  // the day the feature shipped until 2026-10-17 and every picture fell back
+  // to a link. outputFileTracingIncludes below copies it explicitly.
   serverExternalPackages: ["node-pty", "undici", "playwright"],
   env: {
     NEXT_PUBLIC_APP_VERSION: PKG_VERSION,
@@ -182,6 +185,18 @@ const nextConfig: NextConfig = {
     ],
   },
   outputFileTracingIncludes: {
+    // Playwright and its driver, for every route that can take a picture
+    // (the preview tour, the fix check, the feedback moment). External
+    // packages are not traced into the standalone on their own — see
+    // serverExternalPackages above. pnpm keeps the real files under
+    // node_modules/.pnpm and symlinks them; both spellings are named so the
+    // copy holds the files, not a link that escapes the tree.
+    "*": [
+      "./node_modules/playwright/**",
+      "./node_modules/playwright-core/**",
+      "./node_modules/.pnpm/playwright@*/**",
+      "./node_modules/.pnpm/playwright-core@*/**",
+    ],
     // Serves the @loki/agent CLI script to new customers (the package
     // isn't published to npm yet and the repo is private). Without explicit
     // tracing, the standalone tracer would drop the file from the build.

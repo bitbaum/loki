@@ -150,6 +150,19 @@ export type ProjectState = {
    *  toggle on ProjectCard. Read by /api/control/dispatch (v0.7+). */
   autoInjectModeOverride: import("@/config/beacon").AutoInjectMode | null;
   latestOrchestrationRun: {
+    /** Absent from responses before 2026-10-17. */
+    id?: string;
+    outcome?: string | null;
+    /** What the run is about, in plain words (lib/task-title). */
+    title?: string;
+    /** The runner's last progress beat; fresh = still working. */
+    lastProgressAt?: string | null;
+    /** What the agent was doing at that beat (lib/run-step). */
+    lastStep?: { text: string; at: string } | null;
+    /** "auth" when the agent is waiting for someone to sign in. */
+    blocked?: string | null;
+    /** The tab a parallel run lives in, when it is not the project's own. */
+    sessionTab?: string | null;
     adapter: string;
     intent: string;
     state: string;
