@@ -58,6 +58,7 @@ echo
 echo "the owner's view can be checked without printing the key to it"
 bash -n "$HERE/preview-check-on-box.sh" || fail "preview-check-on-box.sh must parse"
 grep -q 'echo.*\$cookie' "$HERE/preview-check-on-box.sh" && fail "the check script must never echo the cookie"
+grep -qE 'echo.*\$reply|cat "\$reply"|head -c.*\$reply' "$HERE/preview-check-on-box.sh" && fail "the check script must never print the app's answer (it carries the cookie)"
 grep -q '_loki/before-after' "$HERE/preview-check-on-box.sh" || fail "the check must open the before-and-after tour"
 grep -q '^website)' "$HERE/ensure-preview.sh" || fail "ensure-preview.sh must run the /change path (website mode)"
 grep -q '^check)' "$HERE/ensure-preview.sh" || fail "ensure-preview.sh must open a preview as its owner (check mode)"
