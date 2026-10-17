@@ -375,6 +375,7 @@ export function ControlPanel() {
 
       {data && data.projects.length === 0 && (
         <ControlEmptyState
+          registeredCount={data.inventory?.trackedProjectCount ?? 0}
           onAddManual={() => setNewProjectOpen(true)}
           // Bootstrap requires the local Fleet Runner runner (writes to ~/dev,
           // shells out to `gh repo create`); hide the CTA when runtime isn't

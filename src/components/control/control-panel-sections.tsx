@@ -1,6 +1,7 @@
 "use client";
 
-import { Settings2, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { FolderGit2, Settings2, Sparkles } from "lucide-react";
 import type { ComponentProps, ReactNode, RefObject } from "react";
 import { APP_NAME } from "@/config/brand";
 import { BrainConfigPanel } from "./control-panel-helpers";
@@ -17,10 +18,19 @@ import { LocalDevSuggestions } from "./LocalDevSuggestions";
 export function ControlEmptyState({
   onAddManual,
   onBootstrap,
+  registeredCount = 0,
 }: {
   onAddManual: () => void;
   onBootstrap?: () => void;
+  /** Projects the person HAS (user_projects). Control lists only the ones an
+   *  agent can work in — linked to a folder — so "none here" is not "none". */
+  registeredCount?: number;
 }) {
+  // The demo, and anyone whose projects are not linked yet, saw "Add a
+  // project" over three projects that Projects listed (owner's walk-through,
+  // 2026-10-17). The doc above always said "zero registered projects"; the
+  // check counted linked ones.
+  if (registeredCount > 0) return <ProjectsNotLinked count={registeredCount} />;
   return (
     <>
       {/* "We already know your work" — two parallel one-click bulk
@@ -33,6 +43,25 @@ export function ControlEmptyState({
       <LocalDevSuggestions />
       <EmptyStateWelcome onAddManual={onAddManual} onBootstrap={onBootstrap} />
     </>
+  );
+}
+
+function ProjectsNotLinked({ count }: { count: number }) {
+  const which = count === 1 ? "Your project isn't" : `None of your ${count} projects is`;
+  return (
+    <section className="ui-card-shell-raised p-6 md:p-8">
+      <div className="mb-5 space-y-1">
+        <h2 className="ui-page-title">{which} ready for agents yet</h2>
+        <p className="ui-page-subtitle">
+          An agent works inside a project&apos;s folder or code. Open a project and connect one, and
+          it shows up here.
+        </p>
+      </div>
+      <Link href="/projects" className="ui-btn-primary inline-flex items-center gap-2">
+        <FolderGit2 className="h-4 w-4" aria-hidden="true" />
+        Open your projects
+      </Link>
+    </section>
   );
 }
 
