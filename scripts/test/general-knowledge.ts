@@ -9,7 +9,13 @@
  * Pure: no model, no database.
  */
 import { makeFact, assignFactIds, verifyAnswer } from "@bitbaum/ai-kit/grounding";
-import { isGeneralQuestion, operatorClaims, recordNames } from "@/lib/agent/general-knowledge";
+import {
+  GENERAL_QUESTION_HINT,
+  isBareRefusal,
+  isGeneralQuestion,
+  operatorClaims,
+  recordNames,
+} from "@/lib/agent/general-knowledge";
 import { JUDGMENT_RULES } from "@/lib/agent/grounded-context";
 
 let passed = 0;
@@ -114,5 +120,20 @@ check(
   "…and says the refusal is never the answer to a general question",
   /never the answer to a general question/.test(JUDGMENT_RULES),
 );
+
+// Live after rule 11 shipped: Gemini still answered the bare refusal. The
+// loop then retries without the contract; it must recognise the refusal and
+// nothing else.
+const NO = "Not in your data.";
+check("a bare refusal is recognised", isBareRefusal("Not in your data.", NO));
+check("…in bold too", isBareRefusal("**Not in your data.**", NO));
+check(
+  "a real answer that mentions a gap in passing is not a bare refusal",
+  !isBareRefusal(
+    "The Eiffel Tower was finished in 1889 for the World's Fair. Your notes say nothing about Paris — Not in your data. — but the date is well documented.",
+    NO,
+  ),
+);
+check("the hint names rule 11", GENERAL_QUESTION_HINT.includes("rule 11"));
 
 console.log(`\ngeneral-knowledge: ${passed} checks passed`);
