@@ -215,6 +215,13 @@ check("every free model says what is left on it — not only the one about to ru
     /^11 left today · next one at \d\d:\d\d$/.test(paced.models[0]!.left),
     paced.models[0]!.left,
   );
+  const skipped = userBudgetView(
+    input({ vendorRows: [row({ state: "skipped", answers: null, urgent: true })] }),
+  );
+  assert(
+    skipped.models[0]!.left === `${today} left today · the last request was too large for it`,
+    skipped.models[0]!.left,
+  );
   const tokyo = userBudgetView(input({ timeZone: "Asia/Tokyo" }));
   assert(/full again tomorrow at 09:00/.test(tokyo.freePool.line), tokyo.freePool.line);
 });
