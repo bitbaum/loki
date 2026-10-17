@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { PublicSurface } from "@/components/public/PublicSurface";
 import { PublicHeaderActions } from "@/components/public/PublicHeaderActions";
-import { orangeCatPayUrl } from "@/lib/oc-pay";
+import { planCheckout, planCheckoutPath } from "@/lib/plan-reservation";
 import { ROUTES } from "@/config/auth";
 import { APP_NAME } from "@/config/brand";
 import {
@@ -18,49 +18,38 @@ import {
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Loki is free while prices are not announced. Paid plans will add room for more projects.",
+    "Start free. Paid plans add room for more projects and a monthly allowance of Loki answers.",
 };
 
 /**
- * Public pricing. Honest about billing state: a paid CTA only appears when a
- * rail can actually take the money — never a dead "Buy" button.
- *
- * The rail is Bitcoin via OrangeCat (orangeCatPayUrl), which needs no merchant
- * account. A Stripe branch used to sit ahead of it, permanently unreachable:
- * isStripeReady() was false in every environment, so every visitor already got
- * the path below. Removing it changed no rendered output.
+ * Public pricing. Honest about billing state: "Pay in Bitcoin" appears only
+ * when the OrangeCat pass for that plan exists (lib/oc-pay.ts); until then a
+ * paid plan's button opens its own page (/pricing/<plan>), where it is
+ * reserved and nothing is charged. Never a dead "Buy" button.
  */
 export default async function PricingPage() {
   const session = await auth();
   const signedIn = Boolean(session?.user);
 
-  // Resolve each plan's CTA target for the current state (signed in? BTC rail live?).
   function ctaFor(plan: PricingPlan): { href: string; label: string } {
     if (plan.key === "free") {
       return signedIn
         ? { href: ROUTES.APP_HOME, label: `Open ${APP_NAME}` }
         : { href: ROUTES.SIGN_UP, label: plan.cta };
     }
-    // Price to be announced — no checkout rail may sell this tier yet.
-    if (plan.priceMonthly === null) {
-      return signedIn
-        ? { href: ROUTES.APP_HOME, label: `Open ${APP_NAME}` }
-        : { href: ROUTES.SIGN_UP, label: "Start free" };
+    const checkout = planCheckout(plan);
+    if (checkout.kind === "pay") return { href: checkout.url, label: "Pay in Bitcoin" };
+    if (checkout.kind === "reserve") {
+      return { href: planCheckoutPath(plan.key), label: `Reserve ${plan.name}` };
     }
-    // The Bitcoin/OrangeCat rail needs no merchant account. If this tier has
-    // an OC pass configured, offer it.
-    const btc = orangeCatPayUrl(plan.key);
-    if (btc) {
-      return { href: btc, label: "Pay in Bitcoin" };
-    }
-    // Neither rail live yet — start free, upgrade in-app later.
+    // Price to be announced — nothing may sell or reserve this tier yet.
     return signedIn
       ? { href: ROUTES.APP_HOME, label: `Open ${APP_NAME}` }
       : { href: ROUTES.SIGN_UP, label: "Start free" };
   }
 
-  // A plan with a price (Free included) can be started today; one without is
-  // announced, not sold — no checkout rail may sell it yet.
+  // A plan with a price (Free included) gets a card; one without is
+  // announced, not sold, and gets one line.
   const available = PRICING_PLANS.filter((p) => p.priceMonthly !== null);
   const later = PRICING_PLANS.filter((p) => p.priceMonthly === null);
 
@@ -69,13 +58,12 @@ export default async function PricingPage() {
       <main className="ui-public-container py-12 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
           <div className="ui-public-eyebrow">Pricing</div>
-          <h1 className="ui-public-display-md mt-3 sm:mt-4">
-            Your agents, your keys. Loki is free for now.
-          </h1>
+          <h1 className="ui-public-display-md mt-3 sm:mt-4">Your agents, your keys. Start free.</h1>
           <p className="ui-public-section-lede mx-auto mt-4 sm:mt-5">
             Your agents run on your own computer with the Fleet Runner app, or on Loki&apos;s cloud
             builder where your account has it. Loki is the one place you start, watch and check
-            their work. The plans differ only in how many projects you can have.
+            their work. The plans differ in how many projects you can have and how many answers
+            Loki&apos;s own chat gives you each month.
           </p>
         </div>
 
@@ -83,7 +71,9 @@ export default async function PricingPage() {
             no price yet get one line each. Four equal cards, three of them
             "Price to be announced · Start free", asked the reader to compare
             options that are not on sale (2026-10-01). */}
-        <div className="ui-public-section-gap mx-auto grid max-w-md gap-3">
+        <div
+          className={`ui-public-section-gap mx-auto grid gap-3 ${available.length > 1 ? "max-w-6xl sm:grid-cols-2 lg:grid-cols-4" : "max-w-md"}`}
+        >
           {available.map((plan) => {
             const cta = ctaFor(plan);
             return (

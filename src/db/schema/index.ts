@@ -18,6 +18,7 @@ export * from "./events";
 export * from "./alerts";
 export * from "./actions";
 export * from "./billing-grants";
+export * from "./plan-reservations";
 export * from "./habits";
 export * from "./orchestration-events";
 export * from "./orchestration-runs";

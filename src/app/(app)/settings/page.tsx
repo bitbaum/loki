@@ -13,6 +13,7 @@ import { orangeCatPayUrl } from "@/lib/oc-pay";
 import { PRICING_PLANS } from "@/config/plans";
 import type { Plan } from "@/db/schema/users";
 import { ROUTES } from "@/config/auth";
+import { getPlanReservation } from "@/db/queries/plan-reservations";
 
 export const metadata = { title: "Settings" };
 
@@ -20,14 +21,16 @@ export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect(ROUTES.SIGN_IN);
 
-  const [projects, teamProjects, user, invitations, userPrefs, grants] = await Promise.all([
-    getUserProjects(session.user.id),
-    getOrgProjects(session.user.id),
-    getUserById(session.user.id),
-    listInvitations(session.user.id),
-    getUserPreferences(session.user.id).catch(() => null),
-    listOcBillingGrants(session.user.id).catch(() => []),
-  ]);
+  const [projects, teamProjects, user, invitations, userPrefs, grants, reservation] =
+    await Promise.all([
+      getUserProjects(session.user.id),
+      getOrgProjects(session.user.id),
+      getUserById(session.user.id),
+      listInvitations(session.user.id),
+      getUserPreferences(session.user.id).catch(() => null),
+      listOcBillingGrants(session.user.id).catch(() => []),
+      getPlanReservation(session.user.id).catch(() => null),
+    ]);
 
   if (!user) redirect(ROUTES.SIGN_IN);
 
@@ -64,6 +67,7 @@ export default async function SettingsPage() {
             amountBtc: g.amountBtc,
           })),
           payUrls,
+          reservedPlan: reservation?.plan ?? null,
         }}
         userPrefs={userPrefs ?? EMPTY_USER_PREFERENCES}
         projects={projects}

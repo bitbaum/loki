@@ -102,3 +102,17 @@ export async function getWeekSpend(userId: string, now = new Date()): Promise<We
     .where(and(eq(aiSpend.userId, userId), gte(aiSpend.day, since)));
   return { tokens: row?.tokens ?? 0, turns: row?.turns ?? 0, days: row?.days ?? 0 };
 }
+
+/**
+ * This UTC month's tokens, today included — what a paid plan's monthly
+ * allowance is counted against (lib/ai-budget/plan-allowance.ts). At most 31
+ * rows of the per-day rollup.
+ */
+export async function getMonthSpendTokens(userId: string, now = new Date()): Promise<number> {
+  const since = `${utcDayKey(now).slice(0, 8)}01`;
+  const [row] = await db
+    .select({ tokens: sql<number>`coalesce(sum(${aiSpend.tokens}), 0)::int` })
+    .from(aiSpend)
+    .where(and(eq(aiSpend.userId, userId), gte(aiSpend.day, since)));
+  return row?.tokens ?? 0;
+}

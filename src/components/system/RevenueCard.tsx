@@ -38,9 +38,22 @@ export async function RevenueCard() {
         right={
           <span className="text-xs text-text-tertiary">
             {rev.activePaid} paid · {rev.freeUsers} free
+            {rev.granted > 0 ? ` · ${rev.granted} granted` : ""}
           </span>
         }
       />
+
+      {rev.reserved.length > 0 && (
+        <p className="mb-3 text-sm text-text-secondary">
+          <span className="font-medium text-text-primary">Reserved, waiting for payments:</span>{" "}
+          {rev.reserved.map((r) => `${PLAN_NAME[r.plan] ?? r.plan} ×${r.count}`).join(", ")} —{" "}
+          {money(
+            rev.currency,
+            rev.reserved.reduce((sum, r) => sum + r.monthly, 0),
+          )}
+          /mo if they all pay.
+        </p>
+      )}
 
       {!hasRevenue ? (
         <EmptyState>

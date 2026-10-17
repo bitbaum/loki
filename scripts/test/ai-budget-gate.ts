@@ -106,9 +106,13 @@ async function main() {
 
   // ── the gate ───────────────────────────────────────────────────────────────
   const plenty = () => 1_000_000;
+  // Free accounts, read without a database: the default plan read opens a pool
+  // that keeps this process alive where CI has a real Postgres.
+  const noPlan = async () => 0;
 
   await check("a user well inside their share is admitted", async () => {
     const v = await checkAiBudget("u1", NOON, {
+      planAllowance: noPlan,
       timeZone: "Europe/Zurich",
       capacity: plenty,
       readUsage: async () => ({ userSpentTokens: 0, activeUsers: 1, userTurns: 0 }),
@@ -120,6 +124,7 @@ async function main() {
     "A LEDGER ERROR ADMITS THE TURN — rationing must never become an outage",
     async () => {
       const v = await checkAiBudget("u1", NOON, {
+        planAllowance: noPlan,
         timeZone: "Europe/Zurich",
         capacity: plenty,
         readUsage: async () => {
@@ -132,6 +137,7 @@ async function main() {
 
   await check("a capacity of zero refuses, and says there is nothing to draw on", async () => {
     const v = await checkAiBudget("u1", NOON, {
+      planAllowance: noPlan,
       timeZone: "Europe/Zurich",
       capacity: () => 0,
       readUsage: async () => ({ userSpentTokens: 0, activeUsers: 1, userTurns: 0 }),
@@ -152,6 +158,7 @@ async function main() {
     // i.e. 3·EST. Spending 2.5·EST leaves a request of 3.5·EST: past the
     // unlocked allowance, still inside the day's share. That is `paced`.
     const v = await checkAiBudget("u1", NOON, {
+      planAllowance: noPlan,
       timeZone: "Europe/Zurich",
       capacity: () => 8 * ESTIMATED_TURN_TOKENS,
       readUsage: async () => ({
@@ -174,6 +181,7 @@ async function main() {
     // Same 8·EST day, same two users — but this one has already spent their
     // whole 4·EST share, so no amount of waiting unlocks another turn today.
     const v = await checkAiBudget("u1", NOON, {
+      planAllowance: noPlan,
       timeZone: "Europe/Zurich",
       capacity: () => 8 * ESTIMATED_TURN_TOKENS,
       readUsage: async () => ({
@@ -199,6 +207,7 @@ async function main() {
     // impression. The one-turn floor is what carries this case.
     for (const at of ["2026-08-15T00:01:00Z", "2026-08-15T12:00:00Z", "2026-08-15T23:00:00Z"]) {
       const v = await checkAiBudget("newcomer", new Date(at), {
+        planAllowance: noPlan,
         timeZone: "Europe/Zurich",
         capacity: () => 16 * ESTIMATED_TURN_TOKENS,
         readUsage: async () => ({ userSpentTokens: 0, activeUsers: 4, userTurns: 0 }),
@@ -213,6 +222,7 @@ async function main() {
     // though eight more such answers fit. The reserve is now the person's own
     // cost (+25%, floored at 5k), so this turn goes through.
     const v = await checkAiBudget("u1", NOON, {
+      planAllowance: noPlan,
       timeZone: "Europe/Zurich",
       capacity: () => 8 * ESTIMATED_TURN_TOKENS,
       readUsage: async () => ({ userSpentTokens: 52_000, activeUsers: 2, userTurns: 26 }),

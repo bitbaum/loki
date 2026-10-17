@@ -176,6 +176,7 @@ const PUBLIC_PAGES = [
   "/build",
   "/fleet",
   "/pricing",
+  "/pricing/personal",
   "/download",
   "/why",
   "/how-it-works",

@@ -1,10 +1,16 @@
-// SSOT for the public /pricing page. The ONLY difference the code actually
-// enforces between tiers is the project limit (see src/lib/plan.ts); the tier
-// ladder here is built on that real gate plus team collaboration (org/team
-// projects are real). Everything a single builder can do is available on every
-// plan — so those capabilities live in PRICING_INCLUDED, not as fake per-tier
-// feature gates. Prices are the master-plan anchors (docs/master-plan-2026-07.md
-// §7.2); adjust freely — one edit here, no component changes.
+// SSOT for the public /pricing page. The differences the code actually
+// enforces between tiers are the project limit and the monthly AI allowance
+// (both in src/lib/plan.ts; the allowance is applied by lib/ai-budget/gate.ts).
+// Everything a single builder can do is available on every plan — so those
+// capabilities live in PRICING_INCLUDED, not as fake per-tier feature gates.
+// Prices are the master-plan anchors (docs/master-plan-2026-07.md §7.2), set by
+// the founder on 2026-10-17; one edit here, no component changes.
+//
+// PAYMENTS ARE NOT OPEN. A price is shown so a person can decide; the button
+// under it reserves the plan (db/schema/plan-reservations.ts) and charges
+// nothing. A plan is sold only when its OrangeCat pass exists
+// (ORANGECAT_PAY_URL_<PLAN>, lib/oc-pay.ts) — which waits on the company being
+// registered — and then the same button becomes "Pay in Bitcoin".
 
 import type { Plan } from "@/db/schema/users";
 import { PLAN_LIMITS, isUnlimitedProjects } from "@/lib/plan";
@@ -16,9 +22,8 @@ export type PricingPlan = {
   name: string;
   /**
    * CHF per month. 0 = genuinely free; null = price to be announced — the tier
-   * stays visible, no number is shown, and the checkout rail (the
-   * OrangeCat Bitcoin passes) is disabled for it until a number is set.
-   * Mirror any change in orangecat's src/config/loki-passes.ts + re-seed.
+   * stays visible, no number is shown, and it can be neither reserved nor
+   * bought. Mirror any change in orangecat's src/config/loki-passes.ts + re-seed.
    */
   priceMonthly: number | null;
   tagline: string;
@@ -30,17 +35,18 @@ export type PricingPlan = {
    * claim about what other people bought.
    *
    * It used to render as "Most popular", then "Recommended" on Pro. Loki has
-   * 7 users and 0 on any paid plan (checked 2026-09-20), every paid tier reads
-   * "Price to be announced", and Pro differs from Personal only in the project
-   * ceiling — so neither badge was true. While prices are unannounced the only
-   * tier a person can actually start is Free, so that is the one drawn louder,
-   * and no badge is rendered at all.
+   * 7 users and 0 on any paid plan (checked 2026-09-20), so neither badge was
+   * true. While payments are not open the only tier a person can actually
+   * start is Free, so that is the one drawn louder, and no badge is rendered.
    */
   featured?: boolean;
 };
 
 const projectLimitLabel = (plan: Plan): string =>
   isUnlimitedProjects(plan) ? "Unlimited projects" : `Up to ${PLAN_LIMITS.projects[plan]} projects`;
+
+const aiAllowanceLabel = (plan: Plan): string =>
+  `About ${PLAN_LIMITS.aiAnswersMonthly[plan].toLocaleString("en-US")} Loki answers a month, with no daily wait`;
 
 export const PRICING_PLANS: PricingPlan[] = [
   {
@@ -50,6 +56,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     tagline: "Start your first projects and see everything your agents do.",
     highlights: [
       projectLimitLabel("free"),
+      "Loki's chat on the free models, from a pool shared by everyone each day",
       "Everything in Loki — nothing held back",
       "Use your own agent sign-ins and keys",
     ],
@@ -59,10 +66,11 @@ export const PRICING_PLANS: PricingPlan[] = [
   {
     key: "personal",
     name: "Personal",
-    priceMonthly: null,
+    priceMonthly: 15,
     tagline: "For one builder running Loki as a daily operating layer.",
     highlights: [
       projectLimitLabel("personal"),
+      aiAllowanceLabel("personal"),
       "Everything in Free",
       "Room for a real project portfolio",
     ],
@@ -71,10 +79,11 @@ export const PRICING_PLANS: PricingPlan[] = [
   {
     key: "pro",
     name: "Pro",
-    priceMonthly: null,
+    priceMonthly: 40,
     tagline: "For operators running many projects at once.",
     highlights: [
       projectLimitLabel("pro"),
+      aiAllowanceLabel("pro"),
       "Everything in Personal",
       "No ceiling as your fleet grows",
     ],
@@ -83,10 +92,11 @@ export const PRICING_PLANS: PricingPlan[] = [
   {
     key: "team",
     name: "Team",
-    priceMonthly: null,
+    priceMonthly: 90,
     tagline: "Shared projects and fleet visibility for a studio.",
     highlights: [
       projectLimitLabel("team"),
+      aiAllowanceLabel("team"),
       "Everything in Pro",
       "Shared projects, roles, and team visibility",
     ],
@@ -94,17 +104,14 @@ export const PRICING_PLANS: PricingPlan[] = [
   },
 ];
 
-/** True once any paid tier has an announced price — flips the copy + rails. */
-export const PRICING_ANNOUNCED = PRICING_PLANS.some(
-  (p) => p.priceMonthly !== null && p.priceMonthly > 0,
-);
+/** True once any paid tier has a price — flips the copy. */
+const PRICING_ANNOUNCED = PRICING_PLANS.some((p) => p.priceMonthly !== null && p.priceMonthly > 0);
 
-// Paid plans bill annually (the checkout route wires the annual price id); the
-// figure shown is the per-month equivalent. Stated plainly under the grid.
-// While prices are to-be-announced the note says so instead — and says plainly
-// that Loki is free until then (#995 kept self-service free).
+// A pass is a month at a time, paid in Bitcoin on OrangeCat, and nothing
+// renews by itself (BillingSettings). Until the passes exist, a paid plan can
+// only be reserved — and the note says so, under every price.
 export const PRICING_BILLING_NOTE = PRICING_ANNOUNCED
-  ? "Prices are per month, billed annually. Your agents run with your own sign-ins and keys, so Loki never bills you for what they use."
+  ? "Prices are per month. Payments open once Loki's company is registered — until then you can reserve a plan, and nothing is charged. Your agents run with your own sign-ins and keys, so Loki never bills you for what they use."
   : "Loki is free while prices are not announced. Nothing is charged until they are, and every feature below is on every plan.";
 
 // Available on EVERY plan (all shipped today). Listed once, honestly, instead of
