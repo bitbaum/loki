@@ -51,7 +51,7 @@ async function publicHost(host: string, seen: Map<string, boolean>): Promise<boo
 export const PICTURE_VIEWPORT = { width: 390, height: 844 } as const;
 const JPEG_QUALITY = 55;
 const SETTLE_MS = 800;
-/** How long a loaded page may keep talking before it is photographed anyway. */
+/** How long a page may keep loading images, then keep talking, before it is photographed anyway. */
 const IDLE_WAIT_MS = 8_000;
 const SYSTEM_BROWSERS = [
   "/usr/bin/chromium",
@@ -184,14 +184,16 @@ async function takeOne(
         }
         return (await publicHost(host, seen)) ? route.continue() : route.abort();
       });
-    // Loaded is enough to photograph; "network idle" is waited for only as
-    // long as it takes. A shop page with analytics beacons or a chat widget
-    // that never go quiet used to time out here and leave no picture at all
-    // (center-com.ru, 2026-10-17).
+    // The document is enough to photograph. "load" (every image) and "network
+    // idle" are each waited for only as long as IDLE_WAIT_MS allows: a shop
+    // homepage with hundreds of product images, or analytics beacons that
+    // never go quiet, used to time out the whole goto and leave no picture at
+    // all (center-com.ru, 2026-10-17: did-not-load at 30 s on "load").
     const res = await page
-      .goto(url, { waitUntil: "load", timeout: HTTP_TIMEOUT_LONG_MS })
+      .goto(url, { waitUntil: "domcontentloaded", timeout: HTTP_TIMEOUT_LONG_MS })
       .catch(() => null);
     if (!res || !res.ok()) return { ok: false, reason: "did-not-load" };
+    await page.waitForLoadState("load", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
     await page.waitForLoadState("networkidle", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
     await page.waitForTimeout(SETTLE_MS);
     if (selector) {
