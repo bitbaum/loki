@@ -1,0 +1,69 @@
+name: Retire site
+
+# Take a site down from GitHub, without a laptop: runs
+# scripts/hetzner/retire-site.sh against the box — the same script the
+# project's "Remove it from the server" button queues. Plan first by leaving
+# `go` off; the run log then shows exactly what would be touched.
+#
+# Manual on purpose: it removes things. After a `delete`, also remove the
+# row from scripts/hetzner/apps.conf in a PR, or the register still claims it.
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Register name (one site)"
+        required: true
+      mode:
+        description: "offline (reversible) or delete (everything on the box)"
+        required: true
+        type: choice
+        options: [offline, delete]
+      repo:
+        description: "What to do with its GitHub repository"
+        required: true
+        type: choice
+        default: keep
+        options: [keep, private, archive]
+      go:
+        description: "Actually do it (off = print the plan only)"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# One writer of the box's units at a time, and never alongside a Loki deploy.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  retire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+      APP: ${{ inputs.app }}
+      MODE: ${{ inputs.mode }}
+      REPO_ACTION: ${{ inputs.repo }}
+      GO: ${{ inputs.go }}
+      GH_TOKEN: ${{ secrets.FLEET_PAT }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Retire
+        env:
+          DEPLOY_KEY_PATH: /home/runner/.ssh/id_deploy
+        run: |
+          [[ "$APP" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "::error::not a register name: $APP"; exit 1; }
+          args=("$APP" --mode "$MODE" --repo "$REPO_ACTION")
+          [ "$GO" = "true" ] && args+=(--go)
+          bash scripts/hetzner/retire-site.sh "${args[@]}"
