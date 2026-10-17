@@ -13,6 +13,8 @@ import { compactRelativeDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { decisionFacts } from "@/lib/feedback/decision-facts";
 import { NOTE_NONE } from "@/lib/feedback/fix-note";
+import { READ_SIZE_WORD, type FeedbackRead } from "@/lib/feedback/read-report";
+import { ReadBlock } from "@/components/feedback/ReadBlock";
 
 /**
  * One decision Loki has already made, waiting for a yes.
@@ -34,6 +36,8 @@ export function DecisionCard({
   project,
   onTake,
   rowProps,
+  read,
+  reading,
 }: {
   item: FeedbackListItemWithWork & { projectName: string; projectId: string };
   rec: Recommendation;
@@ -41,13 +45,29 @@ export function DecisionCard({
   /** Just taken, on this screen: the card says so and fades. */
   taken: boolean;
   project: { id: string; name: string } | null;
-  onTake: () => void;
+  /** The yes — with the ask as the owner edited it, when Loki read the report. */
+  onTake: (ask?: string) => void;
+  /** Loki's read of the report (lib/feedback/read-report), when it has one. */
+  read?: FeedbackRead | null;
+  reading?: boolean;
   rowProps: Parameters<typeof FeedbackItemRow>[0] extends infer P
     ? Omit<P, "feedback" | "projectName" | "project" | "busy">
     : never;
 }) {
   const [other, setOther] = useState(false);
-  const cost = rec.kind === RECOMMEND.LOOK ? "your eyes" : rec.runs ? "one agent run" : "free";
+  const [ask, setAsk] = useState<string | null>(null);
+  const cost =
+    rec.kind === RECOMMEND.LOOK
+      ? "your eyes"
+      : rec.runs
+        ? read
+          ? READ_SIZE_WORD[read.size].split(" — ")[0].toLowerCase()
+          : "one agent run"
+        : "free";
+  const showRead = rec.kind === RECOMMEND.BUILD && (read || reading);
+  const reporter = f.reporterName
+    ? `${f.reporterName}${f.reporterRole ? ` · ${f.reporterRole}` : ""}`
+    : null;
   const liveHref = livePageHref(f.liveUrl, f.url, f.page);
   const facts = decisionFacts(f);
   return (
@@ -63,8 +83,11 @@ export function DecisionCard({
       </div>
       <p className="ui-fb-decision-why">{rec.why}</p>
       <dl className="ui-fb-decision-facts">
-        <dt className="ui-fb-decision-fact-label">Asked</dt>
-        <dd className="ui-fb-decision-fact-quote">“{facts.asked}”</dd>
+        <dt className="ui-fb-decision-fact-label">{reporter ? "From" : "Asked"}</dt>
+        <dd className="ui-fb-decision-fact-quote">
+          {reporter && <span className="ui-fb-decision-reporter">{reporter} · </span>}“{facts.asked}
+          ”
+        </dd>
         {facts.done && (
           <>
             <dt className="ui-fb-decision-fact-label">Done</dt>
@@ -132,6 +155,9 @@ export function DecisionCard({
           </>
         )}
       </dl>
+      {showRead && (
+        <ReadBlock read={read ?? null} reading={Boolean(reading)} ask={ask} onAsk={setAsk} />
+      )}
       {rec.kind === RECOMMEND.LOOK && (
         // Loki could not settle it, but it took the picture: the owner can
         // often answer from here, without the trip to the site.
@@ -171,7 +197,7 @@ export function DecisionCard({
         ) : (
           <button
             type="button"
-            onClick={onTake}
+            onClick={() => onTake(ask ?? read?.ask ?? undefined)}
             disabled={busy}
             className="ui-btn-save"
             title={

@@ -5364,6 +5364,43 @@
   .ui-fb-looked-cap {
     @apply text-xs text-text-muted;
   }
+  /* Before and after: two phone-width pictures side by side, each labelled. */
+  .ui-fb-looked-pair {
+    @apply flex gap-2;
+  }
+  .ui-fb-looked-pair-two .ui-fb-looked-btn {
+    @apply relative min-w-0 flex-1;
+  }
+  .ui-fb-looked-tag {
+    @apply absolute left-1.5 top-1.5 rounded-md bg-surface-overlay px-1.5 py-0.5 text-micro font-medium uppercase tracking-caps text-text-secondary;
+  }
+
+  /* Loki's read of a report, before the tap (components/feedback/ReadBlock):
+     the same fact grid as the card, with the ask editable in place. */
+  .ui-fb-read {
+    @apply rounded-xl border border-border-subtle bg-surface-raised px-3 py-2.5;
+  }
+  .ui-fb-read-waiting {
+    @apply flex items-center gap-2 text-xs text-text-muted;
+  }
+  .ui-fb-read-risk {
+    @apply flex items-start gap-1.5 text-status-warning;
+  }
+  .ui-fb-read-ask-text {
+    @apply block text-text-primary;
+  }
+  .ui-fb-read-ask {
+    @apply mb-1 w-full rounded-lg border border-border-default bg-surface-base px-2.5 py-2 text-sm text-text-primary outline-none focus:border-border-interactive;
+  }
+  .ui-fb-read-ask-actions {
+    @apply flex flex-wrap items-center gap-x-4;
+  }
+  .ui-fb-read-ask-actions .ui-fb-row-quiet-btn {
+    @apply inline-flex items-center gap-1;
+  }
+  .ui-fb-decision-reporter {
+    @apply font-medium not-italic text-text-primary;
+  }
   /* What is not a decision: one line each, open on demand. */
   .ui-fb-section > summary {
     @apply flex min-h-11 cursor-pointer list-none flex-col justify-center gap-0.5 px-1 py-2;

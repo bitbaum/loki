@@ -1,3 +1,4 @@
+import type { FeedbackRead } from "@/lib/feedback/read-report";
 import { and, count, desc, eq, getTableColumns, inArray, max, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -5,6 +6,7 @@ import {
   siteFeedback,
   userProjects,
   projectMemberships,
+  users,
   type SiteFeedback,
   type NewSiteFeedback,
 } from "@/db/schema";
@@ -123,6 +125,11 @@ export async function bumpDuplicateFeedbackByNotice(
  *  payloads), plus a flag so the UI can offer the images on demand. */
 export type FeedbackListItem = Omit<SiteFeedback, "screenshots"> & {
   hasScreenshots: boolean;
+  /** The person who reported it, when they are a Loki account that claimed
+   *  the report — and their role on the project, so the owner can tell a
+   *  collaborator's note from a stranger's. Null for anonymous visitors. */
+  reporterName?: string | null;
+  reporterRole?: string | null;
   /** The project's public URL (user_projects.live_url) — where "Check live"
    *  opens, with the reported path. The reported host is only a fallback. */
   liveUrl: string | null;
@@ -276,6 +283,16 @@ export async function listUserFeedback(
           "has_screenshots",
         ),
       projectName: entities.name,
+      reporterName: sql<string | null>`(
+        SELECT COALESCE(${users.name}, ${users.username}) FROM ${users}
+        WHERE ${users.id} = ${siteFeedback.reporterUserId}
+      )`.as("reporter_name"),
+      reporterRole: sql<string | null>`(
+        SELECT ${projectMemberships.role} FROM ${projectMemberships}
+        WHERE ${projectMemberships.projectId} = ${siteFeedback.projectId}
+          AND ${projectMemberships.userId} = ${siteFeedback.reporterUserId}
+        LIMIT 1
+      )`.as("reporter_role"),
       liveUrl: sql<string | null>`(
         SELECT ${userProjects.liveUrl} FROM ${userProjects}
         WHERE ${userProjects.entityProjectId} = ${entities.id}
@@ -445,6 +462,18 @@ export async function markFeedbackDispatchedBulk(
     )
     .returning({ id: siteFeedback.id });
   return rows.length;
+}
+
+/** Loki's read of the report (lib/feedback/read-report), written once. */
+export async function setFeedbackRead(
+  ownerUserId: string,
+  id: string,
+  read: FeedbackRead,
+): Promise<void> {
+  await db
+    .update(siteFeedback)
+    .set({ read })
+    .where(and(eq(siteFeedback.id, id), eq(siteFeedback.userId, ownerUserId)));
 }
 
 /** Status transition (triage). Ownership enforced via userId in the WHERE. */

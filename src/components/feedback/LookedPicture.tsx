@@ -22,6 +22,7 @@ export function LookedPicture({
   lead?: boolean;
 }) {
   const [picture, setPicture] = useState<string | null>(null);
+  const [before, setBefore] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const has = !!verify?.picture;
   useEffect(() => {
@@ -29,8 +30,10 @@ export function LookedPicture({
     let gone = false;
     fetch(`/api/feedback/${feedbackId}/looked`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { picture?: string } | null) => {
-        if (!gone && data?.picture) setPicture(data.picture);
+      .then((data: { picture?: string; before?: string | null } | null) => {
+        if (gone) return;
+        if (data?.picture) setPicture(data.picture);
+        if (data?.before) setBefore(data.before);
       })
       .catch(() => {});
     return () => {
@@ -40,22 +43,42 @@ export function LookedPicture({
   if (!has || !picture || !verify) return null;
   const read =
     verify.via === "picture" ? "Loki read its verdict from this picture" : "Loki took this";
+  // Before and after, side by side, when the run kept a picture from the
+  // moment it was dispatched (feedback/before-picture): the difference in one
+  // glance, instead of a description of one.
   return (
     <figure
       className={cn("ui-fb-looked", lead && "ui-fb-looked-lead", open && "ui-fb-looked-open")}
     >
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="ui-fb-looked-btn"
-        aria-expanded={open}
-        title={open ? "Show less" : "Show the whole picture"}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element -- data URL from API */}
-        <img src={picture} alt="The live page as Loki saw it, on a phone" loading="lazy" />
-      </button>
+      <div className={cn("ui-fb-looked-pair", before && "ui-fb-looked-pair-two")}>
+        {before && (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="ui-fb-looked-btn"
+            aria-expanded={open}
+            title={open ? "Show less" : "Show the whole picture"}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- data URL from API */}
+            <img src={before} alt="The page before the fix, on a phone" loading="lazy" />
+            <span className="ui-fb-looked-tag">Before</span>
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="ui-fb-looked-btn"
+          aria-expanded={open}
+          title={open ? "Show less" : "Show the whole picture"}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- data URL from API */}
+          <img src={picture} alt="The live page as Loki saw it, on a phone" loading="lazy" />
+          {before && <span className="ui-fb-looked-tag">After</span>}
+        </button>
+      </div>
       <figcaption className="ui-fb-looked-cap">
-        What Loki saw · {read} · {compactRelativeDate(verify.at)}
+        {before ? "Before and after · " : "What Loki saw · "}
+        {read} · {compactRelativeDate(verify.at)}
         {!open && " · open it to see all of it"}
       </figcaption>
     </figure>

@@ -85,6 +85,8 @@ export type RunFollow = {
   looked: { verdict: "looks_fixed" | "not_visible" | "cannot_tell"; evidence: string } | null;
   /** The picture Loki took of the live page when it looked, when it kept one. */
   pictureUrl: string | null;
+  /** The same page before the fix, taken at dispatch (feedback/before-picture). */
+  beforePictureUrl: string | null;
   /** Nothing left to wait for: the card stops asking. */
   settled: boolean;
 };
@@ -105,13 +107,15 @@ const SHIP_WORDS: Record<string, { label: string; tone: StatusTone } | undefined
  * without one, "Live" is the end of the story and there is nothing to wait for.
  */
 /** Where the owner reads the picture Loki took of a run's live page. */
-export const runPicturePath = (runId: string) =>
-  `/api/orchestration/runs/${encodeURIComponent(runId)}/picture`;
+export const runPicturePath = (runId: string, which: "before" | "after" = "after") =>
+  `/api/orchestration/runs/${encodeURIComponent(runId)}/picture${which === "before" ? "?which=before" : ""}`;
 
 export function runFollow(
   fix: FixShipping | null | undefined,
   liveUrl: string | null,
   runId: string | null = null,
+  /** The run kept a before picture (payload.beforePicture). */
+  hasBefore = false,
 ): RunFollow | null {
   if (!fix) return null;
   const words = SHIP_WORDS[fix.state];
@@ -125,6 +129,7 @@ export function runFollow(
     liveUrl: deployed ? (fix.verify?.url ?? liveUrl) : null,
     looked,
     pictureUrl: runId && fix.verify?.picture ? runPicturePath(runId) : null,
+    beforePictureUrl: runId && hasBefore ? runPicturePath(runId, "before") : null,
     settled: fix.state === FIX_SHIP_STATE.PR_CLOSED || (deployed && (!!looked || !liveUrl)),
   };
 }
