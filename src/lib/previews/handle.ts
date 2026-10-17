@@ -27,7 +27,12 @@ import {
   walkthroughFrom,
   type BeforeAfterPair,
 } from "@/lib/previews/improvements";
-import { PICTURE_HEADER, pictureFile, type PictureSide } from "@/lib/previews/pictures";
+import {
+  PICTURE_HEADER,
+  PICTURE_REASON_HEADER,
+  pictureFile,
+  type PictureSide,
+} from "@/lib/previews/pictures";
 import { previewDirFor } from "@/lib/previews/root";
 import {
   injectPreviewWidget,
@@ -292,7 +297,14 @@ async function picture(
     taking.catch(() => undefined).finally(() => inFlight.delete(file));
   }
   const shot = await taking.catch(() => null);
-  if (!shot?.ok) return new Response(null, { status: 404, headers: PRIVATE_HEADERS });
+  // No picture is a 404 the page turns into a link; the header says why, so
+  // an operator can tell a server without a browser from a page that did not
+  // load without reading a log.
+  if (!shot?.ok)
+    return new Response(null, {
+      status: 404,
+      headers: { ...PRIVATE_HEADERS, [PICTURE_REASON_HEADER]: shot?.reason ?? "failed" },
+    });
   const bytes = new Uint8Array(Buffer.from(shot.base64, "base64"));
   await deps.writeFile(file, bytes).catch(() => undefined);
   return jpeg(bytes);

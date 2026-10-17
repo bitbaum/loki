@@ -56,7 +56,14 @@ PY
 fi
 
 tour=$(mktemp); trap 'rm -f "$tour" "$reply"' EXIT
-ask() { curl -sS -o "${2:-/dev/null}" -w '%{http_code} %{content_type}' -m 90 -H "Cookie: $cookie" "$1" 2>/dev/null || echo "000"; }
+# ask <url> [file] — status and type; for a picture that could not be taken, the reason the app gives.
+ask() {
+  local hdr; hdr=$(mktemp)
+  local out; out=$(curl -sS -D "$hdr" -o "${2:-/dev/null}" -w '%{http_code} %{content_type}' -m 90 -H "Cookie: $cookie" "$1" 2>/dev/null || echo "000")
+  local why; why=$(grep -i '^x-loki-picture-reason:' "$hdr" | tr -d '\r' | cut -d' ' -f2-)
+  rm -f "$hdr"
+  echo "$out${why:+ ($why)}"
+}
 
 site=$(ask "https://$HOST/")
 echo "site:        https://$HOST/ → $site"
@@ -65,6 +72,9 @@ rows=$(grep -o '_loki/picture?side=before' "$tour" | wc -l | tr -d ' ')
 echo "tour:        https://$HOST/_loki/before-after → $page, $rows rows"
 built=$(grep -q "still being built" "$tour" && echo "not yet" || echo "yes")
 echo "built:       $built"
+# What the tour says, in the build's own words: the headline and the first rows.
+grep -oE '<header class="top">.*' "$tour" | grep -oE '<p>[^<]*</p>' | head -1 | sed -E 's/<[^>]+>//g; s/^/headline:    /'
+grep -oE '<h2>[^<]*</h2>' "$tour" | head -4 | sed -E 's/<[^>]+>//g; s/^/row:         /'
 if [ "$rows" != "0" ]; then
   echo "before #0:   $(ask "https://$HOST/_loki/picture?side=before&i=0")"
   echo "after #0:    $(ask "https://$HOST/_loki/picture?side=after&i=0")"
