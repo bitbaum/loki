@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { checkEnv, envHealthy } from "@/lib/env";
 import { getAIHealth } from "@/lib/ai/health";
+import { browserStatus } from "@/lib/feedback/page-picture";
 import { APP_SLUG } from "@/config/brand";
 
 /**
@@ -75,6 +76,10 @@ export async function GET(req: NextRequest) {
       // still answering with a caught error) shows up somewhere a human or a
       // monitor can see it, instead of only when a user complains.
       ai: getAIHealth(),
+      // Informational, like `ai`: whether this server can photograph a page
+      // (the fix walkthrough's before/after, a preview's tour). A missing
+      // browser must be visible here, not only as a link where a picture was.
+      pictures: await browserStatus(),
     },
     { status: healthy ? 200 : 503 },
   );
