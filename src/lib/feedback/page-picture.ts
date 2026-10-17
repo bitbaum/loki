@@ -54,13 +54,23 @@ async function browserPath(chromium: { executablePath(): string }): Promise<stri
  * Open the page at phone size, scroll the pointed-at element into view when
  * the report named one, and return a JPEG of the viewport.
  */
-export function takePagePicture(url: string, selector?: string | null): Promise<PagePicture> {
-  const next = queue.then(() => takeOne(url, selector));
+export function takePagePicture(
+  url: string,
+  selector?: string | null,
+  /** Where the page was scrolled to, when the report recorded it and no
+   *  element was pointed at — the same view the person had. */
+  opts: { scrollY?: number | null } = {},
+): Promise<PagePicture> {
+  const next = queue.then(() => takeOne(url, selector, opts.scrollY ?? null));
   queue = next.catch(() => undefined);
   return next;
 }
 
-async function takeOne(url: string, selector?: string | null): Promise<PagePicture> {
+async function takeOne(
+  url: string,
+  selector?: string | null,
+  scrollY: number | null = null,
+): Promise<PagePicture> {
   let chromium: typeof import("playwright").chromium;
   try {
     ({ chromium } = await import("playwright"));
@@ -90,6 +100,9 @@ async function takeOne(url: string, selector?: string | null): Promise<PagePictu
         .first()
         .scrollIntoViewIfNeeded({ timeout: 2_000 })
         .catch(() => undefined);
+      await page.waitForTimeout(300);
+    } else if (scrollY && scrollY > 0) {
+      await page.evaluate((y) => window.scrollTo(0, y), scrollY).catch(() => undefined);
       await page.waitForTimeout(300);
     }
     const bytes = await page.screenshot({ type: "jpeg", quality: JPEG_QUALITY });

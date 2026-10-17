@@ -10,11 +10,17 @@ where the launcher goes, and how to hide it.
 
 Open Loki and choose **Voice note** in the header. The panel closes; one small
 dock — *Listening 0:12 · Mark · Done · ✕* — leaves the site usable. Scroll and
-talk. Loki notes which part of the page is in view (its nearest heading) when
-you start, each time scrolling settles, and each time you tap **Mark** ("Marked
-“Pricing”"). No video, no screenshots: a page cannot film itself on a phone
-without a permission prompt, and the dock says so. A take stops at 1:50, and
-the clock says so in its last 15 seconds.
+tap and talk. Loki notes which part of the page is in view (its nearest
+heading), the text at the reading line, how far you have scrolled, and
+anything you tap on the site (the control's own label, never what you typed)
+— when you start, each time scrolling settles, each time you tap, and each
+time you tap **Mark** ("Marked “Pricing”"). No video: a page cannot film itself
+on a phone without a permission prompt. Instead the structured moments travel
+with the note (`widget/moments-contract.ts`), and in Loki the owner taps "See
+what they saw" on any moment to have Loki open that very view and take the
+picture itself. A take is capped at 1:50 by the upload limit, but a walk is
+not: at the cap the recorder hands straight into the next take (up to ten,
+about eighteen minutes) and the clock keeps counting.
 
 **Done** writes it down. Whisper says when each sentence was said, so the note
 comes back with each sentence under the part of the page that was in view

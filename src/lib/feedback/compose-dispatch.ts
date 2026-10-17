@@ -5,6 +5,7 @@
 import type { FeedbackCaptureContext } from "../../../widget/capture-context";
 import { fenceUntrusted, inlineUntrusted, UNTRUSTED_PREAMBLE } from "@/lib/feedback/untrusted";
 import { fixNoteInstruction } from "@/lib/feedback/fix-note";
+import { momentClock, type ReportMoment } from "../../../widget/moments-contract";
 
 export type FeedbackPromptFields = {
   suggestion: string;
@@ -17,7 +18,35 @@ export type FeedbackPromptFields = {
   /** `owner` = the project's owner, proven by their pass: a request to build,
    *  not a stranger's report. Still fenced as text from a browser. */
   source?: string | null;
+  /** What was seen while each thing was said (widget/moments-contract.ts). */
+  moments?: ReportMoment[] | null;
 };
+
+/**
+ * The reporter's walk through the page, one line per moment: when, where,
+ * what was on screen, what they tapped, what they said. Text a stranger wrote
+ * and a page they were on — fenced, never instructions.
+ */
+export function renderMoments(moments: ReportMoment[] | null | undefined): string[] {
+  if (!moments?.length) return [];
+  const lines = moments.map((m) => {
+    const parts = [
+      `${momentClock(m.at)} on ${inlineUntrusted(m.page, 300)} — “${inlineUntrusted(m.label, 80)}”${m.marked ? " (marked)" : ""}`,
+    ];
+    if (m.scrollY !== undefined) parts.push(`scrolled ${m.scrollY}px`);
+    if (m.tap)
+      parts.push(
+        `tapped “${inlineUntrusted(m.tap.text, 80)}” (${inlineUntrusted(m.tap.selector, 500)})`,
+      );
+    if (m.text) parts.push(`on screen: “${inlineUntrusted(m.text, 160)}”`);
+    if (m.said) parts.push(`said: “${inlineUntrusted(m.said, 600)}”`);
+    return `- ${parts.join("; ")}`;
+  });
+  return [
+    "What they saw while saying it, in order (each line: when, the part of the page in view, what they tapped, what was on screen, what they said):",
+    fenceUntrusted("WALK", lines.join("\n")),
+  ];
+}
 
 // "Shipped" must include a PR handed to auto-merge. Told only "shipping is
 // blocked → report the blocker", agents opened their PR, honestly wrote
@@ -80,6 +109,7 @@ export function composeFeedbackFixPrompt(
   ];
   if (feedback.scope) lines.push(`Scope the visitor selected: ${feedback.scope}`);
   lines.push(...renderElements(feedback));
+  lines.push(...renderMoments(feedback.moments));
   if (feedback.captureContext)
     lines.push(
       fenceUntrusted("PAGE CONTEXT WHEN COMMENTING", JSON.stringify(feedback.captureContext)),
@@ -122,6 +152,7 @@ export function composeFeedbackBatchFixPrompt(
     lines.push(`Page: ${inlineUntrusted(f.url ?? f.page ?? "unknown", 1000)}`);
     if (f.scope) lines.push(`Scope: ${f.scope}`);
     lines.push(...renderElements(f));
+    lines.push(...renderMoments(f.moments));
     if (f.captureContext)
       lines.push(fenceUntrusted("PAGE CONTEXT WHEN COMMENTING", JSON.stringify(f.captureContext)));
     lines.push("");

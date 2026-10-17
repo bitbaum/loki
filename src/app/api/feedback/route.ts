@@ -1,3 +1,4 @@
+import { MOMENT_LIMITS } from "../../../../widget/moments-contract";
 import { FeedbackCaptureContextSchema } from "@/lib/feedback/capture-context-schema";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -89,6 +90,28 @@ const FeedbackBody = z.object({
       }),
     )
     .max(10)
+    .optional(),
+  /** What was seen while each thing was said, from a voice note taken while
+   *  browsing (widget/moments-contract.ts holds the same limits). */
+  moments: z
+    .array(
+      z.object({
+        at: z.number().int().min(0).max(MOMENT_LIMITS.at),
+        page: z.string().max(MOMENT_LIMITS.page),
+        label: z.string().max(MOMENT_LIMITS.label),
+        marked: z.boolean().optional(),
+        scrollY: z.number().int().min(0).max(MOMENT_LIMITS.scrollY).optional(),
+        text: z.string().max(MOMENT_LIMITS.text).optional(),
+        tap: z
+          .object({
+            text: z.string().max(MOMENT_LIMITS.tapText),
+            selector: z.string().max(MOMENT_LIMITS.selector),
+          })
+          .optional(),
+        said: z.string().max(MOMENT_LIMITS.said).optional(),
+      }),
+    )
+    .max(MOMENT_LIMITS.count)
     .optional(),
 });
 
@@ -209,6 +232,7 @@ export async function POST(req: NextRequest) {
     noticeKey,
     screenshots: data.screenshots ?? null,
     selectedElements: data.selectedElements ?? null,
+    moments: data.moments?.length ? data.moments : null,
     userAgent: req.headers.get("user-agent")?.slice(0, 300) ?? null,
   });
   if (!created) return corsError("Could not store feedback, try again later", 500);

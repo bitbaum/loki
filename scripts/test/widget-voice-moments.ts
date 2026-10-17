@@ -8,10 +8,13 @@ import assert from "node:assert/strict";
 import {
   addMoment,
   alignNote,
+  joinTakes,
   MOMENTS_MAX,
+  momentsForReport,
   timeline,
   type Moment,
 } from "../../widget/voice-moments";
+import { clampMoments, MOMENT_LIMITS } from "../../widget/moments-contract";
 import { RECEIPT_QUOTE, receiptFull, receiptText } from "../../widget/receipt";
 import { spokenSegments } from "../../src/lib/voice/whisper-silence";
 import { fromSiteWidget, keepCallback } from "../../src/config/auth";
@@ -122,5 +125,80 @@ assert.equal(
   `/sign-up?callbackUrl=${encodeURIComponent(cb)}`,
 );
 assert.equal(keepCallback("/sign-up", "/control", "/control"), "/sign-up");
+
+// ── What was seen, per moment (2026-10-17) ───────────────────────────────────
+// A tap on the same part replaces the part's tap; the view follows the latest look.
+let seen: Moment[] = [];
+seen = addMoment(seen, m(0, "Nutzen", { scrollY: 0, text: "Werde Teil der Community" }));
+seen = addMoment(
+  seen,
+  m(2000, "Nutzen", { scrollY: 120, tap: { text: "Jetzt starten", selector: "#start" } }),
+);
+seen = addMoment(seen, m(3000, "Nutzen", { tap: { text: "Mehr", selector: "a.more" } }));
+assert.equal(seen.length, 1);
+assert.equal(seen[0].scrollY, 120, "the scroll follows the latest look at the part");
+assert.equal(seen[0].text, "Werde Teil der Community", "the reading text is kept");
+assert.equal(seen[0].tap?.text, "Mehr", "the latest tap on the part wins");
+assert.equal(seen[0].at, 0, "and the moment keeps when it began");
+
+// The structured list beside the note: each moment with what was said then.
+const report = momentsForReport(
+  "This card is empty. Add a photo. Is the shop open?",
+  [
+    { start: 0.4, text: "This card is empty." },
+    { start: 2.1, text: "Add a photo." },
+    { start: 5, text: "Is the shop open?" },
+  ],
+  [
+    m(0, "Nutzen", { scrollY: 0, tap: { text: "Jetzt starten", selector: "#start" } }),
+    m(4000, "Unterstützen", { marked: true, scrollY: 900, text: "Shop" }),
+  ],
+);
+assert.equal(report.length, 2);
+assert.equal(report[0].said, "This card is empty. Add a photo.");
+assert.equal(report[0].tap?.selector, "#start");
+assert.equal(report[1].said, "Is the shop open?");
+assert.equal(report[1].marked, true);
+assert.equal(report[1].scrollY, 900);
+// One part, or no timings: the whole text belongs to the first moment.
+const flat = momentsForReport("All of it.", [], [m(0, "Nutzen"), m(5000, "Shop")]);
+assert.equal(flat[0].said, "All of it.");
+assert.equal(flat[1].said, undefined);
+assert.deepEqual(momentsForReport("x", [], []), []);
+
+// The contract clamps: over-long strings are cut, junk is dropped, the count is capped.
+const clamped = clampMoments([
+  {
+    at: 10,
+    page: "/p",
+    label: "L".repeat(200),
+    text: "t".repeat(500),
+    tap: { text: "x", selector: "s" },
+  },
+  { at: -1, page: "/p", label: "bad" },
+  { page: "/p", label: "no at" },
+  "junk",
+  ...Array.from({ length: 40 }, (_, i) => ({ at: i, page: "/p", label: `H${i}` })),
+]);
+assert.equal(clamped.length, MOMENT_LIMITS.count);
+assert.equal(clamped[0].label.length, MOMENT_LIMITS.label);
+assert.equal(clamped[0].text?.length, MOMENT_LIMITS.text);
+assert.equal(clamped[0].tap?.text, "x");
+
+// Takes chain onto one clock: the second take's timings are shifted by its offset.
+const joined = joinTakes([
+  { offsetMs: 0, text: "First take.", segments: [{ start: 1, text: "First take." }] },
+  { offsetMs: 110_000, text: "Second take.", segments: [{ start: 2, text: "Second take." }] },
+]);
+assert.equal(joined.text, "First take. Second take.");
+assert.equal(joined.segments[1].start, 112, "shifted by the take's offset, in seconds");
+// A take without timings drops ALL timings: half-timed is worse than untimed.
+assert.deepEqual(
+  joinTakes([
+    { offsetMs: 0, text: "A.", segments: [{ start: 0, text: "A." }] },
+    { offsetMs: 110_000, text: "B.", segments: [] },
+  ]).segments,
+  [],
+);
 
 console.log("widget-voice-moments: ok");

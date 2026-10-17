@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { FeedbackCaptureContext } from "../../../widget/capture-context";
 import type { FeedbackRead } from "@/lib/feedback/read-report";
+import type { ReportMoment } from "../../../widget/moments-contract";
 import { users } from "./users";
 import { entities } from "./entities";
 import { widgetTokens } from "./widget-tokens";
@@ -64,6 +65,11 @@ export const siteFeedback = pgTable(
     pageTitle: text("page_title"),
     scope: text("scope").$type<FeedbackScope>(),
     selectedElements: jsonb("selected_elements").$type<FeedbackSelectedElement[]>(),
+    /** What was seen while each thing was said — a voice note taken while
+     *  browsing: part of the page, scroll, the control tapped, the sentences
+     *  (widget/moments-contract.ts). Loki takes the picture of each view
+     *  afterwards from these. */
+    moments: jsonb("moments").$type<ReportMoment[]>(),
     userAgent: text("user_agent"),
     /** Who filed it (visitor | ai_review | synthesizer). Null = legacy row =
      *  visitor. Synthesizer rows are aggregate briefs — excluded from digester

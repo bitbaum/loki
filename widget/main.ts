@@ -554,10 +554,10 @@ interface LokiApi {
         }
         syncWatch();
       },
-      onTranscript: (text, capture) => {
+      onTranscript: (text, capture, moments) => {
         if (picker.isPicking()) picker.stop();
         openPanel();
-        conversation.recorded(text, capture);
+        conversation.recorded(text, capture, moments);
       },
       onError: (message) => {
         openPanel();

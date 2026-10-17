@@ -10,6 +10,7 @@
  */
 import type { FeedbackCapture } from "./feedback-capture";
 import type { SelectedEl } from "./picker";
+import type { ReportMoment } from "./moments-contract";
 
 export type ReportFields = {
   token: string;
@@ -24,6 +25,8 @@ export type ReportFields = {
   ownerPass?: string;
   /** Watch's remark signature, when the note IS a finding's fix (owner only). */
   noticeKey?: string;
+  /** What was seen while each thing was said — clamped by moments-contract. */
+  moments?: ReportMoment[];
 };
 
 export type ReportAnswer = {
@@ -59,6 +62,7 @@ export async function sendReport(apiBase: string, fields: ReportFields): Promise
           ? fields.selectedElements
           : undefined,
       noticeKey: fields.noticeKey ? fields.noticeKey.slice(0, 300) : undefined,
+      moments: fields.moments?.length ? fields.moments : undefined,
     }),
   });
   if (!res.ok) {

@@ -88,6 +88,12 @@ export function DecisionCard({
           {reporter && <span className="ui-fb-decision-reporter">{reporter} · </span>}“{facts.asked}
           ”
         </dd>
+        {f.moments && f.moments.length > 0 && (
+          <>
+            <dt className="ui-fb-decision-fact-label">Walked</dt>
+            <dd className="ui-fb-decision-fact-quiet">{walkWords(f.moments)}</dd>
+          </>
+        )}
         {facts.done && (
           <>
             <dt className="ui-fb-decision-fact-label">Done</dt>
@@ -234,6 +240,19 @@ export function DecisionCard({
       )}
     </article>
   );
+}
+
+/** "4 parts of the page · tapped 2 things" — the walk in one line; "More" opens it. */
+function walkWords(moments: NonNullable<FeedbackListItemWithWork["moments"]>): string {
+  const parts = new Set(moments.map((m) => `${m.page}|${m.label}`)).size;
+  const taps = moments.filter((m) => m.tap).length;
+  const pages = new Set(moments.map((m) => m.page)).size;
+  return [
+    `${parts} part${parts === 1 ? "" : "s"} of ${pages > 1 ? `${pages} pages` : "the page"}`,
+    taps ? `tapped ${taps} thing${taps === 1 ? "" : "s"}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function kindWord(rec: Recommendation): string {
