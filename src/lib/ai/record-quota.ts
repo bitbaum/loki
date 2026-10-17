@@ -26,14 +26,14 @@ import type { ChatLink } from "@/config/chat-models";
  * string, so a static import would drag the whole unit suite into needing a
  * database to test a parser that touches none.
  */
-export function recordVendorQuota(headers: Headers, link: ChatLink): void {
+export function recordVendorQuota(headers: Headers, link: ChatLink, keyOwner?: string): void {
   let readings: QuotaReading[] = [];
   try {
     readings = readQuota(headers, link);
   } catch {
     return;
   }
-  persist(readings);
+  persist(readings, keyOwner);
 }
 
 /**
@@ -92,15 +92,25 @@ export function recordRefusal(
   body: string,
   retryAfterSec: number | null,
   scope: QuotaScope = "requests",
+  keyOwner?: string,
 ): void {
   const stated = readingFromRefusalBody(link, body, retryAfterSec);
-  persist([stated ?? readingFromRefusal(link, retryAfterSec, scope)]);
+  persist([stated ?? readingFromRefusal(link, retryAfterSec, scope)], keyOwner);
 }
 
-/** Fire-and-forget, never throws, database imported lazily. */
-function persist(readings: Array<QuotaReading & { note?: string | null }>): void {
+/**
+ * Fire-and-forget, never throws, database imported lazily.
+ *
+ * `keyOwner` is the person whose own key answered; absent means the shared
+ * platform keys. The two never share a row: a person's Groq account says
+ * nothing about the pool, and the pool says nothing about their account.
+ */
+function persist(
+  readings: Array<QuotaReading & { note?: string | null }>,
+  keyOwner?: string,
+): void {
   if (readings.length === 0) return;
   void import("@/db/queries/provider-quota")
-    .then(({ recordQuotaReadings }) => recordQuotaReadings(readings))
+    .then(({ recordQuotaReadings }) => recordQuotaReadings(readings, keyOwner))
     .catch(() => undefined);
 }

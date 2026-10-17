@@ -3,6 +3,7 @@ import { CUSTOM_VENDOR_ID, vendorById } from "@/config/model-vendors";
 import { getDayUsage, getWeekSpend } from "@/db/queries/ai-spend";
 import { ownUsageByVendor } from "@/db/queries/own-model-usage";
 import { listQuota } from "@/db/queries/provider-quota";
+import type { ProviderQuota } from "@/db/schema/provider-quota";
 import { listOwnModels } from "@/db/queries/user-model-keys";
 import { getUserPreferences } from "@/db/queries/user-preferences";
 import { HISTORY_CHARS_PER_TURN, HISTORY_TURNS } from "@/lib/agent/loop";
@@ -26,33 +27,35 @@ import { bindingRows, describeQuota, nextProviderAfter } from "@/lib/ai/quota-vi
  */
 export async function readUserBudget(userId: string, now = new Date()): Promise<BudgetView> {
   const chain = usableChatChain();
-  const [usage, own, ownUsage, rows, week, prefs] = await Promise.all([
+  const [usage, own, ownUsage, rows, ownRows, week, prefs] = await Promise.all([
     getDayUsage(userId, now).catch(() => ({ userSpentTokens: 0, userTurns: 0, activeUsers: 1 })),
     listOwnModels(userId).catch(() => []),
     ownUsageByVendor(userId, now).catch(() => []),
     listQuota(),
+    // The person's own keys, metered by their vendor into rows of their own.
+    listQuota(userId),
     getWeekSpend(userId, now).catch(() => undefined),
     getUserPreferences(userId).catch(() => null),
   ]);
 
+  const describe = (r: ProviderQuota, nextProvider: string | null) =>
+    describeQuota(
+      {
+        provider: r.provider,
+        model: r.model,
+        scope: r.scope,
+        window: r.windowKind,
+        quotaLimit: r.quotaLimit,
+        remaining: r.remaining,
+        resetAt: r.resetAt,
+        observedAt: r.observedAt,
+        source: r.source,
+        note: r.note,
+      },
+      { now: now.getTime(), nextProvider },
+    );
   const vendorRows = bindingRows(
-    rows.map((r) =>
-      describeQuota(
-        {
-          provider: r.provider,
-          model: r.model,
-          scope: r.scope,
-          window: r.windowKind,
-          quotaLimit: r.quotaLimit,
-          remaining: r.remaining,
-          resetAt: r.resetAt,
-          observedAt: r.observedAt,
-          source: r.source,
-          note: r.note,
-        },
-        { now: now.getTime(), nextProvider: nextProviderAfter(chain, r.provider) },
-      ),
-    ),
+    rows.map((r) => describe(r, nextProviderAfter(chain, r.provider))),
   );
 
   const usageByVendor = new Map(ownUsage.map((u) => [u.vendor, u]));
@@ -85,6 +88,7 @@ export async function readUserBudget(userId: string, now = new Date()): Promise<
               calls30d: u.calls30d,
             }
           : null,
+        quota: ownRows.filter((r) => r.provider === m.vendor).map((r) => describe(r, null)),
       };
     }),
   });

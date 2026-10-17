@@ -41,8 +41,9 @@ export const providerQuota = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     /**
-     * Whose key this is. `"platform"` for the shared keys the operator pays
-     * (today: all of them); a user id once bring-your-own-key exists.
+     * Whose key this is. `"platform"` for the shared keys the operator pays;
+     * a user id for a key that person brought (lib/agent/llm.ts records both,
+     * and Settings → AI reads the person's rows to say what is left on it).
      *
      * NOT a nullable user_id, deliberately. Postgres treats NULLs as distinct
      * in a unique constraint, so a nullable column here would let the platform

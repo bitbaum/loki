@@ -20,7 +20,12 @@
 import { nextUtcMidnight } from "@bitbaum/ai-kit";
 import { headroomNote, userBudgetView, type BudgetInput } from "@/lib/ai/budget-view";
 import { ESTIMATED_TURN_TOKENS, turnReserveTokens } from "@/lib/ai-budget/gate";
-import { TOKENS_PER_ANSWER, type QuotaRowView } from "@/lib/ai/quota-view";
+import {
+  describeQuota,
+  TOKENS_PER_ANSWER,
+  type QuotaReadingRow,
+  type QuotaRowView,
+} from "@/lib/ai/quota-view";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -285,6 +290,70 @@ check("own keys: their own line, no Loki cap, and the pool becomes the fallback"
     v.headline,
   );
   assert(/asks before switching to free/.test(v.freePool.consequence), v.freePool.consequence);
+});
+
+check("own keys: what the vendor says is left on the person's own account", () => {
+  const at = NOON.getTime();
+  const read = (over: Partial<QuotaReadingRow>) =>
+    describeQuota(
+      {
+        provider: "groq",
+        model: "openai/gpt-oss-120b",
+        scope: "requests",
+        window: "day",
+        quotaLimit: 1_000,
+        remaining: 840,
+        resetAt: new Date(at + 9 * 3_600_000),
+        observedAt: new Date(at - 60_000),
+        source: "headers",
+        note: null,
+        ...over,
+      },
+      { now: at, nextProvider: null },
+    );
+  const key = (quota: QuotaRowView[]) =>
+    userBudgetView(
+      input({
+        ownKeys: [
+          {
+            vendor: "groq",
+            label: "Groq",
+            model: "openai/gpt-oss-120b",
+            billingUrl: null,
+            limit: null,
+            usage: null,
+            quota,
+          },
+        ],
+      }),
+    ).ownKeys[0]!;
+
+  const healthy = key([
+    read({}),
+    read({ scope: "tokens", window: "minute", quotaLimit: 8_000, remaining: 6_000 }),
+  ]);
+  assert(
+    healthy.left?.line ===
+      "On your Groq account: 840 of 1,000 requests left today · refills in 9 hours.",
+    String(healthy.left?.line),
+  );
+  assert(healthy.left?.short === "840 of 1,000 requests left today", String(healthy.left?.short));
+  assert(healthy.left?.spent === false, "a healthy account is not spent");
+
+  // A spent counter leads whatever its window: it is the one refusing.
+  const spent = key([read({}), read({ scope: "tokens", quotaLimit: 200_000, remaining: 0 })]);
+  assert(spent.left?.spent === true, "spent");
+  assert(
+    /^Your Groq account is refusing for now: 0 of 200,000 tokens today · refills in 9 hours\.$/.test(
+      spent.left!.line,
+    ),
+    spent.left!.line,
+  );
+
+  // Yesterday's reading with no reset says nothing about today — no sentence.
+  const stale = key([read({ resetAt: null, observedAt: new Date(at - 86_400_000) })]);
+  assert(stale.left === null, "a stale reading is not shown");
+  assert(key([]).left === null, "nothing measured, nothing said");
 });
 
 check("midnight UTC is the reset, from any hour", () => {

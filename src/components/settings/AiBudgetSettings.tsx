@@ -286,7 +286,12 @@ function OwnKeySource({ source }: { source: OwnKeyBudget }) {
         <span className="ui-quota-model">{source.model}</span>
         <span className="ui-quota-state">no cap from Loki</span>
       </div>
-      <p className="text-sm text-text-primary">{source.line}</p>
+      {source.left && (
+        <p className={source.left.spent ? "ui-error text-sm" : "text-sm text-text-primary"}>
+          {source.left.line}
+        </p>
+      )}
+      <p className="text-sm text-text-secondary">{source.line}</p>
       <p className="ui-quota-consequence">
         {source.consequence}
         {source.billingUrl && (
