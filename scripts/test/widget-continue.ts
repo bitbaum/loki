@@ -210,7 +210,7 @@ assert.doesNotMatch(
 const main = readFileSync("widget/main.ts", "utf8");
 assert.match(
   main,
-  /hideLink\.style\.display = ownerPass \? "none" : ""/,
+  /hideLink\.hidden = !!ownerPass/,
   "the owner is not offered to hide their own tool",
 );
 

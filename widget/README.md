@@ -116,6 +116,11 @@ Rules that resolve the trade-offs:
   a model runs only when asked (*Why*, *Review*, *Ask Loki*).
 - **Never move what someone is reaching for.** New messages follow only when
   you were already at the bottom; reading further up, your place is kept.
+- **Send is always reachable.** Only the thread scrolls; the composer never
+  does, and a tap on Send must HIT Send — measured with `elementFromPoint` at
+  real heights (390×667, 360×640, 1280×720) in both browser suites, and by
+  self-watch on every open. Production broke this on 2026-10-17 at heights no
+  test used: a tap on Send opened "Made with Loki" instead.
 - **Fits on a phone, with a mic.** The panel must never scroll sideways at
   320–1200px with every control present (a composer tested without a mic once
   pushed *Ask Loki* out of the panel).

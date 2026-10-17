@@ -44,10 +44,10 @@ async function open(
   browser: Browser,
   body: string,
   js: string,
-  o: { width?: number; withMic?: boolean; colorScheme?: "light" | "dark" } = {},
+  o: { width?: number; height?: number; withMic?: boolean; colorScheme?: "light" | "dark" } = {},
 ) {
   const ctx = await browser.newContext({
-    viewport: { width: o.width ?? 1200, height: 800 },
+    viewport: { width: o.width ?? 1200, height: o.height ?? 800 },
     colorScheme: o.colorScheme,
   });
   const p = await ctx.newPage();
@@ -293,6 +293,49 @@ async function main() {
     ok(
       fit.outside.length === 0,
       `${width}px: no button outside the panel (${fit.outside.join(", ")})`,
+    );
+    await t.close();
+  }
+
+  // ---- the send control is on screen, and a tap on it reaches it ----
+  // Production, 2026-10-17: on a 390×760 phone the composer scrolled with the
+  // conversation and opened half below the fold, so a tap on Send landed on
+  // "Made with Loki" instead (a new tab, the note unsent). Every test opened
+  // the panel 800px tall, which hid it. Measured by what a tap HITS, at the
+  // heights people actually have — and again after a message, when the
+  // thread grows.
+  for (const [width, height] of [
+    [390, 760],
+    [390, 667],
+    [360, 640],
+    [1280, 720],
+  ]) {
+    const t = await open(browser, tag(), js, { width, height, withMic: true });
+    await click(t.p, ".fab");
+    await t.p.waitForTimeout(400);
+    const reach = () =>
+      t.p.evaluate(() => {
+        const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+        const send = r.querySelector(".convo .composer .go") as HTMLElement;
+        const b = send.getBoundingClientRect();
+        const hit = r.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        return {
+          onScreen: b.height > 0 && b.top >= 0 && b.bottom <= innerHeight,
+          reached: !!hit && (hit === send || send.contains(hit)),
+          hit: hit ? (hit as HTMLElement).className || hit.tagName : null,
+        };
+      });
+    const first = await reach();
+    ok(
+      first.onScreen && first.reached,
+      `${width}×${height}: a tap on Send reaches Send on opening (${JSON.stringify(first)})`,
+    );
+    await say(t.p, "Is the booking form clear?");
+    await t.p.waitForTimeout(500);
+    const after = await reach();
+    ok(
+      after.onScreen && after.reached,
+      `${width}×${height}: …and still after a message (${JSON.stringify(after)})`,
     );
     await t.close();
   }

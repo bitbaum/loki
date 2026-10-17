@@ -322,6 +322,7 @@ ${spiralCSS(theme)}
      and fits what is visible, so the starters and the way into Loki step
      aside and the thread keeps the room. They return when the keyboard goes. */
   .panel.kb .starters, .panel.kb .continue { display: none; }
+  .starters, .fc-kit .ck-replies { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .starter, .fc-kit .ck-reply { flex: none; white-space: nowrap; } /* one row to swipe, not a 140px stack */
   .panel.kb { padding-bottom: 12px; }
 }
 .hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -364,9 +365,9 @@ ${spiralCSS(theme)}
 .thought.bad .thought-text { color: ${theme.error}; }
 
 /* the one conversation */
-.convo { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.convo { display: flex; flex-direction: column; gap: 10px; overflow: hidden; } /* only the thread scrolls — README "Send is always reachable" */
 .convo > * { flex: none; }
-.convo > .chatlog { flex: 1 1 auto; min-height: 96px; }
+.convo > .chatlog { flex: 1 1 auto; min-height: 0; }
 .ctxbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; min-height: 36px; }
 .scope { position: relative; min-width: 0; }
 .scopebtn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 2px; font-size: 12px; color: ${theme.textSecondary}; }
@@ -572,9 +573,10 @@ input { margin-bottom: 10px; }
    widget's own actions sit under an answer, the card after the last turn. */
 .fc-kit { display: flex; flex-direction: column; gap: 8px; }
 .fc-kit { flex: 1 1 auto; min-height: 0; }
+.convo > .kit-host, .kit-host > .fc-kit-root { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 /* Flex when chatkit makes the wrap a direct child; the cap bounds it
    however deep chatkit nests it, so the composer is never pushed out. */
-.fc-kit .ck-thread-wrap { flex: 1 1 auto; min-height: 96px; max-height: min(52vh, 440px); overflow-y: auto; }
+.fc-kit .ck-thread-wrap { flex: 1 1 auto; min-height: 0; max-height: min(52vh, 440px); overflow-y: auto; }
 /* The panel's own field styles (textarea:focus below) must not reach chatkit's
    input: it lives inside chatkit's composer frame, which draws the edge. Two
    rows, like the panel's own composer, so the placeholder is never cut. */
@@ -635,11 +637,10 @@ input { margin-bottom: 10px; }
 .change-send:disabled { color: ${theme.textMuted}; cursor: default; text-decoration: none; }
 @media (pointer: coarse) { .change-send, .changes-foot .act { padding: 8px 0; } }
 /* ---- hiding: offered in the panel, and always says how to undo it ---- */
-.made-with { display: block; margin: 14px auto 0; font-size: 12px; text-align: center; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; }
-.made-with:hover { color: ${theme.text}; }
-.hide-link { display: block; margin: 10px auto 0; font-size: 12px; color: ${theme.textMuted}; text-decoration: underline; text-underline-offset: 2px; }
-.hide-link:hover { color: ${theme.textSecondary}; }
-@media (pointer: coarse) { .hide-link, .made-with { padding: 12px 8px; } }
+.panel-foot:not(:has(> :not([hidden]))) { display: none; } .panel-foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; column-gap: 16px; margin-top: 10px; }
+.made-with { font-size: 12px; text-align: center; color: ${theme.textSecondary}; text-decoration: underline; text-underline-offset: 2px; } .hide-link { font-size: 12px; color: ${theme.textMuted}; text-decoration: underline; text-underline-offset: 2px; }
+.made-with:hover { color: ${theme.text}; } .hide-link:hover { color: ${theme.textSecondary}; }
+@media (pointer: coarse) { .hide-link, .made-with { padding: 12px 4px; } }
 .toast {
   position: fixed; z-index: 2147483003; right: 16px; bottom: 16px; max-width: min(360px, calc(100vw - 32px));
   display: flex; align-items: center; gap: 12px; padding: 10px 12px;
