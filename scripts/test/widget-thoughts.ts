@@ -5,7 +5,13 @@
  * Run: npx tsx scripts/test/widget-thoughts.ts
  */
 import assert from "node:assert/strict";
-import { ago, thoughtFor, thoughtsFrom, thoughtsSummary } from "../../widget/thoughts";
+import {
+  ago,
+  thoughtFor,
+  thoughtsFrom,
+  thoughtsSummary,
+  watchHeadline,
+} from "../../widget/thoughts";
 import { freshTrail, type TrailEntry } from "../../widget/watch-trail";
 
 const t0 = 1_700_000_000_000;
@@ -33,6 +39,13 @@ assert.equal(thoughtsSummary(trail, true), "Watching · 2 pages, 1 press · 2 th
 assert.equal(thoughtsSummary(trail.slice(0, 2), true), "Watching · 1 page · nothing wrong so far");
 assert.match(thoughtsSummary([], true), /waiting for the page to settle/);
 assert.match(thoughtsSummary(trail, false), /^Not watching/);
+
+// The status line says the state in as few words as it can: the counts stay
+// in the tooltip and the list.
+assert.equal(watchHeadline(trail, true), "Watching · 2 to look at");
+assert.equal(watchHeadline(trail.slice(0, 2), true), "Watching");
+assert.equal(watchHeadline([], true), "Watching");
+assert.equal(watchHeadline(trail, false), "Paused");
 
 // `look` survives a page load like every other step.
 assert.equal(freshTrail(trail, t0 + 30_000).length, trail.length);

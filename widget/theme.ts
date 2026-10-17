@@ -210,39 +210,23 @@ ${spiralCSS(theme)}
      320px). Collapse to an icon, and get out of the way while the page is
      scrolling — taps during scroll-reading never hit the launcher instead of
      the page. */
-  .fab { width: 40px; height: 40px; padding: 0; right: 12px; bottom: 12px; justify-content: center; }
+  .fab { width: 44px; height: 44px; padding: 0; right: 12px; bottom: 12px; justify-content: center; }
   .fab .fab-label, .fab .fab-icon { display: none; }
   .fab .dot.spiral { width: 18px; height: 18px; }
   .fab.scrolling { opacity: .3; pointer-events: none; }
 }
 
-/* The owner's launcher is the status of Loki on their site: full weight,
-   labelled, a live dot while it watches, a count of what it said meanwhile.
+/* The owner's launcher is the status of Loki on their site, in a word at
+   every width: "● Watching" with a live dot, or "Paused". One button, one tap
+   opens Loki (the "Point" half beside it read as the button, 2026-10-17).
    "Quiet until wanted" is for strangers on a client's site, not its owner. */
-.fab.owner { opacity: 1; transform: none; box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); }
+.fab.owner { opacity: 1; transform: none; height: 44px; padding: 0 16px 0 14px; box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); }
 .fab.owner .fab-label { display: inline; }
-.fab.watching { border-color: ${theme.accent}; }
-.fab.watching .dot:not(.spiral) { animation: fcpulse 1.6s ease-in-out infinite; }
-/* "Show Loki this": the other half of the owner's launcher — flush against
-   it, squared on the shared edge, so the two read as one pill: [Loki · watching | ◎] */
-.fab-point {
-  position: fixed; z-index: 2147483000; min-width: 44px; height: 44px; padding: 0 12px; gap: 6px;
-  font-size: 13px; font-weight: 500;
-  /* The launcher sits in a RIGHT corner by default, so the target is on its
-     inner (left) side: squared where they meet. */
-  border-radius: 999px 0 0 999px;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: ${theme.surface}; color: ${theme.accent}; border: 1px solid ${theme.borderDark};
-  box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
-}
-.fab-point.left { border-radius: 0 999px 999px 0; }
-.fab-point svg { width: 18px; height: 18px; display: block; }
-.fab-point-label { color: ${theme.text}; }
-.fab-point:hover { border-color: ${theme.accent}; }
-/* The launcher's edge that meets the target is squared too (right corner by
-   default; the left one when the launcher sits on the left). */
-.fab.owner { border-top-left-radius: 0; border-bottom-left-radius: 0; }
-.fab.owner.on-left { border-radius: 999px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.fab.watching { border-color: ${theme.success}; }
+.fab.owner::before { content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none; background: ${theme.textMuted}; }
+.fab.watching::before { background: ${theme.success}; animation: fcpulse 1.6s ease-in-out infinite; }
+.fab.watching .fab-label { color: ${theme.text}; }
+.fab.paused .fab-label { color: ${theme.textSecondary}; }
 .fab-badge {
   position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: ${theme.accent}; color: ${ink};
@@ -257,14 +241,13 @@ ${spiralCSS(theme)}
 .fab-bubble-text { min-width: 0; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .fab-bubble-x { flex: none; color: ${theme.textSecondary}; font-size: 11px; min-width: 44px; min-height: 44px; margin: -10px -10px -10px 0; }
 @media (max-width: 480px) {
-  /* Phone: the label went (it covered buttons, 2026-10-16); spiral + ring say "watching". */
-  .fab.owner { width: 44px; height: 44px; padding: 0; justify-content: center; }
-  .fab.owner .fab-label, .fab.owner .fab-icon { display: none; }
-  .fab.owner .dot { display: block; }
-  .fab.owner.scrolling, .fab-point.scrolling { opacity: .3; pointer-events: none; }
-  .fab-point { padding: 0 10px; }
+  /* Phone: the word stays — it is the whole point — at the phone's 44px. */
+  .fab.owner { width: auto; height: 44px; padding: 0 14px 0 12px; gap: 8px; }
+  .fab.owner .fab-label { display: inline; }
+  .fab.owner .fab-icon { display: none; }
+  .fab.owner.scrolling { opacity: .3; pointer-events: none; }
 }
-@media (prefers-reduced-motion: reduce) { .fab.watching .dot { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .fab.watching::before { animation: none; } }
 
 /* The edge tab: the launcher's second shape (launcher.ts, placeTab). A slim
    handle flush against the side edge for pages whose corners are busy — the
@@ -278,7 +261,7 @@ ${spiralCSS(theme)}
   box-shadow: 0 1px 2px rgba(0,0,0,.4);
 }
 .fab.tab.on-left { border-radius: 0 ${rs} ${rs} 0; border-right: 1px solid ${theme.borderDark}; border-left: 0; }
-.fab.tab .fab-label, .fab.tab .fab-icon, .fab.tab .fab-badge { display: none; }
+.fab.tab .fab-label, .fab.tab .fab-icon, .fab.tab .fab-badge, .fab.tab::before { display: none; }
 .fab.tab.owner .fab-badge { display: block; top: 2px; right: 2px; min-width: 16px; padding: 0 2px; font-size: 10px; }
 .fab.tab .dot.spiral { display: inline-flex; width: 14px; height: 14px; }
 .fab.tab:hover, .fab.tab:focus-visible { opacity: 1; width: 30px; transform: none; }
@@ -355,6 +338,8 @@ ${spiralCSS(theme)}
 .thoughts-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .thoughts-chev { flex: none; color: ${theme.textTertiary}; transition: transform .15s ease; }
 .thoughts.open .thoughts-chev { transform: rotate(90deg); }
+.thoughts.needs-you .thoughts-sum { color: ${theme.text}; font-weight: 600; }
+.thoughts-sub { padding: 4px 0 2px; font-size: 11px; color: ${theme.textTertiary}; }
 .thoughts-list { list-style: none; margin: 0; padding: 0 0 12px; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .thought { display: flex; gap: 10px; font-size: 12px; line-height: 1.45; color: ${theme.textSecondary}; }
 .thought-at { flex: none; width: 24px; font-family: ${mono}; font-size: 10px; line-height: 17px; color: ${theme.textMuted}; text-align: right; }
@@ -403,7 +388,9 @@ ${spiralCSS(theme)}
 .composer-actions .go, .composer-actions .ghost { height: 32px; padding: 0 12px; white-space: nowrap; }
 .composer-actions .ghost { border: none; padding: 0 8px; }
 .composer-actions .mic, .composer-actions .attach { height: 32px; min-width: 32px; padding: 0 8px; justify-content: center; border-color: transparent; }
-.composer-actions .mic:not(.rec):not(.busy) span:last-child { display: none; }
+.composer-actions .mic:not(.rec):not(.busy):not(.talk) span:last-child { display: none; }
+.composer-actions .mic.talk { gap: 6px; color: ${theme.text}; }
+.mic.talk svg { width: 18px; height: 18px; }
 .composer-actions .attach span:last-child { display: none; }
 .composer-actions .attach.has span:last-child { display: inline; }
 .tools { display: flex; gap: 8px; align-items: center; }
@@ -432,13 +419,6 @@ a.noticed-status:hover { text-decoration: underline; }
 /* Your changes: the owner's requests and where each one is, above the thread */
 /* Your changes: one hairline strip like the notes above — a summary line that
    opens into the rows, each row its own link. */
-.yours { margin: -12px -16px 12px; padding: 0 16px; border-bottom: 1px solid ${theme.border}; }
-.yours-head { width: 100%; display: flex; align-items: center; gap: 9px; min-height: 40px; padding: 10px 0; text-align: left; font-size: 12px; color: ${theme.textSecondary}; }
-.yours-head:hover { color: ${theme.text}; }
-.yours-head::before { content: ""; flex: none; width: 7px; height: 7px; margin: 0 4px; border-radius: 50%; background: ${theme.success}; }
-.yours.needs-you .yours-head::before { background: ${theme.error}; }
-.yours-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.yours.open .thoughts-chev { transform: rotate(90deg); }
 .yours-body { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; }
 .yours-list { display: flex; flex-direction: column; }
 .yours-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; padding: 7px 0; font-size: 12px; line-height: 1.4; color: inherit; text-decoration: none; }

@@ -165,7 +165,7 @@ async function main() {
       );
       const modes = await t.p.locator(`${root} .ck-mode`).allInnerTexts();
       ok(
-        modes[0] === "Chat with Loki" && modes[1] === "Save feedback",
+        modes[0] === "Ask" && modes[1] === "Save feedback",
         `chat and site feedback are named as two clear intents (${modes.join(" / ")})`,
       );
       // chatkit's colours come from the widget's theme, not the host's tokens,
