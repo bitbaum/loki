@@ -47,7 +47,7 @@ import {
   utcResetExplanation,
 } from "@bitbaum/ai-kit";
 import { fairShare, utcDayElapsed } from "@/lib/ai-budget/fair-share";
-import { ESTIMATED_TURN_TOKENS } from "@/lib/ai-budget/gate";
+import { MEASURED_AFTER_TURNS, turnReserveTokens } from "@/lib/ai-budget/gate";
 import { refillsIn, TOKENS_PER_ANSWER, type QuotaRowView } from "@/lib/ai/quota-view";
 import { atClock } from "@/lib/ai/clock-words";
 
@@ -199,8 +199,6 @@ export type BudgetInput = {
 /** Bounds on a measured per-answer cost, so one odd day cannot make the count absurd. */
 const MEASURED_MIN = 1_000;
 const MEASURED_MAX = 60_000;
-/** A mean needs more than one sample before it is called a measurement. */
-const MEASURED_AFTER_TURNS = 2;
 
 function clamp01(n: number): number {
   if (!Number.isFinite(n)) return 0;
@@ -214,8 +212,8 @@ const plural = (n: number, word: string) => countOf(n, word, { format: count });
  * Answers `tokens` buys, counted the way the gate admits them — the rule lives
  * in @bitbaum/ai-kit (`admissionsLeft`) so every app counts a remainder alike.
  */
-function answersIn(tokens: number, perAnswer: number): number {
-  return admissionsLeft(tokens, ESTIMATED_TURN_TOKENS, perAnswer);
+function answersIn(tokens: number, reserve: number, perAnswer: number): number {
+  return admissionsLeft(tokens, reserve, perAnswer);
 }
 
 const OWN_KEY_LEVER = "Add your own model key and there is no daily limit on your chats.";
@@ -229,11 +227,13 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
     ? Math.min(MEASURED_MAX, Math.max(MEASURED_MIN, Math.round(spent / turns)))
     : TOKENS_PER_ANSWER;
 
+  // The same reserve the gate admits against, so the count and the gate agree.
+  const reserve = turnReserveTokens(spent, turns);
   const decision = fairShare({
     dayCapacityTokens: input.dayCapacityTokens,
     activeUsers: input.activeUsers,
     userSpentTokens: spent,
-    costTokens: ESTIMATED_TURN_TOKENS,
+    costTokens: reserve,
     dayElapsed: utcDayElapsed(input.now),
   });
 
@@ -241,9 +241,9 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
   const fullAgainAt = atClock(nextUtcMidnight(input.now), input.now, input.timeZone);
   const models = input.chain.map((l) => `${l.provider}/${l.model}`);
   const answersNow = decision.allowed
-    ? answersIn(decision.allowanceTokens - spent, tokensPerAnswer)
+    ? answersIn(decision.allowanceTokens - spent, reserve, tokensPerAnswer)
     : 0;
-  const answersToday = answersIn(decision.shareTokens - spent, tokensPerAnswer);
+  const answersToday = answersIn(decision.shareTokens - spent, reserve, tokensPerAnswer);
   const usedLevel = decision.shareTokens > 0 ? clamp01(spent / decision.shareTokens) : 0;
 
   // Vendor truth outranks the share: a share of a pool every vendor has

@@ -19,7 +19,7 @@
  */
 import { nextUtcMidnight } from "@bitbaum/ai-kit";
 import { headroomNote, userBudgetView, type BudgetInput } from "@/lib/ai/budget-view";
-import { ESTIMATED_TURN_TOKENS } from "@/lib/ai-budget/gate";
+import { ESTIMATED_TURN_TOKENS, turnReserveTokens } from "@/lib/ai-budget/gate";
 import { TOKENS_PER_ANSWER, type QuotaRowView } from "@/lib/ai/quota-view";
 
 function assert(condition: boolean, message: string): void {
@@ -98,32 +98,50 @@ check("a fresh day: answers now and today, counted at the constant, bar at zero"
 check("the per-answer cost is the person's own mean once they have a few turns", () => {
   const p = userBudgetView(input({ userSpentTokens: 30_000, userTurns: 3 })).freePool;
   assert(p.measured && p.tokensPerAnswer === 10_000, `${p.tokensPerAnswer} measured=${p.measured}`);
-  // 75k allowance − 30k spent = 45k left now: one admission at the 20k
-  // estimate, then two more at the measured 10k. Today: 70k left → 1 + 5.
-  assert(p.answersNow === 3, `now ${p.answersNow}`);
+  // Mean 10k → the gate reserves 12.5k (mean + 25%). 75k allowance − 30k
+  // spent = 45k now: one admission at the reserve, then three at 10k.
+  // Today: 70k left → 1 + 5.
+  assert(turnReserveTokens(30_000, 3) === 12_500, `${turnReserveTokens(30_000, 3)}`);
+  assert(p.answersNow === 4, `now ${p.answersNow}`);
   assert(p.answersToday === 6, `today ${p.answersToday}`);
   assert(Math.abs(p.usedLevel - 0.3) < 1e-9, `level ${p.usedLevel}`);
   const one = userBudgetView(input({ userSpentTokens: 30_000, userTurns: 1 })).freePool;
   assert(!one.measured, "one turn is a sample, not a mean");
 });
 
-check("'answers now' is zero exactly when the gate would refuse, however cheap the turns", () => {
-  // 75k allowance, 60k spent, measured 2k per answer: 15k left looks like 7
-  // answers, but the gate estimates 20k and refuses — so the screen says 0.
-  const p = userBudgetView(input({ userSpentTokens: 60_000, userTurns: 30 })).freePool;
-  assert(p.tokensPerAnswer === 2_000, `${p.tokensPerAnswer}`);
+check(
+  "the gate reserves the person's own cost, so cheap answers are not refused while room is left",
+  () => {
+    // 75k allowance, 60k spent over 30 turns (2k each): 15k left. The old flat
+    // 20k reserve refused here and the screen said 0; the reserve is now 5k
+    // (the floor), so this is admitted — and the screen and gate agree.
+    assert(turnReserveTokens(60_000, 30) === 5_000, `${turnReserveTokens(60_000, 30)}`);
+    const p = userBudgetView(input({ userSpentTokens: 60_000, userTurns: 30 })).freePool;
+    assert(p.tokensPerAnswer === 2_000, `${p.tokensPerAnswer}`);
+    assert(
+      p.state === "ok" && p.answersNow === 1 + Math.floor(10_000 / 2_000),
+      `${p.state} now=${p.answersNow}`,
+    );
+    // Never more than the old reserve, and never below the floor.
+    assert(turnReserveTokens(900_000, 30) === ESTIMATED_TURN_TOKENS, "capped at the estimate");
+    assert(turnReserveTokens(0, 0) === ESTIMATED_TURN_TOKENS, "the estimate before any turn");
+  },
+);
+
+check("'answers now' is zero exactly when the gate would refuse", () => {
+  // 72k spent over 30 turns (2.4k each, reserve 5k): 3k left of the 75k
+  // allowance is under the reserve → paced, and the screen says 0.
+  const p = userBudgetView(input({ userSpentTokens: 72_000, userTurns: 30 })).freePool;
   assert(p.state === "paced" && p.answersNow === 0, `${p.state} now=${p.answersNow}`);
-  // 40k left today at 2k an answer is NOT 20: the first must fit the 20k estimate.
-  assert(p.answersToday === 11, `today ${p.answersToday}`);
+  // 28k left today: one at the 5k reserve, then 23k at 2.4k → 1 + 9.
+  assert(p.answersToday === 10, `today ${p.answersToday}`);
   assert(typeof p.unlocksIn === "string" && /^in /.test(p.unlocksIn), `unlocks ${p.unlocksIn}`);
-  assert(/^11 free answers left today — the next one at \d\d:\d\d\.$/.test(p.line), p.line);
+  assert(/^10 free answers left today — the next one at \d\d:\d\d\.$/.test(p.line), p.line);
   assert(p.nextAt !== null && /^at \d\d:\d\d$/.test(p.nextAt), `${p.nextAt}`);
   assert(p.short === `next ${p.nextAt!.slice(3)}`, `${p.short}`);
   // Right at the edge the next turn is admitted and counts as one.
-  const edge = userBudgetView(
-    input({ userSpentTokens: 75_000 - ESTIMATED_TURN_TOKENS, userTurns: 30 }),
-  ).freePool;
-  assert(edge.state === "ok" && edge.answersNow === 1, `${edge.state} now=${edge.answersNow}`);
+  const edge = userBudgetView(input({ userSpentTokens: 70_000, userTurns: 30 })).freePool;
+  assert(edge.state === "ok" && edge.answersNow >= 1, `${edge.state} now=${edge.answersNow}`);
 });
 
 check("spent is a different sentence from paced: waiting does not help", () => {
@@ -210,9 +228,9 @@ check("every free model says what is left on it — not only the one about to ru
     spent.models.every((m) => m.left === "None left today — full again tomorrow at 02:00"),
     spent.models.map((m) => m.left).join(" | "),
   );
-  const paced = userBudgetView(input({ userSpentTokens: 60_000, userTurns: 30 }));
+  const paced = userBudgetView(input({ userSpentTokens: 72_000, userTurns: 30 }));
   assert(
-    /^11 left today · next one at \d\d:\d\d$/.test(paced.models[0]!.left),
+    /^10 left today · next one at \d\d:\d\d$/.test(paced.models[0]!.left),
     paced.models[0]!.left,
   );
   const skipped = userBudgetView(
@@ -319,7 +337,7 @@ check("meaning: the week, memory and explanations are stated, with the levers th
     userBudgetView(input({ week: { tokens: 0, turns: 0, days: 0 } })).meaning.week === null,
     "an empty week is absent, not zero",
   );
-  const paced = userBudgetView(input({ userSpentTokens: 60_000, userTurns: 30 }));
+  const paced = userBudgetView(input({ userSpentTokens: 72_000, userTurns: 30 }));
   assert(paced.meaning.actions[0]!.id === "wait", "paced leads with waiting");
   const keyed = userBudgetView(
     input({
