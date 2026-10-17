@@ -458,12 +458,18 @@ check("past the follow window nothing waits forever: no stage is 'now', the trac
   assert.ok(!t.stages.some((s) => s.state === "now"), states(old));
   assert.equal(t.stages.find((s) => s.id === "pr")!.at, null, "no clock on a stage nobody follows");
   assert.match(t.stages.find((s) => s.id === "pr")!.note!, /two days/);
+  assert.equal(
+    t.stages.find((s) => s.id === "pr")!.label,
+    "No pull request on record",
+    "a stage nobody follows does not say it is looking",
+  );
   assert.equal(t.settled, true, "the page stops asking");
   assert.match(t.summary, /^Claude Code finished — this ran more than two days ago/);
 
   const prOpen = buildRunTrack({ ...old, fix: ledger(FIX_SHIP_STATE.PR_OPEN, { prUrl: PR }) });
   assert.equal(prOpen.stages.find((s) => s.id === "pr")!.state, "done", "what is on record stays");
   assert.equal(prOpen.stages.find((s) => s.id === "merged")!.state, "next");
+  assert.equal(prOpen.stages.find((s) => s.id === "merged")!.label, "Merge not on record");
   assert.match(prOpen.summary, /^Pull request opened — this ran more than two days ago/);
   assert.equal(prOpen.settled, true);
 

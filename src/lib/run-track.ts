@@ -533,6 +533,13 @@ function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
   return "Waiting for a builder to pick it up — usually under a minute.";
 }
 
+/** What a stage that was still moving reads once nobody follows it any more. */
+const STALE_LABEL: Partial<Record<TrackStageId, string>> = {
+  pr: "No pull request on record",
+  merged: "Merge not on record",
+  live: "Deploy not on record",
+};
+
 export function buildRunTrack(input: RunTrackInput): RunTrack {
   const f = readFacts(input);
   const builder = builderStage(f);
@@ -547,6 +554,8 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
     for (const st of stages)
       if (st.state === "now") {
         st.state = "next";
+        // "Looking for the pull request" over "Not followed" says two things.
+        st.label = STALE_LABEL[st.id] ?? st.label;
         st.note = "Not followed — Loki follows a change for two days after its run.";
         st.at = null;
       }
