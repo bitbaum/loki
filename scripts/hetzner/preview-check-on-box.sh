@@ -27,19 +27,35 @@ cd "$BOX_LOKI" || { echo "no Loki checkout at $BOX_LOKI"; exit 3; }
 token=$(BASE="$BASE" npx tsx scripts/test/print-session-token.ts 2>/dev/null | tr -d '\n')
 [ -n "$token" ] || { echo "could not mint a session on the box"; exit 4; }
 
-reply=$(curl -sS -m 60 "$BASE/api/previews/$SLUG/cookie" -H "Cookie: __Secure-authjs.session-token=$token" 2>/dev/null)
-cookie=$(printf '%s' "$reply" | python3 -c '
+# The cookie is read out of the answer and never printed; on a refusal only the
+# status and the app's error sentence are shown, never the body — a body could
+# carry the cookie, and this log is public.
+reply=$(mktemp); trap 'rm -f "$reply"' EXIT
+http=$(curl -sS -o "$reply" -w '%{http_code}' -m 60 "$BASE/api/previews/$SLUG/cookie" \
+  -H "Cookie: __Secure-authjs.session-token=$token" 2>/dev/null || echo 000)
+cookie=$(python3 - "$reply" <<'PY'
 import json, sys
 try:
-    c = json.load(sys.stdin)["cookie"]; print(f"{c[\"name\"]}={c[\"value\"]}")
+    c = json.load(open(sys.argv[1]))["cookie"]
+    print(c["name"] + "=" + c["value"])
 except Exception:
-    pass')
+    pass
+PY
+)
 if [ -z "$cookie" ]; then
-  echo "the app did not hand out the cookie: $(printf '%s' "$reply" | head -c 300)"
+  why=$(python3 - "$reply" <<'PY'
+import json, sys
+try:
+    print(str(json.load(open(sys.argv[1])).get("error", ""))[:200])
+except Exception:
+    pass
+PY
+)
+  echo "the app did not hand out the cookie: HTTP $http ${why:+— $why}"
   exit 4
 fi
 
-tour=$(mktemp); trap 'rm -f "$tour"' EXIT
+tour=$(mktemp); trap 'rm -f "$tour" "$reply"' EXIT
 ask() { curl -sS -o "${2:-/dev/null}" -w '%{http_code} %{content_type}' -m 90 -H "Cookie: $cookie" "$1" 2>/dev/null || echo "000"; }
 
 site=$(ask "https://$HOST/")
