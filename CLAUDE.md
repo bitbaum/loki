@@ -240,7 +240,7 @@ Text:      --text-primary → --text-secondary → --text-tertiary → --text-mu
 Borders:   --border-subtle → --border-default → --border-strong → --border-interactive
 Accent:    --accent-primary, --accent-hover, --accent-muted, --accent-text
 Status:    --status-positive / -warning / -negative / -neutral (+ -subtle variants)
-Type:      --text-micro (10px), --text-nano (8px), --tracking-*, --font-*
+Type:      --text-micro (12px — the floor; nothing renders smaller), --tracking-*, --font-*
 Shadows:   --shadow-panel, --shadow-panel-strong
 Spacing:   --modal-max-height (85vh), --page-min-height (60vh)
 ```
@@ -291,8 +291,8 @@ In component JSX, only two things are allowed:
 ❌  text-gray-400       ← palette color (use text-text-secondary etc.)
 ❌  bg-indigo-500       ← palette color
 ❌  bg-[#1a2b3c]        ← hex value
-❌  text-[10px]         ← arbitrary size (use text-micro)
-❌  text-[8px]          ← arbitrary size (use text-nano)
+❌  text-[10px]         ← arbitrary size (use text-micro, 12px)
+❌  text-[8px], text-nano ← below the floor (there is nothing under text-micro, 12px)
 ❌  shadow-[var(--*)]   ← use shadow-panel / shadow-panel-strong
 ❌  min-h-[44px]        ← use min-h-11 (44px on spacing scale)
 ❌  h-[72px]            ← use h-18 (72px on spacing scale)

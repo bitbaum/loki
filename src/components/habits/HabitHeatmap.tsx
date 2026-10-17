@@ -49,7 +49,7 @@ export function HabitHeatmap({
           {ROW_LABELS.map((label, i) => (
             <div
               key={i}
-              className="h-5 w-3 flex items-center justify-end text-nano text-text-muted leading-none"
+              className="h-5 w-3 flex items-center justify-end text-micro text-text-muted leading-none"
             >
               {i % 2 === 0 ? label : ""}
             </div>
