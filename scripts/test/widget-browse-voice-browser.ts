@@ -94,7 +94,7 @@ async function main() {
         }
         return route.fulfill({
           contentType: "text/html",
-          body: `<!doctype html><html lang="en"><head><title>AoZ example</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="font:18px system-ui;margin:24px"><main><h1>Welcome</h1><button id="normal" style="padding:14px" onclick="window.clicks++">Browse services</button><input type="password" value="private-password"><section style="margin-top:800px"><h2>Pricing</h2><button id="price" style="padding:14px" onclick="window.clicks++">Choose this plan</button></section></main><script src="http://host.fixture/widget.js" data-fc-project="fcw_fixture" async></script></body></html>`,
+          body: `<!doctype html><html lang="en"><head><title>AoZ example</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="font:18px system-ui;margin:24px"><main><h1>Welcome</h1><button id="normal" style="padding:14px" onclick="window.clicks++">Browse services</button><input type="password" value="private-password"><section style="margin-top:800px"><h2>Pricing</h2><button id="price" style="padding:14px" onclick="window.clicks++">Choose this plan</button><p style="height:1600px">Every plan, in detail.</p></section></main><footer style="height:400px">© AoZ</footer><script src="http://host.fixture/widget.js" data-fc-project="fcw_fixture" async></script></body></html>`,
         });
       });
       await page.goto(
@@ -167,6 +167,11 @@ async function main() {
         .click();
       await page.getByText("Marked “Pricing”", { exact: true }).waitFor();
       assert.equal(await host.locator(".pickbar").count(), 0, "Mark never opens a picker");
+      // Down to the footer: the Pricing heading has scrolled off the top, and
+      // no heading is on screen. The person is still in Pricing — never "the
+      // page's title" (found walking the live Petvity home page, 2026-10-17).
+      await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForTimeout(900);
       assert(
         await host
           .locator(".browse-voice")
@@ -241,6 +246,14 @@ async function main() {
       const pricing = moments.find((m) => m.label === "Pricing");
       assert(pricing?.marked, "Mark marks the part in view");
       assert(typeof pricing?.scrollY === "number" && pricing.scrollY > 0, "the scroll is kept");
+      assert(
+        !moments.some((m) => m.label === "AoZ example"),
+        `deep in a section, the moment names the section, not the page title: ${JSON.stringify(moments)}`,
+      );
+      assert(
+        pricing!.scrollY! > 1400,
+        "scrolling on within Pricing moves that moment's view to where the person stopped",
+      );
       assert.equal(
         moments[0].said,
         transcript.slice(0, 600),

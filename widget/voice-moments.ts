@@ -188,21 +188,30 @@ const cleanText = (t: string | null | undefined, max: number) =>
   (t ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 
 /**
- * The part of the page the person is looking at: the last heading that starts
- * above the middle of the screen — the section being read, not the first
- * heading that happens to peek in at the top. Falls back to the first visible
- * heading, then the page title.
+ * The part of the page the person is looking at: the last heading that
+ * starts above the reading line (a little past the middle of the screen) —
+ * the section being read, not the first heading that happens to peek in at
+ * the top. That heading may have scrolled off the top: someone deep in a long
+ * section, or down at the footer, is still in that section, and naming the
+ * page's title instead (what this did until 2026-10-17, found walking the
+ * live Petvity home page to its bottom) tells the agent nothing. Falls back
+ * to the first heading on screen, then the page title.
  */
 export function inView(skip: (el: Element) => boolean): string {
-  const visible = Array.from(
+  const headings = Array.from(
     document.querySelectorAll<HTMLElement>("h1,h2,h3,h4,[role=heading]"),
-  ).filter((el) => {
-    if (skip(el) || !el.getClientRects().length) return false;
-    const r = el.getBoundingClientRect();
-    return r.bottom > 0 && r.top < innerHeight && cleanText(el.innerText || el.textContent, 80);
-  });
-  const reading = visible.filter((el) => el.getBoundingClientRect().top < innerHeight * 0.55);
-  const pick = reading.at(-1) ?? visible[0];
+  ).filter(
+    (el) =>
+      !skip(el) && el.getClientRects().length > 0 && cleanText(el.innerText || el.textContent, 80),
+  );
+  const readingLine = innerHeight * 0.55;
+  const above = headings.filter((el) => el.getBoundingClientRect().top < readingLine);
+  const pick =
+    above.at(-1) ??
+    headings.find((el) => {
+      const r = el.getBoundingClientRect();
+      return r.bottom > 0 && r.top < innerHeight;
+    });
   return pick
     ? cleanText(pick.innerText || pick.textContent, 80)
     : cleanText(document.title, 80) || location.pathname;
