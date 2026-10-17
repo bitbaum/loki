@@ -4799,6 +4799,13 @@
   .ui-track-clock {
     @apply font-medium text-text-secondary;
   }
+  /* A settled track in a chat thread: its one sentence, opened on a tap. */
+  .ui-track-fold {
+    @apply flex w-full min-w-0 items-center gap-2 text-left text-sm text-text-secondary;
+  }
+  .ui-track-fold-text {
+    @apply min-w-0 flex-1 wrap-anywhere;
+  }
   .ui-track-chevron {
     @apply mt-1 h-3.5 w-3.5 shrink-0 text-text-muted transition-transform;
   }
@@ -7041,21 +7048,15 @@
   .ui-loki-handoff {
     @apply mt-2 flex min-w-0 flex-col gap-3 border-t border-border-subtle pt-3;
   }
-  /* A running build's progress so far, under its dispatch card (run-milestones.ts). */
-  .ui-loki-milestones {
-    @apply mt-2 flex min-w-0 flex-col gap-2 border-t border-border-subtle pt-3;
+  /* The delivery track under a dispatch card (components/projects/RunTrack —
+     the same one Watch draws). */
+  .ui-loki-track {
+    @apply mt-2 min-w-0 border-t border-border-subtle pt-3;
   }
-  .ui-loki-milestone {
-    @apply flex min-w-0 items-start gap-2;
-  }
-  .ui-loki-milestone-label {
-    @apply text-sm text-text-primary wrap-anywhere;
-  }
-  .ui-loki-milestone-time {
-    @apply ml-2 text-xs text-text-muted tabular-nums;
-  }
-  .ui-loki-milestone-quote {
-    @apply mt-0.5 text-sm text-text-secondary wrap-anywhere;
+  /* What Loki saw on the live page: verdict, evidence, before and after
+     (components/projects/RunLook), under the track in chat and on Watch. */
+  .ui-run-look {
+    @apply mt-2 flex min-w-0 flex-col gap-2;
   }
   .ui-loki-handoff-list {
     @apply mt-1 list-disc space-y-1 pl-5 text-sm text-text-primary wrap-anywhere;

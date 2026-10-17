@@ -12,8 +12,7 @@ import { deriveDispatchLiveStatus, type CommandLiveInput } from "@/lib/dispatch-
 import { autoReimplementAfterRunnerNack } from "@/lib/feedback/auto-reimplement";
 import { autoRetryProjectRunAfterNack } from "@/lib/project-retry";
 import { runHandoff } from "@/lib/run-handoff";
-import { followRun } from "@/lib/run-follow";
-import { loadRunMilestones } from "@/lib/run-milestones-load";
+import { loadRunTrack } from "@/lib/run-track-load";
 
 // GET /api/control/commands/:id — live dispatch status the transcript footer
 // polls so a dispatch shows queued → picked up → ran/failed instead of a frozen
@@ -45,18 +44,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         }
       : null,
   });
-  // Once the run is over, what it did and what comes next ride with the
-  // status, so the chat card can say it instead of linking away.
+  // Where the change is — the same track Watch draws (lib/run-track-load) —
+  // and, once the run is over, what it did and what comes next, so the chat
+  // card can say it instead of linking away.
+  const loaded = run ? await loadRunTrack(userId, run).catch(() => null) : null;
   return NextResponse.json({
     ...view,
     handoff: runHandoff(run?.finishedAt ? run.summary : null),
-    // …and where the change went after that, while the card is open.
-    follow: view.terminal && run ? await followRun(userId, run).catch(() => null) : null,
-    // …and every step it took, during the run and after it.
-    milestones:
-      run && command.claimedAt
-        ? await loadRunMilestones(userId, run, command.claimedAt).catch(() => null)
-        : null,
+    follow: view.terminal ? (loaded?.follow ?? null) : null,
+    track: loaded?.track ?? null,
   });
 }
 

@@ -39,7 +39,7 @@ Every surface **reads** `work.phase` (and the same run id). They do not re-deriv
 
 Inbox groups stay: Needs you = YOU; Under way = MACHINE (Queued|Working only).
 
-## The delivery track (Watch)
+## The delivery track (Watch, and the chat card)
 
 Status answers "is it alive?". It does not answer the question the person who
 sent the change is asking — "is it going to appear on my site, and where is
@@ -68,10 +68,26 @@ working stage, the agent's screen as Watch last saw it. After the run, the
 same card plays the pull request's Walkthrough (`lib/feedback/fix-note`, now
 asked of every project dispatch too, not only visitor fixes).
 
-The route (`/api/projects/[id]/watch`) carries `track`, `following` and `walkthrough`; the
-page polls every 10 s after the run closes until the track settles (live and
-looked at, closed without merging, or nothing reached GitHub), and not after.
-A stage is never claimed on the clock: "merged" means GitHub said so.
+**One loader, every surface.** `lib/run-track-load` gathers the track for a
+run — events, the runner's snapshot, what was asked, the branch or pull
+request found on GitHub while the run lives (`run-evidence-live`), the
+commits and the state of the checks on it (`repo-progress`), and after the
+run the fix ledger through merge, deploy and Loki's look (`run-follow`). The
+Watch route (`/api/projects/[id]/watch`) and both live-status routes the chat
+card polls (`/api/orchestration/runs/[id]`, `/api/control/commands/[id]`)
+call it and carry `track`; `components/projects/RunTrack` draws it in both
+places, and `components/projects/RunLook` shows what Loki saw (verdict,
+evidence, the page before and after) under it. Until 2026-10-17 the chat card
+had its own list (`run-milestones`: picked up → pushed → PR → checks) read
+from different facts, so a person moving from the chat to Watch read two
+stories about one change. The commits now ride the working stage as facts
+("Pushed: …", in the builder's words) and a red check is the merged stage in
+the needs-you state, before the fix ledger has caught up.
+
+Watch polls every 10 s after the run closes until the track settles (live and
+looked at, closed without merging, or nothing reached GitHub), and not after;
+the chat card does the same, slower. A stage is never claimed on the clock:
+"merged" means GitHub said so.
 
 ## Builder channels
 

@@ -29,6 +29,7 @@
 import type { RunEventKind } from "@/db/schema/run-events";
 import { FIX_SHIP_STATE, type FixShipState } from "@/lib/feedback/fix-shipping";
 import { ORCHESTRATION_OUTCOME } from "@/lib/orchestration/contract";
+import { commitHeadline, type ChecksState, type RepoProgress } from "@/lib/repo-progress";
 
 export const TRACK_STAGE_IDS = ["asked", "builder", "working", "pr", "merged", "live"] as const;
 export type TrackStageId = (typeof TRACK_STAGE_IDS)[number];
@@ -92,6 +93,13 @@ export type RunTrackInput = {
   builderLabel: string | null;
   /** Repo-side evidence found during or after the run (lib/repo-evidence). */
   evidence: { kind: "pr" | "push"; url: string; title: string; atMs?: number | null } | null;
+  /**
+   * What the repository shows since the run began (lib/repo-progress): the
+   * commits the builder pushed, in its own words, and the pull request with
+   * the state of its checks — so "working" has a HOW behind it and "checks"
+   * can say running / failed before the fix ledger has caught up.
+   */
+  repo?: RepoProgress | null;
   /** The fix ledger after the run closed, when one exists. */
   fix: {
     state: FixShipState;
@@ -161,6 +169,8 @@ type Facts = {
   ship: FixShipState | null;
   prUrl: string | null;
   prAt: string | null;
+  checks: ChecksState | null;
+  commits: { message: string; at: string; url: string }[];
   pushed: boolean;
   site: string | null;
   working: boolean;
@@ -174,8 +184,13 @@ function readFacts(input: RunTrackInput): Facts {
   const finished = Boolean(input.run?.finishedAt);
   const outcome = input.run?.outcome ?? null;
   const ship = input.fix?.state ?? null;
+  const repo = input.repo ?? null;
   const prUrl =
-    input.fix?.prUrl ?? (input.evidence?.kind === "pr" ? input.evidence.url : null) ?? null;
+    input.fix?.prUrl ??
+    (input.evidence?.kind === "pr" ? input.evidence.url : null) ??
+    repo?.pr?.url ??
+    null;
+  const commits = repo?.commits ?? [];
   const t = input.eventTimes;
   return {
     input,
@@ -188,8 +203,12 @@ function readFacts(input: RunTrackInput): Facts {
     lastKind: input.eventKinds.at(-1) ?? null,
     ship,
     prUrl,
-    prAt: input.evidence?.kind === "pr" ? iso(input.evidence.atMs) : null,
-    pushed: ship === FIX_SHIP_STATE.PUSHED || (!prUrl && input.evidence?.kind === "push"),
+    prAt: (input.evidence?.kind === "pr" ? iso(input.evidence.atMs) : null) ?? repo?.pr?.at ?? null,
+    checks: repo?.pr?.checks ?? null,
+    commits,
+    pushed:
+      ship === FIX_SHIP_STATE.PUSHED ||
+      (!prUrl && (input.evidence?.kind === "push" || commits.length > 0)),
     site: hostOf(input.fix?.liveUrl ?? input.liveUrl),
     working: input.phase === "working" && !input.stalled,
     provider: input.providerLabel,
@@ -256,11 +275,27 @@ function builderStage(f: Facts): TrackStage {
   });
 }
 
+/** The newest few commits, in the builder's words; a run that pushed twenty
+ *  does not need twenty rows. */
+const COMMITS_SHOWN = 3;
+
+function commitFacts(commits: Facts["commits"]): TrackFact[] {
+  const shown = commits.slice(-COMMITS_SHOWN);
+  const hidden = commits.length - shown.length;
+  const out: TrackFact[] = [];
+  if (hidden > 0)
+    out.push({ text: `Pushed ${hidden} earlier ${hidden === 1 ? "commit" : "commits"}.` });
+  for (const c of shown)
+    out.push({ text: `Pushed: ${commitHeadline(c.message)}`, at: c.at, href: c.url });
+  return out;
+}
+
 function workingStage(f: Facts): TrackStage {
   const p = f.provider;
   const t = f.input.eventTimes;
   const facts: TrackFact[] = [];
   if (t.generating) facts.push({ text: `${p} started working.`, at: t.generating });
+  facts.push(...commitFacts(f.commits));
   if (f.input.lastProgressAt)
     facts.push({ text: "Last output on its screen.", at: f.input.lastProgressAt });
   if (t.handoff) facts.push({ text: `${p} handed the work back.`, at: t.handoff });
@@ -313,8 +348,8 @@ function prStage(f: Facts): TrackStage {
   const ev = f.input.evidence;
   const fix = f.input.fix;
   if (f.prUrl) {
-    const title = fix?.prTitle ?? (ev?.kind === "pr" ? ev.title : null);
-    const number = fix?.prNumber;
+    const title = fix?.prTitle ?? (ev?.kind === "pr" ? ev.title : null) ?? f.input.repo?.pr?.title;
+    const number = fix?.prNumber ?? f.input.repo?.pr?.number;
     return stage("pr", "Pull request opened", "done", {
       note: title ? (number ? `#${number} · ${title}` : title) : null,
       link: { href: f.prUrl, label: "See the change" },
@@ -362,7 +397,23 @@ function mergedStage(f: Facts): TrackStage {
     return stage("merged", "Closed without merging", "failed", {
       note: "The pull request was closed, so nothing shipped.",
     });
-  if (f.ship === FIX_SHIP_STATE.PR_OPEN)
+  const checksLink = f.prUrl ? `${f.prUrl}/checks` : null;
+  if (f.checks === "failed" && f.prUrl)
+    return stage("merged", "A check failed", "attention", {
+      note: f.finished
+        ? "It cannot merge until the check passes — open the pull request to see which."
+        : "The agent usually sees it and fixes it; it cannot merge until the check passes.",
+      link: checksLink ? { href: checksLink, label: "See the checks" } : null,
+      at: f.prAt,
+      facts: [{ text: "One of the checks on the pull request came back red.", href: checksLink }],
+    });
+  if (f.checks === "passed" && f.prUrl)
+    return stage("merged", "Checks passed — merging", "now", {
+      note: "Every check is green; it merges by itself in the next sweep.",
+      at: f.prAt,
+      facts: [{ text: "Every check on the pull request passed.", href: checksLink }],
+    });
+  if (f.ship === FIX_SHIP_STATE.PR_OPEN || (f.checks === "running" && f.prUrl))
     return stage("merged", "Checks running", "now", {
       note: "It merges by itself once they pass.",
       at: f.prAt,
@@ -443,6 +494,11 @@ function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
     default:
       break;
   }
+  if (f.checks === "failed" && f.prUrl)
+    return f.finished
+      ? "A check failed on the pull request — it cannot merge until that passes."
+      : `A check failed on the pull request — ${p} usually fixes it.`;
+  if (f.checks === "passed" && f.prUrl) return "Checks passed — it merges and deploys by itself.";
   if (f.prUrl)
     return f.finished
       ? "Pull request open — checks run, then it merges and deploys by itself."

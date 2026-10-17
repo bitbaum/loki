@@ -55,7 +55,8 @@ export function useDispatchLiveStatus(
           // site (PR → merge → deploy → Loki's look): keep asking, slowly,
           // while this card is open — and not all day.
           if (v.terminal) {
-            if (!v.follow || v.follow.settled || Date.now() - since > FOLLOW_FOR_MS) return;
+            const settled = v.track ? v.track.settled : !v.follow || v.follow.settled;
+            if (settled || Date.now() - since > FOLLOW_FOR_MS) return;
             delay = FOLLOW_POLL_MS;
           }
         }

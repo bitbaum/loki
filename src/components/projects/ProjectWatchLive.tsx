@@ -30,6 +30,7 @@ import type { RunTrack as RunTrackData } from "@/lib/run-track";
 import type { RunFollow } from "@/lib/run-handoff";
 import type { FixNote } from "@/lib/feedback/fix-note";
 import { RunTrack } from "./RunTrack";
+import { RunLook } from "./RunLook";
 import { Walkthrough } from "./Walkthrough";
 
 export type WatchCardPhase = "waiting" | "working" | "attention" | "following" | "live" | "stopped";
@@ -153,25 +154,7 @@ export function ProjectWatchLive({
         <Walkthrough note={walkthrough} liveUrl={follow?.liveUrl ?? liveStage?.href ?? null} />
       )}
 
-      {follow?.pictureUrl && (
-        <a
-          href={follow.liveUrl ?? follow.pictureUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ui-loki-update-shot max-w-xs"
-        >
-          {/* An owner-only API image — next/image would fetch it without the session. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={follow.pictureUrl}
-            alt="The live page, as Loki saw it on a phone"
-            loading="lazy"
-          />
-          <span className="ui-loki-update-shot-caption">
-            The live page, as Loki saw it on a phone
-          </span>
-        </a>
-      )}
+      {follow && !live && <RunLook follow={follow} />}
 
       {working && earlier.length > 0 && (
         <ol className="ui-watch-story" aria-label="So far">

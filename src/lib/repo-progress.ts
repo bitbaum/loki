@@ -1,12 +1,52 @@
 /**
- * Ask GitHub what a running build has pushed so far (run-milestones.ts says it
- * in words). The chat card polls its status every few seconds; GitHub is asked
- * at most once a minute per run, and a failure of any kind is "nothing yet" —
+ * What a running build has pushed so far, read from the repository: the
+ * commits on its branch (the builder's own words), the pull request, and the
+ * state of its checks. The delivery track (lib/run-track) tells it in order —
+ * "pushed …", "checks running" — so a person watching from the chat or from
+ * Watch sees the change move by facts, not by a spinner.
+ *
+ * The chat card polls its status every few seconds; GitHub is asked at most
+ * once a minute per run, and a failure of any kind is "nothing yet" —
  * progress is a bonus on the card, never a reason it fails to load.
  */
 import { GITHUB_API_BASE } from "@/lib/github-api";
 import { parseGithubRepo } from "@/lib/github-commits";
-import { summarizeChecks, type RepoProgress } from "@/lib/run-milestones";
+
+export type ChecksState = "running" | "passed" | "failed";
+
+export type RepoProgress = {
+  /** Commits on the work branch since the run started, oldest first. */
+  commits: { sha: string; message: string; at: string; url: string }[];
+  pr: {
+    number: number;
+    title: string;
+    url: string;
+    at: string;
+    checks: ChecksState | null;
+  } | null;
+};
+
+const QUOTE_MAX = 140;
+
+/** A commit message's first line, without the conventional-commit prefix
+ *  ("fix(header): …"), which is a label for tools, not for a person. */
+export function commitHeadline(message: string): string {
+  const first = (message.split("\n")[0] ?? "").trim();
+  const bare = first.replace(/^[a-z]+(\([^)]*\))?!?:\s*/i, "");
+  const text = bare ? bare.charAt(0).toUpperCase() + bare.slice(1) : first;
+  return text.length > QUOTE_MAX ? `${text.slice(0, QUOTE_MAX - 1)}…` : text;
+}
+
+/** One conclusion from a commit's check runs. Nothing reported is null. */
+export function summarizeChecks(
+  runs: { status?: string | null; conclusion?: string | null }[],
+): ChecksState | null {
+  if (runs.length === 0) return null;
+  if (runs.some((r) => ["failure", "timed_out", "action_required"].includes(r.conclusion ?? "")))
+    return "failed";
+  if (runs.some((r) => r.status !== "completed")) return "running";
+  return "passed";
+}
 
 const FRESH_MS = 60_000;
 const cache = new Map<string, { at: number; value: Promise<RepoProgress | null> }>();
