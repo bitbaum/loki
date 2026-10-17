@@ -136,6 +136,12 @@ export function nextProviderAfter(
  * there is nothing after this link, say so plainly rather than implying a
  * safety net that does not exist.
  */
+/** Midnight UTC at the start of the day `now` falls in, as epoch ms. */
+function startOfUtcDay(now: number): number {
+  const d = new Date(now);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
 export function describeQuota(
   row: QuotaReadingRow,
   opts: { now: number; nextProvider: string | null; tokensPerAnswer?: number },
@@ -144,6 +150,16 @@ export function describeQuota(
   const observed = ms(row.observedAt);
   const stale =
     row.window === "minute" && observed !== null && opts.now - observed > STALE_MINUTE_MS;
+  // A DAILY counter read before today (UTC) says nothing about today either.
+  // Without this a "0 requests left today" with no reset time stayed "spent"
+  // for good: on 2026-10-17 five OpenRouter models read "None left right now"
+  // from readings taken on 15 September and 8 October, the picker locked them,
+  // and nothing reached them again to take a fresher reading.
+  const dayStale =
+    row.window === "day" &&
+    row.resetAt == null &&
+    observed !== null &&
+    observed < startOfUtcDay(opts.now);
 
   // A skip is not a measurement, and reporting it as one inverts the meaning:
   // a healthy vendor that is never reached would read as an exhausted one. This
@@ -192,7 +208,7 @@ export function describeQuota(
   // it as current is how a dashboard ends up confidently wrong.
   const resetMs = ms(row.resetAt);
   const resetReached = resetMs !== null && resetMs <= opts.now;
-  if (stale || resetReached) {
+  if (stale || resetReached || dayStale) {
     return {
       provider: row.provider,
       model: row.model,
@@ -200,7 +216,9 @@ export function describeQuota(
       answers: null,
       detail: resetReached
         ? "reset time reached — waiting for a fresh reading"
-        : "not measured recently — this counter refills every minute",
+        : dayStale
+          ? "not measured today — the daily counter has started over since"
+          : "not measured recently — this counter refills every minute",
       refills: null,
       consequence,
       level: null,
