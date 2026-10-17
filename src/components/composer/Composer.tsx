@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode, type RefObject } from "react";
+import { useContext, useState, type ReactNode, type RefObject } from "react";
+import { SessionContext } from "next-auth/react";
 import { Composer as ChatkitComposer } from "@bitbaum/chatkit/react";
 import { ModelPicker } from "@/components/loki/ModelPicker";
 import type { Attachment, ModelChoice } from "@/components/loki/types";
@@ -97,6 +98,11 @@ export function Composer({
     else setOwnModel(next);
   };
 
+  // The public demo calls no model (config/demo.ts), so a picker reading
+  // "11 left" promised answers the demo never gives. The context, not
+  // useSession(): this box also renders without a session provider.
+  const demo = useContext(SessionContext)?.data?.user?.isDemo === true;
+
   return (
     <ChatkitComposer
       {...rest}
@@ -106,7 +112,7 @@ export function Composer({
       voice={voice ? { transcribeUrl: TRANSCRIBE_URL, prefer: "server" } : false}
       tools={
         <>
-          {modelPicker && (
+          {modelPicker && !demo && (
             <ModelPicker
               value={model}
               onChange={setModel}

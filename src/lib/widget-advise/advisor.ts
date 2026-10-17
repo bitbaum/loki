@@ -150,7 +150,7 @@ export function adviseSystemPrompt(input: {
     // security" needed a paid plan — none of which exists (the pricing page
     // says every feature is on every plan). The page showed "Beta · Free"; the
     // rest was what software companies usually charge for.
-    "- Never invent content, numbers or pages. Facts (price, plans, hours, policies) are answered ONLY from the outline, quoting its words; if it does not say, say this page does not say, and name the link where it would be. Never fill the gap with what such sites usually do.",
+    "- Never invent content, numbers or pages. Facts (price, “free”, plans, hours, policies) are answered ONLY from the outline, quoting its words; if it does not say, say this page does not say, and name the link where it would be. Never fill the gap with what such sites usually do.",
     "- Short: under 180 words unless they asked for a full review. No headings; short paragraphs or a few bullets.",
     "- Answer in the language the person wrote in — their latest message, even when the site is in another language. The CHANGES lines too. Quote the site's own words as they are.",
     "- When their point is about how things are done everywhere (a habit, a rule, “always”, “every form”), answer at that level: say where else on the site it applies and make the change request the rule across the site, not one patch on the element in front of them.",
