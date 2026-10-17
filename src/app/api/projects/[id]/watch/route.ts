@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { previewWalkthrough } from "@/lib/previews/walkthrough";
 import { getProjectAccess } from "@/db/queries/project-access";
 import { dispatchMessageDisplay } from "@/lib/terminal-conversation";
 import { getSessionUserId } from "@/lib/session";
@@ -98,8 +99,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     getBeaconSettings(executionUserId),
   ]);
   // A pull request the ledger discounted (opened before the run) is not this
-  // change's; its note is not this change's walkthrough.
+  // change's; its note is not this change's walkthrough. A preview folder has
+  // no pull request: its build leaves the same account in improvements.json.
   const ownPr = fix && !fix.foreignPr ? (fix.pr ?? null) : null;
+  const walkthrough = ownPr?.note ?? (await previewWalkthrough(executionUserId, idOrResp));
 
   return NextResponse.json(
     {
@@ -128,7 +131,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       follow,
       // The agent's own account of the change, from the pull request — what
       // was wrong, what changed, why, who it helps, what it costs.
-      walkthrough: ownPr?.note ?? null,
+      walkthrough,
       liveUrl: up?.liveUrl ?? null,
       tab: ownerView ? tab : undefined,
       provider: {

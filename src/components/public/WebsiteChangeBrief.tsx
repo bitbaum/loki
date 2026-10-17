@@ -40,8 +40,9 @@ import { cn } from "@/lib/utils";
  *
  * Everything after is unchanged and deliberate: the draft survives sign-in
  * (sessionStorage), a resubmit reuses its requestId so it cannot create two
- * projects, and the build goes through the same project + kickoff pipeline
- * (/api/projects/from-website) as every other project.
+ * previews, and the build becomes a private preview (/api/projects/from-website
+ * → lib/previews/from-website) that "Watch it work" shows with its link, code
+ * and before-and-after tour.
  */
 export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
   const router = useRouter();
@@ -296,7 +297,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
               className="ui-btn-primary min-h-11"
               disabled={sending || !ready || !canBuild}
             >
-              {sending ? "Creating your project…" : action}
+              {sending ? "Starting the new version…" : action}
             </button>
             <span className="text-sm text-text-muted">
               {needsSite

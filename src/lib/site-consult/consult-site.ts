@@ -3,6 +3,7 @@ import { fetchPage } from "@/lib/site-consult/fetch-page";
 import { internalLinks, tourSite } from "@/lib/site-consult/crawl";
 import { consult, type Consultation } from "@/lib/site-consult/findings";
 import { readPage } from "@/lib/site-consult/read-page";
+import { normalizeWebsite } from "@/lib/website-brief";
 
 /**
  * Fetch the homepage, walk the pages it links to (lib/site-consult/crawl),
@@ -16,7 +17,10 @@ type Outcome = { ok: true; consultation: Consultation } | { ok: false; reason: s
 const cache = new Map<string, { at: number; outcome: Outcome }>();
 
 export async function consultSite(website: string): Promise<Outcome> {
-  const key = website.trim().toLowerCase().replace(/\/+$/, "");
+  // One key for "muster.ch" typed on /change and the normalized
+  // "https://muster.ch/" the build sends: until 2026-10-17 they never matched,
+  // so every "Build" click read the whole site again inside the request.
+  const key = (normalizeWebsite(website) ?? website.trim()).toLowerCase().replace(/\/+$/, "");
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CONSULT.cacheMs) return hit.outcome;
 
