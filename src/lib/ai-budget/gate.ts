@@ -1,5 +1,5 @@
 import { fairShare, utcDayElapsed, type ShareDecision } from "@/lib/ai-budget/fair-share";
-import { dayCapacityTokens } from "@/config/chat-models";
+import { freeDayCapacityTokens } from "@/lib/ai/free-capacity";
 import { humanizeWait } from "@/lib/agent/groq-error";
 import type { DayUsage } from "@/db/queries/ai-spend";
 import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
@@ -145,13 +145,13 @@ export async function checkAiBudget(
    */
   deps: {
     readUsage?: (userId: string, now: Date) => Promise<DayUsage>;
-    capacity?: () => number;
+    capacity?: () => number | Promise<number>;
     /** The person's zone for the clock time in a refusal; read from their settings when absent. */
     timeZone?: string | null;
   } = {},
 ): Promise<BudgetVerdict> {
   try {
-    const capacity = (deps.capacity ?? dayCapacityTokens)();
+    const capacity = await (deps.capacity ?? freeDayCapacityTokens)();
     const readUsage =
       deps.readUsage ?? (async (u: string, n: Date) => (await ledger()).getDayUsage(u, n));
     const { userSpentTokens, userTurns, activeUsers } = await readUsage(userId, now);

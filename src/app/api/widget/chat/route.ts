@@ -12,7 +12,7 @@ import { loadFleetMap } from "@/lib/register/load-map";
 import type { FleetMap } from "@/lib/register/map";
 import { callTextDetailed } from "@/lib/groq";
 import { stripReasoning } from "@/lib/agent/llm";
-import { dayCapacityTokens } from "@/config/chat-models";
+import { freeDayCapacityTokens } from "@/lib/ai/free-capacity";
 import { recordVisitorSpend, visitorPoolAllows } from "@/lib/widget-chat/visitor-pool";
 import { appUrl } from "@/lib/email";
 import { getStudioCommission, type StudioCommissionContract } from "@/lib/studio-commission";
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
   if (!map) return corsError("The catalogue is unavailable right now", 503);
   const base = appUrl();
 
-  if (!visitorPoolAllows(dayCapacityTokens())) {
+  if (!visitorPoolAllows(await freeDayCapacityTokens())) {
     return NextResponse.json(withMessages(fallbackAnswer(data.message, map, base), "budget"), {
       headers: CORS_HEADERS,
     });
