@@ -64,16 +64,38 @@ export function RunTrack({
   track,
   screen,
   terminalHref,
+  collapsible = false,
 }: {
   track: RunTrackData;
   /** The agent's screen as Watch last peeked it, shown inside the working row. */
   screen?: string[] | null;
   terminalHref?: string | null;
+  /**
+   * In a chat thread every past dispatch draws a card; a track that has
+   * settled folds to its one sentence there, and opens on a tap. A track
+   * that can still move is always drawn in full.
+   */
+  collapsible?: boolean;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [unfolded, setUnfolded] = useState(false);
   const live = track.stages.some((s) => s.state === "now" || s.state === "attention");
   const now = useTick(live);
   const timings = stageTimings(track.stages, now);
+  const folded = collapsible && track.settled && !unfolded;
+
+  if (folded)
+    return (
+      <button
+        type="button"
+        className="ui-track-fold"
+        onClick={() => setUnfolded(true)}
+        aria-expanded={false}
+      >
+        <span className="ui-track-fold-text">{track.summary}</span>
+        <ChevronDown className="ui-track-chevron" aria-hidden="true" />
+      </button>
+    );
 
   return (
     <ol className="ui-track" aria-label="Where the change is">

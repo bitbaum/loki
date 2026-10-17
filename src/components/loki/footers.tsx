@@ -14,7 +14,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CornerDownRight, MessageCircle, Sparkles, TerminalSquare } from "lucide-react";
-import { nextStepPrompt, type RunFollow, type RunHandoff } from "@/lib/run-handoff";
+import { nextStepPrompt, type RunHandoff } from "@/lib/run-handoff";
 import type { CitationMap } from "@/components/ui/markdown-text";
 import {
   deriveMultiDispatchView,
@@ -28,7 +28,8 @@ import { isDispatchCardAction, presentDispatchCard, watchHref } from "@/lib/disp
 import { cloudBuilderState } from "@/lib/builder-way-forward";
 import { isBuilderChannel } from "@/lib/constants/statuses";
 import { postJson } from "@/lib/api/fetch";
-import { RunMilestones } from "@/components/loki/RunMilestones";
+import { RunTrack } from "@/components/projects/RunTrack";
+import { RunLook } from "@/components/projects/RunLook";
 import { rankByQuery, TEXT_SPEC } from "@/lib/search";
 /** Human-readable label for an assistant turn's kind badge. SSOT for the
  *  small set of kinds the messages route emits. */
@@ -209,8 +210,15 @@ export function DispatchFooter({
           {pinned && `Agent: ${pinned}`}
         </p>
       )}
-      {live?.milestones && <RunMilestones milestones={live.milestones} />}
-      {live?.terminal && live.follow && <RunFollowLine follow={live.follow} />}
+      {/* Where the change is — the same six stages Watch draws, from the same
+          loader, so the chat and the Watch page never tell two stories. A
+          settled track folds to its one sentence; a tap opens the road. */}
+      {live?.track && (
+        <div className="ui-loki-track">
+          <RunTrack track={live.track} collapsible />
+        </div>
+      )}
+      {live?.terminal && live.follow && <RunLook follow={live.follow} />}
       {handoff && (
         <RunHandoffBlock
           handoff={handoff}
@@ -247,78 +255,6 @@ export function DispatchFooter({
             </Link>
           ))}
         </div>
-      )}
-    </div>
-  );
-}
-
-const LOOKED_WORDS: Record<NonNullable<RunFollow["looked"]>["verdict"], string> = {
-  looks_fixed: "Loki looked at the live page — it's there",
-  not_visible: "Loki looked at the live page — it isn't showing yet",
-  cannot_tell: "Loki looked at the live page — can't tell from here",
-};
-
-/**
- * Where the change went after the agent stopped: PR → merged → live, then
- * what Loki saw when it read the live page. "Completed" was where the card
- * used to end, on a change that was still an unmerged pull request.
- */
-function RunFollowLine({ follow }: { follow: RunFollow }) {
-  return (
-    <div className="ui-loki-handoff">
-      <div className="ui-loki-dispatch-status">
-        <span className={dispatchToneDotClass(follow.tone)} />
-        <span className="font-medium text-text-primary">{follow.label}</span>
-        {follow.prUrl && (
-          <a
-            href={follow.prUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ui-loki-dispatch-secondary"
-          >
-            Pull request
-          </a>
-        )}
-        {follow.liveUrl && (
-          <a
-            href={follow.liveUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ui-loki-dispatch-secondary"
-          >
-            Open it
-          </a>
-        )}
-      </div>
-      {follow.looked && (
-        <p className="ui-loki-dispatch-detail">
-          <span className="font-medium text-text-secondary">
-            {LOOKED_WORDS[follow.looked.verdict]}.
-          </span>{" "}
-          {follow.looked.evidence}
-        </p>
-      )}
-      {follow.pictureUrl && (
-        <a
-          href={follow.liveUrl ?? follow.pictureUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ui-loki-update-shot max-w-xs"
-        >
-          {/* An owner-only API image — next/image would fetch it without the session. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={follow.pictureUrl}
-            alt="The live page, as Loki saw it on a phone"
-            loading="lazy"
-          />
-          <span className="ui-loki-update-shot-caption">
-            The live page, as Loki saw it on a phone
-          </span>
-        </a>
-      )}
-      {!follow.looked && follow.liveUrl && !follow.settled && (
-        <p className="ui-loki-dispatch-detail">Loki is reading the live page…</p>
       )}
     </div>
   );

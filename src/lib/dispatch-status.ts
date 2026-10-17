@@ -1,5 +1,5 @@
 import type { RunFollow, RunHandoff } from "@/lib/run-handoff";
-import type { RunMilestone } from "@/lib/run-milestones";
+import type { RunTrack } from "@/lib/run-track";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import type { StatusTone, BuilderChannel } from "@/lib/constants/statuses";
 import { ORCH_STATE } from "@/lib/orchestration/contract";
@@ -140,8 +140,9 @@ export type DispatchLiveView = {
   handoff?: RunHandoff | null;
   /** After the run: the change's way to the live site, and Loki's look at it. */
   follow?: RunFollow | null;
-  /** While it runs: what it has pushed so far (lib/run-milestones). */
-  milestones?: RunMilestone[] | null;
+  /** Where the change is, during the run and after it — the same delivery
+   *  track Watch draws (lib/run-track, loaded by lib/run-track-load). */
+  track?: RunTrack | null;
 };
 
 /**

@@ -356,4 +356,66 @@ check("formatStageSeconds reads like a stopwatch", () => {
   assert.equal(formatStageSeconds(3780), "1h 03m");
 });
 
+check("what the repository shows rides on the track: commits as facts, checks as a stage", () => {
+  const live: RunTrackInput = {
+    ...base,
+    eventKinds: ["dispatched", "claimed", "generating", "progress"],
+    phase: "working",
+    repo: {
+      commits: [
+        { sha: "a", message: "fix: one", at: "2026-10-17T09:55:00Z", url: "u/a" },
+        { sha: "b", message: "fix: two", at: "2026-10-17T09:56:00Z", url: "u/b" },
+        { sha: "c", message: "fix(home): three", at: "2026-10-17T09:57:00Z", url: "u/c" },
+        { sha: "d", message: "fix: four", at: "2026-10-17T09:58:00Z", url: "u/d" },
+      ],
+      pr: {
+        number: 113,
+        title: "fix(home): 14px",
+        url: PR,
+        at: "2026-10-17T09:58:02Z",
+        checks: "running",
+      },
+    },
+  };
+  const t = buildRunTrack(live);
+  assert.equal(states(live), "done done now done now next", "PR from the repo; checks running");
+  const work = t.stages.find((s) => s.id === "working")!;
+  const pushed = work.facts.filter((f) => f.text.startsWith("Pushed"));
+  assert.equal(pushed.length, 4, "three newest commits and one line for the rest");
+  assert.equal(pushed[0].text, "Pushed 1 earlier commit.");
+  assert.equal(pushed[3].text, "Pushed: Four");
+  assert.equal(pushed[3].href, "u/d");
+  const pr = t.stages.find((s) => s.id === "pr")!;
+  assert.equal(pr.note, "#113 · fix(home): 14px");
+  assert.equal(pr.at, "2026-10-17T09:58:02Z", "dated by the repository");
+  assert.match(t.stages.find((s) => s.id === "merged")!.label, /Checks running/);
+
+  const red = buildRunTrack({
+    ...live,
+    repo: { ...live.repo!, pr: { ...live.repo!.pr!, checks: "failed" } },
+  });
+  assert.equal(
+    red.stages.find((s) => s.id === "merged")!.state,
+    "attention",
+    "a red check needs eyes",
+  );
+  assert.match(red.summary, /A check failed on the pull request — Claude Code usually fixes it/);
+
+  const green = buildRunTrack({
+    ...live,
+    run: { ...live.run, finishedAt: "2026-10-17T10:00:00Z", outcome: "success" },
+    phase: "done",
+    repo: { ...live.repo!, pr: { ...live.repo!.pr!, checks: "passed" } },
+  });
+  assert.match(green.stages.find((s) => s.id === "merged")!.label, /Checks passed — merging/);
+  assert.equal(green.settled, false, "merging is still movement");
+
+  const branchOnly: RunTrackInput = { ...live, repo: { ...live.repo!, pr: null } };
+  assert.equal(states(branchOnly), "done done now now next next", "commits with no PR = pushed");
+  assert.match(
+    buildRunTrack(branchOnly).summary,
+    /Pushed to a branch — a pull request usually follows/,
+  );
+});
+
 console.log(`\n✓ run-track: ${passed} passed`);

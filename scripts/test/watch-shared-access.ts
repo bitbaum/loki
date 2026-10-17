@@ -6,12 +6,7 @@ import { isValidUuid } from "../../src/lib/utils";
 import { dispatchMessageDisplay } from "../../src/lib/terminal-conversation";
 import { buildWatchTimeline } from "../../src/lib/project-watch";
 import { fleetSurfaceHref } from "../../src/lib/fleet-context";
-import { humanizeRunFailure } from "../../src/lib/project-watch";
 import { buildRunTrack } from "../../src/lib/run-track";
-import { normalizeRepoWorkEvidence } from "../../src/lib/repo-evidence";
-import { FIX_SHIP_STATE } from "../../src/lib/feedback/fix-shipping";
-import { ORCHESTRATION_OUTCOME } from "../../src/lib/orchestration/contract";
-import { RUN_BLOCKED } from "../../src/lib/run-progress";
 async function main() {
   const file = "src/app/api/projects/[id]/watch/route.ts";
   const parsed = ts.createSourceFile(
@@ -77,29 +72,42 @@ async function main() {
       await ownerOnly(owner);
       return run;
     },
-    listRunEventsForRun: async (_id: string, owner: string) => {
+    // One loader gathers the run (lib/run-track-load); it reaches GitHub and
+    // the owner's budget, so it is called with the OWNER's id and told whose
+    // view this is — never asked for a member as if they were the owner.
+    loadRunTrack: async (owner: string, _run: unknown, opts: { ownerView: boolean }) => {
       await ownerOnly(owner);
-      return [{ kind: "dispatched", detail: null, createdAt: new Date() }];
-    },
-    db: { select: () => query },
-    promptHistory: { userId: "userId", runId: "runId", dispatchedAt: "at" },
-    eq: (...args: unknown[]) => args,
-    and: (...args: unknown[]) => args,
-    desc: (v: unknown) => v,
-    hydrateFeedbackSnapshot: async (owner: string) => {
-      await ownerOnly(owner);
-      return null;
-    },
-    deriveFeedbackWork: () => ({}),
-    buildTerminalRunView: () => ({
-      phase: "failed",
-      terminalReady: true,
-      label: "Failed",
-      stalled: false,
-    }),
-    getUserProjectByEntityId: async (owner: string) => {
-      await ownerOnly(owner);
-      return { id: "registered" };
+      assert.equal(opts.ownerView, actor === "owner", "members get the owner-safe view");
+      const view = { phase: "failed", terminalReady: true, label: "Failed", stalled: false };
+      return {
+        track: buildRunTrack({
+          eventKinds: ["dispatched"],
+          eventTimes: {},
+          run: { startedAt: null, finishedAt: run.finishedAt.toISOString(), outcome: "failed" },
+          askedAt: null,
+          phase: "failed",
+          stalled: false,
+          lastProgressAt: null,
+          needsYou: null,
+          builderLabel: null,
+          evidence: null,
+          fix: null,
+          liveUrl: null,
+          providerLabel: "Claude",
+          failure: "It stopped.",
+        }),
+        follow: null,
+        fix: null,
+        following: false,
+        events: [{ kind: "dispatched", detail: null, createdAt: new Date() }],
+        snap: null,
+        view,
+        prompt: { text: packet, at: new Date() },
+        project: { id: "registered", gitUrl: null, liveUrl: null },
+        provider: "Claude",
+        error: null,
+        failed: true,
+      };
     },
     getProjectAutopilotOverride: async (owner: string) => {
       await ownerOnly(owner);
@@ -110,24 +118,6 @@ async function main() {
       return { auto_inject_mode: "on" };
     },
     providerLabel: () => "Claude",
-    // The delivery track: pure pieces run for real; the two that reach
-    // GitHub are owner-only and must never be asked on a member's behalf.
-    buildRunTrack,
-    humanizeRunFailure,
-    normalizeRepoWorkEvidence,
-    FIX_SHIP_STATE,
-    ORCHESTRATION_OUTCOME,
-    RUN_BLOCKED,
-    FOLLOW_WINDOW_MS: 48 * 60 * 60_000,
-    BUILDER_WORDS: { cloud: "the cloud builder", local: "this computer" },
-    findLiveRunEvidence: async (owner: string) => {
-      await ownerOnly(owner);
-      return null;
-    },
-    followRunLedger: async (owner: string) => {
-      await ownerOnly(owner);
-      return { follow: null, fix: null };
-    },
   };
   const get = new Function(...Object.keys(bindings), js + ";return GET;")(
     ...Object.values(bindings),

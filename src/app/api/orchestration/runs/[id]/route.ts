@@ -3,8 +3,7 @@ import { getOrchestrationRunById } from "@/db/queries/orchestration-runs";
 import { deriveDispatchLiveStatus } from "@/lib/dispatch-status";
 import { getApiUserId } from "@/lib/session";
 import { runHandoff } from "@/lib/run-handoff";
-import { followRun } from "@/lib/run-follow";
-import { loadRunMilestones } from "@/lib/run-milestones-load";
+import { loadRunTrack } from "@/lib/run-track-load";
 
 // GET /api/orchestration/runs/:id - live status for direct Loki dispatches.
 // The run query is user-scoped so a guessed UUID cannot expose another
@@ -27,12 +26,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       payload: run.payload ? { error: run.payload.error } : null,
     },
   });
+  // Where the change is — the same track Watch draws, so the chat card and
+  // the Watch page tell one story (lib/run-track-load).
+  const loaded = await loadRunTrack(userId, run).catch(() => null);
   return NextResponse.json(
     {
       ...view,
       handoff: runHandoff(run.finishedAt ? run.summary : null),
-      follow: view.terminal ? await followRun(userId, run).catch(() => null) : null,
-      milestones: await loadRunMilestones(userId, run, run.startedAt).catch(() => null),
+      follow: view.terminal ? (loaded?.follow ?? null) : null,
+      track: loaded?.track ?? null,
     },
     { headers: { "Cache-Control": "no-store" } },
   );
