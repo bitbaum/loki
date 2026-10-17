@@ -46,7 +46,7 @@ box. Hosted accounts are kept frozen for 14 days as a fallback, then deleted
 | datacat-web-app          | 4006 | datacat.orangecat.ch            | datacat               |
 | aoz-wohnen-app           | 4008 | aoz-wohnen.orangecat.ch         | aoz_wohnen            |
 | surf-your-life-app       | 4009 | surf-your-life.orangecat.ch     | surf_your_life        |
-| vitareba-app             | 4011 | vitareba.orangecat.ch           | vitareba              |
+| vitareba-app             | 4011 | vita.orangecat.ch               | vitareba              |
 | revamp-info-app          | 4012 | revamp-info.orangecat.ch        | revampit (shared)     |
 | petvity-app              | 4013 | petvity.orangecat.ch            | petvity               |
 | botsmann-app             | 4014 | botsmann.orangecat.ch (*)       | self-hosted Supabase  |
