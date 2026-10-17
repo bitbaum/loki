@@ -172,7 +172,6 @@
   --radius-modal: calc(var(--radius) * 4); /* modal sheets: 2rem at default scale */
   --radius-pill: calc(var(--radius) * 3.5); /* floating nav pill: 1.75rem at default scale */
   --text-micro: var(--text-micro);
-  --text-nano: var(--text-nano);
   --text-compact: var(--text-compact);
   --tracking-display: var(--tracking-display);
   --tracking-label: var(--tracking-label);
@@ -229,8 +228,13 @@
   --font-sans: var(--font-geist-sans);
   --font-heading: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --text-micro: 0.625rem; /* 10px — compact widget/metadata text */
-  --text-nano: 0.5rem; /* 8px — micro heatmap labels, tightest readable size */
+  /* 12px — compact metadata, labels, badges, the phone tab bar. THE FLOOR:
+     nothing in Loki renders smaller. It was 10px, with an 8px "nano" below
+     it for the tab bar, heatmap letters and count badges; walking every
+     signed-in page of the live demo (2026-10-17) found 10px and 8px text on
+     all of them — the same unreadable size the owner had just asked an agent
+     to remove from Petvity. */
+  --text-micro: 0.75rem;
   --text-compact: 0.8rem; /* 12.8px — small button/control text between xs and sm */
   --modal-max-height: 85vh; /* standard tall-modal cap */
   --page-min-height: 60vh; /* error / empty / placeholder page min */
@@ -608,7 +612,7 @@
     @apply fixed inset-x-3 z-40 flex md:hidden rounded-pill border border-border-default bg-surface-base/92 px-1.5 py-1.5 backdrop-blur-md shadow-panel-strong;
   }
   .ui-mobile-nav-item {
-    @apply relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 text-nano font-medium transition-colors min-h-11 sm:text-micro;
+    @apply relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 text-micro font-medium transition-colors min-h-11;
   }
   .ui-mobile-nav-item-active {
     @apply bg-accent-muted text-text-primary;
@@ -998,7 +1002,7 @@
     @apply font-mono text-micro uppercase text-white/60;
   }
   .ui-changelog-current {
-    @apply rounded-full border border-white/15 px-2 py-0.5 text-nano font-medium uppercase tracking-[0.12em] text-white/75;
+    @apply rounded-full border border-white/15 px-2 py-0.5 text-micro font-medium uppercase tracking-[0.12em] text-white/75;
   }
   .ui-changelog-entry-title {
     @apply mt-3 text-xl font-medium tracking-tight text-white sm:text-2xl;
@@ -1029,7 +1033,7 @@
     @apply inline-flex min-h-11 items-center text-white/45 underline-offset-4 transition-colors hover:text-white;
   }
   .ui-changelog-tag {
-    @apply font-mono text-nano uppercase tracking-[0.1em] text-white/30;
+    @apply font-mono text-micro uppercase tracking-[0.1em] text-white/30;
   }
   .ui-changelog-code {
     @apply font-mono text-white;
@@ -2875,7 +2879,7 @@
   /* The Alt+N ordinal, shown dimmed before the tab name so the keyboard
      shortcut is discoverable from the strip itself. */
   .ui-term-tab-index {
-    @apply text-nano tabular-nums text-text-muted;
+    @apply text-micro tabular-nums text-text-muted;
   }
   .ui-term-tab-active .ui-term-tab-index {
     @apply text-text-tertiary;
@@ -2883,7 +2887,7 @@
   /* The live-agent chip after the tab name — what is actually running in this
      tab (claude, grok, …), from the runner's pane topology. */
   .ui-term-tab-badge {
-    @apply rounded-sm bg-surface-overlay px-1 py-px text-nano uppercase tracking-caps text-text-muted;
+    @apply rounded-sm bg-surface-overlay px-1 py-px text-micro uppercase tracking-caps text-text-muted;
   }
   .ui-term-tab-active .ui-term-tab-badge {
     @apply text-text-secondary;
@@ -2953,7 +2957,7 @@
     font-family: var(--font-mono);
   }
   .ui-term-pane-state {
-    @apply text-nano uppercase tracking-caps text-text-muted;
+    @apply text-micro uppercase tracking-caps text-text-muted;
   }
   .ui-term-pane-actions {
     @apply ml-auto flex items-center gap-0.5;
@@ -2972,7 +2976,7 @@
      the pane knew the answer and never showed it. Truncates from the LEFT so
      the leaf directory — the part that identifies the work — survives. */
   .ui-term-pane-where {
-    @apply ml-auto max-w-[52%] truncate text-nano text-text-muted md:max-w-[60%];
+    @apply ml-auto max-w-[52%] truncate text-micro text-text-muted md:max-w-[60%];
     font-family: var(--font-mono);
   }
   .ui-term-pane-actions ~ .ui-term-pane-where,
@@ -3024,7 +3028,7 @@
     @apply flex items-start gap-2 border-t border-border-subtle bg-surface-base px-2.5 py-1.5;
   }
   .ui-term-linkbar-label {
-    @apply mt-0.5 shrink-0 text-nano font-semibold uppercase tracking-caps text-text-muted;
+    @apply mt-0.5 shrink-0 text-micro font-semibold uppercase tracking-caps text-text-muted;
   }
   .ui-term-linkbar-list {
     @apply flex min-w-0 flex-1 flex-col gap-1;
@@ -3037,7 +3041,7 @@
     font-family: var(--font-mono);
   }
   .ui-term-linkbar-btn {
-    @apply shrink-0 rounded border border-border-subtle px-1.5 py-0.5 text-nano font-semibold uppercase tracking-caps text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
+    @apply shrink-0 rounded border border-border-subtle px-1.5 py-0.5 text-micro font-semibold uppercase tracking-caps text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
   }
   .ui-term-linkbar-dismiss {
     @apply shrink-0 rounded p-0.5 text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary;
@@ -3061,7 +3065,7 @@
     @apply flex shrink-0 items-center gap-2;
   }
   .ui-term-cols {
-    @apply shrink-0 rounded-sm bg-surface-overlay px-1 py-px text-nano tabular-nums tracking-caps text-text-muted;
+    @apply shrink-0 rounded-sm bg-surface-overlay px-1 py-px text-micro tabular-nums tracking-caps text-text-muted;
   }
   .ui-term-cols-warn {
     @apply bg-status-warning-subtle text-status-warning;
@@ -3070,7 +3074,7 @@
     @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border-subtle text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
   }
   .ui-term-font-reset {
-    @apply inline-flex h-8 shrink-0 items-center rounded-md px-2 text-nano uppercase tracking-caps text-text-muted transition-colors hover:text-text-primary;
+    @apply inline-flex h-8 shrink-0 items-center rounded-md px-2 text-micro uppercase tracking-caps text-text-muted transition-colors hover:text-text-primary;
   }
 
   /* ── Phone terminal ──────────────────────────────────────────────────────
@@ -3091,7 +3095,7 @@
     @apply min-w-0 flex-1 truncate text-sm font-medium text-text-primary;
   }
   .ui-term-mhead-agent {
-    @apply shrink-0 rounded bg-surface-overlay px-1.5 py-0.5 text-nano uppercase tracking-caps text-text-secondary;
+    @apply shrink-0 rounded bg-surface-overlay px-1.5 py-0.5 text-micro uppercase tracking-caps text-text-secondary;
   }
   /* Loki | Terminal — the view switch. One bordered control holding both
      choices, so which view you are in is read, not remembered. */
@@ -3271,7 +3275,7 @@
     @apply flex shrink-0 items-center gap-1.5;
   }
   .ui-term-key-group-label {
-    @apply shrink-0 text-nano uppercase tracking-caps text-text-muted;
+    @apply shrink-0 text-micro uppercase tracking-caps text-text-muted;
   }
 
   /* ── Dock — keys and composer as one block under the screen ─────────────── */
@@ -3383,7 +3387,7 @@
     @apply flex flex-col gap-1;
   }
   .ui-sheet-label {
-    @apply mb-1 text-nano font-semibold uppercase tracking-caps text-text-muted;
+    @apply mb-1 text-micro font-semibold uppercase tracking-caps text-text-muted;
   }
   .ui-sheet-option {
     @apply flex min-h-11 w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left transition-colors active:bg-surface-overlay disabled:opacity-40;
@@ -4316,7 +4320,7 @@
     @apply mt-2 text-micro text-status-negative;
   }
   .ui-assist-flag {
-    @apply ml-1.5 align-middle text-nano uppercase tracking-caps text-accent-text;
+    @apply ml-1.5 align-middle text-micro uppercase tracking-caps text-accent-text;
   }
 
   /* Inputs */
@@ -5173,9 +5177,9 @@
   /* The qualifier that makes the counts honest. Quiet, but PRESENT — it used
      to be a `title` tooltip, which a phone cannot show at all. */
   .ui-hero-count-scope {
-    /* NOT text-nano. The first attempt used it and rendered at 8px — passing
-       contrast while being unreadable, which repeats the defect this line
-       exists to fix: an honest caveat delivered where it cannot be read.
+    /* Not the smallest size. The first attempt used the old 8px "nano" —
+       passing contrast while being unreadable, which repeats the defect this
+       line exists to fix: an honest caveat delivered where it cannot be read.
        `basis-full` puts it on its own line inside the flex row rather than
        crushed against "20 idle". */
     @apply basis-full text-xs text-text-muted;
@@ -5245,7 +5249,7 @@
     @apply border-border-interactive bg-surface-raised text-text-primary;
   }
   .ui-inbox-project-count {
-    @apply rounded-full bg-surface-overlay px-1.5 text-nano tabular-nums text-text-tertiary;
+    @apply rounded-full bg-surface-overlay px-1.5 text-micro tabular-nums text-text-tertiary;
   }
   /* A project whose reports are all with an agent. Words, not a number:
      a count here reads as work you owe, and this is the opposite. */
@@ -5255,10 +5259,10 @@
     @apply mb-6 border-l-2 border-status-warning pl-4;
   }
   .ui-inbox-group-note {
-    @apply shrink-0 text-nano text-text-muted;
+    @apply shrink-0 text-micro text-text-muted;
   }
   .ui-inbox-project-state {
-    @apply text-nano text-text-muted;
+    @apply text-micro text-text-muted;
   }
   .ui-inbox-list {
     @apply divide-y divide-border-subtle;
@@ -5634,7 +5638,7 @@
   /* ── Notification panel ───────────────────────────────────────────────────
      Dropdown panel from the bell icon showing alerts that need the operator. */
   .ui-notification-badge {
-    @apply absolute right-0 top-0 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-status-negative px-1 text-nano font-medium tabular-nums;
+    @apply absolute right-0 top-0 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-status-negative px-1 text-micro font-medium tabular-nums;
     color: white;
   }
   .ui-notification-panel {
@@ -5665,7 +5669,7 @@
     @apply mt-0.5 text-xs text-text-tertiary;
   }
   .ui-notification-severity {
-    @apply shrink-0 text-nano font-medium uppercase tracking-wide;
+    @apply shrink-0 text-micro font-medium uppercase tracking-wide;
   }
   .ui-notification-item-actions {
     @apply flex shrink-0 items-center justify-end gap-1.5 sm:justify-start;
@@ -6618,7 +6622,7 @@
     @apply border-status-negative/40 text-status-negative;
   }
   .ui-activity-tab-count {
-    @apply rounded-full bg-surface-overlay px-1.5 py-px text-nano;
+    @apply rounded-full bg-surface-overlay px-1.5 py-px text-micro;
   }
   .ui-activity-tab-active .ui-activity-tab-count {
     @apply bg-surface-base;
@@ -8310,9 +8314,11 @@
      So the floor is the default and exemption is explicit. A new button is
      now compliant before anyone reviews it.
 
-     Element selectors on purpose (0,0,1): every ui-* rule outranks these,
-     so the named lists above still own their controls and this only
-     catches the bespoke ones that never had a class.
+     Element selectors on purpose: most are (0,0,1), so a ui-* rule
+     outranks them and the named lists above still own their controls. Not
+     all — `a[href]`, `[role=…]` and `input:not(…)` carry attribute weight
+     ((0,1,1), (0,1,0), (0,3,1)), so an opt-out for one of those must name
+     the element too (see a[href].ui-projects-row-link below).
 
      Inline links in prose are exempt — and exempt themselves, at no cost:
      min-height is inert on a non-replaced inline box, so an <a> in a
@@ -8348,6 +8354,17 @@
   .ui-tap-overlay {
     min-height: 0;
     min-width: 0;
+  }
+
+  /* A stretched link: its ::after covers the whole row, so the ROW (64px
+     and up) is the target already. Growing the link's own box to 44px only
+     put its text at the top of a 44px box while the row's badges sat in the
+     middle — on every phone, "ledgerpost" and its "Needs path" read as two
+     lines (found walking the live demo, 2026-10-17).
+     `a[href]` above is (0,1,1) — the attribute counts as a class — so a
+     bare class loses to it; the opt-out names the element too. */
+  a[href].ui-projects-row-link {
+    min-height: 0;
   }
 }
 

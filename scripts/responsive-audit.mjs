@@ -135,7 +135,13 @@ async function analyze(page, viewportName) {
     const targets = all
       .filter((el) => el.matches("button,a,input,select,textarea,[role='button']"))
       .map((el) => {
-        const rect = el.getBoundingClientRect();
+        // A stretched link (its ::after laid over the whole row) is as big
+        // as the row it covers, not as its own text — measure what a finger
+        // actually hits (.ui-projects-row-link in globals.css).
+        const after = window.getComputedStyle(el, "::after");
+        const stretched =
+          after.content !== "none" && after.position === "absolute" && after.inset === "0px";
+        const rect = (stretched && el.offsetParent ? el.offsetParent : el).getBoundingClientRect();
         const style = window.getComputedStyle(el);
         const text = (
           el.getAttribute("aria-label") ||

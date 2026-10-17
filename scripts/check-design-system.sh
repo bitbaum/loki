@@ -49,7 +49,7 @@ check_none "raw subtle link text recipe outside primitive" 'text-xs text-text-te
 
 # Layer 4: JSX must not use raw palette or white-opacity utilities — auth/public
 # tokens live in globals.css ui-auth-* / ui-public-* / ui-brand-* classes.
-check_none "raw palette colors in components" 'text-gray-|text-slate-|text-zinc-|text-blue-|text-green-|text-red-|text-purple-|text-yellow-|text-orange-|text-cyan-|text-violet-|bg-gray-|bg-blue-|bg-green-|bg-red-|bg-\[#|text-\[#|text-\[1[0-9]px\]|text-\[8px\]' src/components src/app -g '*.tsx' -g '!**/opengraph-image.tsx'
+check_none "raw palette colors in components" 'text-gray-|text-slate-|text-zinc-|text-blue-|text-green-|text-red-|text-purple-|text-yellow-|text-orange-|text-cyan-|text-violet-|bg-gray-|bg-blue-|bg-green-|bg-red-|bg-\[#|text-\[#|text-\[1[0-9]px\]|text-\[8px\]|text-nano' src/components src/app -g '*.tsx' -g '!**/opengraph-image.tsx'
 check_none "raw white opacity utilities in JSX" 'text-white/|bg-white/|border-white/' src/components src/app -g '*.tsx' -g '!**/opengraph-image.tsx'
 
 # `--accent` / `--accent-foreground` are shadcn's accent SURFACE pair: --accent
