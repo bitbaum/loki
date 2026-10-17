@@ -387,7 +387,10 @@ interface LokiApi {
     hideLink.addEventListener("click", () => hideForVisitor());
     // The one line a stranger gets about Loki itself: where they are and
     // where to get one. Quiet, last, and gone for the owner, who knows.
-    const madeWith = h("a", "made-with", "Made with Loki — build something of your own →");
+    // On a phone only "Made with Loki →" shows (theme.ts .mw-more): the whole
+    // sentence wrapped the footer to two rows and pushed Send under it.
+    const madeWith = h("a", "made-with", "Made with Loki");
+    madeWith.append(h("span", "mw-more", " — build something of your own"), " →");
     madeWith.href = `${apiBase}/build?from=${encodeURIComponent(location.hostname)}`;
     madeWith.target = "_blank";
     madeWith.rel = "noopener";
