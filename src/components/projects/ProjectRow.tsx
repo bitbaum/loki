@@ -25,7 +25,7 @@ import { resolveProjectStage } from "@/lib/constants/statuses";
  *
  * What went, and why:
  *
- *   · A BADGE PER FACT. Stage, up to three flags with ages, "Needs path",
+ *   · A BADGE PER FACT. Stage, up to three flags with ages, "Not connected",
  *     "Team" — a row was between two and seven coloured chips, so every row
  *     was a different shape and the page read as chip soup. Colour is now
  *     spent only on flags, the one thing here that is genuinely an alarm.
@@ -136,7 +136,7 @@ export function ProjectRow({
           <span>
             health {health.score}/{health.max}
           </span>
-          <span>{lastRun ? `last run ${lastRun}` : "never run"}</span>
+          <span>{lastRun ? `last run ${lastRun}` : "no agent runs yet"}</span>
           {feedbackOpen ? <span>{feedbackOpen} feedback</span> : null}
         </p>
       </div>

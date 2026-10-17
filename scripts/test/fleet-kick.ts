@@ -81,10 +81,10 @@ function testScreenshotDispatch() {
 }
 
 function testProjectLoopReadiness() {
-  assert.equal(deriveProjectLoopReadiness({ dirPath: "/repo/app" }).label, "Loop-ready");
+  assert.equal(deriveProjectLoopReadiness({ dirPath: "/repo/app" }).label, "Ready for agents");
   const missing = deriveProjectLoopReadiness({ dirPath: null });
   assert.equal(missing.reason, "no_path");
-  assert.equal(missing.label, "Needs path");
+  assert.equal(missing.label, "Not connected");
   const paused = deriveProjectLoopReadiness({
     dirPath: "/repo/app",
     autoInjectModeOverride: "off",

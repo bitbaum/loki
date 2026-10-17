@@ -42,13 +42,18 @@ export function NewPreviewButton({ savedCode = "" }: { savedCode?: string }) {
     },
   });
 
+  const missing = [
+    !form.text("name").trim() ? "who it is for" : null,
+    form.text("code").trim().length < 3 ? "an access code (3 letters or more)" : null,
+  ].filter((m): m is string => m !== null);
+
   return (
     <ModalForm
-      title="Build a preview"
+      title="Build a preview — a first website for someone"
       triggerLabel="Build a preview"
       submitLabel="Build it"
       savingLabel="Starting…"
-      canSubmit={!!form.text("name").trim() && form.text("code").trim().length >= 3}
+      canSubmit={missing.length === 0}
       saving={saving}
       error={error}
       onSubmit={() =>
@@ -67,7 +72,7 @@ export function NewPreviewButton({ savedCode = "" }: { savedCode?: string }) {
       assist={form}
       assistPlaceholder="Paste what you have about them and I'll fill this in…"
     >
-      <Field label="Who it is for" required aiTouched={form.isAiTouched("name")}>
+      <Field label="Who is it for?" required aiTouched={form.isAiTouched("name")}>
         <input
           value={form.text("name")}
           onChange={(e) => form.setValue("name", e.target.value)}
@@ -76,7 +81,11 @@ export function NewPreviewButton({ savedCode = "" }: { savedCode?: string }) {
           className="ui-input"
         />
       </Field>
-      <Field label="What you know (links, place, trade)" aiTouched={form.isAiTouched("about")}>
+      <Field
+        label="What do you know about them?"
+        hint="Links, where they are, what they do — the more, the closer the first version."
+        aiTouched={form.isAiTouched("about")}
+      >
         <textarea
           value={form.text("about")}
           onChange={(e) => form.setValue("about", e.target.value)}
@@ -85,7 +94,11 @@ export function NewPreviewButton({ savedCode = "" }: { savedCode?: string }) {
           className="ui-input"
         />
       </Field>
-      <Field label="Address (empty uses the name)" aiTouched={form.isAiTouched("address")}>
+      <Field
+        label="Web address"
+        hint="Leave it empty to use their name."
+        aiTouched={form.isAiTouched("address")}
+      >
         <input
           value={form.text("address")}
           onChange={(e) => form.setValue("address", e.target.value)}
@@ -96,7 +109,11 @@ export function NewPreviewButton({ savedCode = "" }: { savedCode?: string }) {
           className="ui-input"
         />
       </Field>
-      <Field label="Access code (you tell it to them; remembered for next time)" required>
+      <Field
+        label="Access code"
+        hint="Anyone with the link needs this word to open it. You tell it to them; Loki remembers it for next time."
+        required
+      >
         <input
           value={form.text("code")}
           onChange={(e) => form.setValue("code", e.target.value)}
@@ -108,7 +125,7 @@ export function NewPreviewButton({ savedCode = "" }: { savedCode?: string }) {
         />
       </Field>
       <div className="flex flex-col gap-1.5">
-        <span className="ui-micro-label">Already have the site? Bring it as a .zip</span>
+        <span className="ui-micro-label">Already have their site? Upload it as a .zip</span>
         <input
           ref={fileRef}
           type="file"
@@ -124,6 +141,10 @@ export function NewPreviewButton({ savedCode = "" }: { savedCode?: string }) {
           {archive ? `${archive.name} — change` : "Choose a .zip (index.html at the top)"}
         </button>
       </div>
+      {/* "Build it" stays grey until these are in; say which, not nothing. */}
+      {missing.length > 0 && (
+        <p className="ui-field-hint">To build it, add {missing.join(" and ")}.</p>
+      )}
     </ModalForm>
   );
 }

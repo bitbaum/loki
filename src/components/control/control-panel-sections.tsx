@@ -109,7 +109,7 @@ export function LaunchDefaultsSection(props: ComponentProps<typeof BrainConfigPa
     <details className="ui-control-launch-defaults">
       <summary className="ui-control-launch-defaults-summary flex items-center gap-2">
         <Settings2 className="h-3.5 w-3.5" />
-        Launch defaults
+        Default agent and model
       </summary>
       <div className="ui-control-launch-defaults-body space-y-5">
         <section>
