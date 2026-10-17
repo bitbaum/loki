@@ -48,6 +48,7 @@ import {
 } from "@bitbaum/ai-kit";
 import { fairShare, utcDayElapsed } from "@/lib/ai-budget/fair-share";
 import { MEASURED_AFTER_TURNS, turnReserveTokens } from "@/lib/ai-budget/gate";
+import { ownKeyLeft, type OwnKeyLeft } from "@/lib/ai/own-key-quota";
 import { refillsIn, TOKENS_PER_ANSWER, type QuotaRowView } from "@/lib/ai/quota-view";
 import { atClock } from "@/lib/ai/clock-words";
 
@@ -112,6 +113,8 @@ export type OwnKeyBudget = {
   tokens30d: number;
   calls30d: number;
   line: string;
+  /** What the vendor last said is left on the person's account. Null until it has said. */
+  left: OwnKeyLeft | null;
   consequence: string;
   /** Where the person funds this key and caps it. Null when the vendor has no such page. */
   billingUrl: string | null;
@@ -185,6 +188,8 @@ export type BudgetInput = {
     /** The vendor's own word for its spending cap ("usage limit"), or null. */
     limit: string | null;
     usage: { tokensToday: number; callsToday: number; tokens30d: number; calls30d: number } | null;
+    /** This vendor's counters on the person's own account, described (lib/ai/quota-view.ts). */
+    quota?: QuotaRowView[];
   }[];
   /** The last seven UTC days on the free pool, today included. Absent when the ledger could not be read. */
   week?: { tokens: number; turns: number; days: number };
@@ -374,6 +379,7 @@ function ownKey(k: BudgetInput["ownKeys"][number]): OwnKeyBudget {
     tokens30d: u?.tokens30d ?? 0,
     calls30d: u?.calls30d ?? 0,
     line,
+    left: ownKeyLeft(k.quota ?? [], k.label, k.model),
     consequence: `No cap from Loki — ${k.label} bills you directly${cap}.`,
     billingUrl: k.billingUrl,
   };

@@ -427,7 +427,12 @@ async function callOneLinkWithin(
   // reading — it corrects a local counter that had drifted optimistic. Never
   // awaited and never able to throw: a telemetry write must not be able to fail
   // an answer the operator is waiting for.
-  if (!input.own) recordVendorQuota(res.headers, link);
+  // A person's own key is read too, into a row of their own — it is how
+  // Settings can say what is left on THEIR account. Without a user id there is
+  // nowhere to put it that is not the pool's row, so it is not recorded.
+  const quotaOwner = input.own?.userId;
+  const recordsQuota = !input.own || quotaOwner !== undefined;
+  if (recordsQuota) recordVendorQuota(res.headers, link, quotaOwner);
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -448,8 +453,8 @@ async function callOneLinkWithin(
       // provider through an outage. A "size" 429 is deliberately excluded — it
       // reports THIS prompt being too big, which is a fact about the prompt and
       // not about how much allowance is left.
-      if (kind !== "size" && !input.own) {
-        recordRefusal(link, body, retryAfter, kind === "daily" ? "tokens" : "requests");
+      if (kind !== "size" && recordsQuota) {
+        recordRefusal(link, body, retryAfter, kind === "daily" ? "tokens" : "requests", quotaOwner);
       }
       // Keep the wording the shed ladder greps for — `loop.ts` recognises
       // "request too large" and retries with fewer facts.
