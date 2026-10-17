@@ -370,8 +370,11 @@ secrets are unset. Each is one edit, no code change.
    registered. Until a plan's pass exists, its button on `/pricing` opens
    `/pricing/<plan>`, which RESERVES the plan (`plan_reservations`, one row per
    person, charges and grants nothing); System → Revenue shows who is waiting
-   on which plan. The day `ORANGECAT_PAY_URL_<PLAN>` is set, the same button
-   reads "Pay in Bitcoin" — no code change.
+   on which plan. The day `LOKI_PAYMENTS_OPEN=1` is set beside
+   `ORANGECAT_PAY_URL_<PLAN>`, the same button reads "Pay in Bitcoin" — no
+   code change. The URL alone is not enough: the three were set on the box
+   before the passes existed, and pointed every paid button at an OrangeCat
+   404 until the switch was added.
 2. **`ORANGECAT_WEBHOOK_SECRET`** — the same value on both boxes. Without it a
    paid pass settles on OrangeCat and nothing reaches Loki (the operator
    would grant it by hand from the card above).
@@ -399,8 +402,12 @@ each turn run on". Three facts decide the design:
    change their mind. At a
    thousand users that is one request each; at a million it is a rounding
    error. The free pool is a tasting menu, rationed per person
-   (`lib/ai-budget`), and every refusal it issues points at the two ways
-   out. It is never the plan for the tenth-thousandth user, and nothing in
+   (`lib/ai-budget`), and every refusal it issues points at the ways
+   out (own key, a plan). Its size is read from what the vendors state
+   (`lib/ai/observed-capacity.ts`), never below the configured figure, and
+   a fifth of each day is kept for accounts under a week old
+   (`lib/ai-budget/newcomer-reserve.ts`), so the first visit never meets an
+   empty pool. It is never the plan for the tenth-thousandth user, and nothing in
    the product should imply it is.
 
 2. **Your own key scales for free.** Each person's turn runs on their

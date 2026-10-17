@@ -49,6 +49,7 @@ import {
 import { fairShare, utcDayElapsed } from "@/lib/ai-budget/fair-share";
 import { MEASURED_AFTER_TURNS, turnReserveTokens } from "@/lib/ai-budget/gate";
 import { ownKeyLeft, type OwnKeyLeft } from "@/lib/ai/own-key-quota";
+import { reachesReserve } from "@/lib/ai-budget/newcomer-reserve";
 import { refillsIn, TOKENS_PER_ANSWER, type QuotaRowView } from "@/lib/ai/quota-view";
 import { atClock } from "@/lib/ai/clock-words";
 
@@ -201,6 +202,9 @@ export type BudgetInput = {
   stance?: "thrifty" | "balanced" | "best";
   /** The person's zone, so times read as their clock ("at 13:35"). Default: the server's. */
   timeZone?: string | null;
+  /** Everyone's tokens today, and whether this account is new — the newcomer reserve's inputs. */
+  totalSpentTokens?: number;
+  newcomer?: boolean;
   /** A paid plan's monthly allowance (lib/ai-budget/plan-allowance.ts). Absent on Free. */
   plan?: { name: string; answersMonthly: number; answersLeft: number } | null;
 };
@@ -310,6 +314,26 @@ function freePool(input: BudgetInput, hasOwnKeys: boolean): FreePoolBudget {
       unlocksIn: null,
       short: "0 left",
       line: `The free models are used up for everyone today${poolBack ? ` — back ${poolBack}` : ""}. Not just you: every free model.`,
+      consequence: lever,
+    };
+  }
+
+  // The gate's newcomer reserve (lib/ai-budget/newcomer-reserve.ts), read the
+  // same way, so this screen never says "12 left" to someone it will refuse.
+  if (
+    decision.allowed &&
+    !input.newcomer &&
+    !(input.plan && input.plan.answersLeft > 0) &&
+    reachesReserve(input.dayCapacityTokens, input.totalSpentTokens ?? 0, reserve)
+  ) {
+    return {
+      ...base,
+      state: "spent",
+      answersNow: 0,
+      answersToday: 0,
+      unlocksIn: null,
+      short: "0 left",
+      line: `Today's free answers for returning accounts are used up — the rest is kept for people trying Loki for the first time. Full again ${fullAgainAt}.`,
       consequence: lever,
     };
   }

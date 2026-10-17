@@ -5,6 +5,7 @@ import { getDayUsage, getMonthSpendTokens, getWeekSpend } from "@/db/queries/ai-
 import { getUserById } from "@/db/queries/users";
 import { PRICING_PLANS } from "@/config/plans";
 import { allowanceLeft } from "@/lib/ai-budget/plan-allowance";
+import { isNewcomer } from "@/lib/ai-budget/newcomer-reserve";
 import { PLAN_LIMITS, PLAN_TOKENS_PER_ANSWER } from "@/lib/plan";
 import { ownUsageByVendor } from "@/db/queries/own-model-usage";
 import { listQuota } from "@/db/queries/provider-quota";
@@ -34,7 +35,12 @@ export async function readUserBudget(userId: string, now = new Date()): Promise<
   const chain = usableChatChain();
   const [usage, own, ownUsage, rows, ownRows, week, prefs, account, monthTokens, capacity] =
     await Promise.all([
-      getDayUsage(userId, now).catch(() => ({ userSpentTokens: 0, userTurns: 0, activeUsers: 1 })),
+      getDayUsage(userId, now).catch(() => ({
+        userSpentTokens: 0,
+        userTurns: 0,
+        activeUsers: 1,
+        totalSpentTokens: 0,
+      })),
       listOwnModels(userId).catch(() => []),
       ownUsageByVendor(userId, now).catch(() => []),
       listQuota(),
@@ -101,6 +107,8 @@ export async function readUserBudget(userId: string, now = new Date()): Promise<
     ...(prefs ? { stance: prefs.modelStance } : {}),
     timeZone: effectiveTimeZone(prefs, now),
     plan,
+    totalSpentTokens: usage.totalSpentTokens ?? 0,
+    newcomer: isNewcomer(account?.createdAt, now),
     ownKeys: own.map((m) => {
       const vendor = vendorById(m.vendor);
       const u = usageByVendor.get(m.vendor);

@@ -158,7 +158,7 @@ Loki and Control do **not** connect to Terminal directly. They enqueue commands;
 |---------|----------|
 | Email verification / password reset | `RESEND_API_KEY` |
 | Ivy / strategist Groq fallback | `GROQ_API_KEY` |
-| Paid-tier checkout (OrangeCat BTC rail) | `ORANGECAT_PAY_URL_PERSONAL`, `ORANGECAT_PAY_URL_PRO`, `ORANGECAT_PAY_URL_TEAM` |
+| Paid-tier checkout (OrangeCat BTC rail) | `ORANGECAT_PAY_URL_PERSONAL`, `ORANGECAT_PAY_URL_PRO`, `ORANGECAT_PAY_URL_TEAM`, and `LOKI_PAYMENTS_OPEN=1` (off until the company is registered; plans are reserved meanwhile) |
 | Cron Telegram delivery | `TELEGRAM_CHAT_ID` (optional; jobs save without it) |
 | Private zone PIN | `PRIVATE_ZONE_PIN_HASH` |
 | Scheduled cron janitors (run on the box) | `CRON_SECRET` |

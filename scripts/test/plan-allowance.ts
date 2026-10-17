@@ -110,17 +110,33 @@ async function main() {
       reservablePlan("enterprise") === null,
   );
   const personal = PRICING_PLANS.find((p) => p.key === "personal")!;
-  const before = process.env.ORANGECAT_PAY_URL_PERSONAL;
+  const saved = {
+    url: process.env.ORANGECAT_PAY_URL_PERSONAL,
+    open: process.env.LOKI_PAYMENTS_OPEN,
+  };
   delete process.env.ORANGECAT_PAY_URL_PERSONAL;
+  delete process.env.LOKI_PAYMENTS_OPEN;
   check("with no OrangeCat pass, the button reserves", planCheckout(personal).kind === "reserve");
+  // Live 2026-10-17: the URLs were on the box before the passes existed, and
+  // every paid plan's button went to an OrangeCat 404 instead of reserving.
   process.env.ORANGECAT_PAY_URL_PERSONAL = "https://orangecat.ch/pay/personal";
+  check(
+    "a pay URL alone does not open payments — the button still reserves",
+    planCheckout(personal).kind === "reserve",
+  );
+  process.env.LOKI_PAYMENTS_OPEN = "1";
   const pay = planCheckout(personal);
   check(
-    "once the pass exists, the same button pays",
+    "once payments are switched on, the same button pays",
     pay.kind === "pay" && pay.url.endsWith("/personal"),
   );
-  if (before === undefined) delete process.env.ORANGECAT_PAY_URL_PERSONAL;
-  else process.env.ORANGECAT_PAY_URL_PERSONAL = before;
+  for (const [k, v] of [
+    ["ORANGECAT_PAY_URL_PERSONAL", saved.url],
+    ["LOKI_PAYMENTS_OPEN", saved.open],
+  ] as const) {
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
+  }
 
   console.log(`\nplan-allowance: ${passed} checks passed`);
 }
