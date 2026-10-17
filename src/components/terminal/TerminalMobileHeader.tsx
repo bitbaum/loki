@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { openFeedback } from "@/lib/open-feedback";
 import type { TerminalViewMode } from "@/config/terminal-modes";
 import { cn } from "@/lib/utils";
+import { SESSION_STATUS_WORDS, type SessionStatus } from "@/lib/terminal-session-status";
+import { SESSION_STATUS_DOT } from "./session-status-dot";
 import { TerminalViewSwitch } from "./TerminalViewSwitch";
 
 export type TerminalLiveState = "live" | "connecting" | "stalled" | "idle";
@@ -67,7 +69,7 @@ export function TerminalMobileHeader({
   view?: TerminalViewMode;
   onViewChange?: (view: TerminalViewMode) => void;
   /** Every open session, in the order the strip shows them. */
-  sessions?: { id: string; label: string }[];
+  sessions?: { id: string; label: string; status?: SessionStatus | null }[];
   activeSession?: string | null;
   onSelectSession?: (id: string) => void;
   /** Opens the start-a-session sheet. */
@@ -77,6 +79,8 @@ export function TerminalMobileHeader({
   const ordered = sessions ?? [];
   const tabbed =
     Boolean(onSelectSession) && ordered.length > 1 && ordered.some((s) => s.id === activeSession);
+  // What the session you are in is doing, once the connection to it is live.
+  const currentStatus = ordered.find((s) => s.id === activeSession)?.status ?? null;
   // Keep the session you are in on screen when the row scrolls.
   const activeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -92,9 +96,16 @@ export function TerminalMobileHeader({
       aria-label={`${title} — ${STATE_LABEL[state]}. Change session, source or agent`}
     >
       <span
-        className={cn(DOT_CLASS[state], "shrink-0")}
+        className={cn(
+          state === "live" && currentStatus ? SESSION_STATUS_DOT[currentStatus] : DOT_CLASS[state],
+          "shrink-0",
+        )}
         aria-hidden="true"
-        title={STATE_LABEL[state]}
+        title={
+          state === "live" && currentStatus
+            ? SESSION_STATUS_WORDS[currentStatus]
+            : STATE_LABEL[state]
+        }
       />
       <span className="ui-term-mhead-title">{title}</span>
       {/* Where the view switch is drawn it already carries the agent's
@@ -121,8 +132,10 @@ export function TerminalMobileHeader({
                   type="button"
                   className="ui-term-mtab"
                   onClick={() => onSelectSession?.(s.id)}
-                  aria-label={`Switch to ${s.label}`}
+                  aria-label={`Switch to ${s.label}${s.status ? ` — ${SESSION_STATUS_WORDS[s.status]}` : ""}`}
+                  title={s.status ? SESSION_STATUS_WORDS[s.status] : undefined}
                 >
+                  {s.status && <span className={SESSION_STATUS_DOT[s.status]} aria-hidden="true" />}
                   <span className="truncate">{s.label}</span>
                 </button>
               ),

@@ -31,6 +31,8 @@ import { SessionComposer } from "./SessionComposer";
 import { TerminalLaunch } from "./TerminalLaunch";
 import { TerminalNewSessionSheet } from "./TerminalNewSessionSheet";
 import { sessionLaunchProps } from "./session-launch";
+import { TerminalSessionNotice } from "./TerminalSessionNotice";
+import { useSessionStatuses } from "./use-session-statuses";
 import { ShellWorkspace } from "./ShellWorkspace";
 import { TerminalSessionMiss } from "./TerminalSessionMiss";
 import { TerminalMobileHeader, type TerminalLiveState } from "./TerminalMobileHeader";
@@ -482,10 +484,10 @@ export function TerminalSurface({
     : !tabContext?.dir
       ? `“${activeTab}” isn’t linked to a project directory, so Loki doesn’t know where to relaunch the agent.`
       : null;
-
+  const news = useSessionStatuses(activeTab);
   const stripTabs = useMemo(
-    () => buildStripTabs(tabs, context, activeTab, ta.aliases, ta.layout),
-    [tabs, activeTab, context, ta.aliases, ta.layout],
+    () => buildStripTabs(tabs, context, activeTab, ta.aliases, ta.layout, news.statuses),
+    [tabs, activeTab, context, ta.aliases, ta.layout, news.statuses],
   );
 
   // Where we looked, and the one place we haven't — both named in the miss
@@ -535,7 +537,6 @@ export function TerminalSurface({
     openTabs: tabs,
     select: setUserSelection,
   });
-  const agentPath = source !== "shell";
   const mobileHeader = (
     <TerminalMobileHeader
       title={headerTitle}
@@ -546,11 +547,11 @@ export function TerminalSurface({
       onToggleImmersive={onToggleImmersive ?? (() => {})}
       view={view}
       onViewChange={activeTab && chatAvailable ? termView.setView : undefined}
-      sessions={agentPath ? stripTabs.map((t) => ({ id: t.id, label: t.label })) : undefined}
-      activeSession={agentPath ? activeTab : null}
-      onSelectSession={agentPath ? setUserSelection : undefined}
+      sessions={source !== "shell" ? stripTabs : undefined}
+      activeSession={source !== "shell" ? activeTab : null}
+      onSelectSession={source !== "shell" ? setUserSelection : undefined}
       onNewSession={
-        agentPath && launchProps && !gatedMessage && !offline
+        source !== "shell" && launchProps && !gatedMessage && !offline
           ? () => setNewSessionOpen(true)
           : undefined
       }
@@ -815,6 +816,7 @@ export function TerminalSurface({
         setLaunchOpen={ta.setLaunchOpen}
         error={ta.actionError}
       />
+      <TerminalSessionNotice news={news} tabs={stripTabs} onOpen={setUserSelection} />
       {activeTab && (
         <div className="hidden md:block">
           <TerminalSessionBar

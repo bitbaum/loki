@@ -3112,8 +3112,12 @@
   .ui-term-mhead-btn-tab .ui-term-mhead-title {
     @apply flex-initial;
   }
+  /* "substrata 2 finished · Open": news from another session, one line. */
+  .ui-term-notice {
+    @apply flex shrink-0 items-center gap-3 rounded-xl border border-border-subtle bg-surface-raised px-3 py-1 text-sm text-text-secondary;
+  }
   .ui-term-mtab {
-    @apply flex h-11 max-w-36 shrink-0 items-center rounded-xl border border-border-subtle px-3 text-sm text-text-secondary transition-colors active:bg-surface-overlay;
+    @apply flex h-11 max-w-36 shrink-0 items-center gap-2 rounded-xl border border-border-subtle px-3 text-sm text-text-secondary transition-colors active:bg-surface-overlay;
   }
   .ui-term-mhead-agent {
     @apply shrink-0 rounded bg-surface-overlay px-1.5 py-0.5 text-micro uppercase tracking-caps text-text-secondary;
@@ -3224,6 +3228,12 @@
     background-color: var(--status-neutral);
     animation: ui-term-pulse 1.4s ease-in-out infinite;
   }
+  /* A session at work: the accent, breathing — distinct from the grey pulse
+     that means "connecting". */
+  .ui-term-status-working {
+    background-color: var(--accent-primary);
+    animation: ui-term-pulse 1.4s ease-in-out infinite;
+  }
   @keyframes ui-term-pulse {
     0%,
     100% {
@@ -3234,7 +3244,8 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .ui-term-live-dot-pending {
+    .ui-term-live-dot-pending,
+    .ui-term-status-working {
       animation: none;
     }
   }
