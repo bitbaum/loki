@@ -407,6 +407,24 @@ session: set `LOKI_SESSION_TOKEN`, or `AUDIT_DATABASE_URL` + `AUTH_SECRET`
 scripts/db-tunnel.sh)"` opens an SSH tunnel and exports the right URL. Not part
 of `pnpm run verify` (needs network, a session, and a browser download).
 
+## When you need George to do something: give the link and the exact steps
+
+Never tell him to "go to the approvals page", "check the website" or "find X in
+settings". Every ask ends with a **full clickable URL** and the **exact taps**,
+and says what he will see when it worked. If you can do it yourself — through
+the API, a workflow, the box — do it instead of asking. Say so when you did.
+
+Examples of the shape (use the real host, `APP_URL` in `src/config/brand.ts`):
+
+- "Approve the 3 p.m. event: https://loki.orangecat.ch/approvals → tap **Approve**
+  on the card named *test*. It is booked within a minute and Telegram confirms."
+- "Turn on phone notifications: open https://loki.orangecat.ch/settings on your
+  phone → **Notifications** → **Turn on notifications** → **Send a test**."
+
+George said this after an answer pointed him at "/approvals" as a bare path.
+A path is not a link and "go and check" is a chore handed back. This is a
+standing instruction for every session, in every repo.
+
 ## Shipping: nobody merges by hand
 
 A green, non-draft PR merges and deploys itself. `.github/workflows/auto-merge.yml`
