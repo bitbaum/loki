@@ -1,7 +1,11 @@
 import { usableChatChain } from "@/config/chat-models";
 import { freeDayCapacityTokens } from "@/lib/ai/free-capacity";
 import { CUSTOM_VENDOR_ID, vendorById } from "@/config/model-vendors";
-import { getDayUsage, getWeekSpend } from "@/db/queries/ai-spend";
+import { getDayUsage, getMonthSpendTokens, getWeekSpend } from "@/db/queries/ai-spend";
+import { getUserById } from "@/db/queries/users";
+import { PRICING_PLANS } from "@/config/plans";
+import { allowanceLeft } from "@/lib/ai-budget/plan-allowance";
+import { PLAN_LIMITS, PLAN_TOKENS_PER_ANSWER } from "@/lib/plan";
 import { ownUsageByVendor } from "@/db/queries/own-model-usage";
 import { listQuota } from "@/db/queries/provider-quota";
 import type { ProviderQuota } from "@/db/schema/provider-quota";
@@ -28,17 +32,40 @@ import { bindingRows, describeQuota, nextProviderAfter } from "@/lib/ai/quota-vi
  */
 export async function readUserBudget(userId: string, now = new Date()): Promise<BudgetView> {
   const chain = usableChatChain();
-  const [usage, own, ownUsage, rows, ownRows, week, prefs, capacity] = await Promise.all([
-    getDayUsage(userId, now).catch(() => ({ userSpentTokens: 0, userTurns: 0, activeUsers: 1 })),
-    listOwnModels(userId).catch(() => []),
-    ownUsageByVendor(userId, now).catch(() => []),
-    listQuota(),
-    // The person's own keys, metered by their vendor into rows of their own.
-    listQuota(userId),
-    getWeekSpend(userId, now).catch(() => undefined),
-    getUserPreferences(userId).catch(() => null),
-    freeDayCapacityTokens(),
-  ]);
+  const [usage, own, ownUsage, rows, ownRows, week, prefs, account, monthTokens, capacity] =
+    await Promise.all([
+      getDayUsage(userId, now).catch(() => ({ userSpentTokens: 0, userTurns: 0, activeUsers: 1 })),
+      listOwnModels(userId).catch(() => []),
+      ownUsageByVendor(userId, now).catch(() => []),
+      listQuota(),
+      // The person's own keys, metered by their vendor into rows of their own.
+      listQuota(userId),
+      getWeekSpend(userId, now).catch(() => undefined),
+      getUserPreferences(userId).catch(() => null),
+      getUserById(userId).catch(() => null),
+      getMonthSpendTokens(userId, now).catch(() => 0),
+      freeDayCapacityTokens(),
+    ]);
+
+  const answersMonthly = account ? PLAN_LIMITS.aiAnswersMonthly[account.plan] : 0;
+  const plan =
+    account && answersMonthly > 0
+      ? {
+          name: PRICING_PLANS.find((p) => p.key === account.plan)?.name ?? account.plan,
+          answersMonthly,
+          answersLeft: Math.floor(
+            allowanceLeft(
+              {
+                plan: account.plan,
+                planStatus: account.planStatus ?? null,
+                planExpiresAt: account.planExpiresAt ?? null,
+              },
+              monthTokens,
+              now,
+            ) / PLAN_TOKENS_PER_ANSWER,
+          ),
+        }
+      : null;
 
   const describe = (r: ProviderQuota, nextProvider: string | null) =>
     describeQuota(
@@ -73,6 +100,7 @@ export async function readUserBudget(userId: string, now = new Date()): Promise<
     memory: { turns: HISTORY_TURNS, charsPerTurn: HISTORY_CHARS_PER_TURN },
     ...(prefs ? { stance: prefs.modelStance } : {}),
     timeZone: effectiveTimeZone(prefs, now),
+    plan,
     ownKeys: own.map((m) => {
       const vendor = vendorById(m.vendor);
       const u = usageByVendor.get(m.vendor);

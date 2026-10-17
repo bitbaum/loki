@@ -3,6 +3,7 @@ import { Bitcoin, Check } from "lucide-react";
 import { PRICING_BILLING_NOTE, PRICING_CURRENCY, PRICING_PLANS } from "@/config/plans";
 import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 import { passDaysLeft } from "@/lib/plan-pass";
+import { planCheckoutPath } from "@/lib/plan-reservation";
 import type { Plan } from "@/db/schema/users";
 
 const PLAN_LABEL = Object.fromEntries(PRICING_PLANS.map((p) => [p.key, p.name])) as Record<
@@ -29,6 +30,8 @@ export type BillingView = {
   grants: BillingGrantView[];
   /** Bitcoin checkout per priced plan, when the OrangeCat pass exists. */
   payUrls: Partial<Record<Plan, string>>;
+  /** The plan this person reserved while payments are not open, if any. */
+  reservedPlan: Plan | null;
 };
 
 /**
@@ -49,7 +52,14 @@ export type BillingView = {
  * SettingsTabs, so anything server-only (the pay URLs from env, the ledger)
  * arrives as props from the page.
  */
-export function BillingSettings({ plan, planStatus, planExpiresAt, grants, payUrls }: BillingView) {
+export function BillingSettings({
+  plan,
+  planStatus,
+  planExpiresAt,
+  grants,
+  payUrls,
+  reservedPlan,
+}: BillingView) {
   const priced = PRICING_PLANS.filter((p) => p.priceMonthly !== null && p.priceMonthly > 0);
   const buyable = priced.filter((p) => payUrls[p.key]);
   const expiry = planExpiresAt ? new Date(planExpiresAt) : null;
@@ -97,8 +107,9 @@ export function BillingSettings({ plan, planStatus, planExpiresAt, grants, payUr
         <div className="rounded-lg border border-border-subtle p-3">
           <p className="text-sm font-medium text-text-primary">Want more room?</p>
           <p className="mt-1 text-xs text-text-secondary">
-            A pass lifts the project limit for a month at a time. Paid in Bitcoin on OrangeCat; it
-            lands here when the payment settles, and nothing renews by itself.
+            A pass lifts the project limit and adds a monthly allowance of Loki answers, a month at
+            a time. Paid in Bitcoin on OrangeCat; it lands here when the payment settles, and
+            nothing renews by itself.
           </p>
           {buyable.length > 0 ? (
             <ul className="mt-2 flex flex-wrap gap-2">
@@ -117,11 +128,27 @@ export function BillingSettings({ plan, planStatus, planExpiresAt, grants, payUr
                 </li>
               ))}
             </ul>
+          ) : priced.length > 0 ? (
+            <>
+              <p className="mt-2 text-xs text-text-muted">
+                {reservedPlan
+                  ? `You reserved ${PLAN_LABEL[reservedPlan]}. Payments open once Loki's company is registered — nothing is charged until then.`
+                  : "Payments open once Loki's company is registered. Reserve a plan now — nothing is charged."}
+              </p>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {priced.map((p) => (
+                  <li key={p.key}>
+                    <Link href={planCheckoutPath(p.key)} className="ui-btn-secondary text-xs">
+                      {reservedPlan === p.key ? "Reserved" : "Reserve"} {p.name} ·{" "}
+                      {PRICING_CURRENCY} {p.priceMonthly}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
           ) : (
             <p className="mt-2 text-xs text-text-muted">
-              {priced.length > 0
-                ? "Bitcoin checkout is not switched on for this server yet."
-                : "Prices are not announced yet — every plan is free until they are."}
+              Prices are not announced yet — every plan is free until they are.
             </p>
           )}
         </div>

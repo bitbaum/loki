@@ -66,6 +66,7 @@ export function AiBudgetSettings() {
 
       {data && (
         <>
+          {data.plan && <p className="text-sm text-text-primary">{data.plan.line}</p>}
           {data.ownKeys.map((k) => (
             <OwnKeySource key={`${k.vendor}/${k.model}`} source={k} />
           ))}

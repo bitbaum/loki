@@ -152,6 +152,8 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   // — money ——————————————————————————————————————————————————————————
   // /api/checkout lived here until #508 deleted the Stripe rail with it.
   ["/api/subscriptions", "billing"],
+  // A reservation is the founder's demand signal for a paid plan; a demo visitor's would be noise in it.
+  ["/api/billing", "billing"],
 
   // — identity and tenancy ———————————————————————————————————————————
   ["/api/me/password", "credentials"],

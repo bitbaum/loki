@@ -97,8 +97,11 @@ sequenceDiagram
   `ORANGECAT_WEBHOOK_SECRET` is set on both boxes.
 - **Loki side** (already built): `/api/orangecat/entitlement` verifies the
   signature, records the grant idempotently (`external_id` is unique, so a
-  retried webhook is a no-op) and writes the plan with its expiry. The only
-  gate a plan enforces today is the project limit (`lib/plan.ts`).
+  retried webhook is a no-op) and writes the plan with its expiry. A plan
+  enforces two things (`lib/plan.ts`): the project limit, and a monthly
+  allowance of Loki answers past the free pool's daily share
+  (`lib/ai-budget/plan-allowance.ts`, applied by the gate only after the
+  share has refused).
 - **The user's side** (this change): the Billing tab shows the plan, the days
   left and the end date, a Buy/Extend button per priced plan that goes to the
   OrangeCat checkout, and every pass that ever landed. A pass bought while one
@@ -361,10 +364,14 @@ something metered of its own: hosted builder minutes
 The code is complete and the rail is dark only because four numbers and two
 secrets are unset. Each is one edit, no code change.
 
-1. **Prices.** `src/config/plans.ts` → `priceMonthly` per plan (CHF), and the
-   same figures in OrangeCat `src/config/loki-passes.ts`, then re-run
-   `scripts/seed-loki-passes.ts` there. Until then every paid tier reads
-   "price to be announced" and no Buy button renders anywhere.
+1. **Prices — decided 2026-10-17: CHF 15 / 40 / 90** (`src/config/plans.ts`).
+   The same figures still have to go into OrangeCat `src/config/loki-passes.ts`
+   and `scripts/seed-loki-passes.ts` re-run there once the company is
+   registered. Until a plan's pass exists, its button on `/pricing` opens
+   `/pricing/<plan>`, which RESERVES the plan (`plan_reservations`, one row per
+   person, charges and grants nothing); System → Revenue shows who is waiting
+   on which plan. The day `ORANGECAT_PAY_URL_<PLAN>` is set, the same button
+   reads "Pay in Bitcoin" — no code change.
 2. **`ORANGECAT_WEBHOOK_SECRET`** — the same value on both boxes. Without it a
    paid pass settles on OrangeCat and nothing reaches Loki (the operator
    would grant it by hand from the card above).
@@ -405,11 +412,16 @@ each turn run on". Three facts decide the design:
    makes own keys the default execution path for new accounts, and why
    OpenRouter is listed first: one key, every lab, a per-key credit limit.
 
-3. **A pass pays for Loki, not for tokens.** Room, seats and the operator's
-   time are what a pass buys. The moment Loki resells tokens inside a plan
-   it inherits every user's model bill and a margin argument with each
-   vendor; that is the metered-credits phase, and it is deferred until Loki
-   sells something metered of its own (hosted builder minutes).
+3. **A pass pays for Loki, with a bounded AI allowance inside it.** Room,
+   seats and the operator's time are what a pass buys — plus, since
+   2026-10-17, a fixed monthly number of Loki answers (Personal 1,000, Pro
+   3,000, Team 8,000; `PLAN_LIMITS.aiAnswersMonthly`). The bound is the
+   point: at ~8,000 tokens an answer on a paid open model (~$0.002 each) the
+   whole allowance costs a fraction of the price, so the plan cannot inherit
+   an open-ended model bill. Past it, the person is back on the free share
+   and their own key, exactly as on Free. Until a paid model chain is
+   configured those turns run on the same free chain; the allowance only
+   lifts the daily share's limit for them.
 
 What this means for the machinery as it grows:
 

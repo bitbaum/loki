@@ -5,6 +5,7 @@ import type { DayUsage } from "@/db/queries/ai-spend";
 import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 import { nextUtcMidnight } from "@bitbaum/ai-kit";
 import { atClock } from "@/lib/ai/clock-words";
+import { readAllowanceLeft } from "@/lib/ai-budget/plan-allowance";
 
 /**
  * The ledger is imported LAZILY, for the same reason `loop.ts` does it: `@/db`
@@ -89,12 +90,15 @@ export type BudgetVerdict =
   { allowed: true } | { allowed: false; message: string; retryAfterSeconds?: number };
 
 /** Turn a refusal into something the operator can act on. */
+/** Where the plans are: the reason the pool is shared, and the way past it that costs money. */
+const PLANS_PATH = "/pricing";
+
 /**
  * The way past the shared pool, offered at the moment it is needed. A refusal
  * that only says "wait" leaves out the one thing that ends the wait now: the
  * person's own key, which Loki uses for their chats with no daily limit.
  */
-const OWN_MODEL_OFFER = `Or [add your own model key](${OWN_MODEL_SETTINGS_PATH}) from any provider you use — your chats then have no daily limit.`;
+const OWN_MODEL_OFFER = `Or [add your own model key](${OWN_MODEL_SETTINGS_PATH}) from any provider you use — your chats then have no daily limit. A [paid plan](${PLANS_PATH}) will add a monthly allowance with no daily wait.`;
 
 /**
  * Plain words and a clock time. This used to say "you've used your share of
@@ -146,6 +150,8 @@ export async function checkAiBudget(
   deps: {
     readUsage?: (userId: string, now: Date) => Promise<DayUsage>;
     capacity?: () => number | Promise<number>;
+    /** Tokens left on the person's paid plan this month (lib/ai-budget/plan-allowance.ts). */
+    planAllowance?: (userId: string, now: Date) => Promise<number>;
     /** The person's zone for the clock time in a refusal; read from their settings when absent. */
     timeZone?: string | null;
   } = {},
@@ -156,15 +162,23 @@ export async function checkAiBudget(
       deps.readUsage ?? (async (u: string, n: Date) => (await ledger()).getDayUsage(u, n));
     const { userSpentTokens, userTurns, activeUsers } = await readUsage(userId, now);
 
+    const costTokens = turnReserveTokens(userSpentTokens, userTurns ?? 0);
     const decision = fairShare({
       dayCapacityTokens: capacity,
       activeUsers,
       userSpentTokens,
-      costTokens: turnReserveTokens(userSpentTokens, userTurns ?? 0),
+      costTokens,
       dayElapsed: utcDayElapsed(now),
     });
 
     if (decision.allowed) return { allowed: true };
+    // Past the share, a paid plan's month still admits the turn. Read only
+    // here, so a free turn never pays for it; a read that fails is no
+    // allowance, never an outage — the share's refusal stands.
+    if (decision.reason !== "no-capacity") {
+      const left = await (deps.planAllowance ?? readAllowanceLeft)(userId, now).catch(() => 0);
+      if (left >= costTokens) return { allowed: true };
+    }
     // Only a refusal that names a time needs the person's zone, and only then
     // is their settings row read.
     const timeZone =

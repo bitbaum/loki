@@ -87,5 +87,12 @@ check("while unpriced, the note says Loki is free", () => {
   }
 });
 
+check("once priced, the note says payments are not open and nothing is charged", () => {
+  if (PRICING_PLANS.some((p) => p.priceMonthly !== null && p.priceMonthly > 0)) {
+    assert.match(PRICING_BILLING_NOTE, /nothing is charged/i);
+    assert.match(PRICING_BILLING_NOTE, /reserve/i);
+  }
+});
+
 console.log(failures === 0 ? "\nall passed" : `\n${failures} failed`);
 process.exit(failures === 0 ? 0 : 1);

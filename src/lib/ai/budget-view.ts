@@ -138,7 +138,7 @@ export type ModelHeadroom = {
 };
 
 /** One thing the person can do about the numbers, in order of use right now. */
-export type BudgetAction = UsageAction<"bring-key" | "thrifty" | "wait">;
+export type BudgetAction = UsageAction<"bring-key" | "thrifty" | "wait" | "plans">;
 
 /**
  * What the numbers MEAN — the half a meter leaves out. A usage screen that
@@ -168,6 +168,8 @@ export type BudgetView = {
   meaning: BudgetMeaning;
   /** When the free pool refills, as an ISO instant, for a client that wants a countdown. */
   resetsAt: string;
+  /** The person's paid plan allowance this month, in words. Null on Free. */
+  plan: { line: string } | null;
 };
 
 export type BudgetInput = {
@@ -199,6 +201,8 @@ export type BudgetInput = {
   stance?: "thrifty" | "balanced" | "best";
   /** The person's zone, so times read as their clock ("at 13:35"). Default: the server's. */
   timeZone?: string | null;
+  /** A paid plan's monthly allowance (lib/ai-budget/plan-allowance.ts). Absent on Free. */
+  plan?: { name: string; answersMonthly: number; answersLeft: number } | null;
 };
 
 /** Bounds on a measured per-answer cost, so one odd day cannot make the count absurd. */
@@ -505,6 +509,14 @@ function meaningOf(
       href: "/models",
     });
   }
+  if (!input.plan && pool.state !== "none" && pool.state !== "ok") {
+    actions.push({
+      id: "plans",
+      label: "See plans",
+      why: "A paid plan adds a monthly allowance of answers with no daily wait. Payments are not open yet — you can reserve one, and nothing is charged.",
+      href: "/pricing",
+    });
+  }
   if (ownKeys.length > 0 && input.stance && input.stance !== "thrifty") {
     actions.push({
       id: "thrifty",
@@ -577,5 +589,14 @@ export function userBudgetView(input: BudgetInput): BudgetView {
     models,
     meaning: meaningOf(input, pool, ownKeys),
     resetsAt: nextUtcMidnight(input.now).toISOString(),
+    plan: input.plan ? { line: planLine(input.plan) } : null,
   };
+}
+
+/** "Your Personal plan: 840 of 1,000 answers left this month." */
+function planLine(p: NonNullable<BudgetInput["plan"]>): string {
+  const left = Math.max(0, p.answersLeft);
+  return left > 0
+    ? `Your ${p.name} plan: ${count(left)} of ${count(p.answersMonthly)} answers left this month, past the daily free share.`
+    : `Your ${p.name} plan's ${count(p.answersMonthly)} answers for this month are used — the free share still applies, and the allowance starts over on the 1st.`;
 }
