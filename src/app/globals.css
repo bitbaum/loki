@@ -7763,8 +7763,10 @@
   .ui-store-via-on {
     @apply border-accent-primary/30 bg-accent-muted text-text-primary;
   }
+  /* overflow-x-auto is the backstop: a table wider than its column scrolls
+     inside its own box, never the page. */
   .ui-store-table-wrap {
-    @apply rounded-2xl border border-border-subtle bg-surface-base;
+    @apply overflow-x-auto rounded-2xl border border-border-subtle bg-surface-base;
   }
   .ui-store-table {
     @apply w-full text-sm;
@@ -7784,9 +7786,11 @@
   .ui-store-num {
     @apply whitespace-nowrap tabular-nums;
   }
-  /* Under 768px each row is a card and each cell names itself: the page never
-     scrolls sideways, and the numbers keep their labels. */
-  @media (max-width: 767px) {
+  /* Under 1024px each row is a card and each cell names itself: the page never
+     scrolls sideways, and the numbers keep their labels. The table needs about
+     910px; at 768 (a tablet) it pushed the page 164px sideways (responsive
+     audit, 2026-10-17), so the cards hold up to the laptop breakpoint. */
+  @media (max-width: 1023px) {
     .ui-store-table,
     .ui-store-table tbody,
     .ui-store-table tr {
