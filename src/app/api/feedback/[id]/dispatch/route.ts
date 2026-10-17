@@ -5,6 +5,8 @@ import { implementFeedback } from "@/lib/feedback/implement";
 
 const DispatchBody = z.object({
   note: z.string().trim().max(500).optional(),
+  /** The ask as the owner edited it after Loki's read (lib/feedback/read-report). */
+  ask: z.string().trim().max(1200).optional(),
   /**
    * Switch provider and retry, in one tap.
    *
@@ -29,6 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { status, body } = await implementFeedback(userId, idOrResp, {
     note: dataOrResp.note || undefined,
+    ask: dataOrResp.ask || undefined,
     agent: dataOrResp.agent,
   });
   return NextResponse.json(body, { status });

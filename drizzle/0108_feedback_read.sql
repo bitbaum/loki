@@ -1,0 +1,1 @@
+ALTER TABLE "site_feedback" ADD COLUMN "read" jsonb;

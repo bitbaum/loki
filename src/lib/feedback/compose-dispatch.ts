@@ -55,16 +55,25 @@ export function composeFeedbackFixPrompt(
   feedback: FeedbackPromptFields,
   projectName: string,
   note?: string,
+  /**
+   * The ask as the OWNER put it, after reading Loki's read of the report
+   * (lib/feedback/read-report) and editing it. When present it is the
+   * instruction; the report below is the context it came from. This is what
+   * lets a collaborator's feedback be built without being built verbatim.
+   */
+  ask?: string,
 ): string {
   const times = feedback.duplicateCount > 1 ? ` (reported ${feedback.duplicateCount}×)` : "";
-  const heading =
-    feedback.source === "owner"
+  const heading = ask
+    ? `The owner of ${projectName} read this report and decided what to change. Do exactly what THE ASK says; the report is the context it came from.`
+    : feedback.source === "owner"
       ? `The owner of ${projectName} asked for this change while looking at their live site. Make it.`
       : `Fix this visitor feedback on ${projectName}.${times}`;
   const lines = [
     heading,
     UNTRUSTED_PREAMBLE,
     "",
+    ...(ask ? [`THE ASK: ${ask}`, ""] : []),
     ...(note ? [`OPERATOR INSTRUCTION: ${note}`, ""] : []),
     fenceUntrusted("FEEDBACK", feedback.suggestion),
     `Page: ${inlineUntrusted(feedback.url ?? feedback.page ?? "unknown", 1000)}`,

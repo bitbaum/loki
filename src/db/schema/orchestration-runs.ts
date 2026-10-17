@@ -62,6 +62,9 @@ export type OrchestrationRunPayload = {
    *  (feedback/verify-live.ts) — a JPEG data URL, phone-sized. Kept here, not
    *  in payload.fix, so the inbox list never carries the bytes. */
   fixPicture?: string;
+  /** The same page BEFORE the fix, taken when the run was dispatched
+   *  (feedback/before-picture.ts) — a JPEG data URL, phone-sized. */
+  beforePicture?: string;
   /** Repo-side work evidence: a pull request or push seen on GitHub inside
    *  the run's window. Written by the reaper when it corrects a timeout
    *  (reap-evidence.ts) and by Watch the moment it appears (run-evidence-live.ts). */

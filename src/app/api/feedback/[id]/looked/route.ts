@@ -23,12 +23,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const runId = row.feedback.dispatchedRunId;
   if (!runId) return jsonError("No picture", 404);
   const run = (await getOrchestrationRunsByIds(row.ownerUserId, [runId])).get(runId);
-  const picture = run?.payload?.fixPicture;
-  if (!picture) return jsonError("No picture", 404);
+  const picture = run?.payload?.fixPicture ?? null;
+  const before = run?.payload?.beforePicture ?? null;
+  if (!picture && !before) return jsonError("No picture", 404);
 
   const fix = (run?.payload as { fix?: FixShipping } | undefined)?.fix;
   return NextResponse.json(
-    { picture, at: fix?.verify?.at ?? null },
+    { picture, before, at: fix?.verify?.at ?? null },
     { headers: { "Cache-Control": "private, max-age=3600" } },
   );
 }

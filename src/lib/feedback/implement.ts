@@ -12,6 +12,8 @@ import { isQuotaAlternativeId, providerLabel } from "@/config/quota-alternatives
 import { getUserProject, updateUserProject } from "@/db/queries/user-projects";
 import { providerChoiceFor } from "@/lib/provider-choice";
 import { routeAroundSpent } from "@/lib/provider-switch";
+import { livePageHref } from "@/lib/feedback/fix-shipping";
+import { captureBeforePicture } from "@/lib/feedback/before-picture";
 
 /**
  * Implement a feedback item: queue a scoped agent run via injectPrompt.
@@ -50,7 +52,7 @@ export type ImplementFeedbackResult = {
 export async function implementFeedback(
   actorUserId: string,
   feedbackId: string,
-  opts: { note?: string; agent?: string } = {},
+  opts: { note?: string; agent?: string; ask?: string } = {},
 ): Promise<ImplementFeedbackResult> {
   const row = await getFeedbackWithProject(actorUserId, feedbackId);
   if (!row) return { status: 404, body: { error: "Feedback not found" } };
@@ -178,7 +180,12 @@ export async function implementFeedback(
       // Honor user_projects.builder_pref via pickDispatchChannel — do not force cloud.
       adapter,
       sessionId: currentSession?.sessionId,
-      customPrompt: composeFeedbackFixPrompt(row.feedback, row.projectName, opts.note || undefined),
+      customPrompt: composeFeedbackFixPrompt(
+        row.feedback,
+        row.projectName,
+        opts.note || undefined,
+        opts.ask || undefined,
+      ),
       notifyOnClose: true,
     },
     executionUserId,
@@ -198,6 +205,16 @@ export async function implementFeedback(
   const runId = accepted ? body.runId : undefined;
   if (accepted) {
     await setFeedbackStatus(executionUserId, feedbackId, FEEDBACK_STATUS.DISPATCHED, runId);
+    // The "before": a picture of the page as it is at this moment, so the
+    // walkthrough can show before and after side by side once the fix is
+    // live. One headless screenshot, no model, never blocks the dispatch.
+    const beforeUrl = livePageHref(row.liveUrl, row.feedback.url, row.feedback.page);
+    if (runId && beforeUrl)
+      void captureBeforePicture(
+        runId,
+        beforeUrl,
+        row.feedback.selectedElements?.[0]?.selector ?? null,
+      );
     // The run records where it was MEANT to go and why it did not, so the
     // ledger can tell "ran on Claude Code" from "was sent to Claude Code
     // because Cursor was spent" — the second is evidence, the first is not.
