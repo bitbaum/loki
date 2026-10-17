@@ -17,6 +17,13 @@ export function createFeedbackClaimToken(feedbackId: string, now = Date.now()): 
   return `${payload}.${signature(payload)}`;
 }
 
+/** Where a reporter claims a report: it lands in their own /my-feedback, so
+ *  "what happened to what I said" always has an answer. One spelling for
+ *  every route that hands one out (api/feedback, api/widget/self-report). */
+export function feedbackClaimPath(feedbackId: string, now = Date.now()): string {
+  return `/claim-feedback?token=${encodeURIComponent(createFeedbackClaimToken(feedbackId, now))}`;
+}
+
 export function verifyFeedbackClaimToken(token: string, now = Date.now()): string | null {
   const [feedbackId, expiresRaw, supplied] = token.split(".");
   if (!feedbackId || !expiresRaw || !supplied || !/^\d+$/.test(expiresRaw)) return null;

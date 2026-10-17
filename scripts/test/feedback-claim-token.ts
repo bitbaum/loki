@@ -1,4 +1,8 @@
-import { createFeedbackClaimToken, verifyFeedbackClaimToken } from "@/lib/feedback/claim-token";
+import {
+  createFeedbackClaimToken,
+  feedbackClaimPath,
+  verifyFeedbackClaimToken,
+} from "@/lib/feedback/claim-token";
 
 process.env.AUTH_SECRET = "test-only-feedback-claim-secret";
 
@@ -21,6 +25,14 @@ check(
   verifyFeedbackClaimToken(token, 40 * 24 * 60 * 60 * 1000) === null,
 );
 check("malformed claim is rejected", verifyFeedbackClaimToken("not-a-token", 2_000) === null);
+
+const path = feedbackClaimPath(id, 1_000);
+const fromPath = new URL(path, "https://loki.test").searchParams.get("token") ?? "";
+check("the claim path lands on /claim-feedback", path.startsWith("/claim-feedback?token="));
+check(
+  "…and its token verifies to the same report",
+  verifyFeedbackClaimToken(fromPath, 2_000) === id,
+);
 
 console.log(`${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

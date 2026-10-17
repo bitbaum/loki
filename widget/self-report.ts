@@ -21,7 +21,7 @@ export async function sendSelfReport(
     ownerPass?: string;
     screenshots?: string[];
   },
-): Promise<{ building: boolean; note?: string; followUrl?: string }> {
+): Promise<{ building: boolean; note?: string; followUrl?: string; claimUrl?: string }> {
   const res = await fetch(`${apiBase}/api/widget/self-report`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -41,11 +41,13 @@ export async function sendSelfReport(
     building?: boolean;
     buildNote?: string;
     followUrl?: string;
+    claimUrl?: string;
   } | null;
   if (!res.ok) throw new Error(body?.error ?? `Request failed (${res.status})`);
   return {
     building: body?.building === true,
     ...(body?.buildNote ? { note: body.buildNote.slice(0, 500) } : {}),
     ...(body?.followUrl ? { followUrl: body.followUrl.slice(0, 1000) } : {}),
+    ...(body?.claimUrl ? { claimUrl: body.claimUrl.slice(0, 1000) } : {}),
   };
 }

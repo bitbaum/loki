@@ -277,6 +277,14 @@ Each slot is hit-tested over the launcher plus a 12px gap and judged:
 | layer | a fixed/sticky bar, a bottom sheet, an inner scroll panel (anything < 60% of the viewport) | only if nothing better |
 | blocked | any control a visitor could click — links, buttons, inputs, `[role=button]`, `[tabindex]`, iframes, `cursor:pointer` — or anything marked `data-fc-avoid` | never |
 
+**A corner holding the site's own floating button is the site's.** When a
+compact fixed control hugs the configured corner's edge within that 260px band
+(an Ask button, a chat bubble, a "Practise / Ask" pill — not a full-width tab
+bar or composer), the launcher does not climb above it: two assistants stacked
+read as one odd tower (substrata, 2026-10-17). It takes the mirrored corner if
+that has a free or text slot, and the edge tab otherwise. A side named by
+`data-fc-place` or chosen by the visitor is kept regardless.
+
 If every slot is blocked the launcher becomes the **edge tab** — a slim handle
 flush against its side edge, in the middle, or the nearest height that covers
 no control — until a corner clears. It used to hide instead, and from the
