@@ -29,6 +29,18 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.43",
+    tag: "fleet-runner-v0.8.43",
+    date: "2026-10-17T16:00:00Z",
+    highlights: [
+      "A second session on a project you already have open now works in its own copy of the project, so two agents never trip over each other's changes.",
+      "If that copy cannot be made, nothing is started and the first session is left alone.",
+    ],
+    breaking: [],
+    notes:
+      "The Terminal's new + can start another session on a busy project. The runner used to launch such a session straight into the project's one checkout; it now gives it a git worktree, the same isolation parallel runs already had.",
+  },
+  {
     version: "0.8.42",
     tag: "fleet-runner-v0.8.42",
     date: "2026-10-12T12:00:00Z",
