@@ -33,7 +33,8 @@ import { RunTrack } from "./RunTrack";
 import { RunLook } from "./RunLook";
 import { Walkthrough } from "./Walkthrough";
 
-export type WatchCardPhase = "waiting" | "working" | "attention" | "following" | "live" | "stopped";
+export type WatchCardPhase =
+  "waiting" | "working" | "attention" | "following" | "live" | "finished" | "stopped";
 
 export function ProjectWatchLive({
   projectId,
@@ -205,6 +206,7 @@ const KICKER: Record<WatchCardPhase, (provider: string) => string> = {
   attention: () => "Needs you",
   following: () => "On its way",
   live: () => "Live",
+  finished: () => "Finished",
   stopped: () => "Stopped",
 };
 
