@@ -78,7 +78,7 @@ export function buildCardProps(deps: Deps) {
     prompts: deps.prompts,
     liveTabs: deps.liveTabs,
     currentAdapter: deps.selectedAgent,
-    availableAgents,
+    availableAgents: onProjectBuilder(availableAgents, project),
     agentOrder: deps.agentOrder,
     onInject: async (
       tab: string,
@@ -134,4 +134,33 @@ export function buildCardProps(deps: Deps) {
     countdownSeconds: deps.countdownSeconds,
     nowS: deps.nowS,
   });
+}
+
+const BUILDER_WORDS = { cloud: "the cloud builder", local: "your computer" } as const;
+
+/**
+ * Each project is offered the agents installed on the builder that will run
+ * it. The panel-wide list reads the computer's report first, so a cloud
+ * project used to be offered Codex because the laptop had it — and the
+ * dispatch then started a session for a program the cloud builder does not
+ * have. A builder that has not reported leaves the rows as they were.
+ */
+export function onProjectBuilder<T extends { id: string; label: string; available?: boolean }>(
+  agents: readonly T[],
+  project: Pick<ProjectState, "builderChannel" | "builderAgents">,
+): (T & { availabilityReason?: string; unavailableNote?: string })[] {
+  const channel = project.builderChannel;
+  const installed = project.builderAgents;
+  if (!channel || !installed) return [...agents];
+  const where = BUILDER_WORDS[channel];
+  return agents.map((agent) =>
+    installed.includes(agent.id)
+      ? { ...agent, available: true, availabilityReason: undefined }
+      : {
+          ...agent,
+          available: false,
+          availabilityReason: `${agent.label} is not installed on ${where}, which runs this project.`,
+          unavailableNote: `not on ${where}`,
+        },
+  );
 }
