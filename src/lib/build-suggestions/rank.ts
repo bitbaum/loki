@@ -250,7 +250,7 @@ function candidates(inputs: SuggestionInputs): BuildSuggestion[] {
         id: `starter:${s.id}`,
         kind: "starter",
         label: s.label,
-        why: "A first build that ends in something live.",
+        why: s.why,
         prompt: null,
         project: null,
         href: newProjectHref(s.name, s.description),

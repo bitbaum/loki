@@ -18,6 +18,12 @@ export type BuildStarter = {
   name: string;
   /** What the first version is — becomes the project description. */
   description: string;
+  /**
+   * The card's one line, to the person. Each starter says what IT is: the row
+   * used to give all four the same sentence ("A first build that ends in
+   * something live"), four times down one page (seen 2026-10-17).
+   */
+  why: string;
 };
 
 export const BUILD_STARTERS: readonly BuildStarter[] = [
@@ -27,6 +33,7 @@ export const BUILD_STARTERS: readonly BuildStarter[] = [
     name: "my-site",
     description:
       "A one-page personal site: who I am, what I do, how to reach me. Live on its own URL, editable by talking to it.",
+    why: "One page: who you are, what you do, how to reach you.",
   },
   {
     id: "offer-page",
@@ -34,12 +41,14 @@ export const BUILD_STARTERS: readonly BuildStarter[] = [
     name: "offer",
     description:
       "A landing page for one thing I sell or offer, with a clear price and one way to say yes.",
+    why: "One thing you sell, its price, and one way to say yes.",
   },
   {
     id: "booking",
     label: "Booking page",
     name: "booking",
     description: "A simple page where people pick a time with me and leave their contact.",
+    why: "People pick a time with you and leave their contact.",
   },
   {
     id: "small-tool",
@@ -47,5 +56,6 @@ export const BUILD_STARTERS: readonly BuildStarter[] = [
     name: "tool",
     description:
       "A small web tool for one chore I repeat every week — the first version does exactly one thing well.",
+    why: "A small web tool for one chore you repeat every week.",
   },
 ] as const;

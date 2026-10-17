@@ -11,6 +11,7 @@ import {
 import { applyImportedBook } from "@/db/queries/people-book";
 import { canImportSocial } from "@/config/actors";
 import { ENTITY_TYPE } from "@/lib/constants/statuses";
+import { isSiteOperator } from "@/db/queries/users";
 
 function resolverPath(): string {
   return (
@@ -52,6 +53,17 @@ export async function POST() {
   if (access instanceof NextResponse) return access;
   if (!canImportSocial(ENTITY_TYPE.PERSON)) {
     return NextResponse.json({ error: "People import is not allowed" }, { status: 403 });
+  }
+  // The files below are read from the SERVER's home directory, which holds the
+  // site operator's own OpenClaw book — WhatsApp and Telegram contacts. Until
+  // 2026-10-17 any signed-in account with its private zone open (a new one
+  // has no PIN) could copy that book into its own. Theirs to sync, nobody
+  // else's.
+  if (!(await isSiteOperator(access.userId))) {
+    return NextResponse.json(
+      { error: "There is no OpenClaw book for this account. Use Import address book." },
+      { status: 403 },
+    );
   }
 
   let text: string | null = null;

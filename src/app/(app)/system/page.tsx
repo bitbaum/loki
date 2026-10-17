@@ -43,6 +43,13 @@ export default async function SystemPage() {
   // Platform revenue is founder-only — a regular tenant must never see
   // fleet-wide MRR. getUserById is defensive: a failure hides the card
   // rather than crashing the page.
+  //
+  // So is the machine. Host RAM/disk/uptime, the Hetzner capacity watch, the
+  // doctor and "Recent telemetry" describe the ONE server every account runs
+  // on, and debug_logs has no user column — every account's errors, sign-in
+  // failures and cron counts ("6 users", "34 projects") were on every
+  // account's System page until 2026-10-17. A tenant gets their own alarms,
+  // jobs and records; the box is the operator's.
   const viewer = await getUserById(userId).catch(() => null);
   const isFounder = viewer?.isDefault === true;
 
@@ -60,20 +67,24 @@ export default async function SystemPage() {
             tap. The cards are unchanged; only their place is. */}
         <SystemSection
           title="Is it healthy?"
-          hint="Alarms first, then the box, then what failed lately."
+          hint={isFounder ? "Alarms first, then the box, then what failed lately." : "Your alarms."}
         >
           {/* The builder's alarms live here, in full; /today links them in one line. */}
           <Suspense fallback={<CardSkeleton />}>
             <SystemAlertsCard />
           </Suspense>
-          <SystemStats />
-          {/* Directly under the host stats: when disk/RAM are tight, the next
-              question is always "can I upgrade yet?" */}
-          <HetznerCapacityCard />
-          <FleetDoctorCard />
-          <Suspense fallback={<CardSkeleton />}>
-            <RecentFailuresCard />
-          </Suspense>
+          {isFounder && (
+            <>
+              <SystemStats />
+              {/* Directly under the host stats: when disk/RAM are tight, the
+                  next question is always "can I upgrade yet?" */}
+              <HetznerCapacityCard />
+              <FleetDoctorCard />
+              <Suspense fallback={<CardSkeleton />}>
+                <RecentFailuresCard />
+              </Suspense>
+            </>
+          )}
         </SystemSection>
 
         <SystemSection

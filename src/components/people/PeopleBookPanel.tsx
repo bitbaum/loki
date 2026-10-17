@@ -26,9 +26,17 @@ export function PeopleBookPanel({
   /** Start expanded. True when the book is empty — the one moment when
    *  filling it IS the page rather than setup you already did. */
   defaultOpen = false,
+  /**
+   * Offer the OpenClaw sync. Only the site operator: the sync reads the
+   * OpenClaw book from the SERVER, which is the operator's own. Shown to every
+   * account until 2026-10-17, together with a paragraph explaining OpenClaw
+   * and Hermes to people who have neither.
+   */
+  openClaw = false,
 }: {
   onChanged?: () => void;
   defaultOpen?: boolean;
+  openClaw?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -222,7 +230,9 @@ export function PeopleBookPanel({
         <span className="min-w-0">
           <span className="block text-sm font-medium text-text-primary">Fill the book</span>
           <span className="block text-xs text-text-tertiary">
-            Import contacts, sync {ASSISTANT_STACK.openclaw.name}, merge duplicates
+            {openClaw
+              ? `Import contacts, sync ${ASSISTANT_STACK.openclaw.name}, merge duplicates`
+              : "Import your contacts, merge duplicates"}
             {pending > 0 ? ` · ${pending} to review` : ""}
           </span>
         </span>
@@ -234,14 +244,16 @@ export function PeopleBookPanel({
 
       {!open ? null : (
         <div className="space-y-4 border-t border-border-subtle p-4">
-          <p className="text-sm text-text-secondary">
-            {ASSISTANT_STACK.loki.name} is the book and the assistant that talks to it.{" "}
-            {ASSISTANT_STACK.openclaw.name} is the WhatsApp/Telegram workspace that filled most of
-            these names. {ASSISTANT_STACK.hermes.name} is a task CLI — not a contact book. Nothing
-            is sent.
-          </p>
+          {openClaw && (
+            <p className="text-sm text-text-secondary">
+              {ASSISTANT_STACK.loki.name} is the book and the assistant that talks to it.{" "}
+              {ASSISTANT_STACK.openclaw.name} is the WhatsApp/Telegram workspace that filled most of
+              these names. {ASSISTANT_STACK.hermes.name} is a task CLI — not a contact book. Nothing
+              is sent.
+            </p>
+          )}
           <ul className="space-y-1 text-sm text-text-tertiary">
-            {CONTACT_IMPORT_GUIDE.map((g) => (
+            {CONTACT_IMPORT_GUIDE.filter((g) => openClaw || g.id !== "openclaw").map((g) => (
               <li key={g.id}>
                 <span className="text-text-secondary">{g.title}.</span> {g.how}
               </li>
@@ -252,7 +264,8 @@ export function PeopleBookPanel({
           exist on their device. */}
           <p className="text-xs text-text-muted sm:hidden">
             The Google and Apple exports need a computer — do those there, then pick the file up
-            here. Syncing {ASSISTANT_STACK.openclaw.name} works from this phone.
+            here.
+            {openClaw ? ` Syncing ${ASSISTANT_STACK.openclaw.name} works from this phone.` : ""}
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <input
@@ -273,14 +286,16 @@ export function PeopleBookPanel({
             >
               {busy === "import" ? "Reading…" : "Import address book"}
             </button>
-            <button
-              type="button"
-              onClick={() => void syncOpenClaw()}
-              disabled={busy !== null}
-              className="ui-btn-chip"
-            >
-              {busy === "openclaw" ? "Syncing…" : "Sync OpenClaw book"}
-            </button>
+            {openClaw && (
+              <button
+                type="button"
+                onClick={() => void syncOpenClaw()}
+                disabled={busy !== null}
+                className="ui-btn-chip"
+              >
+                {busy === "openclaw" ? "Syncing…" : "Sync OpenClaw book"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void scan()}

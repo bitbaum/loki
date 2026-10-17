@@ -3,6 +3,7 @@ import os from "node:os";
 import { statfsSync } from "node:fs";
 import { OPENCLAW_GATEWAY_URL } from "@/lib/constants";
 import { getSessionUserId } from "@/lib/session";
+import { isSiteOperator } from "@/db/queries/users";
 
 // The empty payload returned to unauthenticated callers — same shape the /system
 // page already handles, so a monitor polling this GET keeps working but learns
@@ -47,7 +48,13 @@ export async function GET() {
   // but host mem/disk/uptime is real telemetry — only expose it to a signed-in
   // user; everyone else gets the benign empty payload (no 401 that could break
   // a poller, no fingerprintable capacity data).
-  if (!(await getSessionUserId())) {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return NextResponse.json(EMPTY);
+  }
+  // The machine is the site operator's: every account runs on it, so its
+  // RAM, disk and uptime are not any one tenant's to read (see /system).
+  if (!(await isSiteOperator(userId).catch(() => false))) {
     return NextResponse.json(EMPTY);
   }
 
