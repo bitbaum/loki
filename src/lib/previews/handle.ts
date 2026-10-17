@@ -303,7 +303,12 @@ async function picture(
   if (!shot?.ok)
     return new Response(null, {
       status: 404,
-      headers: { ...PRIVATE_HEADERS, [PICTURE_REASON_HEADER]: shot?.reason ?? "failed" },
+      headers: {
+        ...PRIVATE_HEADERS,
+        [PICTURE_REASON_HEADER]: shot
+          ? `${shot.reason}${shot.detail ? `: ${shot.detail}` : ""}`
+          : "failed",
+      },
     });
   const bytes = new Uint8Array(Buffer.from(shot.base64, "base64"));
   await deps.writeFile(file, bytes).catch(() => undefined);
