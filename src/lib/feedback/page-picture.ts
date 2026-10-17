@@ -38,7 +38,15 @@ async function publicHost(host: string, seen: Map<string, boolean>): Promise<boo
   let ok = false;
   try {
     const dns = await import("node:dns/promises");
-    const answers = await dns.lookup(host.replace(/^\[|\]$/g, ""), { all: true, verbatim: true });
+    // A lookup that hangs holds the page's request open, and with it the
+    // screenshot (Playwright waits for the page's fonts); a host that cannot
+    // be resolved within the budget is simply not loaded.
+    const answers = await Promise.race([
+      dns.lookup(host.replace(/^\[|\]$/g, ""), { all: true, verbatim: true }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("lookup timed out")), LOOKUP_TIMEOUT_MS),
+      ),
+    ]);
     ok = answers.length > 0 && !answers.some((a) => isPrivateAddress(a.address));
   } catch {
     ok = false;
@@ -46,6 +54,35 @@ async function publicHost(host: string, seen: Map<string, boolean>): Promise<boo
   seen.set(host, ok);
   return ok;
 }
+const LOOKUP_TIMEOUT_MS = 4_000;
+
+/**
+ * The picture itself. Playwright waits for the page's web fonts before it
+ * photographs, and a font a site serves from somewhere the server cannot
+ * reach never arrives: on the box every live-page picture of center-com.ru
+ * died in "page.screenshot: Timeout 30000ms exceeded" (2026-10-17) while the
+ * same page photographed in 12 s elsewhere. So one try with the fonts, within
+ * a short budget, then once more without waiting for them: a picture in the
+ * fallback font is the page; no picture is a link.
+ */
+async function screenshot(page: import("playwright").Page): Promise<Uint8Array> {
+  const opts = { type: "jpeg" as const, quality: JPEG_QUALITY, animations: "disabled" as const };
+  try {
+    return await page.screenshot({ ...opts, timeout: SCREENSHOT_TIMEOUT_MS });
+  } catch {
+    // Playwright's own switch for pages whose fonts never settle; read at
+    // screenshot time, so it applies to this retry and is put back after.
+    const before = process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY;
+    process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY = "1";
+    try {
+      return await page.screenshot({ ...opts, timeout: SCREENSHOT_TIMEOUT_MS });
+    } finally {
+      if (before === undefined) delete process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY;
+      else process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY = before;
+    }
+  }
+}
+const SCREENSHOT_TIMEOUT_MS = 12_000;
 
 /** The phone the deploy's page check uses (scripts/hetzner/page-check.mjs). */
 export const PICTURE_VIEWPORT = { width: 390, height: 844 } as const;
@@ -224,7 +261,7 @@ async function takeOne(
       await page.evaluate((y) => window.scrollTo(0, y), scrollY).catch(() => undefined);
       await page.waitForTimeout(300);
     }
-    const bytes = await page.screenshot({ type: "jpeg", quality: JPEG_QUALITY });
+    const bytes = await screenshot(page);
     return { ok: true, mimeType: "image/jpeg", base64: Buffer.from(bytes).toString("base64") };
   } catch (e) {
     return { ok: false, reason: "did-not-load", detail: firstLine(e) };
