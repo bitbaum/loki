@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserProjectByEntityId } from "@/db/queries/user-projects";
-import { readImprovements } from "@/lib/previews/folder";
-import { walkthroughFrom } from "@/lib/previews/improvements";
-import { isPreviewDir } from "@/lib/previews/root";
+import { previewWalkthrough } from "@/lib/previews/walkthrough";
 import { getProjectAccess } from "@/db/queries/project-access";
 import { dispatchMessageDisplay } from "@/lib/terminal-conversation";
 import { getSessionUserId } from "@/lib/session";
@@ -162,10 +159,3 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export const runtime = "nodejs";
-
-/** The build's own account from a preview folder, when the project is one. */
-async function previewWalkthrough(userId: string, projectId: string) {
-  const registered = await getUserProjectByEntityId(userId, projectId).catch(() => null);
-  if (!registered?.dirPath || !isPreviewDir(registered.dirPath)) return null;
-  return walkthroughFrom(await readImprovements(registered.dirPath));
-}
