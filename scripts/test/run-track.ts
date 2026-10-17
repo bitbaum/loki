@@ -10,7 +10,12 @@
  * Run: npx tsx scripts/test/run-track.ts
  */
 import assert from "node:assert/strict";
-import { buildRunTrack, type RunTrackInput } from "@/lib/run-track";
+import {
+  buildRunTrack,
+  formatStageSeconds,
+  stageTimings,
+  type RunTrackInput,
+} from "@/lib/run-track";
 import { FIX_SHIP_STATE } from "@/lib/feedback/fix-shipping";
 
 let passed = 0;
@@ -22,10 +27,14 @@ const check = (label: string, fn: () => void) => {
 
 const base: RunTrackInput = {
   eventKinds: ["dispatched"],
-  run: { finishedAt: null, outcome: null },
+  eventTimes: { dispatched: "2026-10-17T09:52:00Z" },
+  run: { startedAt: "2026-10-17T09:52:00Z", finishedAt: null, outcome: null },
+  askedAt: "2026-10-17T09:52:00Z",
   phase: "queued",
   stalled: false,
+  lastProgressAt: null,
   needsYou: null,
+  builderLabel: null,
   evidence: null,
   fix: null,
   liveUrl: "https://petvity.orangecat.ch",
@@ -33,6 +42,20 @@ const base: RunTrackInput = {
   failure: null,
 };
 const PR = "https://github.com/bitbaum/petvity/pull/113";
+const ledger = (
+  state: RunTrackInput["fix"] extends infer F ? (F extends { state: infer S } ? S : never) : never,
+  over: Partial<NonNullable<RunTrackInput["fix"]>> = {},
+): NonNullable<RunTrackInput["fix"]> => ({
+  state,
+  prUrl: null,
+  prTitle: null,
+  prNumber: null,
+  mergedAt: null,
+  deploy: null,
+  liveUrl: null,
+  looked: null,
+  ...over,
+});
 const states = (i: RunTrackInput) =>
   buildRunTrack(i)
     .stages.map((s) => s.state)
@@ -61,10 +84,23 @@ check("a pull request seen on GitHub while the run is live is a done stage with 
     ...base,
     eventKinds: ["dispatched", "claimed", "generating", "progress"],
     phase: "working",
-    evidence: { kind: "pr", url: PR, title: "fix(home): 14px" },
+    eventTimes: {
+      dispatched: "2026-10-17T09:52:00Z",
+      claimed: "2026-10-17T09:52:30Z",
+      generating: "2026-10-17T09:53:00Z",
+    },
+    evidence: {
+      kind: "pr",
+      url: PR,
+      title: "fix(home): 14px",
+      atMs: Date.parse("2026-10-17T09:58:02Z"),
+    },
   };
   const t = buildRunTrack(i);
-  assert.equal(states(i), "done done done done next next");
+  assert.equal(states(i), "done done now done next next", "still in the session: finishing up");
+  assert.match(t.stages[2].label, /finishing up/);
+  assert.equal(t.stages[1].at, "2026-10-17T09:52:30Z", "the builder stage is dated by its event");
+  assert.equal(t.stages[3].at, "2026-10-17T09:58:02.000Z", "the PR stage is dated by GitHub");
   const pr = t.stages.find((s) => s.id === "pr")!;
   assert.equal(pr.href, PR);
   assert.equal(pr.note, "fix(home): 14px");
@@ -114,7 +150,7 @@ check("finished with no evidence at all is a failed stage and a settled track", 
     eventKinds: ["dispatched", "claimed", "generating", "handoff", "closed"],
     phase: "needs_verify",
     run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "success" },
-    fix: { state: FIX_SHIP_STATE.NO_EVIDENCE, prUrl: null, liveUrl: null, looked: null },
+    fix: ledger(FIX_SHIP_STATE.NO_EVIDENCE),
   };
   const t = buildRunTrack(i);
   assert.equal(t.stages[3].state, "failed");
@@ -128,7 +164,7 @@ check("pull request open after the run: checks are 'now', live is next, not sett
     eventKinds: ["dispatched", "claimed", "generating", "handoff", "closed"],
     phase: "needs_verify",
     run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "success" },
-    fix: { state: FIX_SHIP_STATE.PR_OPEN, prUrl: PR, liveUrl: null, looked: null },
+    fix: ledger(FIX_SHIP_STATE.PR_OPEN, { prUrl: PR, prTitle: "fix(home): 14px", prNumber: 113 }),
   };
   const t = buildRunTrack(i);
   assert.equal(states(i), "done done done done now next");
@@ -142,7 +178,7 @@ check("merged: deploying is now and names the site", () => {
     eventKinds: ["dispatched", "claimed", "generating", "handoff", "closed"],
     phase: "needs_verify",
     run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "success" },
-    fix: { state: FIX_SHIP_STATE.MERGED, prUrl: PR, liveUrl: null, looked: null },
+    fix: ledger(FIX_SHIP_STATE.MERGED, { prUrl: PR, mergedAt: "2026-10-17T09:59:27Z" }),
   };
   const t = buildRunTrack(i);
   assert.equal(states(i), "done done done done done now");
@@ -156,12 +192,12 @@ check("deployed but not yet looked at: live is done, still not settled", () => {
     eventKinds: ["dispatched", "claimed", "generating", "handoff", "closed"],
     phase: "done",
     run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "success" },
-    fix: {
-      state: FIX_SHIP_STATE.DEPLOYED,
+    fix: ledger(FIX_SHIP_STATE.DEPLOYED, {
       prUrl: PR,
+      mergedAt: "2026-10-17T09:59:27Z",
+      deploy: { name: "Deploy", url: "https://github.com/x/runs/1", at: "2026-10-17T10:03:16Z" },
       liveUrl: "https://petvity.orangecat.ch",
-      looked: null,
-    },
+    }),
   };
   const t = buildRunTrack(i);
   assert.equal(states(i), "done done done done done done");
@@ -177,12 +213,15 @@ check("deployed and looked at: the verdict is in the sentence and the track sett
     eventKinds: ["dispatched", "claimed", "generating", "handoff", "closed"],
     phase: "done",
     run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "success" },
-    fix: {
-      state: FIX_SHIP_STATE.DEPLOYED,
+    fix: ledger(FIX_SHIP_STATE.DEPLOYED, {
       prUrl: PR,
       liveUrl: "https://petvity.orangecat.ch",
-      looked: { verdict: "looks_fixed" },
-    },
+      looked: {
+        verdict: "looks_fixed",
+        evidence: "The labels read 14px.",
+        at: "2026-10-17T10:05:00Z",
+      },
+    }),
   };
   const t = buildRunTrack(i);
   assert.match(t.summary, /the change shows/);
@@ -197,7 +236,7 @@ check("deployed with no live page to read settles at once", () => {
     eventKinds: ["dispatched", "claimed", "generating", "handoff", "closed"],
     phase: "done",
     run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "success" },
-    fix: { state: FIX_SHIP_STATE.DEPLOYED, prUrl: PR, liveUrl: null, looked: null },
+    fix: ledger(FIX_SHIP_STATE.DEPLOYED, { prUrl: PR }),
   };
   const t = buildRunTrack(i);
   assert.equal(t.summary, "Live on the site.");
@@ -239,7 +278,7 @@ check("closed pull request fails the merge stage and settles", () => {
     eventKinds: ["dispatched", "claimed", "generating", "handoff", "closed"],
     phase: "needs_verify",
     run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "success" },
-    fix: { state: FIX_SHIP_STATE.PR_CLOSED, prUrl: PR, liveUrl: null, looked: null },
+    fix: ledger(FIX_SHIP_STATE.PR_CLOSED, { prUrl: PR }),
   };
   const t = buildRunTrack(i);
   assert.equal(t.stages[4].state, "failed");
@@ -253,13 +292,68 @@ check("pushed without a pull request: honest, and the person is told it cannot s
     phase: "needs_verify",
     run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "success" },
     evidence: { kind: "push", url: "https://github.com/o/r/tree/fix", title: "push to fix" },
-    fix: { state: FIX_SHIP_STATE.PUSHED, prUrl: null, liveUrl: null, looked: null },
+    fix: ledger(FIX_SHIP_STATE.PUSHED),
   };
   const t = buildRunTrack(i);
   assert.equal(t.stages[3].state, "attention");
   assert.equal(t.stages[3].linkLabel, "See the branch");
   assert.match(t.summary, /cannot ship by itself/);
   assert.equal(t.settled, true);
+});
+
+check("timings: took between dated stages, a clock on the current one, nothing for the ask", () => {
+  const i: RunTrackInput = {
+    ...base,
+    eventKinds: ["dispatched", "claimed", "generating"],
+    eventTimes: {
+      dispatched: "2026-10-17T09:52:00Z",
+      claimed: "2026-10-17T09:52:40Z",
+      generating: "2026-10-17T09:53:10Z",
+    },
+    phase: "working",
+    builderLabel: "the cloud builder",
+  };
+  const t = buildRunTrack(i);
+  const now = Date.parse("2026-10-17T09:55:10Z");
+  const timing = stageTimings(t.stages, now);
+  assert.equal(timing[0].took, null, "the ask has no 'took'");
+  assert.equal(timing[1].took, 40, "builder: 40s after the ask");
+  assert.equal(timing[2].soFar, 120, "working for two minutes so far");
+  assert.equal(timing[3].took, null);
+  assert.equal(t.stages[1].label, "the cloud builder picked it up");
+  assert.ok(t.stages[1].facts.some((f) => f.text.includes("claimed the job")));
+});
+
+check("timings after live: merged took from the PR, live from the merge", () => {
+  const i: RunTrackInput = {
+    ...base,
+    eventKinds: ["dispatched", "claimed", "generating", "handoff", "closed"],
+    eventTimes: { claimed: "2026-10-17T09:52:30Z", handoff: "2026-10-17T09:58:30Z" },
+    phase: "done",
+    run: {
+      startedAt: "2026-10-17T09:52:00Z",
+      finishedAt: "2026-10-17T09:58:40Z",
+      outcome: "success",
+    },
+    evidence: { kind: "pr", url: PR, title: "t", atMs: Date.parse("2026-10-17T09:58:02Z") },
+    fix: ledger(FIX_SHIP_STATE.DEPLOYED, {
+      prUrl: PR,
+      mergedAt: "2026-10-17T09:59:27Z",
+      deploy: { name: "Deploy", url: null, at: "2026-10-17T10:03:16Z" },
+      liveUrl: "https://petvity.orangecat.ch",
+      looked: { verdict: "looks_fixed", evidence: "shows", at: "2026-10-17T10:05:00Z" },
+    }),
+  };
+  const timing = stageTimings(buildRunTrack(i).stages, Date.parse("2026-10-17T10:10:00Z"));
+  assert.equal(timing[4].took, 85, "merged 1m 25s after the PR opened");
+  assert.equal(timing[5].took, 229, "live 3m 49s after the merge");
+  assert.equal(timing[5].soFar, null, "a done stage has no clock");
+});
+
+check("formatStageSeconds reads like a stopwatch", () => {
+  assert.equal(formatStageSeconds(48), "48s");
+  assert.equal(formatStageSeconds(80), "1m 20s");
+  assert.equal(formatStageSeconds(3780), "1h 03m");
 });
 
 console.log(`\n✓ run-track: ${passed} passed`);

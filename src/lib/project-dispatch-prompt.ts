@@ -17,6 +17,7 @@ import { MINUTE_MS } from "@/lib/constants/time";
 import { answer, cleanDescription } from "@/lib/project-display";
 import { factReachesAgent, signalIsLive } from "@/lib/project-signals";
 import type { ProjectDispatchKind } from "@/lib/project-dispatch";
+import { fixNoteInstruction } from "@/lib/feedback/fix-note";
 
 export type ComposedPrompt = { prompt: string; error?: never } | { prompt?: never; error: string };
 
@@ -37,6 +38,11 @@ export function dispatchClosing(dod: string | null): string {
       ? `Definition of done: ${dod}`
       : "Verify your work before claiming done — run the relevant tests or exercise the change.",
     "Ship it: commit on a branch, push it, open a PR, and enable auto-merge on it (`gh pr merge --auto --squash`) before your run ends — CI is the reviewer, and a green PR merges and deploys without anyone pressing a button. Work left uncommitted in the workspace does not exist.",
+    // The walkthrough is not only for visitor feedback: the owner watching a
+    // project run wants the same account an engineer gives — what changed,
+    // why, what it helps, what it costs — and Watch plays it from the pull
+    // request once the run is done (2026-10-17).
+    fixNoteInstruction(),
     "Record what you actually did (with evidence) in your final session handoff.",
   ].join(" ");
 }
