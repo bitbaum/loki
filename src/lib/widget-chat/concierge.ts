@@ -174,6 +174,10 @@ export function visibleProjects(map: FleetMap): FleetMapEntry[] {
   return map.projects.filter((p) => {
     if (p.status === "retired" || EXPERIMENT_NAME_RE.test(p.slug)) return false;
     if (isWebsiteJob(p)) return false;
+    // Someone else's work is theirs to show: without recorded consent it is
+    // not a door, whatever the rest of the row says. The public map already
+    // drops these; the chat holds the same line in case a map ever does not.
+    if (p.client && !p.client.consentedAt) return false;
     if (p.status === "not live") return Boolean(p.identity.problem && p.identity.solution);
     return true;
   });

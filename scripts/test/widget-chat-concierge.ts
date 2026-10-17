@@ -117,6 +117,29 @@ const map: FleetMap = {
       status: "retired",
       urls: { live: "https://old.example", repo: null, orangecat: null, solon: null },
     }),
+    // A visitor's website brief, still named by its request id, with the
+    // kickoff prompt as its purpose and no consent: never a door.
+    entry({
+      slug: "bakery-ch-refresh-68e1f4947961419d9e7c46f68e180a45",
+      name: "bakery-ch-refresh-68e1f4947961419d9e7c46f68e180a45",
+      status: "not live",
+      what: "Develop a new version of this existing website: https://www.bakery.ch/ Requested changes (the customer's exact words): Swiss German flashcards and a shop.",
+      identity: {
+        problem: "Swiss German flashcards",
+        solution: "flashcards",
+        mission: null,
+        vision: null,
+      },
+    }),
+    // Someone else's work without their recorded consent.
+    entry({
+      slug: "quietclient",
+      name: "Quietclient",
+      what: "Swiss German flashcards for a school.",
+      owner: "a-school",
+      client: { consentedAt: null },
+      urls: { live: "https://quiet.example", repo: null, orangecat: null, solon: null },
+    }),
   ],
 };
 
@@ -128,6 +151,8 @@ const facts = renderConciergeFacts(map);
 assert.ok(!/client/i.test(facts), "facts never say client");
 assert.ok(!facts.includes("Oldthing"), "retired projects are not offered");
 assert.ok(!facts.includes("Dogfood"), "a throwaway run is not offered");
+assert.ok(!facts.includes("refresh-68e1f"), "a brief still named by its request is not offered");
+assert.ok(!facts.includes("Quietclient"), "client work without consent is not offered");
 assert.ok(
   !facts.includes("Unwritten"),
   "a project that is not running and has no written problem is not offered",
@@ -248,6 +273,12 @@ assert.deepEqual(linksForReply("heidiland", map, BASE), []);
 const fb = fallbackAnswer("I want to learn Swiss German", map, BASE);
 assert.equal(fb.links[0]?.url, "https://heidi.example");
 assert.ok(!fb.links.some((l) => l.url === "https://old.example"));
+// Words that match the brief and the unconsented client by keyword still
+// route only to what may be shown (seen live: a request id named to a visitor).
+const leak = fallbackAnswer("Swiss German flashcards", map, BASE);
+assert.ok(!/refresh-68e1f|Quietclient/.test(leak.reply), leak.reply);
+assert.ok(!leak.links.some((l) => /quiet\.example|refresh/.test(l.url)));
+assert.ok(!/isn't available/.test(leak.reply), "the fallback does not announce itself as broken");
 const none = fallbackAnswer("zzzz qqqq", map, BASE);
 assert.equal(none.links.length, 2);
 assert.ok(none.links.some((l) => l.url.endsWith("/work/")));
