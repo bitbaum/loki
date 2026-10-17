@@ -206,3 +206,16 @@ export const CLAUDE_MODES: Record<string, { label: string; means: string }> = {
     means: "Runs everything without asking, including risky commands.",
   },
 };
+
+/**
+ * Claude Code's effort levels, as it writes them on each answer in its log
+ * (`effort`). Higher thinks longer before answering. A level this table does
+ * not know is shown by its own name.
+ */
+export const CLAUDE_EFFORTS: Record<string, string> = {
+  low: "Low effort",
+  medium: "Medium effort",
+  high: "High effort",
+  xhigh: "Extra-high effort",
+  max: "Max effort",
+};

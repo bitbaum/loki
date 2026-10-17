@@ -31,6 +31,8 @@ const Item = z.discriminatedUnion("kind", [
     text: z.string().max(20_000),
     // The model that wrote it (runner with the 2026-10-15 log reader+).
     model: z.string().max(80).optional(),
+    // How hard it thought, e.g. "high" (runner with the 2026-10-17 reader+).
+    effort: z.string().max(12).optional(),
   }),
   z.object({
     id: z.string().max(200),
