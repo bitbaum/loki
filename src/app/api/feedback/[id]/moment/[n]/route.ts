@@ -59,7 +59,7 @@ export async function GET(
   });
   if (!shot.ok)
     return jsonError(
-      shot.reason === "no-browser"
+      shot.reason !== "did-not-load"
         ? "No browser on the server to take the picture"
         : "The page did not load",
       503,

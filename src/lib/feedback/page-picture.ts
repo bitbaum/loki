@@ -61,8 +61,46 @@ const SYSTEM_BROWSERS = [
 ];
 
 export type PagePicture =
-  | { ok: true; mimeType: "image/jpeg"; base64: string }
-  | { ok: false; reason: "no-browser" | "did-not-load" };
+  { ok: true; mimeType: "image/jpeg"; base64: string } | { ok: false; reason: PictureFailure };
+
+/** Why there is no picture: Playwright itself is missing from this build, no
+ *  browser is installed for it, or the page did not load. */
+export type PictureFailure = "no-playwright" | "no-browser" | "did-not-load";
+
+/**
+ * Can this server take pictures at all? Answered without launching anything
+ * and shown on /api/health, so "no browser" is a fact an operator reads off
+ * the health line instead of discovering it on a card weeks later (the box
+ * had none from the day the feature shipped until 2026-10-17, and every
+ * picture quietly fell back to a link).
+ */
+export type BrowserStatus = {
+  /** Playwright itself is in this build (it is a devDependency the standalone must trace). */
+  playwright: boolean;
+  /** The Chromium Playwright would launch, or null when none is installed for it. */
+  browser: string | null;
+  ok: boolean;
+};
+
+let statusAt = 0;
+let status: BrowserStatus | null = null;
+const STATUS_TTL_MS = 60_000;
+
+export async function browserStatus(): Promise<BrowserStatus> {
+  if (status && Date.now() - statusAt < STATUS_TTL_MS) return status;
+  let playwright = false;
+  let browser: string | null = null;
+  try {
+    const pw = await import("playwright");
+    playwright = true;
+    browser = await browserPath(pw.chromium);
+  } catch {
+    playwright = false;
+  }
+  status = { playwright, browser, ok: playwright && Boolean(browser) };
+  statusAt = Date.now();
+  return status;
+}
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -115,7 +153,7 @@ async function takeOne(
   try {
     ({ chromium } = await import("playwright"));
   } catch {
-    return { ok: false, reason: "no-browser" };
+    return { ok: false, reason: "no-playwright" };
   }
   const executablePath = await browserPath(chromium);
   if (!executablePath) return { ok: false, reason: "no-browser" };

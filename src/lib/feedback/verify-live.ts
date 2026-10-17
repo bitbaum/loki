@@ -117,7 +117,7 @@ async function askPicture(
       answer: null,
       dataUrl: null,
       failed:
-        shot.reason === "no-browser"
+        shot.reason !== "did-not-load"
           ? "this server has no browser to take a picture with"
           : "the page did not load for a picture",
     };
