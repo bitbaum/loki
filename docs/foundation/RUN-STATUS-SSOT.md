@@ -60,7 +60,15 @@ needs you / failed, with one sentence for the whole:
 | Checks passed and merged | the fix ledger's `merged`/`deploying`/`deployed` | — |
 | Live on `<site>` | the fix ledger's `deployed`, with Loki's look under it | a green CI check |
 
-The route (`/api/projects/[id]/watch`) carries `track` and `following`; the
+Every stage carries `at` (when it happened or began) and `facts` (which
+builder, which pull request, which deploy run, what Loki saw); the page turns
+the whens into "took 1m 20s" per stage and a one-second clock on the stage
+happening now (`stageTimings`), and a tap on a row opens its facts — for the
+working stage, the agent's screen as Watch last saw it. After the run, the
+same card plays the pull request's Walkthrough (`lib/feedback/fix-note`, now
+asked of every project dispatch too, not only visitor fixes).
+
+The route (`/api/projects/[id]/watch`) carries `track`, `following` and `walkthrough`; the
 page polls every 10 s after the run closes until the track settles (live and
 looked at, closed without merging, or nothing reached GitHub), and not after.
 A stage is never claimed on the clock: "merged" means GitHub said so.

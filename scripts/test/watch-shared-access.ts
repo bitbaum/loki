@@ -79,7 +79,7 @@ async function main() {
     },
     listRunEventsForRun: async (_id: string, owner: string) => {
       await ownerOnly(owner);
-      return [];
+      return [{ kind: "dispatched", detail: null, createdAt: new Date() }];
     },
     db: { select: () => query },
     promptHistory: { userId: "userId", runId: "runId", dispatchedAt: "at" },
@@ -119,6 +119,7 @@ async function main() {
     ORCHESTRATION_OUTCOME,
     RUN_BLOCKED,
     FOLLOW_WINDOW_MS: 48 * 60 * 60_000,
+    BUILDER_WORDS: { cloud: "the cloud builder", local: "this computer" },
     findLiveRunEvidence: async (owner: string) => {
       await ownerOnly(owner);
       return null;

@@ -29,6 +29,7 @@ import { FOLLOW_WINDOW_MS, followRunLedger } from "@/lib/run-follow";
 import { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
 import { ORCHESTRATION_OUTCOME } from "@/lib/orchestration/contract";
 import { RUN_BLOCKED } from "@/lib/run-progress";
+import type { RunEventKind } from "@/db/schema/run-events";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import { providerLabel } from "@/config/quota-alternatives";
 
@@ -49,6 +50,12 @@ import { providerLabel } from "@/config/quota-alternatives";
  * `?run=<id>` pins one run of THIS project — the widget's "Follow the build"
  * for one change must keep showing that change, not whatever ran last.
  */
+/** The builder in the person's words — the track says who picked it up. */
+const BUILDER_WORDS: Record<string, string> = {
+  cloud: "the cloud builder",
+  local: "this computer",
+};
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -173,21 +180,41 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const provider = providerLabel(run.adapter);
   const error = run.payload?.error ?? snap?.error ?? null;
+  // The first time each hop happened — the track dates its stages by these.
+  const eventTimes: Partial<Record<RunEventKind, string>> = {};
+  for (const e of events) eventTimes[e.kind] ??= e.createdAt.toISOString();
+  // A pull request the ledger discounted (opened before the run) is not this
+  // change's; the track must not point at it.
+  const ownPr = fix && !fix.foreignPr ? (fix.pr ?? null) : null;
   const track = buildRunTrack({
     eventKinds: events.map((e) => e.kind),
-    run: { finishedAt: run.finishedAt?.toISOString() ?? null, outcome: run.outcome ?? null },
+    eventTimes,
+    run: {
+      startedAt: run.startedAt.toISOString(),
+      finishedAt: run.finishedAt?.toISOString() ?? null,
+      outcome: run.outcome ?? null,
+    },
+    askedAt: promptRow?.dispatchedAt?.toISOString() ?? null,
     phase: view.phase,
     stalled: view.stalled,
+    lastProgressAt: snap?.lastProgressAt ?? null,
     needsYou: snap?.blocked === RUN_BLOCKED.AUTH ? "It is waiting at a sign-in prompt." : null,
+    builderLabel: BUILDER_WORDS[snap?.builderChannel ?? ""] ?? null,
     evidence,
     fix: fix
       ? {
           state: fix.state,
-          // A pull request the ledger discounted (opened before the run) is
-          // not this change's; the track must not point at it.
-          prUrl: fix.foreignPr ? null : (fix.pr?.url ?? null),
+          prUrl: ownPr?.url ?? null,
+          prTitle: ownPr?.title ?? null,
+          prNumber: ownPr?.number ?? null,
+          mergedAt: ownPr?.mergedAt ?? null,
+          deploy: fix.deploy
+            ? { name: fix.deploy.name, url: fix.deploy.url, at: fix.deploy.at ?? null }
+            : null,
           liveUrl: follow?.liveUrl ?? null,
-          looked: fix.verify ? { verdict: fix.verify.verdict } : null,
+          looked: fix.verify
+            ? { verdict: fix.verify.verdict, evidence: fix.verify.evidence, at: fix.verify.at }
+            : null,
         }
       : null,
     liveUrl: up?.liveUrl ?? null,
@@ -227,6 +254,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       track,
       following,
       follow,
+      // The agent's own account of the change, from the pull request — what
+      // was wrong, what changed, why, who it helps, what it costs.
+      walkthrough: ownPr?.note ?? null,
       liveUrl: up?.liveUrl ?? null,
       tab: ownerView ? tab : undefined,
       provider: {

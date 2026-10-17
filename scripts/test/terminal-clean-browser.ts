@@ -16,7 +16,7 @@ async function main() {
       resolveDir: process.cwd(),
       loader: "jsx",
       contents: `import React from 'react';import{createRoot}from'react-dom/client';import{ClaudeChatView}from'./src/components/terminal/ClaudeChatView';import{ProjectWatchLive}from'./src/components/projects/ProjectWatchLive';import{TerminalMobileHeader}from'./src/components/terminal/TerminalMobileHeader';import{MobileNav}from'./src/components/shell/MobileNav';import{ProjectCard}from'./src/components/control/ProjectCard';import{FleetProjectRoute}from'./src/components/projects/FleetProjectRoute';import{FleetSurfaceGuide}from'./src/components/shell/FleetSurfaceGuide';
-      const p={id:'project',projectId:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',tab:'petvity',liveTab:null,dir:'/tmp/petvity',agentPref:'claude',modelPref:null,session:null,git:null,sessionLifecycleSignals:true,agentRunning:false,verifiedRunActive:false,activeAgents:[],profile:null,currentPrompt:null,readyAt:null,lockAt:null,closingAt:null,closedAt:null,recentCustomPrompts:[],recentActivity:[],recentOutcomes:[],liveAgentTurns:null,latestOrchestrationRun:null,autoInjectModeOverride:'off',autoContinueEnabled:true,promptQueue:[],promptQueueRevision:0};const root=createRoot(document.getElementById('app')); window.mount=(fixture)=>{window.fixture=fixture;window.fixturePath=fixture.context?'/projects/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/watch':'/terminal';root.render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" style={{height:48}}>Loki</div>{fixture.context&&<FleetSurfaceGuide/>}<main className="app-main"><div className="app-page app-viewport-pane flex flex-col" data-fc-place="tab"><TerminalMobileHeader title="Petvity" state="live" agent="Claude" onOpenSheet={()=>{}} immersive={false} onToggleImmersive={()=>{}} view="chat" onViewChange={()=>{}}/>{fixture.context?<FleetProjectRoute pathname={window.fixturePath} project="loki"/>:fixture.card?<ProjectCard key={fixture.key} project={p} prompts={[]} liveTabs={[]} currentAdapter="claude" availableAgents={[{id:"claude",label:"Claude",modelSuggestions:[]}]} onInject={async()=>{}} onRunWithBrain={async()=>{}} onRunCustomPrompt={async()=>{}} automationMode="on" nowS={Date.now()/1000}/>:fixture.watch?<ProjectWatchLive key={fixture.key} working={false} projectId="example" provider="Grok" startedAt={null} screen={null} fallbackHeadline="Queued" tab={null} terminalHref={null} autopilot={{override:null,inherited:'on'}}/>:<ClaudeChatView key={fixture.key} tab="petvity" channel="cloud" onLive={state=>{window.streamState=state}} onKey={async bytes=>{if(window.failSend)throw Error('offline');window.written.push(bytes)}} onShowTerminal={()=>{window.openedTerminal=true}} onExplain={()=>{window.explained=true}}/>}</div></main></div><MobileNav/></div>)};window.written=[];`,
+      const p={id:'project',projectId:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',tab:'petvity',liveTab:null,dir:'/tmp/petvity',agentPref:'claude',modelPref:null,session:null,git:null,sessionLifecycleSignals:true,agentRunning:false,verifiedRunActive:false,activeAgents:[],profile:null,currentPrompt:null,readyAt:null,lockAt:null,closingAt:null,closedAt:null,recentCustomPrompts:[],recentActivity:[],recentOutcomes:[],liveAgentTurns:null,latestOrchestrationRun:null,autoInjectModeOverride:'off',autoContinueEnabled:true,promptQueue:[],promptQueueRevision:0};const root=createRoot(document.getElementById('app')); window.mount=(fixture)=>{window.fixture=fixture;window.fixturePath=fixture.context?'/projects/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/watch':'/terminal';root.render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" style={{height:48}}>Loki</div>{fixture.context&&<FleetSurfaceGuide/>}<main className="app-main"><div className="app-page app-viewport-pane flex flex-col" data-fc-place="tab"><TerminalMobileHeader title="Petvity" state="live" agent="Claude" onOpenSheet={()=>{}} immersive={false} onToggleImmersive={()=>{}} view="chat" onViewChange={()=>{}}/>{fixture.context?<FleetProjectRoute pathname={window.fixturePath} project="loki"/>:fixture.card?<ProjectCard key={fixture.key} project={p} prompts={[]} liveTabs={[]} currentAdapter="claude" availableAgents={[{id:"claude",label:"Claude",modelSuggestions:[]}]} onInject={async()=>{}} onRunWithBrain={async()=>{}} onRunCustomPrompt={async()=>{}} automationMode="on" nowS={Date.now()/1000}/>:fixture.watch?<ProjectWatchLive key={fixture.key} phase="waiting" projectId="example" provider="Grok" startedAt={null} finishedAt={null} screen={null} fallbackHeadline="Queued" tab={null} terminalHref={null} autopilot={{override:null,inherited:'on'}} track={fixture.track??null} follow={null} walkthrough={null}/>:<ClaudeChatView key={fixture.key} tab="petvity" channel="cloud" onLive={state=>{window.streamState=state}} onKey={async bytes=>{if(window.failSend)throw Error('offline');window.written.push(bytes)}} onShowTerminal={()=>{window.openedTerminal=true}} onExplain={()=>{window.explained=true}}/>}</div></main></div><MobileNav/></div>)};window.written=[];`,
     },
     metafile: true,
     bundle: true,
@@ -159,6 +159,87 @@ async function main() {
       await mount("queued", [], { watch: true });
       await page.getByRole("heading", { name: "Queued" }).waitFor();
       assert.equal(await page.getByText("Grok is working", { exact: false }).count(), 0);
+      // The delivery track under the headline: the stage happening now wears
+      // a running clock, and a tap on it opens the facts behind it.
+      const askedAt = new Date(Date.now() - 65_000).toISOString();
+      await mount("queued-track", [], {
+        watch: true,
+        track: {
+          summary: "Waiting for a builder to pick it up — usually under a minute.",
+          settled: false,
+          current: "builder",
+          stages: [
+            {
+              id: "asked",
+              label: "You asked",
+              state: "done",
+              note: null,
+              href: null,
+              linkLabel: null,
+              at: askedAt,
+              facts: [{ text: "Sent to Grok.", at: askedAt }],
+            },
+            {
+              id: "builder",
+              label: "Waiting for a builder",
+              state: "now",
+              note: "Usually under a minute.",
+              href: null,
+              linkLabel: null,
+              at: askedAt,
+              facts: [{ text: "The job is on the queue; the next free builder claims it." }],
+            },
+            {
+              id: "working",
+              label: "Grok makes the change",
+              state: "next",
+              note: null,
+              href: null,
+              linkLabel: null,
+              at: null,
+              facts: [],
+            },
+            {
+              id: "pr",
+              label: "Pull request",
+              state: "next",
+              note: null,
+              href: null,
+              linkLabel: null,
+              at: null,
+              facts: [],
+            },
+            {
+              id: "merged",
+              label: "Checks and merge",
+              state: "next",
+              note: null,
+              href: null,
+              linkLabel: null,
+              at: null,
+              facts: [],
+            },
+            {
+              id: "live",
+              label: "Live",
+              state: "next",
+              note: null,
+              href: null,
+              linkLabel: null,
+              at: null,
+              facts: [],
+            },
+          ],
+        },
+      });
+      await page.getByRole("heading", { name: /Waiting for a builder to pick it up/ }).waitFor();
+      await page.locator(".ui-track-clock").waitFor();
+      assert.match(await page.locator(".ui-track-clock").innerText(), /^1m 0\ds$/);
+      await page.getByRole("button", { name: /Waiting for a builder/ }).click();
+      await page.getByText("The job is on the queue", { exact: false }).waitFor();
+      assert(!(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)));
+      await mount("queued", [], { watch: true });
+      await page.getByRole("heading", { name: "Queued" }).waitFor();
       await page.getByRole("button", { name: "Autopilot on", exact: true }).click();
       await page.getByRole("button", { name: "Autopilot paused", exact: true }).waitFor();
       await page

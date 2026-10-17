@@ -12,6 +12,13 @@
  * six minutes in, the fix ledger knew when it merged and deployed — but Watch
  * never put them on one line the person could read top to bottom.
  *
+ * Second ask, the same day, once the track was live: "how long each step
+ * takes or has taken by the moment I'm looking at it", and "clicking on it
+ * and seeing what's going on". So every stage carries WHEN it happened and
+ * the FACTS behind it (which builder, which pull request, which deploy run,
+ * what Loki saw), and stageTimings turns the whens into "took 1m 20s" and a
+ * clock on the stage that is happening now.
+ *
  * This is the pure half: run events, the fix ledger (lib/feedback/fix-shipping)
  * and repo evidence in, a fixed list of stages out, each one done / now /
  * next / needs-you / failed, with one plain sentence for the whole. The API
@@ -33,6 +40,14 @@ export type TrackStageId = (typeof TRACK_STAGE_IDS)[number];
  */
 export type TrackStageState = "done" | "now" | "next" | "attention" | "failed";
 
+/** One thing a person sees when they open a stage. */
+export type TrackFact = {
+  text: string;
+  /** ISO — when this fact happened, shown as a clock time beside it. */
+  at?: string | null;
+  href?: string | null;
+};
+
 export type TrackStage = {
   id: TrackStageId;
   label: string;
@@ -42,6 +57,10 @@ export type TrackStage = {
   /** Where to look: the pull request, the live page. */
   href: string | null;
   linkLabel: string | null;
+  /** ISO — when the stage happened (done) or began (now). Null when unknown. */
+  at: string | null;
+  /** What is behind the stage, for the tap that opens it. */
+  facts: TrackFact[];
 };
 
 export type RunTrack = {
@@ -57,20 +76,36 @@ export type RunTrack = {
 
 export type RunTrackInput = {
   eventKinds: RunEventKind[];
-  run: { finishedAt: string | null; outcome: string | null } | null;
+  /** ISO of the FIRST event of each kind. */
+  eventTimes: Partial<Record<RunEventKind, string>>;
+  run: { startedAt: string | null; finishedAt: string | null; outcome: string | null } | null;
+  /** When the person asked (prompt history), when known. */
+  askedAt: string | null;
   /** The work phase every surface reads (lib/feedback/work-phase). */
   phase: string | null;
   stalled: boolean;
+  /** ISO — the runner's last heartbeat that the agent printed something. */
+  lastProgressAt: string | null;
   /** The runner can name why the agent is quiet — a login prompt, a question. */
   needsYou: string | null;
+  /** Which builder has it, in words ("the cloud builder", "this computer"). */
+  builderLabel: string | null;
   /** Repo-side evidence found during or after the run (lib/repo-evidence). */
-  evidence: { kind: "pr" | "push"; url: string; title: string } | null;
+  evidence: { kind: "pr" | "push"; url: string; title: string; atMs?: number | null } | null;
   /** The fix ledger after the run closed, when one exists. */
   fix: {
     state: FixShipState;
     prUrl: string | null;
+    prTitle: string | null;
+    prNumber: number | null;
+    mergedAt: string | null;
+    deploy: { name: string; url: string | null; at: string | null } | null;
     liveUrl: string | null;
-    looked: { verdict: "looks_fixed" | "not_visible" | "cannot_tell" } | null;
+    looked: {
+      verdict: "looks_fixed" | "not_visible" | "cannot_tell";
+      evidence: string | null;
+      at: string | null;
+    } | null;
   } | null;
   liveUrl: string | null;
   /** The provider the way the person knows it — "Claude Code". */
@@ -112,6 +147,9 @@ const LOOKED_NOTE: Record<"looks_fixed" | "not_visible" | "cannot_tell", string>
   cannot_tell: "Loki opened the live page — could not tell from here.",
 };
 
+const iso = (ms: number | null | undefined): string | null =>
+  typeof ms === "number" && Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+
 /** The input, read once into the handful of facts every stage decides on. */
 type Facts = {
   input: RunTrackInput;
@@ -122,10 +160,13 @@ type Facts = {
   lastKind: RunEventKind | null;
   ship: FixShipState | null;
   prUrl: string | null;
+  prAt: string | null;
   pushed: boolean;
   site: string | null;
   working: boolean;
   provider: string;
+  askedAt: string | null;
+  startedWorkAt: string | null;
 };
 
 function readFacts(input: RunTrackInput): Facts {
@@ -135,6 +176,7 @@ function readFacts(input: RunTrackInput): Facts {
   const ship = input.fix?.state ?? null;
   const prUrl =
     input.fix?.prUrl ?? (input.evidence?.kind === "pr" ? input.evidence.url : null) ?? null;
+  const t = input.eventTimes;
   return {
     input,
     finished,
@@ -146,10 +188,13 @@ function readFacts(input: RunTrackInput): Facts {
     lastKind: input.eventKinds.at(-1) ?? null,
     ship,
     prUrl,
+    prAt: input.evidence?.kind === "pr" ? iso(input.evidence.atMs) : null,
     pushed: ship === FIX_SHIP_STATE.PUSHED || (!prUrl && input.evidence?.kind === "push"),
     site: hostOf(input.fix?.liveUrl ?? input.liveUrl),
     working: input.phase === "working" && !input.stalled,
     provider: input.providerLabel,
+    askedAt: input.askedAt ?? input.run?.startedAt ?? null,
+    startedWorkAt: t.generating ?? t.submitted ?? t.launched ?? t.claimed ?? null,
   };
 }
 
@@ -157,138 +202,223 @@ const stage = (
   id: TrackStageId,
   label: string,
   state: TrackStageState,
-  note: string | null = null,
-  link: { href: string; label: string } | null = null,
+  extra: {
+    note?: string | null;
+    link?: { href: string; label: string } | null;
+    at?: string | null;
+    facts?: TrackFact[];
+  } = {},
 ): TrackStage => ({
   id,
   label,
   state,
-  note,
-  href: link?.href ?? null,
-  linkLabel: link?.label ?? null,
+  note: extra.note ?? null,
+  href: extra.link?.href ?? null,
+  linkLabel: extra.link?.label ?? null,
+  at: extra.at ?? null,
+  facts: extra.facts ?? [],
 });
 
+function askedStage(f: Facts): TrackStage {
+  const to = f.input.builderLabel ? `${f.provider} on ${f.input.builderLabel}` : f.provider;
+  return stage("asked", "You asked", "done", {
+    at: f.askedAt,
+    facts: [{ text: `Sent to ${to}.`, at: f.askedAt }],
+  });
+}
+
 function builderStage(f: Facts): TrackStage {
-  if (f.started) return stage("builder", "A builder picked it up", "done");
+  const t = f.input.eventTimes;
+  const who = f.input.builderLabel ?? "A builder";
+  const facts: TrackFact[] = [];
+  if (t.claimed) facts.push({ text: `${who} claimed the job.`, at: t.claimed });
+  if (t.launched) facts.push({ text: `Opened an agent session.`, at: t.launched });
+  if (t.submitted)
+    facts.push({ text: `Delivered your request to ${f.provider}.`, at: t.submitted });
+  if (f.started)
+    return stage("builder", `${who === "A builder" ? "A builder" : who} picked it up`, "done", {
+      at: t.claimed ?? t.launched ?? t.submitted ?? t.generating ?? t.progress ?? null,
+      facts,
+    });
   // The reason is the card's headline (summaryOf); saying it twice, one line
   // apart, is what the first preview showed.
-  if (f.finished) return stage("builder", "No builder picked it up", "failed");
+  if (f.finished) return stage("builder", "No builder picked it up", "failed", { at: f.askedAt });
   if (f.input.stalled)
-    return stage(
-      "builder",
-      "Waiting for a builder",
-      "attention",
-      "Nobody has picked it up for a while.",
-    );
-  return stage("builder", "Waiting for a builder", "now", "Usually under a minute.");
+    return stage("builder", "Waiting for a builder", "attention", {
+      note: "Nobody has picked it up for a while.",
+      at: f.askedAt,
+      facts: [{ text: "Builders claim work every few seconds; a long wait means none is online." }],
+    });
+  return stage("builder", "Waiting for a builder", "now", {
+    note: "Usually under a minute.",
+    at: f.askedAt,
+    facts: [{ text: "The job is on the queue; the next free builder claims it." }],
+  });
 }
 
 function workingStage(f: Facts): TrackStage {
   const p = f.provider;
-  if (f.prUrl || f.pushed) return stage("working", `${p} made the change`, "done");
+  const t = f.input.eventTimes;
+  const facts: TrackFact[] = [];
+  if (t.generating) facts.push({ text: `${p} started working.`, at: t.generating });
+  if (f.input.lastProgressAt)
+    facts.push({ text: "Last output on its screen.", at: f.input.lastProgressAt });
+  if (t.handoff) facts.push({ text: `${p} handed the work back.`, at: t.handoff });
+  // A pull request exists but the agent is still in the session: it is
+  // wrapping up (final checks, the handoff). Without this the live track had
+  // no stage marked "now" at all, and a running agent read as idle.
+  if ((f.prUrl || f.pushed) && !f.finished)
+    return stage("working", `${p} is finishing up`, "now", {
+      note: "The change is pushed; it is doing its final checks.",
+      at: f.startedWorkAt,
+      facts,
+    });
+  if (f.prUrl || f.pushed)
+    return stage("working", `${p} made the change`, "done", {
+      at: f.prAt ?? t.handoff ?? f.input.run?.finishedAt ?? null,
+      facts,
+    });
   if (f.finished)
     return f.finishedWell
-      ? stage("working", `${p} finished`, "done")
-      : stage("working", `${p} stopped`, "failed");
+      ? stage("working", `${p} finished`, "done", {
+          at: t.handoff ?? f.input.run?.finishedAt ?? null,
+          facts,
+        })
+      : stage("working", `${p} stopped`, "failed", {
+          at: f.input.run?.finishedAt ?? null,
+          facts,
+        });
   if (!f.started) return stage("working", `${p} makes the change`, "next");
   if (f.input.needsYou || f.lastKind === "blocked")
-    return stage(
-      "working",
-      `${p} needs you`,
-      "attention",
-      f.input.needsYou ?? "It is waiting for an answer.",
-    );
+    return stage("working", `${p} needs you`, "attention", {
+      note: f.input.needsYou ?? "It is waiting for an answer.",
+      at: t.blocked ?? f.startedWorkAt,
+      facts,
+    });
   if (f.input.stalled)
-    return stage(
-      "working",
-      `${p} went quiet`,
-      "attention",
-      "No output for a while — it may be stuck.",
-    );
+    return stage("working", `${p} went quiet`, "attention", {
+      note: "No output for a while — it may be stuck.",
+      at: f.startedWorkAt,
+      facts,
+    });
   const busy = f.working || f.generated;
-  return stage(
-    "working",
-    busy ? `${p} is making the change` : `${p} is starting`,
-    "now",
-    busy ? null : "The agent is opening the project.",
-  );
+  return stage("working", busy ? `${p} is making the change` : `${p} is starting`, "now", {
+    note: busy ? null : "The agent is opening the project.",
+    at: f.startedWorkAt,
+    facts,
+  });
 }
 
 function prStage(f: Facts): TrackStage {
   const ev = f.input.evidence;
-  if (f.prUrl)
-    return stage(
-      "pr",
-      "Pull request opened",
-      "done",
-      f.input.fix?.prUrl ? null : (ev?.title ?? null),
-      { href: f.prUrl, label: "See the change" },
-    );
+  const fix = f.input.fix;
+  if (f.prUrl) {
+    const title = fix?.prTitle ?? (ev?.kind === "pr" ? ev.title : null);
+    const number = fix?.prNumber;
+    return stage("pr", "Pull request opened", "done", {
+      note: title ? (number ? `#${number} · ${title}` : title) : null,
+      link: { href: f.prUrl, label: "See the change" },
+      at: f.prAt,
+      facts: [
+        {
+          text: "The change is on a branch of its own, so nothing on the site moves until it is checked.",
+        },
+        ...(f.prAt ? [{ text: "Opened.", at: f.prAt }] : []),
+      ],
+    });
+  }
   if (f.pushed)
-    return stage(
-      "pr",
-      "Pushed to a branch",
-      f.finished ? "attention" : "now",
-      f.finished
+    return stage("pr", "Pushed to a branch", f.finished ? "attention" : "now", {
+      note: f.finished
         ? "No pull request was opened, so it cannot merge by itself."
         : "A pull request usually follows in a moment.",
-      ev?.kind === "push" ? { href: ev.url, label: "See the branch" } : null,
-    );
+      link: ev?.kind === "push" ? { href: ev.url, label: "See the branch" } : null,
+      at: ev?.kind === "push" ? iso(ev.atMs) : null,
+    });
   if (f.finishedWell && f.ship === FIX_SHIP_STATE.NO_EVIDENCE)
-    return stage(
-      "pr",
-      "Nothing reached GitHub",
-      "failed",
-      "The agent finished, but no branch or pull request was found.",
-    );
-  if (f.finishedWell) return stage("pr", "Looking for the pull request", "now", "Checking GitHub.");
+    return stage("pr", "Nothing reached GitHub", "failed", {
+      note: "The agent finished, but no branch or pull request was found.",
+      at: f.input.run?.finishedAt ?? null,
+    });
+  if (f.finishedWell)
+    return stage("pr", "Looking for the pull request", "now", {
+      note: "Checking GitHub.",
+      at: f.input.run?.finishedAt ?? null,
+    });
   return stage("pr", "Pull request", "next");
 }
 
 function mergedStage(f: Facts): TrackStage {
+  const fix = f.input.fix;
   if (f.ship && MERGED_STATES.has(f.ship))
-    return stage("merged", "Checks passed and merged", "done");
+    return stage("merged", "Checks passed and merged", "done", {
+      at: fix?.mergedAt ?? null,
+      facts: [
+        { text: "Every check on the pull request passed." },
+        { text: "Merged into the main branch.", at: fix?.mergedAt ?? null },
+      ],
+    });
   if (f.ship === FIX_SHIP_STATE.PR_CLOSED)
-    return stage(
-      "merged",
-      "Closed without merging",
-      "failed",
-      "The pull request was closed, so nothing shipped.",
-    );
+    return stage("merged", "Closed without merging", "failed", {
+      note: "The pull request was closed, so nothing shipped.",
+    });
   if (f.ship === FIX_SHIP_STATE.PR_OPEN)
-    return stage("merged", "Checks running", "now", "It merges by itself once they pass.");
+    return stage("merged", "Checks running", "now", {
+      note: "It merges by itself once they pass.",
+      at: f.prAt,
+      facts: [
+        {
+          text: "Tests, lint and a build run on the change; a green result merges it with nobody pressing a button.",
+          href: f.prUrl ? `${f.prUrl}/checks` : null,
+        },
+      ],
+    });
   return stage("merged", "Checks and merge", "next");
 }
 
 function liveStage(f: Facts): TrackStage {
+  const fix = f.input.fix;
   const label = f.site ? `Live on ${f.site}` : "Live";
-  const url = f.input.fix?.liveUrl ?? f.input.liveUrl;
-  if (f.ship === FIX_SHIP_STATE.DEPLOYED)
-    return stage(
-      "live",
-      label,
-      "done",
-      f.input.fix?.looked
-        ? LOOKED_NOTE[f.input.fix.looked.verdict]
+  const url = fix?.liveUrl ?? f.input.liveUrl;
+  const deployFact: TrackFact[] = fix?.deploy
+    ? [
+        {
+          text: `Deploy run: ${fix.deploy.name}.`,
+          at: fix.deploy.at,
+          href: fix.deploy.url,
+        },
+      ]
+    : [];
+  if (f.ship === FIX_SHIP_STATE.DEPLOYED) {
+    const looked = fix?.looked ?? null;
+    return stage("live", label, "done", {
+      note: looked
+        ? LOOKED_NOTE[looked.verdict]
         : f.site
           ? "Loki is opening the live page to check."
           : null,
-      url ? { href: url, label: "Open the live page" } : null,
-    );
+      link: url ? { href: url, label: "Open the live page" } : null,
+      at: fix?.deploy?.at ?? looked?.at ?? null,
+      facts: [
+        ...deployFact,
+        ...(looked?.evidence ? [{ text: looked.evidence, at: looked.at }] : []),
+      ],
+    });
+  }
   if (f.ship === FIX_SHIP_STATE.DEPLOY_FAILED)
-    return stage(
-      "live",
-      "The deploy failed",
-      "failed",
-      "Merged, but the site did not take the new build.",
-    );
+    return stage("live", "The deploy failed", "failed", {
+      note: "Merged, but the site did not take the new build.",
+      at: fix?.deploy?.at ?? null,
+      facts: deployFact,
+    });
   if (f.ship === FIX_SHIP_STATE.MERGED || f.ship === FIX_SHIP_STATE.DEPLOYING)
-    return stage(
-      "live",
-      "Deploying",
-      "now",
-      f.site ? `${f.site} gets the new build in a few minutes.` : "A few minutes.",
-    );
+    return stage("live", "Deploying", "now", {
+      note: f.site ? `${f.site} gets the new build in a few minutes.` : "A few minutes.",
+      at: fix?.mergedAt ?? null,
+      facts: deployFact.length
+        ? deployFact
+        : [{ text: "The build runs on GitHub, then the box swaps to it and health-checks." }],
+    });
   return stage("live", label, "next");
 }
 
@@ -337,14 +467,7 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
   const f = readFacts(input);
   const builder = builderStage(f);
   const work = workingStage(f);
-  const stages = [
-    stage("asked", "You asked", "done"),
-    builder,
-    work,
-    prStage(f),
-    mergedStage(f),
-    liveStage(f),
-  ];
+  const stages = [askedStage(f), builder, work, prStage(f), mergedStage(f), liveStage(f)];
 
   const settled =
     (f.ship === FIX_SHIP_STATE.DEPLOYED && (Boolean(input.fix?.looked) || !f.site)) ||
@@ -359,4 +482,47 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
     "asked";
 
   return { stages, summary: summaryOf(f, builder, work), settled, current };
+}
+
+// ── Timing ─────────────────────────────────────────────────────────────────
+
+export type StageTiming = {
+  /** Seconds from the previous timed stage to this one — "took 1m 20s". */
+  took: number | null;
+  /** Seconds this stage has been the current one — the clock. */
+  soFar: number | null;
+};
+
+/**
+ * Pure, and client-safe: the page calls it every second for the stage that
+ * is happening now. A "took" needs two timestamps; a stage with none, or the
+ * first one, shows nothing rather than a guess. Clock time is never shown
+ * for the ask itself — "took" there would be the time before the person
+ * pressed send, which is theirs, not the system's.
+ */
+export function stageTimings(stages: TrackStage[], now: number = Date.now()): StageTiming[] {
+  let prev: number | null = null;
+  return stages.map((s) => {
+    const at = s.at ? Date.parse(s.at) : NaN;
+    const has = Number.isFinite(at);
+    const timing: StageTiming = { took: null, soFar: null };
+    if (s.state === "done" && has && prev !== null && s.id !== "asked")
+      timing.took = Math.max(0, Math.round((at - prev) / 1000));
+    if ((s.state === "now" || s.state === "attention") && has)
+      timing.soFar = Math.max(0, Math.round((now - at) / 1000));
+    if (has) prev = at;
+    return timing;
+  });
+}
+
+/** "1m 20s", "48s", "1h 03m" — short enough for a column on a phone. */
+export function formatStageSeconds(seconds: number): string {
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${h}h ${String(m).padStart(2, "0")}m`;
+  }
+  if (seconds >= 60)
+    return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
+  return `${seconds}s`;
 }

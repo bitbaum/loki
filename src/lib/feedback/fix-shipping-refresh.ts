@@ -192,6 +192,7 @@ function readRuns(body: unknown): GithubWorkflowRun[] {
       head_sha: str(r.head_sha),
       event: str(r.event),
       created_at: str(r.created_at),
+      updated_at: str(r.updated_at),
       head_commit: hc ? { message: str(hc.message), timestamp: str(hc.timestamp) } : null,
     };
   });

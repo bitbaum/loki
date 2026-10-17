@@ -1,22 +1,25 @@
 "use client";
 
 /**
- * The top of Watch while an agent is working: Loki narrating the build in the
- * person's own terms, the story so far, and the two ways to drive it — steer
- * it with a sentence, or let it run on autopilot. Both feelings on one card:
- * you always know what is happening, and you choose how much to hold on
- * (operator, 2026-10-07: "the user always feels in control unless they choose
- * to let go … this is what makes us special").
+ * THE card at the top of Watch — one card for the run's whole life, so the
+ * page never jumps between a "live" card and a "finished" card: waiting for
+ * a builder → the agent working (Loki narrating, the story so far, the box
+ * that steers it, the autopilot switch) → the change on its way through
+ * merge and deploy → live, with the engineer's walkthrough of what changed.
+ * Same element, same key; only its contents move (owner, 2026-10-17:
+ * "smooth movement between different screens and the user never wonders
+ * what's going on").
  *
  * Narration: hooks/use-watch-narration over lib/watch-narration. Until the
  * first narration lands, the headline is the agent's own current step from
- * the screen, so the card never opens empty.
+ * the screen, so the card never opens empty. Under the headline, the
+ * delivery track (lib/run-track) says what has actually happened.
  */
 
 import { useProjectAutopilot } from "@/hooks/use-project-autopilot";
 import { useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowUp, Check, Loader2, Sparkles } from "lucide-react";
+import { AlertCircle, ArrowUp, ArrowUpRight, Check, Loader2, Sparkles } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { timeAgo } from "@/lib/dates";
 import { withTerminalView } from "@/lib/fleet-context";
@@ -24,27 +27,34 @@ import { useWatchNarration } from "@/hooks/use-watch-narration";
 import { ProjectAutopilotToggle } from "@/components/control/ProjectAutopilotToggle";
 import type { AutoInjectMode } from "@/config/beacon";
 import type { RunTrack as RunTrackData } from "@/lib/run-track";
+import type { RunFollow } from "@/lib/run-handoff";
+import type { FixNote } from "@/lib/feedback/fix-note";
 import { RunTrack } from "./RunTrack";
+import { Walkthrough } from "./Walkthrough";
+
+export type WatchCardPhase = "waiting" | "working" | "attention" | "following" | "live" | "stopped";
 
 export function ProjectWatchLive({
   projectId,
   provider,
   startedAt,
+  finishedAt,
+  phase,
   screen,
   fallbackHeadline,
   tab,
   terminalHref,
   autopilot,
-  working,
   track,
+  follow,
+  walkthrough,
 }: {
-  working: boolean;
-  /** Where the change is, stage by stage (lib/run-track) — the facts under
-   *  the narrated headline. */
-  track: RunTrackData | null;
   projectId: string;
   provider: string;
   startedAt: string | null;
+  finishedAt: string | null;
+  /** The card's one state, decided by the page from the run and the track. */
+  phase: WatchCardPhase;
   /** The agent's screen as Watch last peeked it, or null before the first peek. */
   screen: string[] | null;
   /** What to say before Loki has narrated anything — the agent's own step. */
@@ -52,7 +62,12 @@ export function ProjectWatchLive({
   tab: string | null;
   terminalHref: string | null;
   autopilot: { override: AutoInjectMode | null; inherited: AutoInjectMode } | null;
+  track: RunTrackData | null;
+  follow: RunFollow | null;
+  walkthrough: FixNote | null;
 }) {
+  const working = phase === "working";
+  const live = phase === "waiting" || phase === "working" || phase === "attention";
   const story = useWatchNarration(projectId, screen, working);
   const now = story.at(-1)?.narration ?? null;
   const earlier = story.slice(0, -1).reverse();
@@ -62,29 +77,37 @@ export function ProjectWatchLive({
   );
   const autopilotOn = effectiveMode === "on";
 
+  const headline = working
+    ? (now?.headline ?? fallbackHeadline)
+    : (track?.summary ?? fallbackHeadline);
+  const liveStage = track?.stages.find((s) => s.id === "live") ?? null;
+  const liveHref = phase === "live" ? (liveStage?.href ?? follow?.liveUrl ?? null) : null;
+
   return (
     <section className="ui-watch-live" aria-live="polite">
       <p className="ui-watch-live-kicker">
-        <span className={working ? "ui-watch-live-dot" : "ui-dot-neutral"} aria-hidden="true" />
-        {/* "Waiting to start · started just now" said two opposite things in
-            one line (owner, 2026-10-16). Before the agent is on it, the time
-            is when it was ASKED; it has only started once it is working. */}
-        {working ? `${provider} is working` : "Next in line"}
-        {startedAt && (
+        <Dot phase={phase} />
+        {KICKER[phase](provider)}
+        {(startedAt || finishedAt) && (
           <span className="text-text-muted">
-            · {working ? "started" : "asked"} {timeAgo(new Date(startedAt).getTime())}
+            ·{" "}
+            {finishedAt
+              ? `finished ${timeAgo(new Date(finishedAt).getTime())}`
+              : working
+                ? `started ${timeAgo(new Date(startedAt!).getTime())}`
+                : `asked ${timeAgo(new Date(startedAt!).getTime())}`}
           </span>
         )}
       </p>
 
       <div className="space-y-1">
-        <h2 key={now?.headline ?? fallbackHeadline} className="ui-watch-headline">
-          {now?.headline ?? fallbackHeadline}
+        <h2 key={headline} className="ui-watch-headline">
+          {headline}
         </h2>
-        {now?.detail && <p className="text-sm text-text-secondary">{now.detail}</p>}
+        {working && now?.detail && <p className="text-sm text-text-secondary">{now.detail}</p>}
       </div>
 
-      {now?.needsYou && (
+      {working && now?.needsYou && (
         <div className="ui-callout-warning">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" aria-hidden="true" />
           <div className="min-w-0 space-y-1">
@@ -99,17 +122,58 @@ export function ProjectWatchLive({
         </div>
       )}
 
-      {/* The facts under the story: which stages have evidence behind them.
-          The narration above says what it is doing; this says what has
-          actually happened — a builder claimed it, a pull request exists —
-          so nobody has to take the headline on trust (owner, 2026-10-17). */}
+      {/* The facts under the story: which stages have evidence behind them,
+          with how long each took and a clock on the one happening now. */}
       {track && (
         <div className="border-t border-border-subtle pt-3">
-          <RunTrack track={track} />
+          <RunTrack
+            track={track}
+            screen={working ? screen : null}
+            terminalHref={
+              working && terminalHref
+                ? `${withTerminalView(terminalHref, "terminal")}&explain=1`
+                : null
+            }
+          />
         </div>
       )}
 
-      {earlier.length > 0 && (
+      {liveHref && (
+        <a
+          href={liveHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ui-btn-primary gap-1.5"
+        >
+          Open the live page <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+        </a>
+      )}
+
+      {walkthrough && !live && (
+        <Walkthrough note={walkthrough} liveUrl={follow?.liveUrl ?? liveStage?.href ?? null} />
+      )}
+
+      {follow?.pictureUrl && (
+        <a
+          href={follow.liveUrl ?? follow.pictureUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ui-loki-update-shot max-w-xs"
+        >
+          {/* An owner-only API image — next/image would fetch it without the session. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={follow.pictureUrl}
+            alt="The live page, as Loki saw it on a phone"
+            loading="lazy"
+          />
+          <span className="ui-loki-update-shot-caption">
+            The live page, as Loki saw it on a phone
+          </span>
+        </a>
+      )}
+
+      {working && earlier.length > 0 && (
         <ol className="ui-watch-story" aria-label="So far">
           {earlier.map((beat) => (
             <li key={`${beat.at}-${beat.narration.headline}`} className="ui-watch-story-item">
@@ -121,9 +185,9 @@ export function ProjectWatchLive({
         </ol>
       )}
 
-      {tab && <SteerBox tab={tab} />}
+      {live && tab && <SteerBox tab={tab} />}
 
-      {autopilot && (
+      {live && autopilot && (
         <div className="flex flex-col items-start gap-3 border-t border-border-subtle pt-3">
           <ProjectAutopilotToggle
             projectId={projectId}
@@ -139,7 +203,7 @@ export function ProjectWatchLive({
         </div>
       )}
 
-      {terminalHref && (
+      {live && terminalHref && (
         <Link
           href={`${withTerminalView(terminalHref, "terminal")}&explain=1`}
           className="ui-chat-link"
@@ -150,6 +214,29 @@ export function ProjectWatchLive({
       )}
     </section>
   );
+}
+
+const KICKER: Record<WatchCardPhase, (provider: string) => string> = {
+  waiting: () => "Next in line",
+  working: (p) => `${p} is working`,
+  attention: () => "Needs you",
+  following: () => "On its way",
+  live: () => "Live",
+  stopped: () => "Stopped",
+};
+
+function Dot({ phase }: { phase: WatchCardPhase }) {
+  if (phase === "working" || phase === "following")
+    return <span className="ui-watch-live-dot" aria-hidden="true" />;
+  const tone =
+    phase === "live"
+      ? "ui-dot-positive"
+      : phase === "attention"
+        ? "ui-dot-warning"
+        : phase === "stopped"
+          ? "ui-dot-negative"
+          : "ui-dot-neutral";
+  return <span className={`ui-dot ${tone}`} aria-hidden="true" />;
 }
 
 /** One sentence into the running session — steering without opening Terminal. */

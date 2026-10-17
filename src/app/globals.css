@@ -4781,6 +4781,69 @@
   .ui-track-link {
     @apply mt-1 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-text-primary underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-text-primary;
   }
+  /* The row is a button: the label, the time on the right, a chevron when
+     there is something behind it. A row with nothing to open keeps the same
+     shape and simply does not react. */
+  .ui-track-row {
+    @apply flex min-h-9 w-full items-start gap-2 text-left;
+  }
+  .ui-track-row:disabled {
+    @apply cursor-default;
+  }
+  .ui-track-row .ui-track-label {
+    @apply min-w-0 flex-1;
+  }
+  .ui-track-time {
+    @apply shrink-0 pt-0.5 text-xs tabular-nums text-text-muted;
+  }
+  .ui-track-clock {
+    @apply font-medium text-text-secondary;
+  }
+  .ui-track-chevron {
+    @apply mt-1 h-3.5 w-3.5 shrink-0 text-text-muted transition-transform;
+  }
+  .ui-track-detail {
+    @apply mb-2 mt-1 space-y-1.5 rounded-xl border border-border-subtle bg-surface-raised px-3 py-2;
+  }
+  .ui-track-fact {
+    @apply flex items-start gap-2 text-xs leading-relaxed text-text-secondary;
+  }
+  .ui-track-fact-at {
+    @apply shrink-0 tabular-nums text-text-muted;
+  }
+  .ui-track-screen {
+    @apply space-y-1 pt-1;
+  }
+  .ui-track-screen-text {
+    @apply max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-text-secondary;
+  }
+  /* State changes slide, not snap: a mark turning green is the news. */
+  .ui-track-mark,
+  .ui-track-label,
+  .ui-track-note {
+    @apply transition-colors duration-300;
+  }
+
+  /* The walkthrough: the engineer's account of a shipped change, as a
+     definition list — label above, text below, so a phone reads it as prose. */
+  .ui-walk {
+    @apply space-y-3 border-t border-border-subtle pt-4;
+  }
+  .ui-walk-title {
+    @apply text-sm font-semibold text-text-primary;
+  }
+  .ui-walk-list {
+    @apply space-y-3;
+  }
+  .ui-walk-row {
+    @apply space-y-0.5;
+  }
+  .ui-walk-label {
+    @apply text-xs font-medium uppercase tracking-caps text-text-tertiary;
+  }
+  .ui-walk-text {
+    @apply text-sm leading-relaxed text-text-primary wrap-anywhere;
+  }
   @keyframes ui-watch-rise {
     from {
       opacity: 0;
