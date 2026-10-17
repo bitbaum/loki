@@ -209,15 +209,50 @@ async function takeOne(
   let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
   try {
     browser = await chromium.launch({ headless: true, executablePath });
-    const page = await browser.newPage({
-      viewport: { ...PICTURE_VIEWPORT },
-      deviceScaleFactor: 1,
-      isMobile: true,
-      hasTouch: true,
-      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Loki fix check",
-      extraHTTPHeaders: opts.headers,
-    });
-    if (opts.cookies?.length) await page.context().addCookies(opts.cookies);
+    const first = await attempt(browser, url, selector, scrollY, opts, true);
+    if (first.ok || first.reason !== "did-not-load" || !first.afterResponse) return first;
+    // The page answered but could not be photographed: its scripts are the
+    // usual reason (a loop that never yields, a challenge page for a
+    // datacenter address — every capture waits for a frame the main thread
+    // never paints). The same address with scripts off is still the page as
+    // served, and it always paints.
+    const second = await attempt(browser, url, selector, scrollY, opts, false);
+    if (second.ok) return second;
+    return {
+      ok: false,
+      reason: "did-not-load",
+      detail: `${first.detail ?? "no picture"}; scripts off: ${second.detail ?? "no picture"}`,
+    };
+  } catch (e) {
+    return { ok: false, reason: "did-not-load", detail: firstLine(e) };
+  } finally {
+    await browser?.close().catch(() => undefined);
+  }
+}
+
+type Attempt = PagePicture & { afterResponse?: boolean };
+
+/** One page, one picture — with the site's scripts, or without them. */
+async function attempt(
+  browser: import("playwright").Browser,
+  url: string,
+  selector: string | null | undefined,
+  scrollY: number | null,
+  opts: PictureOptions,
+  javaScript: boolean,
+): Promise<Attempt> {
+  const context = await browser.newContext({
+    viewport: { ...PICTURE_VIEWPORT },
+    deviceScaleFactor: 1,
+    isMobile: true,
+    hasTouch: true,
+    javaScriptEnabled: javaScript,
+    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Loki fix check",
+    extraHTTPHeaders: opts.headers,
+  });
+  try {
+    if (opts.cookies?.length) await context.addCookies(opts.cookies);
+    const page = await context.newPage();
     // On a person's own machine (the desktop app) the private network is
     // theirs — their dev server on localhost is the page to look at.
     const seen = new Map<string, boolean>();
@@ -247,25 +282,27 @@ async function takeOne(
       });
     if (!res) return { ok: false, reason: "did-not-load", detail: failure || "no response" };
     if (!res.ok()) return { ok: false, reason: "did-not-load", detail: `HTTP ${res.status()}` };
-    await page.waitForLoadState("load", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
-    await page.waitForLoadState("networkidle", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
-    await page.waitForTimeout(SETTLE_MS);
-    if (selector) {
-      await page
-        .locator(selector)
-        .first()
-        .scrollIntoViewIfNeeded({ timeout: 2_000 })
-        .catch(() => undefined);
-      await page.waitForTimeout(300);
-    } else if (scrollY && scrollY > 0) {
-      await page.evaluate((y) => window.scrollTo(0, y), scrollY).catch(() => undefined);
-      await page.waitForTimeout(300);
+    try {
+      await page.waitForLoadState("load", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
+      await page.waitForLoadState("networkidle", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
+      await page.waitForTimeout(SETTLE_MS);
+      if (selector) {
+        await page
+          .locator(selector)
+          .first()
+          .scrollIntoViewIfNeeded({ timeout: 2_000 })
+          .catch(() => undefined);
+        await page.waitForTimeout(300);
+      } else if (scrollY && scrollY > 0) {
+        await page.evaluate((y) => window.scrollTo(0, y), scrollY).catch(() => undefined);
+        await page.waitForTimeout(300);
+      }
+      const bytes = await screenshot(page);
+      return { ok: true, mimeType: "image/jpeg", base64: Buffer.from(bytes).toString("base64") };
+    } catch (e) {
+      return { ok: false, reason: "did-not-load", detail: firstLine(e), afterResponse: true };
     }
-    const bytes = await screenshot(page);
-    return { ok: true, mimeType: "image/jpeg", base64: Buffer.from(bytes).toString("base64") };
-  } catch (e) {
-    return { ok: false, reason: "did-not-load", detail: firstLine(e) };
   } finally {
-    await browser?.close().catch(() => undefined);
+    await context.close().catch(() => undefined);
   }
 }
