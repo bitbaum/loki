@@ -16,6 +16,7 @@ import { jsonError, jsonOk, readIdParam, readJsonBody, z } from "@/lib/api/route
 import { PROJECT_ROLE_VALUES } from "@/db/schema";
 import { PROJECT_INVITE_TTL_DAYS, projectInvitePath } from "@/lib/project-invites";
 import { appUrl, projectInviteTemplate, sendEmail } from "@/lib/email";
+import { DemoBlockedError, requireNotDemo } from "@/lib/demo-guard";
 
 // No email: an open link the owner sends themselves (WhatsApp, a text).
 const AddBody = z.object({
@@ -58,10 +59,20 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    return await addPerson(req, params);
+  } catch (error) {
+    if (error instanceof DemoBlockedError) return jsonError(error.message, 403);
+    throw error;
+  }
+}
+
+async function addPerson(req: NextRequest, params: Promise<{ id: string }>) {
   const result = await ownerAccess(params);
   if ("error" in result) return result.error;
   if (!result.access.canManageMembers)
     return jsonError("Only the project owner can invite people", 403);
+  await requireNotDemo(result.userId, "tenancy");
   const body = await readJsonBody(req, AddBody);
   if (body instanceof NextResponse) return body;
 
