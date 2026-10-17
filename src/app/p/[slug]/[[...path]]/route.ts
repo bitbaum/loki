@@ -45,12 +45,15 @@ async function lookupProject(dir: string): Promise<Project> {
 }
 
 const deps: PreviewDeps = {
-  findProject(dir) {
+  async findProject(dir) {
     const hit = projects.get(dir);
     if (hit && Date.now() - hit.at < PROJECT_MEMO_MS) return hit.value;
     const value = lookupProject(dir);
     projects.set(dir, { at: Date.now(), value });
-    value.catch(() => projects.delete(dir));
+    // "No such preview" is not kept: creation asks the address whether it
+    // answers BEFORE the project row exists, and a kept null made the first
+    // visitor's request a 404 (center-com-3, 2026-10-17).
+    value.then((p) => p ?? projects.delete(dir)).catch(() => projects.delete(dir));
     if (projects.size > 200) projects.delete(projects.keys().next().value!);
     return value;
   },

@@ -19,7 +19,12 @@ ENVF="${BOX_LOKI_ENV:-/opt/loki/app/.env}"
 set -a; . "$ENVF"; set +a
 cd "$BOX_LOKI" || { echo "no Loki checkout at $BOX_LOKI"; exit 3; }
 
-cookie=$(npx tsx scripts/test/print-preview-cookie.ts 2>/dev/null | tr -d '\n')
+# The caller ships the minting script into .tmp/ (git-ignored): the box's
+# checkout is often behind main and may not have it yet. The checkout's own
+# copy is the fallback for a run by hand on the box.
+mint=".tmp/print-preview-cookie.ts"
+[ -f "$mint" ] || mint="scripts/test/print-preview-cookie.ts"
+cookie=$(npx tsx "$mint" 2>/dev/null | tr -d '\n')
 [ -n "$cookie" ] || { echo "could not mint the access cookie on the box"; exit 4; }
 
 tour=$(mktemp); trap 'rm -f "$tour"' EXIT
