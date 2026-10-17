@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSiteOperator } from "@/db/queries/users";
 import { type CronJob, CreateCronBody, PatchCronBody } from "@/lib/crons";
 import { readJsonBody } from "@/lib/api/route-helpers";
 import { getSessionUserId } from "@/lib/session";
@@ -37,19 +38,24 @@ export async function POST(req: NextRequest) {
   const prefs = await getUserPreferences(userId).catch(() => null);
   const defaultTz = getActiveTimezone(prefs);
 
-  const delivery = TELEGRAM_CHAT_ID
-    ? {
-        mode: "announce" as const,
-        channel: "telegram",
-        to: TELEGRAM_CHAT_ID,
-        bestEffort: true,
-      }
-    : {
-        mode: "none" as const,
-        channel: "none",
-        to: "",
-        bestEffort: true,
-      };
+  // TELEGRAM_CHAT_ID is the server's — the site operator's own chat. Every
+  // account's job used to be addressed to it, so a tenant's scheduled output
+  // would have landed in the operator's Telegram the day it ran.
+  const operator = await isSiteOperator(userId).catch(() => false);
+  const delivery =
+    TELEGRAM_CHAT_ID && operator
+      ? {
+          mode: "announce" as const,
+          channel: "telegram",
+          to: TELEGRAM_CHAT_ID,
+          bestEffort: true,
+        }
+      : {
+          mode: "none" as const,
+          channel: "none",
+          to: "",
+          bestEffort: true,
+        };
 
   try {
     const newJob: CronJob = {

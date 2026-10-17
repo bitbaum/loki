@@ -130,8 +130,14 @@ async function buildSlowData(
   names: string[],
   key: string,
 ): Promise<SlowCache> {
+  // `dirs` are folder paths the account typed itself, and git runs on the
+  // SERVER. Pointed at the operator's checkout or another tenant's preview,
+  // this returned that repo's branch and recent commit messages (found
+  // 2026-10-17). Only where the server's folders can be this account's.
+  const mayReadFolders =
+    isRuntimeAvailable() || (await isFleetInfrastructureAllowed(userId).catch(() => false));
   const [gitMap, liveTabsLocal, dbStates, runtimeSnapshots] = await Promise.all([
-    fetchAllGitStates(dirs),
+    fetchAllGitStates(mayReadFolders ? dirs : []),
     Promise.resolve(isRuntimeAvailable() ? listOwnedTabs(userId, names) : ([] as string[])),
     isRuntimeAvailable()
       ? Promise.resolve([] as DbProjectState[])
@@ -787,7 +793,12 @@ export async function GET() {
     resolveRunnerAvailability(runtimeAvailable, installedAgents),
   );
   // Detect any known agent running in a project dir — not just the configured default
-  const agentProcesses = getAgentProcesses(agentRegistry.agents);
+  // A scan of every process on the machine, matched against the account's
+  // folders — the machine's owner's to read, like the git rows above.
+  const agentProcesses =
+    runtimeAvailable || (await isFleetInfrastructureAllowed(userId).catch(() => false))
+      ? getAgentProcesses(agentRegistry.agents)
+      : [];
   const projectKeys = projects.map((p) => p.tab);
 
   // Fetch DB states for own user + all team project owners so session progress is visible.

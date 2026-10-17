@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { getSessionUserId } from "@/lib/session";
+import { isSiteOperator } from "@/db/queries/users";
 import {
   HETZNER_STATE_FILE,
   HETZNER_RADAR_URL,
@@ -81,8 +82,14 @@ function untracked(reason: string): HetznerCapacityResponse {
 export async function GET() {
   // Same posture as /api/system: capacity telemetry is only for a signed-in
   // user, but an unauthenticated poller gets a benign payload rather than a 401.
-  if (!(await getSessionUserId())) {
+  const userId = await getSessionUserId();
+  if (!userId) {
     return NextResponse.json(untracked("Sign in to see box capacity."));
+  }
+  // The box is the site operator's; its size and upgrade watch are not a
+  // tenant's to read (see /system).
+  if (!(await isSiteOperator(userId).catch(() => false))) {
+    return NextResponse.json(untracked("Box capacity is the site operator's."));
   }
 
   if (!existsSync(/*turbopackIgnore: true*/ HETZNER_STATE_FILE)) {

@@ -59,4 +59,18 @@ check("the project is named when there is one", text.includes("prodtest-bakery")
 check("a thread waiting on Loki says so", text.includes("Waiting on Loki"));
 check("the limit holds", recentThreadFacts([row({}), row({}), row({})], 2, now).length === 2);
 
+// Live, 2026-10-17: the driver handed lastAt back as a string, .getTime()
+// threw, and the whole source returned nothing.
+const asString = recentThreadFacts(
+  [
+    row({
+      title: "String timestamps",
+      lastAt: new Date(now - 60_000).toISOString() as unknown as Date,
+    }),
+  ],
+  5,
+  now,
+);
+check("a timestamp that arrives as a string still counts", asString.length === 1);
+
 console.log(`\nthread-facts: ${passed} passed`);

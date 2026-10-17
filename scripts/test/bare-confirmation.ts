@@ -4,7 +4,12 @@
  * (2026-10-15): "Yes, create it" (create projects for a podcast) was sent to
  * the bakery as a build task.
  */
-import { isBareConfirmation, offeredCommand } from "@/lib/loki/confirmation";
+import {
+  demotePersonOnlyOffer,
+  isBareConfirmation,
+  isPersonOnlyStep,
+  offeredCommand,
+} from "@/lib/loki/confirmation";
 import { looksLikeDispatchTask, resolveCommand } from "@/lib/command-resolve";
 
 let passed = 0;
@@ -66,6 +71,44 @@ check(
   offeredCommand("Plan:\n**Not in your data.**") === null,
 );
 check("no answer, no offer", offeredCommand(undefined) === null);
+
+// Live, 2026-10-17: a person-only step in command shape.
+const installOffer =
+  "Nothing can build until a computer is connected.\n**prodtest-bakery: install the Fleet Runner desktop app and connect it**";
+check(
+  "a step only the person can take is not offered to a yes",
+  offeredCommand(installOffer) === null,
+);
+for (const line of [
+  "bakery: sign in to GitHub and approve the request",
+  "bakery: approve the calendar draft",
+  "bakery: add your API key in Settings",
+  "bakery: verify your email",
+  "bakery: decide whether to keep the old menu",
+  "bakery: restart the Fleet Runner",
+]) {
+  check(`"${line}" is the person's step`, isPersonOnlyStep(line));
+}
+for (const line of [
+  "bakery: add a sign-in page with email login",
+  "bakery: fix the 3 open reports and ship",
+  "bakery: install the analytics package and add a cookie banner",
+  "create project night-shift",
+  "bakery: add a pay button and a subscribe form",
+]) {
+  check(`"${line}" is agent work`, !isPersonOnlyStep(line));
+}
+check(
+  "the person-only line is rewritten as a plain sentence",
+  demotePersonOnlyOffer(installOffer).endsWith(
+    "\nInstall the Fleet Runner desktop app and connect it.",
+  ),
+);
+check(
+  "an agent offer is left exactly as written",
+  demotePersonOnlyOffer("Do this.\n**bakery: add a menu page**") ===
+    "Do this.\n**bakery: add a menu page**",
+);
 
 async function main() {
   const r = await resolveCommand({

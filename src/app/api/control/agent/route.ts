@@ -9,6 +9,7 @@ import { AGENT_IDS, type Agent } from "@/lib/agent-registry";
 import { workspaceIdFor } from "@/lib/agent-execution/ownership";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
 import { getSessionUserId } from "@/lib/session";
+import { isSiteOperator } from "@/db/queries/users";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { enqueueSwitchAgentCommand } from "@/db/queries/pending-commands";
@@ -84,6 +85,23 @@ async function applyToOpenTabs(
 }
 
 export async function POST(req: NextRequest) {
+  // The preferences file (~/.config/loki-agent.json) and the Claude settings
+  // it syncs are the MACHINE's. On a person's own desktop app that machine is
+  // theirs; on the shared server it is the operator's and the cloud
+  // builder's, and until 2026-10-17 any account's "Default agent and model"
+  // save rewrote it for everyone.
+  const sessionUserId = await getSessionUserId();
+  if (!sessionUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isRuntimeAvailable() && !(await isSiteOperator(sessionUserId).catch(() => false))) {
+    return NextResponse.json(
+      {
+        error:
+          "The default agent on Loki's own computers is set by the site operator. On your computer, set it in the desktop app.",
+      },
+      { status: 403 },
+    );
+  }
+
   const dataOrResp = await readJsonBody(req, UpdateAgentBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
 

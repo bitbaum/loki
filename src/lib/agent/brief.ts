@@ -68,7 +68,7 @@ export async function buildDailyBrief(userId: string): Promise<Directive[]> {
       ? {
           question: `goals stuck at 0% for ${STUCK_DAYS}+ days`,
           answer: [],
-          method: "QUERY FAILED — treat as unknown, not as none",
+          method: "COULD NOT BE READ — treat as unknown, not as none",
         }
       : {
           question: `goals stuck at 0% for ${STUCK_DAYS}+ days`,
@@ -85,7 +85,7 @@ export async function buildDailyBrief(userId: string): Promise<Directive[]> {
       ? {
           question: `goals with a target date inside ${IMMINENT_DAYS} days, or already past`,
           answer: [],
-          method: "QUERY FAILED — treat as unknown, not as none",
+          method: "COULD NOT BE READ — treat as unknown, not as none",
         }
       : {
           question: `goals with a target date inside ${IMMINENT_DAYS} days, or already past`,
@@ -102,7 +102,7 @@ export async function buildDailyBrief(userId: string): Promise<Directive[]> {
       ? {
           question: `commitments due inside ${IMMINENT_DAYS} days, or already overdue`,
           answer: [],
-          method: "QUERY FAILED — treat as unknown, not as none",
+          method: "COULD NOT BE READ — treat as unknown, not as none",
         }
       : {
           question: `commitments due inside ${IMMINENT_DAYS} days, or already overdue`,
@@ -119,7 +119,7 @@ export async function buildDailyBrief(userId: string): Promise<Directive[]> {
       ? {
           question: `events/deadlines inside ${IMMINENT_DAYS} days, or already past`,
           answer: [],
-          method: "QUERY FAILED — treat as unknown, not as none",
+          method: "COULD NOT BE READ — treat as unknown, not as none",
         }
       : {
           question: `events/deadlines inside ${IMMINENT_DAYS} days, or already past`,
@@ -141,7 +141,7 @@ export async function buildDailyBrief(userId: string): Promise<Directive[]> {
       ? {
           question: "habit most at risk today",
           answer: [],
-          method: "QUERY FAILED — treat as unknown, not as none",
+          method: "COULD NOT BE READ — treat as unknown, not as none",
         }
       : {
           question: "habit most at risk today",
@@ -174,7 +174,8 @@ export async function buildFleetBrief(userId: string): Promise<Directive[]> {
   const [
     { listRecentRuns, countRunsByStateSince },
     { listUserFeedback },
-    { getRunnerConnected },
+    { getExecutionAccess },
+    { builderStatusLine },
     { getPendingActions },
     { getActiveAlerts },
     { ORCH_STATE },
@@ -184,7 +185,8 @@ export async function buildFleetBrief(userId: string): Promise<Directive[]> {
   ] = await Promise.all([
     import("@/db/queries/orchestration-runs"),
     import("@/db/queries/site-feedback"),
-    import("@/db/queries/runner-presence"),
+    import("@/lib/execution-access"),
+    import("@/lib/builder-way-forward"),
     import("@/db/queries/actions"),
     import("@/db/queries/alerts"),
     import("@/lib/orchestration/contract"),
@@ -193,14 +195,14 @@ export async function buildFleetBrief(userId: string): Promise<Directive[]> {
     import("@/lib/agent/fact-utils"),
   ]);
 
-  const [waiting, errored, byState, feedback, runner, approvals, alerts] = await Promise.all([
+  const [waiting, errored, byState, feedback, access, approvals, alerts] = await Promise.all([
     listRecentRuns(userId, { states: [ORCH_STATE.WAITING], limit: 20 }).catch(() => null),
     listRecentRuns(userId, { states: [ORCH_STATE.ERROR], limit: 10, sinceMs: DAY_MS }).catch(
       () => null,
     ),
     countRunsByStateSince(userId, DAY_MS).catch(() => null),
     listUserFeedback(userId, 50).catch(() => null),
-    getRunnerConnected(userId).catch(() => null),
+    getExecutionAccess(userId).catch(() => null),
     getPendingActions(userId).catch(() => null),
     getActiveAlerts(userId).catch(() => null),
   ]);
@@ -208,25 +210,30 @@ export async function buildFleetBrief(userId: string): Promise<Directive[]> {
   const failed = (question: string): Directive => ({
     question,
     answer: [],
-    method: "QUERY FAILED — treat as unknown, not as none",
+    method: "COULD NOT BE READ — treat as unknown, not as none",
   });
   const directives: Directive[] = [];
 
+  // Worded by builderStatusLine, the same sentence the fleet-status fact
+  // carries. This used to answer "NO — offline; dispatched runs cannot start"
+  // beside it, and the model repeated "the runner is offline" to a person who
+  // had never heard of a runner and had no runner to bring online.
+  const canStart = builderStatusLine(access);
   directives.push(
-    runner === null
-      ? failed("is the runner connected")
+    canStart === null
+      ? failed("can new work start right now")
       : {
-          question: "is the runner connected",
-          method: "runner_presence.connected for this operator",
-          answer: [runner ? "yes — connected" : "NO — offline; dispatched runs cannot start"],
+          question: "can new work start right now",
+          method: "which computer can build for this account, and whether it is connected",
+          answer: [canStart],
         },
   );
 
   directives.push(
     waiting === null
-      ? failed("runs waiting for a runner to pick them up")
+      ? failed("jobs sent to agents that have not started yet")
       : {
-          question: "runs waiting for a runner to pick them up",
+          question: "jobs sent to agents that have not started yet",
           method: "SQL: orchestration_runs.state = 'waiting', newest first",
           answer: waiting.map(
             (r) =>
@@ -237,9 +244,9 @@ export async function buildFleetBrief(userId: string): Promise<Directive[]> {
 
   directives.push(
     errored === null
-      ? failed("runs that errored in the last 24 hours")
+      ? failed("agent jobs that failed in the last 24 hours")
       : {
-          question: "runs that errored in the last 24 hours",
+          question: "agent jobs that failed in the last 24 hours",
           method: "SQL: state = 'error' AND started_at > now() - 24h",
           answer: errored.map(
             (r) =>
@@ -250,9 +257,9 @@ export async function buildFleetBrief(userId: string): Promise<Directive[]> {
 
   directives.push(
     byState === null
-      ? failed("runs started in the last 24 hours, by state")
+      ? failed("agent jobs started in the last 24 hours, by how they stand")
       : {
-          question: "runs started in the last 24 hours, by state",
+          question: "agent jobs started in the last 24 hours, by how they stand",
           method: "SQL: count(*) GROUP BY state WHERE started_at > now() - 24h",
           answer: Object.entries(byState).map(([state, n]) => `${n} ${state}`),
         },

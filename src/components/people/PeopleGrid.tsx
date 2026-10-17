@@ -30,10 +30,13 @@ export function PeopleGrid({
   initialPeople,
   initialTotal,
   initialHealthFilter = [],
+  openClaw = false,
 }: {
   initialPeople: PersonWithAttributes[];
   initialTotal: number;
   initialHealthFilter?: RelationshipHealth[];
+  /** The site operator's own OpenClaw book is on the server; nobody else's is. */
+  openClaw?: boolean;
 }) {
   const [people, setPeople] = useState(initialPeople);
   const [total, setTotal] = useState(initialTotal);
@@ -274,6 +277,7 @@ export function PeopleGrid({
           page. */}
       <PeopleBookPanel
         defaultOpen={total === 0}
+        openClaw={openClaw}
         onChanged={() => search(query, sort, healthFilter, 0)}
       />
     </>

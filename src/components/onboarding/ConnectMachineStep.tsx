@@ -59,8 +59,8 @@ export function ConnectMachineStep({ saving, onComplete }: Props) {
           {copy.desktopPath.cta}
         </Link>
         <p className="text-micro text-text-muted">
-          Same sign-in as the website — the desktop window loads your dashboard and keeps agents
-          running in the background on this computer.
+          Same sign-in as the website. The app keeps agents working in the background while this
+          computer is on.
         </p>
       </div>
 

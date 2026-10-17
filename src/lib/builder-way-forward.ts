@@ -89,17 +89,22 @@ export function builderStatusLine(
   } | null,
 ): string | null {
   if (!access) return null;
+  // Written as answers to "can new work start right now?", in the words a
+  // person who has never heard "runner" or "builder" can act on — the model
+  // repeats these sentences nearly verbatim.
   if (access.presence.any) {
-    return access.presence.cloud ? "the cloud builder is online" : "Fleet Runner is connected";
+    return access.presence.cloud
+      ? "yes — Loki's own computers are building for this account"
+      : "yes — the Loki desktop app is connected on the operator's computer";
   }
   const way = builderWayForward({
     cloud: cloudBuilderState(access.cloudBuilderAllowed, access.presence),
   });
   if (way === "connect-fleet-runner") {
-    return "nothing can build for this account yet: the cloud builder is not available to it, and the one way to build is the Fleet Runner desktop app on a computer the operator owns ([Get Fleet Runner](/download)). Nothing they do in this chat changes that";
+    return "no — nothing can be built for this account yet. Building needs a computer, and Loki's own computers are not available to this account, so the one way is the Loki desktop app on a computer the operator owns ([Get the desktop app](/download)). Nothing they do in this chat changes that";
   }
   if (way === "wait-for-cloud") {
-    return "the cloud builder is offline — a problem on Loki's side, nothing for the operator to install or fix; queued work starts when it is back";
+    return "not right now — Loki's own computers are offline, a problem on Loki's side with nothing for the operator to install or fix; work already sent starts when they are back";
   }
-  return "no builder is connected right now";
+  return "not known yet — no computer has reported in";
 }

@@ -69,8 +69,10 @@ export function AppShell({
         <div className="app-main-column">
           <AppTopBar onOpenSessions={() => setSessionsOpen(true)} />
           <DemoBanner />
-          <EmailVerificationBanner />
-          <OrangeCatConnectBanner enabled={orangecatEnabled} />
+          <OrangeCatConnectBanner
+            enabled={orangecatEnabled}
+            fallback={<EmailVerificationBanner />}
+          />
           <FleetSurfaceGuide />
           <main className="app-main">{children}</main>
           <AppFooter />

@@ -7,8 +7,10 @@ import type { RailMode } from "@/components/loki/ThreadRail";
 import type { ConversationSummary } from "@/components/loki/types";
 
 /** Naming waits this long after the answer, then retries this often if the
- *  model was busy (`retry: true` from the title route). */
-const TITLE_FIRST_ASK_MS = 3_000;
+ *  model was busy (`retry: true` from the title route). The server names the
+ *  thread the moment its first answer is saved; by 8s that is usually done,
+ *  so this ask only picks up the title instead of paying for a second one. */
+const TITLE_FIRST_ASK_MS = 8_000;
 const TITLE_RETRY_DELAYS_MS = [10_000, 30_000];
 
 /** How the rail orders threads: by what needs you, or folded under projects. */
@@ -95,9 +97,14 @@ export function useThreadInbox(
             changed?: boolean;
             retry?: boolean;
           };
-          if (body.changed && body.title) {
+          // The server usually names the thread first (lib/loki/name-thread.ts),
+          // so this ask finds it named — `changed: false`, with the new title.
+          // Take it either way, or the rail keeps the opening line until reload.
+          if (body.title && !body.retry) {
             const title = body.title;
-            setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
+            setConversations((prev) =>
+              prev.map((c) => (c.id === id && c.title !== title ? { ...c, title } : c)),
+            );
           } else if (body.retry && attempt < TITLE_RETRY_DELAYS_MS.length) {
             setTimeout(() => ask(attempt + 1), TITLE_RETRY_DELAYS_MS[attempt]);
           }

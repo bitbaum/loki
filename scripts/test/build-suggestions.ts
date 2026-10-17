@@ -13,6 +13,7 @@ import {
   type SuggestionProject,
 } from "@/lib/build-suggestions/rank";
 import { BUILD_STARTERS } from "@/config/build-starters";
+import { isBuildableNeed } from "@/lib/integrations/demand-buildable";
 import { planRetrieval } from "@/lib/agent/plan";
 import { parseCreateProjectRequest } from "@/lib/loki-fleet-commands";
 
@@ -46,6 +47,23 @@ const empty: SuggestionInputs = {
     assert.ok(s.href?.startsWith("/projects?new=1&"), "a starter opens the create dialog");
     assert.equal(s.prompt, null);
   }
+  // Each says what it is — not one sentence repeated down the page.
+  assert.equal(new Set(suggestions.map((s) => s.why)).size, suggestions.length);
+}
+
+// ---- a gift wishlist is not a build; a request for software is ----
+{
+  const gift = {
+    title: "My Birthday Wishlist",
+    text: "Help me celebrate! Here are some things I would love.",
+    url: "/wishlists/7e834489",
+  };
+  assert.equal(isBuildableNeed(gift), false);
+  assert.equal(
+    isBuildableNeed({ ...gift, title: "Wishlist", text: "I need a booking website" }),
+    true,
+  );
+  assert.equal(isBuildableNeed({ ...gift, url: "/needs/42" }), true);
 }
 
 // ---- report fixes lead, and dispatch into their project ----

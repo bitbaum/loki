@@ -19,6 +19,33 @@
  */
 import { existsSync } from "node:fs";
 import { HTTP_TIMEOUT_LONG_MS } from "@/lib/constants/time";
+import { isPrivateAddress } from "@/lib/private-address";
+import { isRuntimeAvailable } from "@/lib/runtime";
+
+/**
+ * Does this host resolve only to public addresses?
+ *
+ * The page's address is the project's live URL, which the account typed
+ * itself — and the browser runs on the SERVER. Pointed at 127.0.0.1 or a
+ * private network name, it photographed services the server can reach and
+ * nobody else should see (found 2026-10-17). Same rule as Loki's own page
+ * reader (lib/site-consult/fetch-page.ts), checked on every request the page
+ * makes, so a redirect or an embedded frame cannot take the browser inside.
+ */
+async function publicHost(host: string, seen: Map<string, boolean>): Promise<boolean> {
+  const known = seen.get(host);
+  if (known !== undefined) return known;
+  let ok = false;
+  try {
+    const dns = await import("node:dns/promises");
+    const answers = await dns.lookup(host.replace(/^\[|\]$/g, ""), { all: true, verbatim: true });
+    ok = answers.length > 0 && !answers.some((a) => isPrivateAddress(a.address));
+  } catch {
+    ok = false;
+  }
+  seen.set(host, ok);
+  return ok;
+}
 
 /** The phone the deploy's page check uses (scripts/hetzner/page-check.mjs). */
 export const PICTURE_VIEWPORT = { width: 390, height: 844 } as const;
@@ -89,6 +116,21 @@ async function takeOne(
       hasTouch: true,
       userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Loki fix check",
     });
+    // On a person's own machine (the desktop app) the private network is
+    // theirs — their dev server on localhost is the page to look at.
+    const seen = new Map<string, boolean>();
+    if (!isRuntimeAvailable())
+      await page.route("**/*", async (route) => {
+        let host: string;
+        try {
+          const u = new URL(route.request().url());
+          if (u.protocol === "data:" || u.protocol === "blob:") return route.continue();
+          host = u.hostname;
+        } catch {
+          return route.abort();
+        }
+        return (await publicHost(host, seen)) ? route.continue() : route.abort();
+      });
     const res = await page
       .goto(url, { waitUntil: "networkidle", timeout: HTTP_TIMEOUT_LONG_MS })
       .catch(() => null);

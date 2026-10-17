@@ -101,7 +101,7 @@ export function PackagesList({ rows }: { rows: PackageListRow[] }) {
                     </span>
                   </span>
                   {row.summary && (
-                    <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-text-tertiary">
+                    <span className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-text-tertiary">
                       {row.summary}
                     </span>
                   )}

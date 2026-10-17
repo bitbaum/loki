@@ -15,7 +15,7 @@ const none = { cloud: false, local: false, any: false };
 
 const newcomer = builderStatusLine({ cloudBuilderAllowed: false, presence: none }) ?? "";
 check(
-  "a new account is told the cloud builder is not available to it",
+  "a new account is told Loki's computers are not available to it",
   newcomer.includes("not available"),
 );
 check("…and the one way to build, with the link", newcomer.includes("/download"));
@@ -33,15 +33,18 @@ check(
   builderStatusLine({
     cloudBuilderAllowed: true,
     presence: { cloud: true, local: false, any: true },
-  }) === "the cloud builder is online",
+  }).startsWith("yes — Loki's own computers"),
 );
 check(
   "own computer connected, even on a private-cloud account",
   builderStatusLine({
     cloudBuilderAllowed: false,
     presence: { cloud: false, local: true, any: true },
-  }) === "Fleet Runner is connected",
+  }).startsWith("yes — the Loki desktop app is connected"),
 );
 check("unknown access says nothing", builderStatusLine(null) === null);
+for (const line of [newcomer, owner]) {
+  check(`no "runner" or "builder" in: ${line.slice(0, 40)}…`, !/runner|builder/i.test(line));
+}
 
 console.log(`\nbuilder-status-line: ${passed} passed`);

@@ -193,21 +193,25 @@ export async function fleetStatusFacts(userId: string): Promise<Fact[]> {
       source:
         "computed from runner_presence, orchestration_runs, agent_sessions, alerts, actions, site_feedback, ai_spend, own_model_usage, provider_quota",
       values: {
-        builder: builderStatusLine(access),
+        // Plain names on purpose: the model repeats a field's name back to the
+        // operator, and "runs_waiting_for_a_builder" came out as "no runs are
+        // waiting for a builder" to someone who knows neither word.
+        can_work_start: builderStatusLine(access),
         agents_working_now: n(sessions),
-        runs_waiting_for_a_builder: n(waiting),
-        oldest_waiting_run: oldestWaiting
+        jobs_not_started_yet: n(waiting),
+        oldest_job_not_started: oldestWaiting
           ? `${oldestWaiting.projectKey}, waiting since ${timeLabel(oldestWaiting.startedAt)} (${agoLabel(oldestWaiting.startedAt)})`
           : waiting
             ? "none"
             : null,
-        runs_last_24h:
+        agent_jobs_last_24h:
           runs24h === null
             ? null
             : Object.entries(runs24h)
                 .map(([state, count]) => `${count} ${state}`)
                 .join(", ") || "none",
-        runs_errored_last_24h: runs24h === null ? null : String(runs24h[ORCH_STATE.ERROR] ?? 0),
+        agent_jobs_failed_last_24h:
+          runs24h === null ? null : String(runs24h[ORCH_STATE.ERROR] ?? 0),
         open_alerts: n(alerts),
         approvals_pending: n(approvals),
         feedback_unread: n(feedbackNew),

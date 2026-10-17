@@ -7,6 +7,7 @@
  * becomes a real repository only when the person says yes (graduation, see
  * docs/architecture/prospect-previews.md).
  */
+import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
 import { execFile } from "child_process";
 import { existsSync } from "fs";
 import { mkdir, rm, writeFile } from "fs/promises";
@@ -100,6 +101,18 @@ export async function createPreview(
     prompt?: (previewUrl: string) => string;
   },
 ): Promise<CreatePreviewResult> {
+  // A preview is a folder on the fleet's own server, built by the cloud
+  // builder and published as <slug>.orangecat.ch with the fleet's deploy key.
+  // That is fleet infrastructure: until 2026-10-17 any signed-in account
+  // could put an uploaded site on an orangecat.ch address this way.
+  if (!(await isFleetInfrastructureAllowed(userId))) {
+    return {
+      ok: false,
+      status: 403,
+      error:
+        "Previews are built on Loki's own computers, which this account does not have. Create a project instead, and build it with the desktop app.",
+    };
+  }
   const name = input.name.trim();
   const root = previewsRoot();
   if (!root) {

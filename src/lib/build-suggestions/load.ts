@@ -12,6 +12,7 @@ import { listUserFeedback } from "@/db/queries/site-feedback";
 import { getStuckGoals, listUpcomingCommitments } from "@/db/queries/today";
 import { listCaptures } from "@/db/queries/captures";
 import { fetchOpenDemand } from "@/lib/integrations/orangecat-demand";
+import { isBuildableNeed } from "@/lib/integrations/demand-buildable";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { listSuggestionDecisions } from "@/db/queries/suggestion-decisions";
 import { hiddenIds } from "@/lib/suggestions/board";
@@ -71,7 +72,7 @@ export async function loadSuggestionInputs(userId: string): Promise<SuggestionIn
       body: c.body,
       ageDays: Math.max(0, Math.floor((now - new Date(c.createdAt).getTime()) / DAY_MS)),
     })),
-    demand: (demand?.needs ?? []).slice(0, DEMAND_LIMIT),
+    demand: (demand?.needs ?? []).filter(isBuildableNeed).slice(0, DEMAND_LIMIT),
   };
 }
 

@@ -3,6 +3,7 @@ import { searchPeople, SORT_MODE } from "@/db/queries/people";
 import { PeopleGrid } from "@/components/people/PeopleGrid";
 import { RELATIONSHIP_HEALTH_VALUES, type RelationshipHealth } from "@/lib/constants/people";
 import { requirePageUserId } from "@/lib/session";
+import { isSiteOperator } from "@/db/queries/users";
 
 export const metadata = { title: "People" };
 
@@ -23,25 +24,26 @@ export default async function PeoplePage({
     : [];
 
   const userId = await requirePageUserId();
-  const { people, total } = await searchPeople(
-    userId,
-    "",
-    50,
-    0,
-    SORT_MODE.RECENT,
-    initialHealthFilter,
-  );
+  const [{ people, total }, operator] = await Promise.all([
+    searchPeople(userId, "", 50, 0, SORT_MODE.RECENT, initialHealthFilter),
+    isSiteOperator(userId).catch(() => false),
+  ]);
 
   return (
     <PageLayout
       title="People"
-      subtitle={`${total} in your book — not a shared directory. Enrich and merge first. Nothing is sent.`}
+      subtitle={
+        total === 0
+          ? "The people you work with, kept private to you. Nothing is sent."
+          : `${total} in your book — not a shared directory. Nothing is sent.`
+      }
       maxWidth="max-w-5xl"
     >
       <PeopleGrid
         initialPeople={people}
         initialTotal={total}
         initialHealthFilter={initialHealthFilter}
+        openClaw={operator}
       />
     </PageLayout>
   );

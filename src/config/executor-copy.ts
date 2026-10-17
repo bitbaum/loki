@@ -72,24 +72,29 @@ export const EXECUTOR_COPY = {
   queuedWithBuilderOnlineLong:
     "a builder is online and will claim it shortly. Use Control for state, or open Terminal → Cloud builder / Your computer to watch and type in the agent session. You get a notification when the run finishes.",
 
+  // The first screens a new person reads. Written for someone who has never
+  // heard "builder", "CLI" or "tenant" — the earlier copy said "dispatch agents
+  // against local folders and your own CLI logins … your queue stays
+  // tenant-scoped", which is true and meant nothing to the person reading it
+  // (seen on the live site, 2026-10-17).
   onboarding: {
     stepTitle: "You're ready to build",
     stepDescriptionTeam:
-      "Use the web app from anywhere. Connect this computer when you want agents to run your repos and tools.",
-    stepDescription: "Same app in your browser or on desktop — one account, one Control page.",
-    intro: `${APP_NAME} runs in your browser. Eligible accounts can run work on the Cloud builder by default. Install Fleet Runner and choose “This computer” in Control → project profile → Runs on when an agent should use your local checkout and tools.`,
+      "Use Loki from any browser. Connect a computer of yours only when agents should work on files that live on it.",
+    stepDescription: "Same account in your browser and on the desktop app.",
+    intro: `${APP_NAME} works in your browser. Building needs a computer: ${APP_NAME}'s own, when your account has them, or yours with the desktop app.`,
     browserPath: {
       title: "Continue in your browser",
-      body: "Create projects, keep strategy and context, and dispatch work. Eligible accounts can use the Cloud builder without installing desktop software.",
+      body: "Add projects, keep your plans and notes, and tell Loki what to build. Nothing to install.",
     },
     desktopPath: {
-      title: "Run agents on this computer",
-      body: `This is how agent work actually runs: install ${APP_NAME} desktop to dispatch agents against local folders and your own CLI logins. It uses your account token, so your queue stays tenant-scoped.`,
+      title: "Let agents work on this computer",
+      body: `Install the ${APP_NAME} desktop app and agents build in folders on this computer, with the tools you already have here. Only your account can send them work.`,
       cta: "Get the desktop app",
       href: "/download",
     },
-    finishLabel: "Go to Control →",
-    connectedBanner: "This computer is connected to the builder",
+    finishLabel: "Continue →",
+    connectedBanner: "This computer is connected — agents can work on it",
   },
 
   runnerBanner: {
@@ -103,7 +108,7 @@ export const EXECUTOR_COPY = {
     neverSeenBody:
       "Agents need a computer to run on. Install the desktop app and they run on yours, in your own folders.",
     offlineBody:
-      "No builder is executing right now. Work stays queued — nothing is lost. Open Fleet Runner on this computer; eligible accounts can also use the Cloud builder.",
+      "Nothing is building right now. Work you send waits its turn — nothing is lost. Open the desktop app on your computer to start it.",
     reconnectHint: "Using this computer? Open the desktop app from the menu bar. Still stuck?",
     settingsLink: "Settings → Agent tokens",
     downloadLink: "re-install the desktop app",

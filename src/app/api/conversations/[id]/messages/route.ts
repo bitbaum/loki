@@ -1,4 +1,5 @@
 import { isBareConfirmation, offeredCommand } from "@/lib/loki/confirmation";
+import { nameThreadSoon } from "@/lib/loki/name-thread";
 import { conversationDispatchPrompt } from "@/lib/loki/dispatch-context";
 /**
  * The Loki core: turn a human message into one of three outcomes and persist
@@ -881,12 +882,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ...(dataOrResp.pool ? { pool: dataOrResp.pool } : {}),
       };
 
+      // The thread's first answer is when it can be named — from here, so it
+      // does not depend on the page still being open three seconds later.
+      const firstAnswer = !existing.messages.some((m) => m.role === "assistant");
+      const finish = (m: ConversationMessage) => {
+        send(m);
+        if (firstAnswer) nameThreadSoon(userId, conversationId);
+      };
+
       for (const fastPath of FAST_PATHS) {
         const answered = await fastPath(ctx);
-        if (answered) return send(answered);
+        if (answered) return finish(answered);
       }
 
-      return send(await resolveAndAnswer(ctx, emit));
+      return finish(await resolveAndAnswer(ctx, emit));
     },
     req.signal,
     (e) => ({

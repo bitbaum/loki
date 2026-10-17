@@ -29,6 +29,7 @@ import { callGroqText, GROQ_FAST_MODEL } from "@/lib/groq";
 import { normaliseCitations, stripReasoning } from "@/lib/agent/llm";
 import { getUserPreferences } from "@/db/queries/user-preferences";
 import { effectiveTimeZone } from "@/lib/agent/now-line";
+import { operatorClaims } from "@/lib/agent/general-knowledge";
 import { isSiteOperator } from "@/db/queries/users";
 import { buildGroundedTurn, directiveEvidence, type RetrievedSource } from "@/lib/agent/context";
 import { runLokiTurn, type LokiTurnEvent } from "@/lib/agent/loop";
@@ -544,7 +545,7 @@ async function askLokiViaGateway(
   ): Promise<{ text: string; violations: Violation[] }> {
     if (facts.length === 0) return { text, violations: [] };
     const first = verifyAnswer({
-      answer: text,
+      answer: operatorClaims(text, facts, message),
       facts,
       userMessage: message,
       extraEvidence: evidence,
@@ -565,7 +566,7 @@ async function askLokiViaGateway(
     if (!repaired) return { text, violations: first.violations };
 
     const second = verifyAnswer({
-      answer: repaired,
+      answer: operatorClaims(repaired, facts, message),
       facts,
       userMessage: message,
       extraEvidence: evidence,

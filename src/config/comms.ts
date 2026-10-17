@@ -90,6 +90,8 @@ export function mailSubject(kind: MailKind, extra?: string): string {
 
 export const COMMS_COPY = {
   verifyBanner: "Verify your email for account recovery (optional).",
+  /** The phone line: the same promise in the width a phone has. */
+  verifyBannerShort: "Verify your email (optional).",
   verifySent: "Verification link sent — check your inbox.",
   digestSettingsTitle: "Activity digest emails",
   digestSettingsBody: "What ran, what broke, what moved. This is the mail Loki sends.",

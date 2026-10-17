@@ -66,6 +66,7 @@ export default function OnboardingPage() {
   const [installNote, setInstallNote] = useState("");
   const [copied, setCopied] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  const [showFolder, setShowFolder] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -153,8 +154,8 @@ export default function OnboardingPage() {
       }
       await update();
       // Land on Control, not /today: the onboarding's whole arc is "connect a
-      // builder to dispatch agents", so the next step a new builder wants is the
-      // dispatch surface — and the finish button literally says "Go to Control".
+      // computer so agents can build", so the next step a new builder wants is
+      // the page that sends them work.
       // Someone who gave their website lands on that project instead: its
       // page has the live link with Loki on it, the widget's status, and
       // the first change waiting to be said.
@@ -319,7 +320,7 @@ export default function OnboardingPage() {
         <>
           <AuthHeading
             title="Add your first project"
-            description="What you'll launch agents on. Add more any time."
+            description="Something you want built or kept track of. Add more any time."
           />
           <AuthCard>
             <RepoPicker onSelect={handleRepoSelect} />
@@ -333,17 +334,16 @@ export default function OnboardingPage() {
                     {gitUrl && <p className="ui-auth-repo-desc">{gitUrl}</p>}
                   </div>
                 </div>
-                {/* Local path even for a picked repo: a Fleet Runner on your own
-                    machine dispatches INTO this directory, so without it a local
-                    dispatch has nowhere to run. Optional — hosted runs clone the
+                {/* The folder even for a picked repo: the desktop app on your own
+                    machine works INTO this directory, so without it local work
+                    has nowhere to run. Optional — Loki's computers clone the
                     gitUrl instead, and it's editable later on the project. */}
-                <AuthField label="Local path on your machine (optional)">
-                  <AuthInput
-                    value={dirPath}
-                    onChange={(e) => setDirPath(e.target.value)}
-                    placeholder="/home/you/my-app"
-                  />
-                </AuthField>
+                <FolderField
+                  open={showFolder}
+                  onOpen={() => setShowFolder(true)}
+                  value={dirPath}
+                  onChange={setDirPath}
+                />
                 <button
                   type="button"
                   onClick={() => setShowManual(true)}
@@ -362,13 +362,12 @@ export default function OnboardingPage() {
                     placeholder="e.g. my-app"
                   />
                 </AuthField>
-                <AuthField label="Local path (optional)">
-                  <AuthInput
-                    value={dirPath}
-                    onChange={(e) => setDirPath(e.target.value)}
-                    placeholder="/home/you/my-app"
-                  />
-                </AuthField>
+                <FolderField
+                  open={showFolder}
+                  onOpen={() => setShowFolder(true)}
+                  value={dirPath}
+                  onChange={setDirPath}
+                />
                 {/* Optional, and said so: a person starting from an idea has
                     no code anywhere yet, and Loki keeps it for them. */}
                 <AuthField label="Already have the code on GitHub? (optional)">
@@ -501,5 +500,41 @@ export default function OnboardingPage() {
         </>
       )}
     </AuthShell>
+  );
+}
+
+/**
+ * Where the code lives on this computer — asked only of someone who says it
+ * lives there. It used to be an always-open "Local path (optional)" field on
+ * the first project, and a person starting from an idea has no folder and no
+ * idea what a path is (seen on the live site, 2026-10-17).
+ */
+function FolderField({
+  open,
+  onOpen,
+  value,
+  onChange,
+}: {
+  open: boolean;
+  onOpen: () => void;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  if (!open) {
+    return (
+      <button type="button" onClick={onOpen} className="ui-auth-muted-link">
+        The code is already in a folder on this computer
+      </button>
+    );
+  }
+  return (
+    <AuthField label="Folder on this computer (optional)">
+      <AuthInput
+        autoFocus
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="/home/you/my-app"
+      />
+    </AuthField>
   );
 }
