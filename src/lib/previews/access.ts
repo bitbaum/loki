@@ -87,3 +87,20 @@ export function verifyPreviewAccessCookie(
   const b = Buffer.from(sign(expiresAt, code, key));
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+/**
+ * The Set-Cookie line that remembers a visitor entered the code: on the
+ * preview's own host it must reach every path ("/"), under Loki's host only
+ * /p. One place, because the gate (lib/previews/handle) and the owner's own
+ * door (api/previews/[slug]/cookie) must agree on every attribute.
+ */
+export function previewAccessSetCookie(value: string, path: string, secure: boolean): string {
+  return [
+    `${PREVIEWS.cookie}=${value}`,
+    `Path=${path}`,
+    `Max-Age=${Math.floor(PREVIEWS.cookieTtlMs / 1000)}`,
+    "HttpOnly",
+    "SameSite=Lax",
+    ...(secure ? ["Secure"] : []),
+  ].join("; ");
+}

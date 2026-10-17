@@ -35,14 +35,10 @@ ssh_box() {
   fi
 }
 
-# owner_view <host> — open the preview as its owner (preview-check-on-box.sh).
-# The cookie is minted on the box by a script this checkout ships over first,
-# because the box's own Loki checkout is often behind main.
+# owner_view <host> — open the preview as its owner (preview-check-on-box.sh):
+# the session is minted on the box, the cookie comes from the deployed app.
 owner_view() {
-  local host="$1" box_loki="${BOX_LOKI:-/home/ubuntu/dev/loki}"
-  ssh_box "mkdir -p '$box_loki/.tmp' && cat > '$box_loki/.tmp/print-preview-cookie.ts'" < "$HERE/../test/print-preview-cookie.ts" \
-    || { echo "  could not ship the cookie script to the box"; return 1; }
-  ssh_box "bash -s -- $(printf '%q' "$host")" < "$HERE/preview-check-on-box.sh"
+  ssh_box "bash -s -- $(printf '%q' "$1")" < "$HERE/preview-check-on-box.sh"
 }
 
 # answers <host> — wait up to ~100s (a new certificate takes a few seconds).
