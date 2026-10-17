@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { appUrl } from "@/lib/email";
 import { getSessionUserId } from "@/lib/session";
 import { getUserProjects } from "@/db/queries/user-projects";
 import { projectGoTarget } from "@/lib/project-go";
@@ -18,5 +19,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ name
         req.nextUrl.searchParams.get("tab"),
       )
     : "/projects";
-  return NextResponse.redirect(new URL(target, req.nextUrl.origin), 307);
+  // The public origin, never req.nextUrl.origin: behind Caddy that is the
+  // standalone server's own localhost:PORT, and the browser was sent there
+  // (ERR_CONNECTION_REFUSED on the live site, 2026-10-17).
+  return NextResponse.redirect(`${appUrl()}${target}`, 307);
 }

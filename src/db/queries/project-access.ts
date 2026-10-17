@@ -16,6 +16,7 @@ import {
   normalizeInviteEmail,
 } from "@/lib/project-invites";
 import { capabilitiesForRole, OWNER_CAPABILITIES } from "@/lib/project-capabilities";
+import { requireNotDemo } from "@/lib/demo-guard";
 
 export type ProjectAccess = {
   role: "owner" | ProjectRole;
@@ -110,6 +111,9 @@ export async function createProjectInvitation(input: {
   role: ProjectRole;
   invitedBy: string;
 }): Promise<{ invitation: ProjectInvitation; token: string }> {
+  // The demo account is every visitor at once: an invite from it would let
+  // anyone seat themselves on the demo's projects, in front of the next visitor.
+  await requireNotDemo(input.invitedBy, "tenancy");
   const email = input.email ? normalizeInviteEmail(input.email) : null;
   // One live invite per (project, email): re-inviting replaces the old link
   // rather than leaving two valid ones that each grant access. Open links are
@@ -204,6 +208,8 @@ export async function acceptProjectInvitation(
   invitationId: string,
   userId: string,
 ): Promise<{ projectId: string } | null> {
+  // And the reverse: every visitor holding someone's project through the demo.
+  await requireNotDemo(userId, "tenancy");
   return db.transaction(async (tx) => {
     const [spent] = await tx
       .update(projectInvitations)

@@ -8,6 +8,7 @@ import {
   getProjectInvitationByToken,
 } from "@/db/queries/project-access";
 import { jsonError, jsonOk } from "@/lib/api/route-helpers";
+import { DemoBlockedError } from "@/lib/demo-guard";
 import { evaluateInviteAcceptance, maskEmail } from "@/lib/project-invites";
 
 /**
@@ -78,7 +79,13 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ to
   const verdict = evaluateInviteAcceptance(loaded.invitation, email, new Date(), standing);
   if (!verdict.ok) return jsonError(verdict.message, 403);
 
-  const accepted = await acceptProjectInvitation(loaded.invitation.id, userId);
+  const accepted = await acceptProjectInvitation(loaded.invitation.id, userId).catch(
+    (error: unknown) => {
+      if (error instanceof DemoBlockedError) return error;
+      throw error;
+    },
+  );
+  if (accepted instanceof DemoBlockedError) return jsonError(accepted.message, 403);
   // Lost the race to another tab or a second click: the invite is spent.
   if (!accepted) return jsonError("This invitation has already been used.", 409);
   return jsonOk({ projectId: accepted.projectId });
