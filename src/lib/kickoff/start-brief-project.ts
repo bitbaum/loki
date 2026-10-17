@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { createProject } from "@/db/queries/projects";
+import { createProject, patchProject } from "@/db/queries/projects";
 import { findProjectEntityByName } from "@/db/queries/project-merge";
 import { scheduleProjectProfileReindexByEntityId } from "@/lib/rag/reindex-project-profile";
 import { SOURCE_LOKI_UI } from "@/lib/constants";
@@ -42,6 +42,12 @@ async function startBriefProjectOnce(
   if (!project) {
     const name = await firstFreeName(opts.name, isProjectNameTaken);
     const created = await createProject(userId, { name, description: opts.source }, SOURCE_LOKI_UI);
+    // A brief is someone else's site or app, built on the studio's account:
+    // client work until they say otherwise, so it stays off every public
+    // surface (the fleet map, the studio chat, the portfolio) without a
+    // recorded consent. Seen live 2026-10-17: a visitor's website request
+    // reached the public chat as "derhochhinhousepartyrenner-ch-refresh-…".
+    await patchProject(userId, created.id, { clientWork: true });
     await markBriefProject(
       created.id,
       opts.requestId,

@@ -147,10 +147,25 @@ export const EXPERIMENT_NAME_RE =
 export function visibleProjects(map: FleetMap): FleetMapEntry[] {
   return map.projects.filter((p) => {
     if (p.status === "retired" || EXPERIMENT_NAME_RE.test(p.slug)) return false;
+    // Someone else's work is theirs to show: without recorded consent it is
+    // not a door, whatever the rest of the row says. The public map already
+    // drops these; the chat holds the same line in case a map ever does not.
+    if (p.client && !p.client.consentedAt) return false;
+    // A brief that became a project before anyone named it: its slug is a
+    // request id ("<host>-refresh-<32 hex>") and its purpose is the kickoff
+    // prompt. Seen live, 2026-10-17: the chat told a visitor to "look at
+    // derhochhinhousepartyrenner-ch-refresh-68e1f49…". Not a door either.
+    if (BRIEF_NAME_RE.test(p.slug) || BRIEF_NAME_RE.test(p.name)) return false;
+    if (KICKOFF_PROMPT_RE.test(p.what ?? "")) return false;
     if (p.status === "not live") return Boolean(p.identity.problem && p.identity.solution);
     return true;
   });
 }
+
+/** A project still named by its request: `<host>-refresh-<32 hex>`. */
+export const BRIEF_NAME_RE = /-refresh-[0-9a-f]{32}$/i;
+/** A purpose line that is the kickoff prompt, not a description. */
+export const KICKOFF_PROMPT_RE = /^\s*develop a new version of this existing website\b/i;
 
 const PILLAR_TITLES: Record<string, string> = {
   orangecat: ECOSYSTEM.orangeCat.title,
@@ -376,7 +391,7 @@ export function fallbackAnswer(
   const doors = STUDIO_DOORS.filter((d) => d.keys.some((k) => mentions(message, k)));
   if (doors.length > 0) {
     return {
-      reply: `A full answer isn't available right now, but this is the place to start: ${doors.map((d) => d.label).join(", or ")}.`,
+      reply: `The best place to start with that: ${doors.map((d) => d.label).join(", or ")}. Ask again in a moment and the Cat or Loki will answer in full.`,
       links: doors.map((d) => ({ label: d.label, url: d.url })),
     };
   }
@@ -412,7 +427,7 @@ export function fallbackAnswer(
   if (scored.length === 0) {
     return {
       reply:
-        "A full answer isn't available right now, and nothing in the catalogue matched those words. The full list of projects is one click away, or join the waitlist to have something built.",
+        "Nothing in the catalogue matches those words yet. The full list of projects is one click away, or join the waitlist to have something built — and ask again in a moment for a fuller answer.",
       links: [
         { label: STUDIO_DOORS[2]!.label, url: STUDIO_DOORS[2]!.url },
         { label: STUDIO_DOORS[0]!.label, url: STUDIO_DOORS[0]!.url },
@@ -423,7 +438,7 @@ export function fallbackAnswer(
   const list =
     names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`;
   return {
-    reply: `A full answer isn't available right now, but going by your words, look at ${list}.`,
+    reply: `Going by your words, ${list} ${names.length === 1 ? "looks" : "look"} like the closest fit. Open ${names.length === 1 ? "it" : "one"}, or ask again in a moment for a fuller answer.`,
     links: scored.map((s) => ({ label: displayName(s.p), url: projectUrl(s.p, appBase) })),
   };
 }
