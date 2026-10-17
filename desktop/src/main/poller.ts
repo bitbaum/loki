@@ -65,6 +65,7 @@ import {
   worktreePromptNote,
 } from '@/lib/agent-execution/worktree-workspace'
 import { isDerivedRunTab } from '@/lib/run-tab'
+import { laneLaunchDir } from './lane-workspace'
 import { materializeImages } from '@/lib/agent-attachments-fs'
 
 /** Commands that change the open-tab / agent set → trigger an immediate
@@ -519,9 +520,27 @@ async function handleCommand(
         const { tab, dir, agent, model, initialPrompt } = validation.command.payload
         assertKnownLaunchAgent(agent)
         const prompt = initialPrompt?.trim()
+        // A second session of a project (the terminal's "+") is a lane tab and
+        // gets its own worktree — see lane-workspace.ts.
+        const lane = await laneLaunchDir(tab, dir, {
+          baseDir: async (projectKey, requestedDir) => {
+            if (process.env.LOKI_BOX_PREPARE !== 'true') return requestedDir
+            const { ensureBoxWorkspace } = await import('@/lib/agent-execution/box-workspace')
+            return ensureBoxWorkspace(projectKey, requestedDir)
+          },
+          worktree: (laneTab, primaryDir, runKey) => {
+            pruneWorktrees(laneTab, primaryDir)
+            return ensureWorktreeWorkspace(laneTab, primaryDir, runKey)
+          },
+        })
+        if (lane.kind === 'refused') {
+          error = lane.error
+          break
+        }
+        if (lane.kind === 'lane') worktreeByTab.set(tab, { primaryDir: lane.primaryDir, launchDir: lane.dir })
         // Own the agent's PTY. A failed spawn is a failed launch, reported as
         // such — there is no other place for the agent to run.
-        await launchAgentPty(tab, dir, agent as AgentOption, model)
+        await launchAgentPty(tab, lane.dir, agent as AgentOption, model)
         clearHandoffSentinel(tab)
         // Inject the initial prompt once the agent is actually up, not on a blind timer.
         if (prompt) {

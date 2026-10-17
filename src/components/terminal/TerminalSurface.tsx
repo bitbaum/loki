@@ -29,6 +29,8 @@ import { TerminalLokiSheet, useTerminalExplain } from "./TerminalExplain";
 import { TerminalSessionBar, TerminalSourceBar } from "./TerminalModeBar";
 import { SessionComposer } from "./SessionComposer";
 import { TerminalLaunch } from "./TerminalLaunch";
+import { TerminalNewSessionSheet } from "./TerminalNewSessionSheet";
+import { sessionLaunchProps } from "./session-launch";
 import { ShellWorkspace } from "./ShellWorkspace";
 import { TerminalSessionMiss } from "./TerminalSessionMiss";
 import { TerminalMobileHeader, type TerminalLiveState } from "./TerminalMobileHeader";
@@ -407,6 +409,8 @@ export function TerminalSurface({
   const deck = useTerminalDeck();
   const keyboardInset = useKeyboardInset();
   const [sheetOpen, setSheetOpen] = useState(false);
+  // The phone's "+" (the desktop strip opens its own panel instead).
+  const [newSessionOpen, setNewSessionOpen] = useState(false);
   // The rail beside the session (lg+). Closing it hands its columns to the
   // terminal; the choice is remembered, like the source.
   const [railOpen, setRailOpen] = useLocalStorageState<boolean>(
@@ -521,6 +525,15 @@ export function TerminalSurface({
     source === "shell" ? null : (stripTabs.find((t) => t.id === activeTab)?.badge ?? null);
   const headerState: TerminalLiveState = !activeTab && source !== "shell" ? "idle" : liveState;
 
+  const launchProps = sessionLaunchProps({
+    context,
+    agents,
+    activeProject: tabContext?.projectName ?? fleetProject,
+    channel,
+    openTabs: tabs,
+    select: setUserSelection,
+  });
+  const agentPath = source !== "shell";
   const mobileHeader = (
     <TerminalMobileHeader
       title={headerTitle}
@@ -531,6 +544,14 @@ export function TerminalSurface({
       onToggleImmersive={onToggleImmersive ?? (() => {})}
       view={view}
       onViewChange={activeTab && chatAvailable ? termView.setView : undefined}
+      sessions={agentPath ? stripTabs.map((t) => ({ id: t.id, label: t.label })) : undefined}
+      activeSession={agentPath ? activeTab : null}
+      onSelectSession={agentPath ? setUserSelection : undefined}
+      onNewSession={
+        agentPath && launchProps && !gatedMessage && !offline
+          ? () => setNewSessionOpen(true)
+          : undefined
+      }
     />
   );
 
@@ -591,6 +612,7 @@ export function TerminalSurface({
       tabs={source === "shell" ? undefined : stripTabs}
       activeTab={source === "shell" ? null : activeTab}
       onSelectTab={source === "shell" ? undefined : setUserSelection}
+      onCloseTab={source === "shell" ? undefined : (id) => void ta.closeTab(id)}
       agents={agents}
       activeAgentId={activeAgentId}
       onSwitchAgent={(id) => void ta.switchAgent(id)}
@@ -696,6 +718,8 @@ export function TerminalSurface({
                 defaultAgent={context?.agents.defaultAgent ?? null}
                 activeProject={emptyStateProject}
                 channel={channel}
+                openTabs={tabs}
+                onStarted={setUserSelection}
               />
               <div className="mt-1 flex flex-wrap justify-center gap-x-1 text-xs text-text-muted">
                 <span>Want help planning first?</span>
@@ -784,17 +808,7 @@ export function TerminalSurface({
           ta.rename(id, name, stripTabs.find((t) => t.id === id)?.original ?? id)
         }
         onClose={(id) => void ta.closeTab(id)}
-        launch={
-          context
-            ? {
-                projects: context.launchable,
-                agents,
-                defaultAgent: context.agents.defaultAgent,
-                activeProject: tabContext?.projectName ?? fleetProject,
-                channel,
-              }
-            : null
-        }
+        launch={launchProps}
         launchOpen={ta.launchOpen}
         setLaunchOpen={ta.setLaunchOpen}
         error={ta.actionError}
@@ -863,6 +877,9 @@ export function TerminalSurface({
       )}
 
       {sheet}
+      {newSessionOpen && launchProps && (
+        <TerminalNewSessionSheet {...launchProps} onClose={() => setNewSessionOpen(false)} />
+      )}
       {explainer.sheetOpen && projectKey && (
         <TerminalLokiSheet onClose={() => explainer.setSheetOpen(false)}>
           {renderLokiRail()}
