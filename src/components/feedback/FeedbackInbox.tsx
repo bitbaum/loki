@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Loader2, MessagesSquare } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
+import { postJson } from "@/lib/api/fetch";
+import type { FeedbackRead } from "@/lib/feedback/read-report";
 import { compactDurationHours } from "@/lib/dates";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 import { WAITING_ON } from "@/lib/feedback/work-phase";
@@ -24,6 +26,9 @@ import {
 } from "@/lib/feedback/recommend";
 
 type InboxItem = UserFeedbackListItem & { work: FeedbackWorkView };
+
+/** Reads asked for per page load — a long queue is read as the owner scrolls back. */
+const READS_PER_VISIT = 8;
 
 /**
  * /feedback — a queue of decisions Loki has already made, waiting for a yes.
@@ -77,6 +82,11 @@ export function FeedbackInbox() {
   /** Decisions taken on this screen: the card says "Done" until the list refreshes. */
   const [taken, setTaken] = useState<Set<string>>(new Set());
   const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
+  // Loki's read of each new report (lib/feedback/read-report), asked for one
+  // at a time as the queue is open: the owner should never tap "Build" on a
+  // report they have not had explained. Bounded per page load.
+  const [reads, setReads] = useState<Record<string, FeedbackRead | null>>({});
+  const [readingId, setReadingId] = useState<string | null>(null);
 
   const all = useMemo(() => data?.feedback ?? [], [data]);
   const metrics = data?.metrics ?? null;
@@ -157,14 +167,39 @@ export function FeedbackInbox() {
   const summary = summarizeDecisions(decisions.filter((d) => !taken.has(d.f.id)).map((d) => d.rec));
 
   /** Take one decision — the same routes the full row uses. */
-  const take = async (f: InboxItem, rec: Recommendation) => {
+  const inFlight = useRef<string | null>(null);
+  useEffect(() => {
+    if (inFlight.current) return;
+    const next = decisions.find(
+      (d) =>
+        d.rec.kind === RECOMMEND.BUILD && !d.f.read && !(d.f.id in reads) && !taken.has(d.f.id),
+    );
+    if (!next || Object.keys(reads).length >= READS_PER_VISIT) return;
+    const id = next.f.id;
+    inFlight.current = id;
+    // State moves in the request's own callbacks, never in the effect body.
+    Promise.resolve()
+      .then(() => setReadingId(id))
+      .then(() => postJson(`/api/feedback/${id}/read`, {}))
+      .then(async (res) => {
+        const body = (await res.json().catch(() => ({}))) as { read?: FeedbackRead | null };
+        setReads((r) => ({ ...r, [id]: body.read ?? null }));
+      })
+      .catch(() => setReads((r) => ({ ...r, [id]: null })))
+      .finally(() => {
+        inFlight.current = null;
+        setReadingId(null);
+      });
+  }, [decisions, reads, taken]);
+
+  const take = async (f: InboxItem, rec: Recommendation, ask?: string) => {
     switch (rec.kind) {
       case RECOMMEND.CONFIRM:
         await setStatus(f.id, FEEDBACK_STATUS.RESOLVED);
         break;
       case RECOMMEND.BUILD:
       case RECOMMEND.RETRY:
-        await dispatchFix(f.id, {});
+        await dispatchFix(f.id, ask ? { ask } : {});
         break;
       case RECOMMEND.CLOUD:
         if (f.work.commandId) await runInCloud(f.id, f.work.commandId);
@@ -306,7 +341,9 @@ export function FeedbackInbox() {
               busy={busyId === f.id}
               taken={taken.has(f.id)}
               project={projectOf(f)}
-              onTake={() => void take(f, rec)}
+              onTake={(ask) => void take(f, rec, ask)}
+              read={reads[f.id] ?? f.read ?? null}
+              reading={readingId === f.id}
               rowProps={rowFor(f)}
             />
           ))}

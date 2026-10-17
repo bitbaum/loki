@@ -79,7 +79,9 @@ export async function followRunLedger(
   const payload = (run.payload ?? {}) as {
     fix?: FixShipping;
     evidence?: { kind: string; url: string; title: string };
+    beforePicture?: string;
   };
+  const hasBefore = Boolean(payload.beforePicture);
   if (!finishedWell) return { follow: null, fix: payload.fix ?? null };
   const project = run.projectId
     ? await getUserProjectByEntityId(userId, run.projectId).catch(() => null)
@@ -87,7 +89,7 @@ export async function followRunLedger(
   let fix = payload.fix ?? null;
   const liveUrl = project?.liveUrl ?? null;
   if (now - run.finishedAt!.getTime() > FOLLOW_WINDOW_MS)
-    return { follow: runFollow(fix, liveUrl, run.id), fix };
+    return { follow: runFollow(fix, liveUrl, run.id, hasBefore), fix };
   if (fixNeedsRefresh(fix)) {
     fix = await refreshFixShipping({
       runId: run.id,
@@ -123,5 +125,5 @@ export async function followRunLedger(
       looking.delete(run.id);
     }
   }
-  return { follow: runFollow(fix, liveUrl, run.id), fix };
+  return { follow: runFollow(fix, liveUrl, run.id, hasBefore), fix };
 }

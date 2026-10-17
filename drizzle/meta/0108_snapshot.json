@@ -1,5 +1,5 @@
 {
-  "id": "ce5bc5b5-6f08-4ef9-90cf-71b7fb3aa12c",
+  "id": "24ff4b83-3773-4368-b4d9-983d19374d8b",
   "prevId": "3f44d812-6d40-4625-b8ea-b9d88a5e5d07",
   "version": "7",
   "dialect": "postgresql",
@@ -8849,12 +8849,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "moments": {
-          "name": "moments",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "user_agent": {
           "name": "user_agent",
           "type": "text",
@@ -8888,6 +8882,12 @@
         },
         "screenshots": {
           "name": "screenshots",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "read": {
+          "name": "read",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false

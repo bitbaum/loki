@@ -6,9 +6,24 @@
  * phone a row of six steps cannot be read; each mark says done / now / next /
  * needs you / failed in shape as well as colour. Facts only — the words and
  * states come from lib/run-track on the server; nothing here decides.
+ *
+ * Each row carries its time: "took 1m 20s" once a stage is behind, a running
+ * clock on the one happening now, so a person can see the process is moving
+ * and how long each step takes "by the moment I'm looking at it" (owner,
+ * 2026-10-17). A tap opens the row: what exactly happened, when, and where
+ * to look — and for the working stage, the agent's screen as Watch last saw
+ * it, so "is it working?" has the screen as its answer.
  */
-import { AlertCircle, ArrowUpRight, Check, X } from "lucide-react";
-import type { RunTrack as RunTrackData, TrackStageState } from "@/lib/run-track";
+import { useEffect, useState } from "react";
+import { AlertCircle, ArrowUpRight, Check, ChevronDown, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  formatStageSeconds,
+  stageTimings,
+  type RunTrack as RunTrackData,
+  type TrackStage,
+  type TrackStageState,
+} from "@/lib/run-track";
 
 const STATE_WORD: Record<TrackStageState, string> = {
   done: "Done",
@@ -26,32 +41,156 @@ function Mark({ state }: { state: TrackStageState }) {
   return null;
 }
 
-export function RunTrack({ track }: { track: RunTrackData }) {
+/** "11:52" in the reader's own clock — what a timestamp beside a fact says. */
+function clock(at: string | null | undefined): string | null {
+  if (!at) return null;
+  const t = Date.parse(at);
+  if (!Number.isFinite(t)) return null;
+  return new Date(t).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+/** A one-second tick, only while a stage is live — a finished track is still. */
+function useTick(live: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [live]);
+  return now;
+}
+
+export function RunTrack({
+  track,
+  screen,
+  terminalHref,
+}: {
+  track: RunTrackData;
+  /** The agent's screen as Watch last peeked it, shown inside the working row. */
+  screen?: string[] | null;
+  terminalHref?: string | null;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  const live = track.stages.some((s) => s.state === "now" || s.state === "attention");
+  const now = useTick(live);
+  const timings = stageTimings(track.stages, now);
+
   return (
     <ol className="ui-track" aria-label="Where the change is">
-      {track.stages.map((stage) => (
-        <li key={stage.id} className={`ui-track-item ui-track-${stage.state}`}>
-          <span className="ui-track-mark">
-            <Mark state={stage.state} />
-            <span className="sr-only">{STATE_WORD[stage.state]}: </span>
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="ui-track-label">{stage.label}</p>
-            {stage.note && <p className="ui-track-note">{stage.note}</p>}
-            {stage.href && stage.linkLabel && (
-              <a
-                href={stage.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ui-track-link"
+      {track.stages.map((stage, i) => {
+        const timing = timings[i]!;
+        const expandable =
+          stage.facts.length > 0 ||
+          Boolean(stage.href) ||
+          (stage.id === "working" && (screen?.length || terminalHref));
+        const isOpen = open === stage.id;
+        const when = clock(stage.at);
+        return (
+          <li key={stage.id} className={`ui-track-item ui-track-${stage.state}`}>
+            <span className="ui-track-mark">
+              <Mark state={stage.state} />
+              <span className="sr-only">{STATE_WORD[stage.state]}: </span>
+            </span>
+            <div className="min-w-0 flex-1">
+              <button
+                type="button"
+                className="ui-track-row"
+                onClick={() => expandable && setOpen(isOpen ? null : stage.id)}
+                aria-expanded={expandable ? isOpen : undefined}
+                disabled={!expandable}
               >
-                {stage.linkLabel}
-                <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
-              </a>
-            )}
-          </div>
-        </li>
-      ))}
+                <span className="ui-track-label">{stage.label}</span>
+                <span className="ui-track-time">
+                  {timing.soFar !== null ? (
+                    <span className="ui-track-clock">{formatStageSeconds(timing.soFar)}</span>
+                  ) : timing.took !== null && timing.took > 0 ? (
+                    <>took {formatStageSeconds(timing.took)}</>
+                  ) : (
+                    when
+                  )}
+                </span>
+                {expandable && (
+                  <ChevronDown
+                    className={cn("ui-track-chevron", isOpen && "rotate-180")}
+                    aria-hidden="true"
+                  />
+                )}
+              </button>
+              {stage.note && <p className="ui-track-note">{stage.note}</p>}
+              {isOpen && (
+                <StageDetail
+                  stage={stage}
+                  screen={stage.id === "working" ? screen : null}
+                  terminalHref={stage.id === "working" ? terminalHref : null}
+                />
+              )}
+              {!isOpen && stage.href && stage.linkLabel && (
+                <a
+                  href={stage.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ui-track-link"
+                >
+                  {stage.linkLabel}
+                  <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+                </a>
+              )}
+            </div>
+          </li>
+        );
+      })}
     </ol>
+  );
+}
+
+function StageDetail({
+  stage,
+  screen,
+  terminalHref,
+}: {
+  stage: TrackStage;
+  screen: string[] | null | undefined;
+  terminalHref: string | null | undefined;
+}) {
+  const when = clock(stage.at);
+  return (
+    <div className="ui-track-detail">
+      {when && stage.state !== "next" && (
+        <p className="ui-track-fact">
+          <span className="ui-track-fact-at">{when}</span>
+          {stage.state === "done" ? "Done." : "Began."}
+        </p>
+      )}
+      {stage.facts.map((fact, i) => (
+        <p key={`${fact.text}-${i}`} className="ui-track-fact">
+          {clock(fact.at) && <span className="ui-track-fact-at">{clock(fact.at)}</span>}
+          {fact.href ? (
+            <a href={fact.href} target="_blank" rel="noopener noreferrer" className="underline">
+              {fact.text}
+            </a>
+          ) : (
+            fact.text
+          )}
+        </p>
+      ))}
+      {screen && screen.length > 0 && (
+        <div className="ui-track-screen" aria-label="The agent's screen">
+          <p className="ui-track-fact-at">Its screen, just now</p>
+          <pre className="ui-track-screen-text">{screen.slice(-8).join("\n")}</pre>
+        </div>
+      )}
+      {terminalHref && (
+        <a href={terminalHref} className="ui-track-link">
+          Open the full screen
+          <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+        </a>
+      )}
+      {stage.href && stage.linkLabel && (
+        <a href={stage.href} target="_blank" rel="noopener noreferrer" className="ui-track-link">
+          {stage.linkLabel}
+          <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+        </a>
+      )}
+    </div>
   );
 }

@@ -56,7 +56,15 @@ export type FixShipping = {
     note?: FixNote | null;
   };
   push?: { url: string; title: string };
-  deploy?: { url: string | null; name: string; conclusion: string | null; status: string | null };
+  deploy?: {
+    url: string | null;
+    name: string;
+    conclusion: string | null;
+    status: string | null;
+    /** ISO — when the deploy run last moved (finished, usually). Shown on the
+     *  delivery track as when the site took the build. */
+    at?: string | null;
+  };
   /**
    * Set when the merge commit's OWN deploy failed and a later deploy of the
    * base branch shipped the change instead. `deploy` is then that later run and
@@ -333,6 +341,8 @@ export type GithubWorkflowRun = {
   head_sha?: string | null;
   event?: string | null;
   created_at?: string | null;
+  /** When the run last changed — its finish time once completed. */
+  updated_at?: string | null;
   head_commit?: { message?: string | null; timestamp?: string | null } | null;
 };
 
@@ -381,6 +391,7 @@ export function deriveShippingFromPr(
     name: deploy.name ?? "deploy",
     conclusion: deploy.conclusion,
     status: deploy.status,
+    at: deploy.updated_at ?? deploy.created_at ?? null,
   };
   if (deploy.conclusion === "success")
     return { ...base, deploy: d, state: FIX_SHIP_STATE.DEPLOYED };

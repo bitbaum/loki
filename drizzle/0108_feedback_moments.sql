@@ -1,1 +1,0 @@
-ALTER TABLE "site_feedback" ADD COLUMN "moments" jsonb;

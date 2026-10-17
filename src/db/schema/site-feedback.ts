@@ -9,6 +9,7 @@ import {
   boolean,
 } from "drizzle-orm/pg-core";
 import type { FeedbackCaptureContext } from "../../../widget/capture-context";
+import type { FeedbackRead } from "@/lib/feedback/read-report";
 import type { ReportMoment } from "../../../widget/moments-contract";
 import { users } from "./users";
 import { entities } from "./entities";
@@ -94,6 +95,10 @@ export const siteFeedback = pgTable(
      *  client-downscaled, max 5). EXCLUDED from list queries — fetched only via
      *  GET /api/feedback/[id]/screenshots. */
     screenshots: jsonb("screenshots").$type<string[]>(),
+    /** Loki's read of the report before anyone builds it — what the person
+     *  means, the impact, the size, the risk, and the ask it would give the
+     *  agent (lib/feedback/read-report). Written once by POST /read. */
+    read: jsonb("read").$type<FeedbackRead>(),
     /** Operator curation for the public "shipped thanks to feedback" strip —
      *  only featured resolved rows ever surface publicly (raw visitor text
      *  never auto-publishes). */

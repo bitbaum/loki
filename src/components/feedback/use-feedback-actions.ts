@@ -35,13 +35,14 @@ export function useFeedbackActions(refetch: () => void) {
    * the route records it as the project's preference before dispatching, so
    * the next run does not go back to the agent that just hit a rate limit.
    */
-  const dispatchFix = (id: string, opts: { note?: string; agent?: string } = {}) => {
+  const dispatchFix = (id: string, opts: { note?: string; agent?: string; ask?: string } = {}) => {
     setNotice(null);
     return act(
       id,
       async () => {
         const res = await postJson(`/api/feedback/${id}/dispatch`, {
           ...(opts.note ? { note: opts.note } : {}),
+          ...(opts.ask ? { ask: opts.ask } : {}),
           ...(opts.agent ? { agent: opts.agent } : {}),
         });
         // A clone: `act` still reads the original on failure.
