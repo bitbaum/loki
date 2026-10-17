@@ -2,8 +2,8 @@
  * After a Loki chat build finishes: where its change is now, and — once it
  * is live — whether it shows. The server half of RunFollow (run-handoff.ts).
  *
- * Asked only by the chat card a person has open (the live-status routes it
- * polls), never by a timer: the look spends the owner's AI budget, and
+ * Asked only for a run a person has open (the live-status routes the chat
+ * card polls, the Watch route), never by a timer: the look spends the owner's AI budget, and
  * scripts/test/no-free-background-ai.ts holds every scheduled path to none.
  *
  * It reuses the feedback inbox's machinery rather than a second copy: the PR
@@ -53,19 +53,12 @@ async function askedFor(userId: string, runId: string): Promise<string | null> {
   return row?.custom ?? row?.resolved ?? null;
 }
 
-export async function followRun(
-  userId: string,
-  run: FollowableRun,
-  now: number = Date.now(),
-): Promise<RunFollow | null> {
-  return (await followRunLedger(userId, run, now)).follow;
-}
-
 /**
- * The follow line AND the ledger it was read from. Watch's delivery track
- * (lib/run-track) needs the ledger's own state — `no_evidence` is a stage
- * that failed, which the follow line (null for that state, by design: the
- * chat card says nothing rather than guess) cannot carry.
+ * The follow line AND the ledger it was read from. The delivery track
+ * (lib/run-track, loaded by lib/run-track-load for every surface) needs the
+ * ledger's own state — `no_evidence` is a stage that failed, which the
+ * follow line (null for that state, by design: the chat card says nothing
+ * rather than guess) cannot carry.
  */
 export async function followRunLedger(
   userId: string,
