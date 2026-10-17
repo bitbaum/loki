@@ -6,7 +6,7 @@ import type { ActivityFilter } from "@/lib/activity-events";
 import { activityHref, STATUS_DOT_CLASS } from "./activity-shared";
 
 // At-a-glance row: every project with activity, colored by its worst event in
-// the window. The projects that need attention sort leftmost. "+ N quiet"
+// the window. The projects that need attention sort leftmost. "+ N with no activity"
 // reveals projects with no events in the window.
 export function StatusStrip({
   digestWindow,
@@ -64,8 +64,8 @@ export function StatusStrip({
       {inactiveProjects.length > 0 && (
         <details className="group">
           <summary className="ui-kicker cursor-pointer text-text-tertiary hover:text-text-secondary list-none">
-            <span className="group-open:hidden">+ {inactiveProjects.length} quiet</span>
-            <span className="hidden group-open:inline">Hide quiet projects</span>
+            <span className="group-open:hidden">+ {inactiveProjects.length} with no activity</span>
+            <span className="hidden group-open:inline">Hide projects with no activity</span>
           </summary>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {inactiveProjects.map((p) => (

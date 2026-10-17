@@ -68,7 +68,7 @@ export async function TodayWatch() {
       ) : allClear ? (
         <div className="ui-today-watch-clear">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-status-positive" />
-          <span>Nothing pressing in the private zone right now.</span>
+          <span>Nothing pressing in your goals, people or money right now.</span>
         </div>
       ) : (
         <div className="ui-today-watch-clear">

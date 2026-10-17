@@ -287,7 +287,7 @@ export function ProjectStatusChips({
           className={compact ? "text-status-warning" : statusChipClass("warning")}
           title={readiness.description}
         >
-          Needs path
+          Not connected
         </span>
       )}
 

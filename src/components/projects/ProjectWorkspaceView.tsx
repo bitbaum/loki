@@ -208,6 +208,7 @@ export function ProjectWorkspaceView({
         liveUrl={links.prodUrl}
         ownerPass={ownerPass}
         readonly={dossier.readonly}
+        quiet={showKickoff}
       />
 
       <ProjectTabs

@@ -13,9 +13,10 @@ import {
   projectStates,
   pendingCommands,
   projectMemberships,
+  orchestrationRuns,
 } from "@/db/schema";
 import { eq, and, asc, desc, inArray, ilike, isNull, or, isNotNull, max, sql } from "drizzle-orm";
-import { excludeSmokeDispatchesSql } from "./smoke-filter";
+import { excludeSmokeDispatchesSql, SMOKE_MARKER_PREFIX } from "./smoke-filter";
 import { attrValuesFromMeta, fetchAttributesWithMetaByEntityIds, getOrgPeerIds } from "./utils";
 import { findProjectEntityByName } from "./project-merge";
 import { z } from "zod";
@@ -375,22 +376,42 @@ export type ProjectRow = Awaited<ReturnType<typeof getProjects>>[number];
  * as a plain Record so a server component can pass it straight to the client.
  */
 export async function getProjectsLastDispatch(userId: string): Promise<Record<string, string>> {
-  const rows = await db
-    .select({ projectId: promptHistory.projectId, last: max(promptHistory.dispatchedAt) })
-    .from(promptHistory)
-    .where(
-      and(
-        eq(promptHistory.userId, userId),
-        isNotNull(promptHistory.projectId),
-        excludeSmokeDispatchesSql(),
-      ),
-    )
-    .groupBy(promptHistory.projectId);
-  return Object.fromEntries(
-    rows
-      .filter((r): r is { projectId: string; last: Date } => !!r.projectId && !!r.last)
-      .map((r) => [r.projectId, r.last.toISOString()]),
-  );
+  const [typed, runs] = await Promise.all([
+    db
+      .select({ projectId: promptHistory.projectId, last: max(promptHistory.dispatchedAt) })
+      .from(promptHistory)
+      .where(
+        and(
+          eq(promptHistory.userId, userId),
+          isNotNull(promptHistory.projectId),
+          excludeSmokeDispatchesSql(),
+        ),
+      )
+      .groupBy(promptHistory.projectId),
+    // The runs themselves. Not every run has a typed request behind it — a
+    // feedback fix, autopilot, a seeded history — and reading only prompt
+    // history told the list "no agent runs yet" on a project whose Watch and
+    // Activity showed a run (demo walk-through, 2026-10-17). A run whose
+    // request was a smoke probe stays out, as it does above.
+    db
+      .select({ projectId: orchestrationRuns.projectId, last: max(orchestrationRuns.startedAt) })
+      .from(orchestrationRuns)
+      .where(
+        and(
+          eq(orchestrationRuns.userId, userId),
+          isNotNull(orchestrationRuns.projectId),
+          sql`NOT EXISTS (SELECT 1 FROM ${promptHistory} WHERE ${promptHistory.runId} = ${orchestrationRuns.id} AND ${promptHistory.customPrompt} LIKE ${"%" + SMOKE_MARKER_PREFIX + "%"})`,
+        ),
+      )
+      .groupBy(orchestrationRuns.projectId),
+  ]);
+  const out: Record<string, string> = {};
+  for (const r of [...typed, ...runs]) {
+    if (!r.projectId || !r.last) continue;
+    const at = r.last.toISOString();
+    if (!out[r.projectId] || at > out[r.projectId]) out[r.projectId] = at;
+  }
+  return out;
 }
 
 /** Returns entity-level project profiles belonging to org peers (read-only for the viewer). */

@@ -3719,6 +3719,11 @@
   }
 
   /* Typography */
+  /* The one line under a form field (Field hint): what it is for, so the
+     label above it can stay two or three words. */
+  .ui-field-hint {
+    @apply mt-1.5 text-xs leading-snug text-text-tertiary;
+  }
   .ui-kicker {
     font-size: 0.75rem;
     @apply font-semibold uppercase text-text-secondary;
