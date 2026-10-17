@@ -120,7 +120,19 @@ export type RunTrackInput = {
   providerLabel: string;
   /** Why a failed run stopped, in one sentence (humanizeRunFailure). */
   failure: string | null;
+  /** Clock for the one judgement that needs time (PR_LOOK_WINDOW_MS); tests pin it. */
+  now?: number;
 };
+
+/**
+ * How long after the agent finishes "Looking for the pull request" may stay
+ * the answer. The fix ledger is re-read every few minutes while anyone looks
+ * (fixNeedsRefresh); a pull request the agent opened shows up well inside
+ * this. Past it, "looking" is no longer true: the demo's kestrel run sat on
+ * "Looking for the pull request · 66h 21m" (owner's walk-through,
+ * 2026-10-17), a clock that would never stop.
+ */
+export const PR_LOOK_WINDOW_MS = 30 * 60_000;
 
 const STARTED: ReadonlySet<RunEventKind> = new Set([
   "claimed",
@@ -177,6 +189,8 @@ type Facts = {
   provider: string;
   askedAt: string | null;
   startedWorkAt: string | null;
+  /** Finished well, no pull request or push found, and past PR_LOOK_WINDOW_MS. */
+  noPrFound: boolean;
 };
 
 function readFacts(input: RunTrackInput): Facts {
@@ -214,7 +228,24 @@ function readFacts(input: RunTrackInput): Facts {
     provider: input.providerLabel,
     askedAt: input.askedAt ?? input.run?.startedAt ?? null,
     startedWorkAt: t.generating ?? t.submitted ?? t.launched ?? t.claimed ?? null,
+    noPrFound: noPrFound(input, prUrl, commits.length > 0),
   };
+}
+
+function noPrFound(input: RunTrackInput, prUrl: string | null, committed: boolean): boolean {
+  const fin = Date.parse(input.run?.finishedAt ?? "");
+  const outcome = input.run?.outcome;
+  const well =
+    outcome === ORCHESTRATION_OUTCOME.SUCCESS || outcome === ORCHESTRATION_OUTCOME.PARTIAL;
+  return (
+    well &&
+    Number.isFinite(fin) &&
+    !prUrl &&
+    !input.evidence &&
+    !committed &&
+    !input.fix?.state &&
+    (input.now ?? Date.now()) - fin > PR_LOOK_WINDOW_MS
+  );
 }
 
 const stage = (
@@ -254,9 +285,18 @@ function builderStage(f: Facts): TrackStage {
   if (t.launched) facts.push({ text: `Opened an agent session.`, at: t.launched });
   if (t.submitted)
     facts.push({ text: `Delivered your request to ${f.provider}.`, at: t.submitted });
-  if (f.started)
-    return stage("builder", `${who === "A builder" ? "A builder" : who} picked it up`, "done", {
-      at: t.claimed ?? t.launched ?? t.submitted ?? t.generating ?? t.progress ?? null,
+  // An agent that finished its work was, by that fact, picked up — even when
+  // the claim itself left no event. "No builder picked it up" (red) directly
+  // above "Claude Code finished" (green) is what the demo's track said.
+  if (f.started || f.finishedWell)
+    return stage("builder", `${who.charAt(0).toUpperCase()}${who.slice(1)} picked it up`, "done", {
+      at:
+        t.claimed ??
+        t.launched ??
+        t.submitted ??
+        t.generating ??
+        t.progress ??
+        (f.started ? null : (f.input.run?.startedAt ?? null)),
       facts,
     });
   // The reason is the card's headline (summaryOf); saying it twice, one line
@@ -374,6 +414,13 @@ function prStage(f: Facts): TrackStage {
     return stage("pr", "Nothing reached GitHub", "failed", {
       note: "The agent finished, but no branch or pull request was found.",
       at: f.input.run?.finishedAt ?? null,
+    });
+  if (f.noPrFound)
+    return stage("pr", "No pull request found", "attention", {
+      note: "The agent finished, but Loki found no pull request for it — open the run to see what it left.",
+      // No time: a stage that will never move must not carry a running
+      // clock ("57h 29m" read as still going).
+      at: null,
     });
   if (f.finishedWell)
     return stage("pr", "Looking for the pull request", "now", {
@@ -510,7 +557,9 @@ function summaryOf(f: Facts, builder: TrackStage, work: TrackStage): string {
   if (f.finishedWell)
     return f.ship === FIX_SHIP_STATE.NO_EVIDENCE
       ? "The agent finished, but nothing reached GitHub."
-      : `${p} finished — checking where the change is.`;
+      : f.noPrFound
+        ? `${p} finished, but no pull request was found.`
+        : `${p} finished — checking where the change is.`;
   if (f.finished) return f.input.failure ?? `${p} stopped before the change shipped.`;
   if (work.state === "attention") return work.note ?? `${p} needs you.`;
   if (builder.state === "attention") return "Sent, but no builder has picked it up.";
@@ -530,6 +579,7 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
     f.ship === FIX_SHIP_STATE.PR_CLOSED ||
     (f.finished && !f.finishedWell) ||
     (f.finishedWell && f.ship === FIX_SHIP_STATE.NO_EVIDENCE) ||
+    f.noPrFound ||
     (f.finishedWell && f.pushed);
 
   const current =

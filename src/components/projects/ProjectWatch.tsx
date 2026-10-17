@@ -425,6 +425,8 @@ function cardPhase(input: {
   const live = input.track?.stages.find((s) => s.id === "live");
   if (live?.state === "done") return "live";
   if (input.track?.stages.some((s) => s.state === "failed")) return "stopped";
+  // Settled but waiting on a person (no pull request found): not "Live".
+  if (input.track?.stages.some((s) => s.state === "attention")) return "attention";
   if (input.track && !input.track.settled) return "following";
   return "live";
 }
