@@ -20,6 +20,8 @@ import type {
 } from "@/lib/orchestration";
 import type { KitRunRecord } from "@/lib/kit-plan/types";
 
+import type { FixShipping } from "@/lib/feedback/fix-shipping";
+
 export type OrchestrationRunPayload = {
   projectId?: string | null;
   projectKey: string;
@@ -60,9 +62,14 @@ export type OrchestrationRunPayload = {
    *  (feedback/verify-live.ts) — a JPEG data URL, phone-sized. Kept here, not
    *  in payload.fix, so the inbox list never carries the bytes. */
   fixPicture?: string;
-  /** Repo-side work evidence attached when the reaper corrects a timeout
-   *  verdict (reap-evidence.ts). */
+  /** Repo-side work evidence: a pull request or push seen on GitHub inside
+   *  the run's window. Written by the reaper when it corrects a timeout
+   *  (reap-evidence.ts) and by Watch the moment it appears (run-evidence-live.ts). */
   evidence?: { kind: string; url: string; title: string; atMs: number };
+  /** The fix ledger — where the change got to AFTER the run closed: pull
+   *  request, merge, deploy, Loki's look (lib/feedback/fix-shipping, written
+   *  by stampRunFix). Every reader used to cast for it. */
+  fix?: FixShipping;
   /** Announce this run's outcome when it closes, on every configured channel
    *  (web push to the installed PWA, plus Telegram when a chat id is set).
    *

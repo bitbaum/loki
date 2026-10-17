@@ -17,7 +17,7 @@
 import { useMemo, useEffect, useState } from "react";
 import Link from "next/link";
 import { singleFlight } from "@/lib/single-flight";
-import { Loader2, MessagesSquare, RotateCcw } from "lucide-react";
+import { ArrowUpRight, Loader2, MessagesSquare, RotateCcw } from "lucide-react";
 import { withTerminalView } from "@/lib/fleet-context";
 import { timeAgo } from "@/lib/dates";
 import { postJson } from "@/lib/api/fetch";
@@ -33,7 +33,10 @@ import type { KickoffRunState } from "@/lib/kickoff/orchestrate";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import type { AutoInjectMode } from "@/config/beacon";
 import { ProjectWatchLive } from "./ProjectWatchLive";
+import { RunTrack } from "./RunTrack";
 import { ActivityGroup, AssistantMessage, TypingDots, UserMessage } from "./project-watch-parts";
+import type { RunTrack as RunTrackData } from "@/lib/run-track";
+import type { RunFollow } from "@/lib/run-handoff";
 
 type WatchPayload = {
   project: { name: string };
@@ -50,6 +53,13 @@ type WatchPayload = {
     lastProgressAt: string | null;
     error: string | null;
   } | null;
+  /** Where the change is, stage by stage — see lib/run-track. */
+  track?: RunTrackData | null;
+  /** The change can still move (merge, deploy, Loki's look): keep asking. */
+  following?: boolean;
+  /** The chat card's follow line — read here for the picture Loki took. */
+  follow?: RunFollow | null;
+  liveUrl?: string | null;
   provider?: {
     current: string;
     currentLabel: string;
@@ -66,6 +76,10 @@ type WatchPayload = {
 };
 
 const LIVE_POLL_MS = 4_000;
+/** After the run: merge, deploy and the look move on GitHub's clock. The
+ *  server asks GitHub at most once a minute; this is how fast the page
+ *  learns about it. */
+const FOLLOW_POLL_MS = 10_000;
 const IDLE_POLL_MS = 20_000;
 const TAIL_MS = 6_000;
 
@@ -86,6 +100,7 @@ export function ProjectWatch({
   const [retryError, setRetryError] = useState<string | null>(null);
 
   const live = Boolean(data?.run?.live || data?.kickoff?.running || retrying);
+  const following = Boolean(!live && data?.following);
   const working = data?.status?.phase === "working" && data.status.terminalReady;
 
   // Every setState lives in a promise callback, so effects can start a load.
@@ -124,7 +139,7 @@ export function ProjectWatch({
       () => {
         if (!document.hidden) void load();
       },
-      live ? LIVE_POLL_MS : IDLE_POLL_MS,
+      live ? LIVE_POLL_MS : following ? FOLLOW_POLL_MS : IDLE_POLL_MS,
     );
     const onVisible = () => document.visibilityState === "visible" && void load();
     document.addEventListener("visibilitychange", onVisible);
@@ -132,7 +147,7 @@ export function ProjectWatch({
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [load, live]);
+  }, [load, live, following]);
 
   // The agent's screen, only while it is actually producing output.
   const tab = data?.tab ?? null;
@@ -225,6 +240,20 @@ export function ProjectWatch({
           tab={status.terminalReady ? (p.tab ?? null) : null}
           terminalHref={status.terminalReady ? (p.terminalHref ?? null) : null}
           autopilot={p.autopilot ?? null}
+          track={p.track ?? null}
+        />
+      )}
+
+      {/* The run is over, or stuck: where the change got to, top of the page,
+          with the one link that matters. The thread below is the history. */}
+      {p.run && status && p.track && (!runLive || failed || status.stalled) && (
+        <OutcomeCard
+          track={p.track}
+          failed={failed}
+          stalled={runLive && status.stalled}
+          finishedAt={p.run.finishedAt}
+          startedAt={p.run.startedAt}
+          follow={p.follow ?? null}
         />
       )}
 
@@ -347,7 +376,7 @@ export function ProjectWatch({
         </AssistantMessage>
       )}
 
-      {p.run && !runLive && !failed && agentMsgs.length === 0 && status && (
+      {p.run && !runLive && !failed && agentMsgs.length === 0 && status && !p.track && (
         <AssistantMessage who="Loki">
           <p>
             {status.label}. {status.nextAction}
@@ -355,6 +384,94 @@ export function ProjectWatch({
         </AssistantMessage>
       )}
     </div>
+  );
+}
+
+/**
+ * After the agent: the one sentence, the track, and the one tap. "Finished"
+ * used to be where the page stopped — on a change that was still an unmerged
+ * pull request on a site nobody had redeployed. Now the page follows it
+ * until it is live and Loki has looked, and says so.
+ */
+function OutcomeCard({
+  track,
+  failed,
+  stalled,
+  finishedAt,
+  startedAt,
+  follow,
+}: {
+  track: RunTrackData;
+  failed: boolean;
+  stalled: boolean;
+  finishedAt: string | null;
+  startedAt: string;
+  follow: RunFollow | null;
+}) {
+  const liveStage = track.stages.find((s) => s.id === "live");
+  const isLive = liveStage?.state === "done" && Boolean(liveStage.href);
+  const word = failed
+    ? "Stopped"
+    : stalled
+      ? "Needs you"
+      : isLive
+        ? "Live"
+        : track.settled
+          ? "Finished"
+          : "On its way";
+  const dot = failed
+    ? "ui-dot-negative"
+    : stalled
+      ? "ui-dot-warning"
+      : isLive
+        ? "ui-dot-positive"
+        : track.settled
+          ? "ui-dot-neutral"
+          : "ui-watch-live-dot";
+  const when = finishedAt ?? startedAt;
+  return (
+    <section className="ui-watch-live" aria-live="polite">
+      <p className="ui-watch-live-kicker">
+        <span className={dot === "ui-watch-live-dot" ? dot : `ui-dot ${dot}`} aria-hidden="true" />
+        {word}
+        <span className="text-text-muted">
+          · {finishedAt ? "finished" : "asked"} {timeAgo(new Date(when).getTime())}
+        </span>
+      </p>
+      <h2 key={track.summary} className="ui-watch-headline">
+        {track.summary}
+      </h2>
+      <RunTrack track={track} />
+      {isLive && liveStage?.href && (
+        <a
+          href={liveStage.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ui-btn-primary gap-1.5"
+        >
+          Open the live page <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+        </a>
+      )}
+      {follow?.pictureUrl && (
+        <a
+          href={follow.liveUrl ?? follow.pictureUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ui-loki-update-shot max-w-xs"
+        >
+          {/* An owner-only API image — next/image would fetch it without the session. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={follow.pictureUrl}
+            alt="The live page, as Loki saw it on a phone"
+            loading="lazy"
+          />
+          <span className="ui-loki-update-shot-caption">
+            The live page, as Loki saw it on a phone
+          </span>
+        </a>
+      )}
+    </section>
   );
 }
 

@@ -15,6 +15,12 @@ import type { RepoWorkEvidence } from "@/lib/repo-evidence";
 export type { RepoWorkEvidence } from "@/lib/repo-evidence";
 export { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
 
+/** GitHub marks apps as `type: "Bot"`; the events feed only gives a login,
+ *  which for an app ends in "[bot]". */
+function isBot(who: { type?: string; login?: string } | null | undefined): boolean {
+  return who?.type === "Bot" || /\[bot\]$/i.test(who?.login ?? "");
+}
+
 function ghInit(token: string): RequestInit {
   return {
     headers: {
@@ -46,10 +52,16 @@ export async function findRepoWorkEvidence(
         html_url?: string;
         title?: string;
         created_at?: string;
+        user?: { type?: string; login?: string } | null;
       }>;
       for (const row of Array.isArray(rows) ? rows : []) {
         const atMs = row.created_at ? Date.parse(row.created_at) : NaN;
         if (!Number.isFinite(atMs) || atMs < sinceMs) break; // sorted desc — older from here on
+        // Dependabot opens pull requests on its own clock. One that lands in
+        // the run's window is not the run's work, and telling the person
+        // "Pull request opened: bump 24 packages" about their font-size
+        // change is worse than saying nothing.
+        if (isBot(row.user)) continue;
         if (row.html_url)
           return { kind: "pr", url: row.html_url, title: row.title ?? "pull request", atMs };
       }
@@ -65,9 +77,11 @@ export async function findRepoWorkEvidence(
         type?: string;
         created_at?: string;
         payload?: { ref?: string | null };
+        actor?: { login?: string } | null;
       }>;
       for (const row of Array.isArray(rows) ? rows : []) {
         if (row.type !== "PushEvent" && row.type !== "CreateEvent") continue;
+        if (isBot(row.actor)) continue;
         const atMs = row.created_at ? Date.parse(row.created_at) : NaN;
         if (!Number.isFinite(atMs) || atMs < sinceMs) break; // events feed is newest-first
         const ref =

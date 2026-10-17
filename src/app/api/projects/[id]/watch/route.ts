@@ -18,10 +18,17 @@ import { listRunEventsForRun } from "@/db/queries/run-events";
 import { hydrateFeedbackSnapshot } from "@/lib/feedback/attach-work";
 import { deriveFeedbackWork } from "@/lib/feedback/work-phase";
 import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
+import { FIX_SHIP_STATE } from "@/lib/feedback/fix-shipping";
 import { buildTerminalRunView } from "@/lib/terminal-run-view";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { getServerKickoff } from "@/lib/kickoff/server-runs";
-import { buildWatchTimeline } from "@/lib/project-watch";
+import { buildWatchTimeline, humanizeRunFailure } from "@/lib/project-watch";
+import { buildRunTrack } from "@/lib/run-track";
+import { findLiveRunEvidence } from "@/lib/run-evidence-live";
+import { FOLLOW_WINDOW_MS, followRunLedger } from "@/lib/run-follow";
+import { normalizeRepoWorkEvidence } from "@/lib/repo-evidence";
+import { ORCHESTRATION_OUTCOME } from "@/lib/orchestration/contract";
+import { RUN_BLOCKED } from "@/lib/run-progress";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import { providerLabel } from "@/config/quota-alternatives";
 
@@ -30,6 +37,14 @@ import { providerLabel } from "@/config/quota-alternatives";
  * thread (lib/project-watch), plus the phase line and where to go next. The
  * same hydrate + work-phase as Terminal's rail and Feedback's Watch, so every
  * surface gives one answer about the same run.
+ *
+ * It also carries the delivery track (lib/run-track): where the change IS,
+ * from the ask to the live site. While the run is live the route asks GitHub
+ * for the branch or pull request the agent has pushed (lib/run-evidence-live,
+ * at most once a minute); once the run has closed it follows the fix ledger
+ * through merge and deploy and Loki's look at the live page (lib/run-follow,
+ * the same path the chat card takes). `following` tells the page to keep
+ * asking until nothing can move any more.
  *
  * `?run=<id>` pins one run of THIS project — the widget's "Follow the build"
  * for one change must keep showing that change, not whatever ran last.
@@ -69,7 +84,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     );
   }
 
-  const [events, promptRow, snap] = await Promise.all([
+  const [events, promptRow, snap, up] = await Promise.all([
     listRunEventsForRun(run.id, executionUserId, 100),
     db
       .select({
@@ -83,6 +98,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .limit(1)
       .then((rows) => rows[0] ?? null),
     hydrateFeedbackSnapshot(executionUserId, run),
+    getUserProjectByEntityId(executionUserId, idOrResp).catch(() => null),
   ]);
 
   const work = deriveFeedbackWork(FEEDBACK_STATUS.DISPATCHED, snap);
@@ -115,12 +131,77 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 
   const tab = run.payload?.sessionTab ?? project.name;
-  const [up, autopilotOverride, beacon] = await Promise.all([
-    getUserProjectByEntityId(executionUserId, idOrResp).catch(() => null),
+  const [autopilotOverride, beacon] = await Promise.all([
     getProjectAutopilotOverride(executionUserId, project.name).catch(() => null),
     getBeaconSettings(executionUserId),
   ]);
   const failed = Boolean(run.finishedAt) && (view.phase === "failed" || view.stalled);
+  const finishedWell =
+    Boolean(run.finishedAt) &&
+    (run.outcome === ORCHESTRATION_OUTCOME.SUCCESS ||
+      run.outcome === ORCHESTRATION_OUTCOME.PARTIAL);
+
+  // ── Where the change is ───────────────────────────────────────────────
+  // Evidence from GitHub, for the owner's own view only (it uses their
+  // token). Live: the branch or pull request the agent has pushed so far.
+  // Closed well with a ledger that found no pull request: one more look, in
+  // case the handoff never named the one that exists.
+  let evidence = normalizeRepoWorkEvidence(run.payload?.evidence);
+  const cachedFix = run.payload?.fix ?? null;
+  const ledgerBlind =
+    !cachedFix ||
+    (cachedFix.state === FIX_SHIP_STATE.NO_EVIDENCE && !cachedFix.pr) ||
+    cachedFix.state === FIX_SHIP_STATE.PUSHED;
+  if (
+    ownerView &&
+    !evidence &&
+    (!run.finishedAt || (finishedWell && ledgerBlind)) &&
+    Date.now() - run.startedAt.getTime() < FOLLOW_WINDOW_MS
+  ) {
+    evidence = await findLiveRunEvidence(executionUserId, run, up?.gitUrl);
+  }
+  const runForFollow =
+    evidence && !run.payload?.evidence
+      ? { ...run, payload: { ...(run.payload ?? {}), evidence } }
+      : run;
+  const { follow, fix } = ownerView
+    ? await followRunLedger(executionUserId, runForFollow).catch(() => ({
+        follow: null,
+        fix: cachedFix,
+      }))
+    : { follow: null, fix: cachedFix };
+
+  const provider = providerLabel(run.adapter);
+  const error = run.payload?.error ?? snap?.error ?? null;
+  const track = buildRunTrack({
+    eventKinds: events.map((e) => e.kind),
+    run: { finishedAt: run.finishedAt?.toISOString() ?? null, outcome: run.outcome ?? null },
+    phase: view.phase,
+    stalled: view.stalled,
+    needsYou: snap?.blocked === RUN_BLOCKED.AUTH ? "It is waiting at a sign-in prompt." : null,
+    evidence,
+    fix: fix
+      ? {
+          state: fix.state,
+          // A pull request the ledger discounted (opened before the run) is
+          // not this change's; the track must not point at it.
+          prUrl: fix.foreignPr ? null : (fix.pr?.url ?? null),
+          liveUrl: follow?.liveUrl ?? null,
+          looked: fix.verify ? { verdict: fix.verify.verdict } : null,
+        }
+      : null,
+    liveUrl: up?.liveUrl ?? null,
+    providerLabel: provider,
+    failure: failed ? humanizeRunFailure(error, provider, view.quotaDeath) : null,
+  });
+  // Keep asking while the change can still move — through merge, deploy and
+  // Loki's look — but not for a run that closed days ago.
+  const following =
+    ownerView &&
+    finishedWell &&
+    !track.settled &&
+    Date.now() - run.finishedAt!.getTime() < FOLLOW_WINDOW_MS;
+
   return NextResponse.json(
     {
       ok: true,
@@ -141,12 +222,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         stalled: view.stalled,
         terminalReady: ownerView && view.terminalReady,
         lastProgressAt: view.lastProgressAt,
-        error: run.payload?.error ?? snap?.error ?? null,
+        error,
       },
+      track,
+      following,
+      follow,
+      liveUrl: up?.liveUrl ?? null,
       tab: ownerView ? tab : undefined,
       provider: {
         current: run.adapter,
-        currentLabel: providerLabel(run.adapter),
+        currentLabel: provider,
         reroutedFrom: run.payload?.reroutedFrom ?? null,
         reroutedFromLabel: run.payload?.reroutedFrom
           ? providerLabel(run.payload.reroutedFrom)

@@ -6,6 +6,12 @@ import { isValidUuid } from "../../src/lib/utils";
 import { dispatchMessageDisplay } from "../../src/lib/terminal-conversation";
 import { buildWatchTimeline } from "../../src/lib/project-watch";
 import { fleetSurfaceHref } from "../../src/lib/fleet-context";
+import { humanizeRunFailure } from "../../src/lib/project-watch";
+import { buildRunTrack } from "../../src/lib/run-track";
+import { normalizeRepoWorkEvidence } from "../../src/lib/repo-evidence";
+import { FIX_SHIP_STATE } from "../../src/lib/feedback/fix-shipping";
+import { ORCHESTRATION_OUTCOME } from "../../src/lib/orchestration/contract";
+import { RUN_BLOCKED } from "../../src/lib/run-progress";
 async function main() {
   const file = "src/app/api/projects/[id]/watch/route.ts";
   const parsed = ts.createSourceFile(
@@ -104,6 +110,23 @@ async function main() {
       return { auto_inject_mode: "on" };
     },
     providerLabel: () => "Claude",
+    // The delivery track: pure pieces run for real; the two that reach
+    // GitHub are owner-only and must never be asked on a member's behalf.
+    buildRunTrack,
+    humanizeRunFailure,
+    normalizeRepoWorkEvidence,
+    FIX_SHIP_STATE,
+    ORCHESTRATION_OUTCOME,
+    RUN_BLOCKED,
+    FOLLOW_WINDOW_MS: 48 * 60 * 60_000,
+    findLiveRunEvidence: async (owner: string) => {
+      await ownerOnly(owner);
+      return null;
+    },
+    followRunLedger: async (owner: string) => {
+      await ownerOnly(owner);
+      return { follow: null, fix: null };
+    },
   };
   const get = new Function(...Object.keys(bindings), js + ";return GET;")(
     ...Object.values(bindings),
@@ -119,6 +142,8 @@ async function main() {
   assert(owned.canRetry);
   assert(owned.terminalHref);
   assert(owned.autopilot);
+  assert.equal(owned.track.stages.length, 6);
+  assert.equal(owned.following, false, "a failed run has nothing left to follow");
   actor = "member";
   for (const role of ["viewer", "editor"] as const) {
     memberRole = role;
@@ -135,6 +160,9 @@ async function main() {
     assert.equal(shared.terminalHref, undefined);
     assert.equal(shared.autopilot, undefined);
     assert.equal(shared.tab, undefined);
+    assert.equal(shared.track.stages.length, 6, "members see where the change is");
+    assert.equal(shared.follow, null);
+    assert.equal(shared.following, false);
   }
   memberRole = null;
   const before = readers.length;
