@@ -5432,6 +5432,35 @@
   .ui-fb-row-next {
     @apply text-xs leading-snug text-text-secondary;
   }
+  /* The reporter's walk (components/feedback/MomentsWalk): said → seen, in
+     order, with the picture Loki takes of that view on a tap. */
+  .ui-fb-walk {
+    @apply mt-2 space-y-2 border-l border-border-subtle pl-3;
+  }
+  .ui-fb-walk-item {
+    @apply space-y-0.5 text-sm;
+  }
+  .ui-fb-walk-head {
+    @apply flex items-baseline gap-2;
+  }
+  .ui-fb-walk-time {
+    @apply shrink-0 text-xs tabular-nums text-text-muted;
+  }
+  .ui-fb-walk-where {
+    @apply min-w-0 font-medium text-text-primary;
+  }
+  .ui-fb-walk-marked {
+    @apply text-xs font-normal uppercase tracking-caps text-text-tertiary;
+  }
+  .ui-fb-walk-seen {
+    @apply text-xs text-text-secondary;
+  }
+  .ui-fb-walk-said {
+    @apply text-text-primary italic wrap-anywhere;
+  }
+  .ui-fb-walk-picture {
+    @apply mt-1 block w-full max-w-56 rounded-lg border border-border-subtle;
+  }
   .ui-fb-row-actions {
     @apply mt-1.5 flex flex-wrap items-center gap-1.5;
   }

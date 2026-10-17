@@ -224,6 +224,28 @@ async function main() {
         "All transcribed words remain separate from context",
       );
       assert(JSON.stringify(posted[0]).includes("Pricing (marked)"), "what was marked travels");
+      // Said → seen: the walk travels as moments — the tap on the site's own
+      // button by its label, the marked part, the scroll — never the password.
+      const moments = posted[0].moments as Array<{
+        label: string;
+        marked?: boolean;
+        scrollY?: number;
+        tap?: { text: string; selector: string };
+        said?: string;
+      }>;
+      assert(Array.isArray(moments) && moments.length >= 2, "the walk's moments travel");
+      assert(
+        moments.some((m) => m.tap?.text === "Browse services" && m.tap.selector === "#normal"),
+        `a tap on the site is a moment with the control's label: ${JSON.stringify(moments)}`,
+      );
+      const pricing = moments.find((m) => m.label === "Pricing");
+      assert(pricing?.marked, "Mark marks the part in view");
+      assert(typeof pricing?.scrollY === "number" && pricing.scrollY > 0, "the scroll is kept");
+      assert.equal(
+        moments[0].said,
+        transcript.slice(0, 600),
+        "without timings the words belong to the first part, capped by the contract",
+      );
       assert(!JSON.stringify(posted[0]).includes("private-password"));
       await page.getByRole("button", { name: "Record a note while browsing", exact: true }).click();
       await host

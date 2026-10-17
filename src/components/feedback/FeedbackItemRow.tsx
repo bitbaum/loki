@@ -12,6 +12,7 @@ import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import { FeedbackReportText } from "@/components/feedback/FeedbackReportText";
 import { WatchFixButton } from "@/components/feedback/WatchFixButton";
 import { LookedPicture } from "@/components/feedback/LookedPicture";
+import { MomentsWalk } from "@/components/feedback/MomentsWalk";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
 import { fleetSurfaceHref, withTerminalView } from "@/lib/fleet-context";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
@@ -288,6 +289,9 @@ export function FeedbackItemRow({
       </p>
       <FeedbackReportText text={f.suggestion} />
       <ElementTarget f={f} />
+      {f.moments && f.moments.length > 0 && (
+        <MomentsWalk feedbackId={f.id} moments={f.moments} canLook />
+      )}
       <WhereLine f={f} project={project} />
       {f.requiresReview && f.status === FEEDBACK_STATUS.NEW ? (
         <p className="ui-fb-row-next">

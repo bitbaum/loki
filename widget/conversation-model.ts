@@ -12,6 +12,7 @@
  */
 import { CAPTURE_CONTEXT_LIMITS } from "./capture-context";
 import type { FeedbackCapture } from "./feedback-capture";
+import { clampMoments, type ReportMoment } from "./moments-contract";
 import { buildSuggestion, type ReportDiagnostics } from "./report-payload";
 import { sendReport } from "./send-report";
 import { sendSelfReport } from "./self-report";
@@ -101,6 +102,8 @@ export type Draft = {
   diagnostics: ReportDiagnostics | null;
   capture?: FeedbackCapture;
   intent?: "note" | "fix";
+  /** What was seen while each thing was said (voice-moments.ts). */
+  moments?: ReportMoment[];
 };
 
 const draftKey = (token: string) => `loki-voice-draft:${token}`;
@@ -156,7 +159,14 @@ function readRecordedDraft(token: string): Draft | null {
       selected,
       diagnostics,
     };
-    return { text: raw.text, intent: "note", capture, diagnostics };
+    const moments = clampMoments(raw.moments);
+    return {
+      text: raw.text,
+      intent: "note",
+      capture,
+      diagnostics,
+      ...(moments.length ? { moments } : {}),
+    };
   } catch {
     return null;
   }
@@ -351,12 +361,14 @@ export function createConversationModel(opts: ConversationModelOpts) {
     key?: string,
     capture?: FeedbackCapture,
     intent?: "note" | "fix",
+    moments?: ReportMoment[],
   ) {
     const pass = opts.ownerPass();
     const res = await sendReport(opts.apiBase, {
       token: opts.token,
       intent,
       capture,
+      moments: moments?.length ? clampMoments(moments) : undefined,
       suggestion: capture ? body.trim().slice(0, MAX_LEN) : buildSuggestion(body, diag, MAX_LEN),
       contact,
       scope: capture ? (capture.selected.length ? "element" : "page") : opts.scope(),
@@ -421,14 +433,23 @@ export function createConversationModel(opts: ConversationModelOpts) {
           ),
         );
       const diag = draft?.diagnostics ?? null;
-      return deliver(body, contact, diag, undefined, draft?.capture, intent ?? draft?.intent);
+      return deliver(
+        body,
+        contact,
+        diag,
+        undefined,
+        draft?.capture,
+        intent ?? draft?.intent,
+        draft?.moments,
+      );
     },
-    recorded(text: string, capture: FeedbackCapture) {
+    recorded(text: string, capture: FeedbackCapture, moments: ReportMoment[] = []) {
       draft = {
         text,
         diagnostics: capture.diagnostics,
         capture,
         intent: "note",
+        ...(moments.length ? { moments } : {}),
       };
       keepRecordedDraft(opts.token, draft);
       changed(true);

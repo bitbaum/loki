@@ -2,17 +2,41 @@
  * Speak while browsing: one bar, and the real site stays usable underneath.
  *
  * While the person talks, Loki notes which part of the page is in view — at
- * the start, whenever scrolling settles, and whenever they tap Mark — and the
- * note it makes puts each sentence under the part that was in view when it
- * was said (voice-moments.ts). It used to have an unlabelled target icon that
- * opened the element picker's own bar on top of this one: two bars, two
- * "Done" buttons, and no way to tell which ended the recording (2026-10-16).
+ * the start, whenever scrolling settles, whenever they tap anything on the
+ * site, and whenever they tap Mark — with the text at the reading line, the
+ * scroll position and the control they tapped (voice-moments.ts). The note it
+ * makes puts each sentence under the part that was in view when it was said,
+ * and the structured moments travel beside it so Loki can take the picture
+ * of each view afterwards, on the server.
+ *
+ * A take is capped by the upload limit, but a walk through a site is not:
+ * when a take reaches the cap the recorder hands straight into the next one
+ * (the microphone stays granted, so no second prompt), the clock keeps
+ * counting from the start of the walk, and Done writes all of it down as one
+ * note (owner, 2026-10-17: "scroll through the site and click different
+ * things while recording an audio").
+ *
+ * It used to have an unlabelled target icon that opened the element picker's
+ * own bar on top of this one: two bars, two "Done" buttons, and no way to
+ * tell which ended the recording (2026-10-16).
  */
 import { createHostScanner } from "./host-scan";
 import { overlaps } from "./placement";
 import { h } from "./dom";
 import { pressVerb } from "./press";
-import { addMoment, alignNote, inView, timeline, type Moment } from "./voice-moments";
+import {
+  addMoment,
+  alignNote,
+  describeTap,
+  inView,
+  joinTakes,
+  momentsForReport,
+  readingText,
+  timeline,
+  type Moment,
+  type TimedText,
+} from "./voice-moments";
+import type { ReportMoment } from "./moments-contract";
 import { createVoiceRecorder, formatElapsed, type VoiceState } from "./voice";
 import { captureFeedbackContext, type FeedbackCapture } from "./feedback-capture";
 import type { SelectedEl } from "./picker";
@@ -20,12 +44,18 @@ import type { WidgetTheme } from "./theme";
 
 /** The upload cap, with room under the server's: one take is at most this. */
 const MAX_MS = 110_000;
+/** A walk is at most this many takes (~18 minutes) — bounded uploads. */
+export const MAX_TAKES = 10;
 
-/** The clock, and — in the last 15 seconds — that it is about to stop, so a
- *  long note never ends mid-sentence without warning. */
-export function listening(elapsedMs: number): string {
+/** The clock — and, on the last take, in its final 15 seconds, that it is
+ *  about to stop, so a long note never ends mid-sentence without warning. */
+export function listening(elapsedMs: number, lastTake = true): string {
   const clock = `Listening ${formatElapsed(elapsedMs)}`;
-  return MAX_MS - elapsedMs <= 15_000 ? `${clock} · stops at ${formatElapsed(MAX_MS)}` : clock;
+  if (!lastTake) return clock;
+  const inTake = elapsedMs % MAX_MS;
+  return MAX_MS - inTake <= 15_000 && elapsedMs >= MAX_MS * (MAX_TAKES - 1)
+    ? `${clock} · stops at ${formatElapsed(MAX_MS * MAX_TAKES)}`
+    : clock;
 }
 
 export function createBrowseVoice(opts: {
@@ -36,7 +66,7 @@ export function createBrowseVoice(opts: {
   token: string;
   selected: () => SelectedEl[];
   onActive(active: boolean): void;
-  onTranscript(text: string, capture: FeedbackCapture): void;
+  onTranscript(text: string, capture: FeedbackCapture, moments: ReportMoment[]): void;
   onError(message: string): void;
 }) {
   const dock = h("div", "browse-voice");
@@ -60,7 +90,7 @@ export function createBrowseVoice(opts: {
   const hint = h(
     "div",
     "bv-hint",
-    `Scroll and talk. Loki notes which part of the page you are on as you go — ${pressVerb().verb} Mark for the part you mean. No video, no screenshots.`,
+    `Scroll, tap and talk. Loki notes what is on screen and what you tap as you go — ${pressVerb().verb} Mark for the part you mean. No video; Loki takes the pictures itself afterwards.`,
   );
   hint.setAttribute("role", "status");
   const style = h("style");
@@ -72,20 +102,34 @@ export function createBrowseVoice(opts: {
   let visible = false;
   let capture: FeedbackCapture | null = null;
   let moments: Moment[] = [];
+  /** When the walk began — moments and the clock count from here. */
   let startedAt = 0;
+  /** Earlier takes of this walk, already written down. */
+  let takes: Array<{ offsetMs: number; text: string; segments: TimedText[] }> = [];
+  /** Where the current take began on the walk's clock. */
+  let takeOffsetMs = 0;
+  /** The person pressed Done (or ✕); a stop without it is the cap. */
+  let userStopped = false;
+  /** The cap stopped the take: write it down and carry straight on. */
+  let continuing = false;
   let scrollTimer: ReturnType<typeof setTimeout> | null = null;
   let hintTimer: ReturnType<typeof setTimeout> | null = null;
   let markTimer: ReturnType<typeof setTimeout> | null = null;
   let state: VoiceState = "idle";
   const ours = (el: Element) => opts.host.contains(el) || !!el.closest("#loki-feedback-host");
-  /** Note what is in view now; `marked` when the person tapped Mark. */
-  const sample = (marked = false) => {
-    if (state !== "recording") return;
+  const walkElapsed = () => Date.now() - startedAt;
+  /** Note what is in view now; `marked` when the person tapped Mark, `tap`
+   *  when they tapped something on the site. */
+  const sample = (marked = false, tap?: Moment["tap"]) => {
+    if (state !== "recording" && !continuing) return;
     moments = addMoment(moments, {
-      at: Date.now() - startedAt,
+      at: walkElapsed(),
       label: inView(ours),
       page: location.pathname,
+      scrollY: Math.round(scrollY),
+      ...(readingText(ours) ? { text: readingText(ours) } : {}),
       ...(marked ? { marked: true } : {}),
+      ...(tap ? { tap } : {}),
     });
   };
   point.addEventListener("click", () => {
@@ -98,6 +142,13 @@ export function createBrowseVoice(opts: {
     if (markTimer) clearTimeout(markTimer);
     markTimer = setTimeout(() => point.classList.remove("marked"), 1200);
   });
+  // A tap on the site: what was tapped, with the part it was in. Capture
+  // phase, so a control that stops propagation is still seen; never the
+  // widget's own buttons.
+  const onTap = (event: MouseEvent) => {
+    const tap = describeTap(event.target, ours);
+    if (tap) sample(false, tap);
+  };
   let placementFrame: number | null = null;
   const reposition = () => {
     if (!visible) return;
@@ -156,6 +207,7 @@ export function createBrowseVoice(opts: {
       if (hintTimer) clearTimeout(hintTimer);
       hintTimer = setTimeout(() => hint.remove(), 6000);
       window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+      document.addEventListener("click", onTap, true);
       window.addEventListener("beforeunload", beforeUnload);
       window.addEventListener("resize", queuePlacement);
       queuePlacement();
@@ -163,6 +215,7 @@ export function createBrowseVoice(opts: {
       dock.remove();
       style.remove();
       window.removeEventListener("scroll", onScroll, true);
+      document.removeEventListener("click", onTap, true);
       window.removeEventListener("beforeunload", beforeUnload);
       window.removeEventListener("resize", queuePlacement);
       if (placementFrame !== null) {
@@ -175,6 +228,21 @@ export function createBrowseVoice(opts: {
     }
     opts.onActive(active);
   };
+  const finish = (text: string, segments: TimedText[]) => {
+    if (!capture) return;
+    const all = joinTakes([...takes, { offsetMs: takeOffsetMs, text, segments }]);
+    const frozen = {
+      ...capture,
+      diagnostics: {
+        ...capture.diagnostics,
+        ...(moments.length ? { "On screen while speaking": timeline(moments) } : {}),
+      },
+    };
+    const note = alignNote(all.text, all.segments, moments);
+    opts.onTranscript(note, frozen, momentsForReport(all.text, all.segments, moments));
+    takes = [];
+    takeOffsetMs = 0;
+  };
   const recorder = createVoiceRecorder({
     endpoint: opts.endpoint,
     token: opts.token,
@@ -182,12 +250,26 @@ export function createBrowseVoice(opts: {
     onState(next, detail) {
       const previous = state;
       state = next;
-      show(["requesting", "recording", "transcribing"].includes(next));
+      show(["requesting", "recording", "transcribing"].includes(next) || continuing);
       if (next === "recording" && previous !== "recording") {
-        capture = captureFeedbackContext(opts.selected());
-        startedAt = Date.now();
-        moments = [];
-        sample();
+        if (!continuing) {
+          capture = captureFeedbackContext(opts.selected());
+          startedAt = Date.now();
+          moments = [];
+          takes = [];
+          takeOffsetMs = 0;
+          sample();
+        }
+        continuing = false;
+        userStopped = false;
+      }
+      // The cap stopped this take, not the person: it is written down and
+      // the next take starts the moment the microphone is free again.
+      if (next === "transcribing" && !userStopped && takes.length < MAX_TAKES - 1)
+        continuing = true;
+      if (next === "idle" && previous === "transcribing" && continuing) {
+        void recorder.start();
+        return;
       }
       dock.dataset.state = next;
       point.disabled = next !== "recording";
@@ -197,27 +279,33 @@ export function createBrowseVoice(opts: {
       if (!(next === "recording" && point.classList.contains("marked")))
         status.textContent =
           next === "recording"
-            ? listening(detail?.elapsedMs ?? 0)
+            ? listening(takeOffsetMs + (detail?.elapsedMs ?? 0), takes.length >= MAX_TAKES - 1)
             : next === "transcribing"
-              ? "Writing it down…"
+              ? continuing
+                ? "Still listening…"
+                : "Writing it down…"
               : "Allow microphone…";
-      if (next === "error") opts.onError(detail?.error ?? "Could not record that note.");
+      if (next === "error") {
+        continuing = false;
+        opts.onError(detail?.error ?? "Could not record that note.");
+      }
     },
     onTranscript(text, segments) {
-      if (!capture) return;
-      const frozen = {
-        ...capture,
-        diagnostics: {
-          ...capture.diagnostics,
-          ...(moments.length ? { "On screen while speaking": timeline(moments) } : {}),
-        },
-      };
-      opts.onTranscript(alignNote(text, segments, moments), frozen);
+      if (continuing) {
+        takes.push({ offsetMs: takeOffsetMs, text, segments });
+        takeOffsetMs = walkElapsed();
+        return;
+      }
+      finish(text, segments);
     },
   });
   dock.addEventListener("keydown", (event) => {
     event.stopPropagation();
-    if (event.key === "Escape") recorder.cancel();
+    if (event.key === "Escape") {
+      userStopped = true;
+      continuing = false;
+      recorder.cancel();
+    }
   });
   const capturePoint = () => {
     const selected = opts.selected();
@@ -229,18 +317,30 @@ export function createBrowseVoice(opts: {
   };
   stop.addEventListener("click", () => {
     if (JSON.stringify(opts.selected()) !== JSON.stringify(capture?.selected)) capturePoint();
+    userStopped = true;
     recorder.stop();
   });
-  cancel.addEventListener("click", () => recorder.cancel());
+  cancel.addEventListener("click", () => {
+    userStopped = true;
+    continuing = false;
+    takes = [];
+    recorder.cancel();
+  });
   return {
     active: () => visible,
     start: () => {
       if (visible) return;
       moments = [];
+      takes = [];
+      continuing = false;
       capture = captureFeedbackContext(opts.selected());
       void recorder.start();
     },
-    cancel: () => recorder.cancel(),
+    cancel: () => {
+      userStopped = true;
+      continuing = false;
+      recorder.cancel();
+    },
     pointed() {
       if (!visible) return;
       capturePoint();
