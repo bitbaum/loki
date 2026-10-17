@@ -940,6 +940,31 @@ export async function stampRunProgress(
 
 /** Cache the fix ledger on the run (payload.fix). Closed runs included — the
  *  PR merges and deploys long after the run ended. */
+/**
+ * Record repo-side evidence (a pull request or push seen on GitHub inside the
+ * run's window) on a run that has none yet. The reaper writes the same key
+ * when it corrects a timeout; Watch writes it the moment the evidence
+ * appears, so the fix ledger can follow a pull request the handoff never
+ * named instead of reporting "nothing reached GitHub" beside a merged one.
+ */
+export async function stampRunEvidence(
+  runId: string,
+  userId: string,
+  evidence: { kind: string; url: string; title: string; atMs: number },
+): Promise<void> {
+  await db
+    .update(orchestrationRuns)
+    .set({
+      payload: sql`jsonb_set(COALESCE(payload, '{}'), '{evidence}', ${JSON.stringify(evidence)}::jsonb)`,
+    })
+    .where(
+      and(
+        eq(orchestrationRuns.id, runId),
+        eq(orchestrationRuns.userId, userId),
+        sql`payload->'evidence' IS NULL`,
+      ),
+    );
+}
 export async function stampRunFix(runId: string, userId: string, fix: FixShipping): Promise<void> {
   await db
     .update(orchestrationRuns)

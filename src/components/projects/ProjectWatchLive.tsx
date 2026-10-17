@@ -23,6 +23,8 @@ import { withTerminalView } from "@/lib/fleet-context";
 import { useWatchNarration } from "@/hooks/use-watch-narration";
 import { ProjectAutopilotToggle } from "@/components/control/ProjectAutopilotToggle";
 import type { AutoInjectMode } from "@/config/beacon";
+import type { RunTrack as RunTrackData } from "@/lib/run-track";
+import { RunTrack } from "./RunTrack";
 
 export function ProjectWatchLive({
   projectId,
@@ -34,8 +36,12 @@ export function ProjectWatchLive({
   terminalHref,
   autopilot,
   working,
+  track,
 }: {
   working: boolean;
+  /** Where the change is, stage by stage (lib/run-track) — the facts under
+   *  the narrated headline. */
+  track: RunTrackData | null;
   projectId: string;
   provider: string;
   startedAt: string | null;
@@ -90,6 +96,16 @@ export function ProjectWatchLive({
               </Link>
             )}
           </div>
+        </div>
+      )}
+
+      {/* The facts under the story: which stages have evidence behind them.
+          The narration above says what it is doing; this says what has
+          actually happened — a builder claimed it, a pull request exists —
+          so nobody has to take the headline on trust (owner, 2026-10-17). */}
+      {track && (
+        <div className="border-t border-border-subtle pt-3">
+          <RunTrack track={track} />
         </div>
       )}
 

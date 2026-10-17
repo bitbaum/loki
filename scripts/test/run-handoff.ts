@@ -95,7 +95,7 @@ assert.match(follow, /autoShip: null/, "following never merges — the repo's ow
 assert.match(follow, /checkAiBudget\(userId\)/, "the look spends the owner's budget, checked");
 assert.match(
   follow,
-  /> FOLLOW_WINDOW_MS\) return runFollow\(fix, liveUrl, run\.id\)/,
+  /> FOLLOW_WINDOW_MS\)\s*return \{ follow: runFollow\(fix, liveUrl, run\.id\), fix \}/,
   "an old thread's cards read their ledger — no GitHub call, no look",
 );
 

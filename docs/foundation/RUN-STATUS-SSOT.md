@@ -39,6 +39,32 @@ Every surface **reads** `work.phase` (and the same run id). They do not re-deriv
 
 Inbox groups stay: Needs you = YOU; Under way = MACHINE (Queued|Working only).
 
+## The delivery track (Watch)
+
+Status answers "is it alive?". It does not answer the question the person who
+sent the change is asking — "is it going to appear on my site, and where is
+it now?" — and on 2026-10-17 an owner watching a healthy run ("Claude Code is
+working · started just now", a narrated headline) did not believe it, while
+GitHub already held the branch and the pull request.
+
+So Watch also draws the **delivery track** (`lib/run-track`, pure; rendered by
+`components/projects/RunTrack`): six fixed stages, each one done / now / next /
+needs you / failed, with one sentence for the whole:
+
+| Stage | Done on | Never on |
+|---|---|---|
+| You asked | the run exists | — |
+| A builder picked it up | a `claimed` / `launched` / `submitted` / `generating` event | time passing |
+| The agent made the change | a `generating`/`progress` event, then a push or PR | the narrated headline |
+| Pull request opened | the PR seen on GitHub (`payload.evidence`, found while the run is live by `lib/run-evidence-live`, or the fix ledger) | the handoff's prose alone |
+| Checks passed and merged | the fix ledger's `merged`/`deploying`/`deployed` | — |
+| Live on `<site>` | the fix ledger's `deployed`, with Loki's look under it | a green CI check |
+
+The route (`/api/projects/[id]/watch`) carries `track` and `following`; the
+page polls every 10 s after the run closes until the track settles (live and
+looked at, closed without merging, or nothing reached GitHub), and not after.
+A stage is never claimed on the clock: "merged" means GitHub said so.
+
 ## Builder channels
 
 Status SSOT is **channel-agnostic**. “Waiting for cloud builder” vs “this computer” is a **detail** on Queued/Needs you, not a separate status family. Prefer cloud-first always-on Runner as default home; local is override for laptop-locked projects.

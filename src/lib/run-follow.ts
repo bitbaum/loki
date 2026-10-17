@@ -58,21 +58,36 @@ export async function followRun(
   run: FollowableRun,
   now: number = Date.now(),
 ): Promise<RunFollow | null> {
+  return (await followRunLedger(userId, run, now)).follow;
+}
+
+/**
+ * The follow line AND the ledger it was read from. Watch's delivery track
+ * (lib/run-track) needs the ledger's own state — `no_evidence` is a stage
+ * that failed, which the follow line (null for that state, by design: the
+ * chat card says nothing rather than guess) cannot carry.
+ */
+export async function followRunLedger(
+  userId: string,
+  run: FollowableRun,
+  now: number = Date.now(),
+): Promise<{ follow: RunFollow | null; fix: FixShipping | null }> {
   const finishedWell =
     !!run.finishedAt &&
     (run.outcome === ORCHESTRATION_OUTCOME.SUCCESS ||
       run.outcome === ORCHESTRATION_OUTCOME.PARTIAL);
-  if (!finishedWell) return null;
   const payload = (run.payload ?? {}) as {
     fix?: FixShipping;
     evidence?: { kind: string; url: string; title: string };
   };
+  if (!finishedWell) return { follow: null, fix: payload.fix ?? null };
   const project = run.projectId
     ? await getUserProjectByEntityId(userId, run.projectId).catch(() => null)
     : null;
   let fix = payload.fix ?? null;
   const liveUrl = project?.liveUrl ?? null;
-  if (now - run.finishedAt!.getTime() > FOLLOW_WINDOW_MS) return runFollow(fix, liveUrl, run.id);
+  if (now - run.finishedAt!.getTime() > FOLLOW_WINDOW_MS)
+    return { follow: runFollow(fix, liveUrl, run.id), fix };
   if (fixNeedsRefresh(fix)) {
     fix = await refreshFixShipping({
       runId: run.id,
@@ -108,5 +123,5 @@ export async function followRun(
       looking.delete(run.id);
     }
   }
-  return runFollow(fix, liveUrl, run.id);
+  return { follow: runFollow(fix, liveUrl, run.id), fix };
 }

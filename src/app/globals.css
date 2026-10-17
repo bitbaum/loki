@@ -4724,6 +4724,63 @@
   .ui-watch-steer-input {
     @apply min-h-10 min-w-0 flex-1 bg-transparent text-base text-text-primary outline-none placeholder:text-text-muted sm:text-sm;
   }
+  /* The delivery track (components/projects/RunTrack): asked → builder →
+     working → pull request → merged → live, as a vertical list with a rail.
+     Each mark carries its state in shape (check, pulse, ring, alert, cross)
+     as well as colour, so a person who cannot tell green from grey still
+     reads it. The pulse is the same dot the live kicker uses: one "now". */
+  .ui-track {
+    @apply space-y-0;
+  }
+  .ui-track-item {
+    @apply relative flex gap-3 pb-3;
+  }
+  .ui-track-item:last-child {
+    @apply pb-0;
+  }
+  .ui-track-item::before {
+    content: "";
+    @apply absolute bottom-0 left-2.5 top-5 w-px -translate-x-px bg-border-subtle;
+  }
+  .ui-track-item:last-child::before {
+    @apply hidden;
+  }
+  .ui-track-mark {
+    @apply relative z-10 mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border-default bg-surface-base text-text-muted;
+  }
+  .ui-track-done .ui-track-mark {
+    border-color: var(--status-positive);
+    background-color: var(--status-positive-subtle);
+    color: var(--status-positive);
+  }
+  .ui-track-now .ui-track-mark {
+    border-color: var(--status-positive);
+  }
+  .ui-track-attention .ui-track-mark {
+    border-color: var(--status-warning);
+    background-color: var(--status-warning-subtle);
+    color: var(--status-warning);
+  }
+  .ui-track-failed .ui-track-mark {
+    border-color: var(--status-negative);
+    background-color: var(--status-negative-subtle);
+    color: var(--status-negative);
+  }
+  .ui-track-label {
+    @apply text-sm font-medium leading-5 text-text-primary;
+  }
+  .ui-track-next .ui-track-label {
+    @apply font-normal text-text-muted;
+  }
+  .ui-track-note {
+    @apply mt-0.5 text-xs leading-relaxed text-text-secondary;
+  }
+  .ui-track-attention .ui-track-note {
+    @apply text-status-warning;
+  }
+  .ui-track-link {
+    @apply mt-1 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-text-primary underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-text-primary;
+  }
   @keyframes ui-watch-rise {
     from {
       opacity: 0;

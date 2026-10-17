@@ -14,7 +14,7 @@
  */
 import type { OrchestrationTaskSummary } from "@/lib/orchestration/contract";
 import { splitSessionItems } from "@/lib/session-content";
-import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
+import { FIX_SHIP_STATE, type FixShipState, type FixShipping } from "@/lib/feedback/fix-shipping";
 import type { StatusTone } from "@/lib/constants/statuses";
 
 export type RunHandoff = {
@@ -73,6 +73,9 @@ export function nextStepPrompt(step: string): string {
  * says whether it shows. Built from the run's fix ledger by lib/run-follow.
  */
 export type RunFollow = {
+  /** The ledger state the words come from (FIX_SHIP_STATE) — the delivery
+   *  track (lib/run-track) reads this, not the label. */
+  state: FixShipState;
   label: string;
   tone: StatusTone;
   /** The pull request, when there is one. */
@@ -116,6 +119,7 @@ export function runFollow(
   const deployed = fix.state === FIX_SHIP_STATE.DEPLOYED;
   const looked = fix.verify ? { verdict: fix.verify.verdict, evidence: fix.verify.evidence } : null;
   return {
+    state: fix.state,
     ...words,
     prUrl: fix.pr?.url ?? null,
     liveUrl: deployed ? (fix.verify?.url ?? liveUrl) : null,
