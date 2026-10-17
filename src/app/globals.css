@@ -7010,8 +7010,11 @@
   .ui-loki-start-avatar {
     @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-raised text-xs font-semibold text-text-secondary;
   }
+  /* Two lines, not one with an ellipsis: an untitled thread is the person's
+     own question, and "How should I price croissants for a small ba…" left
+     the half that says what it was about to a hover a phone does not have. */
   .ui-loki-start-row-title {
-    @apply min-w-0 flex-1 truncate text-sm text-text-primary;
+    @apply line-clamp-2 min-w-0 flex-1 text-sm text-text-primary;
   }
   .ui-loki-start-row-meta {
     @apply max-w-28 shrink-0 truncate text-xs text-text-tertiary max-[360px]:hidden;
@@ -7141,8 +7144,10 @@
   .ui-sugg-quiet {
     @apply text-sm text-text-tertiary;
   }
+  /* A link inside a quiet sentence, still a 44px target: measured at 18px
+     tall on a phone (responsive audit, 2026-10-17). */
   .ui-sugg-link {
-    @apply text-text-secondary underline-offset-2 transition-colors hover:text-text-primary hover:underline;
+    @apply inline-flex min-h-11 items-center text-text-secondary underline-offset-2 transition-colors hover:text-text-primary hover:underline;
   }
   .ui-sugg-empty {
     @apply flex flex-col items-center gap-3 rounded-xl border border-border-subtle bg-surface-base px-4 py-8 text-center;
