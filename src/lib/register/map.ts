@@ -107,8 +107,14 @@ export const PILLARS: ReadonlyArray<{ slug: string; layer: MapLayer; role: strin
   },
 ];
 
+/**
+ * Not "one person plus …": the point of the three pillars is that MORE than
+ * one person can build here and be treated fairly, and the studio site may
+ * never call itself a one-person or solo-founder studio (bitbaum CLAUDE.md).
+ * This sentence ships in the public map.json that site publishes.
+ */
 export const THESIS =
-  "One person plus Bitcoin, an AI fleet and cryptographic governance replaces the permission a corporation, bank, platform or state would otherwise grant.";
+  "With Bitcoin, a fleet of AI agents and cryptographic governance, anyone can do what used to need the permission of a corporation, bank, platform or state.";
 
 export type MapActivity = {
   openRuns: number;
