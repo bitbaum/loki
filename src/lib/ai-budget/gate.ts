@@ -6,6 +6,7 @@ import { OWN_MODEL_SETTINGS_PATH } from "@/lib/own-model-path";
 import { nextUtcMidnight } from "@bitbaum/ai-kit";
 import { atClock } from "@/lib/ai/clock-words";
 import { readAllowanceLeft } from "@/lib/ai-budget/plan-allowance";
+import { isNewcomer, reachesReserve } from "@/lib/ai-budget/newcomer-reserve";
 
 /**
  * The ledger is imported LAZILY, for the same reason `loop.ts` does it: `@/db`
@@ -130,6 +131,17 @@ function explain(decision: ShareDecision, now: Date, timeZone: string | null): s
   }
 }
 
+/** Lazily, like the ledger: only a turn that reaches the reserve needs it. */
+async function createdAtOf(userId: string): Promise<Date | null> {
+  const { getUserById } = await import("@/db/queries/users");
+  return (await getUserById(userId))?.createdAt ?? null;
+}
+
+/** The held part of the pool, said as what it is: kept for someone's first day. */
+function heldMessage(now: Date, timeZone: string | null): string {
+  return `Today's free answers for returning accounts are used up — the rest is kept for people trying Loki for the first time. Full again ${atClock(nextUtcMidnight(now), now, timeZone)} (midnight UTC). ${OWN_MODEL_OFFER}`;
+}
+
 /**
  * May this user take a turn now?
  *
@@ -152,6 +164,8 @@ export async function checkAiBudget(
     capacity?: () => number | Promise<number>;
     /** Tokens left on the person's paid plan this month (lib/ai-budget/plan-allowance.ts). */
     planAllowance?: (userId: string, now: Date) => Promise<number>;
+    /** When the account was made, for the newcomer reserve; read from the users row when absent. */
+    accountCreatedAt?: (userId: string) => Promise<Date | null>;
     /** The person's zone for the clock time in a refusal; read from their settings when absent. */
     timeZone?: string | null;
   } = {},
@@ -160,7 +174,10 @@ export async function checkAiBudget(
     const capacity = await (deps.capacity ?? freeDayCapacityTokens)();
     const readUsage =
       deps.readUsage ?? (async (u: string, n: Date) => (await ledger()).getDayUsage(u, n));
-    const { userSpentTokens, userTurns, activeUsers } = await readUsage(userId, now);
+    const { userSpentTokens, userTurns, activeUsers, totalSpentTokens } = await readUsage(
+      userId,
+      now,
+    );
 
     const costTokens = turnReserveTokens(userSpentTokens, userTurns ?? 0);
     const decision = fairShare({
@@ -171,11 +188,23 @@ export async function checkAiBudget(
       dayElapsed: utcDayElapsed(now),
     });
 
-    if (decision.allowed) return { allowed: true };
+    // The share says yes; the newcomer reserve may still say not this account.
+    // Asked only once the day's total reaches the held part, so the users row
+    // is read on a handful of late turns, not on every one.
+    const held =
+      decision.allowed &&
+      reachesReserve(capacity, totalSpentTokens ?? 0, costTokens) &&
+      // An age that cannot be read admits the turn: the gate fails open.
+      !(await (deps.accountCreatedAt ?? createdAtOf)(userId).then(
+        (at) => isNewcomer(at, now),
+        () => true,
+      ));
+
+    if (decision.allowed && !held) return { allowed: true };
     // Past the share, a paid plan's month still admits the turn. Read only
     // here, so a free turn never pays for it; a read that fails is no
     // allowance, never an outage — the share's refusal stands.
-    if (decision.reason !== "no-capacity") {
+    if (held || decision.reason !== "no-capacity") {
       const left = await (deps.planAllowance ?? readAllowanceLeft)(userId, now).catch(() => 0);
       if (left >= costTokens) return { allowed: true };
     }
@@ -185,6 +214,9 @@ export async function checkAiBudget(
       deps.timeZone !== undefined || decision.reason === "no-capacity"
         ? (deps.timeZone ?? null)
         : await personZone(userId, now).catch(() => null);
+    if (held) {
+      return { allowed: false, message: heldMessage(now, timeZone) };
+    }
     return {
       allowed: false,
       message: explain(decision, now, timeZone),

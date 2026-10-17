@@ -399,8 +399,12 @@ each turn run on". Three facts decide the design:
    change their mind. At a
    thousand users that is one request each; at a million it is a rounding
    error. The free pool is a tasting menu, rationed per person
-   (`lib/ai-budget`), and every refusal it issues points at the two ways
-   out. It is never the plan for the tenth-thousandth user, and nothing in
+   (`lib/ai-budget`), and every refusal it issues points at the ways
+   out (own key, a plan). Its size is read from what the vendors state
+   (`lib/ai/observed-capacity.ts`), never below the configured figure, and
+   a fifth of each day is kept for accounts under a week old
+   (`lib/ai-budget/newcomer-reserve.ts`), so the first visit never meets an
+   empty pool. It is never the plan for the tenth-thousandth user, and nothing in
    the product should imply it is.
 
 2. **Your own key scales for free.** Each person's turn runs on their

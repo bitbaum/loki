@@ -28,6 +28,12 @@ export type DayUsage = {
    * against a split that does not include them, briefly over-committing the day.
    */
   activeUsers: number;
+  /**
+   * Everyone's tokens today, this user included — what the newcomer reserve
+   * (lib/ai-budget/newcomer-reserve.ts) measures the pool against. Read in the
+   * same query as the count, over at most one row per active user.
+   */
+  totalSpentTokens?: number;
 };
 
 /** Read today's usage for the fair-share decision. */
@@ -40,7 +46,10 @@ export async function getDayUsage(userId: string, now = new Date()): Promise<Day
       .from(aiSpend)
       .where(and(eq(aiSpend.userId, userId), eq(aiSpend.day, day)))
       .limit(1),
-    db.select({ n: count() }).from(aiSpend).where(eq(aiSpend.day, day)),
+    db
+      .select({ n: count(), total: sql<number>`coalesce(sum(${aiSpend.tokens}), 0)::int` })
+      .from(aiSpend)
+      .where(eq(aiSpend.day, day)),
   ]);
 
   const userSpentTokens = mine[0]?.tokens ?? 0;
@@ -49,7 +58,12 @@ export async function getDayUsage(userId: string, now = new Date()): Promise<Day
   // A user with no row today is not yet counted in `spenders`, so add them.
   const activeUsers = mine.length > 0 ? spenders : spenders + 1;
 
-  return { userSpentTokens, userTurns, activeUsers: Math.max(1, activeUsers) };
+  return {
+    userSpentTokens,
+    userTurns,
+    activeUsers: Math.max(1, activeUsers),
+    totalSpentTokens: others[0]?.total ?? 0,
+  };
 }
 
 /**
