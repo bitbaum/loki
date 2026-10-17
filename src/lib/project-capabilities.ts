@@ -68,8 +68,8 @@ export const ROLE_LABELS: Record<
   },
   editor: {
     label: "Builder",
-    help: "Builder: can run agents, triage and implement feedback, edit notes and settings.",
-    can: "work on it with them: run agents, edit notes and settings",
+    help: "Builder: works through the project's feedback — sorts it and sends fixes to the agents — and follows every run.",
+    can: "work on it with them: sort its feedback, send fixes to the agents and follow every run",
   },
   client: {
     label: "Client",

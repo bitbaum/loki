@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
 import { postJson, throwApiError } from "@/lib/api/fetch";
 import { APP_NAME } from "@/config/brand";
+import { ROLE_LABELS } from "@/lib/project-capabilities";
+import type { ProjectRole } from "@/db/schema/project-memberships";
 import {
   AuthCard,
   AuthHeading,
@@ -18,18 +20,15 @@ import {
 type InviteView = {
   projectName: string;
   inviterName: string | null;
-  role: "editor" | "viewer";
-  invitedEmail: string;
+  role: ProjectRole;
+  /** Masked, or null for an open link — there is no address to name. */
+  invitedEmail: string | null;
   signedIn: boolean;
   canAccept: boolean;
   problem: string | null;
-  reason: "revoked" | "accepted" | "expired" | "wrong-account" | "no-email" | null;
+  reason:
+    "revoked" | "accepted" | "expired" | "wrong-account" | "no-email" | "own" | "member" | null;
   projectId: string;
-};
-
-const ROLE_COPY: Record<InviteView["role"], string> = {
-  editor: "work on it: run agents, edit notes and settings",
-  viewer: "follow it: see its runs, feedback and what shipped",
 };
 
 /**
@@ -104,15 +103,16 @@ export default function ProjectInvitePage({ params }: { params: Promise<{ token:
       <AuthHeading
         badge={<AuthIconBadge>✦</AuthIconBadge>}
         title={`Join ${view.projectName}`}
-        description={`${who} invited you to ${view.projectName} on ${APP_NAME} as ${view.role === "editor" ? "an editor" : "a viewer"}, so you can ${ROLE_COPY[view.role]}.`}
+        description={`${who} invited you to ${view.projectName} on ${APP_NAME}, so you can ${ROLE_LABELS[view.role].can}.`}
       />
       <AuthCard>
         <div className="space-y-4">
           {!view.signedIn && (
             <>
               <p className="ui-auth-note">
-                This invitation is for {view.invitedEmail}. Sign in with that OrangeCat account, or
-                create it on the way.
+                {view.invitedEmail
+                  ? `This invitation is for ${view.invitedEmail}. Sign in with that OrangeCat account, or create it on the way.`
+                  : "Sign in with OrangeCat to join — or create a free account on the way. It takes a minute, and you come straight back here."}
               </p>
               <AuthSubmitButton
                 label="Sign in with OrangeCat"
@@ -133,6 +133,13 @@ export default function ProjectInvitePage({ params }: { params: Promise<{ token:
           {view.signedIn && !view.canAccept && view.problem && (
             <>
               <p className="ui-error">{view.problem}</p>
+              {/* Already in: the way forward is the project itself. */}
+              {view.reason === "member" && (
+                <AuthSubmitButton
+                  label={`Open ${view.projectName}`}
+                  onClick={() => router.push(`/projects/${view.projectId}`)}
+                />
+              )}
               {/* Only offered when switching account could actually help. */}
               {view.reason === "wrong-account" && (
                 <AuthSecondaryButton

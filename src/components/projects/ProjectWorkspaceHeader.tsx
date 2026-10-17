@@ -2,11 +2,13 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, MessageSquare, Settings } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, MessageSquare, Settings, UserPlus } from "lucide-react";
 import { rememberFleetProject } from "@/lib/fleet-context";
 import { summarizeDescription } from "@/lib/project-display";
 import { ownerSiteUrl } from "../../../widget/owner-pass";
 import { trackUsage } from "@/lib/usage/track";
+import { ROLE_LABELS } from "@/lib/project-capabilities";
+import type { ProjectRole } from "@/db/schema/project-memberships";
 
 /** Identity and the two everyday actions. Configuration belongs in Settings. */
 export function ProjectWorkspaceHeader({
@@ -16,6 +18,7 @@ export function ProjectWorkspaceHeader({
   liveUrl,
   ownerPass,
   readonly,
+  viewerRole = null,
   quiet = false,
 }: {
   name: string;
@@ -24,6 +27,9 @@ export function ProjectWorkspaceHeader({
   liveUrl: string | null;
   ownerPass: string | null;
   readonly: boolean;
+  /** Named on a shared project. "View only" was said to a Builder who had
+   *  just joined to fix things (walk-through, 2026-10-17). */
+  viewerRole?: "owner" | ProjectRole | null;
   /** The page below already leads with its own primary action (the kickoff's
    *  "Make it happen"): Ask Loki steps down to secondary, so the screen has
    *  one orange button, not two a thumb apart (walk-through, 2026-10-17). */
@@ -51,7 +57,12 @@ export function ProjectWorkspaceHeader({
       <div className="mt-4 sm:mt-6">
         <h1 className="ui-project-title">{name}</h1>
         {summary && <p className="ui-project-summary">{summary}</p>}
-        {readonly && <p className="mt-2 text-sm text-text-tertiary">Shared project · View only</p>}
+        {readonly && (
+          <p className="mt-2 text-sm text-text-tertiary">
+            Shared with you
+            {viewerRole && viewerRole !== "owner" && ` · ${ROLE_LABELS[viewerRole].label}`}
+          </p>
+        )}
       </div>
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Link
@@ -70,6 +81,15 @@ export function ProjectWorkspaceHeader({
             onClick={() => track("site")}
           >
             Open site <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          </a>
+        )}
+        {!readonly && (
+          <a
+            href="#people"
+            className="ui-btn-secondary min-h-11 gap-2"
+            onClick={() => track("invite")}
+          >
+            <UserPlus className="h-4 w-4" aria-hidden="true" /> Invite
           </a>
         )}
       </div>
