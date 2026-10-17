@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PackagesList } from "@/components/packages/PackagesList";
 import { PackagesRefresh } from "@/components/packages/PackagesRefresh";
 import { ReadCoverageNote } from "@/components/packages/ReadCoverageNote";
+import { NpmPublishPanel } from "@/components/packages/NpmPublishPanel";
 import { requirePageUserId } from "@/lib/session";
 import { loadPackagesOverview } from "@/lib/packages/load";
 import { FLEET_REPO } from "@/lib/fleet-brief/brief";
@@ -27,6 +28,7 @@ export default async function PackagesPage() {
       right={<PackagesRefresh autoStart={coverage.stale} />}
     >
       <ReadCoverageNote coverage={coverage} catalogueSource={catalogue.source} />
+      <NpmPublishPanel />
       {rows.length === 0 ? (
         <EmptyState
           icon={Package}

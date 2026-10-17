@@ -16,6 +16,8 @@ import { requireCronAuth } from "@/lib/cron-auth";
 import { logDebug } from "@/db/queries/debug-logs";
 import { getAllDistinctUserIds } from "@/db/queries/user-projects";
 import { syncUserPackages } from "@/lib/packages/sync";
+import { listNpmPublishKeys } from "@/db/queries/npm-publish-keys";
+import { runFirstPublishes } from "@/lib/packages/npm-publish";
 
 export async function GET(req: NextRequest) {
   const denied = requireCronAuth(req);
@@ -37,11 +39,20 @@ export async function GET(req: NextRequest) {
       if (r.updates.error) summary.failed++;
     }
   }
+  // A package registered since the owner saved an npm key reaches npm by
+  // itself: its first publish starts here (src/lib/packages/npm-publish.ts).
+  const npm = { started: 0, failed: 0 };
+  for (const { userId } of await listNpmPublishKeys().catch(() => [])) {
+    const run = await runFirstPublishes(userId).catch(() => null);
+    if (!run?.ok) continue;
+    npm.started += run.results.filter((r) => r.outcome === "started").length;
+    npm.failed += run.results.filter((r) => r.outcome === "failed").length;
+  }
   await logDebug({
     source: "crons/sync-package-updates",
     level: summary.failed > 0 ? "warn" : "info",
     message: `${summary.open} open update(s) across ${summary.projects} project(s), ${summary.held} held`,
-    meta: summary,
+    meta: { ...summary, npm },
   });
-  return NextResponse.json({ ok: true, ...summary });
+  return NextResponse.json({ ok: true, ...summary, npm });
 }
