@@ -184,8 +184,8 @@ export function ModelPicker({
     const spend = option.own ? ownSpend(option.provider, option.id) : null;
     const left = option.own
       ? spend && spend.callsToday > 0
-        ? `No daily limit · ${spend.callsToday.toLocaleString("en-US")} ${spend.callsToday === 1 ? "answer" : "answers"} today`
-        : "No daily limit"
+        ? `No daily limit from Loki · ${spend.callsToday.toLocaleString("en-US")} ${spend.callsToday === 1 ? "answer" : "answers"} today`
+        : "No daily limit from Loki"
       : option.usable && budget
         ? (leftOn.get(`${option.provider}/${option.id}`) ?? budget.freePool.short ?? undefined)
         : undefined;

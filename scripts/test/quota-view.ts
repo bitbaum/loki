@@ -479,4 +479,21 @@ check("a consequence that returns after a different one speaks again", () => {
   assert.equal(rows[2]!.consequence, "moves to google", "not a global dedupe — only the row above");
 });
 
+check("a daily 'none left' read before today is not today's answer", () => {
+  // The live case: OpenRouter's "0 requests left today", no reset time, read a
+  // month ago — and still shown as spent, locking the model in the picker.
+  const old = describeQuota(
+    row({ remaining: 0, resetAt: null, observedAt: new Date(Date.UTC(2026, 8, 11, 23, 50)) }),
+    { now: NOW, nextProvider: null },
+  );
+  assert.equal(old.state, "unknown");
+  assert.match(old.detail, /not measured today/);
+  // The same reading taken today still stands.
+  const fresh = describeQuota(
+    row({ remaining: 0, resetAt: null, observedAt: new Date(Date.UTC(2026, 8, 12, 0, 10)) }),
+    { now: NOW, nextProvider: null },
+  );
+  assert.equal(fresh.state, "exhausted");
+});
+
 console.log(`✓ quota view: ${passed} checks passed`);
