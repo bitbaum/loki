@@ -11,6 +11,7 @@ import { persistProjectRuntimeIfNewer } from "@/db/queries/project-states";
 import { stateFile } from "@/lib/agent-config";
 import { executionAccessErrorBody, resolveQueuedExecution } from "@/lib/execution-access";
 import { workspaceIdFor } from "@/lib/agent-execution/ownership";
+import { isDerivedRunTab, runLaneOfTab } from "@/lib/run-tab";
 
 const LaunchAgentBody = z.object({
   tab: z.string().trim().min(1).max(120),
@@ -93,6 +94,14 @@ export async function POST(req: NextRequest) {
   if (dataOrResp instanceof NextResponse) return dataOrResp;
 
   const { tab, dir, agent, model, initialPrompt, channel } = dataOrResp;
+  // A second session of a project is a lane tab ("<project>~<id8>", run-tab.ts).
+  // Anything else carrying the reserved separator is not a tab Loki minted.
+  if (isDerivedRunTab(tab) && !runLaneOfTab(tab)) {
+    return NextResponse.json(
+      { error: `Not a session name Loki can open: ${tab}` },
+      { status: 400 },
+    );
+  }
   const registry = listAgentRegistry();
   const exactEntry = registry.find((candidate) => candidate.id === agent);
   if (!exactEntry) {

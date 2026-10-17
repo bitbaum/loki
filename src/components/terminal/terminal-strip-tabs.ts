@@ -1,5 +1,14 @@
 import type { TerminalContext } from "@/app/api/terminal/context/route";
 import { baseProjectKey, isDerivedRunTab } from "@/lib/run-tab";
+
+/** 2 for a project's first extra session, 3 for the next, in the order the
+ *  runner reports them (oldest first), so a number does not jump when the
+ *  operator rearranges the strip. */
+export function laneNumber(tabs: readonly string[], tab: string): number {
+  const base = baseProjectKey(tab);
+  const lanes = tabs.filter((t) => isDerivedRunTab(t) && baseProjectKey(t) === base);
+  return lanes.indexOf(tab) + 2;
+}
 import type { TabAliases } from "./terminal-agent";
 import { arrangeTabs, readableTabName, type TabLayout } from "./terminal-tab-order";
 import type { TerminalTab } from "./TerminalTabStrip";
@@ -25,13 +34,12 @@ export function buildStripTabs(
     const ctx = context?.tabs.find((t) => t.tab === tab);
     const badge = ctx?.liveAgents.length ? ctx.liveAgents.join("+") : undefined;
     const project = projectOf(tab);
-    // A parallel run's tab is `<project>~<runId8>`; read it as its project, with
-    // a marker and a short run id so two lanes of one project stay
-    // distinguishable. The full alias stays in the tooltip.
+    // A second session of a project — a parallel run, or one started with "+"
+    // — is `<project>~<id8>`. It reads as its project and a number, "substrata
+    // 2", the way a terminal names a second tab: a run-id fragment told nobody
+    // anything. The full alias stays in the tooltip.
     const name = readableTabName(project);
-    const derived = isDerivedRunTab(tab)
-      ? `${name} · parallel ${tab.split("~")[1]?.slice(0, 4) ?? ""}`.trim()
-      : name;
+    const derived = isDerivedRunTab(tab) ? `${name} ${laneNumber(tabs, tab)}` : name;
     const label = aliases[tab] ?? derived;
     return {
       id: tab,

@@ -5,6 +5,7 @@ import { Loader2, Play } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import type { BuilderChannel } from "@/lib/event-stream-types";
 import type { TerminalLaunchProject } from "@/app/api/terminal/context/route";
+import { MAX_PARALLEL_LANES_PER_PROJECT, nextSessionTab, sessionsOfProject } from "@/lib/run-tab";
 
 /**
  * Start an agent from the empty session view, in place.
@@ -46,6 +47,10 @@ export function TerminalLaunch({
   defaultAgent,
   activeProject,
   channel,
+  openTabs = [],
+  onStarted,
+  onOpenSession,
+  framed = true,
 }: {
   projects: TerminalLaunchProject[];
   agents: { id: string; label: string }[];
@@ -53,6 +58,15 @@ export function TerminalLaunch({
   /** Null until the client knows it (SSR) or when no project is in scope. */
   activeProject?: string | null;
   channel: BuilderChannel;
+  /** Sessions already open on this builder. Starting a project that has one
+   *  opens a SECOND session beside it (its own worktree), never a replacement. */
+  openTabs?: readonly string[];
+  /** The tab the new session will appear as — the caller switches to it. */
+  onStarted?: (tab: string) => void;
+  /** Go to a session that is already open instead of starting another. */
+  onOpenSession?: (tab: string) => void;
+  /** False inside a sheet, which is already the frame. */
+  framed?: boolean;
 }) {
   const [projectOverride, setProjectOverride] = useState<string | null>(null);
   const [agentOverride, setAgentOverride] = useState<string | null>(null);
@@ -77,6 +91,9 @@ export function TerminalLaunch({
 
   if (projects.length === 0 || agents.length === 0) return null;
 
+  const running = project ? sessionsOfProject(openTabs, project.name) : [];
+  const full = running.length > MAX_PARALLEL_LANES_PER_PROJECT;
+
   if (startedAs) {
     return (
       <p className="text-center text-xs text-text-muted">
@@ -88,16 +105,19 @@ export function TerminalLaunch({
 
   const start = async () => {
     if (!project || !agentId) return;
+    const tab = nextSessionTab(openTabs, project.name, crypto.randomUUID());
+    if (!tab) return;
     setBusy(true);
     setError("");
     try {
       await postJson("/api/agent/launch", {
-        tab: project.name,
+        tab,
         dir: project.dir,
         agent: agentId,
         channel,
       });
       setStartedAs(agents.find((a) => a.id === agentId)?.label ?? agentId);
+      onStarted?.(tab);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Launch failed");
     } finally {
@@ -106,7 +126,13 @@ export function TerminalLaunch({
   };
 
   return (
-    <div className="ui-card-shell mt-3 flex w-full max-w-xl flex-col gap-3 p-3 text-left">
+    <div
+      className={
+        framed
+          ? "ui-card-shell mt-3 flex w-full max-w-xl flex-col gap-3 p-3 text-left"
+          : "flex w-full flex-col gap-3 text-left"
+      }
+    >
       <div>
         <h2 className="text-sm font-semibold text-text-primary">Start an agent</h2>
         <p className="text-xs text-text-muted">Choose a project and agent for this session.</p>
@@ -143,17 +169,38 @@ export function TerminalLaunch({
           </select>
         </label>
       </div>
+      {running.length > 0 && (
+        <p className="text-xs text-text-secondary">
+          {full
+            ? `“${projectName}” already has ${running.length} sessions, the most one project runs at once. Close one to start another.`
+            : `“${projectName}” already has a session. Another one works in its own copy of the project, so the two never get in each other’s way.`}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           className="ui-btn-primary"
           onClick={() => void start()}
-          disabled={busy || !project || !agentId}
+          disabled={busy || !project || !agentId || full}
         >
           {busy ? <Loader2 className="ui-spinner" /> : <Play className="h-3.5 w-3.5" />}
-          Start agent on {channel === "cloud" ? "Cloud builder" : "your computer"}
+          {running.length > 0
+            ? "Start another session"
+            : `Start agent on ${channel === "cloud" ? "Cloud builder" : "your computer"}`}
         </button>
-        <span className="text-xs text-text-muted">The project&apos;s default stays unchanged.</span>
+        {running.length > 0 && onOpenSession ? (
+          <button
+            type="button"
+            className="ui-btn-secondary"
+            onClick={() => onOpenSession(running[0])}
+          >
+            Go to its session
+          </button>
+        ) : (
+          <span className="text-xs text-text-muted">
+            The project&apos;s default stays unchanged.
+          </span>
+        )}
       </div>
       {error && <p className="ui-error">{error}</p>}
     </div>
