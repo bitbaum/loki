@@ -2,8 +2,13 @@ import { NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { getSessionUserId } from "@/lib/session";
 import { getUserById } from "@/db/queries/users";
-import { acceptProjectInvitation, getProjectInvitationByToken } from "@/db/queries/project-access";
+import {
+  acceptProjectInvitation,
+  getProjectAccess,
+  getProjectInvitationByToken,
+} from "@/db/queries/project-access";
 import { jsonError, jsonOk } from "@/lib/api/route-helpers";
+import { DemoBlockedError } from "@/lib/demo-guard";
 import { evaluateInviteAcceptance, maskEmail } from "@/lib/project-invites";
 
 /**
@@ -24,6 +29,17 @@ async function sessionEmail(): Promise<{ userId: string | null; email: string | 
   return { userId, email: user?.email ?? (await auth())?.user?.email ?? null };
 }
 
+/** Where the signed-in person already stands on the invite's project. */
+async function standingOn(
+  userId: string | null,
+  projectId: string,
+): Promise<"owner" | "member" | null> {
+  if (!userId) return null;
+  const access = await getProjectAccess(userId, projectId).catch(() => null);
+  if (!access) return null;
+  return access.role === "owner" ? "owner" : "member";
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const loaded = await getProjectInvitationByToken(token);
@@ -32,12 +48,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   if (!loaded) return jsonError("This invitation link is not valid.", 404);
 
   const { userId, email } = await sessionEmail();
-  const verdict = userId ? evaluateInviteAcceptance(loaded.invitation, email) : null;
+  const standing = await standingOn(userId, loaded.invitation.projectId);
+  const verdict = userId
+    ? evaluateInviteAcceptance(loaded.invitation, email, new Date(), standing)
+    : null;
   return jsonOk({
     projectName: loaded.projectName,
     inviterName: loaded.inviterName,
     role: loaded.invitation.role,
-    invitedEmail: maskEmail(loaded.invitation.email),
+    // Null for an open link: there is no address to name.
+    invitedEmail: loaded.invitation.email ? maskEmail(loaded.invitation.email) : null,
     signedIn: Boolean(userId),
     canAccept: verdict?.ok ?? false,
     problem: verdict && !verdict.ok ? verdict.message : null,
@@ -55,10 +75,17 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ to
   const { userId, email } = await sessionEmail();
   if (!userId) return jsonError("Sign in to accept this invitation.", 401);
 
-  const verdict = evaluateInviteAcceptance(loaded.invitation, email);
+  const standing = await standingOn(userId, loaded.invitation.projectId);
+  const verdict = evaluateInviteAcceptance(loaded.invitation, email, new Date(), standing);
   if (!verdict.ok) return jsonError(verdict.message, 403);
 
-  const accepted = await acceptProjectInvitation(loaded.invitation.id, userId);
+  const accepted = await acceptProjectInvitation(loaded.invitation.id, userId).catch(
+    (error: unknown) => {
+      if (error instanceof DemoBlockedError) return error;
+      throw error;
+    },
+  );
+  if (accepted instanceof DemoBlockedError) return jsonError(accepted.message, 403);
   // Lost the race to another tab or a second click: the invite is spent.
   if (!accepted) return jsonError("This invitation has already been used.", 409);
   return jsonOk({ projectId: accepted.projectId });

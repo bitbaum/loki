@@ -15,8 +15,10 @@ So a prospect must cost almost nothing to create and nothing to keep:
 - **Still versioned.** Each folder is its own *local* git repository on the
   box, so every change an agent makes can be seen and undone, and the folder
   becomes a real repository unchanged on the day they say yes.
-- **Private.** Every preview sits behind one studio access code. Nobody finds
-  it by accident, and search engines are told not to index it.
+- **Private.** Every preview sits behind its operator's access code (one code
+  opens every preview they own; `LOKI_PREVIEW_CODE` in the box env is the
+  fallback). Nobody finds it by accident, the gate does not say whose site it
+  is, and search engines are told not to index it.
 - **Changeable by the person it is for.** Loki's feedback widget is on every
   page. Their notes start a build, the same way an owner's notes do on a live
   site.
@@ -26,15 +28,17 @@ So a prospect must cost almost nothing to create and nothing to keep:
 | Piece | Where |
 |---|---|
 | Folders | `$LOKI_PREVIEWS_ROOT/<slug>/`, default `$LOKI_BOX_DEV_ROOT/previews/<slug>/` (`src/lib/previews/root.ts`) |
-| Start one | Projects → **Build a preview**, or `POST /api/previews {name, about}` (`src/lib/previews/create.ts`) |
+| Start one | Projects → **Build a preview**, or `POST /api/previews {name, about, address?, code?}` (+ a `.zip` as multipart) (`src/lib/previews/create.ts`); from a live site, `/change` → `POST /api/projects/from-website` (`src/lib/previews/from-website.ts`) |
 | What start does | creates the folder + `git init`, a Loki project pointing at it (`dirPath`, no `gitUrl`, `liveUrl` = the preview), a widget key, and dispatches the build brief to the box |
 | Build brief | `src/config/preview-brief.ts`: the standing rules (research only from public sources, no invented facts, "coming soon" for what is missing, relative paths, phone-first checks, images that never stretch, commit locally and never push) |
 | Where it builds | Always the box: `projectChannelLock` locks preview folders to the cloud builder (`src/lib/execution-access.ts`) |
 | Serving | `GET /p/<slug>/…` (`src/app/p/[slug]/[[...path]]/route.ts`, behaviour in `src/lib/previews/handle.ts`). It opens at `/p/<slug>/index.html` so the site's relative links resolve inside its folder |
-| Access code | `LOKI_PREVIEW_CODE` in the app's env, one value for every preview. Change it in one place; every earlier visitor is asked again. Unset = previews say they are off |
-| Widget | Added to every HTML page at serve time with the project's key. Same origin as Loki, so nothing to allowlist |
+| Access code | The operator's own (`user_preferences.preview_code`, set in the app), else `LOKI_PREVIEW_CODE` in the app's env. Change it and every earlier visitor is asked again. Neither = the preview answers "not open yet" |
+| Widget | Added to every HTML page at serve time with the project's key; the widget token's origins include the preview's own address |
+| The tour | `GET /p/<slug>/_loki/before-after` (`src/lib/previews/before-after-page.ts`): the live page and the new page photographed side by side, from the build's `improvements.json` (`src/lib/previews/improvements.ts`) over `.loki/source.json`. Pictures at `_loki/picture?side=before\|after&i=N`, taken by `lib/feedback/page-picture` on first ask and kept in `.loki/pictures/` |
+| Loki's files | `.loki/` in the folder: what the preview was made from and its pictures. Git-ignored at creation, never served (dot segments are refused), not part of the site when it graduates |
 | Owner link | The project page's **Open your site** link carries the owner pass (`#loki-owner=…`). Send that link plus the code: their notes then start builds instead of waiting in the inbox (capped per project per day by `owner-build.ts`) |
-| Tests | `scripts/test/previews.ts` (rules), `scripts/test/previews-route.ts` (every path through the route), `scripts/test/public-matcher.ts` (`/p/` public, `/p`, `/projects`, `/prompts` not) |
+| Tests | `scripts/test/previews.ts` (rules), `scripts/test/previews-route.ts` (every path through the route, the tour and its pictures), `scripts/test/preview-improvements.ts` (the build's file, the rows, the page), `scripts/test/public-matcher.ts` (`/p/` public, `/p`, `/projects`, `/prompts` not) |
 
 ### To switch it on (once, on the box)
 
@@ -44,7 +48,9 @@ LOKI_PREVIEW_CODE=aaaaaa11          # the studio's access code; change it here
 LOKI_PREVIEWS_ROOT=/home/ubuntu/dev/previews   # optional; this is the default when LOKI_BOX_DEV_ROOT is set
 ```
 
-Then restart `loki-app`. The folder root is created on the first preview.
+Then restart `loki-app`. The folder root is created on the first preview. The
+previews are served at `/p/<slug>/` and, when the box can attach a vhost, at
+`<slug>.orangecat.ch` ("Its own address" below).
 
 ## What comes next, per repository
 
@@ -89,9 +95,9 @@ Then restart `loki-app`. The folder root is created on the first preview.
 
 ### Box (bitbaum/fleet)
 
-9. Set the two env lines above. If previews should live at their own address
-   (`preview.orangecat.ch`), add a Caddy site that proxies to Loki's `/p/`. The
-   app works without it.
+9. Set the two env lines above. Each preview gets its own address through
+   `attach-preview-host.sh` ("Its own address" below); the app works at `/p/`
+   without it.
 
 ## The access code
 
@@ -99,10 +105,14 @@ One code per operator, chosen in the app: the **Access code** field in *Build a
 preview* (or said to the chat) is remembered in `user_preferences.preview_code`
 and opens every preview that operator owns, old and new. No server edit. A
 preview checks its owner's code first, then `LOKI_PREVIEW_CODE` in the server
-env as the fallback; with neither, it refuses to be created rather than make a
-preview nobody can open. Change it by typing a new one; every visitor who
-entered the old one is asked again (the cookie carries a fingerprint of the
-code).
+env as the fallback. The chat and the dialog refuse to create one with neither
+(`requireCode`); the box-side create and `/change` make one anyway — `/change`
+mints a code for a person who has none and shows it on the next screen, and a
+preview with no code answers "not open yet" until one is set. Change it by
+typing a new one; every visitor who entered the old one is asked again (the
+cookie carries a fingerprint of the code). A code is saved only once the
+request has passed every check, so a refused create never logs out the
+previews that exist.
 
 ## Ask Loki
 
@@ -173,19 +183,50 @@ told the agent to "treat the repository as possibly empty").
 1. The free consultation reads the homepage **and the pages it links to**
    (`src/lib/site-consult/crawl.ts`: same site only, at most
    `CONSULT.crawlPages`, one overall time budget, every hop through the same
-   SSRF-guarded fetch). Site-wide checks (links that lead nowhere, one title on
-   many pages, pages that say almost nothing) join the per-page ones.
+   SSRF-guarded fetch). It reads the pages a visitor meets — navigation and
+   header first, footer last, one page per section before the second of any —
+   and leaves out accounts, baskets and the small print (privacy, terms,
+   company details): on 2026-10-17 a shop's tour had been the login page, the
+   policy and the bank details. Site-wide checks (links that lead nowhere, one
+   title on many pages, pages that say almost nothing) join the per-page ones.
+   The report is cached by the normalized address, so the build that follows
+   finds it instead of reading the site again inside the request.
 2. Loki says it as a conversation (`src/lib/site-consult/advice.ts`, rules,
    no model): what it read, the one thing to do first, what already works,
    then two one-tap questions (`CONSULT_QUESTIONS`) whose answers become brief
    lines from config, never browser text.
 3. The build brief carries the page tour, the kept fixes and the answers, plus
-   the preview rules — and asks for `improvements.html`, a tour of what changed
-   with links to the live page and the new one, so the client SEES the
-   improvement.
-4. "Watch it work" shows the link, the code (one is created if the operator
-   has none) and the tour, with a ready-to-paste message for the client.
-5. A server with no preview folder falls back to the repository path.
+   the preview rules — and says a preview is a first impression, not a
+   migration: the homepage and the pages a visitor uses, at the live site's
+   own paths, with the catalogue's main sections shown rather than migrated.
+   It asks for `improvements.json` (one entry per change naming the live page
+   and the new file, plus the engineer's account under the pull-request
+   walkthrough's keys), never a freehand `improvements.html`.
+4. The folder is born with `.loki/source.json` (the live site and the pages
+   read), and Loki photographs those pages at once — the "before", while it
+   still is one. "Watch it work" shows the link, the code (one is created if
+   the operator has none), the **Before and after** link and the engineer's
+   account, with a ready-to-paste message for the client.
+5. The tour (`/_loki/before-after` on the preview, behind its code) shows each
+   change as the live page and the new page photographed side by side on a
+   phone-sized screen, the text the build wrote about it, what was not brought
+   over, the questions for the owner, and the account. Pictures of the new
+   pages are taken by Loki opening its own preview with the access cookie
+   (`x-loki-picture: 1` tells the route to leave the widget out of the shot)
+   and are keyed by the page's content, so a rebuilt page gets a new picture.
+   Without `improvements.json` the tour still shows every live page the
+   consultation read next to the file at the same path; without a browser on
+   the server each picture collapses to a link.
+6. A server with no preview folder falls back to the repository path.
+
+The same path can be run from Actions without a browser: **Previews →
+Run workflow → mode `website`** with the live address, the fixes and the
+answers (`scripts/hetzner/preview-create-on-box.sh website …`, as the operator,
+against the deployed app), and later **mode `check`** with the address opens
+the preview as its owner (`preview-check-on-box.sh`: the cookie is minted on
+the box and never printed) and reports the site, the tour, its rows and
+whether the first pictures come back. That is how the flow is dogfooded end
+to end.
 
 ## Create website for <name>
 

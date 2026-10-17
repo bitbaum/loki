@@ -29,9 +29,9 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
-    version: "0.8.43",
-    tag: "fleet-runner-v0.8.43",
-    date: "2026-10-17T16:00:00Z",
+    version: "0.8.44",
+    tag: "fleet-runner-v0.8.44",
+    date: "2026-10-17T19:00:00Z",
     highlights: [
       "A second session on a project you already have open now works in its own copy of the project, so two agents never trip over each other's changes.",
       "If that copy cannot be made, nothing is started and the first session is left alone.",
@@ -39,6 +39,17 @@ export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
     breaking: [],
     notes:
       "The Terminal's new + can start another session on a busy project. The runner used to launch such a session straight into the project's one checkout; it now gives it a git worktree, the same isolation parallel runs already had.",
+  },
+  {
+    version: "0.8.43",
+    tag: "fleet-runner-v0.8.43",
+    date: "2026-10-17T18:00:00Z",
+    highlights: [
+      "A project set to an agent this computer does not have is no longer started on a terminal that cannot run it. Loki says which agent is missing and that nothing was started.",
+      "A Claude conversation names the model and effort it is using, read from Claude Code's own log.",
+    ],
+    breaking: [],
+    notes: "",
   },
   {
     version: "0.8.42",

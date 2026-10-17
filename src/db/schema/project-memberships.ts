@@ -38,7 +38,8 @@ export const projectMemberships = pgTable(
 export type ProjectMembership = typeof projectMemberships.$inferSelect;
 
 /**
- * An invitation into ONE project for someone who may not have an account yet.
+ * An invitation into ONE project for someone who may not have an account yet —
+ * addressed to an email, or an open link the owner sends themselves.
  *
  * Adding a collaborator used to require an existing Loki account ("Ask them to
  * register first"), and the only other invite path created a local-password
@@ -56,8 +57,10 @@ export const projectInvitations = pgTable(
     projectId: uuid("project_id")
       .notNull()
       .references(() => entities.id, { onDelete: "cascade" }),
-    /** Lower-cased. Acceptance requires the signed-in account to match it. */
-    email: text("email").notNull(),
+    /** Lower-cased. Acceptance requires the signed-in account to match it.
+     *  Null: an open link, taken once by whoever signs in and accepts first
+     *  (lib/project-invites evaluateInviteAcceptance). */
+    email: text("email"),
     role: text("role").$type<ProjectRole>().notNull(),
     tokenHash: text("token_hash").notNull().unique(),
     invitedBy: uuid("invited_by")

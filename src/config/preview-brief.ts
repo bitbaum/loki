@@ -1,3 +1,5 @@
+import { IMPROVEMENTS_FILE, LOKI_PATH, improvementsInstruction } from "@/lib/previews/improvements";
+
 /**
  * The brief an agent gets when Loki builds a preview for someone. Every rule
  * here was learned building the first one (a DJ's site, 2026-10) and finding,
@@ -37,25 +39,27 @@ export function previewBuildPrompt(opts: { name: string; about?: string; preview
  * The rules for a preview that starts FROM a live website (/change "Improve
  * this site" or "Make my own, inspired by it"). The preview rules above apply,
  * except the first: the source is the site the person named, not a research
- * trip. A refresh also leaves a tour of what changed, because the person it
- * is for has to SEE the improvement — two sites side by side, compared from
- * memory, is not seeing it.
+ * trip. A refresh also writes down what changed (improvements.json), because
+ * the person it is for has to SEE the improvement — Loki photographs the live
+ * page and the new one side by side from that file; two sites compared from
+ * memory is not seeing it.
  */
 export const WEBSITE_PREVIEW_RULES = {
   refresh: [
     "Start from the live site: read every page listed below (and any others its navigation reaches), and bring over its real content — texts, photos, logo, contact details, opening hours, prices. Download the images you reuse into img/. List every page and source you used in SOURCES.md.",
-    "Write improvements.html in this folder: a plain page for the owner, not linked from the site's navigation, that lists every improvement in their language — what it was on the live site (with a link to that live page), what it is now (with a link to the new page), and why it matters to their visitors. Lead with the change they will notice most. Keep it honest: only what you actually changed.",
+    "A preview is a first impression, not a migration. Build the homepage and the pages a visitor actually uses — what they sell or do, prices, about, delivery or opening hours, contact — with their real content, and make those pages genuinely better. When the live site is large (a shop with a catalogue of thousands of items), show its main sections with a handful of real items each and let every other link say, in the site's own language, that it is coming. Keep each page at the live site's own path (the live /o-nas becomes o-nas/index.html here) so the new site reads as the same site, improved.",
+    improvementsInstruction(),
   ],
   inspired: [
     "Read the reference site for ideas only, as the request says. Write every word fresh for this person's purpose and use original, generated or properly licensed images. List what you took as inspiration, and from where, in SOURCES.md.",
   ],
 } as const;
 
-/** The "what changed" tour next to a preview's entry page. */
-export function improvementsUrl(previewUrl: string): string {
+/** The before-and-after tour Loki serves next to a preview's entry page. */
+export function beforeAfterUrl(previewUrl: string): string {
   const base =
     /\.html?$/i.test(previewUrl) || previewUrl.endsWith("/") ? previewUrl : `${previewUrl}/`;
-  return new URL("improvements.html", base).toString();
+  return new URL(`${LOKI_PATH}/before-after`, base).toString();
 }
 
 export function websitePreviewPrompt(opts: {
@@ -71,7 +75,7 @@ export function websitePreviewPrompt(opts: {
     ...rules.map((rule, i) => `${i + 1}. ${rule}`),
     "",
     opts.mode === "refresh"
-      ? `When you are done, the new version is at ${opts.previewUrl} and the tour of what changed at ${improvementsUrl(opts.previewUrl)} (both behind the studio's access code). End with a short note: the three improvements the owner will notice most, what you could not bring over, and what they should be asked.`
+      ? `When you are done, the new version is at ${opts.previewUrl} and Loki shows the owner the before-and-after tour at ${beforeAfterUrl(opts.previewUrl)}, drawn from your ${IMPROVEMENTS_FILE} (both behind the studio's access code). End with a short note: the three improvements the owner will notice most, what you could not bring over, and what they should be asked.`
       : `When you are done, the preview is at ${opts.previewUrl} (behind the studio's access code). End with a short note: what you built, what was inspired by the reference, and what they should be asked.`,
   ].join("\n");
 }

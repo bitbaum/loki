@@ -51,7 +51,17 @@ grep -q "ERR_SSL_PROTOCOL_ERROR\|does not answer over HTTPS" "$HERE/ensure-previ
 grep -q "cron:" "$HERE/../../.github/workflows/previews.yml" || fail "heal must run on a clock"
 grep -q "add-mask::\$CODE" "$HERE/../../.github/workflows/previews.yml" || fail "a code given to the workflow must be masked in the logs"
 grep -q 'echo.*\$CODE' "$HERE/preview-create-on-box.sh" && fail "the box script must never echo the code"
+grep -q 'accessCode' "$HERE/preview-create-on-box.sh" || fail "the box script must mask the access code in the answer it prints"
 ok "ensure/heal parse, fail loudly, run on a clock, and never print a code"
+
+echo
+echo "the owner's view can be checked without printing the key to it"
+bash -n "$HERE/preview-check-on-box.sh" || fail "preview-check-on-box.sh must parse"
+grep -q 'echo.*\$cookie' "$HERE/preview-check-on-box.sh" && fail "the check script must never echo the cookie"
+grep -q '_loki/before-after' "$HERE/preview-check-on-box.sh" || fail "the check must open the before-and-after tour"
+grep -q '^website)' "$HERE/ensure-preview.sh" || fail "ensure-preview.sh must run the /change path (website mode)"
+grep -q '^check)' "$HERE/ensure-preview.sh" || fail "ensure-preview.sh must open a preview as its owner (check mode)"
+ok "website and check modes exist, open the tour, and keep the cookie off the log"
 
 echo
 echo "preview-host: $PASSED passed"

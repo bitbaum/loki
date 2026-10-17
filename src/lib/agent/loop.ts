@@ -33,6 +33,7 @@
  * observed failure mode, not defensive padding, and the loop always degrades to
  * "answer with what you have" rather than to an error.
  */
+import { userWords } from "@/lib/loki/chat-scope";
 import { effectiveTimeZone, nowLine } from "@/lib/agent/now-line";
 import { assignFactIds, renderFacts, type Fact } from "@bitbaum/ai-kit/grounding";
 import { describeArgs, type WorkStep } from "@/lib/loki/work";
@@ -789,7 +790,7 @@ export async function runLokiTurn(input: {
       [
         { role: "system", content: GENERAL_ANSWER_SYSTEM },
         ...prior,
-        { role: "user", content: input.message },
+        { role: "user", content: userWords(input.message) },
       ],
     );
     usageTokens += retry.usageTokens;

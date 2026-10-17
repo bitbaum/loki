@@ -124,7 +124,8 @@ export const config = {
      *                                register behind a session is a register with a private copy
      *                                on every consumer. api/fleet/status stays protected.
      *   api/fleet/private          – unconsented client work for bitbaum's private area; the
-     *                                route itself checks the operator's access code.
+     *                                route checks the owner's session itself, so its 401
+     *                                carries the CORS headers the studio page needs to read it.
      *   api/mcp                    – the MCP server AI apps connect to (docs/development/mcp.md).
      *                                It authenticates in-handler (resolveMcpCaller: a ck_* token
      *                                or an OrangeCat JWT minted for this resource), and it MUST

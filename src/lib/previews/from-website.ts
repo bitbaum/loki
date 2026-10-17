@@ -1,4 +1,6 @@
 import { randomInt } from "crypto";
+import { existsSync } from "fs";
+import path from "path";
 import { websitePreviewPrompt } from "@/config/preview-brief";
 import {
   findBriefProject,
@@ -7,7 +9,10 @@ import {
 } from "@/db/queries/brief-projects";
 import { getPreviewCode } from "@/db/queries/preview-code";
 import { firstFreeName } from "@/lib/brief-project-name";
+import { takePagePicture } from "@/lib/feedback/page-picture";
+import { withInFlight } from "@/lib/in-flight";
 import { createPreview } from "@/lib/previews/create";
+import { pictureFile } from "@/lib/previews/pictures";
 import { previewsRoot } from "@/lib/previews/root";
 import { tourForBrief } from "@/lib/site-consult/advice";
 import { consultSite } from "@/lib/site-consult/consult-site";
@@ -38,8 +43,6 @@ export type WebsitePreviewStart =
   | { ok: true; projectPath: string; previewUrl: string | null; accessCode: string | null }
   | { ok: false; status: number; error: string };
 
-const inFlight = new Map<string, Promise<WebsitePreviewStart | null>>();
-
 /** A code a person can say on the phone: two short words' worth of letters. */
 function newAccessCode(): string {
   const letters = "abcdefghjkmnpqrstuvwxyz";
@@ -51,15 +54,27 @@ export async function startWebsitePreview(
   input: WebsiteBuildInput,
 ): Promise<WebsitePreviewStart | null> {
   if (!previewsRoot()) return null;
-  const key = `${userId}:${input.requestId}`;
-  const prior = inFlight.get(key);
-  if (prior) await prior.catch(() => undefined);
-  const run = startOnce(userId, input);
-  inFlight.set(key, run);
-  try {
-    return await run;
-  } finally {
-    if (inFlight.get(key) === run) inFlight.delete(key);
+  return withInFlight(`${userId}:${input.requestId}`, () => startOnce(userId, input));
+}
+
+/** How many live pages get a "before" picture the moment the preview starts. */
+const BEFORE_PICTURES = 6;
+
+/**
+ * Photograph the live pages now, while they are still the "before": the tour
+ * shows them next to the new version, and a page the owner changes meanwhile
+ * would otherwise be compared with itself. Never blocks the start; a missing
+ * browser simply leaves the tour to take its pictures when first opened.
+ */
+async function takeBeforePictures(dir: string, pages: readonly string[]): Promise<void> {
+  for (const url of pages.slice(0, BEFORE_PICTURES)) {
+    const file = pictureFile(dir, "before", url);
+    if (existsSync(file)) continue;
+    const shot = await takePagePicture(url).catch(() => null);
+    if (!shot?.ok) continue;
+    const { mkdir, writeFile } = await import("fs/promises");
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, Buffer.from(shot.base64, "base64"));
   }
 }
 
@@ -85,12 +100,20 @@ async function startOnce(
   const tour = consulted?.ok ? tourForBrief(consulted.consultation) : [];
   const request = websitePreviewRequest(input, tour);
 
-  const name = await firstFreeName(websiteProjectName(input.website, input.mode), (n) =>
-    isProjectNameTaken(n),
+  // The name is the project AND the folder: a name free in the database but
+  // taken on disk (a folder kept after its project went) would otherwise be
+  // served at <name>-2 while the project says <name>.
+  const root = previewsRoot()!;
+  const name = await firstFreeName(
+    websiteProjectName(input.website, input.mode),
+    async (n) => existsSync(path.join(root, n)) || (await isProjectNameTaken(n)),
   );
   // Nobody can open a preview without a code, and a stranger who just named
   // their own site has never set one: give them one, shown on the next screen.
-  const code = (await getPreviewCode(userId)) ? undefined : newAccessCode();
+  const code = input.code ?? ((await getPreviewCode(userId)) ? undefined : newAccessCode());
+  const livePages = consulted?.ok
+    ? consulted.consultation.pages.filter((p) => p.ok).map((p) => p.url)
+    : [input.website];
   const about =
     input.mode === "refresh"
       ? `New version of ${input.website}${input.changes ? ` — ${input.changes}` : ""}`
@@ -98,6 +121,7 @@ async function startOnce(
 
   const created = await createPreview(userId, {
     name,
+    address: name,
     about: about.slice(0, 2000),
     code,
     prompt: (previewUrl) =>
@@ -106,9 +130,17 @@ async function startOnce(
         mode: input.mode === "inspired" ? "inspired" : "refresh",
         previewUrl,
       }),
+    source:
+      input.mode === "refresh"
+        ? { website: input.website, pages: livePages, createdAt: new Date().toISOString() }
+        : undefined,
   });
   if (!created.ok) return created;
   await markBriefProject(created.projectId, input.requestId, "website");
+  if (input.mode === "refresh")
+    void takeBeforePictures(path.join(root, created.slug), livePages).catch((e) =>
+      console.error("[preview before-pictures]", e instanceof Error ? e.message : e),
+    );
   return {
     ok: true,
     projectPath: `/projects/${created.projectId}/watch`,

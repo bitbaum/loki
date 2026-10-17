@@ -2,8 +2,10 @@
 #
 # A prospect preview that is actually reachable: its address answers over HTTPS.
 #
-#   ensure-preview.sh create <address> <name> [about] [code]   make it, give it its host, prove it
-#   ensure-preview.sh heal                              every preview has its host, and answers
+#   ensure-preview.sh create  <address> <name> [about] [code]         make it, give it its host, prove it
+#   ensure-preview.sh website <url> [changes] [fixes] [answers] [code] /change "Improve this site", as the operator
+#   ensure-preview.sh check   <address>                               open a preview as its owner: site, tour, pictures
+#   ensure-preview.sh heal                                            every preview has its host, and answers
 #
 # Wildcard DNS sends every <label>.orangecat.ch to the box, but a label with no
 # Caddy vhost gets no certificate, so the browser shows ERR_SSL_PROTOCOL_ERROR
@@ -33,6 +35,16 @@ ssh_box() {
   fi
 }
 
+# owner_view <host> — open the preview as its owner (preview-check-on-box.sh).
+# The cookie is minted on the box by a script this checkout ships over first,
+# because the box's own Loki checkout is often behind main.
+owner_view() {
+  local host="$1" box_loki="${BOX_LOKI:-/home/ubuntu/dev/loki}"
+  ssh_box "mkdir -p '$box_loki/.tmp' && cat > '$box_loki/.tmp/print-preview-cookie.ts'" < "$HERE/../test/print-preview-cookie.ts" \
+    || { echo "  could not ship the cookie script to the box"; return 1; }
+  ssh_box "bash -s -- $(printf '%q' "$host")" < "$HERE/preview-check-on-box.sh"
+}
+
 # answers <host> — wait up to ~100s (a new certificate takes a few seconds).
 answers() {
   local host="$1" code="000" i
@@ -54,7 +66,7 @@ create)
   echo "→ host $ADDRESS.$BASE"
   bash "$HERE/attach-preview-host.sh" "$ADDRESS" || bad "could not attach $ADDRESS.$BASE"
   echo "→ the preview in Loki"
-  ssh_box "bash -s -- $(printf '%q ' "$ADDRESS" "$NAME" "$ABOUT" "$CODE")" < "$HERE/preview-create-on-box.sh" \
+  ssh_box "bash -s -- $(printf '%q ' name "$ADDRESS" "$NAME" "$ABOUT" "$CODE")" < "$HERE/preview-create-on-box.sh" \
     || bad "Loki did not create the preview (see the lines above)"
   code=$(answers "$ADDRESS.$BASE")
   note "https://$ADDRESS.$BASE/ → HTTP $code"
@@ -62,6 +74,32 @@ create)
     000) bad "$ADDRESS.$BASE does not answer over HTTPS" ;;
     404) bad "$ADDRESS.$BASE answers but Loki has no preview called $ADDRESS" ;;
   esac
+  ;;
+website)
+  # The whole /change path on the deployed app: consultation, brief, folder,
+  # host, build. The app attaches the host itself; the answer names the
+  # address, which is then asked over HTTPS like any other preview.
+  WEBSITE="${2:?url}"; CHANGES="${3:-}"; FIXES="${4:-}"; ANSWERS="${5:-}"; CODE="${6:-}"
+  echo "→ the new version of $WEBSITE, in Loki"
+  reply=$(ssh_box "bash -s -- $(printf '%q ' website "$WEBSITE" "$CHANGES" "$FIXES" "$ANSWERS" "$CODE")" < "$HERE/preview-create-on-box.sh") \
+    || bad "Loki did not start the preview (see the lines above)"
+  echo "$reply"
+  host=$(printf '%s' "$reply" | grep -oE '"previewUrl": ?"https://[^/"]+' | head -1 | sed -E 's#.*https://##')
+  if [ -n "$host" ]; then
+    code=$(answers "$host")
+    note "https://$host/ → HTTP $code"
+    [ "$code" != "000" ] || bad "$host does not answer over HTTPS"
+    echo "→ as the owner (the build has only just started; the tour fills in as it goes)"
+    owner_view "$host" || note "the owner's view is not open yet"
+  else
+    note "no address in the answer (a resumed request, or a server without previews)"
+  fi
+  ;;
+check)
+  LABEL="${2:?address}"
+  host="$LABEL.$BASE"
+  echo "→ $host as the owner"
+  owner_view "$host" || bad "$host: the site or its tour did not open"
   ;;
 heal)
   root=$(ssh_box 'set -a; . /opt/loki/app/.env; set +a; r="${LOKI_PREVIEWS_ROOT:-}"; [ -n "$r" ] || { [ -n "${LOKI_BOX_DEV_ROOT:-}" ] && r="${LOKI_BOX_DEV_ROOT%/}/previews"; }; printf %s "$r"')
@@ -76,7 +114,7 @@ heal)
   done
   ;;
 *)
-  echo "usage: ensure-preview.sh create <address> <name> [about] | heal" >&2; exit 2 ;;
+  echo "usage: ensure-preview.sh create <address> <name> [about] [code] | website <url> [changes] [fixes] [answers] [code] | check <address> | heal" >&2; exit 2 ;;
 esac
 
 [ "$fail" = 0 ] && echo "OK" || exit 1

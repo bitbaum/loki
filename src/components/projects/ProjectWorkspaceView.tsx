@@ -208,6 +208,7 @@ export function ProjectWorkspaceView({
         liveUrl={links.prodUrl}
         ownerPass={ownerPass}
         readonly={dossier.readonly}
+        viewerRole={dossier.viewerRole}
         quiet={showKickoff}
       />
 
@@ -426,6 +427,15 @@ export function ProjectWorkspaceView({
           ...(dossier.readonly
             ? []
             : [
+                // Who else is in it — its own tab, one tap from the header's
+                // Invite button, not a panel at the bottom of Settings.
+                {
+                  id: "people",
+                  label: "People",
+                  content: (
+                    <ProjectMembersPanel projectId={project.id} projectName={project.name} />
+                  ),
+                },
                 {
                   id: "settings",
                   label: "Settings",
@@ -450,7 +460,6 @@ export function ProjectWorkspaceView({
                         shareAction={shareAction}
                       />
                       {inviteToCatalogue && <ProjectListingInvitation projectId={project.id} />}
-                      <ProjectMembersPanel projectId={project.id} />
                       <ProjectSettingsPanel
                         projectId={project.id}
                         projectName={project.name}

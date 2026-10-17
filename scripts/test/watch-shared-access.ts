@@ -68,6 +68,7 @@ async function main() {
     getProjectCore: async (owner: string) =>
       owner === "owner" ? { id: project, name: "loki" } : null,
     getServerKickoff: () => null,
+    previewWalkthrough: async () => null,
     getOrchestrationRunById: async (owner: string) => {
       await ownerOnly(owner);
       return run;

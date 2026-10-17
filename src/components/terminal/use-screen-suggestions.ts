@@ -23,6 +23,8 @@ export function useScreenSuggestions(
   enabled: boolean,
   project: string | null,
   hold = false,
+  /** The agent in the session (adapter id). */
+  agent: string | null = null,
 ): { steps: string[]; asksForFeedback: boolean } {
   const [settled, setSettled] = useState<string | null>(null);
   useEffect(() => {
@@ -43,7 +45,7 @@ export function useScreenSuggestions(
   }, [readScreenRef, enabled]);
   const key = enabled ? settled : null;
   const rules = useMemo(() => (key ? suggestPrompts(key.split("\n")) : []), [key]);
-  const ai = useAiNextSteps(key, "screen", project);
+  const ai = useAiNextSteps(key, "screen", project, agent);
   const steps = useStableSteps(key, ai, rules, hold);
   return { steps, asksForFeedback: asksForFeedback(key) };
 }

@@ -8,9 +8,10 @@ import { useClipboard } from "@/hooks/use-clipboard";
  *
  * A preview exists so someone ELSE can see it: the new version at its own
  * address, the code that opens it, and — for a site that was improved — the
- * tour of what changed (improvements.html, written by the build). One button
- * copies all of it as a message ready to paste into WhatsApp or mail; the
- * owner's own link carries the pass that turns their notes into builds.
+ * before-and-after tour (the live page and the new one photographed side by
+ * side, lib/previews/before-after-page). One button copies all of it as a
+ * message ready to paste into WhatsApp or mail; the owner's own link carries
+ * the pass that turns their notes into builds.
  */
 export function PreviewShareCard({
   name,
@@ -24,14 +25,14 @@ export function PreviewShareCard({
   ownerUrl: string;
   /** The operator's own code, or null when the studio's code applies. */
   code: string | null;
-  /** improvements.html, for a preview made from a live site. */
+  /** The before-and-after tour, for a preview made from a live site. */
   tourUrl: string | null;
 }) {
   const { copied, copy } = useClipboard();
   const message = [
     `Here is the new version of ${name}: ${previewUrl}`,
     code ? `Access code: ${code}` : null,
-    tourUrl ? `What changed and why: ${tourUrl}` : null,
+    tourUrl ? `Before and after, page by page: ${tourUrl}` : null,
     "Tell me what you think — you can leave notes right on the page.",
   ]
     .filter(Boolean)
@@ -63,7 +64,7 @@ export function PreviewShareCard({
         )}
         {tourUrl && (
           <div>
-            <dt>What changed</dt>
+            <dt>Before and after</dt>
             <dd className="wrap-anywhere">{tourUrl}</dd>
           </div>
         )}
@@ -82,7 +83,7 @@ export function PreviewShareCard({
         </a>
         {tourUrl && (
           <a href={tourUrl} target="_blank" rel="noreferrer" className="ui-btn-secondary min-h-11">
-            What changed
+            Before and after
           </a>
         )}
       </div>
