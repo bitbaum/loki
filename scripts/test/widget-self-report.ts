@@ -14,7 +14,13 @@ import {
   WIDGET_SELF_KINDS,
   WIDGET_SELF_NOTE_MAX,
 } from "../../src/lib/widget/self-report";
-import { classifyOwnRequest, panelOverflow, SELF_SLOW_MS, selfSay } from "../../widget/self-watch";
+import {
+  classifyOwnRequest,
+  panelOverflow,
+  SELF_SLOW_MS,
+  selfSay,
+  sendBlocked,
+} from "../../widget/self-watch";
 import { SELF_DETAIL_MAX, SELF_NOTE_MAX } from "../../widget/self-report";
 import { receiptLinkLabel, receiptText } from "../../widget/receipt";
 
@@ -158,6 +164,25 @@ check(() => {
     "Follow the build →",
   );
   assert.equal(receiptLinkLabel({ ...base, owner: false }), "Track what happens next →");
+});
+
+check(() => {
+  // What production had on 2026-10-17: the panel fit, the button did not.
+  const send = { top: 654, bottom: 686, height: 32 };
+  assert.match(
+    sendBlocked(send, 760, {
+      isSend: false,
+      label: "Made with Loki — build something of your own →",
+    })!,
+    /lands on “Made with Loki/,
+  );
+  assert.equal(sendBlocked(send, 760, { isSend: true, label: "Send" }), null);
+  assert.match(sendBlocked({ top: 756, bottom: 800, height: 44 }, 720, null)!, /off the screen/);
+  assert.equal(
+    sendBlocked({ top: 0, bottom: 0, height: 0 }, 720, null),
+    null,
+    "a hidden Send is not a finding",
+  );
 });
 
 // ---- the two sides agree ----

@@ -62,6 +62,25 @@ export function panelOverflow(
   return null;
 }
 
+/**
+ * The send control, measured by what a tap on it would HIT. Sideways overflow
+ * was the only fit check here, and it passed while production had Send under
+ * "Made with Loki" on a 390×760 phone (2026-10-17): the panel fit, the button
+ * did not. `hit` is the element at the button's centre (null: nothing there).
+ */
+export function sendBlocked(
+  send: { top: number; bottom: number; height: number },
+  viewportHeight: number,
+  hit: { isSend: boolean; label: string } | null,
+): string | null {
+  if (!send.height) return null;
+  if (send.top < 0 || send.bottom > viewportHeight + 1)
+    return `the send button is off the screen (${Math.round(send.top)}–${Math.round(send.bottom)}px of ${viewportHeight}px)`;
+  if (!hit?.isSend)
+    return `a tap on the send button lands on ${hit ? `“${hit.label}”` : "nothing"} instead`;
+  return null;
+}
+
 const SAY: Record<Finding["kind"], string> = {
   error: "I hit an error of my own",
   request: "one of my calls to Loki failed",
@@ -160,7 +179,31 @@ export function installSelfWatch(opts: {
         },
         window.innerWidth,
       );
-      if (detail) found({ kind: "overflow", detail });
+      if (detail) return found({ kind: "overflow", detail });
+      const send = panel.querySelector<HTMLElement>(".ck-send, .composer .go");
+      if (!send) return;
+      const b = send.getBoundingClientRect();
+      const at = (panel.getRootNode() as ShadowRoot | Document).elementFromPoint?.(
+        b.left + b.width / 2,
+        b.top + b.height / 2,
+      );
+      const blocked = sendBlocked(
+        b,
+        window.innerHeight,
+        at
+          ? {
+              isSend: at === send || send.contains(at),
+              label: ((at as HTMLElement).innerText || at.className.toString() || at.tagName)
+                .trim()
+                .slice(0, 60),
+            }
+          : null,
+      );
+      if (blocked)
+        found({
+          kind: "overflow",
+          detail: `${blocked} at ${window.innerWidth}×${window.innerHeight}`,
+        });
     },
   };
 }

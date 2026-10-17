@@ -372,8 +372,8 @@ interface LokiApi {
       thoughts.update(watchSession?.trail() ?? [], on);
       // "Hide this button" is a visitor's way out; the owner's panel is their
       // tool, and the link only took space under the composer on a phone.
-      hideLink.style.display = ownerPass ? "none" : "";
-      madeWith.style.display = ownerPass ? "none" : "";
+      hideLink.hidden = !!ownerPass;
+      madeWith.hidden = !!ownerPass;
       // The owner's launcher carries the same state as this header.
       launcher.setOwnerStatus(ownerPass ? { watching: on, unread } : null);
       conversation?.refresh();
@@ -465,7 +465,9 @@ interface LokiApi {
       },
     });
     changesRef = changes;
-    panel.append(hdr, thoughts.el, changes.el, conversation.el, madeWith, hideLink);
+    const foot = h("div", "panel-foot");
+    foot.append(madeWith, hideLink);
+    panel.append(hdr, thoughts.el, changes.el, conversation.el, foot);
     // On a phone the panel is a sheet: drag its top up for more, down to peek
     // at the page under it, further down to put it away (sheet.ts).
     attachSheet({ panel, handle: hdr, onClose: closePanel });

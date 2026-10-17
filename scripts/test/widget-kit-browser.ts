@@ -46,9 +46,11 @@ type Bundles = { js: string; chat: string };
 async function open(
   browser: Browser,
   b: Bundles,
-  o: { kit?: boolean; chunk?: boolean; width?: number } = {},
+  o: { kit?: boolean; chunk?: boolean; width?: number; height?: number } = {},
 ) {
-  const ctx = await browser.newContext({ viewport: { width: o.width ?? 1200, height: 800 } });
+  const ctx = await browser.newContext({
+    viewport: { width: o.width ?? 1200, height: o.height ?? 800 },
+  });
   const p = await ctx.newPage();
   const errors: string[] = [];
   const asked: { question: string }[] = [];
@@ -309,9 +311,17 @@ async function main() {
       const wide = await t.p.locator(`${root} .panel`).evaluate((panel) => {
         const out: string[] = [];
         const edge = panel.getBoundingClientRect().right + 0.5;
+        // A chip in a row you swipe sideways (overflow-x: auto) is clipped
+        // by that row on purpose — on a phone the suggested replies are one
+        // such row. Poking out means VISIBLY past the panel's edge.
         panel.querySelectorAll("*").forEach((n) => {
           const r = n.getBoundingClientRect();
-          if (r.width && r.right > edge) out.push(`${n.className}`.slice(0, 40));
+          if (!r.width || r.right <= edge) return;
+          // (Inline, not a named helper: tsx wraps named functions in a
+          // `__name` call that does not exist inside the page.)
+          for (let e = n.parentElement; e && e !== panel; e = e.parentElement)
+            if (/(auto|scroll)/.test(getComputedStyle(e).overflowX)) return;
+          out.push(`${n.className}`.slice(0, 40));
         });
         return { out, doc: document.documentElement.scrollWidth };
       });
@@ -320,6 +330,37 @@ async function main() {
         `nothing pokes out of the panel at 360px (${wide.out.slice(0, 4)})`,
       );
       ok(wide.doc <= 360, `no sideways scroll (${wide.doc})`);
+      await t.close();
+    }
+
+    // ── Send is on screen and a tap on it reaches it ────────────────────────
+    // loki.orangecat.ch at 1280×860, 2026-10-17: Send sat below the panel's
+    // scroll box, under "Made with Loki" — measured by what a tap HITS.
+    for (const [width, height] of [
+      [390, 667],
+      [360, 640],
+      [1280, 720],
+    ]) {
+      const t = await open(browser, b, { width, height });
+      await t.p.locator(`${root} .fab`).click();
+      await t.p.locator(`${root} .fc-kit .ck-input`).waitFor({ timeout: 5000 });
+      await t.p.waitForTimeout(300);
+      const reach = await t.p.locator(`${root} .fc-kit .ck-send`).evaluate((send) => {
+        const r = (send.getRootNode() as ShadowRoot).elementFromPoint(
+          send.getBoundingClientRect().left + send.getBoundingClientRect().width / 2,
+          send.getBoundingClientRect().top + send.getBoundingClientRect().height / 2,
+        );
+        const b = send.getBoundingClientRect();
+        return {
+          onScreen: b.height > 0 && b.top >= 0 && b.bottom <= innerHeight,
+          reached: !!r && (r === send || send.contains(r)),
+          hit: r ? `${(r as HTMLElement).className}`.slice(0, 40) || r.tagName : null,
+        };
+      });
+      ok(
+        reach.onScreen && reach.reached,
+        `${width}×${height}: a tap on Send reaches Send (${JSON.stringify(reach)})`,
+      );
       await t.close();
     }
   } finally {

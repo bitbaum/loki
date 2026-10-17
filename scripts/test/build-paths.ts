@@ -96,11 +96,7 @@ assert.match(
   /\/build\?from=\$\{encodeURIComponent\(location\.hostname\)\}/,
   "the widget's made-with line lands on /build",
 );
-assert.match(
-  main,
-  /madeWith\.style\.display = ownerPass \? "none" : ""/,
-  "and the owner does not see it",
-);
+assert.match(main, /madeWith\.hidden = !!ownerPass/, "and the owner does not see it");
 const door = STUDIO_DOORS.find((d) => d.label === "Build something of your own");
 assert.ok(door, "the concierge can hand out Loki's own door");
 assert.ok(door!.url.endsWith("/build"), door!.url);

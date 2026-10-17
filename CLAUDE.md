@@ -464,10 +464,13 @@ from their GitHub repos (`github:bitbaum/chatkit`, `accountkit`, `searchkit`,
 `whenkit`, `listkit` — see package.json). In a cloud agent session that was
 not started with those repos, `pnpm install` fails with a 403 from codeload.
 **That is a missing attachment, not a reason to skip the packages.** Attach
-each one (`add_repo`, read access) and run `pnpm install --frozen-lockfile`
-again; it then installs in seconds. Never strip them from package.json to get
-an install through, and never report a test "skipped because the package
-cannot be installed" — on 2026-10-16 an agent did exactly that and the owner,
+each one with `add_repo` and `access: "push"`, then run `pnpm install
+--frozen-lockfile` again; it then installs in seconds. Read access is NOT
+enough: the kits are public, so a read attach returns "nothing was attached"
+and codeload keeps answering 403 — only the credentialed attach opens the
+tarball path (verified 2026-10-17: whenkit 403 → 200 after the push attach).
+Never strip them from package.json to get an install through, and never
+report a test "skipped because the package cannot be installed" — on 2026-10-16 an agent did exactly that and the owner,
 rightly, read it as the packages not working.
 
 ## Dev Commands
