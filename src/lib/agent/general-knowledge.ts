@@ -33,6 +33,7 @@
 import type { Fact } from "@bitbaum/ai-kit/grounding";
 import { planRetrieval } from "@/lib/agent/plan";
 import { PROJECT_CUES } from "@/lib/agent/cues";
+import { userWords } from "@/lib/loki/chat-scope";
 
 /** Words that appear in record subjects but name no particular thing. */
 const GENERIC = new Set([
@@ -77,7 +78,9 @@ const CITATION = /[[【〔［][FD]\d+[\]】〕］]/;
  * "why", "explain"). The planner reads the operator's notes for them in case
  * they wrote about it; that does not make the question about them.
  */
-export function isGeneralQuestion(message: string): boolean {
+export function isGeneralQuestion(prompt: string): boolean {
+  // The person's words, not the project context a scoped chat wraps them in.
+  const message = userWords(prompt);
   const plan = planRetrieval(message);
   if (plan.broad) return true;
   // "Why did I decide…", "explain my architecture" — the knowledge cues again,
@@ -144,8 +147,13 @@ export const GENERAL_QUESTION_HINT =
   "(This is a general question, not one about the operator's records. Answer it directly and correctly from general knowledge — rule 11. Use the records only if they bear on it.)";
 
 /** The question as the model reads it: with the hint when it is general. */
-export function askedQuestion(message: string): string {
-  return isGeneralQuestion(message) ? `${GENERAL_QUESTION_HINT}\n\n${message}` : message;
+export function askedQuestion(prompt: string): string {
+  if (!isGeneralQuestion(prompt)) return prompt;
+  // Directly above the person's words, after any project context: the hint
+  // works because it is the last thing the model reads before the question.
+  const words = userWords(prompt);
+  const before = prompt.slice(0, prompt.length - words.length);
+  return `${before}${GENERAL_QUESTION_HINT}\n\n${words}`;
 }
 
 /** The prompt for the one retry when a general question was refused anyway. */

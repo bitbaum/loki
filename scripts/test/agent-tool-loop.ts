@@ -787,6 +787,22 @@ async function planAsAnswerChecks() {
     assert.equal(model.calls(), 1, "a refusal about the operator's records stands");
     assert.equal(r.text, "Not in your data.");
   }
+  {
+    // The live chat path: every message on a one-project account arrives
+    // wrapped in the project's context (lib/loki/chat-context.ts).
+    const ANSWER = "The Eiffel Tower was finished in 1889.";
+    const model = scriptedModel([{ text: "Not in your data." }, { text: ANSWER }]);
+    const r = await runLokiTurn({
+      userId: "u1",
+      message:
+        "[Scoped to project: second-cafe]\nProject: second-cafe\n\n[User message]\nWhat year was the Eiffel Tower built?",
+      registry: STUB_REGISTRY,
+      callModel: model.fn,
+      seed: SEED,
+    });
+    assert.equal(model.calls(), 2, "a project-scoped general question is retried too");
+    assert.equal(r.text, ANSWER);
+  }
   console.log("  \u2713 a refused general question is answered from general knowledge");
 }
 

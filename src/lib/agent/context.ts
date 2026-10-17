@@ -20,6 +20,7 @@
  * than failing the turn, and the contract adapts — fewer facts permit fewer
  * citations, and none instructs a refusal.
  */
+import { userWords } from "@/lib/loki/chat-scope";
 import { threadFacts } from "@/lib/agent/sources-threads";
 import { assignFactIds, renderFacts, type Fact } from "@bitbaum/ai-kit/grounding";
 import { type Directive } from "@bitbaum/ai-kit/grounding";
@@ -136,7 +137,12 @@ export async function buildSeed(
   message: string,
   opts: { plan?: RetrievalPlan } = {},
 ): Promise<Seed> {
-  const plan = opts.plan ?? planRetrieval(message);
+  // Planned from the person's words, not the project context a scoped chat
+  // wraps them in: the wrapper's own "project", and any cue word in the
+  // project's description, used to steer every scoped question (live,
+  // 2026-10-17 — a general question read only the project and the pulse).
+  // Sources still receive the full prompt, so the scoped project ranks first.
+  const plan = opts.plan ?? planRetrieval(userWords(message));
 
   const [perSource, daily, fleet] = await Promise.all([
     Promise.all(

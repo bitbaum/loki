@@ -2,6 +2,7 @@
  * Project-aware Loki chat — SSOT for injecting Loki project profiles into
  * chat turns (same getProjectContext as dispatch, without sending work to the runner).
  */
+import { USER_MESSAGE_MARKER } from "@/lib/loki/chat-scope";
 import { getProjectContext } from "@/db/queries/project-context";
 import { renderProjectContextBlock } from "@/lib/orchestration";
 import type { CommandResolution } from "@/lib/command-resolve";
@@ -30,7 +31,7 @@ export async function buildLokiChatPrompt(
   const block = renderProjectContextBlock(ctx ?? undefined);
   if (!block) return userMessage;
 
-  return [`[Scoped to project: ${projectKey}]`, block, "", "[User message]", userMessage].join(
+  return [`[Scoped to project: ${projectKey}]`, block, "", USER_MESSAGE_MARKER, userMessage].join(
     "\n",
   );
 }
