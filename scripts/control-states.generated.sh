@@ -15,7 +15,7 @@
 #   echo "$FC_DESCRIPTION_OPEN_IDLE"  # → "Agent process detected …"
 
 
-FC_STATE_KEYS='offline not_running recently_active tab_open open_idle working ready orchestration_ready closing completed'
+FC_STATE_KEYS='offline not_running recently_active tab_open open_idle working ready awaiting_you orchestration_ready closing completed'
 
 FC_LABEL_OFFLINE='Offline'
 FC_DESCRIPTION_OFFLINE='The builder hasn'\''t pushed fresh state for this project — we don'\''t know what'\''s happening right now.'
@@ -44,6 +44,10 @@ FC_COUNTER_CATEGORY_WORKING='working'
 FC_LABEL_READY='Ready for next step'
 FC_DESCRIPTION_READY='Stop hook fired recently — the agent finished a turn and is ready for the next instruction. The handoff lists the suggested next move.'
 FC_COUNTER_CATEGORY_READY='waiting'
+
+FC_LABEL_AWAITING_YOU='Waiting for you'
+FC_DESCRIPTION_AWAITING_YOU='The agent stopped and handed control back — its session reports it is blocked on you. It will not continue until you reply.'
+FC_COUNTER_CATEGORY_AWAITING_YOU='waiting'
 
 FC_LABEL_ORCHESTRATION_READY='Ready for next step'
 FC_DESCRIPTION_ORCHESTRATION_READY='Latest orchestration run completed and produced a result. Pick the next intent or accept the suggested next-best.'
