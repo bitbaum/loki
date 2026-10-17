@@ -207,6 +207,7 @@ export async function loadRunTrack(
     liveUrl: project?.liveUrl ?? null,
     providerLabel: provider,
     failure: failed ? humanizeRunFailure(error, provider, view.quotaDeath) : null,
+    followable: recent,
   });
   // Keep asking while the change can still move — through merge, deploy and
   // Loki's look — but not for a run that closed days ago.

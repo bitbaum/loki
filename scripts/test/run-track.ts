@@ -320,7 +320,7 @@ check("timings: took between dated stages, a clock on the current one, nothing f
   assert.equal(timing[1].took, 40, "builder: 40s after the ask");
   assert.equal(timing[2].soFar, 120, "working for two minutes so far");
   assert.equal(timing[3].took, null);
-  assert.equal(t.stages[1].label, "the cloud builder picked it up");
+  assert.equal(t.stages[1].label, "The cloud builder picked it up");
   assert.ok(t.stages[1].facts.some((f) => f.text.includes("claimed the job")));
 });
 
@@ -415,6 +415,70 @@ check("what the repository shows rides on the track: commits as facts, checks as
   assert.match(
     buildRunTrack(branchOnly).summary,
     /Pushed to a branch — a pull request usually follows/,
+  );
+});
+
+check("a run that finished well was picked up, even with no claim on record", () => {
+  // The live demo's seeded run: no claimed/launched events, closed with
+  // success. The card read "No builder picked it up" above "finished".
+  const i: RunTrackInput = {
+    ...base,
+    eventKinds: ["dispatched", "handoff"],
+    run: {
+      startedAt: "2026-10-14T04:20:00Z",
+      finishedAt: "2026-10-14T04:49:00Z",
+      outcome: "success",
+    },
+    phase: "done",
+    builderLabel: "the cloud builder",
+  };
+  const t = buildRunTrack(i);
+  assert.equal(t.stages[1].state, "done");
+  assert.equal(
+    t.stages[1].label,
+    "The cloud builder picked it up",
+    "a label starts with a capital",
+  );
+  assert.ok(!t.stages.some((s) => s.state === "failed"), "no stage contradicts the finish");
+});
+
+check("past the follow window nothing waits forever: no stage is 'now', the track settles", () => {
+  const old: RunTrackInput = {
+    ...base,
+    eventKinds: ["dispatched", "claimed", "generating", "handoff"],
+    run: {
+      startedAt: "2026-10-14T04:20:00Z",
+      finishedAt: "2026-10-14T04:49:00Z",
+      outcome: "success",
+    },
+    phase: "done",
+    followable: false,
+  };
+  const t = buildRunTrack(old);
+  assert.ok(!t.stages.some((s) => s.state === "now"), states(old));
+  assert.equal(t.stages.find((s) => s.id === "pr")!.at, null, "no clock on a stage nobody follows");
+  assert.match(t.stages.find((s) => s.id === "pr")!.note!, /two days/);
+  assert.equal(t.settled, true, "the page stops asking");
+  assert.match(t.summary, /^Claude Code finished — this ran more than two days ago/);
+
+  const prOpen = buildRunTrack({ ...old, fix: ledger(FIX_SHIP_STATE.PR_OPEN, { prUrl: PR }) });
+  assert.equal(prOpen.stages.find((s) => s.id === "pr")!.state, "done", "what is on record stays");
+  assert.equal(prOpen.stages.find((s) => s.id === "merged")!.state, "next");
+  assert.match(prOpen.summary, /^Pull request opened — this ran more than two days ago/);
+  assert.equal(prOpen.settled, true);
+
+  const live = buildRunTrack({ ...old, fix: ledger(FIX_SHIP_STATE.DEPLOYED, { prUrl: PR }) });
+  assert.match(
+    live.summary,
+    /^Live on petvity\.orangecat\.ch/,
+    "a finished story is told as it was",
+  );
+
+  const recent = buildRunTrack({ ...old, followable: true });
+  assert.equal(
+    recent.stages.find((s) => s.id === "pr")!.state,
+    "now",
+    "inside the window it looks",
   );
 });
 
