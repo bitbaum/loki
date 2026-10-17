@@ -15,6 +15,7 @@ import {
   capabilitiesForRole,
   OWNER_CAPABILITIES,
   ROLE_LABELS,
+  roleGuide,
   type ProjectCapabilities,
 } from "@/lib/project-capabilities";
 import { PROJECT_ROLE_VALUES } from "@/db/schema/project-memberships";
@@ -106,3 +107,20 @@ check("no collaborator role is silently as powerful as the owner", () => {
 });
 
 console.log(`\nproject-capabilities: ${passed} checks passed`);
+
+// The manual a non-technical person reads before and after joining: a Builder
+// is told nothing waits for the owner; everyone else is told the owner decides.
+check("the role guide says what happens to what they ask for", () => {
+  const names = { site: "petvity.orangecat.ch", owner: "George" };
+  const builder = roleGuide("editor", names);
+  assert.equal(builder.steps.length, 2);
+  assert.match(builder.steps[0], /petvity\.orangecat\.ch/);
+  assert.match(builder.then, /Loki builds it/);
+  assert.match(builder.then, /nothing waits for them/);
+  for (const role of ["viewer", "client"] as const) {
+    const guide = roleGuide(role, names);
+    assert.match(guide.then, /George sees it first/);
+    assert.doesNotMatch(guide.then, /Loki builds/);
+  }
+  assert.match(roleGuide("viewer", { site: null, owner: "George" }).steps[0], /the site/);
+});

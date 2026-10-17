@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, Loader2 } from "lucide-react";
 import { RECOMMEND, type Recommendation } from "@/lib/feedback/recommend";
+import { ROLE_LABELS } from "@/lib/project-capabilities";
 import type { FeedbackListItemWithWork } from "@/lib/feedback/attach-work";
 import { FeedbackItemRow } from "@/components/feedback/FeedbackItemRow";
 import { WatchFixButton } from "@/components/feedback/WatchFixButton";
@@ -65,9 +66,12 @@ export function DecisionCard({
           : "one agent run"
         : "free";
   const showRead = rec.kind === RECOMMEND.BUILD && (read || reading);
-  const reporter = f.reporterName
-    ? `${f.reporterName}${f.reporterRole ? ` · ${f.reporterRole}` : ""}`
-    : null;
+  // The role in the words the roster uses ("Builder", never the stored "editor").
+  const roleWord =
+    f.reporterRole && f.reporterRole in ROLE_LABELS
+      ? ROLE_LABELS[f.reporterRole as keyof typeof ROLE_LABELS].label
+      : f.reporterRole;
+  const reporter = f.reporterName ? `${f.reporterName}${roleWord ? ` · ${roleWord}` : ""}` : null;
   const liveHref = livePageHref(f.liveUrl, f.url, f.page);
   const facts = decisionFacts(f);
   return (

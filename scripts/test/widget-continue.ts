@@ -168,7 +168,7 @@ assert.match(
 const greeting = readFileSync("widget/greeting.ts", "utf8");
 assert.match(
   greeting,
-  /This is my site — sign in with Loki →/,
+  /I own or build this site — sign in with Loki →/,
   "the owner's door is under the greeting",
 );
 const convo = readFileSync("widget/conversation.ts", "utf8");
