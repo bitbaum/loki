@@ -54,7 +54,7 @@ export function StartScreen({
   return (
     <div className="ui-loki-start">
       <AwayReturnCard />
-      <StartMyDay />
+      <StartMyDay onlyWithWork />
       {/* One line of truth above the greeting: what needs you, what runs,
           what came back while you looked elsewhere — each a tap into the
           first such thread. Claude's list makes you read every row for

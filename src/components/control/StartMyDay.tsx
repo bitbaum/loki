@@ -23,7 +23,7 @@ const REASONS: Record<string, string> = {
 
 /** One small selection, shared by the actual front door and the fresh chat.
  * No AI call to rank it, and no launch on mount or refresh. */
-export function StartMyDay() {
+export function StartMyDay({ onlyWithWork = false }: { onlyWithWork?: boolean } = {}) {
   const { data, loading, error, refetch } = useFetch<DayPlan>(ENDPOINT);
   // null means the suggested default; [] means the person deselected everything.
   const [selection, setSelection] = useState<string[] | null>(null);
@@ -115,6 +115,12 @@ export function StartMyDay() {
       setBusy(false);
     }
   }
+
+  // On the chat's start screen the card earns its place only with projects to
+  // start: "choose your main projects" is setup, and it is Today's job. On
+  // the phone it stood between the person and the question "What are we
+  // working on?" (owner's walk-through, 2026-10-17).
+  if (onlyWithWork && (!data || error || projects.length === 0)) return null;
 
   return (
     <section className="ui-away w-full" aria-label="Start my day" data-start-my-day>

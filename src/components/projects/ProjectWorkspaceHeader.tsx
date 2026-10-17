@@ -16,6 +16,7 @@ export function ProjectWorkspaceHeader({
   liveUrl,
   ownerPass,
   readonly,
+  quiet = false,
 }: {
   name: string;
   workspaceKey: string;
@@ -23,6 +24,10 @@ export function ProjectWorkspaceHeader({
   liveUrl: string | null;
   ownerPass: string | null;
   readonly: boolean;
+  /** The page below already leads with its own primary action (the kickoff's
+   *  "Make it happen"): Ask Loki steps down to secondary, so the screen has
+   *  one orange button, not two a thumb apart (walk-through, 2026-10-17). */
+  quiet?: boolean;
 }) {
   useEffect(() => {
     rememberFleetProject(workspaceKey);
@@ -51,7 +56,7 @@ export function ProjectWorkspaceHeader({
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Link
           href={`/loki?project=${encodeURIComponent(workspaceKey)}`}
-          className="ui-btn-primary min-h-11 gap-2"
+          className={`${quiet ? "ui-btn-secondary" : "ui-btn-primary"} min-h-11 gap-2`}
           onClick={() => track("chat")}
         >
           <MessageSquare className="h-4 w-4" aria-hidden="true" /> Ask Loki

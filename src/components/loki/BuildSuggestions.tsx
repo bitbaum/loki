@@ -99,21 +99,28 @@ export function BuildSuggestions({
         <span className="ui-micro-label">{title}</span>
         <span className="inline-flex items-center gap-3">
           {canRotate && (
+            // The icon alone, named for screen readers: two worded links beside
+            // the label wrapped onto three lines on a 390px phone (owner's
+            // walk-through, 2026-10-17). Still the tracked "rotate".
             <button
               type="button"
-              className="ui-loki-start-more inline-flex items-center gap-1"
+              className="ui-loki-start-more inline-flex min-h-11 min-w-11 items-center justify-center"
+              aria-label="Other ideas"
+              title="Other ideas"
               onClick={() => {
                 trackUsage({ surface: SURFACE, action: "rotate", meta: { offset: offset + 1 } });
                 setOffset((o) => o + 1);
               }}
             >
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-              Other ideas
+              <RefreshCw className="h-4 w-4" aria-hidden />
             </button>
           )}
           {/* The row is the short list; the board is every front of life. */}
-          <Link href={NAV.suggestions.href} className="ui-loki-start-more">
-            All suggestions
+          <Link
+            href={NAV.suggestions.href}
+            className="ui-loki-start-more inline-flex min-h-11 items-center"
+          >
+            See all
           </Link>
         </span>
       </div>
