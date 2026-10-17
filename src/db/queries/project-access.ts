@@ -151,11 +151,23 @@ export async function getProjectInvitationByToken(token: string) {
     .select({
       invitation: projectInvitations,
       projectName: entities.name,
+      // What the project is and where it lives: the invite page says both,
+      // so the person decides from the page instead of asking back.
+      projectDescription: entities.description,
+      liveUrl: userProjects.liveUrl,
       inviterName: users.name,
     })
     .from(projectInvitations)
     .innerJoin(entities, eq(entities.id, projectInvitations.projectId))
     .innerJoin(users, eq(users.id, projectInvitations.invitedBy))
+    .leftJoin(
+      userProjects,
+      and(
+        eq(userProjects.entityProjectId, entities.id),
+        eq(userProjects.userId, entities.userId),
+        eq(userProjects.isActive, true),
+      ),
+    )
     .where(eq(projectInvitations.tokenHash, hashInviteToken(token)))
     .limit(1);
   return row ?? null;

@@ -17,7 +17,7 @@
  * Model output is rendered as TEXT, never HTML: it is shown on someone else's
  * site. Links come from the server's map and only http(s) become anchors.
  */
-import { h, spiralMark, keepInViewOnFocus } from "./dom";
+import { h, spiralMark, keepInViewOnFocus, micIcon } from "./dom";
 import { createAboutBar } from "./about-bar";
 import { answerLinks, richBody } from "./rich-text";
 import { suggestionBox } from "./suggestions";
@@ -66,6 +66,10 @@ export function createConversation(opts: {
   onSent?: () => void;
   /** What Loki already did about a remark's key (widget/changes.ts). */
   known?: (key: string) => KnownFix | null;
+  /** Talk while scrolling (browse-voice.ts). When given, it IS the composer's
+   *  microphone: one mic in the panel, not a header "Voice note" beside a
+   *  composer "Record" that did nearly the same thing (2026-10-17). */
+  talk?: () => void;
 }) {
   const el = h("div", "convo");
   const log = h("div", "chatlog");
@@ -165,11 +169,13 @@ export function createConversation(opts: {
   };
   input.addEventListener("input", syncButtons);
   keepInViewOnFocus(input);
-  const voice = createVoiceControl({
-    endpoint: `${opts.apiBase}/api/widget/transcribe`,
-    token: opts.token,
-    maxMs: VOICE_MAX_MS,
-    onTranscript: (text) => {
+  const {
+    voice,
+    talk: talkBtn,
+    button: micBtn,
+  } = composerMic({
+    ...opts,
+    onText: (text) => {
       input.value = mergeTranscript(input.value, text, MAX_LEN);
       syncButtons();
       input.focus();
@@ -177,7 +183,7 @@ export function createConversation(opts: {
     onError: (m) => (err.textContent = m),
   });
   const tools = h("div", "tools");
-  if (voice) tools.append(voice.button);
+  if (micBtn) tools.append(micBtn);
   tools.append(attachBtn, fileInput);
   const actions = h("div", "composer-actions");
   actions.append(tools, feedbackBtn, sendBtn);
@@ -219,10 +225,11 @@ export function createConversation(opts: {
     // With no AI on this embed, feedback is the only way, so it leads.
     // About Loki itself there is no site to advise on and nothing to build
     // here: one way, and it leads.
-    feedbackLabel = loki ? "Send to Loki" : owner() ? "Request a fix" : "Save feedback";
+    // Two words, two intents — long labels read like a form (2026-10-17).
+    feedbackLabel = loki ? "Send to Loki" : owner() ? "Fix it" : "Save feedback";
     feedbackBtn.textContent = feedbackLabel;
     feedbackBtn.className = a === "none" || loki ? "go feedback" : "ghost feedback";
-    sendBtn.textContent = "Chat with Loki";
+    sendBtn.textContent = "Ask";
     sendBtn.style.display = a === "none" || loki ? "none" : "";
     cont.sync();
   }
@@ -257,7 +264,10 @@ export function createConversation(opts: {
     } else card = null;
     if (kit) return kit.update(currentKitState());
     const reviewingNote = draft?.intent === "note";
-    form.style.display = cont.el.style.display = reviewingNote ? "none" : "";
+    form.style.display = reviewingNote ? "none" : "";
+    // The continue row decides for itself whether there is anything to take.
+    if (reviewingNote) cont.el.style.display = "none";
+    else cont.sync();
     const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 24;
     const keep = log.scrollTop;
     log.textContent = "";
@@ -412,8 +422,8 @@ export function createConversation(opts: {
           "p",
           "sendcard-sub",
           owner()
-            ? "Edit it if you like. Chat with Loki about it, request a fix, or keep it as a note."
-            : "Edit it if you like. Chat with Loki about it, or save it as feedback for whoever builds this site.",
+            ? "Edit it if you like, then Ask Loki about it, have it fixed, or keep it as a note."
+            : "Edit it if you like, then Ask Loki about it, or save it for whoever builds this site.",
         ),
       );
     const box = h("textarea", "chatinput");
@@ -469,20 +479,14 @@ export function createConversation(opts: {
       el.appendChild(note);
     }
     const row = h("div", "row sendcard-actions");
-    // A voice note: Chat with Loki first — talking to it is what the panel is for —
+    // A voice note: Ask first — talking to Loki is what the panel is for —
     // then send it as a change, then (owner) keep it for later.
-    const askBtn = voice ? h("button", "go", "Chat with Loki") : null;
+    const askBtn = voice ? h("button", "go", "Ask") : null;
     if (askBtn) askBtn.type = "button";
-    const sendLabel = voice
-      ? owner()
-        ? "Save note"
-        : "Save feedback"
-      : owner()
-        ? "Build it"
-        : "Send";
+    const sendLabel = voice ? (owner() ? "Save" : "Save feedback") : owner() ? "Build it" : "Send";
     const go = h("button", voice ? "ghost outline" : "go", sendLabel);
     go.type = "button";
-    const requestFix = owner() && voice ? h("button", "ghost outline", "Request a fix") : null;
+    const requestFix = owner() && voice ? h("button", "ghost outline", "Fix it") : null;
     if (requestFix) requestFix.type = "button";
     const cancel = h("button", "ghost", voice ? "Discard" : "Cancel");
     cancel.type = "button";
@@ -546,6 +550,7 @@ export function createConversation(opts: {
       ownerDoor: () => door as HTMLElement,
       draftCard: card?.el ?? null,
       header: ctx.el,
+      tools: talkBtn,
       footer: cont.el,
       held: kitShots.length,
     });
@@ -585,8 +590,10 @@ export function createConversation(opts: {
           kitShots = [...kitShots, ...images].slice(-MAX_SCREENSHOTS);
           render();
         },
-        transcribe: (audio) =>
-          transcribeAudio(`${opts.apiBase}/api/widget/transcribe`, opts.token, audio),
+        // Talk replaces chatkit's own dictation: one microphone, not two.
+        transcribe: talkBtn
+          ? undefined
+          : (audio) => transcribeAudio(`${opts.apiBase}/api/widget/transcribe`, opts.token, audio),
         vars,
       },
       currentKitState(),
@@ -674,4 +681,45 @@ function noticedCard(
   const extras = noticedExtras(item, deps.known, deps.owner, deps.onFix, deps.onWhy);
   if (extras) m.appendChild(extras);
   return m;
+}
+
+/**
+ * The composer's ONE microphone: Talk (talk while scrolling, browse-voice.ts)
+ * when the panel offers it, else plain dictation into the box.
+ */
+function composerMic(o: {
+  apiBase: string;
+  token: string;
+  talk?: () => void;
+  onText: (text: string) => void;
+  onError: (message: string) => void;
+}): {
+  voice: ReturnType<typeof createVoiceControl>;
+  talk: HTMLButtonElement | null;
+  button: HTMLButtonElement | null;
+} {
+  if (o.talk) {
+    const talk = talkButton(o.talk);
+    return { voice: null, talk, button: talk };
+  }
+  const voice = createVoiceControl({
+    endpoint: `${o.apiBase}/api/widget/transcribe`,
+    token: o.token,
+    maxMs: VOICE_MAX_MS,
+    onTranscript: o.onText,
+    onError: o.onError,
+  });
+  return { voice, talk: null, button: voice?.button ?? null };
+}
+
+/** The composer's microphone when talking hands over to the page: it closes
+ *  the panel so the person can scroll while they speak. */
+function talkButton(talk: () => void): HTMLButtonElement {
+  const b = h("button", "mic talk");
+  b.type = "button";
+  b.append(micIcon(), h("span", undefined, "Talk"));
+  b.setAttribute("aria-label", "Talk to Loki — you can scroll the page while you speak");
+  b.title = "Talk to Loki — you can scroll the page while you speak";
+  b.addEventListener("click", talk);
+  return b;
 }

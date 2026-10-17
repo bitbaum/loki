@@ -40,7 +40,7 @@ import {
 import { createThemeMode } from "./theme-mode";
 import { createBrowseVoice } from "./browse-voice";
 import { isVoiceSupported } from "./voice";
-import { h, spiralMark, micIcon } from "./dom";
+import { h, spiralMark } from "./dom";
 import { createThoughtsView } from "./thoughts-view";
 import { attachSheet } from "./sheet";
 import {
@@ -283,11 +283,6 @@ interface LokiApi {
         visitorOverride = value;
       },
       onOpen: openPanel,
-      // Point first, talk second: the panel opens with the thing attached.
-      onPoint: () => {
-        openPanel();
-        picker.start();
-      },
       onHide: () => hideForVisitor(),
     });
     const fab = launcher.fab;
@@ -343,27 +338,43 @@ interface LokiApi {
     const closeBtn = h("button", "x", "✕");
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", closePanel);
-    const speakBtn = h("button", "speak");
-    speakBtn.type = "button";
-    speakBtn.append(micIcon(), h("span", "", "Voice note"));
-    speakBtn.setAttribute("aria-label", "Record a note while browsing");
-    speakBtn.title = "Record a note about this page as you browse";
-    speakBtn.addEventListener("click", () => {
-      if (conversation.hasDraft()) {
-        conversation.say("Save or cancel your current note before starting another.");
-        return;
-      }
-      browseVoice?.start();
-    });
-    if (isVoiceSupported()) hdrActions.append(speakBtn);
     hdrActions.append(closeBtn);
     hdr.append(hdrText, hdrActions);
-    // What Loki is seeing while it watches — the owner's, under the header.
+    // The owner's changes and where each one is — the half of "Loki tells
+    // you when" that happens on the site (widget/changes.ts). Loki says it in
+    // the thread when the panel is open, beside the launcher when it is not.
+    const changes = createChanges({
+      apiBase,
+      token,
+      pass: () => ownerPass,
+      onLive: (c) => {
+        const links = c.href ? [{ label: c.action ?? "See it", url: c.href }] : [];
+        conversation.say(`“${c.text}” is live on this site.`, links);
+        if (panel.isConnected) return;
+        unread++;
+        syncWatch();
+        launcher.say(`“${c.text.slice(0, 60)}${c.text.length > 60 ? "…" : ""}” is live`);
+      },
+      onTheme: (pref) => themeMode.setPreference(pref),
+      onPassRefused: () => {
+        forgetOwnerPass(token);
+        ownerPass = null;
+        syncWatch();
+        conversation.refresh();
+      },
+      // A fix moved (building → live): the card that noticed it follows.
+      onUpdate: () => {
+        if (panel.isConnected) conversation.refresh();
+      },
+      onRender: () => thoughts.repaint(),
+    });
+    // The owner's one status line under the header: watching, and where
+    // their changes are (thoughts-view.ts).
     const thoughts = createThoughtsView(() => {
       if (watchSession?.on()) watchSession.stop();
       else watchSession?.resume();
       syncWatch();
-    });
+    }, changes);
     function syncWatch() {
       const on = watchSession?.on() ?? false;
       // The spiral in the header turns while Loki watches, stops when it does not.
@@ -418,9 +429,6 @@ interface LokiApi {
     });
     /** Set once watch mode starts (owner only) — see the end of mount(). */
     let watchSession: WatchSession | null = null;
-    /** Your changes, once built below — the conversation's first render (a
-     *  restored thread with a noticed card) asks it before the const exists. */
-    let changesRef: ReturnType<typeof createChanges> | null = null;
     const conversation = createConversation({
       apiBase,
       token,
@@ -438,40 +446,24 @@ interface LokiApi {
       // A change was filed: Your changes shows where it went, at once.
       onSent: () => changes.start(),
       watch: () => watchSession,
-      known: (key) => changesRef?.known(key) ?? null,
+      known: (key) => changes.known(key),
+      // The one microphone: talk while you scroll (browse-voice.ts).
+      ...(isVoiceSupported()
+        ? {
+            talk: () => {
+              if (conversation.hasDraft()) {
+                conversation.say("Save or cancel your current note before starting another.");
+                return;
+              }
+              browseVoice?.start();
+            },
+          }
+        : {}),
     });
 
-    // The owner's changes and where each one is — the half of "Loki tells
-    // you when" that happens on the site (widget/changes.ts). Loki says it in
-    // the thread when the panel is open, beside the launcher when it is not.
-    const changes = createChanges({
-      apiBase,
-      token,
-      pass: () => ownerPass,
-      onLive: (c) => {
-        const links = c.href ? [{ label: c.action ?? "See it", url: c.href }] : [];
-        conversation.say(`“${c.text}” is live on this site.`, links);
-        if (panel.isConnected) return;
-        unread++;
-        syncWatch();
-        launcher.say(`“${c.text.slice(0, 60)}${c.text.length > 60 ? "…" : ""}” is live`);
-      },
-      onTheme: (pref) => themeMode.setPreference(pref),
-      onPassRefused: () => {
-        forgetOwnerPass(token);
-        ownerPass = null;
-        syncWatch();
-        conversation.refresh();
-      },
-      // A fix moved (building → live): the card that noticed it follows.
-      onUpdate: () => {
-        if (panel.isConnected) conversation.refresh();
-      },
-    });
-    changesRef = changes;
     const foot = h("div", "panel-foot");
     foot.append(madeWith, hideLink);
-    panel.append(hdr, thoughts.el, changes.el, conversation.el, foot);
+    panel.append(hdr, thoughts.el, conversation.el, foot);
     // On a phone the panel is a sheet: drag its top up for more, down to peek
     // at the page under it, further down to put it away (sheet.ts).
     attachSheet({ panel, handle: hdr, onClose: closePanel });

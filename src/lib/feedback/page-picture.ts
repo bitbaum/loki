@@ -51,6 +51,8 @@ async function publicHost(host: string, seen: Map<string, boolean>): Promise<boo
 export const PICTURE_VIEWPORT = { width: 390, height: 844 } as const;
 const JPEG_QUALITY = 55;
 const SETTLE_MS = 800;
+/** How long a loaded page may keep talking before it is photographed anyway. */
+const IDLE_WAIT_MS = 8_000;
 const SYSTEM_BROWSERS = [
   "/usr/bin/chromium",
   "/usr/bin/chromium-browser",
@@ -144,10 +146,15 @@ async function takeOne(
         }
         return (await publicHost(host, seen)) ? route.continue() : route.abort();
       });
+    // Loaded is enough to photograph; "network idle" is waited for only as
+    // long as it takes. A shop page with analytics beacons or a chat widget
+    // that never go quiet used to time out here and leave no picture at all
+    // (center-com.ru, 2026-10-17).
     const res = await page
-      .goto(url, { waitUntil: "networkidle", timeout: HTTP_TIMEOUT_LONG_MS })
+      .goto(url, { waitUntil: "load", timeout: HTTP_TIMEOUT_LONG_MS })
       .catch(() => null);
     if (!res || !res.ok()) return { ok: false, reason: "did-not-load" };
+    await page.waitForLoadState("networkidle", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
     await page.waitForTimeout(SETTLE_MS);
     if (selector) {
       await page

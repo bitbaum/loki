@@ -72,6 +72,9 @@ export type RecommendInput = {
   duplicateCount: number;
   runnable: boolean;
   page: string | null;
+  /** A Builder's note carries the owner's source; this names who actually asked. */
+  reporterName?: string | null;
+  reporterIsOwner?: boolean;
 };
 
 const DAY_MS = 86_400_000;
@@ -126,7 +129,9 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
         kind: RECOMMEND.BUILD,
         label: "Build it",
         why: own
-          ? "Your own note on your own site; the project can take a run."
+          ? input.reporterName && input.reporterIsOwner === false
+            ? `${input.reporterName} asked for this on your site; the project can take a run.`
+            : "Your own note on your own site; the project can take a run."
           : `${sourceWord(input.source)} on ${pageWord(input.page)}${times}; the project can take a run.`,
         runs: 1,
         priority: 40,

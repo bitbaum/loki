@@ -49,16 +49,15 @@ export function createContinueRow(opts: {
         here: location.href,
       });
     }
-    // The owner always has both doors. A visitor sees the one link once they
-    // have said something worth taking along — on an empty thread it would
-    // only be a second sign-in button.
+    // Once there is something to take along: on an empty thread the owner's
+    // two doors were one more row under the composer before a word was said
+    // (owner, 2026-10-17), and a visitor's link would only be a second
+    // sign-in button. The owner gets both doors; a visitor the one.
     const owner = opts.owner();
     const said = thread.some((i) => i.kind === "you");
-    label.style.display = owner ? "" : "none";
-    chat.style.display = owner ? "" : "none";
-    term.style.display = owner ? "" : "none";
-    mine.style.display = !owner && said ? "" : "none";
-    el.style.display = owner || said ? "" : "none";
+    label.style.display = chat.style.display = term.style.display = owner ? "" : "none";
+    mine.style.display = owner ? "none" : "";
+    el.style.display = said ? "" : "none";
   }
 
   return { el, sync };

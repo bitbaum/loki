@@ -12,7 +12,8 @@ import { loadFleetMap } from "@/lib/register/load-map";
 import type { FleetMap } from "@/lib/register/map";
 import { callTextDetailed } from "@/lib/groq";
 import { stripReasoning } from "@/lib/agent/llm";
-import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
+import { dayCapacityTokens } from "@/config/chat-models";
+import { recordVisitorSpend, visitorPoolAllows } from "@/lib/widget-chat/visitor-pool";
 import { appUrl } from "@/lib/email";
 import { getStudioCommission, type StudioCommissionContract } from "@/lib/studio-commission";
 import {
@@ -38,9 +39,10 @@ import { isWidgetOriginAllowed } from "@/lib/widget/origin";
  * Public and cross-origin for the same reasons as /api/widget/transcribe, and
  * guarded the same way: the fcw_* token must be active, the per-token origin
  * allowlist holds, and spend is rate-limited per IP and per token. On top of
- * that the turn is charged to the TOKEN OWNER's fair share of the free pool —
- * a visitor's question costs the person who chose to put the widget there, and
- * cannot drain everyone else's day.
+ * that every visitor turn draws from the visitors' own slice of the free pool
+ * (lib/widget-chat/visitor-pool.ts) — never from the widget owner's personal
+ * share, which an owner who also uses Loki had spent by midday, leaving every
+ * stranger with the keyword fallback.
  *
  * It never refuses to route. Budget spent or every vendor down, the visitor
  * still gets a keyword match over the same map (`fallbackAnswer`), because
@@ -111,9 +113,19 @@ async function studioContract(): Promise<StudioCommissionContract | null> {
   return studio;
 }
 
-/** The keyword fallback in the same shape as a model answer: one unattributed message. */
-function withMessages(answer: { reply: string; links: ConciergeLink[] }) {
-  return { ok: true, ...answer, messages: [{ speaker: null, text: answer.reply }], degraded: true };
+/**
+ * The keyword fallback in the same shape as a model answer: one unattributed
+ * message. `why` says which door closed — the visitors' pool or every model —
+ * so a degraded answer seen live can be diagnosed without the server log.
+ */
+function withMessages(answer: { reply: string; links: ConciergeLink[] }, why: "budget" | "model") {
+  return {
+    ok: true,
+    ...answer,
+    messages: [{ speaker: null, text: answer.reply }],
+    degraded: true,
+    why,
+  };
 }
 
 export function OPTIONS(req: NextRequest) {
@@ -157,9 +169,8 @@ export async function POST(req: NextRequest) {
   if (!map) return corsError("The catalogue is unavailable right now", 503);
   const base = appUrl();
 
-  const budget = await checkAiBudget(token.userId);
-  if (!budget.allowed) {
-    return NextResponse.json(withMessages(fallbackAnswer(data.message, map, base)), {
+  if (!visitorPoolAllows(dayCapacityTokens())) {
+    return NextResponse.json(withMessages(fallbackAnswer(data.message, map, base), "budget"), {
       headers: CORS_HEADERS,
     });
   }
@@ -177,7 +188,7 @@ export async function POST(req: NextRequest) {
       temperature: 0.3,
       timeoutMs: HTTP_TIMEOUT_LONG_MS,
     });
-    void recordAiSpend(token.userId, answered.tokens);
+    recordVisitorSpend(answered.tokens);
     const reply = trimToLastSentence(stripMeta(stripReasoning(answered.text)));
     if (!reply) throw new Error("empty answer");
     return NextResponse.json(
@@ -189,7 +200,7 @@ export async function POST(req: NextRequest) {
       "[widget-chat] model unavailable, routing by keywords:",
       e instanceof Error ? e.message : e,
     );
-    return NextResponse.json(withMessages(fallbackAnswer(data.message, map, base)), {
+    return NextResponse.json(withMessages(fallbackAnswer(data.message, map, base), "model"), {
       headers: CORS_HEADERS,
     });
   }

@@ -37,6 +37,7 @@ import type { orchestrationRuns } from "@/db/schema/orchestration-runs";
 import type { ProjectShare } from "@/db/schema/project-shares";
 import type { ProjectRole } from "@/db/schema/project-memberships";
 import { getProjectAccess } from "./project-access";
+import { getUserById } from "./users";
 import { ENTITY_TYPE } from "@/lib/constants/statuses";
 import { renderOperatingPrinciples } from "@/config/operating-principles";
 import { getGithubToken } from "@/lib/github-token";
@@ -62,6 +63,8 @@ export type ProjectDossier = {
    *  for an org teammate with no seat of their own. Named in the header so a
    *  Builder is not told the project is "view only". */
   viewerRole: "owner" | ProjectRole | null;
+  /** The owner by name, for a member's guide ("George sees it first"). */
+  ownerName: string | null;
   /** Project editor capability is narrower than ownership: editors can work
    * feedback without changing billing, identity, or membership. */
   canEditFeedback: boolean;
@@ -98,6 +101,10 @@ export async function getProjectDossier(
     ownerId === viewerUserId
       ? "owner"
       : ((await getProjectAccess(viewerUserId, projectId).catch(() => null))?.role ?? null);
+  const ownerName =
+    viewerRole === "owner"
+      ? null
+      : (await getUserById(ownerId).catch(() => null))?.name?.trim() || null;
   const projectKey = detail.project.name;
 
   const [activity, runs, outcomes, userProject] = await Promise.all([
@@ -139,6 +146,7 @@ export async function getProjectDossier(
     ownerId,
     readonly: ownerId !== viewerUserId,
     viewerRole,
+    ownerName,
     canEditFeedback: canEdit,
     state,
     activity,

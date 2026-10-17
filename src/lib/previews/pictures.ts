@@ -18,3 +18,5 @@ export function pictureFile(dir: string, side: PictureSide, url: string): string
 
 /** The header a preview is served with when Loki is photographing it — it then leaves its widget out. */
 export const PICTURE_HEADER = "x-loki-picture";
+/** On a picture that could not be taken: why ("no-browser", "did-not-load"). */
+export const PICTURE_REASON_HEADER = "x-loki-picture-reason";

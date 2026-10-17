@@ -116,7 +116,9 @@ src/
 │   │                 injected (inject wraps text in project context).
 │   │                 A press on the read-only screen puts the cursor in the box.
 │   │                 Below md the same state drives phone chrome:
-│   │                 TerminalMobileHeader (one line) + TerminalSessionSheet
+│   │                 TerminalMobileHeader (one line; with several sessions a
+│   │                 scrolling row of them + "+", which opens
+│   │                 TerminalNewSessionSheet) + TerminalSessionSheet
 │   │                 (all the setup) + TerminalMobileDock = TerminalKeyDeck
 │   │                 (the arrows/Esc/Tab/Ctrl a soft keyboard lacks — bytes are
 │   │                 SSOT in config/terminal-keys.ts), opened by Keys in the

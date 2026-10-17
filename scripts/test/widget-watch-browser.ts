@@ -218,7 +218,7 @@ async function main() {
       });
     let st = await state();
     ok(
-      st.label.startsWith("Loki · watching") && st.watching && st.name.includes("watching"),
+      st.label === "Watching" && st.watching && st.name.includes("watching"),
       `the owner's launcher says so (${st.label})`,
     );
     ok(!st.bar, "with the launcher showing it, the top bar stays off the site");
@@ -587,8 +587,9 @@ async function main() {
     await s.close();
   }
 
-  // ---- one Loki on the owner's site: the launcher stays, the ◎ is its other
-  //      half, and "This screen" marks what is on screen ----
+  // ---- one Loki on the owner's site: ONE launcher that says its state and
+  //      opens Loki; pointing is in the panel, and "This screen" marks what is
+  //      on screen ----
   {
     const s = await open(browser, js, "#loki-owner=pass123");
     await s.p.keyboard.press("Escape");
@@ -596,22 +597,17 @@ async function main() {
       s.p.evaluate(() => {
         const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
         const fab = r.querySelector(".fab") as HTMLElement;
-        const point = r.querySelector(".fab-point") as HTMLElement;
         const bar = r.querySelector(".watch-pill") as HTMLElement;
-        const fr = fab.getBoundingClientRect();
-        const pr = point.getBoundingClientRect();
         return {
           fab: getComputedStyle(fab).visibility !== "hidden" && fab.style.display !== "none",
-          point: getComputedStyle(point).display !== "none",
-          // Right corner: the target is on the launcher's inner (left) side.
-          flush: Math.abs(pr.right - fr.left) <= 2 && Math.abs(pr.top - fr.top) <= 1,
+          label: (r.querySelector(".fab-label") as HTMLElement).innerText.trim(),
+          halves: r.querySelectorAll(".fab-point").length,
           bar: getComputedStyle(bar).display !== "none",
         };
       });
     let st = await state();
-    ok(st.point && st.flush, "the ◎ is the launcher's other half, flush against it");
-    // Paused: still one launcher, still the ◎ — pointing does not depend on watching.
-    await clickPillButton(s.p).catch(() => {});
+    ok(st.fab && st.halves === 0 && st.label === "Watching", "one launcher, and it says Watching");
+    // Paused (the status line's Pause): still one launcher, and it says so.
     await s.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
       (r.querySelector(".fab") as HTMLElement).click();
@@ -622,7 +618,7 @@ async function main() {
     });
     await s.p.keyboard.press("Escape");
     st = await state();
-    ok(st.point, "paused, the ◎ is still there");
+    ok(st.fab && st.label === "Paused", `paused, the same launcher says Paused (${st.label})`);
     // A page that blocks every corner: both launchers become an edge handle
     // (host-avoid test); the owner's stays reachable, with no second bar.
     await s.p.evaluate(() => {
@@ -640,10 +636,15 @@ async function main() {
     st = await state();
     ok(st.fab && !st.bar, "every corner busy → the owner's launcher stays, no bar appears");
     await s.p.evaluate(() => document.getElementById("wall")?.remove());
-    // ◎ → This screen: the blocks on screen are marked and the panel opens with them.
+    // Point to area → This screen: the blocks on screen are marked and the
+    // conversation has them attached.
     await s.p.evaluate(() => {
       const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
-      (r.querySelector(".fab-point") as HTMLElement).click();
+      (r.querySelector(".fab") as HTMLElement).click();
+    });
+    await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      (r.querySelector(".pointbtn") as HTMLElement).click();
     });
     await s.p.waitForTimeout(300);
     const picked = await s.p.evaluate(() => {
@@ -659,7 +660,7 @@ async function main() {
         chip: (r.querySelector(".scopebtn") as HTMLElement | null)?.innerText ?? "",
       };
     });
-    ok(picked.offered, "◎ offers This screen beside tapping an element");
+    ok(picked.offered, "Point to area offers This screen beside tapping an element");
     ok(picked.marked >= 1, `This screen marks what is on screen (${picked.marked})`);
     ok(
       picked.panel && /area/.test(picked.chip),

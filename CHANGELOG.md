@@ -6,6 +6,31 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-17 — See what every session is doing
+
+- **Each tab says what its session is doing.** A breathing dot while it works,
+  amber when it is waiting on you, green when it has finished, grey when it is
+  just open — on the phone's row of sessions and on the desktop strip alike.
+- **Hear from the sessions you are not looking at.** When another session
+  finishes or starts waiting on you, one line says so ("orangecat needs you")
+  with **Open** beside it. It goes away on its own, when you open that session,
+  or with ×.
+
+## 2026-10-17 — Terminal tabs on your phone
+
+- **Several sessions at once, on a phone too.** With more than one session open,
+  the top of the Terminal is now a row of them, like a terminal's tabs: tap one
+  to switch, swipe for more, tap the one you are in for its settings. **+**
+  starts another session from the phone (it used to be desktop only).
+- **A second session on the same project, side by side.** Starting a project
+  that already has a session now says so and offers "Start another session" or
+  "Go to its session". The second one works in its own copy of the project, so
+  the two agents never trip over each other's changes; it shows as
+  "substrata 2". Starting the same project used to replace the running session.
+- **Close a session from the phone.** The session list in the settings sheet
+  has a close button on each row (tap twice, so a stray tap never stops an
+  agent).
+
 ## 2026-10-17 — Your answer no longer disappears
 
 - **Answering a package update no longer makes it vanish.** On Approvals, after you

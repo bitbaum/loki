@@ -33,6 +33,7 @@ import { needsInterview, planInterview } from "@/lib/project-interview";
 import { kickoffAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
 import { deriveBuildStatus, isBuildActive } from "@/lib/project-build-status";
 import { ProjectBuildStatus } from "./ProjectBuildStatus";
+import { MemberGuide } from "./MemberGuide";
 import { ProjectBuiltFrom } from "@/components/packages/ProjectBuiltFrom";
 import { KitPlanPreview } from "./KitPlanPreview";
 import { ProjectPlannedKits } from "./ProjectPlannedKits";
@@ -48,6 +49,7 @@ export function ProjectWorkspaceView({
   ownerPass = null,
   viewerMayOpenOrgRepo = false,
   viewerHasGithub = false,
+  joined = false,
 }: {
   dossier: ProjectDossier;
   shareAction?: React.ReactNode;
@@ -65,6 +67,8 @@ export function ProjectWorkspaceView({
   viewerMayOpenOrgRepo?: boolean;
   /** The viewer has GitHub connected — where a code handover goes. */
   viewerHasGithub?: boolean;
+  /** Arrived straight from accepting an invitation: the guide leads with it. */
+  joined?: boolean;
 }) {
   const { detail, userProject } = dossier;
   const project = detail.project;
@@ -222,6 +226,16 @@ export function ProjectWorkspaceView({
             content: (
               <>
                 {flagsBlock}
+                {dossier.readonly && dossier.viewerRole && dossier.viewerRole !== "owner" && (
+                  <MemberGuide
+                    role={dossier.viewerRole}
+                    projectName={project.name}
+                    ownerName={dossier.ownerName}
+                    liveUrl={userProject?.liveUrl ?? links.prodUrl}
+                    ownerPass={ownerPass}
+                    joined={joined}
+                  />
+                )}
                 <ProjectBuildStatus
                   status={buildStatus}
                   liveUrl={userProject?.liveUrl ?? links.prodUrl}

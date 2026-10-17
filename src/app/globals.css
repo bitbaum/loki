@@ -3094,6 +3094,31 @@
   .ui-term-mhead-title {
     @apply min-w-0 flex-1 truncate text-sm font-medium text-text-primary;
   }
+  /* Several sessions: the header's name becomes a row of them, scrolled
+     sideways like a terminal's tabs. The current one is the full button (dot,
+     name, chevron to the sheet); the rest are quiet one-tap switches. */
+  .ui-term-mtabs {
+    @apply flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto;
+    scrollbar-width: none;
+  }
+  .ui-term-mtabs::-webkit-scrollbar {
+    display: none;
+  }
+  .ui-term-mhead-btn-tab {
+    @apply max-w-56 flex-none;
+  }
+  /* Sized by its name inside the row (it only truncates past 70%), where the
+     single-session header lets the name take whatever room is left. */
+  .ui-term-mhead-btn-tab .ui-term-mhead-title {
+    @apply flex-initial;
+  }
+  /* "substrata 2 finished · Open": news from another session, one line. */
+  .ui-term-notice {
+    @apply flex shrink-0 items-center gap-3 rounded-xl border border-border-subtle bg-surface-raised px-3 py-1 text-sm text-text-secondary;
+  }
+  .ui-term-mtab {
+    @apply flex h-11 max-w-36 shrink-0 items-center gap-2 rounded-xl border border-border-subtle px-3 text-sm text-text-secondary transition-colors active:bg-surface-overlay;
+  }
   .ui-term-mhead-agent {
     @apply shrink-0 rounded bg-surface-overlay px-1.5 py-0.5 text-micro uppercase tracking-caps text-text-secondary;
   }
@@ -3203,6 +3228,12 @@
     background-color: var(--status-neutral);
     animation: ui-term-pulse 1.4s ease-in-out infinite;
   }
+  /* A session at work: the accent, breathing — distinct from the grey pulse
+     that means "connecting". */
+  .ui-term-status-working {
+    background-color: var(--accent-primary);
+    animation: ui-term-pulse 1.4s ease-in-out infinite;
+  }
   @keyframes ui-term-pulse {
     0%,
     100% {
@@ -3213,7 +3244,8 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .ui-term-live-dot-pending {
+    .ui-term-live-dot-pending,
+    .ui-term-status-working {
       animation: none;
     }
   }

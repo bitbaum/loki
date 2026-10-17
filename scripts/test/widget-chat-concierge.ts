@@ -10,6 +10,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FleetMap, FleetMapEntry } from "@/lib/register/map";
 import {
+  recordVisitorSpend,
+  resetVisitorPool,
+  VISITOR_POOL_SHARE,
+  VISITOR_TURN_RESERVE,
+  visitorPoolAllows,
+} from "@/lib/widget-chat/visitor-pool";
+import {
   EXPERIMENT_NAME_RE,
   FACTS_BUDGET_CHARS,
   STUDIO_DOORS,
@@ -21,6 +28,9 @@ import {
   conciergePrompt,
   conciergeSystemPrompt,
   fallbackAnswer,
+  isWebsiteJob,
+  looksGerman,
+  visibleProjects,
   linksForReply,
   renderConciergeFacts,
   renderStudioFacts,
@@ -405,6 +415,107 @@ assert.deepEqual(
   offline.links.map((l) => l.label),
   ["Become a partner", "Read the systems design pilot"],
   "with no model, a partner question still reaches the partner doors",
+);
+
+// A website job for somebody else's site is never offered, whatever it is called.
+const withJob: FleetMap = {
+  ...map,
+  projects: [
+    ...map.projects,
+    entry({
+      slug: "derhochhinhousepartyrenner-ch-refresh-68e1f4947961419d9e7c46ab12cd34ef",
+      name: "derhochhinhousepartyrenner-ch-refresh-68e1f4947961419d9e7c46ab12cd34ef",
+      status: "not live",
+      what: "Develop a new version of this existing website: https://www.example.ch",
+      identity: { problem: "p", solution: "s", mission: null, vision: null },
+    }),
+    entry({
+      slug: "barbershop",
+      name: "Barbershop",
+      status: "not live",
+      what: "Create a new, independent website inspired by: https://cuts.example",
+      identity: { problem: "p", solution: "s", mission: null, vision: null },
+    }),
+  ],
+};
+assert.ok(
+  !visibleProjects(withJob).some((p) => isWebsiteJob(p)),
+  "website jobs are someone else's site, not a product to offer",
+);
+assert.ok(!renderConciergeFacts(withJob).includes("Develop a new version"));
+
+// The fallback never opens by apologising, and it helps with the common needs.
+for (const q of ["x", "zzzz qqqq", "I want to learn Swiss German"])
+  assert.ok(!/full answer/i.test(fallbackAnswer(q, map, BASE).reply), q);
+const site = fallbackAnswer("I want to build a website for my bakery", map, BASE);
+assert.equal(
+  site.links[0]?.label,
+  "Build something of your own",
+  "a website request goes to Loki /build",
+);
+const research = fallbackAnswer("Can you build something for research?", map, BASE);
+assert.match(research.reply, /research/i);
+assert.ok(
+  research.links.some((l) => l.label === "Ask a person"),
+  "research has a person to ask",
+);
+const paid = fallbackAnswer("How can I get paid in Bitcoin?", map, BASE);
+assert.equal(paid.links[0]?.url, "https://orangecat.example");
+
+// German in, German out — and its function words are not a need.
+assert.ok(looksGerman("Kannst du mir helfen, eine Recherche zu machen?"));
+assert.ok(!looksGerman("Can you help me with research?"));
+const de = fallbackAnswer("Kannst du mir helfen, eine Recherche zu machen?", map, BASE);
+assert.match(de.reply, /Recherche/);
+const deSite = fallbackAnswer("Ich möchte eine Webseite für meine Bäckerei", map, BASE);
+assert.match(deSite.reply, /Loki kann das mit dir bauen/);
+const deNone = fallbackAnswer("Ich suche einen guten Zahnarzt in Bern", map, BASE);
+assert.match(deNone.reply, /noch nichts Passendes/);
+assert.ok(
+  deNone.links.some((l) => l.label === "Ask a person"),
+  "no match still has a way forward",
+);
+
+// One shared word in a long description is not a recommendation.
+assert.deepEqual(
+  fallbackAnswer("calibrated", map, BASE).links.map((l) => l.label),
+  ["Ask a person", "See all projects"],
+);
+
+// A concept is not an answer to a need: only what runs is offered offline.
+assert.ok(!fallbackAnswer("lost drafts", map, BASE).links.some((l) => l.label === "Draftapp"));
+
+assert.match(system, /ONE short question/, "a vague request gets one clarifying question");
+assert.match(system, /Never stop at 'nothing matched'/);
+
+// Visitors draw from their own slice of the day, never the widget owner's share.
+resetVisitorPool();
+const day = new Date("2026-10-17T10:00:00Z");
+const capacity = 1_000_000; // 120k for visitors: twenty reserved turns
+assert.ok(visitorPoolAllows(capacity, day), "a fresh day admits a visitor");
+for (let i = 0; i < 19; i++) recordVisitorSpend(VISITOR_TURN_RESERVE, day);
+assert.ok(visitorPoolAllows(capacity, day), "the last reserved turn still fits");
+recordVisitorSpend(0, day); // unreported cost books the reserve, never zero
+assert.ok(!visitorPoolAllows(capacity, day), "a spent slice routes by keywords");
+assert.ok(visitorPoolAllows(capacity, new Date("2026-10-18T00:00:01Z")), "midnight UTC refills it");
+assert.ok(VISITOR_POOL_SHARE < 0.25, "visitors never take most of the pool");
+resetVisitorPool();
+
+// A door named by its label gets its button, and naming four projects first
+// does not push it off the end.
+assert.deepEqual(
+  linksForReply('Loki: Use the "Build something of your own" option.', map, BASE).map(
+    (l) => l.label,
+  ),
+  ["Build something of your own"],
+);
+assert.deepEqual(
+  linksForReply(
+    "Heidi, OrangeCat, Draftapp and AOZ Housing are here. Next, click See all projects.",
+    map,
+    BASE,
+  ).map((l) => l.label),
+  ["Heidi", "OrangeCat", "Draftapp", "See all projects"],
 );
 
 console.log("widget-chat-concierge: ok");

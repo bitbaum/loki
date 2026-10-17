@@ -39,6 +39,8 @@ export type KitInputs = {
   /** The open confirmation card, built by conversation.ts (it owns its inputs). */
   draftCard: HTMLElement | null;
   header: HTMLElement;
+  /** Talk, for chatkit's tool row (null: chatkit's own dictation). */
+  tools?: HTMLElement | null;
   footer: HTMLElement;
   held: number;
 };
@@ -192,9 +194,7 @@ export function kitState(i: KitInputs): KitState {
   const { list } = startersFor(i.assistant, thread, i.watch?.on() ?? false);
   const one = i.assistant === "none" || i.about === "loki";
   const feedback: KitMode = { id: "feedback", label: i.feedbackLabel, send: i.feedbackLabel };
-  const modes: KitMode[] = one
-    ? [feedback]
-    : [{ id: "ask", label: "Chat with Loki", send: "Send" }, feedback];
+  const modes: KitMode[] = one ? [feedback] : [{ id: "ask", label: "Ask", send: "Send" }, feedback];
 
   return {
     messages,
@@ -207,6 +207,7 @@ export function kitState(i: KitInputs): KitState {
     placeholder: i.placeholder,
     modes,
     header: i.header,
+    tools: i.tools ?? null,
     footer: i.footer,
     held: i.held,
     sending: pending !== null,

@@ -34,3 +34,24 @@ assert.match(
 );
 
 console.log("widget-pass-holder: ok");
+
+// Who is handed a pass on the project page — the rule behind "a Builder's
+// note on the site builds at once; a viewer's waits for the owner".
+import { mayHoldPass } from "../../src/lib/feedback/pass-rule";
+assert.ok(mayHoldPass("owner"));
+assert.ok(mayHoldPass("editor"), "a Builder holds a pass");
+assert.ok(!mayHoldPass("viewer"));
+assert.ok(!mayHoldPass("client"));
+assert.ok(!mayHoldPass(null));
+assert.match(
+  readFileSync("src/app/(app)/projects/[id]/page.tsx", "utf8"),
+  /mayHoldPass\(dossier\.viewerRole\)/,
+  "the project page issues passes by that rule",
+);
+// Who asked is recorded from the pass, so the owner's inbox and the Builder's
+// own list both know it without a claim.
+assert.match(
+  readFileSync("src/app/api/feedback/route.ts", "utf8"),
+  /reporterUserId: holder\?\.userId/,
+  "ingest records the pass holder as the reporter",
+);

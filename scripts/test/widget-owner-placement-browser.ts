@@ -1,5 +1,6 @@
-// Real launcher, scanner and styles: reproduce the wide owner control that
-// covered the mobile project page while its main button alone appeared clear.
+// Real launcher, scanner and styles: the owner's launcher is ONE labelled
+// button — "Watching" at every width, a tap opens Loki — and its whole
+// footprint (button and badge) clears the host page's controls.
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { build } from "esbuild";
@@ -23,7 +24,7 @@ async function main() {
         window.fixture = createLauncher({root,host,token:'fixture',
           getPlacement:()=>({corner:'bottom-right',offsetX:16,offsetY:16,autoAvoid:true}),
           getVisitorOverride:()=>null,setVisitorOverride:()=>{},
-          onOpen:()=>window.opened=true,onHide:()=>{},onPoint:()=>window.pointed=true});
+          onOpen:()=>window.opened=true,onHide:()=>{}});
         window.fixture.setOwnerStatus({watching:true,unread:12});
       `,
     },
@@ -47,14 +48,16 @@ async function main() {
       <button id="action" style="position:fixed;top:0;left:0;width:20px;height:24px">Go</button>`);
     await page.addScriptTag({ content: bundle.outputFiles[0].text });
     const root = page.locator("#loki-feedback-host");
-    const parts = [root.locator(".fab"), root.locator(".fab-point"), root.locator(".fab-badge")];
-    // Put a small action under the target's outer half, beyond the main
-    // button's existing safety gap. Font widths cannot make this vacuous.
+    const parts = [root.locator(".fab"), root.locator(".fab-badge")];
+    // The state is a WORD at phone width — a turning spiral alone did not
+    // read as watching (owner, 2026-10-17) — and there is no second half.
+    assert.equal((await root.locator(".fab-label").innerText()).trim(), "Watching");
+    assert.equal(await root.locator(".fab-point").count(), 0, "one button, not two halves");
+    // Put a small action under the label's outer edge, beyond the button's
+    // safety gap. Font widths cannot make this vacuous.
     await page.evaluate(() => {
-      const point = document
-        .getElementById("loki-feedback-host")!
-        .shadowRoot!.querySelector(".fab-point")!;
-      const rect = point.getBoundingClientRect();
+      const fab = document.getElementById("loki-feedback-host")!.shadowRoot!.querySelector(".fab")!;
+      const rect = fab.getBoundingClientRect();
       const action = document.getElementById("action")!;
       action.style.left = `${rect.left + 2}px`;
       action.style.top = `${rect.top + 8}px`;
@@ -69,12 +72,13 @@ async function main() {
           rect.x >= action.x + action.width ||
           rect.y + rect.height <= action.y ||
           rect.y >= action.y + action.height,
-        "both launcher halves and badge must clear the host action",
+        "the launcher and its badge must clear the host action",
       );
     }
     assert.equal(await root.locator(".fab-badge").innerText(), "9+");
-    await root.locator(".fab-point").click();
-    assert.equal(await page.evaluate("window.pointed"), true);
+    await root.locator(".fab").click();
+    assert.equal(await page.evaluate("window.opened"), true, "one tap opens Loki");
+    await page.evaluate("window.opened = false");
 
     // A dense screen has no gap for a wide pill. Keep one small, labelled
     // access point and the unread count, rather than parking on the prose.
