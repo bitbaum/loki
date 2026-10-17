@@ -127,6 +127,13 @@ async function main() {
       );
     });
 
+    check("a recap of today reads the whole day's threads, not five", () => {
+      const plan = planRetrieval("What did I ask you today, across my chats?");
+      assert.equal(plan.sources[0], "threads");
+      assert.ok(plan.recency, "'today' is a recency cue");
+      assert.ok(sourceLimit(plan, "threads") >= 12, `got ${sourceLimit(plan, "threads")}`);
+    });
+
     check("projects as BACKGROUND stay small — they crowded out the subject live", () => {
       // Measured on the first production turn after this shipped: a question
       // about FEEDBACK pulled 38 project facts, making a 12912-token prompt that

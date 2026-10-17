@@ -306,6 +306,8 @@ export function sourceLimit(plan: RetrievalPlan, id: SourceId): number {
   const limits = SOURCE_LIMITS[id];
   const leadCount = plan.broad ? 0 : plan.sources.indexOf(id) < 2 ? 1 : 0;
   const n = leadCount ? limits.lead : limits.background;
-  // "Most recent" wants the newest few, not a page of history.
-  return plan.recency && id !== "projects" ? Math.min(n, 5) : n;
+  // "Most recent" wants the newest few, not a page of history. Not threads:
+  // "what did I ask you today?" is a recap of the whole day, and capping it at
+  // five dropped the rest (live, 2026-10-17).
+  return plan.recency && id !== "projects" && id !== "threads" ? Math.min(n, 5) : n;
 }
