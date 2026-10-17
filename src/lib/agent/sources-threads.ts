@@ -38,7 +38,10 @@ type ThreadRow = Pick<
   | "lastNeedsProject"
 >;
 
-const iso = (d: Date | null) => (d ? d.toISOString() : null);
+/** A timestamp as a Date, whatever the driver handed back. */
+const toDate = (d: Date | string | null | undefined): Date | null =>
+  d == null ? null : d instanceof Date ? d : new Date(d);
+const iso = (d: Date | string | null) => toDate(d)?.toISOString() ?? null;
 
 /** Where a thread stopped, in words — never blank, so the model never guesses. */
 function stoppedAt(row: ThreadRow, now: number): string {
@@ -61,7 +64,7 @@ function stoppedAt(row: ThreadRow, now: number): string {
 }
 
 export function threadFact(row: ThreadRow, now: number = Date.now()): Fact {
-  const at = row.lastAt ?? row.updatedAt;
+  const at = toDate(row.lastAt) ?? toDate(row.updatedAt) ?? new Date(now);
   return makeFact({
     kind: "thread",
     subject: `chat thread "${row.title}"`,
@@ -80,7 +83,11 @@ export function threadFact(row: ThreadRow, now: number = Date.now()): Fact {
 
 export function recentThreadFacts(rows: ThreadRow[], limit: number, now = Date.now()): Fact[] {
   return rows
-    .filter((r) => now - (r.lastAt ?? r.updatedAt).getTime() <= THREAD_FACT_WINDOW_MS)
+    .filter(
+      (r) =>
+        now - (toDate(r.lastAt) ?? toDate(r.updatedAt) ?? new Date(0)).getTime() <=
+        THREAD_FACT_WINDOW_MS,
+    )
     .slice(0, limit)
     .map((r) => threadFact(r, now));
 }

@@ -1,3 +1,6 @@
+import { isRuntimeAvailable } from "@/lib/runtime";
+import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
+import { getUserProjects } from "@/db/queries/user-projects";
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
@@ -52,6 +55,20 @@ export async function GET(req: NextRequest) {
 
   const project = req.nextUrl.searchParams.get("project");
   if (!project || project.length > 100) {
+    return NextResponse.json({ found: false } satisfies SessionData);
+  }
+
+  // These files are the SERVER's (~/.loki/sessions/<project>.md), written for
+  // the projects the box builds — one name space for every account. Read only
+  // a project this account owns, and only where the server's files can be
+  // this account's at all: its own machine, or an account the box builds for.
+  // Until 2026-10-17 any account could read any handoff by guessing a name.
+  const [mayReadBox, projects] = await Promise.all([
+    isRuntimeAvailable() ? Promise.resolve(true) : isFleetInfrastructureAllowed(userId),
+    getUserProjects(userId).catch(() => []),
+  ]);
+  const normalize = (s: string) => s.toLowerCase().replace(/[-_\s]/g, "");
+  if (!mayReadBox || !projects.some((p) => normalize(p.name) === normalize(project))) {
     return NextResponse.json({ found: false } satisfies SessionData);
   }
 

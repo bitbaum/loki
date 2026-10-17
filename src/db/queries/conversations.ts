@@ -77,7 +77,11 @@ export async function listConversations(
       preview: sql<string>`coalesce(${last("left(case when m.role = 'user' then coalesce(nullif(m.meta->>'displayText', ''), m.content) else m.content end, 160)")}, '')`,
       lastRole: sql<string | null>`${last("m.role")}`,
       lastKind: sql<string | null>`${last("m.kind")}`,
-      lastAt: sql<Date | null>`${last("m.created_at")}`,
+      // mapWith: a raw expression comes back from the driver as a STRING, not
+      // the Date its type claims. The thread recap called .getTime() on it,
+      // threw, and its source quietly returned no threads — "what did I ask
+      // you today?" was answered "Not in your data." (live, 2026-10-17).
+      lastAt: sql<Date | null>`${last("m.created_at")}`.mapWith(conversations.updatedAt),
       lastOk: sql<boolean | null>`${last("(m.meta->>'ok')::boolean")}`,
       lastOutcome: sql<string | null>`${last("m.meta->>'outcome'")}`,
       lastNeedsProject: sql<boolean | null>`${last("(m.meta->>'needsProject')::boolean")}`,

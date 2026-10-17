@@ -21,6 +21,7 @@ import { getProjectActivity } from "@/db/queries/activity";
 import { getProjectStateByProjectId } from "@/db/queries/project-states";
 import { getUserProjectByEntityId, setProjectFeatured } from "@/db/queries/user-projects";
 import { isSiteOperator } from "@/db/queries/users";
+import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
 import { getRepoWriteToken, lokiKeepsCode } from "@/lib/github-org-token";
 import { deprovisionGithubRepo } from "@/lib/github-provision";
 
@@ -146,6 +147,17 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 
   if (deleteLocal && userProject?.dirPath) {
+    // The folder is on the SERVER, and `dirPath` is free text the account
+    // wrote itself — so without this check any account could point its
+    // project at the operator's checkout or another tenant's preview and
+    // delete it (found 2026-10-17). Only an account that may act on the
+    // fleet's own machine deletes folders on it.
+    if (!(await isFleetInfrastructureAllowed(userId))) {
+      return NextResponse.json(
+        { error: "This account has no folders on Loki's computers to delete." },
+        { status: 403 },
+      );
+    }
     const local = safeLocalProjectPath(userProject.dirPath);
     if (!local.ok) return NextResponse.json({ error: local.error }, { status: 400 });
     await fs.rm(local.path, { recursive: true, force: true });
@@ -205,7 +217,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     getUserProjectByEntityId(ownerId, id).catch(() => null),
   ]);
 
-  const linkedJobs = getLinkedJobs(project.id, project.name);
+  // The cron file is the site operator's own (~/.openclaw/cron/jobs.json on
+  // the server), matched by a substring of the project name — a project
+  // called "a" read every one of the operator's job messages. Theirs only.
+  const linkedJobs = (await isSiteOperator(userId).catch(() => false))
+    ? getLinkedJobs(project.id, project.name)
+    : [];
 
   return NextResponse.json({
     id: project.id,
