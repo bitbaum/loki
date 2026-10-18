@@ -21,6 +21,7 @@ import {
   isNoticeableRequest,
   nextTapStreak,
   explainChecks,
+  onceSiteWide,
   explainNotice,
   noticeSignature,
   sessionForReview,
@@ -758,8 +759,14 @@ export function startWatchMode(opts: {
           ? `${checks.length} ${checks.length === 1 ? "thing stands" : "things stand"} out`
           : "nothing stands out",
       );
-      const r = explainChecks(checks);
-      if (r) remark(checksSignature(location.pathname, checks), r);
+      // A finding about the whole site is said on the first page only.
+      const fresh = onceSiteWide(checks, said);
+      const r = explainChecks(fresh.checks);
+      if (r && !paused) {
+        remark(checksSignature(location.pathname, fresh.checks), r);
+        for (const key of fresh.keys) said.add(key);
+        writeSaid(opts.token, said);
+      }
       void readPage();
     }, CHECKS_DELAY_MS);
   };

@@ -193,7 +193,16 @@ async function main() {
         .locator(".browse-voice")
         .getByRole("button", { name: "Done", exact: true })
         .click();
-      await page.getByText("What you said", { exact: true }).waitFor();
+      // The card answers "did it hear me?" first (widget/walk-read.ts). Loki's
+      // read is not served here, so this is the card when the read fails: the
+      // words as spoken, the buttons as before — never a dead end.
+      await host.locator(".voice-note .changes-title", { hasText: /^Loki heard you/ }).waitFor();
+      await page.waitForFunction(
+        () =>
+          !document
+            .querySelector("#loki-feedback-host")
+            ?.shadowRoot?.textContent?.includes("Loki is reading what you said"),
+      );
       assert.equal(
         await page.getByRole("button", { name: "Fix it now", exact: true }).count(),
         owner ? 1 : 0,
@@ -210,7 +219,7 @@ async function main() {
       await page.evaluate(() =>
         (window as unknown as { Loki: { report(input: object): void } }).Loki.report({}),
       );
-      await page.getByText("What you said", { exact: true }).waitFor();
+      await host.locator(".voice-note .changes-title", { hasText: /^Loki heard you/ }).waitFor();
       assert.equal(await host.locator(".sendcard textarea").inputValue(), transcript);
       assert.equal(await host.locator(".composer").isVisible(), false);
       assert.equal(await host.locator(".starters").isVisible(), false);

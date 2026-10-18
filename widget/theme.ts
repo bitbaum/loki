@@ -695,6 +695,16 @@ function sendCardCSS(theme: WidgetTheme, rs: string): string {
 .voice-note textarea { min-height: 160px; height: auto; max-height: 45vh; }
 .voice-note .diag { font-size: 13px; line-height: 1.5; border: 0; padding: 0; margin: 0; background: transparent; }
 .voice-note .row { flex-wrap: wrap; gap: 8px; }
+/* Loki's read of a spoken note: the ask is short, so its box is too. */
+.voice-note textarea.read { min-height: 72px; }
+/* The words as spoken, one tap under Loki's read of them. */
+.said-exact { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.said-exact summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; color: ${theme.textSecondary}; font-weight: 500; list-style: none; }
+.said-exact summary::-webkit-details-marker { display: none; }
+.said-exact summary::after { content: " ↓"; white-space: pre; }
+.said-exact[open] summary::after { content: " ↑"; }
+.said-words { margin: 0; padding: 8px 10px; max-height: 30vh; overflow: auto; border-left: 2px solid ${theme.border}; color: ${theme.textSecondary}; white-space: pre-wrap; overflow-wrap: anywhere; }
+.said-exact .act { align-self: flex-start; min-height: 44px; margin-top: 0; font-size: 13px; color: ${theme.text}; }
 `;
 }
 
