@@ -3,6 +3,7 @@ import {
   MAX_ATTACHMENTS,
   normalizeAttachment,
   renderTextAttachments,
+  type Attachment,
   type ImageAttachment,
 } from "@/lib/loki/attachments";
 import { describeAttachedImages } from "@/lib/loki/vision";
@@ -65,7 +66,14 @@ export function stageAttachmentsForAgent(
   raw: RawAttachments,
 ): { prompt: string; images: AgentImage[] } {
   if (!raw || raw.length === 0) return { prompt, images: [] };
-  const attachments = raw.map(normalizeAttachment);
+  return stageForAgent(prompt, raw.map(normalizeAttachment));
+}
+
+/** The same, for attachments already normalized (Loki's chat holds them so). */
+export function stageForAgent(
+  prompt: string,
+  attachments: readonly Attachment[],
+): { prompt: string; images: AgentImage[] } {
   const images: AgentImage[] = attachments
     .filter((a): a is ImageAttachment => a.kind === "image")
     .map((a) => ({
@@ -75,7 +83,7 @@ export function stageAttachmentsForAgent(
       dataBase64: a.dataBase64,
     }));
   return {
-    prompt: `${withImageTokens(prompt, images)}${renderTextAttachments(attachments)}`,
+    prompt: `${withImageTokens(prompt, images)}${renderTextAttachments([...attachments])}`,
     images,
   };
 }

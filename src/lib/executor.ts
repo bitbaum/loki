@@ -123,6 +123,7 @@ export async function executeInject(
           projectKey: payload.projectKey,
           runId: payload.runId,
           sessionId: payload.sessionId,
+          ...(payload.attachments?.length ? { attachments: payload.attachments } : {}),
         })
       : await enqueueInjectCommand(userId, channel ? { ...payload, channel } : payload);
     return {

@@ -14,7 +14,7 @@ import {
   withImageTokens,
 } from "@/lib/agent-attachments";
 import { materializeImages } from "@/lib/agent-attachments-fs";
-import { stageAttachmentsForAgent } from "@/lib/composer-attachments";
+import { stageAttachmentsForAgent, stageForAgent } from "@/lib/composer-attachments";
 
 let passed = 0;
 function check(label: string, condition: boolean): void {
@@ -43,6 +43,17 @@ check(
   /open each image file and look at it/.test(staged.prompt),
 );
 check("text files are still inlined", staged.prompt.includes("only on the phone"));
+
+// Loki's chat holds attachments already normalized; they stage the same way,
+// so a screenshot sent in the chat reaches the agent as the image itself.
+const fromChat = stageForAgent("The text is cramped", [
+  { kind: "image", name: "phone.png", mimeType: "image/png", dataBase64: PNG },
+]);
+check(
+  "a chat screenshot is staged as an image, not described",
+  fromChat.images.length === 1 && fromChat.prompt.includes(attachmentToken(fromChat.images[0].id)),
+);
+check("no attachments → nothing staged", stageForAgent("hi", []).images.length === 0);
 check("no vision call needed: the picture itself is carried", img?.dataBase64 === PNG);
 
 // The runner side: the boundary check refuses anything malformed, whole.

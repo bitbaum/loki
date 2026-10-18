@@ -11,6 +11,7 @@
  */
 import { ensureUserProjectEntityLinks, getOrgProjects } from "@/db/queries/user-projects";
 import type { UserProject } from "@/db/schema";
+import { resolveImageTokens, type AgentImage } from "@/lib/agent-attachments";
 import {
   ORCHESTRATION_ADAPTER_IDS,
   ORCHESTRATION_TASK_INTENT_IDS,
@@ -93,6 +94,11 @@ export type InjectParams = {
    * to a real worker or say what to do next — never queue into the void.
    */
   refuseOfflineQueue?: boolean;
+  /** Screenshots for the agent to open AS IMAGES: the runner writes each to a
+   *  file and the prompt's placeholder becomes its path (lib/agent-attachments).
+   *  A prompt carrying them is always queued for a runner — typing it straight
+   *  into a live PTY would leave the placeholders unresolved. */
+  attachments?: AgentImage[];
 };
 
 export type InjectResult = { status: number; body: Record<string, unknown> };
@@ -712,8 +718,9 @@ async function executeAndReport(
   const result = await executeInject(
     {
       tab: effectiveTab,
-      queueOnly: runtimeAvailable && !ptyBacked,
+      queueOnly: runtimeAvailable && (!ptyBacked || Boolean(params.attachments?.length)),
       prompt,
+      ...(params.attachments?.length ? { attachments: params.attachments } : {}),
       promptKey,
       promptLabel,
       adapter: eventAdapter,
@@ -964,7 +971,9 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
       effectiveTab,
       projectId,
       gitUrl: dbMatch.gitUrl,
-      prompt,
+      // The hosted builder has no runner to write image files: say so in the
+      // prompt rather than leave placeholders it would puzzle over.
+      prompt: params.attachments?.length ? resolveImageTokens(prompt, new Map()) : prompt,
       runId,
       eventIntent,
       nowS,

@@ -279,3 +279,12 @@ The whole flow, from "create website for Murphy's Bar":
 - A preview's project is client work from the moment it exists, so it stays
   off every public list until the person agrees to be shown
   (`docs/architecture/client-work-consent.md`).
+- A preview is built to a design standard, not only to correctness, and its
+  builder looks at every page before it says done: screenshots at 390 and
+  1440 px with the box's headless Chromium, judged against the standard
+  (`src/config/preview-brief.ts`). Center SOM passed every correctness rule
+  and its owner still called it cramped: text ran to the screen's edge and the
+  headline was a five-line search-engine title (2026-10-18).
+- A screenshot sent about a preview, from the Loki chat or the session box,
+  reaches its builder as the image itself (the runner writes it to a file the
+  agent opens), never only as a vision model's description of it.
