@@ -6,6 +6,7 @@
 #   preview-create-on-box.sh website <url> [changes] [fixes] [answers] [code]
 #   preview-create-on-box.sh move    <address> <new-address> [new name]
 #   preview-create-on-box.sh ask     <project name> <what to change>
+#   preview-create-on-box.sh status  <run id> [command id]
 #
 # `name` is "Build a preview" (POST /api/previews): a site researched from
 # public sources. `website` is /change "Improve this site"
@@ -15,7 +16,10 @@
 # said in words — exactly what a click on /change sends, so a run from Actions
 # dogfoods the deployed path and nothing else. `move` gives a preview a new
 # address and name (POST /api/previews/<address>/move); `ask` sends its builder
-# a change, as Send in the session box does (POST /api/inject).
+# a change, as Send in the session box does (POST /api/inject). `status` reads
+# where a run `ask` started is (GET /api/orchestration/runs/<id>, and the
+# queued command when given): the answer to "the change has not landed — is it
+# waiting, running or failed?".
 #
 # Production Loki's database is loopback-only, so a session has to be minted
 # where the data is (the same pattern as provision-widget-on-box.sh and
@@ -76,7 +80,19 @@ print(json.dumps({k: v for k, v in raw.items() if v}))')
 import json, os
 print(json.dumps({"tab": os.environ["TAB"], "customPrompt": os.environ["TEXT"], "notifyOnClose": True}))')
     ;;
-  *) echo "usage: preview-create-on-box.sh name <address> <name> [about] [code] | website <url> [changes] [fixes] [answers] [code] | move <address> <new-address> [name] | ask <project> <text>" >&2; exit 2 ;;
+  status)
+    RUN="${1:?run id}"; CMD="${2:-}"
+    for path in "/api/orchestration/runs/$RUN" ${CMD:+"/api/control/commands/$CMD"}; do
+      echo "GET $path → $(curl -sS -m 60 -o /tmp/preview-status.json -w '%{http_code}' \
+        -H "Cookie: __Secure-authjs.session-token=$token" "$BASE$path")"
+      python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1])), ensure_ascii=False)[:1500])' /tmp/preview-status.json 2>/dev/null \
+        || head -c 600 /tmp/preview-status.json
+      echo
+    done
+    rm -f /tmp/preview-status.json
+    exit 0
+    ;;
+  *) echo "usage: preview-create-on-box.sh name <address> <name> [about] [code] | website <url> [changes] [fixes] [answers] [code] | move <address> <new-address> [name] | ask <project> <text> | status <run id> [command id]" >&2; exit 2 ;;
 esac
 
 # A move attaches one address and takes another away, each waiting on Caddy.
