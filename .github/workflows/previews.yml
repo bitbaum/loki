@@ -11,6 +11,7 @@ name: Previews
 #           and its first pictures — and print what answered.
 #   move    give a preview a new address (and name); the old address goes away.
 #   ask     send a preview's builder a change, in words (name = the project).
+#   status  where a change sent with `ask` is (run = its runId, command = its commandId).
 #   heal    every preview folder on the box has its address and answers.
 #           Runs on a clock, so a lost Caddy vhost is put back before anyone
 #           opens the link (an address without one shows ERR_SSL_PROTOCOL_ERROR).
@@ -23,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "create, website, check, move, ask or heal"
+        description: "create, website, check, move, ask, status or heal"
         required: true
         default: "heal"
       website:
@@ -40,6 +41,12 @@ on:
         required: false
       address:
         description: "create/check/move: the subdomain, e.g. francesco"
+        required: false
+      run:
+        description: "status: the runId an ask answered with"
+        required: false
+      command:
+        description: "status: the commandId an ask answered with (optional)"
         required: false
       to:
         description: "move: the new subdomain, e.g. tsentr-som"
@@ -73,6 +80,8 @@ jobs:
       MODE: ${{ inputs.mode || 'heal' }}
       ADDRESS: ${{ inputs.address }}
       TO: ${{ inputs.to }}
+      RUN: ${{ inputs.run }}
+      COMMAND: ${{ inputs.command }}
       WEBSITE: ${{ inputs.website }}
       CHANGES: ${{ inputs.changes }}
       FIXES: ${{ inputs.fixes }}
@@ -101,6 +110,7 @@ jobs:
             check)   bash scripts/hetzner/ensure-preview.sh check "$ADDRESS" ;;
             move)    bash scripts/hetzner/ensure-preview.sh move "$ADDRESS" "$TO" "$NAME" ;;
             ask)     bash scripts/hetzner/ensure-preview.sh ask "$NAME" "$CHANGES" ;;
+            status)  bash scripts/hetzner/ensure-preview.sh status "$RUN" "$COMMAND" ;;
             heal)    bash scripts/hetzner/ensure-preview.sh heal ;;
-            *)       echo "::error::mode is create, website, check, move, ask or heal"; exit 1 ;;
+            *)       echo "::error::mode is create, website, check, move, ask, status or heal"; exit 1 ;;
           esac

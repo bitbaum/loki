@@ -25,7 +25,7 @@ no() { FAIL=$((FAIL + 1)); echo "  ✗ $1"; }
 # shellcheck source=drain-and-restart-runner.sh
 DRAIN_LIB_ONLY=1 . "$SCRIPT"
 
-busy() { agent_is_busy "$1" "$2" && echo busy || echo free; }
+busy() { agent_is_busy "$1" "$2" "${3:-}" && echo busy || echo free; }
 
 [ "$(busy claude idle)" = free ] \
   && ok "an idle Claude at its prompt does not hold the restart" \
@@ -45,6 +45,22 @@ done
   && ok "a Claude with no readable status is treated as working" \
   || no "a Claude with no status file is assumed idle — unknown must not mean idle"
 
+[ "$(busy claude "" 3600)" = busy ] \
+  && ok "a Claude an hour old with no status file still holds the restart" \
+  || no "a young Claude with no status file was assumed idle"
+
+[ "$(busy claude "" 518400)" = free ] \
+  && ok "a Claude six days old with no status file is a leftover and does not hold the restart" \
+  || no "a leftover Claude with no status file holds every runner update for ever (2026-10-18)"
+
+[ "$(busy claude generating 518400)" = busy ] \
+  && ok "an old Claude that says it is working still holds the restart" \
+  || no "age overrode a status that says the agent is working"
+
+[ "$(busy codex "" 518400)" = busy ] \
+  && ok "age frees only Claude, the one agent that writes a status file" \
+  || no "an old codex was assumed idle"
+
 for comm in codex grok cursor-agent hermes; do
   [ "$(busy "$comm" idle)" = busy ] \
     && ok "$comm keeps no Claude status file, so it holds the restart" \
@@ -58,7 +74,7 @@ for comm in bash node tsx sleep; do
 done
 
 # The drain must count with agent_is_busy, not with "is it alive".
-grep -q 'agent_is_busy "$comm" "$(session_status "$p")" && c=$((c + 1))' "$SCRIPT" \
+grep -q 'agent_is_busy "$comm" "$(session_status "$p")" "$(ps -o etimes= -p "$p"' "$SCRIPT" \
   && ok "count_agents counts working agents, not live processes" \
   || no "count_agents no longer asks agent_is_busy"
 

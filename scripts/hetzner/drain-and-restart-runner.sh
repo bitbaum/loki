@@ -25,6 +25,8 @@ CGROUP="/sys/fs/cgroup/system.slice/${UNIT}.service/cgroup.procs"
 # deploy (or the next time every agent is idle) lands it. Six hours because a
 # real task runs for hours, and this box deploys several times a day.
 MAX="${LOKI_RUNNER_DRAIN_SECS:-21600}"
+# A Claude older than this with no status file is a leftover, not a task.
+LEFTOVER="${LOKI_RUNNER_LEFTOVER_SECS:-86400}"
 INTERVAL=20
 
 log() { logger -t loki-drain "$*" 2>/dev/null || true; echo "[drain] $*"; }
@@ -48,12 +50,22 @@ log() { logger -t loki-drain "$*" 2>/dev/null || true; echo "[drain] $*"; }
 # nothing a restart could lose. 2026-09-26: Farmhouse sat on "Teach auto mode
 # about your environment?" and held every runner update for the whole cap —
 # including the one that teaches the runner to clear such dialogs.
-agent_is_busy() { # <comm> <status or empty>
+#
+# A Claude with NO status file is unknown, and unknown is busy — except when it
+# has been running longer than LEFTOVER (a day). Every current Claude writes the
+# file for as long as it runs; a process that has written none for a day is a
+# session from a CLI that predates the file, or a helper left behind, and it
+# was holding the drain open for ever. 2026-10-18: two such processes, 6 days
+# and 1.8 days old, kept the runner on 12 October's code while every other
+# agent sat idle — and since the commands route holds new work for a builder
+# that is behind (src/lib/runner-update-hold.ts), no new task started at all.
+agent_is_busy() { # <comm> <status or empty> [age in seconds]
   case "$1" in
     claude|hermes|codex|cursor-agent|grok) ;;
     *) return 1 ;;
   esac
   [ "$1" = claude ] && { [ "$2" = idle ] || [ "$2" = dialog ]; } && return 1
+  [ "$1" = claude ] && [ -z "$2" ] && [ "${3:-0}" -ge "$LEFTOVER" ] 2>/dev/null && return 1
   return 0
 }
 
@@ -92,7 +104,7 @@ count_agents() {
   local c=0 p comm
   for p in $(cat "$CGROUP" 2>/dev/null); do
     comm="$(cat "/proc/$p/comm" 2>/dev/null || true)"
-    agent_is_busy "$comm" "$(session_status "$p")" && c=$((c + 1))
+    agent_is_busy "$comm" "$(session_status "$p")" "$(ps -o etimes= -p "$p" 2>/dev/null | tr -d ' ')" && c=$((c + 1))
   done
   echo "$c"
 }

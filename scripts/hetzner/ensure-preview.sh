@@ -7,6 +7,7 @@
 #   ensure-preview.sh check   <address>                               open a preview as its owner: site, tour, pictures
 #   ensure-preview.sh move    <address> <new-address> [name]         new address (and name); the old one is taken away
 #   ensure-preview.sh ask     <project name> <what to change>        send the preview's builder a change
+#   ensure-preview.sh status  <run id> [command id]                  where a change sent with `ask` is
 #   ensure-preview.sh heal                                            every preview has its host, and answers
 #
 # Wildcard DNS sends every <label>.orangecat.ch to the box, but a label with no
@@ -117,6 +118,11 @@ ask)
   ssh_box "bash -s -- $(printf '%q ' ask "$TAB" "$TEXT")" < "$HERE/preview-create-on-box.sh" \
     || bad "the change did not reach the builder (see the lines above)"
   ;;
+status)
+  RUN="${2:?run id}"; CMD="${3:-}"
+  ssh_box "bash -s -- $(printf '%q ' status "$RUN" "$CMD")" < "$HERE/preview-create-on-box.sh" \
+    || bad "could not read the run"
+  ;;
 heal)
   root=$(ssh_box 'set -a; . /opt/loki/app/.env; set +a; r="${LOKI_PREVIEWS_ROOT:-}"; [ -n "$r" ] || { [ -n "${LOKI_BOX_DEV_ROOT:-}" ] && r="${LOKI_BOX_DEV_ROOT%/}/previews"; }; printf %s "$r"')
   [ -n "$root" ] || { echo "no previews root configured on the box; nothing to heal"; exit 0; }
@@ -130,7 +136,7 @@ heal)
   done
   ;;
 *)
-  echo "usage: ensure-preview.sh create <address> <name> [about] [code] | website <url> [changes] [fixes] [answers] [code] | check <address> | move <address> <new-address> [name] | ask <project> <text> | heal" >&2; exit 2 ;;
+  echo "usage: ensure-preview.sh create <address> <name> [about] [code] | website <url> [changes] [fixes] [answers] [code] | check <address> | move <address> <new-address> [name] | ask <project> <text> | status <run id> [command id] | heal" >&2; exit 2 ;;
 esac
 
 [ "$fail" = 0 ] && echo "OK" || exit 1
