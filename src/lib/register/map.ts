@@ -379,7 +379,10 @@ export function buildFleetMap(
     return {
       slug: row.slug,
       name: row.name,
-      what: row.description,
+      // The README's opening paragraph wins, like the roadmap and changelog
+      // files do: it lives next to the code and is reviewed with it. The
+      // stored description is the fallback for a project without one.
+      what: profile?.repo?.lead ?? row.description,
       stack: profile?.stack?.trim() || null,
       layer: layerFor(row),
       // A project with no hosting row but a live URL IS live (loki and orangecat

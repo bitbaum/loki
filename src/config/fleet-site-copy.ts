@@ -18,7 +18,15 @@ export const FLEET_SITE_COPY: Readonly<Record<string, { name: string; blurb: str
     blurb: "Gemeinsam wohnen — kompatibilitätsbasierte Wohnplatzierung.",
   },
   botsmann: { name: "Botsmann", blurb: "Private AI that works with your own documents." },
+  causius: {
+    name: "Causius",
+    blurb: "Bring the letter: it finds the rules, keeps your deadlines and drafts the reply.",
+  },
   datacat: { name: "datacat", blurb: "KI-gestützter Formular-Editor für jede Branche." },
+  diplodoctor: {
+    name: "Diplodoctor",
+    blurb: "Your health in one place: add a lab report and see what it says, in plain words.",
+  },
   evig: { name: "evig", blurb: "Refurbished IT kaufen und Reparaturwerkstätten finden." },
   kivvi: { name: "kivvi", blurb: "Open-Source-ERP für Kreislaufbetriebe." },
   petvity: { name: "Petvity", blurb: "Track your pet's health, vets, sitters and essentials." },

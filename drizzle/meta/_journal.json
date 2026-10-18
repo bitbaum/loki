@@ -813,6 +813,13 @@
       "when": 1792274937638,
       "tag": "0115_plan_reservations",
       "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1792275537638,
+      "tag": "0116_diplodoctor_from_its_readme",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,8 @@ import {
   loadRepoRecords,
   clearRepoRecordsCache,
   plainText,
+  readmeLead,
+  README_LEAD_MAX,
 } from "../../src/lib/register/repo-records";
 import { publicRoadmap, publicChangelog, recordSources } from "../../src/lib/register/map";
 
@@ -106,6 +108,69 @@ Intro prose is ignored.
   assert.equal(githubRepoPath(null), null);
 }
 
+// ---- README lead: what the project says it is, as one plain paragraph ----
+{
+  // Diplodoctor's README, abridged: the heading, a badge, then the lead.
+  const diplo = `# Diplodoctor
+
+![ci](https://example/badge.svg)
+
+The health layer of the fleet: an agent that reads a medical report with you,
+a person who decides what leaves it. Paste or photograph a **lab report** and
+see every value, which ones are outside their printed range. Read it
+[without an account](https://diplodoctor.orangecat.ch), in five languages.
+
+## Three kinds of help
+`;
+  assert.equal(
+    readmeLead(diplo),
+    "The health layer of the fleet: an agent that reads a medical report with you, a person who decides what leaves it. Paste or photograph a lab report and see every value, which ones are outside their printed range. Read it without an account, in five languages.",
+  );
+  assert.equal(
+    readmeLead(
+      "# Heidi\nHelps adults who already speak German understand Zurich German. Live at [heidi.orangecat.ch](https://heidi.orangecat.ch). The product is defined in [HEIDI.md](HEIDI.md); how to work in the repo is in [AGENTS.md](AGENTS.md).\n",
+    ),
+    "Helps adults who already speak German understand Zurich German. Live at heidi.orangecat.ch.",
+    "a heading glued to its paragraph is dropped; sentences pointing at repo docs are for contributors",
+  );
+  assert.equal(
+    readmeLead("Pet care for owners and vets, worldwide. Built with Next.js 16 and Tailwind.\n"),
+    "Pet care for owners and vets, worldwide.",
+    "the stack sentence is not what the project is",
+  );
+  assert.equal(
+    readmeLead(
+      "This is a Next.js project bootstrapped with create-next-app.\n\n## Getting Started\n",
+    ),
+    null,
+    "generator boilerplate is no lead",
+  );
+  assert.equal(
+    readmeLead("# Title\n\n- a list\n- only\n\n```\ncode\n```\n"),
+    null,
+    "no prose paragraph, no lead",
+  );
+  assert.equal(readmeLead("Too short.\n"), null);
+  const long = readmeLead(
+    `${"A sentence that says what this project does for people. ".repeat(20)}\n`,
+  )!;
+  assert.ok(
+    long.length <= README_LEAD_MAX && long.endsWith("."),
+    "a long lead is cut at a sentence end",
+  );
+
+  const withReadme = recordsFromFiles("bitbaum/diplodoctor", {
+    roadmap: null,
+    changelog: null,
+    readme: diplo,
+  });
+  assert.match(withReadme.lead ?? "", /^The health layer/);
+  assert.equal(withReadme.leadSource, "https://github.com/bitbaum/diplodoctor/blob/HEAD/README.md");
+  const without = recordsFromFiles("bitbaum/x", { roadmap: null, changelog: null });
+  assert.equal(without.lead, null);
+  assert.equal(without.leadSource, null);
+}
+
 // ---- the map: rows win, files fill the gap, provenance is published ----
 {
   const repo = recordsFromFiles("bitbaum/loki", { roadmap: ROADMAP, changelog: CHANGELOG });
@@ -173,9 +238,10 @@ async function fetchCases() {
     assert.equal(first?.roadmap.length, 3);
     assert.deepEqual(first?.changelog, []);
     assert.equal(first?.source.changelog, null, "a 404 is 'not written', not a broken link");
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3, "roadmap, changelog and README, in parallel");
+    assert.equal(first?.lead, null, "a missing README is no lead, not an error");
     const again = await loadRepoRecords("https://github.com/bitbaum/loki", fetcher, 2_000);
-    assert.equal(calls.length, 2, "served from cache inside the TTL");
+    assert.equal(calls.length, 3, "served from cache inside the TTL");
     assert.equal(again, first);
     const thrower = (async () => {
       throw new Error("network down");

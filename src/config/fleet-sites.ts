@@ -22,14 +22,19 @@ export const FLEET_SITES: readonly FleetSite[] = [
     blurb: "Private AI that works with your own documents.",
   },
   {
-    name: "causius",
+    name: "Causius",
     url: "https://causius.orangecat.ch",
-    blurb: "",
+    blurb: "Bring the letter: it finds the rules, keeps your deadlines and drafts the reply.",
   },
   {
     name: "datacat",
     url: "https://datacat.orangecat.ch",
     blurb: "KI-gestützter Formular-Editor für jede Branche.",
+  },
+  {
+    name: "Diplodoctor",
+    url: "https://diplodoctor.orangecat.ch",
+    blurb: "Your health in one place: add a lab report and see what it says, in plain words.",
   },
   {
     name: "evig",
