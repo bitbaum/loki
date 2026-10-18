@@ -127,6 +127,14 @@ export type RunTrackInput = {
    * Omitted means yes.
    */
   followable?: boolean;
+  /**
+   * The project is a preview: what the agent saves in its folder is what the
+   * address serves. There is no repository, so no pull request, merge or
+   * deploy to wait for — and their absence is not a failure. Center SOM's
+   * redesign finished well and its track said "Nothing reached GitHub ·
+   * failed" (2026-10-18).
+   */
+  savedLive?: boolean;
   /** Clock for the one judgement that needs time (PR_LOOK_WINDOW_MS); tests pin it. */
   now?: number;
 };
@@ -586,6 +594,7 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
   const f = readFacts(input);
   const builder = builderStage(f);
   const work = workingStage(f);
+  if (input.savedLive) return savedLiveTrack(f, builder, work);
   const stages = [askedStage(f), builder, work, prStage(f), mergedStage(f), liveStage(f)];
 
   // Past the window Loki follows a change in, nothing will be looked up again:
@@ -621,6 +630,28 @@ export function buildRunTrack(input: RunTrackInput): RunTrack {
     ? `${f.prUrl ? "Pull request opened" : `${f.provider} finished`} — this ran more than two days ago, so what happened after is not on record here.`
     : summaryOf(f, builder, work);
   return { stages, summary, settled, current };
+}
+
+/** A preview's track: asked → builder → working → live, nothing in between. */
+function savedLiveTrack(f: Facts, builder: TrackStage, work: TrackStage): RunTrack {
+  const site = f.site ?? "the preview";
+  const url = f.input.liveUrl;
+  const live = f.finishedWell
+    ? stage("live", `Live on ${site}`, "done", {
+        note: "A preview has no pull request: what the agent saved is what the address serves.",
+        link: url ? { href: url, label: "Open it" } : null,
+        at: f.input.run?.finishedAt ?? null,
+      })
+    : stage("live", `Live on ${site}`, "next");
+  const stages = [askedStage(f), builder, work, live];
+  const current =
+    stages.find((s) => s.state === "failed" || s.state === "attention" || s.state === "now")?.id ??
+    [...stages].reverse().find((s) => s.state === "done")?.id ??
+    "asked";
+  const summary = f.finishedWell
+    ? `Live on ${site} — ${f.provider} saved the change, and the address serves it.`
+    : summaryOf(f, builder, work);
+  return { stages, summary, settled: f.finished, current };
 }
 
 // ── Timing ─────────────────────────────────────────────────────────────────
