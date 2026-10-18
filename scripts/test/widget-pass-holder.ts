@@ -23,9 +23,16 @@ for (const route of [
   "src/app/api/feedback/route.ts",
   "src/app/api/widget/advise/route.ts",
   "src/app/api/widget/self-report/route.ts",
-  "src/app/api/widget/owner/changes/route.ts",
+  "src/lib/widget/owner-request.ts",
 ]) {
   assert.match(readFileSync(route, "utf8"), /passHolder\(/, `${route} uses passHolder`);
+}
+// The owner-only widget routes ask through that one helper.
+for (const route of [
+  "src/app/api/widget/owner/changes/route.ts",
+  "src/app/api/widget/owner/build/route.ts",
+]) {
+  assert.match(readFileSync(route, "utf8"), /ownerRequest\(req, /, `${route} uses ownerRequest`);
 }
 assert.match(
   readFileSync("src/app/api/widget/owner/route.ts", "utf8"),

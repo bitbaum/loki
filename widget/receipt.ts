@@ -39,8 +39,8 @@ export function receiptText(item: Sent): string {
   }
   if (item.owner) {
     if (item.building)
-      return `On it — ${q} is in Your changes above. One agent builds it; it goes live here by itself and Loki tells you.`;
-    return `Saved ${q}. ${item.note ?? "It waits in Loki under Feedback."}`;
+      return `On it — ${q} is being built. Follow it on the Watching line above; it goes live here by itself and Loki tells you.`;
+    return `Saved ${q}. ${item.note ?? "It waits with your other saved notes — build them all from the Watching line above when you're ready."}`;
   }
   return `Sent to whoever builds this site: ${q}. Thank you.`;
 }

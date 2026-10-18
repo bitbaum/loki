@@ -136,7 +136,7 @@ async function main() {
         "/loki?project=loki",
       );
       assert.equal(await page.getByRole("link", { name: "Open site", exact: true }).count(), 1);
-      assert.equal(await page.locator('main [data-fc-place="hidden"]').count(), 1);
+      assert.equal(await page.locator('main [data-fc-place="tab"]').count(), 1);
       assert.equal(await page.getByText("STAGE", { exact: true }).isVisible(), false);
       assert.equal(
         await page.getByRole("heading", { name: "Agent and repository" }).isVisible(),

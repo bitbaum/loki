@@ -422,7 +422,7 @@ export function createConversation(opts: {
           "p",
           "sendcard-sub",
           owner()
-            ? "Edit it if you like, then Ask Loki about it, have it fixed, or keep it as a note."
+            ? "Edit it if you like. Save it with your other notes and build them together when you're ready — or fix it now, or Ask Loki about it."
             : "Edit it if you like, then Ask Loki about it, or save it for whoever builds this site.",
         ),
       );
@@ -481,19 +481,21 @@ export function createConversation(opts: {
     const row = h("div", "row sendcard-actions");
     // A voice note: Ask first — talking to Loki is what the panel is for —
     // then send it as a change, then (owner) keep it for later.
-    const askBtn = voice ? h("button", "go", "Ask") : null;
+    // The owner records while Loki watches and builds later (2026-10-18), so
+    // their spoken note leads with Save; a visitor's leads with Ask.
+    const saveFirst = voice && owner();
+    const askBtn = voice ? h("button", saveFirst ? "ghost outline" : "go", "Ask") : null;
     if (askBtn) askBtn.type = "button";
     const sendLabel = voice ? (owner() ? "Save" : "Save feedback") : owner() ? "Build it" : "Send";
-    const go = h("button", voice ? "ghost outline" : "go", sendLabel);
+    const go = h("button", voice && !saveFirst ? "ghost outline" : "go", sendLabel);
     go.type = "button";
-    const requestFix = owner() && voice ? h("button", "ghost outline", "Fix it") : null;
+    const requestFix = saveFirst ? h("button", "ghost outline", "Fix it now") : null;
     if (requestFix) requestFix.type = "button";
     const cancel = h("button", "ghost", voice ? "Discard" : "Cancel");
     cancel.type = "button";
     const cardErr = h("div", "err");
-    if (askBtn) row.append(askBtn);
-    if (requestFix) row.append(requestFix);
-    row.append(go, cancel);
+    const order = saveFirst ? [go, requestFix, askBtn] : [askBtn, requestFix, go];
+    row.append(...order.filter((b): b is HTMLButtonElement => !!b), cancel);
     el.append(row, cardErr);
     askBtn?.addEventListener("click", () => {
       const text = box.value.trim();

@@ -3,7 +3,7 @@ export default function LoadingProject() {
   return (
     <div
       className="app-page ui-project-workspace"
-      data-fc-place="hidden"
+      data-fc-place="tab"
       role="status"
       aria-label="Loading project"
     >

@@ -13,7 +13,7 @@
 // excluded, and Loki must not be cited as the in-app answer while it cannot
 // file anything.
 // Run: npx tsx scripts/test/feedback-widget-reach.ts
-import { readFileSync } from "fs";
+import { readdirSync, readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import {
@@ -81,6 +81,33 @@ for (const [route, file] of [
   const src = readFileSync(join(ROOT, file), "utf8");
   ok(/data-fc-place="tab"/.test(src), `${route} draws the launcher as the edge tab`);
   ok(!/data-fc-place="hidden"/.test(src), `${route} does not hide the launcher`);
+}
+// …and no other page hides it either. Three did (the project workspace, the
+// agent conversation, inspection — #1201, #1203, #1211), and on each the owner
+// lost the launcher that says Loki is watching, or got the watch top bar
+// instead: "on some pages it's one, on other pages a different looking one"
+// (owner, 2026-10-18). Hidden is for an open dialog and the sign-in wall only.
+{
+  const HIDE_ALLOWED = new Set([
+    "src/components/ui/modal.tsx",
+    "src/components/auth/AuthShell.tsx",
+  ]);
+  const walk = (dir: string): string[] =>
+    readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory()
+        ? walk(`${dir}/${e.name}`)
+        : /\.tsx?$/.test(e.name)
+          ? [`${dir}/${e.name}`]
+          : [],
+    );
+  const hiders = walk("src")
+    .filter((f) => !f.startsWith("src/app/docs/"))
+    // The literal and the expression form (`data-fc-place={x ? "hidden" : …}`).
+    .filter((f) =>
+      /data-fc-place=(?:"hidden"|\{[^}]*"hidden")/.test(readFileSync(join(ROOT, f), "utf8")),
+    )
+    .filter((f) => !HIDE_ALLOWED.has(f));
+  ok(hiders.length === 0, `no page hides the launcher (found: ${hiders.join(", ") || "none"})`);
 }
 ok(
   /openFeedback\(/.test(

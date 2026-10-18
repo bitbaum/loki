@@ -110,7 +110,7 @@ export function InspectionWorkspace({
     }
   };
   return (
-    <div className="ui-inspection-workspace" data-fc-place="hidden">
+    <div className="ui-inspection-workspace" data-fc-place="tab">
       <header className="space-y-4">
         <Link href={`/projects/${projectId}`} className="ui-link inline-flex min-h-11 items-center">
           ← {projectName}

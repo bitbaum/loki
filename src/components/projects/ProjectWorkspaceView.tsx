@@ -189,7 +189,7 @@ export function ProjectWorkspaceView({
     ) : null;
 
   return (
-    <div className="app-page ui-project-workspace" data-fc-place="hidden">
+    <div className="app-page ui-project-workspace" data-fc-place="tab">
       <AssistantContextBridge
         context={{
           projectId: project.id,

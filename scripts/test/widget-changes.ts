@@ -13,7 +13,9 @@ import { FEEDBACK_WORK_PHASE, WAITING_ON, type FeedbackWorkView } from "@/lib/fe
 import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
 import {
   CHANGES_MAX,
+  builtSay,
   changesHeadline,
+  SAVED_NOTE_LABEL,
   changesSummary,
   newlyLive,
   parseChanges,
@@ -150,7 +152,9 @@ const ship = (state: string): FixShipping => ({ state }) as FixShipping;
 
 // ---- the route and the receipt link ----
 const route = readFileSync("src/app/api/widget/owner/changes/route.ts", "utf8");
-assert.match(route, /passHolder\(data\.ownerPass, token\)/, "a pass, verified");
+const ownerCheck = readFileSync("src/lib/widget/owner-request.ts", "utf8");
+assert.match(route, /ownerRequest\(req, data\)/, "a pass, verified");
+assert.match(ownerCheck, /passHolder\(data\.ownerPass, token\)/, "…by passHolder");
 assert.match(
   readFileSync("src/lib/feedback/pass-rule.ts", "utf8"),
   /pass\.projectId !== site\.projectId\) return false/,
@@ -172,7 +176,7 @@ assert.match(
   "yours means yours — a visitor's note is not the owner's change",
 );
 assert.match(route, /visitors/, "and visitors' notes are counted, not listed");
-assert.match(route, /isWidgetOriginAllowed/, "origin allowlist like every widget route");
+assert.match(ownerCheck, /isWidgetOriginAllowed/, "origin allowlist like every widget route");
 assert.match(
   route,
   /createTourToken\(item\.id\)/,
@@ -224,6 +228,23 @@ assert.match(main, /changes\.start\(\)/, "asked for on arrival");
   assert.equal(changesHeadline([c("Live", true), c("Starting"), c("Building")]), "2 building");
   assert.equal(changesHeadline([c("Live", true), c("Live", true)]), "2 live");
   assert.equal(changesHeadline([c("Closed")]), "", "nothing to say: nothing on the line");
+  // Notes saved while Loki watched lead the line until they are built.
+  assert.equal(
+    changesHeadline([c("Live", true), c(SAVED_NOTE_LABEL), c(SAVED_NOTE_LABEL)]),
+    "2 notes saved",
+  );
+  assert.equal(changesHeadline([c(SAVED_NOTE_LABEL), c("Needs you")]), "1 needs you");
+  assert.match(builtSay({ started: 3, total: 3 }), /Started your 3 saved notes/);
+  assert.match(
+    builtSay({ started: 1, total: 3, note: "Limit reached." }),
+    /Started 1 of 3.*Limit reached/,
+  );
+  assert.equal(builtSay({ started: 0, total: 0 }), "There are no saved notes waiting.");
+  // The widget's word for a saved note is the server's.
+  assert.ok(
+    readFileSync("src/lib/feedback/owner-view.ts", "utf8").includes(`label: "${SAVED_NOTE_LABEL}"`),
+    "owner-view labels a saved note exactly as the widget counts it",
+  );
 }
 
 console.log("widget-changes: ok");

@@ -93,6 +93,21 @@ composer (*Talk · screenshots · Fix it · Ask*). It was two status rows, two
 microphones and a footer before a word was said (owner, 2026-10-17: "too
 intimidating"). *Continue in Loki* appears once there is something to take.
 
+**Record now, build later.** While Loki watches, **Talk**, scroll, **Done**: the
+owner's note card leads with **Save** (then *Fix it now*, *Ask*). Saved notes
+collect on the status line — *Watching · 3 notes saved ›* — and one tap,
+**Build all 3 saved notes**, starts each as its own build, oldest first
+(`POST /api/widget/owner/build`, `src/lib/feedback/saved-notes.ts`; same owner
+check as Your changes, `src/lib/widget/owner-request.ts`).
+
+**One widget, everywhere.** Every site — Loki's own included — draws the same
+panel (Loki's own embed used the chatkit view and read as a different product,
+2026-10-18). The launcher has two shapes and both say the owner's state: the
+corner pill, or the edge tab with the same live dot. The owner's pill sits in a
+bottom corner or becomes the tab; it never climbs to the middle or top of the
+screen. No page hides it except an open dialog and a sign-in wall
+(`scripts/test/feedback-widget-reach.ts` fails on any other).
+
 **Watch is the owner's, and it speaks.** While it watches, Loki says what it
 noticed — in the conversation, in plain words, naming the tap that led there,
 each with *Fix this* and *Why does it matter?* — and is otherwise quiet.
@@ -107,9 +122,9 @@ Rules that resolve the trade-offs:
   which on a phone was the labelled, bigger part — so the obvious tap pointed
   instead of opening, and the state was a turning spiral nobody read,
   2026-10-17. Pointing is **Point to area** in the composer.) Auto-avoid
-  measures the button and its unread badge. The owner pill only uses clear space;
-  on a crowded page it becomes the same edge handle visitors use, keeping the
-  unread count and access to the conversation. Remark previews only appear
+  measures the button and its unread badge. The owner pill only uses clear space
+  in a bottom corner; elsewhere it becomes the edge tab, which keeps the live
+  dot, the unread count and access to the conversation. Remark previews only appear
   over clear space and dismiss on scroll or when space becomes occupied; every remark remains
   in the conversation. The top bar exists only for a page that
   hides the launcher outright (`data-fc-place="hidden"`; the edge tab counts as

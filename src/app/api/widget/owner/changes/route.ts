@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_SHORT_MS } from "@/lib/constants/time";
-import { FEEDBACK_SOURCE, FEEDBACK_STATUS, WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
-import { getWidgetProjectKey, getWidgetTokenByToken } from "@/db/queries/widget-tokens";
+import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
+import { getWidgetProjectKey } from "@/db/queries/widget-tokens";
 import { listProjectFeedback } from "@/db/queries/site-feedback";
 import { getUserTheme } from "@/db/queries/user-preferences";
 import { DEFAULT_THEME_MODE } from "@/config/theme";
 import { attachFeedbackWork } from "@/lib/feedback/attach-work";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { createTourToken, tourSiteUrl, watchFixPath } from "@/lib/feedback/tour-token";
-import { passHolder } from "@/lib/feedback/pass-holder";
-import { isWidgetOriginAllowed } from "@/lib/widget/origin";
+import { ownerRequest } from "@/lib/widget/owner-request";
 import { appUrl } from "@/lib/email";
 import {
   KNOWN_FIXES_MAX,
@@ -77,21 +76,12 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return corsJson({ error: "Invalid request" }, 400);
   const data = parsed.data;
 
-  const token = await getWidgetTokenByToken(data.token);
-  if (!token || token.status !== WIDGET_TOKEN_STATUS.ACTIVE) {
-    return corsJson({ error: "Unknown or revoked widget token" }, 403);
-  }
-  const origin = req.headers.get("origin");
-  if (!isWidgetOriginAllowed({ tokenOrigins: token.origins, origin, allowMissingOrigin: false })) {
-    return corsJson({ error: "Origin not allowed for this widget" }, 403);
-  }
   // Same test as ingest: this project, this owner, unexpired. The widget
   // forgets a pass the server refuses, so say so plainly rather than 403.
-  // The owner, or someone they gave edit rights (lib/feedback/pass-holder.ts).
-  const holder = await passHolder(data.ownerPass, token);
-  if (!holder) {
-    return corsJson({ ok: true, owner: false, changes: [] });
-  }
+  const who = await ownerRequest(req, data);
+  if (who.kind === "error") return corsJson({ error: who.error }, who.status);
+  if (who.kind === "stranger") return corsJson({ ok: true, owner: false, changes: [] });
+  const { token, holder } = who;
 
   const [all, key, theme] = await Promise.all([
     listProjectFeedback(token.userId, token.projectId, OWNER_CHANGES_FETCH),

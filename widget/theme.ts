@@ -262,6 +262,12 @@ ${spiralCSS(theme)}
 }
 .fab.tab.on-left { border-radius: 0 ${rs} ${rs} 0; border-right: 1px solid ${theme.borderDark}; border-left: 0; }
 .fab.tab .fab-label, .fab.tab .fab-icon, .fab.tab .fab-badge, .fab.tab::before { display: none; }
+/* The owner's tab still says whether Loki is watching — the same live dot as
+   the corner button, above the mark — and is not faded: it is their status,
+   in every shape (2026-10-18: the tab read as "a different widget"). */
+.fab.tab.owner { width: 28px; height: 72px; flex-direction: column; gap: 8px; opacity: 1; }
+.fab.tab.owner::before { display: block; }
+.fab.tab.owner:hover, .fab.tab.owner:focus-visible { width: 32px; }
 .fab.tab.owner .fab-badge { display: block; top: 2px; right: 2px; min-width: 16px; padding: 0 2px; font-size: 10px; }
 .fab.tab .dot.spiral { display: inline-flex; width: 14px; height: 14px; }
 .fab.tab:hover, .fab.tab:focus-visible { opacity: 1; width: 30px; transform: none; }
@@ -420,6 +426,8 @@ a.noticed-status:hover { text-decoration: underline; }
 /* Your changes: one hairline strip like the notes above — a summary line that
    opens into the rows, each row its own link. */
 .yours-body { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; }
+.yours-build { align-self: flex-start; margin: 4px 0 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; font-size: 12px; font-weight: 600; background: ${theme.text}; color: ${theme.surface}; }
+.yours-build:disabled { opacity: .6; cursor: default; }
 .yours-list { display: flex; flex-direction: column; }
 .yours-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; padding: 7px 0; font-size: 12px; line-height: 1.4; color: inherit; text-decoration: none; }
 a.yours-row:hover .yours-text { color: ${theme.accent}; }
