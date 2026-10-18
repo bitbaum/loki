@@ -551,4 +551,38 @@ check("past the follow window, main's 'not on record' wording wins over the look
   assert.equal(t.stages.find((s) => s.id === "pr")!.label, "No pull request on record");
 });
 
+check("a preview that finished well is live, not 'nothing reached GitHub'", () => {
+  const i: RunTrackInput = {
+    ...base,
+    eventKinds: ["dispatched", "claimed", "delivered", "completed"],
+    run: {
+      startedAt: "2026-10-18T16:34:00Z",
+      finishedAt: "2026-10-18T16:57:00Z",
+      outcome: "success",
+    },
+    phase: "done",
+    fix: ledger(FIX_SHIP_STATE.NO_EVIDENCE),
+    liveUrl: "https://centersom.orangecat.ch/",
+    savedLive: true,
+  };
+  const t = buildRunTrack(i);
+  assert.deepEqual(
+    t.stages.map((s) => s.id),
+    ["asked", "builder", "working", "live"],
+    "no pull request, merge or deploy stage for a preview",
+  );
+  assert.equal(t.stages.at(-1)!.state, "done");
+  assert.equal(t.stages.at(-1)!.label, "Live on centersom.orangecat.ch");
+  assert.ok(!t.stages.some((s) => s.state === "failed"));
+  assert.match(t.summary, /^Live on centersom\.orangecat\.ch/);
+  assert.equal(t.settled, true);
+  assert.equal(t.current, "live");
+});
+
+check("a preview still being built is not live yet and keeps being followed", () => {
+  const t = buildRunTrack({ ...base, liveUrl: "https://centersom.orangecat.ch/", savedLive: true });
+  assert.equal(t.stages.at(-1)!.state, "next");
+  assert.equal(t.settled, false);
+});
+
 console.log(`\n✓ run-track: ${passed} passed`);
