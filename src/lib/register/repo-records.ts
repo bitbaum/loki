@@ -45,6 +45,14 @@ export type RepoRecords = {
   changelog: RepoChangelogEntry[];
   /** Blob URLs of the files that produced them, for provenance links. */
   source: { roadmap: string | null; changelog: string | null };
+  /**
+   * What the project is, in its README's own opening paragraph — plain text,
+   * or null when the README has none worth showing (missing, boilerplate,
+   * headings only). The map's `what` reads this first; see readmeLead().
+   */
+  lead: string | null;
+  /** Blob URL of the README the lead came from, or null. */
+  leadSource: string | null;
 };
 
 /** Bucket heading → the status word the map publishes. Anything else is used verbatim. */
@@ -266,27 +274,99 @@ export function githubRepoPath(gitUrl: string | null | undefined): string | null
 }
 
 export function recordUrls(repoPath: string): {
-  raw: { roadmap: string; changelog: string };
-  blob: { roadmap: string; changelog: string };
+  raw: { roadmap: string; changelog: string; readme: string };
+  blob: { roadmap: string; changelog: string; readme: string };
 } {
   return {
     raw: {
       roadmap: `https://raw.githubusercontent.com/${repoPath}/HEAD/ROADMAP.md`,
       changelog: `https://raw.githubusercontent.com/${repoPath}/HEAD/CHANGELOG.md`,
+      readme: `https://raw.githubusercontent.com/${repoPath}/HEAD/README.md`,
     },
     blob: {
       roadmap: `https://github.com/${repoPath}/blob/HEAD/ROADMAP.md`,
       changelog: `https://github.com/${repoPath}/blob/HEAD/CHANGELOG.md`,
+      readme: `https://github.com/${repoPath}/blob/HEAD/README.md`,
     },
   };
+}
+
+/** The longest lead the map carries: a paragraph, never the whole README. */
+export const README_LEAD_MAX = 600;
+
+/**
+ * Scaffolding a generator writes, not a description anyone chose. A README
+ * whose first paragraph is one of these has no lead.
+ */
+const BOILERPLATE =
+  /\b(bootstrapped with|create-next-app|create-react-app|this is a next\.js (project|app)|lorem ipsum)\b|^todo\b/i;
+
+/**
+ * Sentences a README opens with that speak to a contributor, not to someone
+ * deciding what the project is: where the repo's docs live, what it is built
+ * with. Dropped from the lead, the rest kept.
+ */
+const FOR_CONTRIBUTORS =
+  /\b[\w.-]+\.md\b|^built with\b|^(see|read) (the )?(docs|agents|contributing)\b/i;
+
+/**
+ * The README's opening paragraph, as plain text: what the project says it is,
+ * reviewed in the same pull request as the code it describes.
+ *
+ * Why: the stored description is typed once, at registration, and then rots.
+ * Audited 2026-10-18 against the fifteen projects bitbaum.orangecat.ch shows:
+ * Diplodoctor's row still described cross-border medical tourism while its
+ * README (and its running site) is a lab-report reader; evig's said "Admin
+ * platform — 30+ sections, 165 tables"; Causius had none at all. The public
+ * chat routed visitors on those words. The README was right in every case.
+ *
+ * Skips everything that is not a prose paragraph — headings, badges, images,
+ * HTML, quotes, lists, tables, code — and generator boilerplate. Links keep
+ * their text only; the lead is cut at a sentence end within README_LEAD_MAX.
+ */
+export function readmeLead(md: string): string | null {
+  const body = md
+    .replace(/\r/g, "")
+    .replace(/^---\n[\s\S]*?\n---\n/, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/```[\s\S]*?```/g, "");
+  for (const block of body.split(/\n\s*\n/)) {
+    // A heading written straight above its paragraph, with no blank line,
+    // belongs to the paragraph's block; the heading goes, the prose stays.
+    const raw = block
+      .split("\n")
+      .filter((line) => !/^\s*#/.test(line))
+      .join("\n")
+      .trim();
+    if (!raw) continue;
+    if (/^(#|!\[|\[!\[|<|>|\||[-*+] |\d+[.)] |={3,}|-{3,})/.test(raw)) continue;
+    const text = raw
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/(\*\*|__)(.+?)\1/g, "$2")
+      .replace(/(^|[^*\w])[*_]([^*_]+)[*_](?=[^*\w]|$)/g, "$1$2")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\s+/g, " ")
+      .trim()
+      .split(/(?<=[.!?])\s+(?=[A-Z0-9"“(])/)
+      .filter((sentence) => !FOR_CONTRIBUTORS.test(sentence))
+      .join(" ");
+    if (text.length < 30 || BOILERPLATE.test(text)) return null;
+    if (text.length <= README_LEAD_MAX) return text;
+    const cut = text.slice(0, README_LEAD_MAX);
+    const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
+    return end > 60 ? cut.slice(0, end + 1) : `${cut.slice(0, README_LEAD_MAX - 1).trimEnd()}…`;
+  }
+  return null;
 }
 
 /** Fold fetched files into records. Exported for tests; the fetch is below. */
 export function recordsFromFiles(
   repoPath: string,
-  files: { roadmap: string | null; changelog: string | null },
+  files: { roadmap: string | null; changelog: string | null; readme?: string | null },
 ): RepoRecords {
   const urls = recordUrls(repoPath);
+  const lead = files.readme ? readmeLead(files.readme) : null;
   return {
     roadmap: files.roadmap ? parseRoadmapMarkdown(files.roadmap) : [],
     changelog: files.changelog ? parseChangelogMarkdown(files.changelog) : [],
@@ -294,6 +374,8 @@ export function recordsFromFiles(
       roadmap: files.roadmap ? urls.blob.roadmap : null,
       changelog: files.changelog ? urls.blob.changelog : null,
     },
+    lead,
+    leadSource: lead ? urls.blob.readme : null,
   };
 }
 
@@ -313,7 +395,8 @@ async function fetchText(url: string, fetcher: typeof fetch): Promise<string | n
 }
 
 /**
- * The two record files of one GitHub repository, parsed. Cached in-process for
+ * The record files of one GitHub repository, parsed: roadmap, changelog and
+ * the README's opening paragraph. Cached in-process for
  * ten minutes: the map is rebuilt on every request and every nightly reindex,
  * and 35 projects would otherwise be 70 raw.githubusercontent.com calls each
  * time. A private repository (404) yields empty records, not an error — the
@@ -329,11 +412,12 @@ export async function loadRepoRecords(
   const hit = cache.get(repoPath);
   if (hit && now - hit.at < CACHE_TTL_MS) return hit.records;
   const urls = recordUrls(repoPath);
-  const [roadmap, changelog] = await Promise.all([
+  const [roadmap, changelog, readme] = await Promise.all([
     fetchText(urls.raw.roadmap, fetcher),
     fetchText(urls.raw.changelog, fetcher),
+    fetchText(urls.raw.readme, fetcher),
   ]);
-  const records = recordsFromFiles(repoPath, { roadmap, changelog });
+  const records = recordsFromFiles(repoPath, { roadmap, changelog, readme });
   cache.set(repoPath, { at: now, records });
   return records;
 }
