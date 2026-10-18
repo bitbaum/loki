@@ -88,7 +88,18 @@ async function main() {
       const host = page.locator("#loki-feedback-host");
       const panel = host.locator(".panel");
       await panel.waitFor();
-      await page.waitForTimeout(800);
+      // Wait for the state, not a clock: CI runs this beside hundreds of
+      // other tests on two cores, where the changes fetch lands late.
+      await page.waitForFunction(
+        () =>
+          /changes need you/.test(
+            document
+              .getElementById("loki-feedback-host")!
+              .shadowRoot!.querySelector(".thoughts-sum")?.textContent ?? "",
+          ),
+        null,
+        { timeout: 20_000 },
+      );
 
       // ONE row of chrome: the status line is the header and ends with ✕.
       assert.equal(await host.locator(".hdr").isVisible(), false, `${width}: no brand/page row`);
@@ -110,7 +121,20 @@ async function main() {
       // Typing on a page that shrinks for the keyboard.
       await host.locator("textarea").first().focus();
       await page.setViewportSize({ width, height: 430 });
-      await page.waitForTimeout(400);
+      await page.waitForFunction(
+        () =>
+          document
+            .getElementById("loki-feedback-host")!
+            .shadowRoot!.querySelector(".panel")
+            ?.classList.contains("kb") &&
+          (
+            document
+              .getElementById("loki-feedback-host")!
+              .shadowRoot!.querySelector(".panel") as HTMLElement
+          ).getBoundingClientRect().bottom <= window.innerHeight,
+        null,
+        { timeout: 20_000 },
+      );
       const typing = await panel.evaluate((p) => {
         const r = p.getBoundingClientRect();
         const log = p.querySelector(".chatlog") as HTMLElement | null;
@@ -137,7 +161,15 @@ async function main() {
       // Closed, the launcher is the edge tab the bottom bar asked for.
       await host.locator("[aria-label='Close']").first().click();
       await page.setViewportSize({ width, height: 844 });
-      await page.waitForTimeout(600);
+      await page.waitForFunction(
+        () =>
+          document
+            .getElementById("loki-feedback-host")!
+            .shadowRoot!.querySelector(".fab")
+            ?.classList.contains("tab"),
+        null,
+        { timeout: 20_000 },
+      );
       assert.equal(
         await host.locator(".fab").evaluate((el) => el.classList.contains("tab")),
         true,
@@ -153,6 +185,8 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e);
+  // One line first: the unit runner shows only the tail of a failure.
+  console.error(e instanceof Error ? e.stack : e);
+  console.error(`✗ widget owner phone: ${e instanceof Error ? e.message : String(e)}`);
   process.exitCode = 1;
 });
