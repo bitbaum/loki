@@ -140,11 +140,14 @@ export function ControlDone({ jobs }: { jobs: DoneJob[] }) {
 export function ControlFoot({
   builderLabel,
   builderOk,
+  builderNote = null,
   onNewProject,
   onOpenSettings,
 }: {
   builderLabel: string;
   builderOk: boolean;
+  /** One clause after the label: "a newer version waits for its agents to finish". */
+  builderNote?: string | null;
   onNewProject: () => void;
   onOpenSettings: () => void;
 }) {
@@ -155,7 +158,10 @@ export function ControlFoot({
           className={cn("ui-now-dot", builderOk ? "ui-now-dot-ok" : "ui-now-dot-you")}
           aria-hidden="true"
         />
-        <span className="min-w-0">{builderLabel}</span>
+        <span className="min-w-0">
+          {builderLabel}
+          {builderNote && <span className="text-text-muted"> · {builderNote}</span>}
+        </span>
       </span>
       <span className="ml-auto inline-flex shrink-0 items-center gap-1">
         <button type="button" onClick={onNewProject} className="ui-btn-ghost ui-btn-sm">

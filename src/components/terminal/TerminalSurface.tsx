@@ -39,7 +39,7 @@ import { TerminalMobileHeader, type TerminalLiveState } from "./TerminalMobileHe
 import { TerminalSessionSheet } from "./TerminalSessionSheet";
 import { KeysToggle, TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
-import { buildStripTabs } from "./terminal-strip-tabs";
+import { buildStripTabs, badgeNames } from "./terminal-strip-tabs";
 import { TerminalAgentTabs } from "./TerminalAgentTabs";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
@@ -521,12 +521,11 @@ export function TerminalSurface({
   // The phone's one header row. What it names is what changes: which session,
   // what is running in it, whether it is alive. Everything else is one tap
   // behind it, in the sheet.
+  const activeStrip = stripTabs.find((t) => t.id === activeTab);
   const headerTitle =
-    source === "shell"
-      ? "Shell"
-      : (stripTabs.find((t) => t.id === activeTab)?.label ?? activeTab ?? sourceLabel);
+    source === "shell" ? "Shell" : (activeStrip?.label ?? activeTab ?? sourceLabel);
   const headerAgent =
-    source === "shell" ? null : (stripTabs.find((t) => t.id === activeTab)?.badge ?? null);
+    source === "shell" ? null : badgeNames(activeStrip?.badge, context?.agents.agents);
   const headerState: TerminalLiveState = !activeTab && source !== "shell" ? "idle" : liveState;
 
   const launchProps = sessionLaunchProps({

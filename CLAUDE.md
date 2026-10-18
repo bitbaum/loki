@@ -106,7 +106,12 @@ src/
 │   │                 (scripts/hetzner/box-agent-claude.md, re-applied on every
 │   │                 deploy) tells them to ask for it in one line. SessionInfo
 │   │                 (conversation view) names the model, effort and mode
-│   │                 READ from the session log, in words.
+│   │                 READ from the session log, in words, and changes them
+│   │                 in place: each row lists its choices and a tap sends
+│   │                 the agent's own command with the choice named
+│   │                 (`/model sonnet`, `/effort high`). Never type a bare
+│   │                 `/model` from a sheet: the picker opens in the terminal
+│   │                 behind it and nothing visible happens (2026-10-18).
 │   │                 Modes are SSOT in config/terminal-modes.ts; never add a
 │   │                 second terminal shell — add a transport.
 │   │                 TerminalActions = what the screen needs TYPED (signed
@@ -516,6 +521,20 @@ pnpm exec tsx scripts/seed.ts  # Re-seed database from knowledge.sqlite + contac
 pnpm exec tsx home/watcher.ts --start # Run a single home/ piece for iteration
                                 # (Fleet Runner desktop is the real executor)
 ```
+
+**The box runner updates only when its agents are idle, and Loki now makes
+that moment come.** A runner-code change schedules `drain-and-restart-
+runner.sh` on the box, which restarts the runner once no agent is working.
+Autopilot used to refill the queue the instant one finished, so from
+2026-10-17 23:38 to 2026-10-18 09:12 ten deploys in a row found "2 agent(s)
+working" and the box ran code days behind the app (Control said "Model: not
+known yet" of an answer it was showing). While the cloud runner's heartbeat
+version is behind the deploy's (`config/changelog.ts`), the commands route
+hands it no work-starting commands (`src/lib/runner-update-hold.ts`): current
+tasks finish, nothing new starts, the restart lands, the queue resumes on the
+new code. The rule is server-side on purpose — a runner-side one would have
+waited for the very restart it was meant to allow. Control's builder line
+says "a newer version waits for its agents to finish" meanwhile.
 
 A husky **pre-commit** hook runs `eslint` on STAGED FILES ONLY — no `tsc`. A
 commit is cheap and local, so it is gated cheaply.

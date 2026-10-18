@@ -86,18 +86,17 @@ export function toSeen(next: readonly OwnerChange[]): Record<string, boolean> {
  */
 export function changesSummary(changes: readonly OwnerChange[], visitors = 0): string {
   const count = (label: string) => changes.filter((c) => c.label === label).length;
-  const parts = [
-    ["needs you", count("Needs you")],
-    ["saved", savedNotes(changes)],
-    ["building", count("Building") + count("Starting")],
-    ["in line", count("In line")],
-    ["on its way", count("On its way")],
-    ["live", changes.filter((c) => c.live).length],
-  ]
-    .filter(([, n]) => (n as number) > 0)
-    .map(([w, n]) => `${n} ${w}`);
-  if (visitors) parts.push(`${visitors} from visitors`);
-  return parts.length ? `Your changes · ${parts.join(" · ")}` : `Your changes · ${changes.length}`;
+  const parts: Array<[number, string, string]> = [
+    [count("Needs you"), "needs you", "need you"],
+    [savedNotes(changes), "saved", "saved"],
+    [count("Building") + count("Starting"), "building", "building"],
+    [count("In line"), "in line", "in line"],
+    [count("On its way"), "on its way", "on their way"],
+    [changes.filter((c) => c.live).length, "live", "live"],
+  ];
+  const said = parts.filter(([n]) => n > 0).map(([n, one, many]) => `${n} ${n === 1 ? one : many}`);
+  if (visitors) said.push(`${visitors} from visitors`);
+  return said.length ? `Your changes · ${said.join(" · ")}` : `Your changes · ${changes.length}`;
 }
 
 /**

@@ -19,6 +19,8 @@ import { PROMPT_TEMPLATES } from "@/config/prompt-library";
 import { getOrchestrationIntent } from "@/lib/orchestration/intents";
 import { exitContractFor } from "@/lib/agent-config";
 import { FLEET_SESSIONS_DISPLAY_PATH } from "@/lib/session-paths";
+import { previewDeliveryNote } from "@/lib/previews/delivery-note";
+import { previewsRoot } from "@/lib/previews/root";
 
 export type AssembleInjectPromptInput = {
   userId: string;
@@ -29,6 +31,8 @@ export type AssembleInjectPromptInput = {
   promptKey?: string;
   customPrompt?: string;
   model?: string;
+  /** The project's public address, when it has one (a preview's, above all). */
+  liveUrl?: string | null;
 };
 
 export type AssembleInjectPromptResult =
@@ -52,8 +56,17 @@ function resolveLibraryPromptBody(key: string): string | null {
 export async function assembleInjectPrompt(
   input: AssembleInjectPromptInput,
 ): Promise<AssembleInjectPromptResult> {
-  const { userId, projectKey, projectPath, projectId, adapter, promptKey, customPrompt, model } =
-    input;
+  const {
+    userId,
+    projectKey,
+    projectPath,
+    projectId,
+    adapter,
+    promptKey,
+    customPrompt,
+    model,
+    liveUrl,
+  } = input;
 
   if (!promptKey && !customPrompt) {
     return { ok: false, status: 400, error: "promptKey or customPrompt required" };
@@ -78,11 +91,16 @@ export async function assembleInjectPrompt(
   // so projectKey casing vs repo-dir casing cannot strand the handoff.
   const sessionFileRef = `${FLEET_SESSIONS_DISPLAY_PATH}/${projectKey}.md`;
   const exitContract = exitContractFor(sessionFileRef);
+  // A preview folder is the site: no remote, nothing to push, live on save
+  // (lib/previews/delivery-note). Said on every dispatch there, because the
+  // box contract's "invisible until you push" is the opposite of true for it.
+  const delivery = previewDeliveryNote({ projectPath, liveUrl, previewsRoot: previewsRoot() });
   const withHandoff = (body: string) =>
     [
       // Keep an open, same-project recovery note when one exists.
       escalationBlock || null,
       body,
+      delivery,
       exitContract,
     ]
       .filter(Boolean)

@@ -494,7 +494,10 @@ fi
 #
 # Decoupled, both get what they want. The deploy ends when the app is verified;
 # the box waits as long as it needs (up to 6h, and never kills a working agent) and restarts when the
-# runner is genuinely idle. `systemd-run` detaches it into its own cgroup, so it
+# runner is genuinely idle. While the runner's heartbeat version is behind
+# this deploy, the app hands it no work-starting commands
+# (src/lib/runner-update-hold.ts), so that idle moment comes even with
+# autopilot on. `systemd-run` detaches it into its own cgroup, so it
 # survives this ssh closing and cannot be killed by the restart it performs.
 # What the always-on builder is doing BEFORE this deploy touches it — in the
 # CI log, where a person without an ssh session can read it. On 2026-10-11 the

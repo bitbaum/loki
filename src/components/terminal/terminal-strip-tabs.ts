@@ -70,3 +70,19 @@ export function buildStripTabs(
     };
   });
 }
+
+/**
+ * A tab's badge holds agent IDS ("claude", "claude+codex"); the person reads
+ * NAMES. The id reached the view switch and the box ("Message claude…")
+ * beside "Terminal" and "Message Claude…" elsewhere (owner, 2026-10-18).
+ */
+export function badgeNames(
+  badge: string | null | undefined,
+  roster: readonly { id: string; label: string }[] | undefined,
+): string | null {
+  if (!badge) return null;
+  return badge
+    .split("+")
+    .map((id) => roster?.find((a) => a.id === id)?.label ?? id)
+    .join(" + ");
+}

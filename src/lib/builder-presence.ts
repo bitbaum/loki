@@ -1,4 +1,5 @@
 import { EXECUTOR_COPY } from "@/config/executor-copy";
+import { FLEET_RUNNER_RELEASES } from "@/config/changelog";
 import { RUNNER_OFFLINE_THRESHOLD_MS } from "@/lib/constants/runner";
 import type { RunnerStateKey } from "@/lib/control-states";
 
@@ -55,6 +56,39 @@ export function applyHeartbeatExpiry(
   const cloud = connection.cloud && fresh("cloud");
   const local = connection.local && fresh("local");
   return { cloud, local, any: cloud || local };
+}
+
+/** "box-0.8.44" → "0.8.44"; a bare word ("box", "dev") has no number. */
+function versionNumber(version: string | null | undefined): number[] | null {
+  const m = /(\d+)\.(\d+)\.(\d+)/.exec(version ?? "");
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+
+/**
+ * The cloud builder runs code older than this deploy ships. It restarts only
+ * when none of its agents is working (scripts/hetzner/drain-and-restart-
+ * runner.sh), and meanwhile holds new work (lib/runner-update-hold) so that
+ * moment comes. Until it does, what it streams — a session's model, a job's
+ * live step — may lack what this app expects, and the person deserves to be
+ * told why rather than shown "not known yet".
+ */
+export function builderBehind(
+  reported: string | null | undefined,
+  current: string | null | undefined = FLEET_RUNNER_RELEASES[0]?.version,
+): boolean {
+  const have = versionNumber(reported);
+  const want = versionNumber(current);
+  if (!have || !want) return false;
+  for (let i = 0; i < 3; i++) {
+    if (have[i]! < want[i]!) return true;
+    if (have[i]! > want[i]!) return false;
+  }
+  return false;
+}
+
+/** One quiet clause for the builder line, or null when it is current. */
+export function builderUpdateNote(cloudVersion: string | null | undefined): string | null {
+  return builderBehind(cloudVersion) ? "a newer version waits for its agents to finish" : null;
 }
 
 /** True when the last runtime-state push came from the headless box-runner. */

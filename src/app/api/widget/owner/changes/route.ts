@@ -17,6 +17,7 @@ import {
   OWNER_CHANGE_TEXT_MAX,
   OWNER_CHANGES_FETCH,
   OWNER_CHANGES_MAX,
+  orderForOwner,
   ownerStatusFor,
   type KnownFix,
   type OwnerChange,
@@ -131,43 +132,46 @@ export async function POST(req: NextRequest) {
     ];
   });
 
-  const changes: OwnerChange[] = withWork
-    .filter((item) => mine.some((m) => m.id === item.id))
-    .map((item) => {
-      const status = ownerStatusFor(item.work, item.requiresReview);
-      const liveHref = livePageHref(item.liveUrl, item.url, item.page);
-      // "See it" is the walkthrough of THIS change on the live page, minted for
-      // the owner; it is offered only once the change is actually live.
-      const href = status.live
-        ? liveHref
-          ? tourSiteUrl(liveHref, createTourToken(item.id))
-          : inbox
-        : status.needsYou
-          ? inbox
-          : item.dispatchedRunId
-            ? `${appUrl()}${watchFixPath(item.id)}`
-            : null;
-      return {
-        id: item.id,
-        text: item.suggestion.slice(0, OWNER_CHANGE_TEXT_MAX),
-        at: item.createdAt.toISOString(),
-        label: status.label,
-        tone: status.tone,
-        detail: status.detail,
-        live: status.live,
-        settled: status.settled,
-        href,
-        action: status.live
+  const changes: OwnerChange[] = orderForOwner(
+    withWork
+      .filter((item) => mine.some((m) => m.id === item.id))
+      .map((item) => {
+        const status = ownerStatusFor(item.work, item.requiresReview);
+        const liveHref = livePageHref(item.liveUrl, item.url, item.page);
+        // "See it" is the walkthrough of THIS change on the live page, minted for
+        // the owner; it is offered only once the change is actually live.
+        const href = status.live
           ? liveHref
-            ? "See it"
-            : "Open in Loki"
+            ? tourSiteUrl(liveHref, createTourToken(item.id))
+            : inbox
           : status.needsYou
-            ? "Open in Loki"
+            ? inbox
             : item.dispatchedRunId
-              ? "Watch it"
-              : null,
-      };
-    });
+              ? `${appUrl()}${watchFixPath(item.id)}`
+              : null;
+        return {
+          id: item.id,
+          text: item.suggestion.slice(0, OWNER_CHANGE_TEXT_MAX),
+          at: item.createdAt.toISOString(),
+          label: status.label,
+          tone: status.tone,
+          detail: status.detail,
+          live: status.live,
+          settled: status.settled,
+          needsYou: status.needsYou,
+          href,
+          action: status.live
+            ? liveHref
+              ? "See it"
+              : "Open in Loki"
+            : status.needsYou
+              ? "Open in Loki"
+              : item.dispatchedRunId
+                ? "Watch it"
+                : null,
+        };
+      }),
+  ).map(({ needsYou: _needsYou, ...change }) => change);
   return corsJson({
     ok: true,
     owner: true,

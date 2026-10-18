@@ -88,11 +88,48 @@ const SAY: Record<Finding["kind"], string> = {
   overflow: "my panel didn't fit this screen",
 };
 
-export function selfSay(kind: Finding["kind"], sent: boolean, building = false): string {
-  if (!sent) return `About me, not this page: ${SAY[kind]}. I couldn't send it to Loki just now.`;
+/**
+ * Which call, in the owner's words. "One of my calls to Loki failed" named
+ * nothing (owner, 2026-10-18: "I'm not even sure if it failed or not"): the
+ * owner could not tell whether their note was saved or their question asked.
+ */
+const CALLS: Array<[RegExp, string, boolean]> = [
+  // path, what it was doing, whether it carried the owner's own words
+  [/\/api\/feedback\b/, "save your note", true],
+  [/\/api\/widget\/owner\/build\b/, "start your builds", true],
+  [/\/api\/widget\/(advise|chat|understand)\b/, "answer you", true],
+  [/\/api\/widget\/transcribe\b/, "write down what you said", true],
+  [/\/api\/widget\/owner\/changes\b/, "read where your changes are", false],
+  [/\/api\/widget-boot\b/, "load", false],
+];
+
+export function callInWords(detail: string | undefined): { doing: string; yours: boolean } | null {
+  if (!detail) return null;
+  const hit = CALLS.find(([re]) => re.test(detail));
+  return hit ? { doing: hit[1], yours: hit[2] } : null;
+}
+
+export function selfSay(
+  kind: Finding["kind"],
+  sent: boolean,
+  building = false,
+  detail?: string,
+): string {
+  const call = kind === "request" || kind === "slow" ? callInWords(detail) : null;
+  const what = call
+    ? kind === "slow"
+      ? `my call to Loki to ${call.doing} was very slow`
+      : `my call to Loki to ${call.doing} failed`
+    : SAY[kind];
+  // A failed call that carried the owner's words is theirs to redo: the
+  // note or the question is still in the panel, and one press sends it.
+  const yours =
+    call?.yours && kind === "request" ? " Your words are still here — press it again." : "";
+  if (!sent)
+    return `About me, not this page: ${what}. I couldn't send it to Loki just now.${yours}`;
   return building
-    ? `About me, not this page: ${SAY[kind]}. I've started fixing it in Loki itself — it goes live by itself.`
-    : `About me, not this page: ${SAY[kind]}. I've sent it to the people who build Loki — nothing for you to do.`;
+    ? `About me, not this page: ${what}. I've started fixing it in Loki itself — it goes live by itself.${yours}`
+    : `About me, not this page: ${what}. I've sent it to the people who build Loki${yours ? "." : " — nothing for you to do."}${yours}`;
 }
 
 const saidKey = (token: string) => `loki-self:${token}`;
@@ -141,10 +178,10 @@ export function installSelfWatch(opts: {
       detail: f.detail,
       ownerPass: pass,
     })
-      .then((r) => opts.onFinding(selfSay(f.kind, true, r.building)))
+      .then((r) => opts.onFinding(selfSay(f.kind, true, r.building, f.detail)))
       // Reporting a failure must not become a failure loop: the report call is
       // itself a call to Loki, and it is not handed back to ownRequest.
-      .catch(() => opts.onFinding(selfSay(f.kind, false)));
+      .catch(() => opts.onFinding(selfSay(f.kind, false, false, f.detail)));
   };
 
   // Our own script, by its URL — the host's errors are Watch's business.
