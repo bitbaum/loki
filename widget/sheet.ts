@@ -55,8 +55,21 @@ export function attachSheet(opts: {
   const phone = () => window.matchMedia("(max-width: 480px)").matches;
   /** Keyboard up: the sheet stands on it and fits what is still visible. */
   let kb = 0;
+  /**
+   * Typing in the panel. A page with `interactive-widget=resizes-content`
+   * (Loki's own) SHRINKS for the keyboard instead of laying it over, so
+   * keyboardInset reads 0 and the sheet stayed at 68% of a viewport already
+   * halved: the thread became a one-pixel sliver under three rows of extras
+   * (owner's phone, 2026-10-18). A focused text box on a phone is the same
+   * moment whichever way the browser draws the keyboard.
+   */
+  let typing = false;
   const apply = () => {
-    if (kb && phone()) {
+    if (typing && !kb && phone()) {
+      panel.style.bottom = "";
+      panel.style.height = "";
+      panel.style.maxHeight = `${Math.max(160, (window.visualViewport?.height ?? window.innerHeight) - 8)}px`;
+    } else if (kb && phone()) {
       const room = `${Math.max(160, (window.visualViewport?.height ?? window.innerHeight) - 8)}px`;
       panel.style.bottom = `${kb}px`;
       panel.style.height = size === "full" ? room : "";
@@ -67,13 +80,32 @@ export function attachSheet(opts: {
       panel.style.maxHeight = size === "full" ? "none" : "";
     }
     // While typing, the extras step aside for the conversation (theme.ts .kb).
-    panel.classList.toggle("kb", kb > 0 && phone());
+    panel.classList.toggle("kb", (kb > 0 || typing) && phone());
   };
+  const isTextBox = (el: EventTarget | null) =>
+    el instanceof HTMLTextAreaElement ||
+    (el instanceof HTMLInputElement && !["button", "checkbox", "radio", "file"].includes(el.type));
+  panel.addEventListener("focusin", (e) => {
+    if (!isTextBox(e.target) || typing) return;
+    typing = true;
+    apply();
+  });
+  panel.addEventListener("focusout", (e) => {
+    // Moving from the box to a button in the panel (Send, Talk) keeps the
+    // layout still: a sheet that resized between a press and its click would
+    // move Send out from under the thumb. Only leaving the panel ends it.
+    const to = e.relatedTarget;
+    if (!isTextBox(e.target) || (to instanceof Node && panel.contains(to))) return;
+    typing = false;
+    apply();
+  });
   const vv = window.visualViewport;
   const onViewport = () => {
     if (!vv) return;
     const next = keyboardInset(window.innerHeight, vv.height, vv.offsetTop);
-    if (next === kb) return;
+    // While typing on a page that shrinks for the keyboard, the room to fill
+    // changes with every resize even though no inset ever appears.
+    if (next === kb && !typing) return;
     kb = next;
     apply();
   };
@@ -117,6 +149,7 @@ export function attachSheet(opts: {
   return {
     reset() {
       size = "auto";
+      typing = false;
       apply();
     },
   };

@@ -102,23 +102,25 @@ export function changesSummary(changes: readonly OwnerChange[], visitors = 0): s
 
 /**
  * The one fragment the panel's status line carries about changes: the most
- * urgent thing, not every count — "1 needs you", else "2 building", … else
- * "4 live". Empty when there is nothing to say. The full line is
- * changesSummary, shown when the list is open.
+ * urgent thing, not every count, and always naming what is counted — "11
+ * changes need you", else "2 being built", … else "4 changes live". It once
+ * read "4 to look at · 11 needs you": two numbers of two different things,
+ * neither said what (owner, 2026-10-18). Empty when there is nothing to say.
+ * The full line is changesSummary, shown when the list is open.
  */
 export function changesHeadline(changes: readonly OwnerChange[]): string {
   const count = (...labels: string[]) => changes.filter((c) => labels.includes(c.label)).length;
   const saved = savedNotes(changes);
-  const ranked: Array<[number, string]> = [
-    [count("Needs you"), "needs you"],
-    [saved, saved === 1 ? "note saved" : "notes saved"],
-    [count("Building", "Starting"), "building"],
-    [count("In line"), "in line"],
-    [count("On its way"), "on its way"],
-    [changes.filter((c) => c.live).length, "live"],
+  const ranked: Array<[number, string, string]> = [
+    [count("Needs you"), "change needs you", "changes need you"],
+    [saved, "note saved", "notes saved"],
+    [count("Building", "Starting"), "being built", "being built"],
+    [count("In line"), "waiting its turn", "waiting their turn"],
+    [count("On its way"), "on its way", "on their way"],
+    [changes.filter((c) => c.live).length, "change live", "changes live"],
   ];
   const top = ranked.find(([n]) => n > 0);
-  return top ? `${top[0]} ${top[1]}` : "";
+  return top ? `${top[0]} ${top[0] === 1 ? top[1] : top[2]}` : "";
 }
 
 /**

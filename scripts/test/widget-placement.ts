@@ -297,6 +297,10 @@ ok(
 );
 ok(resolvePlaceDirective(["tab"]) === "tab", "tab is a directive");
 ok(resolvePlaceDirective(["hidden", "tab"]) === "tab", "a tab region overrides a hidden site");
+ok(
+  resolvePlaceDirective([null, "hidden", "tab"]) === "hidden",
+  "an open dialog keeps the launcher off it even when a later region asks for the tab",
+);
 
 // ---- chooseTabTop: the edge tab lands in the same place on every page ----
 {
