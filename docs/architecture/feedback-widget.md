@@ -28,8 +28,11 @@ settles and on **Mark**; Whisper's sentence timings put each sentence under
 the part that was in view (`widget/voice-moments.ts`). Done opens one
 editable note that says what Loki heard (*0:43 across 4 pages*) and leads
 with Loki's read of it (`widget/walk-read.ts`, `/api/widget/understand`):
-the ask, change or question, and the asides left out, with the words as
-spoken one tap away. A question leads with **Ask Loki**, about the whole walk;
+a list of what was asked, one change or question per line with where it
+applies, and the asides left out, with the words as spoken one tap away. Each
+change is saved as its own note with only its moments. The owner can also
+start talking from the microphone beside their launcher without opening the
+panel (`widget/quick-talk.ts`). A question leads with **Ask Loki**, about the whole walk;
 a change is sent — a visitor as **Save feedback**, the owner or an editor as
 **Save** (held out of automatic work) or **Fix it now**. A site-wide finding
 (the page's language) is said on the first page of a visit only. The receipt remains in the

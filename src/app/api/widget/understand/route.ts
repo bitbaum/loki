@@ -93,11 +93,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const project = await getWidgetProjectBrief(token.projectId).catch(() => null);
+    const moments = clampMoments(data.moments);
     const answered = await callTextDetailed(
       walkReadPrompt({
         project: project?.name ?? null,
         note: data.note.slice(0, WALK_READ_LIMITS.note),
-        moments: clampMoments(data.moments),
+        moments,
       }),
       {
         feature: "widget-understand",
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
       },
     );
     void recordAiSpend(token.userId, answered.tokens);
-    return json({ ok: true, read: parseWalkRead(stripReasoning(answered.text)) });
+    return json({ ok: true, read: parseWalkRead(stripReasoning(answered.text), moments.length) });
   } catch (e) {
     console.warn("[widget-understand] model unavailable:", e instanceof Error ? e.message : e);
     return noRead();

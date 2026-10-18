@@ -151,7 +151,7 @@ export async function understandNote(opts: {
     });
     if (!res.ok) return null;
     const json = (await res.json().catch(() => null)) as { read?: unknown } | null;
-    return cleanWalkRead(json?.read);
+    return cleanWalkRead(json?.read, opts.moments.length);
   } catch {
     return null;
   }

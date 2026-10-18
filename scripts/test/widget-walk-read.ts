@@ -8,7 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { cleanWalkRead, heardLine, walkPages, walkSession } from "../../widget/walk-read";
+import { cleanWalkRead, heardLine, itemsAsk, walkPages, walkSession } from "../../widget/walk-read";
 import { onceSiteWide } from "../../widget/watch-trail";
 import { parseWalkRead, walkReadPrompt } from "../../src/lib/feedback/walk-read-prompt";
 import type { ReportMoment } from "../../widget/moments-contract";
@@ -57,7 +57,7 @@ assert.equal(cleanWalkRead({ ask: "null" }), null);
 assert.equal(cleanWalkRead(null), null);
 assert.equal(cleanWalkRead({ ask: "Make the button bigger", kind: "build it" })?.kind, "change");
 assert.equal(
-  cleanWalkRead({ ask: "x".repeat(2000) })?.ask.length,
+  cleanWalkRead({ ask: "x".repeat(2000) })?.items[0].text.length,
   900,
   "a runaway answer is cut to the limit",
 );
@@ -71,7 +71,58 @@ assert.equal(
 const parsed = parseWalkRead(
   '```json\n{"ask":"Make the Features link bigger","kind":"change","asides":[]}\n```',
 );
-assert.deepEqual(parsed, { ask: "Make the Features link bigger", kind: "change", asides: [] });
+assert.deepEqual(parsed, {
+  ask: "Make the Features link bigger",
+  kind: "change",
+  items: [{ text: "Make the Features link bigger", kind: "change", where: null, parts: [] }],
+  asides: [],
+});
+
+// ── A walk talked about freely is a list, one thing per line ───────────────
+// The owner's walk through Loki's own home page, 2026-10-18: one sentence
+// about signed-in visitors, cut across two headings, and a question.
+const listed = cleanWalkRead(
+  {
+    items: [
+      {
+        text: "  Signed-in people should not land on this page; show their chats or the terminal, with an easy way to switch. ",
+        kind: "change",
+        where: "Home page, signed in",
+        parts: [0, 1, 1, 99, -1, 2.5, "3"],
+      },
+      {
+        text: "Check for stale pages and documents.",
+        kind: "change",
+        where: "Whole site",
+        parts: [],
+      },
+      { text: "Is Fleet Runner still used?", kind: "question", where: "", parts: [4] },
+      { text: "", kind: "change" },
+    ],
+    asides: ["Thank you."],
+  },
+  5,
+);
+assert.ok(listed);
+assert.equal(listed.items.length, 3, "an empty item is dropped");
+assert.deepEqual(listed.items[0].parts, [0, 1], "parts: whole, in range, once");
+assert.match(listed.items[0].text, /^Signed-in .* switch\.$/);
+assert.equal(listed.items[2].where, null, "no where is null, not empty");
+assert.equal(listed.kind, "change", "a list with a change is a change");
+assert.equal(
+  listed.ask,
+  "1. Home page, signed in: Signed-in people should not land on this page; show their chats or the terminal, with an easy way to switch.\n2. Whole site: Check for stale pages and documents.\n3. Is Fleet Runner still used?",
+  "an old card shows the list as one instruction",
+);
+assert.equal(
+  cleanWalkRead({ items: [{ text: "What do you think?", kind: "question" }] })?.kind,
+  "question",
+);
+assert.equal(itemsAsk([{ text: "One", kind: "change", where: "Footer", parts: [] }]), "One");
+assert.equal(
+  cleanWalkRead({ items: Array.from({ length: 20 }, (_, i) => ({ text: `t${i}` })) })?.items.length,
+  8,
+);
 assert.equal(parseWalkRead("I could not read that."), null);
 
 // ── "Did it hear me?" ──────────────────────────────────────────────────────
@@ -104,6 +155,10 @@ assert.match(
   /Pages they went through, in order: \/de, \/de\/features, \/portal\/dashboard, \/portal\/settings/,
 );
 assert.match(prompt, /```\nOn \/de — x:\nwords\n```/);
+// The moments are numbered for the items' parts, with what was pointed at.
+assert.match(prompt, /#0 0:00 \/de — “Dein Tier/);
+assert.match(prompt, /#4 0:43 \/portal\/settings — “Profile” \| marked/);
+assert.match(prompt, /#3 .* on screen: Download my data/);
 
 // ── A site-wide finding is said once per visit ─────────────────────────────
 const lang =
@@ -121,11 +176,7 @@ assert.deepEqual(onceSiteWide([taps], said).checks, [taps], "page findings are a
 // ── Wiring: the pieces are where they must be ──────────────────────────────
 const model = readFileSync("widget/conversation-model.ts", "utf8");
 assert.match(model, /understandNote\(/, "a recorded note is read");
-assert.match(
-  model,
-  /note\.text === note\.verbatim \? read\.ask : note\.text/,
-  "edited words are kept",
-);
+assert.match(model, /const untouched = draft\.text === note\.verbatim;/, "edited words are kept");
 const view = readFileSync("widget/conversation.ts", "utf8");
 assert.match(view, /heardLine\(draft\.moments/, "the card says what it heard");
 assert.match(view, /noteExtras\(draft/, "the asides and the words as spoken are drawn");
@@ -148,7 +199,9 @@ const route = readFileSync("src/app/api/widget/understand/route.ts", "utf8");
 assert.match(route, /model: GROQ_STRONG_MODEL/);
 assert.match(
   readFileSync("src/lib/feedback/walk-read-prompt.ts", "utf8"),
-  /Replace this \/ here \/ these things with the pages and parts they refer to/,
+  /That is only what was on screen\. People talk freely while they scroll/,
+  "what was on screen is background, not what they meant",
 );
+assert.match(view, /model\.sendItems\(contact\.value, intent\)/, "each change is saved on its own");
 
 console.log("widget-walk-read: ok");

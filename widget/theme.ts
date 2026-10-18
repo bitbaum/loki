@@ -225,8 +225,9 @@ ${spiralCSS(theme)}
 .fab.watching { border-color: ${theme.success}; }
 .fab.owner::before { content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none; background: ${theme.textMuted}; }
 .fab.watching::before { background: ${theme.success}; animation: fcpulse 1.6s ease-in-out infinite; }
-.fab.watching .fab-label { color: ${theme.text}; }
-.fab.paused .fab-label { color: ${theme.textSecondary}; }
+.fab.watching .fab-label { color: ${theme.text}; } .fab.paused .fab-label { color: ${theme.textSecondary}; }
+/* Talk without opening Loki (quick-talk.ts): the mic beside the owner's launcher. */
+.fab-talk { position: fixed; z-index: 2147483000; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid ${theme.borderDark}; background: ${theme.surface}; color: ${theme.text}; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); } .fab-talk svg { width: 20px; height: 20px; display: block; }
 .fab-badge {
   position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: ${theme.accent}; color: ${ink};
@@ -707,6 +708,14 @@ function sendCardCSS(theme: WidgetTheme, rs: string): string {
 .said-exact[open] summary::after { content: " ↑"; }
 .said-words { margin: 0; padding: 8px 10px; max-height: 30vh; overflow: auto; border-left: 2px solid ${theme.border}; color: ${theme.textSecondary}; white-space: pre-wrap; overflow-wrap: anywhere; }
 .said-exact .act { align-self: flex-start; min-height: 44px; margin-top: 0; font-size: 13px; color: ${theme.text}; }
+/* Loki's read as a list: one thing per line, what it is and where, words editable. */
+.heard-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.heard-item { display: flex; flex-direction: column; gap: 2px; padding-left: 10px; border-left: 2px solid ${theme.borderStrong}; }
+.heard-item.question { border-left-style: dashed; }
+.heard-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: ${theme.textSecondary}; }
+.heard-drop { min-width: 44px; min-height: 36px; border: 0; background: transparent; color: ${theme.textSecondary}; font-size: 14px; cursor: pointer; }
+.voice-note textarea.heard-text { min-height: 0; max-height: none; padding: 2px 0; border-color: transparent; background: transparent; box-shadow: none; font-size: 15px; line-height: 1.45; resize: none; overflow: hidden; field-sizing: content; }
+.voice-note textarea.heard-text:focus { padding: 2px 6px; border-color: ${theme.borderStrong}; }
 `;
 }
 
