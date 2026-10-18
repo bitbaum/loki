@@ -41,6 +41,8 @@ import {
   type Draft,
 } from "./conversation-model";
 import { kitState, noticedExtras, sentFull } from "./conversation-kit";
+import { heardLine } from "./walk-read";
+import { noteExtras, noteGuide, showsRead } from "./voice-note-card";
 import type { KitHandle, KitModule } from "./chat/contract";
 
 export { MAX_LEN, type ConversationWatch };
@@ -256,8 +258,19 @@ export function createConversation(opts: {
    */
   function render(follow = false) {
     const { thread, pending, error, draft } = model.snapshot();
+    // A card drawn for the first time is brought into view from its top:
+    // a long spoken note under three remarks was found only by scrolling
+    // (2026-10-18). Redrawn for its read, it keeps the place.
+    let cardIsNew = false;
+    let cardDrawn = false;
     if (draft) {
-      if (card?.draft !== draft) card = { draft, el: draftCard(draft) };
+      if (card?.draft !== draft) {
+        cardIsNew = !card;
+        cardDrawn = true;
+        const root = log.getRootNode() as ShadowRoot | Document;
+        const typing = !!card && card.el.contains(root.activeElement);
+        card = { draft, el: draftCard(draft, cardIsNew || typing) };
+      }
     } else card = null;
     if (kit) return kit.update(currentKitState());
     const reviewingNote = draft?.intent === "note";
@@ -363,6 +376,8 @@ export function createConversation(opts: {
     if (reviewingNote) starters.style.display = "none";
     syncButtons();
     log.scrollTop = follow || atBottom ? log.scrollHeight : keep;
+    if (cardDrawn && card && reviewingNote)
+      log.scrollTop += card.el.getBoundingClientRect().top - log.getBoundingClientRect().top - 8;
   }
 
   function renderStarters() {
@@ -397,34 +412,25 @@ export function createConversation(opts: {
   }
 
   /** The confirmation card: what goes to the builder, edited before it does. */
-  function draftCard(draft: Draft): HTMLElement {
+  function draftCard(draft: Draft, takeFocus = true): HTMLElement {
     const el = h("div", draft.intent === "note" ? "sendcard voice-note" : "sendcard");
     const voice = draft.intent === "note";
+    const read = voice ? draft.read : undefined;
+    const showingRead = voice && showsRead(draft);
+    // "Did it hear me?" is answered first: how long, and across which pages.
     el.appendChild(
       h(
         "div",
         "changes-title",
         voice
-          ? "What you said"
+          ? heardLine(draft.moments ?? [], draft.spokenMs)
           : owner()
             ? "Build this on your site"
             : "Send to whoever builds this site",
       ),
     );
-    // A spoken note is a question as often as it is a change: say both ways,
-    // before the buttons, so nobody has to guess which one answers them
-    // (2026-10-16: a spoken question to Loki was filed with the builder).
-    if (voice)
-      el.appendChild(
-        h(
-          "p",
-          "sendcard-sub",
-          owner()
-            ? "Edit it if you like. Save it with your other notes and build them together when you're ready — or fix it now, or Ask Loki about it."
-            : "Edit it if you like, then Ask Loki about it, or save it for whoever builds this site.",
-        ),
-      );
-    const box = h("textarea", "chatinput");
+    if (voice) el.appendChild(h("p", "sendcard-sub", noteGuide(draft, owner())));
+    const box = h("textarea", showingRead ? "chatinput read" : "chatinput");
     box.maxLength = MAX_LEN;
     box.value = draft.text;
     box.addEventListener("input", () => model.editDraft(box.value));
@@ -433,24 +439,13 @@ export function createConversation(opts: {
     if (voice)
       box.rows = Math.min(
         24,
-        Math.max(6, draft.text.split("\n").length + Math.ceil(draft.text.length / 60)),
-      );
-    el.appendChild(box);
-    if (draft.capture) {
-      // What Loki saw while they spoke (browse-voice.ts) — the same words that
-      // go with the note, so "does it know what I meant?" has an answer here.
-      const seen = draft.capture.diagnostics["On screen while speaking"];
-      const picked = draft.capture.selected.map((item) => item.elementText).join(", ");
-      el.appendChild(
-        h(
-          "p",
-          "diag",
-          typeof seen === "string" && seen
-            ? `Loki noted what was on screen: ${seen}${picked ? ` · pointed at ${picked}` : ""}`
-            : `About ${draft.capture.page}${picked ? ` · ${picked}` : ""}`,
+        Math.max(
+          showingRead ? 3 : 6,
+          draft.text.split("\n").length + Math.ceil(draft.text.length / 60),
         ),
       );
-    }
+    el.appendChild(box);
+    el.append(...noteExtras(draft, () => model.useExactWords()));
     const contact = h("input");
     contact.type = "text";
     contact.placeholder = "Your name / email (optional)";
@@ -481,13 +476,19 @@ export function createConversation(opts: {
     // then send it as a change, then (owner) keep it for later.
     // The owner records while Loki watches and builds later (2026-10-18), so
     // their spoken note leads with Save; a visitor's leads with Ask.
-    const saveFirst = voice && owner();
-    const askBtn = voice ? h("button", saveFirst ? "ghost outline" : "go", "Ask") : null;
+    // A question is answered by Ask, whoever asked it.
+    const question = read?.kind === "question" && showingRead;
+    const saveFirst = voice && owner() && !question;
+    const askFirst = voice && !saveFirst;
+    const askBtn = voice
+      ? h("button", askFirst ? "go" : "ghost outline", question ? "Ask Loki" : "Ask")
+      : null;
     if (askBtn) askBtn.type = "button";
     const sendLabel = voice ? (owner() ? "Save" : "Save feedback") : owner() ? "Build it" : "Send";
     const go = h("button", voice && !saveFirst ? "ghost outline" : "go", sendLabel);
     go.type = "button";
-    const requestFix = saveFirst ? h("button", "ghost outline", "Fix it now") : null;
+    const requestFix =
+      voice && owner() && !question ? h("button", "ghost outline", "Fix it now") : null;
     if (requestFix) requestFix.type = "button";
     const cancel = h("button", "ghost", voice ? "Discard" : "Cancel");
     cancel.type = "button";
@@ -498,8 +499,8 @@ export function createConversation(opts: {
     askBtn?.addEventListener("click", () => {
       const text = box.value.trim();
       if (!text) return;
-      model.closeDraft();
-      model.ask(text);
+      // Asked about the whole walk, not only the page the panel is open on.
+      model.askAboutNote(text);
     });
     cancel.addEventListener("click", () => {
       model.closeDraft();
@@ -528,10 +529,13 @@ export function createConversation(opts: {
     go.addEventListener("click", () => void send());
     requestFix?.addEventListener("click", () => void send("fix"));
     // Focus the words once the card is in the thread.
-    queueMicrotask(() => {
-      box.focus();
-      box.setSelectionRange(box.value.length, box.value.length);
-    });
+    // Not when the card is only redrawn for Loki's read: on a phone that would
+    // throw the keyboard up over the card a second time.
+    if (takeFocus)
+      queueMicrotask(() => {
+        box.focus();
+        box.setSelectionRange(box.value.length, box.value.length);
+      });
     return el;
   }
 

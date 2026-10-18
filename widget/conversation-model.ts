@@ -13,6 +13,8 @@
 import { CAPTURE_CONTEXT_LIMITS } from "./capture-context";
 import type { FeedbackCapture } from "./feedback-capture";
 import { clampMoments, type ReportMoment } from "./moments-contract";
+import { cleanWalkRead, walkSession, type WalkRead } from "./walk-read";
+import { understandNote } from "./loki-api";
 import { buildSuggestion, type ReportDiagnostics } from "./report-payload";
 import { sendReport } from "./send-report";
 import { sendSelfReport } from "./self-report";
@@ -104,6 +106,14 @@ export type Draft = {
   intent?: "note" | "fix";
   /** What was seen while each thing was said (voice-moments.ts). */
   moments?: ReportMoment[];
+  /** A spoken note: the words exactly as transcribed (the box may hold Loki's read of them). */
+  verbatim?: string;
+  /** How long the person talked. */
+  spokenMs?: number;
+  /** Loki's read of a spoken note (walk-read.ts), once it is back. */
+  read?: WalkRead;
+  /** The read is on its way — the card works without it in the meantime. */
+  reading?: boolean;
 };
 
 const draftKey = (token: string) => `loki-voice-draft:${token}`;
@@ -160,12 +170,18 @@ function readRecordedDraft(token: string): Draft | null {
       diagnostics,
     };
     const moments = clampMoments(raw.moments);
+    const read = cleanWalkRead(raw.read);
     return {
       text: raw.text,
       intent: "note",
       capture,
       diagnostics,
       ...(moments.length ? { moments } : {}),
+      ...(typeof raw.verbatim === "string" ? { verbatim: raw.verbatim.slice(0, 12000) } : {}),
+      ...(typeof raw.spokenMs === "number" && Number.isFinite(raw.spokenMs)
+        ? { spokenMs: Math.max(0, Math.min(raw.spokenMs, 3_600_000)) }
+        : {}),
+      ...(read ? { read } : {}),
     };
   } catch {
     return null;
@@ -444,16 +460,58 @@ export function createConversationModel(opts: ConversationModelOpts) {
         draft?.moments,
       );
     },
-    recorded(text: string, capture: FeedbackCapture, moments: ReportMoment[] = []) {
-      draft = {
+    recorded(
+      text: string,
+      capture: FeedbackCapture,
+      moments: ReportMoment[] = [],
+      spokenMs?: number,
+    ) {
+      const note: Draft = {
         text,
+        verbatim: text,
         diagnostics: capture.diagnostics,
         capture,
         intent: "note",
+        reading: true,
         ...(moments.length ? { moments } : {}),
+        ...(spokenMs ? { spokenMs } : {}),
       };
+      draft = note;
       keepRecordedDraft(opts.token, draft);
       changed(true);
+      // Loki reads it the way a person would listen (walk-read.ts). Nothing
+      // waits on this: the card works with the words as spoken meanwhile, and
+      // a read that fails leaves them exactly as they are.
+      void understandNote({ apiBase: opts.apiBase, token: opts.token, note: text, moments }).then(
+        (read) => {
+          if (draft !== note) return;
+          // A new object, so the card is drawn again with the read in it.
+          draft = {
+            ...note,
+            reading: false,
+            ...(read
+              ? // Only words the person has not touched are replaced.
+                { read, text: note.text === note.verbatim ? read.ask : note.text }
+              : {}),
+          };
+          keepRecordedDraft(opts.token, draft);
+          changed();
+        },
+      );
+    },
+    /** Put the words exactly as spoken back in the box. */
+    useExactWords() {
+      if (!draft?.verbatim) return;
+      draft = { ...draft, text: draft.verbatim };
+      keepRecordedDraft(opts.token, draft);
+      changed();
+    },
+    /** Ask Loki about a spoken note, with the whole walk as what it looks at. */
+    askAboutNote(text: string) {
+      const moments = draft?.moments ?? [];
+      draft = null;
+      keepRecordedDraft(opts.token, null);
+      void ask(text, moments.length > 1 ? walkSession(moments) : undefined);
     },
     editDraft(text: string) {
       if (!draft) return;

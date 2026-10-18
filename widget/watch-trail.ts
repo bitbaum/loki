@@ -355,6 +355,32 @@ export function explainChecks(
 }
 
 /**
+ * Findings about the document, not about anything on it — the same on every
+ * page a site renders from one layout. The owner walked four Petvity pages on
+ * 2026-10-18 and was told "the page does not declare its language" on each:
+ * one fix, said as four. Said once per visit; the next pages leave it out.
+ */
+const SITE_WIDE_CHECKS: readonly RegExp[] = [/<html lang>/i];
+
+/** The site-wide findings among `checks` that have not been said this visit,
+ *  and the keys to remember them by once they are. */
+export function onceSiteWide(
+  checks: readonly string[],
+  said: ReadonlySet<string>,
+): { checks: string[]; keys: string[] } {
+  const keys: string[] = [];
+  const kept = checks.filter((check) => {
+    const rule = SITE_WIDE_CHECKS.find((re) => re.test(check));
+    if (!rule) return true;
+    const key = `site|${rule.source}`;
+    if (said.has(key)) return false;
+    keys.push(key);
+    return true;
+  });
+  return { checks: kept, keys };
+}
+
+/**
  * The page checks' signature: the KINDS of finding on this path, not their
  * counts or their first example. "30 pieces of text under 12px (e.g. “Partners”)"
  * and "6 pieces … (e.g. “AI-native …”)" are one finding said twice; the owner

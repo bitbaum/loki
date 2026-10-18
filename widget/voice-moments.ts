@@ -72,6 +72,9 @@ export function addMoment(list: Moment[], next: Moment): Moment[] {
   if (last && last.label === next.label && last.page === next.page) {
     const merged: Moment = {
       ...last,
+      // A page change is noted with the moment it happened, after a beat to
+      // draw (browse-voice.ts): its look may land after a later scroll's.
+      at: Math.min(last.at, next.at),
       ...(next.marked ? { marked: true } : {}),
       ...(next.scrollY !== undefined ? { scrollY: next.scrollY } : {}),
       ...(next.text ? { text: next.text } : {}),

@@ -46,6 +46,11 @@ import type { WidgetTheme } from "./theme";
 const MAX_MS = 110_000;
 /** A walk is at most this many takes (~18 minutes) — bounded uploads. */
 export const MAX_TAKES = 10;
+/** How often the address is checked while recording: a site's own links
+ *  change it without telling anyone (pushState fires no event). */
+const PATH_POLL_MS = 250;
+/** How long a new page gets to draw its heading before Loki notes it. */
+const NEW_PAGE_SETTLE_MS = 350;
 
 /** The clock — and, on the last take, in its final 15 seconds, that it is
  *  about to stop, so a long note never ends mid-sentence without warning. */
@@ -66,7 +71,13 @@ export function createBrowseVoice(opts: {
   token: string;
   selected: () => SelectedEl[];
   onActive(active: boolean): void;
-  onTranscript(text: string, capture: FeedbackCapture, moments: ReportMoment[]): void;
+  /** `spokenMs`: how long the walk lasted, start to Done — the card says it. */
+  onTranscript(
+    text: string,
+    capture: FeedbackCapture,
+    moments: ReportMoment[],
+    spokenMs: number,
+  ): void;
   onError(message: string): void;
 }) {
   const dock = h("div", "browse-voice");
@@ -115,6 +126,8 @@ export function createBrowseVoice(opts: {
   let takes: Array<{ offsetMs: number; text: string; segments: TimedText[] }> = [];
   /** Where the current take began on the walk's clock. */
   let takeOffsetMs = 0;
+  /** How long the walk lasted, set when the last take stops. */
+  let spokenMs = 0;
   /** The person pressed Done (or ✕); a stop without it is the cap. */
   let userStopped = false;
   /** The cap stopped the take: write it down and carry straight on. */
@@ -127,10 +140,10 @@ export function createBrowseVoice(opts: {
   const walkElapsed = () => Date.now() - startedAt;
   /** Note what is in view now; `marked` when the person tapped Mark, `tap`
    *  when they tapped something on the site. */
-  const sample = (marked = false, tap?: Moment["tap"]) => {
+  const sample = (marked = false, tap?: Moment["tap"], at = walkElapsed()) => {
     if (state !== "recording" && !continuing) return;
     moments = addMoment(moments, {
-      at: walkElapsed(),
+      at,
       label: inView(ours),
       page: location.pathname,
       scrollY: Math.round(scrollY),
@@ -199,6 +212,20 @@ export function createBrowseVoice(opts: {
     if (scrollTimer) clearTimeout(scrollTimer);
     scrollTimer = setTimeout(() => sample(), 700);
   };
+  // Another page, without a page load (the site's own links, back/forward):
+  // noted from the moment it happened. It used to wait for scrolling to
+  // settle, so the first words said on each new page were filed under the
+  // page before — every sentence one page early in the replay of the owner's
+  // walk through Petvity (2026-10-18). The look waits a beat for the new page
+  // to draw its heading; the clock is the moment the address changed.
+  let path = location.pathname;
+  let pathTimer: ReturnType<typeof setInterval> | null = null;
+  const watchPath = () => {
+    if (location.pathname === path) return;
+    path = location.pathname;
+    const at = walkElapsed();
+    setTimeout(() => sample(false, undefined, at), NEW_PAGE_SETTLE_MS);
+  };
   const beforeUnload = (event: BeforeUnloadEvent) => {
     if (state === "recording" || state === "transcribing") {
       event.preventDefault();
@@ -214,6 +241,9 @@ export function createBrowseVoice(opts: {
       if (hintTimer) clearTimeout(hintTimer);
       hintTimer = setTimeout(() => hint.remove(), 6000);
       window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+      path = location.pathname;
+      pathTimer = setInterval(watchPath, PATH_POLL_MS);
+      window.addEventListener("popstate", watchPath);
       document.addEventListener("click", onTap, true);
       window.addEventListener("beforeunload", beforeUnload);
       window.addEventListener("resize", queuePlacement);
@@ -222,6 +252,9 @@ export function createBrowseVoice(opts: {
       dock.remove();
       style.remove();
       window.removeEventListener("scroll", onScroll, true);
+      if (pathTimer) clearInterval(pathTimer);
+      pathTimer = null;
+      window.removeEventListener("popstate", watchPath);
       document.removeEventListener("click", onTap, true);
       window.removeEventListener("beforeunload", beforeUnload);
       window.removeEventListener("resize", queuePlacement);
@@ -246,7 +279,7 @@ export function createBrowseVoice(opts: {
       },
     };
     const note = alignNote(all.text, all.segments, moments);
-    opts.onTranscript(note, frozen, momentsForReport(all.text, all.segments, moments));
+    opts.onTranscript(note, frozen, momentsForReport(all.text, all.segments, moments), spokenMs);
     takes = [];
     takeOffsetMs = 0;
   };
@@ -274,6 +307,7 @@ export function createBrowseVoice(opts: {
       // the next take starts the moment the microphone is free again.
       if (next === "transcribing" && !userStopped && takes.length < MAX_TAKES - 1)
         continuing = true;
+      if (next === "transcribing" && !continuing) spokenMs = walkElapsed();
       if (next === "idle" && previous === "transcribing" && continuing) {
         void recorder.start();
         return;

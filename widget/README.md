@@ -14,8 +14,9 @@ round the whole screen say Loki is listening, and the site stays usable (the
 edge takes no taps). Scroll and tap and talk. Loki notes which part of the page is in view (its nearest
 heading), the text at the reading line, how far you have scrolled, and
 anything you tap on the site (the control's own label, never what you typed)
-— when you start, each time scrolling settles, each time you tap, and each
-time you tap **Mark** ("Marked “Pricing”"). No video: a page cannot film itself
+— when you start, the moment the site moves to another page, each time
+scrolling settles, each time you tap, and each time you tap **Mark**
+("Marked “Pricing”"). No video: a page cannot film itself
 on a phone without a permission prompt. Instead the structured moments travel
 with the note (`widget/moments-contract.ts`), and in Loki the owner taps "See
 what they saw" on any moment to have Loki open that very view and take the
@@ -33,10 +34,19 @@ comes back with each sentence under the part of the page that was in view
     On “Unterstützen” (marked):
     Is the shop open?
 
-The card is titled **What you said**, editable, and never sent by itself.
-**Ask** asks Loki about it in the conversation; visitors can **Save
-feedback** for whoever builds the site; the owner (and the project's editors)
-can **Fix it** or **Save**. The whole note is kept — the receipt quotes its start and folds
+The card first says what Loki heard — *Loki heard you · 0:43 across 4 pages*
+— and then Loki **reads** it the way a person would listen
+(`widget/walk-read.ts`, `POST /api/widget/understand`): the box leads with
+what was asked, as one editable instruction; what was said but not meant for
+Loki (to someone in the room, or narrating the clicks) is named under it as
+*Left out*; the words as spoken stay under **Word for word**, with **Use my
+exact words instead**. A question ("tell me what you think") leads with **Ask
+Loki**, answered about every page of the walk, not only the open one; a
+change leads with **Save** for the owner (then **Fix it now**) and **Save
+feedback** for a visitor. Nothing waits on the read: while it comes, and if it
+fails, the card is the words as spoken with the buttons as before, and words
+edited before it arrives are never replaced. Whatever is saved, the words as
+spoken travel with it in each moment's `said`. The card never sends by itself. The whole note is kept — the receipt quotes its start and folds
 the rest under *Show all you sent*.
 
 The original location stays attached even if you move before sending. Unsent
