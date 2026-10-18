@@ -221,6 +221,9 @@ export function ProjectWorkspaceView({
           {
             id: "now",
             label: "Overview",
+            // The member's ask box (MemberGuide), reached from the header and
+            // from Today / Control by /projects/<id>#ask.
+            anchors: ["ask"],
             count: healthSignals.length,
             urgent: healthSignals.length > 0,
             content: (
@@ -228,6 +231,7 @@ export function ProjectWorkspaceView({
                 {flagsBlock}
                 {dossier.readonly && dossier.viewerRole && dossier.viewerRole !== "owner" && (
                   <MemberGuide
+                    projectId={project.id}
                     role={dossier.viewerRole}
                     projectName={project.name}
                     ownerName={dossier.ownerName}

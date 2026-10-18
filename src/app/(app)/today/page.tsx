@@ -22,6 +22,8 @@ import { LayoutGrid, ChevronDown } from "lucide-react";
 import { requirePageUserId, getCurrentUserName } from "@/lib/session";
 import { getUserProjects, getOrgProjects } from "@/db/queries/user-projects";
 import { getProjects } from "@/db/queries/projects";
+import { listSharedProjects } from "@/db/queries/project-access";
+import { SharedProjectsCard } from "@/components/projects/SharedProjectsCard";
 import { hasProjectAttention, isSiteDown } from "@/lib/projects-page-stats";
 import { PROJECT_ATTR } from "@/config/project-attrs";
 import { signalIsLive } from "@/lib/project-signals";
@@ -84,7 +86,7 @@ async function loadTodayInputs() {
     step("getCurrentUserName", () => getCurrentUserName()),
     step("requirePageUserId", () => requirePageUserId()),
   ]);
-  const [projects, orgProjects, entityProjects, projectStates] = await Promise.all([
+  const [projects, orgProjects, entityProjects, projectStates, sharedProjects] = await Promise.all([
     step("getUserProjects", () => getUserProjects(userId)),
     step("getOrgProjects", () => getOrgProjects(userId)),
     // For the front-door verdict. Read through the SAME predicate the projects
@@ -96,6 +98,9 @@ async function loadTodayInputs() {
     // Control counted these and /today did not, so the front door said seven
     // things needed you while Control named a project in none of the seven.
     step("getProjectStates", () => getProjectStatesByUserId(userId).catch(() => [])),
+    // Projects someone else shared: a Builder who owns nothing was told "Add
+    // a project" here, though the one they were invited to was their way in.
+    step("listSharedProjects", () => listSharedProjects(userId).catch(() => [])),
   ]);
 
   const dirPaths = projects.map((p) => p.dirPath).filter((d): d is string => Boolean(d));
@@ -169,19 +174,36 @@ async function loadTodayInputs() {
   ]);
   const nightNote = night && isFreshNight(night.night) ? night.note : null;
 
-  return { name, userId, projects, orgProjects, flagged: needsYou, extras, nightNote };
+  return {
+    name,
+    userId,
+    projects,
+    orgProjects,
+    sharedProjects,
+    flagged: needsYou,
+    extras,
+    nightNote,
+  };
 }
 
 export default async function TodayPage() {
-  const { name, userId, projects, orgProjects, flagged, extras, nightNote } =
+  const { name, userId, projects, orgProjects, sharedProjects, flagged, extras, nightNote } =
     await loadTodayInputs();
   const isFirstRun = projects.length === 0 && orgProjects.length === 0;
+  // Owns nothing yet, but is on someone else's project: that project is the
+  // first thing to do, not "Add a project".
+  const onlyShared = isFirstRun && sharedProjects.length > 0;
   return (
     <PullToRefresh>
       <div className="app-page max-w-4xl space-y-6">
         <div>
           <Greeting name={name} />
-          {isFirstRun && (
+          {onlyShared && (
+            <div className="mt-4">
+              <SharedProjectsCard projects={sharedProjects} />
+            </div>
+          )}
+          {isFirstRun && !onlyShared && (
             <div className="ui-callout-accent mt-4">
               <LayoutGrid className="mt-0.5 h-5 w-5 shrink-0 text-accent-text" />
               <div className="min-w-0 flex-1">

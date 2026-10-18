@@ -103,9 +103,12 @@ export function roleGuide(
   names: { site: string | null; owner: string },
 ): { steps: string[]; then: string } {
   const site = names.site ?? "the site";
+  // Two doors, one outcome. Until 2026-10-18 the site was the only one, and
+  // the orange "Ask Loki" on the project opened a chat that told a Builder to
+  // edit HTML on a computer with the desktop app (walk as Manu).
   const steps = [
-    `Open ${site} and tap Feedback in the corner of the page.`,
-    "Say what should change — type it or speak it, and point at the spot if that helps.",
+    `Write it on this project's page in Loki, or open ${site} and tap Feedback in the corner.`,
+    "Say what should change — type it or speak it. On the site you can also point at the spot.",
   ];
   const then =
     role === "editor"
@@ -116,4 +119,50 @@ export function roleGuide(
 
 export function capabilitiesForRole(role: "owner" | ProjectRole): ProjectCapabilities {
   return role === "owner" ? OWNER_CAPABILITIES : MEMBER_CAPABILITIES[role];
+}
+
+/** Where a person on someone else's project asks for a change in Loki. */
+export function askPath(projectId: string): string {
+  return `/projects/${encodeURIComponent(projectId)}#ask`;
+}
+
+/**
+ * What the person is told once their ask is sent from Loki — the same promise
+ * the guide made, kept: a Builder's ask is being built, anyone else's is with
+ * the owner. A build that could not start says why, in the build's own words.
+ */
+export function askReply(
+  role: "owner" | ProjectRole,
+  outcome: { owner: string; site: string | null; building: boolean; buildNote?: string | null },
+): string {
+  if (!capabilitiesForRole(role).canEdit)
+    return `Sent to ${outcome.owner}. They decide, and you are told when it ships.`;
+  if (outcome.building) {
+    const where = outcome.site ? ` on ${outcome.site}` : "";
+    return role === "owner"
+      ? `Loki is building it now. You will see it${where} when it is live.`
+      : `Loki is building it now. You will see it${where} when it is live, and ${outcome.owner} is told.`;
+  }
+  return (
+    outcome.buildNote?.trim() ||
+    "Saved, but it could not start yet. It waits in Loki under Feedback."
+  );
+}
+
+/**
+ * One line per shared project for Loki's chat, so "make the heading bigger"
+ * from a Builder who owns nothing is answered with where to ask — never with
+ * "install the desktop app", which is what it said before (2026-10-18).
+ */
+export function sharedProjectLine(
+  p: { name: string; role: ProjectRole; ownerName: string | null; liveUrl: string | null },
+  askUrl: string,
+): string {
+  const owner = p.ownerName?.trim() || "its owner";
+  const label = ROLE_LABELS[p.role].label;
+  const site = p.liveUrl ? ` or with Feedback on ${p.liveUrl}` : "";
+  const then = capabilitiesForRole(p.role).canEdit
+    ? `Loki builds it on ${owner}'s builder at once — nothing to install, no code`
+    : `${owner} decides`;
+  return `${p.name} — shared by ${owner}, you are its ${label}. To change it: write it at ${askUrl}${site}. ${then}.`;
 }

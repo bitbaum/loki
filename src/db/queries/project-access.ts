@@ -65,6 +65,45 @@ export async function getProjectAccess(
   };
 }
 
+/**
+ * The projects someone else shared with this person, with what Loki needs to
+ * tell them how to change each one: who owns it, as what they were added,
+ * and where it lives. Today, Control and the chat read it, so a Builder who
+ * owns nothing is never told to "add a project" or install anything — the
+ * project they were invited to IS their way in (walk as Manu, 2026-10-18).
+ */
+export async function listSharedProjects(userId: string): Promise<SharedProject[]> {
+  return db
+    .select({
+      projectId: entities.id,
+      name: entities.name,
+      role: projectMemberships.role,
+      ownerName: users.name,
+      liveUrl: userProjects.liveUrl,
+    })
+    .from(projectMemberships)
+    .innerJoin(entities, eq(entities.id, projectMemberships.projectId))
+    .innerJoin(users, eq(users.id, entities.userId))
+    .innerJoin(
+      userProjects,
+      and(
+        eq(userProjects.entityProjectId, entities.id),
+        eq(userProjects.userId, entities.userId),
+        eq(userProjects.isActive, true),
+      ),
+    )
+    .where(eq(projectMemberships.userId, userId))
+    .orderBy(entities.name);
+}
+
+export type SharedProject = {
+  projectId: string;
+  name: string;
+  role: ProjectRole;
+  ownerName: string | null;
+  liveUrl: string | null;
+};
+
 export async function listProjectMembers(projectId: string) {
   return db
     .select({

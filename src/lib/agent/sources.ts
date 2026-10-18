@@ -11,6 +11,9 @@
 import { fetchOpenDemand, searchEconomy } from "@/lib/integrations/orangecat-demand";
 import { searchPeople, type PersonWithAttributes } from "@/db/queries/people";
 import { getUserProjects } from "@/db/queries/user-projects";
+import { listSharedProjects } from "@/db/queries/project-access";
+import { askPath, sharedProjectLine } from "@/lib/project-capabilities";
+import { APP_URL } from "@/config/brand";
 import { getPendingActions } from "@/db/queries/actions";
 import { searchKnowledge, type KnowledgeHit } from "@/db/queries/knowledge-embeddings";
 import { loadFleetMap } from "@/lib/register/load-map";
@@ -152,21 +155,46 @@ export async function projectFacts(userId: string, message = ""): Promise<Fact[]
   // Rank BEFORE slicing. Slicing first is what dropped the one project the
   // operator asked about.
   const projects = rankProjectsByMessage(all, message);
-  return projects.slice(0, PROJECT_LIMIT).map((p) =>
+  const shared = await sharedProjectFacts(userId);
+  return [
+    ...shared,
+    ...projects.slice(0, PROJECT_LIMIT).map((p) =>
+      makeFact({
+        kind: "project",
+        subject: p.name,
+        source: "projects table",
+        values: {
+          name: p.name,
+          // There is no free-text status column — `is_active` is the only stored
+          // signal, so that is exactly what the model is told. Anything richer
+          // ("blocked", "shipping") would be a value nobody entered.
+          status: p.isActive ? "active" : "inactive",
+          stack: p.stack,
+          description: cleanDescription(p.description),
+          latest_dev_log: latestDevLog(p),
+          repo: p.gitUrl,
+        },
+      }),
+    ),
+  ];
+}
+
+/**
+ * Projects someone else shared with this person, each with where they ask
+ * for a change. The chat runs in THEIR account, which has no builder for
+ * these, and without this a Builder asking "make the heading bigger" was told
+ * to edit HTML and install the desktop app (walk as Manu, 2026-10-18).
+ */
+export async function sharedProjectFacts(userId: string): Promise<Fact[]> {
+  const shared = await listSharedProjects(userId).catch(() => []);
+  return shared.map((p) =>
     makeFact({
-      kind: "project",
+      kind: "shared_project",
       subject: p.name,
-      source: "projects table",
+      source: "project_memberships",
       values: {
         name: p.name,
-        // There is no free-text status column — `is_active` is the only stored
-        // signal, so that is exactly what the model is told. Anything richer
-        // ("blocked", "shipping") would be a value nobody entered.
-        status: p.isActive ? "active" : "inactive",
-        stack: p.stack,
-        description: cleanDescription(p.description),
-        latest_dev_log: latestDevLog(p),
-        repo: p.gitUrl,
+        how_to_change_it: sharedProjectLine(p, `${APP_URL}${askPath(p.projectId)}`),
       },
     }),
   );
