@@ -142,4 +142,13 @@ assert.match(
 );
 assert.match(readFileSync("widget/watch.ts", "utf8"), /onceSiteWide\(checks, said\)/);
 
+// The read is one call per note, read before anything is built: the strong
+// model, with instructions that say what "these things" must become.
+const route = readFileSync("src/app/api/widget/understand/route.ts", "utf8");
+assert.match(route, /model: GROQ_STRONG_MODEL/);
+assert.match(
+  readFileSync("src/lib/feedback/walk-read-prompt.ts", "utf8"),
+  /Replace this \/ here \/ these things with the pages and parts they refer to/,
+);
+
 console.log("widget-walk-read: ok");

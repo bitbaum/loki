@@ -9,7 +9,7 @@ import {
 import { getWidgetProjectBrief, getWidgetTokenByToken } from "@/db/queries/widget-tokens";
 import { WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
-import { callTextDetailed } from "@/lib/groq";
+import { callTextDetailed, GROQ_STRONG_MODEL } from "@/lib/groq";
 import { stripReasoning } from "@/lib/agent/llm";
 import { checkAiBudget, recordAiSpend } from "@/lib/ai-budget/gate";
 import { parseWalkRead, WALK_READ_SYSTEM, walkReadPrompt } from "@/lib/feedback/walk-read-prompt";
@@ -102,7 +102,12 @@ export async function POST(req: NextRequest) {
       {
         feature: "widget-understand",
         systemPrompt: WALK_READ_SYSTEM,
-        maxTokens: 700,
+        // One call per spoken note, read by the person before anything is
+        // built: the fast model copied "look at all these things" back
+        // verbatim and missed the asides on the owner's own walk (2026-10-18).
+        model: GROQ_STRONG_MODEL,
+        reasoningEffort: "medium",
+        maxTokens: 2000,
         temperature: 0.1,
         timeoutMs: HTTP_TIMEOUT_LONG_MS,
       },
