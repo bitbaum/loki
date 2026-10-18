@@ -14,6 +14,15 @@ export const PREVIEW_BUILD_RULES = [
   "No build step and no frameworks unless the site truly needs one. Fonts may load from Google Fonts; everything else ships in the folder.",
   "Give the site its own identity drawn from their world: their colours, their imagery, their vocabulary. Do not reuse another preview's look.",
   "Images: every <img> has width and height attributes AND CSS `height:auto` (or an explicit aspect-ratio box) so it can never stretch. Prefer a photo of the person or place over decoration.",
+  // The rules above made previews correct; these make them good. Center SOM's
+  // preview passed every one of them and the owner still called it cramped and
+  // not beautiful: text ran to the screen's edge and the headline was a
+  // five-line search-engine title (2026-10-18).
+  "Design to a standard, not just to correctness — the owner judges it on a phone in seconds. Every section has a page gutter: nothing touches the screen edge (at least 20px each side on a phone; on wide screens content sits in a centred column, and running text is never wider than about 65 characters).",
+  "Type: body text at least 17px on phones with line-height about 1.6; at most two typefaces and four or five sizes. A headline is a few words (eight at most) that a visitor reads at a glance, never a search-engine title — keyword-rich wording belongs in <title> and the meta description, the detail in the paragraph under the headline.",
+  "Space: one spacing scale (multiples of 8px) used everywhere; generous room between sections (at least 64px on a phone) and clear room between a heading, its text and its buttons. One primary button per screen; secondary actions look secondary. Their brand colour is the accent, not the background of everything.",
+  "Photos are large, sharp and cropped to consistent shapes (object-fit: cover); a section with nothing to show is shorter, not padded with decoration.",
+  "Look before you say it is done. Take a screenshot of every page you built at 390 and at 1440 pixels wide with the headless Chromium on this machine (find it with `ls -d ~/.cache/ms-playwright/chromium-*/chrome-linux*/chrome | tail -1`, then run it with `--headless=new --hide-scrollbars --window-size=390,2400 --screenshot=/tmp/look.png file://<page>`), open each picture and judge it against the rules above as the owner would. Fix what is cramped, crowded, plain or misaligned, then look again. A page you have not looked at is not finished.",
   "Phones first. Check the page at 320, 390, 768 and 1440 pixels wide: no sideways scrolling, every tap target at least 44px, no text cut off, no grid with an empty or orphaned last cell.",
   "Every link works: outbound links open the real profile; in-page anchors land under any sticky header.",
   "Do not add a feedback button or any Loki script: Loki adds its widget to every page itself when it serves the preview.",

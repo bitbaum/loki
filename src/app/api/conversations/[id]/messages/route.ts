@@ -55,6 +55,7 @@ import {
   renderTextAttachments,
   type Attachment,
 } from "@/lib/loki/attachments";
+import { stageForAgent } from "@/lib/composer-attachments";
 import { describeAttachedImages } from "@/lib/loki/vision";
 import { dispatchAssistantContent } from "@/lib/dispatch-status";
 import { isBuilderChannel } from "@/lib/constants/statuses";
@@ -166,6 +167,13 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
     opts.projectKey,
     opts.existing.messages,
   );
+  // A screenshot reaches the agent AS AN IMAGE (it opens the file and sees the
+  // pixels), the same way the session box sends one. The vision model's
+  // description stays for the chat's own use — choosing the project, answering
+  // in the thread — but the agent no longer builds from a paraphrase of a
+  // picture: "the text is cramped" did not survive that hand-off (2026-10-18).
+  const staged = stageForAgent(taskPrompt, opts.attachments ?? []);
+  const agentTask = staged.images.length ? staged.prompt : taskPrompt + opts.attachmentSuffix;
   const useIntentKey =
     taskPrompt === opts.prompt &&
     Boolean(opts.intentId) &&
@@ -187,7 +195,8 @@ async function persistDispatch(opts: DispatchOpts): Promise<ConversationMessage>
         }
       : {
           tab: opts.projectKey,
-          customPrompt: taskPrompt + opts.attachmentSuffix,
+          customPrompt: agentTask,
+          ...(staged.images.length ? { attachments: staged.images } : {}),
           adapter: opts.agent,
           notifyOnClose: true,
           conversationId: opts.conversationId,

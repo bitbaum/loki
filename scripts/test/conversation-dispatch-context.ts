@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 import { conversationDispatchPrompt } from "../../src/lib/loki/dispatch-context";
+import { stageForAgent } from "../../src/lib/composer-attachments";
 async function main() {
   const history = [
     { role: "user", content: "Review the current homepage" },
@@ -59,6 +60,7 @@ async function main() {
   let sent: Record<string, unknown> | null = null;
   const bindings = {
     conversationDispatchPrompt,
+    stageForAgent,
     isGenericDevelopHandoff: () => false,
     injectPrompt: async (input: Record<string, unknown>) => {
       sent = input;
@@ -85,6 +87,28 @@ async function main() {
   assert.equal(sent!.tab, "petvity");
   assert(String(sent!.customPrompt).includes("duplicate start buttons"));
   assert(String(sent!.customPrompt).endsWith("Attachment note"));
+  assert.equal(sent!.attachments, undefined, "no screenshot, nothing staged");
+
+  // A screenshot travels to the agent as the image itself; the vision model's
+  // paraphrase (the attachment note) is not what the agent builds from.
+  const png =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+  await persist({
+    userId: "owner",
+    conversationId: "conversation",
+    existing: { conversation: { projectKeys: ["petvity"] }, messages: [] },
+    projectKey: "petvity",
+    prompt: "Fix: the text touches the screen edge",
+    sourceText: "Fix: the text touches the screen edge",
+    intentId: null,
+    attachmentSuffix: "\nA vision model's paraphrase",
+    attachments: [{ kind: "image", name: "phone.png", mimeType: "image/png", dataBase64: png }],
+  });
+  const images = sent!.attachments as { id: string; dataBase64: string }[];
+  assert.equal(images.length, 1, "the screenshot is forwarded");
+  assert.equal(images[0].dataBase64, png);
+  assert(String(sent!.customPrompt).includes(`{{loki-attachment:${images[0].id}}}`));
+  assert(!String(sent!.customPrompt).includes("paraphrase"));
   console.log(
     "✓ referenced project proposals survive the real chat-to-agent handoff without assuming built work or copying another project's context",
   );
