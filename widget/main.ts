@@ -349,7 +349,7 @@ interface LokiApi {
       pass: () => ownerPass,
       onLive: (c) => {
         const links = c.href ? [{ label: c.action ?? "See it", url: c.href }] : [];
-        conversation.say(`“${c.text}” is live on this site.`, links);
+        conversation.say(`Done — “${c.text}” is live on this site.`, links);
         if (panel.isConnected) return;
         unread++;
         syncWatch();

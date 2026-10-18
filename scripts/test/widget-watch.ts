@@ -243,7 +243,7 @@ check(() => {
   const c = explainChecks(["2 image(s) have no alt text", "The page has no main heading (h1)"])!;
   assert.match(
     c.say,
-    /2 things stand out:\n• 2 image\(s\) have no alt text\n• The page has no main heading/,
+    /2 things stand out:\n• 2 pictures have no description[^\n]*\n• The page has no main title/,
   );
   assert.match(c.fix, /^Fix these on this page:\n• 2 image/);
   assert.equal(

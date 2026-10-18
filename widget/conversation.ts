@@ -146,11 +146,8 @@ export function createConversation(opts: {
   const input = h("textarea", "chatinput");
   input.rows = 2;
   input.maxLength = MAX_LEN;
-  // Two ways to say it, side by side: straight to the builder as feedback, or
-  // ask Loki first. Neither is hidden behind the other.
-  const sendBtn = h("button", "go");
-  sendBtn.type = "button";
-  sendBtn.disabled = true;
+  // Two ways to say it, side by side (Fix it / Ask): neither hides the other.
+  const sendBtn = Object.assign(h("button", "go"), { type: "button", disabled: true });
   sendBtn.addEventListener("click", () => submit());
   const feedbackBtn = h("button", "ghost feedback");
   feedbackBtn.type = "button";
@@ -286,6 +283,7 @@ export function createConversation(opts: {
           greetingFor({ assistant: a, owner: owner(), watching: opts.watch()?.on() ?? false }),
         ),
       );
+      if (talkBtn && !thread.some(saidSomething)) log.appendChild(talkHero(opts.talk!));
       if (!owner()) log.appendChild(ownerDoor(opts.apiBase, opts.token));
     }
     const lastYou = thread.map((i) => i.kind).lastIndexOf("you");
@@ -712,6 +710,30 @@ function composerMic(o: {
     onError: o.onError,
   });
   return { voice, talk: null, button: voice?.button ?? null };
+}
+
+/** The person has said or sent something — no more invitation to start. */
+const saidSomething = (i: { kind: string }) => i.kind === "you" || i.kind === "sent";
+
+/**
+ * The way in before anything is said: one big, friendly button. Typing is
+ * there too, but talking while you scroll is the quickest way to say what
+ * you would change — and the one people did not find as a small mic among
+ * the composer's tools (owner, 2026-10-18: "easy, pleasant, exciting").
+ */
+function talkHero(talk: () => void): HTMLButtonElement {
+  const b = h("button", "talk-hero");
+  b.type = "button";
+  const mic = h("span", "talk-hero-mic");
+  mic.append(micIcon());
+  const words = h("span", "talk-hero-words");
+  words.append(
+    h("span", "talk-hero-title", "Talk to Loki"),
+    h("span", "talk-hero-sub", "Scroll around and say what you'd change. Loki writes it down."),
+  );
+  b.append(mic, words);
+  b.addEventListener("click", talk);
+  return b;
 }
 
 /** The composer's microphone when talking hands over to the page: it closes

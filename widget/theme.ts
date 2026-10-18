@@ -396,6 +396,15 @@ ${spiralCSS(theme)}
 .composer-actions .mic, .composer-actions .attach { height: 32px; min-width: 32px; padding: 0 8px; justify-content: center; border-color: transparent; }
 .composer-actions .mic:not(.rec):not(.busy):not(.talk) span:last-child { display: none; }
 .composer-actions .mic.talk { gap: 6px; color: ${theme.text}; }
+.talk-hero { display: flex; align-items: center; gap: 14px; width: 100%; margin: 4px 0 12px; padding: 14px 16px; text-align: left; border: 1px solid ${theme.borderDark}; border-radius: ${rs}; background: ${theme.surfaceRaised}; color: ${theme.text}; transition: border-color .15s ease, transform .15s ease; }
+.talk-hero:hover, .talk-hero:focus-visible { border-color: ${theme.text}; transform: translateY(-1px); }
+.talk-hero-mic { flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: ${theme.text}; color: ${theme.surface}; box-shadow: 0 0 0 0 ${theme.error}; animation: talkinvite 2.4s ease-out 3; }
+.talk-hero-mic svg { width: 22px; height: 22px; }
+.talk-hero-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.talk-hero-title { font-size: 15px; font-weight: 600; }
+.talk-hero-sub { font-size: 12px; line-height: 1.4; color: ${theme.textSecondary}; }
+@keyframes talkinvite { 0% { box-shadow: 0 0 0 0 ${theme.borderDark}; } 70% { box-shadow: 0 0 0 10px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .talk-hero-mic { animation: none; } .talk-hero:hover { transform: none; } }
 .mic.talk svg { width: 18px; height: 18px; }
 .composer-actions .attach span:last-child { display: none; }
 .composer-actions .attach.has span:last-child { display: inline; }
