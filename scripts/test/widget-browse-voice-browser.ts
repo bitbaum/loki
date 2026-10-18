@@ -86,7 +86,8 @@ async function main() {
             owner,
             savedOnly: true,
             building: false,
-            buildNote: "Saved for review. No fix has been started.",
+            buildNote:
+              "It waits with your other saved notes — build them all from the Watching line on your site, or in Loki.",
             ...(owner
               ? { followUrl: "http://host.fixture/projects/project#feedback" }
               : { claimUrl: "http://host.fixture/claim-feedback?token=claim" }),
@@ -194,8 +195,13 @@ async function main() {
         .click();
       await page.getByText("What you said", { exact: true }).waitFor();
       assert.equal(
-        await page.getByRole("button", { name: "Fix it", exact: true }).count(),
+        await page.getByRole("button", { name: "Fix it now", exact: true }).count(),
         owner ? 1 : 0,
+      );
+      // Record now, build later: the owner's card leads with Save, a visitor's with Ask.
+      assert.equal(
+        (await host.locator(".sendcard-actions button").first().innerText()).trim(),
+        owner ? "Save" : "Ask",
       );
       await page.reload();
       await page.waitForFunction(
@@ -223,7 +229,7 @@ async function main() {
         () =>
           document
             .querySelector("#loki-feedback-host")
-            ?.shadowRoot?.textContent?.includes("Saved for review") ||
+            ?.shadowRoot?.textContent?.includes("It waits with your other saved notes") ||
           document
             .querySelector("#loki-feedback-host")
             ?.shadowRoot?.textContent?.includes("Thank you."),

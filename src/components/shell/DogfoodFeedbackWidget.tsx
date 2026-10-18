@@ -25,8 +25,10 @@ export function DogfoodFeedbackWidget({ token }: { token: string }) {
     script.src = "/widget.js";
     script.async = true;
     script.setAttribute("data-fc-project", token);
-    // Loki's own widget draws its chat with chatkit first (widget/chat/).
-    script.setAttribute("data-fc-chat", "kit");
+    // The same panel every customer site gets — not the chatkit view
+    // (data-fc-chat="kit"): Loki's own site drew a different-looking widget
+    // from every other site, and the owner read them as two products
+    // (2026-10-18). Testing it here means testing what customers run.
     script.setAttribute(
       "data-fc-theme",
       document.documentElement.classList.contains("dark") ? "dark" : "light",

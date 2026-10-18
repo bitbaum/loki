@@ -157,7 +157,8 @@ check(() => {
     /could not start: no repo/,
   );
   assert.match(receiptText({ ...base, owner: false, toLoki: true }), /people who build Loki/);
-  assert.match(receiptText({ ...base, owner: true, building: true }), /Your changes above/);
+  assert.match(receiptText({ ...base, owner: true, building: true }), /Watching line above/);
+  assert.match(receiptText({ ...base, owner: true }), /build them all/);
   assert.match(receiptText({ ...base, owner: false }), /whoever builds this site/);
   assert.equal(
     receiptLinkLabel({ ...base, owner: false, toLoki: true, building: true }),

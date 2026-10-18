@@ -128,7 +128,7 @@ export function ClaudeChatView({
   }, [items, following]);
 
   return (
-    <div className="ui-claude-chat" data-fc-place="hidden">
+    <div className="ui-claude-chat" data-fc-place="tab">
       <div ref={scrollRef} className="ui-loki-thread" onScroll={onScroll}>
         <div className="ui-loki-thread-inner ui-claude-chat-inner">
           {!received || items.length === 0 ? (

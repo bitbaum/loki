@@ -37,6 +37,11 @@ import { isWidgetOriginAllowed } from "@/lib/widget/origin";
  * is enforced server-side against the Origin header instead.
  */
 
+/** What the owner hears when a note is saved, not built: where it waits and
+ *  how to start it — with their other saved notes, in one tap (2026-10-18). */
+const SAVED_NOTE_SAY =
+  "It waits with your other saved notes — build them all from the Watching line on your site, or in Loki.";
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -207,7 +212,7 @@ export async function POST(req: NextRequest) {
           owner: true,
           savedOnly: true,
           duplicateOf: bumped,
-          buildNote: "Saved for review. No fix has been started.",
+          buildNote: SAVED_NOTE_SAY,
           followUrl: `${appUrl()}/projects/${token.projectId}#feedback`,
         },
         { headers: CORS_HEADERS },
@@ -269,7 +274,7 @@ export async function POST(req: NextRequest) {
         ok: true,
         owner: true,
         savedOnly: true,
-        buildNote: "Saved for review. No fix has been started.",
+        buildNote: SAVED_NOTE_SAY,
         followUrl: `${appUrl()}/projects/${token.projectId}#feedback`,
       },
       { headers: CORS_HEADERS },

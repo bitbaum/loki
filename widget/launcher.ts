@@ -400,6 +400,7 @@ export function createLauncher(opts: {
     if (start === "tab") return placeTab(cornerEdges(base.corner).x, scanner);
     const from: Slot = { ...base, corner: start.corner };
     const slots = slotOrder(from, { ...geometry, lockSide: locked || start.yielded });
+    const nearTop = nearBandTop(from, geometry);
     const pick = chooseSlot(
       slots,
       (slot) => {
@@ -418,11 +419,15 @@ export function createLauncher(opts: {
         // Visitors retain the quieter launcher's existing placement policy.
         return owner && verdict !== "free" ? "blocked" : verdict;
       },
-      nearBandTop(from, geometry),
+      nearTop,
     );
-    // Yielded to the other corner, it must be a real corner: covering that
-    // side's controls or layers is worse than the tab beside the host's button.
-    if (!pick || (start.yielded && pick.verdict !== "free" && pick.verdict !== "text")) {
+    // The owner's status, and a launcher that yielded its corner, belong IN a
+    // corner — clear, and near the bottom. Climbing an edge to the middle or
+    // the top of the screen (Heidi at 390px, 2026-10-18) read as a different
+    // widget on every site; the tab, which says the same state, does not.
+    const inCorner =
+      pick && (pick.verdict === "free" || pick.verdict === "text") && pick.slot.offsetY <= nearTop;
+    if (!pick || ((owner || start.yielded) && !inCorner)) {
       // Keep Loki reachable without forcing the full owner pill onto content.
       placeTab(cornerEdges(base.corner).x, scanner);
       return;

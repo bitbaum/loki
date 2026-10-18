@@ -109,14 +109,14 @@ async function main() {
       assert.equal(fresh.overflow, false);
       assert.equal(resolvePlaceDirective(fresh.places), "tab");
       await mount("?c=00000000-0000-4000-8000-000000000001");
-      await page.locator('[data-fc-place="hidden"]').waitFor();
+      await page.locator(".ui-loki-workspace").waitFor();
       const places = await page
         .locator("[data-fc-place]")
         .evaluateAll((nodes) => nodes.map((e) => e.getAttribute("data-fc-place")));
       assert.equal(
         resolvePlaceDirective(places),
-        "hidden",
-        "the app conversation suppresses its duplicate embedded launcher",
+        "tab",
+        "the app conversation keeps the launcher, as the slim edge tab — never hidden",
       );
       await page.getByRole("button", { name: "Conversation menu" }).click();
       await page.getByRole("menuitem", { name: "Report a problem" }).click();

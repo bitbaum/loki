@@ -64,6 +64,7 @@ const GUARDS = [
   // above. They are here because the rule is that a route must NAME its
   // mechanism, and a route that delegates names the delegate.
   "entityAttrHandlers", // → requirePrivateApiAccess, in src/lib/api/entity-attrs.ts
+  "ownerRequest", // → getWidgetTokenByToken + origin allowlist + owner pass, in src/lib/widget/owner-request.ts
 ] as const;
 
 /**

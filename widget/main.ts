@@ -367,6 +367,7 @@ interface LokiApi {
         if (panel.isConnected) conversation.refresh();
       },
       onRender: () => thoughts.repaint(),
+      onSay: (text) => conversation.say(text),
     });
     // The owner's one status line under the header: watching, and where
     // their changes are (thoughts-view.ts).
