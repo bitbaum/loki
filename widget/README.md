@@ -8,15 +8,15 @@ where the launcher goes, and how to hide it.
 
 ## Voice notes while browsing
 
-Open Loki and tap **Talk to Loki** — the bar above the message box and the
-panel's one microphone. The
+Open Loki and tap **Talk** in the composer — the panel's one microphone. The
 panel closes; one dock — *● Recording 0:12 · Mark · Done · ✕* — and a red edge
 round the whole screen say Loki is listening, and the site stays usable (the
 edge takes no taps). Scroll and tap and talk. Loki notes which part of the page is in view (its nearest
 heading), the text at the reading line, how far you have scrolled, and
 anything you tap on the site (the control's own label, never what you typed)
-— when you start, each time scrolling settles, each time you tap, and each
-time you tap **Mark** ("Marked “Pricing”"). No video: a page cannot film itself
+— when you start, the moment the site moves to another page, each time
+scrolling settles, each time you tap, and each time you tap **Mark**
+("Marked “Pricing”"). No video: a page cannot film itself
 on a phone without a permission prompt. Instead the structured moments travel
 with the note (`widget/moments-contract.ts`), and in Loki the owner taps "See
 what they saw" on any moment to have Loki open that very view and take the
@@ -34,14 +34,19 @@ comes back with each sentence under the part of the page that was in view
     On “Unterstützen” (marked):
     Is the shop open?
 
-The card reads it back: **Here's what I heard — 3 things, on 2 pages**, one
-line per part of the page (bold *page · part*, then what was said), with
-**🔊 Read it back** (the browser speaks the list) and **Edit** (opens the note's
-text; a note with no parts is shown as text straight away). It is never sent
-by itself (`widget/read-back.ts`).
-**Ask** asks Loki about it in the conversation; visitors can **Save
-feedback** for whoever builds the site; the owner (and the project's editors)
-can **Fix it** or **Save**. The whole note is kept — the receipt quotes its start and folds
+The card first says what Loki heard — *Loki heard you · 0:43 across 4 pages*
+— and then Loki **reads** it the way a person would listen
+(`widget/walk-read.ts`, `POST /api/widget/understand`): the box leads with
+what was asked, as one editable instruction; what was said but not meant for
+Loki (to someone in the room, or narrating the clicks) is named under it as
+*Left out*; the words as spoken stay under **Word for word**, with **Use my
+exact words instead**. A question ("tell me what you think") leads with **Ask
+Loki**, answered about every page of the walk, not only the open one; a
+change leads with **Save** for the owner (then **Fix it now**) and **Save
+feedback** for a visitor. Nothing waits on the read: while it comes, and if it
+fails, the card is the words as spoken with the buttons as before, and words
+edited before it arrives are never replaced. Whatever is saved, the words as
+spoken travel with it in each moment's `said`. The card never sends by itself. The whole note is kept — the receipt quotes its start and folds
 the rest under *Show all you sent*.
 
 The original location stays attached even if you move before sending. Unsent
@@ -91,23 +96,28 @@ same design tokens as the app. Embedded sites can set `data-fc-theme="light"`
 or `"dark"`; otherwise the browser appearance is followed. Loki's own embed
 passes the active app theme directly.
 
-**Few controls, each said once.** The owner's header IS the status: *● Watching* over
-*2 to look at · 4 live* (tap it to open what Loki noted and where each change
-is), **Pause** and ✕ — no second logo, no page line (the owner's spiral sits in
-the status dot's place and turns while Loki thinks). Then the conversation, one
-**Talk to Loki** bar, and a one-line message box that grows its tools
-(*screenshots · Fix it · Ask*) only once it is used. It was two status rows,
-two microphones and a footer before a word was said (owner, 2026-10-17: "too
-intimidating"), then two Talk buttons and two logos (2026-10-18). Opening the
-panel on a phone does not focus the box, so the keyboard stays down until
-asked for. *Continue in Loki* appears once there is something to take.
+**Few controls, each said once.** The owner's panel starts with ONE line — *●
+Watching · 11 changes need you › Pause ✕* — which is the header: it opens what
+Loki noted and where each change is. Then the conversation, and the composer
+(*Talk · screenshots · Fix it · Ask*). The line carries one number of one named
+thing: what needs the owner, else saved notes, being built, … else live, else
+what Loki noticed on the page. It was two status rows, two microphones and a
+footer before a word was said (owner, 2026-10-17: "too intimidating"), and then
+a brand row, the page name and "Watching · 4 to look at · 11 needs you" — three
+rows and two unnamed numbers (2026-10-18). A visitor's panel keeps the brand
+row and the page name: there they say whose this is and what it is about.
+*Continue in Loki* appears once there is something to take.
+
+**Typing on a phone is one state, however the keyboard is drawn.** A focused
+text box in the sheet makes it fill what is visible and step the extras aside
+(`widget/sheet.ts`). Keyboard insets alone missed every page that shrinks for
+the keyboard (`interactive-widget=resizes-content`, Loki's own): the sheet kept
+68% of a viewport already halved and the thread was a one-pixel sliver.
 
 **Record now, build later.** While Loki watches, **Talk**, scroll, **Done**: the
 owner's note card leads with **Save** (then *Fix it now*, *Ask*). Saved notes
 collect on the status line — *Watching · 3 notes saved ›* — and one tap,
-**Build all 3 saved notes**, starts them as one build per page, in the order
-they were said — a page's notes are fixed together, in one pass that sees
-them all (`groupNotesByPage`; a lone note builds on its own)
+**Build all 3 saved notes**, starts each as its own build, oldest first
 (`POST /api/widget/owner/build`, `src/lib/feedback/saved-notes.ts`; same owner
 check as Your changes, `src/lib/widget/owner-request.ts`).
 
@@ -117,7 +127,10 @@ panel (Loki's own embed used the chatkit view and read as a different product,
 corner pill, or the edge tab with the same live dot. The owner's pill sits in a
 bottom corner or becomes the tab; it never climbs to the middle or top of the
 screen. No page hides it except an open dialog and a sign-in wall
-(`scripts/test/feedback-widget-reach.ts` fails on any other).
+(`scripts/test/feedback-widget-reach.ts` fails on any other). On a phone, Loki's
+own app asks for the tab on every page (its bottom bar carries
+`data-fc-place="tab"`): the pill floated over Control's cards above that bar. An
+open dialog still wins over a later region's tab (`resolvePlaceDirective`).
 
 **Watch is the owner's, and it speaks.** While it watches, Loki says what it
 noticed — in the conversation, in plain words, naming the tap that led there,
@@ -151,12 +164,6 @@ Rules that resolve the trade-offs:
   painted), and every rule has a browser test that would fail if it cried wolf.
 - **Speaking up costs nothing.** Remarks are written by rules, once per visit;
   a model runs only when asked (*Why*, *Review*, *Ask Loki*).
-- **The bundle is ASCII.** The widget runs on pages that may not declare an
-  encoding. esbuild escapes non-ASCII characters in strings but keeps them raw
-  inside regex literals, where the browser can read them as other characters
-  and nothing matches — so the read-back list once came out empty. Write
-  `—`, not `—`, in a regex. `scripts/test/widget-ascii-bundle.ts` fails on
-  any non-ASCII byte in the built bundle.
 - **Never move what someone is reaching for.** New messages follow only when
   you were already at the bottom; reading further up, your place is kept.
 - **Send is always reachable.** Only the thread scrolls; the composer never

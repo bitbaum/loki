@@ -31,11 +31,14 @@ export function MobileNav() {
 
   return (
     <>
-      {/* No data-fc-place here. This bar used to carry "hidden", which took the
-          feedback launcher off EVERY app page on a phone, since the bar is on
-          all of them. The launcher's avoid pass already treats these links as
-          controls and climbs above the bar (widget/launcher.ts). */}
-      <nav className="ui-mobile-nav" aria-label="Primary">
+      {/* data-fc-place="tab": on a phone the launcher is the slim edge tab on
+          every app page, never "hidden". This bar once carried "hidden", which
+          took the launcher off every page; then nothing, and the owner's wide
+          "Watching" pill floated over Control's cards above it (owner,
+          2026-10-18: "why is it so crowded?"). The tab carries the same live
+          dot. The bar is display:none from md up, so desktop keeps its corner
+          button; an open dialog still wins (widget/placement.ts). */}
+      <nav className="ui-mobile-nav" aria-label="Primary" data-fc-place="tab">
         {MOBILE_NAV_ITEMS.map((item) => {
           const isActive = isCurrentPath(pathname, item.href);
           const Icon = item.icon;

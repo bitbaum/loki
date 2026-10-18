@@ -247,7 +247,7 @@ ${spiralCSS(theme)}
   .fab.owner .fab-icon { display: none; }
   .fab.owner.scrolling { opacity: .3; pointer-events: none; }
 }
-@media (prefers-reduced-motion: reduce) { .fab.watching::before, .thoughts-row.watching .thoughts-sum::before { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .fab.watching::before { animation: none; } }
 
 /* The edge tab: the launcher's second shape (launcher.ts, placeTab). A slim
    handle flush against the side edge for pages whose corners are busy — the
@@ -310,7 +310,7 @@ ${spiralCSS(theme)}
   /* Keyboard up (sheet.ts keyboardInset): the panel stands on the keyboard
      and fits what is visible, so the starters and the way into Loki step
      aside and the thread keeps the room. They return when the keyboard goes. */
-  .panel.kb .starters, .panel.kb .continue { display: none; }
+  .panel.kb .starters, .panel.kb .continue, .panel.kb .ctxbar { display: none; } /* + "This page / Point to area": 40px the thread needs while the keyboard is up */
   .convo > .starters, .fc-kit .ck-replies { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .convo > .starters > .starter, .fc-kit .ck-reply { flex: none; white-space: nowrap; } .made-with .mw-more { display: none; } /* one row to swipe; "Made with Loki →" — specific enough to beat the base rules below */
   .panel.kb { padding-bottom: 12px; }
 }
@@ -335,17 +335,18 @@ ${spiralCSS(theme)}
 .speak:hover { background: ${theme.surfaceSubtle}; }
 
 /* "What Loki sees": the running notes of watch mode, one row until opened */
-/* The owner's status is the header's first line (thoughts-view.ts): one mark,
-   the state in words with the live dot, Pause beside close, details below. */
-.thoughts { margin: -4px -16px 12px; padding: 8px 16px 0; border-top: 1px solid ${theme.border}; border-bottom: 1px solid ${theme.border}; }
-.thoughts-row { width: 100%; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0; min-height: 32px; text-align: left; font-size: 14px; font-weight: 600; color: ${theme.text}; }
-.thoughts-row.watching .thoughts-sum::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: ${theme.success}; vertical-align: 2px; animation: fcpulse 1.6s ease-in-out infinite; }
-.thoughts-detail { font-size: 12px; color: ${theme.textTertiary}; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .thoughts-toggle { flex: none; min-height: 36px; padding: 0 12px; border: 1px solid ${theme.borderDark}; border-radius: 999px; font-size: 12px; font-weight: 600; color: ${theme.text}; }
+.thoughts { margin: -4px -16px 12px; padding: 0 16px; border-top: 1px solid ${theme.border}; border-bottom: 1px solid ${theme.border}; }
+.thoughts-head { display: flex; align-items: center; gap: 8px; }
+.panel.owner .hdr { display: none; } .panel.owner .thoughts { margin-top: -10px; border-top: none; } .panel.owner .thoughts-head .x { margin-right: -6px; } .thoughts.thinking .thoughts-row .dot.spiral svg { animation: lokispin 1.1s linear infinite; } /* owner: the status line IS the header (main.ts), ✕ ends it */
+.panel.owner .thoughts-sum { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; } /* wrap, never "11 changes nee…" */
+.thoughts-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; padding: 10px 0; min-height: 40px; text-align: left; font-size: 12px; color: ${theme.textSecondary}; }
+.thoughts-toggle { flex: none; font-size: 12px; font-weight: 600; color: ${theme.textSecondary}; padding: 6px 0 6px 8px; }
 .thoughts-toggle:hover { color: ${theme.text}; }
 .thoughts-row:hover { color: ${theme.text}; }
 .thoughts-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .thoughts-chev { flex: none; color: ${theme.textTertiary}; transition: transform .15s ease; }
-.thoughts-row.open .thoughts-chev { transform: rotate(90deg); }
+.thoughts.open .thoughts-chev { transform: rotate(90deg); }
+.thoughts.needs-you .thoughts-sum { color: ${theme.text}; font-weight: 600; }
 .thoughts-sub { padding: 4px 0 2px; font-size: 11px; color: ${theme.textTertiary}; }
 .thoughts-list { list-style: none; margin: 0; padding: 0 0 12px; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .thought { display: flex; gap: 10px; font-size: 12px; line-height: 1.45; color: ${theme.textSecondary}; }
@@ -387,8 +388,6 @@ ${spiralCSS(theme)}
 .composer { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid ${theme.borderStrong}; border-radius: ${rs}; background: ${theme.surfaceRaised}; transition: border-color .12s ease, box-shadow .12s ease; }
 .composer:focus-within { border-color: ${theme.accent}; box-shadow: 0 0 0 3px ${theme.accentMuted}; }
 .composer .chatinput, .composer .chatinput:hover, .composer .chatinput:focus { min-height: 48px; padding: 4px 0; border: none; background: transparent; box-shadow: none; }
-.composer.quiet .ctxbar, .composer.quiet .composer-actions { display: none; }
-.composer.quiet .chatinput { min-height: 24px; height: 24px; }
 /* Wraps rather than overflows: with a mic (every real browser) the row once
    pushed Ask Loki out of the panel. The tools are icons at rest; a recording's
    timer and a screenshot count still show, because then they say something. */
@@ -397,18 +396,18 @@ ${spiralCSS(theme)}
 .composer-actions .go, .composer-actions .ghost { height: 32px; padding: 0 12px; white-space: nowrap; }
 .composer-actions .ghost { border: none; padding: 0 8px; }
 .composer-actions .mic, .composer-actions .attach { height: 32px; min-width: 32px; padding: 0 8px; justify-content: center; border-color: transparent; }
-.composer-actions .mic:not(.rec):not(.busy) span:last-child { display: none; }
-.talk-hero { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 8px; padding: 10px 14px; text-align: left; border: 1px solid ${theme.borderDark}; border-radius: ${rs}; background: ${theme.surfaceRaised}; color: ${theme.text}; transition: border-color .15s ease, transform .15s ease; }
+.composer-actions .mic:not(.rec):not(.busy):not(.talk) span:last-child { display: none; }
+.composer-actions .mic.talk { gap: 6px; color: ${theme.text}; }
+.talk-hero { display: flex; align-items: center; gap: 14px; width: 100%; margin: 4px 0 12px; padding: 14px 16px; text-align: left; border: 1px solid ${theme.borderDark}; border-radius: ${rs}; background: ${theme.surfaceRaised}; color: ${theme.text}; transition: border-color .15s ease, transform .15s ease; }
 .talk-hero:hover, .talk-hero:focus-visible { border-color: ${theme.text}; transform: translateY(-1px); }
-.talk-hero-mic { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: ${theme.text}; color: ${theme.surface}; box-shadow: 0 0 0 0 ${theme.error}; animation: talkinvite 2.4s ease-out 3; }
+.talk-hero-mic { flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: ${theme.text}; color: ${theme.surface}; box-shadow: 0 0 0 0 ${theme.error}; animation: talkinvite 2.4s ease-out 3; }
 .talk-hero-mic svg { width: 22px; height: 22px; }
 .talk-hero-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .talk-hero-title { font-size: 15px; font-weight: 600; }
-.readback-list { margin: 6px 0 8px; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.45; color: ${theme.text}; }
-.readback-list b { font-weight: 600; } .readback-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-.talk-hero-sub { font-size: 12px; line-height: 1.4; color: ${theme.textSecondary}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.talk-hero-sub { font-size: 12px; line-height: 1.4; color: ${theme.textSecondary}; }
 @keyframes talkinvite { 0% { box-shadow: 0 0 0 0 ${theme.borderDark}; } 70% { box-shadow: 0 0 0 10px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 @media (prefers-reduced-motion: reduce) { .talk-hero-mic { animation: none; } .talk-hero:hover { transform: none; } }
+.mic.talk svg { width: 18px; height: 18px; }
 .composer-actions .attach span:last-child { display: none; }
 .composer-actions .attach.has span:last-child { display: inline; }
 .tools { display: flex; gap: 8px; align-items: center; }
@@ -698,6 +697,16 @@ function sendCardCSS(theme: WidgetTheme, rs: string): string {
 .voice-note textarea { min-height: 160px; height: auto; max-height: 45vh; }
 .voice-note .diag { font-size: 13px; line-height: 1.5; border: 0; padding: 0; margin: 0; background: transparent; }
 .voice-note .row { flex-wrap: wrap; gap: 8px; }
+/* Loki's read of a spoken note: the ask is short, so its box is too. */
+.voice-note textarea.read { min-height: 72px; }
+/* The words as spoken, one tap under Loki's read of them. */
+.said-exact { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.said-exact summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; color: ${theme.textSecondary}; font-weight: 500; list-style: none; }
+.said-exact summary::-webkit-details-marker { display: none; }
+.said-exact summary::after { content: " ↓"; white-space: pre; }
+.said-exact[open] summary::after { content: " ↑"; }
+.said-words { margin: 0; padding: 8px 10px; max-height: 30vh; overflow: auto; border-left: 2px solid ${theme.border}; color: ${theme.textSecondary}; white-space: pre-wrap; overflow-wrap: anywhere; }
+.said-exact .act { align-self: flex-start; min-height: 44px; margin-top: 0; font-size: 13px; color: ${theme.text}; }
 `;
 }
 

@@ -237,18 +237,23 @@ export function chooseSlot(
 /**
  * Resolve `data-fc-place` declarations, given outermost (<html>) first and
  * then the page's regions in document order. The last valid one wins, so a
- * page region overrides a site-wide default on <html>. Unknown values are
- * ignored rather than guessed at.
+ * page region overrides a site-wide default on <html> — except that a REGION
+ * saying "hidden" (an open dialog) always wins: Loki's phone tab bar asks for
+ * the tab on every page, and a dialog rendered earlier in the document must
+ * still keep the launcher off itself. Unknown values are ignored rather than
+ * guessed at.
  */
 export function resolvePlaceDirective(
   values: Array<string | null | undefined>,
 ): PlaceDirective | null {
   let out: PlaceDirective | null = null;
-  for (const raw of values) {
+  let regionHidden = false;
+  values.forEach((raw, i) => {
     const v = (raw ?? "").trim().toLowerCase();
     if (v === "left" || v === "right" || v === "tab" || v === "hidden") out = v;
-  }
-  return out;
+    if (v === "hidden" && i > 0) regionHidden = true;
+  });
+  return regionHidden ? "hidden" : out;
 }
 
 /**

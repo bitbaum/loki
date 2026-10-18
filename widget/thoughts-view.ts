@@ -1,6 +1,9 @@
 /**
- * The panel's one status line, the owner's: "● Watching · 2 to look at ·
- * 4 live ›  Pause". It was two rows — "Watching · 1 page · 2 things to look
+ * The panel's one status line, the owner's: "● Watching · 2 changes need
+ * you ›  Pause  ✕". For the owner it IS the header (main.ts): the brand row
+ * and the page name above it made three rows of chrome before a word of
+ * conversation, and on a phone with the keyboard up that left the thread a
+ * one-pixel sliver (owner, 2026-10-18). It was two rows — "Watching · 1 page · 2 things to look
  * at" with Pause, and "Your changes · 4 live · 4 from visitors" under it —
  * and with the header and composer that made the panel read like a cockpit
  * (owner, 2026-10-17). One line says the state; opening it shows what Loki
@@ -24,38 +27,31 @@ export function createThoughtsView(
   onToggleWatch: () => void,
   extra?: Extra,
 ): {
-  /** The status, for the panel's header: the mark, the state, a chevron. */
-  row: HTMLButtonElement;
-  /** Pause / Resume, beside the header's close. */
-  toggle: HTMLButtonElement;
-  /** The drawer under the header — only there while the status is open. */
   el: HTMLElement;
-  /** The mark in the status, which also turns while Loki thinks. */
-  mark: HTMLElement;
-  /** The header's second line: what needs a look. */
-  detail: HTMLElement;
+  /** The line itself — main.ts puts the panel's close button at its end. */
+  head: HTMLElement;
   update: (trail: TrailEntry[], watching: boolean) => void;
   /** Repaint with what is known (the changes changed, not the trail). */
   repaint: () => void;
 } {
-  // The status IS the header for the owner — one mark, one line — with Pause
-  // beside the close and the details in a drawer under it. It was a second row
-  // with a second logo under the header's own (owner, 2026-10-18: "two logos").
   const el = h("div", "thoughts");
-  el.style.display = "none";
+  // Two controls on one line: the summary opens the details, the text action
+  // at the end pauses or resumes watching. Status and its control together.
+  const head = h("div", "thoughts-head");
   const row = h("button", "thoughts-row");
   row.type = "button";
   row.setAttribute("aria-expanded", "false");
   const mark = spiralMark();
   const summary = h("span", "thoughts-sum");
-  const detail = h("div", "thoughts-detail");
   const chev = h("span", "thoughts-chev", "›");
   chev.setAttribute("aria-hidden", "true");
   row.append(mark, summary, chev);
   const toggle = h("button", "thoughts-toggle");
   toggle.type = "button";
   toggle.addEventListener("click", onToggleWatch);
-  const details = el;
+  head.append(row, toggle);
+  const details = h("div", "thoughts-details");
+  details.style.display = "none";
   const list = h("ol", "thoughts-list");
   details.append(list);
   if (extra) {
@@ -63,13 +59,14 @@ export function createThoughtsView(
     extra.body.style.display = "";
     details.append(changesHead, extra.body);
   }
+  el.append(head, details);
 
   let open = false;
   let last: { trail: TrailEntry[]; watching: boolean } = { trail: [], watching: false };
   row.addEventListener("click", () => {
     open = !open;
     row.setAttribute("aria-expanded", String(open));
-    row.classList.toggle("open", open);
+    el.classList.toggle("open", open);
     details.style.display = open ? "" : "none";
     paint();
   });
@@ -78,13 +75,15 @@ export function createThoughtsView(
     const { trail, watching } = last;
     mark.classList.toggle("watching", watching);
     mark.classList.toggle("paused", !watching);
-    row.classList.toggle("watching", watching);
+    el.classList.toggle("watching", watching);
+    // One number of one thing: the owner's changes when there are any (what
+    // needs them, what is being built…), else what Loki noticed on the page.
     const more = extra?.headline() ?? "";
-    const line = watchHeadline(trail, watching, more);
-    summary.textContent = line.state;
-    detail.textContent = line.detail;
+    summary.textContent = more
+      ? `${watching ? "Watching" : "Paused"} · ${more}`
+      : watchHeadline(trail, watching);
     row.title = thoughtsSummary(trail, watching);
-    row.classList.toggle("needs-you", extra?.attention() ?? false);
+    el.classList.toggle("needs-you", extra?.attention() ?? false);
     toggle.textContent = watching ? "Pause" : "Resume";
     toggle.title = watching
       ? "Loki stops recording what you do here until you resume"
@@ -109,15 +108,12 @@ export function createThoughtsView(
 
   // The "how long ago" column ages while the list is open.
   window.setInterval(() => {
-    if (open && row.isConnected) paint();
+    if (open && el.isConnected) paint();
   }, 15_000);
 
   return {
-    row,
-    toggle,
     el,
-    mark,
-    detail,
+    head,
     update(trail, watching) {
       last = { trail, watching };
       paint();

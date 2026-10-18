@@ -49,11 +49,13 @@ const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
 {
   // The phone's tab bar is on every app page, so a launcher directive on it
   // decides the whole phone. It used to say "hidden" and the button was gone
-  // from every page; now the launcher climbs above the bar, and the account
-  // menu holds the one on/off switch.
+  // from every page; then nothing, and the owner's wide pill floated over
+  // Control's cards (2026-10-18). It says "tab": the slim edge handle with the
+  // same live dot. The account menu holds the one on/off switch.
   const nav = read("src/components/shell/MobileNav.tsx");
   const menu = read("src/components/shell/AccountMenu.tsx");
-  ok(!/<nav[^>]*data-fc-place=/.test(nav), "phone nav does not hide the widget launcher");
+  ok(!/<nav[^>]*data-fc-place="hidden"/.test(nav), "phone nav does not hide the widget launcher");
+  ok(/<nav[^>]*data-fc-place="tab"/.test(nav), "phone nav asks for the edge tab, not the pill");
   ok(
     menu.includes("Hide feedback button") && menu.includes("Show feedback button"),
     "menu offers the feedback button's on/off switch",

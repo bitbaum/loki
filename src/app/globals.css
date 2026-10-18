@@ -6335,19 +6335,6 @@
   .ui-control-fleet-live {
     animation: fleet-live-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
-  .ui-control-launch-defaults {
-    @apply rounded-2xl border border-border-subtle bg-surface-raised;
-    box-shadow: var(--shadow-panel);
-  }
-  .ui-control-launch-defaults-summary {
-    @apply cursor-pointer list-none px-4 py-3.5 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary sm:px-5 md:px-6;
-  }
-  .ui-control-launch-defaults-summary::-webkit-details-marker {
-    display: none;
-  }
-  .ui-control-launch-defaults-body {
-    @apply border-t border-border-subtle px-4 pb-4 pt-4 sm:px-5 sm:pb-5 md:px-6;
-  }
   .ui-control-idle-section {
     @apply space-y-3 rounded-xl border border-border-subtle bg-surface-raised/60 p-4 sm:p-5;
   }

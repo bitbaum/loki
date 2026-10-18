@@ -114,10 +114,13 @@ async function startOnce(
   const livePages = consulted?.ok
     ? consulted.consultation.pages.filter((p) => p.ok).map((p) => p.url)
     : [input.website];
+  // The project's one line, shown on its tile: the site by its name, not its
+  // URL (`https://center-com.ru/` read as an address, not as a description).
+  const site = siteName(input.website);
   const about =
     input.mode === "refresh"
-      ? `New version of ${input.website}${input.changes ? ` — ${input.changes}` : ""}`
-      : `My own site, inspired by ${input.website} — ${input.changes}`;
+      ? `New version of ${site}${input.changes ? ` — ${input.changes}` : ""}`
+      : `My own site, inspired by ${site} — ${input.changes}`;
 
   const created = await createPreview(userId, {
     name,
@@ -147,4 +150,13 @@ async function startOnce(
     previewUrl: created.previewUrl,
     accessCode: created.accessCode,
   };
+}
+
+/** "https://www.center-com.ru/" → "center-com.ru". */
+export function siteName(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  }
 }

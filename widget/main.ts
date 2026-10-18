@@ -23,7 +23,6 @@
  * watch mode, the stylesheets and the DOM helpers live in their own modules.
  */
 
-import { coarsePointer } from "./press";
 import { pageLabel } from "./page-label";
 import { forgetOwnerPass, takeOwnerDenied, takeOwnerPass } from "./owner-pass";
 import { startTourFromFragment } from "./tour";
@@ -377,22 +376,17 @@ interface LokiApi {
       else watchSession?.resume();
       syncWatch();
     }, changes);
-    // The owner's header: the status line in place of the brand line (one
-    // mark), Pause beside close; the details drawer opens under it (below).
-    hdrText.insertBefore(thoughts.row, hdrPage);
-    hdrText.insertBefore(thoughts.detail, hdrPage);
-    hdrActions.insertBefore(thoughts.toggle, closeBtn);
     function syncWatch() {
       const on = watchSession?.on() ?? false;
       // The spiral in the header turns while Loki watches, stops when it does not.
       brand.classList.toggle("watching", on);
       brand.classList.toggle("paused", !!ownerPass && !on);
-      brand.style.display = ownerPass ? "none" : "";
-      // The owner's second line says what needs a look; the page is theirs.
-      thoughts.row.style.display = thoughts.toggle.style.display = ownerPass ? "" : "none";
-      thoughts.detail.style.display = ownerPass ? "" : "none";
-      hdrPage.style.display = ownerPass ? "none" : "";
-      if (!ownerPass) thoughts.el.style.display = "none";
+      thoughts.el.style.display = ownerPass ? "" : "none";
+      // The owner's status line is the header: the brand row and the page
+      // name are a visitor's orientation, and for the owner they were two
+      // more rows before the conversation. The close button follows the line.
+      panel.classList.toggle("owner", !!ownerPass);
+      (ownerPass ? thoughts.head : hdrActions).append(closeBtn);
       thoughts.update(watchSession?.trail() ?? [], on);
       // "Hide this button" is a visitor's way out; the owner's panel is their
       // tool, and the link only took space under the composer on a phone.
@@ -456,7 +450,7 @@ interface LokiApi {
       picker,
       onBusy: (busy) => {
         brand.classList.toggle("thinking", busy);
-        thoughts.mark.classList.toggle("thinking", busy);
+        thoughts.el.classList.toggle("thinking", busy);
       },
       // A change was filed: Your changes shows where it went, at once.
       onSent: () => changes.start(),
@@ -481,7 +475,7 @@ interface LokiApi {
     panel.append(hdr, thoughts.el, conversation.el, foot);
     // On a phone the panel is a sheet: drag its top up for more, down to peek
     // at the page under it, further down to put it away (sheet.ts).
-    attachSheet({ panel, handle: hdr, onClose: closePanel });
+    const sheet = attachSheet({ panel, handle: hdr, onClose: closePanel });
 
     function openPanel() {
       unread = 0;
@@ -501,11 +495,7 @@ interface LokiApi {
         });
       root.addEventListener("keydown", onKeydown as EventListener);
       document.addEventListener("keydown", onDocumentKeydown);
-      // On a touch screen the box waits for a tap: focusing it raised the
-      // keyboard over half the panel before anything was chosen, and Talk —
-      // not typing — is the way in there (owner, 2026-10-18). A note being
-      // reviewed is the exception: its words are what the panel is for.
-      if (!coarsePointer() || conversation.hasDraft()) conversation.focus();
+      conversation.focus();
       // Measured once it has laid out: a panel too wide for this phone is
       // Loki's bug, and Loki should hear about it from here.
       setTimeout(() => {
@@ -520,6 +510,9 @@ interface LokiApi {
       conversation.close();
       backdrop.remove();
       panel.remove();
+      // Opened again, it is the resting sheet, not the typing one it was
+      // closed as (the removed box never reports losing focus).
+      sheet.reset();
       root.removeEventListener("keydown", onKeydown as EventListener);
       document.removeEventListener("keydown", onDocumentKeydown);
       fab.style.display = browseVoice?.active() ? "none" : fabRest();
@@ -571,10 +564,10 @@ interface LokiApi {
         }
         syncWatch();
       },
-      onTranscript: (text, capture, moments) => {
+      onTranscript: (text, capture, moments, spokenMs) => {
         if (picker.isPicking()) picker.stop();
         openPanel();
-        conversation.recorded(text, capture, moments);
+        conversation.recorded(text, capture, moments, spokenMs);
       },
       onError: (message) => {
         openPanel();

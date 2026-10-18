@@ -118,14 +118,15 @@ async function main() {
         exact: true,
       });
       await speak.waitFor({ state: "visible" });
-      assert(
-        (await speak.innerText()).trim().startsWith("Talk to Loki"),
+      assert.equal(
+        (await speak.innerText()).trim(),
+        "Talk",
         "The one microphone says what it does",
       );
       assert.equal(
-        (await host.locator(".talk-hero").count()) + (await host.locator(".mic").count()),
+        await host.locator(".mic").count(),
         1,
-        "One place to talk in the panel: talking while scrolling is also plain dictation",
+        "One microphone in the panel: talking while scrolling is also plain dictation",
       );
       const icon = await speak.locator("svg").boundingBox();
       assert(
@@ -192,7 +193,16 @@ async function main() {
         .locator(".browse-voice")
         .getByRole("button", { name: "Done", exact: true })
         .click();
-      await host.locator(".readback .changes-title", { hasText: "Here's what I heard" }).waitFor();
+      // The card answers "did it hear me?" first (widget/walk-read.ts). Loki's
+      // read is not served here, so this is the card when the read fails: the
+      // words as spoken, the buttons as before — never a dead end.
+      await host.locator(".voice-note .changes-title", { hasText: /^Loki heard you/ }).waitFor();
+      await page.waitForFunction(
+        () =>
+          !document
+            .querySelector("#loki-feedback-host")
+            ?.shadowRoot?.textContent?.includes("Loki is reading what you said"),
+      );
       assert.equal(
         await page.getByRole("button", { name: "Fix it now", exact: true }).count(),
         owner ? 1 : 0,
@@ -209,12 +219,7 @@ async function main() {
       await page.evaluate(() =>
         (window as unknown as { Loki: { report(input: object): void } }).Loki.report({}),
       );
-      await host.locator(".readback .changes-title", { hasText: "Here's what I heard" }).waitFor();
-      // A note listed part by part is read back as the list; its text opens on Edit.
-      const edit = host
-        .locator(".readback-tools")
-        .getByRole("button", { name: "Edit", exact: true });
-      if (await edit.count()) await edit.click();
+      await host.locator(".voice-note .changes-title", { hasText: /^Loki heard you/ }).waitFor();
       assert.equal(await host.locator(".sendcard textarea").inputValue(), transcript);
       assert.equal(await host.locator(".composer").isVisible(), false);
       assert.equal(await host.locator(".starters").isVisible(), false);

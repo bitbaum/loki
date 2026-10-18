@@ -224,16 +224,25 @@ assert.match(main, /changes\.start\(\)/, "asked for on arrival");
   );
   assert.equal(changesSummary([c("Closed")]), "Your changes · 1");
   // The status line carries the most urgent fragment only.
-  assert.equal(changesHeadline([c("Live", true), c("Needs you"), c("Building")]), "1 needs you");
-  assert.equal(changesHeadline([c("Live", true), c("Starting"), c("Building")]), "2 building");
-  assert.equal(changesHeadline([c("Live", true), c("Live", true)]), "2 live");
+  assert.equal(
+    changesHeadline([c("Live", true), c("Needs you"), c("Building")]),
+    "1 change needs you",
+  );
+  assert.equal(
+    changesHeadline([c("Needs you"), c("Needs you")]),
+    "2 changes need you",
+    "says what is counted, in agreement",
+  );
+  assert.equal(changesHeadline([c("Live", true), c("Starting"), c("Building")]), "2 being built");
+  assert.equal(changesHeadline([c("Live", true), c("Live", true)]), "2 changes live");
+  assert.equal(changesHeadline([c("On its way")]), "1 on its way");
   assert.equal(changesHeadline([c("Closed")]), "", "nothing to say: nothing on the line");
   // Notes saved while Loki watched lead the line until they are built.
   assert.equal(
     changesHeadline([c("Live", true), c(SAVED_NOTE_LABEL), c(SAVED_NOTE_LABEL)]),
     "2 notes saved",
   );
-  assert.equal(changesHeadline([c(SAVED_NOTE_LABEL), c("Needs you")]), "1 needs you");
+  assert.equal(changesHeadline([c(SAVED_NOTE_LABEL), c("Needs you")]), "1 change needs you");
   assert.match(builtSay({ started: 3, total: 3 }), /Started your 3 saved notes/);
   assert.match(
     builtSay({ started: 5, total: 5, builds: 2 }),

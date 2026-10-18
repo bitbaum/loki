@@ -16,6 +16,8 @@ import type { SelectedEl } from "./picker";
 import { SNAPSHOT_MAX_CHARS, takeSnapshot, type SnapshotScope } from "./page-snapshot";
 import { REVIEW_SESSION_MAX } from "./watch-trail";
 import { safeHttpUrl, type Link, type Speaker } from "./thread";
+import type { ReportMoment } from "./moments-contract";
+import { cleanWalkRead, WALK_READ_LIMITS, type WalkRead } from "./walk-read";
 
 /** Mirror ADVISE_MAX_QUESTION / ADVISE_MAX_HISTORY in src/lib/widget-advise/advisor.ts. */
 export const ADVISE_MAX_QUESTION = 2000;
@@ -125,4 +127,32 @@ export async function askConcierge(opts: {
     links,
     degraded: body.degraded === true,
   };
+}
+
+/**
+ * Loki's read of a spoken note (walk-read.ts), or null — on any failure, so
+ * the card simply keeps the words as spoken. Never throws.
+ */
+export async function understandNote(opts: {
+  apiBase: string;
+  token: string;
+  note: string;
+  moments: ReportMoment[];
+}): Promise<WalkRead | null> {
+  try {
+    const res = await fetch(`${opts.apiBase}/api/widget/understand`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: opts.token,
+        note: opts.note.slice(0, WALK_READ_LIMITS.note),
+        moments: opts.moments,
+      }),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json().catch(() => null)) as { read?: unknown } | null;
+    return cleanWalkRead(json?.read);
+  } catch {
+    return null;
+  }
 }

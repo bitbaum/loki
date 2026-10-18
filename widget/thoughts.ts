@@ -50,7 +50,7 @@ export function thoughtFor(e: TrailEntry): Thought {
     case "error":
       return { at, tone: "bad", text: `The page hit an error: ${e.text}` };
     case "request": {
-      const failed = /\u2192 (5\d\d|no response)/.test(e.text);
+      const failed = /→ (5\d\d|no response)/.test(e.text);
       return failed
         ? { at, tone: "bad", text: `A request failed: ${e.text}` }
         : { at, tone: "plain", text: `The page sent ${e.text}` };
@@ -81,28 +81,19 @@ export function thoughtsSummary(trail: TrailEntry[], watching: boolean): string 
 }
 
 /**
- * The owner's header, in two lines: the state in a word ("Watching" /
- * "Paused"), and under it what needs a look — "2 to look at · 2 notes saved".
- * One line held both and was cut off on a phone (2026-10-18). The page and
- * press counts stay in thoughtsSummary (the tooltip) and in the list.
+ * The panel's one status line, short: "Watching", "Watching · noticed 2
+ * things", "Paused". The page and press counts stay in thoughtsSummary (its
+ * tooltip) and in the list — on the line itself they were detail nobody
+ * asked for. The owner's changes, when there are any, take the line instead
+ * (thoughts-view.ts): one number of one thing.
  */
-export function watchHeadline(
-  trail: TrailEntry[],
-  watching: boolean,
-  more = "",
-): { state: string; detail: string } {
+export function watchHeadline(trail: TrailEntry[], watching: boolean): string {
+  if (!watching) return "Paused";
   const problems = trail
     .map(thoughtFor)
     .filter((t) => t.tone === "warn" || t.tone === "bad").length;
-  const parts = [...(problems ? [`${problems} to look at`] : []), ...(more ? [more] : [])];
-  return {
-    state: watching ? "Watching" : "Paused",
-    detail: parts.length
-      ? parts.join(" · ")
-      : watching
-        ? "Nothing to look at so far"
-        : "Nothing is being recorded",
-  };
+  if (!problems) return "Watching";
+  return `Watching · noticed ${problems} ${problems === 1 ? "thing" : "things"}`;
 }
 
 /** "now", "40s", "3m" — how long ago, short enough for a line's margin. */

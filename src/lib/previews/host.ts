@@ -15,6 +15,22 @@ import { previewHostUrl } from "@/lib/previews/address";
 export type AttachPreviewHost = { ok: true; url: string } | { ok: false; reason: string };
 
 export async function attachPreviewHost(label: string): Promise<AttachPreviewHost> {
+  const ran = await runPreviewHostScript([label]);
+  if (!ran.ok) return ran;
+  return { ok: true, url: ran.liveUrl ?? previewHostUrl(label) };
+}
+
+/** Take a preview's address away (a moved preview's old one). */
+export async function detachPreviewHost(
+  label: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const ran = await runPreviewHostScript([label, "--detach"]);
+  return ran.ok ? { ok: true } : ran;
+}
+
+async function runPreviewHostScript(
+  args: string[],
+): Promise<{ ok: true; liveUrl: string | null } | { ok: false; reason: string }> {
   const probe = probeRegisterSiteLocally();
   if (!probe.ok || !probe.scriptPath || !probe.deployKeyPath) {
     return {
@@ -23,10 +39,10 @@ export async function attachPreviewHost(label: string): Promise<AttachPreviewHos
     };
   }
   const script = path.join(path.dirname(probe.scriptPath), "attach-preview-host.sh");
-  const ran = await runAttachScript(script, probe.deployKeyPath, [label]);
+  const ran = await runAttachScript(script, probe.deployKeyPath, args);
   if (ran.code !== 0)
-    return { ok: false, reason: ran.output.trim().slice(-300) || "attach failed" };
-  return { ok: true, url: ran.liveUrl ?? previewHostUrl(label) };
+    return { ok: false, reason: ran.output.trim().slice(-300) || "the address script failed" };
+  return { ok: true, liveUrl: ran.liveUrl };
 }
 
 /**

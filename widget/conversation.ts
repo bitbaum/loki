@@ -17,7 +17,6 @@
  * Model output is rendered as TEXT, never HTML: it is shown on someone else's
  * site. Links come from the server's map and only http(s) become anchors.
  */
-import { readBackView } from "./read-back";
 import { h, spiralMark, keepInViewOnFocus, micIcon } from "./dom";
 import { createAboutBar } from "./about-bar";
 import { answerLinks, richBody } from "./rich-text";
@@ -42,6 +41,8 @@ import {
   type Draft,
 } from "./conversation-model";
 import { kitState, noticedExtras, sentFull } from "./conversation-kit";
+import { heardLine } from "./walk-read";
+import { noteExtras, noteGuide, showsRead } from "./voice-note-card";
 import type { KitHandle, KitModule } from "./chat/contract";
 
 export { MAX_LEN, type ConversationWatch };
@@ -190,7 +191,6 @@ export function createConversation(opts: {
   // free-standing textarea — two boxes for one sentence.
   const form = h("div", "composer");
   form.append(ctx.el, input, shots, actions);
-  quietUntilUsed(form, () => !input.value.trim() && !shotsNow().length && ctx.about() === "page");
 
   // The way out of the card and into Loki itself (continue-row.ts).
   const cont = createContinueRow({
@@ -199,9 +199,7 @@ export function createConversation(opts: {
     thread: () => [...model.snapshot().thread],
     owner: () => opts.ownerPass() !== null,
   });
-  // Talk sits right above the box, always in view: the one way to start
-  // talking, never scrolled away with the thread (owner, 2026-10-18).
-  el.append(log, starters, ...(talkBtn ? [talkBtn] : []), form, cont.el, err);
+  el.append(log, starters, form, cont.el, err);
 
   attachments.listenPaste(el);
 
@@ -260,13 +258,23 @@ export function createConversation(opts: {
    */
   function render(follow = false) {
     const { thread, pending, error, draft } = model.snapshot();
+    // A card drawn for the first time is brought into view from its top:
+    // a long spoken note under three remarks was found only by scrolling
+    // (2026-10-18). Redrawn for its read, it keeps the place.
+    let cardIsNew = false;
+    let cardDrawn = false;
     if (draft) {
-      if (card?.draft !== draft) card = { draft, el: draftCard(draft) };
+      if (card?.draft !== draft) {
+        cardIsNew = !card;
+        cardDrawn = true;
+        const root = log.getRootNode() as ShadowRoot | Document;
+        const typing = !!card && card.el.contains(root.activeElement);
+        card = { draft, el: draftCard(draft, cardIsNew || typing) };
+      }
     } else card = null;
     if (kit) return kit.update(currentKitState());
     const reviewingNote = draft?.intent === "note";
     form.style.display = reviewingNote ? "none" : "";
-    if (talkBtn) talkBtn.style.display = form.style.display;
     // The continue row decides for itself whether there is anything to take.
     if (reviewingNote) cont.el.style.display = "none";
     else cont.sync();
@@ -288,6 +296,7 @@ export function createConversation(opts: {
           greetingFor({ assistant: a, owner: owner(), watching: opts.watch()?.on() ?? false }),
         ),
       );
+      if (talkBtn && !thread.some(saidSomething)) log.appendChild(talkHero(opts.talk!));
       if (!owner()) log.appendChild(ownerDoor(opts.apiBase, opts.token));
     }
     const lastYou = thread.map((i) => i.kind).lastIndexOf("you");
@@ -367,6 +376,8 @@ export function createConversation(opts: {
     if (reviewingNote) starters.style.display = "none";
     syncButtons();
     log.scrollTop = follow || atBottom ? log.scrollHeight : keep;
+    if (cardDrawn && card && reviewingNote)
+      log.scrollTop += card.el.getBoundingClientRect().top - log.getBoundingClientRect().top - 8;
   }
 
   function renderStarters() {
@@ -401,34 +412,25 @@ export function createConversation(opts: {
   }
 
   /** The confirmation card: what goes to the builder, edited before it does. */
-  function draftCard(draft: Draft): HTMLElement {
+  function draftCard(draft: Draft, takeFocus = true): HTMLElement {
     const el = h("div", draft.intent === "note" ? "sendcard voice-note" : "sendcard");
     const voice = draft.intent === "note";
-    // A spoken note opens with what Loki heard, part by part (read-back.ts);
-    // its text opens on Edit when the list already says it.
-    const heard = voice ? readBackView(draft.text, () => (box.style.display = "")) : null;
+    const read = voice ? draft.read : undefined;
+    const showingRead = voice && showsRead(draft);
+    // "Did it hear me?" is answered first: how long, and across which pages.
     el.appendChild(
-      heard?.el ??
-        h(
-          "div",
-          "changes-title",
-          owner() ? "Build this on your site" : "Send to whoever builds this site",
-        ),
+      h(
+        "div",
+        "changes-title",
+        voice
+          ? heardLine(draft.moments ?? [], draft.spokenMs)
+          : owner()
+            ? "Build this on your site"
+            : "Send to whoever builds this site",
+      ),
     );
-    // A spoken note is a question as often as it is a change: say both ways,
-    // before the buttons, so nobody has to guess which one answers them
-    // (2026-10-16: a spoken question to Loki was filed with the builder).
-    if (voice)
-      el.appendChild(
-        h(
-          "p",
-          "sendcard-sub",
-          owner()
-            ? "Save it with your other notes and build them together, page by page — or fix it now."
-            : "Edit it if you like, then Ask Loki about it, or save it for whoever builds this site.",
-        ),
-      );
-    const box = h("textarea", "chatinput");
+    if (voice) el.appendChild(h("p", "sendcard-sub", noteGuide(draft, owner())));
+    const box = h("textarea", showingRead ? "chatinput read" : "chatinput");
     box.maxLength = MAX_LEN;
     box.value = draft.text;
     box.addEventListener("input", () => model.editDraft(box.value));
@@ -437,25 +439,13 @@ export function createConversation(opts: {
     if (voice)
       box.rows = Math.min(
         24,
-        Math.max(6, draft.text.split("\n").length + Math.ceil(draft.text.length / 60)),
-      );
-    if (heard?.listed) box.style.display = "none";
-    el.appendChild(box);
-    if (draft.capture && !heard?.listed) {
-      // What Loki saw while they spoke (browse-voice.ts) — the same words that
-      // go with the note, so "does it know what I meant?" has an answer here.
-      const seen = draft.capture.diagnostics["On screen while speaking"];
-      const picked = draft.capture.selected.map((item) => item.elementText).join(", ");
-      el.appendChild(
-        h(
-          "p",
-          "diag",
-          typeof seen === "string" && seen
-            ? `Loki noted what was on screen: ${seen}${picked ? ` · pointed at ${picked}` : ""}`
-            : `About ${draft.capture.page}${picked ? ` · ${picked}` : ""}`,
+        Math.max(
+          showingRead ? 3 : 6,
+          draft.text.split("\n").length + Math.ceil(draft.text.length / 60),
         ),
       );
-    }
+    el.appendChild(box);
+    el.append(...noteExtras(draft, () => model.useExactWords()));
     const contact = h("input");
     contact.type = "text";
     contact.placeholder = "Your name / email (optional)";
@@ -486,13 +476,19 @@ export function createConversation(opts: {
     // then send it as a change, then (owner) keep it for later.
     // The owner records while Loki watches and builds later (2026-10-18), so
     // their spoken note leads with Save; a visitor's leads with Ask.
-    const saveFirst = voice && owner();
-    const askBtn = voice ? h("button", saveFirst ? "ghost outline" : "go", "Ask") : null;
+    // A question is answered by Ask, whoever asked it.
+    const question = read?.kind === "question" && showingRead;
+    const saveFirst = voice && owner() && !question;
+    const askFirst = voice && !saveFirst;
+    const askBtn = voice
+      ? h("button", askFirst ? "go" : "ghost outline", question ? "Ask Loki" : "Ask")
+      : null;
     if (askBtn) askBtn.type = "button";
     const sendLabel = voice ? (owner() ? "Save" : "Save feedback") : owner() ? "Build it" : "Send";
     const go = h("button", voice && !saveFirst ? "ghost outline" : "go", sendLabel);
     go.type = "button";
-    const requestFix = saveFirst ? h("button", "ghost outline", "Fix it now") : null;
+    const requestFix =
+      voice && owner() && !question ? h("button", "ghost outline", "Fix it now") : null;
     if (requestFix) requestFix.type = "button";
     const cancel = h("button", "ghost", voice ? "Discard" : "Cancel");
     cancel.type = "button";
@@ -503,8 +499,8 @@ export function createConversation(opts: {
     askBtn?.addEventListener("click", () => {
       const text = box.value.trim();
       if (!text) return;
-      model.closeDraft();
-      model.ask(text);
+      // Asked about the whole walk, not only the page the panel is open on.
+      model.askAboutNote(text);
     });
     cancel.addEventListener("click", () => {
       model.closeDraft();
@@ -533,10 +529,13 @@ export function createConversation(opts: {
     go.addEventListener("click", () => void send());
     requestFix?.addEventListener("click", () => void send("fix"));
     // Focus the words once the card is in the thread.
-    queueMicrotask(() => {
-      box.focus();
-      box.setSelectionRange(box.value.length, box.value.length);
-    });
+    // Not when the card is only redrawn for Loki's read: on a phone that would
+    // throw the keyboard up over the card a second time.
+    if (takeFocus)
+      queueMicrotask(() => {
+        box.focus();
+        box.setSelectionRange(box.value.length, box.value.length);
+      });
     return el;
   }
 
@@ -703,9 +702,10 @@ function composerMic(o: {
   talk: HTMLButtonElement | null;
   button: HTMLButtonElement | null;
 } {
-  // Talk is its own bar above the box (talkBar), not a tool beside it: one
-  // microphone in the panel. Without it, plain dictation lives in the box.
-  if (o.talk) return { voice: null, talk: talkBar(o.talk), button: null };
+  if (o.talk) {
+    const talk = talkButton(o.talk);
+    return { voice: null, talk, button: talk };
+  }
   const voice = createVoiceControl({
     endpoint: `${o.apiBase}/api/widget/transcribe`,
     token: o.token,
@@ -716,55 +716,38 @@ function composerMic(o: {
   return { voice, talk: null, button: voice?.button ?? null };
 }
 
+/** The person has said or sent something — no more invitation to start. */
+const saidSomething = (i: { kind: string }) => i.kind === "you" || i.kind === "sent";
+
 /**
- * The one way to start talking: a big, friendly bar right above the box.
- * Talking while you scroll is the quickest way to say what you would change —
- * and as a small mic among the composer's tools people did not find it; as a
- * card at the top of the thread it scrolled away (owner, 2026-10-18). It
- * closes the panel, so the page can be scrolled while you speak.
+ * The way in before anything is said: one big, friendly button. Typing is
+ * there too, but talking while you scroll is the quickest way to say what
+ * you would change — and the one people did not find as a small mic among
+ * the composer's tools (owner, 2026-10-18: "easy, pleasant, exciting").
  */
-function talkBar(talk: () => void): HTMLButtonElement {
+function talkHero(talk: () => void): HTMLButtonElement {
   const b = h("button", "talk-hero");
   b.type = "button";
-  b.setAttribute("aria-label", "Talk to Loki — you can scroll the page while you speak");
   const mic = h("span", "talk-hero-mic");
   mic.append(micIcon());
   const words = h("span", "talk-hero-words");
   words.append(
     h("span", "talk-hero-title", "Talk to Loki"),
-    h("span", "talk-hero-sub", "Scroll and say what you'd change"),
+    h("span", "talk-hero-sub", "Scroll around and say what you'd change. Loki writes it down."),
   );
   b.append(mic, words);
   b.addEventListener("click", talk);
   return b;
 }
 
-/**
- * The box is one quiet line until it is used: the scope menu, Point to area,
- * screenshots and the send buttons appear when you tap into it, or once it
- * holds words, a screenshot or a picked area. On a phone they were four rows
- * of controls under a thread, before a word was typed (owner, 2026-10-18:
- * "the phone screen is small"). Leaving waits a beat, so a tap on one of
- * those controls still lands before they fold away.
- */
-function quietUntilUsed(form: HTMLElement, idle: () => boolean): void {
-  let inside = false;
-  const sync = () => form.classList.toggle("quiet", !inside && idle());
-  form.addEventListener("focusin", () => {
-    inside = true;
-    sync();
-  });
-  form.addEventListener("focusout", () =>
-    window.setTimeout(() => {
-      inside = form.contains(
-        form.getRootNode() instanceof ShadowRoot
-          ? (form.getRootNode() as ShadowRoot).activeElement
-          : document.activeElement,
-      );
-      sync();
-    }, 250),
-  );
-  form.addEventListener("input", sync);
-  new MutationObserver(sync).observe(form, { childList: true, subtree: true });
-  sync();
+/** The composer's microphone when talking hands over to the page: it closes
+ *  the panel so the person can scroll while they speak. */
+function talkButton(talk: () => void): HTMLButtonElement {
+  const b = h("button", "mic talk");
+  b.type = "button";
+  b.append(micIcon(), h("span", undefined, "Talk"));
+  b.setAttribute("aria-label", "Talk to Loki — you can scroll the page while you speak");
+  b.title = "Talk to Loki — you can scroll the page while you speak";
+  b.addEventListener("click", talk);
+  return b;
 }

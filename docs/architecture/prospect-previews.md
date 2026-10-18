@@ -164,6 +164,28 @@ they buy a domain the move is `attach-domain.sh`, nothing else.
 - When the server cannot do this itself, the preview still works at its
   `/p/` path and the creation result says why (`addressNote`).
 
+## Moving a preview, and its right name
+
+An address is chosen at creation, from a name typed in a hurry or from the old
+site's domain, and that domain can itself be wrong: the store "Центр СОМ"
+(Tsentr SOM) lives at center-com.ru because the Cyrillic letters were typed as
+look-alike Latin ones, and its preview was born `center-com-3`.
+`POST /api/previews/<address>/move` (`src/lib/previews/move.ts`, owner only,
+`{ to, name? }`) moves the preview and its name together:
+
+1. Everything that can refuse comes first: the new address is free on disk,
+   the new name is free in the database.
+2. The new address is attached. If that fails nothing else has changed.
+3. The folder is renamed and the project row follows it (folder, slug,
+   address, name, and the project's name everywhere it is shown) in one
+   transaction. If the row cannot move, the folder moves back.
+4. The widget's origins become the new address, and the old address is
+   detached rather than left answering for a project that moved.
+
+From Actions: `previews.yml` mode `move` (address, to, name). Mode `ask` (name =
+the project, changes = the change) then tells the builder what to write, as
+Send in the session box does.
+
 ## A site that already exists
 
 "Build a preview" can take a finished site as a `.zip` (index.html at the top;

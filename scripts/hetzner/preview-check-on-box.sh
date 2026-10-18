@@ -55,7 +55,7 @@ PY
   exit 4
 fi
 
-tour=$(mktemp); trap 'rm -f "$tour" "$reply"' EXIT
+tour=$(mktemp); home=$(mktemp); trap 'rm -f "$tour" "$home" "$reply"' EXIT
 # ask <url> [file] — status and type; for a picture that could not be taken, the reason the app gives.
 ask() {
   local hdr; hdr=$(mktemp)
@@ -65,8 +65,11 @@ ask() {
   echo "$out${why:+ ($why)}"
 }
 
-site=$(ask "https://$HOST/")
+site=$(ask "https://$HOST/" "$home")
 echo "site:        https://$HOST/ → $site"
+# What the page calls itself — a wrong name is what a person notices first.
+tr '\n' ' ' < "$home" | grep -oE '<title[^>]*>[^<]*</title>' | head -1 | sed -E 's/<[^>]+>//g; s/^/title:       /'
+tr '\n' ' ' < "$home" | grep -oE '<h1[^>]*>.{0,300}</h1>' | head -1 | sed -E 's/<[^>]+>//g; s/  +/ /g; s/^/h1:          /'
 page=$(ask "https://$HOST/_loki/before-after" "$tour")
 rows=$(grep -o '_loki/picture?side=before' "$tour" | wc -l | tr -d ' ')
 echo "tour:        https://$HOST/_loki/before-after → $page, $rows rows"

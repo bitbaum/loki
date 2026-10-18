@@ -31,7 +31,7 @@ import { RunnerStatusBanner } from "./RunnerStatusBanner";
 import {
   ControlEmptyState,
   ControlNotices,
-  LaunchDefaultsSection,
+  LaunchDefaults,
   WorkspacesSection,
 } from "./control-panel-sections";
 import { ControlPanelModals } from "./ControlPanelModals";
@@ -545,19 +545,6 @@ export function ControlPanel() {
         }}
       />
 
-      {data.projects.length > 0 && (
-        <ControlFoot
-          builderLabel={
-            builderPresence?.any
-              ? builderCompactLabel("connected", runnerVersion, builderPresence)
-              : "No builder connected"
-          }
-          builderOk={Boolean(builderPresence?.any)}
-          onNewProject={() => (runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true))}
-          onOpenSettings={() => setFleetSettingsOpen(true)}
-        />
-      )}
-
       {/* The terminal tabs, for an operator at a desk. On a phone the job
           cards above already open each live session, and this list repeated
           the project list in machine terms. */}
@@ -572,26 +559,43 @@ export function ControlPanel() {
         </WorkspacesSection>
       </div>
 
-      <LaunchDefaultsSection
-        selectedAgent={selectedAgent}
-        switchableRegistry={switchableRegistry}
-        model={model}
-        hasPendingChange={hasPendingChange}
-        savingAgent={savingAgent}
-        selectedDefinition={selectedDefinition}
-        lastTabResults={lastTabResults}
-        lastTabResultsAt={lastTabResultsAt}
-        onAgentSelect={handleAgentSelect}
-        onModelChange={handleModelChange}
-        onSave={saveAgent}
-        onRequestInstall={requestAgentInstall}
-      />
+      {/* The last word on the page: which builder is on, and the two things
+          a person occasionally needs here. Shown with no projects too — it is
+          the way to Settings (autopilot, the agent new sessions start with). */}
+      {data && (
+        <ControlFoot
+          builderLabel={
+            builderPresence?.any
+              ? builderCompactLabel("connected", runnerVersion, builderPresence)
+              : "No builder connected"
+          }
+          builderOk={Boolean(builderPresence?.any)}
+          onNewProject={() => (runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true))}
+          onOpenSettings={() => setFleetSettingsOpen(true)}
+        />
+      )}
 
       <ControlPanelModals
         fleetSettings={
           fleetSettingsOpen
             ? {
                 onClose: () => setFleetSettingsOpen(false),
+                launchDefaults: (
+                  <LaunchDefaults
+                    selectedAgent={selectedAgent}
+                    switchableRegistry={switchableRegistry}
+                    model={model}
+                    hasPendingChange={hasPendingChange}
+                    savingAgent={savingAgent}
+                    selectedDefinition={selectedDefinition}
+                    lastTabResults={lastTabResults}
+                    lastTabResultsAt={lastTabResultsAt}
+                    onAgentSelect={handleAgentSelect}
+                    onModelChange={handleModelChange}
+                    onSave={saveAgent}
+                    onRequestInstall={requestAgentInstall}
+                  />
+                ),
                 automationPolicy,
                 onAutomationChange: handleAutomationChange,
                 refreshing,

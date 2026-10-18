@@ -35,6 +35,10 @@ export function FleetSurfaceGuide() {
   // Profile/Chat/Control/Terminal strip duplicates the bottom nav on phones
   // and answers a question the composer already answers.
   if (pathname === "/loki" || hasProjectNavigation || currentIndex === -1) return null;
+  // Control is every project at once. Above it the strip named whichever
+  // project was opened last ("substrata") as if the page were about it, while
+  // the page below listed all thirty (owner, 2026-10-18).
+  if (pathname === "/control" || pathname.startsWith("/control/")) return null;
 
   // No project, no strip.
   //
@@ -47,22 +51,18 @@ export function FleetSurfaceGuide() {
   // lacks is not a shortcut; it is a fifth nav system charging rent.
   if (!project) return null;
 
-  // On a phone, /terminal's own one-line header already names the session and
-  // the project; the strip above it was a second and third row of chrome
-  // before the conversation, and repeated the project name a line below.
-  const phoneHidden = pathname === "/terminal" || pathname.startsWith("/terminal/");
-
   return (
     <nav
       aria-label="Project workspace views"
+      // Never on a phone. There the bottom bar already names Loki and Control,
+      // so four tabs here plus four there were two menus on one screen, the
+      // strip pinned over every page as it scrolled (owner, 2026-10-18: "why
+      // is it so crowded?"); and /terminal's own header names the session.
       className={cn(
-        phoneHidden && "max-md:hidden",
+        "max-md:hidden",
         "mx-3 mt-2 flex max-w-6xl shrink-0 flex-wrap items-center gap-x-2 gap-y-1 sm:mx-4 xl:mx-auto xl:w-full",
       )}
     >
-      {/* Wraps instead of clipping: at 320px the four tabs fill the row and
-          `overflow-hidden` cut the project name to "Bitbau" — the one word
-          that says which project these four views are of. */}
       <div className="inline-flex max-w-full items-center overflow-x-auto rounded-lg border border-border-subtle bg-surface-base p-1">
         {FLEET_SURFACES.map((s, i) => {
           const active = i === currentIndex;

@@ -65,6 +65,7 @@ const GUARDS = [
   // mechanism, and a route that delegates names the delegate.
   "entityAttrHandlers", // → requirePrivateApiAccess, in src/lib/api/entity-attrs.ts
   "ownerRequest", // → getWidgetTokenByToken + origin allowlist + owner pass, in src/lib/widget/owner-request.ts
+  "studioOwnerCheck", // → getApiUserId + the studio owner only, in src/lib/register/studio-owner.ts
 ] as const;
 
 /**

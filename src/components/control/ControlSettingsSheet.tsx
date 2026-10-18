@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Loader2, RefreshCw, Zap } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,7 @@ export function ControlSettingsSheet({
   runnerLabel,
   runnerDetail,
   versionDetail,
+  children,
 }: {
   onClose: () => void;
   automationMode: AutoInjectMode;
@@ -63,6 +65,8 @@ export function ControlSettingsSheet({
   /** Build versions — diagnostics, which is exactly what a settings sheet is
    *  for and exactly why they no longer lead the phone's first line. */
   versionDetail: string | null;
+  /** More sections, after the builder (the launch defaults). */
+  children?: ReactNode;
 }) {
   return (
     <Modal onClose={onClose} position="bottom-mobile" padded={false} size="md" className="ui-sheet">
@@ -121,6 +125,7 @@ export function ControlSettingsSheet({
             </button>
           </div>
         </section>
+        {children}
       </div>
 
       <div className="ui-sheet-foot">

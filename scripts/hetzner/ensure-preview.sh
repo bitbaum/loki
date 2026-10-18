@@ -5,6 +5,8 @@
 #   ensure-preview.sh create  <address> <name> [about] [code]         make it, give it its host, prove it
 #   ensure-preview.sh website <url> [changes] [fixes] [answers] [code] /change "Improve this site", as the operator
 #   ensure-preview.sh check   <address>                               open a preview as its owner: site, tour, pictures
+#   ensure-preview.sh move    <address> <new-address> [name]         new address (and name); the old one is taken away
+#   ensure-preview.sh ask     <project name> <what to change>        send the preview's builder a change
 #   ensure-preview.sh heal                                            every preview has its host, and answers
 #
 # Wildcard DNS sends every <label>.orangecat.ch to the box, but a label with no
@@ -97,6 +99,24 @@ check)
   echo "→ $host as the owner"
   owner_view "$host" || bad "$host: the site or its tour did not open"
   ;;
+move)
+  FROM="${2:?address}"; TO="${3:?new address}"; NEWNAME="${4:-}"
+  echo "→ $FROM.$BASE moves to $TO.$BASE"
+  ssh_box "bash -s -- $(printf '%q ' move "$FROM" "$TO" "$NEWNAME")" < "$HERE/preview-create-on-box.sh" \
+    || bad "Loki did not move the preview (see the lines above)"
+  code=$(answers "$TO.$BASE")
+  note "https://$TO.$BASE/ → HTTP $code"
+  case "$code" in
+    000) bad "$TO.$BASE does not answer over HTTPS" ;;
+    404) bad "$TO.$BASE answers but Loki has no preview called $TO" ;;
+  esac
+  ;;
+ask)
+  TAB="${2:?project name}"; TEXT="${3:?what to change}"
+  echo "→ the builder of $TAB"
+  ssh_box "bash -s -- $(printf '%q ' ask "$TAB" "$TEXT")" < "$HERE/preview-create-on-box.sh" \
+    || bad "the change did not reach the builder (see the lines above)"
+  ;;
 heal)
   root=$(ssh_box 'set -a; . /opt/loki/app/.env; set +a; r="${LOKI_PREVIEWS_ROOT:-}"; [ -n "$r" ] || { [ -n "${LOKI_BOX_DEV_ROOT:-}" ] && r="${LOKI_BOX_DEV_ROOT%/}/previews"; }; printf %s "$r"')
   [ -n "$root" ] || { echo "no previews root configured on the box; nothing to heal"; exit 0; }
@@ -110,7 +130,7 @@ heal)
   done
   ;;
 *)
-  echo "usage: ensure-preview.sh create <address> <name> [about] [code] | website <url> [changes] [fixes] [answers] [code] | check <address> | heal" >&2; exit 2 ;;
+  echo "usage: ensure-preview.sh create <address> <name> [about] [code] | website <url> [changes] [fixes] [answers] [code] | check <address> | move <address> <new-address> [name] | ask <project> <text> | heal" >&2; exit 2 ;;
 esac
 
 [ "$fail" = 0 ] && echo "OK" || exit 1

@@ -288,13 +288,12 @@ async function main() {
         })
         .map((b) => (b as HTMLElement).innerText || b.getAttribute("aria-label"));
       return {
-        // One way to talk: the Talk bar above the box, or dictation in it.
-        mic: !!r.querySelector(".talk-hero, .composer .mic"),
+        mic: !!r.querySelector(".composer .mic"),
         scrolls: panel.scrollWidth > panel.clientWidth + 1,
         outside,
       };
     });
-    ok(fit.mic, `${width}px: the panel has its microphone (as in a real browser)`);
+    ok(fit.mic, `${width}px: the composer has its mic (as in a real browser)`);
     ok(!fit.scrolls, `${width}px: the panel does not scroll sideways`);
     ok(
       fit.outside.length === 0,
