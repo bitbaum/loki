@@ -24,10 +24,10 @@ async function main() {
       import {FleetSurfaceGuide} from './src/components/shell/FleetSurfaceGuide';
       import {MobileNav} from './src/components/shell/MobileNav';
       const id='aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
-      const query=new URLSearchParams(location.search); const shared=query.has('shared');
+      const query=new URLSearchParams(location.search); const shared=query.has('shared'); const role=query.get('role')||'viewer';
       const name=query.has('long')?'A project with a genuinely long name that must wrap on a phone':'Loki';
       const attrs={status:'production',mission:'Help people build useful software.',problem:'Working on software is fragmented.',solution:'One workspace from idea to working result.',customers:'People building projects.',next_step:'Simplify the first screen and make progress easy to follow.'};
-      const dossier={detail:{project:{id,name,description:'Life OS + AI agent fleet command center — the capability layer of the two-product system. '+ 'A long project brief belongs with its story, rather than taking over every page. '.repeat(12),gitUrl:'https://github.com/bitbaum/loki'},attrs,attrMeta:{},linkedGoals:[],linkedJobs:[],resources:[],devLog:[],relations:[]},ownerId:'owner',readonly:shared,viewerRole:shared?'viewer':'owner',canEditFeedback:!shared,state:null,activity:[],outcomes:[],runs:[{id:'run-1',startedAt:new Date(Date.now()-30000),finishedAt:null,state:'running',outcome:null,payload:{},intent:'custom'}],userProject:{id:'catalog',name:'loki',gitUrl:'https://github.com/bitbaum/loki',liveUrl:'https://loki.orangecat.ch',codeCustody:'loki',isActive:true,listedPublicly:true},orangecatLinks:[],orangecatFunding:null,commits:[],builtAtMs:Date.now()};
+      const dossier={detail:{project:{id,name,description:'Life OS + AI agent fleet command center — the capability layer of the two-product system. '+ 'A long project brief belongs with its story, rather than taking over every page. '.repeat(12),gitUrl:'https://github.com/bitbaum/loki'},attrs,attrMeta:{},linkedGoals:[],linkedJobs:[],resources:[],devLog:[],relations:[]},ownerId:'owner',readonly:shared,viewerRole:shared?role:'owner',canEditFeedback:!shared,state:null,activity:[],outcomes:[],runs:[{id:'run-1',startedAt:new Date(Date.now()-30000),finishedAt:null,state:'running',outcome:null,payload:{},intent:'custom'}],userProject:{id:'catalog',name:'loki',gitUrl:'https://github.com/bitbaum/loki',liveUrl:'https://loki.orangecat.ch',codeCustody:'loki',isActive:true,listedPublicly:true},orangecatLinks:[],orangecatFunding:null,commits:[],builtAtMs:Date.now()};
       createRoot(document.getElementById('app')).render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" aria-hidden="true"></div><FleetSurfaceGuide/><main className="app-main"><ProjectWorkspaceView dossier={dossier} shareAction={<ProjectSharePanel projectId={id} initialShare={null}/>}/></main></div><MobileNav/></div>);`,
     },
     bundle: true,
@@ -89,8 +89,21 @@ async function main() {
       await page.addInitScript(() => {
         (window as unknown as { process: unknown }).process = { env: { NODE_ENV: "production" } };
       });
+      const asked: Array<{ text: string }> = [];
       await page.route("**/*", (route) => {
         const url = new URL(route.request().url());
+        if (url.pathname.endsWith("/ask") && route.request().method() === "POST") {
+          asked.push(route.request().postDataJSON());
+          return route.fulfill({
+            contentType: "application/json",
+            body: JSON.stringify({
+              ok: true,
+              building: true,
+              say: "Loki is building it now. You will see it on loki.orangecat.ch when it is live, and George is told.",
+              followPath: "/feedback/ffffffff-bbbb-4ccc-8ddd-eeeeeeeeeeee/watch-fix",
+            }),
+          });
+        }
         if (url.pathname.startsWith("/api/projects/") && route.request().method() === "PATCH")
           return route.fulfill({
             status: 500,
@@ -234,11 +247,50 @@ async function main() {
         assert.equal(await page.getByRole("button", { name: "Make it happen" }).count(), 0);
         assert.equal(await page.getByText("Shared with you · Viewer").count(), 1, "names the role");
         assert.equal(await page.getByRole("link", { name: "Invite" }).count(), 0);
+        assert.equal(
+          await page.getByRole("link", { name: "Ask for a change" }).getAttribute("href"),
+          "#ask",
+          "a member asks on the page, not in a chat that runs in their own account",
+        );
         await mount("?long=1");
         assert.equal(
           await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
           false,
         );
+        await mount();
+      }
+      if (width <= 390) {
+        // A Builder on someone else's project asks for a change right here:
+        // it is built on the owner's builder, and the page says so and links
+        // the build. The chat this used to open told Manu to install the
+        // desktop app (walk as Manu, 2026-10-18).
+        await mount("?shared=1&role=editor");
+        assert.equal(await page.getByText("Shared with you · Builder").count(), 1);
+        assert.equal(await page.getByRole("link", { name: "Ask Loki" }).count(), 0);
+        const sections = page.getByRole("combobox", { name: "Project section" });
+        await sections.selectOption("activity");
+        await page.getByRole("link", { name: "Ask for a change" }).click();
+        const box = page.getByRole("textbox", { name: "Ask for a change to Loki" });
+        await box.waitFor();
+        await page.waitForFunction(() => {
+          const r = document.getElementById("ask")?.getBoundingClientRect();
+          return !!r && r.top >= 0 && r.top < innerHeight;
+        });
+        assert.equal(await sections.inputValue(), "now", "the box's section opens from any other");
+        await box.fill("Make the Log today link bigger");
+        await page.keyboard.press("Enter");
+        await page.getByText("Loki is building it now.", { exact: false }).waitFor();
+        assert.deepEqual(asked, [{ text: "Make the Log today link bigger" }]);
+        assert.equal(
+          await page.getByRole("link", { name: "Follow it" }).getAttribute("href"),
+          "/feedback/ffffffff-bbbb-4ccc-8ddd-eeeeeeeeeeee/watch-fix",
+        );
+        assert.equal(await box.inputValue(), "", "a sent ask leaves the box empty");
+        assert.equal(
+          await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+          false,
+        );
+        await page.screenshot({ path: path.join(out, `${width}-builder-asked.png`) });
         await mount();
       }
       if (width === 1440) await page.getByRole("tab", { name: "Overview", exact: true }).click();

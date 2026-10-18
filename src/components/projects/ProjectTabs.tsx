@@ -14,6 +14,9 @@ export interface ProjectTab {
   /** Draws the count in the attention colour. For things genuinely waiting on
    *  a human, never for a neutral total like "12 runs". */
   urgent?: boolean;
+  /** Places inside this tab a link may name (`#ask`): the tab opens and the
+   *  place scrolls into view, from any other tab. */
+  anchors?: string[];
   content: React.ReactNode;
 }
 
@@ -28,7 +31,14 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
   useEffect(() => {
     const fromHash = () => {
       const id = window.location.hash.replace(/^#/, "");
-      if (id && tabs.some((t) => t.id === id)) setActive(id);
+      if (!id) return;
+      if (tabs.some((t) => t.id === id)) return setActive(id);
+      const holder = tabs.find((t) => t.anchors?.includes(id));
+      if (!holder) return;
+      setActive(holder.id);
+      requestAnimationFrame(() =>
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
     };
     fromHash();
     window.addEventListener("hashchange", fromHash);

@@ -40,6 +40,7 @@ export function ProjectWorkspaceHeader({
     trackUsage({ surface: "projects.workspace", action: "shown", target: "header" });
   }, [workspaceKey]);
   const summary = summarizeDescription(description, 145);
+  const member = readonly && viewerRole !== null && viewerRole !== "owner";
   const track = (target: string) =>
     trackUsage({ surface: "projects.workspace", action: "tap", target });
   return (
@@ -65,12 +66,17 @@ export function ProjectWorkspaceHeader({
         )}
       </div>
       <div className="mt-5 flex flex-wrap items-center gap-2">
+        {/* Someone on another person's project asks in the box on this page
+            (MemberGuide → ProjectAskBox). The chat runs in THEIR account,
+            which has no builder for this project: it told a Builder to edit
+            HTML and install the desktop app (walk as Manu, 2026-10-18). */}
         <Link
-          href={`/loki?project=${encodeURIComponent(workspaceKey)}`}
+          href={member ? "#ask" : `/loki?project=${encodeURIComponent(workspaceKey)}`}
           className={`${quiet ? "ui-btn-secondary" : "ui-btn-primary"} min-h-11 gap-2`}
-          onClick={() => track("chat")}
+          onClick={() => track(member ? "ask" : "chat")}
         >
-          <MessageSquare className="h-4 w-4" aria-hidden="true" /> Ask Loki
+          <MessageSquare className="h-4 w-4" aria-hidden="true" />{" "}
+          {member ? "Ask for a change" : "Ask Loki"}
         </Link>
         {liveUrl && (
           <a

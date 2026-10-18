@@ -11,11 +11,15 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   capabilitiesForRole,
   OWNER_CAPABILITIES,
   ROLE_LABELS,
+  askPath,
+  askReply,
   roleGuide,
+  sharedProjectLine,
   type ProjectCapabilities,
 } from "@/lib/project-capabilities";
 import { PROJECT_ROLE_VALUES } from "@/db/schema/project-memberships";
@@ -106,8 +110,6 @@ check("no collaborator role is silently as powerful as the owner", () => {
   }
 });
 
-console.log(`\nproject-capabilities: ${passed} checks passed`);
-
 // The manual a non-technical person reads before and after joining: a Builder
 // is told nothing waits for the owner; everyone else is told the owner decides.
 check("the role guide says what happens to what they ask for", () => {
@@ -124,3 +126,70 @@ check("the role guide says what happens to what they ask for", () => {
   }
   assert.match(roleGuide("viewer", { site: null, owner: "George" }).steps[0], /the site/);
 });
+
+// Walking the loop as Manu (2026-10-18): Loki's own "Ask Loki" told a Builder
+// to edit HTML and install the desktop app. There are two doors now — the
+// project's page in Loki and the site — and both say what happens next.
+check("an ask from Loki is answered with what happens to it", () => {
+  assert.match(
+    roleGuide("editor", { site: "petvity.orangecat.ch", owner: "George" }).steps[0],
+    /page in Loki/,
+  );
+  const built = askReply("editor", {
+    owner: "George",
+    site: "petvity.orangecat.ch",
+    building: true,
+  });
+  assert.match(built, /^Loki is building it now/);
+  assert.match(built, /petvity\.orangecat\.ch/);
+  assert.match(built, /George is told/);
+  assert.doesNotMatch(askReply("owner", { owner: "George", site: null, building: true }), /George/);
+  assert.equal(
+    askReply("editor", {
+      owner: "George",
+      site: null,
+      building: false,
+      buildNote: "Saved. You have sent a lot today.",
+    }),
+    "Saved. You have sent a lot today.",
+    "a build that could not start says why, in the build's own words",
+  );
+  for (const role of ["viewer", "client"] as const)
+    assert.equal(
+      askReply(role, { owner: "George", site: null, building: true }),
+      "Sent to George. They decide, and you are told when it ships.",
+      "only someone who may build is told it is being built",
+    );
+  assert.equal(
+    askPath("a873c84a-5030-4068-9fbc-683a86a95c58"),
+    "/projects/a873c84a-5030-4068-9fbc-683a86a95c58#ask",
+  );
+});
+
+check("the chat knows where a shared project is changed", () => {
+  const line = sharedProjectLine(
+    {
+      name: "petvity",
+      role: "editor",
+      ownerName: "George",
+      liveUrl: "https://petvity.orangecat.ch",
+    },
+    "https://loki.orangecat.ch/projects/x#ask",
+  );
+  assert.match(line, /you are its Builder/);
+  assert.match(line, /projects\/x#ask/);
+  assert.match(line, /nothing to install/);
+  assert.match(
+    sharedProjectLine({ name: "p", role: "viewer", ownerName: null, liveUrl: null }, "u"),
+    /its owner decides/,
+  );
+  const read = (f: string) => readFileSync(f, "utf8");
+  assert.match(read("src/lib/agent/sources-fleet.ts"), /projects_shared_with_you/);
+  assert.match(read("src/lib/agent/sources.ts"), /sharedProjectFacts\(userId\)/);
+  // Today and Control lead with the shared project, not "Add a project" or a download.
+  assert.match(read("src/app/(app)/today/page.tsx"), /<SharedProjectsCard/);
+  assert.match(read("src/components/control/ControlPanel.tsx"), /onlyShared && \(/);
+  assert.match(read("src/components/projects/ProjectWorkspaceHeader.tsx"), /member \? "#ask"/);
+});
+
+console.log(`\nproject-capabilities: ${passed} checks passed`);

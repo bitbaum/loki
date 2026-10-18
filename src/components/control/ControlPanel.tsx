@@ -43,8 +43,15 @@ import { MissingCLIsBanner } from "@/components/desktop/MissingCLIsBanner";
 import { useAutomationPolicy } from "@/hooks/use-automation-policy";
 import { TonightCard } from "./TonightCard";
 import type { AutoInjectMode } from "@/config/beacon";
+import type { SharedProject } from "@/db/queries/project-access";
+import { SharedProjectsCard } from "@/components/projects/SharedProjectsCard";
 
-export function ControlPanel() {
+export function ControlPanel({
+  sharedProjects = [],
+}: {
+  /** Projects someone else shared with this account (Today reads the same). */
+  sharedProjects?: readonly SharedProject[];
+} = {}) {
   const router = useRouter();
   const {
     data,
@@ -171,6 +178,7 @@ export function ControlPanel() {
   const runtimeStateKnown = Boolean(presence.runtimeStateKnown);
   const runnerSyncStale = Boolean(presence.runnerSyncStale);
   const runtimeSyncCtx = presence.runtimeSyncCtx;
+  const onlyShared = Boolean(data && data.projects.length === 0 && sharedProjects.length > 0);
   const pageState = data
     ? buildControlPageState(data, nowS, runtimeStateKnown, runnerSyncStale)
     : null;
@@ -375,24 +383,42 @@ export function ControlPanel() {
           still fires for users with projects but no runner (legit warning:
           they can't dispatch) and for runner-was-online-now-offline (legit
           troubleshooting). */}
-      {!(data && data.projects.length === 0 && runnerNeverSeen && !runnerOffline) && (
-        <RunnerStatusBanner
-          runnerNeverSeen={runnerNeverSeen}
-          runnerOffline={runnerOffline}
-          runnerLastPushedAt={runnerLastPushedAt}
-          runtimeAvailable={runtimeAvailable}
-          hasProjects={(data?.projects.length ?? 0) > 0}
-          onRefresh={() => refresh(true)}
-          cloud={cloudBuilderState(data?.cloudBuilderAllowed, builderPresence)}
-        />
+      {/* Owns nothing, but was invited onto someone's project: that project
+          is the whole of Control for them. Its builds run on the OWNER's
+          builder, so "Connect a builder… install the desktop app" was a
+          wrong turn for a Builder who has nothing to install (walk as Manu,
+          2026-10-18). Starting a project of their own stays one tap away. */}
+      {onlyShared && (
+        <div className="space-y-3">
+          <SharedProjectsCard projects={sharedProjects} />
+          <button
+            type="button"
+            className="ui-btn-ghost min-h-11"
+            onClick={() => setNewProjectOpen(true)}
+          >
+            Start a project of your own
+          </button>
+        </div>
       )}
+      {!onlyShared &&
+        !(data && data.projects.length === 0 && runnerNeverSeen && !runnerOffline) && (
+          <RunnerStatusBanner
+            runnerNeverSeen={runnerNeverSeen}
+            runnerOffline={runnerOffline}
+            runnerLastPushedAt={runnerLastPushedAt}
+            runtimeAvailable={runtimeAvailable}
+            hasProjects={(data?.projects.length ?? 0) > 0}
+            onRefresh={() => refresh(true)}
+            cloud={cloudBuilderState(data?.cloudBuilderAllowed, builderPresence)}
+          />
+        )}
 
       {/* Desktop-only — surfaces missing agent CLIs so the user
           knows what to install before dispatching. Renders null outside
           Fleet Runner (no IPC) and when all expected tools are present. */}
       <MissingCLIsBanner />
 
-      {data && data.projects.length === 0 && (
+      {data && data.projects.length === 0 && !onlyShared && (
         <ControlEmptyState
           registeredCount={data.inventory?.trackedProjectCount ?? 0}
           onAddManual={() => setNewProjectOpen(true)}

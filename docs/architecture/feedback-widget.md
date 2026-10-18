@@ -99,6 +99,16 @@ multi-tenant security boundary:
   note, like a stranger's, waits for the owner. The words a person reads for
   all of this are `ROLE_LABELS` and `roleGuide` in `lib/project-capabilities.ts`,
   shown on the invite page and again on the project after joining.
+  The site is one of two doors. On the project's page in Loki a member asks in
+  the box at `#ask` (`ProjectAskBox`, `POST /api/projects/[id]/ask`,
+  `lib/feedback/ask-in-loki.ts`), which files the same row the widget would —
+  built at once for a Builder, waiting for the owner otherwise. Loki's chat
+  runs in the member's OWN account, which has no builder for the project, so
+  the project's header sends members to that box rather than to the chat, and
+  Today and Control show `SharedProjectsCard` instead of "Add a project" or the
+  desktop-app pitch (walk as Manu, 2026-10-18: the chat told a Builder to edit
+  HTML and install the desktop app). The chat's facts name each shared project
+  and where it is changed (`sharedProjectLine`).
 - **Owner:** the `user_projects.user_id` owner retains project identity,
   runtime credentials, billing, and membership management. Project membership
   never copies or transfers those credentials.
