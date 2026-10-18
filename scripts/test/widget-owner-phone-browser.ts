@@ -146,6 +146,7 @@ async function main() {
           top: r.top,
           bottom: r.bottom,
           log: log ? log.getBoundingClientRect().height : 0,
+          logContent: log ? log.scrollHeight : 0,
           sends,
         };
       });
@@ -154,10 +155,17 @@ async function main() {
         typing.top >= 0 && typing.bottom <= 430,
         `${width}: the whole sheet is above the keyboard (${typing.top}–${typing.bottom})`,
       );
-      assert.ok(typing.log >= 60, `${width}: the thread keeps real room (${typing.log}px)`);
+      // The thread is as tall as what it holds, up to the room there is: it
+      // must show all of it, or at least 60px of it — never a sliver.
+      assert.ok(
+        typing.log >= Math.min(60, typing.logContent) - 1,
+        `${width}: the thread keeps real room (${typing.log}px of ${typing.logContent}px)`,
+      );
       assert.ok(typing.sends.length > 0, `${width}: Send is there`);
       for (const b of typing.sends) assert.ok(b <= 430, `${width}: Send stays on screen (${b})`);
-      console.log(`  ${width}px typing: thread ${Math.round(typing.log)}px`);
+      console.log(
+        `  ${width}px typing: thread ${Math.round(typing.log)} of ${typing.logContent}px`,
+      );
 
       // Android's back key drops the keyboard but leaves focus in the box:
       // the extras ("This page", Point to area) come back with the room.
