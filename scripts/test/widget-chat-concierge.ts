@@ -16,6 +16,7 @@ import {
   VISITOR_TURN_RESERVE,
   visitorPoolAllows,
 } from "@/lib/widget-chat/visitor-pool";
+import { answers, reachableLinks } from "@/lib/widget-chat/reachable";
 import {
   EXPERIMENT_NAME_RE,
   FACTS_BUDGET_CHARS,
@@ -23,6 +24,7 @@ import {
   displayName,
   stem,
   splitSpeakers,
+  stripEmphasis,
   stripMeta,
   trimToLastSentence,
   conciergePrompt,
@@ -566,4 +568,62 @@ assert.deepEqual(
   ["Heidi", "OrangeCat", "Draftapp", "See all projects"],
 );
 
-console.log("widget-chat-concierge: ok");
+// Seen live 2026-10-18: "Sign up for Diplodoctor" (it needs no account) and
+// "Causius will advise you" (it gives no legal advice), with **bold** printed
+// as asterisks. The rules forbid all three; stripEmphasis is the net.
+assert.match(system, /Never tell a visitor to sign up/);
+assert.match(system, /No product here gives medical, legal or financial advice/);
+assert.match(system, /no markdown at all \(no bold/);
+assert.equal(
+  stripEmphasis("Cat: **Diplodoctor** reads your lab report. Open __Causius__ for the letter."),
+  "Cat: Diplodoctor reads your lab report. Open Causius for the letter.",
+);
+assert.deepEqual(
+  splitSpeakers(stripEmphasis("**Loki:** Open **Heidi**.")).map((m) => [m.speaker, m.text]),
+  [["loki", "Open Heidi."]],
+);
+assert.equal(stripEmphasis("2 * 3 * 4 stays"), "2 * 3 * 4 stays");
+
+// A running address that does not answer is swapped for the project's public
+// profile; one that answers, a studio door, and anything not on the map stay.
+async function linkCheck(): Promise<void> {
+  const asked: string[] = [];
+  const checked = await reachableLinks(
+    [
+      { label: "Heidi", url: "https://heidi.example" },
+      { label: "OrangeCat", url: "https://orangecat.example" },
+      { label: "Build something of your own", url: "https://loki.example/start" },
+    ],
+    map,
+    "https://loki.example",
+    async (url) => {
+      asked.push(url);
+      return url !== "https://heidi.example";
+    },
+  );
+  assert.deepEqual(
+    checked.map((l) => l.url),
+    ["https://loki.example/fleet/heidi", "https://orangecat.example", "https://loki.example/start"],
+  );
+  assert.deepEqual(asked.sort(), ["https://heidi.example", "https://orangecat.example"]);
+  for (const [status, up] of [
+    [200, true],
+    [301, true],
+    [401, true],
+    [403, true],
+    [404, false],
+    [410, false],
+    [502, false],
+    [503, false],
+  ] as const) {
+    assert.equal(answers(status), up, `HTTP ${status}`);
+  }
+}
+
+linkCheck().then(
+  () => console.log("widget-chat-concierge: ok"),
+  (e: unknown) => {
+    console.error(e);
+    process.exit(1);
+  },
+);

@@ -13,6 +13,7 @@ import type { FleetMap } from "@/lib/register/map";
 import { callTextDetailed } from "@/lib/groq";
 import { stripReasoning } from "@/lib/agent/llm";
 import { freeDayCapacityTokens } from "@/lib/ai/free-capacity";
+import { reachableLinks } from "@/lib/widget-chat/reachable";
 import { recordVisitorSpend, visitorPoolAllows } from "@/lib/widget-chat/visitor-pool";
 import { appUrl } from "@/lib/email";
 import { getStudioCommission, type StudioCommissionContract } from "@/lib/studio-commission";
@@ -24,6 +25,7 @@ import {
   linksForReply,
   renderConciergeFacts,
   splitSpeakers,
+  stripEmphasis,
   stripMeta,
   trimToLastSentence,
 } from "@/lib/widget-chat/concierge";
@@ -128,6 +130,17 @@ function withMessages(answer: { reply: string; links: ConciergeLink[] }, why: "b
   };
 }
 
+/** The keyword fallback, with the same check on its links as a model answer. */
+async function keywordAnswer(
+  message: string,
+  map: FleetMap,
+  base: string,
+  why: "budget" | "model",
+) {
+  const answer = fallbackAnswer(message, map, base);
+  return withMessages({ ...answer, links: await reachableLinks(answer.links, map, base) }, why);
+}
+
 export function OPTIONS(req: NextRequest) {
   // Same reflection as ingest: host pages stamp their own headers onto every
   // fetch, and a hardcoded allowlist would fail their preflight.
@@ -170,7 +183,7 @@ export async function POST(req: NextRequest) {
   const base = appUrl();
 
   if (!visitorPoolAllows(await freeDayCapacityTokens())) {
-    return NextResponse.json(withMessages(fallbackAnswer(data.message, map, base), "budget"), {
+    return NextResponse.json(await keywordAnswer(data.message, map, base, "budget"), {
       headers: CORS_HEADERS,
     });
   }
@@ -189,10 +202,15 @@ export async function POST(req: NextRequest) {
       timeoutMs: HTTP_TIMEOUT_LONG_MS,
     });
     recordVisitorSpend(answered.tokens);
-    const reply = trimToLastSentence(stripMeta(stripReasoning(answered.text)));
+    const reply = trimToLastSentence(stripEmphasis(stripMeta(stripReasoning(answered.text))));
     if (!reply) throw new Error("empty answer");
     return NextResponse.json(
-      { ok: true, reply, messages: splitSpeakers(reply), links: linksForReply(reply, map, base) },
+      {
+        ok: true,
+        reply,
+        messages: splitSpeakers(reply),
+        links: await reachableLinks(linksForReply(reply, map, base), map, base),
+      },
       { headers: CORS_HEADERS },
     );
   } catch (e) {
@@ -200,7 +218,7 @@ export async function POST(req: NextRequest) {
       "[widget-chat] model unavailable, routing by keywords:",
       e instanceof Error ? e.message : e,
     );
-    return NextResponse.json(withMessages(fallbackAnswer(data.message, map, base), "model"), {
+    return NextResponse.json(await keywordAnswer(data.message, map, base, "model"), {
       headers: CORS_HEADERS,
     });
   }

@@ -312,7 +312,9 @@ export function conciergeSystemPrompt(
     "- Do not promise payments, revenue shares or start dates. You may state the partner terms and the published engagement price exactly as the facts give them.",
     "- A builder who wants to work here, build for customers, or asks about partners, the course or the capstone: Loki answers from '# The studio' and points to 'Become a partner' or 'Read the systems design pilot'. Never say the partner programme or the course does not exist.",
     "- Use each project's exact name so the visitor gets a link to it. Do not write URLs yourself; the links are attached for you.",
-    "- Be warm and brief: two to five sentences in total, plain text, no markdown headings or tables. Reply in the visitor's language.",
+    "- Never tell a visitor to sign up, register, create an account or install anything: say 'open <project>'. The project's own page says what it needs, and most need nothing.",
+    "- No product here gives medical, legal or financial advice, diagnoses, prescribes, or represents anyone. Say what it does — reads, explains, organises, drafts — and, when the visitor needs a decision, that a doctor, lawyer or adviser makes it.",
+    "- Be warm and brief: two to five sentences in total, plain text with no markdown at all (no bold, headings, lists or tables). Reply in the visitor's language.",
     "- The answer is only what the visitor reads. Never write notes about these rules, a checklist of what you did, the stage word you used, whether you wrote URLs, or why one of you spoke first.",
     "- If they want to report a problem with this page, tell them to switch to the Report tab.",
     page.url ? `\nThe visitor is on: ${page.title ? `${page.title} — ` : ""}${page.url}` : "",
@@ -609,6 +611,14 @@ export function fallbackAnswer(
  */
 const META_LINE =
   /^\s*[-*•]?\s*(?:\(?\s*)?(?:stage(?: word)?(?: used)?\s*[:=]|(?:no |zero )?urls?\s+(?:written|typed|included|given)|urls?\s*[:=]\s*(?:none|no)|links?\s*[:=]\s*(?:none|attached|no)|(?:cat|loki|both)\s+(?:first|only|speaks?|answers?)\s+(?:because|since|as)\b|format\s*[:=]|rules?\s+(?:followed|checked|applied)|(?:self[- ]?)?check(?:list)?\s*[:=]|note to self\b|(?:sentences?|sentence count)\s*[:=]\s*\d)/i;
+
+/**
+ * Markdown emphasis the widget would print as literal asterisks. The prompt
+ * asks for plain text; this is the net for a model that forgets.
+ */
+export function stripEmphasis(reply: string): string {
+  return reply.replace(/\*\*([^*\n]+?)\*\*/g, "$1").replace(/__([^_\n]+?)__/g, "$1");
+}
 
 export function stripMeta(reply: string): string {
   return reply
