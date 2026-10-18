@@ -90,6 +90,11 @@ print(json.dumps({"tab": os.environ["TAB"], "customPrompt": os.environ["TEXT"], 
       echo
     done
     rm -f /tmp/preview-status.json
+    # The usual reason a change waits: the cloud builder is held for an update
+    # until its agents are idle (src/lib/runner-update-hold.ts). Its state and
+    # the drain's last words (counts only — these logs are public).
+    echo "builder: $(systemctl show loki-box-runner.service -p ActiveState -p ActiveEnterTimestamp --value 2>/dev/null | tr '\n' ' ')"
+    (journalctl -t loki-drain -n 4 --no-pager -o short-iso 2>/dev/null || sudo -n journalctl -t loki-drain -n 4 --no-pager -o short-iso 2>/dev/null) | sed 's/^/drain:   /'
     exit 0
     ;;
   *) echo "usage: preview-create-on-box.sh name <address> <name> [about] [code] | website <url> [changes] [fixes] [answers] [code] | move <address> <new-address> [name] | ask <project> <text> | status <run id> [command id]" >&2; exit 2 ;;
