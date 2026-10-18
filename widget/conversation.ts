@@ -17,6 +17,7 @@
  * Model output is rendered as TEXT, never HTML: it is shown on someone else's
  * site. Links come from the server's map and only http(s) become anchors.
  */
+import { readBackView } from "./read-back";
 import { h, spiralMark, keepInViewOnFocus, micIcon } from "./dom";
 import { createAboutBar } from "./about-bar";
 import { answerLinks, richBody } from "./rich-text";
@@ -189,6 +190,7 @@ export function createConversation(opts: {
   // free-standing textarea — two boxes for one sentence.
   const form = h("div", "composer");
   form.append(ctx.el, input, shots, actions);
+  quietUntilUsed(form, () => !input.value.trim() && !shotsNow().length && ctx.about() === "page");
 
   // The way out of the card and into Loki itself (continue-row.ts).
   const cont = createContinueRow({
@@ -197,7 +199,9 @@ export function createConversation(opts: {
     thread: () => [...model.snapshot().thread],
     owner: () => opts.ownerPass() !== null,
   });
-  el.append(log, starters, form, cont.el, err);
+  // Talk sits right above the box, always in view: the one way to start
+  // talking, never scrolled away with the thread (owner, 2026-10-18).
+  el.append(log, starters, ...(talkBtn ? [talkBtn] : []), form, cont.el, err);
 
   attachments.listenPaste(el);
 
@@ -262,6 +266,7 @@ export function createConversation(opts: {
     if (kit) return kit.update(currentKitState());
     const reviewingNote = draft?.intent === "note";
     form.style.display = reviewingNote ? "none" : "";
+    if (talkBtn) talkBtn.style.display = form.style.display;
     // The continue row decides for itself whether there is anything to take.
     if (reviewingNote) cont.el.style.display = "none";
     else cont.sync();
@@ -283,7 +288,6 @@ export function createConversation(opts: {
           greetingFor({ assistant: a, owner: owner(), watching: opts.watch()?.on() ?? false }),
         ),
       );
-      if (talkBtn && !thread.some(saidSomething)) log.appendChild(talkHero(opts.talk!));
       if (!owner()) log.appendChild(ownerDoor(opts.apiBase, opts.token));
     }
     const lastYou = thread.map((i) => i.kind).lastIndexOf("you");
@@ -400,16 +404,16 @@ export function createConversation(opts: {
   function draftCard(draft: Draft): HTMLElement {
     const el = h("div", draft.intent === "note" ? "sendcard voice-note" : "sendcard");
     const voice = draft.intent === "note";
+    // A spoken note opens with what Loki heard, part by part (read-back.ts);
+    // its text opens on Edit when the list already says it.
+    const heard = voice ? readBackView(draft.text, () => (box.style.display = "")) : null;
     el.appendChild(
-      h(
-        "div",
-        "changes-title",
-        voice
-          ? "What you said"
-          : owner()
-            ? "Build this on your site"
-            : "Send to whoever builds this site",
-      ),
+      heard?.el ??
+        h(
+          "div",
+          "changes-title",
+          owner() ? "Build this on your site" : "Send to whoever builds this site",
+        ),
     );
     // A spoken note is a question as often as it is a change: say both ways,
     // before the buttons, so nobody has to guess which one answers them
@@ -420,7 +424,7 @@ export function createConversation(opts: {
           "p",
           "sendcard-sub",
           owner()
-            ? "Edit it if you like. Save it with your other notes and build them together when you're ready — or fix it now, or Ask Loki about it."
+            ? "Save it with your other notes and build them together, page by page — or fix it now."
             : "Edit it if you like, then Ask Loki about it, or save it for whoever builds this site.",
         ),
       );
@@ -435,8 +439,9 @@ export function createConversation(opts: {
         24,
         Math.max(6, draft.text.split("\n").length + Math.ceil(draft.text.length / 60)),
       );
+    if (heard?.listed) box.style.display = "none";
     el.appendChild(box);
-    if (draft.capture) {
+    if (draft.capture && !heard?.listed) {
       // What Loki saw while they spoke (browse-voice.ts) — the same words that
       // go with the note, so "does it know what I meant?" has an answer here.
       const seen = draft.capture.diagnostics["On screen while speaking"];
@@ -698,10 +703,9 @@ function composerMic(o: {
   talk: HTMLButtonElement | null;
   button: HTMLButtonElement | null;
 } {
-  if (o.talk) {
-    const talk = talkButton(o.talk);
-    return { voice: null, talk, button: talk };
-  }
+  // Talk is its own bar above the box (talkBar), not a tool beside it: one
+  // microphone in the panel. Without it, plain dictation lives in the box.
+  if (o.talk) return { voice: null, talk: talkBar(o.talk), button: null };
   const voice = createVoiceControl({
     endpoint: `${o.apiBase}/api/widget/transcribe`,
     token: o.token,
@@ -712,38 +716,55 @@ function composerMic(o: {
   return { voice, talk: null, button: voice?.button ?? null };
 }
 
-/** The person has said or sent something — no more invitation to start. */
-const saidSomething = (i: { kind: string }) => i.kind === "you" || i.kind === "sent";
-
 /**
- * The way in before anything is said: one big, friendly button. Typing is
- * there too, but talking while you scroll is the quickest way to say what
- * you would change — and the one people did not find as a small mic among
- * the composer's tools (owner, 2026-10-18: "easy, pleasant, exciting").
+ * The one way to start talking: a big, friendly bar right above the box.
+ * Talking while you scroll is the quickest way to say what you would change —
+ * and as a small mic among the composer's tools people did not find it; as a
+ * card at the top of the thread it scrolled away (owner, 2026-10-18). It
+ * closes the panel, so the page can be scrolled while you speak.
  */
-function talkHero(talk: () => void): HTMLButtonElement {
+function talkBar(talk: () => void): HTMLButtonElement {
   const b = h("button", "talk-hero");
   b.type = "button";
+  b.setAttribute("aria-label", "Talk to Loki — you can scroll the page while you speak");
   const mic = h("span", "talk-hero-mic");
   mic.append(micIcon());
   const words = h("span", "talk-hero-words");
   words.append(
     h("span", "talk-hero-title", "Talk to Loki"),
-    h("span", "talk-hero-sub", "Scroll around and say what you'd change. Loki writes it down."),
+    h("span", "talk-hero-sub", "Scroll and say what you'd change"),
   );
   b.append(mic, words);
   b.addEventListener("click", talk);
   return b;
 }
 
-/** The composer's microphone when talking hands over to the page: it closes
- *  the panel so the person can scroll while they speak. */
-function talkButton(talk: () => void): HTMLButtonElement {
-  const b = h("button", "mic talk");
-  b.type = "button";
-  b.append(micIcon(), h("span", undefined, "Talk"));
-  b.setAttribute("aria-label", "Talk to Loki — you can scroll the page while you speak");
-  b.title = "Talk to Loki — you can scroll the page while you speak";
-  b.addEventListener("click", talk);
-  return b;
+/**
+ * The box is one quiet line until it is used: the scope menu, Point to area,
+ * screenshots and the send buttons appear when you tap into it, or once it
+ * holds words, a screenshot or a picked area. On a phone they were four rows
+ * of controls under a thread, before a word was typed (owner, 2026-10-18:
+ * "the phone screen is small"). Leaving waits a beat, so a tap on one of
+ * those controls still lands before they fold away.
+ */
+function quietUntilUsed(form: HTMLElement, idle: () => boolean): void {
+  let inside = false;
+  const sync = () => form.classList.toggle("quiet", !inside && idle());
+  form.addEventListener("focusin", () => {
+    inside = true;
+    sync();
+  });
+  form.addEventListener("focusout", () =>
+    window.setTimeout(() => {
+      inside = form.contains(
+        form.getRootNode() instanceof ShadowRoot
+          ? (form.getRootNode() as ShadowRoot).activeElement
+          : document.activeElement,
+      );
+      sync();
+    }, 250),
+  );
+  form.addEventListener("input", sync);
+  new MutationObserver(sync).observe(form, { childList: true, subtree: true });
+  sync();
 }

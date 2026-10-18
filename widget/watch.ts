@@ -590,7 +590,7 @@ function failureSay(f: Failure): string {
   return f.kind === "dead-tap"
     ? `You pressed ${f.text} three times and nothing happened.`
     : f.kind === "request"
-      ? `Something broke: the page asked for ${f.text.replace(/^[A-Z]+ /, "").replace(/ → /, " and got ")}.`
+      ? `Something broke: the page asked for ${f.text.replace(/^[A-Z]+ /, "").replace(/ \u2192 /, " and got ")}.`
       : `Something broke: the page hit an error — “${f.text}”.`;
 }
 

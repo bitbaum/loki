@@ -131,12 +131,20 @@ export const savedNotes = (changes: readonly OwnerChange[]): number =>
   changes.filter((c) => c.label === SAVED_NOTE_LABEL).length;
 
 /** What "Build them" said, in one sentence for the conversation. */
-export function builtSay(r: { started: number; total: number; note?: string }): string {
+export function builtSay(r: {
+  started: number;
+  total: number;
+  builds?: number;
+  note?: string;
+}): string {
   if (!r.total) return "There are no saved notes waiting.";
+  const builds = r.builds ?? r.started;
   if (r.started === r.total)
     return r.total === 1
       ? "Started your saved note — Loki builds it and tells you when it is live."
-      : `Started your ${r.total} saved notes — Loki builds them one after another and tells you as each goes live.`;
+      : builds === 1
+        ? `Started your ${r.total} saved notes as one build — they are all about the same page. Loki tells you when it is live.`
+        : `Started your ${r.total} saved notes as ${builds} builds, one per page. Loki tells you as each goes live.`;
   return `Started ${r.started} of ${r.total} saved notes. ${r.note ?? "The rest wait in Loki under Feedback."}`;
 }
 
@@ -319,6 +327,7 @@ export function createChanges(opts: {
         owner?: boolean;
         started?: number;
         total?: number;
+        builds?: number;
         note?: string;
       } | null;
       if (b?.owner === false) return opts.onPassRefused();
@@ -327,6 +336,7 @@ export function createChanges(opts: {
         builtSay({
           started: b.started ?? 0,
           total: b.total ?? 0,
+          ...(typeof b.builds === "number" ? { builds: b.builds } : {}),
           ...(b.note ? { note: b.note.slice(0, 300) } : {}),
         }),
       );

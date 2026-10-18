@@ -42,10 +42,20 @@ assert.match(thoughtsSummary(trail, false), /^Not watching/);
 
 // The status line says the state in as few words as it can: the counts stay
 // in the tooltip and the list.
-assert.equal(watchHeadline(trail, true), "Watching · 2 to look at");
-assert.equal(watchHeadline(trail.slice(0, 2), true), "Watching");
-assert.equal(watchHeadline([], true), "Watching");
-assert.equal(watchHeadline(trail, false), "Paused");
+assert.deepEqual(watchHeadline(trail, true), { state: "Watching", detail: "2 to look at" });
+assert.deepEqual(watchHeadline(trail, true, "2 notes saved"), {
+  state: "Watching",
+  detail: "2 to look at · 2 notes saved",
+});
+assert.deepEqual(watchHeadline(trail.slice(0, 2), true), {
+  state: "Watching",
+  detail: "Nothing to look at so far",
+});
+assert.deepEqual(watchHeadline(trail, false), { state: "Paused", detail: "2 to look at" });
+assert.deepEqual(watchHeadline([], false), {
+  state: "Paused",
+  detail: "Nothing is being recorded",
+});
 
 // `look` survives a page load like every other step.
 assert.equal(freshTrail(trail, t0 + 30_000).length, trail.length);

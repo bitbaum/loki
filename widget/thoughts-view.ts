@@ -24,29 +24,38 @@ export function createThoughtsView(
   onToggleWatch: () => void,
   extra?: Extra,
 ): {
+  /** The status, for the panel's header: the mark, the state, a chevron. */
+  row: HTMLButtonElement;
+  /** Pause / Resume, beside the header's close. */
+  toggle: HTMLButtonElement;
+  /** The drawer under the header — only there while the status is open. */
   el: HTMLElement;
+  /** The mark in the status, which also turns while Loki thinks. */
+  mark: HTMLElement;
+  /** The header's second line: what needs a look. */
+  detail: HTMLElement;
   update: (trail: TrailEntry[], watching: boolean) => void;
   /** Repaint with what is known (the changes changed, not the trail). */
   repaint: () => void;
 } {
+  // The status IS the header for the owner — one mark, one line — with Pause
+  // beside the close and the details in a drawer under it. It was a second row
+  // with a second logo under the header's own (owner, 2026-10-18: "two logos").
   const el = h("div", "thoughts");
-  // Two controls on one line: the summary opens the details, the text action
-  // at the end pauses or resumes watching. Status and its control together.
-  const head = h("div", "thoughts-head");
+  el.style.display = "none";
   const row = h("button", "thoughts-row");
   row.type = "button";
   row.setAttribute("aria-expanded", "false");
   const mark = spiralMark();
   const summary = h("span", "thoughts-sum");
+  const detail = h("div", "thoughts-detail");
   const chev = h("span", "thoughts-chev", "›");
   chev.setAttribute("aria-hidden", "true");
   row.append(mark, summary, chev);
   const toggle = h("button", "thoughts-toggle");
   toggle.type = "button";
   toggle.addEventListener("click", onToggleWatch);
-  head.append(row, toggle);
-  const details = h("div", "thoughts-details");
-  details.style.display = "none";
+  const details = el;
   const list = h("ol", "thoughts-list");
   details.append(list);
   if (extra) {
@@ -54,14 +63,13 @@ export function createThoughtsView(
     extra.body.style.display = "";
     details.append(changesHead, extra.body);
   }
-  el.append(head, details);
 
   let open = false;
   let last: { trail: TrailEntry[]; watching: boolean } = { trail: [], watching: false };
   row.addEventListener("click", () => {
     open = !open;
     row.setAttribute("aria-expanded", String(open));
-    el.classList.toggle("open", open);
+    row.classList.toggle("open", open);
     details.style.display = open ? "" : "none";
     paint();
   });
@@ -70,13 +78,13 @@ export function createThoughtsView(
     const { trail, watching } = last;
     mark.classList.toggle("watching", watching);
     mark.classList.toggle("paused", !watching);
-    el.classList.toggle("watching", watching);
+    row.classList.toggle("watching", watching);
     const more = extra?.headline() ?? "";
-    summary.textContent = more
-      ? `${watchHeadline(trail, watching)} · ${more}`
-      : watchHeadline(trail, watching);
+    const line = watchHeadline(trail, watching, more);
+    summary.textContent = line.state;
+    detail.textContent = line.detail;
     row.title = thoughtsSummary(trail, watching);
-    el.classList.toggle("needs-you", extra?.attention() ?? false);
+    row.classList.toggle("needs-you", extra?.attention() ?? false);
     toggle.textContent = watching ? "Pause" : "Resume";
     toggle.title = watching
       ? "Loki stops recording what you do here until you resume"
@@ -101,11 +109,15 @@ export function createThoughtsView(
 
   // The "how long ago" column ages while the list is open.
   window.setInterval(() => {
-    if (open && el.isConnected) paint();
+    if (open && row.isConnected) paint();
   }, 15_000);
 
   return {
+    row,
+    toggle,
     el,
+    mark,
+    detail,
     update(trail, watching) {
       last = { trail, watching };
       paint();

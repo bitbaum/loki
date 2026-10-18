@@ -22,13 +22,14 @@ launcher sits, how it avoids host UI, and the host contract (`data-fc-avoid`,
 
 ## Voice review while browsing
 
-The composer's **Talk** — the panel's one microphone — leaves the host site interactive, with a red edge round the screen while it records. The dock notes the
+**Talk to Loki** — the bar above the message box, the panel's one microphone — leaves the host site interactive, with a red edge round the screen while it records. The dock notes the
 part of the page in view (nearest heading) at the start, when scrolling
 settles and on **Mark**; Whisper's sentence timings put each sentence under
 the part that was in view (`widget/voice-moments.ts`). Done opens one
-editable note, **What you said**: **Ask** Loki about it, or send it — a
+note read back part by part, **Here's what I heard** (`widget/read-back.ts`:
+the list, **🔊 Read it back**, **Edit** for the text): **Ask** Loki about it, or send it — a
 visitor as **Save feedback**, the owner or an editor as **Fix it** or
-**Save** (held out of automatic work). The receipt remains in the
+**Save** (held out of automatic work; saved notes build one build per page, `POST /api/widget/owner/build` → `startOwnerBatchBuild` / `dispatchFeedbackBatch`). The receipt remains in the
 same widget thread and links to the project Feedback view or run. Visitors
 can save notes without a Loki account but cannot authorize development.
 Unsent text/context survives same-tab page loads; audio cannot survive a full

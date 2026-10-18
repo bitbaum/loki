@@ -7,10 +7,15 @@
  * Narration of what someone DID ("You pressed Save") uses "pressed", which is
  * true of both — that line is also read later, on whatever device.
  */
-export function pressVerb(): { verb: "tap" | "click"; Verb: "Tap" | "Click" } {
-  const touch =
+/** A touch screen (the primary pointer is a finger). */
+export function coarsePointer(): boolean {
+  return (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
-    window.matchMedia("(pointer: coarse)").matches;
-  return touch ? { verb: "tap", Verb: "Tap" } : { verb: "click", Verb: "Click" };
+    window.matchMedia("(pointer: coarse)").matches
+  );
+}
+
+export function pressVerb(): { verb: "tap" | "click"; Verb: "Tap" | "Click" } {
+  return coarsePointer() ? { verb: "tap", Verb: "Tap" } : { verb: "click", Verb: "Click" };
 }

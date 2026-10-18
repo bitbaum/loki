@@ -33,3 +33,29 @@ export function savedNotesToBuild<
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
     .slice(0, SAVED_NOTES_BUILD_MAX);
 }
+
+/** Where a note was said: its page, else its URL's path, else nowhere in particular. */
+export function notePage(n: { page?: string | null; url?: string | null }): string {
+  if (n.page?.trim()) return n.page.trim();
+  try {
+    return n.url ? new URL(n.url).pathname : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Saved notes in builds: one per page, so everything said about the pricing
+ * page is fixed in one pass that sees it all (owner, 2026-10-18: "group notes
+ * by page"). Groups keep the order their first note was said in.
+ */
+export function groupNotesByPage<T extends { page?: string | null; url?: string | null }>(
+  notes: readonly T[],
+): T[][] {
+  const groups = new Map<string, T[]>();
+  for (const n of notes) {
+    const key = notePage(n);
+    groups.set(key, [...(groups.get(key) ?? []), n]);
+  }
+  return [...groups.values()];
+}

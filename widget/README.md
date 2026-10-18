@@ -8,7 +8,8 @@ where the launcher goes, and how to hide it.
 
 ## Voice notes while browsing
 
-Open Loki and tap **Talk** in the composer — the panel's one microphone. The
+Open Loki and tap **Talk to Loki** — the bar above the message box and the
+panel's one microphone. The
 panel closes; one dock — *● Recording 0:12 · Mark · Done · ✕* — and a red edge
 round the whole screen say Loki is listening, and the site stays usable (the
 edge takes no taps). Scroll and tap and talk. Loki notes which part of the page is in view (its nearest
@@ -33,7 +34,11 @@ comes back with each sentence under the part of the page that was in view
     On “Unterstützen” (marked):
     Is the shop open?
 
-The card is titled **What you said**, editable, and never sent by itself.
+The card reads it back: **Here's what I heard — 3 things, on 2 pages**, one
+line per part of the page (bold *page · part*, then what was said), with
+**🔊 Read it back** (the browser speaks the list) and **Edit** (opens the note's
+text; a note with no parts is shown as text straight away). It is never sent
+by itself (`widget/read-back.ts`).
 **Ask** asks Loki about it in the conversation; visitors can **Save
 feedback** for whoever builds the site; the owner (and the project's editors)
 can **Fix it** or **Save**. The whole note is kept — the receipt quotes its start and folds
@@ -86,17 +91,23 @@ same design tokens as the app. Embedded sites can set `data-fc-theme="light"`
 or `"dark"`; otherwise the browser appearance is followed. Loki's own embed
 passes the active app theme directly.
 
-**Few controls, each said once.** The owner's panel is a header (Loki, the
-page, ✕), ONE status line — *● Watching · 2 to look at · 4 live › Pause*, which
-opens what Loki noted and where each change is — the conversation, and the
-composer (*Talk · screenshots · Fix it · Ask*). It was two status rows, two
-microphones and a footer before a word was said (owner, 2026-10-17: "too
-intimidating"). *Continue in Loki* appears once there is something to take.
+**Few controls, each said once.** The owner's header IS the status: *● Watching* over
+*2 to look at · 4 live* (tap it to open what Loki noted and where each change
+is), **Pause** and ✕ — no second logo, no page line (the owner's spiral sits in
+the status dot's place and turns while Loki thinks). Then the conversation, one
+**Talk to Loki** bar, and a one-line message box that grows its tools
+(*screenshots · Fix it · Ask*) only once it is used. It was two status rows,
+two microphones and a footer before a word was said (owner, 2026-10-17: "too
+intimidating"), then two Talk buttons and two logos (2026-10-18). Opening the
+panel on a phone does not focus the box, so the keyboard stays down until
+asked for. *Continue in Loki* appears once there is something to take.
 
 **Record now, build later.** While Loki watches, **Talk**, scroll, **Done**: the
 owner's note card leads with **Save** (then *Fix it now*, *Ask*). Saved notes
 collect on the status line — *Watching · 3 notes saved ›* — and one tap,
-**Build all 3 saved notes**, starts each as its own build, oldest first
+**Build all 3 saved notes**, starts them as one build per page, in the order
+they were said — a page's notes are fixed together, in one pass that sees
+them all (`groupNotesByPage`; a lone note builds on its own)
 (`POST /api/widget/owner/build`, `src/lib/feedback/saved-notes.ts`; same owner
 check as Your changes, `src/lib/widget/owner-request.ts`).
 
@@ -140,6 +151,12 @@ Rules that resolve the trade-offs:
   painted), and every rule has a browser test that would fail if it cried wolf.
 - **Speaking up costs nothing.** Remarks are written by rules, once per visit;
   a model runs only when asked (*Why*, *Review*, *Ask Loki*).
+- **The bundle is ASCII.** The widget runs on pages that may not declare an
+  encoding. esbuild escapes non-ASCII characters in strings but keeps them raw
+  inside regex literals, where the browser can read them as other characters
+  and nothing matches — so the read-back list once came out empty. Write
+  `—`, not `—`, in a regex. `scripts/test/widget-ascii-bundle.ts` fails on
+  any non-ASCII byte in the built bundle.
 - **Never move what someone is reaching for.** New messages follow only when
   you were already at the bottom; reading further up, your place is kept.
 - **Send is always reachable.** Only the thread scrolls; the composer never
