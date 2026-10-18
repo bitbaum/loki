@@ -9,7 +9,6 @@
 import { h } from "./dom";
 import { ownerSignInUrl } from "./owner-pass";
 import type { Assistant } from "./thread";
-import { pressVerb } from "./press";
 
 export function greetingFor(state: {
   assistant: Assistant;
@@ -18,7 +17,7 @@ export function greetingFor(state: {
 }): string {
   if (state.owner) {
     return state.watching
-      ? `I'm watching while you use your site. Tell me what you'd change — type it, or ${pressVerb().verb} Talk and keep scrolling while you speak.`
+      ? "I'm watching while you use your site. Tell me what you'd change."
       : "Paused — nothing is recorded. Resume above, or just tell me what to change.";
   }
   if (state.assistant === "none") {

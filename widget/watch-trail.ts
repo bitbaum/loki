@@ -19,6 +19,7 @@
  * design, engineering, process and product — instead of only reacting when
  * something throws.
  */
+import { plainCheck } from "./plain-checks";
 import type { ReportDiagnostics } from "./report-payload";
 
 /**
@@ -343,8 +344,11 @@ export function explainChecks(
 ): { say: string; fix: string; short: string } | null {
   if (!checks.length) return null;
   const list = checks.map((c) => `• ${c}`).join("\n");
+  // Said in plain words (plain-checks.ts); the fix request keeps the exact
+  // finding, which is what a builder needs.
+  const plain = checks.map((c) => `• ${plainCheck(c)}`).join("\n");
   return {
-    say: `Looking at this page, ${checks.length === 1 ? "one thing stands out" : `${checks.length} things stand out`}:\n${list}`,
+    say: `Looking at this page, ${checks.length === 1 ? "one thing stands out" : `${checks.length} things stand out`}:\n${plain}`,
     fix: `Fix these on this page:\n${list}`,
     short: `${checks.length === 1 ? "one thing" : `${checks.length} things`} on this page could be better`,
   };
