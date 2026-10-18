@@ -143,6 +143,11 @@ export function askReply(
       ? `Loki is building it now. You will see it${where} when it is live.`
       : `Loki is building it now. You will see it${where} when it is live, and ${outcome.owner} is told.`;
   }
+  // Why a build did not start is written for the owner ("add a Git URL",
+  // "start it from Loki"): a Builder cannot act on it, so they are told who
+  // can, and the owner hears it (notifyBuilderAsked) — walk as Manu, 2026-10-18.
+  if (role !== "owner")
+    return `Saved. Loki could not start it on its own yet, so ${outcome.owner} has been told and will start it — you are told when it ships.`;
   return (
     outcome.buildNote?.trim() ||
     "Saved, but it could not start yet. It waits in Loki under Feedback."

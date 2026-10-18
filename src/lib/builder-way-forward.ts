@@ -87,6 +87,23 @@ export function builderStatusLine(
     cloudBuilderAllowed: boolean;
     presence: { cloud: boolean; local: boolean; any: boolean };
   } | null,
+  /** Projects someone else shared with this account, and where each is
+   *  changed. They build on their OWNER's computers, whatever this account
+   *  has: a Builder who owns nothing was told by the chat that the desktop
+   *  app was "the one way" (walk as Manu, 2026-10-18). */
+  shared: readonly { name: string; askUrl: string }[] = [],
+): string | null {
+  const own = ownBuilderLine(access);
+  if (own === null || shared.length === 0 || access?.presence.any) return own;
+  const where = shared.map((p) => `${p.name}: ${p.askUrl}`).join("; ");
+  return `for the projects shared with this account, yes — they build on their owner's computers, with nothing to install and no code to touch: the person writes what should change on the project's page (${where}). For a project of their own: ${own}`;
+}
+
+function ownBuilderLine(
+  access: {
+    cloudBuilderAllowed: boolean;
+    presence: { cloud: boolean; local: boolean; any: boolean };
+  } | null,
 ): string | null {
   if (!access) return null;
   // Written as answers to "can new work start right now?", in the words a

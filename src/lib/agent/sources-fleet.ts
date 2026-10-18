@@ -26,7 +26,7 @@ import { getActiveAlerts } from "@/db/queries/alerts";
 import { getExecutionAccess } from "@/lib/execution-access";
 import { builderStatusLine } from "@/lib/builder-way-forward";
 import { listSharedProjects } from "@/db/queries/project-access";
-import { askPath, sharedProjectLine } from "@/lib/project-capabilities";
+import { askPath, capabilitiesForRole, sharedProjectLine } from "@/lib/project-capabilities";
 import { APP_URL } from "@/config/brand";
 import { getPendingActions } from "@/db/queries/actions";
 import { readUserBudget } from "@/lib/ai/budget";
@@ -188,6 +188,9 @@ export async function fleetStatusFacts(userId: string): Promise<Fact[]> {
     ]);
 
   const n = (v: unknown[] | null) => (v === null ? null : String(v.length));
+  const sharedAsks = shared
+    .filter((p) => capabilitiesForRole(p.role).canEdit)
+    .map((p) => ({ name: p.name, askUrl: `${APP_URL}${askPath(p.projectId)}` }));
   const oldestWaiting = waiting && waiting.length > 0 ? waiting[waiting.length - 1] : null;
 
   return [
@@ -200,7 +203,7 @@ export async function fleetStatusFacts(userId: string): Promise<Fact[]> {
         // Plain names on purpose: the model repeats a field's name back to the
         // operator, and "runs_waiting_for_a_builder" came out as "no runs are
         // waiting for a builder" to someone who knows neither word.
-        can_work_start: builderStatusLine(access),
+        can_work_start: builderStatusLine(access, sharedAsks),
         // Work on these runs on their OWNER's builder, whatever the line above
         // says about this account's own (walk as Manu, 2026-10-18).
         projects_shared_with_you: shared.length

@@ -145,15 +145,23 @@ check("an ask from Loki is answered with what happens to it", () => {
   assert.match(built, /George is told/);
   assert.doesNotMatch(askReply("owner", { owner: "George", site: null, building: true }), /George/);
   assert.equal(
-    askReply("editor", {
+    askReply("owner", {
       owner: "George",
       site: null,
       building: false,
       buildNote: "Saved. You have sent a lot today.",
     }),
     "Saved. You have sent a lot today.",
-    "a build that could not start says why, in the build's own words",
+    "the owner hears why a build did not start, in the build's own words",
   );
+  const waiting = askReply("editor", {
+    owner: "George",
+    site: null,
+    building: false,
+    buildNote: "Add a Git URL on the project page, then Implement.",
+  });
+  assert.doesNotMatch(waiting, /Git URL/, "a Builder is never handed the owner's chore");
+  assert.match(waiting, /George has been told/);
   for (const role of ["viewer", "client"] as const)
     assert.equal(
       askReply(role, { owner: "George", site: null, building: true }),

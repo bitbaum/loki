@@ -195,17 +195,21 @@ export async function buildFleetBrief(userId: string): Promise<Directive[]> {
     import("@/lib/agent/fact-utils"),
   ]);
 
-  const [waiting, errored, byState, feedback, access, approvals, alerts] = await Promise.all([
-    listRecentRuns(userId, { states: [ORCH_STATE.WAITING], limit: 20 }).catch(() => null),
-    listRecentRuns(userId, { states: [ORCH_STATE.ERROR], limit: 10, sinceMs: DAY_MS }).catch(
-      () => null,
-    ),
-    countRunsByStateSince(userId, DAY_MS).catch(() => null),
-    listUserFeedback(userId, 50).catch(() => null),
-    getExecutionAccess(userId).catch(() => null),
-    getPendingActions(userId).catch(() => null),
-    getActiveAlerts(userId).catch(() => null),
-  ]);
+  const [waiting, errored, byState, feedback, access, approvals, alerts, shared] =
+    await Promise.all([
+      listRecentRuns(userId, { states: [ORCH_STATE.WAITING], limit: 20 }).catch(() => null),
+      listRecentRuns(userId, { states: [ORCH_STATE.ERROR], limit: 10, sinceMs: DAY_MS }).catch(
+        () => null,
+      ),
+      countRunsByStateSince(userId, DAY_MS).catch(() => null),
+      listUserFeedback(userId, 50).catch(() => null),
+      getExecutionAccess(userId).catch(() => null),
+      getPendingActions(userId).catch(() => null),
+      getActiveAlerts(userId).catch(() => null),
+      import("@/db/queries/project-access")
+        .then((m) => m.listSharedProjects(userId))
+        .catch(() => []),
+    ]);
 
   const failed = (question: string): Directive => ({
     question,
@@ -218,7 +222,14 @@ export async function buildFleetBrief(userId: string): Promise<Directive[]> {
   // carries. This used to answer "NO — offline; dispatched runs cannot start"
   // beside it, and the model repeated "the runner is offline" to a person who
   // had never heard of a runner and had no runner to bring online.
-  const canStart = builderStatusLine(access);
+  const { askPath, capabilitiesForRole } = await import("@/lib/project-capabilities");
+  const { APP_URL } = await import("@/config/brand");
+  const canStart = builderStatusLine(
+    access,
+    shared
+      .filter((p) => capabilitiesForRole(p.role).canEdit)
+      .map((p) => ({ name: p.name, askUrl: `${APP_URL}${askPath(p.projectId)}` })),
+  );
   directives.push(
     canStart === null
       ? failed("can new work start right now")
