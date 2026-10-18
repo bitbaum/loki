@@ -180,6 +180,16 @@ async function main() {
     await page.screenshot({ path: ".tmp/session-sheet/sheet-390.png" });
     assert.ok(await sheet.getByText("Medium effort").isVisible(), "the effort in force is shown");
 
+    // Every family Claude Code knows by alias, most capable first.
+    assert.deepEqual(
+      await sheet
+        .getByRole("group", { name: "Change the model" })
+        .getByRole("button")
+        .allTextContents(),
+      ["Fable", "Opus", "Sonnet", "Haiku"],
+      "the model choices, Fable first",
+    );
+
     // A choice is made on the sheet, sends the agent's own command, and the
     // sheet stays open saying what is changing.
     await sheet.getByRole("button", { name: "Sonnet" }).click();
@@ -224,7 +234,86 @@ async function main() {
       2,
     );
 
-    // The log names the new model: the row settles, nothing else to do.
+    // Claude Code answers in the log the moment it switches: the sheet,
+    // still open, settles on its word — not on the next answer.
+    const replies = [
+      {
+        id: "s1",
+        kind: "setting",
+        at: now,
+        setting: "model",
+        value: "Sonnet 5.5",
+        text: "Model set to Sonnet 5.5",
+      },
+      {
+        id: "s2",
+        kind: "setting",
+        at: now,
+        setting: "effort",
+        value: "high",
+        text: "Effort set to high",
+      },
+    ];
+    await mount({
+      key: "chat2",
+      items: [...items, ...replies],
+      connected: true,
+      received: true,
+      sessionId: "s",
+      badge: "claude",
+    });
+    await sheet.getByText("In force for this session. Pick another to switch.").waitFor();
+    assert.match(
+      (await chip.getAttribute("aria-label")) ?? "",
+      /Sonnet 5\.5 · Auto/,
+      "the chip names the model Claude Code switched to",
+    );
+    assert.equal(await sheet.getByText("Switching to").count(), 0, "nothing reads as pending");
+    assert.ok(
+      await page.getByText("Model set to Sonnet 5.5").isVisible(),
+      "the conversation says it too, where it happened",
+    );
+    await page.screenshot({ path: ".tmp/session-sheet/sheet-settled-390.png" });
+
+    // A family the account cannot use: Claude Code's refusal, in its words,
+    // and the model in force stays marked.
+    await sheet.getByRole("button", { name: "Fable" }).click();
+    assert.equal(
+      (await page.evaluate(() => (window as unknown as { written: string[] }).written)).at(-1),
+      "/model fable\r",
+    );
+    await mount({
+      key: "chat2",
+      items: [
+        ...items,
+        ...replies,
+        {
+          id: "s3",
+          kind: "setting",
+          at: now,
+          setting: "model",
+          value: null,
+          text: "Model 'fable' isn't available for your account",
+        },
+      ],
+      connected: true,
+      received: true,
+      sessionId: "s",
+      badge: "claude",
+    });
+    await sheet
+      .getByText("Claude Code said: Model 'fable' isn't available for your account")
+      .waitFor();
+    assert.equal(
+      await sheet.getByRole("button", { name: "Sonnet", exact: true }).getAttribute("aria-pressed"),
+      "true",
+      "after a refusal the model in force is the one marked",
+    );
+    await page.screenshot({ path: ".tmp/session-sheet/sheet-refused-390.png" });
+    await page.keyboard.press("Escape");
+
+    // An older runner sends no reply: the next answer naming the model
+    // settles it instead.
     await mount({
       key: "chat3",
       items: [
@@ -262,7 +351,7 @@ async function main() {
     );
     assert.deepEqual(errors, []);
     console.log(
-      "✓ session-sheet: one row of 44px tools in both views, the agent named, a choice that visibly happens",
+      "✓ session-sheet: one row of 44px tools in both views, the agent named, a choice that settles on Claude Code's own word",
     );
   } finally {
     await browser.close();

@@ -1,6 +1,6 @@
 /** Presentation of agent logs; never changes the bytes sent to an agent. */
 import { extractOperatorTask, isOperatorEnvelope, stripAutopilotPreamble } from "./activity-status";
-import type { TranscriptItem } from "./claude-transcript";
+import { lastConversationItem, type TranscriptItem } from "./claude-transcript";
 
 export function isTranscriptInterruption(text: string): boolean {
   return /^\[Request interrupted by user(?: for tool use)?\]\s*$/i.test(text.trim());
@@ -36,7 +36,9 @@ export function dispatchMessageDisplay(text: string): { text: string; details: s
 
 export const TRANSCRIPT_QUIET_MS = 120_000;
 export function transcriptActivity(items: TranscriptItem[], now: number, connected: boolean) {
-  const last = items.at(-1);
+  // A "Model set to …" line is Claude Code answering a command, not a turn:
+  // it neither starts work nor ends it.
+  const last = lastConversationItem(items);
   if (last?.kind === "user" && isTranscriptInterruption(last.text))
     return { working: false, label: "Stopped", quiet: false };
   const working = last?.kind === "user" || (last?.kind === "tool" && last.status === "running");

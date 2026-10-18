@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.46",
+    tag: "fleet-runner-v0.8.46",
+    date: "2026-10-18T18:30:00Z",
+    highlights: [
+      "Switching a session's model or effort from your phone shows Claude Code's own confirmation, such as \"Model set to Opus 5.5\", the moment it takes effect, or its reason when it refuses.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.45",
     tag: "fleet-runner-v0.8.45",
     date: "2026-10-17T21:00:00Z",

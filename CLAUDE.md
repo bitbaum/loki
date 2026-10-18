@@ -112,6 +112,11 @@ src/
 │   │                 (`/model sonnet`, `/effort high`). Never type a bare
 │   │                 `/model` from a sheet: the picker opens in the terminal
 │   │                 behind it and nothing visible happens (2026-10-18).
+│   │                 Models are FAMILIES by Claude Code's own aliases
+│   │                 (fable/opus/sonnet/haiku, config/agent-commands.ts),
+│   │                 never versions; the row settles on Claude Code's own
+│   │                 "Set model to Opus 5.5" (a `setting` transcript item)
+│   │                 or shows its refusal in its words.
 │   │                 Modes are SSOT in config/terminal-modes.ts; never add a
 │   │                 second terminal shell — add a transport.
 │   │                 TerminalActions = what the screen needs TYPED (signed

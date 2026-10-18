@@ -11,6 +11,7 @@ import {
   sseBus,
   peekChannel,
   addPeekViewer,
+  lastScreen,
   removePeekViewer,
   type PeekFrame,
 } from "@/lib/sse-bus";
@@ -80,6 +81,10 @@ export async function GET(req: NextRequest) {
         ...(runnerChannel ? { channel: runnerChannel } : {}),
       }).catch(() => {});
       send(sseEvent("ready", { tab }));
+      // The last screen this server saw, at once and marked `cached`: the
+      // view shows it as "updating" until the runner's own replay lands.
+      const remembered = lastScreen(userId, tab, runnerChannel);
+      if (remembered) send(sseEvent("frame", { ...remembered, append: false, cached: true }));
 
       const onFrame = (payload: PeekFrame) => send(sseEvent("frame", payload));
       sseBus.on(channel, onFrame);

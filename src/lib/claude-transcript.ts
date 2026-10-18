@@ -50,6 +50,19 @@ export type TranscriptItem =
       status: "running" | "done" | "error";
       /** The result's first lines, for an expandable row. Never the whole thing. */
       result: string | null;
+    }
+  | {
+      id: string;
+      at: string | null;
+      /** Claude Code's own answer to `/model …` or `/effort …`, the moment it
+       *  takes effect — not on the next reply. */
+      kind: "setting";
+      setting: "model" | "effort";
+      /** What is now in force: a model's display name ("Opus 5.5") or an
+       *  effort level ("high"). Null when Claude Code refused the change. */
+      value: string | null;
+      /** One line for the conversation, in Claude Code's words. */
+      text: string;
     };
 
 /** Per-file reducer state. */
@@ -146,6 +159,47 @@ function isHarnessText(text: string): boolean {
   );
 }
 
+// ESC [ … m — Claude Code bolds the model name in its confirmation.
+const ANSI_SGR = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+
+/**
+ * Claude Code's reply to `/model …` and `/effort …`, which it writes to the
+ * log as `<local-command-stdout>` the moment the change takes effect:
+ * "Set model to Opus 5.5 for this session only", "Kept model as Fable 5.1",
+ * "Set effort level to high: …", or a refusal ("Model 'x' not found",
+ * "… isn't available for your account"). Read here so the session sheet
+ * settles on Claude Code's own word instead of waiting for the next answer
+ * to name a model — and says so when the change was refused, instead of
+ * reading "Switching…" forever. Any other command output is still noise.
+ */
+export function readSettingOutput(
+  text: string,
+): { setting: "model" | "effort"; value: string | null; text: string } | null {
+  const m = /^\s*<local-command-stdout>([\s\S]*?)<\/local-command-stdout>\s*$/.exec(text);
+  if (!m) return null;
+  const out = m[1]!.replace(ANSI_SGR, "").replace(/`/g, "").replace(/\s+/g, " ").trim();
+  const model =
+    /^(?:Set model to|Kept model as)\s+(.+?)(?:\s+(?:for this session only|and saved as your default\b).*|\s+with\s+\S+\s+effort\b.*|\s+·.*)?$/.exec(
+      out,
+    );
+  if (model) {
+    const name = modelLabel(model[1]!.trim());
+    return { setting: "model", value: name, text: `Model set to ${name}` };
+  }
+  const effort = /^Set effort level to\s+([a-z]+)/i.exec(out);
+  if (effort) {
+    const level = effort[1]!.toLowerCase();
+    return {
+      setting: "effort",
+      value: level,
+      text: `Effort set to ${(CLAUDE_EFFORTS[level] ?? level).replace(/\s+effort$/i, "").toLowerCase()}`,
+    };
+  }
+  if (/^(?:Model '[^']*' (?:not found|isn't available|is not available)|Unknown model)/i.test(out))
+    return { setting: "model", value: null, text: clip(out, 200) };
+  return null;
+}
+
 /**
  * Reduce one JSONL line to the items it adds or updates. Malformed lines,
  * sidechains (subagent traffic), meta lines and summaries yield nothing.
@@ -194,6 +248,8 @@ export function reduceTranscriptLine(state: TranscriptState, raw: string): Trans
         };
 
   if (typeof content === "string") {
+    const setting = line.type === "user" ? readSettingOutput(content) : null;
+    if (setting) return [{ id: base, at, kind: "setting", ...setting }];
     if (!content.trim() || isHarnessText(content)) return [];
     return [text(line.type, base, content)];
   }
@@ -203,6 +259,11 @@ export function reduceTranscriptLine(state: TranscriptState, raw: string): Trans
   content.forEach((block, i) => {
     if (!block || typeof block !== "object") return;
     if (block.type === "text" && typeof block.text === "string") {
+      const setting = line.type === "user" ? readSettingOutput(block.text) : null;
+      if (setting) {
+        out.push({ id: `${base}:${i}`, at, kind: "setting", ...setting });
+        return;
+      }
       if (!block.text.trim() || isHarnessText(block.text)) return;
       out.push(text(line.type as "user" | "assistant", `${base}:${i}`, block.text));
       return;
@@ -261,6 +322,7 @@ export function mergeTranscriptItems(
  *  into one line ("Ran 3 commands") the way a chat app folds its work log. */
 export type TranscriptBlock =
   | { type: "message"; item: Extract<TranscriptItem, { kind: "user" | "assistant" }> }
+  | { type: "setting"; item: Extract<TranscriptItem, { kind: "setting" }> }
   | { type: "tools"; id: string; items: Extract<TranscriptItem, { kind: "tool" }>[] };
 
 export function groupTranscript(items: TranscriptItem[]): TranscriptBlock[] {
@@ -270,6 +332,8 @@ export function groupTranscript(items: TranscriptItem[]): TranscriptBlock[] {
       const last = out[out.length - 1];
       if (last?.type === "tools") last.items.push(item);
       else out.push({ type: "tools", id: item.id, items: [item] });
+    } else if (item.kind === "setting") {
+      out.push({ type: "setting", item });
     } else {
       out.push({ type: "message", item });
     }
@@ -298,13 +362,36 @@ const TOOL_VERBS: Record<string, string> = {
 /** Shift+Tab: what Claude Code's TUI takes to move to the next mode. */
 export const CYCLE_MODE_KEY = "\x1b[Z";
 
-/** The model behind the newest answer that names one, or null. */
+/**
+ * The model in force: Claude Code's own "Set model to …" when that is newer
+ * than the last answer, else the model that wrote the newest answer that
+ * names one, or null. A refused change leaves the earlier one in force.
+ */
 export function sessionModel(items: TranscriptItem[]): string | null {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
     if (item.kind === "assistant" && item.model) return item.model;
+    if (item.kind === "setting" && item.setting === "model" && item.value) return item.value;
   }
   return null;
+}
+
+/** The newest answer Claude Code gave to a model or effort change, or null. */
+export function lastSetting(
+  items: TranscriptItem[],
+  setting: "model" | "effort",
+): Extract<TranscriptItem, { kind: "setting" }> | null {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (item.kind === "setting" && item.setting === setting) return item;
+  }
+  return null;
+}
+
+/** The newest item that is part of the conversation — not a settings line. */
+export function lastConversationItem(items: TranscriptItem[]): TranscriptItem | undefined {
+  for (let i = items.length - 1; i >= 0; i--) if (items[i]!.kind !== "setting") return items[i];
+  return undefined;
 }
 
 /**
@@ -329,9 +416,13 @@ export function modelLabel(id: string): string {
 export function sessionEffort(items: TranscriptItem[]): { id: string; label: string } | null {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
-    if (item.kind === "assistant" && item.effort) {
-      return { id: item.effort, label: CLAUDE_EFFORTS[item.effort] ?? item.effort };
-    }
+    const id =
+      item.kind === "assistant"
+        ? item.effort
+        : item.kind === "setting" && item.setting === "effort"
+          ? item.value
+          : null;
+    if (id) return { id, label: CLAUDE_EFFORTS[id] ?? id };
   }
   return null;
 }

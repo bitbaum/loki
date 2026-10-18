@@ -47,11 +47,23 @@ const CLAUDE: readonly AgentCommand[] = [
     label: "Choose a model",
     hint: "Opens the list of models. Move with the arrow keys, then Enter.",
   },
+  // The families, by the aliases Claude Code itself resolves to the newest
+  // model of each — so "Opus" means the latest Opus without this list
+  // changing when a version ships. The VERSION is never written here: the
+  // session sheet names it from Claude Code's own "Set model to Opus 5.5".
+  // A family an account cannot use is refused by Claude Code in its own
+  // words, and the sheet shows that refusal. Most capable first.
+  {
+    kind: "model",
+    text: "/model fable",
+    label: "Use Fable",
+    hint: "The most capable model, where your account has it. The slowest, and uses the most of your plan.",
+  },
   {
     kind: "model",
     text: "/model opus",
     label: "Use Opus",
-    hint: "The most capable model. Slower and uses more of your plan.",
+    hint: "Very capable, for hard problems and planning. Slower, and uses more of your plan than Sonnet.",
   },
   {
     kind: "model",

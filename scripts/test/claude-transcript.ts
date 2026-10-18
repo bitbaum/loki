@@ -5,6 +5,9 @@ import {
   sessionMode,
   sessionModel,
   sessionEffort,
+  lastSetting,
+  lastConversationItem,
+  readSettingOutput,
   modelLabel,
   describeToolStep,
   turnElapsedLabel,
@@ -330,6 +333,83 @@ ok(
     !("effort" in (answer("e7", { effort: "<script>" })[0] ?? {})),
     "only a plain word is taken as an effort",
   );
+}
+
+// Claude Code's own answer to /model and /effort settles the sheet at once
+// (owner, 2026-10-18: switching Fable → Opus from a phone, with nothing
+// saying whether it had happened).
+{
+  const out = (text: string) => `<local-command-stdout>${text}</local-command-stdout>`;
+  const read = (text: string) => readSettingOutput(out(text));
+  ok(
+    read("Set model to \x1b[1mOpus 5.5\x1b[22m for this session only")?.value === "Opus 5.5",
+    "a bold model name reads plainly",
+  );
+  ok(read("Set model to `claude-opus-5-5`")?.value === "Opus 5.5", "a model id reads as its name");
+  ok(
+    read("Set model to Fable 5.1 and saved as your default for new sessions")?.text ===
+      "Model set to Fable 5.1",
+    "a saved default reads as the model in force",
+  );
+  ok(read("Set model to Sonnet 5.5 with high effort")?.value === "Sonnet 5.5", "with an effort");
+  ok(read("Kept model as Haiku 5.5")?.value === "Haiku 5.5", "kept is in force too");
+  const effort = read("Set effort level to high: Comprehensive implementation");
+  ok(effort?.setting === "effort" && effort.value === "high", "an effort level is read");
+  ok(effort?.text === "Effort set to high", "and said in words");
+  const refused = read("Model 'fable' not found. Try 'opus' instead");
+  ok(refused?.setting === "model" && refused.value === null, "a refusal changes nothing");
+  ok(refused?.text === "Model 'fable' not found. Try 'opus' instead", "in Claude Code's words");
+  ok(
+    read("Model 'fable' isn't available for your account")?.value === null,
+    "an account without it is a refusal",
+  );
+  ok(read("Bye!") === null, "other command output is still noise");
+  ok(readSettingOutput("Set model to Opus 5.5") === null, "only Claude Code's own output counts");
+
+  const line = (uuid: string, content: unknown) =>
+    L({
+      type: "user",
+      uuid,
+      timestamp: "2026-10-18T17:00:00Z",
+      message: { role: "user", content },
+    });
+  const st = newTranscriptState();
+  const items: TranscriptItem[] = [
+    ...reduceTranscriptLine(
+      st,
+      L({
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "t",
+        message: {
+          role: "assistant",
+          model: "claude-fable-5-1",
+          content: [{ type: "text", text: "Done." }],
+        },
+      }),
+    ),
+    ...reduceTranscriptLine(st, line("c1", "<command-name>/model</command-name>")),
+    ...reduceTranscriptLine(st, line("s1", out("Set model to Opus 5.5 for this session only"))),
+  ];
+  ok(items.length === 2, "the command line stays hidden, its answer shows");
+  ok(items[1]?.kind === "setting", "as a setting line");
+  ok(sessionModel(items) === "Opus 5.5", "the newer setting outranks the older answer");
+  ok(lastConversationItem(items)?.id === "a1:0", "a setting line is not a turn");
+  ok(lastSetting(items, "model")?.id === "s1", "the newest model reply is found");
+  ok(lastSetting(items, "effort") === null, "and no effort reply where none was given");
+  const blocks = groupTranscript(items);
+  ok(blocks[1]?.type === "setting", "it draws as its own line");
+  const after = [
+    ...items,
+    ...reduceTranscriptLine(st, line("s2", [{ type: "text", text: out("Model 'x' not found") }])),
+  ];
+  ok(after.at(-1)?.kind === "setting", "a block-form reply is read too");
+  ok(sessionModel(after) === "Opus 5.5", "a refusal leaves the model in force");
+  const effortItems = [
+    ...after,
+    ...reduceTranscriptLine(st, line("s3", out("Set effort level to max: deepest"))),
+  ];
+  ok(sessionEffort(effortItems)?.label === "Max effort", "the effort reply sets the effort");
 }
 
 console.log(`${pass}/${pass + fail} claude-transcript cases passed`);

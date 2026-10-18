@@ -9,6 +9,8 @@ import {
   describeToolRun,
   describeToolStep,
   groupTranscript,
+  lastConversationItem,
+  lastSetting,
   sessionEffort,
   sessionMode,
   sessionModel,
@@ -80,7 +82,7 @@ export function ClaudeChatView({
     onLive?.(!received ? "connecting" : connected ? "live" : "stalled");
   }, [connected, received, onLive]);
   const blocks = groupTranscript(items);
-  const last = items[items.length - 1];
+  const last = lastConversationItem(items);
   const now = useSecondTick(last?.kind === "user" || last?.kind === "tool");
   const activity = transcriptActivity(items, now, connected);
   const working = activity.working;
@@ -203,6 +205,8 @@ export function ClaudeChatView({
             <SessionInfo
               model={sessionModel(items)}
               effort={sessionEffort(items)}
+              modelReply={lastSetting(items, "model")}
+              effortReply={lastSetting(items, "effort")}
               mode={mode}
               lastMessageId={lastMine}
               onKey={onKey}
@@ -241,6 +245,7 @@ function ChatEmpty({
     return (
       <div className="ui-claude-chat-empty" role="status">
         <Loader2 className="ui-spinner h-5 w-5 text-text-muted" aria-hidden />
+        <p className="text-sm text-text-tertiary">Opening the conversation…</p>
       </div>
     );
   }
@@ -271,11 +276,17 @@ function ChatEmpty({
 }
 
 function blockKey(block: TranscriptBlock): string {
-  return block.type === "message" ? block.item.id : `tools:${block.id}`;
+  return block.type === "tools" ? `tools:${block.id}` : block.item.id;
 }
 
 function Block({ block }: { block: TranscriptBlock }) {
   if (block.type === "tools") return <ToolRun tools={block.items} />;
+  if (block.type === "setting")
+    return (
+      <p className={block.item.value ? "ui-claude-setting" : "ui-claude-setting ui-error"}>
+        {block.item.text}
+      </p>
+    );
   const { item } = block;
   if (item.kind === "user") {
     if (isTranscriptInterruption(item.text))

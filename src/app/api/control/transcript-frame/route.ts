@@ -43,6 +43,14 @@ const Item = z.discriminatedUnion("kind", [
     status: z.enum(["running", "done", "error"]),
     result: z.string().max(1_500).nullable(),
   }),
+  z.object({
+    id: z.string().max(200),
+    at: z.string().max(40).nullable(),
+    kind: z.literal("setting"),
+    setting: z.enum(["model", "effort"]),
+    value: z.string().max(80).nullable(),
+    text: z.string().max(240),
+  }),
 ]);
 
 const Body = z.object({
