@@ -4,6 +4,8 @@
 #
 #   preview-create-on-box.sh name    <address> <name> [about] [code]
 #   preview-create-on-box.sh website <url> [changes] [fixes] [answers] [code]
+#   preview-create-on-box.sh move    <address> <new-address> [new name]
+#   preview-create-on-box.sh ask     <project name> <what to change>
 #
 # `name` is "Build a preview" (POST /api/previews): a site researched from
 # public sources. `website` is /change "Improve this site"
@@ -11,7 +13,9 @@
 # site, the fixes kept (comma-separated check ids from src/config/site-consult,
 # empty = none), the one-tap answers ("goal:buy,look:refresh") and anything
 # said in words — exactly what a click on /change sends, so a run from Actions
-# dogfoods the deployed path and nothing else.
+# dogfoods the deployed path and nothing else. `move` gives a preview a new
+# address and name (POST /api/previews/<address>/move); `ask` sends its builder
+# a change, as Send in the session box does (POST /api/inject).
 #
 # Production Loki's database is loopback-only, so a session has to be minted
 # where the data is (the same pattern as provision-widget-on-box.sh and
@@ -57,11 +61,28 @@ raw = {"website": os.environ["WEBSITE"], "mode": "refresh", "requestId": str(uui
        "answers": split(os.environ["ANSWERS"]), "code": os.environ["CODE"]}
 print(json.dumps({k: v for k, v in raw.items() if v}))')
     ;;
-  *) echo "usage: preview-create-on-box.sh name <address> <name> [about] [code] | website <url> [changes] [fixes] [answers] [code]" >&2; exit 2 ;;
+  move)
+    FROM="${1:?address}"; TO="${2:?new address}"; NEWNAME="${3:-}"
+    route="/api/previews/$FROM/move"
+    body=$(TO="$TO" NEWNAME="$NEWNAME" python3 -c '
+import json, os
+raw = {"to": os.environ["TO"], "name": os.environ["NEWNAME"]}
+print(json.dumps({k: v for k, v in raw.items() if v}))')
+    ;;
+  ask)
+    TAB="${1:?project name}"; TEXT="${2:?what to change}"
+    route="/api/inject"
+    body=$(TAB="$TAB" TEXT="$TEXT" python3 -c '
+import json, os
+print(json.dumps({"tab": os.environ["TAB"], "customPrompt": os.environ["TEXT"], "notifyOnClose": True}))')
+    ;;
+  *) echo "usage: preview-create-on-box.sh name <address> <name> [about] [code] | website <url> [changes] [fixes] [answers] [code] | move <address> <new-address> [name] | ask <project> <text>" >&2; exit 2 ;;
 esac
 
+# A move attaches one address and takes another away, each waiting on Caddy.
+wait=150; [ "$KIND" = move ] && wait=330
 out=$(mktemp); trap 'rm -f "$out"' EXIT
-http=$(curl -sS -o "$out" -w '%{http_code}' -m 150 -X POST "$BASE$route" \
+http=$(curl -sS -o "$out" -w '%{http_code}' -m "$wait" -X POST "$BASE$route" \
   -H 'Content-Type: application/json' \
   -H "Cookie: __Secure-authjs.session-token=$token" --data "$body")
 echo "HTTP $http"
@@ -80,6 +101,7 @@ def mask(o):
 print(json.dumps(mask(data), ensure_ascii=False)[:900])' "$out"
 case "$http" in
   200|201) exit 0 ;;
-  409) echo "already there"; exit 0 ;;
+  409) [ "$KIND" = name ] || [ "$KIND" = website ] || exit 5
+       echo "already there"; exit 0 ;;
   *)   exit 5 ;;
 esac

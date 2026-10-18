@@ -86,6 +86,11 @@ const SCREENSHOT_TIMEOUT_MS = 12_000;
 
 /** The phone the deploy's page check uses (scripts/hetzner/page-check.mjs). */
 export const PICTURE_VIEWPORT = { width: 390, height: 844 } as const;
+/** Wider than this is a desktop browser, not a phone. */
+const PHONE_MAX_WIDTH = 600;
+const PHONE_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Loki fix check";
+const DESKTOP_AGENT =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 Loki fix check";
 const JPEG_QUALITY = 55;
 const SETTLE_MS = 800;
 /** How long a page may keep loading images, then keep talking, before it is photographed anyway. */
@@ -180,6 +185,11 @@ export type PictureOptions = {
   /** Headers on every request the page makes (a preview served for a picture
    *  is told so, and leaves its widget out). */
   headers?: Record<string, string>;
+  /** The screen to photograph at. Phone size unless given; anything wider
+   *  than a phone is opened as a desktop browser (no touch, desktop agent),
+   *  so a site that serves phones a different page does not hand a desktop
+   *  picture its phone layout. */
+  viewport?: { width: number; height: number };
 };
 
 export function takePagePicture(
@@ -241,13 +251,15 @@ async function attempt(
   opts: PictureOptions,
   javaScript: boolean,
 ): Promise<Attempt> {
+  const viewport = opts.viewport ?? PICTURE_VIEWPORT;
+  const phone = viewport.width <= PHONE_MAX_WIDTH;
   const context = await browser.newContext({
-    viewport: { ...PICTURE_VIEWPORT },
+    viewport: { ...viewport },
     deviceScaleFactor: 1,
-    isMobile: true,
-    hasTouch: true,
+    isMobile: phone,
+    hasTouch: phone,
     javaScriptEnabled: javaScript,
-    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Loki fix check",
+    userAgent: phone ? PHONE_AGENT : DESKTOP_AGENT,
     extraHTTPHeaders: opts.headers,
   });
   try {

@@ -9,6 +9,8 @@ name: Previews
 #           on the deployed app. How the flow is dogfooded without a browser.
 #   check   open a preview as its owner — the site, the before-and-after tour
 #           and its first pictures — and print what answered.
+#   move    give a preview a new address (and name); the old address goes away.
+#   ask     send a preview's builder a change, in words (name = the project).
 #   heal    every preview folder on the box has its address and answers.
 #           Runs on a clock, so a lost Caddy vhost is put back before anyone
 #           opens the link (an address without one shows ERR_SSL_PROTOCOL_ERROR).
@@ -21,14 +23,14 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "create, website, check or heal"
+        description: "create, website, check, move, ask or heal"
         required: true
         default: "heal"
       website:
         description: "website: the live site to improve, e.g. center-com.ru"
         required: false
       changes:
-        description: "website: what the owner wants, in words (optional)"
+        description: "website: what the owner wants, in words (optional); ask: the change"
         required: false
       fixes:
         description: "website: consultation check ids to fix, comma-separated (src/config/site-consult)"
@@ -37,10 +39,13 @@ on:
         description: "website: one-tap answers, e.g. goal:buy,look:refresh"
         required: false
       address:
-        description: "create/check: the subdomain, e.g. francesco"
+        description: "create/check/move: the subdomain, e.g. francesco"
+        required: false
+      to:
+        description: "move: the new subdomain, e.g. tsentr-som"
         required: false
       name:
-        description: "create: who it is for, e.g. Francesco Tarallo"
+        description: "create/move: who it is for, e.g. Francesco Tarallo; ask: the project"
         required: false
       about:
         description: "create: links, place, trade"
@@ -67,6 +72,7 @@ jobs:
       HETZNER_IP: ${{ vars.HETZNER_IP }}
       MODE: ${{ inputs.mode || 'heal' }}
       ADDRESS: ${{ inputs.address }}
+      TO: ${{ inputs.to }}
       WEBSITE: ${{ inputs.website }}
       CHANGES: ${{ inputs.changes }}
       FIXES: ${{ inputs.fixes }}
@@ -93,6 +99,8 @@ jobs:
             create)  bash scripts/hetzner/ensure-preview.sh create "$ADDRESS" "$NAME" "$ABOUT" "$CODE" ;;
             website) bash scripts/hetzner/ensure-preview.sh website "$WEBSITE" "$CHANGES" "$FIXES" "$ANSWERS" "$CODE" ;;
             check)   bash scripts/hetzner/ensure-preview.sh check "$ADDRESS" ;;
+            move)    bash scripts/hetzner/ensure-preview.sh move "$ADDRESS" "$TO" "$NAME" ;;
+            ask)     bash scripts/hetzner/ensure-preview.sh ask "$NAME" "$CHANGES" ;;
             heal)    bash scripts/hetzner/ensure-preview.sh heal ;;
-            *)       echo "::error::mode is create, website, check or heal"; exit 1 ;;
+            *)       echo "::error::mode is create, website, check, move, ask or heal"; exit 1 ;;
           esac
