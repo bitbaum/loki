@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Cpu } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { CLAUDE_EFFORTS, CLAUDE_MODES, commandOfKind, commandsFor } from "@/config/agent-commands";
-import { CYCLE_MODE_KEY, modelLabel } from "@/lib/claude-transcript";
+import { CYCLE_MODE_KEY, modelLabel, type TranscriptItem } from "@/lib/claude-transcript";
 import { cn } from "@/lib/utils";
 
 /**
@@ -23,12 +23,36 @@ import { cn } from "@/lib/utils";
  * so they respond when clicked"). Now each row lists its choices; a tap sends
  * the agent's own command with the choice named (`/model sonnet`,
  * `/effort high`), the sheet stays open and says what is changing, and the
- * row settles when the log names the new value. The mode is still Shift+Tab,
- * because the order of modes differs between Claude Code versions.
+ * row settles on Claude Code's own reply ("Set model to Opus 5.5"), which it
+ * writes the moment the change takes effect — or shows its refusal in its
+ * own words. A runner too old to send that reply settles on the next answer
+ * instead. The mode is still Shift+Tab, because the order of modes differs
+ * between Claude Code versions.
  */
+type SettingReply = Extract<TranscriptItem, { kind: "setting" }> | null;
+
+/**
+ * A change asked for from the sheet, until Claude Code answers it. `before`
+ * is the reply already on screen when it was asked, so an older "Set model
+ * to …" never reads as the answer to this one.
+ */
+type Asked = { id: string; before: string | null } | null;
+
+/** Still waiting, answered, or refused — derived, so nothing syncs state. */
+function askState(asked: Asked, reply: SettingReply, inForce: string | null) {
+  if (!asked) return { pending: null, refused: null };
+  const answered = reply !== null && reply.id !== asked.before;
+  if (answered) return { pending: null, refused: reply.value ? null : reply.text };
+  // An older runner sends no reply: the next answer naming it settles it.
+  if ((inForce ?? "").toLowerCase().includes(asked.id)) return { pending: null, refused: null };
+  return { pending: asked.id, refused: null };
+}
+
 export function SessionInfo({
   model,
   effort = null,
+  modelReply = null,
+  effortReply = null,
   mode,
   lastMessageId,
   onKey,
@@ -38,6 +62,9 @@ export function SessionInfo({
   model: string | null;
   /** How hard the newest answer thought, when the log says. */
   effort?: { id: string; label: string } | null;
+  /** Claude Code's newest answer to `/model …` / `/effort …`, if any. */
+  modelReply?: SettingReply;
+  effortReply?: SettingReply;
   mode: { id: string; label: string } | null;
   lastMessageId: string | null;
   onKey: (bytes: string) => void | Promise<void>;
@@ -45,13 +72,13 @@ export function SessionInfo({
 }) {
   const [open, setOpen] = useState(false);
   const [cycledAfter, setCycledAfter] = useState<string | null | undefined>(undefined);
-  // What was asked for: the alias ("sonnet") or level ("high"). It reads as
-  // pending until the log names it — derived, so nothing syncs state.
-  const [askedModel, setAskedModel] = useState<string | null>(null);
-  const [askedEffort, setAskedEffort] = useState<string | null>(null);
-  const wantModel =
-    askedModel && !(model ?? "").toLowerCase().includes(askedModel) ? askedModel : null;
-  const wantEffort = askedEffort && effort?.id !== askedEffort ? askedEffort : null;
+  // What was asked for: the alias ("sonnet") or level ("high").
+  const [askedModel, setAskedModel] = useState<Asked>(null);
+  const [askedEffort, setAskedEffort] = useState<Asked>(null);
+  const modelAsk = askState(askedModel, modelReply, model);
+  const effortAsk = askState(askedEffort, effortReply, effort?.id ?? null);
+  const wantModel = modelAsk.pending;
+  const wantEffort = effortAsk.pending;
 
   const modePending = cycledAfter !== undefined && cycledAfter === lastMessageId;
   if (!model && !mode) return null;
@@ -65,7 +92,7 @@ export function SessionInfo({
   const agentName = agent === "claude" ? "Claude Code" : "The agent";
   const type = (text: string) => void onKey(`${text}\r`);
 
-  const chipModel = wantModel ? `${cap(wantModel)}…` : (name ?? "Model?");
+  const chipModel = wantModel ? `${cap(wantModel)}…` : (name ?? "Model");
   const chip = [chipModel, modePending ? "mode changing…" : mode?.label]
     .filter(Boolean)
     .join(" · ");
@@ -106,12 +133,14 @@ export function SessionInfo({
                     <span className="ml-1.5 font-mono text-micro text-text-muted">{model}</span>
                   )}
                 </p>
-                <p className="ui-sheet-hint">
-                  {wantModel
-                    ? "It is named on the agent's next answer."
-                    : name
-                      ? "The model that wrote the agent's last answer."
-                      : "It is named on the agent's next answer."}
+                <p className={modelAsk.refused ? "ui-error" : "ui-sheet-hint"} role="status">
+                  {modelAsk.refused
+                    ? `${agentName} said: ${modelAsk.refused}`
+                    : wantModel
+                      ? `Sent to ${agentName}. It confirms here in a moment.`
+                      : name
+                        ? "In force for this session. Pick another to switch."
+                        : "Not named yet. Pick one to switch, or it shows on the agent's next answer."}
                 </p>
                 {models.length > 0 ? (
                   <Choices
@@ -125,7 +154,7 @@ export function SessionInfo({
                     pending={wantModel}
                     onPick={(id) => {
                       type(`${modelListCmd?.text.split(/\s+/)[0] ?? "/model"} ${id}`);
-                      setAskedModel(id);
+                      setAskedModel({ id, before: modelReply?.id ?? null });
                     }}
                   />
                 ) : (
@@ -147,10 +176,12 @@ export function SessionInfo({
                       ? `Switching to ${CLAUDE_EFFORTS[wantEffort] ?? wantEffort}`
                       : (effort?.label ?? "Not known yet")}
                   </p>
-                  <p className="ui-sheet-hint">
-                    How long it thinks before answering. Higher is slower, and better for planning
-                    and hard problems.
-                    {wantEffort ? " It is named on the agent's next answer." : ""}
+                  <p className={effortAsk.refused ? "ui-error" : "ui-sheet-hint"} role="status">
+                    {effortAsk.refused
+                      ? `${agentName} said: ${effortAsk.refused}`
+                      : wantEffort
+                        ? `Sent to ${agentName}. It confirms here in a moment.`
+                        : "How long it thinks before answering. Higher is slower, and better for planning and hard problems."}
                   </p>
                   <Choices
                     label="Change the effort"
@@ -163,7 +194,7 @@ export function SessionInfo({
                     pending={wantEffort}
                     onPick={(id) => {
                       type(`${effortCmd.text.split(/\s+/)[0]} ${id}`);
-                      setAskedEffort(id);
+                      setAskedEffort({ id, before: effortReply?.id ?? null });
                     }}
                   />
                 </section>

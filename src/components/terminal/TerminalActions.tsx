@@ -120,7 +120,7 @@ export function TerminalCommandList({
   return (
     <details className="ui-term-commands" open={open}>
       <summary className="ui-term-commands-summary">
-        Agent commands — sign in, change model…
+        Commands — change model, sign in, free up memory…
       </summary>
       <ul className="ui-term-commands-list">
         {commands.map((c) => (

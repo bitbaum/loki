@@ -6998,9 +6998,16 @@
   .ui-claude-live {
     @apply flex min-w-0 items-center gap-2 px-2 text-sm font-medium text-accent-text;
   }
-  /* Claude Code's permission mode, a pill in the composer row like the
-     Claude app's model pill. */
-  /* One fact in the session sheet: what it is, what it means, one action. */
+  /* The terminal pane is showing the server's copy of its last screen while
+     the live one is on its way (TerminalView). */
+  .ui-term-updating {
+    @apply pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-2.5 py-1 text-xs text-text-secondary;
+  }
+  /* Claude Code's own answer to a model or effort change, in the
+     conversation where it happened: a quiet centred line, not a message. */
+  .ui-claude-setting {
+    @apply px-2 text-center text-xs text-text-muted;
+  }
   /* The session box's labelled tool — the model chip, Keys — the same height
      and shape as the round icon buttons beside it (chatkit's --ck-target,
      44px). The chip was 36px, Keys 34px and the library 26px in one row

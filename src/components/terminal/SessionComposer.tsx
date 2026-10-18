@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertCircle, BookOpen, X } from "lucide-react";
+import { AlertCircle, SquareSlash, X } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { Composer } from "@/components/composer/Composer";
 import type { Attachment } from "@/components/loki/types";
@@ -330,14 +330,18 @@ export function SessionComposer({
             <button
               type="button"
               onClick={() => (pickerOpen ? setPickerOpen(false) : openPicker())}
-              title="Prompt library and the agent's commands (or type /)"
-              aria-label="Prompt library"
+              // A slash, not a book: it opens the agent's own commands
+              // (change model, sign in, free up memory) above the prompt
+              // library, and a book said only "library" (owner, 2026-10-18:
+              // "do I have to actually type in things?").
+              title="Commands and prompts (or type /)"
+              aria-label="Commands and prompts"
               aria-expanded={pickerOpen}
               // chatkit's own tool button: the same round 44px as attach and the
               // microphone beside it, not Loki's 26px square.
               className="ck-icon-btn"
             >
-              <BookOpen className="h-4.5 w-4.5" />
+              <SquareSlash className="h-4.5 w-4.5" />
             </button>
             {tools}
           </>

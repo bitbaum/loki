@@ -39,8 +39,57 @@ export function emitPeekFrame(
   payload: PeekFrame,
   channel?: PeekBuilderChannel,
 ): void {
+  rememberScreen(peekChannel(userId, tab, channel), payload);
   sseBus.emit(peekChannel(userId, tab, channel), payload);
-  if (channel) sseBus.emit(peekChannel(userId, tab), payload);
+  if (channel) {
+    rememberScreen(peekChannel(userId, tab), payload);
+    sseBus.emit(peekChannel(userId, tab), payload);
+  }
+}
+
+// The last screen per (user, tab): a viewer who opens a session paints it at
+// once, marked as not yet live, instead of a black pane for the seconds the
+// runner takes to pick up peek_start (owner, 2026-10-18: "the first thing I
+// see is this screen, and only then, a little bit later, the terminal
+// appears"). The runner's own replay always arrives as a snapshot (a reset),
+// so it replaces this copy rather than appending to it. Kept as the tail of
+// the byte stream since the last snapshot — the same cap the runner applies
+// to its own replay — and only from a snapshot on, so a delta is never
+// replayed without the screen it applies to.
+const SCREEN_KEY = `$$${APP_SLUG}_peek_screens`;
+if (!(globalThis as Record<string, unknown>)[SCREEN_KEY]) {
+  (globalThis as Record<string, unknown>)[SCREEN_KEY] = new Map<string, PeekFrame>();
+}
+const lastScreens = (globalThis as Record<string, unknown>)[SCREEN_KEY] as Map<string, PeekFrame>;
+const SCREEN_CHARS = 256_000;
+/** Older than this, a remembered screen says more about then than now. */
+const SCREEN_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+
+function rememberScreen(key: string, frame: PeekFrame): void {
+  const prior = lastScreens.get(key);
+  if (!frame.append) {
+    lastScreens.set(key, { seq: frame.seq, frame: frame.frame.slice(-SCREEN_CHARS), at: frame.at });
+  } else if (prior) {
+    const bytes = prior.frame + frame.frame;
+    lastScreens.set(key, { seq: frame.seq, frame: bytes.slice(-SCREEN_CHARS), at: frame.at });
+  }
+}
+
+/** A closed session's screen is not shown again under its name. */
+export function forgetScreen(userId: string, tab: string): void {
+  const suffix = `:${userId}:${tab.toLowerCase()}`;
+  for (const key of lastScreens.keys()) if (key.endsWith(suffix)) lastScreens.delete(key);
+}
+
+/** The last screen of a session, as one snapshot frame, or null. */
+export function lastScreen(
+  userId: string,
+  tab: string,
+  channel?: PeekBuilderChannel,
+  now = Date.now(),
+): PeekFrame | null {
+  const screen = lastScreens.get(peekChannel(userId, tab, channel));
+  return screen && now - screen.at < SCREEN_MAX_AGE_MS ? screen : null;
 }
 
 // Viewer ref-count per (user, tab): the first viewer triggers peek_start, the

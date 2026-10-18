@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   Link2,
+  Loader2,
   Minus,
   Plus,
 } from "lucide-react";
@@ -167,6 +168,90 @@ function TerminalStalledOverlay({ message }: { message: string }) {
 }
 
 /**
+ * Until the first live frame: what the pane is doing, in words. A phone used
+ * to show a black pane for the seconds the runner takes to pick up the
+ * request, then the terminal "a little bit later" (owner, 2026-10-18), with
+ * nothing saying it was on its way. The server's remembered copy of the last
+ * screen fills that gap when it has one, marked as not yet live.
+ */
+function TerminalOpening({ state }: { state: "waiting" | "cached" }) {
+  if (state === "cached") {
+    return (
+      <div className="ui-term-updating" role="status">
+        <Loader2 className="ui-spinner h-3.5 w-3.5" aria-hidden="true" />
+        Last screen · updating
+      </div>
+    );
+  }
+  return (
+    <div className="absolute inset-0 flex items-center justify-center p-4" role="status">
+      <div className="ui-card-shell-raised flex max-w-xs flex-col items-center gap-2 px-4 py-3 text-center">
+        <Loader2 className="ui-spinner h-5 w-5 text-text-muted" aria-hidden="true" />
+        <p className="text-sm font-medium text-text-primary">Opening the screen…</p>
+        <p className="text-xs text-text-tertiary">The builder sends it in a few seconds.</p>
+      </div>
+    </div>
+  );
+}
+
+/** What sits over the screen: the stall warning, or the opening state and
+ *  the jump back to live output. */
+function PaneOverlay({
+  stalled,
+  stalledHint,
+  opened,
+  scrolledBack,
+  jumpToLive,
+}: {
+  stalled: boolean;
+  stalledHint?: string;
+  opened: OpenState;
+  scrolledBack: boolean;
+  jumpToLive: () => void;
+}) {
+  if (stalled)
+    return (
+      <TerminalStalledOverlay
+        message={
+          stalledHint ??
+          "Connected, but no output arrived — the session may be unresponsive. Reopen it, or restart the executor."
+        }
+      />
+    );
+  return (
+    <>
+      {opened !== "live" && <TerminalOpening state={opened} />}
+      {scrolledBack && <JumpToLive onClick={jumpToLive} />}
+    </>
+  );
+}
+
+/** Nothing drawn yet / the server's remembered screen / a live frame. */
+type OpenState = "waiting" | "cached" | "live";
+
+/**
+ * The remembered screen paints, but it is not proof the session is live:
+ * only a live frame clears the stall watchdog and the badge, and a later
+ * remembered copy never marks a live pane as stale again.
+ */
+function openingTracker(setOpened: (s: OpenState) => void, markFramed: () => void) {
+  let cached = false;
+  let shown: OpenState = "waiting";
+  return {
+    onCached: (c: boolean) => {
+      cached = c;
+    },
+    drew: () => {
+      if (!cached) markFramed();
+      const next = cached ? "cached" : "live";
+      if (shown === "live" || next === shown) return;
+      shown = next;
+      setOpened(next);
+    },
+  };
+}
+
+/**
  * The ONE xterm view, parameterized by its transport (terminal-transport.ts).
  * Renders a workspace's / agent's byte stream, optionally captures keystrokes,
  * and keeps the PTY sized to the viewport. The substrate (server-owned PTY vs
@@ -250,6 +335,7 @@ export function TerminalView({
   const [connected, setConnected] = useState(false);
   // Connected (SSE `ready`) but no frame within STALL_MS → the source is wedged.
   const [stalled, setStalled] = useState(false);
+  const [opened, setOpened] = useState<OpenState>("waiting");
   const [sendOpen, setSendOpen] = useState(false);
   const [line, setLine] = useState("");
   const [sending, setSending] = useState(false);
@@ -316,10 +402,6 @@ export function TerminalView({
     if (geometry) onGeometryRef.current?.(geometry);
   }, [geometry]);
 
-  const stallMessage =
-    stalledHint ??
-    "Connected, but no output arrived — the session may be unresponsive. Reopen it, or restart the executor.";
-
   // Keep the latest transport/onStatus without retearing the stream every render.
   const transportRef = useRef(transport);
   useEffect(() => {
@@ -336,6 +418,7 @@ export function TerminalView({
     // Fresh substrate (tab switch) → back to "connecting…" until it proves live.
     setConnected(false);
     setStalled(false);
+    setOpened("waiting");
     let disposed = false;
     let disconnect = () => {};
     let cleanupTerm = () => {};
@@ -654,14 +737,16 @@ export function TerminalView({
         clearStallTimer();
         setStalled(false);
       };
+      const opening = openingTracker(setOpened, markFramed);
       disconnect = transport.connect({
+        onCached: opening.onCached,
         onOutput: (data) => {
-          markFramed();
+          opening.drew();
           term.write(data);
           scheduleScan();
         },
         onReset: () => {
-          markFramed();
+          opening.drew();
           term.reset();
           setLinks([]);
         },
@@ -723,14 +808,16 @@ export function TerminalView({
   }, [geometry, fontSync]);
 
   const jumpToLive = () => termRef.current?.scrollToBottom();
+  const paneOverlay = (
+    <PaneOverlay {...{ stalled, stalledHint, opened, scrolledBack, jumpToLive }} />
+  );
 
   if (bare) {
     return (
       <div className={`flex flex-col ${className ?? "h-full w-full"}`}>
         <div className="relative min-h-0 flex-1">
           <div ref={hostRef} className="h-full w-full overflow-x-auto overflow-y-hidden" />
-          {stalled && <TerminalStalledOverlay message={stallMessage} />}
-          {scrolledBack && !stalled && <JumpToLive onClick={jumpToLive} />}
+          {paneOverlay}
         </div>
         <LinkBar links={links} onDismiss={() => setLinks([])} />
       </div>
@@ -824,8 +911,7 @@ export function TerminalView({
         className={`relative w-full overflow-hidden rounded-md bg-surface-terminal ${fill ? "min-h-0 flex-1" : compactChrome ? "min-h-0 flex-1" : "h-72"}`}
       >
         <div ref={hostRef} className="h-full w-full overflow-x-auto overflow-y-hidden" />
-        {stalled && <TerminalStalledOverlay message={stallMessage} />}
-        {scrolledBack && !stalled && <JumpToLive onClick={jumpToLive} />}
+        {paneOverlay}
       </div>
       <LinkBar links={links} onDismiss={() => setLinks([])} />
       {onSend && !interactive && sendOpen && (

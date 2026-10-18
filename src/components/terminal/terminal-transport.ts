@@ -19,6 +19,9 @@ export interface TerminalStreamHandlers {
   onStatus: (status: AgentLifecycle) => void;
   /** Stream connection state, for the "connecting…/live" indicator. */
   onConnected: (connected: boolean) => void;
+  /** Called before each frame: true for the server's remembered copy of the
+   *  last screen (shown at once, not yet live), false for a live frame. */
+  onCached?: (cached: boolean) => void;
 }
 
 export interface TerminalTransport {
@@ -93,7 +96,12 @@ export function runnerTransport(tab: string, channel?: BuilderChannel): Terminal
       es.addEventListener("ready", () => h.onConnected(true));
       es.addEventListener("frame", (e: MessageEvent) => {
         try {
-          const { frame, append } = JSON.parse(e.data) as { frame: string; append?: boolean };
+          const { frame, append, cached } = JSON.parse(e.data) as {
+            frame: string;
+            append?: boolean;
+            cached?: boolean;
+          };
+          h.onCached?.(cached === true);
           if (!append) h.onReset(); // Snapshot → clear, then repaint the full screen.
           h.onOutput(frame);
         } catch {

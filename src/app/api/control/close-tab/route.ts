@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { enqueueTabCommand } from "@/db/queries/pending-commands";
 import { readJsonBody, z } from "@/lib/api/route-helpers";
 import { getApiUserId } from "@/lib/session";
+import { forgetScreen } from "@/lib/sse-bus";
 import { executionAccessErrorBody, resolveQueuedExecution } from "@/lib/execution-access";
 
 const CloseTabBody = z.object({
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
   if (!execution.ok) {
     return NextResponse.json(executionAccessErrorBody(execution), { status: execution.status });
   }
+  forgetScreen(userId, dataOrResp.tab);
   const commandId = await enqueueTabCommand(userId, "close_tab", {
     tab: dataOrResp.tab,
     ...(execution.channel ? { channel: execution.channel } : {}),
