@@ -337,15 +337,8 @@ ${spiralCSS(theme)}
 /* "What Loki sees": the running notes of watch mode, one row until opened */
 .thoughts { margin: -4px -16px 12px; padding: 0 16px; border-top: 1px solid ${theme.border}; border-bottom: 1px solid ${theme.border}; }
 .thoughts-head { display: flex; align-items: center; gap: 8px; }
-/* The owner's panel: the status line is the header (main.ts) — one row, not
-   the brand, the page name and the status stacked. ✕ ends the line. */
-.panel.owner .hdr { display: none; }
-.panel.owner .thoughts { margin-top: -10px; border-top: none; }
-.panel.owner .thoughts-head .x { margin-right: -6px; }
-/* A narrow phone wraps the state to a second line rather than cut it to
-   "11 changes nee…": the number is only worth anything with its noun. */
-.panel.owner .thoughts-sum { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }
-.thoughts.thinking .thoughts-row .dot.spiral svg { animation: lokispin 1.1s linear infinite; }
+.panel.owner .hdr { display: none; } .panel.owner .thoughts { margin-top: -10px; border-top: none; } .panel.owner .thoughts-head .x { margin-right: -6px; } .thoughts.thinking .thoughts-row .dot.spiral svg { animation: lokispin 1.1s linear infinite; } /* owner: the status line IS the header (main.ts), ✕ ends it */
+.panel.owner .thoughts-sum { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; } /* wrap, never "11 changes nee…" */
 .thoughts-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; padding: 10px 0; min-height: 40px; text-align: left; font-size: 12px; color: ${theme.textSecondary}; }
 .thoughts-toggle { flex: none; font-size: 12px; font-weight: 600; color: ${theme.textSecondary}; padding: 6px 0 6px 8px; }
 .thoughts-toggle:hover { color: ${theme.text}; }
