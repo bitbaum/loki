@@ -29,7 +29,7 @@ export function parseSpans(line: string): Span[] {
   return out.length ? out : [{ text: line }];
 }
 
-const BULLET = /^\s*(?:[-*•]|\d+[.)])\s+(.*)$/;
+const BULLET = /^\s*(?:[-*\u2022]|\d+[.)])\s+(.*)$/;
 const HEADING = /^\s*#{1,6}\s+(.*)$/;
 
 export function parseBlocks(text: string): Block[] {
@@ -74,7 +74,7 @@ export function parseBlocks(text: string): Block[] {
     const next = blocks[i + 1];
     if (b.kind !== "p" || next?.kind !== "ul") return b;
     const text = b.spans.map((s) => s.text).join("");
-    return text.length <= 40 && !text.includes("\n") && !/[.!?…]$/.test(text)
+    return text.length <= 40 && !text.includes("\n") && !/[.!?\u2026]$/.test(text)
       ? { kind: "h", spans: b.spans }
       : b;
   });

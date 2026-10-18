@@ -13,7 +13,7 @@
 import { CAPTURE_CONTEXT_LIMITS } from "./capture-context";
 import type { FeedbackCapture } from "./feedback-capture";
 import { clampMoments, type ReportMoment } from "./moments-contract";
-import { cleanWalkRead, walkSession, type WalkRead } from "./walk-read";
+import { cleanWalkRead, walkSession, type WalkItem, type WalkRead } from "./walk-read";
 import { understandNote } from "./loki-api";
 import { buildSuggestion, type ReportDiagnostics } from "./report-payload";
 import { sendReport } from "./send-report";
@@ -112,6 +112,8 @@ export type Draft = {
   spokenMs?: number;
   /** Loki's read of a spoken note (walk-read.ts), once it is back. */
   read?: WalkRead;
+  /** The read's list as the person edits it; absent shows the words in one box. */
+  items?: WalkItem[];
   /** The read is on its way — the card works without it in the meantime. */
   reading?: boolean;
 };
@@ -171,6 +173,7 @@ function readRecordedDraft(token: string): Draft | null {
     };
     const moments = clampMoments(raw.moments);
     const read = cleanWalkRead(raw.read);
+    const items = Array.isArray(raw.items) ? cleanWalkRead({ items: raw.items })?.items : undefined;
     return {
       text: raw.text,
       intent: "note",
@@ -182,6 +185,7 @@ function readRecordedDraft(token: string): Draft | null {
         ? { spokenMs: Math.max(0, Math.min(raw.spokenMs, 3_600_000)) }
         : {}),
       ...(read ? { read } : {}),
+      ...(items?.length ? { items } : {}),
     };
   } catch {
     return null;
@@ -397,8 +401,13 @@ export function createConversationModel(opts: ConversationModelOpts) {
       ...(pass && key ? { noticeKey: key } : {}),
     });
     if (pass && !res.owner) opts.onPassRefused();
-    draft = null;
-    keepRecordedDraft(opts.token, null);
+    sent(res, body);
+  }
+
+  /** After filing: the card goes (or keeps what is left), the receipt lands. */
+  function sent(res: Awaited<ReturnType<typeof sendReport>>, body: string, left?: Draft) {
+    draft = left ?? null;
+    keepRecordedDraft(opts.token, draft);
     opts.screenshots.clear();
     opts.picker.clearSelection();
     remember({
@@ -486,12 +495,15 @@ export function createConversationModel(opts: ConversationModelOpts) {
         (read) => {
           if (draft !== note) return;
           // A new object, so the card is drawn again with the read in it.
+          // Only words the person has not touched are replaced.
+          const untouched = draft.text === note.verbatim;
           draft = {
-            ...note,
+            ...draft,
             reading: false,
             ...(read
-              ? // Only words the person has not touched are replaced.
-                { read, text: note.text === note.verbatim ? read.ask : note.text }
+              ? untouched
+                ? { read, text: read.ask, items: read.items.map((i) => ({ ...i })) }
+                : { read }
               : {}),
           };
           keepRecordedDraft(opts.token, draft);
@@ -502,7 +514,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
     /** Put the words exactly as spoken back in the box. */
     useExactWords() {
       if (!draft?.verbatim) return;
-      draft = { ...draft, text: draft.verbatim };
+      draft = { ...draft, text: draft.verbatim, items: undefined };
       keepRecordedDraft(opts.token, draft);
       changed();
     },
@@ -512,6 +524,66 @@ export function createConversationModel(opts: ConversationModelOpts) {
       draft = null;
       keepRecordedDraft(opts.token, null);
       void ask(text, moments.length > 1 ? walkSession(moments) : undefined);
+    },
+    /** Change one listed item's words; empty words drop it. */
+    editItem(index: number, text: string) {
+      if (!draft?.items?.[index]) return;
+      draft.items[index] = { ...draft.items[index], text };
+      keepRecordedDraft(opts.token, draft);
+    },
+    dropItem(index: number) {
+      if (!draft?.items) return;
+      const items = draft.items.filter((_, i) => i !== index);
+      draft = items.length
+        ? { ...draft, items }
+        : { ...draft, items: undefined, text: draft.verbatim ?? draft.text };
+      keepRecordedDraft(opts.token, draft);
+      changed();
+    },
+    /**
+     * File every listed change as its own note — each with the moments it came
+     * from, on the page it was said on — so each is built on its own (and the
+     * owner's saved notes build page by page). Questions stay on the card for
+     * Ask. One receipt for the lot. Throws the server's words.
+     */
+    async sendItems(contact: string, intent?: "note" | "fix") {
+      const note = draft;
+      const items = note?.items?.filter((i) => i.text.trim()) ?? [];
+      const changes = items.filter((i) => i.kind === "change");
+      if (!note || !changes.length) return;
+      const pass = opts.ownerPass();
+      let res: Awaited<ReturnType<typeof sendReport>> | null = null;
+      for (const item of changes) {
+        const moments = (note.moments ?? []).filter((_, i) => item.parts.includes(i));
+        const pages = new Set(moments.map((m) => m.page));
+        const capture =
+          note.capture && pages.size === 1
+            ? { ...note.capture, page: [...pages][0] }
+            : note.capture;
+        const body = (item.where ? `${item.where}: ${item.text}` : item.text).slice(0, MAX_LEN);
+        res = await sendReport(opts.apiBase, {
+          token: opts.token,
+          intent: intent ?? "note",
+          capture,
+          moments: clampMoments(moments.length ? moments : (note.moments ?? [])),
+          suggestion: body,
+          contact,
+          scope: capture?.selected.length ? "element" : "page",
+          screenshots: opts.screenshots.list(),
+          selectedElements: opts.picker.selected(),
+          ownerPass: pass ?? undefined,
+        });
+        // Filed: off the card, so a failure on the next keeps only what is left.
+        note.items = note.items?.filter((i) => i !== item);
+      }
+      if (!res) return;
+      if (pass && !res.owner) opts.onPassRefused();
+      const questions = note.items?.filter((i) => i.kind === "question") ?? [];
+      const said =
+        changes.length === 1
+          ? changes[0].text
+          : `${changes.length} changes: ${changes.map((c) => c.text).join(" · ")}`;
+      sent(res, said, questions.length ? { ...note, items: questions } : undefined);
     },
     editDraft(text: string) {
       if (!draft) return;

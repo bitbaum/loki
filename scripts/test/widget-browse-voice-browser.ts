@@ -105,9 +105,39 @@ async function main() {
       await page.waitForFunction(
         () => (window as unknown as { Loki?: { ready: boolean } }).Loki?.ready,
       );
+      // Talk without opening Loki: the owner's launcher has a microphone beside
+      // it, and one tap starts recording with the panel still closed.
+      const quick = host.locator(".fab-talk");
+      if (owner) {
+        // The owner arrives with the panel open; the microphone is for when it is not.
+        await page.waitForTimeout(500);
+        if (await host.locator(".panel").count()) await page.keyboard.press("Escape");
+        await quick.waitFor({ state: "visible" });
+        await page.screenshot({ path: `${out}/320-quick-talk.png` });
+        const [mic, fab] = [await quick.boundingBox(), await host.locator(".fab").boundingBox()];
+        assert(mic && fab, "both on screen");
+        assert(
+          mic.x + mic.width <= fab.x || mic.x >= fab.x + fab.width,
+          "beside the launcher, not on it",
+        );
+        assert(mic.width >= 44 && mic.height >= 44, "a thumb-sized target");
+        await quick.click();
+        await host.locator(".browse-voice").waitFor();
+        assert.equal(await host.locator(".panel").count(), 0, "the panel stays closed");
+        assert.equal(await quick.isVisible(), false, "the dock replaces it while recording");
+        await host
+          .locator(".browse-voice")
+          .getByRole("button", { name: "Cancel this recording", exact: true })
+          .click();
+        await quick.waitFor({ state: "visible" });
+      } else {
+        await page.waitForTimeout(300);
+        assert.equal(await quick.isVisible(), false, "a visitor's launcher stays quiet");
+      }
       await page.evaluate(() =>
         (window as unknown as { Loki: { report(input: object): void } }).Loki.report({}),
       );
+      assert.equal(await quick.isVisible(), false, "not beside an open panel");
       assert.equal(
         await host.getAttribute("data-lk-theme"),
         owner ? "dark" : "light",

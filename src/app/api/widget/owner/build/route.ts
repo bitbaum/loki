@@ -4,9 +4,9 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { RATE_LIMIT_WINDOW_SHORT_MS } from "@/lib/constants/time";
 import { listProjectFeedback } from "@/db/queries/site-feedback";
 import { attachFeedbackWork } from "@/lib/feedback/attach-work";
-import { startOwnerBuild } from "@/lib/feedback/owner-build";
+import { startOwnerBatchBuild, startOwnerBuild } from "@/lib/feedback/owner-build";
 import { OWNER_CHANGES_FETCH } from "@/lib/feedback/owner-view";
-import { savedNotesToBuild } from "@/lib/feedback/saved-notes";
+import { groupNotesByPage, savedNotesToBuild } from "@/lib/feedback/saved-notes";
 import { ownerRequest } from "@/lib/widget/owner-request";
 
 /**
@@ -15,8 +15,9 @@ import { ownerRequest } from "@/lib/widget/owner-request";
  * The owner records notes while Loki watches and saves them (held out of
  * automatic work); the panel's status line counts them and offers this one
  * tap. Same guard as Your changes (lib/widget/owner-request.ts) — without a
- * valid pass it starts nothing. Each note becomes its own build through the
- * owner's own path (startOwnerBuild), with its daily limit.
+ * valid pass it starts nothing. The notes start as one build per page,
+ * through the owner's own path (startOwnerBuild for a lone note,
+ * startOwnerBatchBuild for several) and its daily limit.
  */
 
 const CORS_HEADERS = {
@@ -62,12 +63,26 @@ export async function POST(req: NextRequest) {
     ),
   );
   let started = 0;
+  let builds = 0;
   let note: string | undefined;
-  // One at a time: they queue on the same project, in the order they were said.
-  for (const n of notes) {
-    const r = await startOwnerBuild(token.userId, token.projectId, n.id);
-    if (r.building) started++;
-    else note ??= r.buildNote;
+  // One build per page, in the order things were said: a page's notes are
+  // fixed together, in one pass that sees them all.
+  for (const group of groupNotesByPage(notes)) {
+    const r =
+      group.length === 1
+        ? await startOwnerBuild(token.userId, token.projectId, group[0].id)
+        : await startOwnerBatchBuild(token.userId, token.projectId, group);
+    if (r.building) {
+      started += group.length;
+      builds++;
+    } else note ??= r.buildNote;
   }
-  return corsJson({ ok: true, owner: true, started, total: notes.length, ...(note ? { note } : {}) });
+  return corsJson({
+    ok: true,
+    owner: true,
+    started,
+    builds,
+    total: notes.length,
+    ...(note ? { note } : {}),
+  });
 }

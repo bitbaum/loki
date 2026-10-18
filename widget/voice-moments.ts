@@ -101,6 +101,33 @@ export function timeline(moments: Moment[], max = 300): string {
 const heading = (m: Moment, pages: number) =>
   `On ${pages > 1 ? `${m.page} — ` : ""}“${m.label}”${m.marked ? " (marked)" : ""}:`;
 
+// A sentence ends at . ! ? or an ellipsis, maybe followed by a closing quote.
+// Escaped, not typed: widget regexes stay ASCII (README, "The bundle is ASCII").
+const SENTENCE_END = /[.!?\u2026]["'\u201D\u00BB)]*$/;
+
+/**
+ * Whisper's segments joined back into whole sentences, each starting when its
+ * first words were said. Whisper cuts on pauses, not on meaning, and a cut
+ * landing on a scroll filed half a sentence under one heading and the rest
+ * under the next (owner, 2026-10-18: "the first screen that the / logged-in
+ * user sees"). A sentence is never split.
+ */
+export function wholeSentences(segments: readonly TimedText[]): TimedText[] {
+  const out: TimedText[] = [];
+  let open: TimedText | null = null;
+  for (const seg of segments) {
+    const text = seg.text.trim();
+    if (!text) continue;
+    open = open ? { start: open.start, text: `${open.text} ${text}` } : { start: seg.start, text };
+    if (SENTENCE_END.test(text)) {
+      out.push(open);
+      open = null;
+    }
+  }
+  if (open) out.push(open);
+  return out;
+}
+
 /**
  * Each sentence under the part of the page that was in view when it began:
  * the last moment at or before it. Empty when there is nothing to line up —
@@ -113,7 +140,7 @@ export function groupNote(
   const parts = new Set(moments.map((m) => `${m.page}|${m.label}`));
   if (parts.size < 2 || !segments.length) return [];
   const groups: Array<{ moment: Moment; lines: string[] }> = [];
-  for (const seg of segments) {
+  for (const seg of wholeSentences(segments)) {
     const ms = seg.start * 1000;
     let current = moments[0];
     for (const m of moments) if (m.at <= ms + 250) current = m;

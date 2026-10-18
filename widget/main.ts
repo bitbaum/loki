@@ -39,6 +39,7 @@ import {
 } from "./theme";
 import { createThemeMode } from "./theme-mode";
 import { createBrowseVoice } from "./browse-voice";
+import { createQuickTalk } from "./quick-talk";
 import { isVoiceSupported } from "./voice";
 import { h, spiralMark } from "./dom";
 import { createThoughtsView } from "./thoughts-view";
@@ -394,6 +395,7 @@ interface LokiApi {
       madeWith.hidden = !!ownerPass;
       // The owner's launcher carries the same state as this header.
       launcher.setOwnerStatus(ownerPass ? { watching: on, unread } : null);
+      quickTalk?.sync();
       conversation?.refresh();
     }
     /** What Loki said while the panel was closed — the launcher's badge. */
@@ -414,6 +416,16 @@ interface LokiApi {
     madeWith.rel = "noopener";
 
     let browseVoice: ReturnType<typeof createBrowseVoice> | null = null;
+    let quickTalk: ReturnType<typeof createQuickTalk> | null = null;
+    /** Talk while you scroll — from the panel's Talk or beside the launcher. */
+    function startTalk() {
+      if (conversation.hasDraft()) {
+        if (!panel.isConnected) openPanel();
+        conversation.say("Save or cancel your current note before starting another.");
+        return;
+      }
+      browseVoice?.start();
+    }
     const modes = parseWidgetSurfaceModes(modesAttr);
     const picker = createPicker({
       root,
@@ -457,17 +469,7 @@ interface LokiApi {
       watch: () => watchSession,
       known: (key) => changes.known(key),
       // The one microphone: talk while you scroll (browse-voice.ts).
-      ...(isVoiceSupported()
-        ? {
-            talk: () => {
-              if (conversation.hasDraft()) {
-                conversation.say("Save or cancel your current note before starting another.");
-                return;
-              }
-              browseVoice?.start();
-            },
-          }
-        : {}),
+      ...(isVoiceSupported() ? { talk: startTalk } : {}),
     });
 
     const foot = h("div", "panel-foot");
@@ -574,6 +576,14 @@ interface LokiApi {
         conversation.say(message);
       },
     });
+
+    if (isVoiceSupported())
+      quickTalk = createQuickTalk({
+        root,
+        fab,
+        wanted: () => !!ownerPass && !panel.isConnected && !browseVoice?.active(),
+        onTalk: startTalk,
+      });
 
     // Programmatic entry point: the host's own "Report" control opens the
     // send confirmation prefilled, with whatever the host attached.

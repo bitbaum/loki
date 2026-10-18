@@ -9,7 +9,7 @@
  */
 const BRAND = "loki";
 /** Title separators people actually use: — – | · : and a spaced hyphen. */
-const SEPARATOR = /\s+[—–|·:-]\s+|\s*[—–|·]\s*/;
+const SEPARATOR = /\s+[\u2014\u2013|\u00B7:-]\s+|\s*[\u2014\u2013|\u00B7]\s*/;
 
 export function pageLabel(title: string, pathname: string): string {
   const parts = title

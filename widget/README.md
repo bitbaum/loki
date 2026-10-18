@@ -9,6 +9,9 @@ where the launcher goes, and how to hide it.
 ## Voice notes while browsing
 
 Open Loki and tap **Talk** in the composer — the panel's one microphone. The
+owner need not open Loki at all: a microphone sits beside their launcher
+(`widget/quick-talk.ts`; it follows the launcher, never on the edge tab, never
+for a visitor), and one tap on it starts recording. The
 panel closes; one dock — *● Recording 0:12 · Mark · Done · ✕* — and a red edge
 round the whole screen say Loki is listening, and the site stays usable (the
 edge takes no taps). Scroll and tap and talk. Loki notes which part of the page is in view (its nearest
@@ -26,6 +29,8 @@ about eighteen minutes) and the clock keeps counting.
 
 **Done** writes it down. Whisper says when each sentence was said, so the note
 comes back with each sentence under the part of the page that was in view
+when it began — whole sentences, never cut where Whisper paused (`wholeSentences`;
+2026-10-18 a sentence was split across two headings as the page scrolled)
 (`widget/voice-moments.ts`, tested in `scripts/test/widget-voice-moments.ts`):
 
     On “Nutzen”:
@@ -36,14 +41,20 @@ comes back with each sentence under the part of the page that was in view
 
 The card first says what Loki heard — *Loki heard you · 0:43 across 4 pages*
 — and then Loki **reads** it the way a person would listen
-(`widget/walk-read.ts`, `POST /api/widget/understand`): the box leads with
-what was asked, as one editable instruction; what was said but not meant for
+(`widget/walk-read.ts`, `POST /api/widget/understand`): *Here is what Loki
+heard* — a list, one thing per line, each a **Change** or a **Question** with
+where it applies (*Contact section*, *Home page, signed in*, *Whole site*), its
+words editable and ✕ to drop it. People talk freely while they scroll, so the
+part on screen is background: a line names a part only when they pointed at it
+(Mark, a tap, "this", or its name). **Save 2 changes** files each change as its
+own note, with the moments it came from, on the page it was said on — so each
+is built on its own, and the owner's saved notes build page by page; questions
+stay on the card for **Ask**. What was said but not meant for
 Loki (to someone in the room, or narrating the clicks) is named under it as
 *Left out*; the words as spoken stay under **Word for word**, with **Use my
-exact words instead**. A question ("tell me what you think") leads with **Ask
-Loki**, answered about every page of the walk, not only the open one; a
-change leads with **Save** for the owner (then **Fix it now**) and **Save
-feedback** for a visitor. Nothing waits on the read: while it comes, and if it
+exact words instead**. Only questions lead with **Ask Loki**, answered about
+every page of the walk, not only the open one; changes lead with **Save** for
+the owner (then **Fix it now**) and **Save feedback** for a visitor. Nothing waits on the read: while it comes, and if it
 fails, the card is the words as spoken with the buttons as before, and words
 edited before it arrives are never replaced. Whatever is saved, the words as
 spoken travel with it in each moment's `said`. The card never sends by itself. The whole note is kept — the receipt quotes its start and folds
@@ -117,7 +128,9 @@ the keyboard (`interactive-widget=resizes-content`, Loki's own): the sheet kept
 **Record now, build later.** While Loki watches, **Talk**, scroll, **Done**: the
 owner's note card leads with **Save** (then *Fix it now*, *Ask*). Saved notes
 collect on the status line — *Watching · 3 notes saved ›* — and one tap,
-**Build all 3 saved notes**, starts each as its own build, oldest first
+**Build all 3 saved notes**, starts them as one build per page, in the order
+they were said — a page's notes are fixed together, in one pass that sees
+them all (`groupNotesByPage`; a lone note builds on its own)
 (`POST /api/widget/owner/build`, `src/lib/feedback/saved-notes.ts`; same owner
 check as Your changes, `src/lib/widget/owner-request.ts`).
 
@@ -164,6 +177,12 @@ Rules that resolve the trade-offs:
   painted), and every rule has a browser test that would fail if it cried wolf.
 - **Speaking up costs nothing.** Remarks are written by rules, once per visit;
   a model runs only when asked (*Why*, *Review*, *Ask Loki*).
+- **The bundle is ASCII.** The widget runs on pages that may not declare an
+  encoding. esbuild escapes non-ASCII characters in strings but keeps them raw
+  inside regex literals, where the browser can read them as other characters
+  and nothing matches. Write `\u2014`, not `—`, in a regex.
+  `scripts/test/widget-ascii-bundle.ts` fails on any non-ASCII byte in the
+  built bundle.
 - **Never move what someone is reaching for.** New messages follow only when
   you were already at the bottom; reading further up, your place is kept.
 - **Send is always reachable.** Only the thread scrolls; the composer never

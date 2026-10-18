@@ -34,9 +34,24 @@ const QUESTION = {
   kind: "question",
   asides: ["No, no, I'm just making a coffee.", "We will actually log in."],
 };
+// The question comes back in the read's first shape (one ask) — an answer
+// from before the list still reads. The change comes back as a list.
 const CHANGE = {
-  ask: "Make the design consistent across the home page, Features, the dashboard and Settings.",
-  kind: "change",
+  items: [
+    {
+      text: "Make the cards and headings match across the home page, Features and the dashboard.",
+      kind: "change",
+      where: "Home page, Features, dashboard",
+      parts: [0, 1, 2],
+    },
+    {
+      text: "Put Download my data in its own section.",
+      kind: "change",
+      where: "Settings",
+      parts: [3],
+    },
+    { text: "Is the dashboard greeting still needed?", kind: "question", where: null, parts: [2] },
+  ],
   asides: ["No, no, I'm just making a coffee."],
 };
 
@@ -185,7 +200,7 @@ async function main() {
       const title = host.locator(".voice-note .changes-title");
       await title.waitFor();
       assert.match(await title.innerText(), /^Loki heard you · 0:0\d across 4 pages$/);
-      const box = host.locator(".voice-note textarea");
+      const box = host.locator(".voice-note textarea.chatinput");
 
       if (scenario === "edited") {
         // The person starts fixing the words before Loki's read is back.
@@ -206,9 +221,16 @@ async function main() {
         continue;
       }
 
-      await host.getByText(/^Loki understood/).waitFor({ timeout: 8000 });
-      const read = scenario === "change" ? CHANGE : QUESTION;
-      assert.equal(await box.inputValue(), read.ask, "the box leads with what was asked");
+      await host.getByText(/^Here is what Loki heard/).waitFor({ timeout: 8000 });
+      const lines = scenario === "change" ? CHANGE.items.map((i) => i.text) : [QUESTION.ask];
+      assert.deepEqual(
+        await host
+          .locator(".heard-text")
+          .evaluateAll((els) => els.map((e) => (e as HTMLTextAreaElement).value)),
+        lines,
+        "the card lists what was heard, one thing per line",
+      );
+      assert.equal(await box.isVisible(), false, "the list is the note");
       assert.equal(understood.length, 1, "read once");
       assert.match(
         String(understood[0].note),
@@ -222,6 +244,12 @@ async function main() {
       );
       const leftOut = await host.locator(".voice-note .diag", { hasText: "Left out" }).innerText();
       assert.match(leftOut, /making a coffee/, "the aside is named, not hidden");
+      // The card is in view from its top, not found by scrolling.
+      const inView = await host.locator(".voice-note").evaluate((card) => {
+        const log = card.parentElement!;
+        return card.getBoundingClientRect().top - log.getBoundingClientRect().top;
+      });
+      assert(inView >= -2 && inView < 200, `the card's top is in view (${inView}px)`);
       // The words as spoken, one tap away.
       await host.locator(".said-exact summary").click();
       assert.match(
@@ -229,12 +257,6 @@ async function main() {
         /On \/de — “Dein Tier sendet ein Signal/,
       );
       assert.match(await host.locator(".said-exact").innerText(), /Loki noted what was on screen/);
-      // The card is in view from its top, not found by scrolling.
-      const inView = await host.locator(".voice-note").evaluate((card) => {
-        const log = card.parentElement!;
-        return card.getBoundingClientRect().top - log.getBoundingClientRect().top;
-      });
-      assert(inView >= -2 && inView < 200, `the card's top is in view (${inView}px)`);
       await page.screenshot({ path: `${out}/${width}-${scenario}.png` });
       const first = (await host.locator(".sendcard-actions button").first().innerText()).trim();
 
@@ -255,28 +277,52 @@ async function main() {
         assert.equal(posted.length, 0, "asking files nothing");
         await page.screenshot({ path: `${out}/${width}-question-answered.png` });
       } else {
-        assert.equal(first, "Save", "the owner's change leads with Save");
+        assert.equal(first, "Save 2 changes", "the owner's changes lead with Save, counted");
         assert.equal(
-          await host.getByRole("button", { name: "Fix it now", exact: true }).count(),
+          await host.getByRole("button", { name: "Fix them now", exact: true }).count(),
           1,
         );
-        // Back to the words as spoken, and on to Loki's read again by Save.
-        await host.getByRole("button", { name: "Use my exact words instead", exact: true }).click();
-        assert.match(await box.inputValue(), /^On \/de — /);
-        await box.fill(CHANGE.ask);
-        await host.getByRole("button", { name: "Save", exact: true }).click();
+        assert.equal(
+          await host.getByRole("button", { name: "Ask the question", exact: true }).count(),
+          1,
+        );
+        assert.match(
+          await host.locator(".heard-where").first().innerText(),
+          /^Change · Home page, Features, dashboard$/,
+        );
+        // Each word is the person's to change before it is saved.
+        await host.locator(".heard-text").nth(1).fill("Give Download my data its own section.");
+        await host.getByRole("button", { name: "Save 2 changes", exact: true }).click();
         await page.waitForFunction(() =>
           document
             .querySelector("#loki-feedback-host")
             ?.shadowRoot?.textContent?.includes("Saved."),
         );
-        assert.equal(posted.length, 1);
-        assert.equal(posted[0].suggestion, CHANGE.ask, "what is saved is what was asked");
-        const moments = posted[0].moments as Array<{ page: string; said?: string }>;
-        assert.ok(
-          moments.some((m) => m.said?.includes("look at all these things")),
-          "the words as spoken still travel with it, under the part they were said on",
+        assert.equal(posted.length, 2, "each change is saved on its own");
+        assert.equal(
+          posted[0].suggestion,
+          `Home page, Features, dashboard: ${CHANGE.items[0].text}`,
+          "saved as heard, with where",
         );
+        assert.equal(posted[1].suggestion, "Settings: Give Download my data its own section.");
+        const sent = understood[0].moments as Array<{ page: string }>;
+        const second = posted[1].moments as Array<{ page: string; said?: string }>;
+        assert.deepEqual(
+          second.map((m) => m.page),
+          [sent[3].page],
+          "a change carries the moments it came from",
+        );
+        assert.equal(posted[1].page, sent[3].page, "and is filed on the page it was said on");
+        // The question stays on the card for Ask; the words as spoken, one tap away.
+        assert.deepEqual(
+          await host
+            .locator(".heard-text")
+            .evaluateAll((els) => els.map((e) => (e as HTMLTextAreaElement).value)),
+          [CHANGE.items[2].text],
+        );
+        await host.locator(".said-exact summary").click();
+        await host.getByRole("button", { name: "Use my exact words instead", exact: true }).click();
+        assert.match(await box.inputValue(), /^On \/de — /);
       }
       assert.deepEqual(errors, []);
       await page.close();

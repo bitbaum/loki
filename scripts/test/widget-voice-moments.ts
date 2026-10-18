@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import {
   addMoment,
   alignNote,
+  wholeSentences,
   joinTakes,
   MOMENTS_MAX,
   momentsForReport,
@@ -64,20 +65,46 @@ assert.match(
   alignNote(
     "a b",
     [
-      { start: 0, text: "a" },
-      { start: 3.8, text: "b" },
+      { start: 0, text: "a." },
+      { start: 3.8, text: "b." },
     ],
     [m(0, "X"), m(4000, "Y")],
   ),
-  /On “Y”:\nb/,
+  /On “Y”:\nb\./,
+);
+// A sentence is never cut: Whisper paused mid-sentence while the page
+// scrolled, and the second half used to land under the next heading.
+assert.equal(
+  alignNote(
+    "I'm not sure this should be the first screen that the logged-in user sees. Fine.",
+    [
+      { start: 0, text: "I'm not sure this should be the first screen that the" },
+      { start: 2, text: "logged-in user sees." },
+      { start: 6, text: "Fine." },
+    ],
+    [m(0, "X"), m(1500, "Y"), m(5500, "Z")],
+  ),
+  "On “X”:\nI'm not sure this should be the first screen that the logged-in user sees.\n\nOn “Z”:\nFine.",
+);
+assert.deepEqual(
+  wholeSentences([
+    { start: 0, text: "Is this" },
+    { start: 1, text: "right? Yes" },
+    { start: 2, text: "it is…" },
+    { start: 3, text: "trailing" },
+  ]),
+  [
+    { start: 0, text: "Is this right? Yes it is…" },
+    { start: 3, text: "trailing" },
+  ],
 );
 // Across pages, each heading says which page.
 assert.match(
   alignNote(
     "a b",
     [
-      { start: 0, text: "a" },
-      { start: 5, text: "b" },
+      { start: 0, text: "a." },
+      { start: 5, text: "b." },
     ],
     [m(0, "X"), { at: 4000, label: "Y", page: "/shop" }],
   ),

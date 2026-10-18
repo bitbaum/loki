@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { readIdParam, readJsonBody, jsonError, z } from "@/lib/api/route-helpers";
 import { getApiUserId } from "@/lib/session";
 import { getProjectCore } from "@/db/queries/projects";
-import { listProjectFeedback, markFeedbackDispatchedBulk } from "@/db/queries/site-feedback";
-import { injectPrompt } from "@/lib/inject-core";
+import { listProjectFeedback } from "@/db/queries/site-feedback";
 import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
-import { feedbackInjectAccepted } from "@/lib/feedback/dispatch-accept";
-import { composeFeedbackBatchFixPrompt } from "@/lib/feedback/compose-dispatch";
+import { dispatchFeedbackBatch } from "@/lib/feedback/batch-dispatch";
 
 /**
  * One-click "Implement all as one": collapse every NEW visitor/AI-review item
@@ -45,28 +43,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return jsonError("Use Implement on the single row — batch is for 2+ items", 400);
   }
 
-  const prompt = composeFeedbackBatchFixPrompt(items, project.name, dataOrResp.note || undefined);
-  const { status, body } = await injectPrompt(
-    {
-      tab: project.name,
-      projectId: idOrResp,
-      allowHostedFallback: true,
-      refuseOfflineQueue: true,
-      // Honor user_projects.builder_pref via pickDispatchChannel — do not force cloud.
-      customPrompt: prompt,
-      notifyOnClose: true,
-    },
+  const { status, body, accepted } = await dispatchFeedbackBatch(
     userId,
+    { id: idOrResp, name: project.name },
+    items,
+    dataOrResp.note || undefined,
   );
-  const accepted = feedbackInjectAccepted(status, body);
-  if (accepted) {
-    const runId = body.runId;
-    await markFeedbackDispatchedBulk(
-      userId,
-      items.map((f) => f.id),
-      runId,
-    );
-  }
   return NextResponse.json(
     { ...body, dispatchedCount: accepted ? items.length : 0 },
     { status: accepted || body.blocked ? status : status < 400 ? 502 : status },

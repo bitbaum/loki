@@ -1,5 +1,8 @@
 import { checkRateLimit } from "@/lib/rate-limit";
 import { implementFeedback } from "@/lib/feedback/implement";
+import { dispatchFeedbackBatch } from "@/lib/feedback/batch-dispatch";
+import { getProjectCore } from "@/db/queries/projects";
+import type { FeedbackPromptFields } from "@/lib/feedback/compose-dispatch";
 
 /** Owner notes start an agent each; this bounds what a leaked pass can spend. */
 const OWNER_BUILDS_PER_DAY = 40;
@@ -17,29 +20,58 @@ export async function startOwnerBuild(
   projectId: string,
   feedbackId: string,
 ): Promise<{ building: boolean; buildNote?: string }> {
-  if (!checkRateLimit(`feedback:owner-build:${projectId}`, OWNER_BUILDS_PER_DAY, DAY_MS)) {
-    return {
-      building: false,
-      buildNote: "Saved. You have sent a lot today, so this one waits in Loki for you to start.",
-    };
-  }
+  if (!withinDailyLimit(projectId)) return LIMITED;
   try {
     const { status, body } = await implementFeedback(ownerUserId, feedbackId);
     if (status < 400 && typeof body.runId === "string") return { building: true };
     // 409 from a run that is queued or working: the note is already being
     // built, which is exactly what the owner wants to hear.
     if (status === 409 && body.alreadyRunning === true) return { building: true };
-    const reason = typeof body.error === "string" ? body.error : null;
-    return {
-      building: false,
-      buildNote: reason
+    return notStarted(body.error);
+  } catch {
+    return notStarted(null);
+  }
+}
+
+/**
+ * Several of the owner's notes about ONE page as one build: one agent pass
+ * fixes them together (the widget's "Build all", one build per page). Counts
+ * as one build against the same daily limit.
+ */
+export async function startOwnerBatchBuild(
+  ownerUserId: string,
+  projectId: string,
+  items: Array<FeedbackPromptFields & { id: string }>,
+): Promise<{ building: boolean; buildNote?: string }> {
+  if (!withinDailyLimit(projectId)) return LIMITED;
+  try {
+    const project = await getProjectCore(ownerUserId, projectId);
+    if (!project) return notStarted(null);
+    const { body, accepted } = await dispatchFeedbackBatch(
+      ownerUserId,
+      { id: projectId, name: project.name },
+      items,
+    );
+    return accepted ? { building: true } : notStarted((body as Record<string, unknown>).error);
+  } catch {
+    return notStarted(null);
+  }
+}
+
+const withinDailyLimit = (projectId: string) =>
+  checkRateLimit(`feedback:owner-build:${projectId}`, OWNER_BUILDS_PER_DAY, DAY_MS);
+
+const LIMITED = {
+  building: false,
+  buildNote: "Saved. You have sent a lot today, so this one waits in Loki for you to start.",
+} as const;
+
+function notStarted(reason: unknown): { building: false; buildNote: string } {
+  return {
+    building: false,
+    buildNote:
+      typeof reason === "string"
         ? `Saved, but it could not start: ${reason}`
         : "Saved, but it could not start yet. It waits in Loki under Feedback.",
-    };
-  } catch {
-    return {
-      building: false,
-      buildNote: "Saved, but it could not start yet. It waits in Loki under Feedback.",
-    };
-  }
+  };
 }

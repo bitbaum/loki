@@ -287,7 +287,7 @@ const STATUS_WORDS: Record<number, string> = {
 export function explainNotice(n: Notice): { say: string; fix: string } {
   const after = n.after ? `After you pressed ${n.after}, ` : "";
   const afterFix = n.after ? ` after pressing ${n.after}` : "";
-  const req = /^([A-Z]+) (\S+) → (\d{3}|no response)(?: in ([\d.]+)s)?/.exec(n.text);
+  const req = /^([A-Z]+) (\S+) \u2192 (\d{3}|no response)(?: in ([\d.]+)s)?/.exec(n.text);
   if ((n.kind === "4xx" || n.kind === "slow") && req) {
     const [, , path, status, secs] = req;
     if (n.kind === "slow") {

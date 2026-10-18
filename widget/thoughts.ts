@@ -50,7 +50,7 @@ export function thoughtFor(e: TrailEntry): Thought {
     case "error":
       return { at, tone: "bad", text: `The page hit an error: ${e.text}` };
     case "request": {
-      const failed = /→ (5\d\d|no response)/.test(e.text);
+      const failed = /\u2192 (5\d\d|no response)/.test(e.text);
       return failed
         ? { at, tone: "bad", text: `A request failed: ${e.text}` }
         : { at, tone: "plain", text: `The page sent ${e.text}` };

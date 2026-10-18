@@ -27,15 +27,33 @@
  * Shared by the widget (cleaning what the server sends) and the server
  * (cleaning what the model answers): one rule for what a read may contain.
  */
-import { momentClock, type ReportMoment } from "./moments-contract";
+import { MOMENT_LIMITS, momentClock, type ReportMoment } from "./moments-contract";
 
 export const WALK_KINDS = ["change", "question"] as const;
 export type WalkKind = (typeof WALK_KINDS)[number];
 
+/**
+ * One thing said in a walk: a change to make or a question to answer, and
+ * where it applies. The owner talks freely while scrolling (2026-10-18: "I
+ * wasn't really referring to that particular part of the screen"), so the
+ * part of the page in view is background, not a claim about what they meant;
+ * `where` names a part only when they pointed at it.
+ */
+export type WalkItem = {
+  text: string;
+  kind: WalkKind;
+  /** "Home page, signed in", "Contact section", "Whole site" — or null when unclear. */
+  where: string | null;
+  /** The walk's moments this came from (indexes into the moments sent), for the builder. */
+  parts: number[];
+};
+
 export type WalkRead = {
-  /** What was asked, as one instruction — the speaker's request, not a summary of the talk. */
+  /** Everything asked, as one instruction — the items joined; what an old card shows. */
   ask: string;
   kind: WalkKind;
+  /** The same, one thing per item: what the card lists and what is saved. */
+  items: WalkItem[];
   /** Said, but not to Loki: to someone in the room, or narrating the clicks. */
   asides: string[];
 };
@@ -44,6 +62,9 @@ export const WALK_READ_LIMITS = {
   /** The note the server reads: a long walk's words, not the whole of a long walk. */
   note: 6000,
   ask: 900,
+  item: 600,
+  items: 8,
+  where: 80,
   aside: 160,
   asides: 6,
 } as const;
@@ -55,18 +76,56 @@ const line = (v: unknown, max: number): string | null => {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 };
 
-/** A read, or null when there is nothing in it a person could act on. */
-export function cleanWalkRead(value: unknown): WalkRead | null {
+const kindOf = (v: unknown): WalkKind => (v === "question" ? "question" : "change");
+
+function cleanItem(value: unknown, moments: number): WalkItem | null {
   if (!value || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;
-  const ask = line(v.ask, WALK_READ_LIMITS.ask);
-  if (!ask) return null;
-  const kind: WalkKind = v.kind === "question" ? "question" : "change";
+  const text = line(v.text, WALK_READ_LIMITS.item);
+  if (!text) return null;
+  const parts = [
+    ...new Set(
+      (Array.isArray(v.parts) ? v.parts : []).filter(
+        (n): n is number => Number.isInteger(n) && n >= 0 && n < moments,
+      ),
+    ),
+  ];
+  return { text, kind: kindOf(v.kind), where: line(v.where, WALK_READ_LIMITS.where), parts };
+}
+
+/** All the items as one instruction: what a card that predates the list shows. */
+export function itemsAsk(items: readonly WalkItem[]): string {
+  if (items.length === 1) return items[0].text;
+  return items.map((i, n) => `${n + 1}. ${i.where ? `${i.where}: ` : ""}${i.text}`).join("\n");
+}
+
+/**
+ * A read, or null when there is nothing in it a person could act on.
+ * `moments` is how many moments were sent, so a part index is never invented.
+ * An answer from before the list (one `ask`) becomes a one-item list.
+ */
+export function cleanWalkRead(
+  value: unknown,
+  moments: number = MOMENT_LIMITS.count,
+): WalkRead | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  let items = (Array.isArray(v.items) ? v.items : [])
+    .map((i) => cleanItem(i, moments))
+    .filter((i): i is WalkItem => !!i)
+    .slice(0, WALK_READ_LIMITS.items);
+  if (!items.length) {
+    const ask = line(v.ask, WALK_READ_LIMITS.ask);
+    if (!ask) return null;
+    items = [{ text: ask, kind: kindOf(v.kind), where: null, parts: [] }];
+  }
   const asides = (Array.isArray(v.asides) ? v.asides : [])
     .map((a) => line(a, WALK_READ_LIMITS.aside))
     .filter((a): a is string => !!a)
     .slice(0, WALK_READ_LIMITS.asides);
-  return { ask, kind, asides };
+  const ask = itemsAsk(items).slice(0, WALK_READ_LIMITS.ask * 3);
+  const kind: WalkKind = items.some((i) => i.kind === "change") ? "change" : "question";
+  return { ask, kind, items, asides };
 }
 
 /** The pages a walk went through, in order, each once. */

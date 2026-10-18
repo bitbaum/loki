@@ -29,7 +29,7 @@ const RULES: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
       `${n(m[1], "form field has", "form fields have")} no label, so people can lose track of what to type`,
   ],
   [
-    /^(\d+) tap target\(s\) are under \d+px and crowded by their neighbours, easy to mis-tap(?: \(e\.g\. (.+) at \d+×\d+\))?$/,
+    /^(\d+) tap target\(s\) are under \d+px and crowded by their neighbours, easy to mis-tap(?: \(e\.g\. (.+) at \d+\u00D7\d+\))?$/,
     (m) =>
       `${n(m[1], "button is", "buttons are")} small and close to others, so a thumb easily hits the wrong one${eg(m[2])}`,
   ],

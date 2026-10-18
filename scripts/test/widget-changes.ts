@@ -245,6 +245,14 @@ assert.match(main, /changes\.start\(\)/, "asked for on arrival");
   assert.equal(changesHeadline([c(SAVED_NOTE_LABEL), c("Needs you")]), "1 change needs you");
   assert.match(builtSay({ started: 3, total: 3 }), /Started your 3 saved notes/);
   assert.match(
+    builtSay({ started: 5, total: 5, builds: 2 }),
+    /5 saved notes as 2 builds, one per page/,
+  );
+  assert.match(
+    builtSay({ started: 3, total: 3, builds: 1 }),
+    /as one build — they are all about the same page/,
+  );
+  assert.match(
     builtSay({ started: 1, total: 3, note: "Limit reached." }),
     /Started 1 of 3.*Limit reached/,
   );

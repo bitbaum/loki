@@ -42,7 +42,15 @@ import {
 } from "./conversation-model";
 import { kitState, noticedExtras, sentFull } from "./conversation-kit";
 import { heardLine } from "./walk-read";
-import { noteExtras, noteGuide, showsRead } from "./voice-note-card";
+import {
+  itemCounts,
+  itemsList,
+  noteExtras,
+  noteGuide,
+  noteLabels,
+  noteQuestion,
+  showsRead,
+} from "./voice-note-card";
 import type { KitHandle, KitModule } from "./chat/contract";
 
 export { MAX_LEN, type ConversationWatch };
@@ -415,7 +423,6 @@ export function createConversation(opts: {
   function draftCard(draft: Draft, takeFocus = true): HTMLElement {
     const el = h("div", draft.intent === "note" ? "sendcard voice-note" : "sendcard");
     const voice = draft.intent === "note";
-    const read = voice ? draft.read : undefined;
     const showingRead = voice && showsRead(draft);
     // "Did it hear me?" is answered first: how long, and across which pages.
     el.appendChild(
@@ -444,7 +451,10 @@ export function createConversation(opts: {
           draft.text.split("\n").length + Math.ceil(draft.text.length / 60),
         ),
       );
-    el.appendChild(box);
+    // Read as a list, the list is the note; the words in one box come back
+    // with "Use my exact words instead".
+    if (showingRead) box.style.display = "none";
+    el.append(...(showingRead ? [itemsList(draft, model.editItem, model.dropItem)] : []), box);
     el.append(...noteExtras(draft, () => model.useExactWords()));
     const contact = h("input");
     contact.type = "text";
@@ -477,18 +487,17 @@ export function createConversation(opts: {
     // The owner records while Loki watches and builds later (2026-10-18), so
     // their spoken note leads with Save; a visitor's leads with Ask.
     // A question is answered by Ask, whoever asked it.
-    const question = read?.kind === "question" && showingRead;
+    const question = showingRead && !itemCounts(draft).changes;
+    const labels = noteLabels(draft, owner());
     const saveFirst = voice && owner() && !question;
     const askFirst = voice && !saveFirst;
-    const askBtn = voice
-      ? h("button", askFirst ? "go" : "ghost outline", question ? "Ask Loki" : "Ask")
-      : null;
+    const askBtn = voice ? h("button", askFirst ? "go" : "ghost outline", labels.ask) : null;
     if (askBtn) askBtn.type = "button";
-    const sendLabel = voice ? (owner() ? "Save" : "Save feedback") : owner() ? "Build it" : "Send";
+    const sendLabel = voice ? labels.save : owner() ? "Build it" : "Send";
     const go = h("button", voice && !saveFirst ? "ghost outline" : "go", sendLabel);
     go.type = "button";
     const requestFix =
-      voice && owner() && !question ? h("button", "ghost outline", "Fix it now") : null;
+      voice && owner() && !question ? h("button", "ghost outline", labels.fix) : null;
     if (requestFix) requestFix.type = "button";
     const cancel = h("button", "ghost", voice ? "Discard" : "Cancel");
     cancel.type = "button";
@@ -497,7 +506,7 @@ export function createConversation(opts: {
     row.append(...order.filter((b): b is HTMLButtonElement => !!b), cancel);
     el.append(row, cardErr);
     askBtn?.addEventListener("click", () => {
-      const text = box.value.trim();
+      const text = noteQuestion(draft, box.value.trim());
       if (!text) return;
       // Asked about the whole walk, not only the page the panel is open on.
       model.askAboutNote(text);
@@ -509,7 +518,7 @@ export function createConversation(opts: {
     const send = async (intent?: "note" | "fix") => {
       const body = box.value.trim();
       if (!body) return;
-      if (body.length > MAX_LEN) {
+      if (!showingRead && body.length > MAX_LEN) {
         cardErr.textContent = `This note is longer than ${MAX_LEN} characters. Shorten it before sending; your full recording text is kept here.`;
         return;
       }
@@ -518,7 +527,8 @@ export function createConversation(opts: {
       go.textContent = "Sending…";
       cardErr.textContent = "";
       try {
-        await model.sendDraft(body, contact.value, intent);
+        if (showingRead) await model.sendItems(contact.value, intent);
+        else await model.sendDraft(body, contact.value, intent);
       } catch (e) {
         go.disabled = false;
         if (requestFix) requestFix.disabled = false;
