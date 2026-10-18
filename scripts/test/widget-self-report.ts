@@ -138,6 +138,25 @@ check(() => {
   assert.match(selfSay("overflow", true), /^About me, not this page:/);
   assert.match(selfSay("overflow", true), /nothing for you to do/);
   assert.match(selfSay("request", false), /couldn't send/);
+  // The call is named in the owner's words, and a call that carried their
+  // words says they are still here to send again.
+  assert.match(
+    selfSay("request", true, false, "POST /api/feedback answered 502 after 3.0s"),
+    /my call to Loki to save your note failed\. I've sent it to the people who build Loki\. Your words are still here — press it again\.$/,
+  );
+  assert.match(
+    selfSay("slow", true, false, "POST /api/widget/advise took 24.0s"),
+    /my call to Loki to answer you was very slow.*nothing for you to do/,
+  );
+  assert.match(
+    selfSay("request", true, false, "GET /api/widget/owner/changes answered 500 after 1.0s"),
+    /read where your changes are failed.*nothing for you to do/,
+    "a call that carried none of the owner's words asks nothing of them",
+  );
+  assert.match(
+    selfSay("request", true, false, "POST /api/elsewhere answered 500"),
+    /one of my calls to Loki failed/,
+  );
 });
 
 check(() => {

@@ -178,3 +178,28 @@ export type KnownFix = {
 
 /** How many keyed rows the widget is told about — enough for a whole site. */
 export const KNOWN_FIXES_MAX = 100;
+
+/**
+ * The order the owner's change list is read in: what needs them, then what
+ * is moving, then what is done. The panel's one line counts the first
+ * group ("9 changes need you") and its open list showed three rows of the
+ * newest changes — none of the nine (owner, 2026-10-18). Within a group,
+ * newest first. Pure; the widget route sorts with it.
+ */
+export function ownerChangeRank(change: {
+  needsYou: boolean;
+  live: boolean;
+  settled: boolean;
+}): number {
+  if (change.needsYou) return 0;
+  if (!change.live && !change.settled) return 1;
+  return 2;
+}
+
+export function orderForOwner<
+  T extends { needsYou: boolean; live: boolean; settled: boolean; at: string },
+>(changes: readonly T[]): T[] {
+  return [...changes].sort(
+    (a, b) => ownerChangeRank(a) - ownerChangeRank(b) || b.at.localeCompare(a.at),
+  );
+}

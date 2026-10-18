@@ -5,6 +5,25 @@ import { RUNNER_LONG_POLL_MS } from "@/lib/constants/runner";
 import type { RunnerChannel } from "@/db/schema/pending-commands";
 import { z } from "@/lib/api/route-helpers";
 import { BUILDER_CHANNELS } from "@/lib/constants/statuses";
+import { getRuntimeSnapshot } from "@/db/queries/runtime-snapshots";
+import { builderBehind } from "@/lib/builder-presence";
+import { claimableTypes } from "@/lib/runner-update-hold";
+
+/**
+ * Is this account's cloud builder behind the deploy? Read from its own
+ * heartbeat, remembered for a short while: the runner polls every two
+ * seconds and the answer changes once per deploy.
+ */
+const BEHIND_TTL_MS = 30_000;
+const behindCache = new Map<string, { behind: boolean; at: number }>();
+async function cloudBuilderBehind(userId: string): Promise<boolean> {
+  const hit = behindCache.get(userId);
+  if (hit && Date.now() - hit.at < BEHIND_TTL_MS) return hit.behind;
+  const snapshot = await getRuntimeSnapshot(userId, "cloud").catch(() => null);
+  const behind = builderBehind(snapshot?.runnerVersion);
+  behindCache.set(userId, { behind, at: Date.now() });
+  return behind;
+}
 
 const Channel = z.enum(BUILDER_CHANNELS);
 
@@ -23,7 +42,7 @@ export async function GET(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userIds = [userId];
 
-  const types = request.nextUrl.searchParams
+  const requested = request.nextUrl.searchParams
     .get("types")
     ?.split(",")
     .map((type) => type.trim())
@@ -36,6 +55,10 @@ export async function GET(request: NextRequest) {
   // builder is provisioned by install-box-runner.sh, which has always set
   // LOKI_RUNNER_PRESENCE_CHANNEL=cloud — it never polls paramless.
   const runnerChannel: RunnerChannel = channelParam.success ? channelParam.data : "local";
+  // A cloud builder behind the deploy starts no new work until it restarts
+  // (lib/runner-update-hold): the work-starters stay queued for the new code.
+  const holding = runnerChannel === "cloud" && (await cloudBuilderBehind(userId));
+  const types = claimableTypes(requested, holding);
 
   // Long-poll: hold the request until a command arrives or the wait expires.
   const waitMs = Math.min(

@@ -92,9 +92,9 @@ export function KeysToggle({
       onClick={() => onOpenChange(!open)}
       aria-pressed={open}
       title="Arrows, Esc, Ctrl and exact keystrokes"
-      className={open ? "ui-chip-toggle-active gap-1.5" : "ui-chip-toggle gap-1.5"}
+      className={open ? "ui-box-chip-active" : "ui-box-chip"}
     >
-      <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+      <Keyboard className="h-4 w-4" aria-hidden="true" />
       Keys
     </button>
   );

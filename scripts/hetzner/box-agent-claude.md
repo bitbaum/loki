@@ -28,6 +28,18 @@ If you cannot push (no credentials, network failure), **say so loudly in your
 final message** and name the branch and commit SHA so the work can be recovered.
 Never end a session reporting success on work that never left this machine.
 
+## A preview folder is the site — there is nothing to push
+
+A folder under `previews/` in your dev root is a prospect's preview site
+(the message that dispatched you says so, with its address). It is served
+straight from disk at `<address>.orangecat.ch`: a saved file is live the
+moment you save it. It has no remote by design and must not get one — never
+add an origin, push, create a repository, or ask where the remote should
+live. Commit on the current branch so the change can be seen and undone,
+look at the page once if you can, and finish by naming what changed and the
+address to look at. Everything in the section above is for repositories; in
+a preview folder "I could not push" is not a failure, it is the design.
+
 ## Branch, never commit to the default branch
 
 Create a branch before your first commit. Never commit directly to `main` /

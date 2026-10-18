@@ -333,9 +333,11 @@ export function TerminalComposer({
               onClick={() => setPickerOpen((open) => !open)}
               title="Prompt library"
               aria-label="Prompt library"
-              className="ui-btn-icon shrink-0"
+              // chatkit's own tool button: the same round 44px as attach and the
+              // microphone beside it, not Loki's 26px square.
+              className="ck-icon-btn"
             >
-              <BookOpen className="h-3.5 w-3.5" />
+              <BookOpen className="h-4.5 w-4.5" />
             </button>
           ) : null
         }

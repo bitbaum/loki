@@ -245,6 +245,7 @@ async function buildRemotePrompt(args: {
   promptKey?: string;
   customPrompt?: string;
   eventModel?: string;
+  liveUrl?: string | null;
 }): Promise<BuiltPrompt | InjectResult> {
   const assembled = await assembleInjectPrompt({
     userId: args.userId,
@@ -255,6 +256,7 @@ async function buildRemotePrompt(args: {
     promptKey: args.promptKey,
     customPrompt: args.customPrompt,
     model: args.eventModel,
+    liveUrl: args.liveUrl,
   });
   if (!assembled.ok) return { status: assembled.status, body: { error: assembled.error } };
   return { prompt: assembled.prompt, promptLabel: assembled.promptLabel };
@@ -882,6 +884,7 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
         promptKey,
         customPrompt,
         eventModel,
+        liveUrl: dbMatch.liveUrl,
       });
   if (isInjectResult(built)) return built;
   const { prompt, promptLabel } = built;

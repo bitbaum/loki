@@ -3,7 +3,9 @@
  * Run: npx tsx scripts/test/builder-presence.ts
  */
 import {
+  builderBehind,
   builderCompactLabel,
+  builderUpdateNote,
   builderPresenceDetail,
   inferBuilderChannelPresence,
   isCloudRunnerVersion,
@@ -39,3 +41,16 @@ if (builderPresenceDetail(cloudOnly) !== "This computer offline — cloud builde
 }
 
 console.log("✓ builder-presence tests passed");
+
+// A builder behind the deploy says so; a current one, or one that never named
+// a number, says nothing (a wrong "update waiting" is worse than none).
+if (!builderBehind("box-0.8.44", "0.8.45")) throw new Error("older patch is behind");
+if (!builderBehind("box-0.7.99", "0.8.0")) throw new Error("older minor is behind");
+if (builderBehind("box-0.8.45", "0.8.45")) throw new Error("same version is not behind");
+if (builderBehind("box-0.8.46", "0.8.45")) throw new Error("newer is not behind");
+if (builderBehind("box", "0.8.45")) throw new Error("no number: no claim");
+if (builderBehind(null, "0.8.45")) throw new Error("no builder: no claim");
+if (builderUpdateNote("box-0.0.1") !== "a newer version waits for its agents to finish")
+  throw new Error("update note");
+if (builderUpdateNote(null) !== null) throw new Error("no builder, no note");
+console.log("✓ builder-presence");

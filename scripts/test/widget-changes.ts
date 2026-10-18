@@ -222,6 +222,11 @@ assert.match(main, /changes\.start\(\)/, "asked for on arrival");
     changesSummary([c("Needs you"), c("Live", true)]),
     "Your changes · 1 needs you · 1 live",
   );
+  assert.equal(
+    changesSummary([c("Needs you"), c("Needs you"), c("On its way")]),
+    "Your changes · 2 need you · 1 on its way",
+    "the open list agrees with the line above it (it said '9 needs you', 2026-10-18)",
+  );
   assert.equal(changesSummary([c("Closed")]), "Your changes · 1");
   // The status line carries the most urgent fragment only.
   assert.equal(

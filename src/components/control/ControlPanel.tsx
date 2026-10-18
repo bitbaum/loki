@@ -16,7 +16,7 @@ import {
   deriveFleetPulse,
 } from "./control-presenter";
 import { rememberFleetProject } from "@/lib/fleet-context";
-import { builderCompactLabel } from "@/lib/builder-presence";
+import { builderCompactLabel, builderUpdateNote } from "@/lib/builder-presence";
 import { buildDoneJobs, buildNowJobs } from "./control-now";
 import { ControlDone, ControlFoot, ControlNow } from "./ControlNow";
 import { ControlFleetStatus } from "./ControlFleetStatus";
@@ -570,6 +570,7 @@ export function ControlPanel() {
               : "No builder connected"
           }
           builderOk={Boolean(builderPresence?.any)}
+          builderNote={builderUpdateNote(data?.builderVersions?.cloud)}
           onNewProject={() => (runtimeAvailable ? setBootstrapOpen(true) : setNewProjectOpen(true))}
           onOpenSettings={() => setFleetSettingsOpen(true)}
         />

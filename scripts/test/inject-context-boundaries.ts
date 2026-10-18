@@ -3,6 +3,7 @@ import fs from "node:fs";
 import ts from "typescript";
 import { exitContractFor } from "@/lib/agent-config";
 import { renderTaskForAdapter } from "@/lib/orchestration/renderers";
+import { previewDeliveryNote } from "@/lib/previews/delivery-note";
 async function main() {
   const source = fs.readFileSync("src/lib/inject-prompt.ts", "utf8");
   const parsed = ts.createSourceFile("inject.ts", source, ts.ScriptTarget.Latest, true);
@@ -30,6 +31,9 @@ async function main() {
       return "## bitbaum house rules\nBULK SHARED PACKAGE CATALOG\nEnd of bitbaum house rules.";
     },
     FLEET_SESSIONS_DISPLAY_PATH: "~/.loki/sessions",
+    // A preview folder is the site: the real note, against a fixed root.
+    previewDeliveryNote,
+    previewsRoot: () => "/workspace/previews",
     exitContractFor: () => "Handoff contract",
     renderTaskForAdapter: (request: { customInstructions?: string; projectContext?: string }) =>
       request.customInstructions
@@ -58,6 +62,26 @@ async function main() {
   assert(automatic.prompt.includes("Handoff contract"));
   const explicit = await assemble({ ...base, customPrompt: "Fix mobile checkout" });
   assert(explicit.ok);
+  assert(
+    !explicit.prompt.includes("## Where this goes"),
+    "a repository keeps the push contract — no preview note",
+  );
+  const preview = await assemble({
+    ...base,
+    projectPath: "/workspace/previews/tsentr-som",
+    liveUrl: "https://tsentr-som.orangecat.ch",
+    customPrompt: "Rename the site",
+  });
+  assert(preview.ok);
+  assert(
+    preview.prompt.includes("## Where this goes") &&
+      preview.prompt.includes("https://tsentr-som.orangecat.ch"),
+    "a dispatch to a preview folder says the folder is the site",
+  );
+  assert(
+    preview.prompt.indexOf("## Where this goes") < preview.prompt.indexOf("Handoff contract"),
+    "the delivery note comes before the handoff contract",
+  );
   assert.match(explicit.prompt, /^## Task\nFix mobile checkout/m);
   assert(explicit.prompt.includes("Handoff contract"));
   assert(!explicit.prompt.includes("Project-specific goals"));

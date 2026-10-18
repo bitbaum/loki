@@ -270,7 +270,11 @@ The whole flow, from "create website for Murphy's Bar":
 - A preview never gets a GitHub repository or a public domain before the
   person says yes.
 - The code is checked on every request, pages and files alike.
-- Agents building a preview never push and never add a remote.
+- Agents building a preview never push and never add a remote. Every dispatch
+  to a preview folder says so (`src/lib/previews/delivery-note.ts`, "Where
+  this goes"), and the box contract repeats it — the contract's "invisible
+  until you push" is for repositories, and an agent that followed it here
+  reported a live change as undelivered (2026-10-18).
 - Nothing on a preview is invented. Missing things are shown as "coming soon".
 - A preview's project is client work from the moment it exists, so it stays
   off every public list until the person agrees to be shown
