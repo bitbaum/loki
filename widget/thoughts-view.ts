@@ -1,6 +1,9 @@
 /**
- * The panel's one status line, the owner's: "● Watching · 2 to look at ·
- * 4 live ›  Pause". It was two rows — "Watching · 1 page · 2 things to look
+ * The panel's one status line, the owner's: "● Watching · 2 changes need
+ * you ›  Pause  ✕". For the owner it IS the header (main.ts): the brand row
+ * and the page name above it made three rows of chrome before a word of
+ * conversation, and on a phone with the keyboard up that left the thread a
+ * one-pixel sliver (owner, 2026-10-18). It was two rows — "Watching · 1 page · 2 things to look
  * at" with Pause, and "Your changes · 4 live · 4 from visitors" under it —
  * and with the header and composer that made the panel read like a cockpit
  * (owner, 2026-10-17). One line says the state; opening it shows what Loki
@@ -25,6 +28,8 @@ export function createThoughtsView(
   extra?: Extra,
 ): {
   el: HTMLElement;
+  /** The line itself — main.ts puts the panel's close button at its end. */
+  head: HTMLElement;
   update: (trail: TrailEntry[], watching: boolean) => void;
   /** Repaint with what is known (the changes changed, not the trail). */
   repaint: () => void;
@@ -71,9 +76,11 @@ export function createThoughtsView(
     mark.classList.toggle("watching", watching);
     mark.classList.toggle("paused", !watching);
     el.classList.toggle("watching", watching);
+    // One number of one thing: the owner's changes when there are any (what
+    // needs them, what is being built…), else what Loki noticed on the page.
     const more = extra?.headline() ?? "";
     summary.textContent = more
-      ? `${watchHeadline(trail, watching)} · ${more}`
+      ? `${watching ? "Watching" : "Paused"} · ${more}`
       : watchHeadline(trail, watching);
     row.title = thoughtsSummary(trail, watching);
     el.classList.toggle("needs-you", extra?.attention() ?? false);
@@ -106,6 +113,7 @@ export function createThoughtsView(
 
   return {
     el,
+    head,
     update(trail, watching) {
       last = { trail, watching };
       paint();

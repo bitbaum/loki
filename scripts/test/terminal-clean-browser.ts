@@ -257,7 +257,10 @@ async function main() {
       await page.getByText(/Autopilot on: queue is empty/).waitFor();
       await page.evaluate(() => localStorage.setItem("loki:active-project", "petvity"));
       await mount("context", [], { context: true });
-      await page.locator('a[href="/control?focus=loki"]').waitFor();
+      // The strip carries the route's project, not the remembered one. It is
+      // never drawn on a phone (the bottom bar is the menu there), so this
+      // checks what it would link to, not that it is visible.
+      await page.locator('a[href="/control?focus=loki"]').waitFor({ state: "attached" });
       assert.equal(await page.locator('a[href="/control?focus=petvity"]').count(), 0);
       assert.deepEqual(errors, []);
       await page.close();

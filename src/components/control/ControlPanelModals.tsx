@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { builderCompactLabel } from "@/lib/builder-presence";
 import { deriveRunnerStateKey } from "@/lib/control-states";
 import { timeAgo } from "@/lib/dates";
@@ -26,6 +26,8 @@ type FleetSettingsProps = {
   runnerLastPushedAt: string | null;
   builderPresence: ControlData["builderPresence"];
   builderVersions: ControlData["builderVersions"];
+  /** The agent/model defaults section (control-panel-sections LaunchDefaults). */
+  launchDefaults?: ReactNode;
 };
 
 /**
@@ -72,6 +74,7 @@ function FleetSettingsSheet({
   runnerLastPushedAt,
   builderPresence,
   builderVersions,
+  launchDefaults,
 }: FleetSettingsProps) {
   return (
     <ControlSettingsSheet
@@ -105,6 +108,8 @@ function FleetSettingsSheet({
           .filter(Boolean)
           .join(" · ") || null
       }
-    />
+    >
+      {launchDefaults}
+    </ControlSettingsSheet>
   );
 }

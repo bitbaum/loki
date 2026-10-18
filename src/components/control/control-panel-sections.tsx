@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FolderGit2, Settings2, Sparkles } from "lucide-react";
+import { FolderGit2, Sparkles } from "lucide-react";
 import type { ComponentProps, ReactNode, RefObject } from "react";
-import { APP_NAME } from "@/config/brand";
 import { BrainConfigPanel } from "./control-panel-helpers";
 import { EmptyStateWelcome } from "./EmptyStateWelcome";
 import { GitHubRepoSuggestions } from "./GitHubRepoSuggestions";
@@ -99,28 +98,18 @@ export function WorkspacesSection({
 }
 
 /**
- * The agent/model defaults used for new launches. The old "Diagnostics and
- * launch settings" label promised diagnostics it never contained, and the
- * panel carried a second "New project" button no one could find down here —
- * the header's "+ New" is the one CTA for that.
+ * The agent/model defaults used for new launches, as a section of Control's
+ * settings sheet. It was a card of its own at the foot of the page, under the
+ * builder line that already offered Settings — the one thing below the page's
+ * last word (owner, 2026-10-18).
  */
-export function LaunchDefaultsSection(props: ComponentProps<typeof BrainConfigPanel>) {
+export function LaunchDefaults(props: ComponentProps<typeof BrainConfigPanel>) {
   return (
-    <details className="ui-control-launch-defaults">
-      <summary className="ui-control-launch-defaults-summary flex items-center gap-2">
-        <Settings2 className="h-3.5 w-3.5" />
-        Default agent and model
-      </summary>
-      <div className="ui-control-launch-defaults-body space-y-5">
-        <section>
-          <p className="mb-3 text-xs leading-relaxed text-text-tertiary">
-            These choices are used when {APP_NAME} opens a new terminal tab. CLI availability is
-            reported by the connected computer, not by the cloud.
-          </p>
-          <BrainConfigPanel {...props} />
-        </section>
-      </div>
-    </details>
+    // BrainConfigPanel carries its own label ("Default agent for new
+    // launches"); a sheet heading above it said the same thing twice.
+    <section className="ui-sheet-section">
+      <BrainConfigPanel {...props} />
+    </section>
   );
 }
 

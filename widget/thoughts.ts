@@ -81,16 +81,19 @@ export function thoughtsSummary(trail: TrailEntry[], watching: boolean): string 
 }
 
 /**
- * The panel's one status line, short: "Watching", "Watching · 2 to look at",
- * "Paused". The page and press counts stay in thoughtsSummary (its tooltip)
- * and in the list — on the line itself they were detail nobody asked for.
+ * The panel's one status line, short: "Watching", "Watching · noticed 2
+ * things", "Paused". The page and press counts stay in thoughtsSummary (its
+ * tooltip) and in the list — on the line itself they were detail nobody
+ * asked for. The owner's changes, when there are any, take the line instead
+ * (thoughts-view.ts): one number of one thing.
  */
 export function watchHeadline(trail: TrailEntry[], watching: boolean): string {
   if (!watching) return "Paused";
   const problems = trail
     .map(thoughtFor)
     .filter((t) => t.tone === "warn" || t.tone === "bad").length;
-  return problems ? `Watching · ${problems} to look at` : "Watching";
+  if (!problems) return "Watching";
+  return `Watching · noticed ${problems} ${problems === 1 ? "thing" : "things"}`;
 }
 
 /** "now", "40s", "3m" — how long ago, short enough for a line's margin. */

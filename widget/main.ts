@@ -382,6 +382,11 @@ interface LokiApi {
       brand.classList.toggle("watching", on);
       brand.classList.toggle("paused", !!ownerPass && !on);
       thoughts.el.style.display = ownerPass ? "" : "none";
+      // The owner's status line is the header: the brand row and the page
+      // name are a visitor's orientation, and for the owner they were two
+      // more rows before the conversation. The close button follows the line.
+      panel.classList.toggle("owner", !!ownerPass);
+      (ownerPass ? thoughts.head : hdrActions).append(closeBtn);
       thoughts.update(watchSession?.trail() ?? [], on);
       // "Hide this button" is a visitor's way out; the owner's panel is their
       // tool, and the link only took space under the composer on a phone.
@@ -443,7 +448,10 @@ interface LokiApi {
         conversation.refresh();
       },
       picker,
-      onBusy: (busy) => brand.classList.toggle("thinking", busy),
+      onBusy: (busy) => {
+        brand.classList.toggle("thinking", busy);
+        thoughts.el.classList.toggle("thinking", busy);
+      },
       // A change was filed: Your changes shows where it went, at once.
       onSent: () => changes.start(),
       watch: () => watchSession,
@@ -467,7 +475,7 @@ interface LokiApi {
     panel.append(hdr, thoughts.el, conversation.el, foot);
     // On a phone the panel is a sheet: drag its top up for more, down to peek
     // at the page under it, further down to put it away (sheet.ts).
-    attachSheet({ panel, handle: hdr, onClose: closePanel });
+    const sheet = attachSheet({ panel, handle: hdr, onClose: closePanel });
 
     function openPanel() {
       unread = 0;
@@ -502,6 +510,9 @@ interface LokiApi {
       conversation.close();
       backdrop.remove();
       panel.remove();
+      // Opened again, it is the resting sheet, not the typing one it was
+      // closed as (the removed box never reports losing focus).
+      sheet.reset();
       root.removeEventListener("keydown", onKeydown as EventListener);
       document.removeEventListener("keydown", onDocumentKeydown);
       fab.style.display = browseVoice?.active() ? "none" : fabRest();

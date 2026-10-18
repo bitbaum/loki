@@ -42,7 +42,7 @@ assert.match(thoughtsSummary(trail, false), /^Not watching/);
 
 // The status line says the state in as few words as it can: the counts stay
 // in the tooltip and the list.
-assert.equal(watchHeadline(trail, true), "Watching · 2 to look at");
+assert.equal(watchHeadline(trail, true), "Watching · noticed 2 things");
 assert.equal(watchHeadline(trail.slice(0, 2), true), "Watching");
 assert.equal(watchHeadline([], true), "Watching");
 assert.equal(watchHeadline(trail, false), "Paused");

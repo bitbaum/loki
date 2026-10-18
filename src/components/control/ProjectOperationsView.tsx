@@ -307,7 +307,11 @@ export function ProjectOperationsView({
               <X className="h-3 w-3" aria-hidden />
             </button>
           )}
-          <div className="mt-2 grid grid-cols-4 gap-1">
+          {/* Sorting and selecting several projects are desk work. On a phone
+              the list is already in the order that matters (what needs you,
+              then what is working) and this row was a fourth row of controls
+              above the first project (owner, 2026-10-18). */}
+          <div className="mt-2 grid grid-cols-4 gap-1 max-md:hidden">
             {(
               [
                 ["priority", "Priority"],

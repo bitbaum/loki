@@ -310,7 +310,7 @@ ${spiralCSS(theme)}
   /* Keyboard up (sheet.ts keyboardInset): the panel stands on the keyboard
      and fits what is visible, so the starters and the way into Loki step
      aside and the thread keeps the room. They return when the keyboard goes. */
-  .panel.kb .starters, .panel.kb .continue { display: none; }
+  .panel.kb .starters, .panel.kb .continue, .panel.kb .ctxbar { display: none; } /* + "This page / Point to area": 40px the thread needs while the keyboard is up */
   .convo > .starters, .fc-kit .ck-replies { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .convo > .starters > .starter, .fc-kit .ck-reply { flex: none; white-space: nowrap; } .made-with .mw-more { display: none; } /* one row to swipe; "Made with Loki →" — specific enough to beat the base rules below */
   .panel.kb { padding-bottom: 12px; }
 }
@@ -337,6 +337,8 @@ ${spiralCSS(theme)}
 /* "What Loki sees": the running notes of watch mode, one row until opened */
 .thoughts { margin: -4px -16px 12px; padding: 0 16px; border-top: 1px solid ${theme.border}; border-bottom: 1px solid ${theme.border}; }
 .thoughts-head { display: flex; align-items: center; gap: 8px; }
+.panel.owner .hdr { display: none; } .panel.owner .thoughts { margin-top: -10px; border-top: none; } .panel.owner .thoughts-head .x { margin-right: -6px; } .thoughts.thinking .thoughts-row .dot.spiral svg { animation: lokispin 1.1s linear infinite; } /* owner: the status line IS the header (main.ts), ✕ ends it */
+.panel.owner .thoughts-sum { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; } /* wrap, never "11 changes nee…" */
 .thoughts-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; padding: 10px 0; min-height: 40px; text-align: left; font-size: 12px; color: ${theme.textSecondary}; }
 .thoughts-toggle { flex: none; font-size: 12px; font-weight: 600; color: ${theme.textSecondary}; padding: 6px 0 6px 8px; }
 .thoughts-toggle:hover { color: ${theme.text}; }

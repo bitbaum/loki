@@ -96,12 +96,23 @@ same design tokens as the app. Embedded sites can set `data-fc-theme="light"`
 or `"dark"`; otherwise the browser appearance is followed. Loki's own embed
 passes the active app theme directly.
 
-**Few controls, each said once.** The owner's panel is a header (Loki, the
-page, ✕), ONE status line — *● Watching · 2 to look at · 4 live › Pause*, which
-opens what Loki noted and where each change is — the conversation, and the
-composer (*Talk · screenshots · Fix it · Ask*). It was two status rows, two
-microphones and a footer before a word was said (owner, 2026-10-17: "too
-intimidating"). *Continue in Loki* appears once there is something to take.
+**Few controls, each said once.** The owner's panel starts with ONE line — *●
+Watching · 11 changes need you › Pause ✕* — which is the header: it opens what
+Loki noted and where each change is. Then the conversation, and the composer
+(*Talk · screenshots · Fix it · Ask*). The line carries one number of one named
+thing: what needs the owner, else saved notes, being built, … else live, else
+what Loki noticed on the page. It was two status rows, two microphones and a
+footer before a word was said (owner, 2026-10-17: "too intimidating"), and then
+a brand row, the page name and "Watching · 4 to look at · 11 needs you" — three
+rows and two unnamed numbers (2026-10-18). A visitor's panel keeps the brand
+row and the page name: there they say whose this is and what it is about.
+*Continue in Loki* appears once there is something to take.
+
+**Typing on a phone is one state, however the keyboard is drawn.** A focused
+text box in the sheet makes it fill what is visible and step the extras aside
+(`widget/sheet.ts`). Keyboard insets alone missed every page that shrinks for
+the keyboard (`interactive-widget=resizes-content`, Loki's own): the sheet kept
+68% of a viewport already halved and the thread was a one-pixel sliver.
 
 **Record now, build later.** While Loki watches, **Talk**, scroll, **Done**: the
 owner's note card leads with **Save** (then *Fix it now*, *Ask*). Saved notes
@@ -116,7 +127,10 @@ panel (Loki's own embed used the chatkit view and read as a different product,
 corner pill, or the edge tab with the same live dot. The owner's pill sits in a
 bottom corner or becomes the tab; it never climbs to the middle or top of the
 screen. No page hides it except an open dialog and a sign-in wall
-(`scripts/test/feedback-widget-reach.ts` fails on any other).
+(`scripts/test/feedback-widget-reach.ts` fails on any other). On a phone, Loki's
+own app asks for the tab on every page (its bottom bar carries
+`data-fc-place="tab"`): the pill floated over Control's cards above that bar. An
+open dialog still wins over a later region's tab (`resolvePlaceDirective`).
 
 **Watch is the owner's, and it speaks.** While it watches, Loki says what it
 noticed — in the conversation, in plain words, naming the tap that led there,

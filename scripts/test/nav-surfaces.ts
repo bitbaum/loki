@@ -46,6 +46,17 @@ assert.ok(
     "and Projects page.",
 );
 
+// Never on a phone, where the bottom bar is the menu; never on Control, which
+// is every project at once and so is not a view of the one the strip names.
+assert.ok(
+  /className=\{cn\(\s*"max-md:hidden"/.test(guide),
+  "FleetSurfaceGuide must not render below md: the bottom bar is the phone's menu",
+);
+assert.ok(
+  /pathname === "\/control"[^\n]*return null;/.test(guide),
+  "FleetSurfaceGuide must not render on /control: it named one project above a page about all of them",
+);
+
 // With a project, every tab must actually carry it. A strip that drops the
 // project on one tab is worse than no strip: it silently changes context.
 for (const surface of FLEET_SURFACES) {
