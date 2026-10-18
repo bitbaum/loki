@@ -157,6 +157,25 @@ async function main() {
       assert.ok(typing.log >= 60, `${width}: the thread keeps real room (${typing.log}px)`);
       assert.ok(typing.sends.length > 0, `${width}: Send is there`);
       for (const b of typing.sends) assert.ok(b <= 430, `${width}: Send stays on screen (${b})`);
+      console.log(`  ${width}px typing: thread ${Math.round(typing.log)}px`);
+
+      // Android's back key drops the keyboard but leaves focus in the box:
+      // the extras ("This page", Point to area) come back with the room.
+      await page.setViewportSize({ width, height: 844 });
+      await page.waitForFunction(
+        () =>
+          !document
+            .getElementById("loki-feedback-host")!
+            .shadowRoot!.querySelector(".panel")
+            ?.classList.contains("kb"),
+        null,
+        { timeout: 20_000 },
+      );
+      assert.equal(
+        await host.locator(".ctxbar").isVisible(),
+        true,
+        `${width}: keyboard down, Point to area is back`,
+      );
 
       // Closed, the launcher is the edge tab the bottom bar asked for.
       await host.locator("[aria-label='Close']").first().click();

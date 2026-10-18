@@ -64,8 +64,18 @@ export function attachSheet(opts: {
    * moment whichever way the browser draws the keyboard.
    */
   let typing = false;
+  /** The tallest the visible area has been: a page that shrinks for the
+   *  keyboard shows it only as being much shorter than that. */
+  let tallest = 0;
+  const visible = () => window.visualViewport?.height ?? window.innerHeight;
+  /** Typing AND the keyboard is up. Android's back key drops the keyboard
+   *  but keeps focus in the box, and then the extras come back. */
+  const squeezed = () => {
+    tallest = Math.max(tallest, visible());
+    return typing && visible() < tallest * 0.8;
+  };
   const apply = () => {
-    if (typing && !kb && phone()) {
+    if (!kb && squeezed() && phone()) {
       panel.style.bottom = "";
       panel.style.height = "";
       panel.style.maxHeight = `${Math.max(160, (window.visualViewport?.height ?? window.innerHeight) - 8)}px`;
@@ -80,7 +90,7 @@ export function attachSheet(opts: {
       panel.style.maxHeight = size === "full" ? "none" : "";
     }
     // While typing, the extras step aside for the conversation (theme.ts .kb).
-    panel.classList.toggle("kb", (kb > 0 || typing) && phone());
+    panel.classList.toggle("kb", (kb > 0 || squeezed()) && phone());
   };
   const isTextBox = (el: EventTarget | null) =>
     el instanceof HTMLTextAreaElement ||
@@ -102,6 +112,7 @@ export function attachSheet(opts: {
   const vv = window.visualViewport;
   const onViewport = () => {
     if (!vv) return;
+    if (!typing) tallest = Math.max(tallest, vv.height);
     const next = keyboardInset(window.innerHeight, vv.height, vv.offsetTop);
     // While typing on a page that shrinks for the keyboard, the room to fill
     // changes with every resize even though no inset ever appears.

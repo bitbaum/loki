@@ -310,7 +310,7 @@ ${spiralCSS(theme)}
   /* Keyboard up (sheet.ts keyboardInset): the panel stands on the keyboard
      and fits what is visible, so the starters and the way into Loki step
      aside and the thread keeps the room. They return when the keyboard goes. */
-  .panel.kb .starters, .panel.kb .continue { display: none; }
+  .panel.kb .starters, .panel.kb .continue, .panel.kb .ctxbar { display: none; } /* + "This page / Point to area": 40px the thread needs while the keyboard is up */
   .convo > .starters, .fc-kit .ck-replies { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .convo > .starters > .starter, .fc-kit .ck-reply { flex: none; white-space: nowrap; } .made-with .mw-more { display: none; } /* one row to swipe; "Made with Loki →" — specific enough to beat the base rules below */
   .panel.kb { padding-bottom: 12px; }
 }
