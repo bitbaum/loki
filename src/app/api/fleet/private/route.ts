@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { COMMISSION } from "@/config/commission";
-import { getSelfImprovementTarget } from "@/db/queries/frontier";
-import { getApiUserId } from "@/lib/session";
 import { loadFleetMap } from "@/lib/register/load-map";
 import { privatePortfolio } from "@/lib/register/private-portfolio";
+import { studioOwnerCheck } from "@/lib/register/studio-owner";
 
 /**
  * GET /api/fleet/private — the studio's client work that is not public yet,
@@ -35,13 +34,9 @@ export function OPTIONS() {
 }
 
 export async function GET() {
-  const userId = await getApiUserId();
-  if (!userId) return reply({ error: "Sign in to Loki to see private projects." }, 401);
-
-  const owner = await getSelfImprovementTarget();
-  if (!owner) return reply({ error: "Not available right now." }, 503);
   // Private client work is the studio owner's to show, and nobody else's.
-  if (owner.userId !== userId) return reply({ error: "Only the studio owner can see these." }, 403);
+  const owner = await studioOwnerCheck();
+  if (!owner.ok) return reply({ error: owner.error }, owner.status);
 
   const map = await loadFleetMap("operator");
   if (!map) return reply({ error: "Not available right now." }, 503);
