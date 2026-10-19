@@ -27,6 +27,7 @@ import {
 import { createServerSpeaker, createSynthSpeaker, type Speaker } from "@/lib/voice/speaker";
 import type { VoiceTurnResult } from "@/lib/voice/turn";
 import { cn } from "@/lib/utils";
+import { OptionRow } from "@/components/terminal/sheet-rows";
 
 const PHASE_LABEL: Record<VoicePhase, string> = {
   off: "Off",
@@ -294,7 +295,7 @@ export function NoScreenMode() {
     return (
       <div className="ui-voice-start">
         <Headphones className="h-10 w-10 text-text-tertiary" aria-hidden />
-        <h1 className="ui-page-title">No-screen mode</h1>
+        <h1 className="ui-page-title">Voice</h1>
         <p className="ui-page-subtitle max-w-sm">
           Put the headphones in, press Start, and put the phone away. Loki reads your fleet aloud,
           listens for what you say, and tells you when something finishes or needs you.
@@ -362,8 +363,8 @@ export function NoScreenMode() {
 }
 
 /**
- * The four choices, as chips, read once before the phone goes away. Voice
- * is a row of names; the other three are on/off.
+ * The four choices, read once before the phone goes away. Voice is one
+ * scrolling row of names; the other three are on/off rows.
  */
 function NoScreenSettingsRow({
   settings,
@@ -376,7 +377,11 @@ function NoScreenSettingsRow({
     <div className="ui-voice-settings">
       <div className="ui-voice-setting">
         <span className="ui-voice-setting-label">Voice</span>
-        <div className="ui-voice-setting-chips" role="radiogroup" aria-label="Voice">
+        <div
+          className="ui-filter-chip-row ui-scroll-fade-right"
+          role="radiogroup"
+          aria-label="Voice"
+        >
           {NO_SCREEN_VOICES.map((v) => (
             <button
               key={v.id}
@@ -394,36 +399,29 @@ function NoScreenSettingsRow({
       </div>
       <div className="ui-voice-setting">
         <span className="ui-voice-setting-label">While you listen</span>
-        <div className="ui-voice-setting-chips">
-          <button
-            type="button"
-            aria-pressed={settings.music}
-            className={cn("ui-chip-toggle", settings.music && "ui-chip-toggle-active")}
-            onClick={() => update({ music: !settings.music })}
-          >
-            Music bed
-          </button>
-          <button
-            type="button"
-            aria-pressed={settings.bargeIn}
-            className={cn("ui-chip-toggle", settings.bargeIn && "ui-chip-toggle-active")}
-            onClick={() => update({ bargeIn: !settings.bargeIn })}
-          >
-            Talk to interrupt
-          </button>
-          <button
-            type="button"
-            aria-pressed={settings.mode === "important"}
-            className={cn(
-              "ui-chip-toggle",
-              settings.mode === "important" && "ui-chip-toggle-active",
-            )}
-            onClick={() =>
+        {/* On/off, one per row: as chips the third wrapped alone onto a
+            second line on a phone (2026-10-19). */}
+        <div className="flex flex-col gap-1">
+          <OptionRow
+            toggle
+            title="Music bed"
+            active={settings.music}
+            onSelect={() => update({ music: !settings.music })}
+          />
+          <OptionRow
+            toggle
+            title="Talk to interrupt"
+            active={settings.bargeIn}
+            onSelect={() => update({ bargeIn: !settings.bargeIn })}
+          />
+          <OptionRow
+            toggle
+            title="Only what needs me"
+            active={settings.mode === "important"}
+            onSelect={() =>
               update({ mode: settings.mode === "important" ? "everything" : "important" })
             }
-          >
-            Only what needs me
-          </button>
+          />
         </div>
       </div>
       <p className="ui-voice-setting-note">

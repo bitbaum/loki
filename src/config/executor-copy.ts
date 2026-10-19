@@ -70,7 +70,7 @@ export const EXECUTOR_COPY = {
   /** Cloud web app always queues; this means a live builder will drain it. */
   queuedWithBuilderOnline: "With builder — starting shortly",
   queuedWithBuilderOnlineLong:
-    "a builder is online and will claim it shortly. Use Control for state, or open Terminal → Cloud builder / Your computer to watch and type in the agent session. You get a notification when the run finishes.",
+    "a builder is online and will claim it shortly. Use Control for state, or open Sessions to watch the agent and talk to it. You get a notification when the run finishes.",
 
   // The first screens a new person reads. Written for someone who has never
   // heard "builder", "CLI" or "tenant" — the earlier copy said "dispatch agents
@@ -194,7 +194,7 @@ export const EXECUTOR_COPY = {
     // point of the page: one shell, and you choose where it runs and how you
     // talk to it. The old subtitle described only typing, which was the single
     // thing the terminal could already do.
-    pageSubtitle: "View, start, and steer live agent sessions from one place.",
+    pageSubtitle: "Your agents at work — read a session as a chat, or watch its terminal.",
     cloudLabel: "Cloud builder",
     cloudLabelLocalHost: "Cloud builder (this server)",
     thisComputerLabel: "Your computer",

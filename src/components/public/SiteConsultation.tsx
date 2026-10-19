@@ -295,12 +295,14 @@ function Talk({
             <LokiSays>
               <p className="font-medium text-text-primary">{q.ask}</p>
               {!option && (
-                <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label={q.ask}>
+                // One answer per row, the full width of the bubble: as chips
+                // they wrapped into a ragged staircase on a phone (2026-10-19).
+                <div className="ui-consult-replies" role="group" aria-label={q.ask}>
                   {q.options.map((o) => (
                     <button
                       key={o.id}
                       type="button"
-                      className="ui-chip-toggle min-h-11"
+                      className="ui-consult-reply"
                       onClick={() => onAnswer(q.id, o.id)}
                     >
                       {o.label}

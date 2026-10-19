@@ -9,7 +9,7 @@ import {
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import Link from "next/link";
 import { ExternalLink, GitBranch, Loader2, MapPin } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/segmented";
 import { useFetch } from "@/hooks/use-fetch";
 import { patchJson } from "@/lib/api/fetch";
 import type { AgentPrompt } from "@/app/api/prompts/agent/route";
@@ -216,24 +216,18 @@ export function ProjectProfile({
       {/* Agent selector */}
       <div className="flex flex-col gap-3 border-t border-border-subtle px-4 py-3 sm:flex-row sm:items-center sm:px-5">
         <span className="ui-kicker shrink-0">Agent</span>
-        <div className="flex flex-wrap gap-1.5">
-          {availableAgents.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => persistAgentPref(localAgent === a.id ? null : (a.id as AgentId))}
-              className={cn(
-                "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
-                activeAgent === a.id
-                  ? "border-accent-primary/50 bg-accent-primary/10 text-accent-text"
-                  : "border-border-subtle bg-surface-base text-text-tertiary hover:text-text-secondary hover:border-border-default",
-              )}
-            >
-              {a.label}
-              {a.id === globalAdapter && localAgent === null && (
-                <span className="ml-1.5 opacity-40">✓</span>
-              )}
-            </button>
-          ))}
+        <div className="min-w-0 flex-1">
+          <Segmented
+            label="Agent"
+            columns={availableAgents.length > 4 ? 3 : undefined}
+            options={availableAgents.map((a) => ({
+              id: a.id,
+              label: a.label,
+              means: a.id === globalAdapter ? "Your default agent, for every project." : null,
+            }))}
+            value={activeAgent}
+            onChange={(id) => persistAgentPref(id === globalAdapter ? null : (id as AgentId))}
+          />
         </div>
         {sending && <Loader2 className="ml-auto ui-spinner-sm text-text-muted" />}
       </div>
@@ -242,25 +236,19 @@ export function ProjectProfile({
           project; routing never guesses it from which runner is online. */}
       <div className="flex flex-col gap-3 border-t border-border-subtle px-4 py-3 sm:flex-row sm:items-center sm:px-5">
         <span className="ui-kicker shrink-0">Runs on</span>
-        <div className="flex flex-wrap gap-1.5">
-          {BUILDER_CHOICES.map((c) => (
-            <button
-              key={c.id}
-              title={c.detail}
-              onClick={() => persistBuilderPref(c.id === DEFAULT_BUILDER_CHANNEL ? null : c.id)}
-              className={cn(
-                "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
-                (localBuilder ?? DEFAULT_BUILDER_CHANNEL) === c.id
-                  ? "border-accent-primary/50 bg-accent-primary/10 text-accent-text"
-                  : "border-border-subtle bg-surface-base text-text-tertiary hover:text-text-secondary hover:border-border-default",
-              )}
-            >
-              {c.label}
-              {c.id === DEFAULT_BUILDER_CHANNEL && (
-                <span className="ml-1.5 opacity-40">default</span>
-              )}
-            </button>
-          ))}
+        <div className="min-w-0 flex-1">
+          <Segmented
+            label="Runs on"
+            options={BUILDER_CHOICES.map((c) => ({ id: c.id, label: c.label, means: c.detail }))}
+            value={localBuilder ?? DEFAULT_BUILDER_CHANNEL}
+            onChange={(id) =>
+              persistBuilderPref(
+                id === DEFAULT_BUILDER_CHANNEL
+                  ? null
+                  : (id as (typeof BUILDER_CHOICES)[number]["id"]),
+              )
+            }
+          />
         </div>
       </div>
 
@@ -273,22 +261,18 @@ export function ProjectProfile({
         return (
           <div className="flex flex-col gap-3 border-t border-border-subtle px-4 py-3 sm:flex-row sm:items-center sm:px-5">
             <span className="ui-kicker shrink-0">Model</span>
-            <div className="flex flex-wrap gap-1.5">
-              {suggestions.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => persistModelPref(m === suggestions[0] ? null : m)}
-                  className={cn(
-                    "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
-                    activeModel === m
-                      ? "border-accent-primary/50 bg-accent-primary/10 text-accent-text"
-                      : "border-border-subtle bg-surface-base text-text-tertiary hover:text-text-secondary hover:border-border-default",
-                  )}
-                >
-                  {m}
-                  {m === suggestions[0] && <span className="ml-1.5 opacity-40">default</span>}
-                </button>
-              ))}
+            <div className="min-w-0 flex-1">
+              <Segmented
+                label="Model"
+                columns={suggestions.length > 4 ? 3 : undefined}
+                options={suggestions.map((m, i) => ({
+                  id: m,
+                  label: m,
+                  means: i === 0 ? `${agentEntry?.label ?? "The agent"}'s default model.` : null,
+                }))}
+                value={activeModel}
+                onChange={(m) => persistModelPref(m === suggestions[0] ? null : m)}
+              />
             </div>
           </div>
         );

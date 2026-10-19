@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, MoveDiagonal } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/segmented";
 import {
   WIDGET_CORNERS,
   WIDGET_CORNER_LABELS,
@@ -80,19 +80,13 @@ export function WidgetPlacementControl({
         </div>
 
         <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex flex-wrap gap-1.5">
-            {WIDGET_CORNERS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => set({ corner: c })}
-                aria-pressed={draft.corner === c}
-                className={cn("ui-chip-toggle", draft.corner === c && "ui-chip-toggle-active")}
-              >
-                {WIDGET_CORNER_LABELS[c]}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            label="Launcher corner"
+            columns={2}
+            options={WIDGET_CORNERS.map((c) => ({ id: c, label: WIDGET_CORNER_LABELS[c] }))}
+            value={draft.corner}
+            onChange={(c) => set({ corner: c as (typeof WIDGET_CORNERS)[number] })}
+          />
 
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs text-text-secondary">

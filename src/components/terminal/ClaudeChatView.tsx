@@ -213,7 +213,9 @@ export function ClaudeChatView({
           working={working}
           onShowTerminal={onShowTerminal}
           onSent={() => setFollowing(true)}
-          tools={<SessionInfo {...sessionInfoFrom(items)} onKey={onKey} />}
+          tools={
+            <SessionInfo {...sessionInfoFrom(items)} tab={tab} channel={channel} onKey={onKey} />
+          }
         />
       </div>
     </div>

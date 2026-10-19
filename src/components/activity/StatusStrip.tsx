@@ -26,7 +26,7 @@ export function StatusStrip({
   if (statuses.length === 0 && projectKey === null) return null;
   return (
     <Card className="space-y-2">
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="ui-filter-chip-row ui-scroll-fade-right items-center">
         <Link
           href={activityHref({ window: digestWindow, project: null, filter })}
           className={cn("ui-chip-filter", projectKey === null && "ui-chip-filter-active")}
@@ -67,7 +67,7 @@ export function StatusStrip({
             <span className="group-open:hidden">+ {inactiveProjects.length} with no activity</span>
             <span className="hidden group-open:inline">Hide projects with no activity</span>
           </summary>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="ui-filter-chip-row ui-scroll-fade-right mt-2">
             {inactiveProjects.map((p) => (
               <Link
                 key={p.key}

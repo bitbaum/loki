@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, X, Loader2 } from "lucide-react";
+import { Segmented } from "@/components/ui/segmented";
 import { Modal } from "@/components/ui/modal";
 import type { ControlData } from "@/lib/control-types";
 import { PROMPT_TEMPLATES } from "@/config/prompt-library";
@@ -130,24 +131,20 @@ export function LaunchTabModal({
       </div>
 
       <div className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {agents.map((agent) => (
-            <button
-              key={agent.id}
-              type="button"
-              onClick={() => onAgentChange(agent.id)}
-              disabled={!agent.available}
-              className={selectedAgentId === agent.id ? "ui-chip-toggle-active" : "ui-chip-toggle"}
-              title={
-                agent.available
-                  ? `${agent.label}`
-                  : (agent.availabilityReason ?? `${agent.label} unavailable`)
-              }
-            >
-              {agent.label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          label="Agent"
+          columns={agents.length > 4 ? 3 : undefined}
+          options={agents.map((agent) => ({
+            id: agent.id,
+            label: agent.label,
+            disabled: !agent.available,
+            title: agent.available
+              ? agent.label
+              : (agent.availabilityReason ?? `${agent.label} unavailable`),
+          }))}
+          value={selectedAgentId}
+          onChange={(id) => onAgentChange(id as typeof selectedAgentId)}
+        />
 
         {selected && !selected.available && (
           <p className="text-sm text-status-warning">

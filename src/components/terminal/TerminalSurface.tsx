@@ -792,6 +792,7 @@ export function TerminalSurface({
         onGeometry={setGeometry}
         actions={paneActions}
         readScreenRef={readScreenRef}
+        onShowChat={chatAvailable ? () => termView.setView("chat") : undefined}
       />
     );
   };

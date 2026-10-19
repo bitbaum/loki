@@ -4,7 +4,15 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Cpu } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
-import { CLAUDE_EFFORTS, CLAUDE_MODES, commandOfKind, commandsFor } from "@/config/agent-commands";
+import {
+  CLAUDE_EFFORTS,
+  CLAUDE_EFFORT_CHOICES,
+  CLAUDE_MODES,
+  CLAUDE_MODE_CHOICES,
+  commandOfKind,
+  commandsFor,
+} from "@/config/agent-commands";
+import { Segmented } from "@/components/ui/segmented";
 import { useClaudeTranscript } from "@/hooks/use-claude-transcript";
 import {
   CYCLE_MODE_KEY,
@@ -17,7 +25,8 @@ import {
 } from "@/lib/claude-transcript";
 import type { BuilderChannel } from "@/lib/constants/statuses";
 import { typeCommand } from "@/lib/session-keystrokes";
-import { cn } from "@/lib/utils";
+import { OptionRow } from "./sheet-rows";
+import { useLiveMode } from "./use-live-mode";
 
 /**
  * Which model is answering, how hard it thinks, and what it may do without
@@ -37,8 +46,13 @@ import { cn } from "@/lib/utils";
  * row settles on Claude Code's own reply ("Set model to Opus 5.5"), which it
  * writes the moment the change takes effect — or shows its refusal in its
  * own words. A runner too old to send that reply settles on the next answer
- * instead. The mode is still Shift+Tab, because the order of modes differs
- * between Claude Code versions.
+ * instead.
+ *
+ * The mode has no command, only Shift+Tab, and its order differs between
+ * Claude Code versions — so the sheet lists the modes, and a tap presses
+ * Shift+Tab until Claude Code's own footer names the one chosen, reading the
+ * screen live (useLiveMode). It was a "Next mode" button whose result showed
+ * only "with your next message", so pressing it looked like nothing.
  */
 type SettingReply = Extract<TranscriptItem, { kind: "setting" }> | null;
 
@@ -50,7 +64,6 @@ export function sessionInfoFrom(items: TranscriptItem[]) {
     modelReply: lastSetting(items, "model"),
     effortReply: lastSetting(items, "effort"),
     mode: sessionMode(items),
-    lastMessageId: [...items].reverse().find((i) => i.kind === "user")?.id ?? null,
   };
 }
 
@@ -77,7 +90,7 @@ export function TerminalSessionInfo({
 }) {
   if (!agent) return null;
   if (agent === "claude") return <ClaudeLogInfo tab={tab} channel={channel} onKey={onKey} />;
-  return <SessionInfo model={null} mode={null} lastMessageId={null} onKey={onKey} agent={agent} />;
+  return <SessionInfo model={null} mode={null} onKey={onKey} agent={agent} />;
 }
 
 function ClaudeLogInfo({
@@ -90,7 +103,7 @@ function ClaudeLogInfo({
   onKey: (bytes: string) => void | Promise<void>;
 }) {
   const { items } = useClaudeTranscript(tab, channel);
-  return <SessionInfo {...sessionInfoFrom(items)} onKey={onKey} />;
+  return <SessionInfo {...sessionInfoFrom(items)} tab={tab} channel={channel} onKey={onKey} />;
 }
 
 /**
@@ -116,10 +129,14 @@ export function SessionInfo({
   modelReply = null,
   effortReply = null,
   mode,
-  lastMessageId,
   onKey,
   agent = "claude",
+  tab = null,
+  channel = null,
 }: {
+  /** The session, so the sheet can read its screen while open (the mode). */
+  tab?: string | null;
+  channel?: BuilderChannel | null;
   /** The model id on the newest answer, or null before one names it. */
   model: string | null;
   /** How hard the newest answer thought, when the log says. */
@@ -128,12 +145,15 @@ export function SessionInfo({
   modelReply?: SettingReply;
   effortReply?: SettingReply;
   mode: { id: string; label: string } | null;
-  lastMessageId: string | null;
   onKey: (bytes: string) => void | Promise<void>;
   agent?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [cycledAfter, setCycledAfter] = useState<string | null | undefined>(undefined);
+  const live = useLiveMode(tab, channel, open && agent === "claude");
+  // The mode asked for from the sheet while Shift+Tab walks to it, and how
+  // that ended when it could not get there.
+  const [wantMode, setWantMode] = useState<string | null>(null);
+  const [modeNote, setModeNote] = useState<string | null>(null);
   // What was asked for: the alias ("sonnet") or level ("high").
   const [askedModel, setAskedModel] = useState<Asked>(null);
   const [askedEffort, setAskedEffort] = useState<Asked>(null);
@@ -142,7 +162,9 @@ export function SessionInfo({
   const wantModel = modelAsk.pending;
   const wantEffort = effortAsk.pending;
 
-  const modePending = cycledAfter !== undefined && cycledAfter === lastMessageId;
+  // The screen is newer than the log: the log has the mode only as of your
+  // last message.
+  const modeId = live.mode ?? mode?.id ?? null;
   // Always there for an agent whose model can be changed, even before its
   // log names one: the way to switch is the same tap whatever is known.
   if (!model && !mode && !commandOfKind(agent, "model")) return null;
@@ -160,7 +182,40 @@ export function SessionInfo({
   // the mode beside it, "Opus 5.5 · Auto" truncated in the terminal view's
   // row. The mode is the sheet's third row, and in the label.
   const chip = wantModel ? `${cap(wantModel)}…` : (name ?? "Model");
-  const modeWords = modePending ? "mode changing" : mode ? `${mode.label} mode` : null;
+  const modeLabel = modeId ? (CLAUDE_MODES[modeId]?.label ?? modeId) : null;
+  const modeWords = wantMode ? "mode changing" : modeLabel ? `${modeLabel} mode` : null;
+
+  /** Shift+Tab until the footer names `target`, at most once round the cycle. */
+  const switchMode = async (target: string) => {
+    setWantMode(target);
+    setModeNote(null);
+    const label = CLAUDE_MODES[target]?.label ?? target;
+    // A tap the moment the sheet opens can come before the screen arrives.
+    if (!live.read()) await changed(live.read, null);
+    if (!live.read()) {
+      // The screen could not be read: one press, and say where to look.
+      await onKey(CYCLE_MODE_KEY);
+      setWantMode(null);
+      setModeNote(
+        `Pressed Shift+Tab once. ${agentName} shows the mode at the bottom of its screen.`,
+      );
+      return;
+    }
+    for (let press = 0; press < 6; press++) {
+      const now = live.read();
+      if (now === target) {
+        setWantMode(null);
+        return;
+      }
+      await onKey(CYCLE_MODE_KEY);
+      await changed(live.read, now);
+    }
+    setWantMode(null);
+    const ended = live.read();
+    setModeNote(
+      `${agentName} does not offer ${label} in this session${ended ? `; it is on ${CLAUDE_MODES[ended]?.label ?? ended}` : ""}.`,
+    );
+  };
 
   return (
     <>
@@ -192,32 +247,27 @@ export function SessionInfo({
 
               <section className="ui-sheet-section">
                 <h3 className="ui-sheet-label">Model</h3>
-                <p className="ui-sheet-value">
-                  {wantModel ? `Switching to ${cap(wantModel)}` : (name ?? "Not known yet")}
-                  {!wantModel && model && name !== model && (
-                    <span className="ml-1.5 font-mono text-micro text-text-muted">{model}</span>
-                  )}
+                <p className="ui-sheet-hint">
+                  {name
+                    ? `Answering now: ${name}.`
+                    : "Not named yet — it shows on the agent's next answer."}
                 </p>
-                <p className={modelAsk.refused ? "ui-error" : "ui-sheet-hint"} role="status">
-                  {modelAsk.refused
-                    ? `${agentName} said: ${modelAsk.refused}`
-                    : wantModel
-                      ? `Sent to ${agentName}. It confirms here in a moment.`
-                      : name
-                        ? "In force for this session. Pick another to switch."
-                        : "Not named yet. Pick one to switch, or it shows on the agent's next answer."}
-                </p>
+                <AskStatus pending={wantModel} refused={modelAsk.refused} agentName={agentName} />
                 {models.length > 0 ? (
-                  <Choices
-                    label="Change the model"
+                  <Segmented
+                    label="Model"
                     options={models.map((c) => ({
                       id: c.text.split(/\s+/)[1]!.toLowerCase(),
                       label: c.label.replace(/^Use\s+/, ""),
-                      hint: c.hint,
+                      means: c.hint,
                     }))}
-                    current={model?.toLowerCase() ?? null}
+                    value={
+                      models
+                        .map((c) => c.text.split(/\s+/)[1]!.toLowerCase())
+                        .find((id) => model?.toLowerCase().includes(id)) ?? null
+                    }
                     pending={wantModel}
-                    onPick={(id) => {
+                    onChange={(id) => {
                       type(`${modelListCmd?.text.split(/\s+/)[0] ?? "/model"} ${id}`);
                       setAskedModel({ id, before: modelReply?.id ?? null });
                     }}
@@ -236,28 +286,18 @@ export function SessionInfo({
               {effortCmd && (
                 <section className="ui-sheet-section">
                   <h3 className="ui-sheet-label">Effort</h3>
-                  <p className="ui-sheet-value">
-                    {wantEffort
-                      ? `Switching to ${CLAUDE_EFFORTS[wantEffort] ?? wantEffort}`
-                      : (effort?.label ?? "Not known yet")}
-                  </p>
-                  <p className={effortAsk.refused ? "ui-error" : "ui-sheet-hint"} role="status">
-                    {effortAsk.refused
-                      ? `${agentName} said: ${effortAsk.refused}`
-                      : wantEffort
-                        ? `Sent to ${agentName}. It confirms here in a moment.`
-                        : "How long it thinks before answering. Higher is slower, and better for planning and hard problems."}
-                  </p>
-                  <Choices
-                    label="Change the effort"
-                    options={Object.entries(CLAUDE_EFFORTS).map(([id, label]) => ({
-                      id,
-                      label: label.replace(/\s+effort$/i, ""),
-                      hint: null,
-                    }))}
-                    current={effort?.id ?? null}
+                  <p className="ui-sheet-hint">How long it thinks before it acts.</p>
+                  <AskStatus
+                    pending={wantEffort ? (CLAUDE_EFFORTS[wantEffort] ?? wantEffort) : null}
+                    refused={effortAsk.refused}
+                    agentName={agentName}
+                  />
+                  <Segmented
+                    label="Effort"
+                    options={CLAUDE_EFFORT_CHOICES.map((c) => ({ ...c }))}
+                    value={effort?.id ?? null}
                     pending={wantEffort}
-                    onPick={(id) => {
+                    onChange={(id) => {
                       type(`${effortCmd.text.split(/\s+/)[0]} ${id}`);
                       setAskedEffort({ id, before: effortReply?.id ?? null });
                     }}
@@ -265,42 +305,33 @@ export function SessionInfo({
                 </section>
               )}
 
-              {mode && (
+              {agent === "claude" && (modeId || tab) && (
                 <section className="ui-sheet-section">
                   <h3 className="ui-sheet-label">Mode</h3>
-                  <div className="ui-sheet-row">
-                    <div className="min-w-0 flex-1">
-                      <p className="ui-sheet-value">{mode.label}</p>
-                      <p className="ui-sheet-hint">
-                        {modePending
-                          ? "Changing — the new mode is shown with your next message."
-                          : (CLAUDE_MODES[mode.id]?.means ?? `${agentName}'s own mode.`)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="ui-btn-secondary ui-btn-sm shrink-0"
-                      onClick={() => {
-                        void onKey(CYCLE_MODE_KEY);
-                        setCycledAfter(lastMessageId);
-                      }}
-                    >
-                      Next mode
-                    </button>
+                  <p className="ui-sheet-hint">What it may do without asking you first.</p>
+                  <div className="mt-1 flex flex-col gap-1" role="radiogroup" aria-label="Mode">
+                    {[
+                      ...CLAUDE_MODE_CHOICES,
+                      ...(modeId === "bypassPermissions" ? [modeId] : []),
+                    ].map((id) => (
+                      <OptionRow
+                        key={id}
+                        title={CLAUDE_MODES[id]!.label}
+                        detail={CLAUDE_MODES[id]!.means}
+                        active={(wantMode ?? modeId) === id}
+                        busy={wantMode === id}
+                        disabled={wantMode !== null && wantMode !== id}
+                        onSelect={() => {
+                          if (!wantMode && modeId !== id) void switchMode(id);
+                        }}
+                      />
+                    ))}
                   </div>
-                  <details className="mt-2 text-xs text-text-secondary">
-                    <summary className="cursor-pointer text-text-primary">
-                      What the modes mean
-                    </summary>
-                    <ul className="mt-2 space-y-1.5">
-                      {Object.entries(CLAUDE_MODES).map(([id, m]) => (
-                        <li key={id}>
-                          <span className="font-medium text-text-primary">{m.label}</span> —{" "}
-                          {m.means}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
+                  {modeNote && (
+                    <p className="ui-sheet-hint" role="status">
+                      {modeNote}
+                    </p>
+                  )}
                 </section>
               )}
             </div>
@@ -320,48 +351,22 @@ export function SessionInfo({
   );
 }
 
-/** A row of choices; the one in force is marked, the one asked for pulses. */
-function Choices({
-  label,
-  options,
-  current,
+/** Said only while a change is on its way, or when the agent refused it. */
+function AskStatus({
   pending,
-  onPick,
+  refused,
+  agentName,
 }: {
-  label: string;
-  options: { id: string; label: string; hint: string | null }[];
-  /** The value in force (a model id, an effort level), lowercased. */
-  current: string | null;
   pending: string | null;
-  onPick: (id: string) => void;
+  refused: string | null;
+  agentName: string;
 }) {
-  const picked = pending ?? options.find((o) => current?.includes(o.id))?.id ?? null;
-  const hint = options.find((o) => o.id === picked)?.hint;
+  if (refused) return <p className="ui-error" role="status">{`${agentName} said: ${refused}`}</p>;
+  if (!pending) return null;
   return (
-    <div className="mt-2" role="group" aria-label={label}>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((o) => {
-          const on = o.id === picked;
-          return (
-            <button
-              key={o.id}
-              type="button"
-              aria-pressed={on}
-              className={cn(
-                on ? "ui-chip-toggle-active" : "ui-chip-toggle",
-                pending === o.id && "animate-pulse",
-              )}
-              onClick={() => {
-                if (!on) onPick(o.id);
-              }}
-            >
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
-      {hint && <p className="ui-sheet-hint mt-1.5">{hint}</p>}
-    </div>
+    <p className="ui-sheet-hint" role="status">
+      {`Switching to ${cap(pending)} — ${agentName} confirms here in a moment.`}
+    </p>
   );
 }
 
@@ -389,4 +394,16 @@ function TerminalOnly({
 
 function cap(word: string): string {
   return word ? word[0]!.toUpperCase() + word.slice(1) : word;
+}
+
+/** Resolves once `read()` differs from `from`, or after 2.5s. */
+function changed(read: () => string | null, from: string | null): Promise<void> {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const tick = () => {
+      if (read() !== from || Date.now() - started > 2500) resolve();
+      else window.setTimeout(tick, 100);
+    };
+    tick();
+  });
 }

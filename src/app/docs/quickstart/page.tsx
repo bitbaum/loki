@@ -216,7 +216,7 @@ export default function QuickstartPage() {
             offline, the request waits in the queue until it is back.
           </p>
           <p>
-            To work in a session yourself, open Terminal and choose Cloud builder or Your computer.
+            To work in a session yourself, open Sessions and choose Cloud builder or Your computer.
             That choice does not change where the project&apos;s own work runs.
           </p>
         </section>

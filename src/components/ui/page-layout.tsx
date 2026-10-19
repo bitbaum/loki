@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PageTitle } from "./page-title";
+import { PageHead, PageTitle } from "./page-title";
 
 export function PageLayout({
   title,
@@ -24,7 +24,7 @@ export function PageLayout({
 }) {
   return (
     <div className={cn("app-page space-y-7 md:space-y-9", maxWidth)}>
-      <div className="space-y-3">
+      <PageHead title={title} onlyTitle={!back && !subtitle && !right}>
         {back && (
           <Link href={back.href} className="ui-page-back">
             <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -38,7 +38,7 @@ export function PageLayout({
           </div>
           {right && <div className="shrink-0 sm:mt-1">{right}</div>}
         </div>
-      </div>
+      </PageHead>
       {children}
     </div>
   );

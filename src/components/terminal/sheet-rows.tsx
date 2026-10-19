@@ -13,6 +13,7 @@ export function OptionRow({
   disabled,
   busy,
   onSelect,
+  toggle = false,
 }: {
   title: React.ReactNode;
   detail?: string;
@@ -20,6 +21,9 @@ export function OptionRow({
   disabled?: boolean;
   busy?: boolean;
   onSelect: () => void;
+  /** On/off rather than one of several: a box that is visibly empty when
+   *  off, so the row reads as a switch before it is ever on. */
+  toggle?: boolean;
 }) {
   return (
     <button
@@ -35,6 +39,10 @@ export function OptionRow({
       </span>
       {busy ? (
         <Loader2 className="ui-spinner-sm shrink-0" />
+      ) : toggle ? (
+        <span className={active ? "ui-option-box-on" : "ui-option-box"} aria-hidden="true">
+          {active && <Check className="h-3.5 w-3.5" />}
+        </span>
       ) : active ? (
         <Check className="h-4 w-4 shrink-0 text-accent-text" aria-hidden="true" />
       ) : null}

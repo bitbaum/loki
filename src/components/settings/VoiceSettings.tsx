@@ -5,6 +5,7 @@ import { Loader2, MessageSquare } from "lucide-react";
 import { patchJson } from "@/lib/api/fetch";
 import type { UserPreferencesData } from "@/db/queries/user-preferences";
 import { TOAST_SHORT_MS } from "@/lib/constants/timings";
+import { Segmented } from "@/components/ui/segmented";
 
 // Quick-start voices — fill the textarea, then the user tunes from there.
 // These are starting points, not an enum; the field is free text.
@@ -77,18 +78,13 @@ export function VoiceSettings({ initialPrefs }: Props) {
           <h3 className="text-sm font-medium text-text-primary">Writing voice</h3>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {PRESETS.map((p) => (
-            <button
-              key={p.label}
-              type="button"
-              onClick={() => setVoice(p.value)}
-              className="ui-btn-chip"
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          label="Start from a voice"
+          columns={2}
+          options={PRESETS.map((p) => ({ id: p.label, label: p.label }))}
+          value={PRESETS.find((p) => p.value === voice)?.label ?? null}
+          onChange={(id) => setVoice(PRESETS.find((p) => p.label === id)?.value ?? voice)}
+        />
 
         <div className="space-y-1.5">
           <textarea

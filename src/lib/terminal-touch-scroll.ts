@@ -48,6 +48,12 @@ export type TouchScrollTarget = {
   scrollLines: (amount: number) => void;
   /** Current cell height in CSS pixels (rows change with the font stepper). */
   cellHeight: () => number;
+  /** True when nothing older is kept above the screen. */
+  atTop?: () => boolean;
+  /** A swipe asked for older output than there is — once per swipe. A drag
+   *  that moves nothing must still say why (owner, 2026-10-19: "I try to
+   *  scroll through the terminal … and I'm not able to"). */
+  onTop?: () => void;
 };
 
 /**
@@ -65,6 +71,7 @@ export function attachTouchScroll(host: HTMLElement, target: TouchScrollTarget):
   let carry = 0;
   let velocity = 0; // px per ms, finger direction
   let frame = 0;
+  let toldTop = false;
 
   const stopGlide = () => {
     if (frame) cancelAnimationFrame(frame);
@@ -74,6 +81,10 @@ export function attachTouchScroll(host: HTMLElement, target: TouchScrollTarget):
   const apply = (deltaPx: number) => {
     const step = linesForDrag(deltaPx, carry, target.cellHeight());
     carry = step.carryPx;
+    if (step.lines < 0 && !toldTop && target.atTop?.()) {
+      toldTop = true;
+      target.onTop?.();
+    }
     if (step.lines !== 0) target.scrollLines(step.lines);
   };
 
@@ -85,6 +96,7 @@ export function attachTouchScroll(host: HTMLElement, target: TouchScrollTarget):
     scrolling = false;
     carry = 0;
     velocity = 0;
+    toldTop = false;
   };
 
   const onMove = (e: TouchEvent) => {

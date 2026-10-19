@@ -223,7 +223,7 @@ export async function runKickoffPlan(
     "done",
     dispatched.mode === "direct"
       ? "Agent is working now."
-      : "Sent to the builder — the session opens in Terminal within a minute.",
+      : "Sent to the builder — the session opens in Sessions within a minute.",
   );
   return finish("running");
 }
