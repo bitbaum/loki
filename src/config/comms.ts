@@ -16,6 +16,7 @@ export const MAIL_KINDS = [
   "operator",
   "project_invite",
   "studio_link",
+  "studio_update",
 ] as const;
 export type MailKind = (typeof MAIL_KINDS)[number];
 
@@ -85,6 +86,10 @@ export function mailSubject(kind: MailKind, extra?: string): string {
       return extra === "fresh"
         ? "Your new private link to the bitbaum studio"
         : "Your private link to the bitbaum studio";
+    case "studio_update":
+      return extra === "partner"
+        ? "The bitbaum studio answered your partner application"
+        : "The bitbaum studio answered your request";
   }
 }
 

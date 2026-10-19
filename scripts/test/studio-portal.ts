@@ -18,6 +18,7 @@ import {
 } from "../../src/lib/studio/policy";
 import { StudioContract } from "../../src/lib/studio-commission";
 import { studioPortalUrl } from "../../src/lib/studio/link-mail";
+import { studioUpdateTemplate } from "../../src/lib/email";
 import { studioView } from "../../src/lib/studio/projection";
 import type { StudioRequest } from "../../src/db/schema/studio-requests";
 async function main() {
@@ -92,6 +93,19 @@ async function main() {
   );
   // The mailed link is the same shape the site builds: id and key in the fragment.
   assert.equal(studioPortalUrl(id, key), `${COMMISSION.studioOrigin}/portal/#id=${id}&key=${key}`);
+  // The studio's answer reaches the applicant by mail, escaped, without the
+  // private key (only its hash is stored) and with the way to a new link.
+  const update = studioUpdateTemplate({
+    kind: "partner",
+    note: "Approved <script>alert(1)</script> on your work",
+    portalUrl: `${COMMISSION.studioOrigin}/portal/`,
+  });
+  assert.match(update.subject, /partner application/);
+  assert.equal(update.html.includes("<script>"), false);
+  assert.match(update.html, /&lt;script&gt;/);
+  assert.match(update.text, /Approved <script>alert\(1\)<\/script> on your work/);
+  assert.equal(update.html.includes("spt_"), false);
+  assert.match(update.html, new RegExp(`${COMMISSION.studioOrigin}/portal/`));
   assert.equal(
     StudioGuestAction.safeParse({
       action: "approve_partner",

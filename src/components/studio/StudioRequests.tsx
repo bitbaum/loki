@@ -6,13 +6,15 @@ import type { listStudioRequests, StudioReviewView } from "@/db/queries/studio-r
 type RequestList = Awaited<ReturnType<typeof listStudioRequests>>;
 export function StudioRequests({
   initialRequests,
+  initialId,
   projects,
 }: {
   initialRequests: RequestList;
+  initialId?: string;
   projects: { id: string; name: string }[];
 }) {
   const [requests, setRequests] = useState(initialRequests);
-  const [id, setId] = useState(initialRequests[0]?.id ?? "");
+  const [id, setId] = useState(initialId ?? initialRequests[0]?.id ?? "");
   const [view, setView] = useState<StudioReviewView | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -315,11 +317,20 @@ export function StudioRequests({
             )}
             {view.partner && (
               <section className="ui-card-shell space-y-4 p-5">
-                <h3 className="font-semibold text-text-primary">Partner qualification</h3>
+                <h3 className="font-semibold text-text-primary">Partner application</h3>
                 <p className="text-sm text-text-secondary">
-                  Course: {view.partner.coursePassed ? "passed" : "awaiting pass"} · Studio
-                  approval: {view.partner.approved ? "approved" : "pending"} · Profile:{" "}
-                  {view.partner.profilePublished ? "published" : "not published"}
+                  Studio approval: {view.partner.approved ? "approved" : "pending"} · Course
+                  (optional):{" "}
+                  {view.partner.coursePassed
+                    ? "passed"
+                    : view.partner.assessment
+                      ? "evidence to review"
+                      : "not taken"}{" "}
+                  · Profile: {view.partner.profilePublished ? "published" : "not published"}
+                </p>
+                <p className="text-sm text-text-secondary">
+                  Decide on their work: what they wrote above, the links they gave, and the course
+                  evidence if they chose to take it. The course is a credential, never a condition.
                 </p>
                 {view.partner.assessment ? (
                   <div className="space-y-3">
@@ -352,9 +363,11 @@ export function StudioRequests({
                     </a>
                   </div>
                 ) : (
-                  <p className="text-text-secondary">No course evidence submitted yet.</p>
+                  <p className="text-text-secondary">
+                    No course evidence: they have not taken the optional course.
+                  </p>
                 )}
-                {!view.partner.approved && (
+                {view.partner.assessment && !view.partner.coursePassed && (
                   <form
                     className="space-y-3"
                     onSubmit={(e) =>
@@ -373,22 +386,28 @@ export function StudioRequests({
                     {send("Record course review")}
                   </form>
                 )}
-                <form
-                  className="space-y-3"
-                  onSubmit={(e) =>
-                    void submit(e, {
-                      action: value(e.currentTarget, "result"),
-                      body: value(e.currentTarget, "body"),
-                    })
-                  }
-                >
-                  <select name="result" className="ui-input w-full">
-                    <option value="decline_partner">Decline application</option>
-                    <option value="approve_partner">Approve partner after course pass</option>
-                  </select>
-                  {label("body", "Studio decision and reasons", true)}
-                  {send("Record partner decision")}
-                </form>
+                {!view.revoked && (
+                  <form
+                    className="space-y-3"
+                    onSubmit={(e) =>
+                      void submit(e, {
+                        action: value(e.currentTarget, "result"),
+                        body: value(e.currentTarget, "body"),
+                      })
+                    }
+                  >
+                    <select name="result" className="ui-input w-full">
+                      {!view.partner.approved && (
+                        <option value="approve_partner">Approve this partner</option>
+                      )}
+                      <option value="decline_partner">
+                        {view.partner.approved ? "Withdraw approval" : "Decline application"}
+                      </option>
+                    </select>
+                    {label("body", "Studio decision and reasons (they receive this)", true)}
+                    {send("Record partner decision")}
+                  </form>
+                )}
                 {view.partner.profile && (
                   <div className="space-y-2">
                     <p className="text-text-primary">
@@ -405,9 +424,11 @@ export function StudioRequests({
                     >
                       {view.partner.profile.url}
                     </a>
-                    <form onSubmit={(e) => void submit(e, { action: "publish_profile" })}>
-                      {send("Approve and publish proposed profile")}
-                    </form>
+                    {view.partner.approved && !view.partner.profilePublished && (
+                      <form onSubmit={(e) => void submit(e, { action: "publish_profile" })}>
+                        {send("Approve and publish proposed profile")}
+                      </form>
+                    )}
                   </div>
                 )}
               </section>

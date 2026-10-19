@@ -167,30 +167,14 @@ async function main() {
         changes: "A builder applying with a transferable practical capstone",
       }),
     );
+    // The course is optional: there is nothing to review until evidence
+    // exists, and approval rests on the applicant's work alone.
     await assert.rejects(
       staff(application.id, {
-        action: "approve_partner",
-        body: "Cannot approve before course pass",
+        action: "review_course",
+        passed: true,
+        body: "No evidence has been submitted to review.",
       }),
-    );
-    const assessment = {
-      version: "pilot-v1",
-      answers: {
-        "problem-constraints":
-          "The concrete user journey and testable constraints are recorded here.",
-      },
-      projectUrl: "https://bitbaum.orangecat.ch",
-      sourceUrl: "https://github.com/bitbaum/bitbaum",
-    };
-    await guest(application.id, partnerKey, { action: "submit_assessment", assessment });
-    await staff(application.id, {
-      action: "review_course",
-      passed: true,
-      body: "The evidence meets all dimensions in the pilot rubric.",
-    });
-    assert.equal(
-      (await getStudioPortal(application.id, partnerKey))!.request.partner!.approved,
-      false,
     );
     const profile = {
       name: "Test partner",
@@ -203,8 +187,12 @@ async function main() {
     await assert.rejects(staff(application.id, { action: "publish_profile" }));
     await staff(application.id, {
       action: "approve_partner",
-      body: "Studio review approved this test partner after the course pass.",
+      body: "Studio review approved this test partner on their portfolio, without the course.",
     });
+    assert.equal(
+      (await getStudioPortal(application.id, partnerKey))!.request.partner!.approved,
+      true,
+    );
     await assert.rejects(
       staff(application.id, {
         action: "set_status",
@@ -215,7 +203,31 @@ async function main() {
     assert.equal((await studioPartnerDirectory(owners[0])).length, 0);
     await staff(application.id, { action: "publish_profile" });
     assert.equal((await studioPartnerDirectory(owners[0])).length, 1);
+    assert.equal((await studioPartnerDirectory(owners[0]))[0]!.coursePassed, false);
     assert.equal((await studioPartnerDirectory(owners[1])).length, 0);
+    // An approved partner may still take the course; it adds the credential
+    // and leaves approval and the published profile standing.
+    const assessment = {
+      version: "pilot-v1",
+      answers: {
+        "problem-constraints":
+          "The concrete user journey and testable constraints are recorded here.",
+      },
+      projectUrl: "https://bitbaum.orangecat.ch",
+      sourceUrl: "https://github.com/bitbaum/bitbaum",
+    };
+    await guest(application.id, partnerKey, { action: "submit_assessment", assessment });
+    assert.equal((await studioPartnerDirectory(owners[0])).length, 1);
+    await staff(application.id, {
+      action: "review_course",
+      passed: true,
+      body: "The evidence meets all dimensions in the pilot rubric.",
+    });
+    assert.equal((await studioPartnerDirectory(owners[0]))[0]!.coursePassed, true);
+    assert.equal(
+      (await getStudioPortal(application.id, partnerKey))!.request.status.id,
+      "approved",
+    );
     await guest(application.id, partnerKey, {
       action: "set_availability",
       availability: "unavailable",

@@ -212,6 +212,35 @@ ${input.fresh ? "You asked for a new link; the previous one no longer works." : 
 }
 
 /**
+ * The studio said something on a request: a decision, a review, a note. The
+ * applicant used to learn only by coming back and pressing "Refresh status".
+ * The private link cannot be in this mail — only its hash is stored — so it
+ * points at the first mail's link and at the portal's way to get a new one.
+ * The note is the studio owner's own words to this person, escaped.
+ */
+export function studioUpdateTemplate(input: {
+  kind: "website" | "partner";
+  note: string;
+  portalUrl: string;
+}) {
+  const subject = mailSubject("studio_update", input.kind);
+  const what = input.kind === "partner" ? "partner application" : "studio request";
+  const html = emailShell(`
+    <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:${EMAIL_THEME.ink};">News on your ${what}</h2>
+    ${p("The studio wrote:")}
+    ${p(escapeHtmlWithBreaks(input.note))}
+    ${p(`Open your ${what} with the private link from the first mail we sent you to read everything and reply.`)}
+    ${small(`Lost that link? <a href="${input.portalUrl}" style="color:${EMAIL_THEME.muted};">The portal page</a> sends a new one to this address.`)}
+  `);
+  const text = `News on your ${what} at the bitbaum studio. The studio wrote:
+
+${input.note}
+
+Open it with the private link from the first mail we sent you. Lost that link? ${input.portalUrl} sends a new one to this address.`;
+  return { subject, html, text };
+}
+
+/**
  * An invitation into one project. The project and inviter names are
  * user-authored, so they are escaped exactly like the feedback template's.
  */
