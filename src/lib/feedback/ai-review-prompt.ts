@@ -1,4 +1,5 @@
 import { appUrl } from "@/lib/email";
+import { createAgentPass } from "@/lib/feedback/agent-pass";
 import { FEEDBACK_SOURCE } from "@/lib/constants/statuses";
 
 /**
@@ -14,9 +15,12 @@ const AI_REVIEWER_CONTACT = "Loki AI reviewer";
 
 export function composeReviewPrompt(
   pageUrl: string,
-  projectName: string,
+  project: { id: string; name: string },
   widgetToken: string,
 ): string {
+  const projectName = project.name;
+  // Without it the note files as a visitor's: the server decides who wrote it.
+  const agentPass = createAgentPass(project.id, FEEDBACK_SOURCE.AI_REVIEW);
   const ingestUrl = `${appUrl().replace(/\/$/, "")}/api/feedback`;
   // The ingest route enforces the token's origins allowlist against the Origin
   // header; curl sends none by default, so the reviewer must claim the page's
@@ -34,7 +38,7 @@ export function composeReviewPrompt(
     `curl -s -X POST ${ingestUrl} \\`,
     '  -H "Content-Type: application/json" \\',
     `  -H "Origin: ${pageOrigin}" \\`,
-    `  -d '{"token":"${widgetToken}","suggestion":"<one concrete issue + where + why it matters, <=2000 chars>","contact":"${AI_REVIEWER_CONTACT}","source":"${FEEDBACK_SOURCE.AI_REVIEW}","page":"<pathname>","url":"${pageUrl}","pageTitle":"<title>","scope":"element","selectedElements":[{"elementType":"<tag>","elementText":"<visible text, <=100 chars>","selector":"<real CSS selector from the live DOM>"}]}'`,
+    `  -d '{"token":"${widgetToken}","suggestion":"<one concrete issue + where + why it matters, <=2000 chars>","contact":"${AI_REVIEWER_CONTACT}","agentPass":"${agentPass}","page":"<pathname>","url":"${pageUrl}","pageTitle":"<title>","scope":"element","selectedElements":[{"elementType":"<tag>","elementText":"<visible text, <=100 chars>","selector":"<real CSS selector from the live DOM>"}]}'`,
     "```",
     `Use scope "page" (and omit selectedElements) only when an issue has no single element. Verify each POST returns ok:true.`,
     `SHOW what you saw: on the FIRST finding (and on any finding about layout), add "screenshots":["<data URL>"] — the mobile screenshot of the viewport where the issue is, as JPEG at quality 60 and at most 390px wide (resize with Playwright's screenshot clip or sharp; one data URL must stay under 600000 characters). The owner reads your findings beside the picture you read them from; a finding with no picture is a claim they have to go and check.`,

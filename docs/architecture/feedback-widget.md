@@ -289,6 +289,20 @@ Status flow: `new → dispatched → resolved`, or `new → archived`. A strange
 report never auto-dispatches; the operator triages. A note proven by a pass
 (the owner's or a Builder's) is the decision, and builds at once.
 
+Who filed a note is the server's call, never the sender's
+(`scripts/test/feedback-trust.ts`):
+
+- `source` in the body is ignored. Loki's reviewer and synthesizer prove
+  themselves with `agentPass` (`lib/feedback/agent-pass.ts`, one project, 48h),
+  which the prompt that starts them carries. Without it a note is a visitor's.
+- An overnight allowance builds only notes someone vouched for (the owner's,
+  Loki's own). A plan holding a stranger's note waits for a tap.
+- Opening a tracking link builds nothing. Someone who can build the project
+  lands on the inbox instead, and the reporter's claim is left for them.
+- Telegram carries the operator's own projects only
+  (`lib/actions/telegram-for-user.ts`); other accounts hear through push and
+  their alerts.
+
 ## Programmatic reports (`window.Loki.report`)
 
 The FAB assumes the visitor noticed something and went looking for the launcher.

@@ -19,8 +19,8 @@ export function ClaimFeedback({ token, signedIn }: { token: string; signedIn: bo
           owner?: boolean;
           projectId?: string;
         } | null;
-        // An owner's own report: the fix has just been started (or refused
-        // with a reason on the row), so land where Watch and Retry are.
+        // Someone who builds this project: the note is in their inbox, where
+        // Build is one tap. Opening a link never starts one.
         router.replace(
           body?.owner && body.projectId
             ? `/feedback?project=${encodeURIComponent(body.projectId)}`
