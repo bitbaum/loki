@@ -27,7 +27,7 @@ async function main() {
         const controls=new URLSearchParams(location.search).has('controls');
         createRoot(document.getElementById('app')).render(controls?
           <main className="app-page"><TerminalMobileHeader title="Loki" agent="Claude" state="live"
-            onOpenSheet={()=>{}} immersive={false} onToggleImmersive={()=>{}} view="terminal" onViewChange={()=>{}}/>
+            onOpenSheet={()=>{}} view="terminal" onViewChange={()=>{}}/>
             <MarkdownText text="Checked the homepage [F40, F40]. Unknown [F999]."
               citations={{F40:{label:'Homepage HTML',detail:'Fetched today. HTML only; no signed-in workflow checked.'}}}/></main>:
           <div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary">

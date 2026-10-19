@@ -1,15 +1,17 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { FileText } from "lucide-react";
+import { FileText, ImagePlus, Keyboard } from "lucide-react";
 import { PromptPicker } from "@/components/prompts/PromptPicker";
 import { Modal } from "@/components/ui/modal";
 import type { PromptTemplate } from "@/config/prompt-library";
 import { TerminalCommandList } from "./TerminalActions";
 
 /**
- * What the slash button (or "/" in an empty box) opens: the agent's own
- * commands, Loki's records to attach, and the prompt library — one sheet.
+ * What "+" (or "/" in an empty box) opens: a photo or screenshot, the keys a
+ * phone lacks, the agent's own commands, Loki's records to attach, and the
+ * prompt library — one sheet, the way a chat app's "+" holds everything that
+ * is not words.
  *
  * It is a sheet from the bottom, like every other choice on a phone. It used
  * to be a panel pinned above the box, measured for the room it had when it
@@ -26,9 +28,15 @@ export function SessionPicker({
   feedbackEmpty,
   onKey,
   onAttachFeedback,
+  onPhoto,
+  onKeys,
   onPick,
   onClose,
 }: {
+  /** Opens chatkit's Camera / Photos / Files choice. */
+  onPhoto: () => void;
+  /** Opens the key deck; omitted outside the terminal view. */
+  onKeys?: () => void;
   agent: string | null;
   project: string | null;
   tab: string;
@@ -52,8 +60,24 @@ export function SessionPicker({
       <div className="ui-sheet-grip" aria-hidden="true" />
       <div className="ui-sheet-body">
         <h2 id="session-picker-title" className="sr-only">
-          Commands and prompts
+          Add to the session
         </h2>
+        <button type="button" className="ui-session-picker-row" onClick={onPhoto}>
+          <ImagePlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1 text-left">Photo or screenshot</span>
+        </button>
+        {onKeys && (
+          // A computer has these keys already.
+          <button type="button" className="ui-session-picker-row md:hidden" onClick={onKeys}>
+            <Keyboard className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 text-left">
+              Keys
+              <span className="block text-micro text-text-muted">
+                Arrows, Esc, Tab, Ctrl — what a phone keyboard lacks.
+              </span>
+            </span>
+          </button>
+        )}
         <TerminalCommandList agent={agent} onKey={onKey} open />
         {project && (
           <button type="button" className="ui-session-picker-row" onClick={onAttachFeedback}>

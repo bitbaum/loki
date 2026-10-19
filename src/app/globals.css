@@ -3084,43 +3084,35 @@
      chrome measured in rows above a terminal measured in four lines, and still
      with no way to press an arrow key. */
 
-  /* Header — session identity and liveness, nothing else. */
+  /* Header — a chat app's: back · the session's name (two lines) · ⋮, with
+     the Claude | Terminal pill centred under it. The name is the button that
+     lists the sessions; there is no row of tabs to run off the edge. */
   .ui-term-mhead {
-    @apply flex shrink-0 items-center gap-2;
+    @apply flex shrink-0 flex-col items-stretch gap-1.5;
+  }
+  .ui-term-mhead-row {
+    @apply flex min-w-0 items-center gap-1;
   }
   .ui-term-mhead-btn {
-    @apply flex h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border-subtle bg-surface-raised px-3 text-left transition-colors active:bg-surface-overlay;
+    @apply flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center rounded-xl px-2 transition-colors active:bg-surface-overlay;
+  }
+  .ui-term-mhead-name {
+    @apply flex max-w-full min-w-0 items-center gap-1.5;
   }
   .ui-term-mhead-title {
-    @apply min-w-0 flex-1 truncate text-sm font-medium text-text-primary;
+    @apply min-w-0 truncate text-base font-semibold text-text-primary;
   }
-  /* Several sessions: the header's name becomes a row of them, scrolled
-     sideways like a terminal's tabs. The current one is the full button (dot,
-     name, chevron to the sheet); the rest are quiet one-tap switches. */
-  .ui-term-mtabs {
-    @apply flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto;
-    scrollbar-width: none;
+  .ui-term-mhead-sub {
+    @apply max-w-full truncate text-micro text-text-secondary;
   }
-  .ui-term-mtabs::-webkit-scrollbar {
-    display: none;
-  }
-  .ui-term-mhead-btn-tab {
-    @apply max-w-56 flex-none;
-  }
-  /* Sized by its name inside the row (it only truncates past 70%), where the
-     single-session header lets the name take whatever room is left. */
-  .ui-term-mhead-btn-tab .ui-term-mhead-title {
-    @apply flex-initial;
+  /* Back and ⋮: round, borderless — the session's name is the one thing in
+     the header drawn as a control you read. */
+  .ui-term-mhead-ghost {
+    @apply inline-flex size-11 shrink-0 items-center justify-center rounded-full text-text-primary transition-colors active:bg-surface-overlay;
   }
   /* "substrata 2 finished · Open": news from another session, one line. */
   .ui-term-notice {
     @apply flex shrink-0 items-center gap-3 rounded-xl border border-border-subtle bg-surface-raised px-3 py-1 text-sm text-text-secondary;
-  }
-  .ui-term-mtab {
-    @apply flex h-11 max-w-36 shrink-0 items-center gap-2 rounded-xl border border-border-subtle px-3 text-sm text-text-secondary transition-colors active:bg-surface-overlay;
-  }
-  .ui-term-mhead-agent {
-    @apply shrink-0 rounded bg-surface-overlay px-1.5 py-0.5 text-micro uppercase tracking-caps text-text-secondary;
   }
   /* Loki | Terminal — the view switch. One bordered control holding both
      choices, so which view you are in is read, not remembered. */
@@ -3145,17 +3137,17 @@
       @apply hidden;
     }
   }
-  @media (max-width: 47.99rem) {
-    .ui-term-mhead {
-      @apply flex-wrap;
-    }
-    .ui-term-mhead .ui-term-views {
-      @apply order-4 w-full;
-    }
-    .ui-term-mhead .ui-term-view,
-    .ui-term-mhead .ui-term-view-active {
-      @apply flex-1 justify-center;
-    }
+  /* In the phone header the switch is a thin pill, centred, words only. */
+  .ui-term-mhead .ui-term-views {
+    @apply h-11 self-center rounded-full p-1;
+  }
+  .ui-term-mhead .ui-term-view,
+  .ui-term-mhead .ui-term-view-active {
+    @apply rounded-full px-4 text-sm;
+  }
+  .ui-term-mhead .ui-term-view > svg,
+  .ui-term-mhead .ui-term-view-active > svg {
+    @apply hidden;
   }
   .ui-term-mhead-icon {
     @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border-subtle bg-surface-raised text-text-secondary transition-colors active:bg-surface-overlay;
@@ -3342,15 +3334,40 @@
     body.fc-keyboard-open .ui-term-mhead .ui-term-views {
       display: none;
     }
-    body.fc-keyboard-open .ui-term-suggests {
+    /* …and the terminal view keeps them to one row at all times on a phone:
+       "What's going on?" and at most two steps (TerminalSurface), each whole,
+       the row scrolling sideways — not three lines of chips over the box. */
+    body.fc-keyboard-open .ui-term-suggests,
+    .ui-term-dock .ui-term-suggests {
       @apply flex-nowrap overflow-x-auto;
       scrollbar-width: none;
     }
-    body.fc-keyboard-open .ui-term-suggests > li {
+    body.fc-keyboard-open .ui-term-suggests > li,
+    .ui-term-dock .ui-term-suggests > li {
       @apply shrink-0;
     }
-    body.fc-keyboard-open .ui-term-suggest {
+    body.fc-keyboard-open .ui-term-suggest,
+    .ui-term-dock .ui-term-suggest {
       @apply max-w-none whitespace-nowrap;
+    }
+  }
+  /* The conversation view's next steps: reply rows under the answer
+     (ReplySteps), not chips over the box. */
+  .ui-reply-steps {
+    @apply flex flex-col gap-0.5 pt-1;
+  }
+  .ui-reply-step {
+    @apply flex min-h-11 w-full items-start gap-2.5 rounded-lg px-1 py-2.5 text-left text-sm text-text-secondary transition-colors hover:text-text-primary active:bg-surface-overlay;
+  }
+  /* "What's going on?" is the header's ⋮ on a phone; in the conversation view
+     it is not repeated over the box (the terminal view keeps it, as its
+     screen does not explain itself). */
+  @media (width < 48rem) {
+    .ui-claude-chat li:has(> .ui-term-suggest-why) {
+      display: none;
+    }
+    .ui-claude-chat .ui-term-suggests:not(:has(> li:nth-child(2))):has(.ui-term-suggest-why) {
+      display: none;
     }
   }
   /* Next steps above the session box: at rest they wrap, so each is read
@@ -8575,6 +8592,12 @@
 :is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock) .ck-mic {
   order: 2;
   margin-left: auto;
+}
+/* The session box: "+" is the one way to add anything (SessionPicker), so
+   chatkit's own paperclip is hidden — but stays mounted: "Photo or
+   screenshot" presses it, and its sheet, paste and strip stay chatkit's. */
+.ui-session-box .ck-tools > .ck-icon-btn[aria-haspopup="dialog"]:not(.ui-box-plus) {
+  display: none;
 }
 :is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock) .ck-submit {
   order: 3;

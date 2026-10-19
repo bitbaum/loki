@@ -121,10 +121,13 @@ async function main() {
         0,
         "inspection cannot send blind permission digits",
       );
-      // "What's going on?" is the first chip above the session box now — the
-      // header's sparkle icon was a second door to the same question.
-      await page.getByRole("button", { name: "What's going on?" }).click();
-      assert(await page.evaluate(() => (window as unknown as { explained: boolean }).explained));
+      // On a phone, "What's going on?" is the header's ⋮ — the conversation
+      // explains itself, so it is not a chip over the box as well.
+      assert.equal(
+        await page.getByRole("button", { name: "What's going on?" }).isVisible(),
+        false,
+        "no second door to the same question in the conversation view",
+      );
       await page.evaluate(() => {
         (window as unknown as { failSend: boolean }).failSend = true;
       });
