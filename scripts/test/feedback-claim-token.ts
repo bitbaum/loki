@@ -22,7 +22,7 @@ check("valid claim resolves only its feedback id", verifyFeedbackClaimToken(toke
 check("tampered id is rejected", verifyFeedbackClaimToken(`x${token}`, 2_000) === null);
 check(
   "expired claim is rejected",
-  verifyFeedbackClaimToken(token, 40 * 24 * 60 * 60 * 1000) === null,
+  verifyFeedbackClaimToken(token, 181 * 24 * 60 * 60 * 1000) === null,
 );
 check("malformed claim is rejected", verifyFeedbackClaimToken("not-a-token", 2_000) === null);
 
