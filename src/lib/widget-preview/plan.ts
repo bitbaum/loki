@@ -20,8 +20,9 @@ export const PREVIEW_ASK_MAX = 1000;
 export type PreviewInput = {
   /** What the person wants, in their words. */
   ask: string;
-  /** The fix this walkthrough showed, for context. */
-  fixedFor: string;
+  /** The fix this walkthrough showed, for context. None on /change, where
+   *  nothing has been built yet. */
+  fixedFor: string | null;
   outline: TourOutlineItem[];
   path: string | null;
 };
@@ -53,7 +54,7 @@ export function previewPrompt(input: PreviewInput): string {
     .join("\n");
   return [
     `What the owner wants to see: ${input.ask.slice(0, PREVIEW_ASK_MAX)}`,
-    `(This page was just changed for: ${input.fixedFor.slice(0, 300)})`,
+    input.fixedFor ? `(This page was just changed for: ${input.fixedFor.slice(0, 300)})` : null,
     input.path ? `Page: ${input.path}` : null,
     "",
     "Visible page outline:",

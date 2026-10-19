@@ -2514,6 +2514,55 @@
   .ui-change-brief-label {
     @apply block text-xs font-medium uppercase tracking-caps text-text-tertiary;
   }
+  /* /change (2026-10-19): the instant preview — the visitor's own site as a
+     phone shows it, then with their change drawn on it, compared by a slider.
+     The frame keeps a phone's proportions so the first picture does not jump. */
+  .ui-instant {
+    @apply space-y-2;
+  }
+  .ui-instant-status {
+    @apply text-sm text-text-secondary;
+  }
+  .ui-instant-summary {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-instant-note {
+    @apply text-xs text-text-muted;
+  }
+  .ui-instant-frame {
+    @apply relative mx-auto w-full max-w-xs overflow-hidden rounded-2xl border border-border-default bg-surface-raised;
+    aspect-ratio: 390 / 844;
+  }
+  .ui-instant-frame img {
+    @apply block h-full w-full object-cover object-top;
+  }
+  .ui-instant-blank {
+    @apply animate-pulse;
+  }
+  .ui-instant-drawing img {
+    @apply opacity-80;
+  }
+  .ui-instant-before {
+    @apply absolute inset-0;
+  }
+  .ui-instant-divider {
+    @apply pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-text-primary;
+  }
+  .ui-instant-handle {
+    @apply absolute top-1/2 left-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-strong bg-surface-overlay text-text-primary shadow-panel;
+  }
+  .ui-instant-label {
+    @apply pointer-events-none absolute top-2 rounded-full bg-surface-overlay px-2 py-0.5 text-micro font-medium text-text-primary;
+  }
+  .ui-instant-label-now {
+    @apply left-2;
+  }
+  .ui-instant-label-after {
+    @apply right-2;
+  }
+  .ui-instant-range {
+    @apply absolute inset-0 h-full w-full cursor-ew-resize opacity-0;
+  }
   /* /change (2026-10-07): the consultation's pieces — the verdict, how Google
      shows the site today, and each finding as one row the owner can keep or
      drop from the build. Since 2026-10-16 they sit inside the conversation

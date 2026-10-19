@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Globe, Pencil } from "lucide-react";
 import { Composer } from "@/components/composer/Composer";
+import { InstantPreview } from "@/components/public/InstantPreview";
 import { SiteConsultation } from "@/components/public/SiteConsultation";
 import { COMMISSION, WEBSITE_MODES, WEBSITE_MODE_IDS, type WebsiteMode } from "@/config/commission";
 import { ROUTES } from "@/config/auth";
@@ -187,6 +188,10 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
     chosen.length > 0
       ? `${copy.action} — ${chosen.length} ${chosen.length === 1 ? "fix" : "fixes"}`
       : copy.action;
+  // What the instant preview draws: their own words when they gave any — a
+  // page of SEO fixes beside "make it warmer" would drown the one thing they
+  // came to see — and otherwise the fixes they kept.
+  const showAsk = changes.trim() || chosen.map((id) => CONSULT_CHECKS[id].fix).join("\n");
   const handoff = [changes.trim(), ...chosen.map((id) => `- ${CONSULT_CHECKS[id].title}`)]
     .filter(Boolean)
     .join("\n");
@@ -283,6 +288,8 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
               setChanges(e.target.value);
             }}
           />
+
+          {!needsSite && showAsk && <InstantPreview website={website} ask={showAsk} />}
 
           {error && (
             <p role="alert" className="ui-error">
