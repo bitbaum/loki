@@ -37,7 +37,7 @@ import { ShellWorkspace } from "./ShellWorkspace";
 import { TerminalSessionMiss } from "./TerminalSessionMiss";
 import { TerminalMobileHeader, type TerminalLiveState } from "./TerminalMobileHeader";
 import { TerminalSessionSheet } from "./TerminalSessionSheet";
-import { KeysToggle, TerminalMobileDock } from "./TerminalMobileDock";
+import { TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
 import { buildStripTabs, badgeNames } from "./terminal-strip-tabs";
 import { TerminalAgentTabs } from "./TerminalAgentTabs";
@@ -854,7 +854,8 @@ export function TerminalSurface({
           keysOpen={keysOpen}
           onKeysOpenChange={setKeysOpen}
           immersive={immersive}
-          box={
+          session={{ tab: activeTab, channel, agent: activeAgentId, onKey: sendReported }}
+          box={(tools) => (
             <SessionComposer
               tab={activeTab}
               channel={channel}
@@ -869,13 +870,9 @@ export function TerminalSurface({
               draft={sessionDraft}
               focusRequest={focusRequest}
               density={immersive ? "compact" : "comfortable"}
-              tools={
-                <span className="md:hidden">
-                  <KeysToggle open={keysOpen} onOpenChange={setKeysOpen} />
-                </span>
-              }
+              tools={tools}
             />
-          }
+          )}
         />
       )}
 

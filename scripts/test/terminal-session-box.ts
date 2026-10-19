@@ -47,7 +47,13 @@ const read = (f: string) => readFileSync(join(process.cwd(), "src/components/ter
   const unnamed = renderToStaticMarkup(
     createElement(TerminalViewSwitch, { view: "chat", onViewChange: noop }),
   );
-  ok(unnamed.includes(">Chat</button>"), "an unnamed agent reads as Chat, not Loki");
+  // Offered unnamed only on the assumption it is Claude Code
+  // (chatViewSupported), so named that from the first frame — not "Chat"
+  // turning into "Claude" a second later — and never Loki.
+  ok(
+    unnamed.includes(">Claude</button>") && !unnamed.includes(">Loki<"),
+    "an unnamed agent reads as Claude, not Loki, from the first frame",
+  );
 }
 {
   // Wired where you look, at every width, and in both views.

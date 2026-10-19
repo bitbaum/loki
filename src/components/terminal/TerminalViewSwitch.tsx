@@ -3,8 +3,11 @@
 import { MessagesSquare, TerminalSquare } from "lucide-react";
 import type { TerminalViewMode } from "@/config/terminal-modes";
 
-/** When the session's agent has no name to show. */
-const AGENT_FALLBACK = "Chat";
+/** Before the session's agent is known. The conversation view is offered
+ *  then only on the assumption it is Claude Code (chatViewSupported), so it
+ *  is named that from the first frame: "Chat" became "Claude" a second
+ *  later, one more thing moving on a screen already moving. */
+const AGENT_FALLBACK = "Claude";
 
 /**
  * Claude | Terminal — how the session is SHOWN. One control holding both

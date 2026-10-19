@@ -28,10 +28,10 @@ async function main() {
     stdin: {
       resolveDir: process.cwd(),
       loader: "jsx",
-      contents: `import React from 'react';import{createRoot}from'react-dom/client';import{ClaudeChatView}from'./src/components/terminal/ClaudeChatView';import{TerminalMobileHeader}from'./src/components/terminal/TerminalMobileHeader';import{MobileNav}from'./src/components/shell/MobileNav';import{SessionComposer}from'./src/components/terminal/SessionComposer';import{KeysToggle,TerminalMobileDock}from'./src/components/terminal/TerminalMobileDock';import{badgeNames}from'./src/components/terminal/terminal-strip-tabs';
+      contents: `import React from 'react';import{createRoot}from'react-dom/client';import{ClaudeChatView}from'./src/components/terminal/ClaudeChatView';import{TerminalMobileHeader}from'./src/components/terminal/TerminalMobileHeader';import{MobileNav}from'./src/components/shell/MobileNav';import{SessionComposer}from'./src/components/terminal/SessionComposer';import{TerminalMobileDock}from'./src/components/terminal/TerminalMobileDock';import{badgeNames}from'./src/components/terminal/terminal-strip-tabs';
       const roster=[{id:'claude',label:'Claude'},{id:'codex',label:'Codex'}];
       const root=createRoot(document.getElementById('app'));
-      window.mount=(fixture)=>{window.fixture=fixture;const agent=badgeNames(fixture.badge,roster);root.render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" style={{height:48}}>Loki</div><main className="app-main"><div className="app-page app-viewport-pane flex flex-col" data-fc-place="tab"><TerminalMobileHeader title="Center SOM" state="live" agent={agent} onOpenSheet={()=>{}} immersive={false} onToggleImmersive={()=>{}} view={fixture.terminal?"terminal":"chat"} onViewChange={()=>{}}/>{fixture.terminal?<div className="flex flex-1 flex-col"><div className="flex-1 bg-black p-2 text-xs text-white">terminal</div><TerminalMobileDock onKey={()=>{}} keysOpen={false} onKeysOpenChange={()=>{}} immersive={false} box={<SessionComposer tab="center-som" channel="cloud" onKey={async()=>{}} live agent="claude" agentLabel={agent} suggestions={[]} project="center-som" density="comfortable" tools={<span className="md:hidden"><KeysToggle open={false} onOpenChange={()=>{}}/></span>}/>}/></div>:<ClaudeChatView key={fixture.key} tab="center-som" channel="cloud" onLive={()=>{}} onKey={async bytes=>{window.written.push(bytes)}} onShowTerminal={()=>{}} onExplain={()=>{}}/>}</div></main></div><MobileNav/></div>)};window.written=[];`,
+      window.mount=(fixture)=>{window.fixture=fixture;const agent=badgeNames(fixture.badge,roster);root.render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" style={{height:48}}>Loki</div><main className="app-main"><div className="app-page app-viewport-pane flex flex-col" data-fc-place="tab"><TerminalMobileHeader title="Center SOM" state="live" agent={agent} onOpenSheet={()=>{}} immersive={false} onToggleImmersive={()=>{}} view={fixture.terminal?"terminal":"chat"} onViewChange={()=>{}}/>{fixture.terminal?<div className="flex flex-1 flex-col"><div className="flex-1 bg-black p-2 text-xs text-white">terminal</div><TerminalMobileDock onKey={()=>{}} keysOpen={false} onKeysOpenChange={()=>{}} immersive={false} session={{tab:'center-som',channel:'cloud',agent:'claude',onKey:async bytes=>{window.written.push(bytes)}}} box={tools=><SessionComposer tab="center-som" channel="cloud" onKey={async bytes=>{window.written.push(bytes)}} live agent="claude" agentLabel={agent} suggestions={["run the project's unit tests","open the main source file for review"]} onExplain={()=>{}} project="center-som" density="comfortable" tools={tools}/>}/></div>:<ClaudeChatView key={fixture.key} tab="center-som" channel="cloud" onLive={()=>{}} onKey={async bytes=>{window.written.push(bytes)}} onShowTerminal={()=>{}} onExplain={()=>{}}/>}</div></main></div><MobileNav/></div>)};window.written=[];`,
     },
     bundle: true,
     write: false,
@@ -70,7 +70,12 @@ async function main() {
     return;
   }
   try {
-    const page = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    // A phone: touch and a coarse pointer, so nothing grabs a real keyboard.
+    const page = await browser.newPage({
+      viewport: { width: 390, height: 780 },
+      isMobile: true,
+      hasTouch: true,
+    });
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.route("**/*", (r) =>
@@ -79,7 +84,7 @@ async function main() {
           ? { contentType: "application/json", body: "{}" }
           : {
               contentType: "text/html",
-              body: `<style>${styles.css}html,body{font-family:system-ui,sans-serif!important}</style><div id="app"></div>`,
+              body: `<meta name="viewport" content="width=device-width, initial-scale=1"><style>${styles.css}html,body{font-family:system-ui,sans-serif!important}</style><div id="app"></div>`,
             },
       ),
     );
@@ -115,10 +120,13 @@ async function main() {
               mic: e.classList.contains("ck-mic"),
               send: e.classList.contains("ck-send"),
               label: e.getAttribute("aria-label") ?? e.textContent?.trim(),
+              right: Math.round(r.right),
+              edge: Math.round(e.closest(".ck-composer")!.getBoundingClientRect().right),
             };
           }),
       );
 
+    const rows: string[][] = [];
     for (const terminal of [false, true]) {
       await mount({
         key: terminal ? "term" : "chat",
@@ -137,9 +145,15 @@ async function main() {
         path: `.tmp/session-sheet/${terminal ? "terminal" : "chat"}-390.png`,
       });
       assert.ok(row.length >= 4, `${view}: a row of tools`);
+      rows.push(row.map((b) => b.label ?? ""));
       for (const b of row)
         assert.equal(b.h, 44, `${view}: every tool is one size — ${b.label} is ${b.h}px`);
       assert.equal(new Set(row.map((b) => b.y)).size, 1, `${view}: one row, nothing wrapped`);
+      for (const b of row)
+        assert.ok(
+          b.right <= b.edge,
+          `${view}: ${b.label} is inside the box (${b.right} > ${b.edge})`,
+        );
       // The microphone is beside Send in both views, not second from the
       // left in one and beside Send in the other.
       const mic = row.find((b) => b.mic)!;
@@ -148,6 +162,48 @@ async function main() {
         if (!b.mic && !b.send)
           assert.ok(b.x < mic.x, `${view}: ${b.label} sits left of the microphone`);
       assert.ok(mic.x < send.x, `${view}: the microphone sits beside Send`);
+      if (terminal) {
+        // Keys sits on the terminal's corner, not in the box's row.
+        const keys = await page.getByRole("button", { name: "Keys" }).evaluate((e) => {
+          const r = e.getBoundingClientRect();
+          const box = document.querySelector(".ck-composer")!.getBoundingClientRect();
+          return { h: Math.round(r.height), bottom: r.bottom, right: r.right, boxTop: box.top };
+        });
+        assert.equal(keys.h, 44, "Keys is the same size as the tools");
+        assert.ok(keys.bottom <= keys.boxTop, "Keys floats above the box, on the terminal");
+        assert.ok(keys.right <= 390, "Keys is on screen");
+      }
+      // The model chip is in BOTH views (owner, 2026-10-19: it was only in
+      // the conversation, and the terminal view had no way to switch).
+      assert.match(
+        (await page.locator('button[aria-label^="Model: "]').getAttribute("aria-label")) ?? "",
+        /^Model: Opus 4\.5, Auto mode/,
+        `${view}: the model chip names the model`,
+      );
+      // While typing on a phone: no app bar, no view switch, the next steps
+      // in one sideways row — the terminal keeps the room.
+      // Set and read in one go: MobileNav owns this class and puts it back to
+      // what the (absent) keyboard says on its next effect.
+      const typing = await page.evaluate(() => {
+        document.body.classList.add("fc-keyboard-open");
+        return {
+          bar: getComputedStyle(document.querySelector(".ui-app-topbar")!).display,
+          views: document.querySelector(".ui-term-views")
+            ? getComputedStyle(document.querySelector(".ui-term-views")!).display
+            : "none",
+          rows: new Set(
+            [...document.querySelectorAll(".ui-term-suggests > li")].map((li) =>
+              Math.round(li.getBoundingClientRect().top),
+            ),
+          ).size,
+          wide: document.documentElement.scrollWidth,
+        };
+      });
+      await page.evaluate(() => document.body.classList.remove("fc-keyboard-open"));
+      if (terminal) assert.equal(typing.bar, "none", `${view}: the app bar steps aside`);
+      assert.equal(typing.views, "none", `${view}: the view switch steps aside`);
+      assert.ok(typing.rows <= 1, `${view}: next steps in one row while typing`);
+      assert.equal(typing.wide, 390, `${view}: nothing scrolls the page sideways`);
       // The agent is named, not its id, in the view switch and the box.
       assert.equal(
         await page.getByText(/\bclaude\b/).count(),
@@ -160,6 +216,40 @@ async function main() {
       );
     }
 
+    assert.deepEqual(
+      rows[1]!.map((l) => l.replace(/^Model: .*/, "Model")),
+      rows[0]!.map((l) => l.replace(/^Model: .*/, "Model")),
+      "the box's row is the same in both views",
+    );
+
+    // The slash button: a sheet from the bottom with the commands in view,
+    // nothing taking the keyboard, nothing off the top of the screen (owner,
+    // 2026-10-19: the panel pinned above the box ran over the header with the
+    // commands clipped, and its search raised the keyboard).
+    await page.getByRole("button", { name: "Commands and prompts" }).click();
+    const commands = page.getByRole("dialog", { name: "Commands and prompts" });
+    await commands.getByText("Use Opus").waitFor();
+    const placed = await commands.evaluate((d) => {
+      const r = d.getBoundingClientRect();
+      return { top: Math.round(r.top), bottom: Math.round(r.bottom), h: innerHeight };
+    });
+    assert.ok(placed.top >= 0, `the sheet starts on screen (top ${placed.top})`);
+    assert.ok(placed.bottom <= placed.h, "and ends on screen");
+    assert.notEqual(
+      await page.evaluate(() => document.activeElement?.tagName),
+      "INPUT",
+      "nothing in it raises the phone keyboard",
+    );
+    await page.screenshot({ path: ".tmp/session-sheet/commands-390.png" });
+    await commands.getByText("Use Opus").click();
+    assert.deepEqual(
+      await page.evaluate(() => (window as unknown as { written: string[] }).written),
+      ["/model opus\r"],
+      "a command in the sheet is typed into the session",
+    );
+    await page.evaluate(() => Object.assign(window, { written: [] }));
+    await page.keyboard.press("Escape");
+
     await mount({
       key: "chat2",
       items,
@@ -168,10 +258,10 @@ async function main() {
       sessionId: "s",
       badge: "claude",
     });
-    const chip = page.locator('button[aria-label^="Model and mode"]');
+    const chip = page.locator('button[aria-label^="Model: "]');
     assert.match(
       (await chip.getAttribute("aria-label")) ?? "",
-      /Opus 4\.5 · Auto/,
+      /Model: Opus 4\.5, Auto mode/,
       "the chip names the model and the mode",
     );
     await chip.click();
@@ -224,7 +314,7 @@ async function main() {
     );
     assert.match(
       (await chip.getAttribute("aria-label")) ?? "",
-      /Sonnet…/,
+      /Model: Sonnet…/,
       "the chip shows the change under way",
     );
     // A choice already in force sends nothing.
@@ -265,7 +355,7 @@ async function main() {
     await sheet.getByText("In force for this session. Pick another to switch.").waitFor();
     assert.match(
       (await chip.getAttribute("aria-label")) ?? "",
-      /Sonnet 5\.5 · Auto/,
+      /Model: Sonnet 5\.5, Auto mode/,
       "the chip names the model Claude Code switched to",
     );
     assert.equal(await sheet.getByText("Switching to").count(), 0, "nothing reads as pending");
@@ -335,10 +425,8 @@ async function main() {
     // root.render commits on its own tick: wait for the label, do not read it.
     await page.waitForFunction(
       () =>
-        /Sonnet 4\.5 · Auto/.test(
-          document
-            .querySelector('button[aria-label^="Model and mode"]')
-            ?.getAttribute("aria-label") ?? "",
+        /Model: Sonnet 4\.5, Auto mode/.test(
+          document.querySelector('button[aria-label^="Model: "]')?.getAttribute("aria-label") ?? "",
         ),
       null,
       { timeout: 10_000 },
@@ -346,7 +434,7 @@ async function main() {
     const settled = (await chip.getAttribute("aria-label")) ?? "";
     assert.match(
       settled,
-      /Sonnet 4\.5 · Auto/,
+      /Model: Sonnet 4\.5, Auto mode/,
       `the chip settles on what the log says (got "${settled}")`,
     );
     assert.deepEqual(errors, []);

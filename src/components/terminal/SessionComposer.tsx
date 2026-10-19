@@ -96,7 +96,6 @@ export function SessionComposer({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sent, setSent] = useState<Sent | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const boxRef = useRef<HTMLDivElement>(null);
   const loki = useLokiAttachments(project);
 
   const openPicker = () => {
@@ -281,10 +280,9 @@ export function SessionComposer({
   ) : null;
 
   return (
-    <div ref={boxRef} className="relative shrink-0">
+    <div className="relative shrink-0">
       {pickerOpen && (
         <SessionPicker
-          anchorRef={boxRef}
           agent={agent}
           project={project}
           tab={tab}
