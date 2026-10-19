@@ -59,6 +59,12 @@ const MAX_SCREENSHOTS = 5;
 /** Stop recording under the server's ~2 min upload cap. */
 const VOICE_MAX_MS = 110_000;
 
+/** Who is speaking, as the passes say — handed on to the model unchanged. */
+function passesOf(o: Parameters<typeof createConversation>[0]) {
+  const { ownerPass, onPassRefused, memberPass, onMemberRefused } = o;
+  return { ownerPass, onPassRefused, memberPass, onMemberRefused };
+}
+
 export function createConversation(opts: {
   apiBase: string;
   token: string;
@@ -137,10 +143,7 @@ export function createConversation(opts: {
     apiBase: opts.apiBase,
     token: opts.token,
     assistant: opts.assistant,
-    ownerPass: opts.ownerPass,
-    onPassRefused: opts.onPassRefused,
-    memberPass: opts.memberPass,
-    onMemberRefused: opts.onMemberRefused,
+    ...passesOf(opts),
     picker: opts.picker,
     watch: opts.watch,
     about: () => ctx.about(),
