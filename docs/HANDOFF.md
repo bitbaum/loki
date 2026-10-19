@@ -16,6 +16,7 @@
 > | "Next: A3, A4, A6" | all ticked in the priority plan |
 > | Release recipe: run the mirror by hand | automated in `desktop-release.yml` |
 > | `src/lib/terminals/*`, `src/lib/zellij.ts`, TerminalAdapter, "Fleet Runner bundles Zellij" | **deleted 2026-09-11 (Fleet Runner 0.8.19)** — the runner owns every agent PTY (node-pty); no zellij, no `home/worker.ts`, no focus-tab, no restore-on-boot |
+> | "Solo founder … under the (planned) `bitbaum AG` holding" (§7) | bitbaum is **unregistered** (`bitbaum/fleet` `registers/org.json`); not an AG, not incorporation-pending. More than one person builds here — never "solo founder" |
 >
 > Because this file opens with "read this first", a stale number here propagates
 > further than one buried in a reference doc. Prefer `CLAUDE.md` for architecture

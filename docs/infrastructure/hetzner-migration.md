@@ -41,10 +41,10 @@ box. Hosted accounts are kept frozen for 14 days as a fallback, then deleted
 | loki-bridge        | 4001 | bridge.orangecat.ch             | —                     |
 | loki-app           | 4002 | loki.orangecat.ch         | loki (PG17)     |
 | orangecat-app            | 4003 | orangecat.ch, www               | self-hosted Supabase  |
-| revampit-app             | 4004 | revampit.orangecat.ch           | revampit (PG17)       |
+| revampit-app (evig)      | 4004 | evig.orangecat.ch (revampit.orangecat.ch → 308) | revampit (PG17) |
 | kivvi-app                | 4005 | kivvi.orangecat.ch              | kivvi                 |
 | datacat-web-app          | 4006 | datacat.orangecat.ch            | datacat               |
-| aoz-wohnen-app           | 4008 | aoz-wohnen.orangecat.ch         | aoz_wohnen            |
+| aoz-wohnen-app           | 4008 | aoz.orangecat.ch (aoz-wohnen.orangecat.ch → 308) | aoz_wohnen |
 | surf-your-life-app       | 4009 | surf-your-life.orangecat.ch     | surf_your_life        |
 | vitareba-app             | 4011 | vita.orangecat.ch               | vitareba              |
 | revamp-info-app          | 4012 | revamp-info.orangecat.ch        | revampit (shared)     |

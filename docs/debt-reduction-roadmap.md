@@ -102,7 +102,7 @@ Why:
 Targets:
 
 - direct prompt semantics embedded in Beacon file-reading logic in
-  [scripts/beacon.py](../scripts/beacon.py)
+  `scripts/beacon.py` (deleted)
 - any remaining Claude-only prompt meaning outside
   [src/lib/orchestration/intents.ts](../src/lib/orchestration/intents.ts)
 
@@ -138,7 +138,7 @@ Targets:
 - browser countdown in
   [src/components/control/project-card-helpers.tsx](../src/components/control/project-card-helpers.tsx)
 - Beacon countdown logic in
-  [scripts/beacon.py](../scripts/beacon.py)
+  `scripts/beacon.py` (deleted)
 
 Action:
 
@@ -155,7 +155,7 @@ Current split:
 - prompt config in [src/lib/agent-config.ts](../src/lib/agent-config.ts)
 - orchestration intents in [src/lib/orchestration/intents.ts](../src/lib/orchestration/intents.ts)
 - control button labels/groups in [src/config/control-intents.ts](../src/config/control-intents.ts)
-- Beacon prompt metadata loading in [scripts/beacon.py](../scripts/beacon.py)
+- Beacon prompt metadata loading in `scripts/beacon.py` (deleted)
 
 Problem:
 
@@ -398,7 +398,7 @@ Result:
 - [src/app/api/inject/route.ts](../src/app/api/inject/route.ts)
 - [src/lib/agent-config.ts](../src/lib/agent-config.ts)
 - [src/lib/control-fast-state.ts](../src/lib/control-fast-state.ts)
-- [scripts/beacon.py](../scripts/beacon.py)
+- `scripts/beacon.py` (deleted)
 
 Reason:
 
@@ -409,11 +409,11 @@ Reason:
 Implemented:
 
 - `dotfiles` stop and notification hooks now delegate to
-  [scripts/agent-hook-bridge.sh](../scripts/agent-hook-bridge.sh)
+  `scripts/agent-hook-bridge.sh` (deleted)
 - shared runtime hook utilities now live in
-  [scripts/agent-hook-lib.sh](../scripts/agent-hook-lib.sh)
+  `scripts/agent-hook-lib.sh` (deleted)
 - `dotfiles` Beacon now delegates to
-  [scripts/beacon.py](../scripts/beacon.py)
+  `scripts/beacon.py` (deleted)
 
 Still a shim:
 

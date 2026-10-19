@@ -1,8 +1,9 @@
 # Security Policy
 
 Loki is a hybrid system: the hosted app stores account, project, and product
-state; the local daemon executes terminal, git, and agent work on the user's
-machine. Security work should preserve that boundary.
+state; a builder (the eligible cloud builder, or the Fleet Runner on the user's
+machine) executes terminal, git, and agent work. Security work should preserve
+that boundary.
 
 ## Supported Surface
 
@@ -40,7 +41,7 @@ Do not include real secrets, production tokens, or personal user data in reports
 
 ## Dependency Hygiene
 
-GitHub Actions runs a scheduled `npm audit --audit-level=high`. High and
+GitHub Actions runs a scheduled `pnpm audit --audit-level=high`. High and
 critical vulnerabilities must be fixed or explicitly documented before a release.
 Moderate dev-tool findings can be deferred only when they are not reachable in
 production runtime paths.

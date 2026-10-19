@@ -8,7 +8,7 @@
 `feat(feedback):` commits (ingest spine, embed bundle, inbox + dispatch,
 self-dogfood); find them with `git log --oneline --grep 'feat(feedback)'`.
 Prod activation done 2026-07-17 (box DDL + FEEDBACK_WIDGET_TOKEN). Customer #1
-cutover done 2026-07-28: revampit/evig prod (revampit.orangecat.ch) loads the
+cutover done 2026-07-28: evig prod (then revampit.orangecat.ch, now evig.orangecat.ch) loads the
 embed via `LokiFeedbackEmbed` (revampit main 90bfb3497; retired React
 widget deleted in 6341ac7f1), verified e2e — a prod submission lands in this
 inbox. Hardening learned from the cutover: the OPTIONS preflight reflects
