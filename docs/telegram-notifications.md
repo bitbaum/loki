@@ -13,6 +13,13 @@ One incident is one message; reminders back off (30m → 2h → 8h → daily);
 recoveries name subjects, never keys; N events on one tick digest into one
 message; test runs (`ALERT_DRY_RUN=1`) never deliver.
 
+**Whose news.** The chat is the operator's. News about ONE account's work —
+a visitor's note on their site, their run, their fix, their night — goes to
+Telegram only when that account is the operator's
+(`src/lib/actions/telegram-for-user.ts`); every other account hears through
+its own push and alerts. Before 2026-10-19 every customer's feedback reached
+this chat.
+
 ## Requested updates (the operator asked for these — keep them)
 
 | What arrives | Trigger | Source |
