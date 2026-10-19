@@ -463,8 +463,6 @@ export function createConversation(opts: {
     el.append(...noteExtras(draft, () => model.useExactWords()));
     const contact = h("input");
     contact.type = "text";
-    // An email is how they hear back: the tracking link is mailed to it, and
-    // the "it's fixed" mail goes there too. No account (claim-feedback page).
     contact.placeholder = "Your email, to hear when it's fixed (optional)";
     contact.maxLength = 200;
     contact.autocomplete = "off";
