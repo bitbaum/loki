@@ -43,7 +43,7 @@ export async function claimFeedbackForReporter(
 export async function listReporterFeedback(
   reporterUserId: string,
   limit = 200,
-): Promise<UserFeedbackListItem[]> {
+): Promise<ReporterFeedbackListItem[]> {
   const { screenshots: _screenshots, ...cols } = getTableColumns(siteFeedback);
   const rows = await db
     .select({
@@ -66,6 +66,15 @@ export async function listReporterFeedback(
       // Whether an agent COULD be launched is the owner's question, never the
       // reporter's — no button on this page dispatches anything.
       runnable: sql<boolean>`false`.as("runnable"),
+      // The owner merges everything by hand (auto-ship OFF): a client's
+      // "Make it live" is then not theirs to give (lib/feedback/auto-ship.ts).
+      projectAutoShip: sql<boolean | null>`(
+        SELECT ${userProjects.autoShip} FROM ${userProjects}
+        WHERE ${userProjects.entityProjectId} = ${entities.id}
+          AND ${userProjects.userId} = ${siteFeedback.userId}
+          AND ${userProjects.isActive} = true
+        ORDER BY ${userProjects.createdAt} ASC LIMIT 1
+      )`.as("project_auto_ship"),
     })
     .from(siteFeedback)
     .innerJoin(entities, eq(siteFeedback.projectId, entities.id))
@@ -273,6 +282,9 @@ export async function getFeedbackScreenshots(userId: string, id: string): Promis
 
 /** Cross-project inbox row: the list shape plus which project it belongs to. */
 export type UserFeedbackListItem = FeedbackListItem & { projectName: string };
+/** A reporter's row: the project's auto-ship switch decides whether a
+ *  client's "Make it live" is theirs to give. */
+export type ReporterFeedbackListItem = UserFeedbackListItem & { projectAutoShip?: boolean | null };
 
 /**
  * Every project's inbox in one read — the lens behind /feedback. Same
@@ -564,4 +576,38 @@ export async function getFeedbackForTour(
     .where(eq(siteFeedback.id, id))
     .limit(1);
   return row ?? null;
+}
+
+/** How many of a client's asks on this project built on their allowance since `since`. */
+export async function countAllowanceUsed(
+  projectId: string,
+  clientUserId: string,
+  since: Date,
+): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(siteFeedback)
+    .where(
+      and(
+        eq(siteFeedback.projectId, projectId),
+        eq(siteFeedback.reporterUserId, clientUserId),
+        eq(siteFeedback.onAllowance, true),
+        sql`${siteFeedback.createdAt} >= ${since}`,
+      ),
+    );
+  return Number(row?.n ?? 0);
+}
+
+/** Whether a client's ask counts against their allowance. Set before its
+ *  build starts (the fix prompt reads it), cleared if the build did not. */
+export async function setOnAllowance(id: string, onAllowance: boolean): Promise<void> {
+  await db.update(siteFeedback).set({ onAllowance }).where(eq(siteFeedback.id, id));
+}
+
+/** "Make it live": the change may merge. Idempotent; the first yes is kept. */
+export async function approveFeedbackLive(id: string, userId: string): Promise<void> {
+  await db
+    .update(siteFeedback)
+    .set({ liveApprovedAt: new Date(), liveApprovedBy: userId })
+    .where(and(eq(siteFeedback.id, id), sql`${siteFeedback.liveApprovedAt} IS NULL`));
 }

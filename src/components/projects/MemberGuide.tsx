@@ -3,6 +3,8 @@ import { ArrowUpRight } from "lucide-react";
 import type { ProjectRole } from "@/db/schema/project-memberships";
 import { roleGuide } from "@/lib/project-capabilities";
 import { ProjectAskBox } from "./ProjectAskBox";
+import { FeedbackReportText } from "@/components/feedback/FeedbackReportText";
+import { GoLiveButton } from "@/components/feedback/GoLiveButton";
 import { ownerSiteUrl } from "../../../widget/owner-pass";
 
 /**
@@ -22,6 +24,8 @@ export function MemberGuide({
   liveUrl,
   ownerPass,
   joined,
+  allowance = null,
+  ready = [],
 }: {
   projectId: string;
   role: ProjectRole;
@@ -31,18 +35,25 @@ export function MemberGuide({
   ownerPass: string | null;
   /** Arrived straight from "Join": lead with that. */
   joined: boolean;
+  /** A client's changes left this month. */
+  allowance?: { limit: number; left: number } | null;
+  /** A client's changes written and waiting for their "Make it live". */
+  ready?: { id: string; suggestion: string }[];
 }) {
   const owner = ownerName ?? "The owner";
   const site = liveUrl ? hostOf(liveUrl) : null;
-  const guide = roleGuide(role, { site, owner });
+  const guide = roleGuide(role, { site, owner }, allowance);
   const builder = role === "editor";
   return (
     <section className="ui-project-section" aria-labelledby="member-guide-title">
       {joined && <p className="ui-kicker">You’re in</p>}
       <h2 id="member-guide-title" className="text-lg font-semibold">
-        {builder ? `How you change ${projectName}` : `How you ask for a change to ${projectName}`}
+        {builder || allowance
+          ? `How you change ${projectName}`
+          : `How you ask for a change to ${projectName}`}
       </h2>
       <p className="mt-2 text-base text-text-secondary">{guide.then}</p>
+      {ready.length > 0 && <ReadyForYou items={ready} />}
       <ProjectAskBox projectId={projectId} projectName={projectName} />
       <p className="mt-3 text-sm text-text-secondary">
         Everything you asked for, and where each one is:{" "}
@@ -67,6 +78,27 @@ export function MemberGuide({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * A client's changes that are written and wait for them, above the box: the
+ * one thing on this page only they can do. Each says what they asked, in
+ * their words, and has the one button.
+ */
+function ReadyForYou({ items }: { items: { id: string; suggestion: string }[] }) {
+  return (
+    <div className="mt-4 space-y-2" aria-label="Ready for you">
+      <h3 className="ui-micro-label">Ready for you · {items.length}</h3>
+      <ul className="space-y-2">
+        {items.map((item) => (
+          <li key={item.id} className="ui-card-shell space-y-3 p-4">
+            <FeedbackReportText text={item.suggestion} />
+            <GoLiveButton feedbackId={item.id} />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

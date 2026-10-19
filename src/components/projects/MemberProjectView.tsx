@@ -19,6 +19,8 @@ export function MemberProjectView({
   liveUrl,
   ownerPass,
   joined,
+  allowance,
+  ready,
   status,
   workspaceKey,
 }: {
@@ -29,6 +31,8 @@ export function MemberProjectView({
   liveUrl: string | null;
   ownerPass: string | null;
   joined: boolean;
+  allowance: { limit: number; left: number } | null;
+  ready: { id: string; suggestion: string }[];
   status: BuildStatus;
   workspaceKey: string;
 }) {
@@ -42,6 +46,8 @@ export function MemberProjectView({
         liveUrl={liveUrl}
         ownerPass={ownerPass}
         joined={joined}
+        allowance={allowance}
+        ready={ready}
       />
       <ProjectBuildStatus
         status={status}

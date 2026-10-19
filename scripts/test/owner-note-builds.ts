@@ -92,7 +92,7 @@ assert.equal(effectiveAutoShip(false, FEEDBACK_SOURCE.OWNER), false, "explicit o
 assert.equal(effectiveAutoShip(null, FEEDBACK_SOURCE.VISITOR), null, "strangers still wait");
 assert.equal(effectiveAutoShip(true, FEEDBACK_SOURCE.VISITOR), true);
 const attach = readFileSync("src/lib/feedback/attach-work.ts", "utf8");
-assert.match(attach, /autoShip: effectiveAutoShip\(project\?\.autoShip, item\.source\)/);
+assert.match(attach, /autoShip: effectiveAutoShip\(project\?\.autoShip, item\.source, item\)/);
 
 // The Implement button and the owner note share one path.
 const route = readFileSync("src/app/api/feedback/[id]/dispatch/route.ts", "utf8");

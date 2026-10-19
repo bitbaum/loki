@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 
 import { createAgentPass, verifyAgentPass } from "../../src/lib/feedback/agent-pass";
 import { composeReviewPrompt } from "../../src/lib/feedback/ai-review-prompt";
-import { FEEDBACK_SOURCE, isStrangerSource } from "../../src/lib/constants/statuses";
+import { FEEDBACK_SOURCE, waitsForATap } from "../../src/lib/constants/statuses";
 
 process.env.AUTH_SECRET ??= "test-secret-for-agent-pass";
 process.env.NEXT_PUBLIC_APP_URL ??= "https://loki.example";
@@ -59,17 +59,18 @@ assert.match(synth, /createAgentPass\(project\.id, FEEDBACK_SOURCE\.SYNTHESIZER\
 assert.doesNotMatch(synth, /"source":"/);
 
 // ─── 2. An allowance never builds a stranger's note ──────────────────────────
-assert.equal(isStrangerSource(FEEDBACK_SOURCE.VISITOR), true);
-assert.equal(isStrangerSource(null), true, "a row older than sources is nobody's word");
-assert.equal(isStrangerSource(FEEDBACK_SOURCE.OWNER), false);
-assert.equal(isStrangerSource(FEEDBACK_SOURCE.AI_REVIEW), false);
+assert.equal(waitsForATap(FEEDBACK_SOURCE.VISITOR), true);
+assert.equal(waitsForATap(null), true, "a row older than sources is nobody's word");
+assert.equal(waitsForATap(FEEDBACK_SOURCE.OWNER), false);
+assert.equal(waitsForATap(FEEDBACK_SOURCE.AI_REVIEW), false);
+assert.equal(waitsForATap(FEEDBACK_SOURCE.CLIENT), true, "a client's ask past their allowance");
 const night = read("src/lib/autopilot-night.ts");
 assert.match(
   night,
-  /if \(planned\.verdict\.auto && planned\.f\.open\.some\(\(r\) => isStrangerSource\(r\.source\)\)\) \{\s*planned = await planFor\(false\);/,
+  /if \(planned\.verdict\.auto && planned\.f\.open\.some\(\(r\) => waitsForATap\(r\.source\)\)\) \{\s*planned = await planFor\(false\);/,
   "a plan nobody will tap is re-made without strangers' notes",
 );
-assert.match(night, /\(strangers \|\| !isStrangerSource\(f\.source\)\)/);
+assert.match(night, /\(strangers \|\| !waitsForATap\(f\.source\)\)/);
 
 // ─── 3. Opening a tracking link starts nothing ───────────────────────────────
 const claim = read("src/app/api/feedback/claim/route.ts");

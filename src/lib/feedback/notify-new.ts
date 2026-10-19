@@ -36,7 +36,13 @@ const ALERT_TYPE = "new_feedback";
  */
 export async function notifyFeedbackReceived(row: SiteFeedback): Promise<void> {
   try {
-    if (row.source && row.source !== FEEDBACK_SOURCE.VISITOR) return;
+    // A client's ask that waits for the owner announces like a visitor's.
+    if (
+      row.source &&
+      row.source !== FEEDBACK_SOURCE.VISITOR &&
+      row.source !== FEEDBACK_SOURCE.CLIENT
+    )
+      return;
 
     const [project] = await db
       .select({ name: entities.name })
