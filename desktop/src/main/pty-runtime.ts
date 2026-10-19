@@ -71,6 +71,8 @@ export async function launchAgentPty(
   agent: AgentOption,
   model?: string,
   sessionId?: string,
+  /** Continue the newest Claude conversation in the folder (Resume). */
+  resumeLatest = false,
 ): Promise<void> {
   // Refuse a CLI this builder does not have before opening a terminal for it:
   // otherwise the shell says "command not found" and the run reads as an agent
@@ -115,6 +117,14 @@ export async function launchAgentPty(
     } catch (e) {
       console.warn(`[grok-prep] ${tab}: ${e instanceof Error ? e.message : String(e)}`);
     }
+  }
+  // Resume: the folder's newest Claude conversation, found where it is
+  // written — after the box workspace resolved, since that is the folder
+  // Claude Code keyed its log by. None yet: a fresh session, not an error.
+  if (resumeLatest && !sessionId && agent === "claude") {
+    const { newestLog } = await import("./transcript-streamer");
+    const log = await newestLog(effectiveDir).catch(() => null);
+    sessionId = log ? log.file.split("/").pop()?.replace(/\.jsonl$/, "") : undefined;
   }
   await provisionAgentWorkspace("runner", {
     projectKey: tab,

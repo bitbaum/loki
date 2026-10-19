@@ -67,7 +67,7 @@ export function runCloseButtons(
   return [
     [
       {
-        text: `Open ${run.projectKey} in Control`,
+        text: `Open ${run.projectKey} on Home`,
         url: `${APP_URL}/control?focus=${encodeURIComponent(run.projectKey)}`,
       },
     ],

@@ -179,7 +179,7 @@ export function AttentionBar({
                 <a
                   href={fleetSurfaceHref("control", f.tab)}
                   className="ui-btn-ghost ui-btn-xs text-micro"
-                  title={`Focus ${f.tab} on Control — Terminal stays empty unless a session is actually running`}
+                  title={`Focus ${f.tab} on Home — Terminal stays empty unless a session is actually running`}
                 >
                   Open on Control
                 </a>

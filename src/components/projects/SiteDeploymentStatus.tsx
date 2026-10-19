@@ -7,7 +7,7 @@ export function SiteDeploymentStatus({ deployment }: { deployment: SiteDeploymen
     <div className="max-w-xl space-y-2" role="status">
       <p className="text-xs text-text-secondary">
         {deployment.liveUrl
-          ? "Site deployed. Follow the build in Control to see when your brief is implemented."
+          ? "Site deployed. Follow the build on Home to see when your brief is implemented."
           : deployment.reason || "Deployment started — waiting for the site to respond."}
       </p>
       {deployment.liveUrl ? (

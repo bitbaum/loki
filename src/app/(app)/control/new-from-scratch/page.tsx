@@ -153,7 +153,7 @@ function NewFromScratchForm() {
     const infra = result.infra ?? [];
     const firstTask = result.firstTask ?? "";
     return (
-      <PageLayout title="Project ready" back={{ href: "/control", label: "Back to Control" }}>
+      <PageLayout title="Project ready" back={{ href: "/control", label: "Back to Home" }}>
         <div className="max-w-2xl space-y-6">
           <div className="ui-card-shell space-y-5 p-5 sm:p-6">
             {/* What Loki already did, automatically */}
@@ -197,7 +197,7 @@ function NewFromScratchForm() {
                 )}
                 <li className="flex items-start gap-2 text-sm text-text-secondary">
                   <Check className="h-4 w-4 mt-0.5 shrink-0 text-status-positive" />
-                  <span>Registered as a Loki project (it&apos;s in Control now)</span>
+                  <span>Registered as a Loki project (it&apos;s on Home now)</span>
                 </li>
               </ul>
             </div>
@@ -342,7 +342,7 @@ function NewFromScratchForm() {
     <PageLayout
       title="Start a new project"
       subtitle="Name it and say what you want to build. Loki creates the GitHub repo and — unless you choose otherwise below — picks the best stack and sets it up for you. No technical decisions required."
-      back={{ href: "/control", label: "Back to Control" }}
+      back={{ href: "/control", label: "Back to Home" }}
     >
       <div className="max-w-2xl space-y-6">
         {/* The card carried an h2 reading "Start a new project" directly under

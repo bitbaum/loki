@@ -102,6 +102,8 @@ export type LaunchAgentPayload = {
   agent: string;
   model?: string;
   initialPrompt?: string;
+  /** Continue the project's last Claude conversation (`claude --resume`). */
+  resume?: boolean;
 };
 
 /**

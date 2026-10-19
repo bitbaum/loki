@@ -78,7 +78,7 @@ export function ProjectProvision({
           // see it: this button is on /projects/[id] and the audit visits
           // /projects only.
           className="ui-btn-chip ui-tap gap-1.5 px-3 text-xs"
-          title="Make a place for the code with a starter in it, and make this project dispatchable in Control — no account anywhere else needed."
+          title="Make a place for the code with a starter in it, and make this project dispatchable from Home — no account anywhere else needed."
         >
           <Rocket className="h-3.5 w-3.5 text-accent-text" />
           Make a place for the code

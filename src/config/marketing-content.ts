@@ -292,12 +292,12 @@ export const DESKTOP_DOWNLOAD = {
   // Top-level back-compat fields (used by /download page metadata + homepage).
   eyebrow: "DESKTOP APP",
   title: "Get Fleet Runner",
-  lede: "Use Loki from your browser or installed phone app. With cloud execution access, agents work while your computer is off. Fleet Runner is an optional desktop connection for work on your own computer. Open Control to see the execution options available to your account.",
+  lede: "Use Loki from your browser or installed phone app. With cloud execution access, agents work while your computer is off. Fleet Runner is an optional desktop connection for work on your own computer. Open Home to see the execution options available to your account.",
 
   hero: {
     eyebrow: "DESKTOP APP",
     title: "Get Fleet Runner",
-    lede: "Use Loki from your browser or installed phone app. With cloud execution access, agents work while your computer is off. Fleet Runner is an optional desktop connection for work on your own computer. Open Control to see the execution options available to your account.",
+    lede: "Use Loki from your browser or installed phone app. With cloud execution access, agents work while your computer is off. Fleet Runner is an optional desktop connection for work on your own computer. Open Home to see the execution options available to your account.",
   },
 
   // Web vs. desktop — answers "do I need this?" in plain language.

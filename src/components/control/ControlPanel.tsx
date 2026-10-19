@@ -42,6 +42,7 @@ import { ProjectOperationsView } from "./ProjectOperationsView";
 import { MissingCLIsBanner } from "@/components/desktop/MissingCLIsBanner";
 import { useAutomationPolicy } from "@/hooks/use-automation-policy";
 import { TonightCard } from "./TonightCard";
+import { HomeComposer } from "./HomeComposer";
 import type { AutoInjectMode } from "@/config/beacon";
 import type { SharedProject } from "@/db/queries/project-access";
 import { SharedProjectsCard } from "@/components/projects/SharedProjectsCard";
@@ -426,6 +427,21 @@ export function ControlPanel({
           // shells out to `gh repo create`); hide the CTA when runtime isn't
           // available so we don't 503 the user on click.
           onBootstrap={runtimeAvailable ? () => setBootstrapOpen(true) : undefined}
+        />
+      )}
+
+      {/* The box: what to build, in which project. Codex's and ChatGPT's
+          home opens on it; it replaced "Start something", which left for
+          /loki, and a second box inside the open project card. */}
+      {data.projects.length > 0 && (
+        <HomeComposer
+          projects={[...nowJobs.map((j) => j.tab), ...data.projects.map((p) => p.tab)]
+            .filter((tab, i, all) => all.indexOf(tab) === i)
+            .map((tab) => ({
+              tab,
+              detail: nowJobs.some((j) => j.tab === tab) ? "Being built now" : undefined,
+            }))}
+          onSend={(tab, text, attachments) => inject(tab, undefined, text, attachments)}
         />
       )}
 

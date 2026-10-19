@@ -527,7 +527,7 @@ function WidgetSetupCard({
                         onClick={() => dispatchAgent("install")}
                         disabled={agentBusy || agentPhase === "queued"}
                         className="ui-btn-secondary gap-1.5"
-                        title="Queues an agent on Control. Does not mean the widget is live."
+                        title="Queues an agent. Does not mean the widget is live."
                       >
                         {agentBusy ? (
                           <Loader2 className="ui-spinner-xs" />

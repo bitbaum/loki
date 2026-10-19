@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Check, ChevronRight, CircleAlert, CircleDashed, Plus } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, CircleAlert, CircleDashed } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { elapsedLabel, type DoneJob, type NowJob } from "./control-now";
@@ -19,39 +19,24 @@ import { elapsedLabel, type DoneJob, type NowJob } from "./control-now";
  * building").
  */
 export function ControlNow({ jobs, nowMs }: { jobs: NowJob[]; nowMs: number }) {
+  // Nothing running: nothing to say. The box above is where work starts; a
+  // card here saying so, with a "Start something" that left for /loki, was a
+  // second way to the same act and the loudest thing on an idle page.
+  if (jobs.length === 0) return null;
   return (
     <section aria-labelledby="control-now-title" className="space-y-3">
       <div className="ui-now-header">
         <h2 id="control-now-title" className="ui-now-heading">
-          {jobs.length > 0 ? "Being built now" : "Nothing is being built right now"}
+          Being built now
         </h2>
-        {jobs.length > 0 && (
-          <Link href="/loki" className="ui-btn-ghost ui-btn-sm shrink-0">
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            New
-          </Link>
-        )}
       </div>
-
-      {jobs.length === 0 ? (
-        <div className="ui-now-empty">
-          <p className="text-sm leading-relaxed text-text-secondary">
-            Tell Loki what to make. While it is being built, it shows up here — tap it to watch it
-            happen.
-          </p>
-          <Link href="/loki" className="ui-btn-primary ui-btn-sm mt-3 w-full sm:w-auto">
-            Start something
-          </Link>
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {jobs.map((job) => (
-            <li key={job.tab}>
-              <JobCard job={job} nowMs={nowMs} />
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="space-y-3">
+        {jobs.map((job) => (
+          <li key={job.tab}>
+            <JobCard job={job} nowMs={nowMs} />
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -95,9 +80,12 @@ export function ControlDone({ jobs }: { jobs: DoneJob[] }) {
             <li key={job.key} className="ui-done-row">
               <Icon className={cn("ui-done-icon", `ui-done-icon-${job.tone}`)} aria-hidden="true" />
               <div className="min-w-0 flex-1">
-                <p className="ui-done-title">{job.title}</p>
+                {/* What was done leads. Leading with the request quoted the
+                    owner's own words back ("The owner looked at this preview
+                    on his phone…") instead of saying what was done. */}
+                <p className="ui-done-title">{job.headline}</p>
                 <p className="ui-done-result">
-                  {job.result}
+                  {job.outcome}
                   <span className="text-text-muted">
                     {" "}
                     · {job.tab} · {timeAgo(job.at)}

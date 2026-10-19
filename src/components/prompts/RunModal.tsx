@@ -304,7 +304,7 @@ export function RunModal({
               title={
                 !targetTab
                   ? openTabs.length === 0
-                    ? "No agent session is open. Dispatch one from Control first."
+                    ? "No agent session is open. Start one from Home first."
                     : "Pick the project whose session this should run in."
                   : `Dispatch into the “${targetTab}” session`
               }

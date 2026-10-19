@@ -177,7 +177,7 @@ async function main() {
             return { top: Math.round(r.top), mid: Math.round(r.left + r.width / 2) };
           }),
         [
-          'a[aria-label="Back to Control"]',
+          'a[aria-label="Back to Home"]',
           ".ui-term-mhead-btn",
           'button[aria-label^="More"]',
           ".ui-term-mhead .ui-term-views",

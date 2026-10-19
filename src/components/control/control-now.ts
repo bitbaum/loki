@@ -44,6 +44,10 @@ export type DoneJob = {
   tone: "good" | "partial" | "bad";
   /** What came of it, in one line. */
   result: string;
+  /** The row's headline: what was done, in the agent's words, else what was asked. */
+  headline: string;
+  /** How it ended: "#12 merged and deployed", "Stopped with an error". */
+  outcome: string;
   at: number;
   /** Where to look at it. The first is the main one. */
   links: { label: string; href: string; external?: boolean }[];
@@ -167,6 +171,11 @@ export function buildDoneJobs(
       key: run.id ?? `${project.tab}:${run.finishedAt}`,
       tab: project.tab,
       title: runTitle(project, run),
+      // What was done, in the agent's words; else what was asked. The
+      // outcome ("#12 merged and deployed", "Stopped with an error") is the
+      // line under it.
+      headline: said ? clip(said) : runTitle(project, run),
+      outcome: shipped ?? words.text,
       tone: shipped ? shipTone(run.payload?.fix?.state) : words.tone,
       result,
       at,

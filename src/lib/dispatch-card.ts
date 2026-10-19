@@ -82,10 +82,10 @@ export function presentDispatchCard(input: DispatchCardInput): DispatchCardView 
   const { live, project, channel } = input;
   const on = channel ? EXECUTOR_COPY.ranOn[channel] : null;
   const watch = project ? { label: "Watch it", href: watchHref(project, channel) } : null;
-  const control = project ? { label: "Open in Control", href: controlHref(project) } : null;
+  const control = project ? { label: "Open on Home", href: controlHref(project) } : null;
   const all =
     input.projectCount > 1
-      ? [{ label: `All ${input.projectCount} in Control`, href: "/control" }]
+      ? [{ label: `All ${input.projectCount} on Home`, href: "/control" }]
       : [];
   const only = (...links: (DispatchCardLink | null)[]) => [
     ...links.filter((l): l is DispatchCardLink => l !== null),

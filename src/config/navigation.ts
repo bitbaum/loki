@@ -1,4 +1,5 @@
 import {
+  House,
   Sun,
   Users,
   Wallet,
@@ -9,7 +10,6 @@ import {
   Calendar,
   Repeat2,
   Bot,
-  Terminal,
   SquareTerminal,
   MessageSquare,
   Headphones,
@@ -38,7 +38,7 @@ export type NavItem = {
   href: string;
   icon: LucideIcon;
   active: boolean;
-  /** Show in the mobile bottom tab bar (Today · Control · Loki · Menu) */
+  /** Show in the mobile bottom tab bar (Home · Projects · Loki · More) */
   mobile: boolean;
 };
 
@@ -54,7 +54,7 @@ export const NAV = {
     href: "/today",
     icon: Sun,
     active: true,
-    mobile: true,
+    mobile: false,
   },
   suggestions: {
     id: "suggestions",
@@ -103,10 +103,10 @@ export const NAV = {
   },
   control: {
     id: "control",
-    label: "Control",
-    description: "Command deck — live agent status, dispatch work",
+    label: "Home",
+    description: "What needs you, what is being built, what got done — and the box to start more",
     href: "/control",
-    icon: Terminal,
+    icon: House,
     active: true,
     mobile: true,
   },
@@ -117,7 +117,7 @@ export const NAV = {
     href: "/projects",
     icon: FolderKanban,
     active: true,
-    mobile: false,
+    mobile: true,
   },
   packages: {
     id: "packages",
@@ -317,33 +317,20 @@ export const NAV = {
 
 // ─── Sidebar sections — SSOT for sidebar groupings ────────────────────────────
 //
-// Loki is an operator console. Its authenticated surface answers three
-// questions, and every sidebar section is exactly one of them:
+// Grouped by THING, not by question. Until 2026-10-19 the sections were three
+// operator questions — Now ("what needs me?"), Fleet, Command — and a person
+// looking for the terminal had to know it "commands". People look for pages
+// by what they are about. So: the work (Home, Projects, Terminal), Loki, what
+// waits for a yes, your day, the fleet's plumbing, and the private book.
+// The phone's bottom bar carries the three you open daily — Home, Projects,
+// Loki — and "More" opens the rest, in these sections.
 //
-//   1. What needs me?       → Now     (Today, Approvals, Feedback)
-//   2. What is my fleet doing? → Fleet   (Control, Projects, Packages, Activity, System)
-//   3. How do I act on it?  → Command (Loki, Terminal, Prompts)
-//
-// A page that answers none of those three does not belong in the sidebar.
-// That test is what dissolved the old "More" section, whose only membership
-// rule was that nobody had decided: it held Approvals (a "needs me" surface),
-// Terminal and Prompts (acting), Activity and System (fleet state), Thoughts
-// (marketing essays) and Fleet (a PUBLIC marketing register rendered inside
-// the signed-in shell). Six unrelated things in one drawer named after the
-// absence of a decision.
-//
-// Two sections sit deliberately OUTSIDE the loop:
-//   • Private — the user's own data (people, money, habits …). Already
-//     PIN-gated, which was the tell: half the sidebar was a different product.
+// Two sections sit deliberately OUTSIDE the sidebar:
 //   • Account — Settings, appearance, Download, sign out. These are reached
 //     from the header account menu, not browsed, so they own no sidebar seat.
-//
-// The public marketing pages (Mission, Philosophy, Roadmap, Investors,
-// Whitepaper, Thoughts, the /fleet register) left the sidebar entirely. They
-// stay in NAV so the command palette can still jump to them, and they are
-// reachable from the public nav where they belong. "Investors" was in the
-// signed-in app navigation; that is the clearest evidence the old taxonomy
-// grouped pages by who built them rather than by what an operator does.
+//   • The public marketing pages (Why, Roadmap, Investors, Whitepaper,
+//     Thoughts, the /fleet register). They stay in NAV so the command palette
+//     can still jump to them, and live in the public nav where they belong.
 
 export type SidebarSection = {
   id: string;
@@ -357,32 +344,40 @@ export type SidebarSection = {
 
 export const SIDEBAR_SECTIONS: SidebarSection[] = [
   {
-    id: "now",
-    label: "Now",
-    question: "What needs me?",
-    // Suggestions sits beside Approvals on purpose: both are Loki offering a
-    // next step for a yes/no. Approvals is what Loki already drafted;
-    // Suggestions is what the records say is worth asking for.
-    items: [NAV.today, NAV.suggestions, NAV.approvals, NAV.feedback],
+    id: "build",
+    label: "Build",
+    question: "What am I building?",
+    // The work itself: Home (what needs you, what is being built, what got
+    // done, and the box to start more), every project, and the sessions.
+    items: [NAV.control, NAV.projects, NAV.terminal],
+  },
+  {
+    id: "ask",
+    label: "Loki",
+    question: "What do I ask Loki?",
+    // The same act three ways: say it, say it with the screen off, or save
+    // it to say again.
+    items: [NAV.loki, NAV.voice, NAV.prompts],
+  },
+  {
+    id: "review",
+    label: "To review",
+    question: "What is waiting for my yes?",
+    // Home lists these as they arrive; each also has a page of its own.
+    items: [NAV.approvals, NAV.feedback, NAV.suggestions],
+  },
+  {
+    id: "day",
+    label: "Your day",
+    question: "What is my day?",
+    items: [NAV.today],
   },
   {
     id: "fleet",
-    label: "Fleet",
-    question: "What is my fleet doing?",
-    // System belongs here and not in a drawer of its own: "what is running"
-    // includes the runtime that runs it — gateway, disk, scheduled jobs.
-    // Packages beside Projects: what the fleet is BUILT FROM is part of what
-    // it is, the same question asked one layer down.
-    items: [NAV.control, NAV.projects, NAV.packages, NAV.activity, NAV.system],
-  },
-  {
-    id: "command",
-    label: "Command",
-    question: "How do I act on it?",
-    // The same act at three altitudes: say it (Loki), type it (Terminal),
-    // or save it to repeat (Prompts) — and say it with the screen off
-    // (No-screen), which is Loki's Talk button made the whole surface.
-    items: [NAV.loki, NAV.voice, NAV.terminal, NAV.prompts],
+    label: "The fleet",
+    question: "What is it all built on?",
+    // The plumbing: rarely visited, there when something is off.
+    items: [NAV.packages, NAV.activity, NAV.system],
   },
   {
     id: "private",
@@ -444,4 +439,5 @@ export const FLEET_SURFACES = [
   { id: "terminal", href: NAV.terminal.href, label: NAV.terminal.label },
 ] as const;
 
-export const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.mobile);
+// Explicit order: what you open first is first.
+export const MOBILE_NAV_ITEMS: NavItem[] = [NAV.control, NAV.projects, NAV.loki];

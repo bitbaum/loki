@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { Loader2, MonitorSmartphone } from "lucide-react";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
@@ -28,7 +27,7 @@ import { TerminalView } from "./TerminalView";
 import { TerminalLokiSheet, useTerminalExplain } from "./TerminalExplain";
 import { TerminalSessionBar, TerminalSourceBar } from "./TerminalModeBar";
 import { SessionComposer } from "./SessionComposer";
-import { TerminalLaunch } from "./TerminalLaunch";
+import { TerminalResume } from "./TerminalResume";
 import { TerminalNewSessionSheet } from "./TerminalNewSessionSheet";
 import { sessionLaunchProps } from "./session-launch";
 import { TerminalSessionNotice } from "./TerminalSessionNotice";
@@ -701,7 +700,7 @@ export function TerminalSurface({
             // repeating a command against an absent target fails identically
             // forever. The old copy said "Retry", so it sent the reader to
             // Control to hunt for a button that is not drawn.
-            `No live session for “${initialTab}”. If you just dispatched work, check its status in Control. Start a session here when you want to launch an agent directly.`
+            `No live session for “${initialTab}”. If you just dispatched work, check its status on Home. Start a session here when you want to launch an agent directly.`
           : null;
       const hint = gatedMessage ?? emptyStateHint({ offline, source, presence, tabHint });
       // `initialTab` is the ATTACHED tab, which is null on exactly this
@@ -709,8 +708,28 @@ export function TerminalSurface({
       // back to the workspace project so these two buttons keep the scope the
       // Profile/Chat/Control/Terminal strip is showing directly above them.
       const emptyStateProject = initialTab ?? fleetProject;
-      const controlHref = fleetSurfaceHref("control", emptyStateProject);
-      const chatHref = fleetSurfaceHref("chat", emptyStateProject);
+      if (!gatedMessage && !offline) {
+        // Allowed and connected, nothing open: what you had, one tap from
+        // each — not a form that read as if it never existed.
+        return (
+          <div className="ui-empty-page">
+            <p className="text-sm text-text-secondary">
+              Nothing is open on the {sourceLabel.toLowerCase()}. Pick up where you left off:
+            </p>
+            {tabHint && <p className="max-w-md text-center text-xs text-text-muted">{tabHint}</p>}
+            <TerminalResume
+              projects={context?.launchable ?? []}
+              agents={agents}
+              defaultAgent={context?.agents.defaultAgent ?? null}
+              activeProject={emptyStateProject}
+              channel={channel}
+              openTabs={tabs}
+              onStarted={setUserSelection}
+              onAllProjects={launchProps ? () => setNewSessionOpen(true) : undefined}
+            />
+          </div>
+        );
+      }
       return (
         <div className="ui-empty-page">
           <MonitorSmartphone className="h-6 w-6 text-text-muted" aria-hidden="true" />
@@ -718,32 +737,7 @@ export function TerminalSurface({
             {offline ? copy.empty.replace("right now", "— builder offline") : copy.empty}
           </p>
           <p className="max-w-md text-center text-xs text-text-muted">{hint}</p>
-          {!gatedMessage && !offline && (
-            <>
-              <TerminalLaunch
-                projects={context?.launchable ?? []}
-                agents={agents}
-                defaultAgent={context?.agents.defaultAgent ?? null}
-                activeProject={emptyStateProject}
-                channel={channel}
-                openTabs={tabs}
-                onStarted={setUserSelection}
-              />
-              <div className="mt-1 flex flex-wrap justify-center gap-x-1 text-xs text-text-muted">
-                <span>Want help planning first?</span>
-                <Link href={chatHref} className="underline underline-offset-2">
-                  Ask Loki
-                </Link>
-                <span aria-hidden="true">·</span>
-                <Link href={controlHref} className="underline underline-offset-2">
-                  Manage the project in Control
-                </Link>
-              </div>
-            </>
-          )}
-          {(gatedMessage || offline) && (
-            <TerminalOfflineActions source={source} presence={presence} onSwitch={setSource} />
-          )}
+          <TerminalOfflineActions source={source} presence={presence} onSwitch={setSource} />
         </div>
       );
     }

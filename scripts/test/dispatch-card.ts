@@ -116,7 +116,7 @@ check("a finished run shows its result", done.primary?.label === "See the result
 const many = presentDispatchCard({ ...base, projectCount: 3 });
 check(
   "a fan-out links to all of them",
-  many.secondary.some((l) => l.label === "All 3 in Control"),
+  many.secondary.some((l) => l.label === "All 3 on Home"),
 );
 
 check("no project, no links", presentDispatchCard({ ...base, project: null }).primary === null);

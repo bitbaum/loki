@@ -289,12 +289,11 @@ const iso = (daysFromNow: number) => new Date(NOW.getTime() + daysFromNow * DAY_
     assert.ok(s.label.length <= 44, `${s.id}: label fits a phone row`);
     assert.ok(Boolean(s.prompt) !== Boolean(s.href), `${s.id}: exactly one of prompt / href`);
   }
-  const now = SIDEBAR_SECTIONS.find((s) => s.id === "now")!;
-  const ids = now.items.map((i) => i.id);
-  assert.equal(
-    ids.indexOf("suggestions") + 1,
-    ids.indexOf("approvals"),
-    "Suggestions sits beside Approvals",
+  const review = SIDEBAR_SECTIONS.find((s) => s.id === "review")!;
+  const ids = review.items.map((i) => i.id);
+  assert.ok(
+    ids.includes("suggestions") && ids.includes("approvals"),
+    "Suggestions sits with Approvals, in what waits for a yes",
   );
 }
 

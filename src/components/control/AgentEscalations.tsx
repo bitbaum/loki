@@ -76,7 +76,7 @@ export function AgentEscalations() {
                 onClick={() => void dismiss(m.id)}
                 className="ui-btn-icon shrink-0"
                 aria-label={`Dismiss escalation from ${m.from}`}
-                title="Mark read — removes it from Control"
+                title="Mark read — removes it from Home"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
