@@ -59,6 +59,18 @@ export type FixRefreshInput = {
    * request to this run, and automatic merging refuses without it.
    */
   runStartedAt: string | Date | null;
+  /**
+   * The client said "Make it live" on a change opened as a draft for them:
+   * take it out of draft first, then decide as for any other pull request.
+   * Only ever true together with autoShip (effectiveAutoShip).
+   */
+  readyDraft?: boolean;
+  /**
+   * A client's change still waiting for their yes. The agent is told to open
+   * it as a draft; one that did not is put back into draft here, so a merge
+   * bot cannot ship it first. Only a pull request this run opened.
+   */
+  keepDraft?: boolean;
 };
 
 function ghInit(token: string): RequestInit {
@@ -80,6 +92,7 @@ async function fetchPr(ref: PrRef, token: string): Promise<GithubPrDetail | null
     base?: { ref?: string };
     created_at?: string;
     body?: string | null;
+    node_id?: string;
   };
   const j = raw;
   if (typeof j.number !== "number" || typeof j.html_url !== "string") return null;
@@ -96,7 +109,39 @@ async function fetchPr(ref: PrRef, token: string): Promise<GithubPrDetail | null
     createdAt: typeof raw.created_at === "string" ? raw.created_at : null,
     baseRef: typeof raw.base?.ref === "string" ? raw.base.ref : null,
     body: typeof raw.body === "string" ? raw.body : null,
+    nodeId: typeof raw.node_id === "string" ? raw.node_id : null,
   };
+}
+
+/**
+ * Put a pull request into or out of draft. A client's change is a draft so
+ * that nothing — not the repository's own merge bot either — can put it live
+ * before the client says so; their "Make it live" is what lifts it. REST has
+ * no endpoint for either, only GraphQL. Never throws.
+ */
+async function setDraft(nodeId: string, token: string, draft: boolean): Promise<boolean> {
+  const mutation = draft ? "convertPullRequestToDraft" : "markPullRequestReadyForReview";
+  try {
+    const res = await fetch(`${GITHUB_API_BASE}/graphql`, {
+      ...ghInit(token),
+      method: "POST",
+      headers: {
+        ...(ghInit(token).headers as Record<string, string>),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: `mutation($id: ID!) { ${mutation}(input: { pullRequestId: $id }) { pullRequest { isDraft } } }`,
+        variables: { id: nodeId },
+      }),
+    });
+    if (!res.ok) return false;
+    const j = (await res.json().catch(() => null)) as {
+      data?: Record<string, { pullRequest?: { isDraft?: boolean } } | undefined>;
+    } | null;
+    return j?.data?.[mutation]?.pullRequest?.isDraft === draft;
+  } catch {
+    return false;
+  }
 }
 
 /** Draft/mergeable + the conclusions of the checks on the PR head — the two
@@ -329,10 +374,27 @@ export async function refreshFixShipping(input: FixRefreshInput): Promise<FixShi
             ref,
             picked.token,
           );
+          if (
+            input.keepDraft &&
+            fix.state === FIX_SHIP_STATE.PR_OPEN &&
+            !pr.draft &&
+            pr.nodeId &&
+            prOpenedByRun(pr.createdAt, input.runStartedAt)
+          )
+            await setDraft(pr.nodeId, picked.token, true);
           // Opted in? Then Loki presses merge on THIS pull request —
           // the one its own dispatch produced — and nothing else. Deciding is
           // pure (auto-ship.ts); this only supplies GitHub's facts and acts.
           if (input.autoShip === true && fix.state === FIX_SHIP_STATE.PR_OPEN && pr.headSha) {
+            // Lifted from draft just now, GitHub recomputes mergeability, so
+            // this pass holds on "unknown" and the next one merges.
+            if (
+              pr.draft &&
+              input.readyDraft &&
+              pr.nodeId &&
+              (await setDraft(pr.nodeId, picked.token, false))
+            )
+              pr.draft = false;
             const readiness = await fetchMergeReadiness(ref, pr.headSha, picked.token);
             const decision = decideAutoShip({
               autoShip: input.autoShip,

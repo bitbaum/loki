@@ -56,7 +56,7 @@ import {
   ACTION_TYPE,
   ENTITY_TYPE,
   FEEDBACK_STATUS,
-  isStrangerSource,
+  waitsForATap,
 } from "@/lib/constants/statuses";
 import { DEFAULT_AUTO_INJECT_MODE } from "@/lib/constants/control";
 import { HOUR_MS } from "@/lib/constants/time";
@@ -209,7 +209,7 @@ async function gatherFacts(userId: string, now: number, { strangers = true } = {
       f.userId === userId &&
       f.status === FEEDBACK_STATUS.NEW &&
       !f.requiresReview &&
-      (strangers || !isStrangerSource(f.source)),
+      (strangers || !waitsForATap(f.source)),
   );
   const plan = planNight({
     budget: settings.night_runs,
@@ -309,7 +309,7 @@ export async function proposeNightFor(
   // An allowance approves with no one looking, so it may build only what
   // someone vouched for: the owner's notes and Loki's own findings. A
   // stranger's words reach a builder by a person's tap, never by the clock.
-  if (planned.verdict.auto && planned.f.open.some((r) => isStrangerSource(r.source))) {
+  if (planned.verdict.auto && planned.f.open.some((r) => waitsForATap(r.source))) {
     planned = await planFor(false);
   }
   const { proposal, runs, estimate, verdict } = planned;

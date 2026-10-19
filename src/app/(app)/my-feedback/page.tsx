@@ -9,6 +9,7 @@ import { FeedbackReportText } from "@/components/feedback/FeedbackReportText";
 import { ReportedTime } from "@/components/feedback/ReportedTime";
 import { OwnerFeedbackActions } from "@/components/feedback/OwnerFeedbackActions";
 import { getProjectAccess } from "@/db/queries/project-access";
+import { GoLiveButton } from "@/components/feedback/GoLiveButton";
 
 export const metadata = { title: "My feedback" };
 
@@ -69,6 +70,7 @@ export default async function MyFeedbackPage() {
 
               <p className="text-sm text-text-secondary">{row.status.detail}</p>
 
+              {row.status.goLive && <GoLiveButton feedbackId={row.id} />}
               {row.status.action && (
                 <a
                   href={row.status.action.href}

@@ -299,6 +299,17 @@ Who filed a note is the server's call, never the sender's
   Loki's own). A plan holding a stranger's note waits for a tap.
 - Opening a tracking link builds nothing. Someone who can build the project
   lands on the inbox instead, and the reporter's claim is left for them.
+- A project's **client** (a member with role `client`) builds on a monthly
+  allowance the owner picks on the People panel (`config/client-allowance.ts`:
+  Ask me / 5 / 20 / 50). Within it, their ask from the project page builds at
+  once (`source = client`, `on_allowance = true`) and the agent opens a
+  DRAFT pull request; it merges only after the client taps **Make it live**
+  (`/api/feedback/[id]/live`, `lib/feedback/go-live.ts`), which lifts the draft
+  and merges once green (`auto-ship.ts`). An explicit auto-ship OFF still means
+  the owner merges. Past the allowance, or with "Ask me", the ask waits for
+  the owner like a visitor's, and the night never builds it unasked. A build
+  that did not start is not counted. `scripts/test/client-seat.ts`,
+  `scripts/test/client-seat-browser.ts`.
 - Telegram carries the operator's own projects only
   (`lib/actions/telegram-for-user.ts`); other accounts hear through push and
   their alerts.

@@ -232,6 +232,8 @@ export function ProjectWorkspaceView({
           liveUrl={userProject?.liveUrl ?? links.prodUrl}
           ownerPass={ownerPass}
           joined={joined}
+          allowance={dossier.viewerAllowance}
+          ready={dossier.viewerReady}
           status={buildStatus}
           workspaceKey={workspaceKey}
         />
@@ -258,6 +260,8 @@ export function ProjectWorkspaceView({
                       liveUrl={userProject?.liveUrl ?? links.prodUrl}
                       ownerPass={ownerPass}
                       joined={joined}
+                      allowance={dossier.viewerAllowance}
+                      ready={dossier.viewerReady}
                     />
                   )}
                   <ProjectBuildStatus

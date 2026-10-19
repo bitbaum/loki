@@ -224,13 +224,19 @@ export function resolveProjectStage(raw: string | null | undefined): ProjectStag
 }
 
 /**
- * Who filed a feedback row: a real visitor (widget), the AI page reviewer, or
- * the inbox synthesizer (whose rows are aggregate BRIEFs, not reports —
- * the digester must not re-cluster them). Self-asserted via the public write
- * token, so treat as a routing hint, not a trust boundary; worst case a
- * visitor mislabels their own report.
+ * Who filed a feedback row: a real visitor (widget), the AI page reviewer, the
+ * inbox synthesizer (whose rows are aggregate BRIEFs, not reports — the
+ * digester must not re-cluster them), the owner or a Builder (proven by a
+ * pass or a session), or the project's client (a session). The server decides
+ * every one of them; a body's claim is never read (feedback/agent-pass.ts).
  */
-export const FEEDBACK_SOURCE_VALUES = ["visitor", "ai_review", "synthesizer", "owner"] as const;
+export const FEEDBACK_SOURCE_VALUES = [
+  "visitor",
+  "ai_review",
+  "synthesizer",
+  "owner",
+  "client",
+] as const;
 export type FeedbackSource = (typeof FEEDBACK_SOURCE_VALUES)[number];
 export const FEEDBACK_SOURCE = {
   VISITOR: "visitor",
@@ -239,11 +245,21 @@ export const FEEDBACK_SOURCE = {
   /** The project's owner, proven by a signed owner pass (feedback/owner-pass.ts)
    *  — the one source ingest never accepts as a self-assertion. */
   OWNER: "owner",
+  /** The project's client, signed in (feedback/ask-in-loki.ts). Builds on
+   *  their monthly allowance; goes live only when they say so. */
+  CLIENT: "client",
 } as const satisfies Record<string, FeedbackSource>;
-/** A note nobody vouched for: a visitor's, or a row older than sources. Only a
- *  person's tap may turn one into a build (lib/autopilot-night.ts). */
-export function isStrangerSource(source: string | null | undefined): boolean {
-  return !source || source === FEEDBACK_SOURCE.VISITOR;
+/** Notes that may build with nobody looking: the owner's own words and
+ *  Loki's own findings. Everything else — a visitor's note, a row older than
+ *  sources, a client's ask past their allowance — waits for a person's tap
+ *  (lib/autopilot-night.ts). */
+const BUILDS_UNASKED: ReadonlySet<string> = new Set([
+  FEEDBACK_SOURCE.OWNER,
+  FEEDBACK_SOURCE.AI_REVIEW,
+  FEEDBACK_SOURCE.SYNTHESIZER,
+]);
+export function waitsForATap(source: string | null | undefined): boolean {
+  return !source || !BUILDS_UNASKED.has(source);
 }
 /** What a widget POST may claim for itself. `owner` is earned, never asserted. */
 export const FEEDBACK_SELF_ASSERTED_SOURCES = ["visitor", "ai_review", "synthesizer"] as const;

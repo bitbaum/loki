@@ -1,4 +1,4 @@
-import { index, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { entities } from "./entities";
 import { users } from "./users";
 
@@ -26,6 +26,10 @@ export const projectMemberships = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     role: text("role").$type<ProjectRole>().notNull(),
+    /** A client's changes a month that build without the owner
+     *  (config/client-allowance.ts). Null: everything they ask waits for the
+     *  owner. Meaningless for other roles. */
+    monthlyChanges: integer("monthly_changes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -62,6 +66,8 @@ export const projectInvitations = pgTable(
      *  (lib/project-invites evaluateInviteAcceptance). */
     email: text("email"),
     role: text("role").$type<ProjectRole>().notNull(),
+    /** Carried onto the membership when accepted (see project_memberships). */
+    monthlyChanges: integer("monthly_changes"),
     tokenHash: text("token_hash").notNull().unique(),
     invitedBy: uuid("invited_by")
       .notNull()

@@ -137,7 +137,15 @@ const PASSING = new Set(["success", "neutral", "skipped"]);
 export function effectiveAutoShip(
   projectAutoShip: boolean | null | undefined,
   feedbackSource: string | null | undefined,
+  /** A client's ask that built on their allowance, and their "Make it live". */
+  client?: { onAllowance?: boolean | null; liveApprovedAt?: Date | string | null },
 ): boolean | null {
+  // A change built on a client's allowance is theirs to put live, and only
+  // theirs: it merges on their "Make it live" and never before, whatever the
+  // project's switch says — except an explicit OFF, where the owner merges
+  // everything by hand. A client's ask the OWNER chose to build ships like
+  // any other: the owner decided.
+  if (client?.onAllowance) return projectAutoShip === false ? false : !!client.liveApprovedAt;
   if (projectAutoShip === true || projectAutoShip === false) return projectAutoShip;
   return feedbackSource === FEEDBACK_SOURCE.OWNER ? true : null;
 }

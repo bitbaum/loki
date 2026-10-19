@@ -848,6 +848,13 @@
       "when": 1792432321801,
       "tag": "0120_project_title",
       "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1792443527996,
+      "tag": "0121_client_allowance",
+      "breakpoints": true
     }
   ]
 }

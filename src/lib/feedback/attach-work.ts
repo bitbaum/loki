@@ -155,7 +155,9 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
           // field silently disables the whole feature. It shipped omitted once
           // (2026-09-11) — the switch saved, the row read "PR #1 · open", and
           // nothing ever decided. The gate test pins the wiring, not just the rule.
-          autoShip: effectiveAutoShip(project?.autoShip, item.source),
+          autoShip: effectiveAutoShip(project?.autoShip, item.source, item),
+          readyDraft: item.onAllowance && !!item.liveApprovedAt,
+          keepDraft: item.onAllowance && !item.liveApprovedAt,
           deployBroken: brokenProjects.has(item.projectId),
         });
         refreshed.set(run.id, fix);

@@ -20,6 +20,8 @@ export type FeedbackPromptFields = {
   source?: string | null;
   /** What was seen while each thing was said (widget/moments-contract.ts). */
   moments?: ReportMoment[] | null;
+  /** A client's ask building on their allowance: it goes live on their word. */
+  onAllowance?: boolean | null;
 };
 
 /**
@@ -68,6 +70,11 @@ export function renderMoments(moments: ReportMoment[] | null | undefined): strin
 const SHIP_INSTRUCTION =
   "Implement includes shipping: use this repository’s normal PR/merge/deploy path. Your job ends at a green pull request — finish with `status: ready`, the PR URL and the commit; do not wait for the merge and do not merge it yourself. Loki follows that PR to merged and deployed and tells the operator when it is their turn, so an open PR is honest progress, not a finished fix. State what to verify at the reported live URL once it deploys. Only report a blocker when the PR could not be opened or its checks are red; a local edit or a finished agent session is not a live fix. Leave feedback resolution to the operator.";
 
+/** A client's change goes live on the client's word only (lib/feedback/auto-ship.ts).
+ *  A draft is what keeps every merge bot — the repository's own too — off it. */
+const CLIENT_SHIP_INSTRUCTION =
+  'This change was asked for by the site\'s client, and they decide when it goes live: if you open a pull request, open it as a DRAFT (`gh pr create --draft`) and never mark it ready or merge it. Loki lifts it when the client says "Make it live".';
+
 function renderElements(feedback: FeedbackPromptFields): string[] {
   if (!feedback.selectedElements?.length) return [];
   const lines = ["Element(s) the visitor pointed at:"];
@@ -97,7 +104,9 @@ export function composeFeedbackFixPrompt(
     ? `The owner of ${projectName} read this report and decided what to change. Do exactly what THE ASK says; the report is the context it came from.`
     : feedback.source === "owner"
       ? `The owner of ${projectName} asked for this change while looking at their live site. Make it.`
-      : `Fix this visitor feedback on ${projectName}.${times}`;
+      : feedback.source === "client"
+        ? `The client of ${projectName} — the person the site is for — asked for this change. Make it.`
+        : `Fix this visitor feedback on ${projectName}.${times}`;
   const lines = [
     heading,
     UNTRUSTED_PREAMBLE,
@@ -118,6 +127,7 @@ export function composeFeedbackFixPrompt(
     "",
     "Scope: address exactly this feedback — no unrelated refactors.",
     SHIP_INSTRUCTION,
+    ...(feedback.onAllowance ? [CLIENT_SHIP_INSTRUCTION] : []),
     fixNoteInstruction(),
   );
   return lines.join("\n");

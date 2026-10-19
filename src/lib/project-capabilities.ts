@@ -42,10 +42,12 @@ const MEMBER_CAPABILITIES: Record<ProjectRole, ProjectCapabilities> = {
   // An editor works the project but never changes who else can reach it.
   // Membership is the owner's decision about their own tenant.
   editor: { canEdit: true, canManageMembers: false },
-  // The client is who the project is for. They follow it and see every fix,
-  // and they are the person the builder answers to — but they do not spend
-  // the owner's runner. Same capabilities as a viewer; a different name,
-  // because a roster that cannot say who is paying is not a roster.
+  // The client is who the project is for. They cannot edit the project, but
+  // what they ask builds on the owner's builder up to the monthly allowance
+  // the owner gave them (project_memberships.monthly_changes, checked in
+  // feedback/ask-in-loki.ts), and each such change goes live on their own
+  // "Make it live" (feedback/go-live.ts). Without an allowance they ask and
+  // the owner decides, like a viewer.
   client: { canEdit: false, canManageMembers: false },
   // A viewer reads. This is the role a reporter is given on a project they
   // filed against, so "can look at the fix, cannot dispatch another one".
@@ -83,8 +85,8 @@ export const ROLE_LABELS: Record<
   },
   client: {
     label: "Client",
-    help: "Client: the person the site is for. What they ask for comes to you first; they see every change as it ships.",
-    can: "follow it as its client: say what you need, see every change as it ships",
+    help: "Client: the person the site is for. What they ask for builds at once, up to the changes a month you choose below, and goes live when they say so. Past that, you decide.",
+    can: "follow it as its client: say what it needs and see every change",
   },
   viewer: {
     label: "Viewer",
@@ -101,6 +103,8 @@ export const ROLE_LABELS: Record<
 export function roleGuide(
   role: ProjectRole,
   names: { site: string | null; owner: string },
+  /** A client's changes left this month; null without an allowance. */
+  allowance: { limit: number; left: number } | null = null,
 ): { steps: string[]; then: string } {
   const site = names.site ?? "the site";
   // Two doors, one outcome. Until 2026-10-18 the site was the only one, and
@@ -113,8 +117,17 @@ export function roleGuide(
   const then =
     role === "editor"
       ? `Loki builds it and you see it on the site. ${names.owner} is kept in the loop; nothing waits for them.`
-      : `${names.owner} sees it first and decides. You are told when it ships.`;
+      : allowance
+        ? `Loki builds it, and it goes live when you say so. ${allowanceLine(allowance, names.owner)}`
+        : `${names.owner} sees it first and decides. You are told when it ships.`;
   return { steps, then };
+}
+
+/** "18 of 20 changes left this month." — and what happens past the last one. */
+export function allowanceLine(allowance: { limit: number; left: number }, owner: string): string {
+  if (allowance.left <= 0)
+    return `You have used this month's ${allowance.limit} changes, so ${owner} decides on the next ones.`;
+  return `${allowance.left} of ${allowance.limit} changes left this month.`;
 }
 
 export function capabilitiesForRole(role: "owner" | ProjectRole): ProjectCapabilities {
@@ -133,8 +146,28 @@ export function askPath(projectId: string): string {
  */
 export function askReply(
   role: "owner" | ProjectRole,
-  outcome: { owner: string; site: string | null; building: boolean; buildNote?: string | null },
+  outcome: {
+    owner: string;
+    site: string | null;
+    building: boolean;
+    buildNote?: string | null;
+    /** A client's changes left this month, after this one. */
+    allowance?: { limit: number; left: number } | null;
+    /** The change will wait for the client's "Make it live". */
+    waitsForYes?: boolean;
+  },
 ): string {
+  if (role === "client" && outcome.allowance) {
+    const left = allowanceLine(outcome.allowance, outcome.owner);
+    if (!outcome.building)
+      return outcome.allowance.left <= 0
+        ? `Sent to ${outcome.owner}. ${left}`
+        : `Saved. Loki could not start it on its own yet, so ${outcome.owner} has been told and will start it. It did not count against your changes.`;
+    const where = outcome.site ? ` on ${outcome.site}` : "";
+    return outcome.waitsForYes
+      ? `Loki is building it now. When it is ready you are asked to make it live. ${left}`
+      : `Loki is building it now; you will see it${where} in a few minutes. ${left}`;
+  }
   if (!capabilitiesForRole(role).canEdit)
     return `Sent to ${outcome.owner}. They decide, and you are told when it ships.`;
   if (outcome.building) {

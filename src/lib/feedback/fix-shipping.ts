@@ -328,6 +328,8 @@ export type GithubPrDetail = {
   baseRef?: string | null;
   /** The description, read only for its design note (parseFixNote). */
   body?: string | null;
+  /** GraphQL id — the only handle "ready for review" accepts. */
+  nodeId?: string | null;
 };
 /** GitHub's workflow run object, only the fields the ledger reads. */
 export type GithubWorkflowRun = {

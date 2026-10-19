@@ -24,7 +24,7 @@ import { deriveFeedbackWork, FEEDBACK_WORK_PHASE } from "@/lib/feedback/work-pha
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { reporterStatusFor, type ReporterStatus } from "@/lib/feedback/reporter-view";
 import { createTourToken, tourSiteUrl } from "@/lib/feedback/tour-token";
-import type { UserFeedbackListItem } from "@/db/queries/site-feedback";
+import type { ReporterFeedbackListItem } from "@/db/queries/site-feedback";
 
 export type ReporterFeedbackRow = {
   id: string;
@@ -47,7 +47,7 @@ export type ReporterFeedbackRow = {
  * cannot reach a reporter's browser just because the page spread the row.
  */
 export async function attachReporterView(
-  items: UserFeedbackListItem[],
+  items: ReporterFeedbackListItem[],
 ): Promise<ReporterFeedbackRow[]> {
   const runIds = [
     ...new Set(items.map((i) => i.dispatchedRunId).filter((id): id is string => !!id)),
@@ -71,7 +71,15 @@ export async function attachReporterView(
       projectName: item.projectName,
       suggestion: item.suggestion,
       createdAt: item.createdAt,
-      status: reporterStatusFor(work, { liveHref, tourHref }),
+      status: reporterStatusFor(work, {
+        liveHref,
+        tourHref,
+        client: {
+          onAllowance: item.onAllowance,
+          liveApprovedAt: item.liveApprovedAt,
+          ownerMerges: item.projectAutoShip === false,
+        },
+      }),
     };
   });
 }

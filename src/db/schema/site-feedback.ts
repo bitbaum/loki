@@ -57,6 +57,13 @@ export const siteFeedback = pgTable(
     suggestion: text("suggestion").notNull(),
     /** A review observation is not permission for autopilot to make a change. */
     requiresReview: boolean("requires_review").notNull().default(false),
+    /** A client's ask that built on their monthly allowance — the count of
+     *  these this month is what the allowance is measured against. */
+    onAllowance: boolean("on_allowance").notNull().default(false),
+    /** The client said "Make it live": their change may merge. A client's
+     *  change never merges without it (lib/feedback/auto-ship.ts). */
+    liveApprovedAt: timestamp("live_approved_at", { withTimezone: true }),
+    liveApprovedBy: uuid("live_approved_by").references(() => users.id, { onDelete: "set null" }),
     captureContext: jsonb("capture_context").$type<FeedbackCaptureContext>(),
     /** Optional name/email the visitor left for follow-up. */
     contact: text("contact"),

@@ -30,6 +30,7 @@
  */
 import { FEEDBACK_WORK_PHASE, type FeedbackWorkView } from "@/lib/feedback/work-phase";
 import { FIX_SHIP_STATE } from "@/lib/feedback/fix-shipping";
+import { AUTO_SHIP_HOLD } from "@/lib/feedback/auto-ship";
 
 /** Visual weight for the status chip — maps to the ui-tag-* variants. */
 export type ReporterTone = "neutral" | "accent" | "warning" | "positive";
@@ -42,7 +43,23 @@ export type ReporterStatus = {
   detail: string;
   /** The reporter's own next move, when they have one. */
   action: { href: string; label: string } | null;
+  /** A client's change, written and waiting for their "Make it live". */
+  goLive?: boolean;
 };
+
+/** A change built on a client's allowance: it goes live on their word. */
+export type ClientChange = {
+  onAllowance: boolean;
+  liveApprovedAt: Date | string | null;
+  /** The owner merges everything on this project by hand (auto-ship OFF). */
+  ownerMerges: boolean;
+};
+
+/** Holds that clear by themselves: GitHub still deciding, checks still running. */
+const PASSING_HOLDS: ReadonlySet<string> = new Set([
+  AUTO_SHIP_HOLD.MERGE_UNKNOWN,
+  AUTO_SHIP_HOLD.CHECKS_NOT_GREEN,
+]);
 
 /**
  * A fix that is written but not yet on the live site. Split out because the
@@ -63,7 +80,11 @@ export function reporterStatusFor(
   /** `tourHref`: the live page with the reporter's own walkthrough ticket
    *  (tour-token.ts, audience "reporter"). When present it replaces the bare
    *  link — "check the live page" left them to find the change themselves. */
-  opts: { liveHref?: string | null; tourHref?: string | null } = {},
+  opts: {
+    liveHref?: string | null;
+    tourHref?: string | null;
+    client?: ClientChange | null;
+  } = {},
 ): ReporterStatus {
   const liveHref = opts.liveHref ?? null;
   const checkLive = opts.tourHref
@@ -114,6 +135,33 @@ export function reporterStatusFor(
 
     case FEEDBACK_WORK_PHASE.NEEDS_VERIFY: {
       const ship = work.ship?.state ?? null;
+      const client = opts.client?.onAllowance && !opts.client.ownerMerges ? opts.client : null;
+      if (client && ship === FIX_SHIP_STATE.PR_OPEN) {
+        if (!client.liveApprovedAt)
+          return {
+            label: "Ready for you",
+            tone: "accent",
+            detail: "The change is written. Make it live when you want it on the site.",
+            action: null,
+            goLive: true,
+          };
+        const hold = work.ship?.autoShipHold ?? null;
+        return hold && !PASSING_HOLDS.has(hold)
+          ? {
+              label: "Going live",
+              tone: "accent",
+              detail:
+                "You said make it live. This one needs the site's owner to finish it; they have been told.",
+              action: null,
+            }
+          : {
+              label: "Going live",
+              tone: "accent",
+              detail:
+                "You said make it live. It goes live once its checks pass; the site's owner has been told and steps in if anything stops it.",
+              action: null,
+            };
+      }
       if (ship && ON_THE_WAY.has(ship)) {
         return {
           label: "Fix on the way",
