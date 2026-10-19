@@ -3177,6 +3177,60 @@
   .ui-term-mhead-ghost {
     @apply inline-flex size-11 shrink-0 items-center justify-center rounded-full text-text-primary transition-colors active:bg-surface-overlay;
   }
+  /* Sessions (shell/SessionsDrawer): what is open now, in words, then every
+     other project one tap from its session. A list with dividers, one
+     section label each; no colour but the working pulse. Full screen on a
+     phone, a right-hand panel from md. */
+  .ui-sessions {
+    @apply fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-surface-page md:inset-y-0 md:left-auto md:right-0 md:w-full md:max-w-md md:border-l md:border-border-default md:shadow-panel-strong;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .ui-sessions-head {
+    @apply sticky top-0 z-10 flex items-start gap-3 border-b border-border-subtle bg-surface-page px-4 py-3;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+  .ui-sessions-title {
+    @apply text-lg font-semibold text-text-primary;
+  }
+  .ui-sessions-sub {
+    @apply text-sm text-text-tertiary;
+  }
+  .ui-sessions-body {
+    @apply flex flex-col gap-6 px-4 py-4;
+  }
+  .ui-sessions-body > section {
+    @apply flex flex-col gap-2;
+  }
+  .ui-sessions-label {
+    @apply text-micro font-semibold uppercase tracking-caps text-text-muted;
+  }
+  .ui-sessions-note {
+    @apply text-sm text-text-secondary;
+  }
+  .ui-sessions-list {
+    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-base;
+  }
+  .ui-sessions-row {
+    @apply flex min-h-15 w-full items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-raised active:bg-surface-overlay;
+  }
+  .ui-sessions-row[aria-current="page"] {
+    @apply bg-surface-raised;
+  }
+  .ui-sessions-name {
+    @apply block truncate text-base font-medium text-text-primary;
+  }
+  .ui-sessions-line {
+    @apply flex min-w-0 items-center gap-1.5 text-sm text-text-tertiary;
+  }
+  .ui-sessions-chev {
+    @apply h-4 w-4 shrink-0 text-text-muted;
+  }
+  .ui-sessions-search {
+    @apply w-full rounded-xl border border-border-default bg-surface-base py-2.5 pl-10 pr-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:border-border-strong;
+  }
+  .ui-sessions-search-icon {
+    @apply pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted;
+  }
   /* The terminal with nothing open: your projects, each one tap from its
      session (TerminalResume). Rows, not a form. */
   .ui-term-resume {
@@ -3443,11 +3497,14 @@
   }
   /* The conversation view's next steps: reply rows under the answer
      (ReplySteps), not chips over the box. */
+  /* One grouped list, a divider between rows: loose arrow lines floated
+     down the thread with as much air as a paragraph, and read as three more
+     things said rather than three answers to pick from (owner, 2026-10-19). */
   .ui-reply-steps {
-    @apply flex flex-col gap-0.5 pt-1;
+    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle;
   }
   .ui-reply-step {
-    @apply flex min-h-11 w-full items-start gap-2.5 rounded-lg px-1 py-2.5 text-left text-sm text-text-secondary transition-colors hover:text-text-primary active:bg-surface-overlay;
+    @apply flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:text-text-primary active:bg-surface-overlay;
   }
   /* "What's going on?" is the header's ⋮ on a phone; in the conversation view
      it is not repeated over the box (the terminal view keeps it, as its
@@ -4317,6 +4374,58 @@
   }
   .ui-callout-warning {
     @apply flex items-start gap-3 rounded-xl border border-status-warning/20 bg-status-warning-subtle px-4 py-3 text-sm;
+  }
+  /* Home's one row to the project list on a phone (control/home-parts). */
+  .ui-home-all-projects {
+    @apply flex min-h-14 items-center gap-3 rounded-2xl border border-border-default bg-surface-base px-4 text-sm font-medium text-text-primary transition-colors active:bg-surface-overlay;
+  }
+  .ui-home-all-projects-count {
+    @apply text-sm tabular-nums text-text-muted;
+  }
+  /* "Needs you" on Home (control/AttentionBar). A card per thing that went
+     wrong: a title in words, the reason under it at full width, and the fix
+     as its one button — not a red strip with the text in a third of it. */
+  .ui-needs {
+    @apply flex flex-col gap-3;
+  }
+  .ui-needs-card {
+    @apply flex flex-col gap-2 rounded-2xl border border-border-default bg-surface-base px-4 py-3;
+  }
+  .ui-needs-head {
+    @apply flex items-start gap-2;
+  }
+  .ui-needs-icon {
+    @apply mt-1 h-4 w-4 shrink-0 text-status-negative;
+  }
+  .ui-needs-title {
+    @apply min-w-0 flex-1 text-base font-medium leading-snug text-text-primary;
+  }
+  .ui-needs-times {
+    @apply font-normal text-text-muted;
+  }
+  .ui-needs-dismiss {
+    @apply -mr-2 -mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:text-text-primary active:bg-surface-overlay;
+  }
+  .ui-needs-body {
+    @apply pl-6 text-sm leading-relaxed text-text-secondary;
+  }
+  .ui-needs-when {
+    @apply whitespace-nowrap text-text-muted;
+  }
+  .ui-needs-actions {
+    @apply flex flex-wrap gap-2 pl-6 empty:hidden;
+  }
+  .ui-needs-list {
+    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-default bg-surface-base;
+  }
+  .ui-needs-row {
+    @apply flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left transition-colors active:bg-surface-overlay disabled:cursor-default;
+  }
+  .ui-needs-row-name {
+    @apply block truncate text-sm font-medium text-text-primary;
+  }
+  .ui-needs-row-why {
+    @apply block truncate text-xs text-text-tertiary;
   }
   .ui-callout-negative {
     @apply flex items-start gap-3 rounded-xl border border-status-negative/30 bg-status-negative-subtle px-4 py-3 text-sm;
@@ -5521,10 +5630,13 @@
     @apply flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left transition-colors active:bg-surface-overlay;
   }
   .ui-inbox-group-label {
-    @apply min-w-0 flex-1 truncate text-sm text-text-secondary;
+    @apply min-w-0 flex-1 truncate text-sm text-text-primary;
   }
+  /* A fixed column, right-aligned: "13" and "1" in rows above each other
+     sat at different places (owner, 2026-10-19: "the numbers there are not
+     aligned"). */
   .ui-inbox-group-count {
-    @apply shrink-0 text-sm font-medium tabular-nums text-text-primary;
+    @apply w-8 shrink-0 text-right text-sm font-medium tabular-nums text-text-primary;
   }
   .ui-inbox-group-body {
     @apply border-t border-border-subtle bg-surface-base px-4 py-3;
@@ -5943,29 +6055,57 @@
   .ui-notification-title {
     @apply text-sm font-semibold text-text-primary;
   }
+  /* Alerts — the bell's panel and /system (components/alerts/AlertList).
+     One thing to read and one thing to do per row: no severity word in
+     capitals, no tinted box, a dot only when it matters. The title link's
+     ::after makes the whole row the action; the row's own buttons sit above
+     it. */
+  .ui-alert-list {
+    @apply divide-y divide-border-subtle;
+  }
+  /* Inside a card, the rows run to the card's edges: the card's padding is
+     the frame, the dividers are the list. */
+  .ui-alert-card-list {
+    @apply -mx-4 -mb-4 border-t border-border-subtle sm:-mx-5 sm:-mb-5 md:-mx-6 md:-mb-6;
+  }
+  .ui-alert-row {
+    @apply relative px-4 py-3.5 transition-colors hover:bg-surface-overlay/40;
+  }
+  .ui-alert-row-link::after {
+    content: "";
+    @apply absolute inset-0;
+  }
+  .ui-alert-dot-urgent,
+  .ui-alert-dot-warning,
+  .ui-alert-dot-none {
+    @apply mt-1.5 h-2 w-2 shrink-0 rounded-full;
+  }
+  .ui-alert-dot-urgent {
+    @apply bg-status-negative;
+  }
+  .ui-alert-dot-warning {
+    @apply bg-status-warning;
+  }
+  .ui-alert-title {
+    @apply block text-sm font-medium leading-snug text-text-primary;
+  }
+  .ui-alert-summary {
+    @apply mt-1 text-sm leading-snug text-text-secondary;
+  }
+  .ui-alert-details {
+    @apply mt-2 whitespace-pre-line break-words rounded-lg bg-surface-overlay px-3 py-2 text-xs leading-relaxed text-text-tertiary;
+  }
+  .ui-alert-foot {
+    @apply mt-1 flex items-center gap-3 text-xs text-text-tertiary;
+  }
+  .ui-alert-quiet {
+    @apply relative z-10 inline-flex min-h-11 items-center text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-50;
+  }
+  .ui-alert-action {
+    @apply relative z-10 ml-auto inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-xs font-medium text-text-primary ring-1 ring-border-default transition-colors hover:bg-surface-overlay;
+  }
   .ui-notification-list {
-    @apply max-h-[min(32rem,60vh)] divide-y divide-border-subtle overflow-y-auto;
-  }
-  .ui-notification-item {
-    @apply flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:gap-4;
-  }
-  .ui-notification-item-main {
-    @apply min-w-0 flex-1;
-  }
-  .ui-notification-item-title {
-    @apply min-w-0 text-sm font-medium leading-snug text-text-primary;
-  }
-  .ui-notification-item-description {
-    @apply mt-1 text-xs leading-snug text-text-secondary;
-  }
-  .ui-notification-item-meta {
-    @apply mt-0.5 text-xs text-text-tertiary;
-  }
-  .ui-notification-severity {
-    @apply shrink-0 text-micro font-medium uppercase tracking-wide;
-  }
-  .ui-notification-item-actions {
-    @apply flex shrink-0 items-center justify-end gap-1.5 sm:justify-start;
+    @apply max-h-[min(32rem,70vh)] overflow-y-auto;
   }
   .ui-notification-empty {
     @apply px-4 py-8 text-center text-xs text-text-muted;
@@ -6254,10 +6394,13 @@
     @apply min-w-0;
   }
   .ui-project-mobile-sections {
-    @apply sticky top-0 z-20 flex items-center justify-between gap-4 border-y border-border-subtle bg-surface-page py-2 sm:hidden;
+    @apply sticky top-0 z-20 flex items-center bg-surface-page py-2 sm:hidden;
   }
   .ui-project-section-select {
-    @apply min-h-11 min-w-0 max-w-full rounded-lg border border-border-default bg-surface-base px-3 text-sm font-medium text-text-primary;
+    @apply min-h-11 w-full min-w-0 appearance-none rounded-xl border border-border-default bg-surface-base pl-3.5 pr-10 text-base font-medium text-text-primary;
+  }
+  .ui-project-section-chevron {
+    @apply pointer-events-none absolute right-3.5 h-4 w-4 text-text-tertiary;
   }
   .ui-project-tabs {
     @apply sticky top-0 z-20 hidden gap-5 border-b border-border-subtle bg-surface-page sm:flex;
@@ -6273,6 +6416,35 @@
   }
   .ui-project-section-title {
     @apply text-base font-semibold text-text-primary;
+  }
+  /* A settings list (components/ui/setting-rows.tsx): what a setting is and
+     its value on the left, its actions on the right — under it on a phone. */
+  .ui-setting-rows {
+    @apply flex flex-col divide-y divide-border-subtle;
+  }
+  .ui-setting-row {
+    @apply flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6;
+  }
+  .ui-setting-row-title {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-setting-row-note {
+    @apply mt-1 text-sm leading-relaxed text-text-secondary;
+  }
+  .ui-setting-actions {
+    @apply flex shrink-0 flex-wrap items-center gap-2;
+  }
+  /* Every action in a setting row is ONE shape, whichever control drew it —
+     ghost, secondary, icon or text link side by side at three sizes was the
+     page the owner called "ugly" (2026-10-19). Direct children, and one
+     wrapper deep (LiveUrlField, OrangeCatPublishButton, ProjectSharePanel),
+     so a dialog a control opens keeps its own buttons. */
+  :is(.ui-setting-actions, .ui-setting-actions > span, .ui-setting-actions > div)
+    > :is(.ui-btn-ghost, .ui-btn-secondary, .ui-btn-icon, .ui-btn-text-cancel) {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl border border-border-default bg-surface-base px-3.5 py-0 text-sm font-medium text-text-primary transition-colors hover:border-border-strong hover:bg-surface-raised disabled:opacity-40;
+  }
+  .ui-setting-actions > span {
+    @apply inline-flex flex-wrap items-center gap-2;
   }
   .ui-project-current-work {
     @apply flex flex-col gap-5 rounded-2xl border border-border-subtle bg-surface-base p-5 sm:p-6;
@@ -7124,8 +7296,24 @@
   .ui-claude-chat {
     @apply relative flex h-full min-h-0 flex-col;
   }
+  /* Starts under the header, as the Claude and ChatGPT apps do. The shared
+     thread column bottom-anchors (mt-auto) so a two-line Loki chat meets its
+     box; a session read in this view is a record, and anchored to the box it
+     opened on ~200px of nothing above the first message (owner, 2026-10-19). */
   .ui-claude-chat-inner {
     @apply mx-auto w-full max-w-3xl px-1 sm:px-3;
+  }
+  .ui-claude-chat .ui-loki-thread-inner {
+    @apply mt-0;
+  }
+  /* "Dispatch details" under a sent task: a 44px row with its words centred,
+     reaching into the bubble's own padding. As a bare <summary> its text sat
+     at the top of the 44px and left a blank band under it. */
+  .ui-bubble-details {
+    @apply -mb-2.5;
+  }
+  .ui-bubble-details-summary {
+    @apply flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-xs text-text-secondary [&::-webkit-details-marker]:hidden;
   }
   .ui-claude-chat-empty {
     @apply flex flex-col items-center justify-center gap-3 py-16 text-center;
@@ -7174,7 +7362,7 @@
   /* The terminal pane is showing the server's copy of its last screen while
      the live one is on its way (TerminalView). */
   .ui-term-updating {
-    @apply pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-2.5 py-1 text-xs text-text-secondary;
+    @apply pointer-events-none absolute inset-x-0 top-0 h-0.5 animate-pulse bg-text-muted;
   }
   /* Claude Code's own answer to a model or effort change, in the
      conversation where it happened: a quiet centred line, not a message. */
@@ -8680,7 +8868,8 @@
      lines (found walking the live demo, 2026-10-17).
      `a[href]` above is (0,1,1) — the attribute counts as a class — so a
      bare class loses to it; the opt-out names the element too. */
-  a[href].ui-projects-row-link {
+  a[href].ui-projects-row-link,
+  a[href].ui-alert-row-link {
     min-height: 0;
   }
 }

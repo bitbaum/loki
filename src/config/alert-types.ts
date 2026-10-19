@@ -52,12 +52,21 @@ export type AlertTypeSpec = {
    * approvals, and "36 feedback items need triage" beside "6 to triage".
    */
   restates?: "approvals" | "feedback";
+  /**
+   * The alert's one button, as a verb naming where it goes ("Review",
+   * "Fix in Projects"). Every row used to say "View" beside a bare tick, and
+   * nothing on it said what tapping would do (owner, 2026-10-19: "not super
+   * helpful"). Omitted, the button is named for its destination
+   * (ALERT_DESTINATION_ACTIONS) — for a type whose link depends on the case.
+   */
+  action?: string;
 };
 
 export const ALERT_TYPES = {
   telemetry_stale: {
     label: "A telemetry path stopped recording",
     audience: "system",
+    action: "See what stopped",
     producer: "src/app/api/crons/check-telemetry/route.ts",
   },
   runner_version_stale: {
@@ -68,73 +77,87 @@ export const ALERT_TYPES = {
   project_repo_missing: {
     label: "A project points at a repository GitHub cannot find",
     audience: "system",
+    action: "Fix in Projects",
     producer: "src/app/api/crons/check-project-repos/route.ts",
   },
   model_rot: {
     label: "A pinned AI model id no longer exists upstream",
     audience: "system",
+    action: "See which",
     producer: "src/app/api/crons/check-model-ids/route.ts",
   },
   runner_stall: {
     label: "A queued command is not being executed",
     audience: "system",
+    action: "Open Home",
     producer: "src/app/api/crons/check-runner-stall/route.ts",
   },
   pending_approvals: {
     label: "Actions are waiting for the operator",
     audience: "operator",
     restates: "approvals",
+    action: "Review",
     producer: "src/app/api/crons/check-pending-approvals/route.ts",
   },
   run_escalation: {
     label: "A project's escalation ladder reached the human rung",
     audience: "operator",
+    action: "Open Home",
     producer: "src/db/queries/run-escalations.ts",
   },
   goal_capped: {
     label: "A goal stopped after too many attempts",
     audience: "operator",
+    action: "Open Home",
     producer: "src/lib/orchestration/gate-and-close.ts",
   },
   new_feedback: {
     label: "New feedback needs triage",
     audience: "operator",
     restates: "feedback",
+    action: "Open Feedback",
     producer: "src/lib/feedback/notify-new.ts",
   },
   studio_request: {
     label: "A studio request or partner application needs a person",
     audience: "operator",
+    action: "Review",
     producer: "src/lib/studio/notify.ts",
   },
   build_request: {
     label: "A new account asked for a build on /change",
     audience: "operator",
+    action: "Review",
     producer: "src/lib/build-requests/notify.ts",
   },
   fix_live: {
     label: "A visitor's fix reached the live site",
     audience: "operator",
+    action: "See it",
     producer: "src/lib/feedback/notify-shipped.ts",
   },
   fix_deploy_failed: {
     label: "A merged fix failed to deploy — the site still shows the old version",
     audience: "operator",
+    action: "See what failed",
     producer: "src/lib/feedback/notify-shipped.ts",
   },
   feedback_needs_you: {
     label: "Feedback work stalled or needs Check live",
     audience: "operator",
+    action: "Open Feedback",
     producer: "src/lib/feedback/notify-needs-you.ts",
   },
   gateway_down: {
     label: "WhatsApp and the Telegram chat are not being read — the gateway is down",
     audience: "system",
+    action: "See details",
     producer: "src/app/api/crons/check-gateway/route.ts",
   },
   orangecat_link_broken: {
     label: "OrangeCat rejected the account's token — publishing is paused",
     audience: "system",
+    action: "Reconnect",
     producer: "src/lib/integrations/orangecat-identity.ts",
   },
 } as const satisfies Record<string, AlertTypeSpec>;
@@ -157,4 +180,25 @@ export function isSystemAlertType(type: string): boolean {
 
 export function isRegisteredAlertType(type: string): type is AlertType {
   return Object.prototype.hasOwnProperty.call(ALERT_TYPES, type);
+}
+
+/** A button named for where it goes, by the page's path. */
+const ALERT_DESTINATION_ACTIONS: Record<string, string> = {
+  "/approvals": "Review",
+  "/feedback": "Open Feedback",
+  "/projects": "Open Projects",
+  "/control": "Open Home",
+  "/system": "Open System",
+  "/settings": "Open Settings",
+  "/download": "Get the update",
+};
+
+/** The alert's one button. An unregistered (orphan) type still gets one. */
+export function alertActionLabel(type: string, actionUrl: string | null): string {
+  const own: string | undefined = isRegisteredAlertType(type)
+    ? (ALERT_TYPES[type] as AlertTypeSpec).action
+    : undefined;
+  if (own) return own;
+  const path = (actionUrl ?? "").split(/[?#]/)[0]!.replace(/\/$/, "");
+  return ALERT_DESTINATION_ACTIONS[path] ?? "Open";
 }

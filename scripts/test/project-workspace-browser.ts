@@ -192,6 +192,40 @@ async function main() {
         assert.equal(await textarea.inputValue(), "Draft that must survive section changes.");
         await page.keyboard.press("Escape");
         await sections.selectOption("settings");
+        // Every action in a settings row is one shape: "Website", "Own
+        // domain", "Share", "List publicly" were ghost text beside a bordered
+        // "Open repository" and a bare pencil (owner, 2026-10-19).
+        const shapes = await page.evaluate(() =>
+          [...document.querySelectorAll(".ui-setting-actions :is(a, button)")]
+            .filter((e) => !e.closest("[role=dialog]") && e.getClientRects().length > 0)
+            .map((e) => {
+              const s = getComputedStyle(e);
+              return {
+                label: (e.textContent ?? "").trim() || e.getAttribute("aria-label"),
+                h: Math.round(e.getBoundingClientRect().height),
+                border: s.borderTopWidth,
+                radius: s.borderTopLeftRadius,
+                size: s.fontSize,
+              };
+            }),
+        );
+        assert.ok(shapes.length >= 4, `settings actions found: ${JSON.stringify(shapes)}`);
+        for (const key of ["h", "border", "radius", "size"] as const) {
+          assert.equal(
+            new Set(shapes.map((s) => s[key])).size,
+            1,
+            `every settings action shares one ${key}: ${JSON.stringify(shapes)}`,
+          );
+        }
+        assert.ok(shapes[0]!.h >= 44, "and it is a finger's size");
+        await page
+          .locator(".ui-setting-rows")
+          .last()
+          .screenshot({ path: path.join(out, `${width}-settings-sharing.png`) });
+        await page
+          .locator(".ui-setting-rows")
+          .first()
+          .screenshot({ path: path.join(out, `${width}-settings-website.png`) });
       } else if (width === 1440) {
         await page.getByRole("tab", { name: "Story", exact: true }).click();
         await page.getByRole("tab", { name: "Story", exact: true }).press("End");

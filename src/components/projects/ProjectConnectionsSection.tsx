@@ -1,8 +1,14 @@
 import { GitBranch } from "lucide-react";
+import { SettingRow, SettingRows } from "@/components/ui/setting-rows";
 import { LiveUrlField } from "./LiveUrlField";
 import { OwnDomainButton } from "./OwnDomainButton";
 import { RegisterSiteButton } from "./RegisterSiteButton";
 import type { siteAddresses } from "@/lib/site-domain";
+
+/** The repository's owner/name, which is what a person recognises it by. */
+function repoName(url: string): string {
+  return url.replace(/^https?:\/\/(?:www\.)?github\.com\//, "").replace(/\.git$/, "");
+}
 
 /** Website configuration and code destinations, with the existing access checks. */
 export function ProjectConnectionsSection({
@@ -27,40 +33,51 @@ export function ProjectConnectionsSection({
       <h2 id="project-website-title" className="ui-project-section-title">
         Website and code
       </h2>
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-text-primary">Website address</p>
-            <p className="mt-1 break-all text-sm text-text-secondary">
-              {liveUrl ?? "No website address set."}
-            </p>
-          </div>
+      <SettingRows>
+        <SettingRow
+          title="Website address"
+          note={<span className="break-all">{liveUrl ?? "Not set yet."}</span>}
+        >
           <LiveUrlField
             userProjectId={userProjectId}
             liveUrl={liveUrl}
             readonly={false}
             ownerPass={ownerPass}
           />
-        </div>
+        </SettingRow>
         {siteAddress && (
-          <OwnDomainButton
-            projectId={projectId}
-            ownDomain={siteAddress.ownDomain}
-            freeHost={siteAddress.freeHost}
-          />
-        )}
-        <RegisterSiteButton projectId={projectId} hasRepo={hasRepo} liveUrl={liveUrl} />
-        {repoUrl && (
-          <a
-            href={repoUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="ui-btn-secondary min-h-11 gap-2"
+          <SettingRow
+            title="Your own domain"
+            note={
+              siteAddress.ownDomain
+                ? `The site is at ${siteAddress.ownDomain}.`
+                : "Use an address you own instead of the free one."
+            }
           >
-            <GitBranch className="h-4 w-4" aria-hidden="true" /> Open repository
-          </a>
+            <OwnDomainButton
+              projectId={projectId}
+              ownDomain={siteAddress.ownDomain}
+              freeHost={siteAddress.freeHost}
+            />
+          </SettingRow>
         )}
-      </div>
+        {/* Only while there is code and no site yet — the button's own rule. */}
+        {hasRepo && !liveUrl && (
+          <SettingRow
+            title="Deployment"
+            note="The code has no site yet. This sets one up, or tries again."
+          >
+            <RegisterSiteButton projectId={projectId} hasRepo={hasRepo} liveUrl={liveUrl} />
+          </SettingRow>
+        )}
+        {repoUrl && (
+          <SettingRow title="Code" note={<span className="break-all">{repoName(repoUrl)}</span>}>
+            <a href={repoUrl} target="_blank" rel="noreferrer" className="ui-btn-secondary gap-2">
+              <GitBranch className="h-4 w-4" aria-hidden="true" /> Open repository
+            </a>
+          </SettingRow>
+        )}
+      </SettingRows>
     </section>
   );
 }

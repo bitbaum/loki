@@ -118,14 +118,17 @@ export async function GET(req: NextRequest) {
         userId,
         type: ALERT_TYPE,
         severity: "warning",
-        title: `${gone.length} project${gone.length === 1 ? "" : "s"} point at a repository that is gone`,
+        title:
+          gone.length === 1
+            ? "A project points at a repository that no longer exists"
+            : `${gone.length} projects point at repositories that no longer exist`,
         description:
-          `GitHub returns 404 for these. The repo was deleted, made private, or ` +
-          `renamed away without a redirect — none of which Loki can repair on its ` +
-          `own, because there is nothing to redirect to.\n\n${detail}\n\n` +
-          `Until this is fixed, any dispatch or clone for these projects starts ` +
-          `from an address that does not resolve. Point the project at the right ` +
-          `repo on /projects, or clear the field if it no longer has one.`,
+          `GitHub cannot find it — it was deleted, renamed or made private. Agents cannot ` +
+          `start work there until you pick the right repository, or remove it from the ` +
+          `project.\n\n${detail}\n\n` +
+          `GitHub answers 404 and there is no redirect to follow, so Loki cannot repair ` +
+          `this on its own; every dispatch or clone starts from an address that does not ` +
+          `resolve.`,
         actionUrl: "/projects",
         metadata: { gone },
       });

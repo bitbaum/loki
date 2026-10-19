@@ -57,8 +57,12 @@ export async function GET(req: NextRequest) {
         userId: owner.id,
         type: ALERT_TYPE,
         severity: "urgent",
-        title: `${broken} pinned AI model${broken === 1 ? " is" : "s are"} unusable`,
+        title:
+          broken === 1
+            ? "An AI model Loki relies on stopped working"
+            : `${broken} AI models Loki relies on stopped working`,
         description:
+          `The features below are failing until the model names in the code are updated.\n\n` +
           `${rotted} removed from the provider, ${refused} still listed but refusing the request ` +
           `Loki builds. Every feature below is failing now, silently:\n${detail}\n\n` +
           `Fix: a removed id needs a live one in the constant it comes from; a refused id needs the ` +

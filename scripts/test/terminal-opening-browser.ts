@@ -86,21 +86,38 @@ async function main() {
     await page.screenshot({ path: ".tmp/terminal-opening/waiting-390.png" });
 
     await frame("claude> remembered screen", true);
-    await page.getByText("Last screen · updating").waitFor();
+    await page.locator(".ui-term-updating").waitFor({ state: "attached" });
     assert.equal(await page.getByText("Opening the screen…").count(), 0, "the screen replaces it");
+    // Marked on the pane's EDGE, never over the output (owner, 2026-10-19:
+    // the pill covered the first lines of the remembered screen).
+    const cover = await page.evaluate(() => {
+      const bar = document.querySelector(".ui-term-updating")!.getBoundingClientRect();
+      const rows = document.querySelector(".xterm-rows")!.getBoundingClientRect();
+      return { barH: bar.height, barBottom: bar.bottom, rowsTop: rows.top };
+    });
+    assert.ok(cover.barH <= 2, `the mark is an edge line (${cover.barH}px), not a label`);
+    assert.ok(
+      cover.barBottom <= cover.rowsTop + 2,
+      "it is the pane's top edge, not a label over the first line",
+    );
+    assert.equal(
+      await page.locator(".ui-term-updating").textContent(),
+      "Last screen · updating",
+      "a screen reader still hears what it is",
+    );
     await page.screenshot({ path: ".tmp/terminal-opening/cached-390.png" });
 
     // The remembered screen is not proof of life: the stall watchdog still
     // runs, and only a live frame clears it.
     await frame("claude> live screen", false);
-    await page.waitForFunction(() => !document.body.textContent?.includes("Last screen"));
+    await page.locator(".ui-term-updating").waitFor({ state: "detached" });
     assert.equal(await page.getByRole("status").count(), 0, "nothing over the live screen");
     await page.screenshot({ path: ".tmp/terminal-opening/live-390.png" });
 
     // A later remembered copy (another viewer joining) never re-marks a live pane.
     await frame("claude> again", true);
     await page.waitForTimeout(100);
-    assert.equal(await page.getByText("Last screen · updating").count(), 0, "live stays live");
+    assert.equal(await page.locator(".ui-term-updating").count(), 0, "live stays live");
     assert.deepEqual(errors, []);
     console.log(
       "✓ terminal-opening: words while it opens, the last screen marked, nothing over the live one",

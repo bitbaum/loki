@@ -664,6 +664,16 @@ export function TerminalSurface({
 
   // ── Agent sessions ──────────────────────────────────────────────────────
   const body = () => {
+    // The Resume rows' common half: the empty state lists every project, a
+    // missed deep link only the one it named.
+    const resume = {
+      projects: context?.launchable ?? [],
+      agents,
+      defaultAgent: context?.agents.defaultAgent ?? null,
+      channel,
+      openTabs: tabs,
+      onStarted: setUserSelection,
+    };
     // A miss while the builder is offline or gated is not a miss: "Start it,
     // and it opens here" is false when nothing can start. The empty state
     // below says the builder is down and offers the way forward (owner, on a
@@ -671,6 +681,7 @@ export function TerminalSurface({
     if (deepLinkMiss && !offline && !gatedMessage) {
       return (
         <TerminalSessionMiss
+          resume={resume}
           requestedTab={resolvedInitialTab!}
           sourceLabel={sourceLabel}
           otherSourceLabel={otherSourceLabel}
@@ -718,13 +729,8 @@ export function TerminalSurface({
             </p>
             {tabHint && <p className="max-w-md text-center text-xs text-text-muted">{tabHint}</p>}
             <TerminalResume
-              projects={context?.launchable ?? []}
-              agents={agents}
-              defaultAgent={context?.agents.defaultAgent ?? null}
+              {...resume}
               activeProject={emptyStateProject}
-              channel={channel}
-              openTabs={tabs}
-              onStarted={setUserSelection}
               onAllProjects={launchProps ? () => setNewSessionOpen(true) : undefined}
             />
           </div>

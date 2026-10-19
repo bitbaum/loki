@@ -10,6 +10,10 @@ const cases: [string | null, string][] = [
     FAILURE_REMEDY.START_SESSION,
   ],
   ['No running agent for "Heidi" — dispatch to start one', FAILURE_REMEDY.START_SESSION],
+  [
+    "Grok is not installed on the cloud builder, so nothing was started. Switch this project to an agent installed there, or install Grok on the cloud builder, then try again.",
+    FAILURE_REMEDY.SWITCH_AGENT,
+  ],
   ["spawnSync /bin/sh ETIMEDOUT", FAILURE_REMEDY.RETRY],
   ["", FAILURE_REMEDY.RETRY],
   [null, FAILURE_REMEDY.RETRY],

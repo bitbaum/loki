@@ -301,8 +301,14 @@ function Block({ block }: { block: TranscriptBlock }) {
         <div className="ui-loki-bubble ui-loki-bubble-user">
           <p className="whitespace-pre-wrap break-words">{display.text}</p>
           {display.details && (
-            <details className="mt-2">
-              <summary className="ui-tap text-xs">Dispatch details</summary>
+            <details className="ui-bubble-details group/details">
+              <summary className="ui-bubble-details-summary">
+                <ChevronRight
+                  className="h-3.5 w-3.5 shrink-0 transition-transform group-open/details:rotate-90"
+                  aria-hidden
+                />
+                Dispatch details
+              </summary>
               <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">
                 {display.details}
               </pre>

@@ -84,13 +84,15 @@ export async function GET(req: NextRequest) {
       userId: owner.id,
       type: ALERT_TYPE,
       severity: "warning",
-      title: `${behind.length} runner${behind.length === 1 ? " is" : "s are"} behind the published release`,
-      description:
-        `A machine on an old build does not fail — it behaves plausibly and slightly wrong, ` +
-        `which is why this went unnoticed for twelve days.\n${detail}\n\n` +
-        `Desktop features merged since then are dormant there. On .deb installs the updater ` +
-        `can download but not apply (no sudo from userspace), so this needs a hand.`,
-      actionUrl: "/system",
+      // Plain first paragraph (what is wrong, what to do), then the record:
+      // the row shows the first and folds the rest under "Details" (owner,
+      // 2026-10-19: the old text opened on "A machine on an old build does
+      // not fail — it behaves plausibly…"). The cloud builder updates
+      // itself, so only a computer of the owner's own gets "Get the update".
+      ...versionAlertCopy(
+        behind.map((r) => r.channel),
+        detail,
+      ),
       metadata: {
         behind: behind.map((r) => ({
           channel: r.channel,
@@ -144,4 +146,38 @@ export async function GET(req: NextRequest) {
       latest: r.latest,
     })),
   });
+}
+
+/** The words for "behind": a computer of yours needs you; the cloud builder
+ *  updates itself once its agents are idle (drain-and-restart-runner.sh). */
+function versionAlertCopy(
+  channels: string[],
+  detail: string,
+): { title: string; description: string; actionUrl: string } {
+  const computers = channels.filter((c) => c !== "cloud").length;
+  const record =
+    `\n\n${detail}\n\nAn old build does not fail outright; it behaves plausibly and ` +
+    `slightly wrong, which is why this once went unnoticed for twelve days. The .deb ` +
+    `updater can download but not apply (no sudo from userspace).`;
+  if (computers === 0) {
+    return {
+      title: "The cloud builder is waiting to update",
+      description:
+        `It updates itself as soon as no agent is working, and new work waits a moment ` +
+        `for that. Nothing to do unless this is still here in an hour.` +
+        record,
+      actionUrl: "/control",
+    };
+  }
+  return {
+    title:
+      computers === 1
+        ? "Fleet Runner needs an update on one computer"
+        : `Fleet Runner needs an update on ${computers} computers`,
+    description:
+      `It is running an older version, so recent fixes are not on it yet. Install the ` +
+      `latest from Download — on a .deb install, run the new installer yourself.` +
+      record,
+    actionUrl: "/download",
+  };
 }

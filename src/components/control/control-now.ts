@@ -165,7 +165,10 @@ export function buildDoneJobs(
       links.push({ label: "Open the site", href: site, external: true });
     const change = run.payload?.fix?.prUrl ?? run.payload?.evidence?.url;
     if (change) links.push({ label: "See the change", href: change, external: true });
-    links.push({ label: "See the conversation", href: sessionHref(project, run) });
+    links.push({
+      label: words.tone === "bad" && !shipped ? "See what happened" : "See the conversation",
+      href: sessionHref(project, run),
+    });
 
     done.push({
       key: run.id ?? `${project.tab}:${run.finishedAt}`,

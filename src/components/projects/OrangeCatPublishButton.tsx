@@ -157,7 +157,7 @@ export function OrangeCatPublishButton({ projectId }: { projectId: string }) {
           type="button"
           onClick={() => void unpublish()}
           disabled={busy}
-          className="ui-btn-text-cancel min-h-11 gap-1.5 text-xs"
+          className="ui-btn-text-cancel min-h-11 gap-1.5"
           title="Set the OrangeCat project back to draft — it stops being public, and nothing is deleted"
         >
           {busy ? "Taking it down…" : "Take it down"}
@@ -169,7 +169,7 @@ export function OrangeCatPublishButton({ projectId }: { projectId: string }) {
           type="button"
           onClick={() => void toggleAutopost()}
           disabled={autopostBusy}
-          className="ui-btn-text-cancel min-h-11 gap-1.5 text-xs"
+          className="ui-btn-text-cancel min-h-11 gap-1.5"
           aria-pressed={autopost === true}
           title={
             autopost === true

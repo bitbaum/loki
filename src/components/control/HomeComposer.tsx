@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, FolderGit2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, FolderGit2, FolderPlus, X } from "lucide-react";
 import { Composer } from "@/components/composer/Composer";
 import { Modal } from "@/components/ui/modal";
 import type { Attachment } from "@/components/loki/types";
@@ -11,6 +12,9 @@ import { rememberFleetProject } from "@/lib/fleet-context";
 import type { InjectResult } from "@/hooks/use-control-actions";
 
 export type HomeProject = { tab: string; detail?: string };
+
+/** The chip's value for "build this somewhere new". */
+const NEW_PROJECT = "\u0000new";
 
 /**
  * The top of Home: say what to build, in which project. Codex and ChatGPT
@@ -32,17 +36,26 @@ export function HomeComposer({
   projects: HomeProject[];
   onSend: (tab: string, text: string, attachments: Attachment[]) => Promise<InjectResult>;
 }) {
+  const router = useRouter();
   const remembered = useFleetProject();
   const [chosen, setChosen] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   const known = (tab: string | null) =>
     tab ? (projects.find((p) => p.tab.toLowerCase() === tab.toLowerCase())?.tab ?? null) : null;
-  const project = known(chosen) ?? known(remembered) ?? projects[0]?.tab ?? null;
-  if (!project) return null;
+  const isNew = chosen === NEW_PROJECT || projects.length === 0;
+  const project = isNew ? null : (known(chosen) ?? known(remembered) ?? projects[0]?.tab ?? null);
+  const chipLabel = project ?? "New project";
 
   const send = async (text: string, attachments: Attachment[]): Promise<boolean> => {
     setSaid(null);
+    // Something that belongs in none of your projects: your words become the
+    // new project's description, in the form that starts it (owner,
+    // 2026-10-19: "what if we want to build a separate folder?").
+    if (!project) {
+      router.push(`/projects?new=1&description=${encodeURIComponent(text.slice(0, 500))}`);
+      return true;
+    }
     try {
       const result = await onSend(project, text, attachments);
       setSaid(
@@ -61,7 +74,7 @@ export function HomeComposer({
     <div className="ui-home-box">
       <Composer
         placeholder="What should we build?"
-        ariaLabel={`What should ${project} build next`}
+        ariaLabel={project ? `What should ${project} build next` : "What should the new project be"}
         onSend={(text, _choice, attachments) => send(text, attachments)}
         attachmentOnlyText="Look at the attached screenshot and fix what is wrong."
         tools={
@@ -70,10 +83,14 @@ export function HomeComposer({
             className="ui-box-chip"
             onClick={() => setPicking(true)}
             aria-haspopup="dialog"
-            aria-label={`Project: ${project}. Change the project`}
+            aria-label={`Project: ${chipLabel}. Change the project`}
           >
-            <FolderGit2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 truncate">{project}</span>
+            {project ? (
+              <FolderGit2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <FolderPlus className="h-4 w-4 shrink-0" aria-hidden="true" />
+            )}
+            <span className="min-w-0 truncate">{chipLabel}</span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           </button>
         }
@@ -107,6 +124,15 @@ export function HomeComposer({
             <h2 id="home-project-title" className="ui-sheet-label">
               Build in
             </h2>
+            <OptionRow
+              title="New project"
+              detail="Something that belongs in none of these — a new folder of its own"
+              active={!project}
+              onSelect={() => {
+                setChosen(NEW_PROJECT);
+                setPicking(false);
+              }}
+            />
             {projects.map((p) => (
               <OptionRow
                 key={p.tab}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trackUsage } from "@/lib/usage/track";
 
@@ -75,8 +76,11 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
 
   return (
     <>
+      {/* One full-width control naming the section you are in. It was a
+          grey "Section" word on the left and a boxed native select pushed to
+          the right, two halves of one control drawn as two things. */}
       <div className="ui-project-mobile-sections">
-        <label htmlFor="project-section" className="text-sm text-text-tertiary">
+        <label htmlFor="project-section" className="sr-only">
           Section
         </label>
         <select
@@ -93,6 +97,7 @@ export function ProjectTabs({ tabs, initialId }: { tabs: ProjectTab[]; initialId
             </option>
           ))}
         </select>
+        <ChevronDown className="ui-project-section-chevron" aria-hidden="true" />
       </div>
       <div role="tablist" aria-label="Project sections" className="ui-project-tabs">
         {tabs.map((tab, i) => (

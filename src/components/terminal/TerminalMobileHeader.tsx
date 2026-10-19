@@ -77,7 +77,11 @@ export function TerminalMobileHeader({
   // With no session open the title already IS the builder's name.
   const where =
     builder && builder.toLowerCase() !== title.toLowerCase() ? lowerFirst(builder) : null;
-  const subtitle = [agent, others, where].filter(Boolean).join(" · ");
+  // While the screen on show is the remembered one (or nothing yet), the
+  // second line says so — the words that used to float over the output.
+  const subtitle = (state === "connecting" ? [agent, "connecting…"] : [agent, others, where])
+    .filter(Boolean)
+    .join(" · ");
   return (
     <div className="ui-term-mhead">
       <div className="ui-term-mhead-row">

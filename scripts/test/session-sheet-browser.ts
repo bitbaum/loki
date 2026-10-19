@@ -174,6 +174,17 @@ async function main() {
         terminal ? "Terminal" : "Chat",
         `${view}: the pill marks the view on screen`,
       );
+      if (!terminal) {
+        // A short conversation starts under the header, as the chat apps do:
+        // bottom-anchored to the box it opened on ~200px of nothing above the
+        // first message (owner, 2026-10-19).
+        const gap = await page.evaluate(
+          () =>
+            document.querySelector(".ui-loki-turn-user")!.getBoundingClientRect().top -
+            document.querySelector(".ui-loki-thread")!.getBoundingClientRect().top,
+        );
+        assert.ok(gap <= 32, `the first message starts at the top of the thread (${gap}px down)`);
+      }
       fs.mkdirSync(".tmp/session-sheet", { recursive: true });
       await page.screenshot({
         path: `.tmp/session-sheet/${terminal ? "terminal" : "chat"}-390.png`,

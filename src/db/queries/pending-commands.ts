@@ -499,7 +499,17 @@ export async function enqueueBrowserTaskCommand(
 /** Re-enqueues a failed (or delivered-but-unverified) command verbatim.
  *  Returns the new command id, or null when the source command doesn't
  *  exist, belongs to another user, or never actually failed. */
-export async function retryFailedCommand(userId: string, id: string): Promise<string | null> {
+/**
+ * Re-enqueue a failed command. With `agent`, the same command for another
+ * agent — the fix for "Grok is not installed on the cloud builder", which a
+ * verbatim retry would repeat forever. The old agent's model goes with it:
+ * a Grok model name means nothing to Claude.
+ */
+export async function retryFailedCommand(
+  userId: string,
+  id: string,
+  agent?: string,
+): Promise<string | null> {
   const [row] = await db
     .select({ type: pendingCommands.type, payload: pendingCommands.payload })
     .from(pendingCommands)
@@ -513,7 +523,14 @@ export async function retryFailedCommand(userId: string, id: string): Promise<st
     )
     .limit(1);
   if (!row) return null;
-  return enqueuePendingCommand({ userId, type: row.type, payload: row.payload });
+  const payload =
+    agent && row.payload && typeof row.payload === "object" && "agent" in row.payload
+      ? (() => {
+          const { model: _model, ...rest } = row.payload as Record<string, unknown>;
+          return { ...rest, agent };
+        })()
+      : row.payload;
+  return enqueuePendingCommand({ userId, type: row.type, payload });
 }
 
 // Atomically claims the next unclaimed command for one or more already
