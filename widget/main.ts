@@ -25,6 +25,7 @@
 
 import { pageLabel } from "./page-label";
 import { forgetOwnerPass, takeOwnerDenied, takeOwnerPass } from "./owner-pass";
+import { forgetMemberPass, takeMemberPass } from "./member-pass";
 import { startTourFromFragment } from "./tour";
 import type { ReportDiagnostics } from "./report-payload";
 import { DEFAULT_PLACEMENT, normalizePlacement, type Placement } from "./placement";
@@ -132,6 +133,10 @@ interface LokiApi {
   // pass kept from it. Their notes start the fix instead of waiting in an inbox.
   const ownerState = takeOwnerPass(token);
   let ownerPass = ownerState.pass;
+  // A project member (a client) arriving from their own "Open the site" link
+  // in Loki, or returning with it: the panel stays the ordinary one, and
+  // their notes are filed as theirs (member-pass.ts).
+  let memberPass = takeMemberPass(token);
   // Legacy escape hatch, kept working: px from the bottom edge, set in the
   // customer's own HTML. Superseded by the placement served from boot, which an
   // operator can change without touching their site — but an explicitly set
@@ -458,6 +463,11 @@ interface LokiApi {
         ownerPass = null;
         syncWatch();
         conversation.refresh();
+      },
+      memberPass: () => memberPass,
+      onMemberRefused: () => {
+        forgetMemberPass(token);
+        memberPass = null;
       },
       picker,
       onBusy: (busy) => {

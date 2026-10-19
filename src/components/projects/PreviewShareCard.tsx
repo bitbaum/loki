@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, ExternalLink, Sparkles } from "lucide-react";
+import { Check, Copy, ExternalLink, Sparkles, UserPlus } from "lucide-react";
 import { useClipboard } from "@/hooks/use-clipboard";
 
 /**
@@ -10,16 +10,23 @@ import { useClipboard } from "@/hooks/use-clipboard";
  * address, the code that opens it, and — for a site that was improved — the
  * before-and-after tour (the live page and the new one photographed side by
  * side, lib/previews/before-after-page). One button copies all of it as a
- * message ready to paste into WhatsApp or mail; the owner's own link carries
- * the pass that turns their notes into builds.
+ * message ready to paste into WhatsApp or mail.
+ *
+ * Their notes on it come to the owner. To let them change it themselves, the
+ * owner invites them as Client — a seat in their own name, with a monthly
+ * allowance (config/client-allowance.ts). "Open it" carries the OWNER's pass
+ * and is for the owner's browser only: it used to be the thing a client was
+ * sent, and it acted as the owner for 90 days for whoever held it.
  */
 export function PreviewShareCard({
+  projectId,
   name,
   previewUrl,
   ownerUrl,
   code,
   tourUrl,
 }: {
+  projectId: string;
   name: string;
   previewUrl: string;
   ownerUrl: string;
@@ -46,8 +53,8 @@ export function PreviewShareCard({
           <p className="font-medium text-text-primary">A private link, ready to show</p>
           <p className="text-sm text-text-secondary">
             No repository and nothing public yet — the client opens this link
-            {code ? " with the code" : ""}, sees the new version and leaves notes on it. Notes start
-            changes.
+            {code ? " with the code" : ""}, sees the new version and leaves notes on it. Their notes
+            come to you. To let them make changes themselves, invite them as Client.
           </p>
         </div>
       </div>
@@ -69,7 +76,7 @@ export function PreviewShareCard({
           </div>
         )}
       </dl>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button type="button" className="ui-btn-primary min-h-11" onClick={() => copy(message)}>
           {copied ? (
             <Check className="h-4 w-4" aria-hidden />
@@ -78,8 +85,11 @@ export function PreviewShareCard({
           )}
           {copied ? "Copied — paste it to them" : "Copy message for your client"}
         </button>
+        <a href={`/projects/${projectId}#people`} className="ui-btn-secondary min-h-11">
+          <UserPlus className="h-4 w-4" aria-hidden /> Invite them as Client
+        </a>
         <a href={ownerUrl} target="_blank" rel="noreferrer" className="ui-btn-secondary min-h-11">
-          <ExternalLink className="h-4 w-4" aria-hidden /> Open it
+          <ExternalLink className="h-4 w-4" aria-hidden /> Open it yourself
         </a>
         {tourUrl && (
           <a href={tourUrl} target="_blank" rel="noreferrer" className="ui-btn-secondary min-h-11">

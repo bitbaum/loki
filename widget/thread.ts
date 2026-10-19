@@ -36,6 +36,8 @@ export type ThreadItem =
       text: string;
       /** The owner's note starts a build; a visitor's waits for the builder. */
       owner: boolean;
+      /** A project member's own note (their pass): `note` is what happened. */
+      member?: boolean;
       building?: boolean;
       savedOnly?: boolean;
       note?: string;
@@ -146,6 +148,7 @@ function restoreItem(raw: unknown, now: number): ThreadItem | null {
       at,
       text,
       owner: r.owner === true,
+      ...(r.member === true ? { member: true } : {}),
       ...(r.building === true ? { building: true } : {}),
       ...(r.savedOnly === true ? { savedOnly: true } : {}),
       ...(r.toLoki === true ? { toLoki: true } : {}),

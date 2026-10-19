@@ -18,6 +18,7 @@ export function MemberProjectView({
   ownerName,
   liveUrl,
   ownerPass,
+  memberPass,
   joined,
   allowance,
   ready,
@@ -30,6 +31,7 @@ export function MemberProjectView({
   ownerName: string | null;
   liveUrl: string | null;
   ownerPass: string | null;
+  memberPass: string | null;
   joined: boolean;
   allowance: { limit: number; left: number } | null;
   ready: { id: string; suggestion: string }[];
@@ -45,6 +47,7 @@ export function MemberProjectView({
         ownerName={ownerName}
         liveUrl={liveUrl}
         ownerPass={ownerPass}
+        memberPass={memberPass}
         joined={joined}
         allowance={allowance}
         ready={ready}

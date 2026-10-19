@@ -21,8 +21,10 @@ import { notifyBuilderAsked, notifyFeedbackReceived } from "@/lib/feedback/notif
 import { feedbackClaimPath } from "@/lib/feedback/claim-token";
 import { appUrl } from "@/lib/email";
 import { watchFixPath } from "@/lib/feedback/tour-token";
-import { passHolder } from "@/lib/feedback/pass-holder";
+import { passHolder, passMember } from "@/lib/feedback/pass-holder";
 import { verifyAgentPass } from "@/lib/feedback/agent-pass";
+import { mailReceiptToVisitor } from "@/lib/feedback/receipt-mail";
+import { askInLoki } from "@/lib/feedback/ask-in-loki";
 import { startOwnerBuild } from "@/lib/feedback/owner-build";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 
@@ -72,6 +74,8 @@ const FeedbackBody = z.object({
   source: z.enum(FEEDBACK_SELF_ASSERTED_SOURCES).optional(),
   /** Loki's reviewer or synthesizer, proven (feedback/agent-pass.ts). */
   agentPass: z.string().max(300).optional(),
+  /** A project member's pass (feedback/member-pass.ts): the note is theirs. */
+  memberPass: z.string().max(300).optional(),
   /** The owner's signed pass (feedback/owner-pass.ts), which the widget picked
    *  up from Loki's "Open your site" link. Verified below, never trusted. */
   ownerPass: z.string().max(300).optional(),
@@ -183,6 +187,45 @@ export async function POST(req: NextRequest) {
   // A Builder's note builds without the owner, so the owner is told instead.
   const builderUserId = holder && holder.userId !== token.userId ? holder.userId : null;
 
+  // A project member writing on the site (their own "Open the site" link in
+  // Loki): the note is theirs, filed by the same rules as asking on their
+  // project page — a client builds on their allowance and puts it live.
+  const member = fromOwner ? null : await passMember(data.memberPass, token.projectId);
+  if (member) {
+    const asked = await askInLoki({
+      userId: member.userId,
+      projectId: token.projectId,
+      text: data.suggestion,
+      fromSite: {
+        contentHash: feedbackContentHash(data.suggestion, data.page ?? null, data),
+        fields: {
+          tokenId: token.id,
+          page: data.page ?? null,
+          url: data.url ?? null,
+          pageTitle: data.pageTitle ?? null,
+          scope: data.scope ?? null,
+          captureContext: data.context ?? null,
+          contact: data.contact ?? null,
+          screenshots: data.screenshots ?? null,
+          selectedElements: data.selectedElements ?? null,
+          moments: data.moments?.length ? data.moments : null,
+          userAgent: req.headers.get("user-agent")?.slice(0, 300) ?? null,
+        },
+      },
+    });
+    if (!asked.ok) return corsError(asked.error, asked.status);
+    return NextResponse.json(
+      {
+        ok: true,
+        member: true,
+        building: asked.building,
+        say: asked.say,
+        followUrl: `${appUrl()}${asked.followPath}`,
+      },
+      { headers: CORS_HEADERS },
+    );
+  }
+
   // Dedupe at ingest: the same complaint filed again bumps the existing open
   // row's duplicate_count instead of creating a new row — volume signal kept,
   // inbox noise dropped. Idempotent for the visitor (they still see success).
@@ -257,6 +300,8 @@ export async function POST(req: NextRequest) {
   // finally): fire-and-forget so a notify hiccup can never fail the ingest.
   // Duplicate bumps above stay silent — the row announced when first filed.
   void notifyFeedbackReceived(created);
+  // Left their email: the link back to it, in their inbox (no account).
+  if (!fromOwner) void mailReceiptToVisitor(created);
 
   // The owner said what to change; saying it IS the decision. Start the fix
   // now, through the same path as the Implement button, and tell the widget

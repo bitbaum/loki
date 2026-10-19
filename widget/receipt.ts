@@ -42,11 +42,15 @@ export function receiptText(item: Sent): string {
       return `On it — ${q} is being built. Follow it on the Watching line above; it goes live here by itself and Loki tells you.`;
     return `Saved ${q}. ${item.note ?? "It waits with your other saved notes — build them all from the Watching line above when you're ready."}`;
   }
+  // A member of the project (a client): Loki says what happened, in the
+  // same words their project page in Loki would.
+  if (item.member) return item.note ? `Got it — ${q}. ${item.note}` : `Got it — ${q}.`;
   return `Sent to whoever builds this site: ${q}. Thank you.`;
 }
 
 /** The one link under the receipt: follow a build, or track a report. */
 export function receiptLinkLabel(item: Sent): string {
   if (item.savedOnly) return "Review the note in Loki →";
+  if (item.member) return "See it in Loki →";
   return item.owner || item.building ? "Follow the build →" : "Track what happens next →";
 }

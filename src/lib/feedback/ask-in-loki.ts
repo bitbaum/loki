@@ -28,12 +28,30 @@ import {
 import { allowanceMonthStart, changesLeft } from "@/config/client-allowance";
 import { getUserById } from "@/db/queries/users";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
+import type { NewSiteFeedback } from "@/db/schema";
 import { FEEDBACK_SOURCE } from "@/lib/constants/statuses";
 import { askReply } from "@/lib/project-capabilities";
 import { feedbackContentHash } from "./content-hash";
 import { notifyBuilderAsked, notifyFeedbackReceived } from "./notify-new";
 import { startOwnerBuild } from "./owner-build";
 import { watchFixPath } from "./tour-token";
+
+/** What the widget carries with a note, beyond the words. */
+export type SiteAskFields = Pick<
+  NewSiteFeedback,
+  | "tokenId"
+  | "page"
+  | "url"
+  | "pageTitle"
+  | "scope"
+  | "screenshots"
+  | "selectedElements"
+  | "moments"
+  | "captureContext"
+  | "contact"
+  | "userAgent"
+  | "requiresReview"
+>;
 
 export type AskResult =
   | { ok: true; building: boolean; say: string; followPath: string }
@@ -43,6 +61,12 @@ export async function askInLoki(input: {
   userId: string;
   projectId: string;
   text: string;
+  /**
+   * The same ask, filed from the SITE by a signed-in member (their member
+   * pass in the widget): what the widget captured — the page, the spot they
+   * pointed at, screenshots — and the hash the site's dedupe uses.
+   */
+  fromSite?: { fields: SiteAskFields; contentHash: string };
 }): Promise<AskResult> {
   const access = await getProjectAccess(input.userId, input.projectId).catch(() => null);
   if (!access) return { ok: false, status: 403, error: "You are not on this project." };
@@ -61,14 +85,15 @@ export async function askInLoki(input: {
 
   // Asked twice is one row, as on the site: the same words again from someone
   // who may build means "do it", so a stalled attempt starts again.
-  const contentHash = feedbackContentHash(input.text, null);
+  const contentHash = input.fromSite?.contentHash ?? feedbackContentHash(input.text, null);
   const bumped = await bumpDuplicateFeedback(input.projectId, contentHash);
   const created = bumped
     ? null
     : await insertSiteFeedback({
+        tokenId: null,
+        ...input.fromSite?.fields,
         projectId: input.projectId,
         userId: ownerUserId,
-        tokenId: null,
         suggestion: input.text,
         source: access.canEdit
           ? FEEDBACK_SOURCE.OWNER

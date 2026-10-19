@@ -165,6 +165,8 @@ export function feedbackShippedTemplate(input: {
   site: string;
   excerpt: string;
   page?: string | null;
+  /** Their report's own page (no account): "Watch your fix" lives there. */
+  trackUrl?: string | null;
 }) {
   const subject = mailSubject("feedback_shipped", input.site);
   const where = input.page ? ` on ${input.page}` : "";
@@ -178,9 +180,29 @@ export function feedbackShippedTemplate(input: {
     <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:${EMAIL_THEME.ink};">Your feedback shipped</h2>
     ${p(`You reported: “${safeExcerpt}”`)}
     ${p(`A fix just went live${safeWhere}. Thanks for pointing it out.`)}
+    ${input.trackUrl ? small(`See it, and tell us if it is still wrong: <a href="${escapeHtml(input.trackUrl)}" style="color:${EMAIL_THEME.muted};">your report</a>.`) : ""}
   `);
   // The text/plain alternative is not markup, so it keeps the raw values.
-  const text = `You reported: "${input.excerpt}"\n\nA fix just went live${where}. Thanks for pointing it out.`;
+  const text = `You reported: "${input.excerpt}"\n\nA fix just went live${where}. Thanks for pointing it out.${input.trackUrl ? `\n\nYour report: ${input.trackUrl}` : ""}`;
+  return { subject, html, text };
+}
+
+/**
+ * A visitor left their email with a note: the one link back to it, since
+ * they have no account. Everything they wrote is escaped, as above.
+ */
+export function feedbackReceivedTemplate(input: {
+  site: string;
+  excerpt: string;
+  trackUrl: string;
+}) {
+  const subject = mailSubject("feedback_received", input.site);
+  const html = emailShell(`
+    <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:${EMAIL_THEME.ink};">We got your note</h2>
+    ${p(`You wrote about ${escapeHtml(input.site)}: “${escapeHtml(input.excerpt)}”`)}
+    ${p(`Follow it here — no account needed: <a href="${escapeHtml(input.trackUrl)}" style="color:${EMAIL_THEME.ink};">your report</a>. We also write when it is fixed.`)}
+  `);
+  const text = `You wrote about ${input.site}: "${input.excerpt}"\n\nFollow it here — no account needed: ${input.trackUrl}\nWe also write when it is fixed.`;
   return { subject, html, text };
 }
 

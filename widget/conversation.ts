@@ -59,6 +59,12 @@ const MAX_SCREENSHOTS = 5;
 /** Stop recording under the server's ~2 min upload cap. */
 const VOICE_MAX_MS = 110_000;
 
+/** Who is speaking, as the passes say — handed on to the model unchanged. */
+function passesOf(o: Parameters<typeof createConversation>[0]) {
+  const { ownerPass, onPassRefused, memberPass, onMemberRefused } = o;
+  return { ownerPass, onPassRefused, memberPass, onMemberRefused };
+}
+
 export function createConversation(opts: {
   apiBase: string;
   token: string;
@@ -67,6 +73,9 @@ export function createConversation(opts: {
   ownerPass: () => string | null;
   /** The server refused the pass (expired, revoked): stop presenting it. */
   onPassRefused: () => void;
+  /** A project member's pass (member-pass.ts): their notes are theirs. */
+  memberPass?: () => string | null;
+  onMemberRefused?: () => void;
   picker: Picker;
   watch: () => ConversationWatch | null;
   /** Loki is working on an answer (true) or done (false) — the header's
@@ -134,8 +143,7 @@ export function createConversation(opts: {
     apiBase: opts.apiBase,
     token: opts.token,
     assistant: opts.assistant,
-    ownerPass: opts.ownerPass,
-    onPassRefused: opts.onPassRefused,
+    ...passesOf(opts),
     picker: opts.picker,
     watch: opts.watch,
     about: () => ctx.about(),
@@ -458,7 +466,7 @@ export function createConversation(opts: {
     el.append(...noteExtras(draft, () => model.useExactWords()));
     const contact = h("input");
     contact.type = "text";
-    contact.placeholder = "Your name / email (optional)";
+    contact.placeholder = "Your email, to hear when it's fixed (optional)";
     contact.maxLength = 200;
     contact.autocomplete = "off";
     // Loki already knows who the owner is.

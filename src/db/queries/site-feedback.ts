@@ -44,6 +44,24 @@ export async function listReporterFeedback(
   reporterUserId: string,
   limit = 200,
 ): Promise<ReporterFeedbackListItem[]> {
+  return reporterRows(eq(siteFeedback.reporterUserId, reporterUserId), limit);
+}
+
+/**
+ * One report, in the reporter's shape — for the tracking link, which works
+ * without an account: the signed link names the report, nothing else.
+ */
+export async function getReporterFeedbackById(
+  feedbackId: string,
+): Promise<ReporterFeedbackListItem | null> {
+  const [row] = await reporterRows(eq(siteFeedback.id, feedbackId), 1);
+  return row ?? null;
+}
+
+async function reporterRows(
+  where: ReturnType<typeof eq>,
+  limit: number,
+): Promise<ReporterFeedbackListItem[]> {
   const { screenshots: _screenshots, ...cols } = getTableColumns(siteFeedback);
   const rows = await db
     .select({
@@ -78,7 +96,7 @@ export async function listReporterFeedback(
     })
     .from(siteFeedback)
     .innerJoin(entities, eq(siteFeedback.projectId, entities.id))
-    .where(eq(siteFeedback.reporterUserId, reporterUserId))
+    .where(where)
     .orderBy(desc(siteFeedback.createdAt))
     .limit(limit);
   // The reporter reads the name a person uses for the project (projectTitle),

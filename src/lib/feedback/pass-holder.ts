@@ -11,7 +11,8 @@
  * now: whoever `canEdit` the project. Builds still run in the owner's tenant
  * (startOwnerBuild takes the token's owner), exactly as Implement does in Loki.
  */
-import { getProjectAccess } from "@/db/queries/project-access";
+import { getProjectAccess, type ProjectAccess } from "@/db/queries/project-access";
+import { verifyMemberPass } from "./member-pass";
 import { verifyOwnerPass } from "./owner-pass";
 
 import { passAllows, type Site } from "./pass-rule";
@@ -40,4 +41,18 @@ export async function passHolder(
   return passAllows(pass, site, await canActForSite(pass.userId, site))
     ? { userId: pass.userId }
     : null;
+}
+
+/**
+ * The member a member pass names (member-pass.ts), with their seat as it is
+ * NOW: removing someone from the project ends what their pass can do at once.
+ */
+export async function passMember(
+  raw: string | null | undefined,
+  projectId: string,
+): Promise<{ userId: string; access: ProjectAccess } | null> {
+  const named = verifyMemberPass(raw, projectId);
+  if (!named) return null;
+  const access = await getProjectAccess(named.userId, projectId).catch(() => null);
+  return access ? { userId: named.userId, access } : null;
 }

@@ -6,6 +6,7 @@ import { ROUTES } from "@/config/auth";
 import { BUILD_REQUEST_COPY, BUILD_REQUESTS } from "@/config/build-requests";
 import { COMMISSION } from "@/config/commission";
 import { getOwnBuildRequest } from "@/db/queries/build-requests";
+import { getProjectAccess } from "@/db/queries/project-access";
 import { siteName } from "@/lib/previews/from-website";
 import { getSessionUserId } from "@/lib/session";
 import { isValidUuid } from "@/lib/utils";
@@ -30,6 +31,10 @@ export default async function BuildRequestPage({ params }: { params: Promise<{ i
   const row = await getOwnBuildRequest(userId, id);
   if (!row) notFound();
   const copy = BUILD_REQUEST_COPY[row.status];
+  // Their seat on the site made for them (lib/build-requests/decide.ts).
+  const seat = row.projectId
+    ? await getProjectAccess(userId, row.projectId).catch(() => null)
+    : null;
   const words = typeof row.brief.changes === "string" ? row.brief.changes.trim() : "";
 
   return (
@@ -56,6 +61,18 @@ export default async function BuildRequestPage({ params }: { params: Promise<{ i
                 <p className="text-sm text-text-secondary">
                   The code to open it:{" "}
                   <strong className="text-text-primary">{row.accessCode}</strong>
+                </p>
+              )}
+              {row.projectId && seat && (
+                <p className="text-sm text-text-secondary">
+                  Want something different? Say it on{" "}
+                  <Link className="ui-public-link" href={`/projects/${row.projectId}#ask`}>
+                    your project page
+                  </Link>
+                  .{" "}
+                  {seat?.monthlyChanges
+                    ? `Up to ${seat.monthlyChanges} changes a month are built straight away, and each goes live when you say so.`
+                    : "The site's owner decides what gets built."}
                 </p>
               )}
             </section>

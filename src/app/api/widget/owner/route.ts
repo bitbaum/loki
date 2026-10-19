@@ -11,6 +11,9 @@ import {
 import { WIDGET_TOKEN_STATUS } from "@/lib/constants/statuses";
 import { appUrl } from "@/lib/email";
 import { canActForSite } from "@/lib/feedback/pass-holder";
+import { getProjectAccess } from "@/db/queries/project-access";
+import { createMemberPass } from "@/lib/feedback/member-pass";
+import { memberSiteUrl } from "../../../../../widget/member-pass";
 
 /**
  * "This is my site — let Loki watch", from inside the widget.
@@ -50,9 +53,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "That page is not on this project's site" }, { status: 400 });
   }
 
-  // Signed in, but neither the owner nor someone they gave edit rights: say
-  // so on the site they came from rather than leaving them on an error page.
+  // On the project, but not one who builds it (a client, a viewer): back to
+  // the site with their own member pass — the ordinary panel, and their notes
+  // filed as theirs. Never the owner's pass, which is the owner's console.
   if (!(await canActForSite(userId, token))) {
+    const access = await getProjectAccess(userId, token.projectId).catch(() => null);
+    if (access)
+      return NextResponse.redirect(memberSiteUrl(back, createMemberPass(token.projectId, userId)));
+    // Signed in, but not on the project at all: say so on the site they came
+    // from rather than leaving them on an error page.
     return NextResponse.redirect(`${back.split("#")[0]}#${OWNER_DENIED_HASH}`);
   }
   return NextResponse.redirect(ownerSiteUrl(back, createOwnerPass(token.projectId, userId)));

@@ -1,6 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-const CLAIM_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/** Half a year: the link is how a visitor with no account comes back, and it
+ *  rides in the "your fix is live" mail, which can come weeks later. It shows
+ *  only that one report's reporter-safe status (attach-reporter-view.ts). */
+const CLAIM_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 
 function secret(): string {
   const value = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
