@@ -4,6 +4,7 @@ import { useState, useRef, useMemo } from "react";
 import { STATE_DEFINITIONS } from "@/lib/control-states";
 import { deriveRunnerPresence, latestRunSignals } from "./control-presenter";
 import { postJson } from "@/lib/api/fetch";
+import { FINISH_PROMPT, HomeAllProjects, failureFixes } from "./home-parts";
 import { runQueueInCloud, stopWaitingOnQueue } from "./hero-actions";
 import { useControlData } from "@/hooks/use-control-data";
 import { cloudBuilderState } from "@/lib/builder-way-forward";
@@ -222,18 +223,20 @@ export function ControlPanel({
       )
     : null;
 
-  const failedCount = data?.failedCommands?.length ?? 0;
   const nowMs = nowS * 1000;
   const nowJobs = snapshots ? buildNowJobs(snapshots, nowMs) : [];
   const doneJobs = snapshots ? buildDoneJobs(snapshots, nowMs) : [];
   // The status card speaks only when something is wrong or someone is needed.
   // "Building" and "nothing running" are answered by the job cards above it;
   // saying them twice is what made this page read as machinery.
+  //
+  // Failures and the projects that need you are NOT its news: "Needs you"
+  // above shows each one with its fix, and the card saying "1 dispatch
+  // failed — review failed dispatches" under it was the same thing twice, the
+  // second time in jargon (owner, 2026-10-19).
   const heroHasNews =
-    attention.length > 0 ||
-    failedCount > 0 ||
     !(dashboard?.countsKnown ?? true) ||
-    ["failing", "stalled", "partial", "waiting", "unknown"].includes(fleetPulse.key);
+    ["failing", "stalled", "partial", "unknown"].includes(fleetPulse.key);
 
   // Keep the selection valid as the snapshot set changes. Guarded render-time
   // adjustment (React's "adjusting state when props change" pattern) instead
@@ -262,6 +265,10 @@ export function ControlPanel({
     setSelectedTab(tab);
     setProjectOpenOnPhone(true);
     rememberFleetProject(tab);
+  };
+  const openAndShow = (tab: string) => {
+    openProject(tab);
+    requestAnimationFrame(() => document.getElementById("control-projects")?.scrollIntoView());
   };
 
   useControlDeepLink({
@@ -458,7 +465,7 @@ export function ControlPanel({
       <AttentionBar
         items={attention}
         failedCommands={data?.failedCommands}
-        onFocusProject={setSelectedTab}
+        onFocusProject={openAndShow}
         // A "tab not found" failure is not retryable — the fix is to start the
         // session it was aiming at. Reuses the launch modal rather than a
         // second launch path, so agent/model defaults stay one decision.
@@ -470,6 +477,7 @@ export function ControlPanel({
           }
           openLaunchModal(project);
         }}
+        {...failureFixes(data, refresh)}
       />
       {data.projects.length > 0 && <AgentEscalations />}
 
@@ -497,7 +505,7 @@ export function ControlPanel({
       {data && data.projects.length > 0 && heroHasNews && (
         <ControlFleetStatus
           dashboard={dashboard}
-          failedCount={failedCount}
+          failedCount={0}
           runnerNeverSeen={runnerNeverSeen}
           runnerOffline={runnerOffline}
           runnerStateUnknown={runnerNeverSeen}
@@ -514,12 +522,7 @@ export function ControlPanel({
           // the cards and the terminal all key off it) — there is no separate
           // title to prefer.
           attentionProjects={attention.map((a) => ({ tab: a.project.tab, name: a.project.tab }))}
-          onFocusProject={(tab) => {
-            openProject(tab);
-            document
-              .getElementById("control-projects")
-              ?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
+          onFocusProject={openAndShow}
           onOpenSettings={() => setFleetSettingsOpen(true)}
           onRunInCloud={async () => {
             const said = await runQueueInCloud();
@@ -568,24 +571,27 @@ export function ControlPanel({
           />
         )}
 
-      <ControlDone jobs={doneJobs} />
+      <ControlDone jobs={doneJobs} onFinish={(tab) => inject(tab, undefined, FINISH_PROMPT)} />
 
-      <ProjectOperationsView
-        categoryFilter={categoryFilter}
-        onClearCategoryFilter={() => setCategoryFilter(null)}
-        snapshots={snapshots}
-        selectedTab={selectedTab}
-        onSelect={openProject}
-        projectOpenOnPhone={projectOpenOnPhone}
-        onBackToList={() => setProjectOpenOnPhone(false)}
-        cardProps={cardProps}
-        automationMode={automationPolicy.mode}
-        onBulkNotice={(msg) => {
-          setQueuedNotice(msg);
-          setTimeout(() => setQueuedNotice(null), 9000);
-          void refresh(true);
-        }}
-      />
+      {!projectOpenOnPhone && <HomeAllProjects count={data.projects.length} />}
+      <div className={projectOpenOnPhone ? undefined : "max-md:hidden"}>
+        <ProjectOperationsView
+          categoryFilter={categoryFilter}
+          onClearCategoryFilter={() => setCategoryFilter(null)}
+          snapshots={snapshots}
+          selectedTab={selectedTab}
+          onSelect={openProject}
+          projectOpenOnPhone={projectOpenOnPhone}
+          onBackToList={() => setProjectOpenOnPhone(false)}
+          cardProps={cardProps}
+          automationMode={automationPolicy.mode}
+          onBulkNotice={(msg) => {
+            setQueuedNotice(msg);
+            setTimeout(() => setQueuedNotice(null), 9000);
+            void refresh(true);
+          }}
+        />
+      </div>
 
       {/* The terminal tabs, for an operator at a desk. On a phone the job
           cards above already open each live session, and this list repeated

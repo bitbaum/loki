@@ -14,6 +14,9 @@
 export const FAILURE_PHRASE = {
   /** The tab has no owned agent PTY on that runner; a dispatch starts one. */
   NO_RUNNING_AGENT: "no running agent for",
+  /** The project's agent is not installed on the builder that took the
+   *  command (lib/agents/launch-check agentNotInstalledMessage). */
+  AGENT_NOT_INSTALLED: "is not installed on",
 } as const;
 
 export const FAILURE_REMEDY = {
@@ -21,6 +24,9 @@ export const FAILURE_REMEDY = {
   START_SESSION: "start-session",
   /** Repeating the same command could succeed (transient). */
   RETRY: "retry",
+  /** The agent is missing on that builder: the same command with an agent
+   *  that IS there. Repeating it unchanged fails identically. */
+  SWITCH_AGENT: "switch-agent",
 } as const;
 export type FailureRemedy = (typeof FAILURE_REMEDY)[keyof typeof FAILURE_REMEDY];
 
@@ -38,6 +44,7 @@ export type FailureRemedy = (typeof FAILURE_REMEDY)[keyof typeof FAILURE_REMEDY]
 export const REMEDY_LABEL: Record<FailureRemedy, string> = {
   [FAILURE_REMEDY.START_SESSION]: "Start session",
   [FAILURE_REMEDY.RETRY]: "Retry",
+  [FAILURE_REMEDY.SWITCH_AGENT]: "Use another agent",
 };
 
 /** The label Attention will show for a failure with this error text. Use this
@@ -49,5 +56,6 @@ export function remedyLabelFor(error: string | null | undefined): string {
 export function remedyForFailure(error: string | null | undefined): FailureRemedy {
   const text = (error ?? "").toLowerCase();
   if (text.includes(FAILURE_PHRASE.NO_RUNNING_AGENT)) return FAILURE_REMEDY.START_SESSION;
+  if (text.includes(FAILURE_PHRASE.AGENT_NOT_INSTALLED)) return FAILURE_REMEDY.SWITCH_AGENT;
   return FAILURE_REMEDY.RETRY;
 }

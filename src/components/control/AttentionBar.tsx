@@ -1,15 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { AlertTriangle, RotateCcw, Play, X } from "lucide-react";
+import { AlertTriangle, ChevronRight, Loader2, Play, RotateCcw, X } from "lucide-react";
 import { remedyForFailure, FAILURE_REMEDY, REMEDY_LABEL } from "@/lib/failure-remedy";
 import type { AttentionItem } from "./control-presenter";
 import type { FailedCommand } from "@/lib/control-types";
-import { HEALTH_TAG_STYLE } from "@/config/ui";
 import { timeAgo } from "@/lib/dates";
 import { postJson } from "@/lib/api/fetch";
 import { CONTROL_DISMISSED_FAILURES_KEY } from "@/config/brand-storage";
-import { fleetSurfaceHref } from "@/lib/fleet-context";
 
 /** Group consecutive failures that match on (type, tab, error). Stops the
  *  "three identical error rows" stacking that happens when the user clicks
@@ -40,11 +38,45 @@ function groupConsecutive(items: FailedCommand[]): FailureGroup[] {
   return groups;
 }
 
+/** What the failed command was trying to do, in words a person would use. */
+function failureTitle(f: FailedCommand): string {
+  const where = f.tab !== "unknown" ? f.tab : "a project";
+  if (f.unverified) return `Sent to ${where}, but the agent did not start`;
+  if (f.type === "dispatch") return `Couldn't start work in ${where}`;
+  if (f.type === "launch_agent") return `Couldn't open a session in ${where}`;
+  if (f.type === "switch_agent") return `Couldn't change the agent in ${where}`;
+  if (/inject/.test(f.type)) return `Couldn't send your message to ${where}`;
+  return `Something didn't run in ${where}`;
+}
+
+/** The error, without the advice the buttons below already give. */
+function failureBody(error: string): string {
+  return error.replace(/\s*Switch this project to an agent installed there[\s\S]*$/, "").trim();
+}
+
+/** An agent the project's builder HAS, for "Use … instead". */
+export type AgentSwitch = { id: string; label: string };
+
+/**
+ * What needs you on Home, each with its way out on the same card.
+ *
+ * It was a red callout per failure with the text squeezed into a column a
+ * third of the screen wide, beside "Open on Control" (the page it was already
+ * on) and Retry — which, for "Grok is not installed on the cloud builder",
+ * fails the same way every time (owner, 2026-10-19: "everything like that
+ * should provide a user opportunity to fix it. Right there"). Now: a title in
+ * words, the reason under it, and the fix as the card's one button —
+ * "Use Claude instead" re-runs the same work on an agent that builder has and
+ * makes it the project's agent; Start session for a missing session; Retry
+ * only where trying again could change something.
+ */
 export function AttentionBar({
   items,
   failedCommands,
   onFocusProject,
   onStartSession,
+  switchFor,
+  onSwitchAgent,
 }: {
   items: AttentionItem[];
   failedCommands?: FailedCommand[];
@@ -53,6 +85,10 @@ export function AttentionBar({
    *  existence. Optional: without it the row falls back to showing nothing
    *  rather than a button that cannot work. */
   onStartSession?: (tab: string) => void;
+  /** The agent to offer instead when the project's agent is not installed. */
+  switchFor?: (tab: string) => AgentSwitch | null;
+  /** Make the switch stick: the project's agent from now on. */
+  onSwitchAgent?: (tab: string, agent: string) => void;
 }) {
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     try {
@@ -75,17 +111,25 @@ export function AttentionBar({
     });
   };
 
-  // Re-enqueues the representative command verbatim; on success the whole
-  // group is dismissed (the retried command reports its own outcome).
+  // Re-enqueues the representative command (with another agent when asked);
+  // on success the whole group is dismissed — the new run reports its own
+  // outcome under "Being built now".
   const [retrying, setRetrying] = useState<Set<string>>(new Set());
-  const retry = async (group: FailureGroup) => {
+  const [failedRetry, setFailedRetry] = useState<Set<string>>(new Set());
+  const retry = async (group: FailureGroup, agent?: AgentSwitch) => {
     const id = group.representative.id;
     setRetrying((prev) => new Set(prev).add(id));
     try {
-      const res = await postJson(`/api/control/commands/${id}/retry`, {});
-      if (res.ok) group.dismissIds.forEach(dismiss);
+      const res = await postJson(
+        `/api/control/commands/${id}/retry`,
+        agent ? { agent: agent.id } : {},
+      );
+      if (res.ok) {
+        if (agent) onSwitchAgent?.(group.representative.tab, agent.id);
+        group.dismissIds.forEach(dismiss);
+      } else setFailedRetry((prev) => new Set(prev).add(id));
     } catch {
-      /* failure stays visible for another attempt */
+      setFailedRetry((prev) => new Set(prev).add(id));
     }
     setRetrying((prev) => {
       const next = new Set(prev);
@@ -100,123 +144,102 @@ export function AttentionBar({
   if (items.length === 0 && groupedFailures.length === 0) return null;
 
   return (
-    <div id="control-attention" className="flex scroll-mt-24 flex-col gap-2">
-      {items.length > 0 && (
-        <div className="flex items-start gap-3 rounded-2xl border-l-2 border-status-warning border-t border-r border-b border-border-subtle bg-surface-base px-4 py-3">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-status-warning" />
-          <div className="flex flex-wrap gap-2 min-w-0">
-            <span className="text-xs text-text-secondary font-medium shrink-0 mt-0.5">
-              Needs attention:
-            </span>
-            {items.map(({ project, reason }) => {
-              const healthKey = (
-                project.session?.health ??
-                project.latestOrchestrationRun?.summary?.health ??
-                ""
-              ).toLowerCase();
-              const tagCls = HEALTH_TAG_STYLE[healthKey] ?? "ui-tag ui-tag-warning";
-              // Reason chip only adds value when distinct from the bar's
-              // "Needs attention:" prefix; the literal phrase just repeats it.
-              const showReasonChip = reason && reason.toLowerCase() !== "needs attention";
-              return (
-                <span key={project.tab} className="flex items-center gap-1.5 shrink-0">
-                  {onFocusProject ? (
-                    <button
-                      onClick={() => onFocusProject(project.tab)}
-                      className="text-xs font-medium text-text-primary underline-offset-2 hover:underline transition-colors"
-                    >
-                      {project.tab}
-                    </button>
-                  ) : (
-                    <span className="text-xs font-medium text-text-primary">{project.tab}</span>
-                  )}
-                  {showReasonChip && <span className={tagCls}>{reason}</span>}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
+    <section id="control-attention" className="ui-needs scroll-mt-24" aria-label="Needs you">
       {groupedFailures.map((group) => {
         const f = group.representative;
-        // "delivered" was polite fiction when verified=false — the prompt hit a
-        // PTY but the agent never generated. Say that plainly.
-        const verb = f.unverified ? "queued, not confirmed working" : "failed";
-        // A Retry is only offered when repeating the identical command could
-        // produce a different result. "No running agent" cannot: the target is
-        // identically absent on every attempt, which is how this exact banner
-        // sat on /control for 47 minutes wearing a button that never worked.
         const remedy = remedyForFailure(f.error);
+        const busy = retrying.has(f.id);
+        const other = remedy === FAILURE_REMEDY.SWITCH_AGENT ? (switchFor?.(f.tab) ?? null) : null;
         const canStartSession =
           remedy === FAILURE_REMEDY.START_SESSION && f.tab !== "unknown" && Boolean(onStartSession);
         return (
-          <div key={f.id} className="ui-callout-negative justify-between">
-            <div className="flex items-start gap-3 min-w-0">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-status-negative" />
-              <span className="text-xs text-text-primary">
-                <span className="font-medium">{f.type}</span>
-                {f.tab !== "unknown" && (
-                  <>
-                    {" "}
-                    → <span className="font-medium">{f.tab}</span>
-                  </>
-                )}
-                {` ${verb}: `}
-                <span className="text-text-secondary">{f.error}</span>
-                {group.count > 1 && (
-                  <span className="ml-2 inline-flex items-center rounded-full bg-status-negative/10 px-1.5 py-0.5 text-micro font-semibold text-status-negative">
-                    ×{group.count}
-                  </span>
-                )}
-                <span className="ml-2 text-text-muted">
-                  {timeAgo(new Date(f.executedAt).getTime())}
-                </span>
-              </span>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {f.tab !== "unknown" && (
-                <a
-                  href={fleetSurfaceHref("control", f.tab)}
-                  className="ui-btn-ghost ui-btn-xs text-micro"
-                  title={`Focus ${f.tab} on Home — Terminal stays empty unless a session is actually running`}
-                >
-                  Open on Control
-                </a>
-              )}
-              {canStartSession && (
-                <button
-                  onClick={() => onStartSession!(f.tab)}
-                  className="ui-btn-ghost ui-btn-xs gap-1 text-micro"
-                  aria-label={`Start a session for ${f.tab}`}
-                  title={`${f.tab} has no terminal session — start one, then this command can run`}
-                >
-                  <Play className="h-3 w-3" />
-                  {REMEDY_LABEL[FAILURE_REMEDY.START_SESSION]}
-                </button>
-              )}
-              {remedy === FAILURE_REMEDY.RETRY && (
-                <button
-                  onClick={() => retry(group)}
-                  disabled={retrying.has(f.id)}
-                  className="ui-btn-ghost ui-btn-xs gap-1 text-micro"
-                  aria-label="Retry command"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                  {retrying.has(f.id) ? "Retrying…" : REMEDY_LABEL[FAILURE_REMEDY.RETRY]}
-                </button>
-              )}
+          <article key={f.id} className="ui-needs-card">
+            <div className="ui-needs-head">
+              <AlertTriangle className="ui-needs-icon" aria-hidden="true" />
+              <h3 className="ui-needs-title">
+                {failureTitle(f)}
+                {group.count > 1 && <span className="ui-needs-times"> · {group.count} times</span>}
+              </h3>
               <button
+                type="button"
                 onClick={() => group.dismissIds.forEach(dismiss)}
-                className="ui-tap-icon text-text-muted hover:text-text-secondary transition-colors"
+                className="ui-needs-dismiss"
                 aria-label="Dismiss"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
-          </div>
+            <p className="ui-needs-body">
+              {failureBody(f.error)}{" "}
+              <span className="ui-needs-when">{timeAgo(new Date(f.executedAt).getTime())}</span>
+            </p>
+            {failedRetry.has(f.id) && (
+              <p className="ui-error" role="status">
+                That did not go through. Try once more, or dismiss this and start again from the box
+                above.
+              </p>
+            )}
+            <div className="ui-needs-actions">
+              {other ? (
+                <button
+                  type="button"
+                  className="ui-btn-primary min-h-11"
+                  disabled={busy}
+                  onClick={() => void retry(group, other)}
+                >
+                  {busy ? <Loader2 className="ui-spinner-sm" aria-hidden="true" /> : null}
+                  Use {other.label} instead
+                </button>
+              ) : canStartSession ? (
+                <button
+                  type="button"
+                  onClick={() => onStartSession!(f.tab)}
+                  className="ui-btn-primary min-h-11"
+                >
+                  <Play className="h-4 w-4" aria-hidden="true" />
+                  {REMEDY_LABEL[FAILURE_REMEDY.START_SESSION]}
+                </button>
+              ) : remedy === FAILURE_REMEDY.RETRY || remedy === FAILURE_REMEDY.SWITCH_AGENT ? (
+                <button
+                  type="button"
+                  onClick={() => void retry(group)}
+                  disabled={busy}
+                  className="ui-btn-primary min-h-11"
+                >
+                  {busy ? (
+                    <Loader2 className="ui-spinner-sm" aria-hidden="true" />
+                  ) : (
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  {REMEDY_LABEL[FAILURE_REMEDY.RETRY]}
+                </button>
+              ) : null}
+            </div>
+          </article>
         );
       })}
-    </div>
+
+      {items.length > 0 && (
+        <div className="ui-needs-list">
+          {items.map(({ project, reason }) => (
+            <button
+              key={project.tab}
+              type="button"
+              className="ui-needs-row"
+              onClick={() => onFocusProject?.(project.tab)}
+              disabled={!onFocusProject}
+            >
+              <span className="min-w-0 flex-1 text-left">
+                <span className="ui-needs-row-name">{project.tab}</span>
+                {reason && reason.toLowerCase() !== "needs attention" && (
+                  <span className="ui-needs-row-why">{reason}</span>
+                )}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

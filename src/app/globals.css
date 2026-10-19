@@ -4318,6 +4318,58 @@
   .ui-callout-warning {
     @apply flex items-start gap-3 rounded-xl border border-status-warning/20 bg-status-warning-subtle px-4 py-3 text-sm;
   }
+  /* Home's one row to the project list on a phone (control/home-parts). */
+  .ui-home-all-projects {
+    @apply flex min-h-14 items-center gap-3 rounded-2xl border border-border-default bg-surface-base px-4 text-sm font-medium text-text-primary transition-colors active:bg-surface-overlay;
+  }
+  .ui-home-all-projects-count {
+    @apply text-sm tabular-nums text-text-muted;
+  }
+  /* "Needs you" on Home (control/AttentionBar). A card per thing that went
+     wrong: a title in words, the reason under it at full width, and the fix
+     as its one button — not a red strip with the text in a third of it. */
+  .ui-needs {
+    @apply flex flex-col gap-3;
+  }
+  .ui-needs-card {
+    @apply flex flex-col gap-2 rounded-2xl border border-border-default bg-surface-base px-4 py-3;
+  }
+  .ui-needs-head {
+    @apply flex items-start gap-2;
+  }
+  .ui-needs-icon {
+    @apply mt-1 h-4 w-4 shrink-0 text-status-negative;
+  }
+  .ui-needs-title {
+    @apply min-w-0 flex-1 text-base font-medium leading-snug text-text-primary;
+  }
+  .ui-needs-times {
+    @apply font-normal text-text-muted;
+  }
+  .ui-needs-dismiss {
+    @apply -mr-2 -mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:text-text-primary active:bg-surface-overlay;
+  }
+  .ui-needs-body {
+    @apply pl-6 text-sm leading-relaxed text-text-secondary;
+  }
+  .ui-needs-when {
+    @apply whitespace-nowrap text-text-muted;
+  }
+  .ui-needs-actions {
+    @apply flex flex-wrap gap-2 pl-6 empty:hidden;
+  }
+  .ui-needs-list {
+    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-default bg-surface-base;
+  }
+  .ui-needs-row {
+    @apply flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left transition-colors active:bg-surface-overlay disabled:cursor-default;
+  }
+  .ui-needs-row-name {
+    @apply block truncate text-sm font-medium text-text-primary;
+  }
+  .ui-needs-row-why {
+    @apply block truncate text-xs text-text-tertiary;
+  }
   .ui-callout-negative {
     @apply flex items-start gap-3 rounded-xl border border-status-negative/30 bg-status-negative-subtle px-4 py-3 text-sm;
   }
@@ -5521,10 +5573,13 @@
     @apply flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left transition-colors active:bg-surface-overlay;
   }
   .ui-inbox-group-label {
-    @apply min-w-0 flex-1 truncate text-sm text-text-secondary;
+    @apply min-w-0 flex-1 truncate text-sm text-text-primary;
   }
+  /* A fixed column, right-aligned: "13" and "1" in rows above each other
+     sat at different places (owner, 2026-10-19: "the numbers there are not
+     aligned"). */
   .ui-inbox-group-count {
-    @apply shrink-0 text-sm font-medium tabular-nums text-text-primary;
+    @apply w-8 shrink-0 text-right text-sm font-medium tabular-nums text-text-primary;
   }
   .ui-inbox-group-body {
     @apply border-t border-border-subtle bg-surface-base px-4 py-3;

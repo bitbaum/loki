@@ -59,7 +59,7 @@ async function main() {
             loader: "js",
             contents: a.path.includes("use-fleet-project")
               ? "export const useFleetProject=()=>'loki'"
-              : "export const usePathname=()=>'/control';export const useRouter=()=>({push(){},replace(){},refresh(){}});export const useSearchParams=()=>new URLSearchParams();",
+              : "export const usePathname=()=>'/control';export const useRouter=()=>({push(u){window.pushed=u},replace(){},refresh(){}});export const useSearchParams=()=>new URLSearchParams();",
           }));
         },
       },
@@ -126,6 +126,20 @@ async function main() {
       await page.evaluate(() => (window as unknown as { sent: unknown[] }).sent),
       [["Bitbaum", "Add a contact form"]],
       "it goes to the project the chip names",
+    );
+    // Somewhere new: "New project" in the same sheet, and the words become
+    // the new project's description (owner, 2026-10-19).
+    await chip.click();
+    await sheet.getByRole("button", { name: /^New project/ }).click();
+    await sheet.waitFor({ state: "detached" });
+    assert.match((await chip.getAttribute("aria-label")) ?? "", /^Project: New project\./);
+    await page.locator("textarea").fill("A booking page for my bakery");
+    await page.getByRole("button", { name: /^Send/ }).click();
+    await page.waitForFunction(() => Boolean((window as unknown as { pushed?: string }).pushed));
+    assert.equal(
+      await page.evaluate(() => (window as unknown as { pushed: string }).pushed),
+      "/projects?new=1&description=A%20booking%20page%20for%20my%20bakery",
+      "a new project starts from the words in the box",
     );
     const orange = await page.evaluate(() =>
       [...document.querySelectorAll("button")].some((b) => {

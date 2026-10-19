@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Check, ChevronRight, CircleAlert, CircleDashed } from "lucide-react";
 import { timeAgo } from "@/lib/dates";
@@ -65,12 +66,21 @@ function JobCard({ job, nowMs }: { job: NowJob; nowMs: number }) {
  * and where to look. Replaced "Recent activity", which listed the prompts
  * sent to agents verbatim — safety fences included — and could not be tapped.
  */
-export function ControlDone({ jobs }: { jobs: DoneJob[] }) {
+export function ControlDone({
+  jobs,
+  onFinish,
+}: {
+  jobs: DoneJob[];
+  /** Ask the session whose task stopped to finish it — the fix on the card,
+   *  not a red row to read and leave (owner, 2026-10-19: "how is that
+   *  helpful?"). */
+  onFinish?: (tab: string) => Promise<unknown> | void;
+}) {
   if (jobs.length === 0) return null;
   return (
     <section aria-labelledby="control-done-title" className="space-y-3">
       <h2 id="control-done-title" className="ui-now-heading">
-        Done recently
+        Recently
       </h2>
       <ul className="ui-done-list">
         {jobs.map((job) => {
@@ -92,6 +102,9 @@ export function ControlDone({ jobs }: { jobs: DoneJob[] }) {
                   </span>
                 </p>
                 <div className="ui-done-links">
+                  {job.tone === "bad" && onFinish && (
+                    <FinishButton tab={job.tab} onFinish={onFinish} />
+                  )}
                   {job.links.map((link) =>
                     link.external ? (
                       <a
@@ -117,6 +130,36 @@ export function ControlDone({ jobs }: { jobs: DoneJob[] }) {
         })}
       </ul>
     </section>
+  );
+}
+
+/** "Ask it to finish": sends the stopped session one sentence, then says so. */
+function FinishButton({
+  tab,
+  onFinish,
+}: {
+  tab: string;
+  onFinish: (tab: string) => Promise<unknown> | void;
+}) {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  if (state === "sent") return <span className="ui-done-link">Asked — it shows above</span>;
+  return (
+    <button
+      type="button"
+      className="ui-done-link"
+      disabled={state === "sending"}
+      onClick={async () => {
+        setState("sending");
+        try {
+          await onFinish(tab);
+          setState("sent");
+        } catch {
+          setState("failed");
+        }
+      }}
+    >
+      {state === "failed" ? "Didn't send — try again" : "Ask it to finish"}
+    </button>
   );
 }
 
