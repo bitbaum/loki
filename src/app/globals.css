@@ -4452,10 +4452,14 @@
      look. The 44px touch minimum is NOT stated per-button; it comes from THE
      TOUCH FLOOR below, which is keyed on pointer type. */
   .ui-btn-primary {
-    /* Disabled is NEUTRAL (muted surface), not a faded orange: opacity-40 of the
-       warm accent read as a washed-out "is this clickable?" button. A neutral
-       disabled state makes the enabled orange CTA unmistakable. */
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent-warm px-4 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-warm-hover active:opacity-90 disabled:bg-surface-raised disabled:text-text-muted disabled:cursor-not-allowed;
+    /* Monochrome: the accent the tokens define (near-black on light, near-white
+       on dark), as x.ai and Grok draw their one filled button. It was the warm
+       orange until 2026-10-19, so ~120 buttons in 85 files shouted at once and
+       a screen held three orange slabs (owner: "a lot of things that make
+       people freak out"). Orange is the PUBLIC site's — its download button
+       (--public-accent) and the roadmap — never an in-app action; colour in
+       the app means status. Disabled is NEUTRAL (muted surface), not faded. */
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent-primary px-4 py-2 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover active:opacity-90 disabled:bg-surface-raised disabled:text-text-muted disabled:cursor-not-allowed;
   }
   .ui-btn-secondary {
     @apply inline-flex items-center justify-center gap-2 rounded-lg border border-border-default px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary disabled:opacity-40;
@@ -4586,7 +4590,7 @@
   /* Large card-level CTA buttons (control panel intent / action rows) */
   /* Compact ready-banner action buttons (py-2.5 vs py-3 for lg) */
   .ui-btn-ready-primary {
-    @apply inline-flex items-center rounded-lg bg-accent-warm px-3 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent-warm-hover;
+    @apply inline-flex items-center rounded-lg bg-accent-primary px-3 py-2 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover;
   }
   /* "Next best" — the single dispatch-immediately CTA on Control, and on a
      phone the one thing this whole screen is FOR. It used to be a 10%-opacity
@@ -4599,10 +4603,10 @@
      app for exactly this color — full-width and semibold stay, since those
      are this button's own layout needs, not its color story. */
   .ui-btn-nextbest {
-    /* The one warm-accent action on Control. Sized to its label, not to the
-       panel: a full-width orange band was the loudest thing on the page and
-       the least like a control. */
-    @apply inline-flex w-auto items-center justify-center rounded-lg bg-accent-warm px-5 py-2.5 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-warm-hover disabled:bg-surface-raised disabled:text-text-muted disabled:cursor-not-allowed;
+    /* Sized to its label, not to the panel: a full-width band was the loudest
+       thing on the page and the least like a control. Monochrome like every
+       in-app primary (see .ui-btn-primary). */
+    @apply inline-flex w-auto items-center justify-center rounded-lg bg-accent-primary px-5 py-2.5 text-sm font-semibold text-text-inverted transition-colors hover:bg-accent-hover disabled:bg-surface-raised disabled:text-text-muted disabled:cursor-not-allowed;
   }
   .ui-btn-ready-action {
     @apply inline-flex items-center rounded-lg border border-border-default bg-surface-overlay px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised;

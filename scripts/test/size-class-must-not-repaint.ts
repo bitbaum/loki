@@ -62,8 +62,8 @@ const setsTextColour = (body: string) =>
  * This is the line between a bug and a preference, and it is worth stating
  * rather than banning every composition.
  *
- * `.ui-btn-primary` sets `bg-accent-warm` — a saturated orange — and picks
- * `text-on-accent` FOR that orange. When the size class substitutes muted
+ * `.ui-btn-primary` sets `bg-accent-primary` — a solid ink field — and picks
+ * `text-text-inverted` FOR that field. When the size class substitutes muted
  * grey, the label lands on a field it was never chosen for: 1.38:1.
  *
  * `.ui-btn-ghost` and `.ui-btn-secondary` paint no base background (ghost has
