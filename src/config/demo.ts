@@ -123,6 +123,9 @@ export const DEMO_DENIED_PREFIXES: ReadonlyArray<readonly [string, DemoDenialRea
   // but the family is named here so the table stays complete.
   ["/api/orchestration", "dispatch"],
   ["/api/projects/from-website", "dispatch"],
+  // Approving a new account's build request starts one on the box (and is
+  // operator-only anyway).
+  ["/api/build-requests", "dispatch"],
   ["/api/projects/from-repo", "dispatch"],
   // Makes a folder on the box and sends an agent to build a prospect preview.
   ["/api/previews", "dispatch"],

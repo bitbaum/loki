@@ -15,7 +15,7 @@ import path from "path";
 import { promisify } from "util";
 import { previewEntryPath } from "@/config/previews";
 import { previewBuildPrompt } from "@/config/preview-brief";
-import { getPreviewCode, setPreviewCode } from "@/db/queries/preview-code";
+import { getPreviewCode, setPreviewCode, setProjectPreviewCode } from "@/db/queries/preview-code";
 import { createUserProject } from "@/db/queries/user-projects";
 import { upsertWidgetToken } from "@/db/queries/widget-tokens";
 import { isUniqueViolation } from "@/lib/api/route-helpers";
@@ -104,6 +104,10 @@ export async function createPreview(
     address?: string;
     /** Saved as the operator's code for every preview, now and later. */
     code?: string;
+    /** A code for THIS preview only, never saved as the operator's: the one a
+     *  new account's approved request is given (config/build-requests), since
+     *  the operator's code opens every preview they have. Wins over `code`. */
+    ownCode?: string;
     archive?: Uint8Array;
     /** Refuse to create one nobody could open (the chat and the dialog); the
      *  box-side create leaves the code to be set in the app. */
@@ -144,8 +148,9 @@ export async function createPreview(
   // saved, a folder made or a host attached for a request that then fails
   // would change what the operator's other previews do (the code opens all of
   // them) or leave a vhost pointing at nothing.
-  const given = input.code?.trim();
-  const accessCode = given || (await getPreviewCode(userId));
+  const own = input.ownCode?.trim();
+  const given = own ? undefined : input.code?.trim();
+  const accessCode = own || given || (await getPreviewCode(userId));
   const hasCode = Boolean(previewCodeFor(accessCode));
   if (!hasCode && input.requireCode) {
     return {
@@ -227,6 +232,7 @@ export async function createPreview(
   }
   const projectId = project.entityProjectId;
   if (!projectId) return { ok: false, status: 500, error: "The project was not created fully." };
+  if (own) await setProjectPreviewCode(projectId, own);
 
   // The widget loads from Loki but runs on the preview's own address too.
   await upsertWidgetToken(userId, projectId, {

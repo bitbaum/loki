@@ -261,6 +261,8 @@ export const NOT_MEASURED = {
   // Dynamic routes whose parameter cannot be known from the repo. Each names
   // what it would take, so "needs an id" is a decision on record rather than
   // the silent exclusion every "[" used to get.
+  "/change/requests/[id]":
+    "needs a build request filed by the audited account (one per brief, signed in); checked at 390px by hand on 2026-10-19 with no horizontal scroll",
   "/projects/[id]": "needs a project id from the audited environment's database",
   "/projects/[id]/review":
     "needs an owned project id; actual review component and styles are measured at four widths in inspection-workspace-browser.ts",

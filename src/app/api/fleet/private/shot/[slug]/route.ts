@@ -1,7 +1,7 @@
 import { mkdir, readFile, stat, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
-import { getPreviewCode } from "@/db/queries/preview-code";
+import { getProjectPreviewCode } from "@/db/queries/preview-code";
 import { findPreviewProject } from "@/db/queries/previews";
 import { appUrl } from "@/lib/email";
 import { takePagePicture } from "@/lib/feedback/page-picture";
@@ -64,7 +64,7 @@ async function previewCookie(slug: string, ownerId: string): Promise<string | nu
   const dir = previewDirFor(slug);
   const project = dir ? await findPreviewProject(dir) : null;
   if (!project || project.userId !== ownerId) return null;
-  const code = previewCodeFor(await getPreviewCode(ownerId));
+  const code = previewCodeFor(await getProjectPreviewCode(project));
   return code ? createPreviewAccessCookie(Date.now(), code) : null;
 }
 

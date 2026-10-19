@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Globe, Pencil } from "lucide-react";
 import { Composer } from "@/components/composer/Composer";
-import { InstantPreview } from "@/components/public/InstantPreview";
+import { InstantPreview, type InstantLook } from "@/components/public/InstantPreview";
 import { SiteConsultation } from "@/components/public/SiteConsultation";
 import { COMMISSION, WEBSITE_MODES, WEBSITE_MODE_IDS, type WebsiteMode } from "@/config/commission";
 import { ROUTES } from "@/config/auth";
@@ -56,6 +56,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
   const [ready, setReady] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [look, setLook] = useState<InstantLook | null>(null);
   const requestId = useRef("");
 
   // Restore a draft: from the studio's handoff link (#brief=…) or from this tab.
@@ -157,6 +158,7 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
           mode,
           fixes: chosen,
           answers: answerIds,
+          ...(look ? { look } : {}),
         }),
       });
       const body = (await response.json()) as {
@@ -168,7 +170,12 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
         throw new Error(
           body.error ?? "Your brief is still here. Try again to resume this request.",
         );
-      if (!body.projectPath || !/^\/projects\/[\da-f-]+\/watch$/.test(body.projectPath))
+      // A preview's watch page, or — for an account a person approves builds
+      // for — the request's own page (config/build-requests).
+      if (
+        !body.projectPath ||
+        !/^\/(projects\/[\da-f-]+\/watch|change\/requests\/[\da-f-]+)$/.test(body.projectPath)
+      )
         throw new Error("The response was incomplete. Retry to resume this request.");
       clearWebsiteDraft();
       router.push(body.projectPath);
@@ -289,7 +296,9 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
             }}
           />
 
-          {!needsSite && showAsk && <InstantPreview website={website} ask={showAsk} />}
+          {!needsSite && showAsk && (
+            <InstantPreview website={website} ask={showAsk} onLook={setLook} />
+          )}
 
           {error && (
             <p role="alert" className="ui-error">
