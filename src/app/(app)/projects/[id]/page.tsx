@@ -8,6 +8,7 @@ import { ROUTES } from "@/config/auth";
 import { isInterviewAuto, isKickoffAuto } from "@/lib/integrations/orangecat-handoff-mode";
 import { isSiteOperator } from "@/db/queries/users";
 import { mayHoldPass } from "@/lib/feedback/pass-rule";
+import { createMemberPass } from "@/lib/feedback/member-pass";
 import { createOwnerPass } from "@/lib/feedback/owner-pass";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import { reconcileSiteLiveUrl } from "@/lib/site-live-reconcile";
@@ -90,6 +91,13 @@ export default async function ProjectPage({
         // The owner and every Builder get a pass: it is what makes a note on
         // the site build at once (lib/feedback/pass-rule.ts, mayHoldPass).
         ownerPass={mayHoldPass(dossier.viewerRole) ? createOwnerPass(id, session.user.id) : null}
+        // Everyone else on the project gets their own member pass: the site's
+        // Feedback files their notes as theirs (lib/feedback/member-pass.ts).
+        memberPass={
+          dossier.viewerRole && !mayHoldPass(dossier.viewerRole)
+            ? createMemberPass(id, session.user.id)
+            : null
+        }
         joined={joined === "1"}
         shareAction={
           !dossier.readonly ? (

@@ -2,7 +2,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { entities, siteFeedback } from "@/db/schema";
 import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
-import { feedbackShippedTemplate, sendEmailFire } from "@/lib/email";
+import { appUrl, feedbackShippedTemplate, sendEmailFire } from "@/lib/email";
+import { feedbackClaimPath } from "@/lib/feedback/claim-token";
 
 /**
  * Close the feedback loop honestly.
@@ -42,7 +43,12 @@ async function emailVisitorShipped(row: ShippableRow): Promise<void> {
     .limit(1);
   const site = project?.name ?? "the site";
   const excerpt = row.suggestion.length > 140 ? `${row.suggestion.slice(0, 140)}…` : row.suggestion;
-  const mail = feedbackShippedTemplate({ site, excerpt, page: row.page });
+  const mail = feedbackShippedTemplate({
+    site,
+    excerpt,
+    page: row.page,
+    trackUrl: `${appUrl()}${feedbackClaimPath(row.id)}`,
+  });
   sendEmailFire(contact, mail.subject, mail.html, mail.text);
 }
 

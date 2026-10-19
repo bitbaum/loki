@@ -67,6 +67,9 @@ export function createConversation(opts: {
   ownerPass: () => string | null;
   /** The server refused the pass (expired, revoked): stop presenting it. */
   onPassRefused: () => void;
+  /** A project member's pass (member-pass.ts): their notes are theirs. */
+  memberPass?: () => string | null;
+  onMemberRefused?: () => void;
   picker: Picker;
   watch: () => ConversationWatch | null;
   /** Loki is working on an answer (true) or done (false) — the header's
@@ -136,6 +139,8 @@ export function createConversation(opts: {
     assistant: opts.assistant,
     ownerPass: opts.ownerPass,
     onPassRefused: opts.onPassRefused,
+    memberPass: opts.memberPass,
+    onMemberRefused: opts.onMemberRefused,
     picker: opts.picker,
     watch: opts.watch,
     about: () => ctx.about(),
@@ -458,7 +463,9 @@ export function createConversation(opts: {
     el.append(...noteExtras(draft, () => model.useExactWords()));
     const contact = h("input");
     contact.type = "text";
-    contact.placeholder = "Your name / email (optional)";
+    // An email is how they hear back: the tracking link is mailed to it, and
+    // the "it's fixed" mail goes there too. No account (claim-feedback page).
+    contact.placeholder = "Your email, to hear when it's fixed (optional)";
     contact.maxLength = 200;
     contact.autocomplete = "off";
     // Loki already knows who the owner is.

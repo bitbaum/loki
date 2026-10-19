@@ -13,6 +13,7 @@ export const MAIL_KINDS = [
   "reset",
   "digest",
   "feedback_shipped",
+  "feedback_received",
   "operator",
   "project_invite",
   "studio_link",
@@ -79,6 +80,8 @@ export function mailSubject(kind: MailKind, extra?: string): string {
       return `${APP_NAME} ${extra ?? "digest"}`;
     case "feedback_shipped":
       return extra ? `Your feedback on ${extra} shipped` : "Your feedback shipped";
+    case "feedback_received":
+      return extra ? `We got your note about ${extra}` : "We got your note";
     case "operator":
       return extra?.trim() || `${APP_NAME}`;
     case "project_invite":

@@ -65,7 +65,9 @@ export default async function ProjectWatchPage({
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {project.name}
       </Link>
       <h1 className="ui-page-title">Watch it work</h1>
-      {preview && <PreviewShareCard name={registered?.name ?? project.name} {...preview} />}
+      {preview && (
+        <PreviewShareCard projectId={id} name={registered?.name ?? project.name} {...preview} />
+      )}
       <ProjectWatch
         key={`${id}:${run ?? "latest"}`}
         projectId={id}

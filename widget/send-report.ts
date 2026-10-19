@@ -23,6 +23,8 @@ export type ReportFields = {
   screenshots?: string[];
   selectedElements?: SelectedEl[];
   ownerPass?: string;
+  /** A project member's pass (member-pass.ts): the note is theirs. */
+  memberPass?: string;
   /** Watch's remark signature, when the note IS a finding's fix (owner only). */
   noticeKey?: string;
   /** What was seen while each thing was said — clamped by moments-contract. */
@@ -37,6 +39,10 @@ export type ReportAnswer = {
   savedOnly?: boolean;
   /** The owner's build, in Loki ("Watch the fix") — the receipt links to it. */
   followUrl?: string;
+  /** Filed as a project member's own (their pass was honoured). */
+  member?: boolean;
+  /** What happened to a member's note, in Loki's words. */
+  say?: string;
 };
 
 /** File a report about the page the person is on. Throws the server's own

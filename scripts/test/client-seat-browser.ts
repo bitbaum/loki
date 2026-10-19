@@ -31,8 +31,12 @@ async function main() {
       import React from 'react'; import {createRoot} from 'react-dom/client';
       import {MemberGuide} from './src/components/projects/MemberGuide';
       import {ProjectMembersPanel} from './src/components/projects/ProjectMembersPanel';
-      const owner=new URLSearchParams(location.search).has('owner');
-      createRoot(document.getElementById('app')).render(<main className="app-main"><div className="app-page space-y-5">{owner
+      import {ReporterFeedbackCard} from './src/components/feedback/ReporterFeedbackCard';
+      import {PreviewShareCard} from './src/components/projects/PreviewShareCard';
+      const q=new URLSearchParams(location.search); const owner=q.has('owner');
+      const track=<ReporterFeedbackCard row={{id:"${READY}",projectId:"${ID}",canStart:false,projectName:"Bakery",suggestion:"The opening hours on the home page are wrong on Sundays — it says closed but you open at 9.",createdAt:new Date(Date.now()-3600e3),status:{label:"Fix is live",tone:"positive",detail:"A fix shipped. Have a look and tell us if it is still wrong.",action:{href:"https://bakery.example/",label:"Watch your fix"}}}}/>;
+      const share=<PreviewShareCard projectId="${ID}" name="Bakery" previewUrl="https://bakery.orangecat.ch" ownerUrl="https://bakery.orangecat.ch/#loki-owner=x" code="sun-42" tourUrl={null}/>;
+      createRoot(document.getElementById('app')).render(<main className="app-main"><div className="app-page space-y-5">{q.has('track') ? track : q.has('share') ? share : owner
         ? <ProjectMembersPanel projectId="${ID}" projectName="Bakery" defaultRole="client"/>
         : <MemberGuide projectId="${ID}" role="client" projectName="Bakery" ownerName="George" liveUrl="https://bakery.example" ownerPass={null} joined={false}
             allowance={{limit:20,left:17}} ready={[{id:"${READY}",suggestion:"Make the opening hours bigger and put them at the top of the home page, where people look first."}]}/>}</div></main>);`,
@@ -156,6 +160,27 @@ async function main() {
             (s.body as { monthlyChanges?: number }).monthlyChanges === 20,
         ),
       );
+      // The visitor's own page, from the link in their mail: no account asked.
+      await page.goto("http://seat.fixture/claim-feedback?track");
+      await page.addScriptTag({ content: bundle.outputFiles[0].text });
+      await page.getByText("Fix is live").waitFor();
+      await page.getByRole("link", { name: "Watch your fix" }).waitFor();
+      await noSideways("tracking page");
+      await page.screenshot({ path: path.join(out, `track-${width}.png`), fullPage: true });
+
+      // What the owner sends a prospect: the seat, not the owner's own link.
+      await page.goto("http://seat.fixture/projects?share");
+      await page.addScriptTag({ content: bundle.outputFiles[0].text });
+      const invite = page.getByRole("link", { name: "Invite them as Client" });
+      assert.equal(await invite.getAttribute("href"), `/projects/${ID}#people`);
+      await noSideways("share card");
+      if (width < 768) {
+        const widths = await page
+          .locator(".ui-preview-share a, .ui-preview-share button")
+          .evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+        assert.equal(new Set(widths).size, 1, `share actions at ${width}px: one width, stacked`);
+      }
+      await page.screenshot({ path: path.join(out, `share-${width}.png`), fullPage: true });
       assert.deepEqual(errors, [], `no page errors at ${width}px`);
       await page.close();
     }

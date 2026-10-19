@@ -6,13 +6,15 @@ import { ProjectAskBox } from "./ProjectAskBox";
 import { FeedbackReportText } from "@/components/feedback/FeedbackReportText";
 import { GoLiveButton } from "@/components/feedback/GoLiveButton";
 import { ownerSiteUrl } from "../../../widget/owner-pass";
+import { memberSiteUrl } from "../../../widget/member-pass";
 
 /**
  * The manual for someone who was invited onto a project, at the top of the
  * page they land on — and the place to use it: the box to ask in, right
  * here (ProjectAskBox), then the site as the other door. What happens to
- * what they ask is the same line the invite page showed. A Builder's "Open"
- * link carries the pass that makes their note on the site build at once; the
+ * what they ask is the same line the invite page showed. The "Open" link
+ * carries the person's pass: a Builder's note on the site builds at once, a
+ * client's is filed as theirs on their allowance (feedback/member-pass.ts); the
  * site remembers it in that browser, and the site's own feedback button has
  * a sign-in door for any other browser.
  */
@@ -23,6 +25,7 @@ export function MemberGuide({
   ownerName,
   liveUrl,
   ownerPass,
+  memberPass = null,
   joined,
   allowance = null,
   ready = [],
@@ -33,6 +36,8 @@ export function MemberGuide({
   ownerName: string | null;
   liveUrl: string | null;
   ownerPass: string | null;
+  /** A client's or viewer's own pass: their notes on the site are theirs. */
+  memberPass?: string | null;
   /** Arrived straight from "Join": lead with that. */
   joined: boolean;
   /** A client's changes left this month. */
@@ -68,7 +73,13 @@ export function MemberGuide({
             Or tap Feedback on the site itself — there you can also point at the spot.
           </p>
           <a
-            href={ownerPass ? ownerSiteUrl(liveUrl, ownerPass) : liveUrl}
+            href={
+              ownerPass
+                ? ownerSiteUrl(liveUrl, ownerPass)
+                : memberPass
+                  ? memberSiteUrl(liveUrl, memberPass)
+                  : liveUrl
+            }
             target="_blank"
             rel="noreferrer"
             className="ui-btn-secondary min-h-11 gap-2"

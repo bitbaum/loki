@@ -44,6 +44,14 @@ export type ClientAllowance = (typeof CLIENT_ALLOWANCE_CHOICES)[number]["value"]
 /** What a new client is given unless the owner picks otherwise. */
 export const DEFAULT_CLIENT_ALLOWANCE: ClientAllowance = 20;
 
+/**
+ * Someone whose "Make it real" on /change the operator approved: a stranger
+ * until then, so a smaller start. The seat is what keeps them from being
+ * stranded — before it, their later notes on their own new site landed as a
+ * stranger's and waited (2026-10-19). The operator changes it on People.
+ */
+export const REQUESTER_CLIENT_ALLOWANCE: ClientAllowance = 5;
+
 export const CLIENT_ALLOWANCE_VALUES: readonly number[] = CLIENT_ALLOWANCE_CHOICES.flatMap((c) =>
   c.value === null ? [] : [c.value],
 );

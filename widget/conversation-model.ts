@@ -215,6 +215,10 @@ export type ConversationModelOpts = {
   assistant: () => Assistant;
   /** The owner pass, while the server still honours it. */
   ownerPass: () => string | null;
+  /** A project member's pass (member-pass.ts), while the server honours it. */
+  memberPass?: () => string | null;
+  /** The server no longer honours the member pass: stop sending it. */
+  onMemberRefused?: () => void;
   /** The server refused the pass (expired, revoked): stop presenting it. */
   onPassRefused: () => void;
   picker: Picker;
@@ -396,12 +400,25 @@ export function createConversationModel(opts: ConversationModelOpts) {
       screenshots: opts.screenshots.list(),
       selectedElements: opts.picker.selected(),
       ownerPass: pass ?? undefined,
+      ...memberField(pass),
       // The finding's key rides with its fix, so the next visit's remark
       // finds this row instead of filing another.
       ...(pass && key ? { noticeKey: key } : {}),
     });
     if (pass && !res.owner) opts.onPassRefused();
+    memberHonoured(pass, res);
     sent(res, body);
+  }
+
+  /** The member pass rides only when the owner's does not: the owner's wins. */
+  function memberField(ownerPass: string | null): { memberPass?: string } {
+    const member = ownerPass ? null : (opts.memberPass?.() ?? null);
+    return member ? { memberPass: member } : {};
+  }
+
+  /** A member pass the server no longer honours is dropped, never resent. */
+  function memberHonoured(ownerPass: string | null, res: { member?: boolean }) {
+    if (!ownerPass && opts.memberPass?.() && res.member !== true) opts.onMemberRefused?.();
   }
 
   /** After filing: the card goes (or keeps what is left), the receipt lands. */
@@ -415,9 +432,10 @@ export function createConversationModel(opts: ConversationModelOpts) {
       at: Date.now(),
       text: body.slice(0, MAX_LEN),
       owner: res.owner === true,
+      ...(res.member ? { member: true } : {}),
       ...(res.building ? { building: true } : {}),
       ...(res.savedOnly ? { savedOnly: true } : {}),
-      ...(res.buildNote ? { note: res.buildNote } : {}),
+      ...(res.buildNote || res.say ? { note: res.buildNote ?? res.say } : {}),
       // One link either way: a visitor tracks their report, the owner
       // follows the build Loki just started.
       ...(res.claimUrl || res.followUrl ? { claimUrl: res.followUrl ?? res.claimUrl } : {}),
@@ -572,12 +590,14 @@ export function createConversationModel(opts: ConversationModelOpts) {
           screenshots: opts.screenshots.list(),
           selectedElements: opts.picker.selected(),
           ownerPass: pass ?? undefined,
+          ...memberField(pass),
         });
         // Filed: off the card, so a failure on the next keeps only what is left.
         note.items = note.items?.filter((i) => i !== item);
       }
       if (!res) return;
       if (pass && !res.owner) opts.onPassRefused();
+      memberHonoured(pass, res);
       const questions = note.items?.filter((i) => i.kind === "question") ?? [];
       const said =
         changes.length === 1

@@ -48,6 +48,7 @@ export function ProjectWorkspaceView({
   autoInterview = false,
   viewerIsSiteOperator = false,
   ownerPass = null,
+  memberPass = null,
   viewerMayOpenOrgRepo = false,
   viewerHasGithub = false,
   joined = false,
@@ -62,6 +63,8 @@ export function ProjectWorkspaceView({
   viewerIsSiteOperator?: boolean;
   /** Signed server-side for the project's owner only (feedback/owner-pass.ts). */
   ownerPass?: string | null;
+  /** A client's or viewer's own pass for the site (feedback/member-pass.ts). */
+  memberPass?: string | null;
   /** The viewer holds a credential for the fleet's organisation, so a link
    *  to a private repository Loki keeps there opens for them. For everyone
    *  else that link is a 404, and is not shown. */
@@ -231,6 +234,7 @@ export function ProjectWorkspaceView({
           ownerName={dossier.ownerName}
           liveUrl={userProject?.liveUrl ?? links.prodUrl}
           ownerPass={ownerPass}
+          memberPass={memberPass}
           joined={joined}
           allowance={dossier.viewerAllowance}
           ready={dossier.viewerReady}
@@ -259,6 +263,7 @@ export function ProjectWorkspaceView({
                       ownerName={dossier.ownerName}
                       liveUrl={userProject?.liveUrl ?? links.prodUrl}
                       ownerPass={ownerPass}
+                      memberPass={memberPass}
                       joined={joined}
                       allowance={dossier.viewerAllowance}
                       ready={dossier.viewerReady}

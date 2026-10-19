@@ -310,6 +310,19 @@ Who filed a note is the server's call, never the sender's
   the owner like a visitor's, and the night never builds it unasked. A build
   that did not start is not counted. `scripts/test/client-seat.ts`,
   `scripts/test/client-seat-browser.ts`.
+- On the SITE, a member (client, viewer) is known by a member pass, minted
+  for their "Open" link on their project page and by the widget's sign-in
+  door for anyone on the project who is not a builder
+  (`lib/feedback/member-pass.ts`, fragment `#loki-member=`). The panel stays
+  the ordinary one; ingest files the note through `askInLoki`, so a client's
+  note on the site follows the same allowance and "Make it live" as on their
+  project page. Membership is read at use, so removing someone ends their
+  pass. The owner pass is the owner's console and is never sent to anyone.
+- A visitor follows their note without an account: the tracking link opens
+  `/claim-feedback` on the note's own status (`ReporterFeedbackCard`, the same
+  card as My feedback), valid six months, and is mailed to the address they
+  leave (`lib/feedback/receipt-mail.ts`, three a day per address) and again in
+  the "shipped" mail. `scripts/test/seat-on-site-and-tracking.ts`.
 - Telegram carries the operator's own projects only
   (`lib/actions/telegram-for-user.ts`); other accounts hear through push and
   their alerts.
