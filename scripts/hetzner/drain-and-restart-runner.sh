@@ -114,10 +114,10 @@ while :; do
   n="$(count_agents)"
   case "$(drain_decision "$n" "$waited" "$MAX")" in
     restart)
-      log "no agent working after ${waited}s — restarting to pick up new code (idle sessions resume on their next dispatch)"
+      log "no agent working after ${waited}s — restarting to pick up new code (open sessions reopen when it starts; Claude resumes each conversation)"
       systemctl restart "$UNIT" && sleep 4
       if systemctl is-active "$UNIT" >/dev/null 2>&1; then
-        log "✓ ${UNIT} restarted (drained cleanly, no agent killed)"
+        log "✓ ${UNIT} restarted (no agent was mid-task; idle sessions reopen on start)"
         exit 0
       fi
       log "✗ ${UNIT} did not come back after restart"
