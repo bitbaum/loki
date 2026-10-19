@@ -1,9 +1,9 @@
 # OrangeCat-Rail Monetization — Scope
 
 **Date**: 2026-07-13
-**Why now**: Stripe/Payrexx need a registered merchant entity; bitbaum AG isn't registered, so fiat card rails are blocked. Bitcoin rails through OrangeCat need no merchant account and are the on-thesis path ("settle over OC rails, not Stripe"). This scopes the first revenue path that does not wait on incorporation.
+**Why now**: Stripe/Payrexx need a registered merchant entity; bitbaum is not a registered entity, so fiat card rails are blocked. Bitcoin rails through OrangeCat need no merchant account and are the on-thesis path ("settle over OC rails, not Stripe"). This scopes the first revenue path that does not wait on incorporation.
 
-**Not in scope**: the legal question of *who may receive business revenue* (any rail, BTC included). That's a Swiss-legal/tax matter for an advisor and part of why bitbaum AG exists — it is orthogonal to the payment mechanism below.
+**Not in scope**: the legal question of *who may receive business revenue* (any rail, BTC included). That's a Swiss-legal/tax matter for an advisor (bitbaum is unregistered: fleet `registers/org.json`) — it is orthogonal to the payment mechanism below.
 
 ---
 

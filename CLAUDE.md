@@ -82,7 +82,7 @@ src/
 │   │                 LokiComposer), the terminal's Loki rail + Control's quick send
 │   │                 (terminal/TerminalComposer) and the session box
 │   │                 (terminal/SessionComposer) all render it. Never add a second message box — add a prop.
-│   ├── loki/      → LokiWorkspace, Transcript, LokiComposer, ConversationList (chat assistant)
+│   ├── loki/      → LokiWorkspace, Thread, LokiComposer (Composer.tsx), ThreadRail (conversation list) (chat assistant)
 │   ├── terminal/  → TerminalSurface (the ONE shell: tab strip + session bar +
 │   │                 session + session box), TerminalTabStrip, TerminalModeBar,
 │   │                 TerminalComposer, ShellWorkspace (server-owned bash PTYs,
@@ -537,7 +537,7 @@ rightly, read it as the packages not working.
 pnpm run dev          # Start dev server (default port 3000)
 pnpm run build        # Production build
 pnpm run smoke        # Curl every page route on localhost:3000 and assert 2xx/3xx
-pnpm run test:home    # Run all eight home/ inline self-test suites (~14s)
+pnpm run test:home    # Run every inline self-test suite: the eight home/ modules + three src/lib ones (~14s)
 pnpm run check:desktop # Typecheck + build desktop/ (Fleet Runner). Part of `verify`.
                       # Runs on EVERY PR, not just desktop ones: desktop/src/main
                       # bundles ../src and ../home, so a src/ change can break it.
@@ -578,7 +578,7 @@ When they do fire, the hook's extras are a schema-drift guard, dev-server smoke
 (if one is up), and, when `SMOKE_PRIVATE_PIN` is in `.env.local` (or exported),
 `pnpm run test:pre-push-prod-dogfood`: authenticated prod smoke and headless
 prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is online;
-`dogfood:machine` when a local Fleet Runner is connected).
+`scripts/machine-dogfood.mjs` when a local Fleet Runner is connected).
 
 ## Views
 
@@ -594,7 +594,7 @@ prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is online;
 | Terminal | /terminal | Live embedded terminal — watch/drive the cloud builder or local Fleet Runner PTY per project tab |
 | Activity | /activity | Fleet activity timeline — digests, event stream, per-project status strip across windows (hour/day/week/month). `/digests`, `/decisions` and `/history` are redirect stubs onto this page |
 | Atlas | /atlas | RETIRED — redirects to /projects. Live URL and down-state live on Projects |
-| Duet | /duet | RETIRED — redirects to /agents, which now redirects on to /control (side-by-side prompt view earned nothing over Terminal + Control) |
+| Duet | /duet | RETIRED — redirects to /control (side-by-side prompt view earned nothing over Terminal + Control) |
 | Today | /today | Calendar, weather, commitments, bills, daily habit check-off, log conversation |
 | People | /people | Contacts, search, detail panel, inline name/notes edit |
 | Crew | /crew | Humans in the loop + the work you hand them. Draft → hand over (mints a share link) → they accept/decline/deliver → you accept. Paid assignments mirror to OrangeCat as a service; the roster is person entities flagged `crew:member`, never a parallel table |

@@ -122,7 +122,7 @@ src/config/       SSOT for navigation, channels, prompt-library, subscriptions
 src/db/schema/    Drizzle tables — SSOT for all types
 src/db/queries/   Data access (one file per domain)
 src/lib/          constants, dates, tools, api wrappers, session, db-url
-home/             Local-first agent orchestration (runs on the user's machine)
+home/             Agent orchestration library (embedded by scripts/box-runner.ts, desktop/, scripts/hosted-runner.ts)
 scripts/          deploy, tests, db tooling, generators
 drizzle/          Versioned migration files + meta/ (journal + snapshot)
 docs/             Architecture + infrastructure notes

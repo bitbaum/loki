@@ -30,7 +30,7 @@ on:
   # 2026-08-05 with three merges live on main and none of them deployed. The
   # sweep dispatches this directly instead — it compares main's tip against the
   # last successful run here and closes the gap. The sweep now lives in
-  # bitbaum/dotfiles (scripts/ci/auto-merge-sweep.sh); this repo enables the
+  # bitbaum/fleet (scripts/ci/auto-merge-sweep.sh); this repo enables the
   # reconciler by passing `deploy_workflow: deploy.yml` in auto-merge.yml.
   # Removing that input makes merges land and never ship.
   workflow_dispatch: {}
