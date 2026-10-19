@@ -3,7 +3,7 @@ import path from "path";
 import { NextRequest } from "next/server";
 import { PREVIEWS } from "@/config/previews";
 import { findPreviewProject } from "@/db/queries/previews";
-import { getPreviewCode } from "@/db/queries/preview-code";
+import { getProjectPreviewCode } from "@/db/queries/preview-code";
 import { getActiveWidgetToken } from "@/db/queries/widget-tokens";
 import { handlePreviewGet, handlePreviewPost, type PreviewDeps } from "@/lib/previews/handle";
 import { appUrl } from "@/lib/email";
@@ -40,7 +40,7 @@ async function lookupProject(dir: string): Promise<Project> {
   return {
     name: project.name,
     widgetToken: token?.token ?? null,
-    code: await getPreviewCode(project.userId),
+    code: await getProjectPreviewCode(project),
   };
 }
 

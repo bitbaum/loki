@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { PREVIEWS } from "@/config/previews";
 import { findPreviewProject } from "@/db/queries/previews";
-import { getPreviewCode } from "@/db/queries/preview-code";
+import { getProjectPreviewCode } from "@/db/queries/preview-code";
 import { jsonError, jsonOk } from "@/lib/api/route-helpers";
 import { RATE_LIMIT_WINDOW_LONG_MS } from "@/lib/constants/time";
 import {
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   const dir = previewDirFor(slug);
   const project = dir ? await findPreviewProject(dir) : null;
   if (!project || project.userId !== userId) return jsonError("No such preview of yours.", 404);
-  const code = previewCodeFor(await getPreviewCode(userId));
+  const code = previewCodeFor(await getProjectPreviewCode(project));
   if (!code) return jsonError("Set an access code first — it stays closed until then.", 409);
   const value = createPreviewAccessCookie(Date.now(), code);
   if (!value) return jsonError("This server cannot sign the cookie.", 503);

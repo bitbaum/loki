@@ -44,7 +44,7 @@ export type WebsitePreviewStart =
   | { ok: false; status: number; error: string };
 
 /** A code a person can say on the phone: two short words' worth of letters. */
-function newAccessCode(): string {
+export function newAccessCode(): string {
   const letters = "abcdefghjkmnpqrstuvwxyz";
   return Array.from({ length: 6 }, () => letters[randomInt(letters.length)]).join("");
 }
@@ -52,9 +52,12 @@ function newAccessCode(): string {
 export async function startWebsitePreview(
   userId: string,
   input: WebsiteBuildInput,
+  /** A code for this preview only (createPreview's `ownCode`): an approved
+   *  request from another account (lib/build-requests). */
+  options: { ownCode?: string } = {},
 ): Promise<WebsitePreviewStart | null> {
   if (!previewsRoot()) return null;
-  return withInFlight(`${userId}:${input.requestId}`, () => startOnce(userId, input));
+  return withInFlight(`${userId}:${input.requestId}`, () => startOnce(userId, input, options));
 }
 
 /** How many live pages get a "before" picture the moment the preview starts. */
@@ -81,6 +84,7 @@ async function takeBeforePictures(dir: string, pages: readonly string[]): Promis
 async function startOnce(
   userId: string,
   input: WebsiteBuildInput,
+  options: { ownCode?: string },
 ): Promise<WebsitePreviewStart | null> {
   // A repeat of the same request (double tap, retry after a network blip)
   // opens the preview it already made — never a second one.
@@ -110,7 +114,9 @@ async function startOnce(
   );
   // Nobody can open a preview without a code, and a stranger who just named
   // their own site has never set one: give them one, shown on the next screen.
-  const code = input.code ?? ((await getPreviewCode(userId)) ? undefined : newAccessCode());
+  const code = options.ownCode
+    ? undefined
+    : (input.code ?? ((await getPreviewCode(userId)) ? undefined : newAccessCode()));
   const livePages = consulted?.ok
     ? consulted.consultation.pages.filter((p) => p.ok).map((p) => p.url)
     : [input.website];
@@ -127,6 +133,7 @@ async function startOnce(
     address: name,
     about: about.slice(0, 2000),
     code,
+    ownCode: options.ownCode,
     prompt: (previewUrl) =>
       websitePreviewPrompt({
         request,

@@ -241,6 +241,41 @@ Open it with the private link from the first mail we sent you. Lost that link? $
 }
 
 /**
+ * A new account's build request was decided (config/build-requests). The
+ * address and code are the preview's own, never the operator's; the note and
+ * website are user-authored or operator-authored text, so both are escaped.
+ */
+export function buildRequestTemplate(input: {
+  status: "building" | "declined";
+  website: string;
+  pageUrl: string;
+  previewUrl?: string | null;
+  accessCode?: string | null;
+  note?: string | null;
+}) {
+  const subject = mailSubject("build_request", input.status);
+  const site = escapeHtml(input.website);
+  const note = input.note?.trim();
+  const body =
+    input.status === "building"
+      ? `
+    <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:${EMAIL_THEME.ink};">Your new version of ${site} is being built</h2>
+    ${p("A person read your request and started it. Loki's agents are building it now; it is ready in a few minutes. Your live site is not touched.")}
+    ${input.previewUrl ? p(`Open it at <a href="${escapeHtml(input.previewUrl)}" style="color:${EMAIL_THEME.ink};">${escapeHtml(input.previewUrl)}</a>${input.accessCode ? ` with the code <strong>${escapeHtml(input.accessCode)}</strong>` : ""}.`) : ""}
+    ${small(`Everything about it, as it happens: <a href="${input.pageUrl}" style="color:${EMAIL_THEME.muted};">your request</a>.`)}`
+      : `
+    <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:${EMAIL_THEME.ink};">About your request for ${site}</h2>
+    ${p("A person read it and did not start a build this time.")}
+    ${note ? p(escapeHtmlWithBreaks(note)) : ""}
+    ${small(`Your request: <a href="${input.pageUrl}" style="color:${EMAIL_THEME.muted};">${input.pageUrl}</a>`)}`;
+  const text =
+    input.status === "building"
+      ? `Your new version of ${input.website} is being built. It is ready in a few minutes; your live site is not touched.${input.previewUrl ? `\n\nOpen it: ${input.previewUrl}${input.accessCode ? ` (code: ${input.accessCode})` : ""}` : ""}\n\nYour request: ${input.pageUrl}`
+      : `About your request for ${input.website}: a person read it and did not start a build this time.${note ? `\n\n${note}` : ""}\n\nYour request: ${input.pageUrl}`;
+  return { subject, html: emailShell(body), text };
+}
+
+/**
  * An invitation into one project. The project and inviter names are
  * user-authored, so they are escaped exactly like the feedback template's.
  */

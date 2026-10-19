@@ -107,6 +107,11 @@ export const ALERT_TYPES = {
     audience: "operator",
     producer: "src/lib/studio/notify.ts",
   },
+  build_request: {
+    label: "A new account asked for a build on /change",
+    audience: "operator",
+    producer: "src/lib/build-requests/notify.ts",
+  },
   fix_live: {
     label: "A visitor's fix reached the live site",
     audience: "operator",

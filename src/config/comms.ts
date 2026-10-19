@@ -17,6 +17,7 @@ export const MAIL_KINDS = [
   "project_invite",
   "studio_link",
   "studio_update",
+  "build_request",
 ] as const;
 export type MailKind = (typeof MAIL_KINDS)[number];
 
@@ -90,6 +91,10 @@ export function mailSubject(kind: MailKind, extra?: string): string {
       return extra === "partner"
         ? "The bitbaum studio answered your partner application"
         : "The bitbaum studio answered your request";
+    case "build_request":
+      return extra === "building"
+        ? "Your new version is being built"
+        : `About your request on ${APP_NAME}`;
   }
 }
 

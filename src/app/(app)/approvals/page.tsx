@@ -15,6 +15,30 @@ import {
 import { approvalsSentence } from "@/lib/needs-you";
 import { loadRecentUpdateDecisions, loadUpdateCards } from "@/lib/packages/load";
 import { PackageUpdateQueue } from "@/components/packages/PackageUpdateQueue";
+import {
+  BuildRequestQueue,
+  type BuildRequestCard,
+} from "@/components/build-requests/BuildRequestQueue";
+import { listBuildRequests } from "@/db/queries/build-requests";
+import { isSiteOperator } from "@/db/queries/users";
+
+/** New accounts' build requests — the operator's alone to decide. */
+async function loadBuildRequests(userId: string): Promise<BuildRequestCard[]> {
+  if (!(await isSiteOperator(userId).catch(() => false))) return [];
+  const rows = await listBuildRequests().catch(() => []);
+  return rows.map((r) => ({
+    id: r.id,
+    website: r.website,
+    email: r.email,
+    words: typeof r.brief.changes === "string" ? r.brief.changes.trim() : "",
+    look: r.look,
+    status: r.status,
+    previewUrl: r.previewUrl,
+    accessCode: r.accessCode,
+    note: r.note,
+    createdAt: r.createdAt.toISOString(),
+  }));
+}
 
 export const metadata = { title: "Approvals" };
 
@@ -34,9 +58,10 @@ export const metadata = { title: "Approvals" };
  */
 export default async function ApprovalsPage() {
   const userId = await requirePageUserId();
-  const [updates, recentUpdates] = await Promise.all([
+  const [updates, recentUpdates, buildRequests] = await Promise.all([
     loadUpdateCards(userId),
     loadRecentUpdateDecisions(userId),
+    loadBuildRequests(userId),
   ]);
 
   // Locked zone: action contents may reference private entities, so the queue
@@ -65,6 +90,7 @@ export default async function ApprovalsPage() {
             </div>
           </div>
         </Card>
+        <BuildRequestQueue requests={buildRequests} />
         <PackageUpdateQueue updates={updates} recent={recentUpdates} />
       </PageLayout>
     );
@@ -78,11 +104,12 @@ export default async function ApprovalsPage() {
         options={STANDING_APPROVAL_OPTIONS.map((o) => ({ ...o }))}
         initial={sanitizeStandingApprovals(prefs?.standingApprovals)}
       />
+      <BuildRequestQueue requests={buildRequests} />
       <PackageUpdateQueue updates={updates} recent={recentUpdates} />
       <ActionQueueCard
         autoOpenTop
         emptyState={
-          updates.length > 0 ? null : (
+          updates.length > 0 || buildRequests.some((r) => r.status === "waiting") ? null : (
             <div className="ui-empty-page">
               <Inbox className="h-5 w-5 text-text-tertiary" />
               <p className="text-sm text-text-secondary">

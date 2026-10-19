@@ -11,7 +11,7 @@ import { FleetProjectRoute } from "@/components/projects/FleetProjectRoute";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import { PreviewShareCard } from "@/components/projects/PreviewShareCard";
 import { beforeAfterUrl } from "@/config/preview-brief";
-import { getPreviewCode } from "@/db/queries/preview-code";
+import { getProjectPreviewCode } from "@/db/queries/preview-code";
 import { createOwnerPass, ownerSiteUrl } from "@/lib/feedback/owner-pass";
 import { readPreviewSource } from "@/lib/previews/folder";
 import { isPreviewDir } from "@/lib/previews/root";
@@ -44,7 +44,7 @@ export default async function ProjectWatchPage({
       ? {
           previewUrl: registered.liveUrl,
           ownerUrl: ownerSiteUrl(registered.liveUrl, createOwnerPass(id, userId)),
-          code: await getPreviewCode(userId).catch(() => null),
+          code: await getProjectPreviewCode({ userId, entityProjectId: id }).catch(() => null),
           tourUrl:
             registered.dirPath && (await readPreviewSource(registered.dirPath))
               ? beforeAfterUrl(registered.liveUrl)

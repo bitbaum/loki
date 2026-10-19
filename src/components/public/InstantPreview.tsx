@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronsLeftRight, Sparkles } from "lucide-react";
 import { INSTANT_PREVIEW_COPY as COPY } from "@/config/instant-preview";
 import { useInstantPreview } from "@/hooks/use-instant-preview";
@@ -10,9 +10,31 @@ import { useInstantPreview } from "@/hooks/use-instant-preview";
  * slider — before any account, repository or build. The pictures come from
  * Loki's browser (api/site-consult/preview); the site itself is untouched.
  */
-export function InstantPreview({ website, ask }: { website: string; ask: string }) {
+export type InstantLook = { before: string; after: string; summary: string | null };
+
+export function InstantPreview({
+  website,
+  ask,
+  onLook,
+}: {
+  website: string;
+  ask: string;
+  /** The before/after for exactly these words, or null — a build request
+   *  carries it to the person who approves it (config/build-requests). */
+  onLook?: (look: InstantLook | null) => void;
+}) {
   const { state, run } = useInstantPreview();
   const key = `${website}\n${ask}`;
+  const look =
+    state.status === "done" && state.key === key && state.before && state.after
+      ? { before: state.before, after: state.after, summary: state.summary }
+      : null;
+  const lookKey = look ? key : "";
+  useEffect(() => {
+    onLook?.(look);
+    // `look` is rebuilt every render; what changes it is the result's key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookKey, onLook]);
   const working = state.status === "working";
   const stale = state.status === "done" && state.key !== key;
   const ready = website.trim().length > 0 && ask.trim().length >= 3;
@@ -48,7 +70,7 @@ export function InstantPreview({ website, ask }: { website: string; ask: string 
       {state.status === "done" && (
         <div className="space-y-2">
           {state.before && state.after ? (
-            <Compare before={state.before} after={state.after} website={website} />
+            <BeforeAfter before={state.before} after={state.after} website={website} />
           ) : state.now ? (
             <div className="ui-instant-frame">
               {/* eslint-disable-next-line @next/next/no-img-element -- a data: picture from Loki's browser */}
@@ -64,7 +86,17 @@ export function InstantPreview({ website, ask }: { website: string; ask: string 
   );
 }
 
-function Compare({ before, after, website }: { before: string; after: string; website: string }) {
+/** Two pictures of one spot, compared with a slider. Also on the visitor's
+ *  request page and in the operator's queue, so all three see one thing. */
+export function BeforeAfter({
+  before,
+  after,
+  website,
+}: {
+  before: string;
+  after: string;
+  website: string;
+}) {
   const [split, setSplit] = useState(50);
   return (
     <div className="ui-instant-frame ui-instant-compare">
