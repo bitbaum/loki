@@ -13,6 +13,8 @@
  * version; this is the reflex.
  */
 
+import { commandsFor } from "@/config/agent-commands";
+
 /** Rows from the bottom of the screen worth reading — the live part. */
 export const SUGGESTION_WINDOW_ROWS = 60;
 const MAX_SUGGESTIONS = 3;
@@ -93,4 +95,41 @@ export function asksForFeedback(text: string | null | undefined): boolean {
   if (!text) return false;
   const tail = text.split("\n").slice(-15).join("\n");
   return FEEDBACK_NOUN_RE.test(tail) && NEEDS_IT_RE.test(tail);
+}
+
+/** "You've reached your Fable limit." — Claude Code's words when a plan limit
+ *  stops it. The name is the model family that hit it. */
+const LIMIT_RE = /\breached your ([A-Za-z]+)(?: usage)? limit\b/i;
+
+/** The model family whose usage limit the agent just reported, or null. Only
+ *  the closing lines count: a limit hit an hour ago and since switched away
+ *  from is not this screen's news. */
+export function limitReached(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const m = LIMIT_RE.exec(text.split("\n").slice(-15).join("\n"));
+  return m ? m[1]![0]!.toUpperCase() + m[1]!.slice(1).toLowerCase() : null;
+}
+
+/**
+ * When a usage limit stops the agent, the way on is one of ITS commands: the
+ * next model down, or the credits it names — each typed as a command. The
+ * steps used to be sentences ("switch to a different model with /model",
+ * "request additional credits from the user") sent as messages to an agent
+ * that answers nothing until the limit is dealt with (owner, 2026-10-19).
+ */
+export function limitSteps(text: string | null | undefined, agent: string | null): string[] {
+  const family = limitReached(text);
+  if (!family) return [];
+  const known = commandsFor(agent);
+  const models = known
+    .filter((c) => /^\/model \w+$/.test(c.text) && c.text !== `/model ${family.toLowerCase()}`)
+    .map((c) => c.text);
+  const usage = known.filter((c) => c.kind === "usage").map((c) => c.text);
+  return [...models.slice(0, 2), ...usage].slice(0, MAX_SUGGESTIONS);
+}
+
+/** A step as the button says it: a command by what it does ("Use Opus"),
+ *  anything else as written. */
+export function stepLabel(step: string, agent: string | null | undefined): string {
+  return commandsFor(agent).find((c) => c.text === step)?.label ?? step;
 }

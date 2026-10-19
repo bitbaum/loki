@@ -15,6 +15,7 @@
  * lands — the browser's upsert replaces the "running" row with the finished one.
  */
 
+import { limitReached } from "@/lib/terminal-suggestions";
 import { CLAUDE_EFFORTS, CLAUDE_MODES } from "@/config/agent-commands";
 
 /** One row in the rendered conversation. */
@@ -372,6 +373,11 @@ export function sessionModel(items: TranscriptItem[]): string | null {
     const item = items[i];
     if (item.kind === "assistant" && item.model) return item.model;
     if (item.kind === "setting" && item.setting === "model" && item.value) return item.value;
+    // A plan limit is answered by Claude Code itself, with no model on the
+    // line — but it names the model that hit it ("You've reached your Fable
+    // limit"). The chip said "Model" while the screen said why (2026-10-19).
+    const limited = item.kind === "assistant" ? limitReached(item.text) : null;
+    if (limited) return limited;
   }
   return null;
 }

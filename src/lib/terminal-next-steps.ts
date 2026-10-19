@@ -37,6 +37,7 @@ const NEXT_STEPS_RULES = [
   "under 50 characters so it reads whole on a phone, no numbering, no quotes, no markdown.",
   'Answer "yes" or "go ahead" ONLY when the agent\'s last lines literally ask for permission or a yes/no choice; if it offers numbered options, the first line picks one ("Do option 2.").',
   "If the agent says it cannot do the task because it is missing data, access or a file, do not approve anything and do not tell it to do what it just said it cannot: suggest the part it CAN do, or a different approach. Loki offers to attach the project's feedback reports on its own, so never suggest exporting or pasting them.",
+  'Every line is something the person sends TO the agent — never a task for the person themselves ("request credits from the user").',
   "Put first the step you would recommend; the others are real alternatives, not rephrasings.",
   "Never suggest something the agent already reports as done.",
 ];

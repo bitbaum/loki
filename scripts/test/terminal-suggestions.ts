@@ -3,7 +3,14 @@
  * Case from the report (2026-10-05): the screen read "PR #43 CI pending;
  * auto-merge armed … Completed" and the box offered nothing but a placeholder.
  */
-import { sameSuggestions, suggestFromReply, suggestPrompts } from "@/lib/terminal-suggestions";
+import {
+  limitReached,
+  limitSteps,
+  sameSuggestions,
+  stepLabel,
+  suggestFromReply,
+  suggestPrompts,
+} from "@/lib/terminal-suggestions";
 
 let passed = 0;
 function check(label: string, condition: boolean): void {
@@ -82,5 +89,24 @@ check("no duplicates", new Set(empty).size === empty.length);
 
 check("sameSuggestions compares by value", sameSuggestions(["a", "b"], ["a", "b"]));
 check("sameSuggestions sees a change", !sameSuggestions(["a"], ["b"]));
+
+// A plan limit: the way on is Claude Code's own commands, never sentences
+// sent to an agent that answers nothing until the limit is dealt with.
+const limitReply =
+  "You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.";
+check("the limit names the family", limitReached(limitReply) === "Fable");
+check("no limit, no family", limitReached("Done. Tests pass.") === null);
+check(
+  "a limit offers the next models and the credits, as commands",
+  JSON.stringify(limitSteps(limitReply, "claude")) ===
+    JSON.stringify(["/model opus", "/model sonnet", "/usage-credits"]),
+);
+check(
+  "an Opus limit does not offer Opus",
+  !limitSteps("You've reached your Opus limit.", "claude").includes("/model opus"),
+);
+check("an agent with no such commands gets none", limitSteps(limitReply, "grok").length === 0);
+check("a command reads as what it does", stepLabel("/model opus", "claude") === "Use Opus");
+check("words stay words", stepLabel("Fix the tests.", "claude") === "Fix the tests.");
 
 console.log(`\n${passed}/${passed} terminal-suggestions cases passed`);

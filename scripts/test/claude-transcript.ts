@@ -412,5 +412,20 @@ ok(
   ok(sessionEffort(effortItems)?.label === "Max effort", "the effort reply sets the effort");
 }
 
+{
+  // A plan limit is Claude Code's own line, with no model on it; it names
+  // the model that hit it, so the chip does not fall back to "Model".
+  const limited: TranscriptItem[] = [
+    { id: "u", at: null, kind: "user", text: "Search ~/dev" },
+    {
+      id: "a",
+      at: null,
+      kind: "assistant",
+      text: "You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.",
+    },
+  ];
+  ok(sessionModel(limited) === "Fable", "a limit names the model in force");
+}
+
 console.log(`${pass}/${pass + fail} claude-transcript cases passed`);
 if (fail > 0) process.exit(1);

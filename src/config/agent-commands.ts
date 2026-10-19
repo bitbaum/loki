@@ -21,7 +21,7 @@
 import type { AdapterId } from "@/lib/orchestration/contract";
 
 export type AgentCommandKind =
-  "login" | "model" | "effort" | "compact" | "clear" | "status" | "help";
+  "login" | "model" | "effort" | "usage" | "compact" | "clear" | "status" | "help";
 
 export type AgentCommand = {
   /** What it does, for the situations the screen detectors recognise. */
@@ -82,6 +82,15 @@ const CLAUDE: readonly AgentCommand[] = [
     text: "/effort",
     label: "Set how hard it thinks",
     hint: "Opens the effort levels. Higher thinks longer before answering: slower, and better for planning and analysis.",
+  },
+  // Claude Code names this itself when a plan limit stops it ("You've
+  // reached your Fable limit. Run /usage-credits to continue or switch
+  // models with /model."), so it is offered then, beside the other models.
+  {
+    kind: "usage",
+    text: "/usage-credits",
+    label: "Continue with usage credits",
+    hint: "After a usage limit: keep going on the same model, paid from your account's usage credits.",
   },
   {
     kind: "compact",

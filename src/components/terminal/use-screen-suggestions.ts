@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type MutableRefObject } from "react";
 import {
   SUGGESTION_WINDOW_ROWS,
   asksForFeedback,
+  limitSteps,
   suggestPrompts,
 } from "@/lib/terminal-suggestions";
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
@@ -47,5 +48,7 @@ export function useScreenSuggestions(
   const rules = useMemo(() => (key ? suggestPrompts(key.split("\n")) : []), [key]);
   const ai = useAiNextSteps(key, "screen", project, agent);
   const steps = useStableSteps(key, ai, rules, hold);
-  return { steps, asksForFeedback: asksForFeedback(key) };
+  // A usage limit on screen: the agent's own commands, not sentences.
+  const limited = useMemo(() => limitSteps(key, agent), [key, agent]);
+  return { steps: limited.length > 0 ? limited : steps, asksForFeedback: asksForFeedback(key) };
 }

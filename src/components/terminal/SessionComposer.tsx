@@ -9,6 +9,7 @@ import type { BuilderChannel } from "@/lib/event-stream-types";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import { dispatchToneDotClass } from "@/lib/dispatch-status";
 import { commandIn } from "@/lib/terminal-commands";
+import { stepLabel } from "@/lib/terminal-suggestions";
 import { ESC, typeCommand, typeMessage } from "@/lib/session-keystrokes";
 import { SuggestionChips } from "./SuggestionChips";
 import { LokiFiles } from "./LokiFiles";
@@ -244,6 +245,7 @@ export function SessionComposer({
           <SuggestionChips
             suggestions={shownSuggestions}
             onPick={(s) => void send(s, [])}
+            label={(s) => stepLabel(s, agent)}
             onExplain={onExplain}
             actions={
               canAttachFeedback

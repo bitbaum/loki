@@ -41,7 +41,7 @@ import { TerminalMoreSheet } from "./TerminalMoreSheet";
 import { useImmersiveChat } from "@/hooks/use-immersive-chat";
 import { TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
-import { buildStripTabs, badgeNames } from "./terminal-strip-tabs";
+import { buildStripTabs, agentName } from "./terminal-strip-tabs";
 import { TerminalAgentTabs } from "./TerminalAgentTabs";
 import { runnerTransport } from "./terminal-transport";
 import { ClaudeChatView } from "./ClaudeChatView";
@@ -530,10 +530,10 @@ export function TerminalSurface({
   const activeStrip = stripTabs.find((t) => t.id === activeTab);
   const headerTitle =
     source === "shell" ? "Shell" : (activeStrip?.label ?? activeTab ?? sourceLabel);
+  const agentShown = source === "shell" || !activeTab ? null : activeAgentId;
   const headerAgent =
-    source === "shell" ? null : badgeNames(activeStrip?.badge, context?.agents.agents);
+    agentShown && agentName(activeStrip?.badge, context?.agents.agents, agentShown);
   const headerState: TerminalLiveState = !activeTab && source !== "shell" ? "idle" : liveState;
-
   const launchProps = sessionLaunchProps({
     context,
     agents,

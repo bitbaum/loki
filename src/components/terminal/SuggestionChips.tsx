@@ -18,7 +18,10 @@ export function SuggestionChips({
   onExplain,
   actions,
   disabled = false,
+  label = (s) => s,
 }: {
+  /** What a step's button says; a command reads as what it does. */
+  label?: (step: string) => string;
   /** Things Loki can do itself, offered before the steps (attach a file). */
   actions?: readonly { key: string; label: string; onClick: () => void }[];
   suggestions: readonly string[];
@@ -62,7 +65,7 @@ export function SuggestionChips({
             disabled={disabled}
             onClick={() => onPick(s)}
           >
-            {s}
+            {label(s)}
           </button>
         </li>
       ))}
@@ -78,9 +81,11 @@ export function SuggestionChips({
 export function ReplySteps({
   steps,
   onPick,
+  label = (s) => s,
 }: {
   steps: readonly string[];
   onPick: (step: string) => void;
+  label?: (step: string) => string;
 }) {
   if (steps.length === 0) return null;
   return (
@@ -89,7 +94,7 @@ export function ReplySteps({
         <li key={s}>
           <button type="button" className="ui-reply-step" onClick={() => onPick(s)}>
             <CornerDownRight className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 flex-1">{s}</span>
+            <span className="min-w-0 flex-1">{label(s)}</span>
           </button>
         </li>
       ))}
