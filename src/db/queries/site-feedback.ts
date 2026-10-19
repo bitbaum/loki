@@ -1,3 +1,4 @@
+import { projectTitle } from "@/lib/project-display";
 import type { FeedbackRead } from "@/lib/feedback/read-report";
 import { and, count, desc, eq, getTableColumns, inArray, max, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -44,11 +45,13 @@ export async function listReporterFeedback(
   limit = 200,
 ): Promise<UserFeedbackListItem[]> {
   const { screenshots: _screenshots, ...cols } = getTableColumns(siteFeedback);
-  return db
+  const rows = await db
     .select({
       ...cols,
       hasScreenshots: sql<boolean>`false`.as("has_screenshots"),
       projectName: entities.name,
+      projectTitle: entities.title,
+      projectDescription: entities.description,
       // The project's public origin, so the reporter can be sent to look at
       // the page they reported once a fix ships. Stubbed `null` until now,
       // which silently disabled "Check the live page" on the one surface whose
@@ -69,6 +72,12 @@ export async function listReporterFeedback(
     .where(eq(siteFeedback.reporterUserId, reporterUserId))
     .orderBy(desc(siteFeedback.createdAt))
     .limit(limit);
+  // The reporter reads the name a person uses for the project (projectTitle),
+  // not its key: "on xhiva-art-refresh-300d…" was what a client saw (2026-10-19).
+  return rows.map(({ projectTitle: title, projectDescription: description, ...row }) => ({
+    ...row,
+    projectName: projectTitle({ name: row.projectName, title, description }),
+  }));
 }
 
 /**

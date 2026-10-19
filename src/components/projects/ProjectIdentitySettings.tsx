@@ -38,7 +38,9 @@ export function ProjectIdentitySettings({
           value={name}
           editable={!readonly}
           onSave={async (next) => {
-            const response = await patchJson(`/api/projects/${projectId}`, { name: next });
+            // The title, not the name: the name keys the project's history
+            // (activity, runs, jobs), so a rename used to hide its past.
+            const response = await patchJson(`/api/projects/${projectId}`, { title: next });
             if (!response.ok) await throwApiError(response, "Could not save name");
             router.refresh();
           }}

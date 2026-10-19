@@ -285,8 +285,25 @@ export function projectInviteTemplate(input: {
   role: ProjectRole;
   inviteUrl: string;
   expiresDays: number;
+  /** They already had an account and are IN: no invitation to accept, the
+   *  button opens the project. Until 2026-10-19 such a person was added in
+   *  silence and never told. */
+  added?: boolean;
 }) {
   const subject = mailSubject("project_invite", input.projectName);
+  if (input.added) {
+    const who = input.inviterName?.trim() || "A project owner";
+    const can = ROLE_LABELS[input.role].can;
+    const name = escapeHtml(input.projectName);
+    const html = emailShell(`
+    <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:${EMAIL_THEME.ink};">You're in ${name}</h2>
+    ${p(`${escapeHtml(who)} added you to ${name} on ${APP_NAME}, so you can ${can}.`)}
+    ${btn(input.inviteUrl, `Open ${input.projectName}`)}
+    ${p("Say what you would like changed right there, typed or spoken, on your phone or your computer.")}
+  `);
+    const text = `${who} added you to ${input.projectName} on ${APP_NAME}, so you can ${can}.\n\nOpen it: ${input.inviteUrl}\n\nSay what you would like changed right there, typed or spoken.`;
+    return { subject, html, text };
+  }
   const who = input.inviterName?.trim() || "A project owner";
   // The same sentence the roster shows for the role, so the label a person is
   // invited under is the label they find inside.

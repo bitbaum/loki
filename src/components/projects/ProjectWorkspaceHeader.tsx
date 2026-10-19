@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, MessageSquare, Settings, UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowUpRight, MessageSquare, Pencil, Settings, UserPlus } from "lucide-react";
+import { patchJson } from "@/lib/api/fetch";
 import { rememberFleetProject } from "@/lib/fleet-context";
 import { summarizeDescription } from "@/lib/project-display";
 import { ownerSiteUrl } from "../../../widget/owner-pass";
@@ -12,6 +14,7 @@ import type { ProjectRole } from "@/db/schema/project-memberships";
 
 /** Identity and the two everyday actions. Configuration belongs in Settings. */
 export function ProjectWorkspaceHeader({
+  projectId,
   name,
   workspaceKey,
   description,
@@ -21,6 +24,8 @@ export function ProjectWorkspaceHeader({
   viewerRole = null,
   quiet = false,
 }: {
+  projectId: string;
+  /** What a person calls it (projectTitle). The owner renames it in place. */
   name: string;
   workspaceKey: string;
   description: string | null;
@@ -56,7 +61,11 @@ export function ProjectWorkspaceHeader({
         )}
       </div>
       <div className="mt-4 sm:mt-6">
-        <h1 className="ui-project-title">{name}</h1>
+        {readonly ? (
+          <h1 className="ui-project-title">{name}</h1>
+        ) : (
+          <ProjectTitle projectId={projectId} name={name} />
+        )}
         {summary && <p className="ui-project-summary">{summary}</p>}
         {readonly && (
           <p className="mt-2 text-sm text-text-tertiary">
@@ -100,5 +109,69 @@ export function ProjectWorkspaceHeader({
         )}
       </div>
     </header>
+  );
+}
+
+/**
+ * The heading, renamed where it stands: a pencil beside it, Enter to keep.
+ * The rename was a field in the Story tab, three taps from the name the owner
+ * wanted to change (owner, 2026-10-19: "how can I actually change the name
+ * here?"). It writes the title, never the key the project's history uses.
+ */
+function ProjectTitle({ projectId, name }: { projectId: string; name: string }) {
+  const router = useRouter();
+  const [draft, setDraft] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const save = async () => {
+    const next = draft?.trim() ?? "";
+    if (!next || next === name) return setDraft(null);
+    const response = await patchJson(`/api/projects/${projectId}`, { title: next });
+    if (!response.ok) return setError("That name was not saved. Try again.");
+    setDraft(null);
+    setError("");
+    router.refresh();
+  };
+  if (draft === null)
+    return (
+      <div className="flex items-start gap-2">
+        <h1 className="ui-project-title min-w-0">{name}</h1>
+        <button
+          type="button"
+          className="ui-btn-icon mt-1 h-11 w-11 shrink-0"
+          aria-label="Rename the project"
+          onClick={() => setDraft(name)}
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+    );
+  return (
+    <div className="space-y-2">
+      <input
+        autoFocus
+        aria-label="Project name"
+        className="ui-input w-full text-xl"
+        maxLength={80}
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setDraft(null);
+          if (event.key === "Enter") void save();
+        }}
+      />
+      <div className="flex gap-2">
+        <button type="button" className="ui-btn-save min-h-11" onClick={() => void save()}>
+          Save
+        </button>
+        <button type="button" className="ui-btn-ghost min-h-11" onClick={() => setDraft(null)}>
+          Cancel
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="ui-error">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

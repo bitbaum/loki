@@ -1,3 +1,4 @@
+import { projectTitle } from "@/lib/project-display";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -73,10 +74,12 @@ export async function getProjectAccess(
  * project they were invited to IS their way in (walk as Manu, 2026-10-18).
  */
 export async function listSharedProjects(userId: string): Promise<SharedProject[]> {
-  return db
+  const rows = await db
     .select({
       projectId: entities.id,
       name: entities.name,
+      title: entities.title,
+      description: entities.description,
       role: projectMemberships.role,
       ownerName: users.name,
       liveUrl: userProjects.liveUrl,
@@ -94,6 +97,11 @@ export async function listSharedProjects(userId: string): Promise<SharedProject[
     )
     .where(eq(projectMemberships.userId, userId))
     .orderBy(entities.name);
+  // The name a person reads (projectTitle), never the key the owner's flow minted.
+  return rows.map(({ title, description, ...row }) => ({
+    ...row,
+    name: projectTitle({ name: row.name, title, description }),
+  }));
 }
 
 export type SharedProject = {
@@ -190,6 +198,7 @@ export async function getProjectInvitationByToken(token: string) {
     .select({
       invitation: projectInvitations,
       projectName: entities.name,
+      projectTitle: entities.title,
       // What the project is and where it lives: the invite page says both,
       // so the person decides from the page instead of asking back.
       projectDescription: entities.description,
@@ -333,4 +342,14 @@ export async function transferProjectOwnership(
       });
   });
   return { ok: true };
+}
+
+/** What a project is called and says it is, for mail and pages that name it. */
+export async function getProjectNaming(projectId: string) {
+  const [row] = await db
+    .select({ name: entities.name, title: entities.title, description: entities.description })
+    .from(entities)
+    .where(eq(entities.id, projectId))
+    .limit(1);
+  return row ?? null;
 }

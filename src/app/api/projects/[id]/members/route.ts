@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { projectTitle } from "@/lib/project-display";
 import { getSessionUserId } from "@/lib/session";
 import { isMailConfigured } from "@bitbaum/mail-kit";
-import { getUserByEmail } from "@/db/queries/users";
+import { getUserByEmail, getUserById } from "@/db/queries/users";
 import {
   createProjectInvitation,
   getProjectAccess,
   getProjectInvitationByToken,
+  getProjectNaming,
   listPendingProjectInvitations,
   listProjectMembers,
   removeProjectMember,
@@ -101,7 +103,30 @@ async function addPerson(req: NextRequest, params: Promise<{ id: string }>) {
   if (user) {
     if (user.id === result.access.ownerUserId)
       return jsonError("The project owner already has full access", 409);
-    return jsonOk({ member: await upsertProjectMember(result.id, user.id, body.role) });
+    const member = await upsertProjectMember(result.id, user.id, body.role);
+    // Added, and told: the owner used to read "they already had an account"
+    // while the person heard nothing and never found the project.
+    let emailed = false;
+    if (isMailConfigured())
+      try {
+        const [naming, inviter] = await Promise.all([
+          getProjectNaming(result.id),
+          getUserById(result.userId),
+        ]);
+        const mail = projectInviteTemplate({
+          projectName: naming ? projectTitle(naming) : "a project",
+          inviterName: inviter?.name ?? null,
+          role: body.role,
+          inviteUrl: `${appUrl()}/projects/${result.id}`,
+          expiresDays: PROJECT_INVITE_TTL_DAYS,
+          added: true,
+        });
+        await sendEmail(body.email, mail.subject, mail.html, mail.text);
+        emailed = true;
+      } catch {
+        emailed = false;
+      }
+    return jsonOk({ member, emailed });
   }
 
   // No account yet. This used to end in "Ask them to register first" — a dead
@@ -126,7 +151,13 @@ async function addPerson(req: NextRequest, params: Promise<{ id: string }>) {
     try {
       const loaded = await getProjectInvitationByToken(token);
       const mail = projectInviteTemplate({
-        projectName: loaded?.projectName ?? "a project",
+        projectName: loaded
+          ? projectTitle({
+              name: loaded.projectName,
+              title: loaded.projectTitle,
+              description: loaded.projectDescription,
+            })
+          : "a project",
         inviterName: loaded?.inviterName ?? null,
         role: body.role,
         inviteUrl: link,

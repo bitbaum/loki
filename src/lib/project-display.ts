@@ -6,6 +6,44 @@ import { withoutRetiredClaims } from "@/lib/project-signals";
 // not signal — never show it. Until real descriptions are backfilled, treat the
 // stub as empty so public surfaces stay clean instead of repeating it N times.
 
+/**
+ * What a person calls the project: its title when one is set, else its name —
+ * except a name minted by the retired `<host>-refresh-<32 hex>` scheme
+ * (lib/brief-project-name.ts), which reads as the site it was made from:
+ * "xhiva-art-refresh-300d1519783b47d3ab1c7ddb77c5febf" → "Xhiva" (the owner
+ * found that string as a project's heading, 2026-10-19). Every heading, list
+ * row, invitation and email names a project through this.
+ */
+export function projectTitle(project: {
+  name: string;
+  title?: string | null;
+  description?: string | null;
+}): string {
+  const own = project.title?.trim();
+  if (own) return own;
+  const legacy = /^(.+)-refresh-[0-9a-f]{32}$/.exec(project.name);
+  if (!legacy) return project.name;
+  const host = /https?:\/\/(?:www\.)?([a-z0-9-]+)\./i.exec(project.description ?? "")?.[1];
+  const word = host ?? legacy[1].split("-")[0]!;
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+/**
+ * A website brief, said as a person would. A project started from /change
+ * stores the agent's whole brief as its description, so its heading opened
+ * "Develop a new version of this existing website: https://www.xhiva.art/
+ * Requested changes (the customer's exact words): …" — instructions to an
+ * agent, shown to the client it is for (2026-10-19).
+ */
+function plainBrief(text: string): string {
+  const site = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/+$/, "");
+  const refresh = /^Develop a new version of this existing website: (\S+)/.exec(text);
+  if (refresh) return `A new version of ${site(refresh[1]!)}.`;
+  const inspired = /^Create a new, independent website inspired by: (\S+)/.exec(text);
+  if (inspired) return `A new website, inspired by ${site(inspired[1]!)}.`;
+  return text;
+}
+
 /** Heads the owner's interview answers appended to a description (lib/project-interview.ts). */
 export const BRIEF_HEADING = "From the owner:";
 
@@ -30,6 +68,8 @@ const PLACEHOLDER_DESCRIPTIONS = new Set([
 export function projectHeadline(desc: string | null | undefined): string | null {
   const clean = cleanDescription(desc);
   if (!clean) return null;
+  const plain = plainBrief(clean);
+  if (plain !== clean) return plain;
   const cut = clean.indexOf(BRIEF_HEADING);
   if (cut <= 0) return clean;
   return clean.slice(0, cut).trim() || clean;
@@ -150,7 +190,8 @@ export function summarizeDescription(
   desc: string | null | undefined,
   maxChars = 220,
 ): string | null {
-  const clean = cleanDescription(desc);
+  const described = cleanDescription(desc);
+  const clean = described ? plainBrief(described) : null;
   if (!clean || clean.length <= maxChars) return clean;
   const sentences = clean.split(/(?<=[.!?])\s+/);
   let out = sentences[0] ?? "";

@@ -72,7 +72,10 @@ export async function askInLoki(input: {
       ok: true,
       building: false,
       say: askReply(access.role, { owner, site, building: false }),
-      followPath: watchFixPath(id),
+      // Their own list, not the fix's watch page: until the change is live
+      // that page forwards to the owner's inbox, which a client cannot see,
+      // so "See where it is" opened an empty Feedback page (2026-10-19).
+      followPath: "/my-feedback",
     };
   }
   const build = await startOwnerBuild(ownerUserId, input.projectId, id);

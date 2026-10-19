@@ -32,10 +32,13 @@ export function decideHealPatch(
   user: Pick<UserRow, "name" | "email" | "username" | "onboardedAt">,
   _projectCount: number,
   suggestedUsernameAvailable: boolean,
+  /** A free variant of the suggestion ("ximena2") when the plain one is
+   *  taken — found by the caller, which can ask the database. */
+  freeUsername?: string | null,
 ): HealPatch | null {
   let username = user.username;
   if (!hasValidUsername(username)) {
-    const suggested = suggestUsername(user.name, user.email);
+    const suggested = freeUsername ?? suggestUsername(user.name, user.email);
     if (suggested && suggestedUsernameAvailable) {
       username = suggested;
     }
@@ -53,4 +56,11 @@ export function decideHealPatch(
     ...(needsUsername && username ? { username } : {}),
     ...(needsOnboarded ? { onboardedAt: new Date() } : {}),
   };
+}
+
+/** The suggestion, then the same with 2…9 — every one still a valid handle. */
+export function usernameCandidates(suggested: string): string[] {
+  return [suggested, ...Array.from({ length: 8 }, (_, i) => `${suggested}${i + 2}`)].filter(
+    hasValidUsername,
+  );
 }

@@ -2,7 +2,7 @@ import { countActiveProjects } from "@/db/queries/user-projects";
 import { getUserByUsername, updateUser } from "@/db/queries/users";
 import type { users } from "@/db/schema";
 import { hasValidUsername, isOnboardingComplete, suggestUsername } from "@/lib/onboarding";
-import { decideHealPatch } from "@/lib/onboarding-heal-decision";
+import { decideHealPatch, usernameCandidates } from "@/lib/onboarding-heal-decision";
 
 type UserRow = typeof users.$inferSelect;
 
@@ -25,15 +25,24 @@ export async function healReturningUserOnboarding(user: UserRow): Promise<UserRo
     const projectCount = await countActiveProjects(user.id);
 
     let suggestedUsernameAvailable = false;
+    let freeUsername: string | null = null;
     if (!hasValidUsername(user.username)) {
       const suggested = suggestUsername(user.name, user.email);
-      if (suggested) {
-        const taken = await getUserByUsername(suggested);
-        suggestedUsernameAvailable = !taken || taken.id === user.id;
+      // A taken handle used to drop a person into the full builder setup —
+      // a GitHub repository picker and "connect a computer" — when all they
+      // had come for was one project they were invited to. Try "ximena2",
+      // "ximena3"… first; the handle is editable later in Settings.
+      for (const candidate of suggested ? usernameCandidates(suggested) : []) {
+        const taken = await getUserByUsername(candidate);
+        if (!taken || taken.id === user.id) {
+          suggestedUsernameAvailable = true;
+          freeUsername = candidate;
+          break;
+        }
       }
     }
 
-    const patch = decideHealPatch(user, projectCount, suggestedUsernameAvailable);
+    const patch = decideHealPatch(user, projectCount, suggestedUsernameAvailable, freeUsername);
     if (!patch) return user;
 
     const updated = await updateUser(user.id, patch);

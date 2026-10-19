@@ -40,12 +40,16 @@ const daysLeft = (iso: string) =>
 export function ProjectMembersPanel({
   projectId,
   projectName,
+  defaultRole = "viewer",
 }: {
   projectId: string;
   projectName: string;
+  /** Client on client work: the person a site is made for is who gets
+   *  invited to it, and Viewer told her she could not ask for anything. */
+  defaultRole?: ProjectRole;
 }) {
   const members = useFetch<MembersResponse>(`/api/projects/${projectId}/members`);
-  const [role, setRole] = useState<ProjectRole>("viewer");
+  const [role, setRole] = useState<ProjectRole>(defaultRole);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
@@ -65,7 +69,12 @@ export function ProjectMembersPanel({
       });
       if (!response.ok) await throwApiError(response, "Could not create the invitation");
       const body = (await response.json()) as { member?: Member; link?: string; emailed?: boolean };
-      if (body.member) setMessage("Added — they already had an account and can open it now.");
+      if (body.member)
+        setMessage(
+          body.emailed
+            ? `Added — they already had an account. ${to} has an email with the link to ${projectName}.`
+            : "Added — they already had an account and can open it now.",
+        );
       else if (body.link) {
         setLink(body.link);
         if (to)
