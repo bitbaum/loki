@@ -95,10 +95,15 @@ export function TerminalLaunch({
   const full = running.length > MAX_PARALLEL_LANES_PER_PROJECT;
 
   if (startedAs) {
+    // A live state, drawn as one: it used to be a sentence with no spinner,
+    // and read as a dead end until the session appeared (owner, 2026-10-19).
     return (
-      <p className="text-center text-xs text-text-muted">
-        Starting {startedAs} in “{projectName}” on the selected builder. The project&apos;s default
-        stays unchanged.
+      <p
+        className="flex items-center justify-center gap-2 text-center text-sm text-text-secondary"
+        role="status"
+      >
+        <Loader2 className="ui-spinner h-4 w-4 shrink-0" aria-hidden="true" />
+        Opening {startedAs} in “{projectName}” — the session appears here in a moment.
       </p>
     );
   }

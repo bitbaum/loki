@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   KEY_HAPTIC_MS,
@@ -124,7 +125,17 @@ export function KeyCap({
  * checkbox in the very prompt this deck exists to answer. A control that hides
  * the answer behind a glyph nobody presses is not a saving.
  */
-export function TerminalKeyDeck({ onKey }: { onKey: (bytes: string) => void }) {
+export function TerminalKeyDeck({
+  onKey,
+  onClose,
+}: {
+  onKey: (bytes: string) => void;
+  /** Puts the deck away. It is the first thing in the lane, where the eye
+   *  lands: the only way out used to be the round button it came from,
+   *  drawn faint over the terminal, and the owner refreshed the page to be
+   *  rid of it (2026-10-19). Nothing here is one-way. */
+  onClose?: () => void;
+}) {
   const cap = (id: TerminalKeyId, className: string) => (
     <KeyCap key={id} keyDef={TERMINAL_KEYS[id]} onKey={onKey} className={className} />
   );
@@ -132,6 +143,17 @@ export function TerminalKeyDeck({ onKey }: { onKey: (bytes: string) => void }) {
   return (
     <div className="ui-term-deck">
       <div className="ui-term-key-lane ui-scroll-fade-right" role="group" aria-label="More keys">
+        {onClose && (
+          <button
+            type="button"
+            className="ui-term-key ui-term-key-close"
+            onClick={onClose}
+            aria-label="Hide the keys"
+            title="Hide the keys"
+          >
+            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
         {TERMINAL_SECONDARY_GROUPS.map((group) => (
           <div key={group.label} className="ui-term-key-group">
             <span className="ui-term-key-group-label">{group.label}</span>

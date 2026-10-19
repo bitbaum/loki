@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ChevronDown, Maximize2, MessageSquareWarning, Minimize2, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { openFeedback } from "@/lib/open-feedback";
+import { ChevronDown, Maximize2, Minimize2, Plus } from "lucide-react";
 import type { TerminalViewMode } from "@/config/terminal-modes";
 import { cn } from "@/lib/utils";
 import { SESSION_STATUS_WORDS, type SessionStatus } from "@/lib/terminal-session-status";
@@ -75,7 +73,6 @@ export function TerminalMobileHeader({
   /** Opens the start-a-session sheet. */
   onNewSession?: () => void;
 }) {
-  const router = useRouter();
   const ordered = sessions ?? [];
   const tabbed =
     Boolean(onSelectSession) && ordered.length > 1 && ordered.some((s) => s.id === activeSession);
@@ -141,35 +138,29 @@ export function TerminalMobileHeader({
               ),
             )
           : current}
-        {onNewSession && (
-          <button
-            type="button"
-            className="ui-term-mhead-icon"
-            onClick={onNewSession}
-            aria-haspopup="dialog"
-            aria-label="New session"
-            title="New session"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-          </button>
-        )}
       </div>
+      {/* Outside the scrolling row: with two sessions open it scrolled off the
+          right edge and read as missing (owner, 2026-10-19). The row keeps
+          the width it has; "+" keeps its place. */}
+      {onNewSession && (
+        <button
+          type="button"
+          className="ui-term-mhead-icon"
+          onClick={onNewSession}
+          aria-haspopup="dialog"
+          aria-label="New session"
+          title="New session"
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
 
       {onViewChange && view && (
         <TerminalViewSwitch view={view} onViewChange={onViewChange} agentLabel={agent} />
       )}
-      {/* The feedback widget's floating button is hidden on this page (it would
-          cover the terminal and the composer — terminal/page.tsx), so it opens
-          from here: report a problem, point at an element, attach a screenshot. */}
-      <button
-        type="button"
-        className="ui-term-mhead-icon"
-        onClick={() => openFeedback(() => router.push("/support"))}
-        aria-label="Feedback on this page — point at anything or attach a screenshot"
-        title="Feedback"
-      >
-        <MessageSquareWarning className="h-4 w-4" aria-hidden="true" />
-      </button>
+      {/* No feedback button here: the widget's own edge tab is on this page
+          (data-fc-place="tab" in (app)/terminal/page.tsx), and a second way to
+          the same panel read as a second, unexplained thing. */}
       <button
         type="button"
         className="ui-term-mhead-icon"

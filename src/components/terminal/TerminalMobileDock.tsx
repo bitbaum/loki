@@ -56,7 +56,9 @@ export function TerminalMobileDock({
     setWriting(!immersive);
   }
 
-  const keys = keysOpen && <TerminalKeyDeck onKey={onKey} />;
+  const keys = keysOpen && (
+    <TerminalKeyDeck onKey={onKey} onClose={() => onKeysOpenChange(false)} />
+  );
 
   if (writing) {
     return (

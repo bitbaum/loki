@@ -7050,8 +7050,14 @@
   .ui-term-keys-float {
     @apply absolute bottom-full right-3 z-10 mb-3 inline-flex size-11 items-center justify-center rounded-full border border-border-default bg-surface-raised text-text-primary shadow-panel transition-colors;
   }
+  /* On: solid and unmistakable. A translucent tint over the black terminal
+     read as a ghost of a button, not as "the keys are open; tap to close". */
   .ui-term-keys-float[aria-pressed="true"] {
-    @apply border-accent-primary/30 bg-accent-muted;
+    @apply border-text-primary bg-text-primary text-text-inverted;
+  }
+  /* The lane's first cap puts the deck away. */
+  .ui-term-key-close {
+    @apply text-text-primary;
   }
   @media (width < 48rem) {
     .ui-term-jump {
