@@ -61,6 +61,13 @@ export const studioRequests = pgTable(
     proposedProfile: jsonb("proposed_profile").$type<PartnerProfileInput>(),
     profileConsentAt: timestamp("profile_consent_at", { withTimezone: true }),
     profilePublishedAt: timestamp("profile_published_at", { withTimezone: true }),
+    /**
+     * The OrangeCat identity an approved partner connected (id_token.sub, the
+     * same value as users.orangecat_actor_id). Lets them sign in to get their
+     * application back without the private link, and ties a public profile
+     * to one person. Never set before approval; applying needs no account.
+     */
+    orangecatActorId: uuid("orangecat_actor_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -68,6 +75,7 @@ export const studioRequests = pgTable(
     uniqueIndex("studio_request_key").on(t.userId, t.requestKeyHash),
     index("studio_request_owner").on(t.userId, t.updatedAt),
     index("studio_request_partner").on(t.partnerId),
+    index("studio_request_orangecat").on(t.orangecatActorId),
   ],
 );
 export const studioRequestEvents = pgTable(

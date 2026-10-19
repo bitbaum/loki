@@ -20,6 +20,10 @@ async function main() {
     getStudioReview,
     mutateStudioReview,
     studioPartnerDirectory,
+    studioConnectableApplication,
+    connectStudioOrangecat,
+    studioApplicationsForActor,
+    reopenStudioApplication,
   } = await import("../../src/db/queries/studio-requests");
   const owners = [randomUUID(), randomUUID()];
   const key = () => `spt_${randomBytes(32).toString("base64url")}`;
@@ -156,7 +160,7 @@ async function main() {
     await mutateStudioPortal(receipt.id, access, acceptance); // replay is acknowledged but never accepts v2
     assert.equal((await getStudioPortal(receipt.id, access))!.request.delivery!.accepted, false);
     assert.equal((await getStudioPortal(receipt.id, access))!.request.delivery!.version, 2);
-    const partnerKey = key();
+    let partnerKey = key();
     const application = await createStudioRequest(
       token,
       contract,
@@ -224,6 +228,26 @@ async function main() {
       body: "The evidence meets all dimensions in the pilot rubric.",
     });
     assert.equal((await studioPartnerDirectory(owners[0]))[0]!.coursePassed, true);
+    // OrangeCat: an approved partner ties the application to their identity,
+    // and signing in with it reopens the application with a fresh link.
+    const actor = randomUUID();
+    assert.ok(await studioConnectableApplication(application.id, partnerKey));
+    await connectStudioOrangecat(application.id, actor);
+    await connectStudioOrangecat(application.id, actor); // idempotent
+    await assert.rejects(connectStudioOrangecat(application.id, randomUUID()));
+    assert.deepEqual(
+      (await studioApplicationsForActor(actor)).map((a) => a.id),
+      [application.id],
+    );
+    assert.equal(await reopenStudioApplication(application.id, randomUUID()), null);
+    const reopened = (await reopenStudioApplication(application.id, actor))!;
+    assert.equal(await getStudioPortal(application.id, partnerKey), null); // old link dies
+    assert.equal(
+      (await getStudioPortal(application.id, reopened.accessKey))!.request.partner!
+        .orangecatConnected,
+      true,
+    );
+    partnerKey = reopened.accessKey;
     assert.equal(
       (await getStudioPortal(application.id, partnerKey))!.request.status.id,
       "approved",

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { db } from "@/db";
 import {
   studioRequests as requests,
@@ -219,11 +219,95 @@ export async function rotateStudioAccessByContact(userId: string, contact: strin
   return out;
 }
 
+// ── OrangeCat: an approved partner's identity ──────────────────────────────
+// Applying needs no account: the private link is the key. Once approved, a
+// partner may connect their OrangeCat account (the fleet's identity root), so
+// a lost link is not a lost profile: signing in with OrangeCat reopens the
+// application with a fresh link. Never asked for before approval.
+
+function connectable(row: StudioRequest | undefined): row is StudioRequest {
+  return Boolean(row && row.kind === "partner" && row.partnerApprovedAt && !row.accessRevoked);
+}
+
+/** The portal's own check before it hands the browser a signed connect link. */
+export async function studioConnectableApplication(id: string, key: string) {
+  const [row] = await db.select().from(requests).where(eq(requests.id, id)).limit(1);
+  if (!accessible(row, key)) return null;
+  if (!connectable(row))
+    throw new StudioConflict("Connecting OrangeCat opens once the studio approves you.");
+  return row;
+}
+
+/** Tie an approved application to the signed-in OrangeCat actor. Idempotent. */
+export async function connectStudioOrangecat(id: string, orangecatActorId: string) {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select().from(requests).where(eq(requests.id, id)).for("update");
+    if (!connectable(row))
+      throw new StudioConflict("This application cannot be connected. Open it from its link.", 404);
+    if (row.orangecatActorId === orangecatActorId) return row;
+    if (row.orangecatActorId)
+      throw new StudioConflict(
+        "This application is already connected to another OrangeCat account. Sign in with that one.",
+      );
+    await tx
+      .update(requests)
+      .set({ orangecatActorId, updatedAt: new Date() })
+      .where(eq(requests.id, id));
+    const mutationId = randomUUID();
+    await record(
+      tx,
+      row,
+      mutationId,
+      eventHash({ action: "connect_orangecat", mutationId }),
+      "partner",
+      "connect_orangecat",
+      "Connected an OrangeCat account. Signing in with it reopens this application.",
+    );
+    return row;
+  });
+}
+
+/** What a signed-in partner sees on Loki's /studio/partner. */
+export async function studioApplicationsForActor(orangecatActorId: string) {
+  const rows = await db
+    .select()
+    .from(requests)
+    .where(
+      and(
+        eq(requests.orangecatActorId, orangecatActorId),
+        eq(requests.kind, "partner"),
+        eq(requests.accessRevoked, false),
+      ),
+    )
+    .orderBy(desc(requests.updatedAt));
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.proposedProfile?.name ?? null,
+    status: studioView(row, []).status,
+    updatedAt: row.updatedAt.toISOString(),
+  }));
+}
+
+/**
+ * Reopen a connected application with a fresh private link: the old link
+ * stops working, exactly as the email recovery does. Only for its own actor.
+ */
+export async function reopenStudioApplication(id: string, orangecatActorId: string) {
+  const [row] = await db.select().from(requests).where(eq(requests.id, id)).limit(1);
+  if (!row || row.accessRevoked || row.orangecatActorId !== orangecatActorId) return null;
+  const accessKey = `spt_${randomBytes(32).toString("base64url")}`;
+  await db
+    .update(requests)
+    .set({ accessKeyHash: studioHash(accessKey), updatedAt: new Date() })
+    .where(eq(requests.id, id));
+  return { id: row.id, accessKey };
+}
+
 export async function getStudioPortal(id: string, key: string) {
   const [row] = await db.select().from(requests).where(eq(requests.id, id)).limit(1);
   if (!accessible(row, key)) return null;
   const assignments =
-    row.kind === "partner" && row.coursePassedAt && row.partnerApprovedAt
+    row.kind === "partner" && row.partnerApprovedAt
       ? await db
           .select()
           .from(requests)

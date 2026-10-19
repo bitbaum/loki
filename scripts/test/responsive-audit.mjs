@@ -204,6 +204,11 @@ const PUBLIC_PAGES = [
   "/setup",
   "/docs/quickstart",
   "/docs/feedback-widget",
+  // A studio partner's OrangeCat pages: signed out they are a one-button card
+  // (and /studio/connect without its token, the expired-link message) — the
+  // first thing a stranger from the studio site sees here.
+  "/studio/connect",
+  "/studio/partner",
   /**
    * DYNAMIC routes, measured through one real instance each.
    *

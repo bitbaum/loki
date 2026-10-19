@@ -19,6 +19,10 @@ import {
 import { StudioContract } from "../../src/lib/studio-commission";
 import { studioPortalUrl } from "../../src/lib/studio/link-mail";
 import { studioUpdateTemplate } from "../../src/lib/email";
+import {
+  createStudioConnectToken,
+  verifyStudioConnectToken,
+} from "../../src/lib/studio/orangecat-link";
 import { studioView } from "../../src/lib/studio/projection";
 import type { StudioRequest } from "../../src/db/schema/studio-requests";
 async function main() {
@@ -106,6 +110,14 @@ async function main() {
   assert.match(update.text, /Approved <script>alert\(1\)<\/script> on your work/);
   assert.equal(update.html.includes("spt_"), false);
   assert.match(update.html, new RegExp(`${COMMISSION.studioOrigin}/portal/`));
+  // The OrangeCat hand-off carries a signed, short-lived id — never the key.
+  process.env.AUTH_SECRET ??= "test-secret-for-studio-connect";
+  const connect = createStudioConnectToken(id, 1_000);
+  assert.equal(connect.includes("spt_"), false);
+  assert.equal(verifyStudioConnectToken(connect, 1_000), id);
+  assert.equal(verifyStudioConnectToken(connect, 1_000 + 16 * 60 * 1000), null);
+  assert.equal(verifyStudioConnectToken(connect.replace(id, randomUUID()), 1_000), null);
+  assert.equal(verifyStudioConnectToken(`${connect}x`, 1_000), null);
   assert.equal(
     StudioGuestAction.safeParse({
       action: "approve_partner",

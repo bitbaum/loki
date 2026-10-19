@@ -820,6 +820,13 @@
       "when": 1792275537638,
       "tag": "0116_diplodoctor_from_its_readme",
       "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1792399779654,
+      "tag": "0117_studio_partner_orangecat",
+      "breakpoints": true
     }
   ]
 }

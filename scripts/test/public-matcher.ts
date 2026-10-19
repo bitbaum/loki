@@ -60,6 +60,8 @@ check("so is a short one", !isProtected("/a/xyz"));
 for (const p of [
   "/sign-in",
   "/claim-feedback",
+  "/studio/connect",
+  "/studio/partner",
   "/share/task/abc",
   "/api/health",
   "/api/invitations/abc",
