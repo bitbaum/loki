@@ -30,8 +30,9 @@ async function main() {
       loader: "jsx",
       contents: `import React from 'react';import{createRoot}from'react-dom/client';import{ClaudeChatView}from'./src/components/terminal/ClaudeChatView';import{TerminalMobileHeader}from'./src/components/terminal/TerminalMobileHeader';import{MobileNav}from'./src/components/shell/MobileNav';import{SessionComposer}from'./src/components/terminal/SessionComposer';import{TerminalMobileDock}from'./src/components/terminal/TerminalMobileDock';import{badgeNames}from'./src/components/terminal/terminal-strip-tabs';import{TerminalLokiRail}from'./src/components/terminal/TerminalLokiRail';import{TerminalLokiSheet}from'./src/components/terminal/TerminalExplain';
       const roster=[{id:'claude',label:'Claude'},{id:'codex',label:'Codex'}];
+      function Dock({agent}){const[open,setOpen]=React.useState(false);return <TerminalMobileDock onKey={()=>{}} keysOpen={open} onKeysOpenChange={setOpen} immersive={false} session={{tab:'center-som',channel:'cloud',agent:'claude',onKey:async bytes=>{window.written.push(bytes)}}} box={tools=><SessionComposer tab="center-som" channel="cloud" onKey={async bytes=>{window.written.push(bytes)}} live agent="claude" agentLabel={agent} suggestions={open?[]:["run the project's unit tests","open the main source file for review"]} onExplain={open?undefined:()=>{}} project="center-som" density="comfortable" tools={tools}/>}/>}
       const root=createRoot(document.getElementById('app'));
-      window.mount=(fixture)=>{window.fixture=fixture;const agent=badgeNames(fixture.badge,roster);root.render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" style={{height:48}}>Loki</div><main className="app-main"><div className="app-page app-viewport-pane flex flex-col" data-fc-place="tab"><TerminalMobileHeader title="Center SOM" state="live" agent={agent} onOpenSheet={()=>{}} immersive={false} onToggleImmersive={()=>{}} view={fixture.terminal?"terminal":"chat"} onViewChange={()=>{}}/>{fixture.terminal?<div className="flex flex-1 flex-col"><div className="flex-1 bg-black p-2 text-xs text-white">terminal</div><TerminalMobileDock onKey={()=>{}} keysOpen={false} onKeysOpenChange={()=>{}} immersive={false} session={{tab:'center-som',channel:'cloud',agent:'claude',onKey:async bytes=>{window.written.push(bytes)}}} box={tools=><SessionComposer tab="center-som" channel="cloud" onKey={async bytes=>{window.written.push(bytes)}} live agent="claude" agentLabel={agent} suggestions={["run the project's unit tests","open the main source file for review"]} onExplain={()=>{}} project="center-som" density="comfortable" tools={tools}/>}/></div>:<ClaudeChatView key={fixture.key} tab="center-som" channel="cloud" onLive={()=>{}} onKey={async bytes=>{window.written.push(bytes)}} onShowTerminal={()=>{}} onExplain={()=>{}}/>}</div></main></div><MobileNav/>{fixture.loki&&<TerminalLokiSheet onClose={()=>{}}><TerminalLokiRail presentation="sheet" project="Center SOM" tab="center-som" runId={null} ptyState="live" projectId={null} canSwitchAgent={false} onSwitchAgent={()=>{}} askOnly agent="claude" onKey={()=>{}}/></TerminalLokiSheet>}</div>)};window.written=[];`,
+      window.mount=(fixture)=>{window.fixture=fixture;const agent=badgeNames(fixture.badge,roster);root.render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" style={{height:48}}>Loki</div><main className="app-main"><div className="app-page app-viewport-pane flex flex-col" data-fc-place="tab"><TerminalMobileHeader title="Center SOM" state="live" agent={agent} onOpenSheet={()=>{}} immersive={false} onToggleImmersive={()=>{}} view={fixture.terminal?"terminal":"chat"} onViewChange={()=>{}}/>{fixture.terminal?<div className="flex flex-1 flex-col"><div className="flex-1 bg-black p-2 text-xs text-white">terminal</div><Dock agent={agent}/></div>:<ClaudeChatView key={fixture.key} tab="center-som" channel="cloud" onLive={()=>{}} onKey={async bytes=>{window.written.push(bytes)}} onShowTerminal={()=>{}} onExplain={()=>{}}/>}</div></main></div><MobileNav/>{fixture.loki&&<TerminalLokiSheet onClose={()=>{}}><TerminalLokiRail presentation="sheet" project="Center SOM" tab="center-som" runId={null} ptyState="live" projectId={null} canSwitchAgent={false} onSwitchAgent={()=>{}} askOnly agent="claude" onKey={()=>{}}/></TerminalLokiSheet>}</div>)};window.written=[];`,
     },
     bundle: true,
     write: false,
@@ -163,8 +164,35 @@ async function main() {
           assert.ok(b.x < mic.x, `${view}: ${b.label} sits left of the microphone`);
       assert.ok(mic.x < send.x, `${view}: the microphone sits beside Send`);
       if (terminal) {
+        // The keys open from the terminal's corner and close from the deck
+        // itself: nothing here is one-way (the owner refreshed the page to
+        // be rid of it).
+        await page.getByRole("button", { name: "Keys", exact: true }).click();
+        await page.getByRole("button", { name: "Hide the keys" }).waitFor();
+        assert.equal(
+          await page
+            .getByRole("button", { name: "Keys", exact: true })
+            .getAttribute("aria-pressed"),
+          "true",
+          "the corner button reads as on",
+        );
+        assert.equal(
+          await page.locator(".ui-term-suggests").count(),
+          0,
+          "the next-step row steps aside while the keys are up",
+        );
+        await page.screenshot({ path: ".tmp/session-sheet/keys-390.png" });
+        await page.getByRole("button", { name: "Hide the keys" }).click();
+        await page.getByRole("button", { name: "Hide the keys" }).waitFor({ state: "detached" });
+        assert.equal(
+          await page
+            .getByRole("button", { name: "Keys", exact: true })
+            .getAttribute("aria-pressed"),
+          "false",
+          "and off again",
+        );
         // Keys sits on the terminal's corner, not in the box's row.
-        const keys = await page.getByRole("button", { name: "Keys" }).evaluate((e) => {
+        const keys = await page.getByRole("button", { name: "Keys", exact: true }).evaluate((e) => {
           const r = e.getBoundingClientRect();
           const box = document.querySelector(".ck-composer")!.getBoundingClientRect();
           return { h: Math.round(r.height), bottom: r.bottom, right: r.right, boxTop: box.top };

@@ -109,11 +109,18 @@ for (const [route, file] of [
     .filter((f) => !HIDE_ALLOWED.has(f));
   ok(hiders.length === 0, `no page hides the launcher (found: ${hiders.join(", ") || "none"})`);
 }
+// The terminal page reaches the panel through the widget's own edge tab,
+// and nowhere else: a header button to the same panel read as a second,
+// unexplained thing beside it (owner, 2026-10-19).
 ok(
-  /openFeedback\(/.test(
+  /data-fc-place="tab"/.test(readFileSync(join(ROOT, "src/app/(app)/terminal/page.tsx"), "utf8")),
+  "the terminal page shows the launcher as the edge tab",
+);
+ok(
+  !/openFeedback\(/.test(
     readFileSync(join(ROOT, "src/components/terminal/TerminalMobileHeader.tsx"), "utf8"),
   ),
-  "the terminal header opens the feedback panel",
+  "and the terminal header has no second button to the same panel",
 );
 
 // A near-miss must NOT be excluded — prefix matching that swallows unrelated
