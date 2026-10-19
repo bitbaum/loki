@@ -49,11 +49,16 @@ export async function GET(req: NextRequest) {
       userId,
       type: "runner_stall",
       severity: "urgent",
-      title: `Runner stalled — ${stall.stalledCount} command${stall.stalledCount === 1 ? "" : "s"} not executing`,
+      title:
+        stall.stalledCount === 1
+          ? "A request is waiting — the builder has not picked it up"
+          : `${stall.stalledCount} requests are waiting — the builder has not picked them up`,
       description:
+        `Loki already tried again. If it stays like this, open Home and check the builder ` +
+        `is online.\n\n` +
         `${stall.stalledCount} dispatched command${stall.stalledCount === 1 ? " has" : "s have"} waited ` +
-        `${stall.oldestSeconds}s with no builder executing them. Stuck claims were reclaimed for retry — ` +
-        `if this persists, the builder (Cloud runner / Fleet Runner) needs attention.`,
+        `${stall.oldestSeconds}s with no builder executing them; stuck claims were reclaimed ` +
+        `for retry. The builder is the Cloud runner or Fleet Runner.`,
       actionUrl: "/control",
       metadata: { stalledCount: stall.stalledCount, oldestSeconds: stall.oldestSeconds },
     });

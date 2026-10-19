@@ -50,12 +50,15 @@ export async function GET(req: NextRequest) {
       userId: owner.id,
       type: ALERT_TYPE,
       severity: "urgent",
-      title: `${broken} telemetry path${broken === 1 ? "" : "s"} stopped recording`,
+      title:
+        broken === 1
+          ? "Activity stopped recording one kind of event"
+          : `Activity stopped recording ${broken} kinds of event`,
       description:
-        `A sensor that reports nothing looks exactly like a system with nothing to report. ` +
+        `Activity, digests and run history are missing recent work, so they look calmer ` +
+        `than things are. The fix is in the code that writes these records.\n\n` +
         `These paths should be receiving rows and are not:\n${detail}\n\n` +
-        `Everything downstream of them — /activity, digests, the run ledger — is now ` +
-        `showing an incomplete picture without saying so.`,
+        `A sensor that reports nothing looks exactly like a system with nothing to report.`,
       actionUrl: "/system",
       metadata: {
         broken: report.broken.map((r) => ({

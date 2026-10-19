@@ -5998,29 +5998,57 @@
   .ui-notification-title {
     @apply text-sm font-semibold text-text-primary;
   }
+  /* Alerts — the bell's panel and /system (components/alerts/AlertList).
+     One thing to read and one thing to do per row: no severity word in
+     capitals, no tinted box, a dot only when it matters. The title link's
+     ::after makes the whole row the action; the row's own buttons sit above
+     it. */
+  .ui-alert-list {
+    @apply divide-y divide-border-subtle;
+  }
+  /* Inside a card, the rows run to the card's edges: the card's padding is
+     the frame, the dividers are the list. */
+  .ui-alert-card-list {
+    @apply -mx-4 -mb-4 border-t border-border-subtle sm:-mx-5 sm:-mb-5 md:-mx-6 md:-mb-6;
+  }
+  .ui-alert-row {
+    @apply relative px-4 py-3.5 transition-colors hover:bg-surface-overlay/40;
+  }
+  .ui-alert-row-link::after {
+    content: "";
+    @apply absolute inset-0;
+  }
+  .ui-alert-dot-urgent,
+  .ui-alert-dot-warning,
+  .ui-alert-dot-none {
+    @apply mt-1.5 h-2 w-2 shrink-0 rounded-full;
+  }
+  .ui-alert-dot-urgent {
+    @apply bg-status-negative;
+  }
+  .ui-alert-dot-warning {
+    @apply bg-status-warning;
+  }
+  .ui-alert-title {
+    @apply block text-sm font-medium leading-snug text-text-primary;
+  }
+  .ui-alert-summary {
+    @apply mt-1 text-sm leading-snug text-text-secondary;
+  }
+  .ui-alert-details {
+    @apply mt-2 whitespace-pre-line break-words rounded-lg bg-surface-overlay px-3 py-2 text-xs leading-relaxed text-text-tertiary;
+  }
+  .ui-alert-foot {
+    @apply mt-1 flex items-center gap-3 text-xs text-text-tertiary;
+  }
+  .ui-alert-quiet {
+    @apply relative z-10 inline-flex min-h-11 items-center text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-50;
+  }
+  .ui-alert-action {
+    @apply relative z-10 ml-auto inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-xs font-medium text-text-primary ring-1 ring-border-default transition-colors hover:bg-surface-overlay;
+  }
   .ui-notification-list {
-    @apply max-h-[min(32rem,60vh)] divide-y divide-border-subtle overflow-y-auto;
-  }
-  .ui-notification-item {
-    @apply flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:gap-4;
-  }
-  .ui-notification-item-main {
-    @apply min-w-0 flex-1;
-  }
-  .ui-notification-item-title {
-    @apply min-w-0 text-sm font-medium leading-snug text-text-primary;
-  }
-  .ui-notification-item-description {
-    @apply mt-1 text-xs leading-snug text-text-secondary;
-  }
-  .ui-notification-item-meta {
-    @apply mt-0.5 text-xs text-text-tertiary;
-  }
-  .ui-notification-severity {
-    @apply shrink-0 text-micro font-medium uppercase tracking-wide;
-  }
-  .ui-notification-item-actions {
-    @apply flex shrink-0 items-center justify-end gap-1.5 sm:justify-start;
+    @apply max-h-[min(32rem,70vh)] overflow-y-auto;
   }
   .ui-notification-empty {
     @apply px-4 py-8 text-center text-xs text-text-muted;
@@ -8735,7 +8763,8 @@
      lines (found walking the live demo, 2026-10-17).
      `a[href]` above is (0,1,1) — the attribute counts as a class — so a
      bare class loses to it; the opt-out names the element too. */
-  a[href].ui-projects-row-link {
+  a[href].ui-projects-row-link,
+  a[href].ui-alert-row-link {
     min-height: 0;
   }
 }
