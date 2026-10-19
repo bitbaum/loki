@@ -157,6 +157,7 @@ export async function attachFeedbackWork<T extends FeedbackListItem>(
           // nothing ever decided. The gate test pins the wiring, not just the rule.
           autoShip: effectiveAutoShip(project?.autoShip, item.source, item),
           readyDraft: item.onAllowance && !!item.liveApprovedAt,
+          keepDraft: item.onAllowance && !item.liveApprovedAt,
           deployBroken: brokenProjects.has(item.projectId),
         });
         refreshed.set(run.id, fix);

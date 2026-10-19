@@ -73,6 +73,17 @@ assert.match(
   /readyDraft: item\.onAllowance && !!item\.liveApprovedAt/,
   "the draft is lifted only after their yes",
 );
+assert.match(
+  read("src/lib/feedback/attach-work.ts"),
+  /keepDraft: item\.onAllowance && !item\.liveApprovedAt/,
+  "until then, a pull request opened as ready is put back into draft",
+);
+assert.match(
+  read("src/lib/feedback/fix-shipping-refresh.ts"),
+  /input\.keepDraft &&[\s\S]{0,200}prOpenedByRun\(pr\.createdAt, input\.runStartedAt\)[\s\S]{0,40}setDraft\(pr\.nodeId, picked\.token, true\)/,
+  "and only one this run opened",
+);
+assert.match(read("src/lib/feedback/recommend.ts"), /CLIENT\) return "Your client's request"/);
 const field = {
   suggestion: "Bigger logo",
   duplicateCount: 1,

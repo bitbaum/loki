@@ -259,6 +259,7 @@ export function recommendFor(input: RecommendInput, now = Date.now()): Recommend
 function sourceWord(source: string | null): string {
   if (source === FEEDBACK_SOURCE.AI_REVIEW) return "Loki's own finding";
   if (source === FEEDBACK_SOURCE.SYNTHESIZER) return "A brief";
+  if (source === FEEDBACK_SOURCE.CLIENT) return "Your client's request";
   return "A visitor's report";
 }
 
