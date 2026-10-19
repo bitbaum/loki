@@ -16,6 +16,7 @@ import {
   type TranscriptItem,
 } from "@/lib/claude-transcript";
 import type { BuilderChannel } from "@/lib/constants/statuses";
+import { typeCommand } from "@/lib/session-keystrokes";
 import { cn } from "@/lib/utils";
 
 /**
@@ -153,7 +154,7 @@ export function SessionInfo({
   const modelListCmd = commandOfKind(agent, "model");
   const effortCmd = commandOfKind(agent, "effort");
   const agentName = agent === "claude" ? "Claude Code" : "The agent";
-  const type = (text: string) => void onKey(`${text}\r`);
+  const type = (text: string) => void typeCommand(onKey, text);
 
   // The chip names the model and nothing else, like the Claude app's: with
   // the mode beside it, "Opus 5.5 · Auto" truncated in the terminal view's

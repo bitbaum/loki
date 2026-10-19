@@ -558,9 +558,10 @@ export function TerminalSurface({
   );
 
   // New element per call — never reuse one descriptor in the split AND the sheet.
-  const renderLokiRail = () =>
+  const renderLokiRail = (presentation: "rail" | "sheet") =>
     projectKey ? (
       <TerminalLokiRail
+        presentation={presentation}
         key={`${projectKey}:${initialRunId ?? "latest"}:${channel}`}
         project={projectKey}
         tab={activeTab}
@@ -835,7 +836,7 @@ export function TerminalSurface({
             one click away again on the way out. */}
         {railShown && (
           <div className="ui-term-split-rail" aria-label="Loki comments and inject">
-            {renderLokiRail()}
+            {renderLokiRail("rail")}
           </div>
         )}
       </div>
@@ -863,10 +864,13 @@ export function TerminalSurface({
               live={liveState === "live"}
               agent={activeAgentId}
               agentLabel={headerAgent ?? "the agent"}
-              suggestions={screenNext.steps}
-              offerFeedback={screenNext.asksForFeedback}
+              // Keys open is a person driving the screen: the next-step row
+              // steps aside so the terminal keeps its lines (it was three
+              // rows tall under the deck, the chips and the box).
+              suggestions={keysOpen ? [] : screenNext.steps}
+              offerFeedback={!keysOpen && screenNext.asksForFeedback}
               project={projectKey}
-              onExplain={projectKey ? explainer.ask : undefined}
+              onExplain={projectKey && !keysOpen ? explainer.ask : undefined}
               draft={sessionDraft}
               focusRequest={focusRequest}
               density={immersive ? "compact" : "comfortable"}
@@ -882,7 +886,7 @@ export function TerminalSurface({
       )}
       {explainer.sheetOpen && projectKey && (
         <TerminalLokiSheet onClose={() => explainer.setSheetOpen(false)}>
-          {renderLokiRail()}
+          {renderLokiRail("sheet")}
         </TerminalLokiSheet>
       )}
     </div>

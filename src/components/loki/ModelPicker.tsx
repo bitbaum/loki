@@ -299,7 +299,7 @@ export function ModelPicker({
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Model: ${current}${budget ? ` — ${budget.headline}` : ""}`}
+        aria-label={`Loki answers with: ${current}${budget ? ` — ${budget.headline}` : ""}`}
         title={
           budget ? budget.headline : value ? `Starts at ${current}` : "Auto — best available model"
         }
@@ -340,7 +340,7 @@ export function ModelPicker({
       </button>
 
       {open && !phone && (
-        <div className="ui-loki-model-menu" role="dialog" aria-label="Choose a model">
+        <div className="ui-loki-model-menu" role="dialog" aria-label="Loki answers with">
           {list}
         </div>
       )}
@@ -366,7 +366,7 @@ export function ModelPicker({
               id={headingId}
               className="flex-1 text-center text-base font-semibold text-text-primary"
             >
-              Choose a model
+              Loki answers with
             </h2>
             <span className="w-11" aria-hidden />
           </div>

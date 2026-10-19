@@ -14,6 +14,7 @@
  */
 import { commandOfKind, commandsFor, type AgentCommand } from "@/config/agent-commands";
 import { TERMINAL_KEYS } from "@/config/terminal-keys";
+import { typeCommand } from "@/lib/session-keystrokes";
 
 /** Rows from the bottom of the screen worth reading — the live part. */
 export const COMMAND_WINDOW_ROWS = 40;
@@ -25,8 +26,11 @@ export type TerminalAction = {
   label: string;
   /** What will be typed, shown in the terminal's own font. */
   display: string;
-  /** Verbatim bytes written into the session. */
+  /** Verbatim bytes written into the session — for a key. A command is
+   *  TYPED instead (`typed`): its words, then Enter as its own keystroke.
+   *  `bytes` still says what the whole action amounts to. */
   bytes: string;
+  typed?: string;
   /** One sentence: what the screen says, and what this does about it. */
   why: string;
 };
@@ -50,8 +54,17 @@ export function commandAction(command: AgentCommand, why: string): TerminalActio
     label: command.label,
     display: command.text,
     bytes: `${command.text}\r`,
+    typed: command.text,
     why,
   };
+}
+
+/** Send an action into the session: a key as its bytes, a command typed. */
+export function runAction(
+  onKey: (bytes: string) => void | Promise<void>,
+  action: TerminalAction,
+): Promise<void> {
+  return action.typed ? typeCommand(onKey, action.typed) : Promise.resolve(onKey(action.bytes));
 }
 
 /**
