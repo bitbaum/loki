@@ -101,7 +101,7 @@ export const STATE_DEFINITIONS: Record<ProjectStateKey, ProjectStateDefinition> 
     tagClass: "ui-tag ui-tag-warning",
     counterCategory: "offline",
     problem: {
-      hint: "Press Start building or dispatch from Control — the cloud builder or desktop app will pick it up.",
+      hint: "Press Start building or send it from Home — the cloud builder or desktop app will pick it up.",
       ctaLabel: "Get desktop app",
       ctaHref: "/download",
     },

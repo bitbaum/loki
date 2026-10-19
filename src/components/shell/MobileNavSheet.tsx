@@ -74,9 +74,9 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="ui-mobile-nav-sheet" role="dialog" aria-label="Navigation">
+      <div className="ui-mobile-nav-sheet" role="dialog" aria-label="More">
         <div className="ui-mobile-nav-sheet-header">
-          <span className="text-sm font-semibold text-text-primary">Navigate</span>
+          <span className="text-sm font-semibold text-text-primary">More</span>
           <button
             type="button"
             onClick={onClose}
@@ -128,7 +128,6 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
             return (
               <div key={section.id} className="px-3 pb-2">
                 <p className="ui-mobile-nav-sheet-label">{section.label}</p>
-                <p className="ui-mobile-nav-sheet-question">{section.question}</p>
                 <div className="space-y-1">
                   {items.map((item) => (
                     <MobileNavRow

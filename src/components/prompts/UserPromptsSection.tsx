@@ -96,7 +96,7 @@ export function UserPromptsSection({
             {query.trim() && allVisible.length > 0
               ? `${visiblePrompts.length} of ${allVisible.length} saved match · best match first`
               : visiblePrompts.length === 0
-                ? "Reusable templates you write — separate from dispatches on Control."
+                ? "Reusable templates you write — separate from what you send from Home."
                 : `${visiblePrompts.length} saved · most-recent first`}
           </p>
         </div>

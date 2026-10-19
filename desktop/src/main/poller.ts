@@ -517,7 +517,7 @@ async function handleCommand(
         break
       }
       case 'launch_agent': {
-        const { tab, dir, agent, model, initialPrompt } = validation.command.payload
+        const { tab, dir, agent, model, initialPrompt, resume } = validation.command.payload
         assertKnownLaunchAgent(agent)
         const prompt = initialPrompt?.trim()
         // A second session of a project (the terminal's "+") is a lane tab and
@@ -540,7 +540,7 @@ async function handleCommand(
         if (lane.kind === 'lane') worktreeByTab.set(tab, { primaryDir: lane.primaryDir, launchDir: lane.dir })
         // Own the agent's PTY. A failed spawn is a failed launch, reported as
         // such — there is no other place for the agent to run.
-        await launchAgentPty(tab, lane.dir, agent as AgentOption, model)
+        await launchAgentPty(tab, lane.dir, agent as AgentOption, model, undefined, resume)
         clearHandoffSentinel(tab)
         // Inject the initial prompt once the agent is actually up, not on a blind timer.
         if (prompt) {

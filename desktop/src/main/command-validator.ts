@@ -61,6 +61,8 @@ export interface LaunchAgentCommand {
     agent: string
     model?: string
     initialPrompt?: string
+    /** Continue the project's last Claude conversation instead of a new one. */
+    resume?: boolean
   }
 }
 
@@ -343,6 +345,7 @@ function validateLaunchAgent(payload: Record<string, unknown>): ValidationResult
         agent,
         model: payload.model as string | undefined,
         initialPrompt: payload.initialPrompt as string | undefined,
+        resume: payload.resume === true ? true : undefined,
       },
     },
   }

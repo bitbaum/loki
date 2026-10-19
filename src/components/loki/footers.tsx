@@ -150,7 +150,7 @@ export function DispatchFooter({
         primary: primaryProject
           ? { label: "Watch it", href: watchHref(primaryProject, channel) }
           : null,
-        secondary: [{ label: `All ${projectKeys.length} in Control`, href: "/control" }],
+        secondary: [{ label: `All ${projectKeys.length} on Home`, href: "/control" }],
       }
     : presentDispatchCard({
         live,

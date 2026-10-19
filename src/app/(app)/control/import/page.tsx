@@ -58,7 +58,7 @@ export default function ImportFromGithubPage() {
   }
 
   return (
-    <PageLayout title="Import from GitHub" back={{ href: "/control", label: "Back to Control" }}>
+    <PageLayout title="Import from GitHub" back={{ href: "/control", label: "Back to Home" }}>
       <div className="max-w-2xl space-y-6">
         <div className="ui-card-shell space-y-4 p-5 sm:p-6">
           <div className="flex items-start gap-3">

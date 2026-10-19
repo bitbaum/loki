@@ -19,11 +19,13 @@ import {
 // unrepresentable.
 
 const LOOP = [
-  { id: "now", items: ["today", "suggestions", "approvals", "feedback"] },
-  { id: "fleet", items: ["control", "projects", "packages", "activity", "system"] },
-  // No-screen (/voice) sits beside Loki: the same "say it" altitude with the
-  // screen off, not a fourth altitude.
-  { id: "command", items: ["loki", "voice", "terminal", "prompts"] },
+  // Grouped by thing (2026-10-19), not by question: the work, Loki, what
+  // waits for a yes, your day, the plumbing.
+  { id: "build", items: ["control", "projects", "terminal"] },
+  { id: "ask", items: ["loki", "voice", "prompts"] },
+  { id: "review", items: ["approvals", "feedback", "suggestions"] },
+  { id: "day", items: ["today"] },
+  { id: "fleet", items: ["packages", "activity", "system"] },
 ] as const;
 
 for (const expected of LOOP) {
@@ -42,7 +44,7 @@ for (const expected of LOOP) {
 }
 
 // The landfill, by every name it might return under.
-for (const banned of ["more", "other", "misc", "work", "site", "tools"]) {
+for (const banned of ["more", "other", "misc", "site", "tools"]) {
   assert.equal(
     SIDEBAR_SECTIONS.some((s) => s.id === banned),
     false,
@@ -102,13 +104,14 @@ assert.equal(
 );
 
 // ─── Mobile bottom bar mirrors the loop ──────────────────────────────────────
-// One tab per loop section, plus Menu. If a tab is not in a section, the bar
-// and the sheet are describing different products.
+// Home, Projects, Loki, plus More. A tab that is not in a section would mean
+// the bar and the sheet describe different products.
 assert.deepEqual(
   MOBILE_NAV_ITEMS.map((i) => i.id),
-  ["today", "loki", "control"],
-  "the bottom bar carries one entry point per loop section",
+  ["control", "projects", "loki"],
+  "the bottom bar carries what is opened daily — Home, Projects, Loki — and More holds the rest",
 );
+assert.equal(NAV.control.label, "Home", "Control is called Home");
 for (const tab of MOBILE_NAV_ITEMS) {
   assert.ok(sidebarIds.includes(tab.id), `${tab.id} is a real sidebar destination`);
 }

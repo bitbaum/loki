@@ -30,7 +30,7 @@ export const EVENING_FROM_HOUR = 17;
 export const FIRST_RUN = {
   title: "Add a project.",
   body: "Then you can tell the fleet what to do.",
-  cta: "Open Control",
+  cta: "Open Home",
 } as const;
 
 export const PLAN_DAY_PROMPT = `Plan my day.

@@ -18,9 +18,9 @@ export const ACTION_COPY = {
   },
   dispatch: {
     sent: (project: string) => `Sent to ${project}. An agent is picking it up.`,
-    watch: "Watch on Control",
+    watch: "Watch on Home",
     stay: "Back to the queue",
     failed: "The agent did not start. Try again — the proposal is still here.",
-    deferred: "Queued, but nothing is running yet. Open Control to see why.",
+    deferred: "Queued, but nothing is running yet. Open Home to see why.",
   },
 } as const;

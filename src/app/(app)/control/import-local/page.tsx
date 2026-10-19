@@ -18,7 +18,7 @@ export default function ImportFromLocalPage() {
   return (
     <PageLayout
       title="Import from your local dev folder"
-      back={{ href: "/control", label: "Back to Control" }}
+      back={{ href: "/control", label: "Back to Home" }}
     >
       <div className="max-w-2xl space-y-6">
         <div className="ui-card-shell space-y-5 p-5 sm:p-6">
@@ -72,7 +72,7 @@ export default function ImportFromLocalPage() {
             </li>
 
             <li>
-              <div className="font-medium text-text-primary mb-1">3. See them in Control</div>
+              <div className="font-medium text-text-primary mb-1">3. See them on Home</div>
               <p className="text-text-muted">
                 When the command finishes printing &quot;✓ Imported N project(s)&quot;, refresh{" "}
                 <Link href="/control" className="text-accent-text underline">

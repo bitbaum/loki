@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Ellipsis } from "lucide-react";
 import { MOBILE_NAV_ITEMS } from "@/config/navigation";
 import { isCurrentPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -67,10 +67,10 @@ export function MobileNav() {
             isMoreActive || sheetOpen ? "ui-mobile-nav-item-active" : "ui-mobile-nav-item-idle",
           )}
           aria-expanded={sheetOpen}
-          aria-label="Open navigation menu"
+          aria-label="More: everything else"
         >
-          <Menu className="h-5 w-5" />
-          <span>Menu</span>
+          <Ellipsis className="h-5 w-5" />
+          <span>More</span>
         </button>
       </nav>
 

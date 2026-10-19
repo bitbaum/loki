@@ -123,7 +123,9 @@ export function ProjectAutopilotToggle({
         onClick={toggle}
         className={cn(
           "inline-flex ui-tap items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors disabled:opacity-60",
-          building ? "ui-btn-secondary" : "ui-btn-primary",
+          // A setting, drawn as one: as the page's filled primary it read as
+          // the thing to do next, beside the real one (owner, 2026-10-19).
+          "ui-btn-secondary",
         )}
       >
         {saving ? (

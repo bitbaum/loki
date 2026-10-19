@@ -19,6 +19,8 @@ const LaunchAgentBody = z.object({
   agent: z.string().trim().min(1).max(40),
   model: z.string().trim().max(160).optional(),
   initialPrompt: z.string().trim().max(4000).optional(),
+  /** Continue the project's last Claude conversation instead of a new one. */
+  resume: z.boolean().optional(),
   /** Pin the builder that should run this launch (the terminal launches into
    *  whichever source the user is looking at). Absent → routing decides. */
   channel: z.enum(BUILDER_CHANNELS).optional(),
@@ -93,7 +95,7 @@ export async function POST(req: NextRequest) {
   const dataOrResp = await readJsonBody(req, LaunchAgentBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
 
-  const { tab, dir, agent, model, initialPrompt, channel } = dataOrResp;
+  const { tab, dir, agent, model, initialPrompt, channel, resume } = dataOrResp;
   // A second session of a project is a lane tab ("<project>~<id8>", run-tab.ts).
   // Anything else carrying the reserved separator is not a tab Loki minted.
   if (isDerivedRunTab(tab) && !runLaneOfTab(tab)) {
@@ -138,6 +140,7 @@ export async function POST(req: NextRequest) {
       agent,
       model,
       initialPrompt,
+      ...(resume ? { resume: true } : {}),
     });
     return NextResponse.json({
       ok: true,

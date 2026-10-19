@@ -82,7 +82,7 @@ export function TerminalMobileHeader({
     <div className="ui-term-mhead">
       <div className="ui-term-mhead-row">
         {backHref ? (
-          <Link href={backHref} className="ui-term-mhead-ghost" aria-label="Back to Control">
+          <Link href={backHref} className="ui-term-mhead-ghost" aria-label="Back to Home">
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
         ) : (

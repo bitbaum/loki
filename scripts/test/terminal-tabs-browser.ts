@@ -149,7 +149,7 @@ async function main() {
         title.width >= title.textWidth,
         `the current session keeps its whole name (${title.width} < ${title.textWidth})`,
       );
-      for (const name of ["Back to Control", /^More/])
+      for (const name of ["Back to Home", /^More/])
         assert(
           (await page
             .getByRole(typeof name === "string" ? "link" : "button", { name })
