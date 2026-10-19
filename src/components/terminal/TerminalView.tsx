@@ -154,6 +154,55 @@ function JumpToLive({ onClick }: { onClick: () => void }) {
   );
 }
 
+/**
+ * A swipe scrolls the output: xterm 6 only listens to the wheel, so without
+ * this a phone could watch the terminal but never read back. A swipe past the
+ * oldest kept line raises `setAtOldest` for five seconds.
+ */
+function attachSwipe(
+  host: HTMLElement,
+  term: import("@xterm/xterm").Terminal,
+  setAtOldest: (on: boolean) => void,
+): () => void {
+  let timer = 0;
+  const detach = attachTouchScroll(host, {
+    scrollLines: (n) => term.scrollLines(n),
+    cellHeight: () => {
+      const screen = term.element?.querySelector<HTMLElement>(".xterm-screen");
+      return screen && term.rows ? screen.clientHeight / term.rows : 0;
+    },
+    atTop: () => term.buffer.active.viewportY === 0,
+    onTop: () => {
+      setAtOldest(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setAtOldest(false), 5000);
+    },
+  });
+  return () => {
+    window.clearTimeout(timer);
+    detach();
+  };
+}
+
+/**
+ * A swipe for older output than the screen holds. The builder streams the
+ * session from the moment you open it plus what it kept, not its whole life,
+ * so a swipe at the top moved nothing and said nothing — read as "I'm not
+ * able to scroll" (owner, 2026-10-19). Now it says where the rest is.
+ */
+function OldestKept({ onShowChat }: { onShowChat?: () => void }) {
+  return (
+    <div className="ui-term-oldest" role="status">
+      <span>That is as far back as this screen goes.</span>
+      {onShowChat && (
+        <button type="button" className="ui-term-oldest-btn" onClick={onShowChat}>
+          The whole conversation is in Chat
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Honest overlay for a connected-but-silent stream: the source said it was
  *  ready but never streamed the screen. Replaces the black "live" pane. */
 function TerminalStalledOverlay({ message }: { message: string }) {
@@ -202,12 +251,16 @@ function PaneOverlay({
   opened,
   scrolledBack,
   jumpToLive,
+  atOldest,
+  onShowChat,
 }: {
   stalled: boolean;
   stalledHint?: string;
   opened: OpenState;
   scrolledBack: boolean;
   jumpToLive: () => void;
+  atOldest: boolean;
+  onShowChat?: () => void;
 }) {
   if (stalled)
     return (
@@ -221,6 +274,7 @@ function PaneOverlay({
   return (
     <>
       {opened !== "live" && <TerminalOpening state={opened} />}
+      {atOldest && <OldestKept onShowChat={onShowChat} />}
       {scrolledBack && <JumpToLive onClick={jumpToLive} />}
     </>
   );
@@ -292,8 +346,12 @@ export function TerminalView({
   className,
   onActivate,
   autoFocus = false,
+  onShowChat,
 }: {
   transport: TerminalTransport;
+  /** Where the whole conversation is, offered when a swipe runs out of
+   *  terminal (the session's Chat view). */
+  onShowChat?: () => void;
   /** A click or tap on a read-only screen: the person wants to type into it.
    *  The caller switches to typing (Type mode), so pressing the terminal does
    *  what everyone expects a terminal to do instead of nothing. */
@@ -343,6 +401,8 @@ export function TerminalView({
   const [links, setLinks] = useState<string[]>([]);
   // The viewport is above the newest output (the operator scrolled back).
   const [scrolledBack, setScrolledBack] = useState(false);
+  // A swipe asked for older output than is kept — said for a few seconds.
+  const [atOldest, setAtOldest] = useState(false);
   // Live grid geometry, mirrored into React so the chrome can report it. The
   // operator is entitled to know how many columns they are actually reading —
   // it is the difference between "the agent wrote nonsense" and "my screen is
@@ -565,15 +625,7 @@ export function TerminalView({
       });
 
       term.open(host);
-      // A swipe scrolls the output: xterm 6 only listens to the wheel, so
-      // without this a phone could watch the terminal but never read back.
-      const detachTouch = attachTouchScroll(host, {
-        scrollLines: (n) => term.scrollLines(n),
-        cellHeight: () => {
-          const screen = term.element?.querySelector<HTMLElement>(".xterm-screen");
-          return screen && term.rows ? screen.clientHeight / term.rows : 0;
-        },
-      });
+      const detachTouch = attachSwipe(host, term, setAtOldest);
       const syncScrolledBack = () => {
         const buf = term.buffer.active;
         setScrolledBack(buf.viewportY < buf.baseY);
@@ -809,14 +861,16 @@ export function TerminalView({
 
   const jumpToLive = () => termRef.current?.scrollToBottom();
   const paneOverlay = (
-    <PaneOverlay {...{ stalled, stalledHint, opened, scrolledBack, jumpToLive }} />
+    <PaneOverlay
+      {...{ stalled, stalledHint, opened, scrolledBack, jumpToLive, atOldest, onShowChat }}
+    />
   );
 
   if (bare) {
     return (
       <div className={`flex flex-col ${className ?? "h-full w-full"}`}>
         <div className="relative min-h-0 flex-1">
-          <div ref={hostRef} className="h-full w-full overflow-x-auto overflow-y-hidden" />
+          <div ref={hostRef} className="ui-term-host" />
           {paneOverlay}
         </div>
         <LinkBar links={links} onDismiss={() => setLinks([])} />
@@ -910,7 +964,7 @@ export function TerminalView({
       <div
         className={`relative w-full overflow-hidden rounded-md bg-surface-terminal ${fill ? "min-h-0 flex-1" : compactChrome ? "min-h-0 flex-1" : "h-72"}`}
       >
-        <div ref={hostRef} className="h-full w-full overflow-x-auto overflow-y-hidden" />
+        <div ref={hostRef} className="ui-term-host" />
         {paneOverlay}
       </div>
       <LinkBar links={links} onDismiss={() => setLinks([])} />

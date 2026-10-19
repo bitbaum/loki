@@ -113,10 +113,17 @@ assert.equal(
   "the Menu sheet must not carry an account footer — AccountMenu in the top bar " +
     "owns Settings, appearance and sign out, on every viewport",
 );
+// Feedback on a phone is the widget's edge tab, which the bottom bar asks for
+// on every page (data-fc-place="tab"). The sheet repeating it as its first row
+// read as one more unexplained thing above the menu (owner, 2026-10-19).
 assert.ok(
+  /data-fc-place="tab"/.test(src("components/shell/MobileNav.tsx")),
+  "the bottom bar must keep the feedback widget's edge tab on every phone page",
+);
+assert.equal(
   /openFeedback/.test(sheet),
-  "the Menu sheet must offer feedback on the current page — on a phone the " +
-    "widget draws no floating button, so this is where people look for it",
+  false,
+  "the Menu sheet must not repeat the feedback tab as a row of its own",
 );
 
 console.log(

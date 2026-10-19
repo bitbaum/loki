@@ -79,7 +79,26 @@ async function main() {
     });
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.route("**/*", (r) =>
+    // The session's screen, for the sheet's live mode: Claude Code's footer,
+    // moved one mode along for every Shift+Tab the page has written.
+    const FOOTERS = [
+      "⏵⏵ auto mode on (shift+tab to cycle)",
+      "⏸ manual mode on · ? for shortcuts",
+      "⏵⏵ accept edits on (shift+tab to cycle)",
+      "⏸ plan mode on (shift+tab to cycle)",
+    ];
+    await page.route("**/api/control/peek-stream**", async (r) => {
+      const presses = await page
+        .evaluate(() => (window as unknown as { written?: string[] }).written ?? [])
+        .then((w) => w.filter((b) => b === "\x1b[Z").length)
+        .catch(() => 0);
+      const frame = `> \n────\n  ${FOOTERS[presses % FOOTERS.length]}\n`;
+      await r.fulfill({
+        contentType: "text/event-stream",
+        body: `retry: 100\n\nevent: ready\ndata: {}\n\nevent: frame\ndata: ${JSON.stringify({ frame, append: false })}\n\n`,
+      });
+    });
+    await page.route(/^(?!.*peek-stream).*$/, (r) =>
       r.fulfill(
         r.request().url().includes("/api/terminal/next-steps")
           ? {
@@ -152,7 +171,7 @@ async function main() {
           .getByRole("group", { name: "Show this session as" })
           .getByRole("button", { pressed: true })
           .textContent(),
-        terminal ? "Terminal" : "Claude",
+        terminal ? "Terminal" : "Chat",
         `${view}: the pill marks the view on screen`,
       );
       fs.mkdirSync(".tmp/session-sheet", { recursive: true });
@@ -460,24 +479,48 @@ async function main() {
     );
     await chip.click();
     const sheet = page.getByRole("dialog");
-    await sheet.getByText(/^Opus 4\.5/).waitFor();
+    await sheet.getByText("Answering now: Opus 4.5.").waitFor();
     await page.screenshot({ path: ".tmp/session-sheet/sheet-390.png" });
-    assert.ok(await sheet.getByText("Medium effort").isVisible(), "the effort in force is shown");
+    assert.equal(
+      await sheet.getByRole("radio", { name: "Medium", exact: true }).getAttribute("aria-checked"),
+      "true",
+      "the effort in force is the one marked",
+    );
 
     // Every family Claude Code knows by alias, most capable first.
     assert.deepEqual(
-      await sheet
-        .getByRole("group", { name: "Change the model" })
-        .getByRole("button")
-        .allTextContents(),
+      await sheet.getByRole("radiogroup", { name: "Model" }).getByRole("radio").allTextContents(),
       ["Fable", "Opus", "Sonnet", "Haiku"],
       "the model choices, Fable first",
+    );
+    // Each row is ONE line of equal cells — "Max" alone on a second line,
+    // each pill as wide as its word, was the owner's "Frankenstein" (2026-10-19).
+    for (const group of ["Model", "Effort"]) {
+      const cells = await sheet
+        .getByRole("radiogroup", { name: group })
+        .getByRole("radio")
+        .evaluateAll((els) =>
+          els.map((e) => {
+            const r = e.getBoundingClientRect();
+            return { top: Math.round(r.top), width: Math.round(r.width) };
+          }),
+        );
+      assert.equal(new Set(cells.map((c) => c.top)).size, 1, `${group}: every choice on one line`);
+      assert.ok(
+        Math.max(...cells.map((c) => c.width)) - Math.min(...cells.map((c) => c.width)) <= 1,
+        `${group}: every choice the same width (${cells.map((c) => c.width).join(", ")})`,
+      );
+    }
+    // And the chosen one says what it does — the reason to pick it.
+    assert.ok(
+      await sheet.getByText("Thinks briefly first. For everyday changes.").isVisible(),
+      "the effort in force says what it means",
     );
 
     // A choice is made on the sheet, sends the agent's own command, and the
     // sheet stays open saying what is changing.
-    await sheet.getByRole("button", { name: "Sonnet" }).click();
-    await sheet.getByRole("button", { name: "High", exact: true }).click();
+    await sheet.getByRole("radio", { name: "Sonnet" }).click();
+    await sheet.getByRole("radio", { name: "High", exact: true }).click();
     // The command and its Enter are separate writes with a beat between,
     // and the second command waits for the first's Enter — two quick taps
     // never interleave (lib/session-keystrokes typeCommand).
@@ -503,7 +546,7 @@ async function main() {
       ["Medium", "false"],
     ] as const) {
       assert.equal(
-        await sheet.getByRole("button", { name, exact: true }).getAttribute("aria-pressed"),
+        await sheet.getByRole("radio", { name, exact: true }).getAttribute("aria-checked"),
         pressed,
         `${name} is ${pressed === "true" ? "" : "not "}marked while the change is under way`,
       );
@@ -518,7 +561,7 @@ async function main() {
       "the chip shows the change under way",
     );
     // A choice already in force sends nothing.
-    await sheet.getByRole("button", { name: "Sonnet" }).click();
+    await sheet.getByRole("radio", { name: "Sonnet" }).click();
     await page.waitForTimeout(300);
     const after = await page.evaluate(() => (window as unknown as { written: string[] }).written);
     assert.equal(after.length, 4, `a choice in force sends nothing (got ${JSON.stringify(after)})`);
@@ -551,7 +594,7 @@ async function main() {
       sessionId: "s",
       badge: "claude",
     });
-    await sheet.getByText("In force for this session. Pick another to switch.").waitFor();
+    await sheet.getByText("Answering now: Sonnet 5.5.").waitFor();
     assert.match(
       (await chip.getAttribute("aria-label")) ?? "",
       /Model: Sonnet 5\.5, Auto mode/,
@@ -566,7 +609,7 @@ async function main() {
 
     // A family the account cannot use: Claude Code's refusal, in its words,
     // and the model in force stays marked.
-    await sheet.getByRole("button", { name: "Fable" }).click();
+    await sheet.getByRole("radio", { name: "Fable" }).click();
     await page.waitForFunction(
       () => (window as unknown as { written: string[] }).written.at(-1) === "\r",
     );
@@ -597,11 +640,43 @@ async function main() {
       .getByText("Claude Code said: Model 'fable' isn't available for your account")
       .waitFor();
     assert.equal(
-      await sheet.getByRole("button", { name: "Sonnet", exact: true }).getAttribute("aria-pressed"),
+      await sheet.getByRole("radio", { name: "Sonnet", exact: true }).getAttribute("aria-checked"),
       "true",
       "after a refusal the model in force is the one marked",
     );
     await page.screenshot({ path: ".tmp/session-sheet/sheet-refused-390.png" });
+
+    // The mode: listed with what each means, the one on the screen marked,
+    // and a tap walks Shift+Tab until Claude Code's own footer names it — it
+    // was a "Next mode" button whose result showed "with your next message",
+    // so pressing it looked like nothing happened (owner, 2026-10-19).
+    await page.evaluate(() => Object.assign(window, { written: [] }));
+    const modes = sheet.getByRole("radiogroup", { name: "Mode" });
+    assert.deepEqual(
+      (await modes.getByRole("button").allTextContents()).map(
+        (t) => t.split(/(?<=[a-z])(?=[A-Z])/)[0],
+      ),
+      ["Ask first", "Edits freely", "Plan only", "Auto"],
+      "the modes, by what they let it do",
+    );
+    await modes.getByRole("button", { name: /^Auto/, pressed: true }).waitFor();
+    await modes.getByRole("button", { name: /^Plan only/ }).click();
+    await modes.getByRole("button", { name: /^Plan only/, pressed: true }).waitFor();
+    // Wait out the walk: the row is marked while it is asked for, too.
+    await sheet.locator(".ui-spinner-sm").waitFor({ state: "detached" });
+    assert.equal(
+      (await page.evaluate(() => (window as unknown as { written: string[] }).written)).filter(
+        (b) => b === "\x1b[Z",
+      ).length,
+      3,
+      "auto → manual → accept edits → plan: three presses, then it stops",
+    );
+    assert.match(
+      (await chip.getAttribute("aria-label")) ?? "",
+      /Plan only mode/,
+      "the chip's label follows the screen, not the last message",
+    );
+    await page.screenshot({ path: ".tmp/session-sheet/sheet-mode-390.png" });
     await page.keyboard.press("Escape");
 
     // "What's going on?" on a phone: a sheet with the question, room for

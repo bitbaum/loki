@@ -26,34 +26,23 @@ const noop = () => {};
 const read = (f: string) => readFileSync(join(process.cwd(), "src/components/terminal", f), "utf8");
 
 {
-  // Claude | Terminal: the conversation is named after the AGENT in the
-  // session, never "Loki" — that is the supervisor, on its own model.
-  for (const view of ["chat", "terminal"] as const) {
-    const html = renderToStaticMarkup(
-      createElement(TerminalViewSwitch, { view, onViewChange: noop, agentLabel: "Claude" }),
-    );
-    ok(
-      html.includes(">Claude</button>") && html.includes(">Terminal</button>"),
-      "names both views",
-    );
-    ok(!html.includes("Loki"), "the agent's conversation is not called Loki");
-    const pressed = html.split("<button").find((b) => b.includes('aria-pressed="true"')) ?? "";
-    ok(pressed.includes(view === "chat" ? ">Claude<" : ">Terminal<"), `marks ${view} as current`);
+  // Chat | Terminal: named for what you SEE, the same for every agent —
+  // the agent is named once, under the session's name. "Claude | Terminal"
+  // under a page called "Terminal" read as two kinds of word (2026-10-19).
+  for (const agentLabel of ["Claude", "Codex", undefined]) {
+    for (const view of ["chat", "terminal"] as const) {
+      const html = renderToStaticMarkup(
+        createElement(TerminalViewSwitch, { view, onViewChange: noop, agentLabel }),
+      );
+      ok(
+        html.includes(">Chat</button>") && html.includes(">Terminal</button>"),
+        "names both views for what they show",
+      );
+      ok(!html.includes(">Loki<") && !html.includes(">Claude<"), "never named after an agent");
+      const pressed = html.split("<button").find((b) => b.includes('aria-pressed="true"')) ?? "";
+      ok(pressed.includes(view === "chat" ? ">Chat<" : ">Terminal<"), `marks ${view} as current`);
+    }
   }
-  const codex = renderToStaticMarkup(
-    createElement(TerminalViewSwitch, { view: "chat", onViewChange: noop, agentLabel: "Codex" }),
-  );
-  ok(codex.includes(">Codex</button>"), "follows the agent that is actually running");
-  const unnamed = renderToStaticMarkup(
-    createElement(TerminalViewSwitch, { view: "chat", onViewChange: noop }),
-  );
-  // Offered unnamed only on the assumption it is Claude Code
-  // (chatViewSupported), so named that from the first frame — not "Chat"
-  // turning into "Claude" a second later — and never Loki.
-  ok(
-    unnamed.includes(">Claude</button>") && !unnamed.includes(">Loki<"),
-    "an unnamed agent reads as Claude, not Loki, from the first frame",
-  );
 }
 {
   // Wired where you look, at every width, and in both views.

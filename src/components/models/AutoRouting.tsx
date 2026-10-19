@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Segmented } from "@/components/ui/segmented";
 import { Loader2, Sparkles } from "lucide-react";
 import { CUSTOM_VENDOR_ID, vendorById } from "@/config/model-vendors";
 import { STANCES, TIERS, type Stance } from "@/lib/models/auto-picks";
@@ -146,7 +147,7 @@ export function AutoRouting({ compact = false }: { compact?: boolean }) {
 
   return (
     <section aria-labelledby="auto-title" className={compact ? "ui-auto-strip" : "space-y-4"}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-3">
         <div>
           <h3 id="auto-title" className="flex items-center gap-2 font-medium text-text-primary">
             <Sparkles className="h-4 w-4 text-accent-text" aria-hidden="true" /> What Auto picks for
@@ -157,24 +158,15 @@ export function AutoRouting({ compact = false }: { compact?: boolean }) {
             preference sets how much to spend on harder work.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Stance">
-          {STANCES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              role="radio"
-              aria-checked={view.stance === s.id}
-              title={s.line}
-              className={view.stance === s.id ? "ui-chip-toggle-active" : "ui-chip-toggle"}
-              disabled={busy !== null}
-              onClick={() => void put({ stance: s.id satisfies Stance }, "stance")}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          label="Stance"
+          options={STANCES.map((s) => ({ id: s.id, label: s.label, means: s.line }))}
+          value={view.stance}
+          onChange={(id) => {
+            if (busy === null) void put({ stance: id as Stance }, "stance");
+          }}
+        />
       </div>
-      <p className="text-xs text-text-muted">{STANCES.find((s) => s.id === view.stance)?.line}</p>
       {compact ? (
         <details>
           <summary className="ui-tap cursor-pointer text-sm text-text-secondary">

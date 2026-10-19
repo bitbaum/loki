@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { NoScreenMode } from "@/components/voice/NoScreenMode";
 import { requirePageUserId } from "@/lib/session";
 
-export const metadata: Metadata = { title: "No-screen mode" };
+export const metadata: Metadata = { title: "Voice" };
 
 // No-screen mode — the fleet by ear. One tap, then the phone goes in the
 // pocket: Loki reads the fleet aloud, listens, acts, and announces what

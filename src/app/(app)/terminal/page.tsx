@@ -5,7 +5,7 @@ import { PageTitle } from "@/components/ui/page-title";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { EXECUTOR_COPY } from "@/config/executor-copy";
 
-export const metadata: Metadata = { title: "Terminal" };
+export const metadata: Metadata = { title: "Sessions" };
 
 export default function TerminalPage() {
   const local = isRuntimeAvailable();
@@ -19,17 +19,17 @@ export default function TerminalPage() {
       data-fc-place="tab"
       className="app-page app-page-compact app-viewport-pane flex flex-col gap-3 md:gap-4"
     >
-      {/* Both children are mobile-hidden (the top bar already says "Terminal",
+      {/* Both children are mobile-hidden (the top bar already says "Sessions",
           the subtitle starts at sm), so on a phone this block contributed
           nothing but the parent flex gap above a pane fighting for every row. */}
       <div className="ui-page-header hidden sm:flex">
         <div>
-          <PageTitle title="Terminal" />
+          <PageTitle title="Sessions" />
           <p className="ui-page-subtitle">{EXECUTOR_COPY.terminal.pageSubtitle}</p>
         </div>
       </div>
       <Suspense
-        fallback={<div className="ui-empty-page text-sm text-text-muted">Loading terminal…</div>}
+        fallback={<div className="ui-empty-page text-sm text-text-muted">Loading sessions…</div>}
       >
         <TerminalPageClient local={local} />
       </Suspense>

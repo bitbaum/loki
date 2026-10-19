@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { OptionRow } from "@/components/terminal/sheet-rows";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { RobotWithAttributes } from "@/db/queries/robots";
@@ -159,22 +160,17 @@ export function RobotProfile({ robot }: { robot: RobotWithAttributes }) {
           A robot can be booked, rented, or sold. A person cannot. Listing publishes to OrangeCat as
           an asset — checkout is not live yet.
         </p>
-        <div className="flex flex-wrap gap-2">
-          {MARKET_OFFERS.map((offer) => {
-            const on = market[offer];
-            return (
-              <button
-                key={offer}
-                type="button"
-                onClick={() => void toggleOffer(offer)}
-                disabled={saving}
-                className={on ? "ui-chip-toggle-active" : "ui-chip-toggle"}
-                aria-pressed={on}
-              >
-                {MARKET_OFFER_LABEL[offer]}
-              </button>
-            );
-          })}
+        <div className="flex flex-col gap-1">
+          {MARKET_OFFERS.map((offer) => (
+            <OptionRow
+              toggle
+              key={offer}
+              title={MARKET_OFFER_LABEL[offer]}
+              active={market[offer]}
+              disabled={saving}
+              onSelect={() => void toggleOffer(offer)}
+            />
+          ))}
         </div>
         <p className="text-sm text-text-secondary">
           {listingNote ??

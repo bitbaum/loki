@@ -60,7 +60,7 @@ export function StoreToolbar({
           aria-label="Search models"
         />
       </label>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filters">
+      <div className="ui-filter-chip-row ui-scroll-fade-right" role="group" aria-label="Filters">
         {CHIPS.filter((c) => c.key !== "mine" || hasKeys).map((c) => (
           <button
             key={c.key}

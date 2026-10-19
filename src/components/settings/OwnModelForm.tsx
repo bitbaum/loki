@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Check, ExternalLink, Loader2, X } from "lucide-react";
+import { Segmented } from "@/components/ui/segmented";
 import {
   CUSTOM_VENDOR_ID,
   VENDORS,
@@ -201,27 +202,25 @@ export function OwnModelForm({
       {!changeOnly && (
         <div>
           <p className="ui-micro-label mb-2">1 · Your provider</p>
-          <div className="space-y-2" role="radiogroup" aria-label="Provider">
-            {VENDOR_KIND_ORDER.map((group) => (
-              <div key={group.kind} className="flex flex-wrap items-center gap-2">
-                <span className="w-full text-xs text-text-muted sm:w-36">{group.title}</span>
-                {VENDORS.filter((v) => v.kind === group.kind).map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={vendor === v.id}
-                    className={`ui-chip-toggle ${vendor === v.id ? "ui-chip-toggle-active" : ""}`}
-                    onClick={() => {
-                      setVendor(v.id);
+          <div className="space-y-3">
+            {VENDOR_KIND_ORDER.map((group) => {
+              const options = VENDORS.filter((v) => v.kind === group.kind);
+              return (
+                <div key={group.kind} className="space-y-1.5">
+                  <span className="text-xs text-text-muted">{group.title}</span>
+                  <Segmented
+                    label={group.title}
+                    columns={options.length > 3 ? 2 : undefined}
+                    options={options.map((v) => ({ id: v.id, label: v.label }))}
+                    value={options.some((v) => v.id === vendor) ? vendor : null}
+                    onChange={(id) => {
+                      setVendor(id as typeof vendor);
                       reset();
                     }}
-                  >
-                    {v.label}
-                  </button>
-                ))}
-              </div>
-            ))}
+                  />
+                </div>
+              );
+            })}
           </div>
           <p className="mt-2 text-xs text-text-muted">{info.blurb}</p>
           {replaces && (

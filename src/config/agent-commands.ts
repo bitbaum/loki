@@ -240,3 +240,44 @@ export const CLAUDE_EFFORTS: Record<string, string> = {
   xhigh: "Extra-high effort",
   max: "Max effort",
 };
+
+/**
+ * Each effort level as a choice: a label short enough for an equal cell in a
+ * phone's row ("X-high", not "Extra-high", which left "Max" alone on a second
+ * line), and what picking it does — the sheet listed the five levels with no
+ * reason to prefer one (owner, 2026-10-19). In the order Claude Code ranks them.
+ */
+export const CLAUDE_EFFORT_CHOICES: readonly { id: string; label: string; means: string }[] = [
+  {
+    id: "low",
+    label: "Low",
+    means:
+      "Answers quickly with little thinking. For small, clear changes; uses the least of your plan.",
+  },
+  {
+    id: "medium",
+    label: "Medium",
+    means: "Thinks briefly first. For everyday changes.",
+  },
+  {
+    id: "high",
+    label: "High",
+    means: "Thinks a problem through before acting. For most building and planning.",
+  },
+  {
+    id: "xhigh",
+    label: "X-high",
+    means: "Thinks longer. For hard bugs and changes across many files; slower.",
+  },
+  {
+    id: "max",
+    label: "Max",
+    means:
+      "Thinks as long as it needs. For the hardest problems; the slowest, and uses the most of your plan.",
+  },
+];
+
+/** The modes a person can switch between with Shift+Tab, in the sheet's order.
+ *  "No checks" is offered only when the session already runs in it: Claude
+ *  Code adds it to the cycle only when launched to allow it. */
+export const CLAUDE_MODE_CHOICES = ["default", "acceptEdits", "plan", "auto"] as const;

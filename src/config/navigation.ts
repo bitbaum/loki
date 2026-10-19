@@ -76,8 +76,8 @@ export const NAV = {
   },
   voice: {
     id: "voice",
-    label: "No-screen",
-    description: "Run the fleet by ear — hear it, speak to it, never look",
+    label: "Voice",
+    description: "Talk to Loki with the screen off — it reads the fleet out and listens",
     href: "/voice",
     icon: Headphones,
     active: true,
@@ -94,8 +94,8 @@ export const NAV = {
   },
   terminal: {
     id: "terminal",
-    label: "Terminal",
-    description: "Type directly into a live agent — cloud or this computer",
+    label: "Sessions",
+    description: "Your agents at work — read one as a chat, or watch its terminal",
     href: "/terminal",
     icon: SquareTerminal,
     active: true,
@@ -149,7 +149,7 @@ export const NAV = {
   prompts: {
     id: "prompts",
     label: "Prompts",
-    description: "Agent prompt library & scheduler",
+    description: "Saved instructions for your agents — run one now, or on a schedule",
     href: "/prompts",
     icon: Zap,
     active: true,
@@ -320,10 +320,19 @@ export const NAV = {
 // Grouped by THING, not by question. Until 2026-10-19 the sections were three
 // operator questions — Now ("what needs me?"), Fleet, Command — and a person
 // looking for the terminal had to know it "commands". People look for pages
-// by what they are about. So: the work (Home, Projects, Terminal), Loki, what
-// waits for a yes, your day, the fleet's plumbing, and the private book.
+// by what they are about:
+//   • Build — the work: Home, Projects, Sessions (each agent's session, read
+//     as a chat or as its terminal), and the saved prompts you send them.
+//   • Loki — the assistant: talk to it, by voice too, your day as it keeps
+//     it, and what it suggests next.
+//   • To review — what waits for your yes.
+//   • The fleet — the plumbing.
+//   • Private — the PIN-locked book.
 // The phone's bottom bar carries the three you open daily — Home, Projects,
-// Loki — and "More" opens the rest, in these sections.
+// Loki — and "More" opens the rest, in these sections. Every section keeps at
+// least two entries on the phone too: a heading over one row (it was "Your
+// day" over Today alone, and "Build" over Terminal alone) reads as a menu
+// that lost its contents (owner, 2026-10-19).
 //
 // Two sections sit deliberately OUTSIDE the sidebar:
 //   • Account — Settings, appearance, Download, sign out. These are reached
@@ -347,30 +356,20 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     id: "build",
     label: "Build",
     question: "What am I building?",
-    // The work itself: Home (what needs you, what is being built, what got
-    // done, and the box to start more), every project, and the sessions.
-    items: [NAV.control, NAV.projects, NAV.terminal],
+    items: [NAV.control, NAV.projects, NAV.terminal, NAV.prompts],
   },
   {
     id: "ask",
     label: "Loki",
-    question: "What do I ask Loki?",
-    // The same act three ways: say it, say it with the screen off, or save
-    // it to say again.
-    items: [NAV.loki, NAV.voice, NAV.prompts],
+    question: "What does Loki know and suggest?",
+    items: [NAV.loki, NAV.voice, NAV.today, NAV.suggestions],
   },
   {
     id: "review",
     label: "To review",
     question: "What is waiting for my yes?",
     // Home lists these as they arrive; each also has a page of its own.
-    items: [NAV.approvals, NAV.feedback, NAV.suggestions],
-  },
-  {
-    id: "day",
-    label: "Your day",
-    question: "What is my day?",
-    items: [NAV.today],
+    items: [NAV.approvals, NAV.feedback],
   },
   {
     id: "fleet",

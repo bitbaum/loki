@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { ROUTES } from "@/config/auth";
+import { Segmented } from "@/components/ui/segmented";
 import {
   OPEN_SOURCE_STARTERS,
   OPEN_SOURCE_STARTER_IDS,
@@ -10,7 +11,6 @@ import {
   openSourceRepoUrl,
   type OpenSourceStarterId,
 } from "@/config/open-source-starters";
-import { cn } from "@/lib/utils";
 
 type Draft = { repo: OpenSourceStarterId; wishes: string; requestId: string };
 
@@ -122,22 +122,19 @@ export function TakeRepoBrief({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Project to start from">
-        {OPEN_SOURCE_STARTER_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={repo === id}
-            onClick={() => {
-              requestId.current = "";
-              setRepo(id);
-            }}
-            className={cn("ui-chip-toggle", repo === id && "ui-chip-toggle-active")}
-          >
-            {OPEN_SOURCE_STARTERS[id].name}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        label="Project to start from"
+        columns={3}
+        options={OPEN_SOURCE_STARTER_IDS.map((id) => ({
+          id,
+          label: OPEN_SOURCE_STARTERS[id].name,
+        }))}
+        value={repo}
+        onChange={(id) => {
+          requestId.current = "";
+          setRepo(id as typeof repo);
+        }}
+      />
 
       <section className="ui-change-brief" aria-label="Your copy">
         <p className="text-sm text-text-secondary">

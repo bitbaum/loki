@@ -62,7 +62,7 @@ export function ProjectsSummary({
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap gap-2">
+      <div className="ui-filter-chip-row ui-scroll-fade-right">
         {chips.map((chip) => {
           const Icon = chip.icon;
           const active = activeFilter === chip.id;

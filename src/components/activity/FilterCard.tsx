@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import { DIGEST_WINDOWS, type DigestWindow } from "@/db/queries/digests";
 import type { ActivityFilter } from "@/lib/activity-events";
 import { WINDOW_LABEL, activityHref, formatActivityTime } from "./activity-shared";
@@ -22,20 +21,25 @@ export function FilterCard({
 }) {
   return (
     <Card>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="ui-kicker">Last</span>
-        <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="ui-kicker">Last</span>
+          <span className="text-xs text-text-tertiary">since {formatActivityTime(since)}</span>
+        </div>
+        {/* Equal cells: as chips with "Last" beside them the row overflowed
+            by a few pixels on a phone and "Last" went alone on a line. */}
+        <nav className="ui-segmented" aria-label="Time window">
           {DIGEST_WINDOWS.map((w) => (
             <Link
               key={w}
               href={activityHref({ window: w, project: projectKey, filter })}
-              className={cn("ui-chip-filter", digestWindow === w && "ui-chip-filter-active")}
+              aria-current={digestWindow === w ? "page" : undefined}
+              className={digestWindow === w ? "ui-segment-active" : "ui-segment"}
             >
               {WINDOW_LABEL[w]}
             </Link>
           ))}
-        </div>
-        <span className="text-xs text-text-tertiary">since {formatActivityTime(since)}</span>
+        </nav>
       </div>
     </Card>
   );

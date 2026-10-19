@@ -289,11 +289,12 @@ const iso = (daysFromNow: number) => new Date(NOW.getTime() + daysFromNow * DAY_
     assert.ok(s.label.length <= 44, `${s.id}: label fits a phone row`);
     assert.ok(Boolean(s.prompt) !== Boolean(s.href), `${s.id}: exactly one of prompt / href`);
   }
-  const review = SIDEBAR_SECTIONS.find((s) => s.id === "review")!;
-  const ids = review.items.map((i) => i.id);
+  // Loki's own section: suggestions are what the assistant proposes, next
+  // to talking to it and the day it keeps (2026-10-19).
+  const loki = SIDEBAR_SECTIONS.find((s) => s.id === "ask")!;
   assert.ok(
-    ids.includes("suggestions") && ids.includes("approvals"),
-    "Suggestions sits with Approvals, in what waits for a yes",
+    loki.items.some((i) => i.id === "suggestions"),
+    "Suggestions sits in Loki's section, with what Loki proposes",
   );
 }
 

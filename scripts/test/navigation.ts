@@ -20,11 +20,10 @@ import {
 
 const LOOP = [
   // Grouped by thing (2026-10-19), not by question: the work, Loki, what
-  // waits for a yes, your day, the plumbing.
-  { id: "build", items: ["control", "projects", "terminal"] },
-  { id: "ask", items: ["loki", "voice", "prompts"] },
-  { id: "review", items: ["approvals", "feedback", "suggestions"] },
-  { id: "day", items: ["today"] },
+  // waits for a yes, the plumbing.
+  { id: "build", items: ["control", "projects", "terminal", "prompts"] },
+  { id: "ask", items: ["loki", "voice", "today", "suggestions"] },
+  { id: "review", items: ["approvals", "feedback"] },
   { id: "fleet", items: ["packages", "activity", "system"] },
 ] as const;
 
@@ -115,6 +114,18 @@ assert.equal(NAV.control.label, "Home", "Control is called Home");
 for (const tab of MOBILE_NAV_ITEMS) {
   assert.ok(sidebarIds.includes(tab.id), `${tab.id} is a real sidebar destination`);
 }
+// A heading over a single row reads as a menu that lost its contents ("Your
+// day" over Today alone, "Build" over Terminal alone — owner, 2026-10-19).
+// On the phone the tabs are filtered out of More, so count what is left.
+const tabIds = new Set(MOBILE_NAV_ITEMS.map((i) => i.id));
+for (const section of SIDEBAR_SECTIONS.filter((s) => !s.private)) {
+  const inMore = section.items.filter((i) => !tabIds.has(i.id));
+  assert.ok(
+    inMore.length >= 2,
+    `"${section.label}" shows ${inMore.length} row(s) in the phone's More sheet — at least two, or fold it into another section`,
+  );
+}
+assert.equal(NAV.terminal.label, "Sessions", "the page of agent sessions is called Sessions");
 
 // ─── Private zone ────────────────────────────────────────────────────────────
 const priv = SIDEBAR_SECTIONS.find((s) => s.id === "private");

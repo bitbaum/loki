@@ -14,8 +14,32 @@ import { cn } from "@/lib/utils";
  * keep their h1 because the top bar shows the parent label, not their title.
  */
 export function PageTitle({ title }: { title: string }) {
-  const pathname = usePathname();
-  const navLabel = NAV_ITEMS.find((item) => isCurrentPath(pathname, item.href))?.label;
-  const duplicatesTopBar = navLabel === title;
+  const duplicatesTopBar = useDuplicatesTopBar(title);
   return <h1 className={cn("ui-page-title", duplicatesTopBar && "hidden md:block")}>{title}</h1>;
+}
+
+function useDuplicatesTopBar(title: string): boolean {
+  const pathname = usePathname();
+  return NAV_ITEMS.find((item) => isCurrentPath(pathname, item.href))?.label === title;
+}
+
+/**
+ * The block a page's title sits in. When the title is all it holds and the
+ * title is hidden on a phone (above), the block goes too: empty, it still
+ * took its place in the page's spacing, and Home opened on a blank band above
+ * its box (owner's screenshot, 2026-10-19).
+ */
+export function PageHead({
+  title,
+  onlyTitle,
+  children,
+}: {
+  title: string;
+  /** Nothing but the title inside (no back link, subtitle or actions). */
+  onlyTitle: boolean;
+  children: React.ReactNode;
+}) {
+  const duplicates = useDuplicatesTopBar(title);
+  const empty = onlyTitle && duplicates;
+  return <div className={cn("space-y-3", empty && "hidden md:block")}>{children}</div>;
 }

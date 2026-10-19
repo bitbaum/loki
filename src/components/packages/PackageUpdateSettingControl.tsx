@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Segmented } from "@/components/ui/segmented";
 import { patchJson } from "@/lib/api/fetch";
 import {
   BREAKING_ALWAYS_ASKS,
@@ -56,29 +56,18 @@ export function PackageUpdateSettingControl({
   const current = PACKAGE_UPDATE_SETTINGS.find((s) => s.id === setting);
   return (
     <div className="space-y-2">
-      <p id="package-updates-label" className="ui-micro-label">
+      <p className="ui-micro-label" aria-hidden="true">
         When a package has an update
       </p>
-      <div
-        className="flex flex-wrap gap-2"
-        role="radiogroup"
-        aria-labelledby="package-updates-label"
-      >
-        {PACKAGE_UPDATE_SETTINGS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            role="radio"
-            aria-checked={setting === s.id}
-            disabled={busy !== null}
-            onClick={() => void choose(s.id)}
-            className={`${setting === s.id ? "ui-chip-toggle-active" : "ui-chip-toggle"} gap-1.5`}
-          >
-            {busy === s.id && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
-            {s.label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        label="When a package has an update"
+        options={PACKAGE_UPDATE_SETTINGS.map((s) => ({ id: s.id, label: s.label }))}
+        value={setting}
+        pending={busy}
+        onChange={(id) => {
+          if (busy === null) void choose(id as typeof setting);
+        }}
+      />
       <p className="text-sm text-text-secondary">{current?.consequence}</p>
       <p className="text-xs text-text-tertiary">{BREAKING_ALWAYS_ASKS}</p>
       {message && (

@@ -3,28 +3,18 @@
 import { MessagesSquare, TerminalSquare } from "lucide-react";
 import type { TerminalViewMode } from "@/config/terminal-modes";
 
-/** Before the session's agent is known. The conversation view is offered
- *  then only on the assumption it is Claude Code (chatViewSupported), so it
- *  is named that from the first frame: "Chat" became "Claude" a second
- *  later, one more thing moving on a screen already moving. */
-const AGENT_FALLBACK = "Claude";
-
 /**
- * Claude | Terminal — how the session is SHOWN. One control holding both
+ * Chat | Terminal — how the session is SHOWN. One control holding both
  * choices, drawn in both views, at every width.
  *
- * The first choice is named after the AGENT running in the session, because
- * that is who the conversation view shows you talking to. It was "Loki" for
- * two days (#1041) and that was wrong: Loki is the supervisor that runs on
- * whichever model is first in its chain, and the thing in this session is a
- * coding agent — Claude Code today, Codex tomorrow. Two different AIs under
- * one name was the confusion the operator reported on 2026-10-07: "there can
- * be one model powering the chat, and another model is open in the terminal".
- *
- * It replaced three things: a bare speech-bubble icon in the phone header, a
- * "Conversation" button that existed only inside the terminal pane (so on a
- * laptop the conversation view had no way back), and a "Loki" chip in the
- * phone dock that vanished with the dock the moment it was used.
+ * Both are named for what you SEE, never for who is running: the agent is
+ * already named once, under the session's name in the header ("Claude ·
+ * cloud builder"). The first choice was named after the agent until
+ * 2026-10-19, so the page read "Terminal" over a pill reading "Claude |
+ * Terminal" — two kinds of word side by side, and a person running Grok
+ * could not tell whether it would say Grok (owner: "it doesn't really say
+ * much"). An agent with no chat view (Grok, Codex today) gets no switch at
+ * all: the terminal is the only way it can be shown.
  */
 export function TerminalViewSwitch({
   view,
@@ -33,14 +23,14 @@ export function TerminalViewSwitch({
 }: {
   view: TerminalViewMode;
   onViewChange: (view: TerminalViewMode) => void;
-  /** The agent running in this session, as the chooser lists it ("Claude"). */
+  /** The agent running in this session ("Claude"), for the hint only. */
   agentLabel?: string | null;
 }) {
-  const agent = agentLabel?.trim() || AGENT_FALLBACK;
+  const agent = agentLabel?.trim() || "the agent";
   const views = [
     {
       id: "chat",
-      label: agent,
+      label: "Chat",
       Icon: MessagesSquare,
       hint: `Talk to ${agent} — the session as messages, not a terminal screen`,
     },

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Bot } from "lucide-react";
+import { Segmented } from "@/components/ui/segmented";
 import { getAdapterLabel } from "@/config/control-intents";
 import { timeAgo } from "@/lib/dates";
 import type { ControlData } from "@/lib/control-types";
@@ -58,49 +59,52 @@ export function BrainConfigPanel({
         {headerRight && <div className="flex shrink-0 items-center gap-1.5">{headerRight}</div>}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {switchableRegistry.map((entry) => {
+      <Segmented
+        label="Agent"
+        columns={switchableRegistry.length > 4 ? 3 : undefined}
+        options={switchableRegistry.map((entry) => {
           const isAvailable = entry.available ?? true;
-          const isSelected = selectedAgent === entry.id;
-          return (
-            <div key={entry.id} className="inline-flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => isAvailable && onAgentSelect(entry.id, entry.defaultModel)}
-                disabled={!isAvailable}
-                className={isSelected ? "ui-chip-toggle-active" : "ui-chip-toggle"}
-                title={
-                  isAvailable
-                    ? `${entry.label} is available on the connected computer`
-                    : (entry.availabilityReason ?? `${entry.label} is not available`)
-                }
-              >
-                {entry.label}
-                {!isAvailable && <span className="ml-1 text-micro opacity-60">(missing)</span>}
-              </button>
-              {!isAvailable && onRequestInstall && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRequestInstall(entry.id);
-                  }}
-                  className="ui-btn-ghost ui-btn-xs text-micro px-1.5 py-0.5"
-                  title={`Install ${entry.label} — opens a terminal tab with the installer`}
-                >
-                  Install
-                </button>
-              )}
-            </div>
-          );
+          return {
+            id: entry.id,
+            label: entry.label,
+            disabled: !isAvailable,
+            title: isAvailable
+              ? `${entry.label} is available on the connected computer`
+              : (entry.availabilityReason ?? `${entry.label} is not available`),
+          };
         })}
-      </div>
+        value={selectedAgent}
+        onChange={(id) =>
+          onAgentSelect(id, switchableRegistry.find((e) => e.id === id)?.defaultModel)
+        }
+      />
+      {/* An agent this computer does not have is shown, greyed, in the grid
+          above; the way to get it is one line under it, not a second button
+          squeezed into its cell. */}
+      {onRequestInstall && switchableRegistry.some((e) => !(e.available ?? true)) && (
+        <div className="ui-filter-chip-row ui-scroll-fade-right items-center">
+          <span className="text-xs text-text-tertiary">Not on this computer:</span>
+          {switchableRegistry
+            .filter((e) => !(e.available ?? true))
+            .map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => onRequestInstall(e.id)}
+                className="ui-btn-ghost ui-btn-xs"
+                title={`Install ${e.label} — opens a terminal tab with the installer`}
+              >
+                Install {e.label}
+              </button>
+            ))}
+        </div>
+      )}
 
       <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
         <div className="space-y-1.5">
           {/* Model suggestions come strictly from the registry for the selected agent.
               Chips are quick picks; the input allows any custom value (with datalist for convenience). */}
-          <div className="flex flex-wrap gap-1 items-center">
+          <div className="ui-filter-chip-row ui-scroll-fade-right items-center">
             {modelSuggestions.map((option) => (
               <button
                 key={option}

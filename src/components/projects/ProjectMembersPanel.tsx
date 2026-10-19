@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Segmented } from "@/components/ui/segmented";
 import { Check, Copy, MessageCircle, Share2 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { deleteJson, postJson, throwApiError } from "@/lib/api/fetch";
@@ -123,20 +124,18 @@ export function ProjectMembersPanel({
 
       <fieldset>
         <legend className="ui-micro-label">They can</legend>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {ROLE_ORDER.map((r) => (
-            <button
-              key={r}
-              type="button"
-              aria-pressed={role === r}
-              className={role === r ? "ui-chip-toggle-active" : "ui-chip-toggle"}
-              onClick={() => setRole(r)}
-            >
-              {ROLE_LABELS[r].label}
-            </button>
-          ))}
+        <div className="mt-2">
+          <Segmented
+            label="They can"
+            options={ROLE_ORDER.map((r) => ({
+              id: r,
+              label: ROLE_LABELS[r].label,
+              means: ROLE_LABELS[r].help,
+            }))}
+            value={role}
+            onChange={(r) => setRole(r as typeof role)}
+          />
         </div>
-        <p className="mt-2 text-sm text-text-tertiary">{ROLE_LABELS[role].help}</p>
       </fieldset>
 
       {!link && (

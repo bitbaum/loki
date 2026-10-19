@@ -61,7 +61,8 @@ src/
 │   │                 lock live in AccountMenu (top bar, every viewport).
 │   │                 Sections are SSOT in config/navigation.ts, grouped by
 │   │                 THING, not by question: Build (Home, Projects,
-│   │                 Terminal) · Loki · To review · Your day · The fleet +
+│   │                 Sessions, Prompts) · Loki (chat, Voice, Today,
+│   │                 Suggestions) · To review · The fleet +
 │   │                 PIN-gated Private. The phone's bottom bar is Home ·
 │   │                 Projects · Loki · More (the rest, in those sections).
 │   ├── control/   → ControlPanel = HOME (/control, labelled "Home" since
@@ -142,7 +143,7 @@ src/
 │   │                 Below md the same state drives phone chrome:
 │   │                 TerminalMobileHeader (a chat app's: back to Control ·
 │   │                 the session's name, "Claude · 2 sessions · cloud
-│   │                 builder" under it · ⋮, and the Claude | Terminal pill
+│   │                 builder" under it · ⋮, and the Chat | Terminal pill
 │   │                 centred below; no row of tabs) + TerminalSessionSheet
 │   │                 (the name: sessions, New session, where it runs, agent)
 │   │                 + TerminalMoreSheet (⋮: What's going on?, full screen,
@@ -362,6 +363,17 @@ Adding any visual element — ask in order:
 3. **Is this a new color?** → Add a CSS custom property to `:root`/`.dark` in `globals.css`, map it in `@theme inline`, then use it via a new `ui-*` class or a semantic Tailwind class.
 4. **Is this a layout value?** → Check the Tailwind spacing scale first (multiples of 4px: `h-18`=72px, `min-h-11`=44px). Use a CSS var + token if it's repeated (`--modal-max-height`, `--page-min-height`).
 5. **Is this a one-off layout constraint with no semantic meaning?** → Arbitrary value `[value]` is acceptable only here, and only for layout (widths, heights, max-widths) — never for colors or typography.
+
+#### Rows of choices never wrap on their own terms
+
+Pick one of a few → `<Segmented>` (`components/ui/segmented.tsx`): equal cells
+in one row, or an even grid with `columns`, and the chosen one's meaning under
+it. Many filters → `ui-filter-chip-row` (one line that scrolls on a phone). On/off
+settings or long answers → one row each (`OptionRow`). Never chips in a
+`flex-wrap` box: each pill as wide as its word, they broke into "4 + 1 orphan"
+rows on a phone wherever the words ran out (owner, 2026-10-19: "Frankenstein
+elements … not sized, not symmetrical"). `scripts/test/choice-rows.ts` fails
+on the old shape.
 
 #### Audit command
 
@@ -605,7 +617,7 @@ prod UI dogfood (`ui-flows` always; `dogfood:loki` when the builder is online;
 | Approvals | /approvals | The Approval Queue as a destination — review/approve Loki's proposed actions; locked-zone state shows pending count + unlock CTA. Package updates a project's setting held (Update / Not now / Stay on this version) sit here too, shown behind the PIN as well — they name no private data. So do new accounts' build requests from /change (`config/build-requests`, operator only): the cloud builder runs only the operator's commands, so a stranger's "Make it real" is filed, approved here, and built as the operator's client work behind a code of that preview's own (`getProjectPreviewCode`); the visitor follows it on `/change/requests/<id>` |
 | Feedback | /feedback | Every report across the fleet in one ironing-out loop: what phase each fix is in and the next action, without opening a project. Fed by the embeddable widget (`widget/`, served as `/widget.js`), AI review, and synthesized briefs. `ControlInbox` is the preview; this is the surface |
 | My feedback | /my-feedback | The REPORTER's side of the same loop — the one feedback surface whose reader may be a stranger on someone else's site. Renders through the same pieces as `/feedback` (`FeedbackReportText`) on purpose: it kept its own row markup once, and the three-line clamp shipped to the operator inbox never reached it, so the person who asked for it watched their own report swallow the list. Status is DERIVED, never the DB word — `lib/feedback/reporter-view.ts` writes every reporter-facing sentence so builder asks, raw agent errors and run ids cannot travel |
-| Terminal | /terminal | Live embedded terminal — watch/drive the cloud builder or local Fleet Runner PTY per project tab. Nothing open: your projects, each with Resume (TerminalResume → `/api/agent/launch {resume:true}` → `claude --resume` of the folder's newest conversation), never a form. The box runner writes down its open sessions (`desktop/src/main/tab-memory.ts`, `~/.loki/open-tabs.json`) and reopens them when it starts, so a deploy's restart no longer ends them |
+| Sessions | /terminal | (Was "Terminal".) Each agent's session, read as Chat or as its Terminal (the Chat | Terminal pill names views, never the agent; an agent with no chat view shows only the terminal). The terminal scrolls with a finger and, past the oldest kept line, points at Chat. The model chip's sheet: Model and Effort as `<Segmented>` rows, each choice explained; Mode as a list, switched by Shift+Tab until Claude Code's own footer names it (`use-live-mode`, `lib/claude-mode-footer`). Watch/drive the cloud builder or local Fleet Runner PTY per project tab. Nothing open: your projects, each with Resume (TerminalResume → `/api/agent/launch {resume:true}` → `claude --resume` of the folder's newest conversation), never a form. The box runner writes down its open sessions (`desktop/src/main/tab-memory.ts`, `~/.loki/open-tabs.json`) and reopens them when it starts, so a deploy's restart no longer ends them |
 | Activity | /activity | Fleet activity timeline — digests, event stream, per-project status strip across windows (hour/day/week/month). `/digests`, `/decisions` and `/history` are redirect stubs onto this page |
 | Atlas | /atlas | RETIRED — redirects to /projects. Live URL and down-state live on Projects |
 | Duet | /duet | RETIRED — redirects to /control (side-by-side prompt view earned nothing over Terminal + Control) |

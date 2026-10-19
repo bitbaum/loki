@@ -16,7 +16,7 @@ import {
 import { useSiteConsultation } from "@/hooks/use-site-consultation";
 import { appendToBrief, extractWebsite, saysMoreThanAddress } from "@/lib/website-from-speech";
 import { clearWebsiteDraft, parseWebsiteDraft, saveWebsiteDraft } from "@/lib/website-draft";
-import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/segmented";
 
 /**
  * "Change your website", told in your own words — typed or spoken.
@@ -205,22 +205,15 @@ export function WebsiteChangeBrief({ signedIn }: { signedIn: boolean }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2" role="group" aria-label="What to do with the website">
-        {WEBSITE_MODE_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={mode === id}
-            onClick={() => {
-              requestId.current = "";
-              setMode(id);
-            }}
-            className={cn("ui-chip-toggle", mode === id && "ui-chip-toggle-active")}
-          >
-            {WEBSITE_MODES[id].label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        label="What to do with the website"
+        options={WEBSITE_MODE_IDS.map((id) => ({ id, label: WEBSITE_MODES[id].label }))}
+        value={mode}
+        onChange={(id) => {
+          requestId.current = "";
+          setMode(id as WebsiteMode);
+        }}
+      />
 
       <Composer
         onSend={(text) => hear(text)}

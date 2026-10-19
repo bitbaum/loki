@@ -2683,6 +2683,13 @@
   .ui-consult-page-broken > svg {
     color: var(--status-negative);
   }
+  /* Answers to one of Loki's questions: a row each, full width. */
+  .ui-consult-replies {
+    @apply mt-3 flex flex-col gap-2;
+  }
+  .ui-consult-reply {
+    @apply flex min-h-11 w-full items-center rounded-xl border border-border-subtle px-3 py-2 text-left text-sm font-medium text-text-secondary transition-colors hover:border-border-default hover:text-text-primary active:bg-surface-overlay;
+  }
   .ui-consult-you {
     @apply flex items-center justify-end gap-2 pl-10;
     animation: ui-watch-rise 0.3s ease-out;
@@ -3100,6 +3107,20 @@
 
   /* "Live": floats over the bottom of the grid while the operator has scrolled
      back, and returns to the newest output in one tap. */
+  /* The xterm's box. Sideways is the browser's (a grid wider than the
+     phone); up and down are the terminal's own (lib/terminal-touch-scroll),
+     so the page never takes a swipe meant for the output. */
+  .ui-term-host {
+    @apply h-full w-full touch-pan-x overflow-x-auto overflow-y-hidden;
+  }
+  /* A swipe for older output than the screen keeps: says so, and where the
+     whole conversation is (TerminalView → OldestKept). */
+  .ui-term-oldest {
+    @apply absolute inset-x-3 top-3 z-10 flex flex-col items-center gap-1 rounded-xl border border-border-default bg-surface-raised px-3 py-2 text-center text-xs text-text-secondary shadow-panel;
+  }
+  .ui-term-oldest-btn {
+    @apply inline-flex min-h-11 items-center px-2 text-sm font-medium text-text-primary underline underline-offset-4;
+  }
   .ui-term-jump {
     @apply absolute bottom-3 right-3 z-10 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border-default bg-surface-raised px-3.5 text-xs font-medium text-text-primary shadow-panel transition-colors hover:border-border-strong;
   }
@@ -3538,6 +3559,17 @@
   .ui-sheet-option-active {
     @apply border-border-interactive bg-surface-raised;
   }
+  /* An on/off row's box (OptionRow toggle): empty when off, filled when on. */
+  .ui-option-box,
+  .ui-option-box-on {
+    @apply inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border;
+  }
+  .ui-option-box {
+    @apply border-border-default;
+  }
+  .ui-option-box-on {
+    @apply border-accent-primary bg-accent-primary text-text-inverted;
+  }
   .ui-sheet-option-title {
     @apply block truncate text-sm text-text-primary;
   }
@@ -3549,6 +3581,31 @@
   }
   .ui-sheet-row {
     @apply flex min-h-11 items-center gap-2 px-3;
+  }
+  /* Segmented — pick one of a few (components/ui/segmented.tsx). Equal
+     cells in one row, so a long label can never leave one choice alone on a
+     second line; the chosen cell is raised, like the Chat | Terminal pill. */
+  .ui-segmented-wrap {
+    @apply flex flex-col gap-1.5;
+  }
+  .ui-segmented {
+    @apply grid grid-flow-col auto-cols-fr gap-0.5 rounded-xl border border-border-subtle bg-surface-raised p-1;
+  }
+  .ui-segmented-cols-2 {
+    @apply grid-flow-row grid-cols-2;
+  }
+  .ui-segmented-cols-3 {
+    @apply grid-flow-row grid-cols-3;
+  }
+  .ui-segment,
+  .ui-segment-active {
+    @apply flex min-h-11 min-w-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-center text-sm font-medium leading-tight transition-colors [overflow-wrap:anywhere];
+  }
+  .ui-segment {
+    @apply text-text-secondary hover:text-text-primary active:bg-surface-overlay disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .ui-segment-active {
+    @apply bg-surface-overlay text-text-primary ring-1 ring-border-default;
   }
   .ui-sheet-value {
     @apply text-sm text-text-primary;
@@ -4740,6 +4797,10 @@
   .ui-filter-chip-row {
     @apply flex gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden;
     @apply sm:flex-wrap sm:overflow-x-visible;
+  }
+  /* One line on a phone means every chip keeps its whole word. */
+  .ui-filter-chip-row > * {
+    @apply shrink-0 whitespace-nowrap;
   }
   /* Rounded-pill toggle — agent/health/category selector chips. Compact by
      default; THE TOUCH FLOOR gives it a 44px target on coarse pointers. */
@@ -7686,9 +7747,6 @@
   }
   .ui-voice-setting-label {
     @apply text-xs font-semibold uppercase text-text-secondary;
-  }
-  .ui-voice-setting-chips {
-    @apply flex flex-wrap gap-1.5;
   }
   .ui-voice-setting-note {
     @apply text-xs text-text-muted;

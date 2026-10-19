@@ -107,14 +107,16 @@ export function PackageUpdateCard({
       </div>
       {update.detail && <p className="text-xs text-text-tertiary">{update.detail}</p>}
 
-      <div className="flex flex-wrap gap-2">
+      {/* An even grid, the yes on its own row on a phone: wrapping left
+          "Stay on this version" alone under the other two (2026-10-19). */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {UPDATE_ACTIONS.map((d) => (
           <button
             key={d}
             type="button"
             onClick={() => void decide(d)}
             disabled={busy !== null}
-            className={`${d === UPDATE_DECISION.UPDATE ? "ui-btn-primary" : "ui-btn-secondary"} min-h-11 gap-2`}
+            className={`${d === UPDATE_DECISION.UPDATE ? "ui-btn-primary col-span-2 sm:col-span-1" : "ui-btn-secondary"} min-h-11 gap-2`}
           >
             {busy === d && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
             {UPDATE_DECISION_LABELS[d]}
