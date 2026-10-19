@@ -44,6 +44,7 @@ async function main() {
         const all=[{id:'substrata',label:'substrata',status:'working'},{id:'orangecat',label:'orangecat',status:'needs-you'},
           {id:'substrata~1a2b3c4d',label:'substrata 2',status:'done'},{id:'heidi',label:'heidi',status:'idle'}];
         function App(){
+          if(q.has('empty'))return <main className="app-page app-page-compact"><TerminalMobileHeader title="Cloud builder" state="idle" builder="Cloud builder" sessionCount={0} backHref="/control" onOpenSheet={()=>{}} onOpenMore={()=>{}}/></main>;
           const sessions=all.slice(0,Number(q.get('n')||1));
           const [active,setActive]=useState(sessions[0].id);
           const [open,setOpen]=useState(q.has('new'));
@@ -118,6 +119,11 @@ async function main() {
         page
           .locator(".ui-term-mhead-row")
           .evaluate((e) => Math.round(e.getBoundingClientRect().height));
+
+      // Nothing open: the title is the builder, and the line under it does
+      // not say it twice.
+      await mount("?empty=1");
+      assert.equal(await page.locator(".ui-term-mhead-sub").count(), 0, "no repeated builder");
 
       // One session: the name, what runs it and where.
       await mount("?n=1");
