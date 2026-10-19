@@ -5,7 +5,8 @@
  * Boss channel: Telegram (plus in-app alert). Same contract as
  * check-pending-approvals — one ping when the flag goes up, not per tick.
  */
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
 import { logDebug } from "@/db/queries/debug-logs";
 import {
   refreshOrInsertActiveAlert,
@@ -91,7 +92,7 @@ export async function syncFeedbackNeedsYou(): Promise<{
 
     if (created) {
       raised++;
-      const tg = selfTelegramTarget();
+      const tg = await telegramTargetFor(userId);
       if (tg) {
         const lines = [
           `🧭 Loki: ${title}`,

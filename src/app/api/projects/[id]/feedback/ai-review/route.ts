@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { status, body } = await injectPrompt(
     {
       tab: project.name,
-      customPrompt: composeReviewPrompt(dataOrResp.url, project.name, token.token),
+      customPrompt: composeReviewPrompt(dataOrResp.url, project, token.token),
       notifyOnClose: true,
     },
     userId,

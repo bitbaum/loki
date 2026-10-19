@@ -240,6 +240,11 @@ export const FEEDBACK_SOURCE = {
    *  — the one source ingest never accepts as a self-assertion. */
   OWNER: "owner",
 } as const satisfies Record<string, FeedbackSource>;
+/** A note nobody vouched for: a visitor's, or a row older than sources. Only a
+ *  person's tap may turn one into a build (lib/autopilot-night.ts). */
+export function isStrangerSource(source: string | null | undefined): boolean {
+  return !source || source === FEEDBACK_SOURCE.VISITOR;
+}
 /** What a widget POST may claim for itself. `owner` is earned, never asserted. */
 export const FEEDBACK_SELF_ASSERTED_SOURCES = ["visitor", "ai_review", "synthesizer"] as const;
 

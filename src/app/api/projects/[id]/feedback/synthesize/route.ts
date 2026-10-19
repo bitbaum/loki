@@ -7,6 +7,7 @@ import { listProjectFeedback } from "@/db/queries/site-feedback";
 import { injectPrompt } from "@/lib/inject-core";
 import { appUrl } from "@/lib/email";
 import { FEEDBACK_SOURCE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
+import { createAgentPass } from "@/lib/feedback/agent-pass";
 import { fenceUntrusted, UNTRUSTED_PREAMBLE } from "@/lib/feedback/untrusted";
 import { SYNTHESIZE_MIN_ITEMS } from "@/lib/feedback/compose-dispatch";
 import type { FeedbackListItem } from "@/db/queries/site-feedback";
@@ -42,9 +43,12 @@ function renderItem(f: FeedbackListItem): string {
 
 function composeSynthesizePrompt(
   items: FeedbackListItem[],
-  projectName: string,
+  project: { id: string; name: string },
   widgetToken: string,
 ): string {
+  const projectName = project.name;
+  // Without it the brief files as a visitor's: the server decides who wrote it.
+  const agentPass = createAgentPass(project.id, FEEDBACK_SOURCE.SYNTHESIZER);
   const ingestUrl = `${appUrl().replace(/\/$/, "")}/api/feedback`;
   const siteOrigin = (() => {
     const withUrl = items.find((f) => f.url);
@@ -72,7 +76,7 @@ function composeSynthesizePrompt(
     `curl -s -X POST ${ingestUrl} \\`,
     '  -H "Content-Type: application/json" \\',
     `  -H "Origin: ${siteOrigin}" \\`,
-    `  -d '{"token":"${widgetToken}","suggestion":"<the four BRIEF lines as one string, newline-separated, <=2000 chars>","contact":"${SYNTHESIZER_CONTACT}","source":"${FEEDBACK_SOURCE.SYNTHESIZER}","scope":"site","intent":"note","page":"<most-affected pathname or />"}'`,
+    `  -d '{"token":"${widgetToken}","suggestion":"<the four BRIEF lines as one string, newline-separated, <=2000 chars>","contact":"${SYNTHESIZER_CONTACT}","agentPass":"${agentPass}","scope":"site","intent":"note","page":"<most-affected pathname or />"}'`,
     "```",
     "Verify each POST returns ok:true.",
     "4. HANDOFF: one line per filed brief (theme + evidence count) and how many items stayed un-clustered. If nothing clusters, file nothing and say so.",
@@ -114,7 +118,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const { status, body } = await injectPrompt(
     {
       tab: project.name,
-      customPrompt: composeSynthesizePrompt(items, project.name, token.token),
+      customPrompt: composeSynthesizePrompt(items, project, token.token),
       notifyOnClose: true,
     },
     userId,

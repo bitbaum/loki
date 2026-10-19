@@ -51,7 +51,13 @@ import {
   markActionExecuted,
 } from "@/db/queries/actions";
 import { recordActionAuditEvent } from "@/db/queries/control-audit-events";
-import { ACTION_STATUS, ACTION_TYPE, ENTITY_TYPE, FEEDBACK_STATUS } from "@/lib/constants/statuses";
+import {
+  ACTION_STATUS,
+  ACTION_TYPE,
+  ENTITY_TYPE,
+  FEEDBACK_STATUS,
+  isStrangerSource,
+} from "@/lib/constants/statuses";
 import { DEFAULT_AUTO_INJECT_MODE } from "@/lib/constants/control";
 import { HOUR_MS } from "@/lib/constants/time";
 import type { AutoInjectMode } from "@/config/beacon";
@@ -80,7 +86,8 @@ import { rerouteQueuedToCloud } from "@/lib/reroute-queue";
 import { enqueueAction } from "@/lib/actions/enqueue-action";
 import { finalizeApproved } from "@/lib/actions/finalize-approved";
 import { pushToUser } from "@/lib/push-fanout";
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
 import { APP_URL } from "@/config/brand";
 
 /** A project with a run this recent is awake; the night leaves it alone. */
@@ -191,13 +198,18 @@ async function gatherProjects(userId: string, userMode: AutoInjectMode, now: num
   return { projects, liveUrlById };
 }
 
-/** Everything a plan rests on, gathered once — the evening and the night read the same facts. */
-async function gatherFacts(userId: string, now: number) {
+/** Everything a plan rests on, gathered once — the evening and the night read the same facts.
+ *  `strangers: false` leaves visitors' notes out, for a plan nobody will tap. */
+async function gatherFacts(userId: string, now: number, { strangers = true } = {}) {
   const settings = await getBeaconSettings(userId);
   const userMode = (settings.auto_inject_mode ?? DEFAULT_AUTO_INJECT_MODE) as AutoInjectMode;
   const { projects, liveUrlById } = await gatherProjects(userId, userMode, now);
   const open = (await listUserFeedback(userId)).filter(
-    (f) => f.userId === userId && f.status === FEEDBACK_STATUS.NEW && !f.requiresReview,
+    (f) =>
+      f.userId === userId &&
+      f.status === FEEDBACK_STATUS.NEW &&
+      !f.requiresReview &&
+      (strangers || !isStrangerSource(f.source)),
   );
   const plan = planNight({
     budget: settings.night_runs,
@@ -272,7 +284,7 @@ async function tellOwner(userId: string, title: string, body: string, tag: strin
   await Promise.all([
     pushToUser(userId, { title, body, url, tag }).catch(() => {}),
     (async () => {
-      const target = selfTelegramTarget();
+      const target = await telegramTargetFor(userId);
       if (!target) return;
       await sendTelegramMessage(target, `${title}\n${body}\n${url}`).catch(() => {});
     })(),
@@ -285,13 +297,24 @@ export async function proposeNightFor(
   night: string,
   now = Date.now(),
 ): Promise<NightProposalOutcome> {
-  const f = await gatherFacts(userId, now);
-  const proposal = toProposal(night, f);
-  const runs = proposal.fixes.length + proposal.reads.length;
-  const estimate = estimateNightCost(await listRunCostSamples(userId).catch(() => []), runs);
+  const samples = await listRunCostSamples(userId).catch(() => []);
+  const planFor = async (strangers: boolean) => {
+    const f = await gatherFacts(userId, now, { strangers });
+    const proposal = toProposal(night, f);
+    const runs = proposal.fixes.length + proposal.reads.length;
+    const estimate = estimateNightCost(samples, runs);
+    return { f, proposal, runs, estimate, verdict: nightAllowance(f.settings, estimate, now) };
+  };
+  let planned = await planFor(true);
+  // An allowance approves with no one looking, so it may build only what
+  // someone vouched for: the owner's notes and Loki's own findings. A
+  // stranger's words reach a builder by a person's tap, never by the clock.
+  if (planned.verdict.auto && planned.f.open.some((r) => isStrangerSource(r.source))) {
+    planned = await planFor(false);
+  }
+  const { proposal, runs, estimate, verdict } = planned;
   if (runs === 0) return { proposal, estimate, outcome: "nothing_planned", actionId: null };
 
-  const verdict = nightAllowance(f.settings, estimate, now);
   const body = nightProposalText(proposal, estimate);
   // The row is written first, always — approved by a tap or by the allowance,
   // the queue is the record of what was asked and what was answered.
@@ -438,7 +461,11 @@ async function startReads(userId: string, reads: NightProposal["reads"], f: Fact
         {
           tab: project.name,
           projectId: read.projectId,
-          customPrompt: composeReviewPrompt(liveUrl, project.name, token.token),
+          customPrompt: composeReviewPrompt(
+            liveUrl,
+            { id: read.projectId, name: project.name },
+            token.token,
+          ),
         },
         userId,
       );
@@ -504,7 +531,7 @@ export async function runNightFor(userId: string, night: string, now = Date.now(
     await Promise.all([
       pushToUser(userId, { title: "While you were away", body: note, url, tag: "autopilot-night" }),
       (async () => {
-        const target = selfTelegramTarget();
+        const target = await telegramTargetFor(userId);
         if (!target) return;
         await sendTelegramMessage(target, `${note}\n${url}`).catch(() => {});
       })(),

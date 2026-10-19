@@ -4,8 +4,6 @@ import { getApiUserId } from "@/lib/session";
 import { verifyFeedbackClaimToken } from "@/lib/feedback/claim-token";
 import { claimFeedbackForReporter, getFeedbackForTour } from "@/db/queries/site-feedback";
 import { getProjectAccess } from "@/db/queries/project-access";
-import { implementFeedback } from "@/lib/feedback/implement";
-import { FEEDBACK_STATUS } from "@/lib/constants/statuses";
 
 const Body = z.object({ token: z.string().min(20).max(500) });
 
@@ -16,30 +14,21 @@ export async function POST(req: NextRequest) {
   if (body instanceof Response) return body;
   const feedbackId = verifyFeedbackClaimToken(body.token);
   if (!feedbackId) return jsonError("This tracking link is invalid or expired", 400);
+  // Someone who can build this project opening a tracking link: show them
+  // the note where Build is one tap, and start nothing. This used to start the
+  // build on open, for an owner tracking their own note — but the link is the
+  // REPORTER's, so a stranger could send theirs to the owner and have it built
+  // by a click on a link. Their claim is left for the person who wrote it.
+  const record = await getFeedbackForTour(feedbackId);
+  if (!record) return jsonError("Feedback not found", 404);
+  const access = await getProjectAccess(userId, record.feedback.projectId);
+  if (access?.canEdit) {
+    return jsonOk({ claimed: false, owner: true, projectId: record.feedback.projectId });
+  }
+
   const outcome = await claimFeedbackForReporter(feedbackId, userId);
   if (outcome === "missing") return jsonError("Feedback not found", 404);
   if (outcome === "already-claimed")
     return jsonError("This feedback belongs to another account", 409);
-
-  // The owner tracking their OWN report has just told Loki who they are — the
-  // one thing the anonymous widget could not. Without an owner pass in the
-  // phone's browser, an owner's note landed as a stranger's and waited in the
-  // inbox for the very person now reading "waiting for the maintainer"
-  // (2026-09-28). Claiming it is the Implement click; make it.
-  const record = await getFeedbackForTour(feedbackId);
-  if (record && record.feedback.status === FEEDBACK_STATUS.NEW) {
-    const access = await getProjectAccess(userId, record.feedback.projectId);
-    if (access?.canEdit) {
-      const started = await implementFeedback(userId, feedbackId).catch(() => null);
-      const runId = started && typeof started.body.runId === "string" ? started.body.runId : null;
-      return jsonOk({
-        claimed: true,
-        owner: true,
-        building: !!runId,
-        projectId: record.feedback.projectId,
-        ...(runId ? {} : { note: started?.body.error ?? started?.body.nextAction ?? null }),
-      });
-    }
-  }
   return jsonOk({ claimed: true });
 }

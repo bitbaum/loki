@@ -1,4 +1,5 @@
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
 import { logDebug } from "@/db/queries/debug-logs";
 import { formatRunCloseMessage, runCloseButtons } from "@/lib/orchestration/notify-close-format";
 import { postRunOutcomeToConversation } from "@/lib/orchestration/run-outcome-post";
@@ -37,6 +38,7 @@ export async function notifyRunClosed(run: OrchestrationRun): Promise<void> {
     const message = formatRunCloseMessage(run);
     if (!message) return;
 
+    const telegram = await telegramTargetFor(run.userId);
     const [pushResult] = await Promise.all([
       pushToUser(run.userId, {
         title: `${run.projectKey} · ${run.outcome ?? "closed"}`,
@@ -45,7 +47,7 @@ export async function notifyRunClosed(run: OrchestrationRun): Promise<void> {
         tag: `${PUSH_TAG_PREFIX}${run.projectKey}`,
       }),
       (async () => {
-        const target = selfTelegramTarget();
+        const target = telegram;
         if (!target) return;
         await sendTelegramMessage(target, message, { buttons: runCloseButtons(run) }).catch(
           () => undefined,
@@ -56,7 +58,7 @@ export async function notifyRunClosed(run: OrchestrationRun): Promise<void> {
     // A run that opted into being announced and reached NOBODY is a product
     // failure, not a no-op. Record it so the gap is discoverable from the logs
     // instead of being inferred from the operator never hearing anything.
-    if (pushResult.sent === 0 && !selfTelegramTarget()) {
+    if (pushResult.sent === 0 && !telegram) {
       void logDebug({
         source: "orchestration/notify-close",
         level: "warn",

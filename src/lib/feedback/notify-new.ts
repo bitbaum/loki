@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { entities, siteFeedback } from "@/db/schema";
 import type { SiteFeedback } from "@/db/schema";
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
 import { logDebug } from "@/db/queries/debug-logs";
 import { pushToUser } from "@/lib/push-fanout";
 import { PUSH_TAG_PREFIX } from "@/config/brand-storage";
@@ -50,6 +51,7 @@ export async function notifyFeedbackReceived(row: SiteFeedback): Promise<void> {
         : row.suggestion;
     const where = row.page ?? row.url;
     const inboxPath = `/feedback?project=${encodeURIComponent(projectName)}`;
+    const telegram = await telegramTargetFor(row.userId);
 
     const [pushResult] = await Promise.all([
       pushToUser(row.userId, {
@@ -59,7 +61,7 @@ export async function notifyFeedbackReceived(row: SiteFeedback): Promise<void> {
         tag: `${PUSH_TAG_PREFIX}feedback-${row.projectId}`,
       }),
       (async () => {
-        const target = selfTelegramTarget();
+        const target = telegram;
         if (!target) return;
         const lines = [
           `📨 New feedback on ${projectName}${where ? ` (${where})` : ""}:`,
@@ -82,7 +84,7 @@ export async function notifyFeedbackReceived(row: SiteFeedback): Promise<void> {
 
     // Same contract as notify-close: an announcement that reached NOBODY is a
     // product failure worth a log line, not a silent no-op.
-    if (pushResult.sent === 0 && !selfTelegramTarget()) {
+    if (pushResult.sent === 0 && !telegram) {
       void logDebug({
         source: "feedback/notify-new",
         level: "warn",
@@ -139,7 +141,7 @@ export async function notifyBuilderAsked(
         tag: `${PUSH_TAG_PREFIX}feedback-${row.projectId}`,
       }),
       (async () => {
-        const target = selfTelegramTarget();
+        const target = await telegramTargetFor(row.ownerUserId);
         if (!target) return;
         await sendTelegramMessage(
           target,

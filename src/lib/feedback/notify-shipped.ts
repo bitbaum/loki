@@ -23,7 +23,8 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { entities } from "@/db/schema";
-import { selfTelegramTarget, sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { sendTelegramMessage } from "@/lib/actions/telegram-send";
+import { telegramTargetFor } from "@/lib/actions/telegram-for-user";
 import { logDebug } from "@/db/queries/debug-logs";
 import { pushToUser } from "@/lib/push-fanout";
 import { PUSH_TAG_PREFIX } from "@/config/brand-storage";
@@ -83,6 +84,7 @@ export async function notifyFixShipped(input: {
         : `${byFleet ? "Merged automatically and deployed" : "Merged and deployed"}. Watch the fix and confirm: ${what}`
       : `${input.fix.deploy?.name ?? "The deploy"} failed on the merge commit, so the site still shows the old version. ${what}`;
 
+    const telegram = await telegramTargetFor(input.userId);
     const [pushResult] = await Promise.all([
       pushToUser(input.userId, {
         title,
@@ -91,7 +93,7 @@ export async function notifyFixShipped(input: {
         tag: `${PUSH_TAG_PREFIX}fix-${input.projectId}`,
       }),
       (async () => {
-        const target = selfTelegramTarget();
+        const target = telegram;
         if (!target) return;
         const lines = [
           live
@@ -115,7 +117,7 @@ export async function notifyFixShipped(input: {
 
     // Same contract as the other two notifiers: an announcement that reached
     // NOBODY is a product failure worth a log line, not a silent no-op.
-    if (pushResult.sent === 0 && !selfTelegramTarget()) {
+    if (pushResult.sent === 0 && !telegram) {
       void logDebug({
         source: "feedback/notify-shipped",
         level: "warn",

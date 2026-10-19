@@ -22,6 +22,7 @@ import { feedbackClaimPath } from "@/lib/feedback/claim-token";
 import { appUrl } from "@/lib/email";
 import { watchFixPath } from "@/lib/feedback/tour-token";
 import { passHolder } from "@/lib/feedback/pass-holder";
+import { verifyAgentPass } from "@/lib/feedback/agent-pass";
 import { startOwnerBuild } from "@/lib/feedback/owner-build";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 
@@ -64,10 +65,13 @@ const FeedbackBody = z.object({
   url: z.string().max(1000).optional(),
   pageTitle: z.string().max(300).optional(),
   scope: z.enum(FEEDBACK_SCOPE_VALUES).optional(),
-  // Who filed it — the widget omits this (→ visitor); the AI reviewer and
-  // synthesizer declare themselves. Self-asserted via the public token, so a
-  // routing hint, not a trust boundary.
+  // Who filed it, as the sender CLAIMS. Ignored: a visitor holding the page's
+  // public token could claim "ai_review" and skip the owner's notification.
+  // Loki's reviewer proves itself with `agentPass`; still accepted so a run
+  // started before the pass existed does not get a 400.
   source: z.enum(FEEDBACK_SELF_ASSERTED_SOURCES).optional(),
+  /** Loki's reviewer or synthesizer, proven (feedback/agent-pass.ts). */
+  agentPass: z.string().max(300).optional(),
   /** The owner's signed pass (feedback/owner-pass.ts), which the widget picked
    *  up from Loki's "Open your site" link. Verified below, never trusted. */
   ownerPass: z.string().max(300).optional(),
@@ -235,7 +239,9 @@ export async function POST(req: NextRequest) {
     url: data.url ?? null,
     pageTitle: data.pageTitle ?? null,
     scope: data.scope ?? null,
-    source: fromOwner ? FEEDBACK_SOURCE.OWNER : (data.source ?? FEEDBACK_SOURCE.VISITOR),
+    source: fromOwner
+      ? FEEDBACK_SOURCE.OWNER
+      : (verifyAgentPass(data.agentPass, token.projectId) ?? FEEDBACK_SOURCE.VISITOR),
     // Who asked, when the pass says. A visitor becomes known only by claiming.
     reporterUserId: holder?.userId ?? null,
     contentHash,
