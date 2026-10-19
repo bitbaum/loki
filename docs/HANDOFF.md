@@ -103,7 +103,7 @@ src/lib/agents/
                     findAdapter(id), effectiveDefaultModel, effectiveModelSuggestions
 ```
 
-**Adding a new agent** (Cline, Aider, opencode, whatever): create one new file `src/lib/agents/newagent.ts` exporting `newagentAdapter: AgentAdapter`, add it to `ALL_ADAPTERS` in `index.ts`. **No edits to any other file.** The catalog, the launcher, the availability badge, the install button, the UI dropdowns all read from the adapter automatically.
+**Adding a new agent** (Cline, Aider, opencode, whatever): create one new file `src/lib/agents/<name>.ts` exporting `<name>Adapter: AgentAdapter`, add it to `ALL_ADAPTERS` in `index.ts`. **No edits to any other file.** The catalog, the launcher, the availability badge, the install button, the UI dropdowns all read from the adapter automatically.
 
 ### Terminals — there is no terminal adapter any more
 

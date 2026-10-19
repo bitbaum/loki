@@ -8,7 +8,7 @@ checkout).
 
 The shipped design is documented in `docs/architecture/box-owned-pty-executor.md`
 and `docs/development/cloud-local-workflows.md`. `docs/desktop-app.md` and
-`docs/fleet-runner-pty-ownership.md` are the historical decision records.
+`docs/archive/fleet-runner-pty-ownership.md` are the historical decision records.
 
 ## Current status
 

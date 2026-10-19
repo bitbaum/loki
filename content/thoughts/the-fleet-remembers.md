@@ -31,7 +31,7 @@ No repo code in our vector store. Project profiles, dev-logs, outcomes, the oper
 
 A `knowledge_embeddings` table in Postgres with `pgvector`. Each project's profile and dev-log is embedded — locally, on our own box, by a small open model behind an OpenAI-shaped endpoint, no cloud key in the loop. When you dispatch a task, the captain embeds the task, finds the nearest slices of fleet history, and injects a short *"relevant context from your other projects"* block ahead of it — then deliberately drops the project the task is *for*, because that one's full profile is already in hand.
 
-The point isn't the schema. The point is what it does to a dispatch. "Add billing to kivvi" no longer arrives naked. It arrives next to how orangecat already did Bitcoin payments, what aoz-housing learned about auth boundaries — retrieved by meaning, not by you remembering to mention them. Ask it about governance and it surfaces Solon. Ask about an ERP and it surfaces the two ERP projects, ranked. The fleet brings its own history to the table without being told to.
+The point isn't the schema. The point is what it does to a dispatch. "Add billing to kivvi" no longer arrives naked. It arrives next to how orangecat already did Bitcoin payments, what aoz-begleitung learned about auth boundaries — retrieved by meaning, not by you remembering to mention them. Ask it about governance and it surfaces Solon. Ask about an ERP and it surfaces the two ERP projects, ranked. The fleet brings its own history to the table without being told to.
 
 ## The honest part
 

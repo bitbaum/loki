@@ -5,8 +5,8 @@
 >
 > - **The Beacon sections are obsolete.** The beacon popup was retired on
 >   2026-06-11 (`2391c6f7`) and its remains were deleted in #804:
->   `scripts/beacon.py`, `POST /api/beacon` and the `beacon_sessions` table are
->   gone, and `/beacon/live` 404s. Anything below that treats Beacon as live
+>   `scripts/beacon.py`, `POST /api/beacon` and the `beacon_sessions` table were deleted,
+>   and `/beacon/live` 404s. Anything below that treats Beacon as live
 >   architecture — "stabilize Beacon as a client", "the always-on-top desktop
 >   overlay" — describes something that no longer exists. What replaced it is
 >   Fleet Runner's `notifyOnIdle` + autopilot dispatch.

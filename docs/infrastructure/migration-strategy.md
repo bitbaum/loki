@@ -14,8 +14,8 @@ The **production deploy is already safe** — it does **not** run `drizzle-kit p
 against the box. It applies versioned migration **files** forward-only through a
 guarded applier that refuses destructive statements and rolls back on drift.
 
-The residual risk was **ergonomic, not the deploy path**: `npm run migrate` used
-to be aliased to `drizzle-kit push`, and `CLAUDE.md` documented `drizzle-kit push`
+The residual risk was **ergonomic, not the deploy path**: `npm run migrate` used to
+be aliased to `drizzle-kit push`, and `CLAUDE.md` documented `drizzle-kit push`
 as "the" schema command. That trained a habit (and an agent muscle-memory) that
 could diff-apply an unreviewed schema straight to prod if `DATABASE_URL` happened
 to point at the box, and it let schema changes exist without a reviewable
@@ -177,10 +177,10 @@ Small, mechanical, close the footgun:
 - ✅ **`CLAUDE.md` / `README.md` / call-sites — DONE:** the Database section now
   documents the generate → review → forward-apply loop and states explicitly
   that **`pnpm run db:push` is for a throwaway local/scratch DB only — never a
-  shared or production database.** Every `npm run migrate` reference
-  (`README.md`, `scripts/check-schema-drift.ts`, `scripts/db/deploy-host.sh`,
-  `scripts/deploy-local.sh`, `docs/infrastructure/postgres-portability.md`) was
-  updated to `npm run db:push` with the scratch-only caveat.
+  shared or production database.** Every `npm run migrate` reference was replaced
+  (in `README.md`, `scripts/check-schema-drift.ts`, `scripts/db/deploy-host.sh`,
+  `scripts/deploy-local.sh`, `docs/infrastructure/postgres-portability.md`) by
+  `npm run db:push` with the scratch-only caveat.
 - ⏸️ **(optional) CI guard — DEFERRED, with reason:** a check that fails a PR
   which changed `src/db/schema/` but produced no new `drizzle/NNNN_*.sql` would
   close the "schema change with no reviewable file" class (Never-Twice). It is
