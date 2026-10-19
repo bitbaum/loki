@@ -1,6 +1,6 @@
 import { projectTitle } from "@/lib/project-display";
 import type { FeedbackRead } from "@/lib/feedback/read-report";
-import { and, count, desc, eq, getTableColumns, inArray, max, sql } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, gte, inArray, isNull, max, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   entities,
@@ -592,7 +592,7 @@ export async function countAllowanceUsed(
         eq(siteFeedback.projectId, projectId),
         eq(siteFeedback.reporterUserId, clientUserId),
         eq(siteFeedback.onAllowance, true),
-        sql`${siteFeedback.createdAt} >= ${since}`,
+        gte(siteFeedback.createdAt, since),
       ),
     );
   return Number(row?.n ?? 0);
@@ -609,5 +609,5 @@ export async function approveFeedbackLive(id: string, userId: string): Promise<v
   await db
     .update(siteFeedback)
     .set({ liveApprovedAt: new Date(), liveApprovedBy: userId })
-    .where(and(eq(siteFeedback.id, id), sql`${siteFeedback.liveApprovedAt} IS NULL`));
+    .where(and(eq(siteFeedback.id, id), isNull(siteFeedback.liveApprovedAt)));
 }
