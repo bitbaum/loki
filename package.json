@@ -10,7 +10,7 @@
     "dev": "next dev",
     "prebuild": "npx tsx scripts/generate-bash-state-vocab.ts && npx tsx scripts/generate-widget-theme.ts && pnpm run build:widget && pnpm run build:inspection",
     "build:extension": "npx tsx scripts/build-extension.ts",
-    "build:widget": "esbuild widget/main.ts --bundle --minify --format=iife --outfile=public/widget.js --log-level=warning && npx tsx scripts/build-widget-chat.ts",
+    "build:widget": "esbuild widget/main.ts --bundle --minify --format=iife --outfile=public/widget.js --log-level=warning && esbuild widget/instant-page.ts --bundle --minify --format=iife --outfile=public/instant-page.js --log-level=warning && npx tsx scripts/build-widget-chat.ts",
     "build": "next build",
     "postbuild": "bash scripts/record-build-ref.sh && bash scripts/deploy-local.sh",
     "start": "next start",

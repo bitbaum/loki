@@ -85,6 +85,8 @@ const PUBLIC: Record<string, string> = {
     "Compatibility 410 directing legacy paid-intake clients to Bitbaum; no database or side effects.",
   "site-consult":
     "The free consultation on /change, shown before any account exists. Reads one public page through the SSRF guard (private networks, IP literals and custom ports refused on every redirect hop), judges it by rules with no AI spend, is rate-limited per visitor and cached, and returns findings — never the page's content.",
+  "site-consult/preview":
+    "The instant preview on /change, before any account exists: opens only an address the consultation accepted (same SSRF guard, plus the picture browser's per-request private-network check), draws edits in Loki's own headless browser and returns two pictures. It spends the owner's AI budget on purpose, behind a per-visitor and an everyone-per-hour rate limit and the owner's daily budget gate; nothing reaches the site or the database.",
   // — Sign-in and account recovery. Public by definition: the caller has no
   //   session yet, which is the entire reason they are here.
   "auth/[...nextauth]": "NextAuth's own handler — owns the session it would otherwise check",

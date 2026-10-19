@@ -242,15 +242,21 @@ async function takeOne(
 
 type Attempt = PagePicture & { afterResponse?: boolean };
 
-/** One page, one picture — with the site's scripts, or without them. */
-async function attempt(
+/** A loaded page, or why it did not load. */
+type Opened =
+  | { ok: true; page: import("playwright").Page }
+  | { ok: false; detail: string; afterResponse?: boolean };
+
+/**
+ * A browser context the way every picture opens one: the screen size and
+ * agent of a phone or a desktop, and — on the server — every request the page
+ * makes checked against the private network.
+ */
+async function openContext(
   browser: import("playwright").Browser,
-  url: string,
-  selector: string | null | undefined,
-  scrollY: number | null,
   opts: PictureOptions,
   javaScript: boolean,
-): Promise<Attempt> {
+) {
   const viewport = opts.viewport ?? PICTURE_VIEWPORT;
   const phone = viewport.width <= PHONE_MAX_WIDTH;
   const context = await browser.newContext({
@@ -262,42 +268,76 @@ async function attempt(
     userAgent: phone ? PHONE_AGENT : DESKTOP_AGENT,
     extraHTTPHeaders: opts.headers,
   });
+  if (opts.cookies?.length) await context.addCookies(opts.cookies);
+  return context;
+}
+
+/** Open `url` in the context and wait for it to settle enough to photograph. */
+async function loadPage(
+  context: import("playwright").BrowserContext,
+  url: string,
+): Promise<Opened> {
+  const page = await context.newPage();
+  // On a person's own machine (the desktop app) the private network is
+  // theirs — their dev server on localhost is the page to look at.
+  const seen = new Map<string, boolean>();
+  if (!isRuntimeAvailable())
+    await page.route("**/*", async (route) => {
+      let host: string;
+      try {
+        const u = new URL(route.request().url());
+        if (u.protocol === "data:" || u.protocol === "blob:") return route.continue();
+        host = u.hostname;
+      } catch {
+        return route.abort();
+      }
+      return (await publicHost(host, seen)) ? route.continue() : route.abort();
+    });
+  // The document is enough to photograph. "load" (every image) and "network
+  // idle" are each waited for only as long as IDLE_WAIT_MS allows: a shop
+  // homepage with hundreds of product images, or analytics beacons that
+  // never go quiet, used to time out the whole goto and leave no picture at
+  // all (center-com.ru, 2026-10-17: did-not-load at 30 s on "load").
+  let failure = "";
+  const res = await page
+    .goto(url, { waitUntil: "domcontentloaded", timeout: HTTP_TIMEOUT_LONG_MS })
+    .catch((e: unknown) => {
+      failure = firstLine(e);
+      return null;
+    });
+  if (!res) return { ok: false, detail: failure || "no response" };
+  if (!res.ok()) return { ok: false, detail: `HTTP ${res.status()}` };
   try {
-    if (opts.cookies?.length) await context.addCookies(opts.cookies);
-    const page = await context.newPage();
-    // On a person's own machine (the desktop app) the private network is
-    // theirs — their dev server on localhost is the page to look at.
-    const seen = new Map<string, boolean>();
-    if (!isRuntimeAvailable())
-      await page.route("**/*", async (route) => {
-        let host: string;
-        try {
-          const u = new URL(route.request().url());
-          if (u.protocol === "data:" || u.protocol === "blob:") return route.continue();
-          host = u.hostname;
-        } catch {
-          return route.abort();
-        }
-        return (await publicHost(host, seen)) ? route.continue() : route.abort();
-      });
-    // The document is enough to photograph. "load" (every image) and "network
-    // idle" are each waited for only as long as IDLE_WAIT_MS allows: a shop
-    // homepage with hundreds of product images, or analytics beacons that
-    // never go quiet, used to time out the whole goto and leave no picture at
-    // all (center-com.ru, 2026-10-17: did-not-load at 30 s on "load").
-    let failure = "";
-    const res = await page
-      .goto(url, { waitUntil: "domcontentloaded", timeout: HTTP_TIMEOUT_LONG_MS })
-      .catch((e: unknown) => {
-        failure = firstLine(e);
-        return null;
-      });
-    if (!res) return { ok: false, reason: "did-not-load", detail: failure || "no response" };
-    if (!res.ok()) return { ok: false, reason: "did-not-load", detail: `HTTP ${res.status()}` };
+    await page.waitForLoadState("load", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
+    await page.waitForLoadState("networkidle", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
+    await page.waitForTimeout(SETTLE_MS);
+    return { ok: true, page };
+  } catch (e) {
+    return { ok: false, detail: firstLine(e), afterResponse: true };
+  }
+}
+
+/** One page, one picture — with the site's scripts, or without them. */
+async function attempt(
+  browser: import("playwright").Browser,
+  url: string,
+  selector: string | null | undefined,
+  scrollY: number | null,
+  opts: PictureOptions,
+  javaScript: boolean,
+): Promise<Attempt> {
+  const context = await openContext(browser, opts, javaScript);
+  try {
+    const opened = await loadPage(context, url);
+    if (!opened.ok)
+      return {
+        ok: false,
+        reason: "did-not-load",
+        detail: opened.detail,
+        afterResponse: opened.afterResponse,
+      };
+    const { page } = opened;
     try {
-      await page.waitForLoadState("load", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
-      await page.waitForLoadState("networkidle", { timeout: IDLE_WAIT_MS }).catch(() => undefined);
-      await page.waitForTimeout(SETTLE_MS);
       if (selector) {
         await page
           .locator(selector)
@@ -317,4 +357,55 @@ async function attempt(
   } finally {
     await context.close().catch(() => undefined);
   }
+}
+
+/** What `withLivePage` hands its caller: the loaded page, and its camera. */
+export type LivePage = {
+  page: import("playwright").Page;
+  /** A JPEG of the viewport as it is now, base64. */
+  shoot: () => Promise<string>;
+};
+
+/**
+ * The live page, open and settled, for a caller that does more than one
+ * picture — the instant preview on /change photographs it, edits it in this
+ * browser and photographs it again. Same queue, same private-network guard
+ * and same patience as a picture; scripts on, because the caller runs its own.
+ */
+export function withLivePage<T>(
+  url: string,
+  opts: PictureOptions,
+  run: (live: LivePage) => Promise<T>,
+): Promise<{ ok: true; value: T } | Extract<PagePicture, { ok: false }>> {
+  const next = queue.then(async () => {
+    let chromium: typeof import("playwright").chromium;
+    try {
+      ({ chromium } = await import("playwright"));
+    } catch {
+      return { ok: false as const, reason: "no-playwright" as const };
+    }
+    const executablePath = await browserPath(chromium);
+    if (!executablePath) return { ok: false as const, reason: "no-browser" as const };
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+    try {
+      browser = await chromium.launch({ headless: true, executablePath });
+      const context = await openContext(browser, opts, true);
+      try {
+        const opened = await loadPage(context, url);
+        if (!opened.ok)
+          return { ok: false as const, reason: "did-not-load" as const, detail: opened.detail };
+        const page = opened.page;
+        const shoot = async () => Buffer.from(await screenshot(page)).toString("base64");
+        return { ok: true as const, value: await run({ page, shoot }) };
+      } finally {
+        await context.close().catch(() => undefined);
+      }
+    } catch (e) {
+      return { ok: false as const, reason: "did-not-load" as const, detail: firstLine(e) };
+    } finally {
+      await browser?.close().catch(() => undefined);
+    }
+  });
+  queue = next.catch(() => undefined);
+  return next;
 }
