@@ -1,4 +1,5 @@
 import type { UserProject } from "@/db/schema/user-projects";
+import { SettingRow, SettingRows } from "@/components/ui/setting-rows";
 import { OrangeCatPublishButton } from "./OrangeCatPublishButton";
 import { ProjectPublicListingToggle } from "./ProjectPublicListingToggle";
 import { ProjectFeatureToggle } from "./ProjectFeatureToggle";
@@ -39,7 +40,7 @@ export function ProjectPublishingSettings({
           ? "Shown on the public fleet page, credited to you."
           : "Not listed. Listing shows it on the public fleet page, credited to you.",
       control: (
-        <span className="flex flex-wrap items-center gap-1.5">
+        <>
           <ProjectPublicListingToggle
             projectId={projectId}
             listedPublicly={userProject?.listedPublicly ?? false}
@@ -51,7 +52,7 @@ export function ProjectPublishingSettings({
               listedPublicly={userProject?.listedPublicly ?? false}
             />
           )}
-        </span>
+        </>
       ),
     },
     {
@@ -92,24 +93,15 @@ export function ProjectPublishingSettings({
       <h2 id="project-sharing-title" className="ui-project-section-title">
         Sharing and publishing
       </h2>
-      <ul className="divide-y divide-border-subtle">
+      <SettingRows>
         {destinations
           .filter((destination) => destination.control)
           .map((destination) => (
-            <li
-              key={destination.key}
-              className="flex flex-col items-start gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
-            >
-              <div className="min-w-0">
-                <h3 className="text-sm font-medium text-text-primary">{destination.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-                  {destination.explain}
-                </p>
-              </div>
-              <div className="shrink-0">{destination.control}</div>
-            </li>
+            <SettingRow key={destination.key} title={destination.title} note={destination.explain}>
+              {destination.control}
+            </SettingRow>
           ))}
-      </ul>
+      </SettingRows>
     </section>
   );
 }

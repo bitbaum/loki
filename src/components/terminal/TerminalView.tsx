@@ -224,11 +224,14 @@ function TerminalStalledOverlay({ message }: { message: string }) {
  * screen fills that gap when it has one, marked as not yet live.
  */
 function TerminalOpening({ state }: { state: "waiting" | "cached" }) {
+  // A 2px bar along the pane's top edge, not a pill: "Last screen ·
+  // updating" floated over the output's first lines (owner, 2026-10-19). The
+  // header says "Connecting…" meanwhile (onLive stays "connecting" until a
+  // live frame), so the words are still on screen — just not on the screen.
   if (state === "cached") {
     return (
       <div className="ui-term-updating" role="status">
-        <Loader2 className="ui-spinner h-3.5 w-3.5" aria-hidden="true" />
-        Last screen · updating
+        <span className="sr-only">Last screen · updating</span>
       </div>
     );
   }
@@ -446,7 +449,9 @@ export function TerminalView({
   // Mirror the stream state and grid size out to a caller rendering its own
   // chrome. Effects rather than calls at the setState sites, so a parent that
   // re-renders on these never does so during this component's render.
-  const liveState = stalled ? "stalled" : connected ? "live" : "connecting";
+  // The remembered screen is not live: until a live frame lands the caller's
+  // dot and words say "connecting", not "live" over a stale picture.
+  const liveState = stalled ? "stalled" : connected && opened !== "cached" ? "live" : "connecting";
   const onLiveRef = useRef(onLive);
   useEffect(() => {
     onLiveRef.current = onLive;
@@ -892,13 +897,15 @@ export function TerminalView({
 
   const statusLabel = stalled
     ? "not responding"
-    : connected
-      ? interactive
-        ? `live · ${press.verb} to focus, type directly`
-        : onActivate
-          ? `live · ${press.verb} the screen to type`
-          : "live"
-      : "connecting…";
+    : opened === "cached"
+      ? "last screen · updating…"
+      : connected
+        ? interactive
+          ? `live · ${press.verb} to focus, type directly`
+          : onActivate
+            ? `live · ${press.verb} the screen to type`
+            : "live"
+        : "connecting…";
   // Below the target the grid is narrower than the screen the agent drew, so
   // wide output WILL wrap oddly. Saying which is which costs one chip and turns
   // "the agent is broken" back into "my phone is 390px wide".

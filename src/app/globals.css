@@ -3497,11 +3497,14 @@
   }
   /* The conversation view's next steps: reply rows under the answer
      (ReplySteps), not chips over the box. */
+  /* One grouped list, a divider between rows: loose arrow lines floated
+     down the thread with as much air as a paragraph, and read as three more
+     things said rather than three answers to pick from (owner, 2026-10-19). */
   .ui-reply-steps {
-    @apply flex flex-col gap-0.5 pt-1;
+    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle;
   }
   .ui-reply-step {
-    @apply flex min-h-11 w-full items-start gap-2.5 rounded-lg px-1 py-2.5 text-left text-sm text-text-secondary transition-colors hover:text-text-primary active:bg-surface-overlay;
+    @apply flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:text-text-primary active:bg-surface-overlay;
   }
   /* "What's going on?" is the header's ⋮ on a phone; in the conversation view
      it is not repeated over the box (the terminal view keeps it, as its
@@ -6391,10 +6394,13 @@
     @apply min-w-0;
   }
   .ui-project-mobile-sections {
-    @apply sticky top-0 z-20 flex items-center justify-between gap-4 border-y border-border-subtle bg-surface-page py-2 sm:hidden;
+    @apply sticky top-0 z-20 flex items-center bg-surface-page py-2 sm:hidden;
   }
   .ui-project-section-select {
-    @apply min-h-11 min-w-0 max-w-full rounded-lg border border-border-default bg-surface-base px-3 text-sm font-medium text-text-primary;
+    @apply min-h-11 w-full min-w-0 appearance-none rounded-xl border border-border-default bg-surface-base pl-3.5 pr-10 text-base font-medium text-text-primary;
+  }
+  .ui-project-section-chevron {
+    @apply pointer-events-none absolute right-3.5 h-4 w-4 text-text-tertiary;
   }
   .ui-project-tabs {
     @apply sticky top-0 z-20 hidden gap-5 border-b border-border-subtle bg-surface-page sm:flex;
@@ -6410,6 +6416,35 @@
   }
   .ui-project-section-title {
     @apply text-base font-semibold text-text-primary;
+  }
+  /* A settings list (components/ui/setting-rows.tsx): what a setting is and
+     its value on the left, its actions on the right — under it on a phone. */
+  .ui-setting-rows {
+    @apply flex flex-col divide-y divide-border-subtle;
+  }
+  .ui-setting-row {
+    @apply flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6;
+  }
+  .ui-setting-row-title {
+    @apply text-sm font-medium text-text-primary;
+  }
+  .ui-setting-row-note {
+    @apply mt-1 text-sm leading-relaxed text-text-secondary;
+  }
+  .ui-setting-actions {
+    @apply flex shrink-0 flex-wrap items-center gap-2;
+  }
+  /* Every action in a setting row is ONE shape, whichever control drew it —
+     ghost, secondary, icon or text link side by side at three sizes was the
+     page the owner called "ugly" (2026-10-19). Direct children, and one
+     wrapper deep (LiveUrlField, OrangeCatPublishButton, ProjectSharePanel),
+     so a dialog a control opens keeps its own buttons. */
+  :is(.ui-setting-actions, .ui-setting-actions > span, .ui-setting-actions > div)
+    > :is(.ui-btn-ghost, .ui-btn-secondary, .ui-btn-icon, .ui-btn-text-cancel) {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl border border-border-default bg-surface-base px-3.5 py-0 text-sm font-medium text-text-primary transition-colors hover:border-border-strong hover:bg-surface-raised disabled:opacity-40;
+  }
+  .ui-setting-actions > span {
+    @apply inline-flex flex-wrap items-center gap-2;
   }
   .ui-project-current-work {
     @apply flex flex-col gap-5 rounded-2xl border border-border-subtle bg-surface-base p-5 sm:p-6;
@@ -7261,8 +7296,24 @@
   .ui-claude-chat {
     @apply relative flex h-full min-h-0 flex-col;
   }
+  /* Starts under the header, as the Claude and ChatGPT apps do. The shared
+     thread column bottom-anchors (mt-auto) so a two-line Loki chat meets its
+     box; a session read in this view is a record, and anchored to the box it
+     opened on ~200px of nothing above the first message (owner, 2026-10-19). */
   .ui-claude-chat-inner {
     @apply mx-auto w-full max-w-3xl px-1 sm:px-3;
+  }
+  .ui-claude-chat .ui-loki-thread-inner {
+    @apply mt-0;
+  }
+  /* "Dispatch details" under a sent task: a 44px row with its words centred,
+     reaching into the bubble's own padding. As a bare <summary> its text sat
+     at the top of the 44px and left a blank band under it. */
+  .ui-bubble-details {
+    @apply -mb-2.5;
+  }
+  .ui-bubble-details-summary {
+    @apply flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-xs text-text-secondary [&::-webkit-details-marker]:hidden;
   }
   .ui-claude-chat-empty {
     @apply flex flex-col items-center justify-center gap-3 py-16 text-center;
@@ -7311,7 +7362,7 @@
   /* The terminal pane is showing the server's copy of its last screen while
      the live one is on its way (TerminalView). */
   .ui-term-updating {
-    @apply pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-2.5 py-1 text-xs text-text-secondary;
+    @apply pointer-events-none absolute inset-x-0 top-0 h-0.5 animate-pulse bg-text-muted;
   }
   /* Claude Code's own answer to a model or effort change, in the
      conversation where it happened: a quiet centred line, not a message. */
