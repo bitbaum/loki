@@ -15,7 +15,12 @@ import {
   type TranscriptItem,
 } from "@/lib/claude-transcript";
 import type { BuilderChannel } from "@/lib/constants/statuses";
-import { asksForFeedback, suggestFromReply } from "@/lib/terminal-suggestions";
+import {
+  asksForFeedback,
+  limitSteps,
+  stepLabel,
+  suggestFromReply,
+} from "@/lib/terminal-suggestions";
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
 import { useStableSteps } from "@/hooks/use-stable-steps";
 import { SessionComposer } from "./SessionComposer";
@@ -89,7 +94,10 @@ export function ClaudeChatView({
   // fast model reads the whole reply and its steps lead once they arrive.
   const reply = last?.kind === "assistant" ? last.text : null;
   const aiSteps = useAiNextSteps(reply, "reply", tab, "claude");
-  const suggestions = useStableSteps(reply, aiSteps, reply ? suggestFromReply(reply) : []);
+  const stable = useStableSteps(reply, aiSteps, reply ? suggestFromReply(reply) : []);
+  // A usage limit is answered with Claude Code's own commands, not sentences.
+  const limited = limitSteps(reply, "claude");
+  const suggestions = limited.length > 0 ? limited : stable;
   // A reply row pressed under the answer: sent by the box, the one send path.
   const [sendRequest, setSendRequest] = useState<{ text: string; nonce: number } | null>(null);
   // How long this turn has been going, from your last message — the Claude
@@ -145,6 +153,7 @@ export function ClaudeChatView({
             <ReplySteps
               steps={suggestions}
               onPick={(text) => setSendRequest({ text, nonce: Date.now() })}
+              label={(s) => stepLabel(s, "claude")}
             />
           )}
           <div ref={endRef} />

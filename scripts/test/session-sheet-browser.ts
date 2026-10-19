@@ -337,6 +337,47 @@ async function main() {
     );
     await page.evaluate(() => Object.assign(window, { written: [] }));
 
+    // A plan limit (owner, 2026-10-19): the chip names the model that hit it,
+    // and the replies are Claude Code's own commands, typed as commands.
+    await mount({
+      key: "limit",
+      items: [
+        items[0],
+        {
+          id: "lim",
+          kind: "assistant",
+          at: now,
+          text: "You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.",
+        },
+      ],
+      connected: true,
+      received: true,
+      sessionId: "s",
+    });
+    const limitRows = page.getByRole("list", { name: /^Replies/ });
+    await limitRows.getByRole("button", { name: "Use Opus" }).waitFor();
+    assert.deepEqual(
+      await limitRows.getByRole("button").allTextContents(),
+      ["Use Opus", "Use Sonnet", "Continue with usage credits"],
+      "the way past a limit, in words",
+    );
+    assert.match(
+      (await page.locator('button[aria-label^="Model: "]').getAttribute("aria-label")) ?? "",
+      /^Model: Fable/,
+      "the chip names the model that hit the limit",
+    );
+    await limitRows.getByRole("button", { name: "Use Opus" }).click();
+    await page.waitForFunction(
+      () => (window as unknown as { written: string[] }).written.length === 2,
+    );
+    assert.deepEqual(
+      await page.evaluate(() => (window as unknown as { written: string[] }).written),
+      ["/model opus", "\r"],
+      "typed as the command, Enter on its own",
+    );
+    await page.screenshot({ path: ".tmp/session-sheet/limit-390.png" });
+    await page.evaluate(() => Object.assign(window, { written: [] }));
+
     // "+": a sheet from the bottom with everything that is not words — a
     // photo, the keys, the commands — nothing taking the keyboard, nothing
     // off the top of the screen (owner, 2026-10-19: the panel pinned above the

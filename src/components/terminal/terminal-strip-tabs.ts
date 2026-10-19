@@ -86,3 +86,17 @@ export function badgeNames(
     .map((id) => roster?.find((a) => a.id === id)?.label ?? id)
     .join(" + ");
 }
+
+/** The agent a session's header and box name: the live process's badge, or —
+ *  before a process is seen — the agent the tab resolves to, so they say
+ *  "Claude" rather than nothing and "the agent" (owner, 2026-10-19). */
+export function agentName(
+  badge: string | null | undefined,
+  roster: readonly { id: string; label: string }[] | undefined,
+  resolved: string | null,
+): string | null {
+  return (
+    badgeNames(badge, roster) ??
+    (resolved ? (roster?.find((a) => a.id === resolved)?.label ?? null) : null)
+  );
+}
