@@ -165,17 +165,26 @@ export const STUDIO_STATUS = {
     "Request closed",
     "Read the closing note below. You can still reply if something needs clarification.",
   ],
+  // A partner is approved on their work, by a person. The course is offered,
+  // never required: a qualified builder with a portfolio is not sent to class,
+  // and one who wants a credential can earn it. Applications made before
+  // 2026-10-19 still carry the course-first statuses below; their words now
+  // say the same thing.
+  applied: [
+    "Application received",
+    "The studio reads what you have built and replies here. The systems design course is optional: take it if you want its credential on your profile.",
+  ],
   course_in_progress: [
-    "Course evidence needed",
-    "Study the pilot course and submit your capstone evidence here.",
+    "Application received",
+    "The studio reads what you have built and replies here. The systems design course is optional: take it if you want its credential on your profile.",
   ],
   course_submitted: [
     "Course evidence under review",
-    "A studio reviewer will assess your capstone against the published rubric.",
+    "A studio reviewer will assess your capstone against the published rubric. Your application does not wait on it.",
   ],
   course_passed: [
     "Course passed",
-    "The studio still needs to approve the partner application. Passing is not automatic approval.",
+    "The credential will show on your profile. The studio still decides the application on your work as a whole.",
   ],
   approved: [
     "Partner approved",
@@ -183,7 +192,7 @@ export const STUDIO_STATUS = {
   ],
   declined: [
     "Application declined",
-    "Read the reasons below. You can reply or revise your course evidence for a new review.",
+    "Read the reasons below. You can reply with more of your work for a new review.",
   ],
 } as const;
 export type StudioStatus = keyof typeof STUDIO_STATUS;

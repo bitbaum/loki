@@ -13,6 +13,7 @@ import type { StudioCommissionContract } from "@/lib/studio-commission";
 import { requireNotDemo } from "@/lib/demo-guard";
 import { studioHash, studioKeyMatches } from "@/lib/studio/access";
 import { studioView } from "@/lib/studio/projection";
+import { mailStudioUpdate } from "@/lib/studio/link-mail";
 import {
   StudioConflict,
   validateCourseEvidence,
@@ -26,12 +27,16 @@ const eventHash = (input: unknown) => studioHash(JSON.stringify(input));
 function accessible(row: StudioRequest | undefined, key: string): row is StudioRequest {
   return Boolean(row && !row.accessRevoked && studioKeyMatches(key, row.accessKeyHash));
 }
+/**
+ * A partner a customer may be sent to: approved by the studio on their work,
+ * consenting, published and available. The course pass is NOT a condition —
+ * it is a credential shown beside the profile (studioPartnerDirectory).
+ */
 function availablePartner(row: StudioRequest | undefined): row is StudioRequest {
   return Boolean(
     row &&
     row.kind === "partner" &&
     !row.accessRevoked &&
-    row.coursePassedAt &&
     row.partnerApprovedAt &&
     row.proposedProfile &&
     row.profileConsentAt &&
@@ -121,11 +126,6 @@ export async function createStudioRequest(
       throw new StudioConflict(
         "The published offer changed. Reload to review its terms; your brief is saved.",
       );
-    if (input.kind === "partner" && !contract.course)
-      throw new StudioConflict(
-        "The course is unavailable. Your application is saved in this browser; try again later.",
-        503,
-      );
     if (input.kind === "website" && input.preferredPartnerId) {
       if (input.target !== "partner")
         throw new StudioConflict("Choose the partner route to request this partner.", 400);
@@ -155,7 +155,7 @@ export async function createStudioRequest(
         contact: input.contact || null,
         status:
           input.kind === "partner"
-            ? "course_in_progress"
+            ? "applied"
             : input.target === "studio" && contract.availability.state === "closed"
               ? "waitlisted"
               : "review",
@@ -296,19 +296,20 @@ export async function mutateStudioPortal(
           version = input.version;
           break;
         case "submit_assessment":
-          if (row.kind !== "partner" || row.partnerApprovedAt)
-            throw new StudioConflict(
-              "Course evidence can be submitted from an unapproved partner application.",
-            );
+          // The course is optional and open at any stage, an approved partner
+          // included: new evidence asks for a new course review and touches
+          // nothing else — approval and a published profile stand.
+          if (row.kind !== "partner")
+            throw new StudioConflict("Course evidence belongs to a partner application.");
           validateCourseEvidence(input.assessment, contract);
           Object.assign(patch, {
             assessment: input.assessment,
             coursePassedAt: null,
-            partnerApprovedAt: null,
-            profilePublishedAt: null,
-            status: "course_submitted",
+            ...(row.partnerApprovedAt ? {} : { status: "course_submitted" }),
           });
-          body = "Submitted revised capstone evidence for review.";
+          body = row.assessment
+            ? "Submitted revised course evidence for review."
+            : "Submitted course evidence for review.";
           break;
         case "propose_profile":
           if (row.kind !== "partner")
@@ -322,18 +323,13 @@ export async function mutateStudioPortal(
             "Proposed a public profile with consent to publication. Studio review is still required.";
           break;
         case "set_availability":
-          if (
-            row.kind !== "partner" ||
-            !row.partnerApprovedAt ||
-            !row.coursePassedAt ||
-            !row.proposedProfile
-          )
+          if (row.kind !== "partner" || !row.partnerApprovedAt || !row.proposedProfile)
             throw new StudioConflict("An approved partner profile is required first.");
           patch.proposedProfile = { ...row.proposedProfile, availability: input.availability };
           body = `Availability changed to ${input.availability}.`;
           break;
         case "deliver_assignment": {
-          if (row.kind !== "partner" || !row.partnerApprovedAt || !row.coursePassedAt)
+          if (row.kind !== "partner" || !row.partnerApprovedAt)
             throw new StudioConflict("Only an approved partner may deliver assigned work.");
           const [assignment] = await tx
             .select()
@@ -428,18 +424,13 @@ export async function getStudioReview(userId: string, id: string) {
 }
 export type StudioReviewView = NonNullable<Awaited<ReturnType<typeof getStudioReview>>>;
 
-export async function mutateStudioReview(
-  userId: string,
-  id: string,
-  input: StudioStaffInput,
-  contract: StudioCommissionContract | null = null,
-) {
+export async function mutateStudioReview(userId: string, id: string, input: StudioStaffInput) {
   await requireNotDemo(userId, "content");
-  return db.transaction(async (tx) => {
+  const saved = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(requests).where(owned(userId, id)).for("update");
-    if (!row) return false;
+    if (!row) return null;
     const hash = eventHash(input);
-    if (await replay(tx, row, input.mutationId, hash)) return true;
+    if (await replay(tx, row, input.mutationId, hash)) return { tell: null };
     const patch: Partial<typeof requests.$inferInsert> = { updatedAt: new Date() };
     let body = "";
     let version: number | null = null;
@@ -490,19 +481,26 @@ export async function mutateStudioReview(
         break;
       }
       case "review_course":
-        if (row.kind !== "partner" || row.partnerApprovedAt)
-          throw new StudioConflict("Use an unapproved partner application for course review.");
-        validateCourseEvidence(row.assessment, contract);
+        // Reviewed against the course version the evidence was submitted for
+        // (checked at submission), not a live fetch of today's course: a
+        // course update or a slow studio site used to block every review.
+        if (row.kind !== "partner" || !row.assessment)
+          throw new StudioConflict("There is no course evidence to review yet.");
         Object.assign(patch, {
           coursePassedAt: input.passed ? new Date() : null,
-          status: input.passed ? "course_passed" : "needs_information",
+          // An approved partner stays approved whatever the course result.
+          ...(row.partnerApprovedAt
+            ? {}
+            : { status: input.passed ? "course_passed" : "needs_information" }),
         });
         body = input.body;
         break;
       case "approve_partner":
-        if (row.kind !== "partner" || !row.coursePassedAt || row.accessRevoked)
-          throw new StudioConflict("Pass the course review before approving the application.");
-        validateCourseEvidence(row.assessment, contract);
+        // Approval is a person's decision on the applicant's work — what they
+        // wrote, the links they gave, and course evidence if they chose to
+        // take it. The course is never a precondition.
+        if (row.kind !== "partner" || row.accessRevoked)
+          throw new StudioConflict("Only an open partner application can be approved.");
         Object.assign(patch, { partnerApprovedAt: new Date(), status: "approved" });
         body = input.body;
         break;
@@ -518,7 +516,7 @@ export async function mutateStudioReview(
       case "publish_profile":
         if (!availablePartner({ ...row, profilePublishedAt: new Date() }))
           throw new StudioConflict(
-            "Approval, course pass, publication consent and an available profile are required.",
+            "Approval, publication consent and an available profile are required.",
           );
         patch.profilePublishedAt = new Date();
         body = "Approved profile published in the partner directory.";
@@ -552,8 +550,13 @@ export async function mutateStudioReview(
     }
     await tx.update(requests).set(patch).where(owned(userId, id));
     await record(tx, row, input.mutationId, hash, "studio", input.action, body, version, visible);
-    return true;
+    // What the visitor can see is what they are told about (a replayed
+    // mutation tells nobody twice).
+    return { tell: visible ? { to: row.contact, kind: row.kind, note: body } : null };
   });
+  if (!saved) return false;
+  if (saved.tell) mailStudioUpdate(saved.tell);
+  return true;
 }
 
 export async function studioPartnerDirectory(userId: string) {
@@ -565,12 +568,17 @@ export async function studioPartnerDirectory(userId: string) {
         eq(requests.userId, userId),
         eq(requests.kind, "partner"),
         eq(requests.accessRevoked, false),
-        isNotNull(requests.coursePassedAt),
         isNotNull(requests.partnerApprovedAt),
         isNotNull(requests.profileConsentAt),
         isNotNull(requests.profilePublishedAt),
       ),
     )
     .orderBy(desc(requests.updatedAt));
-  return rows.filter(availablePartner).map((row) => ({ id: row.id, ...row.proposedProfile! }));
+  return rows.filter(availablePartner).map((row) => ({
+    id: row.id,
+    ...row.proposedProfile!,
+    // The course credential, when earned: shown beside the profile, never
+    // required to be on it.
+    coursePassed: Boolean(row.coursePassedAt),
+  }));
 }

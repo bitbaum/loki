@@ -1,5 +1,5 @@
 import { COMMISSION } from "@/config/commission";
-import { sendEmailFire, studioLinkTemplate } from "@/lib/email";
+import { sendEmailFire, studioLinkTemplate, studioUpdateTemplate } from "@/lib/email";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -31,6 +31,26 @@ export function mailStudioLink(input: {
     url: studioPortalUrl(input.id, input.accessKey),
     kind: input.kind,
     fresh: input.fresh ?? false,
+  });
+  sendEmailFire(to, mail.subject, mail.html, mail.text);
+  return true;
+}
+
+/**
+ * Tell a visitor the studio answered, at the address they gave. Silent when
+ * they gave none: the portal is still where everything is.
+ */
+export function mailStudioUpdate(input: {
+  to: string | null | undefined;
+  kind: "website" | "partner";
+  note: string;
+}): boolean {
+  const to = input.to?.trim();
+  if (!to || !EMAIL_RE.test(to) || !input.note.trim()) return false;
+  const mail = studioUpdateTemplate({
+    kind: input.kind,
+    note: input.note.trim(),
+    portalUrl: `${COMMISSION.studioOrigin}/portal/`,
   });
   sendEmailFire(to, mail.subject, mail.html, mail.text);
   return true;

@@ -230,7 +230,8 @@ export const FACTS_BUDGET_CHARS = 9000;
 export const PARTNER_TERMS = [
   "Partners are independent builders approved by the studio. They work under their own name and agree their own scope and price.",
   "Customers contract with and pay the partner directly; the studio takes no cut. Loki, OrangeCat and Solon are optional tools.",
-  "To qualify: study the systems design pilot, submit working evidence (a preview, source, and an answer for each course module) in a private application, then the studio reviews it. A course pass is a prerequisite, not automatic approval; both are decisions by a person.",
+  "To apply: one message on /partners/ saying who you are, what you build and where your work can be seen opens a private application; no account is needed. A person at the studio decides on that work.",
+  "The systems design course and its capstone exam are optional. They are there to learn from, and passing adds a credential to the partner's profile; they are never required for approval.",
   "An approved partner's profile appears in the public partner directory only with their consent, after review, and while their availability is current.",
 ];
 
