@@ -413,10 +413,16 @@ echo "→ sync box-runner code → $HOST:$RUNNER_DIR"
 # live dispatch (a review run died this way, and every app-only deploy used to
 # restart the runner for nothing). So: only restart when runner code moved, and
 # drain in-flight agents first when it did.
+#
+# --checksum (-c): compare CONTENT, not size+mtime. The deploy runs from a
+# fresh checkout, so every file's mtime is the checkout's; with the default
+# quick check every file was re-sent and itemized, RUNNER_CHANGED was 1 on
+# every deploy, docs-only included, and each restart ended every idle
+# session (owner, 2026-10-19: five restarts in an afternoon, sessions gone).
 RUNNER_CHANGED=0
 sync_runner() {
   local out
-  out=$(rsync -azi --no-perms --omit-dir-times -e "$RSYNC_SSH" "$@" 2>/dev/null) || return 0
+  out=$(rsync -azci --no-perms --omit-dir-times -e "$RSYNC_SSH" "$@" 2>/dev/null) || return 0
   grep -qE '^[<>ch]f' <<<"$out" && RUNNER_CHANGED=1
   return 0
 }
@@ -445,14 +451,18 @@ sync_runner "$PROJECT_DIR/tsconfig.json" "$HOST:$RUNNER_DIR/tsconfig.json"
 # `Cannot find module 'bip-kit'`, imported via src/lib/thoughts-content.ts,
 # because the box manifest still listed 31 deps and never learned about it.
 RUNNER_MANIFEST_CHANGED=0
-manifest_out=$(rsync -azi --no-perms --omit-dir-times -e "$RSYNC_SSH" \
-  "$PROJECT_DIR/package.json" "$PROJECT_DIR/package-lock.json" \
+# Content compare for the same reason as sync_runner. package.json alone: this
+# is a pnpm repo and the box installs with npm, so there is no package-lock to
+# ship — listing one made rsync exit 23 and blanked this output, which hid
+# every real manifest change.
+manifest_out=$(rsync -azci --no-perms --omit-dir-times -e "$RSYNC_SSH" \
+  "$PROJECT_DIR/package.json" \
   "$HOST:$RUNNER_DIR/" 2>/dev/null) || manifest_out=""
 grep -qE '^[<>ch]f' <<<"$manifest_out" && RUNNER_MANIFEST_CHANGED=1
 # package.json carries `"@orangecat/sdk": "file:vendor/…tgz"`, so the tarball is
 # part of the manifest: bump its version without shipping the file and the
 # install fails on the box for a path that exists only here.
-vendor_out=$(rsync -azi --no-perms --omit-dir-times -e "$RSYNC_SSH" \
+vendor_out=$(rsync -azci --no-perms --omit-dir-times -e "$RSYNC_SSH" \
   "$PROJECT_DIR/vendor/" "$HOST:$RUNNER_DIR/vendor/" 2>/dev/null) || vendor_out=""
 grep -qE '^[<>ch]f' <<<"$vendor_out" && RUNNER_MANIFEST_CHANGED=1
 

@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.47",
+    tag: "fleet-runner-v0.8.47",
+    date: "2026-10-19T14:00:00Z",
+    highlights: [
+      "Your sessions on the cloud builder survive its updates: the ones you had open come back on their own, and a Claude session comes back as the same conversation.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.46",
     tag: "fleet-runner-v0.8.46",
     date: "2026-10-18T18:30:00Z",

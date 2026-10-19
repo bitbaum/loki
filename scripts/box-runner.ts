@@ -28,6 +28,10 @@ import { pushNow, startPusher, stopPusher } from "../desktop/src/main/pusher";
 import { loadToken } from "../desktop/src/main/token-store";
 import { APP_URL } from "@/config/brand";
 import { startWatcher } from "../home/watcher";
+import { homedir } from "os";
+import { enableTabMemory, restoreTabs } from "../desktop/src/main/tab-memory";
+import { isPtyBacked, launchAgentPty } from "../desktop/src/main/pty-runtime";
+import { newestLog } from "../desktop/src/main/transcript-streamer";
 
 /**
  * Version comes from the deployed code itself (desktop/package.json — the
@@ -108,6 +112,26 @@ function main(): void {
   startPoller();
   startPusher();
   log("poller + pusher started; presence via bridge SSE");
+
+  // Reopen the sessions that were open when this process last stopped — a
+  // deploy's restart ends them, and Claude Code resumes each conversation.
+  enableTabMemory(join(homedir(), ".loki", "open-tabs.json"));
+  void restoreTabs({
+    isLive: isPtyBacked,
+    launch: (tab, dir, agent, sessionId) => launchAgentPty(tab, dir, agent, undefined, sessionId),
+    sessionFor: async (dir) => {
+      const log = await newestLog(dir);
+      return log
+        ? (log.file
+            .split("/")
+            .pop()
+            ?.replace(/\.jsonl$/, "") ?? null)
+        : null;
+    },
+    log,
+  }).then((restored) => {
+    if (restored.length > 0) void pushNow();
+  });
 
   let shuttingDown = false;
   const shutdown = (sig: string): void => {

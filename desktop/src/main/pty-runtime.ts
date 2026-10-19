@@ -19,11 +19,14 @@ import type { AgentOption } from "@/lib/agent-registry";
 import { missingAgentReason } from "@/lib/agents/launch-check";
 import { ensureGrokWorkspaceTrusted } from "./grok-prep";
 import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
+import { EXIT_SETTLE_MS, forgetTab, rememberTab } from "./tab-memory";
 
 const agentByTab = new Map<string, AgentOption>();
 /** The directory each tab's agent was actually launched in (after box
  *  workspace resolution) — where Claude Code writes its session log. */
 const dirByTab = new Map<string, string>();
+/** The exit watch on each tab's current PTY (tab-memory). */
+const exitWatch = new Map<string, () => void>();
 
 /** The launch cwd of this tab's live agent, or null when none was launched. */
 export function ptyDirForTab(tab: string): string | null {
@@ -123,6 +126,18 @@ export async function launchAgentPty(
   });
   agentByTab.set(tab, agent);
   dirByTab.set(tab.toLowerCase(), effectiveDir);
+  // Written down so a builder restart reopens it (tab-memory). Crossed off
+  // only when the agent exits AND the builder is still here a moment later:
+  // a restart ends both at once, and that is not the session ending.
+  const gen = rememberTab({ tab, dir: effectiveDir, agent });
+  exitWatch.get(tab.toLowerCase())?.();
+  exitWatch.set(
+    tab.toLowerCase(),
+    executor.subscribe(runnerWorkspaceId(tab), 0, (e) => {
+      if (e.kind !== "exit") return;
+      setTimeout(() => forgetTab(tab, gen), EXIT_SETTLE_MS).unref();
+    }),
+  );
 }
 
 export function ptyAgentForTab(tab: string): AgentOption | null {
@@ -318,6 +333,8 @@ export function resizePty(tab: string, cols: number, rows: number): void {
 
 /** Kill the agent's PTY and release the workspace. */
 export async function terminatePty(tab: string): Promise<void> {
+  // Closed on purpose: it must not come back after the next restart.
+  forgetTab(tab);
   await executor.terminate(runnerWorkspaceId(tab));
   agentByTab.delete(tab);
 }
