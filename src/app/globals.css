@@ -3312,7 +3312,7 @@
 
   /* ── Dock — keys and composer as one block under the screen ─────────────── */
   .ui-term-dock {
-    @apply flex shrink-0 flex-col gap-2 pt-1;
+    @apply relative flex shrink-0 flex-col gap-2 pt-1;
   }
   /* Full screen's only chrome under the terminal: Keys / Write open a panel
      above it on demand; Esc and Enter stay so a "Continue?" is one tap. */
@@ -3328,8 +3328,29 @@
   .ui-term-watchbar {
     @apply flex min-w-0 flex-wrap items-center gap-1.5;
   }
-  /* Next steps above the session box: they wrap, so each is read whole —
-     a sideways strip of clamped chips hid the end of every sentence. */
+  /* While typing on a phone the session keeps its screen: the keyboard took
+     half of it, and the app bar, the Chat | Terminal switch and two rows of
+     next steps above it left the terminal one line tall (owner,
+     2026-10-19: "it's impossible to use"). The bar and the switch step
+     aside until the keyboard goes, and the steps become one sideways row. */
+  @media (width < 48rem) {
+    body.fc-keyboard-open:has(.ui-term-dock) .ui-app-topbar,
+    body.fc-keyboard-open .ui-term-mhead .ui-term-views {
+      display: none;
+    }
+    body.fc-keyboard-open .ui-term-suggests {
+      @apply flex-nowrap overflow-x-auto;
+      scrollbar-width: none;
+    }
+    body.fc-keyboard-open .ui-term-suggests > li {
+      @apply shrink-0;
+    }
+    body.fc-keyboard-open .ui-term-suggest {
+      @apply max-w-none whitespace-nowrap;
+    }
+  }
+  /* Next steps above the session box: at rest they wrap, so each is read
+     whole — a sideways strip of clamped chips hid the end of every sentence. */
   .ui-term-suggests {
     @apply flex min-w-0 flex-wrap gap-1.5 pb-1.5;
   }
@@ -3364,11 +3385,11 @@
   }
   /* The box's "/" panel: commands, Loki's records and the prompt library in
      ONE scrolling column that never runs off the top of a phone screen. */
-  .ui-session-picker {
-    @apply absolute bottom-full left-0 right-0 z-40 mb-1.5 flex flex-col gap-1.5 overflow-y-auto;
-    /* --picker-room: the space above the box, measured when it opens — on a
-       short phone 70dvh alone ran the panel off the top of the screen. */
-    max-height: min(36rem, 70dvh, var(--picker-room, 70dvh));
+  /* The prompt library inside the commands sheet: the sheet scrolls, so the
+     list keeps a usable height of its own instead of the popover's cap. */
+  .ui-session-picker-prompts {
+    max-height: none;
+    min-height: 16rem;
   }
   .ui-session-picker-row {
     @apply flex min-h-11 w-full shrink-0 items-center gap-2 rounded-lg border border-border-subtle bg-surface-base px-2.5 py-1.5 text-xs text-text-primary transition-colors hover:border-border-interactive;
@@ -7012,11 +7033,26 @@
      and shape as the round icon buttons beside it (chatkit's --ck-target,
      44px). The chip was 36px, Keys 34px and the library 26px in one row
      (owner, 2026-10-18: "buttons of different sizes thrown together"). */
+  /* It gives way before the round buttons do: in the terminal view the row
+     also holds Keys, and the model's name truncates rather than wrap the row. */
   .ui-box-chip {
-    @apply inline-flex min-h-11 max-w-44 shrink-0 items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-3.5 text-sm text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
+    @apply inline-flex min-h-11 min-w-0 max-w-44 shrink items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-3.5 text-sm text-text-secondary transition-colors hover:border-border-default hover:text-text-primary;
   }
   .ui-box-chip-active {
-    @apply inline-flex min-h-11 max-w-44 shrink-0 items-center gap-1.5 rounded-full border border-accent-primary/30 bg-accent-muted px-3.5 text-sm text-text-primary transition-colors;
+    @apply inline-flex min-h-11 min-w-0 max-w-44 shrink items-center gap-1.5 rounded-full border border-accent-primary/30 bg-accent-muted px-3.5 text-sm text-text-primary transition-colors;
+  }
+  /* Keys, on the terminal's bottom corner just above the box (it hangs from
+     the dock's top edge). The phone's jump-to-live steps left of it. */
+  .ui-term-keys-float {
+    @apply absolute bottom-full right-3 z-10 mb-3 inline-flex size-11 items-center justify-center rounded-full border border-border-default bg-surface-raised text-text-primary shadow-panel transition-colors;
+  }
+  .ui-term-keys-float[aria-pressed="true"] {
+    @apply border-accent-primary/30 bg-accent-muted;
+  }
+  @media (width < 48rem) {
+    .ui-term-jump {
+      @apply right-16;
+    }
   }
   /* The turn's age beside what it is doing — quiet, tabular so it doesn't jitter. */
   .ui-claude-live-time {
@@ -8534,10 +8570,13 @@
 /* Narrow phones: the send button must never be the thing that is pushed off.
    The model picker and the scope pill give up width first (they truncate);
    attach, mic and send are fixed 44px targets. */
-:is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock) .ck-actions > .ck-tools > * {
+:is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock) .ck-actions > .ck-tools > *,
+:is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock) .ck-actions .ck-icon-btn {
   flex-shrink: 0;
 }
 :is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock) .ck-tools > .relative,
+:is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock) .ck-tools > .ui-box-chip,
+:is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock) .ck-tools > .ui-box-chip-active,
 :is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock) .ck-tools > .ui-loki-scope-pill,
 :is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock) .ck-tools > .ui-loki-scope-btn {
   flex-shrink: 1;

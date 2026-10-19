@@ -3,6 +3,8 @@
 import { useState, type ReactNode } from "react";
 import { Keyboard, MessageSquare } from "lucide-react";
 import { TERMINAL_KEYS } from "@/config/terminal-keys";
+import type { BuilderChannel } from "@/lib/constants/statuses";
+import { TerminalSessionInfo } from "./SessionInfo";
 import { KeyCap, TerminalKeyDeck } from "./TerminalKeyDeck";
 
 /**
@@ -25,14 +27,23 @@ import { KeyCap, TerminalKeyDeck } from "./TerminalKeyDeck";
 export function TerminalMobileDock({
   onKey,
   box,
+  session,
   keysOpen,
   onKeysOpenChange,
   immersive,
 }: {
   /** Verbatim bytes into the session. */
   onKey: (bytes: string) => void;
-  /** The session box (SessionComposer), with the Keys toggle in its tools. */
-  box: ReactNode;
+  /** The session box (SessionComposer), given the tools for its row: the
+   *  model chip, and Keys on a phone. */
+  box: (tools: ReactNode) => ReactNode;
+  /** Whose model the chip reads and changes. */
+  session: {
+    tab: string;
+    channel: BuilderChannel;
+    agent: string | null;
+    onKey: (bytes: string) => void | Promise<void>;
+  };
   keysOpen: boolean;
   onKeysOpenChange: (open: boolean) => void;
   immersive: boolean;
@@ -50,8 +61,14 @@ export function TerminalMobileDock({
   if (writing) {
     return (
       <div className="ui-term-dock">
+        {/* On the terminal's corner, not in the box: the keys act on the
+            screen, and in the box's row they left the model's name three
+            letters ("Op…") — the row is now the same in both views. */}
+        <span className="md:hidden">
+          <KeysToggle open={keysOpen} onOpenChange={onKeysOpenChange} floating />
+        </span>
         {keys}
-        {box}
+        {box(<TerminalSessionInfo {...session} />)}
       </div>
     );
   }
@@ -78,24 +95,30 @@ export function TerminalMobileDock({
   );
 }
 
-/** The arrows, Esc, Ctrl and exact keystrokes — a soft keyboard has none. */
+/**
+ * The arrows, Esc, Ctrl and exact keystrokes — a soft keyboard has none.
+ * `floating`: a round button on the terminal's bottom corner, above the box.
+ */
 export function KeysToggle({
   open,
   onOpenChange,
+  floating = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  floating?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={() => onOpenChange(!open)}
       aria-pressed={open}
-      title="Arrows, Esc, Ctrl and exact keystrokes"
-      className={open ? "ui-box-chip-active" : "ui-box-chip"}
+      aria-label="Keys"
+      title="Arrows, Esc, Tab and Ctrl — the keys a phone keyboard lacks"
+      className={floating ? "ui-term-keys-float" : open ? "ui-box-chip-active" : "ui-box-chip"}
     >
-      <Keyboard className="h-4 w-4" aria-hidden="true" />
-      Keys
+      <Keyboard className={floating ? "h-4.5 w-4.5" : "h-4 w-4"} aria-hidden="true" />
+      {!floating && "Keys"}
     </button>
   );
 }

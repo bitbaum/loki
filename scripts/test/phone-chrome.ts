@@ -69,10 +69,11 @@ const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
   );
 }
 {
-  // Under the phone's terminal: the session box, with Keys one button inside
-  // it — never a bar of modes to choose between before saying anything.
+  // Under the phone's terminal: the session box, with the model chip in its
+  // row and Keys on the terminal's corner — never a bar of modes to choose
+  // between before saying anything.
   const dock = read("src/components/terminal/TerminalMobileDock.tsx");
-  ok(dock.includes("{box}"), "the dock shows the session box");
+  ok(dock.includes("{box(<TerminalSessionInfo"), "the dock shows the session box");
   ok(
     !/Type|Prompt|TerminalInputSwitch/.test(dock.replace(/\/\*[\s\S]*?\*\//g, "")),
     "no Type / Prompt switch",

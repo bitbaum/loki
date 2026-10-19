@@ -5,7 +5,17 @@ import { createPortal } from "react-dom";
 import { Cpu } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { CLAUDE_EFFORTS, CLAUDE_MODES, commandOfKind, commandsFor } from "@/config/agent-commands";
-import { CYCLE_MODE_KEY, modelLabel, type TranscriptItem } from "@/lib/claude-transcript";
+import { useClaudeTranscript } from "@/hooks/use-claude-transcript";
+import {
+  CYCLE_MODE_KEY,
+  lastSetting,
+  modelLabel,
+  sessionEffort,
+  sessionMode,
+  sessionModel,
+  type TranscriptItem,
+} from "@/lib/claude-transcript";
+import type { BuilderChannel } from "@/lib/constants/statuses";
 import { cn } from "@/lib/utils";
 
 /**
@@ -30,6 +40,57 @@ import { cn } from "@/lib/utils";
  * between Claude Code versions.
  */
 type SettingReply = Extract<TranscriptItem, { kind: "setting" }> | null;
+
+/** What the chip reads from Claude Code's log — one derivation for both views. */
+export function sessionInfoFrom(items: TranscriptItem[]) {
+  return {
+    model: sessionModel(items),
+    effort: sessionEffort(items),
+    modelReply: lastSetting(items, "model"),
+    effortReply: lastSetting(items, "effort"),
+    mode: sessionMode(items),
+    lastMessageId: [...items].reverse().find((i) => i.kind === "user")?.id ?? null,
+  };
+}
+
+/**
+ * The model chip in the TERMINAL view, the same one the conversation view
+ * shows. It existed only in the conversation, so a person watching the
+ * terminal had no way to change the model but typing `/model` on a phone
+ * keyboard (owner, 2026-10-19: "why can't I just easily switch between the
+ * models?"). For Claude Code it reads the log itself, since the terminal
+ * view has no conversation loaded; any other agent gets the chip with its
+ * own command. Nothing until the agent is known — Claude's choices typed
+ * into another CLI would be an error on its screen.
+ */
+export function TerminalSessionInfo({
+  tab,
+  channel,
+  agent,
+  onKey,
+}: {
+  tab: string;
+  channel: BuilderChannel;
+  agent: string | null;
+  onKey: (bytes: string) => void | Promise<void>;
+}) {
+  if (!agent) return null;
+  if (agent === "claude") return <ClaudeLogInfo tab={tab} channel={channel} onKey={onKey} />;
+  return <SessionInfo model={null} mode={null} lastMessageId={null} onKey={onKey} agent={agent} />;
+}
+
+function ClaudeLogInfo({
+  tab,
+  channel,
+  onKey,
+}: {
+  tab: string;
+  channel: BuilderChannel;
+  onKey: (bytes: string) => void | Promise<void>;
+}) {
+  const { items } = useClaudeTranscript(tab, channel);
+  return <SessionInfo {...sessionInfoFrom(items)} onKey={onKey} />;
+}
 
 /**
  * A change asked for from the sheet, until Claude Code answers it. `before`
@@ -81,7 +142,9 @@ export function SessionInfo({
   const wantEffort = effortAsk.pending;
 
   const modePending = cycledAfter !== undefined && cycledAfter === lastMessageId;
-  if (!model && !mode) return null;
+  // Always there for an agent whose model can be changed, even before its
+  // log names one: the way to switch is the same tap whatever is known.
+  if (!model && !mode && !commandOfKind(agent, "model")) return null;
 
   const name = model ? modelLabel(model) : null;
   const models = commandsFor(agent).filter(
@@ -92,10 +155,11 @@ export function SessionInfo({
   const agentName = agent === "claude" ? "Claude Code" : "The agent";
   const type = (text: string) => void onKey(`${text}\r`);
 
-  const chipModel = wantModel ? `${cap(wantModel)}…` : (name ?? "Model");
-  const chip = [chipModel, modePending ? "mode changing…" : mode?.label]
-    .filter(Boolean)
-    .join(" · ");
+  // The chip names the model and nothing else, like the Claude app's: with
+  // the mode beside it, "Opus 5.5 · Auto" truncated in the terminal view's
+  // row. The mode is the sheet's third row, and in the label.
+  const chip = wantModel ? `${cap(wantModel)}…` : (name ?? "Model");
+  const modeWords = modePending ? "mode changing" : mode ? `${mode.label} mode` : null;
 
   return (
     <>
@@ -104,7 +168,7 @@ export function SessionInfo({
         className="ui-box-chip"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        aria-label={`Model and mode: ${chip}. Explain and change`}
+        aria-label={`Model: ${chip}${modeWords ? `, ${modeWords}` : ""}. Change the model, effort or mode`}
       >
         <Cpu className="h-4 w-4 shrink-0" aria-hidden />
         <span className="truncate">{chip}</span>

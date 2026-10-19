@@ -76,6 +76,9 @@ export function PromptPicker({
   const [cursor, setCursor] = useState(0);
   const [saved, setSaved] = useState<SavedPrompt[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
+  const [finePointer] = useState(
+    () => typeof window !== "undefined" && window.matchMedia?.("(pointer: fine)").matches,
+  );
 
   useEffect(() => {
     let live = true;
@@ -172,7 +175,10 @@ export function PromptPicker({
       <div className="flex shrink-0 items-center gap-2 border-b border-border-subtle px-3 py-2">
         <Search className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
         <input
-          autoFocus
+          // Only where there is a real keyboard: on a phone, focusing the
+          // search raised the soft keyboard over the list being chosen from
+          // and moved everything on the page.
+          autoFocus={finePointer}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);

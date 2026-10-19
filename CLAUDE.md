@@ -96,16 +96,21 @@ src/
 │   │                 (bracketed paste + Enter), a screenshot goes via
 │   │                 chat-send, nothing running → tab-inject (starts/queues).
 │   │                 There is no Type / Prompt / Voice switch — never add one.
-│   │                 "/" opens SessionPicker above it (agent commands, Loki's
-│   │                 records, the prompt library), never taller than the room
-│   │                 above the box. The agent cannot read Loki's database, so
+│   │                 "/" or the slash button opens SessionPicker, a bottom
+│   │                 SHEET (agent commands, Loki's records, the prompt
+│   │                 library): a panel pinned above the box ran off the
+│   │                 screen once its search raised the keyboard. Nothing in
+│   │                 it takes the keyboard on a touch screen. The agent
+│   │                 cannot read Loki's database, so
 │   │                 Loki's records reach it only as a VISIBLE file on the box
 │   │                 (LokiFiles; feedback via /api/feedback/export, fenced as
 │   │                 untrusted) — a library prompt that needs one declares
 │   │                 `attach` and gets it; the box agents' contract
 │   │                 (scripts/hetzner/box-agent-claude.md, re-applied on every
 │   │                 deploy) tells them to ask for it in one line. SessionInfo
-│   │                 (conversation view) names the model, effort and mode
+│   │                 (the model chip, in BOTH views: TerminalSessionInfo
+│   │                 reads the log itself in the terminal view, and the box's
+│   │                 row is identical in both) names the model, effort and mode
 │   │                 READ from the session log, in words, and changes them
 │   │                 in place: each row lists its choices and a tap sends
 │   │                 the agent's own command with the choice named
@@ -131,8 +136,11 @@ src/
 │   │                 TerminalNewSessionSheet) + TerminalSessionSheet
 │   │                 (all the setup) + TerminalMobileDock = TerminalKeyDeck
 │   │                 (the arrows/Esc/Tab/Ctrl a soft keyboard lacks — bytes are
-│   │                 SSOT in config/terminal-keys.ts), opened by Keys in the
-│   │                 box's tool row — never a second text box.
+│   │                 SSOT in config/terminal-keys.ts), opened by the Keys
+│   │                 button on the terminal's corner — never a second text
+│   │                 box. While the phone keyboard is up, the app bar and the
+│   │                 view switch step aside and next steps go to one row
+│   │                 (`fc-keyboard-open` in globals.css).
 │   │                 See docs/development/responsive-design.md.
 │   ├── activity/  → ActivityView, EventStream, DigestPanel (fleet activity timeline + digests)
 │   ├── today/     → StickyNoteCard (captures; Loki "add X to my list"), CalendarCard, WeatherCard, CommitmentsCard, SubscriptionsCard, HabitsList

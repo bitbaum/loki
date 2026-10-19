@@ -10,10 +10,6 @@ import {
   describeToolStep,
   groupTranscript,
   lastConversationItem,
-  lastSetting,
-  sessionEffort,
-  sessionMode,
-  sessionModel,
   turnElapsedLabel,
   type TranscriptBlock,
   type TranscriptItem,
@@ -23,7 +19,7 @@ import { asksForFeedback, suggestFromReply } from "@/lib/terminal-suggestions";
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
 import { useStableSteps } from "@/hooks/use-stable-steps";
 import { SessionComposer } from "./SessionComposer";
-import { SessionInfo } from "./SessionInfo";
+import { SessionInfo, sessionInfoFrom } from "./SessionInfo";
 import {
   dispatchMessageDisplay,
   isTranscriptInterruption,
@@ -99,8 +95,6 @@ export function ClaudeChatView({
   const turnStart = working
     ? ([...items].reverse().find((i) => i.kind === "user")?.at ?? null)
     : null;
-  const mode = sessionMode(items);
-  const lastMine = [...items].reverse().find((i) => i.kind === "user")?.id ?? null;
   const elapsed = turnElapsedLabel(turnStart, now);
 
   const [silent, setSilent] = useState(false);
@@ -201,17 +195,7 @@ export function ClaudeChatView({
           working={working}
           onShowTerminal={onShowTerminal}
           onSent={() => setFollowing(true)}
-          tools={
-            <SessionInfo
-              model={sessionModel(items)}
-              effort={sessionEffort(items)}
-              modelReply={lastSetting(items, "model")}
-              effortReply={lastSetting(items, "effort")}
-              mode={mode}
-              lastMessageId={lastMine}
-              onKey={onKey}
-            />
-          }
+          tools={<SessionInfo {...sessionInfoFrom(items)} onKey={onKey} />}
         />
       </div>
     </div>
