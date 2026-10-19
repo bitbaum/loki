@@ -10,6 +10,7 @@ import type { SessionAsk } from "@/hooks/use-session-ask";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import { dispatchToneDotClass } from "@/lib/dispatch-status";
 import { commandIn } from "@/lib/terminal-commands";
+import { typeCommand } from "@/lib/session-keystrokes";
 import { SuggestionChips } from "./SuggestionChips";
 import { TerminalCommandList } from "./TerminalActions";
 import { terminalComposerModes, type SessionComposerMode } from "./terminal-composer-modes";
@@ -143,7 +144,7 @@ export function TerminalComposer({
     }
     const command = onKey && attachments.length === 0 ? commandIn(prompt, agent) : null;
     if (command) {
-      onKey?.(`${command}\r`);
+      if (onKey) void typeCommand(onKey, command);
       setError(null);
       setTypedCommand(command);
       return true;

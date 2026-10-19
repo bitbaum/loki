@@ -3210,6 +3210,10 @@
     @apply flex flex-col;
     max-height: min(var(--modal-max-height), 70vh);
   }
+  /* Inside the sheet the panel is the sheet: no second frame around it. */
+  .ui-term-loki-insheet {
+    @apply rounded-none border-0 bg-transparent;
+  }
 
   /* Liveness dot. Bigger than ui-dot because at arm's length on a phone the
      1.5px status dot is a smudge, and this one answers the only question that
@@ -7817,11 +7821,13 @@
   .ui-loki-model-name {
     @apply truncate;
   }
-  /* On a phone the button holds the count, not the name ("✦ 12 left ▾"):
-     the row has ~200px for this and the project chip together, the name was
-     already cut to "A…" there, and the name is first in the menu. */
+  /* On a phone the button reads the model's NAME and the count, short:
+     "Auto · 12 left". It used to drop the name there, and "your key" alone
+     read as a second, unexplained model beside the session box's
+     "Opus 5.5" (owner, 2026-10-19). The count stays: a person running
+     several things wants it before they type (2026-10-15). */
   .ui-loki-model-name-counted {
-    @apply max-sm:hidden;
+    @apply max-sm:max-w-16;
   }
   .ui-loki-model-caret {
     @apply h-3 w-3 shrink-0 transition-transform;

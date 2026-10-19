@@ -5,7 +5,8 @@
  * nothing on the page told them the answer was a command.
  */
 import { commandsFor } from "@/config/agent-commands";
-import { commandIn, commandGuide, screenActions } from "@/lib/terminal-commands";
+import { commandIn, commandGuide, runAction, screenActions } from "@/lib/terminal-commands";
+import { typeCommand } from "@/lib/session-keystrokes";
 import { summaryPrompt, terminalContextAttachment } from "@/lib/terminal-summary";
 
 let passed = 0;
@@ -21,6 +22,7 @@ const signedOut = screenActions(
 );
 check("signed out → /login, first", signedOut[0]?.display === "/login");
 check("typed with Enter", signedOut[0]?.bytes === "/login\r");
+check("a command is TYPED: the words, then Enter on its own", signedOut[0]?.typed === "/login");
 check("says why in plain words", /signed out/i.test(signedOut[0]?.why ?? ""));
 
 check(
@@ -92,4 +94,41 @@ check(
     ctx.content.includes("Invalid API key"),
 );
 
-console.log(`\n${passed} passed`);
+// A command and its Enter are two writes with a beat between: in one write
+// Claude Code reads them as a paste, the CR becomes a newline, and the next
+// message is typed after the half-typed command ("/model opusWhy is the
+// name of the repo…" → "Model 'opusWhy…' not found", owner, 2026-10-19).
+const typed = (async () => {
+  const writes: { bytes: string; at: number }[] = [];
+  const record = (bytes: string) => {
+    writes.push({ bytes, at: Date.now() });
+  };
+  await typeCommand(record, "/model opus\r");
+  check(
+    "the words first, Enter second, as separate writes",
+    writes.map((w) => w.bytes).join("|") === "/model opus|\r",
+  );
+  check("with a beat between them", writes[1]!.at - writes[0]!.at >= 100);
+  writes.length = 0;
+  await runAction(record, signedOut[0]!);
+  check("a screen action that is a command is typed the same way", writes.length === 2);
+  await runAction(record, { id: "k", label: "Enter", display: "⏎", bytes: "\r", why: "" });
+  check("a key is still its bytes, at once", writes.at(-1)!.bytes === "\r" && writes.length === 3);
+  writes.length = 0;
+  // Two commands at once (Sonnet, then High, tapped within the beat) go one
+  // after the other, each with its own Enter — never "/model sonnet/effort high".
+  await Promise.all([typeCommand(record, "/model sonnet"), typeCommand(record, "/effort high")]);
+  check(
+    "two quick commands never interleave",
+    writes.map((w) => w.bytes).join("|") === "/model sonnet|\r|/effort high|\r",
+  );
+})();
+
+// The runner loads this file without top-level await: finish on the promise.
+typed.then(
+  () => console.log(`\n${passed} passed`),
+  (e: unknown) => {
+    console.error(e instanceof Error ? e.message : e);
+    process.exit(1);
+  },
+);

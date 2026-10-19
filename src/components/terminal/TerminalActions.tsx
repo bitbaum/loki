@@ -3,7 +3,8 @@
 import { useEffect, useState, type MutableRefObject } from "react";
 import { Lightbulb, SquareTerminal } from "lucide-react";
 import { commandsFor } from "@/config/agent-commands";
-import { commandAction, type TerminalAction } from "@/lib/terminal-commands";
+import { runAction, type TerminalAction } from "@/lib/terminal-commands";
+import { typeCommand } from "@/lib/session-keystrokes";
 import { useScreenActions } from "./use-screen-actions";
 
 /**
@@ -64,7 +65,7 @@ export function TerminalActions({
   const [typed, setTyped] = useTypedNotice();
   if (actions.length === 0 && !typed) return null;
   const run = (a: TerminalAction) => {
-    onKey(a.bytes);
+    void runAction(onKey, a);
     setTyped(a.display);
   };
   return (
@@ -129,7 +130,7 @@ export function TerminalCommandList({
               type="button"
               className="ui-term-command"
               onClick={() => {
-                onKey(commandAction(c, c.hint).bytes);
+                void typeCommand(onKey, c.text);
                 setTyped(c.text);
               }}
             >

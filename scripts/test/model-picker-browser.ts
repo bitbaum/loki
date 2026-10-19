@@ -107,7 +107,7 @@ async function main() {
     await trigger.getByText("1 left").waitFor();
     assert.equal(budgetCalls, 1);
     await trigger.click();
-    const dialog = page.getByRole("dialog", { name: "Choose a model" });
+    const dialog = page.getByRole("dialog", { name: "Loki answers with" });
     await dialog.getByText("Budget reading 2", { exact: true }).waitFor();
     assert.equal(await dialog.getByRole("button", { name: /Grok 4.7/ }).isEnabled(), true);
     assert.equal(await dialog.getByRole("button", { name: /GPT-OSS 120B/ }).isVisible(), false);

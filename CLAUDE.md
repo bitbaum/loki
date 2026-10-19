@@ -140,7 +140,20 @@ src/
 │   │                 button on the terminal's corner — never a second text
 │   │                 box. While the phone keyboard is up, the app bar and the
 │   │                 view switch step aside and next steps go to one row
-│   │                 (`fc-keyboard-open` in globals.css).
+│   │                 (`fc-keyboard-open` in globals.css). Keys open hides
+│   │                 the next-step row. A command button anywhere TYPES its
+│   │                 words, then Enter as its own keystroke (lib/session-
+│   │                 keystrokes typeCommand) — in one write Claude Code reads
+│   │                 "/model opus\r" as a paste and the CR as a newline.
+│   │                 Three surfaces talk, on purpose, and only three: the
+│   │                 session box (the agent), TerminalLokiRail (Loki about
+│   │                 this session — beside it on a wide screen; on a phone
+│   │                 "What's going on?" opens it as a SHEET showing the
+│   │                 answer and its steps, with no composer and no model
+│   │                 picker, `presentation="sheet"`), and /loki (Loki chat).
+│   │                 Two "models" exist and are named apart: the agent's
+│   │                 (SessionInfo chip, "Opus 5.5") and the one answering
+│   │                 Loki (loki/ModelPicker, "Loki answers with").
 │   │                 See docs/development/responsive-design.md.
 │   ├── activity/  → ActivityView, EventStream, DigestPanel (fleet activity timeline + digests)
 │   ├── today/     → StickyNoteCard (captures; Loki "add X to my list"), CalendarCard, WeatherCard, CommitmentsCard, SubscriptionsCard, HabitsList

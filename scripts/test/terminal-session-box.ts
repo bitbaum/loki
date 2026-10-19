@@ -96,6 +96,10 @@ const read = (f: string) => readFileSync(join(process.cwd(), "src/components/ter
     ok(!/inputMode|TerminalInputSwitch|TabVoiceMic/.test(read(f)), `${f}: no input-mode switch`);
   ok(!surface.includes("<TerminalComposer"), "no second box for the agent under the terminal");
   ok(/askOnly\b/.test(surface), "Loki's panel only asks; words for the agent go in the box");
+  ok(
+    surface.includes("suggestions={keysOpen ? [] : screenNext.steps}"),
+    "keys open: the next-step row steps aside so the terminal keeps its lines",
+  );
   const box = read("SessionComposer.tsx");
   ok(!/voice=\{false\}|attach=\{false\}/.test(box), "the box keeps its microphone and attachments");
   ok(box.includes("onEmptySlash"), "/ opens the prompt library and the agent's commands");

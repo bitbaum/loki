@@ -9,7 +9,7 @@ import type { BuilderChannel } from "@/lib/event-stream-types";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import { dispatchToneDotClass } from "@/lib/dispatch-status";
 import { commandIn } from "@/lib/terminal-commands";
-import { ESC, typeMessage } from "@/lib/session-keystrokes";
+import { ESC, typeCommand, typeMessage } from "@/lib/session-keystrokes";
 import { SuggestionChips } from "./SuggestionChips";
 import { LokiFiles } from "./LokiFiles";
 import { SessionPicker } from "./SessionPicker";
@@ -163,7 +163,7 @@ export function SessionComposer({
     try {
       const command = attachments.length === 0 ? commandIn(message, agent) : null;
       if (command) {
-        await onKey(`${command}\r`);
+        await typeCommand(onKey, command);
         setSent({ kind: "typed", what: command });
         return true;
       }

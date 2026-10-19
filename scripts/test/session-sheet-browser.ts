@@ -28,10 +28,10 @@ async function main() {
     stdin: {
       resolveDir: process.cwd(),
       loader: "jsx",
-      contents: `import React from 'react';import{createRoot}from'react-dom/client';import{ClaudeChatView}from'./src/components/terminal/ClaudeChatView';import{TerminalMobileHeader}from'./src/components/terminal/TerminalMobileHeader';import{MobileNav}from'./src/components/shell/MobileNav';import{SessionComposer}from'./src/components/terminal/SessionComposer';import{TerminalMobileDock}from'./src/components/terminal/TerminalMobileDock';import{badgeNames}from'./src/components/terminal/terminal-strip-tabs';
+      contents: `import React from 'react';import{createRoot}from'react-dom/client';import{ClaudeChatView}from'./src/components/terminal/ClaudeChatView';import{TerminalMobileHeader}from'./src/components/terminal/TerminalMobileHeader';import{MobileNav}from'./src/components/shell/MobileNav';import{SessionComposer}from'./src/components/terminal/SessionComposer';import{TerminalMobileDock}from'./src/components/terminal/TerminalMobileDock';import{badgeNames}from'./src/components/terminal/terminal-strip-tabs';import{TerminalLokiRail}from'./src/components/terminal/TerminalLokiRail';import{TerminalLokiSheet}from'./src/components/terminal/TerminalExplain';
       const roster=[{id:'claude',label:'Claude'},{id:'codex',label:'Codex'}];
       const root=createRoot(document.getElementById('app'));
-      window.mount=(fixture)=>{window.fixture=fixture;const agent=badgeNames(fixture.badge,roster);root.render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" style={{height:48}}>Loki</div><main className="app-main"><div className="app-page app-viewport-pane flex flex-col" data-fc-place="tab"><TerminalMobileHeader title="Center SOM" state="live" agent={agent} onOpenSheet={()=>{}} immersive={false} onToggleImmersive={()=>{}} view={fixture.terminal?"terminal":"chat"} onViewChange={()=>{}}/>{fixture.terminal?<div className="flex flex-1 flex-col"><div className="flex-1 bg-black p-2 text-xs text-white">terminal</div><TerminalMobileDock onKey={()=>{}} keysOpen={false} onKeysOpenChange={()=>{}} immersive={false} session={{tab:'center-som',channel:'cloud',agent:'claude',onKey:async bytes=>{window.written.push(bytes)}}} box={tools=><SessionComposer tab="center-som" channel="cloud" onKey={async bytes=>{window.written.push(bytes)}} live agent="claude" agentLabel={agent} suggestions={["run the project's unit tests","open the main source file for review"]} onExplain={()=>{}} project="center-som" density="comfortable" tools={tools}/>}/></div>:<ClaudeChatView key={fixture.key} tab="center-som" channel="cloud" onLive={()=>{}} onKey={async bytes=>{window.written.push(bytes)}} onShowTerminal={()=>{}} onExplain={()=>{}}/>}</div></main></div><MobileNav/></div>)};window.written=[];`,
+      window.mount=(fixture)=>{window.fixture=fixture;const agent=badgeNames(fixture.badge,roster);root.render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" style={{height:48}}>Loki</div><main className="app-main"><div className="app-page app-viewport-pane flex flex-col" data-fc-place="tab"><TerminalMobileHeader title="Center SOM" state="live" agent={agent} onOpenSheet={()=>{}} immersive={false} onToggleImmersive={()=>{}} view={fixture.terminal?"terminal":"chat"} onViewChange={()=>{}}/>{fixture.terminal?<div className="flex flex-1 flex-col"><div className="flex-1 bg-black p-2 text-xs text-white">terminal</div><TerminalMobileDock onKey={()=>{}} keysOpen={false} onKeysOpenChange={()=>{}} immersive={false} session={{tab:'center-som',channel:'cloud',agent:'claude',onKey:async bytes=>{window.written.push(bytes)}}} box={tools=><SessionComposer tab="center-som" channel="cloud" onKey={async bytes=>{window.written.push(bytes)}} live agent="claude" agentLabel={agent} suggestions={["run the project's unit tests","open the main source file for review"]} onExplain={()=>{}} project="center-som" density="comfortable" tools={tools}/>}/></div>:<ClaudeChatView key={fixture.key} tab="center-som" channel="cloud" onLive={()=>{}} onKey={async bytes=>{window.written.push(bytes)}} onShowTerminal={()=>{}} onExplain={()=>{}}/>}</div></main></div><MobileNav/>{fixture.loki&&<TerminalLokiSheet onClose={()=>{}}><TerminalLokiRail presentation="sheet" project="Center SOM" tab="center-som" runId={null} ptyState="live" projectId={null} canSwitchAgent={false} onSwitchAgent={()=>{}} askOnly agent="claude" onKey={()=>{}}/></TerminalLokiSheet>}</div>)};window.written=[];`,
     },
     bundle: true,
     write: false,
@@ -242,10 +242,13 @@ async function main() {
     );
     await page.screenshot({ path: ".tmp/session-sheet/commands-390.png" });
     await commands.getByText("Use Opus").click();
+    await page.waitForFunction(
+      () => (window as unknown as { written: string[] }).written.length === 2,
+    );
     assert.deepEqual(
       await page.evaluate(() => (window as unknown as { written: string[] }).written),
-      ["/model opus\r"],
-      "a command in the sheet is typed into the session",
+      ["/model opus", "\r"],
+      "a command in the sheet is typed into the session, Enter on its own",
     );
     await page.evaluate(() => Object.assign(window, { written: [] }));
     await page.keyboard.press("Escape");
@@ -284,11 +287,17 @@ async function main() {
     // sheet stays open saying what is changing.
     await sheet.getByRole("button", { name: "Sonnet" }).click();
     await sheet.getByRole("button", { name: "High", exact: true }).click();
+    // The command and its Enter are separate writes with a beat between,
+    // and the second command waits for the first's Enter — two quick taps
+    // never interleave (lib/session-keystrokes typeCommand).
+    await page.waitForFunction(
+      () => (window as unknown as { written: string[] }).written.length === 4,
+    );
     const written = await page.evaluate(() => (window as unknown as { written: string[] }).written);
     assert.deepEqual(
       written,
-      ["/model sonnet\r", "/effort high\r"],
-      "each choice is the command with the choice named",
+      ["/model sonnet", "\r", "/effort high", "\r"],
+      "each choice is the command with the choice named, then Enter on its own",
     );
     assert.ok(
       await sheet.getByText("Switching to Sonnet").isVisible(),
@@ -319,10 +328,9 @@ async function main() {
     );
     // A choice already in force sends nothing.
     await sheet.getByRole("button", { name: "Sonnet" }).click();
-    assert.equal(
-      (await page.evaluate(() => (window as unknown as { written: string[] }).written)).length,
-      2,
-    );
+    await page.waitForTimeout(300);
+    const after = await page.evaluate(() => (window as unknown as { written: string[] }).written);
+    assert.equal(after.length, 4, `a choice in force sends nothing (got ${JSON.stringify(after)})`);
 
     // Claude Code answers in the log the moment it switches: the sheet,
     // still open, settles on its word — not on the next answer.
@@ -368,9 +376,12 @@ async function main() {
     // A family the account cannot use: Claude Code's refusal, in its words,
     // and the model in force stays marked.
     await sheet.getByRole("button", { name: "Fable" }).click();
+    await page.waitForFunction(
+      () => (window as unknown as { written: string[] }).written.at(-1) === "\r",
+    );
     assert.equal(
-      (await page.evaluate(() => (window as unknown as { written: string[] }).written)).at(-1),
-      "/model fable\r",
+      (await page.evaluate(() => (window as unknown as { written: string[] }).written)).at(-2),
+      "/model fable",
     );
     await mount({
       key: "chat2",
@@ -400,6 +411,45 @@ async function main() {
       "after a refusal the model in force is the one marked",
     );
     await page.screenshot({ path: ".tmp/session-sheet/sheet-refused-390.png" });
+    await page.keyboard.press("Escape");
+
+    // "What's going on?" on a phone: a sheet with the question, room for
+    // the answer, and one way to Loki chat — no second box, no second model
+    // picker, nothing about the run when nothing is tracked.
+    await mount({
+      key: "chat2",
+      items,
+      connected: true,
+      received: true,
+      sessionId: "s",
+      badge: "claude",
+      loki: true,
+    });
+    const loki = page.getByRole("dialog").filter({ hasText: "Loki on Center SOM" });
+    await loki.waitFor();
+    const lokiBox = await loki.evaluate((d) => {
+      const r = d.getBoundingClientRect();
+      return {
+        top: Math.round(r.top),
+        bottom: Math.round(r.bottom),
+        composers: d.querySelectorAll(".ck-composer").length,
+        pickers: d.querySelectorAll(".ui-loki-model-trigger").length,
+        text: d.textContent ?? "",
+      };
+    });
+    assert.ok(lokiBox.top >= 0 && lokiBox.bottom <= 780, "the sheet is on screen");
+    assert.equal(lokiBox.composers, 0, "no second box in it");
+    assert.equal(lokiBox.pickers, 0, "no second model picker in it");
+    assert.ok(!lokiBox.text.includes("Nothing running"), "no run-status filler");
+    assert.ok(
+      await loki.getByRole("button", { name: "What's going on?" }).isVisible(),
+      "the question is there to ask",
+    );
+    assert.ok(
+      await loki.getByRole("link", { name: /Continue in Loki chat/ }).isVisible(),
+      "and one way to Loki chat",
+    );
+    await page.screenshot({ path: ".tmp/session-sheet/loki-sheet-390.png" });
     await page.keyboard.press("Escape");
 
     // An older runner sends no reply: the next answer naming the model

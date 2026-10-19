@@ -29,6 +29,7 @@ import {
 import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
 import type { LiveTurn } from "@/hooks/use-loki-stream";
 import { commandIn } from "@/lib/terminal-commands";
+import { typeCommand } from "@/lib/session-keystrokes";
 import { TerminalComposer } from "./TerminalComposer";
 
 /**
@@ -79,9 +80,19 @@ export function TerminalLokiRail({
   onStep,
   agent = null,
   onKey,
+  presentation = "rail",
 }: {
   /** The CLI running in the tab — which commands a step may type. */
   agent?: string | null;
+  /** `rail`: the panel beside the session on a wide screen — run status,
+   *  the conversation, its own Ask box. `sheet`: what "What's going on?"
+   *  opens on a phone — the ANSWER, its next steps, and a way to Loki chat;
+   *  no second composer, no second model picker, no run-status filler.
+   *  The phone's sheet used to be the whole rail: "Nothing running on Xhiva
+   *  Art. Send a task below…" over an answer, under a box of its own with
+   *  Loki's model picker reading "Auto" beside the session box's "Opus 5.5"
+   *  (owner, 2026-10-19: "spaghetti UI"). */
+  presentation?: "rail" | "sheet";
   /** Types into the session (the keyboard's path). A step that is the agent's
    *  own command ("/model opus") goes here: Inject would wrap it in project
    *  context and the agent would read a sentence about a model. */
@@ -235,15 +246,19 @@ export function TerminalLokiRail({
     view?.stalled && view.diagnostic && view.diagnostic !== view.nextAction
       ? view.diagnostic
       : null;
-  const hasStatusBody = Boolean(
-    (loading && !view) || error || !view || lines.summary || lines.next || diagnostic,
-  );
+  const sheet = presentation === "sheet";
+  // The sheet says nothing about the run unless there is something to say:
+  // a tracked run's status, a stall, or a dead provider. "Checking this
+  // run…" and "Nothing running…" are the rail's, where there is room.
+  const filler = !sheet && ((loading && !view) || (!loading && !view && !error));
+  const hasStatusBody = Boolean(filler || error || lines.summary || lines.next || diagnostic);
   const hasBody = hasStatusBody || Boolean(view?.quotaDeath && canSwitchAgent);
+  const quiet = sheet && !hasBody && session.messages.length === 0 && !session.live;
 
   return (
-    <aside className="ui-term-loki">
+    <aside className={sheet ? "ui-term-loki ui-term-loki-insheet" : "ui-term-loki"}>
       <header className="ui-term-loki-head">
-        <h2 className="ui-term-loki-title">Loki</h2>
+        <h2 className="ui-term-loki-title">{sheet ? `Loki on ${project}` : "Loki"}</h2>
         <div className="flex items-center gap-2">
           {presented && <span className="ui-badge">{presented.label}</span>}
           <button
@@ -255,30 +270,40 @@ export function TerminalLokiRail({
             className="ui-term-pane-btn"
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            {/* Icon-only on the narrowest phones, where the label beside the
-                run badge and the open-chat button would push the header wide. */}
-            <span className="max-[400px]:sr-only">What&apos;s going on?</span>
+            {/* Icon-only on the narrowest phones in the rail, where the label
+                beside the run badge and the open-chat button would push the
+                header wide. The sheet has no open-chat button up here. */}
+            <span className={sheet ? undefined : "max-[400px]:sr-only"}>What&apos;s going on?</span>
           </button>
-          <Link
-            href={fleetSurfaceHref("chat", project)}
-            className="ui-term-pane-btn"
-            title="Open the full Loki chat"
-            aria-label="Open the full Loki chat"
-          >
-            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </Link>
+          {!sheet && (
+            <Link
+              href={fleetSurfaceHref("chat", project)}
+              className="ui-term-pane-btn"
+              title="Open the full Loki chat"
+              aria-label="Open the full Loki chat"
+            >
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          )}
         </div>
       </header>
 
+      {quiet && (
+        <p className="px-3 py-3 text-sm text-text-secondary">
+          Loki reads the session&apos;s screen and says what the agent is doing, in plain words,
+          with what you can tell it next.
+        </p>
+      )}
+
       {hasBody && (
         <div className="ui-term-loki-body">
-          {loading && !view && (
+          {loading && !view && !sheet && (
             <p className="flex items-center gap-1 text-xs text-text-muted">
               <Loader2 className="ui-spinner-xs" /> Checking this run…
             </p>
           )}
           {error && <p className="text-xs text-status-warning">{error}</p>}
-          {!loading && !view && !error && (
+          {!loading && !view && !error && !sheet && (
             <p className="text-xs text-text-muted">
               Nothing running on {project}. Send a task below and its progress shows here.
             </p>
@@ -355,7 +380,7 @@ export function TerminalLokiRail({
                       <button
                         key={action}
                         type="button"
-                        onClick={() => onKey?.(`${command}\r`)}
+                        onClick={() => void typeCommand(onKey!, command)}
                         title="Type this into the terminal and press Enter"
                         className="ui-term-action"
                       >
@@ -383,24 +408,38 @@ export function TerminalLokiRail({
         </div>
       )}
 
+      {/* The phone's sheet has no box of its own: the session box under it is
+          where words go, and a conversation with Loki is Loki chat, one tap
+          away, where this thread already is. */}
+      {sheet && (
+        <div className="ui-sheet-foot flex-row gap-2">
+          <Link href={fleetSurfaceHref("chat", project)} className="ui-btn-secondary flex-1">
+            Continue in Loki chat
+            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+      )}
+
       {/* THE composer, in Ask/Inject form — the same component (and the
           same attach, voice and model controls) as Loki chat and the
           session box. It used to be a bare textarea of its own. */}
-      <div className="ui-term-loki-composer">
-        <TerminalComposer
-          agent={agent}
-          onKey={onKey}
-          askContext={askContext}
-          project={project}
-          tab={tab}
-          modes={askOnly ? ["ask"] : ["ask", "inject"]}
-          defaultMode={askOnly ? "ask" : "inject"}
-          ask={session}
-          draft={draft}
-          ptyLive={ptyState === "live" || Boolean(view?.lastProgressAt)}
-          density="compact"
-        />
-      </div>
+      {!sheet && (
+        <div className="ui-term-loki-composer">
+          <TerminalComposer
+            agent={agent}
+            onKey={onKey}
+            askContext={askContext}
+            project={project}
+            tab={tab}
+            modes={askOnly ? ["ask"] : ["ask", "inject"]}
+            defaultMode={askOnly ? "ask" : "inject"}
+            ask={session}
+            draft={draft}
+            ptyLive={ptyState === "live" || Boolean(view?.lastProgressAt)}
+            density="compact"
+          />
+        </div>
+      )}
     </aside>
   );
 }
