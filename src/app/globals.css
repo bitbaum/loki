@@ -3177,6 +3177,60 @@
   .ui-term-mhead-ghost {
     @apply inline-flex size-11 shrink-0 items-center justify-center rounded-full text-text-primary transition-colors active:bg-surface-overlay;
   }
+  /* Sessions (shell/SessionsDrawer): what is open now, in words, then every
+     other project one tap from its session. A list with dividers, one
+     section label each; no colour but the working pulse. Full screen on a
+     phone, a right-hand panel from md. */
+  .ui-sessions {
+    @apply fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-surface-page md:inset-y-0 md:left-auto md:right-0 md:w-full md:max-w-md md:border-l md:border-border-default md:shadow-panel-strong;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .ui-sessions-head {
+    @apply sticky top-0 z-10 flex items-start gap-3 border-b border-border-subtle bg-surface-page px-4 py-3;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+  .ui-sessions-title {
+    @apply text-lg font-semibold text-text-primary;
+  }
+  .ui-sessions-sub {
+    @apply text-sm text-text-tertiary;
+  }
+  .ui-sessions-body {
+    @apply flex flex-col gap-6 px-4 py-4;
+  }
+  .ui-sessions-body > section {
+    @apply flex flex-col gap-2;
+  }
+  .ui-sessions-label {
+    @apply text-micro font-semibold uppercase tracking-caps text-text-muted;
+  }
+  .ui-sessions-note {
+    @apply text-sm text-text-secondary;
+  }
+  .ui-sessions-list {
+    @apply flex flex-col divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-base;
+  }
+  .ui-sessions-row {
+    @apply flex min-h-15 w-full items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-raised active:bg-surface-overlay;
+  }
+  .ui-sessions-row[aria-current="page"] {
+    @apply bg-surface-raised;
+  }
+  .ui-sessions-name {
+    @apply block truncate text-base font-medium text-text-primary;
+  }
+  .ui-sessions-line {
+    @apply flex min-w-0 items-center gap-1.5 text-sm text-text-tertiary;
+  }
+  .ui-sessions-chev {
+    @apply h-4 w-4 shrink-0 text-text-muted;
+  }
+  .ui-sessions-search {
+    @apply w-full rounded-xl border border-border-default bg-surface-base py-2.5 pl-10 pr-3 text-base text-text-primary placeholder:text-text-muted outline-none focus:border-border-strong;
+  }
+  .ui-sessions-search-icon {
+    @apply pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted;
+  }
   /* The terminal with nothing open: your projects, each one tap from its
      session (TerminalResume). Rows, not a form. */
   .ui-term-resume {

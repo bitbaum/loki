@@ -1,7 +1,9 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import Link from "next/link";
 import { Check, Loader2, SearchX } from "lucide-react";
+import { TerminalResume } from "./TerminalResume";
 import { fleetSurfaceHref } from "@/lib/fleet-context";
 import { useKickoffRunForTab, type KickoffRun } from "@/lib/kickoff-run";
 import { KICKOFF_STEP_LABEL } from "@/lib/project-kickoff";
@@ -27,7 +29,13 @@ export function TerminalSessionMiss({
   otherSourceLabel,
   hasOthers,
   onSwitchSource,
+  resume,
 }: {
+  /** What a Resume row needs (TerminalResume's props): this project's row is
+   *  drawn when it can start here. The Sessions drawer sends a project that
+   *  is not open to this screen, and "Start it from Loki" was one detour too
+   *  many (2026-10-19). */
+  resume?: Omit<ComponentProps<typeof TerminalResume>, "activeProject" | "onAllProjects">;
   requestedTab: string;
   /** Where we looked — "Cloud" / "This computer". */
   sourceLabel: string;
@@ -43,20 +51,29 @@ export function TerminalSessionMiss({
   if (kickoff && kickoff.dispatch !== "running") {
     return <KickoffInProgress run={kickoff} tab={requestedTab} />;
   }
+  const own = (resume?.projects ?? []).filter(
+    (p) => p.name.toLowerCase() === requestedTab.toLowerCase(),
+  );
+  const canResume = Boolean(resume) && own.length > 0;
 
   return (
     <div className="ui-term-miss">
       <SearchX className="h-6 w-6 text-status-warning" aria-hidden="true" />
       <p className="ui-term-miss-title">
-        “{requestedTab}” isn’t running on {sourceLabel}
+        {canResume
+          ? `“${requestedTab}” isn’t open right now`
+          : `“${requestedTab}” isn’t running on ${sourceLabel}`}
       </p>
       {/* The sessions that ARE running are the tab strip above: listing them
           again here was a second copy of the same list, with raw ids. */}
       <p className="ui-term-miss-body">
-        {hasOthers
-          ? "Choose an available session above, or start this project to continue."
-          : "Start a session for this project to continue here."}
+        {canResume
+          ? "Open it and its agent starts here, where you left off."
+          : hasOthers
+            ? "Choose an available session above, or start this project to continue."
+            : "Start a session for this project to continue here."}
       </p>
+      {canResume && resume && <TerminalResume {...resume} projects={own} />}
 
       <div className="ui-term-miss-actions">
         {otherSourceLabel && (
@@ -64,12 +81,14 @@ export function TerminalSessionMiss({
             Look on {otherSourceLabel}
           </button>
         )}
-        <Link
-          href={`/loki?project=${encodeURIComponent(requestedTab)}`}
-          className="ui-btn-secondary"
-        >
-          Start “{requestedTab}” from Loki
-        </Link>
+        {!canResume && (
+          <Link
+            href={`/loki?project=${encodeURIComponent(requestedTab)}`}
+            className="ui-btn-secondary"
+          >
+            Start “{requestedTab}” from Loki
+          </Link>
+        )}
       </div>
     </div>
   );
