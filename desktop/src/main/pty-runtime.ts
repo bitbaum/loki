@@ -132,6 +132,8 @@ export async function launchAgentPty(
     agent,
     model,
     sessionId,
+    // Agents that find their own newest conversation (Codex).
+    resumeLatest: resumeLatest && agent !== "claude",
     workspaceId: runnerWorkspaceId(tab),
   });
   agentByTab.set(tab, agent);

@@ -12,7 +12,8 @@
  * crosses it off only when the session really ends: closed from Loki, or the
  * agent exited while the builder stayed up. On start it reopens what is still
  * written down. Claude Code keeps every conversation on disk, so a Claude
- * session comes back as the same conversation (`claude --resume <id>`); the
+ * session comes back as the same conversation (`claude --resume <id>`, and
+ * Codex by `codex resume --last`); the
  * other agents come back as a fresh session in the same folder.
  *
  * Off unless the box-runner turns it on: a laptop's Fleet Runner closing is a

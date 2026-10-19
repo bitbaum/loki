@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { codexAdapter } from "@/lib/agents/codex";
 import { cursorAdapter } from "@/lib/agents/cursor";
 import { grokAdapter } from "@/lib/agents/grok";
 import { addTrustedGrokFolder } from "../../desktop/src/main/grok-prep";
@@ -8,6 +9,20 @@ assert.match(cursor, /cursor-agent --trust --yolo$/);
 
 const grok = grokAdapter.buildLaunchCommand({ dir: "/tmp/project" });
 assert.match(grok, /grok --always-approve --no-alt-screen$/);
+
+// Resume: the root options before the subcommand, and a fresh session when
+// the folder has none to continue.
+const codex = codexAdapter.buildLaunchCommand({ dir: "/tmp/project", model: "gpt-5" });
+assert.match(codex, /&& codex --model 'gpt-5' --no-alt-screen$/);
+const resumed = codexAdapter.buildLaunchCommand({
+  dir: "/tmp/project",
+  model: "gpt-5",
+  resumeLatest: true,
+});
+assert.match(
+  resumed,
+  /&& codex --model 'gpt-5' --no-alt-screen resume --last \|\| codex --model 'gpt-5' --no-alt-screen$/,
+);
 
 const added = addTrustedGrokFolder("", "/tmp/project", 123);
 assert.match(added, /\[folders\."\/tmp\/project"\]\ntrusted = true\ndecided_at = 123/);

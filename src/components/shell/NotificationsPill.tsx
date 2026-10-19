@@ -4,9 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Bell } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
-import { feedbackAwaitingTriage } from "@/lib/feedback/queue-counts";
-import type { ProjectFeedbackSummary } from "@/db/queries/site-feedback";
-import { NotificationPanel } from "./NotificationPanel";
+import { NotificationPanel, bellAlerts } from "./NotificationPanel";
 import type { Alert } from "@/db/schema/alerts";
 
 /**
@@ -26,7 +24,6 @@ const onServer = () => false;
 export function NotificationsPill() {
   const [panelOpen, setPanelOpen] = useState(false);
   const { data } = useFetch<{ alerts: Alert[] }>("/api/alerts");
-  const feedback = useFetch<{ summary: ProjectFeedbackSummary[] }>("/api/feedback/summary");
 
   /**
    * Render NOTHING until mounted, so the server and the first client render
@@ -53,10 +50,12 @@ export function NotificationsPill() {
   const mounted = useSyncExternalStore(subscribeNothing, onClient, onServer);
   if (!mounted) return null;
 
-  const alerts = data?.alerts ?? [];
-  const feedbackSummary = feedback.data?.summary ?? [];
-  const feedbackCount = feedbackAwaitingTriage(feedbackSummary);
-  const totalCount = alerts.length + feedbackCount;
+  // Things that HAPPENED (a run failed, a deploy finished). The feedback
+  // queue is not one of them: it is work waiting, and Home's "To review"
+  // already counts it — the bell added it again and read "9+" beside a
+  // "Feedback to triage 13" row on the same screen (owner, 2026-10-19).
+  // The count is exactly what the panel lists.
+  const totalCount = bellAlerts(data?.alerts ?? []).length;
   const hasAlerts = totalCount > 0;
 
   // Icon-only — the bell state communicates whether there are notifications.

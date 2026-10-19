@@ -118,7 +118,9 @@ function main(): void {
   enableTabMemory(join(homedir(), ".loki", "open-tabs.json"));
   void restoreTabs({
     isLive: isPtyBacked,
-    launch: (tab, dir, agent, sessionId) => launchAgentPty(tab, dir, agent, undefined, sessionId),
+    // Codex finds its own newest conversation in the folder (resumeLatest).
+    launch: (tab, dir, agent, sessionId) =>
+      launchAgentPty(tab, dir, agent, undefined, sessionId, agent === "codex"),
     sessionFor: async (dir) => {
       const log = await newestLog(dir);
       return log

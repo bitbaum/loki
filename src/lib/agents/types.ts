@@ -45,6 +45,10 @@ export interface AgentRuntimeConfig {
   model?: string;
   /** Native provider session id. Only adapters that support resume use it. */
   sessionId?: string;
+  /** Continue the newest conversation in `dir`, for an agent whose CLI can
+   *  find it itself (`codex resume --last`). Claude's is found by Loki and
+   *  passed as `sessionId` instead. */
+  resumeLatest?: boolean;
 }
 
 /** Availability detection result. Both fields exist so the UI can show

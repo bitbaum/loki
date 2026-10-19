@@ -13,7 +13,7 @@ export type ProjectsPageFilter = null | "attention" | "next-step" | "team";
  * duplication this page is absorbing.
  *
  *  - `priority` — flagged first, then freshly created, then most recently
- *    active. The default, and what the page's subtitle promises.
+ *    active. The default; the sort row says so under itself.
  *  - `recent` — most recently active, full stop. Answers "what moved?" without
  *    a flagged project from March sitting on top of it.
  *  - `az` — by name. The only order that helps when you already know what you
@@ -22,7 +22,11 @@ export type ProjectsPageFilter = null | "attention" | "next-step" | "team";
 export type ProjectsSort = "priority" | "recent" | "az";
 
 export const PROJECTS_SORTS: ReadonlyArray<{ id: ProjectsSort; label: string; hint: string }> = [
-  { id: "priority", label: "Priority", hint: "Flagged first, then by most recent agent run" },
+  {
+    id: "priority",
+    label: "Priority",
+    hint: "Projects with issues first, then by most recent agent run",
+  },
   {
     id: "recent",
     label: "Recent",

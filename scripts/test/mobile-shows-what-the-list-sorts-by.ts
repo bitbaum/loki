@@ -100,6 +100,8 @@ check("THE OTHER ONE: `Needs path` is no longer desktop-only", () => {
   // It means no agent can be dispatched for this project. Hiding the most
   // actionable badge on the narrowest viewport is backwards.
   const badge = blockWithClass("loopReadiness.label");
+  // It lives in the mobile meta line itself now (readinessNote), so it shows
+  // on every width by construction.
   assert(badge !== null, "could not find the loop-readiness badge");
   const openingTag = badge!.slice(0, badge!.indexOf(">") + 1);
   assert(
