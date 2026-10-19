@@ -11,7 +11,7 @@
 > reroutes. Fleet Runner 0.8.19 and the box runner own every agent PTY; zellij,
 > `src/lib/zellij.ts`, `src/lib/terminals/*`, `home/worker.ts` and the focus-tab command
 > are deleted. This document and `docs/development/cloud-local-workflows.md` supersede
-> `docs/fleet-runner-pty-ownership.md` and `docs/archive/desktop-app-migration-plan.md`.
+> `docs/archive/fleet-runner-pty-ownership.md` and `docs/archive/desktop-app-migration-plan.md`.
 
 > **Update 2026-06-26 — P1 is live.** `loki-box-runner.service` runs on the box
 > (headless, `tsx scripts/box-runner.ts`, `User=ubuntu`), reusing the desktop runner
@@ -113,4 +113,4 @@ Two complementary cloud executors, both killing the laptop dependency:
 - New: `loki-box-runner.service` (systemd, on the box) + a headless runner entry reusing `src/lib/agent-execution/*` (the executor) + the desktop's queue-poll/stream core (factored out of `desktop/src/main/pty-runtime.ts`).
 - Box: install/auth `claude` (then others); a runner `.env` (DATABASE_URL, GitHub token, CLI creds).
 - No web-app PTY spawning on prod for P1 — `RUNTIME_AVAILABLE` stays unset on the web app; Terminal → Cloud uses peek-stream (Horizon A1, 2026-06-30). `/api/workspaces` is gated when `!isRuntimeAvailable()` (A2). Local dev with `RUNTIME_AVAILABLE=true` may still use workspaces for P0 throwaway tests.
-See [[project_hermes_on_box]] (move #1), `docs/architecture/agent-execution-platform.md`, `docs/fleet-runner-pty-ownership.md`.
+See [[project_hermes_on_box]] (move #1), `docs/architecture/agent-execution-platform.md`, `docs/archive/fleet-runner-pty-ownership.md`.

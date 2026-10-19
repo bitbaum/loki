@@ -144,7 +144,7 @@ Each phase was ship-on-green: the entire test suite, smoke tests, and home/ self
 | xterm.js doesn't render exactly like the user's preferred terminal (fonts, ligatures, key bindings) | True. Acceptable cost for the onboarding win. |
 | Browser-side terminal feels less native than a real terminal | Mitigated by Fleet Runner's own renderer window also showing the xterm.js panel — power users get a native-app feel without a browser. |
 | Streaming output over SSE adds latency vs zellij's direct PTY rendering | Negligible (<10ms localhost). Web users already accept this for VS Code Server, Replit, Codespaces. |
-| Losing the "I can see and interact in my actual terminal" UX | The web terminal is fully interactive against the owned PTY (see `docs/terminal-parity.md`); the multiplexer is not coming back. |
+| Losing the "I can see and interact in my actual terminal" UX | The web terminal is fully interactive against the owned PTY (see `docs/archive/terminal-parity.md`); the multiplexer is not coming back. |
 | Web users on a different machine than Fleet Runner can't see the terminal | Already true for any local-execution model. The remote-control-plane work (`desktop-6-remote-plumbing`) routes events back through the hosted control plane — terminal streams can ride the same channel later. |
 
 ## Where This Sits in the Existing Plan

@@ -33,7 +33,7 @@ Studio-wide publishing contract (other apps' blogs, OSS kit):
 |------------|-----------------|
 | **Table** | GFM: header row, `| --- |` separator, then rows. Use for market maps, surface→need, claim→file. |
 | **Diagram** | Fenced ` ```mermaid ` … ` ``` ` (flowcharts, sequence, state). Follows Light/Dark/Auto. |
-| **SVG / photo** | `![Caption](/thoughts/your-file.svg)` — local SVG inlined so strokes use CSS tokens. Raster/remote via the same syntax. |
+| **SVG / photo** | `![Caption](/thoughts/{name}.svg)` (the file lives in `public/thoughts/`) — local SVG inlined so strokes use CSS tokens. Raster/remote via the same syntax. |
 | **Video** | Put a lone YouTube or Vimeo URL on its own line (no markdown link wrapping). Other hosts stay links, not iframes. |
 | **Deep section** | Fenced ` ```deep Under the hood: <topic> ` … ` ``` ` — any markdown inside, rendered as a closed `<details>`. The essay reads whole without opening one; the files, regexes and numbers live inside. |
 

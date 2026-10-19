@@ -76,8 +76,7 @@ cloud snapshot endpoint.
 
 The bridge lives on the same box as Postgres. Both processes plus a small
 backup cron fit comfortably on Oracle Always Free or a Hetzner CX22.
-See `scripts/db/SETUP_ORACLE_FREE.md` and `scripts/db/BOTH_PRODUCTS_ONE_HOST.md`
-for the host setup. Once Postgres is up:
+See `scripts/db/BOTH_PRODUCTS_ONE_HOST.md` for the host setup. Once Postgres is up:
 
 ```bash
 # On the box

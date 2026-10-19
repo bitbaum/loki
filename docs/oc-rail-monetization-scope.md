@@ -16,7 +16,7 @@
 - `/pricing` resolves each plan's CTA at render time (`src/app/pricing/page.tsx`). The `isStripeReady()` branch this scope planned to reuse is gone with the rail (#508); what is left is the BTC path itself, gated on `ORANGECAT_PAY_URL_*` — the "Pay in Bitcoin" CTA is the default case now, not an alternative to add.
 
 **OrangeCat**
-- **Cat Credits** (`src/services/cat/credits.ts`, `credit-topup.ts`): a working BTC-topup ledger — user pays a Lightning invoice from OC's platform NWC wallet, settlement is polled via `lookupInvoice`, a `topup` entry is appended (idempotent via `unique(kind, ref=payment_hash)`), balance in BTC. This is the proven "pay BTC → credit an account" machine.
+- **Cat Credits** (in orangecat: `src/services/cat/credits.ts`, `credit-topup.ts`): a working BTC-topup ledger — user pays a Lightning invoice from OC's platform NWC wallet, settlement is polled via `lookupInvoice`, a `topup` entry is appended (idempotent via `unique(kind, ref=payment_hash)`), balance in BTC. This is the proven "pay BTC → credit an account" machine.
 - **Payments/Products** (`src/domain/payments`): `nwc | lightning_address | onchain`, `fixed_price | contribution`, for products/services. v1 exposes `products`, `services`, `investments`, `projects`, `timeline`, etc.
 - Loki already *raised* on OC via `investments` — money-in to a Loki OC entity already works.
 

@@ -71,7 +71,7 @@ Requires an Apple Developer account.
      "notarize": { "teamId": "<APPLE_TEAM_ID>" }
    }
    ```
-3. Create `desktop/resources/entitlements.mac.plist`:
+3. Create `desktop/resources/entitlements.mac.plist` (it does not exist yet):
    ```xml
    <?xml version="1.0" encoding="UTF-8"?>
    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

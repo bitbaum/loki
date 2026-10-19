@@ -123,7 +123,7 @@ now yields four verdicts (`lib/own-model-verdict.ts`): **works**,
 **unfunded** (the vendor knows the key but cannot bill it — a 402, or a
 sentence about credits, balance or a spending limit), **refused** (a 401, or
 anything else) and **unreachable**. An unfunded key is saved, with the
-vendor's words and the link to its billing page (`config/own-model-vendors.ts`),
+vendor's words and the link to its billing page (`billingUrl` in `src/config/model-vendors.ts`),
 and the model is typed by hand since the vendor would not list any. The
 next turn works the moment the vendor's meter does, and when it does not,
 the turn's error says so with the same link.

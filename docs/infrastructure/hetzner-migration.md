@@ -36,15 +36,21 @@ box. Hosted accounts are kept frozen for 14 days as a fallback, then deleted
 > banner since 2026-06-26) — a detachable **Volume** is the capacity-independent
 > alternative. We only have **SSH** to the box, no Hetzner Console/API access.
 
+The table below is the stack as migrated. The current app list (ports, hosts,
+repos, databases — including later additions such as solon, substrata, heidi)
+is `scripts/hetzner/apps.conf`; read that, not this table. The old hosts
+revampit.orangecat.ch and aoz-wohnen.orangecat.ch are 308 redirects to the
+hosts shown.
+
 | Service                  | Port | Domain                          | DB                    |
 |--------------------------|------|---------------------------------|-----------------------|
 | loki-bridge        | 4001 | bridge.orangecat.ch             | —                     |
 | loki-app           | 4002 | loki.orangecat.ch         | loki (PG17)     |
 | orangecat-app            | 4003 | orangecat.ch, www               | self-hosted Supabase  |
-| revampit-app (evig)      | 4004 | evig.orangecat.ch (revampit.orangecat.ch → 308) | revampit (PG17) |
+| evig-app                 | 4004 | evig.orangecat.ch               | revampit (PG17)       |
 | kivvi-app                | 4005 | kivvi.orangecat.ch              | kivvi                 |
 | datacat-web-app          | 4006 | datacat.orangecat.ch            | datacat               |
-| aoz-wohnen-app           | 4008 | aoz.orangecat.ch (aoz-wohnen.orangecat.ch → 308) | aoz_wohnen |
+| aoz-wohnen-app           | 4008 | aoz.orangecat.ch                | aoz_wohnen            |
 | surf-your-life-app       | 4009 | surf-your-life.orangecat.ch     | surf_your_life        |
 | vitareba-app             | 4011 | vita.orangecat.ch               | vitareba              |
 | revamp-info-app          | 4012 | revamp-info.orangecat.ch        | revampit (shared)     |
@@ -125,7 +131,7 @@ via `.husky/pre-push` + `scripts/selfhost-deploy-revampit.sh` (also in
 - aoz-begleitung: Prisma Neon adapter removed (plain PrismaClient).
 - kivvi already had a postgres-js fallback; `DB_SSL=disable` env opts out of
   its hardcoded prod-SSL.
-- surf-your-life: `lib/domain/auth.ts` split (db-using verifyEmailToken →
+- surf-your-life (bitbaum/surf-your-life): `lib/domain/auth.ts` split (db-using verifyEmailToken →
   `lib/domain/verify-email.ts`) so client components stop pulling pg.
 - vitareba/petvity: `@vercel/blob` → `lib/storage.ts` local-disk helper
   (UPLOADS_DIR=/opt/<app>/uploads, Caddy serves /uploads/*). Vercel Blob was

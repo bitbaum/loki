@@ -86,8 +86,8 @@ Exit codes: `0` done and answering · `1` refused · `3` DNS not pointing here
   host would fail `caddy validate` and stop every app's reload. **evig is one
   of them** (`evig|4004|…`): give it `evig.ch` by editing its block in the
   Caddyfile (add `evig.ch, www.evig.ch` to the served hosts and a
-  `redir https://evig.ch{uri} 308` block for `evig.orangecat.ch,
-  revampit.orangecat.ch`), or move the block into `apps.d` first, after which
+  `redir https://evig.ch{uri} 308` block for `evig.orangecat.ch` and the
+  retired `revampit.orangecat.ch`), or move the block into `apps.d` first, after which
   the script handles it.
 - **The site's own code may still name its free address.** The site template
   bakes `metadataBase: new URL("https://<slug>.orangecat.ch")` into

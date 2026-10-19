@@ -259,7 +259,7 @@ You → Loki composer → resolveCommand / fleet fast paths
   config-driven, first-principles. The resolver derives intent ids from
   `ORCHESTRATION_TASK_INTENT_IDS`; the composer reuses the existing dispatch path
   and `ui-*` classes rather than re-rolling either.
-- Terminal parity / usability: `docs/terminal-parity.md` (Thread A — separate concern).
+- Terminal parity / usability: `docs/archive/terminal-parity.md` (Thread A — separate concern).
 - Cleanup of organic-growth cruft: `docs/debt-reduction-roadmap.md` (Thread B).
 - Dispatch backend Loki builds on: `docs/architecture/agent-execution-platform.md`,
   `src/config/control-intents.ts`, the runner inject path (`desktop/src/main/poller.ts`).
