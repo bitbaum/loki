@@ -81,6 +81,8 @@ if [ -f "$APPS_CONF" ]; then
     case "$name" in ''|\#*) continue;; esac
     [ "$domains" = "-" ] && continue
     status=$(printf '%s' "$rest" | cut -d'|' -f6)
+    # Retired offline on purpose: watching it would only report it down.
+    [ "$status" = "archived" ] && continue
     if sleeps_when_idle "$port" "$domains" "$status"; then
       TARGETS="${TARGETS}
 ${name}|wake:${name}|socket"

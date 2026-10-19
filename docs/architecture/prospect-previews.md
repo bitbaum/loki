@@ -269,6 +269,14 @@ The whole flow, from "create website for Murphy's Bar":
 
 - A preview never gets a GitHub repository or a public domain before the
   person says yes.
+- One name for one site, everywhere: the address, the project and — when it
+  graduates — the repository are the same word (`centersom.orangecat.ch` →
+  project `centersom` → `bitbaum/centersom`). Fix a wrong name by moving the
+  preview BEFORE it graduates, never by graduating under the old one. The
+  owner found `center-com`, `center-com-2` and `xhiva-art-refresh-<id>`
+  beside `centersom` and `xhiva` (2026-10-19): the old build was retired
+  offline (`apps.conf` status `archived`, which a full sync no longer
+  regenerates) and its repository archived.
 - The code is checked on every request, pages and files alike.
 - Agents building a preview never push and never add a remote. Every dispatch
   to a preview folder says so (`src/lib/previews/delivery-note.ts`, "Where
