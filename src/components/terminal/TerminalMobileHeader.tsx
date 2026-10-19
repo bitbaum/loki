@@ -74,7 +74,10 @@ export function TerminalMobileHeader({
   const others = sessionCount > 1 ? `${sessionCount} sessions` : null;
   // The count before the builder: at 320px the line truncates, and that
   // there are other sessions is the part a person cannot otherwise see.
-  const subtitle = [agent, others, builder && lowerFirst(builder)].filter(Boolean).join(" · ");
+  // With no session open the title already IS the builder's name.
+  const where =
+    builder && builder.toLowerCase() !== title.toLowerCase() ? lowerFirst(builder) : null;
+  const subtitle = [agent, others, where].filter(Boolean).join(" · ");
   return (
     <div className="ui-term-mhead">
       <div className="ui-term-mhead-row">
