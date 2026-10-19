@@ -30,6 +30,7 @@ export function studioView(row: StudioRequest, events: StudioRequestEvent[]) {
             approved: Boolean(row.partnerApprovedAt),
             profile: row.proposedProfile,
             profilePublished: Boolean(row.profilePublishedAt),
+            orangecatConnected: Boolean(row.orangecatActorId),
           }
         : null,
     history: events
