@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { ProjectRole } from "@/db/schema/project-memberships";
 import { roleGuide } from "@/lib/project-capabilities";
@@ -43,6 +44,13 @@ export function MemberGuide({
       </h2>
       <p className="mt-2 text-base text-text-secondary">{guide.then}</p>
       <ProjectAskBox projectId={projectId} projectName={projectName} />
+      <p className="mt-3 text-sm text-text-secondary">
+        Everything you asked for, and where each one is:{" "}
+        <Link href="/my-feedback" className="underline underline-offset-2">
+          your requests
+        </Link>
+        .
+      </p>
       {liveUrl && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <p className="min-w-0 flex-1 text-sm text-text-tertiary">

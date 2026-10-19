@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { deriveProjectLoopReadiness } from "@/lib/project-loop-readiness";
 import { computeProjectHealth } from "@/lib/project-health";
 import { HealthScoreBar } from "./HealthScore";
-import { answer, hasAnswer, projectHeadline } from "@/lib/project-display";
+import { answer, hasAnswer, projectHeadline, projectTitle } from "@/lib/project-display";
 import { timeAgo } from "@/lib/dates";
 import { resolveProjectStage } from "@/lib/constants/statuses";
 
@@ -111,7 +111,7 @@ export function ProjectRow({
             href={`/projects/${project.id}`}
             className="ui-projects-row-link ui-projects-row-name"
           >
-            {project.name}
+            {projectTitle(project)}
           </Link>
           {project.readonly && (
             <span className="shrink-0 text-micro uppercase tracking-caps text-text-muted">

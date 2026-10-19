@@ -37,6 +37,9 @@ export type CreateProjectInput = z.infer<typeof CreateProjectBody>;
 export const PatchProjectBody = z
   .object({
     name: z.string().trim().min(1, "name cannot be empty").optional(),
+    /** The name a person sees (entities.title). Empty clears it back to the
+     *  project's own name. Never a key: changing it hides nothing. */
+    title: z.string().trim().max(80).optional(),
     description: z.string().optional(),
     gitUrl: z.union([z.string().trim().url(), z.literal("")]).optional(),
     /** Per-project autopilot override. Pass null (or omit) to inherit the
@@ -124,6 +127,7 @@ export async function createProject(userId: string, data: CreateProjectInput, so
 export async function patchProject(userId: string, id: string, data: PatchProjectInput) {
   const patch: Partial<typeof entities.$inferInsert> = { updatedAt: new Date() };
   if (data.name !== undefined) patch.name = data.name;
+  if (data.title !== undefined) patch.title = data.title || null;
   if (data.description !== undefined) patch.description = data.description.trim() || null;
   if (data.gitUrl !== undefined) patch.gitUrl = data.gitUrl.trim() || null;
   if (data.autoInjectModeOverride !== undefined) {

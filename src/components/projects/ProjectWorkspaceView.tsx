@@ -34,10 +34,11 @@ import { kickoffAutoHref } from "@/lib/integrations/orangecat-handoff-mode";
 import { deriveBuildStatus, isBuildActive } from "@/lib/project-build-status";
 import { ProjectBuildStatus } from "./ProjectBuildStatus";
 import { MemberGuide } from "./MemberGuide";
+import { MemberProjectView } from "./MemberProjectView";
 import { ProjectBuiltFrom } from "@/components/packages/ProjectBuiltFrom";
 import { KitPlanPreview } from "./KitPlanPreview";
 import { ProjectPlannedKits } from "./ProjectPlannedKits";
-import { answer, cleanDescription, projectHeadline } from "@/lib/project-display";
+import { answer, cleanDescription, projectHeadline, projectTitle } from "@/lib/project-display";
 import { formatBtc } from "@/lib/format";
 
 export function ProjectWorkspaceView({
@@ -188,6 +189,11 @@ export function ProjectWorkspaceView({
       </section>
     ) : null;
 
+  const memberRole =
+    dossier.readonly && (dossier.viewerRole === "client" || dossier.viewerRole === "viewer")
+      ? dossier.viewerRole
+      : null;
+
   return (
     <div className="app-page ui-project-workspace" data-fc-place="tab">
       <AssistantContextBridge
@@ -206,7 +212,8 @@ export function ProjectWorkspaceView({
         }}
       />
       <ProjectWorkspaceHeader
-        name={project.name}
+        projectId={project.id}
+        name={projectTitle(project)}
         workspaceKey={workspaceKey}
         description={projectHeadline(project.description)}
         liveUrl={links.prodUrl}
@@ -216,284 +223,302 @@ export function ProjectWorkspaceView({
         quiet={showKickoff}
       />
 
-      <ProjectTabs
-        tabs={[
-          {
-            id: "now",
-            label: "Overview",
-            // The member's ask box (MemberGuide), reached from the header and
-            // from Today / Control by /projects/<id>#ask.
-            anchors: ["ask"],
-            count: healthSignals.length,
-            urgent: healthSignals.length > 0,
-            content: (
-              <>
-                {flagsBlock}
-                {dossier.readonly && dossier.viewerRole && dossier.viewerRole !== "owner" && (
-                  <MemberGuide
-                    projectId={project.id}
-                    role={dossier.viewerRole}
-                    projectName={project.name}
-                    ownerName={dossier.ownerName}
-                    liveUrl={userProject?.liveUrl ?? links.prodUrl}
-                    ownerPass={ownerPass}
-                    joined={joined}
-                  />
-                )}
-                <ProjectBuildStatus
-                  status={buildStatus}
-                  liveUrl={userProject?.liveUrl ?? links.prodUrl}
-                  projectId={project.id}
-                  workspaceKey={workspaceKey}
-                  readonly={dossier.readonly}
-                  setupNeeded={showKickoff}
-                  hasNextStep={Boolean(nextStep)}
-                />
-                {!dossier.readonly && (links.prodUrl || links.repo || userProject?.dirPath) && (
-                  <section
-                    className="ui-project-section flex flex-wrap items-center justify-between gap-4"
-                    aria-label="Project review"
-                  >
-                    <div>
-                      <h2 className="text-lg font-semibold">See it through your users’ eyes</h2>
-                      <p className="mt-1 text-base text-text-secondary">
-                        Review the site with Loki and choose what to improve.
-                      </p>
-                    </div>
-                    <Link
-                      href={`/projects/${project.id}/review`}
-                      className="ui-btn-secondary min-h-11"
-                    >
-                      Review project →
-                    </Link>
-                  </section>
-                )}
-                {!dossier.readonly && (!showKickoff || autoInterview) && (
-                  <ProjectInterview
-                    projectId={project.id}
-                    needed={needsInterview({ attrs })}
-                    planned={planInterview({ attrs }).map((field) => field.id)}
-                    autoStart={autoInterview}
-                    kickoffHref={kickoffAutoHref(`/projects/${project.id}`)}
-                  />
-                )}
-                {!dossier.readonly && !autoInterview && (
-                  <ProjectKickoff
-                    projectId={project.id}
-                    projectName={project.name}
-                    workspaceKey={workspaceKey}
-                    description={cleanDescription(project.description)}
-                    attrs={attrs}
-                    goalCount={detail.linkedGoals.length}
-                    hasRepo={Boolean(links.repo)}
-                    needed={showKickoff}
-                    autoStart={autoKickoff}
-                    interviewHref={
-                      needsInterview({ attrs }) ? `/projects/${project.id}?interview=1` : null
-                    }
-                    firstTarget={
-                      detail.linkedGoals
-                        .slice()
-                        .sort(
-                          (a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0),
-                        )
-                        .find((g) => (g.progress ?? 0) < 100)?.title ?? null
-                    }
-                  />
-                )}
-                {showKickoff && <KitPlanPreview dossier={dossier} clientWork={clientWork} />}
-                {!showKickoff && (
-                  <section className="scroll-mt-28" aria-labelledby="project-overview-title">
-                    <h2 id="project-overview-title" className="sr-only">
-                      Overview
-                    </h2>
-                    <div className="space-y-5">
-                      <NextSection
-                        dossier={dossier}
-                        interactive={false}
-                        showGoals={false}
-                        ownerView={!dossier.readonly}
-                      />
-                    </div>
-                  </section>
-                )}
-              </>
-            ),
-          },
-          {
-            // The project's story: why it exists, who it is for, what it
-            // does. Every dispatch briefs the agent from these fields, so this
-            // is where an owner TELLS the project — and it was "Context", tab 4
-            // of 6, behind Feedback and Plan. George, 2026-09-25, looking for
-            // exactly this on Skif: "where would I tell the story?" The id stays
-            // `context` so #context links keep working.
-            id: "context",
-            label: "Story",
-            content: (
-              <>
-                <ProjectIdentitySettings
-                  projectId={project.id}
-                  name={project.name}
-                  userProjectId={userProject?.id ?? null}
-                  description={cleanDescription(project.description)}
-                  status={attrs.status ?? null}
-                  health={health}
-                  readonly={dossier.readonly}
-                />
-                <ProjectContextEditor
-                  projectId={project.id}
-                  projectName={workspaceKey}
-                  attrs={attrs}
-                  gitUrl={userProject?.gitUrl ?? project.gitUrl ?? null}
-                  resources={detail.resources ?? []}
-                  readonly={dossier.readonly}
-                />
-                <div className="mt-7">
-                  <ProjectBuiltFrom
-                    userProjectId={userProject?.id ?? null}
-                    hasRepo={Boolean(userProject?.gitUrl)}
-                    readonly={dossier.readonly || !ownerPass}
-                  />
-                  {userProject && (
-                    <ProjectPlannedKits
-                      ownerId={dossier.ownerId}
-                      entityProjectId={project.id}
-                      userProjectId={userProject.id}
-                      plan={userProject.kitPlan ?? null}
+      {memberRole ? (
+        <MemberProjectView
+          projectId={project.id}
+          role={memberRole}
+          projectName={projectTitle(project)}
+          ownerName={dossier.ownerName}
+          liveUrl={userProject?.liveUrl ?? links.prodUrl}
+          ownerPass={ownerPass}
+          joined={joined}
+          status={buildStatus}
+          workspaceKey={workspaceKey}
+        />
+      ) : (
+        <ProjectTabs
+          tabs={[
+            {
+              id: "now",
+              label: "Overview",
+              // The member's ask box (MemberGuide), reached from the header and
+              // from Today / Control by /projects/<id>#ask.
+              anchors: ["ask"],
+              count: healthSignals.length,
+              urgent: healthSignals.length > 0,
+              content: (
+                <>
+                  {flagsBlock}
+                  {dossier.readonly && dossier.viewerRole && dossier.viewerRole !== "owner" && (
+                    <MemberGuide
+                      projectId={project.id}
+                      role={dossier.viewerRole}
+                      projectName={projectTitle(project)}
+                      ownerName={dossier.ownerName}
+                      liveUrl={userProject?.liveUrl ?? links.prodUrl}
+                      ownerPass={ownerPass}
+                      joined={joined}
                     />
                   )}
-                </div>
-                <div className="mt-7">
-                  <ProjectFlags
+                  <ProjectBuildStatus
+                    status={buildStatus}
+                    liveUrl={userProject?.liveUrl ?? links.prodUrl}
                     projectId={project.id}
-                    attrs={attrs}
-                    attrMeta={detail.attrMeta}
+                    workspaceKey={workspaceKey}
+                    readonly={dossier.readonly}
+                    setupNeeded={showKickoff}
+                    hasNextStep={Boolean(nextStep)}
+                  />
+                  {!dossier.readonly && (links.prodUrl || links.repo || userProject?.dirPath) && (
+                    <section
+                      className="ui-project-section flex flex-wrap items-center justify-between gap-4"
+                      aria-label="Project review"
+                    >
+                      <div>
+                        <h2 className="text-lg font-semibold">See it through your users’ eyes</h2>
+                        <p className="mt-1 text-base text-text-secondary">
+                          Review the site with Loki and choose what to improve.
+                        </p>
+                      </div>
+                      <Link
+                        href={`/projects/${project.id}/review`}
+                        className="ui-btn-secondary min-h-11"
+                      >
+                        Review project →
+                      </Link>
+                    </section>
+                  )}
+                  {!dossier.readonly && (!showKickoff || autoInterview) && (
+                    <ProjectInterview
+                      projectId={project.id}
+                      needed={needsInterview({ attrs })}
+                      planned={planInterview({ attrs }).map((field) => field.id)}
+                      autoStart={autoInterview}
+                      kickoffHref={kickoffAutoHref(`/projects/${project.id}`)}
+                    />
+                  )}
+                  {!dossier.readonly && !autoInterview && (
+                    <ProjectKickoff
+                      projectId={project.id}
+                      projectName={project.name}
+                      workspaceKey={workspaceKey}
+                      description={cleanDescription(project.description)}
+                      attrs={attrs}
+                      goalCount={detail.linkedGoals.length}
+                      hasRepo={Boolean(links.repo)}
+                      needed={showKickoff}
+                      autoStart={autoKickoff}
+                      interviewHref={
+                        needsInterview({ attrs }) ? `/projects/${project.id}?interview=1` : null
+                      }
+                      firstTarget={
+                        detail.linkedGoals
+                          .slice()
+                          .sort(
+                            (a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0),
+                          )
+                          .find((g) => (g.progress ?? 0) < 100)?.title ?? null
+                      }
+                    />
+                  )}
+                  {showKickoff && <KitPlanPreview dossier={dossier} clientWork={clientWork} />}
+                  {!showKickoff && (
+                    <section className="scroll-mt-28" aria-labelledby="project-overview-title">
+                      <h2 id="project-overview-title" className="sr-only">
+                        Overview
+                      </h2>
+                      <div className="space-y-5">
+                        <NextSection
+                          dossier={dossier}
+                          interactive={false}
+                          showGoals={false}
+                          ownerView={!dossier.readonly}
+                        />
+                      </div>
+                    </section>
+                  )}
+                </>
+              ),
+            },
+            {
+              // The project's story: why it exists, who it is for, what it
+              // does. Every dispatch briefs the agent from these fields, so this
+              // is where an owner TELLS the project — and it was "Context", tab 4
+              // of 6, behind Feedback and Plan. George, 2026-09-25, looking for
+              // exactly this on Skif: "where would I tell the story?" The id stays
+              // `context` so #context links keep working.
+              id: "context",
+              label: "Story",
+              content: (
+                <>
+                  <ProjectIdentitySettings
+                    projectId={project.id}
+                    name={projectTitle(project)}
+                    userProjectId={userProject?.id ?? null}
+                    description={cleanDescription(project.description)}
+                    status={attrs.status ?? null}
+                    health={health}
                     readonly={dossier.readonly}
                   />
-                </div>
-              </>
-            ),
-          },
-          ...(!dossier.canEditFeedback
-            ? []
-            : [
-                {
-                  id: "feedback",
-                  label: "Feedback",
-                  content: (
-                    <ProjectFeedbackSection projectId={project.id} projectName={project.name} />
-                  ),
-                },
-              ]),
-          {
-            id: "plan",
-            label: "Plan",
-            content: (
-              <ProjectPlanSection
-                projectId={project.id}
-                projectName={project.name}
-                attrs={attrs}
-                goals={detail.linkedGoals}
-                readonly={dossier.readonly}
-              />
-            ),
-          },
-          {
-            id: "activity",
-            label: "Activity",
-            content: (
-              <>
-                <section className="ui-project-section" aria-labelledby="project-activity-title">
-                  <h2
-                    id="project-activity-title"
-                    className="mb-4 text-lg font-semibold text-text-primary"
-                  >
-                    Activity and evidence
-                  </h2>
-                  <NowSection dossier={dossier} interactive={false} showBrief={false} />
-                  <DoneSection dossier={dossier} />
-                  {primaryOrangeCatLink &&
-                    dossier.orangecatFunding &&
-                    dossier.orangecatFunding.totalBtc > 0 && (
-                      <div className="mt-5 flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-base p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <div className="ui-micro-label">Confirmed on OrangeCat</div>
-                          <div className="mt-1 text-xl font-semibold text-text-primary">
-                            {formatBtc(dossier.orangecatFunding.totalBtc)} BTC
-                          </div>
-                          <div className="mt-1 text-sm text-text-secondary">
-                            {dossier.orangecatFunding.contributorCount} confirmed{" "}
-                            {dossier.orangecatFunding.contributorCount === 1
-                              ? "contribution"
-                              : "contributions"}
-                          </div>
-                        </div>
-                        <a
-                          href={primaryOrangeCatLink.publicUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="ui-btn-secondary min-h-11 gap-1.5"
-                        >
-                          Share and fund <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                        </a>
-                      </div>
+                  <ProjectContextEditor
+                    projectId={project.id}
+                    projectName={workspaceKey}
+                    attrs={attrs}
+                    gitUrl={userProject?.gitUrl ?? project.gitUrl ?? null}
+                    resources={detail.resources ?? []}
+                    readonly={dossier.readonly}
+                  />
+                  <div className="mt-7">
+                    <ProjectBuiltFrom
+                      userProjectId={userProject?.id ?? null}
+                      hasRepo={Boolean(userProject?.gitUrl)}
+                      readonly={dossier.readonly || !ownerPass}
+                    />
+                    {userProject && (
+                      <ProjectPlannedKits
+                        ownerId={dossier.ownerId}
+                        entityProjectId={project.id}
+                        userProjectId={userProject.id}
+                        plan={userProject.kitPlan ?? null}
+                      />
                     )}
-                </section>
-              </>
-            ),
-          },
-          ...(dossier.readonly
-            ? []
-            : [
-                // Who else is in it — its own tab, one tap from the header's
-                // Invite button, not a panel at the bottom of Settings.
-                {
-                  id: "people",
-                  label: "People",
-                  content: (
-                    <ProjectMembersPanel projectId={project.id} projectName={project.name} />
-                  ),
-                },
-                {
-                  id: "settings",
-                  label: "Settings",
-                  content: (
-                    <>
-                      <ProjectConnectionsSection
+                  </div>
+                  <div className="mt-7">
+                    <ProjectFlags
+                      projectId={project.id}
+                      attrs={attrs}
+                      attrMeta={detail.attrMeta}
+                      readonly={dossier.readonly}
+                    />
+                  </div>
+                </>
+              ),
+            },
+            ...(!dossier.canEditFeedback
+              ? []
+              : [
+                  {
+                    id: "feedback",
+                    label: "Feedback",
+                    content: (
+                      <ProjectFeedbackSection projectId={project.id} projectName={project.name} />
+                    ),
+                  },
+                ]),
+            {
+              id: "plan",
+              label: "Plan",
+              content: (
+                <ProjectPlanSection
+                  projectId={project.id}
+                  projectName={project.name}
+                  attrs={attrs}
+                  goals={detail.linkedGoals}
+                  readonly={dossier.readonly}
+                />
+              ),
+            },
+            {
+              id: "activity",
+              label: "Activity",
+              content: (
+                <>
+                  <section className="ui-project-section" aria-labelledby="project-activity-title">
+                    <h2
+                      id="project-activity-title"
+                      className="mb-4 text-lg font-semibold text-text-primary"
+                    >
+                      Activity and evidence
+                    </h2>
+                    <NowSection dossier={dossier} interactive={false} showBrief={false} />
+                    <DoneSection dossier={dossier} />
+                    {primaryOrangeCatLink &&
+                      dossier.orangecatFunding &&
+                      dossier.orangecatFunding.totalBtc > 0 && (
+                        <div className="mt-5 flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-base p-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="ui-micro-label">Confirmed on OrangeCat</div>
+                            <div className="mt-1 text-xl font-semibold text-text-primary">
+                              {formatBtc(dossier.orangecatFunding.totalBtc)} BTC
+                            </div>
+                            <div className="mt-1 text-sm text-text-secondary">
+                              {dossier.orangecatFunding.contributorCount} confirmed{" "}
+                              {dossier.orangecatFunding.contributorCount === 1
+                                ? "contribution"
+                                : "contributions"}
+                            </div>
+                          </div>
+                          <a
+                            href={primaryOrangeCatLink.publicUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ui-btn-secondary min-h-11 gap-1.5"
+                          >
+                            Share and fund <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                          </a>
+                        </div>
+                      )}
+                  </section>
+                </>
+              ),
+            },
+            ...(dossier.readonly
+              ? []
+              : [
+                  // Who else is in it — its own tab, one tap from the header's
+                  // Invite button, not a panel at the bottom of Settings.
+                  {
+                    id: "people",
+                    label: "People",
+                    content: (
+                      <ProjectMembersPanel
                         projectId={project.id}
-                        userProjectId={userProject?.id ?? null}
-                        liveUrl={links.prodUrl}
-                        repoUrl={showRepoLink ? links.repo : null}
-                        hasRepo={Boolean(links.repo)}
-                        ownerPass={ownerPass}
-                        siteAddress={siteAddress}
+                        projectName={projectTitle(project)}
+                        defaultRole={userProject?.clientWork ? "client" : "viewer"}
                       />
-                      <ProjectPublishingSettings
-                        projectId={project.id}
-                        userProject={userProject}
-                        clientWork={clientWork}
-                        clientConsentAt={clientConsentAt}
-                        awaitingClientConsent={awaitingClientConsent}
-                        viewerIsSiteOperator={viewerIsSiteOperator}
-                        shareAction={shareAction}
-                      />
-                      {inviteToCatalogue && <ProjectListingInvitation projectId={project.id} />}
-                      <ProjectSettingsPanel
-                        projectId={project.id}
-                        projectName={project.name}
-                        hasRepo={Boolean(links.repo)}
-                        repoUrl={links.repo}
-                        hasLocalPath={Boolean(userProject?.dirPath)}
-                        liveUrl={userProject?.liveUrl ?? links.prodUrl}
-                        codeKeptByLoki={codeKeptByLoki}
-                        hasGithub={viewerHasGithub}
-                      />
-                    </>
-                  ),
-                },
-              ]),
-        ]}
-      />
+                    ),
+                  },
+                  {
+                    id: "settings",
+                    label: "Settings",
+                    content: (
+                      <>
+                        <ProjectConnectionsSection
+                          projectId={project.id}
+                          userProjectId={userProject?.id ?? null}
+                          liveUrl={links.prodUrl}
+                          repoUrl={showRepoLink ? links.repo : null}
+                          hasRepo={Boolean(links.repo)}
+                          ownerPass={ownerPass}
+                          siteAddress={siteAddress}
+                        />
+                        <ProjectPublishingSettings
+                          projectId={project.id}
+                          userProject={userProject}
+                          clientWork={clientWork}
+                          clientConsentAt={clientConsentAt}
+                          awaitingClientConsent={awaitingClientConsent}
+                          viewerIsSiteOperator={viewerIsSiteOperator}
+                          shareAction={shareAction}
+                        />
+                        {inviteToCatalogue && <ProjectListingInvitation projectId={project.id} />}
+                        <ProjectSettingsPanel
+                          projectId={project.id}
+                          projectName={project.name}
+                          hasRepo={Boolean(links.repo)}
+                          repoUrl={links.repo}
+                          hasLocalPath={Boolean(userProject?.dirPath)}
+                          liveUrl={userProject?.liveUrl ?? links.prodUrl}
+                          codeKeptByLoki={codeKeptByLoki}
+                          hasGithub={viewerHasGithub}
+                        />
+                      </>
+                    ),
+                  },
+                ]),
+          ]}
+        />
+      )}
     </div>
   );
 }

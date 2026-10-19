@@ -604,7 +604,10 @@ export function ControlPanel({
       {/* The last word on the page: which builder is on, and the two things
           a person occasionally needs here. Shown with no projects too — it is
           the way to Settings (autopilot, the agent new sessions start with). */}
-      {data && (
+      {/* Not for someone who only has projects shared with them: their
+          builds run on the owner's builder, so "No builder connected" was a
+          fault they could neither cause nor fix (walk as a client, 2026-10-19). */}
+      {data && !onlyShared && (
         <ControlFoot
           builderLabel={
             builderPresence?.any

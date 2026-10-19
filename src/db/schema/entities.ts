@@ -10,6 +10,12 @@ export const entities = pgTable(
       .notNull()
       .references(() => users.id),
     name: text("name").notNull(),
+    /** What a PERSON calls the project, when it differs from `name`. `name`
+     *  is a key — activity, runs and cron jobs are found by it, so renaming
+     *  it hides a project's past — and it carries whatever a flow minted
+     *  ("xhiva-art-refresh-300d…"). The title is free to change; read it
+     *  through projectTitle() (lib/project-display), never directly. */
+    title: text("title"),
     type: text("type").$type<EntityType>().notNull(),
     externalId: text("external_id"),
     description: text("description"),

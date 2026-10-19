@@ -10,7 +10,7 @@ import {
 import { jsonError, jsonOk } from "@/lib/api/route-helpers";
 import { DemoBlockedError } from "@/lib/demo-guard";
 import { evaluateInviteAcceptance, maskEmail } from "@/lib/project-invites";
-import { summarizeDescription } from "@/lib/project-display";
+import { projectTitle, summarizeDescription } from "@/lib/project-display";
 
 /**
  * GET  /api/invitations/project/:token        — what this invite is, and whether
@@ -54,7 +54,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     ? evaluateInviteAcceptance(loaded.invitation, email, new Date(), standing)
     : null;
   return jsonOk({
-    projectName: loaded.projectName,
+    projectName: projectTitle({
+      name: loaded.projectName,
+      title: loaded.projectTitle,
+      description: loaded.projectDescription,
+    }),
     // What it is and where it lives, so the person can decide from the page.
     projectDescription: summarizeDescription(loaded.projectDescription, 160),
     liveUrl: loaded.liveUrl,

@@ -4,6 +4,8 @@
 export type ProjectGridRow = {
   id: string;
   name: string;
+  /** What a person calls it — read through projectTitle(), never alone. */
+  title?: string | null;
   description: string | null;
   gitUrl?: string | null;
   attrs: Record<string, string>;
