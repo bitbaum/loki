@@ -37,6 +37,8 @@ import { ShellWorkspace } from "./ShellWorkspace";
 import { TerminalSessionMiss } from "./TerminalSessionMiss";
 import { TerminalMobileHeader, type TerminalLiveState } from "./TerminalMobileHeader";
 import { TerminalSessionSheet } from "./TerminalSessionSheet";
+import { TerminalMoreSheet } from "./TerminalMoreSheet";
+import { useImmersiveChat } from "@/hooks/use-immersive-chat";
 import { TerminalMobileDock } from "./TerminalMobileDock";
 import { TerminalLokiRail } from "./TerminalLokiRail";
 import { buildStripTabs, badgeNames } from "./terminal-strip-tabs";
@@ -411,6 +413,10 @@ export function TerminalSurface({
   const deck = useTerminalDeck();
   const keyboardInset = useKeyboardInset();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  // An open session owns the phone, as an open conversation does: the app's
+  // top bar and bottom tabs step aside and the header's "back" leads out.
+  useImmersiveChat(Boolean(activeTab) || source === "shell");
   // The phone's "+" (the desktop strip opens its own panel instead).
   const [newSessionOpen, setNewSessionOpen] = useState(false);
   // The rail beside the session (lg+). Closing it hands its columns to the
@@ -541,19 +547,14 @@ export function TerminalSurface({
       title={headerTitle}
       agent={headerAgent}
       state={headerState}
+      status={activeStrip?.status ?? null}
+      builder={source === "shell" ? null : sourceLabel}
+      sessionCount={source === "shell" ? 0 : stripTabs.length}
+      backHref={fleetSurfaceHref("control", projectKey ?? fleetProject)}
       onOpenSheet={() => setSheetOpen(true)}
-      immersive={immersive}
-      onToggleImmersive={onToggleImmersive ?? (() => {})}
+      onOpenMore={() => setMoreOpen(true)}
       view={view}
       onViewChange={activeTab && chatAvailable ? termView.setView : undefined}
-      sessions={source !== "shell" ? stripTabs : undefined}
-      activeSession={source !== "shell" ? activeTab : null}
-      onSelectSession={source !== "shell" ? setUserSelection : undefined}
-      onNewSession={
-        source !== "shell" && launchProps && !gatedMessage && !offline
-          ? () => setNewSessionOpen(true)
-          : undefined
-      }
     />
   );
 
@@ -609,31 +610,35 @@ export function TerminalSurface({
       sources={sources}
       onSourceChange={setSource}
       // The shell substrate owns its own tabs and splits, and runs no agent —
-      // so it gets the source and display sections and none of the per-session
-      // ones. Passing the agent path's activeTab through would offer to switch
-      // the agent in a session the shell is not showing.
+      // so it gets the source section and none of the per-session ones.
+      // Passing the agent path's activeTab through would offer to switch the
+      // agent in a session the shell is not showing.
       tabs={source === "shell" ? undefined : stripTabs}
       activeTab={source === "shell" ? null : activeTab}
       onSelectTab={source === "shell" ? undefined : setUserSelection}
       onCloseTab={source === "shell" ? undefined : (id) => void ta.closeTab(id)}
+      onNewSession={
+        source !== "shell" && launchProps && !gatedMessage && !offline
+          ? () => setNewSessionOpen(true)
+          : undefined
+      }
       agents={agents}
       activeAgentId={activeAgentId}
       onSwitchAgent={(id) => void ta.switchAgent(id)}
       switchingAgent={ta.switchingAgent}
       agentSwitchDisabledReason={agentSwitchDisabledReason}
       honesty={honesty}
+    />
+  ) : moreOpen ? (
+    <TerminalMoreSheet
+      onClose={() => setMoreOpen(false)}
+      onExplain={projectKey && activeTab ? explainer.ask : undefined}
+      immersive={immersive}
+      onToggleImmersive={onToggleImmersive}
       font={font}
       columns={geometry?.cols ?? null}
       liveKeys={deck.liveKeys}
       onLiveKeysChange={deck.setLiveKeys}
-      onOpenLoki={
-        projectKey
-          ? () => {
-              setSheetOpen(false);
-              explainer.setSheetOpen(true);
-            }
-          : undefined
-      }
     />
   ) : null;
 
@@ -867,7 +872,8 @@ export function TerminalSurface({
               // Keys open is a person driving the screen: the next-step row
               // steps aside so the terminal keeps its lines (it was three
               // rows tall under the deck, the chips and the box).
-              suggestions={keysOpen ? [] : screenNext.steps}
+              // At most two, so the row stays one line above the box.
+              suggestions={keysOpen ? [] : screenNext.steps.slice(0, 2)}
               offerFeedback={!keysOpen && screenNext.asksForFeedback}
               project={projectKey}
               onExplain={projectKey && !keysOpen ? explainer.ask : undefined}
@@ -875,6 +881,7 @@ export function TerminalSurface({
               focusRequest={focusRequest}
               density={immersive ? "compact" : "comfortable"}
               tools={tools}
+              onOpenKeys={() => setKeysOpen(true)}
             />
           )}
         />

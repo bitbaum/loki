@@ -1,77 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2, Minus, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
-import { cn } from "@/lib/utils";
 import { ExecutorHonestyChip } from "@/components/executor/ExecutorHonestyChip";
 import type { ExecutorHonestyLabel } from "@/lib/executor-honesty";
 import type { AgentEntry } from "@/components/control/agent-switcher-popover";
 import { TERMINAL_SOURCES, terminalSourceHint, type TerminalSource } from "@/config/terminal-modes";
-import type { TerminalFontControl } from "@/hooks/use-terminal-font";
-import { usePressVerb } from "@/hooks/use-press-verb";
+import { OptionRow, SheetSection } from "./sheet-rows";
 
 export type SheetTab = { id: string; label: string; badge?: string };
 
-/** One tappable row that is either chosen or not. Every choice in this sheet has
- *  the same shape on purpose — a phone sheet where each section invents its own
- *  control is how the old bar ended up five rows tall. */
-function OptionRow({
-  title,
-  detail,
-  active,
-  disabled,
-  busy,
-  onSelect,
-}: {
-  title: React.ReactNode;
-  detail?: string;
-  active: boolean;
-  disabled?: boolean;
-  busy?: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      disabled={disabled}
-      aria-pressed={active}
-      className={cn("ui-sheet-option", active && "ui-sheet-option-active")}
-    >
-      <span className="min-w-0 flex-1 text-left">
-        <span className="ui-sheet-option-title">{title}</span>
-        {detail && <span className="ui-sheet-option-detail">{detail}</span>}
-      </span>
-      {busy ? (
-        <Loader2 className="ui-spinner-sm shrink-0" />
-      ) : active ? (
-        <Check className="h-4 w-4 shrink-0 text-accent-text" aria-hidden="true" />
-      ) : null}
-    </button>
-  );
-}
-
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <section className="ui-sheet-section">
-      <h3 className="ui-sheet-label">{label}</h3>
-      {children}
-    </section>
-  );
-}
-
 /**
- * Everything about the session that is not the session.
+ * Everything about WHICH session — what the session name in the phone header
+ * opens: the sessions, a new one, where they run and which agent runs this one.
  *
  * The phone used to carry all of this in the page: a source select, a session
  * select, an agent button, an input-mode select, an honesty chip, a font
  * stepper and a hint paragraph — measured at 331px of controls above a terminal
- * that got four visible lines. None of it is per-second information. It is
- * setup: chosen once, changed rarely, and read never while an agent is working.
- *
- * So it lives here, one tap behind the session name, and the page gives its
- * height back to the thing the operator actually came to watch.
+ * that got four visible lines. Then the sessions became a scrolling row of tabs
+ * in the header, which pushed "+" off the edge once two were open (owner,
+ * 2026-10-19). A chat app names the conversation you are in and lists the rest
+ * one tap behind its name; so does this. How the screen LOOKS (text size, live
+ * keystrokes, full screen) and Loki's read of the run are the header's "⋮"
+ * (TerminalMoreSheet), not here.
  */
 export function TerminalSessionSheet({
   onClose,
@@ -82,17 +34,13 @@ export function TerminalSessionSheet({
   activeTab,
   onSelectTab,
   onCloseTab,
+  onNewSession,
   agents,
   activeAgentId,
   onSwitchAgent,
   switchingAgent,
   agentSwitchDisabledReason,
   honesty,
-  font,
-  columns,
-  liveKeys,
-  onLiveKeysChange,
-  onOpenLoki,
 }: {
   onClose: () => void;
   source: TerminalSource;
@@ -103,21 +51,15 @@ export function TerminalSessionSheet({
   onSelectTab?: (id: string) => void;
   /** Ends a session: its agent stops; work it saved stays in the project. */
   onCloseTab?: (id: string) => void;
+  /** Opens the start-a-session sheet; omitted where nothing can start. */
+  onNewSession?: () => void;
   agents: AgentEntry[];
   activeAgentId: string | null;
   onSwitchAgent: (agentId: string) => void;
   switchingAgent: boolean;
   agentSwitchDisabledReason: string | null;
   honesty: ExecutorHonestyLabel | null;
-  font: TerminalFontControl;
-  columns: number | null;
-  /** Hand keystrokes to xterm itself instead of the composer. */
-  liveKeys: boolean;
-  onLiveKeysChange: (value: boolean) => void;
-  /** Opens the Loki panel for this project; omitted without a project. */
-  onOpenLoki?: () => void;
 }) {
-  const press = usePressVerb();
   // Closing stops a running agent, so the × arms first and a second tap
   // confirms — the strip's rule on desktop. It disarms on its own.
   const [armed, setArmed] = useState<string | null>(null);
@@ -129,31 +71,23 @@ export function TerminalSessionSheet({
   const sourceOptions = TERMINAL_SOURCES.filter((s) => sources.includes(s.id));
 
   return (
-    <Modal onClose={onClose} position="bottom-mobile" padded={false} size="md" className="ui-sheet">
+    <Modal
+      onClose={onClose}
+      position="bottom-mobile"
+      padded={false}
+      size="md"
+      className="ui-sheet"
+      labelledBy="session-sheet-title"
+    >
       <div className="ui-sheet-grip" aria-hidden="true" />
       <div className="ui-sheet-body">
-        <Section label="Where it runs">
-          {sourceOptions.map((option) => (
-            <OptionRow
-              key={option.id}
-              title={option.label}
-              detail={terminalSourceHint(option.id)}
-              active={option.id === source}
-              onSelect={() => {
-                onSourceChange(option.id);
-                onClose();
-              }}
-            />
-          ))}
-          <ExecutorHonestyChip honesty={honesty} className="self-start" />
-        </Section>
-
+        <h2 id="session-sheet-title" className="sr-only">
+          Sessions
+        </h2>
         {tabs && onSelectTab && (
-          <Section label={tabs.length === 1 ? "Session" : `Sessions · ${tabs.length}`}>
-            {tabs.length === 0 && (
-              <p className="ui-sheet-empty">
-                Nothing is running here yet. Close this and use + to start a session.
-              </p>
+          <SheetSection label={tabs.length > 1 ? `Sessions · ${tabs.length}` : "Session"}>
+            {tabs.length === 0 && !onNewSession && (
+              <p className="ui-sheet-empty">Nothing is running here yet.</p>
             )}
             {tabs.map((tab) => (
               <div key={tab.id} className="flex items-center gap-2">
@@ -193,11 +127,40 @@ export function TerminalSessionSheet({
                   ))}
               </div>
             ))}
-          </Section>
+            {onNewSession && (
+              <button
+                type="button"
+                className="ui-sheet-option"
+                onClick={() => {
+                  onClose();
+                  onNewSession();
+                }}
+              >
+                <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="ui-sheet-option-title min-w-0 flex-1 text-left">New session</span>
+              </button>
+            )}
+          </SheetSection>
         )}
 
+        <SheetSection label="Where it runs">
+          {sourceOptions.map((option) => (
+            <OptionRow
+              key={option.id}
+              title={option.label}
+              detail={terminalSourceHint(option.id)}
+              active={option.id === source}
+              onSelect={() => {
+                onSourceChange(option.id);
+                onClose();
+              }}
+            />
+          ))}
+          <ExecutorHonestyChip honesty={honesty} className="self-start" />
+        </SheetSection>
+
         {activeTab && agents.length > 0 && (
-          <Section label="Agent">
+          <SheetSection label="Agent">
             {agentSwitchDisabledReason && (
               <p className="ui-sheet-empty">{agentSwitchDisabledReason}</p>
             )}
@@ -218,70 +181,8 @@ export function TerminalSessionSheet({
                 }}
               />
             ))}
-          </Section>
+          </SheetSection>
         )}
-
-        {onOpenLoki && (
-          // The supervisor, as distinct from the agent in the session (the
-          // view switch names that one). Read when stuck, not every minute,
-          // so it sits with the session rather than in the header.
-          <Section label="Loki">
-            <OptionRow
-              title="Ask Loki about this run"
-              detail="What it is doing, what to do next, and a place to ask — on Loki's own model, not the agent's."
-              active={false}
-              onSelect={onOpenLoki}
-            />
-          </Section>
-        )}
-
-        <Section label="Display">
-          <div className="ui-sheet-row">
-            <span className="min-w-0 flex-1 text-sm text-text-secondary">
-              Text size
-              {columns ? <span className="ui-sheet-option-detail">{columns} columns</span> : null}
-            </span>
-            <button
-              type="button"
-              className="ui-term-font-btn"
-              onClick={() => font.step(-1)}
-              aria-label="Smaller text, more columns"
-            >
-              <Minus className="h-4 w-4" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="ui-term-font-btn"
-              onClick={() => font.step(1)}
-              aria-label="Larger text, fewer columns"
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className={cn("ui-term-font-reset", font.size === null && "ui-term-font-reset-on")}
-              onClick={font.reset}
-            >
-              Auto
-            </button>
-          </div>
-
-          {/* The escape hatch for the one thing the composer cannot do: send a
-              keystroke the moment it is pressed. Some flows need it — a raw
-              password prompt, a TUI that filters as you type. It is off by
-              default because on a phone it is also the worse experience, and a
-              default that works beats a default that is powerful. */}
-          <OptionRow
-            title="Live keystrokes"
-            detail={
-              liveKeys
-                ? `Keys go straight to the session as you press them. ${press.Verb} the screen to focus it first.`
-                : `Off (recommended): ${press.verb} the screen and you write in the box under it — with the microphone and screenshots. On: every key goes straight into the session, for a password prompt or a menu's own search.`
-            }
-            active={liveKeys}
-            onSelect={() => onLiveKeysChange(!liveKeys)}
-          />
-        </Section>
       </div>
 
       <div className="ui-sheet-foot">

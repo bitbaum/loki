@@ -19,6 +19,7 @@ import { asksForFeedback, suggestFromReply } from "@/lib/terminal-suggestions";
 import { useAiNextSteps } from "@/hooks/use-ai-next-steps";
 import { useStableSteps } from "@/hooks/use-stable-steps";
 import { SessionComposer } from "./SessionComposer";
+import { ReplySteps } from "./SuggestionChips";
 import { SessionInfo, sessionInfoFrom } from "./SessionInfo";
 import {
   dispatchMessageDisplay,
@@ -89,6 +90,8 @@ export function ClaudeChatView({
   const reply = last?.kind === "assistant" ? last.text : null;
   const aiSteps = useAiNextSteps(reply, "reply", tab, "claude");
   const suggestions = useStableSteps(reply, aiSteps, reply ? suggestFromReply(reply) : []);
+  // A reply row pressed under the answer: sent by the box, the one send path.
+  const [sendRequest, setSendRequest] = useState<{ text: string; nonce: number } | null>(null);
   // How long this turn has been going, from your last message — the Claude
   // app's "✳ 13 s". A run with no clock reads the same at second 2 and
   // minute 20, which is how a stuck turn hides.
@@ -137,6 +140,12 @@ export function ClaudeChatView({
             />
           ) : (
             blocks.map((block) => <Block key={blockKey(block)} block={block} />)
+          )}
+          {!working && (
+            <ReplySteps
+              steps={suggestions}
+              onPick={(text) => setSendRequest({ text, nonce: Date.now() })}
+            />
           )}
           <div ref={endRef} />
         </div>
@@ -187,8 +196,8 @@ export function ClaudeChatView({
           live={connected}
           agent="claude"
           agentLabel="Claude"
-          suggestions={suggestions}
           project={project}
+          sendRequest={sendRequest}
           offerFeedback={asksForFeedback(reply)}
           onExplain={onExplain}
           draft={draft}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { ChevronDown, Maximize2, Minimize2, Plus } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronLeft, MoreVertical } from "lucide-react";
 import type { TerminalViewMode } from "@/config/terminal-modes";
 import { cn } from "@/lib/utils";
 import { SESSION_STATUS_WORDS, type SessionStatus } from "@/lib/terminal-session-status";
@@ -25,155 +25,111 @@ const STATE_LABEL: Record<TerminalLiveState, string> = {
 };
 
 /**
- * The session name stays readable; on phones the view choices get their own row.
+ * The phone's header, shaped like every chat app's: back · the conversation's
+ * name · ⋮, with how it is shown (Claude | Terminal) as a thin pill under it.
  *
- * What it replaced: a page title, a subtitle, a four-pill source strip, a
- * scrolling tab strip, a source select, a session select, an agent button, an
- * input-mode select, a status chip and an expand button — ten controls stacked
- * above a terminal that was left with four visible lines of an eighty-column
- * screen.
+ * What it replaced: a scrolling row of session tabs with a "+" beside it, the
+ * view switch stretched to a full-width second row, a full-screen button and,
+ * above it all, the app's own top bar and bottom tabs — five bands of chrome
+ * around a terminal (owner, 2026-10-19: "spaghetti UI"). The app bars now step
+ * aside while a session is open (useImmersiveChat), so "back" is the way out.
  *
- * What survives is what changes minute to minute: which session you are
- * watching, what is running in it, and whether it is alive. Everything else is
- * behind the same tap, in the sheet — one gesture, one place, no hunting.
- *
- * With more than one session the name becomes a row of them, like the tabs of
- * a terminal: the one you are in keeps its dot and its chevron (and still
- * opens the sheet), the others switch with one tap, and "+" starts another.
- * One session looks exactly as it did, plus the "+".
+ * The name says which session you are in; its second line says what runs it
+ * and where, and how many others are open. A tap on it lists them all, with
+ * "New session" — the sheet, not a row of tabs that ran off the edge.
  */
 export function TerminalMobileHeader({
   title,
   agent,
   state,
+  status = null,
+  builder,
+  sessionCount = 0,
+  backHref,
   onOpenSheet,
-  immersive,
-  onToggleImmersive,
+  onOpenMore,
   view,
   onViewChange,
-  sessions,
-  activeSession,
-  onSelectSession,
-  onNewSession,
 }: {
   title: string;
   agent?: string | null;
   state: TerminalLiveState;
+  /** What the session is doing, once the connection to it is live. */
+  status?: SessionStatus | null;
+  /** Where it runs, as the sheet names it ("Cloud builder"). */
+  builder?: string | null;
+  /** Sessions open here, this one included. */
+  sessionCount?: number;
+  /** Where "back" goes; omitted, there is no back button. */
+  backHref?: string;
   onOpenSheet: () => void;
-  immersive: boolean;
-  onToggleImmersive: () => void;
+  /** The "⋮" sheet: Loki's read, full screen, display. */
+  onOpenMore?: () => void;
   /** Conversation ↔ raw terminal, when the session's agent supports the
    *  conversation view. */
   view?: TerminalViewMode;
   onViewChange?: (view: TerminalViewMode) => void;
-  /** Every open session, in the order the strip shows them. */
-  sessions?: { id: string; label: string; status?: SessionStatus | null }[];
-  activeSession?: string | null;
-  onSelectSession?: (id: string) => void;
-  /** Opens the start-a-session sheet. */
-  onNewSession?: () => void;
 }) {
-  const ordered = sessions ?? [];
-  const tabbed =
-    Boolean(onSelectSession) && ordered.length > 1 && ordered.some((s) => s.id === activeSession);
-  // What the session you are in is doing, once the connection to it is live.
-  const currentStatus = ordered.find((s) => s.id === activeSession)?.status ?? null;
-  // Keep the session you are in on screen when the row scrolls.
-  const activeRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (tabbed) activeRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [tabbed, activeSession]);
-  const current = (
-    <button
-      ref={activeRef}
-      type="button"
-      className={cn("ui-term-mhead-btn", tabbed && "ui-term-mhead-btn-tab")}
-      onClick={onOpenSheet}
-      aria-haspopup="dialog"
-      aria-label={`${title} — ${STATE_LABEL[state]}. Change session, source or agent`}
-    >
-      <span
-        className={cn(
-          state === "live" && currentStatus ? SESSION_STATUS_DOT[currentStatus] : DOT_CLASS[state],
-          "shrink-0",
-        )}
-        aria-hidden="true"
-        title={
-          state === "live" && currentStatus
-            ? SESSION_STATUS_WORDS[currentStatus]
-            : STATE_LABEL[state]
-        }
-      />
-      <span className="ui-term-mhead-title">{title}</span>
-      {/* Where the view switch is drawn it already carries the agent's
-            name, and it needs the width — the chip cost the session name its
-            letters ("derho…" at 390px). */}
-      {agent && !onViewChange && <span className="ui-term-mhead-agent">{agent}</span>}
-      <ChevronDown className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
-    </button>
-  );
+  const dotWords = state === "live" && status ? SESSION_STATUS_WORDS[status] : STATE_LABEL[state];
+  const others = sessionCount > 1 ? `${sessionCount} sessions` : null;
+  // The count before the builder: at 320px the line truncates, and that
+  // there are other sessions is the part a person cannot otherwise see.
+  const subtitle = [agent, others, builder && lowerFirst(builder)].filter(Boolean).join(" · ");
   return (
     <div className="ui-term-mhead">
-      {/* The sessions and the "+" that starts another scroll together, so a
-          narrow phone gives the names every column the icons do not need. */}
-      <div className={cn("ui-term-mtabs", !tabbed && "overflow-visible")} aria-label="Sessions">
-        {tabbed
-          ? ordered.map((s) =>
-              s.id === activeSession ? (
-                <span key={s.id} className="contents">
-                  {current}
-                </span>
-              ) : (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="ui-term-mtab"
-                  onClick={() => onSelectSession?.(s.id)}
-                  aria-label={`Switch to ${s.label}${s.status ? ` — ${SESSION_STATUS_WORDS[s.status]}` : ""}`}
-                  title={s.status ? SESSION_STATUS_WORDS[s.status] : undefined}
-                >
-                  {s.status && <span className={SESSION_STATUS_DOT[s.status]} aria-hidden="true" />}
-                  <span className="truncate">{s.label}</span>
-                </button>
-              ),
-            )
-          : current}
-      </div>
-      {/* Outside the scrolling row: with two sessions open it scrolled off the
-          right edge and read as missing (owner, 2026-10-19). The row keeps
-          the width it has; "+" keeps its place. */}
-      {onNewSession && (
+      <div className="ui-term-mhead-row">
+        {backHref ? (
+          <Link href={backHref} className="ui-term-mhead-ghost" aria-label="Back to Control">
+            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        ) : (
+          <span className="ui-term-mhead-ghost" aria-hidden="true" />
+        )}
         <button
           type="button"
-          className="ui-term-mhead-icon"
-          onClick={onNewSession}
+          className="ui-term-mhead-btn"
+          onClick={onOpenSheet}
           aria-haspopup="dialog"
-          aria-label="New session"
-          title="New session"
+          aria-label={`${title} — ${dotWords}. Sessions, where it runs and the agent`}
         >
-          <Plus className="h-4 w-4" aria-hidden="true" />
+          <span className="ui-term-mhead-name">
+            <span
+              className={cn(
+                state === "live" && status ? SESSION_STATUS_DOT[status] : DOT_CLASS[state],
+                "shrink-0",
+              )}
+              aria-hidden="true"
+              title={dotWords}
+            />
+            <span className="ui-term-mhead-title">{title}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+          </span>
+          {subtitle && <span className="ui-term-mhead-sub">{subtitle}</span>}
         </button>
-      )}
-
+        {onOpenMore ? (
+          <button
+            type="button"
+            className="ui-term-mhead-ghost"
+            onClick={onOpenMore}
+            aria-haspopup="dialog"
+            aria-label="More: what's going on, full screen, text size"
+          >
+            <MoreVertical className="h-5 w-5" aria-hidden="true" />
+          </button>
+        ) : (
+          <span className="ui-term-mhead-ghost" aria-hidden="true" />
+        )}
+      </div>
       {onViewChange && view && (
         <TerminalViewSwitch view={view} onViewChange={onViewChange} agentLabel={agent} />
       )}
       {/* No feedback button here: the widget's own edge tab is on this page
           (data-fc-place="tab" in (app)/terminal/page.tsx), and a second way to
           the same panel read as a second, unexplained thing. */}
-      <button
-        type="button"
-        className="ui-term-mhead-icon"
-        onClick={onToggleImmersive}
-        aria-pressed={immersive}
-        aria-label={immersive ? "Exit full screen" : "Full screen"}
-      >
-        {immersive ? (
-          <Minimize2 className="h-4 w-4" aria-hidden="true" />
-        ) : (
-          <Maximize2 className="h-4 w-4" aria-hidden="true" />
-        )}
-      </button>
     </div>
   );
+}
+
+function lowerFirst(words: string): string {
+  return words.charAt(0).toLowerCase() + words.slice(1);
 }

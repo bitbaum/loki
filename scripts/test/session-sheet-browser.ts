@@ -30,9 +30,9 @@ async function main() {
       loader: "jsx",
       contents: `import React from 'react';import{createRoot}from'react-dom/client';import{ClaudeChatView}from'./src/components/terminal/ClaudeChatView';import{TerminalMobileHeader}from'./src/components/terminal/TerminalMobileHeader';import{MobileNav}from'./src/components/shell/MobileNav';import{SessionComposer}from'./src/components/terminal/SessionComposer';import{TerminalMobileDock}from'./src/components/terminal/TerminalMobileDock';import{badgeNames}from'./src/components/terminal/terminal-strip-tabs';import{TerminalLokiRail}from'./src/components/terminal/TerminalLokiRail';import{TerminalLokiSheet}from'./src/components/terminal/TerminalExplain';
       const roster=[{id:'claude',label:'Claude'},{id:'codex',label:'Codex'}];
-      function Dock({agent}){const[open,setOpen]=React.useState(false);return <TerminalMobileDock onKey={()=>{}} keysOpen={open} onKeysOpenChange={setOpen} immersive={false} session={{tab:'center-som',channel:'cloud',agent:'claude',onKey:async bytes=>{window.written.push(bytes)}}} box={tools=><SessionComposer tab="center-som" channel="cloud" onKey={async bytes=>{window.written.push(bytes)}} live agent="claude" agentLabel={agent} suggestions={open?[]:["run the project's unit tests","open the main source file for review"]} onExplain={open?undefined:()=>{}} project="center-som" density="comfortable" tools={tools}/>}/>}
+      function Dock({agent}){const[open,setOpen]=React.useState(false);return <TerminalMobileDock onKey={()=>{}} keysOpen={open} onKeysOpenChange={setOpen} immersive={false} session={{tab:'center-som',channel:'cloud',agent:'claude',onKey:async bytes=>{window.written.push(bytes)}}} box={tools=><SessionComposer tab="center-som" channel="cloud" onKey={async bytes=>{window.written.push(bytes)}} live agent="claude" agentLabel={agent} suggestions={open?[]:["run the project's unit tests","open the main source file for review"]} onExplain={open?undefined:()=>{}} project="center-som" density="comfortable" tools={tools} onOpenKeys={()=>setOpen(true)}/>}/>}
       const root=createRoot(document.getElementById('app'));
-      window.mount=(fixture)=>{window.fixture=fixture;const agent=badgeNames(fixture.badge,roster);root.render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" style={{height:48}}>Loki</div><main className="app-main"><div className="app-page app-viewport-pane flex flex-col" data-fc-place="tab"><TerminalMobileHeader title="Center SOM" state="live" agent={agent} onOpenSheet={()=>{}} immersive={false} onToggleImmersive={()=>{}} view={fixture.terminal?"terminal":"chat"} onViewChange={()=>{}}/>{fixture.terminal?<div className="flex flex-1 flex-col"><div className="flex-1 bg-black p-2 text-xs text-white">terminal</div><Dock agent={agent}/></div>:<ClaudeChatView key={fixture.key} tab="center-som" channel="cloud" onLive={()=>{}} onKey={async bytes=>{window.written.push(bytes)}} onShowTerminal={()=>{}} onExplain={()=>{}}/>}</div></main></div><MobileNav/>{fixture.loki&&<TerminalLokiSheet onClose={()=>{}}><TerminalLokiRail presentation="sheet" project="Center SOM" tab="center-som" runId={null} ptyState="live" projectId={null} canSwitchAgent={false} onSwitchAgent={()=>{}} askOnly agent="claude" onKey={()=>{}}/></TerminalLokiSheet>}</div>)};window.written=[];`,
+      window.mount=(fixture)=>{window.fixture=fixture;const agent=badgeNames(fixture.badge,roster);root.render(<div className="app-shell-frame flex min-h-screen bg-surface-page text-text-primary"><div className="app-main-column"><div className="ui-app-topbar" style={{height:48}}>Loki</div><main className="app-main"><div className="app-page app-viewport-pane flex flex-col" data-fc-place="tab"><TerminalMobileHeader title="Center SOM" state="live" agent={agent} builder="Cloud builder" sessionCount={2} backHref="/control" onOpenSheet={()=>{}} onOpenMore={()=>{}} view={fixture.terminal?"terminal":"chat"} onViewChange={()=>{}}/>{fixture.terminal?<div className="flex flex-1 flex-col"><div className="flex-1 bg-black p-2 text-xs text-white">terminal</div><Dock agent={agent}/></div>:<ClaudeChatView key={fixture.key} tab="center-som" channel="cloud" onLive={()=>{}} onKey={async bytes=>{window.written.push(bytes)}} onShowTerminal={()=>{}} onExplain={()=>{}}/>}</div></main></div><MobileNav/>{fixture.loki&&<TerminalLokiSheet onClose={()=>{}}><TerminalLokiRail presentation="sheet" project="Center SOM" tab="center-som" runId={null} ptyState="live" projectId={null} canSwitchAgent={false} onSwitchAgent={()=>{}} askOnly agent="claude" onKey={()=>{}}/></TerminalLokiSheet>}</div>)};window.written=[];`,
     },
     bundle: true,
     write: false,
@@ -81,12 +81,17 @@ async function main() {
     page.on("pageerror", (e) => errors.push(e.message));
     await page.route("**/*", (r) =>
       r.fulfill(
-        r.request().url().includes("/api/")
-          ? { contentType: "application/json", body: "{}" }
-          : {
-              contentType: "text/html",
-              body: `<meta name="viewport" content="width=device-width, initial-scale=1"><style>${styles.css}html,body{font-family:system-ui,sans-serif!important}</style><div id="app"></div>`,
-            },
+        r.request().url().includes("/api/terminal/next-steps")
+          ? {
+              contentType: "application/json",
+              body: JSON.stringify({ steps: ["Rename the folder too.", "Show me the site."] }),
+            }
+          : r.request().url().includes("/api/")
+            ? { contentType: "application/json", body: "{}" }
+            : {
+                contentType: "text/html",
+                body: `<meta name="viewport" content="width=device-width, initial-scale=1"><style>${styles.css}html,body{font-family:system-ui,sans-serif!important}</style><div id="app"></div>`,
+              },
       ),
     );
     await page.goto("http://terminal.fixture/terminal");
@@ -111,7 +116,8 @@ async function main() {
     const toolRow = () =>
       page.evaluate(() =>
         [...document.querySelectorAll(".ck-actions button")]
-          .filter((e) => !e.closest("dialog"))
+          // chatkit's own paperclip is mounted but hidden: "+" opens it.
+          .filter((e) => !e.closest("dialog") && e.getClientRects().length > 0)
           .map((e) => {
             const r = e.getBoundingClientRect();
             return {
@@ -141,11 +147,58 @@ async function main() {
       await page.getByRole("button", { name: /^Send/ }).waitFor();
       const row = await toolRow();
       const view = terminal ? "terminal view" : "conversation view";
+      assert.equal(
+        await page
+          .getByRole("group", { name: "Show this session as" })
+          .getByRole("button", { pressed: true })
+          .textContent(),
+        terminal ? "Terminal" : "Claude",
+        `${view}: the pill marks the view on screen`,
+      );
       fs.mkdirSync(".tmp/session-sheet", { recursive: true });
       await page.screenshot({
         path: `.tmp/session-sheet/${terminal ? "terminal" : "chat"}-390.png`,
       });
-      assert.ok(row.length >= 4, `${view}: a row of tools`);
+      // + · the model · the microphone · Send — the four a chat app has.
+      assert.deepEqual(
+        [...row]
+          .sort((a, b) => a.x - b.x)
+          .map((b) =>
+            b.mic ? "mic" : b.send ? "send" : (b.label ?? "").replace(/^Model: .*/, "Model"),
+          ),
+        ["Add a photo, a command or a prompt", "Model", "mic", "send"],
+        `${view}: +, the model, the microphone and Send — nothing else`,
+      );
+      // The header: back · the session's name · ⋮ on one line, the pill under.
+      const [back, name, more, pill] = await page.evaluate(
+        (sels) =>
+          sels.map((sel) => {
+            const r = document.querySelector(sel)!.getBoundingClientRect();
+            return { top: Math.round(r.top), mid: Math.round(r.left + r.width / 2) };
+          }),
+        [
+          'a[aria-label="Back to Control"]',
+          ".ui-term-mhead-btn",
+          'button[aria-label^="More"]',
+          ".ui-term-mhead .ui-term-views",
+        ],
+      );
+      const head = {
+        back: back!,
+        name: name!,
+        more: more!,
+        pill: pill!,
+        sub: await page.locator(".ui-term-mhead-sub").textContent(),
+      };
+      assert.equal(
+        new Set([head.back.top, head.more.top]).size,
+        1,
+        `${view}: back and ⋮ on one line`,
+      );
+      assert.ok(Math.abs(head.name.mid - 195) <= 2, `${view}: the name is centred`);
+      assert.ok(Math.abs(head.pill.mid - 195) <= 2, `${view}: the pill is centred`);
+      assert.ok(head.pill.top > head.name.top, `${view}: the pill sits under the name`);
+      assert.equal(head.sub, "Claude · 2 sessions · cloud builder", `${view}: what runs it, where`);
       rows.push(row.map((b) => b.label ?? ""));
       for (const b of row)
         assert.equal(b.h, 44, `${view}: every tool is one size — ${b.label} is ${b.h}px`);
@@ -250,12 +303,81 @@ async function main() {
       "the box's row is the same in both views",
     );
 
-    // The slash button: a sheet from the bottom with the commands in view,
-    // nothing taking the keyboard, nothing off the top of the screen (owner,
-    // 2026-10-19: the panel pinned above the box ran over the header with the
-    // commands clipped, and its search raised the keyboard).
-    await page.getByRole("button", { name: "Commands and prompts" }).click();
-    const commands = page.getByRole("dialog", { name: "Commands and prompts" });
+    // The conversation view's next steps are replies under the answer, not
+    // chips over the box — and "What's going on?" is the header's ⋮ there.
+    await mount({ key: "replies", items, connected: true, received: true, sessionId: "s" });
+    const replyList = page.getByRole("list", { name: /^Replies/ });
+    await replyList.getByRole("button", { name: "Show me the site." }).waitFor();
+    const placedReplies = await page.evaluate(() => ({
+      under:
+        document.querySelector(".ui-reply-steps")!.getBoundingClientRect().top >
+        [...document.querySelectorAll(".ui-loki-thread p, .ui-loki-thread div")]
+          .find((e) => e.textContent?.startsWith("Done. The site"))!
+          .getBoundingClientRect().top,
+      above:
+        document.querySelector(".ui-reply-steps")!.getBoundingClientRect().bottom <=
+        document.querySelector(".ck-composer")!.getBoundingClientRect().top,
+      chips: [...document.querySelectorAll(".ui-claude-chat .ui-term-suggests")].filter(
+        (e) => e.getClientRects().length > 0,
+      ).length,
+    }));
+    assert.ok(placedReplies.under, "the replies sit under the answer");
+    assert.ok(placedReplies.above, "and above the box");
+    assert.equal(placedReplies.chips, 0, "no chip row over the box on a phone");
+    await page.screenshot({ path: ".tmp/session-sheet/replies-390.png" });
+    await replyList.getByRole("button", { name: "Show me the site." }).click();
+    await page.waitForFunction(() =>
+      (window as unknown as { written: string[] }).written.some((w) =>
+        w.includes("Show me the site."),
+      ),
+    );
+    // The Enter follows the words as its own keystroke.
+    await page.waitForFunction(
+      () => (window as unknown as { written: string[] }).written.at(-1) === "\r",
+    );
+    await page.evaluate(() => Object.assign(window, { written: [] }));
+
+    // "+": a sheet from the bottom with everything that is not words — a
+    // photo, the keys, the commands — nothing taking the keyboard, nothing
+    // off the top of the screen (owner, 2026-10-19: the panel pinned above the
+    // box ran over the header with the commands clipped, and its search
+    // raised the keyboard).
+    const plus = page.getByRole("button", { name: "Add a photo, a command or a prompt" });
+    const commands = page.getByRole("dialog", { name: "Add to the session" });
+    // The conversation view has no keys to open.
+    await plus.click();
+    await commands.getByRole("button", { name: "Photo or screenshot" }).waitFor();
+    assert.equal(await commands.getByRole("button", { name: /^Keys/ }).count(), 0);
+    await page.keyboard.press("Escape");
+    await mount({
+      key: "term2",
+      items,
+      connected: true,
+      received: true,
+      sessionId: "s",
+      terminal: true,
+      badge: "claude",
+    });
+    await plus.click();
+    // In the terminal view the keys a phone lacks are here too.
+    await commands.getByRole("button", { name: /^Keys/ }).click();
+    await page.getByRole("button", { name: "Hide the keys" }).waitFor();
+    await page.getByRole("button", { name: "Hide the keys" }).click();
+    // "Photo or screenshot" opens chatkit's own Camera / Photos / Files sheet.
+    await plus.click();
+    await commands.getByRole("button", { name: "Photo or screenshot" }).click();
+    await page.waitForFunction(() =>
+      Boolean(document.querySelector<HTMLDialogElement>(".ui-session-box dialog.ck-sheet")?.open),
+    );
+    assert.ok(
+      await page.getByRole("button", { name: "Camera" }).isVisible(),
+      "the photo row opens Camera / Photos / Files",
+    );
+    await page.screenshot({ path: ".tmp/session-sheet/photo-390.png" });
+    await page.evaluate(() =>
+      document.querySelector<HTMLDialogElement>(".ui-session-box dialog.ck-sheet")!.close(),
+    );
+    await plus.click();
     await commands.getByText("Use Opus").waitFor();
     const placed = await commands.evaluate((d) => {
       const r = d.getBoundingClientRect();

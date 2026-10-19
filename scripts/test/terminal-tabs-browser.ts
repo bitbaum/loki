@@ -1,16 +1,17 @@
 /**
- * The terminal's sessions as tabs on a phone, in a real browser.
+ * The terminal's sessions on a phone, in a real browser.
  *
- * Asked for from a phone (2026-10-17): several sessions open at once, like the
- * tabs of a terminal, "nothing cluttered, nothing dysfunctional". The rules a
- * phone width can break, and reading the source cannot catch:
- *   - one session looks as it did, plus a "+";
- *   - several sessions become a row: the current one keeps its name, the others
- *     are one-tap switches, and the row scrolls instead of pushing the page
- *     sideways;
- *   - every control is a finger-sized target;
- *   - "+" opens the start form, which names a busy project and offers a second
- *     session beside it, never a replacement.
+ * Asked for from a phone (2026-10-17): several sessions open at once,
+ * "nothing cluttered, nothing dysfunctional". They were a row of tabs in the
+ * header until 2026-10-19, when the "+" beside them scrolled off the edge with
+ * two open; now the header names the one you are in, as a chat app does, and
+ * its name opens the rest. The rules a phone width can break:
+ *   - the header is one line however many sessions are open, and says how many;
+ *   - the session's whole name fits;
+ *   - the sheet behind the name lists every session with what it is doing,
+ *     switches with one tap, and starts a new one;
+ *   - "New session" opens the start form, which names a busy project and
+ *     offers a second session beside it, never a replacement.
  *
  * Screenshots go to .tmp/terminal-tabs/ for a person to look at.
  * Run: npx tsx scripts/test/terminal-tabs-browser.ts
@@ -38,6 +39,7 @@ async function main() {
         import{TerminalMobileHeader}from'./src/components/terminal/TerminalMobileHeader';
         import{TerminalNewSessionSheet}from'./src/components/terminal/TerminalNewSessionSheet';
         import{TerminalSessionNotice}from'./src/components/terminal/TerminalSessionNotice';
+        import{TerminalSessionSheet}from'./src/components/terminal/TerminalSessionSheet';
         const q=new URLSearchParams(location.search);
         const all=[{id:'substrata',label:'substrata',status:'working'},{id:'orangecat',label:'orangecat',status:'needs-you'},
           {id:'substrata~1a2b3c4d',label:'substrata 2',status:'done'},{id:'heidi',label:'heidi',status:'idle'}];
@@ -45,12 +47,17 @@ async function main() {
           const sessions=all.slice(0,Number(q.get('n')||1));
           const [active,setActive]=useState(sessions[0].id);
           const [open,setOpen]=useState(q.has('new'));
+          const [sheet,setSheet]=useState(false);
           window.__active=active;
           return <main className="app-page app-page-compact">
             <TerminalMobileHeader title={sessions.find(s=>s.id===active).label} agent="Claude" state="live"
-              onOpenSheet={()=>{window.__sheet=true}} immersive={false} onToggleImmersive={()=>{}}
-              view="chat" onViewChange={()=>{}} sessions={sessions} activeSession={active}
-              onSelectSession={setActive} onNewSession={()=>setOpen(true)}/>
+              status={sessions.find(s=>s.id===active).status} builder="Cloud builder" sessionCount={sessions.length}
+              backHref="/control" onOpenSheet={()=>setSheet(true)} onOpenMore={()=>{}}
+              view="chat" onViewChange={()=>{}}/>
+            {sheet&&<TerminalSessionSheet onClose={()=>setSheet(false)} source="cloud" sources={['cloud','machine']}
+              onSourceChange={()=>{}} tabs={sessions.map(s=>({id:s.id,label:s.label,badge:s.status}))} activeTab={active}
+              onSelectTab={setActive} onCloseTab={()=>{}} onNewSession={()=>setOpen(true)} agents={[]} activeAgentId="claude"
+              onSwitchAgent={()=>{}} switchingAgent={false} agentSwitchDisabledReason={null} honesty={null}/>}
             {q.has('notice')&&<TerminalSessionNotice tabs={sessions} onOpen={setActive}
               news={{statuses:{},notice:{tab:'orangecat',status:'needs-you'},dismissNotice(){}}}/>}
             {open&&<TerminalNewSessionSheet onClose={()=>setOpen(false)}
@@ -107,51 +114,65 @@ async function main() {
       };
       const overflow = () => page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
 
-      // One session: the name, as before, and a "+".
+      const headRows = () =>
+        page
+          .locator(".ui-term-mhead-row")
+          .evaluate((e) => Math.round(e.getBoundingClientRect().height));
+
+      // One session: the name, what runs it and where.
       await mount("?n=1");
-      assert.equal(await page.locator(".ui-term-mtab").count(), 0, "one session is not a row");
-      const plus = await page.getByRole("button", { name: "New session" }).boundingBox();
-      assert(plus && plus.height >= 44 && plus.width >= 44, "the + is a finger-sized target");
+      assert.equal(
+        await page.locator(".ui-term-mhead-sub").textContent(),
+        "Claude · cloud builder",
+      );
       assert.equal(await overflow(), false);
       await page.screenshot({ path: path.join(shots, `${width}-one.png`) });
 
-      // Four sessions: a row that scrolls inside itself, never the page.
+      // Four sessions: still one line, which says there are four.
       await mount("?n=4");
-      assert.equal(await page.locator(".ui-term-mtab").count(), 3, "the other three are switches");
-      assert.equal(await overflow(), false, "the row must not push the page sideways");
-      for (const box of await page
-        .locator(".ui-term-mtab")
-        .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height)))
-        assert(box >= 44, "every tab is a finger-sized target");
+      assert.ok((await headRows()) <= 48, "the header stays one row with four sessions");
+      assert.equal(
+        await page.locator(".ui-term-mhead-sub").textContent(),
+        "Claude · 4 sessions · cloud builder",
+      );
+      assert.equal(await overflow(), false, "nothing pushes the page sideways");
       const title = await page
         .locator(".ui-term-mhead-title")
         .evaluate((e) => ({ width: e.clientWidth, textWidth: e.scrollWidth }));
-      await page.screenshot({ path: path.join(shots, `${width}-four.png`) });
       assert(
         title.width >= title.textWidth,
         `the current session keeps its whole name (${title.width} < ${title.textWidth})`,
       );
+      for (const name of ["Back to Control", /^More/])
+        assert(
+          (await page
+            .getByRole(typeof name === "string" ? "link" : "button", { name })
+            .boundingBox())!.height >= 44,
+        );
       await page.screenshot({ path: path.join(shots, `${width}-four.png`) });
 
-      // Every other tab says what its session is doing, in colour and in words.
+      // The name opens every session, each saying what it is doing; one tap
+      // switches.
+      await page.locator(".ui-term-mhead-btn").click();
+      const sheet = page.getByRole("dialog", { name: "Sessions" });
+      await sheet.getByText("Sessions · 4").waitFor();
       assert.equal(
-        await page.getByRole("button", { name: "Switch to orangecat — needs you" }).count(),
+        await sheet.getByText("running needs-you").count(),
         1,
-        "a session waiting on you says so",
+        "a session waiting says so",
       );
-      assert.equal(await page.locator(".ui-term-mtab .ui-term-live-dot-warn").count(), 1);
-
-      // A tap switches; the current one still opens the sheet.
-      await page.getByRole("button", { name: "Switch to orangecat" }).click();
+      await page.screenshot({ path: path.join(shots, `${width}-sheet.png`) });
+      await sheet.getByRole("button", { name: /^orangecat/ }).click();
       assert.equal(
         await page.evaluate(() => (window as unknown as { __active: string }).__active),
         "orangecat",
       );
+      assert.equal(await page.locator(".ui-term-mhead-title").textContent(), "orangecat");
+
+      // And starts another.
       await page.locator(".ui-term-mhead-btn").click();
-      assert.equal(
-        await page.evaluate(() => (window as unknown as { __sheet: boolean }).__sheet),
-        true,
-      );
+      await sheet.getByRole("button", { name: "New session" }).click();
+      await page.getByRole("button", { name: "Start another session" }).waitFor();
 
       // News from another session: one line, with Open.
       await mount("?n=4&notice=1");
@@ -176,7 +197,7 @@ async function main() {
 
       assert.deepEqual(errors, []);
       console.log(
-        `✓ ${width}px: one session, a row of four, switch, sheet, and a second session beside a busy one`,
+        `✓ ${width}px: one header line for one or four sessions, the sheet lists and switches them, and a second session beside a busy one`,
       );
       await page.close();
     }

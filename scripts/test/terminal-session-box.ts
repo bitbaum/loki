@@ -65,8 +65,8 @@ const read = (f: string) => readFileSync(join(process.cwd(), "src/components/ter
     "both switches change the view",
   );
   ok(
-    /<TerminalSessionSheet[\s\S]*?onOpenLoki=\{/.test(surface),
-    "the Loki panel is reachable from the session sheet",
+    /<TerminalMoreSheet[\s\S]*?onExplain=\{/.test(surface),
+    "the Loki panel is reachable from the header's ⋮",
   );
   ok(
     read("TerminalPaneActions.tsx").includes("\n          Loki\n"),
@@ -97,7 +97,7 @@ const read = (f: string) => readFileSync(join(process.cwd(), "src/components/ter
   ok(!surface.includes("<TerminalComposer"), "no second box for the agent under the terminal");
   ok(/askOnly\b/.test(surface), "Loki's panel only asks; words for the agent go in the box");
   ok(
-    surface.includes("suggestions={keysOpen ? [] : screenNext.steps}"),
+    surface.includes("suggestions={keysOpen ? [] : screenNext.steps.slice(0, 2)}"),
     "keys open: the next-step row steps aside so the terminal keeps its lines",
   );
   const box = read("SessionComposer.tsx");

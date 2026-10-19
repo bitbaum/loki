@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertCircle, SquareSlash, X } from "lucide-react";
+import { AlertCircle, Plus, X } from "lucide-react";
 import { postJson } from "@/lib/api/fetch";
 import { Composer } from "@/components/composer/Composer";
 import type { Attachment } from "@/components/loki/types";
@@ -16,6 +16,11 @@ import { SessionPicker } from "./SessionPicker";
 import { useLokiAttachments } from "./use-loki-attachments";
 
 const SCREENSHOT_ONLY = "Look at the attached screenshot and fix what is wrong.";
+/** chatkit's own attach button. Hidden in this box (globals.css) — "+" is the
+ *  one way in — but kept mounted, so its Camera / Photos / Files sheet, paste
+ *  and the attachment strip stay chatkit's, and "Photo or screenshot" in the
+ *  "+" sheet presses it. */
+const ATTACH_TRIGGER = '.ck-tools > .ck-icon-btn[aria-haspopup="dialog"]:not(.ui-box-plus)';
 
 type Sent =
   | { kind: "typed"; what: string }
@@ -38,7 +43,11 @@ type Sent =
  *   • nothing is running → /api/control/tab-inject, which starts the agent and
  *     queues the task if the builder is offline.
  *
- * "/" in an empty box opens the agent's commands and the prompt library.
+ * "+" (or "/" in an empty box) opens one sheet: a photo or screenshot, the
+ * agent's commands, Loki's records and the prompt library — and the keys a
+ * phone lacks, in the terminal view. It replaced a paperclip and a slash
+ * button side by side, two ways into two halves of the same question ("what
+ * can I add?"), which left the model's name three letters wide.
  */
 export function SessionComposer({
   tab,
@@ -58,7 +67,14 @@ export function SessionComposer({
   density = "comfortable",
   project = null,
   offerFeedback = false,
+  onOpenKeys,
+  sendRequest = null,
 }: {
+  /** Opens the key deck (terminal view); offered in the "+" sheet on phones. */
+  onOpenKeys?: () => void;
+  /** Words to SEND, chosen outside the box (a reply row under the answer).
+   *  Each new nonce goes out once, by the same path as a typed message. */
+  sendRequest?: { text: string; nonce: number } | null;
   /** The project's name in Loki — whose records (feedback) can be attached. */
   project?: string | null;
   /** The agent just asked for feedback it cannot reach: offer Loki's reports
@@ -96,6 +112,7 @@ export function SessionComposer({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sent, setSent] = useState<Sent | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const loki = useLokiAttachments(project);
 
   const openPicker = () => {
@@ -198,6 +215,15 @@ export function SessionComposer({
     }
   };
 
+  const sentRequest = useRef<number | null>(null);
+  useEffect(() => {
+    if (!sendRequest || sentRequest.current === sendRequest.nonce) return;
+    sentRequest.current = sendRequest.nonce;
+    void send(sendRequest.text, []);
+    // send is recreated each render; the nonce alone decides.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sendRequest]);
+
   // The agent cannot read Loki's database, so when it is stuck on feedback it
   // proposes workarounds ("request access to the widget's storage path and
   // dump its submissions", substrata, 2026-10-16). The answer is one press:
@@ -280,7 +306,7 @@ export function SessionComposer({
   ) : null;
 
   return (
-    <div className="relative shrink-0">
+    <div ref={boxRef} className="ui-session-box relative shrink-0">
       {pickerOpen && (
         <SessionPicker
           agent={agent}
@@ -292,6 +318,23 @@ export function SessionComposer({
             setSent({ kind: "typed", what: bytes.replace(/\r$/, "") });
             setPickerOpen(false);
           }}
+          onPhoto={() => {
+            setPickerOpen(false);
+            // After the sheet has gone, so its focus restore does not close
+            // chatkit's sheet the moment it opens.
+            window.setTimeout(
+              () => boxRef.current?.querySelector<HTMLButtonElement>(ATTACH_TRIGGER)?.click(),
+              0,
+            );
+          }}
+          onKeys={
+            onOpenKeys
+              ? () => {
+                  setPickerOpen(false);
+                  onOpenKeys();
+                }
+              : undefined
+          }
           onAttachFeedback={() => {
             setPickerOpen(false);
             void attachFeedback();
@@ -328,18 +371,14 @@ export function SessionComposer({
             <button
               type="button"
               onClick={() => (pickerOpen ? setPickerOpen(false) : openPicker())}
-              // A slash, not a book: it opens the agent's own commands
-              // (change model, sign in, free up memory) above the prompt
-              // library, and a book said only "library" (owner, 2026-10-18:
-              // "do I have to actually type in things?").
-              title="Commands and prompts (or type /)"
-              aria-label="Commands and prompts"
+              title="Add a photo, a command or a prompt (or type /)"
+              aria-label="Add a photo, a command or a prompt"
+              aria-haspopup="dialog"
               aria-expanded={pickerOpen}
-              // chatkit's own tool button: the same round 44px as attach and the
-              // microphone beside it, not Loki's 26px square.
-              className="ck-icon-btn"
+              // chatkit's own round 44px tool button, like the microphone.
+              className="ck-icon-btn ui-box-plus"
             >
-              <SquareSlash className="h-4.5 w-4.5" />
+              <Plus className="h-5 w-5" />
             </button>
             {tools}
           </>

@@ -96,9 +96,15 @@ src/
 │   │                 (bracketed paste + Enter), a screenshot goes via
 │   │                 chat-send, nothing running → tab-inject (starts/queues).
 │   │                 There is no Type / Prompt / Voice switch — never add one.
-│   │                 "/" or the slash button opens SessionPicker, a bottom
-│   │                 SHEET (agent commands, Loki's records, the prompt
-│   │                 library): a panel pinned above the box ran off the
+│   │                 The box's row is + · model · mic · send, nothing else.
+│   │                 "+" (or "/") opens SessionPicker, a bottom SHEET (photo
+│   │                 or screenshot, Keys on a phone, agent commands, Loki's
+│   │                 records, the prompt library); chatkit's paperclip is
+│   │                 hidden there but mounted — "Photo or screenshot" presses
+│   │                 it, so paste and Camera/Photos/Files stay chatkit's. In
+│   │                 the conversation view next steps are reply rows under
+│   │                 the answer (ReplySteps → the box's sendRequest), never
+│   │                 chips over the box. A panel pinned above the box ran off the
 │   │                 screen once its search raised the keyboard. Nothing in
 │   │                 it takes the keyboard on a touch screen. The agent
 │   │                 cannot read Loki's database, so
@@ -131,10 +137,15 @@ src/
 │   │                 injected (inject wraps text in project context).
 │   │                 A press on the read-only screen puts the cursor in the box.
 │   │                 Below md the same state drives phone chrome:
-│   │                 TerminalMobileHeader (one line; with several sessions a
-│   │                 scrolling row of them + "+", which opens
-│   │                 TerminalNewSessionSheet) + TerminalSessionSheet
-│   │                 (all the setup) + TerminalMobileDock = TerminalKeyDeck
+│   │                 TerminalMobileHeader (a chat app's: back to Control ·
+│   │                 the session's name, "Claude · 2 sessions · cloud
+│   │                 builder" under it · ⋮, and the Claude | Terminal pill
+│   │                 centred below; no row of tabs) + TerminalSessionSheet
+│   │                 (the name: sessions, New session, where it runs, agent)
+│   │                 + TerminalMoreSheet (⋮: What's going on?, full screen,
+│   │                 text size, live keystrokes). An open session hides the
+│   │                 app bars below md (useImmersiveChat), so back is the way
+│   │                 out + TerminalMobileDock = TerminalKeyDeck
 │   │                 (the arrows/Esc/Tab/Ctrl a soft keyboard lacks — bytes are
 │   │                 SSOT in config/terminal-keys.ts), opened by the Keys
 │   │                 button on the terminal's corner — never a second text

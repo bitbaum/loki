@@ -1,6 +1,6 @@
 "use client";
 
-import { Paperclip, Sparkles } from "lucide-react";
+import { CornerDownRight, Paperclip, Sparkles } from "lucide-react";
 
 /**
  * The row above the session box: "What's going on?" first, then the next
@@ -34,7 +34,7 @@ export function SuggestionChips({
         <li>
           <button
             type="button"
-            className="ui-term-suggest ui-term-suggest-explain"
+            className="ui-term-suggest ui-term-suggest-explain ui-term-suggest-why"
             onClick={onExplain}
           >
             <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -63,6 +63,33 @@ export function SuggestionChips({
             onClick={() => onPick(s)}
           >
             {s}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The conversation view's next steps: replies under the answer they answer,
+ * the way a chat app offers them — not chips stacked over the box, where they
+ * read as part of the composer and pushed it up the screen. One press sends.
+ */
+export function ReplySteps({
+  steps,
+  onPick,
+}: {
+  steps: readonly string[];
+  onPick: (step: string) => void;
+}) {
+  if (steps.length === 0) return null;
+  return (
+    <ul className="ui-reply-steps" aria-label="Replies — each one sends when chosen">
+      {steps.map((s) => (
+        <li key={s}>
+          <button type="button" className="ui-reply-step" onClick={() => onPick(s)}>
+            <CornerDownRight className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1">{s}</span>
           </button>
         </li>
       ))}
