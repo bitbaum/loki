@@ -111,7 +111,7 @@ export function RepoMultiPicker({ onSelectionChange, filter = "" }: Props) {
               lead={
                 <span
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                    isSelected ? "border-accent-warm bg-accent-warm" : "border-border-default"
+                    isSelected ? "border-accent-primary bg-accent-primary" : "border-border-default"
                   }`}
                   aria-hidden
                 >
