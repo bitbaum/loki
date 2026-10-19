@@ -24,6 +24,8 @@ export interface ProvisionAgentArgs {
   agent: AgentOption;
   model?: string;
   sessionId?: string;
+  /** Continue the folder's newest conversation (adapters that support it). */
+  resumeLatest?: boolean;
   cols?: number;
   rows?: number;
   /**
@@ -44,7 +46,12 @@ export async function provisionAgentWorkspace(
   args: ProvisionAgentArgs,
 ): Promise<WorkspaceHandle> {
   const launchCommand = buildAgentOptionLaunchCommand(
-    { agent: args.agent, model: args.model, sessionId: args.sessionId },
+    {
+      agent: args.agent,
+      model: args.model,
+      sessionId: args.sessionId,
+      resumeLatest: args.resumeLatest,
+    },
     args.dir,
   );
   // Login + interactive (-lic), NOT plain -c: the agent CLIs live on PATH only

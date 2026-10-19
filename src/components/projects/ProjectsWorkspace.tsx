@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Search, FolderKanban, ChevronDown } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useEscapeKey } from "@/hooks/use-escape-key";
-import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/segmented";
 import { SEARCH_DEBOUNCE_MS } from "@/lib/constants/timings";
 import { PROJECTS_LIST_CHUNK } from "@/lib/projects-display";
 import {
@@ -138,42 +138,24 @@ export function ProjectsWorkspace({
 
         {/* The order, as a control rather than a claim.
 
-            The subtitle states the default ("flagged first, then most recently
-            active"), which makes the order legible — but only a control makes
-            it ARGUABLE. Control's project rail has carried exactly these three
+            The chosen order says what it is under the row (it was the page's
+            subtitle, a sentence above a control that already said it) — and
+            only a control makes it ARGUABLE. Control's project rail has carried exactly these three
             for a while, on a second, smaller copy of this same list; this is
             the half of that duplication worth keeping.
 
-            A radiogroup, not three buttons: they are one choice with one
-            answer, and arrow keys should move between them. */}
-        <div
-          role="radiogroup"
-          aria-label="Sort projects"
-          className="flex items-center gap-1 text-micro"
-        >
-          <span className="ui-micro-label mr-1 text-text-muted">Sort</span>
-          {PROJECTS_SORTS.map(({ id, label, hint }) => (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={sort === id}
-              title={hint}
-              onClick={() => {
-                setSort(id);
-                setListExpanded(false);
-              }}
-              className={cn(
-                "ui-tap justify-center rounded-md px-2 py-1 transition-colors",
-                sort === id
-                  ? "bg-accent-muted text-accent-text"
-                  : "text-text-muted hover:bg-surface-overlay hover:text-text-secondary",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+            One choice with one answer: the even segmented row every pick-one
+            uses (components/ui/segmented.tsx). */}
+        <Segmented
+          label="Sort projects"
+          options={PROJECTS_SORTS.map(({ id, label, hint }) => ({ id, label, means: hint }))}
+          value={sort}
+          onChange={(id) => {
+            if (!isProjectsSort(id)) return;
+            setSort(id);
+            setListExpanded(false);
+          }}
+        />
       </div>
 
       {filtered.length === 0 ? (

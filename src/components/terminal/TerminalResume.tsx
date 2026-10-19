@@ -13,6 +13,10 @@ function sessionSuffix(): string {
   return globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 }
 
+/** Agents whose CLI can continue this folder's newest conversation. */
+const RESUMABLE = new Set(["claude", "codex"]);
+const canResume = (agent: string) => RESUMABLE.has(agent);
+
 /** How many recent projects the empty view lists before "All projects". */
 const SHOWN = 5;
 
@@ -25,8 +29,9 @@ const SHOWN = 5;
  * existed (owner, 2026-10-19: "it's like I didn't start the sessions before").
  * A person who comes back here wants what they had, so the row says what
  * Resume does: it opens the project and continues its last conversation
- * (`claude --resume`, on the builder). Other agents keep no conversation
- * Loki can reopen, so theirs says Start.
+ * (`claude --resume`, `codex resume --last`, on the builder). The other
+ * agents' CLIs cannot reopen the conversation that belongs to THIS folder
+ * (Cursor's resume reaches across every project), so theirs says Start.
  */
 export function TerminalResume({
   projects,
@@ -75,7 +80,7 @@ export function TerminalResume({
         dir: p.dir,
         agent,
         channel,
-        resume: agent === "claude",
+        resume: canResume(agent),
       });
       onStarted?.(tab);
     } catch (e) {
@@ -98,7 +103,7 @@ export function TerminalResume({
       <ul className="ui-term-resume-list" aria-label="Your projects">
         {ordered.map((p) => {
           const agent = agentFor(p);
-          const resumes = agent === "claude";
+          const resumes = canResume(agent);
           return (
             <li key={p.name}>
               <button

@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.49",
+    tag: "fleet-runner-v0.8.49",
+    date: "2026-10-19T17:00:00Z",
+    highlights: [
+      "Resume works for Codex too: it continues the newest Codex conversation in that project, and a Codex session comes back as the same conversation after the builder updates.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.48",
     tag: "fleet-runner-v0.8.48",
     date: "2026-10-19T16:00:00Z",

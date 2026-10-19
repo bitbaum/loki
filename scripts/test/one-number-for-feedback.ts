@@ -9,7 +9,6 @@
  *
  * Four derivations existed, in three spellings:
  *   use-control-inbox    Σ (s.newCount || s.openCount)
- *   NotificationsPill    Σ (s.newCount || s.openCount)           (hand copy)
  *   ControlInbox         s.newCount > 0 ? s.newCount : s.openCount
  *   FeedbackNavCount     Σ s.newCount
  *
@@ -100,9 +99,10 @@ check("RULE 1: nothing outside the owner reduces the counts itself", () => {
 });
 
 check("and every surface that shows a count reads the owner", () => {
+  // The bell no longer counts feedback at all (2026-10-19): Home's "To
+  // review" owns that number, and the bell repeating it was the duplication.
   for (const rel of [
     "src/hooks/use-control-inbox.ts",
-    "src/components/shell/NotificationsPill.tsx",
     "src/components/feedback/FeedbackNavCount.tsx",
   ]) {
     const f = files.find((x) => x.rel === rel);

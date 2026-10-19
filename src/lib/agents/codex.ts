@@ -59,8 +59,15 @@ export const codexAdapter: AgentAdapter = {
     }
   },
 
-  buildLaunchCommand({ dir, model }: AgentRuntimeConfig): string {
+  buildLaunchCommand({ dir, model, resumeLatest }: AgentRuntimeConfig): string {
     const m = (model ?? "").trim() || this.defaultModel;
-    return `source ~/.bashrc >/dev/null 2>&1 || true; cd ${shellEscape(dir)} && codex --model ${shellEscape(m)} --no-alt-screen`;
+    // `codex resume --last` reopens the newest session started in this
+    // folder (Codex filters by the working directory unless given --all).
+    // The launch options go before the subcommand, where the root command
+    // reads them. A folder with no session yet: the resume fails and the
+    // plain launch runs — a fresh session, as Claude's Resume does.
+    const base = `codex --model ${shellEscape(m)} --no-alt-screen`;
+    const run = resumeLatest ? `${base} resume --last || ${base}` : base;
+    return `source ~/.bashrc >/dev/null 2>&1 || true; cd ${shellEscape(dir)} && ${run}`;
   },
 };

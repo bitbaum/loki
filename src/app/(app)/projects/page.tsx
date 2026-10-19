@@ -77,14 +77,8 @@ export default async function ProjectsPage({
     <PullToRefresh>
       <PageLayout
         title="Projects"
-        // Says what the order IS, because the order is the page's only real
-        // product — everything about one project is better on that project's
-        // page. The old line, "Decide what needs your attention now", promised
-        // triage this page never did: it ranked by the alphabet, and it ranked
-        // projects that already knew their next step ABOVE the ones that were
-        // stuck. A page that names its sort can be trusted or argued with; one
-        // that hides it just feels arbitrary.
-        subtitle="Every project you run — flagged first, then by most recent agent run."
+        // No subtitle: the order is named under the Sort row itself, where it
+        // can be changed, rather than in a sentence above it (2026-10-19).
         maxWidth="max-w-5xl"
         right={
           <div className="flex flex-wrap items-center gap-2">

@@ -87,6 +87,13 @@ export function ProjectRow({
     ...(siteDown ? ["Site is down"] : []),
   ].join("\n\n");
 
+  const readinessNote =
+    loopReadiness.state !== "ready" ? (
+      <span className="font-medium text-status-warning" title={loopReadiness.description}>
+        {loopReadiness.label}
+      </span>
+    ) : null;
+
   return (
     <div
       className={cn(
@@ -111,30 +118,28 @@ export function ProjectRow({
               team
             </span>
           )}
-          {loopReadiness.state !== "ready" && (
-            <span
-              className="shrink-0 text-micro uppercase tracking-caps text-status-warning"
-              title={loopReadiness.description}
-            >
-              {loopReadiness.label}
-            </span>
-          )}
         </div>
 
         {context && <p className="ui-projects-row-context">{context}</p>}
 
+        {/* "Not connected" sits here once, in words, with the facts — it
+            shouted in orange capitals beside every name, so a page of new
+            projects read as a page of alarms (2026-10-19). "N of 10 checks",
+            the rail's column name: "health 5/10" read as a vital sign of the
+            code, which it is not. */}
         {/* Mobile: the same four facts, same order, stacked — in words. The
             desktop rail has column headings; here "3 flags · 7/10 · run 1mo"
             had none, and read as a code (audit 2026-10-01). */}
         <p className="ui-projects-row-meta">
           {stage && <span className="uppercase tracking-caps">{stage}</span>}
+          {readinessNote}
           {flagged && (
             <span className="font-medium text-status-warning">
               {flagCount} {flagCount === 1 ? "issue" : "issues"}
             </span>
           )}
           <span>
-            health {health.score}/{health.max}
+            {health.score} of {health.max} checks
           </span>
           <span>{lastRun ? `last run ${lastRun}` : "no agent runs yet"}</span>
           {feedbackOpen ? <span>{feedbackOpen} feedback</span> : null}
