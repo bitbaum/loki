@@ -3270,8 +3270,11 @@
   .ui-term-view {
     @apply text-text-secondary hover:text-text-primary active:bg-surface-overlay;
   }
+  /* Accent, not a second grey: one shade of overlay on raised was too close
+     to see, so pressing "Terminal" swapped the pane while the switch looked
+     unchanged (owner, 2026-10-20). */
   .ui-term-view-active {
-    @apply bg-surface-overlay text-text-primary;
+    @apply bg-accent-muted text-accent-text;
   }
   /* Below 375px the words carry it alone: with icons the switch left the
      session name two letters at 320px. */
@@ -8522,6 +8525,11 @@
   /* Mutually exclusive destinations for the same words (Ask / Inject). */
   .ui-loki-composer-error {
     @apply flex items-start gap-2 rounded-lg border border-status-negative/30 bg-status-negative-subtle px-2.5 py-1.5 text-xs text-status-negative;
+  }
+  /* The session box's last-send line, ABOVE the box rather than inside it
+     (SessionComposer): no divider, aligned with the box's text. */
+  .ui-session-status {
+    @apply flex items-center gap-2 px-3 text-micro text-text-secondary;
   }
   /* What the last send actually did (queued / working / failed). */
   .ui-loki-composer-status {

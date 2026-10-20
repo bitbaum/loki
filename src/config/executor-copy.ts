@@ -194,7 +194,8 @@ export const EXECUTOR_COPY = {
     // point of the page: one shell, and you choose where it runs and how you
     // talk to it. The old subtitle described only typing, which was the single
     // thing the terminal could already do.
-    pageSubtitle: "Your agents at work — read a session as a chat, or watch its terminal.",
+    pageSubtitle:
+      "Watch and steer your AI agents live: read a session as a chat, or drive its terminal.",
     cloudLabel: "Cloud builder",
     cloudLabelLocalHost: "Cloud builder (this server)",
     thisComputerLabel: "Your computer",

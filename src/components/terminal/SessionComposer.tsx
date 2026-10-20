@@ -235,7 +235,35 @@ export function SessionComposer({
     ? suggestions.filter((s) => !asksForFeedbackAccess(s))
     : suggestions;
 
-  const header = (
+  const status = sent ? (
+    <div className="ui-session-status" role="status">
+      <span
+        className={dispatchToneDotClass(
+          sent.kind === "typed" ? "positive" : (dispatch?.tone ?? "neutral"),
+        )}
+      />
+      <span className="min-w-0 flex-1">
+        {sent.kind === "typed"
+          ? `Typed ${sent.what} into the terminal.`
+          : (dispatch?.label ??
+            `Sent as a task — it starts ${agentLabel} in ${tab}, or waits for the builder.`)}
+      </span>
+      <button
+        type="button"
+        onClick={() => setSent(null)}
+        aria-label="Dismiss"
+        className="ui-icon-action shrink-0"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  ) : null;
+
+  // Everything that is not the message itself — the next-step chips, an
+  // error, what the last send did — sits ABOVE the box, so the box holds only
+  // the input and its Send. They used to render inside it, and the box read
+  // as a log with a text field somewhere in it (owner, 2026-10-20).
+  const above = (
     <>
       {/* Hidden while the panel is open: on a short phone they took the room
           the prompt list needed, and the panel is the choice being made. */}
@@ -260,7 +288,6 @@ export function SessionComposer({
             }
           />
         )}
-      <LokiFiles loki={loki} />
       {error && (
         <div className="ui-loki-composer-error" role="alert">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -280,32 +307,12 @@ export function SessionComposer({
           </button>
         </div>
       )}
+      {status}
     </>
   );
 
-  const footer = sent ? (
-    <div className="ui-loki-composer-status" role="status">
-      <span
-        className={dispatchToneDotClass(
-          sent.kind === "typed" ? "positive" : (dispatch?.tone ?? "neutral"),
-        )}
-      />
-      <span className="min-w-0 flex-1">
-        {sent.kind === "typed"
-          ? `Typed ${sent.what} into the terminal.`
-          : (dispatch?.label ??
-            `Sent as a task — it starts ${agentLabel} in ${tab}, or waits for the builder.`)}
-      </span>
-      <button
-        type="button"
-        onClick={() => setSent(null)}
-        aria-label="Dismiss"
-        className="ui-icon-action shrink-0"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </div>
-  ) : null;
+  // Attached files ARE part of the message, so they stay inside the box.
+  const header = <LokiFiles loki={loki} />;
 
   return (
     <div ref={boxRef} className="ui-session-box relative shrink-0">
@@ -366,8 +373,8 @@ export function SessionComposer({
         onStop={working ? () => void Promise.resolve(onKey(ESC)).catch(() => {}) : undefined}
         onEmptySlash={openPicker}
         density={density}
+        above={above}
         header={header}
-        footer={footer}
         tools={
           <>
             <button

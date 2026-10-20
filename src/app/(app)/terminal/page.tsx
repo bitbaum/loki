@@ -19,12 +19,14 @@ export default function TerminalPage() {
       data-fc-place="tab"
       className="app-page app-page-compact app-viewport-pane flex flex-col gap-3 md:gap-4"
     >
-      {/* Both children are mobile-hidden (the top bar already says "Sessions",
-          the subtitle starts at sm), so on a phone this block contributed
-          nothing but the parent flex gap above a pane fighting for every row. */}
+      {/* Mobile-hidden: the top bar already names the page on a phone, and
+          this block would only add the parent flex gap above a pane fighting
+          for every row. From sm the h1 names what the page IS — "Sessions"
+          alone read as a heading for a list, not live agents at work (owner,
+          2026-10-20). */}
       <div className="ui-page-header hidden sm:flex">
         <div>
-          <PageTitle title="Sessions" />
+          <PageTitle title="Live Terminal – AI Agent Sessions" />
           <p className="ui-page-subtitle">{EXECUTOR_COPY.terminal.pageSubtitle}</p>
         </div>
       </div>
