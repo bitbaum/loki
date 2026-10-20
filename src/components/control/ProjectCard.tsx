@@ -55,6 +55,7 @@ export function ProjectCard({
   isOnlyReady = false,
   runtimeAvailable = true,
   runtimeStateKnown = true,
+  hostedBuilderAvailable = false,
   runnerSyncStale = false,
   executionStalled = false,
   snapshot,
@@ -82,6 +83,8 @@ export function ProjectCard({
   isOnlyReady?: boolean;
   runtimeAvailable?: boolean;
   runtimeStateKnown?: boolean;
+  /** Offer "Hosted runner" as a builder only where it serves this account. */
+  hostedBuilderAvailable?: boolean;
   /** True when cloud view is showing last-known runner state (sync >90s old). */
   runnerSyncStale?: boolean;
   /** Builder is connected but not executing queued dispatches (fleet-wide).
@@ -538,6 +541,7 @@ export function ProjectCard({
       {profileOpen ? (
         <ProjectProfile
           project={project}
+          hostedBuilderAvailable={hostedBuilderAvailable}
           globalAdapter={currentAdapter}
           localAgent={localAgent}
           availableAgents={availableAgents}

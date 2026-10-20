@@ -17,7 +17,7 @@ import {
   bumpDuplicateFeedbackByNotice,
 } from "@/db/queries/site-feedback";
 import { feedbackContentHash } from "@/lib/feedback/content-hash";
-import { notifyBuilderAsked, notifyFeedbackReceived } from "@/lib/feedback/notify-new";
+import { notifyFeedbackReceived } from "@/lib/feedback/notify-new";
 import { feedbackClaimPath } from "@/lib/feedback/claim-token";
 import { appUrl } from "@/lib/email";
 import { watchFixPath } from "@/lib/feedback/tour-token";
@@ -179,17 +179,15 @@ export async function POST(req: NextRequest) {
     return corsError("Too many submissions, try again later", 429);
   }
 
-  // A note proven by a pass: same project, issued to the owner or to a Builder
-  // they added (lib/feedback/pass-holder.ts). Anything else is an ordinary
-  // visitor, and waits for the owner.
-  const holder = await passHolder(data.ownerPass, token);
+  // A note proven by the owner's pass: same project, issued to its owner
+  // (lib/feedback/pass-holder.ts). Anything else is a visitor or a seat, and
+  // waits for the owner.
+  const holder = passHolder(data.ownerPass, token);
   const fromOwner = holder !== null;
-  // A Builder's note builds without the owner, so the owner is told instead.
-  const builderUserId = holder && holder.userId !== token.userId ? holder.userId : null;
 
   // A project member writing on the site (their own "Open the site" link in
   // Loki): the note is theirs, filed by the same rules as asking on their
-  // project page — a client builds on their allowance and puts it live.
+  // project page — a suggestion the owner decides on.
   const member = fromOwner ? null : await passMember(data.memberPass, token.projectId);
   if (member) {
     const asked = await askInLoki({
@@ -243,7 +241,6 @@ export async function POST(req: NextRequest) {
     // a visitor here also made the widget drop a perfectly good pass.
     if (fromOwner && data.intent !== "note") {
       const build = await startOwnerBuild(token.userId, token.projectId, bumped);
-      if (builderUserId) void notifyBuilderAsked(bumped, builderUserId, build.building);
       // The same link the first filing got: a receipt without one was the
       // one place "On it" dead-ended.
       const followUrl = `${appUrl()}${watchFixPath(bumped)}`;
@@ -309,7 +306,6 @@ export async function POST(req: NextRequest) {
   // not hidden: the note is stored either way and waits in the inbox.
   if (fromOwner && data.intent !== "note") {
     const build = await startOwnerBuild(token.userId, token.projectId, created.id);
-    if (builderUserId) void notifyBuilderAsked(created.id, builderUserId, build.building);
     // The receipt in the widget links to this fix in Loki, so "On it" is never
     // a dead end: the owner follows the build to live from the same thread.
     const followUrl = `${appUrl()}${watchFixPath(created.id)}`;

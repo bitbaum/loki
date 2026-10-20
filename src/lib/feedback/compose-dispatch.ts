@@ -20,8 +20,8 @@ export type FeedbackPromptFields = {
   source?: string | null;
   /** What was seen while each thing was said (widget/moments-contract.ts). */
   moments?: ReportMoment[] | null;
-  /** A client's ask building on their allowance: it goes live on their word. */
-  onAllowance?: boolean | null;
+  /** Built for the person who asked: it goes live on their word only. */
+  previewFirst?: boolean | null;
 };
 
 /**
@@ -127,7 +127,7 @@ export function composeFeedbackFixPrompt(
     "",
     "Scope: address exactly this feedback — no unrelated refactors.",
     SHIP_INSTRUCTION,
-    ...(feedback.onAllowance ? [CLIENT_SHIP_INSTRUCTION] : []),
+    ...(feedback.previewFirst ? [CLIENT_SHIP_INSTRUCTION] : []),
     fixNoteInstruction(),
   );
   return lines.join("\n");

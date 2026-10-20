@@ -6,6 +6,25 @@ This file is the canonical changelog: the fleet map (`/api/fleet/map`) reads it,
 `/changelog` renders it, and every fleet site does the same with its own
 CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
+## 2026-10-20 — Whoever asks pays
+
+- **Your requests on a shared project go to its owner.** {#seat-suggests} Whether you are a
+  Builder, a client or a viewer on someone else's project, what you ask for —
+  on the project page in Loki or with Feedback on the site — is now a
+  suggestion the owner decides on, and you are told when it ships. It used to
+  build at once on the owner's subscription (a Builder's always, a client's up
+  to a monthly allowance); nobody's request runs on another person's engine
+  any more, and the "changes a month" setting is gone. A builder of your own
+  on Loki's cloud is the next step on the roadmap.
+- **A new account's first build runs on its own computer.** A project with no
+  stored builder used to ask for the cloud and be refused as "private" even
+  with Fleet Runner connected; it now runs on the computer you connected, and
+  a new project's folder is no longer written under the cloud builder's root
+  for an account the cloud does not serve.
+- **"Hosted runner" is offered only where it exists.** It serves one account;
+  everyone else saw it as a choice, could pick it, and queued work that was
+  never claimed.
+
 ## 2026-10-17 — See what every session is doing
 
 - **Each tab says what its session is doing.** A breathing dot while it works,

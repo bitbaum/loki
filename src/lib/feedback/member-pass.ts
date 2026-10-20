@@ -10,7 +10,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * link — a bearer key that acted as the owner for 90 days, for whoever it was
  * forwarded to. This pass names the PERSON instead. The widget stays the
  * ordinary panel; it sends the pass with each note, and ingest files the note
- * as theirs, with their seat's rules (a client's allowance, "Make it live").
+ * as theirs, with their seat's rules (the owner decides; "Make it live" for a
+ * change built for them).
  *
  * Membership is read when the pass is used, never trusted from the pass:
  * removing someone from the project ends what their pass can do at once.

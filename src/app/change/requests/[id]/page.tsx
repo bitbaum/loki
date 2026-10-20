@@ -69,10 +69,7 @@ export default async function BuildRequestPage({ params }: { params: Promise<{ i
                   <Link className="ui-public-link" href={`/projects/${row.projectId}#ask`}>
                     your project page
                   </Link>
-                  .{" "}
-                  {seat?.monthlyChanges
-                    ? `Up to ${seat.monthlyChanges} changes a month are built straight away, and each goes live when you say so.`
-                    : "The site's owner decides what gets built."}
+                  . The site&apos;s owner decides what gets built, and you are told when it is live.
                 </p>
               )}
             </section>

@@ -311,6 +311,7 @@ export function ControlPanel({
     openLaunchModal,
     runtimeAvailable,
     runtimeStateKnown,
+    hostedBuilderAvailable: data?.hostedBuilderAvailable === true,
     runnerSyncStale,
     executionStalled: Boolean(data?.runnerExecutionStall?.stalled),
     automationMode: automationPolicy.mode,

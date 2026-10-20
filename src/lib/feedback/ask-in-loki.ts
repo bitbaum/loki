@@ -2,37 +2,27 @@
  * A change asked for from inside Loki by someone on the project — the second
  * door beside the site's Feedback button, and the same room behind it.
  *
- * Walking the loop as Manu (a Builder on George's Petvity, 2026-10-18): the
- * project page led with an orange "Ask Loki", which opened the chat in
- * Manu's own account. That account has no builder and no project of its
- * own, so the chat told him to "edit the site's HTML/CSS on a computer where
- * you have a builder… requires the Loki desktop app". The one promise the
- * invite made — say what should change and Loki builds it — broke on the
- * first tap inside Loki.
- *
- * So an ask here is filed exactly as the widget files a note proven by a
- * pass: a feedback row on the project, in the OWNER's tenant, naming who
- * asked. Whoever may edit the project (owner or Builder) starts the build at
- * once through startOwnerBuild — the owner's builder, never the asker's — and
- * the owner is told when it was a Builder. A client with changes left this
- * month builds the same way, and their change waits for their "Make it live".
- * Anyone else's ask waits for the owner, who is notified like any visitor note.
+ * Whoever asks pays, with their own engine, in their own builder
+ * (docs/architecture/private-builders.md). So the OWNER's ask starts a build
+ * at once on the owner's own builder: saying it is the decision. Anyone
+ * else's ask — a Builder's, a client's, a viewer's — is filed as a
+ * SUGGESTION in the owner's tenant, naming who asked, and waits for the
+ * owner's tap like a visitor's note. Until 2026-10-20 a Builder's ask built
+ * on the owner's subscription without asking, and a client's did the same
+ * up to a monthly allowance; both spent one person's engine on another
+ * person's word, and both are gone. A seat that brings a builder of its own
+ * will build its own asks in its own tenant (docs/master-plan-2026-10.md,
+ * Track 1); until then the reply says who decides.
  */
 import { getProjectAccess } from "@/db/queries/project-access";
-import {
-  bumpDuplicateFeedback,
-  countAllowanceUsed,
-  insertSiteFeedback,
-  setOnAllowance,
-} from "@/db/queries/site-feedback";
-import { allowanceMonthStart, changesLeft } from "@/config/client-allowance";
+import { bumpDuplicateFeedback, insertSiteFeedback } from "@/db/queries/site-feedback";
 import { getUserById } from "@/db/queries/users";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import type { NewSiteFeedback } from "@/db/schema";
 import { FEEDBACK_SOURCE } from "@/lib/constants/statuses";
 import { askReply } from "@/lib/project-capabilities";
 import { feedbackContentHash } from "./content-hash";
-import { notifyBuilderAsked, notifyFeedbackReceived } from "./notify-new";
+import { notifyFeedbackReceived } from "./notify-new";
 import { startOwnerBuild } from "./owner-build";
 import { watchFixPath } from "./tour-token";
 
@@ -77,14 +67,11 @@ export async function askInLoki(input: {
   ]);
   const owner = ownerRow?.name?.trim() || "The owner";
   const site = hostOf(runtime?.liveUrl ?? null);
+  // Only the owner's word starts a build: it is their builder and their engine.
+  const owns = access.role === "owner";
 
-  // A client with an allowance left builds at once, like a Builder — but
-  // their change waits for their own "Make it live" (feedback/auto-ship.ts).
-  const allowance = await clientAllowance(access, input);
-  const builds = access.canEdit || (allowance?.left ?? 0) > 0;
-
-  // Asked twice is one row, as on the site: the same words again from someone
-  // who may build means "do it", so a stalled attempt starts again.
+  // Asked twice is one row, as on the site: the same words again from the
+  // owner mean "do it", so a stalled attempt starts again.
   const contentHash = input.fromSite?.contentHash ?? feedbackContentHash(input.text, null);
   const bumped = await bumpDuplicateFeedback(input.projectId, contentHash);
   const created = bumped
@@ -95,22 +82,22 @@ export async function askInLoki(input: {
         projectId: input.projectId,
         userId: ownerUserId,
         suggestion: input.text,
-        source: access.canEdit
+        // A seat's ask is never the owner's word: it waits for a tap
+        // (waitsForATap), so the night autopilot does not build it and the
+        // fix does not merge itself as if the owner had said it.
+        source: owns
           ? FEEDBACK_SOURCE.OWNER
           : access.role === "client"
             ? FEEDBACK_SOURCE.CLIENT
-            : FEEDBACK_SOURCE.VISITOR,
+            : FEEDBACK_SOURCE.MEMBER,
         reporterUserId: input.userId,
         contentHash,
-        // Read by the fix prompt, so it is set before the build starts.
-        onAllowance: !access.canEdit && builds,
       });
   const id = bumped ?? created?.id;
   if (!id) return { ok: false, status: 500, error: "Could not save that — try again." };
-  // The same words again from someone who does not build: it is already on
-  // its way or with the owner — never a second build, and never one that
-  // skips the allowance by riding on a row the owner had not started.
-  if (bumped && !access.canEdit)
+  // The same words again from someone who does not build: it is already
+  // with the owner — never a second nudge, never a build.
+  if (bumped && !owns)
     return {
       ok: true,
       building: false,
@@ -118,55 +105,26 @@ export async function askInLoki(input: {
       followPath: "/my-feedback",
     };
 
-  if (!builds) {
+  if (!owns) {
     // Announced once, when first filed: the owner decides this one.
     if (created) void notifyFeedbackReceived(created);
     return {
       ok: true,
       building: false,
-      say: askReply(access.role, { owner, site, building: false, allowance }),
+      say: askReply(access.role, { owner, site, building: false }),
       // Their own list, not the fix's watch page: until the change is live
-      // that page forwards to the owner's inbox, which a client cannot see,
+      // that page forwards to the owner's inbox, which a member cannot see,
       // so "See where it is" opened an empty Feedback page (2026-10-19).
       followPath: "/my-feedback",
     };
   }
   const build = await startOwnerBuild(ownerUserId, input.projectId, id);
-  // An allowance pays for builds, not for attempts: one that did not start
-  // is the owner's to start, and costs the client nothing.
-  if (created?.onAllowance && !build.building) await setOnAllowance(id, false);
-  const spent = allowance && created?.onAllowance && build.building ? 1 : 0;
-  const after = allowance ? { ...allowance, left: allowance.left - spent } : null;
-  if (input.userId !== ownerUserId) void notifyBuilderAsked(id, input.userId, build.building);
   return {
     ok: true,
     building: build.building,
-    say: askReply(access.role, {
-      owner,
-      site,
-      ...build,
-      allowance: after,
-      // A change on a repository waits for the client's "Make it live"; a
-      // preview folder has no live site yet, so they simply see it there.
-      waitsForYes: !!created?.onAllowance && !!runtime?.gitUrl,
-    }),
-    followPath: access.canEdit ? watchFixPath(id) : "/my-feedback",
+    say: askReply("owner", { owner, site, ...build }),
+    followPath: watchFixPath(id),
   };
-}
-
-/** A client's allowance this month, or null for anyone without one. */
-async function clientAllowance(
-  access: { role: string; monthlyChanges: number | null },
-  input: { userId: string; projectId: string },
-): Promise<{ limit: number; left: number } | null> {
-  if (access.role !== "client" || !access.monthlyChanges) return null;
-  const used = await countAllowanceUsed(
-    input.projectId,
-    input.userId,
-    allowanceMonthStart(new Date()),
-  );
-  const left = changesLeft(access.monthlyChanges, used);
-  return left === null ? null : { limit: access.monthlyChanges, left };
 }
 
 function hostOf(url: string | null): string | null {

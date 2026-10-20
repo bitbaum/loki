@@ -4,7 +4,10 @@ import { dispatchFeedbackBatch } from "@/lib/feedback/batch-dispatch";
 import { getProjectCore } from "@/db/queries/projects";
 import type { FeedbackPromptFields } from "@/lib/feedback/compose-dispatch";
 
-/** Owner notes start an agent each; this bounds what a leaked pass can spend. */
+/** Owner notes start an agent each; this bounds what a leaked pass can spend
+ *  on ONE account's engine — a guard against a runaway loop, never a price.
+ *  Keyed by the owner, not the project: it is their engine across all of
+ *  their projects that a loop would drain. */
 const OWNER_BUILDS_PER_DAY = 40;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -20,7 +23,7 @@ export async function startOwnerBuild(
   projectId: string,
   feedbackId: string,
 ): Promise<{ building: boolean; buildNote?: string }> {
-  if (!withinDailyLimit(projectId)) return LIMITED;
+  if (!withinDailyLimit(ownerUserId)) return LIMITED;
   try {
     const { status, body } = await implementFeedback(ownerUserId, feedbackId);
     if (status < 400 && typeof body.runId === "string") return { building: true };
@@ -43,7 +46,7 @@ export async function startOwnerBatchBuild(
   projectId: string,
   items: Array<FeedbackPromptFields & { id: string }>,
 ): Promise<{ building: boolean; buildNote?: string }> {
-  if (!withinDailyLimit(projectId)) return LIMITED;
+  if (!withinDailyLimit(ownerUserId)) return LIMITED;
   try {
     const project = await getProjectCore(ownerUserId, projectId);
     if (!project) return notStarted(null);
@@ -58,8 +61,8 @@ export async function startOwnerBatchBuild(
   }
 }
 
-const withinDailyLimit = (projectId: string) =>
-  checkRateLimit(`feedback:owner-build:${projectId}`, OWNER_BUILDS_PER_DAY, DAY_MS);
+const withinDailyLimit = (ownerUserId: string) =>
+  checkRateLimit(`feedback:owner-build:${ownerUserId}`, OWNER_BUILDS_PER_DAY, DAY_MS);
 
 const LIMITED = {
   building: false,

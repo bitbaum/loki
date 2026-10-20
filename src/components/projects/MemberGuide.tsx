@@ -13,10 +13,9 @@ import { memberSiteUrl } from "../../../widget/member-pass";
  * page they land on — and the place to use it: the box to ask in, right
  * here (ProjectAskBox), then the site as the other door. What happens to
  * what they ask is the same line the invite page showed. The "Open" link
- * carries the person's pass: a Builder's note on the site builds at once, a
- * client's is filed as theirs on their allowance (feedback/member-pass.ts); the
- * site remembers it in that browser, and the site's own feedback button has
- * a sign-in door for any other browser.
+ * carries the person's member pass, so a note on the site is filed as theirs
+ * (feedback/member-pass.ts); the site remembers it in that browser, and the
+ * site's own feedback button has a sign-in door for any other browser.
  */
 export function MemberGuide({
   projectId,
@@ -27,7 +26,6 @@ export function MemberGuide({
   ownerPass,
   memberPass = null,
   joined,
-  allowance = null,
   ready = [],
 }: {
   projectId: string;
@@ -40,22 +38,17 @@ export function MemberGuide({
   memberPass?: string | null;
   /** Arrived straight from "Join": lead with that. */
   joined: boolean;
-  /** A client's changes left this month. */
-  allowance?: { limit: number; left: number } | null;
   /** A client's changes written and waiting for their "Make it live". */
   ready?: { id: string; suggestion: string }[];
 }) {
   const owner = ownerName ?? "The owner";
   const site = liveUrl ? hostOf(liveUrl) : null;
-  const guide = roleGuide(role, { site, owner }, allowance);
-  const builder = role === "editor";
+  const guide = roleGuide(role, { site, owner });
   return (
     <section className="ui-project-section" aria-labelledby="member-guide-title">
       {joined && <p className="ui-kicker">You’re in</p>}
       <h2 id="member-guide-title" className="text-lg font-semibold">
-        {builder || allowance
-          ? `How you change ${projectName}`
-          : `How you ask for a change to ${projectName}`}
+        How you ask for a change to {projectName}
       </h2>
       <p className="mt-2 text-base text-text-secondary">{guide.then}</p>
       {ready.length > 0 && <ReadyForYou items={ready} />}

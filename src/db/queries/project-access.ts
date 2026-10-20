@@ -24,14 +24,12 @@ export type ProjectAccess = {
   ownerUserId: string;
   canEdit: boolean;
   canManageMembers: boolean;
-  /** A client's changes a month that build without the owner; null for
-   *  everyone else and for a client the owner asked to see first. */
-  monthlyChanges: number | null;
 };
 
-/** One authorization decision for every project surface. Runtime work always
- * executes in the owner's tenant; collaborators receive capabilities, never
- * ownership of the owner's runner credentials. */
+/** One authorization decision for every project surface. Collaborators
+ * receive capabilities, never the owner's builder: a seat's ask is a
+ * suggestion to the owner until the seat has a builder of its own
+ * (lib/feedback/ask-in-loki.ts, docs/architecture/private-builders.md). */
 export async function getProjectAccess(
   userId: string,
   projectId: string,
@@ -47,19 +45,12 @@ export async function getProjectAccess(
       ),
     )
     .limit(1);
-  if (owned)
-    return {
-      role: "owner",
-      ownerUserId: owned.ownerUserId,
-      monthlyChanges: null,
-      ...OWNER_CAPABILITIES,
-    };
+  if (owned) return { role: "owner", ownerUserId: owned.ownerUserId, ...OWNER_CAPABILITIES };
 
   const [member] = await db
     .select({
       role: projectMemberships.role,
       ownerUserId: userProjects.userId,
-      monthlyChanges: projectMemberships.monthlyChanges,
     })
     .from(projectMemberships)
     .innerJoin(
@@ -75,7 +66,6 @@ export async function getProjectAccess(
   return {
     role: member.role,
     ownerUserId: member.ownerUserId,
-    monthlyChanges: member.role === "client" ? (member.monthlyChanges ?? null) : null,
     ...capabilitiesForRole(member.role),
   };
 }
@@ -134,49 +124,22 @@ export async function listProjectMembers(projectId: string) {
       name: users.name,
       email: users.email,
       role: projectMemberships.role,
-      monthlyChanges: projectMemberships.monthlyChanges,
     })
     .from(projectMemberships)
     .innerJoin(users, eq(users.id, projectMemberships.userId))
     .where(eq(projectMemberships.projectId, projectId));
 }
 
-export async function upsertProjectMember(
-  projectId: string,
-  userId: string,
-  role: ProjectRole,
-  monthlyChanges: number | null = null,
-) {
-  const seat = { role, monthlyChanges: role === "client" ? monthlyChanges : null };
+export async function upsertProjectMember(projectId: string, userId: string, role: ProjectRole) {
   const [row] = await db
     .insert(projectMemberships)
-    .values({ projectId, userId, ...seat })
+    .values({ projectId, userId, role })
     .onConflictDoUpdate({
       target: [projectMemberships.projectId, projectMemberships.userId],
-      set: { ...seat, updatedAt: new Date() },
+      set: { role, updatedAt: new Date() },
     })
     .returning();
   return row;
-}
-
-/** The owner changes how many changes a month a client may have built. */
-export async function setClientMonthlyChanges(
-  projectId: string,
-  userId: string,
-  monthlyChanges: number | null,
-): Promise<boolean> {
-  const rows = await db
-    .update(projectMemberships)
-    .set({ monthlyChanges, updatedAt: new Date() })
-    .where(
-      and(
-        eq(projectMemberships.projectId, projectId),
-        eq(projectMemberships.userId, userId),
-        eq(projectMemberships.role, "client"),
-      ),
-    )
-    .returning({ id: projectMemberships.id });
-  return rows.length > 0;
 }
 
 export async function removeProjectMember(projectId: string, userId: string): Promise<boolean> {
@@ -198,8 +161,6 @@ export async function createProjectInvitation(input: {
   email: string | null;
   role: ProjectRole;
   invitedBy: string;
-  /** A client's monthly allowance, carried onto the seat when accepted. */
-  monthlyChanges?: number | null;
 }): Promise<{ invitation: ProjectInvitation; token: string }> {
   // The demo account is every visitor at once: an invite from it would let
   // anyone seat themselves on the demo's projects, in front of the next visitor.
@@ -227,7 +188,6 @@ export async function createProjectInvitation(input: {
       projectId: input.projectId,
       email,
       role: input.role,
-      monthlyChanges: input.role === "client" ? (input.monthlyChanges ?? null) : null,
       tokenHash: hashInviteToken(token),
       invitedBy: input.invitedBy,
       expiresAt: inviteExpiry(new Date(), email === null),
@@ -272,7 +232,6 @@ export async function listPendingProjectInvitations(projectId: string) {
       id: projectInvitations.id,
       email: projectInvitations.email,
       role: projectInvitations.role,
-      monthlyChanges: projectInvitations.monthlyChanges,
       expiresAt: projectInvitations.expiresAt,
       createdAt: projectInvitations.createdAt,
     })
@@ -326,19 +285,14 @@ export async function acceptProjectInvitation(
           isNull(projectInvitations.revokedAt),
         ),
       )
-      .returning({
-        projectId: projectInvitations.projectId,
-        role: projectInvitations.role,
-        monthlyChanges: projectInvitations.monthlyChanges,
-      });
+      .returning({ projectId: projectInvitations.projectId, role: projectInvitations.role });
     if (!spent) return null;
-    const seat = { role: spent.role, monthlyChanges: spent.monthlyChanges };
     await tx
       .insert(projectMemberships)
-      .values({ projectId: spent.projectId, userId, ...seat })
+      .values({ projectId: spent.projectId, userId, role: spent.role })
       .onConflictDoUpdate({
         target: [projectMemberships.projectId, projectMemberships.userId],
-        set: { ...seat, updatedAt: new Date() },
+        set: { role: spent.role, updatedAt: new Date() },
       });
     return { projectId: spent.projectId };
   });

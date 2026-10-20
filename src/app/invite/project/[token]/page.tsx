@@ -23,8 +23,6 @@ type InviteView = {
   liveUrl: string | null;
   inviterName: string | null;
   role: ProjectRole;
-  /** A client's changes a month that build without the owner. */
-  monthlyChanges: number | null;
   /** Masked, or null for an open link — there is no address to name. */
   invitedEmail: string | null;
   signedIn: boolean;
@@ -119,11 +117,7 @@ export default function ProjectInvitePage({ params }: { params: Promise<{ token:
   const who = view.inviterName?.trim() || "A project owner";
   const builder = view.role === "editor";
   const site = siteName(view.liveUrl);
-  const allowance =
-    view.role === "client" && view.monthlyChanges
-      ? { limit: view.monthlyChanges, left: view.monthlyChanges }
-      : null;
-  const guide = roleGuide(view.role, { site, owner: who }, allowance);
+  const guide = roleGuide(view.role, { site, owner: who });
   const own = view.reason === "own";
   const member = view.reason === "member";
 

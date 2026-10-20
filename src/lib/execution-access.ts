@@ -199,6 +199,19 @@ export type ProjectLocus =
   | undefined;
 
 /** The stored preference, or null when the row says nothing or says nonsense. */
+/**
+ * The builder a dispatch ASKS for, or null when nobody chose: a locus lock,
+ * else the project's stored preference. Null is not "any builder" — the
+ * decision (decideQueuedExecution) supplies the floor, and the floor is
+ * where an account's rights are read: the cloud for one that has it, the
+ * connected computer for one that does not. Passing the cloud floor as the
+ * REQUEST (inject-core did, until 2026-10-20) made every fresh account's
+ * first dispatch a 403 `cloud-builder-private`, with Fleet Runner connected.
+ */
+export function requestedDispatchChannel(project: ProjectLocus): RunnerChannel | null {
+  return projectChannelLock(project) ?? storedBuilderPref(project);
+}
+
 function storedBuilderPref(project: ProjectLocus): RunnerChannel | null {
   const pref = project?.builderPref?.trim();
   return pref && isBuilderChannel(pref) ? pref : null;

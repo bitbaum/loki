@@ -29,9 +29,11 @@ import { executeInject } from "@/lib/executor";
 import {
   coldStartWorkspaceDir,
   offlineFallbackChannel,
+  requestedDispatchChannel,
   pickDispatchChannel,
   projectChannelLock,
 } from "@/lib/execution-access";
+import { hostedRunnerServes } from "@/lib/hosted-runner/serves";
 import type { RunnerChannel } from "@/db/schema/pending-commands";
 import {
   createOrchestrationEvent,
@@ -675,7 +677,8 @@ type PreparedDispatch = {
   injectFn: (() => Promise<void>) | null;
   ptyBacked: boolean;
   projectBusy: boolean;
-  pinnedChannel: ReturnType<typeof pickDispatchChannel>;
+  /** The builder asked for; null when the decision's floor applies. */
+  pinnedChannel: RunnerChannel | null;
   /** The builder that takes the work if `pinnedChannel` is offline now. */
   offlineFallback: RunnerChannel | null;
   isLifecycle: boolean;
@@ -734,7 +737,7 @@ async function executeAndReport(
       // over INJECT (tab puppeting) by whether `dir` is present.
       dir: projectPath ?? coldStartWorkspaceDir(canonical, dbMatch.gitUrl),
       projectBusy,
-      channel: pinnedChannel,
+      ...(pinnedChannel ? { channel: pinnedChannel } : {}),
       // Lifecycle commands act on a PTY that exists on one machine; they never
       // fall through.
       offlineFallback:
@@ -766,7 +769,9 @@ async function executeAndReport(
   // The builder the row was actually given — the pinned one, unless it was
   // offline and the fallback took the work.
   const queued = result.mode === "queued" ? result : null;
-  const channel = queued?.channel ?? pinnedChannel;
+  // The queue says where it went; a direct inject ran on this runtime, whose
+  // channel is the project's own floor.
+  const channel = queued?.channel ?? pinnedChannel ?? pickDispatchChannel(dbMatch);
   const reroutedFrom = queued?.reroutedFrom ?? null;
 
   if (runId && result.mode === "queued") {
@@ -775,7 +780,13 @@ async function executeAndReport(
   }
 
   let hostedDispatchId: string | undefined;
-  if (params.allowHostedFallback !== false && queuedOffline && !isLifecycle && dbMatch.gitUrl) {
+  if (
+    params.allowHostedFallback !== false &&
+    queuedOffline &&
+    !isLifecycle &&
+    dbMatch.gitUrl &&
+    (await hostedRunnerServes(userId))
+  ) {
     hostedDispatchId = await routeToHostedFallback(userId, {
       canonical,
       gitUrl: dbMatch.gitUrl,
@@ -965,7 +976,15 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
   const isLifecycle = promptKey === "close_session" || promptKey === "hard_stop";
   // Lifecycle commands (close/stop) have no PTY to act on here and are answered
   // as a no-op, so they are never routed to the hosted builder.
-  if (isHostedBuilderPref(dbMatch.builderPref) && !isLifecycle && dbMatch.gitUrl) {
+  // The hosted runner serves one account (hosted-runner/serves.ts): for
+  // anyone else the stored "hosted" choice is a dead letter and the dispatch
+  // takes the ordinary route below instead of queueing for nothing.
+  if (
+    isHostedBuilderPref(dbMatch.builderPref) &&
+    !isLifecycle &&
+    dbMatch.gitUrl &&
+    (await hostedRunnerServes(userId))
+  ) {
     return await dispatchToHostedBuilder(userId, {
       canonical,
       effectiveTab,
@@ -979,8 +998,11 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
       nowS,
     });
   }
+  // What is ASKED for: a lock, a caller's named builder, a stored choice —
+  // or nothing, and the decision applies its floor to this account's rights
+  // (execution-access.ts requestedDispatchChannel).
   const pinnedChannel =
-    projectChannelLock(dbMatch) ?? params.builderChannel ?? pickDispatchChannel(dbMatch);
+    projectChannelLock(dbMatch) ?? params.builderChannel ?? requestedDispatchChannel(dbMatch);
   // A caller that asked for a builder by name gets that builder; only the
   // project's own stored preference falls through when it is offline.
   const offlineFallback = params.builderChannel ? null : offlineFallbackChannel(dbMatch);

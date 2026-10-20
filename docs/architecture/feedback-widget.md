@@ -299,24 +299,29 @@ Who filed a note is the server's call, never the sender's
   Loki's own). A plan holding a stranger's note waits for a tap.
 - Opening a tracking link builds nothing. Someone who can build the project
   lands on the inbox instead, and the reporter's claim is left for them.
-- A project's **client** (a member with role `client`) builds on a monthly
-  allowance the owner picks on the People panel (`config/client-allowance.ts`:
-  Ask me / 5 / 20 / 50). Within it, their ask from the project page builds at
-  once (`source = client`, `on_allowance = true`) and the agent opens a
-  DRAFT pull request; it merges only after the client taps **Make it live**
-  (`/api/feedback/[id]/live`, `lib/feedback/go-live.ts`), which lifts the draft
-  and merges once green (`auto-ship.ts`). An explicit auto-ship OFF still means
-  the owner merges. Past the allowance, or with "Ask me", the ask waits for
-  the owner like a visitor's, and the night never builds it unasked. A build
-  that did not start is not counted. `scripts/test/client-seat.ts`,
+- A **seat** on the project — a Builder (`editor`), a `client`, a `viewer` —
+  asks; the owner decides. Their ask from the project page or the site is a
+  feedback row in the owner's tenant naming who asked (`source = client` or
+  `member`), announced like a visitor's note, and it waits for the owner's
+  tap: the night never builds it unasked, and the fix never merges as if the
+  owner had said it. Only the owner's own word (`source = owner`, the owner
+  pass or the owner's session) starts a build, on the owner's builder and
+  engine — whoever asks pays, in their own builder
+  (`docs/architecture/private-builders.md`). Until 2026-10-20 a Builder's
+  ask built at once and a client's built on a monthly allowance, both on the
+  owner's subscription; both are gone. A change built FOR the person who
+  asked (`on_allowance`, read as `previewFirst`) opens as a DRAFT pull
+  request and merges only after they tap **Make it live**
+  (`/api/feedback/[id]/live`, `lib/feedback/go-live.ts`), which lifts the
+  draft and merges once green (`auto-ship.ts`); an explicit auto-ship OFF
+  still means the owner merges. `scripts/test/client-seat.ts`,
   `scripts/test/client-seat-browser.ts`.
 - On the SITE, a member (client, viewer) is known by a member pass, minted
   for their "Open" link on their project page and by the widget's sign-in
   door for anyone on the project who is not a builder
   (`lib/feedback/member-pass.ts`, fragment `#loki-member=`). The panel stays
-  the ordinary one; ingest files the note through `askInLoki`, so a client's
-  note on the site follows the same allowance and "Make it live" as on their
-  project page. Membership is read at use, so removing someone ends their
+  the ordinary one; ingest files the note through `askInLoki`, so a seat's
+  note on the site goes to the owner exactly as from their project page. Membership is read at use, so removing someone ends their
   pass. The owner pass is the owner's console and is never sent to anyone.
 - A visitor follows their note without an account: the tracking link opens
   `/claim-feedback` on the note's own status (`ReporterFeedbackCard`, the same

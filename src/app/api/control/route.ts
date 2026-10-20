@@ -59,6 +59,7 @@ import { isRuntimeAvailable } from "@/lib/runtime";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
 import { taskTitle } from "@/lib/task-title";
 import { isFleetInfrastructureAllowed, pickDispatchChannel } from "@/lib/execution-access";
+import { hostedRunnerServes } from "@/lib/hosted-runner/serves";
 import { isHeartbeatFresh } from "@/lib/builder-presence";
 import { isAgentId, listAgentRegistry } from "@/lib/agent-registry";
 import { inferAdapterFromTabName } from "@/components/control/control-presenter";
@@ -927,6 +928,9 @@ export async function GET() {
         : null,
       cloudBuilderAllowed: !isRuntimeAvailable()
         ? await isFleetInfrastructureAllowed(userId).catch(() => null)
+        : null,
+      hostedBuilderAvailable: !isRuntimeAvailable()
+        ? await hostedRunnerServes(userId).catch(() => null)
         : null,
       // Execution health (≠ push heartbeat): a runner can keep pushing snapshots
       // while its command loop is hung, so dispatches silently queue forever.

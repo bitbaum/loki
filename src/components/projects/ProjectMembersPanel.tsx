@@ -4,12 +4,7 @@ import { useState } from "react";
 import { Segmented } from "@/components/ui/segmented";
 import { Check, Copy, MessageCircle, Share2 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
-import { deleteJson, patchJson, postJson, throwApiError } from "@/lib/api/fetch";
-import {
-  allowanceChoiceId,
-  CLIENT_ALLOWANCE_CHOICES,
-  DEFAULT_CLIENT_ALLOWANCE,
-} from "@/config/client-allowance";
+import { deleteJson, postJson, throwApiError } from "@/lib/api/fetch";
 import { PROJECT_ROLE_VALUES, type ProjectRole } from "@/db/schema/project-memberships";
 import { ROLE_LABELS } from "@/lib/project-capabilities";
 import { OPEN_INVITE_TTL_DAYS } from "@/lib/project-invite-limits";
@@ -19,13 +14,11 @@ type Member = {
   name: string | null;
   email: string | null;
   role: ProjectRole;
-  monthlyChanges: number | null;
 };
 type PendingInvite = {
   id: string;
   email: string | null;
   role: ProjectRole;
-  monthlyChanges: number | null;
   expiresAt: string;
 };
 type MembersResponse = {
@@ -67,7 +60,6 @@ export function ProjectMembersPanel({
 }) {
   const members = useFetch<MembersResponse>(`/api/projects/${projectId}/members`);
   const [role, setRole] = useState<ProjectRole>(defaultRole);
-  const [allowance, setAllowance] = useState<number | null>(DEFAULT_CLIENT_ALLOWANCE);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
@@ -83,7 +75,6 @@ export function ProjectMembersPanel({
     try {
       const response = await postJson(`/api/projects/${projectId}/members`, {
         role,
-        ...(role === "client" ? { monthlyChanges: allowance } : {}),
         ...(to ? { email: to } : {}),
       });
       if (!response.ok) await throwApiError(response, "Could not create the invitation");
@@ -110,15 +101,6 @@ export function ProjectMembersPanel({
     } finally {
       setBusy(false);
     }
-  }
-
-  async function changeAllowance(userId: string, monthlyChanges: number | null) {
-    const response = await patchJson(`/api/projects/${projectId}/members`, {
-      userId,
-      monthlyChanges,
-    });
-    if (!response.ok) setMessage("That did not save — try again.");
-    members.refetch();
   }
 
   async function remove(body: { userId: string } | { invitationId: string }) {
@@ -174,9 +156,6 @@ export function ProjectMembersPanel({
           />
         </div>
       </fieldset>
-      {role === "client" && (
-        <AllowanceChoice value={allowance} onChange={setAllowance} label="Changes a month" />
-      )}
 
       {!link && (
         <button
@@ -238,11 +217,7 @@ export function ProjectMembersPanel({
             <li key={m.userId} className="flex flex-wrap items-center justify-between gap-3 py-2">
               <span className="min-w-0 break-words text-text-primary">
                 {m.name || m.email || "Loki user"}
-                <span className="text-text-tertiary">
-                  {" "}
-                  · {ROLE_LABELS[m.role].label}
-                  {m.role === "client" && ` · ${allowanceWords(m.monthlyChanges)}`}
-                </span>
+                <span className="text-text-tertiary"> · {ROLE_LABELS[m.role].label}</span>
               </span>
               <span className="flex shrink-0 gap-1">
                 <button type="button" className="ui-btn-ghost" onClick={() => void handOver(m)}>
@@ -256,23 +231,13 @@ export function ProjectMembersPanel({
                   Remove
                 </button>
               </span>
-              {m.role === "client" && (
-                <div className="w-full">
-                  <AllowanceChoice
-                    value={m.monthlyChanges}
-                    label={`Changes a month for ${m.name || m.email || "this client"}`}
-                    onChange={(value) => void changeAllowance(m.userId, value)}
-                  />
-                </div>
-              )}
             </li>
           ))}
           {data.invitations.map((inv) => (
             <li key={inv.id} className="flex items-center justify-between gap-3 py-2">
               <span className="min-w-0 break-words text-text-tertiary">
-                {inv.email ?? "Invite link"} · {ROLE_LABELS[inv.role].label}
-                {inv.role === "client" && ` · ${allowanceWords(inv.monthlyChanges)}`} · not opened
-                yet · {daysLeft(inv.expiresAt)}d left
+                {inv.email ?? "Invite link"} · {ROLE_LABELS[inv.role].label} · not opened yet ·{" "}
+                {daysLeft(inv.expiresAt)}d left
               </span>
               <button
                 type="button"
@@ -286,42 +251,6 @@ export function ProjectMembersPanel({
         </ul>
       </div>
     </section>
-  );
-}
-
-/** "20 a month" / "asks you first" — the client's seat in the roster's words. */
-function allowanceWords(value: number | null): string {
-  return value ? `${value} a month` : "asks you first";
-}
-
-/** How many of a client's changes a month build without you. */
-function AllowanceChoice({
-  value,
-  onChange,
-  label,
-}: {
-  value: number | null;
-  onChange: (value: number | null) => void;
-  label: string;
-}) {
-  return (
-    <fieldset>
-      <legend className="ui-micro-label">{label}</legend>
-      <div className="mt-2">
-        <Segmented
-          label={label}
-          options={CLIENT_ALLOWANCE_CHOICES.map((c) => ({
-            id: c.id,
-            label: c.label,
-            means: c.means,
-          }))}
-          value={allowanceChoiceId(value)}
-          onChange={(id) =>
-            onChange(CLIENT_ALLOWANCE_CHOICES.find((c) => c.id === id)?.value ?? null)
-          }
-        />
-      </div>
-    </fieldset>
   );
 }
 

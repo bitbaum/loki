@@ -16,9 +16,8 @@
  * not similar. getProjectContext uses this same assembly so the page a human
  * reads and the exact context an agent receives cannot drift apart.
  */
-import { countAllowanceUsed, listReporterFeedback } from "@/db/queries/site-feedback";
+import { listReporterFeedback } from "@/db/queries/site-feedback";
 import { attachReporterView } from "@/lib/feedback/attach-reporter-view";
-import { allowanceMonthStart, changesLeft } from "@/config/client-allowance";
 import { resolveProjectDetailWithOrgFallback, type ProjectDetail } from "./projects";
 import { db } from "@/db";
 import { entities, userProjects } from "@/db/schema";
@@ -66,8 +65,6 @@ export type ProjectDossier = {
    *  for an org teammate with no seat of their own. Named in the header so a
    *  Builder is not told the project is "view only". */
   viewerRole: "owner" | ProjectRole | null;
-  /** The viewer is the project's client with a monthly allowance. */
-  viewerAllowance: { limit: number; left: number } | null;
   /** The viewer is the client: their changes waiting for "Make it live". */
   viewerReady: { id: string; suggestion: string }[];
   /** The owner by name, for a member's guide ("George sees it first"). */
@@ -109,18 +106,6 @@ export async function getProjectDossier(
       ? null
       : await getProjectAccess(viewerUserId, projectId).catch(() => null);
   const viewerRole = ownerId === viewerUserId ? "owner" : (access?.role ?? null);
-  // A client's changes left this month, for the guide on their project page.
-  const viewerAllowance =
-    access?.role === "client" && access.monthlyChanges
-      ? {
-          limit: access.monthlyChanges,
-          left:
-            changesLeft(
-              access.monthlyChanges,
-              await countAllowanceUsed(projectId, viewerUserId, allowanceMonthStart(new Date())),
-            ) ?? 0,
-        }
-      : null;
   // A client's changes written and waiting for their "Make it live" — the
   // reporter's own narrow read, never the owner's (attach-reporter-view.ts).
   const viewerReady =
@@ -180,7 +165,6 @@ export async function getProjectDossier(
     ownerId,
     readonly: ownerId !== viewerUserId,
     viewerRole,
-    viewerAllowance,
     viewerReady,
     ownerName,
     canEditFeedback: canEdit,

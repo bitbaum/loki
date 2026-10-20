@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
   // On the project, but not one who builds it (a client, a viewer): back to
   // the site with their own member pass — the ordinary panel, and their notes
   // filed as theirs. Never the owner's pass, which is the owner's console.
-  if (!(await canActForSite(userId, token))) {
+  if (!canActForSite(userId, token)) {
     const access = await getProjectAccess(userId, token.projectId).catch(() => null);
     if (access)
       return NextResponse.redirect(memberSiteUrl(back, createMemberPass(token.projectId, userId)));

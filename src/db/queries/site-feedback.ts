@@ -1,6 +1,6 @@
 import { projectTitle } from "@/lib/project-display";
 import type { FeedbackRead } from "@/lib/feedback/read-report";
-import { and, count, desc, eq, getTableColumns, gte, inArray, isNull, max, sql } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, inArray, isNull, max, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   entities,
@@ -594,32 +594,6 @@ export async function getFeedbackForTour(
     .where(eq(siteFeedback.id, id))
     .limit(1);
   return row ?? null;
-}
-
-/** How many of a client's asks on this project built on their allowance since `since`. */
-export async function countAllowanceUsed(
-  projectId: string,
-  clientUserId: string,
-  since: Date,
-): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(siteFeedback)
-    .where(
-      and(
-        eq(siteFeedback.projectId, projectId),
-        eq(siteFeedback.reporterUserId, clientUserId),
-        eq(siteFeedback.onAllowance, true),
-        gte(siteFeedback.createdAt, since),
-      ),
-    );
-  return Number(row?.n ?? 0);
-}
-
-/** Whether a client's ask counts against their allowance. Set before its
- *  build starts (the fix prompt reads it), cleared if the build did not. */
-export async function setOnAllowance(id: string, onAllowance: boolean): Promise<void> {
-  await db.update(siteFeedback).set({ onAllowance }).where(eq(siteFeedback.id, id));
 }
 
 /** "Make it live": the change may merge. Idempotent; the first yes is kept. */

@@ -47,9 +47,9 @@ export type ReporterStatus = {
   goLive?: boolean;
 };
 
-/** A change built on a client's allowance: it goes live on their word. */
+/** A change built for the person who asked: it goes live on their word. */
 export type ClientChange = {
-  onAllowance: boolean;
+  previewFirst: boolean;
   liveApprovedAt: Date | string | null;
   /** The owner merges everything on this project by hand (auto-ship OFF). */
   ownerMerges: boolean;
@@ -135,7 +135,7 @@ export function reporterStatusFor(
 
     case FEEDBACK_WORK_PHASE.NEEDS_VERIFY: {
       const ship = work.ship?.state ?? null;
-      const client = opts.client?.onAllowance && !opts.client.ownerMerges ? opts.client : null;
+      const client = opts.client?.previewFirst && !opts.client.ownerMerges ? opts.client : null;
       if (client && ship === FIX_SHIP_STATE.PR_OPEN) {
         if (!client.liveApprovedAt)
           return {

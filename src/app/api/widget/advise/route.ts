@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
 
   // Same test as ingest (api/feedback): this project, this owner, unexpired.
   // The owner, or someone they gave edit rights (lib/feedback/pass-holder.ts).
-  const owner = !!(await passHolder(data.ownerPass, token));
+  const owner = !!passHolder(data.ownerPass, token);
 
   try {
     const [project, buildFacts] = await Promise.all([

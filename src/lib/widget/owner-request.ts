@@ -27,6 +27,6 @@ export async function ownerRequest(
   const origin = req.headers.get("origin");
   if (!isWidgetOriginAllowed({ tokenOrigins: token.origins, origin, allowMissingOrigin: false }))
     return { kind: "error", status: 403, error: "Origin not allowed for this widget" };
-  const holder = await passHolder(data.ownerPass, token);
+  const holder = passHolder(data.ownerPass, token);
   return holder ? { kind: "owner", token, holder } : { kind: "stranger" };
 }
