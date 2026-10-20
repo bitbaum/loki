@@ -13,6 +13,11 @@
 >
 > Nothing here has been deleted — a plan that was right when written is worth
 > reading. Just do not treat its inventory as current.
+>
+> **Superseded on sequencing and money by `master-plan-2026-10.md`
+> (2026-10-20)**, which maps every item below to what became of it in its
+> appendix. Phase 2 here ("containers in 4–6 weeks") is replaced there by one
+> Linux user per account first and containers when capacity readings ask.
 
 **Companion to:** `orangecat/docs/business/executive/master-plan-2026-07.md`
 (the OC-side plan, written 2026-07-02). The two plans interlock: OC carries
