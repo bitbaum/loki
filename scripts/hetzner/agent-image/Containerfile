@@ -6,7 +6,9 @@
 # files and survive the container, which does not. Built by
 # install-sealed-builds.sh into the shared read-only image store every
 # rootless podman on the box reads.
-FROM ubuntu:24.04
+# Fully qualified: an unqualified name makes podman ask which registry, and
+# a build with no terminal cannot answer.
+FROM docker.io/library/ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
