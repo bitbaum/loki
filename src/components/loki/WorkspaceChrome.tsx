@@ -32,6 +32,7 @@ export function WorkspaceChrome({
   onToggleHistoryPinned,
   onOpenHistory,
   onNewChat,
+  onLeaveThread,
   onOpenProjects,
   onSaveContext,
   onTogglePin,
@@ -47,6 +48,8 @@ export function WorkspaceChrome({
   onToggleHistoryPinned: () => void;
   onOpenHistory: () => void;
   onNewChat: () => void;
+  /** Back to the chats — the start page without "New chat"'s fresh box. */
+  onLeaveThread: () => void;
   onOpenProjects: () => void;
   onSaveContext: () => void;
   onTogglePin: (id: string, pinned: boolean) => void;
@@ -67,7 +70,7 @@ export function WorkspaceChrome({
         <ThreadHeader
           title={title}
           projects={projects}
-          onBack={onNewChat}
+          onBack={onLeaveThread}
           onOpenLokis={onOpenHistory}
           onNewChat={onNewChat}
           onOpenProjects={onOpenProjects}

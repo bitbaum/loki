@@ -58,6 +58,7 @@ export function LokiComposer({
   onTalk,
   context = null,
   onContextUsed,
+  freshRequest = 0,
 }: {
   disabled: boolean;
   sending: boolean;
@@ -90,6 +91,9 @@ export function LokiComposer({
    *  the owner's site). Shown by the workspace, attached here, once. */
   context?: SiteContext | null;
   onContextUsed?: () => void;
+  /** Bumped by "New chat": empty the box and put the cursor in it. The
+   *  workspace clears the stored draft itself, before the key moves. */
+  freshRequest?: number;
 }) {
   const [text, setTextState] = useState(defaultText);
   // Restore once, on the client, after the server-rendered empty box: reading
@@ -108,6 +112,15 @@ export function LokiComposer({
   };
   const [model, setModel] = useState<string | undefined>(undefined);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [appliedFresh, setAppliedFresh] = useState(freshRequest);
+  if (freshRequest !== appliedFresh) {
+    setAppliedFresh(freshRequest);
+    setTextState("");
+  }
+  useEffect(() => {
+    if (freshRequest > 0) textareaRef.current?.focus();
+  }, [freshRequest]);
 
   const scopedProject = selectedProjects.length === 1 ? selectedProjects[0] : null;
   const allChips = composerChips({ projectCount, selectedProjects, selectedGoal });
