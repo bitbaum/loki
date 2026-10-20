@@ -9,6 +9,17 @@ work that is actually moving; finished items live under "Shipped".
 
 ## Now
 
+### Private builders
+One sealed builder per account on the box you already have: its own Linux user, home, token and agent sign-ins, and the rule that whoever asks for a change pays for it with their own engine — a Loki plan, their own key, or their own subscription signed in with the CLI's `/login`. Nobody's request runs on another person's subscription. Plan: `docs/architecture/private-builders.md`.
+- [x] Design note: tenant model, credential handling, what a request without an engine becomes
+- [ ] A request on a shared project from someone with no engine goes to the owner as a suggestion; the per-site allowance is retired
+- [ ] Agent terminals get an allowlisted environment, never the runner's whole one
+- [ ] The runner reads projects through the API and carries no database password
+- [ ] `new-tenant.sh`: user, dev root, `loki-box-runner@<tenant>` unit, token per tenant; the owner's runner on the same template
+- [ ] Eligibility is a flag on the account, not an environment allowlist; a project with no stored builder routes to the connected one
+- [ ] Settings → Your engine: a key marked for building reaches your builder; `/login` in your own Sessions signs in your subscription
+- [ ] The first tenant who is not the owner builds on their own sign-in
+
 ### Partner track
 bitbaum owns the systems design course and partner approval. Loki supplies scoped application and assigned-delivery infrastructure; qualification does not enrol a partner in the whole ecosystem. OrangeCat or Solon handoffs remain optional and require their own purpose and consent.
 - [x] Request-scoped application evidence, separate course review and studio approval with visible reasons; bitbaum owns the course and public profile consent
@@ -25,12 +36,11 @@ The numbers that decide when the next wall is hit, published on the System page 
 - [ ] Monthly token spend, and the share of it that is routine work
 - [ ] Drop-off at "add your API key"
 
-### Tenancy on the box
-One Linux user, one clone root, one runner service and one credential file per builder account. The shared cloud builder is one user with one set of keys today, which is why it is restricted to eligible accounts.
-- [ ] Design note: tenant model, credential handling, egress limits
-- [ ] `new-tenant.sh`: user, dev root, `loki-box-runner@<tenant>` unit
-- [ ] Eligibility reads the tenant record instead of an environment allowlist
-- [ ] Per-tenant CPU, memory and network limits
+### Sealed builds
+After private builders: each build in its own throwaway box (a container, then a microVM when the box exposes KVM), so a tricked agent cannot reach even its own tenant's other work. `SandboxExecutor` is the seed.
+- [ ] A container per build with the agent CLIs inside, on the same machine
+- [ ] Per-build CPU, memory and network limits
+- [ ] A microVM per build where the hardware allows it
 
 ### One box becomes a pool
 Runners on several boxes claim from the one queue; each site knows which box serves it.
@@ -43,8 +53,10 @@ The builder pays their model vendor directly and pays Loki for the platform; eve
 - [x] Loki's own chat runs on your key when you paste one in Settings
 - [x] Several providers per account, in your own order; the composer's picker shows your models first and links to adding a key
 - [x] Passes paid in Bitcoin: the Billing tab shows the pass, its end date, the Buy button and the ledger; the operator grants, extends and revokes from System → Plans
+- [ ] A key marked "for building" reaches your private builder, not only your chat
 - [ ] Tokens per run per tenant recorded and shown on the run
 - [ ] BYOK as the default execution path for new accounts
+- [ ] Welcome changes: a few free builds for a newcomer on Loki's key, under a monthly cap in CHF
 - [ ] A metered pool (wholesale tokens sold inside a plan) once the numbers say so
 
 ### Signed installers and native channels
@@ -82,9 +94,10 @@ The studio-owned transferable course is developed in bitbaum. Loki provides opti
 - [x] bitbaum hosts the initial `/academy/` lesson and capstone rubric; its portal records evidence without requiring a Loki account
 - [ ] Follow bitbaum's course expansion and assessment calibration after the first pilot reviews
 
-### Secure cloud execution for more accounts
-Isolated cloud builders beyond the eligible-account service, with the per-project choice of where work runs kept visible.
-- [ ] Per-account sandboxing (the tenancy item above is the prerequisite)
+### Builders on other people's sites
+A builder found on Bitbaum is an OrangeCat account with a seat on one project and their own engine; the client pays them through the builder's own OrangeCat service. Bitbaum is the directory and the door.
+- [ ] Assigning a builder grants the seat on that one project
+- [ ] A fee on the assignment, paid to the builder's own wallet when the client accepts
 - [ ] More parallelism without routing work to a different machine silently
 
 ### The fleet learns from its own runs
