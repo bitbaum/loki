@@ -27,8 +27,8 @@ export type SegmentOption = {
  *
  * A long label wraps inside its cell; every cell in a row grows with it, so
  * the row stays even. More than five choices do not fit a phone in one row:
- * pass `columns` (2 or 3) for an even grid — four corners as 2 × 2, six
- * agents as 3 × 2.
+ * pass `columns` (2, 3 or 4) for an even grid — four corners as 2 × 2, six
+ * agents as 3 × 2, seven voices as 4 + 3 with the last cell two wide.
  */
 export function Segmented({
   label,
@@ -39,7 +39,7 @@ export function Segmented({
   columns,
 }: {
   /** An even grid instead of one row. */
-  columns?: 2 | 3;
+  columns?: 2 | 3 | 4;
   /** Names the group for a screen reader ("Effort"). */
   label: string;
   options: SegmentOption[];
@@ -58,6 +58,7 @@ export function Segmented({
           "ui-segmented",
           columns === 2 && "ui-segmented-cols-2",
           columns === 3 && "ui-segmented-cols-3",
+          columns === 4 && "ui-segmented-cols-4",
         )}
         role="radiogroup"
         aria-label={label}

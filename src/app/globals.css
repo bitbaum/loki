@@ -3657,6 +3657,14 @@
   .ui-segmented-cols-3 {
     @apply grid-flow-row grid-cols-3;
   }
+  /* Four across: seven voices as 4 + 3, the last one two cells wide, so the
+     second row ends where the first does instead of leaving a hole. */
+  .ui-segmented-cols-4 {
+    @apply grid-flow-row grid-cols-4;
+  }
+  .ui-segmented-cols-4 > :last-child:nth-child(4n + 3) {
+    @apply col-span-2;
+  }
   .ui-segment,
   .ui-segment-active {
     @apply flex min-h-11 min-w-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-center text-sm font-medium leading-tight transition-colors [overflow-wrap:anywhere];
@@ -7906,7 +7914,8 @@
   .ui-voice-command-does {
     @apply text-sm text-text-tertiary;
   }
-  /* The four choices on the start screen: a label and a row of chips. */
+  /* The four choices on the start screen: the voice as a <Segmented> grid,
+     the three switches as one row each, every one under a small heading. */
   .ui-voice-settings {
     @apply mt-2 w-full space-y-3 text-left;
   }
@@ -7916,8 +7925,30 @@
   .ui-voice-setting-label {
     @apply text-xs font-semibold uppercase text-text-secondary;
   }
-  .ui-voice-setting-note {
-    @apply text-xs text-text-muted;
+  /* The speaking screen's name. The app top bar carries the page's h1, but
+     on a phone that bar steps aside for the open session, so this is the h1
+     there — and only there (md:hidden), so the page never has two. */
+  .ui-voice-title {
+    @apply self-start text-base font-semibold text-text-primary md:hidden;
+  }
+  /* End, where the thumb is — and clear of the feedback launcher: the
+     speaking screen asks it for the slim edge tab (data-fc-place="tab"), and
+     this row keeps a band below End for the home indicator and a thumb. */
+  .ui-voice-ending {
+    @apply flex justify-center pt-4 pb-6;
+  }
+  /* No-screen mode's stage can hold more than a short phone shows (the
+     studio-voice notice): it scrolls, centred only while everything fits,
+     and nothing in it is squeezed — the circle stays a circle. */
+  .ui-voice-stage-scroll {
+    @apply min-h-0 justify-center-safe overflow-y-auto;
+  }
+  .ui-voice-stage-scroll > * {
+    @apply shrink-0;
+  }
+  /* Studio voices are off: what, why, and the one link that fixes it. */
+  .ui-voice-notice {
+    @apply w-full flex-col gap-2 text-left text-text-secondary;
   }
   /* The composer's way into it. With an empty box it TAKES the send slot —
      the same filled circle, a waveform instead of an arrow — and the disabled
