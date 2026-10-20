@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { NO_SCREEN_TTS_MAX_CHARS } from "../../src/config/no-screen";
 import {
   EARCONS,
+  EARCON_GAIN,
   EARCON_MAX_SECONDS,
   MUSIC,
   MUSIC_PROGRESSION,
@@ -36,10 +37,23 @@ check(() => {
 check(() => {
   assert.equal(Math.round(midiToHz(69)), 440);
   assert.equal(Math.round(midiToHz(57)), 220);
-  // The bed lives under the voice band: nothing above ~330 Hz (E4, MIDI 64).
+  // The bed sits under the band where speech is understood (1–4 kHz): nothing
+  // above F#5 (740 Hz). And above what a phone's speaker drops: nothing below
+  // G3 (196 Hz) — the first bed lived at 98–370 Hz and nobody heard it.
   for (const chord of MUSIC_PROGRESSION)
-    for (const m of chord) assert.ok(m <= 66, `note ${m} is too high for a bed`);
-  assert.ok(MUSIC.ducked < MUSIC.level && MUSIC.level < 0.2);
+    for (const m of chord) {
+      assert.ok(midiToHz(m) <= 750, `note ${m} is too high for a bed`);
+      assert.ok(midiToHz(m) >= 195, `note ${m} is too low for a phone to play`);
+    }
+  // Under the voice, but audible: the bed alone peaks within ~15 dB of full
+  // scale (it was ~28 dB down), and ducking takes about 10 dB off.
+  assert.ok(MUSIC.ducked < MUSIC.level && MUSIC.level < 0.5);
+  const peak = MUSIC.level * MUSIC.chordGain * 2; // two oscillators per note
+  assert.ok(20 * Math.log10(peak) > -18, `bed peak ${(20 * Math.log10(peak)).toFixed(1)} dBFS`);
+  const duckDb = 20 * Math.log10(MUSIC.level / MUSIC.ducked);
+  assert.ok(duckDb >= 6 && duckDb <= 14, `ducks by ${duckDb.toFixed(1)} dB`);
+  // An earcon is heard over the bed.
+  assert.ok(EARCON_GAIN > MUSIC.level * MUSIC.chordGain);
   assert.deepEqual(chordAt(MUSIC_PROGRESSION.length), MUSIC_PROGRESSION[0]);
   assert.deepEqual(chordAt(-1), MUSIC_PROGRESSION[MUSIC_PROGRESSION.length - 1]);
 });
