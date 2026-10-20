@@ -13,15 +13,19 @@
  * "orange cat" finds `orangecat`), never by raw substring.
  */
 import { projectMentionedIn } from "@/lib/project-mention";
-import type { VoiceCommandKind } from "@/config/no-screen";
+import { NO_SCREEN_VOICES, type NoScreenVoice, type VoiceCommandKind } from "@/config/no-screen";
 
 export type ApprovalTarget = { all: true } | { all: false; index: number | null };
+
+/** A named voice, "next" ("other voice"), or null: list them. */
+export type VoiceChoice = NoScreenVoice | "next" | null;
 
 export type VoiceCommand =
   | { kind: "status" | "waiting" | "failures" | "help" | "repeat" | "details" | "quiet" | "end" }
   | { kind: "pause" | "resume"; project: string | null }
   | { kind: "approve" | "reject"; target: ApprovalTarget }
   | { kind: "dispatch"; project: string; task: string }
+  | { kind: "voice"; voice: VoiceChoice }
   | { kind: "ask"; text: string };
 
 export type { VoiceCommandKind };
@@ -125,6 +129,47 @@ function parseDispatch(text: string, projects: string[]): VoiceCommand | null {
   return null;
 }
 
+/** Studio voices by spoken name ("troy" → troy); "phone" is matched apart. */
+const VOICE_BY_NAME = new Map<string, NoScreenVoice>(
+  NO_SCREEN_VOICES.filter((v) => v.id !== "phone").map((v) => [v.label.toLowerCase(), v.id]),
+);
+/** "use troy", "try diana instead", "switch to the austin voice please". */
+const USE_NAMED_RE =
+  /^(?:(?:can|could) you |please |let's |let me hear )?(?:use|try|switch to|change to|go with|pick|choose|give me|speak as|talk as|be)(?: the| my| your)? ([\p{L}']+?)(?:'s)?(?: voice)?(?: instead| please| now| then)*$/u;
+const PHONE_VOICE_RE = /\bphone(?:'s)?(?: own)? voice\b/;
+/** "other voice", "another voice", "next voice", "switch voice", "try a different voice". */
+const NEXT_VOICE_RE =
+  /\b(?:other|another|next|different|new) voice\b|^(?:switch|swap)(?: the| your)? voices?(?: again)?$/;
+/** "change your voice", "can I change your voice", "I don't like your voice", "what voices are there". */
+const ABOUT_VOICE_RE =
+  /\b(?:change|switch|swap|pick|choose|don't like|do not like|hate|what|which|list|options|available)\b/;
+
+/**
+ * A request about the voice Loki reads with. Answered on the phone (it holds
+ * the choice), never by the model: asked as a question, the model answered
+ * "in most voice-enabled AI chat apps … look in settings" (owner,
+ * 2026-10-20), which is true of no app and false of this one.
+ */
+function parseVoiceChange(text: string): VoiceCommand | null {
+  // "voice mode" is this screen, not its voice: a question about it is Loki's.
+  if (/\bvoice mode\b|\bno[ -]?screen\b/.test(text)) return null;
+  const used = text.match(USE_NAMED_RE);
+  if (used) {
+    const named = VOICE_BY_NAME.get(used[1]);
+    if (named) return { kind: "voice", voice: named };
+    if (used[1] === "phone" || used[1] === "phone's") return { kind: "voice", voice: "phone" };
+  }
+  if (!/\bvoices?\b/.test(text)) return null;
+  if (PHONE_VOICE_RE.test(text)) return { kind: "voice", voice: "phone" };
+  for (const word of text.split(" ")) {
+    const named = VOICE_BY_NAME.get(word.replace(/'s$/, ""));
+    if (named) return { kind: "voice", voice: named };
+  }
+  if (NEXT_VOICE_RE.test(text)) return { kind: "voice", voice: "next" };
+  if (ABOUT_VOICE_RE.test(text)) return { kind: "voice", voice: null };
+  return null;
+}
+
 export function parseVoiceCommand(raw: string, projects: string[] = []): VoiceCommand {
   const text = normalizeUtterance(raw);
   if (!text) return { kind: "ask", text: raw.trim() };
@@ -142,6 +187,9 @@ export function parseVoiceCommand(raw: string, projects: string[] = []): VoiceCo
   // for heidi, not a decision here.
   const dispatch = parseDispatch(text, projects);
   if (dispatch) return dispatch;
+
+  const voice = parseVoiceChange(text);
+  if (voice) return voice;
 
   let m = text.match(APPROVE_RE);
   if (m) return { kind: "approve", target: parseApprovalTarget(m[1]) };
@@ -168,5 +216,11 @@ export function parseVoiceCommand(raw: string, projects: string[] = []): VoiceCo
 
 /** The commands the phone answers without the server. */
 export function isLocalVoiceCommand(kind: VoiceCommandKind): boolean {
-  return kind === "quiet" || kind === "repeat" || kind === "end" || kind === "details";
+  return (
+    kind === "quiet" ||
+    kind === "repeat" ||
+    kind === "end" ||
+    kind === "details" ||
+    kind === "voice"
+  );
 }

@@ -121,12 +121,48 @@ for (const q of [
   });
 }
 
-// 7. The phone handles exactly three kinds itself.
+// 7. The phone handles the conversation's own commands itself — and the voice,
+//    which it holds.
 check(() => {
   assert.equal(isLocalVoiceCommand("quiet"), true);
   assert.equal(isLocalVoiceCommand("repeat"), true);
   assert.equal(isLocalVoiceCommand("end"), true);
+  assert.equal(isLocalVoiceCommand("voice"), true);
   assert.equal(isLocalVoiceCommand("approve"), false);
 });
+
+// 8. Changing the voice by saying so (owner, 2026-10-20: "I don't like your
+//    voice, can I change your voice" was answered like a generic chatbot).
+for (const [said, voice] of [
+  ["Use Troy", "troy"],
+  ["Loki, use Diana.", "diana"],
+  ["Change your voice to Diana", "diana"],
+  ["switch your voice to austin please", "austin"],
+  ["try the Hannah voice", "hannah"],
+  ["I want Daniel's voice", "daniel"],
+  ["Use my phone's voice", "phone"],
+  ["use the phone voice", "phone"],
+  ["Other voice", "next"],
+  ["another voice please", "next"],
+  ["Switch voice", "next"],
+  ["try a different voice", "next"],
+  ["Change your voice", null],
+  ["I don't like your voice, can I change your voice?", null],
+  ["What voices are there?", null],
+] as const) {
+  check(() => {
+    assert.deepEqual(parseVoiceCommand(said, PROJECTS), { kind: "voice", voice }, said);
+  });
+}
+for (const q of [
+  "what is voice mode",
+  "tell heidi to change the voice of the landing page",
+  "use the tests on orangecat",
+  "your voice is fine",
+]) {
+  check(() => {
+    assert.notEqual(parseVoiceCommand(q, PROJECTS).kind, "voice", q);
+  });
+}
 
 console.log(`voice-commands: ${n} checks ok`);
