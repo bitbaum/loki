@@ -80,3 +80,19 @@ export function unresolvedVariables(
     (v) => values[v.name] === undefined && v.defaultValue === undefined,
   );
 }
+
+/**
+ * Does this prompt need a project before it can be shown or run?
+ *
+ * Scope alone said no for a saved copy of "Next Best Step": a copy is always
+ * saved as global (use-fork-prompt), so the Run dialog hid the project picker
+ * and showed "{{project_name}}" in the resolved prompt with nothing to fill it
+ * (owner, 2026-10-20). A body that names {{project_name}} needs one whatever
+ * its scope says.
+ */
+export function needsProject(template: { scope: string; template: string }): boolean {
+  return (
+    template.scope === "project" ||
+    parsePromptVariables(template.template).some((v) => v.name === "project_name")
+  );
+}

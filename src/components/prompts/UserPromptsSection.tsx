@@ -9,7 +9,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, X, Pencil, Zap, Clock } from "lucide-react";
+import { Plus, Loader2, X, Pencil, Zap, Clock, Copy } from "lucide-react";
 import type { Project } from "./types";
 import { RunModal } from "./RunModal";
 import { ScheduleModal } from "./ScheduleModal";
@@ -38,23 +38,36 @@ export interface UserPromptCard {
   runCount: number;
   successCount: number;
   updatedAt: string;
+  /** Yours, rather than an org peer's shared prompt. Only your own copies can
+   *  be removed. Absent = yours. */
+  own?: boolean;
 }
+
+/** Where a save landed: a new prompt, or the identical one already saved. */
+type Saved = { id: string; existing: boolean };
 
 export function UserPromptsSection({
   prompts,
   projects,
   query = "",
+  timeZone,
 }: {
   prompts: UserPromptCard[];
   projects: Project[];
   /** The page's search box: it finds your own prompts too, best match first. */
   query?: string;
+  /** The clock a scheduled prompt keeps. */
+  timeZone: string;
 }) {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   const [scheduleId, setScheduleId] = useState<string | null>(null);
+  // Said above the form when a Create found the same prompt already saved.
+  const [notice, setNotice] = useState<string | null>(null);
+  const [removingCopiesOf, setRemovingCopiesOf] = useState<string | null>(null);
+  const [copiesError, setCopiesError] = useState<string | null>(null);
   // DeleteButton owns the per-row deleting/erroring state now, so this
   // component no longer tracks which id is mid-delete.
   const [, startTransition] = useTransition();
@@ -74,11 +87,40 @@ export function UserPromptsSection({
     startTransition(() => router.refresh());
   }
 
+  /**
+   * The explicit clean-up for identical copies: the card says how many there
+   * are, and this one tap removes them — never on its own, never silently.
+   * The newest stays; the rest are soft-deleted like any Delete.
+   */
+  async function removeExtraCopies(id: string) {
+    setRemovingCopiesOf(id);
+    setCopiesError(null);
+    try {
+      const res = await fetch(`/api/prompts/${id}/copies`, { method: "DELETE" });
+      if (!res.ok) {
+        setCopiesError("Could not remove the copies — try again.");
+        return;
+      }
+      startTransition(() => router.refresh());
+    } catch {
+      setCopiesError("Could not remove the copies — try again.");
+    } finally {
+      setRemovingCopiesOf(null);
+    }
+  }
+
   const editingPrompt = editingId ? (prompts.find((p) => p.id === editingId) ?? null) : null;
   const runningPrompt = runId ? (prompts.find((p) => p.id === runId) ?? null) : null;
   const schedulingPrompt = scheduleId ? (prompts.find((p) => p.id === scheduleId) ?? null) : null;
 
-  const { visible: allVisible, copies } = collapseDuplicates(prompts);
+  const { visible: allVisible } = collapseDuplicates(prompts);
+  // Your own rows per distinct prompt — what "Remove extra copies" can act on.
+  const ownRows = new Map<string, UserPromptCard[]>();
+  for (const p of prompts) {
+    if (p.own === false) continue;
+    const key = dupeKey(p);
+    ownRows.set(key, [...(ownRows.get(key) ?? []), p]);
+  }
   const visiblePrompts = query.trim()
     ? searchPrompts(allVisible, SAVED_PROMPT_SEARCH_SPEC, (p) => p.body, query).map((h) => h.item)
     : allVisible;
@@ -104,6 +146,7 @@ export function UserPromptsSection({
           type="button"
           onClick={() => {
             setEditingId(null);
+            setNotice(null);
             setIsCreating(true);
           }}
           className="ui-btn-primary inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm"
@@ -113,21 +156,41 @@ export function UserPromptsSection({
         </button>
       </header>
 
+      {notice && (
+        <p className="text-sm text-text-secondary" role="status">
+          {notice}
+        </p>
+      )}
       {(isCreating || editingPrompt) && (
         <PromptForm
+          // A fresh form per prompt, so opening the one already saved shows
+          // its words rather than the ones just typed.
+          key={editingPrompt?.id ?? "new"}
           initial={editingPrompt}
           projects={projects}
           onCancel={() => {
             setIsCreating(false);
             setEditingId(null);
+            setNotice(null);
           }}
-          onSaved={() => {
+          onSaved={(saved) => {
             setIsCreating(false);
-            setEditingId(null);
+            if (saved.existing) {
+              // Creating the same name + words again opens the one you have
+              // instead of saving a second copy.
+              setEditingId(saved.id);
+              setNotice(
+                "You already have this prompt saved — here it is. Nothing new was created.",
+              );
+            } else {
+              setEditingId(null);
+              setNotice(null);
+            }
             startTransition(() => router.refresh());
           }}
         />
       )}
+      {copiesError && <p className="ui-error-xs">{copiesError}</p>}
 
       {/* No full empty-state card here: the header already says "Build your own
           library" with the New prompt button, and the forkable Loki
@@ -155,8 +218,13 @@ export function UserPromptsSection({
         >
           {visiblePrompts.map((p) => {
             const projectName = p.projectId
-              ? (projects.find((pr) => pr.id === p.projectId)?.name ?? "(deleted project)")
+              ? (projects.find((pr) => pr.id === p.projectId)?.title ?? "(deleted project)")
               : null;
+            const mine = ownRows.get(dupeKey(p)) ?? [];
+            const extraCopies = Math.max(0, mine.length - 1);
+            // Same name, different words: two real prompts. Say so, or two
+            // "Next Best Step" cards look like the same one twice.
+            const sameName = allVisible.filter((v) => v.name === p.name).length;
             return (
               <article
                 key={p.id}
@@ -189,8 +257,8 @@ export function UserPromptsSection({
                     <p className="text-micro text-text-muted mt-1">
                       saved {timeAgo(new Date(p.updatedAt).getTime())}
                       {p.runCount > 0 ? ` · run ${p.runCount}×` : " · never run"}
-                      {(copies.get(dupeKey(p)) ?? 1) > 1
-                        ? ` · ${copies.get(dupeKey(p))} identical copies saved`
+                      {sameName > 1
+                        ? ` · ${sameName} versions with this name, worded differently`
                         : ""}
                     </p>
                   </div>
@@ -245,6 +313,28 @@ export function UserPromptsSection({
                   </div>
                 </header>
 
+                {/* The list shows one card per distinct prompt. Extra identical
+                    rows behind it are named with their number and removed only
+                    by this tap. */}
+                {extraCopies > 0 && (
+                  <div className="flex items-center gap-2 text-xs text-text-secondary">
+                    <span className="min-w-0">Saved {mine.length} times, word for word.</span>
+                    <button
+                      type="button"
+                      onClick={() => removeExtraCopies(mine[0]!.id)}
+                      disabled={removingCopiesOf !== null}
+                      className="ui-btn-ghost min-h-11 shrink-0 text-xs"
+                    >
+                      {removingCopiesOf === mine[0]!.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                      Remove {extraCopies} extra {extraCopies === 1 ? "copy" : "copies"}
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-1.5 text-micro">
                   <span className="ui-tag">{p.scope}</span>
                   {projectName && (
@@ -283,6 +373,7 @@ export function UserPromptsSection({
         <RunModal
           template={savedPromptAsTemplate(runningPrompt)}
           projects={projects}
+          pinnedProjectId={runningPrompt.projectId}
           onClose={() => setRunId(null)}
         />
       )}
@@ -290,6 +381,8 @@ export function UserPromptsSection({
         <ScheduleModal
           template={savedPromptAsTemplate(schedulingPrompt)}
           projects={projects}
+          timeZone={timeZone}
+          pinnedProjectId={schedulingPrompt.projectId}
           onClose={() => setScheduleId(null)}
         />
       )}
@@ -308,7 +401,7 @@ function PromptForm({
   initial: UserPromptCard | null;
   projects: Project[];
   onCancel: () => void;
-  onSaved: () => void;
+  onSaved: (saved: Saved) => void;
 }) {
   const isEditing = !!initial;
   const [name, setName] = useState(initial?.name ?? "");
@@ -322,16 +415,22 @@ function PromptForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // What Create is still waiting for, in words — said beside the button, which
+  // stays pressable only when nothing is. An empty Create never reaches the API
+  // (and the API refuses one anyway: CreatePromptBody).
+  const missing = [
+    ...(!name.trim() ? ["a name"] : []),
+    ...(!body.trim() ? ["the prompt"] : []),
+    ...(scope === "project" && !projectId ? ["a project to pin it to"] : []),
+  ];
+  const missingSentence =
+    missing.length > 0
+      ? `Add ${missing.length > 1 ? `${missing.slice(0, -1).join(", ")} and ${missing.at(-1)}` : missing[0]} to ${isEditing ? "save" : "create"} it.`
+      : null;
+
   async function save() {
     setError(null);
-    if (!name.trim() || !body.trim()) {
-      setError("Name and body are both required.");
-      return;
-    }
-    if (scope === "project" && !projectId) {
-      setError("Pick a project to pin to, or switch to global.");
-      return;
-    }
+    if (missingSentence) return;
     setSaving(true);
     try {
       const tags = tagsInput
@@ -353,12 +452,16 @@ function PromptForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body_),
       });
+      const b = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        existing?: boolean;
+        prompt?: { id?: string };
+      };
       if (!res.ok) {
-        const b = await res.json().catch(() => ({}));
-        setError(b.error ?? `HTTP ${res.status}`);
+        setError(b.error ?? `Could not save (HTTP ${res.status}) — try again.`);
         return;
       }
-      onSaved();
+      onSaved({ id: b.prompt?.id ?? initial?.id ?? "", existing: !!b.existing });
     } finally {
       setSaving(false);
     }
@@ -398,7 +501,7 @@ function PromptForm({
       </div>
 
       <div className="space-y-2">
-        <label className="ui-kicker">Body</label>
+        <label className="ui-kicker">Prompt</label>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -435,7 +538,7 @@ function PromptForm({
               <option value="">— pick —</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}
+                  {p.title}
                 </option>
               ))}
             </select>
@@ -461,15 +564,18 @@ function PromptForm({
         <button
           type="button"
           onClick={save}
-          disabled={saving}
-          className="ui-btn-primary inline-flex items-center gap-2 disabled:opacity-50"
+          disabled={saving || !!missingSentence}
+          className="ui-btn-primary min-h-11 shrink-0"
         >
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           {isEditing ? "Save changes" : "Create"}
         </button>
-        <button type="button" onClick={onCancel} className="ui-btn-ghost">
+        <button type="button" onClick={onCancel} className="ui-btn-ghost min-h-11 shrink-0">
           Cancel
         </button>
+        {missingSentence && (
+          <p className="min-w-0 text-xs text-text-secondary">{missingSentence}</p>
+        )}
       </div>
     </div>
   );

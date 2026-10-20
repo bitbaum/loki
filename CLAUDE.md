@@ -328,7 +328,8 @@ Auth:      ui-auth-card, ui-auth-input, ui-auth-submit-btn, ui-auth-label (etc.)
 Public:    ui-public-surface, ui-public-nav, ui-public-title, ui-public-badge (etc.)
 Brand:     ui-channel-whatsapp/-telegram/-phone/-in-person (contact channel icons)
            ui-lang-ts/-js/-py/-go/-rs/-rb/-cs/-java (programming language badges)
-           ui-cat-fleet/-security/-engineering/-frontend/... (prompt categories)
+           (prompt categories have no colour: ui-tag-neutral — the ui-cat-*
+           rainbow was retired 2026-10-20; colour in the app means status)
 ```
 
 When a pattern appears in 3+ components: extract it to `@layer components` immediately.

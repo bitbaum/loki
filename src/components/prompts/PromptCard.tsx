@@ -16,7 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
-  Copy,
+  BookmarkPlus,
   Loader2,
   Star,
 } from "lucide-react";
@@ -29,11 +29,13 @@ import { haptic } from "@/lib/haptics";
 export function PromptCard({
   template,
   projects,
+  timeZone,
 }: {
   template: PromptTemplate;
   projects: Project[];
+  timeZone: string;
 }) {
-  const { openRun, openSchedule, modals } = usePromptModals(template, projects);
+  const { openRun, openSchedule, modals } = usePromptModals(template, projects, timeZone);
   const [expanded, setExpanded] = useState(false);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -53,7 +55,7 @@ export function PromptCard({
               <span className="min-w-0">{template.name}</span>
               {template.featured && (
                 <Star
-                  className="h-3.5 w-3.5 shrink-0 fill-status-warning/80 text-status-warning/80"
+                  className="h-3.5 w-3.5 shrink-0 fill-current text-text-tertiary"
                   aria-label="Featured"
                 />
               )}
@@ -62,7 +64,7 @@ export function PromptCard({
               {template.description}
             </p>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
-              <span className={`ui-chip ${meta.color}`}>{meta.label}</span>
+              <span className="ui-tag ui-tag-neutral">{meta.label}</span>
               <span className="inline-flex items-center gap-1">
                 {template.scope === "global" ? (
                   <Globe className="h-3 w-3" aria-hidden />
@@ -99,19 +101,24 @@ export function PromptCard({
           >
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
+          {/* Saves an editable copy under "Saved prompts". It was a Copy
+              glyph titled "Fork" — read on a phone (no hover) as "copy the
+              text", and each tap saved another row: the likeliest source of
+              the "4 identical copies" the owner found (2026-10-20). Saving
+              the same prompt again now opens nothing new (api/prompts). */}
           <button
             onClick={fork}
             disabled={state === "forking" || isPending}
             className="ui-btn-overlay p-3 disabled:opacity-40"
-            title="Fork into your own prompts"
-            aria-label="Fork prompt"
+            title="Save a copy to your prompts, to edit"
+            aria-label="Save a copy to your prompts"
           >
             {state === "forking" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-            ) : state === "done" ? (
+            ) : state === "done" || state === "exists" ? (
               <Check className="h-4 w-4" />
             ) : (
-              <Copy className="h-4 w-4" />
+              <BookmarkPlus className="h-4 w-4" />
             )}
           </button>
           {template.suggestedSchedule && (
@@ -125,6 +132,16 @@ export function PromptCard({
             </button>
           )}
         </div>
+
+        {(state === "done" || state === "exists" || state === "error") && (
+          <p className="text-xs text-text-secondary" role="status">
+            {state === "done"
+              ? "Saved to your prompts, above — edit it there."
+              : state === "exists"
+                ? "Already in your prompts, above — nothing new saved."
+                : "Could not save a copy — try again."}
+          </p>
+        )}
 
         {expanded && <pre className="ui-code-surface">{template.template}</pre>}
       </div>

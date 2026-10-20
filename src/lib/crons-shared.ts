@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cronProblem, describeCron } from "@/lib/cron-words";
 
 /**
  * User-facing display name for scheduled cron jobs. Internally these remain
@@ -11,7 +12,16 @@ export const SCHEDULED_JOBS_LABEL = "Scheduled Jobs";
 
 export const CreateCronBody = z.object({
   name: z.string().trim().min(1, "name is required"),
-  scheduleExpr: z.string().trim().min(1, "scheduleExpr is required"),
+  // A line the scheduler cannot read is refused here, in words, rather than
+  // stored and never run.
+  scheduleExpr: z
+    .string()
+    .trim()
+    .min(1, "scheduleExpr is required")
+    .superRefine((expr, ctx) => {
+      const problem = cronProblem(expr);
+      if (problem) ctx.addIssue({ code: "custom", message: problem });
+    }),
   message: z.string().trim().min(1, "message is required"),
   model: z.string().optional(),
   timeoutSeconds: z.number().optional(),
@@ -89,6 +99,6 @@ const CRON_LABELS: Record<string, { compact: string; verbose: string }> = {
 
 export function humanCronSchedule(expr: string, tz?: string): string {
   const entry = CRON_LABELS[expr];
-  if (tz) return `${entry?.verbose ?? expr} (${tz})`;
+  if (tz) return `${entry?.verbose ?? describeCron(expr) ?? expr} (${tz})`;
   return entry?.compact ?? expr;
 }

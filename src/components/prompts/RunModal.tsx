@@ -13,29 +13,33 @@ import { useClipboard } from "@/hooks/use-clipboard";
 import { useFetch } from "@/hooks/use-fetch";
 import { useDispatchLiveStatus } from "@/hooks/use-dispatch-live-status";
 import { dispatchStatusLabel, dispatchToneDotClass } from "@/lib/dispatch-status";
-import { renderPromptBody, parsePromptVariables } from "@/lib/prompt-vars";
+import { needsProject, renderPromptBody, parsePromptVariables } from "@/lib/prompt-vars";
+import { PromptProjectField, usePromptProject } from "./PromptProjectField";
 
 export function RunModal({
   template,
   projects,
+  pinnedProjectId,
   onClose,
 }: {
   template: PromptTemplate;
   projects: Project[];
+  /** A saved prompt pinned to one project opens on it. */
+  pinnedProjectId?: string | null;
   onClose: () => void;
 }) {
-  const [projectId, setProjectId] = useState(template.scope === "global" ? "__global__" : "");
-  const [projectName, setProjectName] = useState("");
+  const needed = needsProject(template);
+  const { project, projectId, setProjectId } = usePromptProject(projects, pinnedProjectId);
   const [varValues, setVarValues] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { copied, copy } = useClipboard();
 
-  // Live agent sessions, so a template can be sent to the thing that will run
-  // it. Until now the library's only verb was "Run with Loki" — a chat
-  // completion that answers in a modal and touches no repo — so every prompt
-  // meant for an agent had to be copied out of this page by hand.
+  // Which sessions are open, only to say whether "Send to terminal" types into
+  // a running agent or starts one: tab-inject handles both (it queues a
+  // self-starting dispatch when nothing is running), so a closed session is no
+  // reason to refuse.
   const { data: tabsData } = useFetch<{ tabs: string[] }>("/api/control/open-tabs");
   const openTabs = tabsData?.tabs ?? [];
   const [dispatching, setDispatching] = useState(false);
@@ -51,56 +55,67 @@ export function RunModal({
   const [trackedMode, setTrackedMode] = useState<string | null>(null);
   const liveDispatch = useDispatchLiveStatus(trackedCommandId, trackedRunId);
 
-  // Every {{variable}} the body declares, not just project_name. User-owned
-  // prompts arrive here through asTemplate() in UserPromptsSection and may
-  // declare anything; the old replaceAll dispatched their braces verbatim.
+  // Every {{variable}} the body declares. project_name comes from the project
+  // picker; the rest get a field each.
   const declared = parsePromptVariables(template.template);
   const extraVars = declared.filter((v) => v.name !== "project_name");
   const values: Record<string, string> = { ...varValues };
-  if (projectName) values.project_name = projectName;
-  const resolvedMessage = renderPromptBody(template.template, values);
-  // A variable with no value and no default still reads as {{name}} in the
-  // preview — deliberately, so a half-filled prompt is visible before dispatch
-  // rather than after.
+  if (project) values.project_name = project.name;
   const missingVars = extraVars.filter(
     (v) => !varValues[v.name]?.trim() && v.defaultValue === undefined,
   );
+  const missingProject = needed && !project;
+  // What is still needed before the prompt is complete, in words. The
+  // resolved prompt is not shown — and cannot be run — until nothing is: a
+  // preview reading "{{project_name}}" with no field to fill it was the bug
+  // (2026-10-20).
+  const missing = [
+    ...(missingProject ? ["pick a project"] : []),
+    ...(missingVars.length > 0
+      ? [`fill in ${missingVars.map((v) => v.name.replace(/_/g, " ")).join(", ")}`]
+      : []),
+  ];
+  const resolvedMessage = missing.length === 0 ? renderPromptBody(template.template, values) : null;
 
-  const canRun = template.scope === "global" || !!projectId;
-
-  // Prefer the tab matching the chosen project; otherwise the only open one.
-  // Never guess between several unrelated sessions — dispatching into the wrong
-  // agent is not a recoverable mistake.
-  const targetTab =
-    openTabs.find((tab) => tab.toLowerCase() === projectName.toLowerCase()) ??
-    (openTabs.length === 1 ? openTabs[0] : null);
+  const canRun = resolvedMessage !== null;
+  const sendBlocked = !project
+    ? "Pick a project to send it to that project's session."
+    : project.readonly
+      ? "This is a team project you can read but not send work to."
+      : null;
+  const canSend = canRun && !sendBlocked;
+  const sessionOpen = project
+    ? openTabs.some((tab) => tab.toLowerCase() === project.name.toLowerCase())
+    : false;
+  const missingSentence = missing.length
+    ? `${missing.join(" and ").replace(/^./, (c) => c.toUpperCase())} first.`
+    : "";
 
   // A prompt that needs Loki's records gets them attached: the agent cannot
   // read Loki's database (config/prompt-library LokiRecord).
-  const lokiRecords = async (project: string): Promise<TextAttachment[]> => {
+  const lokiRecords = async (projectKey: string): Promise<TextAttachment[]> => {
     if (!template.attach?.includes("feedback")) return [];
-    const got = await fetchFeedbackFile(project);
+    const got = await fetchFeedbackFile(projectKey);
     return got.ok ? [got.file] : [];
   };
 
   const handleSendToTerminal = async () => {
-    if (!targetTab || dispatching) return;
+    if (!canSend || !project || !resolvedMessage || dispatching) return;
+    const tab = project.name;
     setDispatching(true);
     setError(null);
     setDispatchedTo(null);
     setTrackedCommandId(null);
     setTrackedRunId(null);
     try {
-      const attachments = await lokiRecords(projectName || targetTab);
+      const attachments = await lokiRecords(tab);
       const res = await postJson("/api/control/tab-inject", {
-        tab: targetTab,
+        tab,
         prompt: resolvedMessage,
         ...(attachments.length ? { attachments } : {}),
       });
-      // postJson never throws on a non-2xx status (it's a bare fetch) — the
-      // previous version skipped this check entirely, so a 401/500 from
-      // tab-inject still flipped the modal to "Sent to X. Watch it in
-      // Terminal →" in green. It hadn't sent anything.
+      // postJson never throws on a non-2xx status (it's a bare fetch) — a
+      // 401/500 from tab-inject must not read as "Sent".
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(
@@ -110,15 +125,14 @@ export function RunModal({
       }
       // The runner detected the operator actively typing in this exact
       // session and refused to interleave — nothing was injected, but the
-      // HTTP call still succeeded. Showing "Sent" here would be the same lie
-      // this fix exists to remove, just from a different response shape.
+      // HTTP call still succeeded.
       if (data.blocked) {
         setError(
-          `Not sent — someone is typing in “${targetTab}” right now. Wait a moment and try again.`,
+          `Not sent — someone is typing in “${project.title}” right now. Wait a moment and try again.`,
         );
         return;
       }
-      setDispatchedTo(targetTab);
+      setDispatchedTo(tab);
       setTrackedCommandId(typeof data.commandId === "string" ? data.commandId : null);
       setTrackedRunId(typeof data.runId === "string" ? data.runId : null);
       setTrackedMode(typeof data.mode === "string" ? data.mode : null);
@@ -130,14 +144,14 @@ export function RunModal({
   };
 
   const handleRun = async () => {
-    if (!canRun || running) return;
+    if (!canRun || !resolvedMessage || running) return;
     setRunning(true);
     setResult(null);
     setError(null);
     try {
       // The same file the session gets, folded into the message: the prompt
       // says "the attached file", and it must be true on both paths.
-      const files = projectName ? await lokiRecords(projectName) : [];
+      const files = project ? await lokiRecords(project.name) : [];
       const res = await postJson("/api/loki", {
         message: resolvedMessage + renderTextAttachments(files),
       });
@@ -151,10 +165,6 @@ export function RunModal({
     }
   };
 
-  const handleCopy = () => {
-    if (result) copy(result);
-  };
-
   return (
     <>
       <Modal
@@ -166,7 +176,7 @@ export function RunModal({
       >
         <div className="shrink-0 border-b border-border-subtle p-6">
           <div className="flex items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <div className="text-xl font-semibold text-text-primary">{template.name}</div>
               <div className="mt-1 text-base text-text-secondary">{template.description}</div>
             </div>
@@ -174,6 +184,7 @@ export function RunModal({
               onClick={onClose}
               disabled={running}
               className="ui-btn-overlay p-2 disabled:opacity-30"
+              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
@@ -181,29 +192,42 @@ export function RunModal({
         </div>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
+          {/* What the prompt needs comes first, then the prompt it makes. */}
           <div>
-            <div className="ui-kicker mb-2">Resolved Prompt</div>
-            <pre className="ui-code-surface">{resolvedMessage}</pre>
-            {template.attach?.includes("feedback") && (
-              <p className="mt-2 text-xs text-text-secondary">
-                Run with Loki or sent to a session, it carries the project&apos;s feedback reports
-                from Loki as an attached file — the agent cannot see them otherwise.
-              </p>
+            <PromptProjectField
+              id="run-project"
+              projects={projects}
+              value={projectId}
+              onChange={setProjectId}
+              required={needed}
+              hint={
+                needed
+                  ? "The prompt is written for one project."
+                  : "Optional for Run with Loki. Send to terminal needs one."
+              }
+            />
+            {project && (
+              <Link
+                href={`/projects/${project.id}`}
+                className="mt-1.5 inline-flex items-center gap-1 text-xs text-text-tertiary underline-offset-2 hover:underline"
+              >
+                <FolderOpen className="h-3.5 w-3.5" /> Open {project.title}
+              </Link>
             )}
           </div>
 
           {extraVars.length > 0 && (
             <div className="space-y-3">
               <div className="ui-kicker text-text-tertiary">
-                Variables
+                Fill in
                 {missingVars.length > 0 && (
-                  <span className="ui-tag ui-tag-warning ml-2">{missingVars.length} unfilled</span>
+                  <span className="ui-tag ui-tag-warning ml-2">{missingVars.length} to go</span>
                 )}
               </div>
               {extraVars.map((v) => (
                 <div key={v.name}>
                   <label className="ui-micro-label mb-1 block" htmlFor={`var-${v.name}`}>
-                    {v.name}
+                    {v.name.replace(/_/g, " ")}
                     {v.defaultValue !== undefined && (
                       <span className="text-text-muted"> · defaults to {v.defaultValue}</span>
                     )}
@@ -214,7 +238,7 @@ export function RunModal({
                     onChange={(e) =>
                       setVarValues((prev) => ({ ...prev, [v.name]: e.target.value }))
                     }
-                    placeholder={v.defaultValue ?? `Value for ${v.name}`}
+                    placeholder={v.defaultValue ?? `Value for ${v.name.replace(/_/g, " ")}`}
                     className="ui-input"
                   />
                 </div>
@@ -222,50 +246,32 @@ export function RunModal({
             </div>
           )}
 
-          {template.scope === "project" && (
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label className="ui-kicker text-text-tertiary">Project</label>
-                {projectId && projectId !== "__global__" && (
-                  <Link
-                    href={`/projects/${projectId}`}
-                    className="flex items-center gap-1 text-sm font-medium text-accent-text transition-colors hover:text-accent-hover"
-                  >
-                    <FolderOpen className="h-4 w-4" /> View Project
-                  </Link>
-                )}
-              </div>
-              <select
-                value={projectId}
-                onChange={(e) => {
-                  const p = projects.find((p) => p.id === e.target.value);
-                  setProjectId(e.target.value);
-                  setProjectName(p?.name ?? "");
-                }}
-                className="ui-input"
-              >
-                <option value="">— Select project —</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div>
+            <div className="ui-kicker mb-2">The prompt</div>
+            {resolvedMessage !== null ? (
+              <pre className="ui-code-surface">{resolvedMessage}</pre>
+            ) : (
+              <p className="rounded-xl border border-border-subtle p-4 text-sm text-text-secondary">
+                {missingSentence} The full prompt shows here once it is complete.
+              </p>
+            )}
+            {template.attach?.includes("feedback") && (
+              <p className="mt-2 text-xs text-text-secondary">
+                Run with Loki or sent to a session, it carries the project&apos;s feedback reports
+                from Loki as an attached file — the agent cannot see them otherwise.
+              </p>
+            )}
+          </div>
 
           {/* The heading and Copy button belong to the "Run with Loki" flow
-              only — "Send to terminal" errors (blocked, offline, HTTP failure)
-              used to render inside a box labelled "Loki's Response", which is
-              wrong for a failure that has nothing to do with Loki chat. Error
-              is now a standalone slot below, shared by both actions. */}
+              only; errors from either action share the slot below. */}
           {(running || result) && (
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <span>Loki&apos;s Response</span>
+                <span className="ui-kicker">Loki&apos;s answer</span>
                 {result && (
                   <button
-                    onClick={handleCopy}
+                    onClick={() => copy(result)}
                     className="flex items-center gap-1 text-sm font-medium text-text-tertiary transition-colors hover:text-text-primary"
                   >
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -285,54 +291,46 @@ export function RunModal({
           {error && <div className="ui-box-error">{error}</div>}
         </div>
 
-        <div className="shrink-0 space-y-2 border-t border-border-subtle p-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <button onClick={handleRun} disabled={!canRun || running} className="ui-btn-submit">
-              {running ? (
-                <>
-                  <Loader2 className="ui-spinner" /> Running…
-                </>
-              ) : (
-                <>
-                  <Zap className="h-4 w-4" /> Run with Loki
-                </>
-              )}
+        {/* Two actions, two different workers — each says which, in one line,
+            and a disabled one says why beside it instead of fading out. */}
+        <div className="shrink-0 space-y-3 border-t border-border-subtle p-6">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRun}
+              disabled={!canRun || running}
+              className="ui-btn-primary min-h-11 shrink-0"
+            >
+              {running ? <Loader2 className="ui-spinner" /> : <Zap className="h-4 w-4" />}
+              {running ? "Running…" : "Run with Loki"}
             </button>
+            <p className="min-w-0 text-xs text-text-secondary">
+              {canRun ? "Loki answers here, in this window." : missingSentence}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
             <button
               onClick={handleSendToTerminal}
-              disabled={!canRun || !targetTab || dispatching}
-              title={
-                !targetTab
-                  ? openTabs.length === 0
-                    ? "No agent session is open. Start one from Home first."
-                    : "Pick the project whose session this should run in."
-                  : `Dispatch into the “${targetTab}” session`
-              }
-              className="ui-btn-secondary disabled:pointer-events-none disabled:opacity-40"
+              disabled={!canSend || dispatching}
+              className="ui-btn-secondary min-h-11 shrink-0"
             >
               {dispatching ? (
-                <>
-                  <Loader2 className="ui-spinner" /> Sending…
-                </>
+                <Loader2 className="ui-spinner" />
               ) : (
-                <>
-                  <SquareTerminal className="h-4 w-4" /> Send to terminal
-                </>
+                <SquareTerminal className="h-4 w-4" />
               )}
+              {dispatching ? "Sending…" : "Send to terminal"}
             </button>
+            <p className="min-w-0 text-xs text-text-secondary">
+              {sendBlocked ??
+                (!canRun
+                  ? missingSentence
+                  : sessionOpen
+                    ? `The agent in ${project!.title}'s session does the work.`
+                    : `An agent in ${project!.title}'s session does the work — started for it, or queued if the builder is offline.`)}
+            </p>
           </div>
-          {/* "Run with Loki" answers in this modal; "Send to terminal" hands the
-              prompt to an agent that can actually change the repo. Saying so
-              here is cheaper than a user discovering it by picking wrong. */}
-          <p className="text-xs text-text-muted">
-            Loki answers here. Send to terminal dispatches into a live agent session — assembled
-            with project context, and queued if the builder is offline.
-          </p>
-          {/* Was: a static green "Sent to X. Watch it in Terminal →" regardless
-              of whether tab-inject ran the prompt immediately or queued it
-              behind an offline builder — the response body was discarded.
-              This now shows the real lifecycle (queued/working/failed…) and
-              only turns positive once it's actually confirmed. */}
+          {/* The real lifecycle of a send (queued/working/failed…), turning
+              positive only once it is confirmed. */}
           {dispatchedTo && (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
               <span className={dispatchToneDotClass(liveDispatch?.tone ?? "neutral")} />

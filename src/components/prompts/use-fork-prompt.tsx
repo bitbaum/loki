@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { postJson } from "@/lib/api/fetch";
 import type { PromptTemplate } from "@/config/prompt-library";
-import { FEEDBACK_SHORT_MS } from "@/lib/constants/timings";
+import { TOAST_MEDIUM_MS } from "@/lib/constants/timings";
 
-export type ForkState = "idle" | "forking" | "done" | "error";
+export type ForkState = "idle" | "forking" | "done" | "exists" | "error";
 
 /**
  * Fork a Loki default into a user-owned copy. The default's body becomes
@@ -35,15 +35,18 @@ export function useForkPrompt(template: PromptTemplate, onForked: () => void) {
       });
       if (!res.ok) {
         setState("error");
-        setTimeout(() => setState("idle"), FEEDBACK_SHORT_MS);
+        setTimeout(() => setState("idle"), TOAST_MEDIUM_MS);
         return;
       }
-      setState("done");
+      // The same name + words already saved: the API hands back that prompt
+      // instead of a second row, and the card says so.
+      const data = (await res.json().catch(() => ({}))) as { existing?: boolean };
+      setState(data.existing ? "exists" : "done");
       onForked();
-      setTimeout(() => setState("idle"), FEEDBACK_SHORT_MS);
+      setTimeout(() => setState("idle"), TOAST_MEDIUM_MS);
     } catch {
       setState("error");
-      setTimeout(() => setState("idle"), FEEDBACK_SHORT_MS);
+      setTimeout(() => setState("idle"), TOAST_MEDIUM_MS);
     }
   }
 
