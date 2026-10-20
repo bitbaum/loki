@@ -141,6 +141,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         reroutedFromLabel: run.payload?.reroutedFrom
           ? providerLabel(run.payload.reroutedFrom)
           : null,
+        reroutedWhy: run.payload?.reroutedWhy ?? null,
         autoRetriedBecause: run.payload?.autoRetriedBecause ?? null,
         quotaDeath: view.quotaDeath,
       },

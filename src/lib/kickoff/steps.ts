@@ -37,7 +37,7 @@ import { HEALTH_SIGNAL_BASE } from "@/components/projects/project-detail-types";
 import { PROJECT_DISPATCH_KINDS } from "@/lib/project-dispatch";
 import { composeDispatchPrompt } from "@/lib/project-dispatch-prompt";
 import { providerChoiceFor } from "@/lib/provider-choice";
-import { routeAroundSpent } from "@/lib/provider-switch";
+import { routeAroundSpent, type RerouteWhy } from "@/lib/provider-switch";
 import { resolveImplementAdapter } from "@/lib/feedback/implement";
 import { mergeRunPayload } from "@/db/queries/orchestration-runs";
 import { getBriefKind } from "@/db/queries/brief-projects";
@@ -519,14 +519,19 @@ export async function dispatchStep(
   const up = dossier.userProject;
   const preferred = resolveImplementAdapter(up?.agentPref);
   let adapter = preferred;
-  let reroutedFrom: string | null = null;
+  let rerouted: { from: string; because: string; why: RerouteWhy } | null = null;
   if (up) {
     const choice = await providerChoiceFor(owner, up, { current: preferred }).catch(() => null);
     if (choice) {
-      const decided = routeAroundSpent({ preferred, spent: choice.spent, options: choice.options });
+      const decided = routeAroundSpent({
+        preferred,
+        spent: choice.spent,
+        options: choice.options,
+        notInstalled: choice.currentMissing,
+      });
       if (decided.rerouted) {
         adapter = resolveImplementAdapter(decided.agent);
-        reroutedFrom = preferred;
+        rerouted = { ...decided.rerouted, from: preferred };
       }
     }
   }
@@ -542,8 +547,12 @@ export async function dispatchStep(
     owner,
   );
   const runId = typeof result.body.runId === "string" ? result.body.runId : null;
-  if (runId && reroutedFrom) {
-    await mergeRunPayload(runId, { reroutedFrom }).catch(() => undefined);
+  if (runId && rerouted) {
+    await mergeRunPayload(runId, {
+      reroutedFrom: rerouted.from,
+      reroutedBecause: rerouted.because,
+      reroutedWhy: rerouted.why,
+    }).catch(() => undefined);
   }
   // Record the plan only once it reached an agent (sent or queued), so the
   // project's "planned" line never names a plan nobody was briefed with.

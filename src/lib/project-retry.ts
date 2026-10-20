@@ -12,7 +12,8 @@ import { getFeedbackByRunId } from "@/db/queries/site-feedback";
 import { logDebug } from "@/db/queries/debug-logs";
 import { injectPrompt } from "@/lib/inject-core";
 import { providerChoiceFor } from "@/lib/provider-choice";
-import { routeAroundSpent } from "@/lib/provider-switch";
+import { routeAroundSpent, type RerouteWhy } from "@/lib/provider-switch";
+import { FAILURE_REMEDY, remedyForFailure } from "@/lib/failure-remedy";
 import { isQuotaAlternativeId, providerLabel } from "@/config/quota-alternatives";
 import { resolveImplementAdapter } from "@/lib/feedback/implement";
 import { decideAutoReimplement } from "@/lib/feedback/auto-reimplement-policy";
@@ -80,9 +81,12 @@ export async function retryProjectRun(
 
   let agent: string;
   let from: string | null = null;
+  let why: RerouteWhy | null = null;
+  let because: string | null = null;
   if (opts.agent) {
     agent = opts.agent;
     from = run.adapter !== agent ? run.adapter : null;
+    why = from ? "picked" : null;
     // An explicit pick is the operator deciding: remembered for the project.
     if (up && up.agentPref !== agent) {
       await updateUserProject(up.id, userId, { agentPref: agent }).catch(() => undefined);
@@ -96,14 +100,27 @@ export async function retryProjectRun(
     const spent = { ...(choice?.spent ?? {}) };
     // The failure we are answering IS evidence, even before any list saw it.
     if (looksLikeAgentCapacityIssue(error)) spent[failedOn] = error;
+    // The failure itself may say the agent is not on the builder at all; a
+    // retry on the same agent would be refused the same way, in a second.
+    const notInstalled =
+      choice?.currentMissing ??
+      (remedyForFailure(error) === FAILURE_REMEDY.SWITCH_AGENT ? error : null);
     const decided = choice
-      ? routeAroundSpent({ preferred: failedOn, spent, options: choice.options })
+      ? routeAroundSpent({ preferred: failedOn, spent, options: choice.options, notInstalled })
       : { agent: failedOn, rerouted: null };
-    if (!decided.rerouted && spent[failedOn]) {
-      return { ok: false, status: 409, error: "No other provider can answer right now." };
+    if (!decided.rerouted && (spent[failedOn] || notInstalled)) {
+      return {
+        ok: false,
+        status: 409,
+        error: notInstalled
+          ? `${providerLabel(failedOn)} is not installed on the builder, and no other agent there can take it.`
+          : "No other provider can answer right now.",
+      };
     }
     agent = decided.agent;
     from = decided.rerouted ? failedOn : null;
+    why = decided.rerouted?.why ?? null;
+    because = decided.rerouted?.because ?? null;
   }
 
   const { status, body } = await injectPrompt(
@@ -129,6 +146,8 @@ export async function retryProjectRun(
       priorRunId: run.id,
       ...(opts.auto ? { autoRetriedBecause: opts.auto.because } : {}),
       ...(from ? { reroutedFrom: from } : {}),
+      ...(from && why ? { reroutedWhy: why } : {}),
+      ...(from && because ? { reroutedBecause: because } : {}),
     }).catch(() => undefined);
   }
   return { ok: true, runId, agent, agentLabel: providerLabel(agent), from };

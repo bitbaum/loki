@@ -221,9 +221,12 @@ export function nextProvider(options: readonly ProviderOption[]): ProviderOption
   return options.find((o) => o.usable) ?? null;
 }
 
+/** Why a run went to another agent than the one it was meant for. */
+export type RerouteWhy = "spent" | "not-installed" | "picked";
+
 export type DispatchAgentChoice =
   | { agent: string; rerouted: null }
-  | { agent: string; rerouted: { from: string; because: string } };
+  | { agent: string; rerouted: { from: string; because: string; why: RerouteWhy } };
 
 /**
  * Which agent a NEW dispatch should start, given what Loki has observed.
@@ -252,12 +255,29 @@ export function routeAroundSpent(input: {
   spent: Readonly<Record<string, string>>;
   /** `rankProviders` output with `current` = the preferred agent. */
   options: readonly ProviderOption[];
+  /**
+   * Why the preferred agent cannot even start on the builder this would go to
+   * (`ProviderChoice.currentMissing`). A missing binary is a stronger wall
+   * than a spent quota: the builder refuses it in a second, every time. On
+   * 2026-10-20 a report filed from Loki's own page went to Grok on the cloud
+   * builder, which has only Claude Code, and the Watch page's first words were
+   * "Grok is not installed on the cloud builder, so nothing was started".
+   */
+  notInstalled?: string | null;
 }): DispatchAgentChoice {
-  const because = input.spent[input.preferred];
+  const spentBecause = input.spent[input.preferred];
+  const because = input.notInstalled ?? spentBecause;
   if (!because) return { agent: input.preferred, rerouted: null };
   const next = nextProvider(input.options);
   if (!next || next.id === input.preferred) return { agent: input.preferred, rerouted: null };
-  return { agent: next.id, rerouted: { from: input.preferred, because } };
+  return {
+    agent: next.id,
+    rerouted: {
+      from: input.preferred,
+      because,
+      why: input.notInstalled ? "not-installed" : "spent",
+    },
+  };
 }
 
 /**

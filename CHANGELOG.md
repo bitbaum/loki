@@ -8,6 +8,21 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-10-20 — Whoever asks pays
 
+- **A request goes to an agent the builder actually has.** {#route-installed}
+  When a project is set to an agent its builder does not have — Grok on the
+  cloud builder, which runs Claude Code — Loki sends the request to one it
+  does and says so on Watch it work, instead of starting nothing and showing
+  "Grok is not installed on the cloud builder". A run that still stops for
+  that reason offers the agent that is there as the one button, not "Try
+  again", which would fail the same way.
+- **Watch it work says a stop once, with the way forward beside it.** {#watch-stopped}
+  The reason and the buttons now sit together at the top of the card; the
+  Loki message that repeated the reason and the "Stopped · 3 steps" line are
+  gone, as are the pull-request, merge and live steps under a run that never
+  started. An agent that never opened reads "could not start", not
+  "stopped". Your request shows what you asked: the technical details a
+  report carries for the agent sit behind "Dispatch details".
+
 - **A partner you assign to a brief holds a seat on its project.** {#builder-seat}
   Assign an approved partner to a website brief and, once the partner has
   signed in to Loki with the OrangeCat identity they connected, they are an
