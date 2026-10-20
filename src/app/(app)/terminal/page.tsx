@@ -19,12 +19,14 @@ export default function TerminalPage() {
       data-fc-place="tab"
       className="app-page app-page-compact app-viewport-pane flex flex-col gap-3 md:gap-4"
     >
-      {/* Both children are mobile-hidden (the top bar already says "Sessions",
-          the subtitle starts at sm), so on a phone this block contributed
-          nothing but the parent flex gap above a pane fighting for every row. */}
-      <div className="ui-page-header hidden sm:flex">
+      {/* The page's one <h1>, at every width. Below sm it is for screen
+          readers only: an open session hides the app bars there and a
+          visible row here would come out of a pane fighting for every line.
+          It used to be display:none on a phone, which left the page with no
+          heading at all. */}
+      <div className="ui-page-header sr-only sm:not-sr-only sm:flex">
         <div>
-          <PageTitle title="Sessions" />
+          <PageTitle title={EXECUTOR_COPY.terminal.pageTitle} />
           <p className="ui-page-subtitle">{EXECUTOR_COPY.terminal.pageSubtitle}</p>
         </div>
       </div>

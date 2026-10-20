@@ -8916,6 +8916,26 @@
 .ui-session-box .ck-tools > .ck-icon-btn[aria-haspopup="dialog"]:not(.ui-box-plus) {
   display: none;
 }
+/* The session box on /terminal: the line you type on is drawn as a field,
+   on a card set apart from the screen. Under a terminal the card had the
+   page's own ground and a borderless line, so it read as one more block of
+   the log above it (reported 2026-10-20: "a clear input field, not a mixed
+   log block"). Send stays on the row under the field, beside the mic —
+   that row is the owner's (2026-10-18) and session-sheet-browser holds it. */
+.ui-session-box .ck-composer {
+  border-color: var(--border-default);
+  background: var(--surface-raised);
+}
+.ui-session-box .ck-input {
+  border: 1px solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface-base);
+  padding: 0.5rem 0.75rem;
+  transition: border-color 0.15s ease;
+}
+.ui-session-box .ck-input:focus {
+  border-color: var(--border-interactive);
+}
 :is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock, .ui-home-box) .ck-submit {
   order: 3;
 }
