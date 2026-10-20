@@ -55,15 +55,30 @@ fi
 #    builds anything and the image is read-only to all of them.
 STORE=/opt/loki/agent-image/store
 SRC="$RUNNER_DIR/scripts/agent-image/Containerfile"
+BUILD_LOG=/var/log/loki-sealed-builds.log
 if command -v podman >/dev/null 2>&1 && [ -f "$SRC" ]; then
   mkdir -p "$STORE"
   stamp="$(sha256sum "$SRC" | cut -c1-12)"
   if [ "$(cat /opt/loki/agent-image/.built 2>/dev/null)" != "$stamp" ]; then
-    if podman --root "$STORE" build -q -t loki-agent:latest -f "$SRC" "$(dirname "$SRC")" >/dev/null 2>&1; then
+    # The build runs on a storage.conf of its OWN. The global one (written
+    # below) lists $STORE as an ADDITIONAL, read-only store for every tenant;
+    # a root build INTO $STORE that read it would have the store reference
+    # itself. Its output is kept: 2026-10-20 the first two deploys said only
+    # "did not build", and nothing on the box could say why.
+    cat > /opt/loki/agent-image/storage.conf <<CONF
+[storage]
+driver = "overlay"
+graphroot = "$STORE"
+runroot = "/run/loki-agent-image"
+CONF
+    if CONTAINERS_STORAGE_CONF=/opt/loki/agent-image/storage.conf \
+         podman build -t loki-agent:latest -f "$SRC" "$(dirname "$SRC")" >"$BUILD_LOG" 2>&1; then
       echo "$stamp" > /opt/loki/agent-image/.built
       note "✓ loki-agent image built"
     else
-      note "⚠ loki-agent image did not build"; ready=0
+      note "⚠ loki-agent image did not build — the end of $BUILD_LOG:"
+      tail -n 15 "$BUILD_LOG" | sed 's/^/      /'
+      ready=0
     fi
   else
     note "✓ loki-agent image current"
