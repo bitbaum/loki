@@ -433,6 +433,7 @@ sync_runner "$PROJECT_DIR/desktop/package.json" "$HOST:$RUNNER_DIR/desktop/"
 sync_runner "$PROJECT_DIR/home/" "$HOST:$RUNNER_DIR/home/"
 sync_runner "$PROJECT_DIR/scripts/box-runner.ts" \
   "$PROJECT_DIR/scripts/mint-box-runner-token.ts" \
+  "$PROJECT_DIR/scripts/write-tenant-engines.ts" \
   "$PROJECT_DIR/scripts/hetzner/new-tenant.sh" \
   "$PROJECT_DIR/scripts/hetzner/reconcile-tenants.sh" \
   "$PROJECT_DIR/scripts/hetzner/loki-box-runner@.service" \

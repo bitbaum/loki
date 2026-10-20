@@ -27,6 +27,11 @@ export type OrchestrationRunPayload = {
   projectKey: string;
   projectPath: string;
   model?: string;
+  /** Which engine paid for this run (lib/build-engine/allowance.ts RUN_ENGINE):
+   *  the person's own, or Loki's as a welcome build or a plan build. Absent
+   *  on runs older than the marker. Welcome and plan builds are COUNTED from
+   *  this field, so it is written at open and never changed. */
+  engine?: string;
   resultText?: string;
   raw?: string;
   durationMs?: number;

@@ -18,7 +18,7 @@ One sealed builder per account on the box you already have: its own Linux user, 
 - [x] `new-tenant.sh`: user, dev root, `loki-box-runner@<tenant>` unit, token per tenant, reconciled from the account's flag {#new-tenant}
 - [ ] The owner's runner on the same template
 - [x] Eligibility is a flag on the account, not an environment allowlist; a project with no stored builder routes to the connected one {#private-builder-flag}
-- [ ] Settings → Your engine: a key marked for building reaches your builder; `/login` in your own Sessions signs in your subscription
+- [x] Settings → Your engine: a key marked for building reaches your builder; `/login` in your own Sessions signs in your subscription {#your-engine}
 - [ ] The first tenant who is not the owner builds on their own sign-in
 
 ### Partner track
@@ -32,9 +32,10 @@ bitbaum owns the systems design course and partner approval. Loki supplies scope
 
 ### Capacity you can read
 The numbers that decide when the next wall is hit, published on the System page and in this file, so "when do we need more" is a reading, not a guess.
-- [ ] Queue median wait per builder channel
+- [x] Queue median wait per builder channel {#capacity-card}
 - [ ] Box memory and CPU headroom
-- [ ] Monthly token spend, and the share of it that is routine work
+- [x] Monthly builds, tokens and cost per account, and what welcome builds cost against their cap {#capacity-card}
+- [ ] The share of monthly token spend that is routine work
 - [ ] Drop-off at "add your API key"
 
 ### Sealed builds
@@ -54,10 +55,10 @@ The builder pays their model vendor directly and pays Loki for the platform; eve
 - [x] Loki's own chat runs on your key when you paste one in Settings
 - [x] Several providers per account, in your own order; the composer's picker shows your models first and links to adding a key
 - [x] Passes paid in Bitcoin: the Billing tab shows the pass, its end date, the Buy button and the ledger; the operator grants, extends and revokes from System → Plans
-- [ ] A key marked "for building" reaches your private builder, not only your chat
-- [ ] Tokens per run per tenant recorded and shown on the run
+- [x] A key marked "for building" reaches your private builder, not only your chat {#your-engine}
+- [x] Tokens per run per tenant recorded and shown on the run, and which engine paid for it {#welcome-changes}
 - [ ] BYOK as the default execution path for new accounts
-- [ ] Welcome changes: a few free builds for a newcomer on Loki's key, under a monthly cap in CHF
+- [x] Welcome changes: a few free builds for a newcomer on Loki's key, under a monthly cap in CHF {#welcome-changes}
 - [ ] A metered pool (wholesale tokens sold inside a plan) once the numbers say so
 
 ### Signed installers and native channels

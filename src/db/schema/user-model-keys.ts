@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, primaryKey, boolean } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 /**
@@ -52,6 +52,14 @@ export const userModelKeys = pgTable(
     keyHint: text("key_hint").notNull(),
     /** When the vendor last accepted this key (probed on save). */
     verifiedAt: timestamp("verified_at", { withTimezone: true }).notNull(),
+    /**
+     * Also for BUILDING: the key reaches this account's private builder on
+     * Loki's cloud as the agent CLI's own variable (config/build-engines.ts),
+     * so Claude Code, Codex or Grok build on it instead of a sign-in. Off by
+     * default: a key pasted for chat stays chat-only until the person says
+     * otherwise (docs/architecture/private-builders.md, Settings → Your engine).
+     */
+    forBuilding: boolean("for_building").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

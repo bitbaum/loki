@@ -1,6 +1,10 @@
 import { pgTable, uuid, text, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 
 export const PLAN_VALUES = ["free", "personal", "pro", "team"] as const;
+/** users.build_engine — see the column. */
+export const BUILD_ENGINE_CHOICES = ["own", "loki"] as const;
+export type BuildEngineChoice = (typeof BUILD_ENGINE_CHOICES)[number];
+
 export type Plan = (typeof PLAN_VALUES)[number];
 
 export const PLAN_STATUS_VALUES = ["active", "past_due", "canceled"] as const;
@@ -21,6 +25,12 @@ export const users = pgTable("users", {
    *  powers (execution-access.ts isFleetInfrastructureAllowed). Switched on
    *  from System → Plans. docs/architecture/private-builders.md. */
   privateBuilder: boolean("private_builder").default(false).notNull(),
+  /** What this account's builds run on (config/welcome-changes.ts): "own" —
+   *  the person's sign-in or a key marked for building — or "loki", Loki's
+   *  key within the welcome builds and the plan's monthly builds. The person
+   *  chooses in Settings → AI; the box writes the matching key into their
+   *  unit (scripts/write-tenant-engines.ts); every run records which it was. */
+  buildEngine: text("build_engine").$type<BuildEngineChoice>().default("own").notNull(),
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
   // Cross-product identity bridge — the linked OrangeCat actor (= OIDC
   // id_token.sub from "Login with OrangeCat"). Null = not linked. See

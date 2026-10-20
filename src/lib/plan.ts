@@ -23,6 +23,19 @@ export const PLAN_LIMITS = {
     pro: 3_000,
     team: 8_000,
   },
+  /**
+   * Builds a month on LOKI'S engine (docs/master-plan-2026-10.md decision 6):
+   * a bounded number, never an open-ended model bill. Past it, and on Free
+   * past the welcome builds (config/welcome-changes.ts), the person builds on
+   * their own sign-in or key, which no plan limits. First figures; re-read
+   * against the real cost per build on System → Capacity.
+   */
+  buildsMonthly: {
+    free: 0,
+    personal: 10,
+    pro: 40,
+    team: 100,
+  },
 } satisfies Record<string, Record<Plan, number>>;
 
 /** What one plan answer is counted as, against the monthly allowance. */

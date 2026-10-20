@@ -2,7 +2,7 @@
 title: The Builder's Operating System
 subtitle: A technical architecture for sustained autonomous execution across many projects simultaneously
 publishedAt: 2026-10-01
-version: 0.3.2
+version: 0.3.3
 summary:
   - Loki is where you direct AI coding agents across many projects — it shows what each one is doing and what is waiting for you.
   - Agents run in terminals a runner owns, on Loki's cloud builder or on your own computer with Fleet Runner; which one is a stored choice per project, never a guess.
@@ -61,7 +61,7 @@ This is not automation for its own sake. It is a division of labor: the agent ha
 
 ## Architecture
 
-Loki is a hosted control plane (a Next.js application) plus a runner that owns the agents. The runner is the always-on cloud builder for accounts that have access to it, or the Fleet Runner desktop app on your own machine — which is the only option for accounts without cloud access, and a choice per project for everyone else. The control plane never touches a terminal of yours; it talks to runners.
+Loki is a hosted control plane (a Next.js application) plus a runner that owns the agents. The runner is a private builder per account on Loki's cloud — its own Linux user, home, token and agent sign-ins on the box, sealed from every other account's — or the Fleet Runner desktop app on your own machine; which one serves a project is a stored choice. One rule holds across both: whoever asks for a change pays for it, with their own engine, in their own builder. The control plane never touches a terminal of yours; it talks to runners.
 
 ### State Propagation
 
@@ -119,15 +119,15 @@ Loki makes this visible together so operators can reason about their actual situ
 
 ## Subscription Tiers
 
-Loki is a hosted product with four levels: a free tier and three paid tiers. The paid tiers are published without prices, nothing is charged until prices are announced, and /pricing shows them as such. The only difference the product enforces between tiers is how many projects you can have; every feature is on every plan.
+Loki is a hosted product with four levels: a free tier and three paid tiers. Prices are announced (CHF 15, 40 and 90 a month) and nothing is charged until Loki's company can receive payment; /pricing shows them as such. The product enforces two differences between tiers: how many projects you can have, and how many builds a month run on Loki's own engine. Builds on your own sign-in or key are never counted; every feature is on every plan.
 
-**Free** — for your first projects. Everything in Loki, with your own agent sign-ins and keys, limited to 3 projects — enough to see the whole loop working.
+**Free** — for your first projects. Everything in Loki, with your own agent sign-ins and keys, limited to 3 projects — enough to see the whole loop working. Three welcome builds run on Loki's engine before you bring your own.
 
-**Personal** — for one builder managing up to 5 projects.
+**Personal** — for one builder managing up to 5 projects, with 10 builds a month on Loki's engine.
 
-**Pro** — for builders running many projects at once, with no project ceiling.
+**Pro** — for builders running many projects at once, with no project ceiling and 40 builds a month on Loki's engine.
 
-**Team** — for groups sharing a fleet: no project ceiling, plus shared projects and roles.
+**Team** — for groups sharing a fleet: no project ceiling, 100 builds a month on Loki's engine, plus shared projects and roles.
 
 Because Loki is MIT-licensed, running it on your own infrastructure is possible — the architecture runs on a single machine with PostgreSQL — but a self-hosting guide does not exist yet.
 

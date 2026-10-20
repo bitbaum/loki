@@ -7,6 +7,7 @@ import {
   type OwnKeyConfig,
   type VendorId,
 } from "@/config/model-vendors";
+import { buildEngineFor } from "@/config/build-engines";
 import { db } from "@/db";
 import { userModelKeys } from "@/db/schema/user-model-keys";
 
@@ -44,6 +45,8 @@ export type OwnModelSummary = {
   /** Only for `custom`: the host and the name the person gave it. */
   baseUrl: string | null;
   label: string | null;
+  /** Also drives the agent CLIs in the person's private builder (config/build-engines.ts). */
+  forBuilding: boolean;
 };
 
 /** The two columns only `custom` carries; read for no other vendor. */
@@ -61,6 +64,7 @@ function summaryOf(row: typeof userModelKeys.$inferSelect): OwnModelSummary | nu
     keyHint: row.keyHint,
     verifiedAt: row.verifiedAt,
     position: row.position,
+    forBuilding: row.forBuilding,
     ...endpointOf(row),
   };
 }
@@ -161,6 +165,47 @@ export async function setOwnModelChoice(
     .where(and(eq(userModelKeys.userId, userId), eq(userModelKeys.vendor, vendor)))
     .returning();
   return row ? summaryOf(row) : null;
+}
+
+/** Mark one vendor's key as also for building, or chat-only again. Null when
+ *  that vendor is not stored or cannot drive an agent CLI (config/build-engines.ts). */
+export async function setForBuilding(
+  userId: string,
+  vendor: VendorId,
+  forBuilding: boolean,
+): Promise<OwnModelSummary | null> {
+  if (!buildEngineFor(vendor)) return null;
+  const [row] = await db
+    .update(userModelKeys)
+    .set({ forBuilding, updatedAt: new Date() })
+    .where(and(eq(userModelKeys.userId, userId), eq(userModelKeys.vendor, vendor)))
+    .returning();
+  return row ? summaryOf(row) : null;
+}
+
+/**
+ * The keys this account marked for building, opened, as the agent CLIs'
+ * variables — for the box script that writes a private builder's unit env
+ * (scripts/write-tenant-engines.ts), and for nothing else: a chat turn never
+ * reads this, and no route returns it.
+ */
+export async function listBuildEngineKeys(
+  userId: string,
+): Promise<{ env: string; value: string }[]> {
+  const secret = ownModelSealSecret();
+  if (!secret) return [];
+  const out: { env: string; value: string }[] = [];
+  for (const row of await rowsFor(userId)) {
+    const engine = row.forBuilding ? buildEngineFor(row.vendor) : null;
+    if (!engine) continue;
+    try {
+      const value = openSecret(row.sealedKey, secret, SEAL_CONTEXT);
+      if (value) out.push({ env: engine.env, value });
+    } catch {
+      console.error(`[own-model] stored ${row.vendor} key for user ${userId} did not open`);
+    }
+  }
+  return out;
 }
 
 /** Re-order the chain: vendors in the order given come first, any not named keep their relative order after. */

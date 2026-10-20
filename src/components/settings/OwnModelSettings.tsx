@@ -8,6 +8,7 @@ import { MODEL_STORE_PATH } from "@/lib/own-model-path";
 import { ownModelRequest, type OwnModelRow } from "@/lib/own-model-client";
 import { AutoRouting } from "@/components/models/AutoRouting";
 import { OwnModelForm } from "./OwnModelForm";
+import { BuildEngineToggle } from "./BuildEngineToggle";
 
 /**
  * "Power Loki with your own models" — every key the user brought, in the
@@ -67,7 +68,13 @@ const hostOf = (url: string | null) => {
 
 const count = (n: number) => n.toLocaleString("en-CH");
 
-export function OwnModelSettings() {
+export function OwnModelSettings({
+  cloudBuilder = false,
+}: {
+  /** The person has a builder on Loki's cloud (their own, or the founder's):
+   *  a key can then also drive the agent CLIs there. */
+  cloudBuilder?: boolean;
+}) {
   const [loaded, setLoaded] = useState(false);
   const [available, setAvailable] = useState(true);
   const [models, setModels] = useState<OwnModelRow[]>([]);
@@ -75,6 +82,26 @@ export function OwnModelSettings() {
   const [billing, setBilling] = useState<Billing>({});
   const [mode, setMode] = useState<Mode>(modeFromUrl);
   const [busy, setBusy] = useState(false);
+
+  // "Also for building": one PATCH, the row as the server now holds it. The
+  // box picks the change up within a minute (scripts/write-tenant-engines.ts).
+  async function toggleBuild(row: OwnModelRow, forBuilding: boolean) {
+    setBusy(true);
+    try {
+      const data = await ownModelRequest<{ model: OwnModelRow }>("/api/settings/model", "PATCH", {
+        vendor: row.vendor,
+        forBuilding,
+      });
+      setModels((rows) => rows.map((r) => (r.vendor === row.vendor ? data.model : r)));
+    } catch (error) {
+      setNote({
+        tone: "warn",
+        text: error instanceof Error ? error.message : "That did not save.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
   const [error, setError] = useState<string | null>(null);
   /**
    * One line after every change — added, changed, moved, removed — so the
@@ -249,6 +276,14 @@ export function OwnModelSettings() {
                   key {row.keyHint} · checked {new Date(row.verifiedAt).toLocaleDateString()}
                 </p>
                 <UsageLine usage={usage.find((u) => u.vendor === row.vendor)} />
+                {cloudBuilder && row.buildEngine && (
+                  <BuildEngineToggle
+                    agent={row.buildEngine}
+                    on={row.forBuilding}
+                    busy={busy}
+                    onChange={(next) => void toggleBuild(row, next)}
+                  />
+                )}
                 <TestLine result={tests[row.vendor]} />
                 {billing[row.vendor]?.billingUrl && (
                   <a

@@ -30,6 +30,23 @@ while IFS= read -r uid; do
   fi
 done <<<"$wanted"
 
+# Each tenant's engine keys — the ones they marked "also for building" —
+# into its unit env (scripts/write-tenant-engines.ts needs the database and
+# the app's BYOK_SEAL_SECRET, which only root-side jobs hold). A unit whose
+# file changed is drain-restarted so the key reaches its next agent without
+# ending a session mid-task.
+changed="$( cd "$RUNNER_DIR" && set -a && . /opt/loki/app/.env 2>/dev/null; set +a; \
+  node_modules/.bin/tsx scripts/write-tenant-engines.ts 2>/dev/null || true )"
+while IFS= read -r short; do
+  [ -n "$short" ] || continue
+  r="loki-runner-restart-loki-box-runner-${short}"
+  systemctl is-active "$r.service" >/dev/null 2>&1 && continue
+  systemctl reset-failed "$r.service" 2>/dev/null || true
+  systemd-run --unit="$r" --collect --quiet \
+    --description="Loki: restart loki-box-runner@${short} once its agents drain (engine keys changed)" \
+    /bin/bash "${RUNNER_DIR}/scripts/drain-and-restart-runner.sh" "loki-box-runner@${short}" 2>/dev/null || true
+done <<<"$changed"
+
 # Retire every running instance whose account no longer wants one.
 for unit in $(systemctl list-units 'loki-box-runner@*' --no-legend --plain 2>/dev/null | awk '{print $1}'); do
   short="${unit#loki-box-runner@}"; short="${short%.service}"

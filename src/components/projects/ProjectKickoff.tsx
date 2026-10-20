@@ -338,6 +338,7 @@ export function ProjectKickoff({
           interrupted={kickoff.interrupted}
           needsGithub={kickoff.needsGithub}
           needsBuilder={kickoff.needsBuilder}
+          needsEngine={kickoff.needsEngine}
           failures={failures.length}
           projectId={projectId}
           onRetry={run}
@@ -376,6 +377,7 @@ function KickoffNextStep({
   interrupted,
   needsGithub,
   needsBuilder,
+  needsEngine,
   failures,
   projectId,
   onRetry,
@@ -386,6 +388,7 @@ function KickoffNextStep({
   interrupted?: boolean;
   needsGithub?: boolean;
   needsBuilder?: boolean;
+  needsEngine?: string;
   failures: number;
   projectId: string;
   onRetry: () => void;
@@ -442,18 +445,40 @@ function KickoffNextStep({
     );
   }
 
+  if (needsEngine) {
+    // Refused, not queued: Loki's engine has no builds left for this account.
+    // The sentence is the gate's own; the way forward is one tap away.
+    return (
+      <div className="space-y-2 border-t border-border-subtle pt-3">
+        <p className="text-sm font-medium text-text-primary">Nothing to build with, yet.</p>
+        <p className="text-xs leading-relaxed text-text-secondary">{needsEngine}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/settings#ai" className="ui-btn-primary">
+            Choose your engine
+          </Link>
+          <button type="button" onClick={onRetry} className="ui-btn-secondary gap-2">
+            <Zap className="h-4 w-4" aria-hidden="true" /> Try again
+          </button>
+          {dismiss}
+        </div>
+      </div>
+    );
+  }
+
   if (needsBuilder) {
     // Refused, not queued: nothing waits anywhere, so the copy must not say it
-    // starts by itself. The way forward is the person's own computer.
+    // starts by itself. The way forward is the person's own computer — or a
+    // private builder on Loki's cloud, which the operator switches on per
+    // account (docs/architecture/private-builders.md).
     return (
       <div className="space-y-2 border-t border-border-subtle pt-3">
         <p className="text-sm font-medium text-text-primary">
           Connect your computer to start the build.
         </p>
         <p className="text-xs leading-relaxed text-text-secondary">
-          Loki&apos;s shared cloud builder is not open to every account yet, so the agent runs on
-          your own computer. Install Fleet Runner, then press Try again here — everything above is
-          saved.
+          Your account has no builder on Loki&apos;s cloud yet — the operator switches one on per
+          account — so the agent runs on your own computer. Install Fleet Runner, then press Try
+          again here; everything above is saved.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/download" className="ui-btn-primary">

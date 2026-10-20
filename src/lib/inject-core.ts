@@ -34,6 +34,7 @@ import {
   projectChannelLock,
 } from "@/lib/execution-access";
 import { hostedRunnerServes } from "@/lib/hosted-runner/serves";
+import { resolveRunEngine } from "@/lib/build-engine/resolve";
 import type { RunnerChannel } from "@/db/schema/pending-commands";
 import {
   createOrchestrationEvent,
@@ -287,6 +288,8 @@ async function openTrackedRun(
     eventIntent?: OrchestrationTaskIntentId;
     eventModel?: string;
     promptLabel: string;
+    /** Which engine pays for this run (lib/build-engine/allowance.ts). */
+    engine?: string;
   },
 ): Promise<string | undefined> {
   try {
@@ -303,6 +306,7 @@ async function openTrackedRun(
         projectKey: ctx.canonical,
         projectPath: ctx.resolvedProjectPath,
         model: ctx.eventModel,
+        ...(ctx.engine ? { engine: ctx.engine } : {}),
         ...(params.notifyOnClose ? { notifyOnClose: true } : {}),
         ...(params.conversationId ? { conversationId: params.conversationId } : {}),
       },
@@ -931,8 +935,22 @@ export async function injectPrompt(params: InjectParams, userId: string): Promis
       : null;
 
   const trackableIntent = eventIntent !== "hard_stop" && eventIntent !== "close_session";
+  // Whoever asks pays: a build on the person's own engine is never counted;
+  // one on Loki's engine is a welcome build or a plan build, and past them
+  // the dispatch is refused here with the way forward — never queued to a
+  // builder whose key the box has already withdrawn.
+  const engine = trackableIntent
+    ? await resolveRunEngine(userId)
+    : ({ ok: true, engine: undefined } as const);
+  if (!engine.ok) {
+    return {
+      status: 409,
+      body: { ok: false, error: engine.message, code: "engine-exhausted" },
+    };
+  }
   if (!runId && trackableIntent) {
     runId = await openTrackedRun(params, userId, {
+      engine: engine.engine,
       projectId,
       canonical,
       resolvedProjectPath,
