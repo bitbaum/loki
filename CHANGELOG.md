@@ -8,6 +8,28 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-10-20 — Whoever asks pays
 
+- **Voice says why the studio voices are off, and how to turn them on.** {#voice-studio-off}
+  When Groq will not read aloud, the Voice page now says why in one line, with
+  the link that fixes it: usually Groq's voice terms, accepted once at
+  console.groq.com. Until then Loki reads with your phone's voice, and the
+  page says so, instead of every voice quietly sounding the same.
+- **Change Loki's voice by saying so.** {#voice-change} "Use Troy", "switch
+  voice" or "what voices are there" work while you listen, and questions about
+  voice mode get true answers instead of advice about other apps. The status
+  line reads as sentences ("Three runs failed on loki."), the music bed is
+  pitched and loud enough for a phone speaker, End is no longer covered by the
+  feedback button, and the voices are an even grid.
+- **Watching says each thing once.** {#watch-once} A page's findings are one
+  card that updates in place, measured only after the page holds still, so
+  "no main title" and "two main titles" no longer argue. A fix that did not
+  finish says so, with a link to why. The header counts only what waits on
+  you, and a saved note is never quoted cut off.
+- **Prompts: one card per prompt, schedules in words.** {#prompts-tidy} The
+  same prompt saved twice opens the one you have, and extra copies go with one
+  tap. Schedule a prompt as "every Monday at 10:00, Zurich time" instead of a
+  cron line. Run asks for the project before it shows the prompt, both actions
+  say what they do, and category tags are no longer orange.
+
 - **A request goes to an agent the builder actually has.** {#route-installed}
   When a project is set to an agent its builder does not have — Grok on the
   cloud builder, which runs Claude Code — Loki sends the request to one it
