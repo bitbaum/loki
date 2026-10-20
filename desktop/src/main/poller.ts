@@ -73,6 +73,7 @@ import { materializeImages } from '@/lib/agent-attachments-fs'
 const PUSH_AFTER = new Set(['launch_agent', 'dispatch', 'switch_agent', 'close_tab'])
 import { validateCommand } from './command-validator'
 import { loadToken, clearToken, isDevBaseOverride } from './token-store'
+import { fetchWorkspaceSource } from './workspace-source'
 import { fleetSessionsDir } from '@/lib/session-paths'
 import { FLEET_RUNNER_COMMAND_TYPES_PARAM } from '@/lib/pending-command-contract'
 
@@ -526,7 +527,7 @@ async function handleCommand(
           baseDir: async (projectKey, requestedDir) => {
             if (process.env.LOKI_BOX_PREPARE !== 'true') return requestedDir
             const { ensureBoxWorkspace } = await import('@/lib/agent-execution/box-workspace')
-            return ensureBoxWorkspace(projectKey, requestedDir)
+            return ensureBoxWorkspace(projectKey, requestedDir, await fetchWorkspaceSource(projectKey))
           },
           worktree: (laneTab, primaryDir, runKey) => {
             pruneWorktrees(laneTab, primaryDir)

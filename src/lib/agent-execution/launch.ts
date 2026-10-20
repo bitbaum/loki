@@ -26,6 +26,9 @@ export interface ProvisionAgentArgs {
   sessionId?: string;
   /** Continue the folder's newest conversation (adapters that support it). */
   resumeLatest?: boolean;
+  /** Extra environment for this run only — the repository token the box
+   *  fetched for it, never anything from the runner's own environment. */
+  env?: Record<string, string>;
   cols?: number;
   rows?: number;
   /**
@@ -63,6 +66,7 @@ export async function provisionAgentWorkspace(
     cwd: args.dir,
     command: "bash",
     args: ["-lic", launchCommand],
+    ...(args.env ? { env: args.env } : {}),
     cols: args.cols,
     rows: args.rows,
   });

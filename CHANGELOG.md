@@ -24,6 +24,14 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **"Hosted runner" is offered only where it exists.** It serves one account;
   everyone else saw it as a choice, could pick it, and queued work that was
   never claimed.
+- **An agent on the cloud builder sees only its own environment.** {#agent-env}
+  It is born with what a shell needs, the engine key its account holds, and
+  a token for the one repository it is working on. It used to inherit the
+  builder's whole environment, database password and all.
+- **The cloud builder asks Loki what to clone.** {#runner-no-db} It no longer
+  reads the database itself: it asks with its own token and gets its own
+  account's projects and a token that account may use. One step from a
+  builder with no database password at all.
 
 ## 2026-10-17 — See what every session is doing
 

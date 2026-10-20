@@ -18,6 +18,7 @@ import { provisionAgentWorkspace } from "@/lib/agent-execution/launch";
 import type { AgentOption } from "@/lib/agent-registry";
 import { missingAgentReason } from "@/lib/agents/launch-check";
 import { ensureGrokWorkspaceTrusted } from "./grok-prep";
+import { fetchWorkspaceSource, repoTokenEnv } from "./workspace-source";
 import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
 import { EXIT_SETTLE_MS, forgetTab, rememberTab } from "./tab-memory";
 
@@ -86,12 +87,17 @@ export async function launchAgentPty(
   let effectiveDir = dir;
   // Box-runner: the dispatch's dir is the LAPTOP path and won't exist here.
   // Resolve a box-local workspace (clone-on-demand + pre-trust for claude)
-  // before provisioning. Dynamic import keeps @/db + git out of the desktop
-  // bundle — only the box-runner sets this env.
+  // before provisioning. What to clone, and the token for it, come from the
+  // control plane for THIS runner's account (workspace-source.ts); the same
+  // token is the run's own GITHUB_TOKEN. Dynamic import keeps git out of the
+  // desktop bundle — only the box-runner sets this env.
+  let runEnv: Record<string, string> = {};
   if (process.env.LOKI_BOX_PREPARE === "true") {
     try {
       const { ensureBoxWorkspace } = await import("@/lib/agent-execution/box-workspace");
-      effectiveDir = await ensureBoxWorkspace(tab, dir);
+      const source = await fetchWorkspaceSource(tab);
+      runEnv = repoTokenEnv(source);
+      effectiveDir = await ensureBoxWorkspace(tab, dir, source);
     } catch (e) {
       console.error(`[box-prepare] ${tab}: ${e instanceof Error ? e.message : String(e)}`);
       // Fall through with the requested dir; provision will surface the failure.
@@ -134,6 +140,7 @@ export async function launchAgentPty(
     sessionId,
     // Agents that find their own newest conversation (Codex).
     resumeLatest: resumeLatest && agent !== "claude",
+    ...(Object.keys(runEnv).length ? { env: runEnv } : {}),
     workspaceId: runnerWorkspaceId(tab),
   });
   agentByTab.set(tab, agent);
