@@ -260,6 +260,21 @@ check("a failed run names the reason on the working stage and settles", () => {
   assert.equal(t.summary, "Claude Code stopped before it finished.");
   assert.equal(t.settled, true);
   assert.equal(t.current, "working");
+  assert.equal(t.stages[2].label, "Claude Code stopped", "it was delivered, so it did start");
+});
+
+check("an agent that never opened could not start — it did not stop", () => {
+  const i: RunTrackInput = {
+    ...base,
+    eventKinds: ["dispatched", "claimed", "closed"],
+    phase: "failed",
+    run: { finishedAt: "2026-10-17T10:05:00Z", outcome: "failed" },
+    failure: "Grok is not installed on the cloud builder, so nothing was started.",
+  };
+  const t = buildRunTrack(i);
+  assert.equal(states(i), "done done failed next next next");
+  assert.equal(t.stages[2].label, "Claude Code could not start");
+  assert.equal(t.summary, "Grok is not installed on the cloud builder, so nothing was started.");
 });
 
 check("a run that ended before any builder claimed it fails at the builder stage", () => {

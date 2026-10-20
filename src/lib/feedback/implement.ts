@@ -11,7 +11,7 @@ import { feedbackInjectAccepted } from "@/lib/feedback/dispatch-accept";
 import { isQuotaAlternativeId, providerLabel } from "@/config/quota-alternatives";
 import { getUserProject, updateUserProject } from "@/db/queries/user-projects";
 import { providerChoiceFor } from "@/lib/provider-choice";
-import { routeAroundSpent } from "@/lib/provider-switch";
+import { routeAroundSpent, type RerouteWhy } from "@/lib/provider-switch";
 import { livePageHref } from "@/lib/feedback/fix-shipping";
 import { captureBeforePicture } from "@/lib/feedback/before-picture";
 
@@ -146,7 +146,7 @@ export async function implementFeedback(
   // `agent` is the operator deciding, and is never second-guessed.
   const preferred = resolveImplementAdapter(requestedAgent ?? row.agentPref);
   let adapter: AdapterId = preferred;
-  let rerouted: { from: string; to: string; because: string } | null = null;
+  let rerouted: { from: string; to: string; because: string; why: RerouteWhy } | null = null;
   if (!requestedAgent) {
     const project = await getUserProject(row.userProjectId, executionUserId).catch(() => null);
     const choice = project
@@ -157,10 +157,16 @@ export async function implementFeedback(
         preferred,
         spent: choice.spent,
         options: choice.options,
+        notInstalled: choice.currentMissing,
       });
       if (decided.rerouted) {
         adapter = resolveImplementAdapter(decided.agent);
-        rerouted = { from: preferred, to: adapter, because: decided.rerouted.because };
+        rerouted = {
+          from: preferred,
+          to: adapter,
+          because: decided.rerouted.because,
+          why: decided.rerouted.why,
+        };
       }
     }
   }
@@ -228,6 +234,7 @@ export async function implementFeedback(
       await mergeRunPayload(runId, {
         reroutedFrom: rerouted.from,
         reroutedBecause: rerouted.because,
+        reroutedWhy: rerouted.why,
       }).catch(() => undefined);
     }
   }

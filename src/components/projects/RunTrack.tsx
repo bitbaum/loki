@@ -81,7 +81,15 @@ export function RunTrack({
   const [unfolded, setUnfolded] = useState(false);
   const live = track.stages.some((s) => s.state === "now" || s.state === "attention");
   const now = useTick(live);
-  const timings = stageTimings(track.stages, now);
+  // A road that ended in a failure stops there. Drawing "Pull request",
+  // "Checks and merge" and "Live" as empty circles under a run that never
+  // started read as work still to come (owner, 2026-10-20).
+  const failedAt = track.stages.findIndex((s) => s.state === "failed");
+  const stages =
+    failedAt < 0
+      ? track.stages
+      : track.stages.filter((s, i) => i <= failedAt || s.state !== "next");
+  const timings = stageTimings(stages, now);
   const folded = collapsible && track.settled && !unfolded;
 
   if (folded)
@@ -99,7 +107,7 @@ export function RunTrack({
 
   return (
     <ol className="ui-track" aria-label="Where the change is">
-      {track.stages.map((stage, i) => {
+      {stages.map((stage, i) => {
         const timing = timings[i]!;
         const expandable =
           stage.facts.length > 0 ||
@@ -177,7 +185,9 @@ function StageDetail({
   const when = clock(stage.at);
   return (
     <div className="ui-track-detail">
-      {when && stage.state !== "next" && (
+      {/* The stage's own time, only when no fact below carries one — under
+          "You asked", "11:36 Done." above "11:36 Sent to Grok" said nothing. */}
+      {when && stage.state !== "next" && !stage.facts.some((f) => f.at) && (
         <p className="ui-track-fact">
           <span className="ui-track-fact-at">{when}</span>
           {stage.state === "done" ? "Done." : "Began."}

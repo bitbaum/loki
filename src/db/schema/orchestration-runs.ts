@@ -53,6 +53,10 @@ export type OrchestrationRunPayload = {
   reroutedFrom?: string;
   /** Why it was rerouted — the observed refusal, in words. */
   reroutedBecause?: string;
+  /** Which kind of reroute (lib/provider-switch RerouteWhy): the meant agent
+   *  was out of usage, not installed on the builder, or the person picked
+   *  another. Watch words its line from this; absent on older runs. */
+  reroutedWhy?: "spent" | "not-installed" | "picked";
   /** This run is Loki's own second attempt at a feedback item, after the run
    *  named here was refused by the runner (feedback/auto-reimplement.ts). A
    *  run carrying this is never retried again — that is the loop guard. */

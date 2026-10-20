@@ -50,6 +50,7 @@ export function ProjectWatchLive({
   track,
   follow,
   walkthrough,
+  actions = null,
 }: {
   projectId: string;
   provider: string;
@@ -67,6 +68,9 @@ export function ProjectWatchLive({
   track: RunTrackData | null;
   follow: RunFollow | null;
   walkthrough: FixNote | null;
+  /** The way forward when the run stopped — under the headline that says why,
+   *  so the reason and the button are one glance, not three screens apart. */
+  actions?: React.ReactNode;
 }) {
   const working = phase === "working";
   const live = phase === "waiting" || phase === "working" || phase === "attention";
@@ -108,6 +112,8 @@ export function ProjectWatchLive({
         </h2>
         {working && now?.detail && <p className="text-sm text-text-secondary">{now.detail}</p>}
       </div>
+
+      {phase === "stopped" && actions}
 
       {working && now?.needsYou && (
         <div className="ui-callout-warning">

@@ -380,4 +380,42 @@ check("when nothing else can answer, it keeps the preferred agent rather than re
   assert.deepEqual(out, { agent: "cursor", rerouted: null });
 });
 
+// 2026-10-20: a report filed from Loki's own page went to Grok on the cloud
+// builder, which reports only Claude Code. The builder refused it in a second
+// and Watch opened on "Grok is not installed on the cloud builder".
+check("an agent the builder does not have is routed to one it does, and says so", () => {
+  const out = routeAroundSpent({
+    preferred: "grok",
+    spent: {},
+    options: rankFor("grok", {}, undefined, ["claude"]),
+    notInstalled: "Grok is not installed on the cloud builder",
+  });
+  assert.equal(out.agent, "claude");
+  assert.ok(out.rerouted);
+  assert.equal(out.rerouted.why, "not-installed");
+  assert.match(out.rerouted.because, /not installed on the cloud builder/);
+});
+
+check("a spent reroute is marked spent", () => {
+  const out = routeAroundSpent({
+    preferred: "cursor",
+    spent: CURSOR_SPENT,
+    options: rankFor("cursor", CURSOR_SPENT),
+  });
+  assert.equal(out.rerouted?.why, "spent");
+});
+
+check(
+  "not installed with nothing else on the builder keeps the agent (its refusal says why)",
+  () => {
+    const out = routeAroundSpent({
+      preferred: "grok",
+      spent: {},
+      options: rankFor("grok", {}, undefined, ["grok"]),
+      notInstalled: "Grok is not installed on the cloud builder",
+    });
+    assert.deepEqual(out, { agent: "grok", rerouted: null });
+  },
+);
+
 console.log(`\nprovider-switch: ${passed} checks passed`);

@@ -3,6 +3,7 @@ import { getRuntimeSnapshot, getRuntimeSnapshots } from "@/db/queries/runtime-sn
 import { listRecentRuns } from "@/db/queries/orchestration-runs";
 import { pickDispatchChannel } from "@/lib/execution-access";
 import { DEFAULT_ADAPTER_ID } from "@/lib/orchestration";
+import { isQuotaAlternativeId, providerLabel } from "@/config/quota-alternatives";
 import {
   PROVIDER_SPENT_WINDOW_MS,
   currentProviderFor,
@@ -43,6 +44,12 @@ export type ProviderChoice = {
   installedKnown: boolean;
   /** WHICH builder the `installed` evidence came from, and WHEN it was observed. */
   evidence: { channel: string | null; observedAt: string | null };
+  /**
+   * Why `current` cannot start on the builder this project dispatches to — it
+   * reported its installed agents, and `current` is not among them. Null when
+   * it is there, or when nothing was reported (unknown is not missing).
+   */
+  currentMissing: string | null;
 };
 
 export async function providerChoiceFor(
@@ -120,8 +127,18 @@ export async function providerChoiceFor(
     spent,
   });
 
+  const currentMissing =
+    current &&
+    isQuotaAlternativeId(current) &&
+    channel &&
+    installed?.length &&
+    !installed.includes(current)
+      ? `${providerLabel(current)} is not installed on ${channel === "local" ? "this computer" : "the cloud builder"}`
+      : null;
+
   return {
     current,
+    currentMissing,
     options,
     next: nextProvider(options),
     spent,

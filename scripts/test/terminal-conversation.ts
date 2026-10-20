@@ -85,6 +85,13 @@ assert(
   }),
 );
 assert(!toolWasInterrupted({ ...tool, status: "error", result: "command exited 1" }));
+{
+  const filed =
+    "Make these changes on this page, together:\n1. Add an H1.\n\n--- technical details ---\nfiled by: Loki watch mode\nstep 1: tap button “New session” (39s ago)";
+  const shown = dispatchMessageDisplay(filed);
+  assert.equal(shown.text, "Make these changes on this page, together:\n1. Add an H1.");
+  assert.equal(shown.details, filed, "the diagnostics stay one tap away");
+}
 console.log(
   "✓ dispatch presentation preserves requests; interruption, quiet and disconnected sessions report honest state",
 );

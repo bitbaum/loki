@@ -192,6 +192,8 @@ type Facts = {
   finishedWell: boolean;
   started: boolean;
   generated: boolean;
+  /** The agent's session opened, or the request reached it. */
+  opened: boolean;
   lastKind: RunEventKind | null;
   ship: FixShipState | null;
   prUrl: string | null;
@@ -238,6 +240,7 @@ function readFacts(input: RunTrackInput): Facts {
     noPrFound:
       input.followable !== false && noPrFound(input, prUrl, commits.length > 0, finishedWell),
     generated: [...kinds].some((k) => GENERATED.has(k)),
+    opened: [...kinds].some((k) => k === "launched" || k === "submitted" || GENERATED.has(k)),
     lastKind: input.eventKinds.at(-1) ?? null,
     ship,
     prUrl,
@@ -375,10 +378,15 @@ function workingStage(f: Facts): TrackStage {
           at: t.handoff ?? f.input.run?.finishedAt ?? null,
           facts,
         })
-      : stage("working", `${p} stopped`, "failed", {
-          at: f.input.run?.finishedAt ?? null,
-          facts,
-        });
+      : stage(
+          "working",
+          // Nothing opened and nothing was delivered: the agent never ran, so
+          // "stopped" (the owner's screen on 2026-10-20, for a Grok the cloud
+          // builder does not have) claimed a start that did not happen.
+          f.opened ? `${p} stopped` : `${p} could not start`,
+          "failed",
+          { at: f.input.run?.finishedAt ?? null, facts },
+        );
   if (!f.started) return stage("working", `${p} makes the change`, "next");
   if (f.input.needsYou || f.lastKind === "blocked")
     return stage("working", `${p} needs you`, "attention", {
