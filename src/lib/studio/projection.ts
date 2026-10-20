@@ -1,5 +1,6 @@
 import { STUDIO_STATUS } from "@/config/studio";
 import type { StudioRequest, StudioRequestEvent } from "@/db/schema/studio-requests";
+import { feeView } from "@/lib/studio/fee";
 /** Explicit allowlist. Nothing from the project, owner or credential record leaks through a spread. */
 export function studioView(row: StudioRequest, events: StudioRequestEvent[]) {
   const status = STUDIO_STATUS[row.status];
@@ -22,6 +23,8 @@ export function studioView(row: StudioRequest, events: StudioRequestEvent[]) {
           accepted: row.approvedVersion === row.deliveryVersion,
         }
       : null,
+    /** The partner's fee for this brief, when stated: paid to the partner on OrangeCat. */
+    fee: feeView(row),
     partner:
       row.kind === "partner"
         ? {

@@ -353,7 +353,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             clientId: process.env.ORANGECAT_OAUTH_CLIENT_ID!,
             clientSecret: process.env.ORANGECAT_OAUTH_CLIENT_SECRET!,
             issuer: ORANGECAT_OAUTH_ISSUER,
-            scopes: "openid profile email project.read project.write timeline.write wallet.read",
+            // service.write: a partner booked through the studio is paid through a
+            // service in THEIR name (lib/integrations/orangecat-fee-service.ts).
+            scopes:
+              "openid profile email project.read project.write service.write timeline.write wallet.read",
           }),
         ]
       : []),

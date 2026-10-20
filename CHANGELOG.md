@@ -8,6 +8,19 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 
 ## 2026-10-20 — Whoever asks pays
 
+- **A partner you assign to a brief holds a seat on its project.** {#builder-seat}
+  Assign an approved partner to a website brief and, once the partner has
+  signed in to Loki with the OrangeCat identity they connected, they are an
+  editor on the brief's linked project and build in a private builder of
+  their own, on their own engine. The seat follows the assignment and the
+  project link and goes when either does; it is never a studio membership,
+  so a partner sees one project and nothing else of yours.
+- **A partner's fee is paid to the partner.** {#builder-fee} With a delivery a
+  partner can state a fee; Loki lists it as a service in the partner's own
+  name on OrangeCat, with the partner's own sign-in, and the brief shows the
+  link to pay it. The brief is marked paid by OrangeCat's settled payment,
+  never by anyone's word, and both sides are told. Loki holds no money and
+  takes no share.
 - **Your requests on a shared project go to its owner.** {#seat-suggests} Whether you are a
   Builder, a client or a viewer on someone else's project, what you ask for —
   on the project page in Loki or with Feedback on the site — is now a

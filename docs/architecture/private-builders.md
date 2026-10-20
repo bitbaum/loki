@@ -190,6 +190,30 @@ agent cannot reach even its own tenant's other work:
   the box, and `NoNewPrivileges` in the unit means rootless podman runs in
   its single-uid mapping — enough for the agent CLIs, to be confirmed live.
 
+## Booked builders (Track 3 of the master plan) — a seat, a fee, OrangeCat's word
+
+A partner approved on the studio's partner track is booked by assignment,
+and the pieces are the ones above, used for one more person:
+
+- **The seat** (`lib/studio/seat.ts`): assigning a partner to a website brief
+  resolves the partner's Loki account (the `users.orangecat_actor_id` their
+  connected OrangeCat identity names) and makes them an **editor on the
+  brief's linked project** — `project_memberships`, never an org — and
+  switches their private builder on, so their builds run under
+  `lk-<short>` on their own engine. The seat follows the two facts it rests
+  on (assignment, project link) and goes when either does. A partner with no
+  Loki account yet has no seat until they sign in with OrangeCat.
+- **The fee** (`lib/studio/fee.ts`, `fee-listing.ts`,
+  `integrations/orangecat-fee-service.ts`): with a delivery the partner may
+  state a fee once; after the delivery is saved Loki lists it as a service in
+  the **partner's own name** on OrangeCat with the partner's own token
+  (`service.write`, asked for at sign-in), live at once and off their profile.
+  The brief shows the link; the client pays at OrangeCat, to the partner's
+  wallet. Loki holds no money and no key of theirs.
+- **Paid** is a fact OrangeCat states: its settled-payment signal
+  (`/api/orangecat/events`, `markStudioFeePaid`) is the one path that marks
+  a brief paid, idempotent on the payment, and both sides are told.
+
 ## What could go wrong
 
 - **Memory.** A CX43 (8 vCPU, 16 GB) carries roughly 6–10 concurrent Claude

@@ -4,6 +4,7 @@ import {
   text,
   boolean,
   integer,
+  numeric,
   timestamp,
   jsonb,
   index,
@@ -13,7 +14,12 @@ import {
 import { users } from "./users";
 import { entities } from "./entities";
 import { widgetTokens } from "./widget-tokens";
-import type { CourseAssessmentInput, PartnerProfileInput, StudioStatus } from "@/config/studio";
+import type {
+  CourseAssessmentInput,
+  FeeCurrency,
+  PartnerProfileInput,
+  StudioStatus,
+} from "@/config/studio";
 import type { StudioCommissionContract } from "@/lib/studio-commission";
 
 /** Guest capability covers one request, never a project or agent credential. */
@@ -68,6 +74,25 @@ export const studioRequests = pgTable(
      * to one person. Never set before approval; applying needs no account.
      */
     orangecatActorId: uuid("orangecat_actor_id"),
+    /**
+     * On a website brief: the Loki account of the assigned partner — the
+     * person whose users.orangecat_actor_id is the partner's connected actor.
+     * The holder of the seat on the linked project; resolved at assignment,
+     * null while the partner has not signed in to Loki (lib/studio/seat.ts).
+     */
+    builderUserId: uuid("builder_user_id").references(() => users.id, { onDelete: "set null" }),
+    /**
+     * The fee the partner states with a delivery, listed as a service in the
+     * partner's OWN name on OrangeCat (fee_service_id, fee_url) with the
+     * partner's token, so paying it pays the partner's wallet, never the
+     * studio's. fee_paid_at is set only by OrangeCat's settled-payment signal
+     * (/api/orangecat/events). NUMERIC(20,8): a fee may be in BTC.
+     */
+    feeAmount: numeric("fee_amount", { precision: 20, scale: 8, mode: "number" }),
+    feeCurrency: text("fee_currency").$type<FeeCurrency>(),
+    feeServiceId: text("fee_service_id"),
+    feeUrl: text("fee_url"),
+    feePaidAt: timestamp("fee_paid_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -76,6 +101,7 @@ export const studioRequests = pgTable(
     index("studio_request_owner").on(t.userId, t.updatedAt),
     index("studio_request_partner").on(t.partnerId),
     index("studio_request_orangecat").on(t.orangecatActorId),
+    index("studio_request_fee_service").on(t.feeServiceId),
   ],
 );
 export const studioRequestEvents = pgTable(

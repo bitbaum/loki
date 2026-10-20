@@ -6,7 +6,14 @@ last_modified_summary: First version — how anyone joins bitbaum as a builder a
 
 # Builders and booking — anyone can build here
 
-**Status:** DESIGN. Nothing below is built except what is marked SHIPPED.
+**Status:** DESIGN, partly built. Nothing below is built except what is marked SHIPPED.
+
+**2026-10-20:** the booking half shipped through the studio partner track rather
+than a new `builder_profiles` table — a partner's profile, approval, directory
+(`/api/studio-partners`) and assignment already existed there. Assigning a
+partner grants the seat (`lib/studio/seat.ts`) and their fee is a service in
+their own name (`lib/studio/fee-listing.ts`); see
+`docs/architecture/private-builders.md` → "Booked builders".
 
 ## The ask
 
@@ -62,7 +69,7 @@ the job needs, and revoking it ends it.
 | OrangeCat services (hourly/fixed), availability, bookings | SHIPPED in OrangeCat, unused by Loki except `services.create` |
 | Builder profile (skills, availability, rate, pay link), opt-in public | MISSING |
 | Directory of builders + bitbaum `/builders/` page | MISSING |
-| Booking request → accept → project invite | MISSING |
+| Booking request → accept → project invite | SHIPPED 2026-10-20 as the studio partner track: assign → editor seat on the linked project; fee → a service in the builder's name, paid to their wallet |
 
 ## Slices, in order
 

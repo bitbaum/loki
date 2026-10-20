@@ -14,6 +14,7 @@ import { getStudioPortal, mutateStudioPortal } from "@/db/queries/studio-request
 import { notifyStudioActivity } from "@/lib/studio/notify";
 import { mailStudioLink } from "@/lib/studio/link-mail";
 import { getStudioCommission } from "@/lib/studio-commission";
+import { listAssignmentFee } from "@/lib/studio/fee-listing";
 export const OPTIONS = studioPreflight;
 type Context = { params: Promise<{ id: string }> };
 export async function GET(request: NextRequest, context: Context) {
@@ -61,6 +62,13 @@ export async function POST(request: NextRequest, context: Context) {
       void notifyStudioActivity(saved.row, parsed.data.action, saved.body);
       if (parsed.data.action === "set_contact")
         mailStudioLink({ to: parsed.data.contact, id, accessKey: key, kind: saved.row.kind });
+      // The fee is listed after the delivery is saved, in the partner's name,
+      // and the answer goes back to the partner: a missing OrangeCat link is
+      // theirs to fix, from their portal.
+      if (saved.feeFor) {
+        const fee = await listAssignmentFee(saved.feeFor, saved.row);
+        return studioResponse(request, { fee });
+      }
     }
     return studioResponse(request, {});
   } catch (error) {

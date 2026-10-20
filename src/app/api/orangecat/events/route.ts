@@ -4,6 +4,9 @@ import { getProjectsByOrangeCatEntity } from "@/db/queries/orangecat-links";
 import { createOrchestrationEventOnce } from "@/db/queries/orchestration-events";
 import { logDebug } from "@/db/queries/debug-logs";
 import { readSignedOrangeCatBody } from "@/lib/integrations/orangecat-webhook";
+import { markStudioFeePaid } from "@/db/queries/studio-requests";
+import { notifyStudioActivity } from "@/lib/studio/notify";
+import { mailStudioUpdate } from "@/lib/studio/link-mail";
 
 /**
  * OrangeCat event webhook — economic signals flowing back into the fleet.
@@ -33,11 +36,24 @@ export async function POST(req: NextRequest) {
   const ev = dataOrResp;
 
   try {
+    // A partner's fee is a service in the partner's name; its settlement is
+    // the one way a studio brief becomes paid (lib/studio/fee-listing.ts).
+    const paid =
+      ev.entityType === "service" ? await markStudioFeePaid(ev.entityId, ev.externalId) : null;
+    if (paid) {
+      void notifyStudioActivity(paid.row, "fee_paid", paid.body);
+      mailStudioUpdate({ to: paid.row.contact, kind: "website", note: paid.body });
+      mailStudioUpdate({ to: paid.partner?.contact, kind: "partner", note: paid.body });
+    }
     const linkedProjects = await getProjectsByOrangeCatEntity(ev.entityType, ev.entityId);
     if (linkedProjects.length === 0) {
       // Settled payment on an OC entity no FC project links to — fine, most OC
       // commerce has nothing to do with the fleet. 200 so OC never retries.
-      return NextResponse.json({ ok: true, recorded: false, reason: "no-linked-project" });
+      return NextResponse.json({
+        ok: true,
+        recorded: Boolean(paid),
+        reason: paid ? "fee-paid" : "no-linked-project",
+      });
     }
 
     const amount = `${ev.amountBtc} BTC`;
