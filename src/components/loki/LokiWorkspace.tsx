@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ChatScreen } from "@bitbaum/chatkit/react";
 import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
 import { initialLokiSelection } from "@/lib/loki/project-selection";
@@ -10,6 +11,7 @@ import { useSendQueue } from "@/hooks/use-send-queue";
 import { useDispatchOutcome } from "@/hooks/use-dispatch-outcome";
 import { useThreadInbox } from "@/hooks/use-thread-inbox";
 import { QueuedMessages } from "./QueuedMessages";
+import { TurnError } from "./TurnError";
 import { clearLokiDraft, lokiDraftKey } from "@/lib/loki/draft";
 import { rememberFleetProject } from "@/lib/fleet-context";
 import { deriveExecutorHonestyLabel } from "@/lib/executor-honesty";
@@ -26,7 +28,7 @@ import { LokiComposer } from "./Composer";
 import { SaveContextBar } from "./SaveContextBar";
 import { useImmersiveChat } from "@/hooks/use-immersive-chat";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { WorkspaceChrome } from "./WorkspaceChrome";
+import { WorkspaceChrome, WorkspaceThreadHeader } from "./WorkspaceChrome";
 import { ProjectFilter } from "./ProjectFilter";
 import { VoiceConversation } from "./VoiceConversation";
 import { useVoiceConversation } from "@/hooks/use-voice-conversation";
@@ -524,6 +526,11 @@ export function LokiWorkspace({
     void send(lastSent.text, lastSent.choice, [], { dispatchOnly: true });
   };
 
+  const retryAfterError = () => {
+    stream.clearError();
+    retryLast();
+  };
+
   const dispatchWithProject = (projectName: string, pendingText: string) => {
     if (!activeId || !pendingText.trim()) return;
     setSelectedProjects([projectName]);
@@ -562,8 +569,7 @@ export function LokiWorkspace({
 
   const isStart = messages.length === 0 && !transcriptLoading && !sending && !activeId;
   // A thread takes the whole phone (useImmersiveChat); the start keeps the shell.
-  const inThread = !isStart;
-  useImmersiveChat(inThread);
+  useImmersiveChat(!isStart);
   // The rail is `md:flex` — pinned or not, a phone never shows it. Treating
   // "pinned" as "visible" hid the recent chats on every phone (the pin
   // defaults to on), so Back from a thread landed on an empty screen.
@@ -573,10 +579,23 @@ export function LokiWorkspace({
   const [saveFor, setSaveFor] = useState<string | null>(null);
   const saveOpen = saveFor === (activeId ?? "new");
   const activeThread = activeId ? conversations.find((c) => c.id === activeId) : undefined;
-  const threadTitle = activeThread?.title || "New chat";
-  const pinnedNow = Boolean(activeThread?.pinnedAt);
 
-  const chatBody = (
+  // The thread's controls, shared by the desktop bar and the phone's header.
+  const chrome = {
+    activeId,
+    title: activeThread?.title || "New chat",
+    projects: selectedProjects,
+    pinned: Boolean(activeThread?.pinnedAt),
+    canSaveContext: messages.length > 0,
+    onOpenHistory: () => setHistoryOpen(true),
+    onNewChat: startNewConversation,
+    onOpenProjects: () => setFilterOpen(true),
+    onSaveContext: () => setSaveFor(activeId ?? "new"),
+    onTogglePin: inbox.pinConversation,
+    onRename: inbox.renameConversation,
+  };
+
+  const conversation = (
     <>
       {isStart && site.handoff && <SiteHandoffCard handoff={site.handoff} onDismiss={site.spend} />}
       {demo.asked && <DemoChatNotice asked={demo.asked} />}
@@ -624,26 +643,18 @@ export function LokiWorkspace({
           ) : null
         }
       />
+    </>
+  );
 
+  // Floats over the conversation (ChatScreen): the words scroll under it.
+  const dock = (
+    <>
       {/* A turn that failed says so where the answer would have been, with the
           way out next to it — not as a detached line above the input. */}
-      {(error ?? stream.error) && (
-        <div className="ui-loki-error" role="alert">
-          <span className="min-w-0 flex-1">{error ?? stream.error}</span>
-          {stream.error && lastSent && (
-            <button
-              type="button"
-              className="ui-loki-error-retry"
-              onClick={() => {
-                stream.clearError();
-                retryLast();
-              }}
-            >
-              Try again
-            </button>
-          )}
-        </div>
-      )}
+      <TurnError
+        message={error ?? stream.error}
+        onRetry={stream.error && lastSent ? retryAfterError : undefined}
+      />
 
       <QueuedMessages items={queue.items} onRemove={queue.remove} />
 
@@ -749,28 +760,26 @@ export function LokiWorkspace({
 
       <div className="ui-loki-main">
         <WorkspaceChrome
-          inThread={inThread}
-          activeId={activeId}
-          title={threadTitle}
-          projects={selectedProjects}
-          pinned={pinnedNow}
+          {...chrome}
+          inThread={!isStart}
           historyPinned={historyPinned}
-          canSaveContext={messages.length > 0}
           onToggleHistoryPinned={() => setHistoryPinned((open) => !open)}
-          onOpenHistory={() => setHistoryOpen(true)}
-          onNewChat={startNewConversation}
-          onOpenProjects={() => setFilterOpen(true)}
-          onSaveContext={() => setSaveFor(activeId ?? "new")}
-          onTogglePin={inbox.pinConversation}
-          onRename={inbox.renameConversation}
         />
 
+        {/* One ChatScreen for the start and the thread alike: the composer
+            must not remount when the first message turns one into the other
+            (it would drop the model choice and anything staged). */}
         <section
           className={
-            isStart ? "ui-loki-stage ui-loki-stage-empty" : "ui-loki-stage ui-loki-stage-chat"
+            isStart ? "ui-loki-stage ui-loki-stage-empty" : "ui-loki-stage ui-loki-stage-screen"
           }
         >
-          {chatBody}
+          <ChatScreen
+            composer={dock}
+            header={!isStart && !wide ? <WorkspaceThreadHeader {...chrome} /> : undefined}
+          >
+            {conversation}
+          </ChatScreen>
         </section>
 
         {drawers}

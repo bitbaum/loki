@@ -330,6 +330,7 @@
      design-token HSL triplets; ours are full OKLCH colours under the same
      names, so map them once here. They are var() references, so they flip
      with .dark (set on this same element) and need no dark copy. */
+  --ck-page: var(--surface-page);
   --ck-bg: var(--surface-base);
   --ck-raised: var(--surface-raised);
   --ck-overlay: var(--surface-overlay);
@@ -7460,9 +7461,6 @@
   .ui-loki-stage-empty {
     @apply justify-end gap-3 pb-1 sm:justify-center sm:gap-4 sm:pb-16;
   }
-  .ui-loki-stage-chat {
-    @apply gap-2;
-  }
 
   /* Start screen: the spiral and one question centred in the free space, the
      few recent threads docked just above the composer. The stage is
@@ -8971,6 +8969,92 @@
     .ck-tools
     > .ui-loki-scope-pill {
     min-width: 3.5rem;
+  }
+}
+
+/* ── Loki chat as the whole screen (chatkit ChatScreen) ──────────────────────
+   UNLAYERED for the same reason as the composer rules above. The open thread
+   runs edge to edge and top to bottom; the phone's thread header and the
+   composer float over it, and the words fade as they pass under each
+   (owner, 2026-10-20: "the whole display is used"). */
+.ui-loki-stage > .ck-screen {
+  flex: 1;
+  height: auto;
+  background: transparent;
+}
+/* In a thread the stage is the full width — the scroller reaches the edge
+   and a swipe anywhere moves it — and the reading column is the measure the
+   stage used to impose, widening in the same steps. */
+.ui-loki-stage-screen {
+  max-width: none;
+  --ck-measure: 42rem;
+}
+@media (min-width: 64rem) {
+  .ui-loki-stage-screen {
+    --ck-measure: 48rem;
+  }
+}
+@media (min-width: 80rem) {
+  .ui-loki-stage-screen {
+    --ck-measure: 56rem;
+  }
+}
+.ck-screen .ui-loki-thread {
+  padding: var(--ck-top-inset, 0px) var(--ck-gutter) calc(var(--ck-bottom-inset, 0px) + 0.75rem);
+  scroll-padding-top: var(--ck-top-inset, 0px);
+  scroll-padding-bottom: var(--ck-bottom-inset, 0px);
+}
+.ck-screen .ui-loki-thread-inner {
+  width: 100%;
+  max-width: var(--ck-measure);
+  margin-inline: auto;
+}
+.ck-screen .ui-loki-jump {
+  bottom: calc(var(--ck-bottom-inset, 0px) + 0.5rem);
+  z-index: 4;
+}
+/* The phone's thread header, floating: no bar of its own (ChatScreen fades
+   the words under it), its two buttons frosted pills like ck-glass. */
+.ck-screen-header .ui-loki-thread-header {
+  position: static;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+.ck-screen-header .ui-loki-thread-header .ui-loki-topbar-btn {
+  border: 1px solid color-mix(in oklch, var(--border-default) 60%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface-base) 70%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  color: var(--text-primary);
+}
+/* Start screen: nothing to scroll under yet, so the composer sits in the
+   flow — docked to the bottom on a phone, centred with the greeting from sm
+   up, as before. */
+.ui-loki-stage-empty .ck-screen-dock {
+  position: static;
+  padding-inline: 0;
+  background: none;
+}
+.ui-loki-stage-empty .ck-screen-body {
+  flex: 1;
+}
+@media (min-width: 40rem) {
+  .ui-loki-stage-empty > .ck-screen {
+    justify-content: center;
+    gap: 1rem;
+  }
+  .ui-loki-stage-empty .ck-screen-body {
+    flex: 0 1 auto;
+  }
+}
+/* An open thread on a phone owns the screen (useImmersiveChat): ChatScreen
+   keeps its own gutter and safe areas, so the page adds none. */
+@media (max-width: 47.99rem) {
+  body.fc-chat-immersive .ui-loki-page {
+    padding: 0;
   }
 }
 
