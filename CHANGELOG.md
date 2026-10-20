@@ -41,6 +41,12 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   account there. Nothing of the studio's — its GitHub organisation, its
   previews, the box's own folders — comes with it. Until now the cloud was
   the founder's alone, with an environment variable as the only other door.
+- **Your own key builds, when you say so.** {#your-engine} A key you added
+  for Loki's chat can be marked "also for building" in Settings → AI; within
+  a minute it reaches your private builder as Claude Code's, Codex's, Grok's
+  or Gemini's own variable, and your builds run on it instead of a sign-in.
+  A key stays chat-only until you say otherwise. The other way in is as
+  before: start the agent in your Sessions and type `/login`.
 
 ## 2026-10-17 — See what every session is doing
 

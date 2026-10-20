@@ -1,0 +1,1 @@
+ALTER TABLE "user_model_keys" ADD COLUMN "for_building" boolean DEFAULT false NOT NULL;

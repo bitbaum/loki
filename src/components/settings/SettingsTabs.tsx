@@ -32,6 +32,9 @@ type Props = {
     email: string | null;
     hasPassword: boolean;
     plan: Plan;
+    /** A builder on Loki's cloud (the founder's, or their own private one):
+     *  Settings → AI then offers "also for building" on a key. */
+    cloudBuilder: boolean;
   };
   /** Plan, expiry, the pass ledger and the Bitcoin checkout links — server-derived. */
   billing: BillingView;
@@ -204,7 +207,7 @@ export function SettingsTabs({
           <div className="space-y-6">
             {/* Your own model first: it is the way past the shared pool below. */}
             <AiBudgetSettings />
-            <OwnModelSettings />
+            <OwnModelSettings cloudBuilder={user.cloudBuilder} />
             <AiQuotaSettings />
           </div>
         )}

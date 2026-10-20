@@ -37,9 +37,11 @@ import {
   ownModelSealSecret,
   reorderOwnModels,
   saveOwnModel,
+  setForBuilding,
   setOwnModelChoice,
   type OwnModelSummary,
 } from "@/db/queries/user-model-keys";
+import { buildEngineFor } from "@/config/build-engines";
 
 export const runtime = "nodejs";
 
@@ -57,6 +59,10 @@ function view(summary: OwnModelSummary) {
     position: summary.position,
     baseUrl: summary.baseUrl,
     label: summary.label,
+    forBuilding: summary.forBuilding,
+    // Which agent CLI this key can drive in a private builder, or null when
+    // it powers chat only (config/build-engines.ts).
+    buildEngine: buildEngineFor(summary.vendor)?.agent ?? null,
   };
 }
 
@@ -156,13 +162,23 @@ export async function PUT(req: NextRequest) {
   });
 }
 
-const PatchBody = z.object({ order: z.array(Vendor).min(1).max(20) });
+const PatchBody = z.union([
+  z.object({ order: z.array(Vendor).min(1).max(20) }),
+  // "Also for building": the key reaches the person's private builder on the
+  // box as the agent CLI's own variable (scripts/write-tenant-engines.ts).
+  z.object({ vendor: Vendor, forBuilding: z.boolean() }),
+]);
 
 export async function PATCH(req: NextRequest) {
   const userId = await getApiUserId();
   if (!userId) return jsonError("Unauthorized", 401);
   const body = await readJsonBody(req, PatchBody);
   if (body instanceof NextResponse) return body;
+  if ("forBuilding" in body) {
+    const changed = await setForBuilding(userId, body.vendor, body.forBuilding);
+    if (!changed) return jsonError("That key cannot drive a builder, or is not stored.", 404);
+    return jsonOk({ model: view(changed) });
+  }
   return jsonOk({ models: (await reorderOwnModels(userId, body.order)).map(view) });
 }
 

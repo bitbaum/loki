@@ -53,6 +53,7 @@ export default async function SettingsPage() {
           email: user.email,
           hasPassword: !!user.passwordHash,
           plan: user.plan,
+          cloudBuilder: !!user.isDefault || user.privateBuilder,
         }}
         billing={{
           plan: user.plan,

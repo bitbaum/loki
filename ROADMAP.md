@@ -18,7 +18,7 @@ One sealed builder per account on the box you already have: its own Linux user, 
 - [x] `new-tenant.sh`: user, dev root, `loki-box-runner@<tenant>` unit, token per tenant, reconciled from the account's flag {#new-tenant}
 - [ ] The owner's runner on the same template
 - [x] Eligibility is a flag on the account, not an environment allowlist; a project with no stored builder routes to the connected one {#private-builder-flag}
-- [ ] Settings → Your engine: a key marked for building reaches your builder; `/login` in your own Sessions signs in your subscription
+- [x] Settings → Your engine: a key marked for building reaches your builder; `/login` in your own Sessions signs in your subscription {#your-engine}
 - [ ] The first tenant who is not the owner builds on their own sign-in
 
 ### Partner track
@@ -54,7 +54,7 @@ The builder pays their model vendor directly and pays Loki for the platform; eve
 - [x] Loki's own chat runs on your key when you paste one in Settings
 - [x] Several providers per account, in your own order; the composer's picker shows your models first and links to adding a key
 - [x] Passes paid in Bitcoin: the Billing tab shows the pass, its end date, the Buy button and the ledger; the operator grants, extends and revokes from System → Plans
-- [ ] A key marked "for building" reaches your private builder, not only your chat
+- [x] A key marked "for building" reaches your private builder, not only your chat {#your-engine}
 - [ ] Tokens per run per tenant recorded and shown on the run
 - [ ] BYOK as the default execution path for new accounts
 - [ ] Welcome changes: a few free builds for a newcomer on Loki's key, under a monthly cap in CHF
