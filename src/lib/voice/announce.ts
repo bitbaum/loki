@@ -18,7 +18,7 @@
  *     reads what each run actually did.
  */
 import type { AnnounceMode } from "@/config/no-screen";
-import { count, excerptForSpeech, list, spoken } from "@/lib/voice/briefing";
+import { count, excerptForSpeech, list, sentence, spoken, whereSaid } from "@/lib/voice/briefing";
 import type { EarconKind } from "@/lib/voice/soundscape";
 
 export type FleetChange =
@@ -71,8 +71,9 @@ const FINISHED_ONE = [
 ] as const;
 const FINISHED_MANY = [
   (ps: string[]) =>
-    `${count(ps.length, "run")} finished: ${list(ps)}. Say "details" for what they did.`,
-  (ps: string[]) => `${list(ps)} are done. Say "details" to hear what changed.`,
+    `${sentence(count(ps.length, "run"))} finished${whereSaid(ps)}. Say "details" for what they did.`,
+  (ps: string[]) =>
+    `${sentence(count(ps.length, "run"))} are done${whereSaid(ps)}. Say "details" to hear what changed.`,
 ] as const;
 const FAILED_ONE = [
   (p: string, n: string) => `${p} failed${n ? `: ${n}` : "."}`,
@@ -117,7 +118,7 @@ export function phraseChanges(changes: FleetChange[], variant = 0): Announcement
   } else if (failed.length > 1) {
     out.push({
       earcon: "failed",
-      text: `${count(failed.length, "run")} failed: ${list(failed.map((f) => spoken(f.project)))}. Say "what failed" for the errors.`,
+      text: `${sentence(count(failed.length, "run"))} failed${whereSaid(failed.map((f) => spoken(f.project)))}. Say "what failed" for the errors.`,
     });
   }
 
@@ -130,7 +131,7 @@ export function phraseChanges(changes: FleetChange[], variant = 0): Announcement
   else if (approvals.length > 1)
     out.push({
       earcon: "attention",
-      text: `${count(approvals.length, "new approval")}. Say "what's waiting" to hear them.`,
+      text: `${sentence(count(approvals.length, "new approval"))}. Say "what's waiting" to hear them.`,
     });
 
   for (const a of byKind("alert"))
@@ -157,7 +158,7 @@ export function phraseChanges(changes: FleetChange[], variant = 0): Announcement
   if (started.length)
     out.push({
       earcon: "finished",
-      text: pick(STARTED, variant)(started.map((s) => spoken(s.project))),
+      text: pick(STARTED, variant)([...new Set(started.map((s) => spoken(s.project)))]),
     });
 
   return out;
@@ -169,13 +170,14 @@ export function phraseHeld(held: FleetChange[], variant = 0): Announcement | nul
     (c): c is Extract<FleetChange, { kind: "finished" }> => c.kind === "finished",
   );
   if (finished.length === 0) return null;
-  const names = [...new Set(finished.map((f) => spoken(f.project)))];
+  const names = finished.map((f) => spoken(f.project));
+  const runs = count(finished.length, "run");
   return {
     earcon: "finished",
     text: pick(
       [
-        `Since I last said: ${count(finished.length, "run")} finished on ${list(names)}. Say "details" if you want them.`,
-        `${count(finished.length, "run")} finished while you were walking: ${list(names)}. "Details" reads them.`,
+        `Since I last said, ${runs} finished${whereSaid(names)}. Say "details" if you want them.`,
+        `${sentence(runs)} finished while you were walking${whereSaid(names)}. "Details" reads them.`,
       ] as const,
       variant,
     ),
