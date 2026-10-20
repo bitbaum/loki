@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getBuilderPresence, getRunnerConnected } from "@/db/queries/runner-presence";
 import { getApiUserId } from "@/lib/session";
 import { isRuntimeAvailable } from "@/lib/runtime";
-import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
+import { getExecutionAccess } from "@/lib/execution-access";
 
 /** GET /api/builder/presence — minimal executor state for honesty chips. */
 export async function GET() {
@@ -26,7 +26,9 @@ export async function GET() {
   const [builderPresence, runnerConnected, cloudBuilderAllowed] = await Promise.all([
     getBuilderPresence(userId).catch(() => ({ cloud: false, local: false, any: false })),
     getRunnerConnected(userId).catch(() => false),
-    isFleetInfrastructureAllowed(userId).catch(() => null),
+    getExecutionAccess(userId)
+      .then((a) => a.cloudBuilderAllowed)
+      .catch(() => null),
   ]);
 
   return NextResponse.json({

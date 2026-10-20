@@ -15,6 +15,12 @@ export const users = pgTable("users", {
   username: text("username").unique(),
   passwordHash: text("password_hash"),
   isDefault: boolean("is_default").default(false),
+  /** A private builder on Loki's cloud: this account's own Linux user, home
+   *  and runner unit on the box (scripts/hetzner/new-tenant.sh), reconciled
+   *  from this flag. Grants cloud BUILDING only — never the founder's fleet
+   *  powers (execution-access.ts isFleetInfrastructureAllowed). Switched on
+   *  from System → Plans. docs/architecture/private-builders.md. */
+  privateBuilder: boolean("private_builder").default(false).notNull(),
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
   // Cross-product identity bridge — the linked OrangeCat actor (= OIDC
   // id_token.sub from "Login with OrangeCat"). Null = not linked. See

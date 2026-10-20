@@ -58,7 +58,11 @@ import { getSessionUserId } from "@/lib/session";
 import { isRuntimeAvailable } from "@/lib/runtime";
 import { getBuilderPresence } from "@/db/queries/runner-presence";
 import { taskTitle } from "@/lib/task-title";
-import { isFleetInfrastructureAllowed, pickDispatchChannel } from "@/lib/execution-access";
+import {
+  getExecutionAccess,
+  isFleetInfrastructureAllowed,
+  pickDispatchChannel,
+} from "@/lib/execution-access";
 import { hostedRunnerServes } from "@/lib/hosted-runner/serves";
 import { isHeartbeatFresh } from "@/lib/builder-presence";
 import { isAgentId, listAgentRegistry } from "@/lib/agent-registry";
@@ -926,8 +930,12 @@ export async function GET() {
           // out and report a live builder as offline.
           await getBuilderPresence(userId, runnerVersion).catch(() => null)
         : null,
+      // Cloud BUILDING (the founder, or an account with a private builder) —
+      // not the fleet's powers, which this page never offers.
       cloudBuilderAllowed: !isRuntimeAvailable()
-        ? await isFleetInfrastructureAllowed(userId).catch(() => null)
+        ? await getExecutionAccess(userId)
+            .then((a) => a.cloudBuilderAllowed)
+            .catch(() => null)
         : null,
       hostedBuilderAvailable: !isRuntimeAvailable()
         ? await hostedRunnerServes(userId).catch(() => null)

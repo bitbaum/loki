@@ -433,6 +433,10 @@ sync_runner "$PROJECT_DIR/desktop/package.json" "$HOST:$RUNNER_DIR/desktop/"
 sync_runner "$PROJECT_DIR/home/" "$HOST:$RUNNER_DIR/home/"
 sync_runner "$PROJECT_DIR/scripts/box-runner.ts" \
   "$PROJECT_DIR/scripts/mint-box-runner-token.ts" \
+  "$PROJECT_DIR/scripts/hetzner/new-tenant.sh" \
+  "$PROJECT_DIR/scripts/hetzner/reconcile-tenants.sh" \
+  "$PROJECT_DIR/scripts/hetzner/loki-box-runner@.service" \
+  "$PROJECT_DIR/scripts/hetzner/box-agent-claude.md" \
   "$PROJECT_DIR/scripts/reindex-knowledge.ts" \
   "$PROJECT_DIR/scripts/hosted-runner.ts" \
   "$PROJECT_DIR/scripts/hermes-dispatch.ts" \
@@ -527,14 +531,21 @@ step "scheduling runner restart"
 if [ "$RUNNER_CHANGED" = 1 ]; then
   echo "→ runner code changed — scheduling a drain-then-restart on the box"
   # Newest intent wins: a previous deploy's pending restart is superseded by
-  # this one, which is already syncing newer code.
+  # this one, which is already syncing newer code. One drain per unit: the
+  # owner's legacy unit and every private builder's instance, each in its
+  # own transient unit so one tenant's long task never holds another's
+  # restart (docs/architecture/private-builders.md).
   ssh "$HOST" "
-    systemctl stop loki-runner-restart.service 2>/dev/null || true
-    systemctl reset-failed loki-runner-restart.service 2>/dev/null || true
-    systemd-run --unit=loki-runner-restart --collect --quiet \
-      --description='Loki: restart box-runner once agents drain' \
-      /bin/bash $RUNNER_DIR/scripts/drain-and-restart-runner.sh
-  " && echo "  ✓ restart scheduled — runs when the runner goes idle (journal: -t loki-drain)" \
+    units=\"loki-box-runner \$(systemctl list-units 'loki-box-runner@*' --no-legend --plain 2>/dev/null | awk '{print \$1}' | sed 's/\.service\$//')\"
+    for u in \$units; do
+      r=\"loki-runner-restart-\${u//@/-}\"
+      systemctl stop \"\$r.service\" 2>/dev/null || true
+      systemctl reset-failed \"\$r.service\" 2>/dev/null || true
+      systemd-run --unit=\"\$r\" --collect --quiet \
+        --description=\"Loki: restart \$u once its agents drain\" \
+        /bin/bash $RUNNER_DIR/scripts/drain-and-restart-runner.sh \"\$u\"
+    done
+  " && echo "  ✓ restart scheduled for each runner unit — runs when it goes idle (journal: -t loki-drain)" \
     || echo "  ⚠ could not schedule the runner restart — runner keeps old code until the next deploy" >&2
 else
   echo "  ✓ runner code unchanged — restart skipped (in-flight agents undisturbed)"
@@ -555,6 +566,17 @@ if timeout 120 bash "$PROJECT_DIR/scripts/install-hetzner-crons.sh" >/dev/null 2
   echo "  ✓ cron timers match scripts/install-hetzner-crons.sh"
 else
   echo "  ⚠ could not refresh the cron timers — run scripts/install-hetzner-crons.sh by hand" >&2
+fi
+
+# 1b. Private builders: the unit template and the root timer that reconciles
+#     users.private_builder into tenant units (new-tenant.sh). The template is
+#     refreshed here so a change to it reaches every tenant's next restart.
+step "private builders"
+if timeout 60 ssh "$HOST" "install -m 0644 $RUNNER_DIR/scripts/loki-box-runner@.service /etc/systemd/system/loki-box-runner@.service && systemctl daemon-reload" >/dev/null 2>&1 \
+  && timeout 120 bash "$PROJECT_DIR/scripts/hetzner/install-tenant-reconcile.sh" "$HOST" >/dev/null 2>&1; then
+  echo "  ✓ tenant unit template and loki-tenants.timer in place"
+else
+  echo "  ⚠ could not install the tenant template or timer — run scripts/hetzner/install-tenant-reconcile.sh by hand" >&2
 fi
 
 # 2. A browser for the app user. The fix check (src/lib/feedback/page-picture.ts)

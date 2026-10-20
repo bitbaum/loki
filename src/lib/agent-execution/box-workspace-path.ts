@@ -30,6 +30,22 @@ import path from "path";
 /** Where the box keeps its on-demand clones. */
 export const BOX_DEV_ROOT = process.env.LOKI_BOX_DEV_ROOT || path.join(os.homedir(), "dev");
 
+/**
+ * A private builder's dev root on the box: `/home/lk-<short>/dev`, where
+ * short is the first eight characters of the user id — the same derivation
+ * scripts/hetzner/new-tenant.sh uses for the system user and the unit
+ * instance (docs/architecture/private-builders.md). Pure, so the app can
+ * write a truthful project path for a tenant without asking the box.
+ */
+export function tenantShortId(userId: string): string {
+  return userId.slice(0, 8);
+}
+export function tenantDevRoot(userId: string): string {
+  return `/home/lk-${tenantShortId(userId)}/dev`;
+}
+/** Any tenant's dev root, for a path written by one of them. */
+export const TENANT_DEV_ROOT_RE = /^\/home\/lk-[0-9a-f]{8}\/dev(\/|$)/;
+
 /** Directory-safe form of a project/tab name. */
 export function sanitizeWorkspaceKey(tab: string): string {
   return (

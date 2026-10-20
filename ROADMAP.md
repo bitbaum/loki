@@ -15,8 +15,9 @@ One sealed builder per account on the box you already have: its own Linux user, 
 - [x] A request on a shared project from someone with no engine goes to the owner as a suggestion; the per-site allowance is retired {#seat-suggests}
 - [x] Agent terminals get an allowlisted environment, never the runner's whole one {#agent-env}
 - [ ] The runner reads projects through the API and carries no database password {#runner-no-db}
-- [ ] `new-tenant.sh`: user, dev root, `loki-box-runner@<tenant>` unit, token per tenant; the owner's runner on the same template
-- [ ] Eligibility is a flag on the account, not an environment allowlist; a project with no stored builder routes to the connected one
+- [x] `new-tenant.sh`: user, dev root, `loki-box-runner@<tenant>` unit, token per tenant, reconciled from the account's flag {#new-tenant}
+- [ ] The owner's runner on the same template
+- [x] Eligibility is a flag on the account, not an environment allowlist; a project with no stored builder routes to the connected one {#private-builder-flag}
 - [ ] Settings → Your engine: a key marked for building reaches your builder; `/login` in your own Sessions signs in your subscription
 - [ ] The first tenant who is not the owner builds on their own sign-in
 

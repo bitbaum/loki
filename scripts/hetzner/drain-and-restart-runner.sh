@@ -18,8 +18,12 @@
 
 set -uo pipefail
 
-UNIT="loki-box-runner"
-CGROUP="/sys/fs/cgroup/system.slice/${UNIT}.service/cgroup.procs"
+# The unit to drain: the owner's legacy loki-box-runner, or one private
+# builder's instance (loki-box-runner@<tenant>). Its cgroup is wherever
+# systemd put it — a template instance lives in a slice of its own.
+UNIT="${1:-loki-box-runner}"
+UNIT="${UNIT%.service}"
+CGROUP="/sys/fs/cgroup$(systemctl show -p ControlGroup --value "${UNIT}.service" 2>/dev/null)/cgroup.procs"
 # How long to keep waiting for working agents before giving up on THIS restart.
 # Giving up never kills anyone: the runner keeps its current code and the next
 # deploy (or the next time every agent is idle) lands it. Six hours because a

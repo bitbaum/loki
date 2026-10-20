@@ -1,0 +1,55 @@
+[Unit]
+# One private builder per account (docs/architecture/private-builders.md).
+# %i is the tenant's short id — the first eight characters of their user id —
+# and the unit runs as the system user lk-%i in /home/lk-%i, with its own
+# runner token, its own clones, its own agent sign-ins. Nothing of the app,
+# the other tenants or the box's secrets is reachable from inside it.
+# Installed by scripts/hetzner/new-tenant.sh and refreshed by the deploy
+# (scripts/deploy-hetzner.sh); instances are created by reconcile-tenants.sh
+# from users.private_builder.
+Description=Loki private builder for tenant %i
+After=network-online.target loki-app.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=lk-%i
+Group=lk-%i
+WorkingDirectory=/opt/loki/runner
+# The tenant's whole world is its home. The runner code is read-only and
+# shared; the rest of the filesystem is read-only or invisible.
+ProtectSystem=strict
+ProtectHome=tmpfs
+BindPaths=/home/lk-%i
+ReadOnlyPaths=/opt/loki/runner
+InaccessiblePaths=-/opt/loki/app -/opt/loki/runner/.env -/etc/loki -/opt/orangecat -/opt/kivvi -/opt/botsmann -/opt/datacat-api -/opt/datacat-web -/opt/petvity -/opt/printcraft -/opt/reparaturbonus-zh -/opt/revamp-info -/opt/evig -/opt/sbb-fundbuero -/opt/solon -/opt/surf-your-life -/opt/vitareba -/opt/aoz-wohnen -/opt/supabase -/opt/backups -/opt/monitoring -/opt/_appcron
+PrivateTmp=true
+NoNewPrivileges=true
+# One tenant cannot take the box down: the CX43 carries roughly six to ten
+# concurrent agent sessions in all, and the first symptom of growth must be a
+# queue on the System page, never a crash.
+MemoryMax=3G
+CPUQuota=200%
+TasksMax=512
+# The tenant's engine keys (Settings → Your engine) and nothing else. No
+# database password: the runner asks the control plane for what it needs
+# with its own token (src/lib/agent-execution/box-workspace.ts).
+EnvironmentFile=-/etc/loki/runners/%i.env
+Environment=HOME=/home/lk-%i
+Environment=PATH=/home/lk-%i/.local/bin:/home/lk-%i/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NODE_ENV=production
+Environment=LOKI_BOX_PREPARE=true
+Environment=LOKI_AGENT_ENV=allowlist
+Environment=LOKI_BOX_DEV_ROOT=/home/lk-%i/dev
+Environment=LOKI_RUNNER_PRESENCE_CHANNEL=cloud
+Environment=LOKI_WEB_URL=https://loki.orangecat.ch
+ExecStart=/opt/loki/runner/node_modules/.bin/tsx scripts/box-runner.ts
+Restart=always
+RestartSec=5
+# One OOM-killed child must not take every agent with it (see the legacy
+# unit in install-box-runner.sh for the 2026-09-25 incident).
+OOMPolicy=continue
+
+[Install]
+WantedBy=multi-user.target

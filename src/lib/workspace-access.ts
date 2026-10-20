@@ -1,4 +1,4 @@
-import { getExecutionAccess } from "@/lib/execution-access";
+import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
 import {
   isRuntimeAvailable,
   isSandboxExecutorEnabled,
@@ -43,8 +43,9 @@ export function decideWorkspaceAccessFromSignals(input: {
 /**
  * Server-owned workspaces are available in two cases:
  * - local/self-host runtime (`RUNTIME_AVAILABLE=true`);
- * - hosted sandbox runtime (`LOKI_EXECUTOR=sandbox`) for cloud-builder-
- *   allowed accounts only.
+ * - hosted sandbox runtime (`LOKI_EXECUTOR=sandbox`) for the fleet only:
+ *   these PTYs run inside the web app's own process, with its environment.
+ *   A private builder is a unit of its own, never this.
  */
 export async function decideWorkspaceAccess(userId: string): Promise<WorkspaceAccessDecision> {
   const runtimeAvailable = isRuntimeAvailable();
@@ -56,10 +57,9 @@ export async function decideWorkspaceAccess(userId: string): Promise<WorkspaceAc
       cloudBuilderAllowed: false,
     });
   }
-  const access = await getExecutionAccess(userId);
   return decideWorkspaceAccessFromSignals({
     runtimeAvailable,
     sandboxExecutorEnabled,
-    cloudBuilderAllowed: access.cloudBuilderAllowed,
+    cloudBuilderAllowed: await isFleetInfrastructureAllowed(userId).catch(() => false),
   });
 }

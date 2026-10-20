@@ -27,6 +27,7 @@ export const USER_CLIENT_FIELDS = [
   "image",
   "username",
   "isDefault",
+  "privateBuilder",
   "onboardedAt",
   "orangecatActorId",
   "plan",

@@ -30,7 +30,7 @@ import {
 import { extractProjectProfile, applyProjectProfile, extractRoadmap } from "@/lib/project-brief";
 import { scheduleProjectProfileReindexByEntityId } from "@/lib/rag/reindex-project-profile";
 import { pastedText } from "@/lib/api/pasted-text";
-import { getExecutionAccess } from "@/lib/execution-access";
+import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
 import { registerProjectSiteCd } from "@/lib/site-cd-register";
 import { injectPrompt } from "@/lib/inject-core";
 import { HEALTH_SIGNAL_BASE } from "@/components/projects/project-detail-types";
@@ -190,17 +190,27 @@ export async function roadmapStep(
 const DEV_ROOT = process.env.LOKI_BOX_DEV_ROOT || path.join(os.homedir(), "dev");
 
 /**
- * Where the cloud builder will clone this project — for an account the cloud
- * builder serves. For any other account the path is left EMPTY: a path under
- * the box's dev root locks the project to the cloud (execution-access.ts
- * isBoxRootedDir → projectChannelLock), which for them is a 403 on every
- * dispatch even with Fleet Runner connected (2026-10-20). Without a path,
- * their builder clones on demand into its own root (coldStartWorkspaceDir).
+ * Where this account's cloud builder will clone the project: the founder's
+ * under the box's dev root, a private builder's under its own
+ * (`/home/lk-<short>/dev`, box-workspace-path.ts). For an account with no
+ * cloud builder the path is left EMPTY: a path under a box root locks the
+ * project to the cloud (execution-access.ts isBoxRootedDir →
+ * projectChannelLock), which for them is a 403 on every dispatch even with
+ * Fleet Runner connected (2026-10-20). Without a path, their builder clones
+ * on demand into its own root (coldStartWorkspaceDir).
  */
 async function boxDirPathFor(userId: string, projectName: string): Promise<string | null> {
-  const { getExecutionAccess } = await import("@/lib/execution-access");
+  const [{ isFleetInfrastructureAllowed, getExecutionAccess }, { tenantDevRoot }] =
+    await Promise.all([
+      import("@/lib/execution-access"),
+      import("@/lib/agent-execution/box-workspace-path"),
+    ]);
+  if (await isFleetInfrastructureAllowed(userId).catch(() => false))
+    return path.join(DEV_ROOT, repoSlug(projectName));
   const access = await getExecutionAccess(userId).catch(() => null);
-  return access?.cloudBuilderAllowed ? path.join(DEV_ROOT, repoSlug(projectName)) : null;
+  return access?.cloudBuilderAllowed
+    ? path.join(tenantDevRoot(userId), repoSlug(projectName))
+    : null;
 }
 
 const ACTIONS_OFF_FAILED =
@@ -414,7 +424,8 @@ export async function registerCdStep(
     return json({ error: NO_PLACE_FOR_CODE, hasGithub: false }, 400);
   }
 
-  const access = await getExecutionAccess(userId);
+  // Studio CD on the box is the fleet's, not any cloud builder's.
+  const fleet = await isFleetInfrastructureAllowed(userId).catch(() => false);
   const result = await registerProjectSiteCd({
     userId,
     entityProjectId: id,
@@ -423,7 +434,7 @@ export async function registerCdStep(
     repoFullName: `${parsed.owner}/${parsed.repo}`,
     template: input.template ?? "nextjs-tailwind",
     githubToken: token,
-    cloudBuilderAllowed: access.cloudBuilderAllowed,
+    cloudBuilderAllowed: fleet,
   });
 
   if ("error" in result && result.ok === false) {

@@ -232,7 +232,7 @@ export async function registerProjectSiteCd(input: {
 
   if (!input.cloudBuilderAllowed) {
     const reason =
-      "Shared bitbaum CD is studio-only (isDefault or LOKI_CLOUD_BUILDER_USER_IDS). Connect Fleet Runner for local work, or run the register command on the box.";
+      "Shared bitbaum CD is studio-only. Connect Fleet Runner for local work, or run the register command on the box.";
     await upsertEntityAttribute(
       input.userId,
       input.entityProjectId,

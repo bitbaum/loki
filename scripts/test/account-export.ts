@@ -34,6 +34,7 @@ const userRow = {
   image: null,
   username: "g",
   isDefault: false,
+  privateBuilder: false,
   onboardedAt: null,
   orangecatActorId: null,
   plan: "pro",

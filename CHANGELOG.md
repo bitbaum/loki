@@ -32,6 +32,15 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   reads the database itself: it asks with its own token and gets its own
   account's projects and a token that account may use. One step from a
   builder with no database password at all.
+- **A private builder per account.** {#new-tenant} {#private-builder-flag}
+  The operator switches it on for an account in System → Plans, and within
+  a minute that account has its own builder on Loki's cloud: its own Linux
+  user and home on the box, its own runner token, its own agent sign-ins,
+  no database password, a memory and CPU ceiling of its own. Its Sessions
+  page shows that builder; `claude` then `/login` signs in its own Claude
+  account there. Nothing of the studio's — its GitHub organisation, its
+  previews, the box's own folders — comes with it. Until now the cloud was
+  the founder's alone, with an environment variable as the only other door.
 
 ## 2026-10-17 — See what every session is doing
 
