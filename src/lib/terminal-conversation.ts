@@ -6,7 +6,23 @@ export function isTranscriptInterruption(text: string): boolean {
   return /^\[Request interrupted by user(?: for tool use)?\]\s*$/i.test(text.trim());
 }
 
+/**
+ * The diagnostics a report carries under the widget's "--- technical details
+ * ---" line (widget/report-payload DIAGNOSTICS_HEADING): who filed it, the
+ * taps and requests before it. The agent needs them; the person reading their
+ * own request in a chat bubble does not — Watch showed twelve "step N: request
+ * POST /api/…" lines inside "You asked" (owner, 2026-10-20).
+ */
+const DIAGNOSTICS_RE = /\n?[ \t]*-{3}\s*technical details\s*-{3}[\s\S]*$/i;
+
 export function dispatchMessageDisplay(text: string): { text: string; details: string | null } {
+  const shown = dispatchMessageParts(text);
+  if (!DIAGNOSTICS_RE.test(shown.text)) return shown;
+  const cut = shown.text.replace(DIAGNOSTICS_RE, "").trimEnd();
+  return { text: cut || shown.text, details: shown.details ?? text };
+}
+
+function dispatchMessageParts(text: string): { text: string; details: string | null } {
   // Claude Code records a pasted message wrapped in its own markers, and
   // writes the closing one with the id too: `</pasted_content id="fdab">`.
   // Those markers are bookkeeping; the person typed what is inside them.

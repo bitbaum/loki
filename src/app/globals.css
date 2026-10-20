@@ -3270,8 +3270,11 @@
   .ui-term-view {
     @apply text-text-secondary hover:text-text-primary active:bg-surface-overlay;
   }
+  /* Accent, not a second grey: one shade of overlay on raised was too close
+     to see, so pressing "Terminal" swapped the pane while the switch looked
+     unchanged (owner, 2026-10-20). */
   .ui-term-view-active {
-    @apply bg-surface-overlay text-text-primary;
+    @apply bg-accent-muted text-accent-text;
   }
   /* Below 375px the words carry it alone: with icons the switch left the
      session name two letters at 320px. */
@@ -8523,6 +8526,11 @@
   .ui-loki-composer-error {
     @apply flex items-start gap-2 rounded-lg border border-status-negative/30 bg-status-negative-subtle px-2.5 py-1.5 text-xs text-status-negative;
   }
+  /* The session box's last-send line, ABOVE the box rather than inside it
+     (SessionComposer): no divider, aligned with the box's text. */
+  .ui-session-status {
+    @apply flex items-center gap-2 px-3 text-micro text-text-secondary;
+  }
   /* What the last send actually did (queued / working / failed). */
   .ui-loki-composer-status {
     @apply flex items-center gap-2 border-t border-border-subtle pt-2 text-micro text-text-secondary;
@@ -8915,26 +8923,6 @@
    screenshot" presses it, and its sheet, paste and strip stay chatkit's. */
 .ui-session-box .ck-tools > .ck-icon-btn[aria-haspopup="dialog"]:not(.ui-box-plus) {
   display: none;
-}
-/* The session box on /terminal: the line you type on is drawn as a field,
-   on a card set apart from the screen. Under a terminal the card had the
-   page's own ground and a borderless line, so it read as one more block of
-   the log above it (reported 2026-10-20: "a clear input field, not a mixed
-   log block"). Send stays on the row under the field, beside the mic —
-   that row is the owner's (2026-10-18) and session-sheet-browser holds it. */
-.ui-session-box .ck-composer {
-  border-color: var(--border-default);
-  background: var(--surface-raised);
-}
-.ui-session-box .ck-input {
-  border: 1px solid var(--border-subtle);
-  border-radius: 1rem;
-  background: var(--surface-base);
-  padding: 0.5rem 0.75rem;
-  transition: border-color 0.15s ease;
-}
-.ui-session-box .ck-input:focus {
-  border-color: var(--border-interactive);
 }
 :is(.ui-loki-stage, .ui-claude-chat, .ui-term-dock, .ui-home-box) .ck-submit {
   order: 3;

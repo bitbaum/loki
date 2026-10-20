@@ -31,6 +31,7 @@ import {
 import { KICKOFF_STEP_LABEL } from "@/lib/project-kickoff";
 import type { KickoffRunState } from "@/lib/kickoff/orchestrate";
 import { ProviderSwitch } from "@/components/agents/ProviderSwitch";
+import { FAILURE_REMEDY, remedyForFailure } from "@/lib/failure-remedy";
 import type { AutoInjectMode } from "@/config/beacon";
 import { ProjectWatchLive, type WatchCardPhase } from "./ProjectWatchLive";
 import { ActivityGroup, AssistantMessage, TypingDots, UserMessage } from "./project-watch-parts";
@@ -67,6 +68,7 @@ type WatchPayload = {
     currentLabel: string;
     reroutedFrom: string | null;
     reroutedFromLabel: string | null;
+    reroutedWhy?: "spent" | "not-installed" | "picked" | null;
     autoRetriedBecause: string | null;
     quotaDeath: boolean;
   };
@@ -222,6 +224,43 @@ export function ProjectWatch({
   const provider = p.provider;
   const failed = Boolean(p.canRetry);
   const runLive = Boolean(p.run?.live);
+  // The same request again on the same agent fails the same way when that
+  // agent is not on the builder at all, so — like a usage wall — the agent
+  // that IS there is the one action, and "Try again" only its fallback.
+  const switchFirst =
+    Boolean(provider?.quotaDeath) ||
+    remedyForFailure(status?.error) === FAILURE_REMEDY.SWITCH_AGENT;
+  const failureActions = failed ? (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {switchFirst ? (
+          <ProviderSwitch
+            projectId={p.userProjectId ?? null}
+            busy={retrying}
+            primary
+            hint="Sends the same request to the provider you pick, and remembers it for this project."
+            onSwitch={(agent) => retry(agent)}
+            fallback={tryAgain(true)}
+          />
+        ) : (
+          <>
+            {tryAgain(true)}
+            <ProviderSwitch
+              projectId={p.userProjectId ?? null}
+              busy={retrying}
+              hint="Sends the same request to the provider you pick, and remembers it for this project."
+              onSwitch={(agent) => retry(agent)}
+            />
+          </>
+        )}
+      </div>
+      {retryError && <p className="ui-error text-xs">{retryError}</p>}
+    </div>
+  ) : null;
+  // With a delivery track the card already tells the run's history and says
+  // why it stopped; the folded "Stopped · 3 steps" line and a Loki message
+  // repeating the card's headline put the same facts on screen three times.
+  const tracked = Boolean(p.track);
 
   return (
     <div className="space-y-6" aria-live="polite">
@@ -252,6 +291,7 @@ export function ProjectWatch({
           track={p.track ?? null}
           follow={p.follow ?? null}
           walkthrough={p.walkthrough ?? null}
+          actions={tracked ? failureActions : null}
         />
       )}
 
@@ -277,16 +317,16 @@ export function ProjectWatch({
           </p>
         </AssistantMessage>
       )}
-      {p.run && provider?.reroutedFrom && !provider.autoRetriedBecause && (
-        <AssistantMessage who="Loki">
-          <p>
-            Switched to {provider.currentLabel} —{" "}
-            {provider.reroutedFromLabel ?? "the previous provider"} was out of usage.
-          </p>
-        </AssistantMessage>
-      )}
+      {p.run &&
+        provider?.reroutedFrom &&
+        !provider.autoRetriedBecause &&
+        provider.reroutedWhy !== "picked" && (
+          <AssistantMessage who="Loki">
+            <p>{rerouteSentence(provider)}</p>
+          </AssistantMessage>
+        )}
 
-      {p.run && status && (
+      {p.run && status && !tracked && (
         // The live message below already says "Working · 1 min" with its
         // own dots. Saying it here too, with a second spinner, put the same
         // fact on screen three times (operator, 2026-10-07): this line is
@@ -334,7 +374,7 @@ export function ProjectWatch({
         </AssistantMessage>
       )}
 
-      {p.run && status && failed && (
+      {p.run && status && failed && !tracked && (
         <AssistantMessage who="Loki">
           <p>
             {humanizeRunFailure(
@@ -342,35 +382,9 @@ export function ProjectWatch({
               provider?.currentLabel ?? "The agent",
               Boolean(provider?.quotaDeath),
             )}{" "}
-            {provider?.quotaDeath
-              ? "Pick up where it left off on another provider:"
-              : "Send it again:"}
+            {switchFirst ? "Send it to an agent that can take it:" : "Send it again:"}
           </p>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            {provider?.quotaDeath ? (
-              // A usage wall: the next provider is the answer. Re-running the
-              // spent one only appears when nothing else can answer.
-              <ProviderSwitch
-                projectId={p.userProjectId ?? null}
-                busy={retrying}
-                primary
-                hint="Sends the same request to the provider you pick, and remembers it for this project."
-                onSwitch={(agent) => retry(agent)}
-                fallback={tryAgain(true)}
-              />
-            ) : (
-              <>
-                {tryAgain(true)}
-                <ProviderSwitch
-                  projectId={p.userProjectId ?? null}
-                  busy={retrying}
-                  hint="Sends the same request to the provider you pick, and remembers it for this project."
-                  onSwitch={(agent) => retry(agent)}
-                />
-              </>
-            )}
-          </div>
-          {retryError && <p className="ui-error text-xs">{retryError}</p>}
+          {failureActions}
         </AssistantMessage>
       )}
 
@@ -432,6 +446,17 @@ function cardPhase(input: {
   // not "Live" — a branch with no pull request, or a run older than Loki
   // follows, said "Live" here with a green dot.
   return "finished";
+}
+
+/** Why this run went to another agent than the one it was meant for. */
+function rerouteSentence(provider: NonNullable<WatchPayload["provider"]>): string {
+  const from = provider.reroutedFromLabel ?? "the agent it was meant for";
+  if (provider.reroutedWhy === "not-installed")
+    return `Sent to ${provider.currentLabel} — ${from} is not installed on the builder that runs this project.`;
+  if (provider.reroutedWhy === "spent")
+    return `Sent to ${provider.currentLabel} — ${from} was out of usage.`;
+  // Older runs did not record why; the only claim on record is the switch.
+  return `Sent to ${provider.currentLabel} instead of ${from}.`;
 }
 
 /** A one-word state ("Queued") as a headline a person can read. */

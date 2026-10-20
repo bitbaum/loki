@@ -190,13 +190,12 @@ export const EXECUTOR_COPY = {
   },
 
   terminal: {
-    // The h1 says what is on the page; "Sessions" alone did not say whose,
-    // or that they are live.
-    pageTitle: "Live Terminal – AI Agent Sessions",
-    // What the page is FOR, in one line. The previous one ("Your agents at
-    // work — read a session as a chat, or watch its terminal") described the
-    // view switch rather than the purpose, and was reported as ambiguous.
-    pageSubtitle: "Watch the AI agents working on your projects, and talk to them as they work.",
+    // Names the two switches the mode bar exposes, because they are the whole
+    // point of the page: one shell, and you choose where it runs and how you
+    // talk to it. The old subtitle described only typing, which was the single
+    // thing the terminal could already do.
+    pageSubtitle:
+      "Watch and steer your AI agents live: read a session as a chat, or drive its terminal.",
     cloudLabel: "Cloud builder",
     cloudLabelLocalHost: "Cloud builder (this server)",
     thisComputerLabel: "Your computer",
