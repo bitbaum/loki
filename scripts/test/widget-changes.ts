@@ -8,7 +8,7 @@
 // Run: npx tsx scripts/test/widget-changes.ts
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ownerStatusFor, OWNER_CHANGES_MAX } from "@/lib/feedback/owner-view";
+import { ownerStatusFor, ownerTap, OWNER_CHANGES_MAX } from "@/lib/feedback/owner-view";
 import { FEEDBACK_WORK_PHASE, WAITING_ON, type FeedbackWorkView } from "@/lib/feedback/work-phase";
 import { FIX_SHIP_STATE, type FixShipping } from "@/lib/feedback/fix-shipping";
 import {
@@ -17,8 +17,11 @@ import {
   changesHeadline,
   SAVED_NOTE_LABEL,
   changesSummary,
+  needsYouCount,
   newlyLive,
   parseChanges,
+  parseNeedsYou,
+  shownChanges,
   toSeen,
   type OwnerChange,
 } from "../../widget/changes";
@@ -57,7 +60,21 @@ const ship = (state: string): FixShipping => ({ state }) as FixShipping;
     assert.equal(s.label, "Needs you");
     assert.equal(s.tone, "warning");
     assert.ok(s.needsYou, "the owner is sent into Loki, where the why is");
+    // …by a link, not a sentence telling them to go (2026-10-20): the run's
+    // Watch page when there is a run, the inbox when there is none.
+    assert.doesNotMatch(s.detail, /Open it in Loki/, "the way in is the link, not the words");
+    assert.deepEqual(ownerTap(s, true), { to: "run", action: "Open it in Loki to see why" });
+    assert.equal(ownerTap(s, false).to, "inbox");
   }
+  assert.deepEqual(ownerTap(ownerStatusFor(view(FEEDBACK_WORK_PHASE.WORKING)), true), {
+    to: "run",
+    action: "Watch it",
+  });
+  assert.equal(ownerTap(ownerStatusFor(view(FEEDBACK_WORK_PHASE.QUEUED)), false).to, null);
+  assert.deepEqual(ownerTap(ownerStatusFor(view(FEEDBACK_WORK_PHASE.DONE)), true), {
+    to: "live",
+    action: "See it",
+  });
   for (const st of [
     FIX_SHIP_STATE.PUSHED,
     FIX_SHIP_STATE.PR_OPEN,
@@ -105,6 +122,7 @@ const ship = (state: string): FixShipping => ({ state }) as FixShipping;
     settled: live,
     href: null,
     action: null,
+    needsYou: false,
   });
   assert.deepEqual(
     newlyLive({}, [c("a", true)]),
@@ -146,6 +164,15 @@ const ship = (state: string): FixShipping => ({ state }) as FixShipping;
   assert.equal(parsed[0].action, "See it");
   assert.equal(parsed[1].tone, "neutral", "an unknown tone falls back");
   assert.equal(parsed[1].href, null, "only http(s) links become links");
+  assert.equal(parsed[0].needsYou, false, "waits on the owner only when the server says so");
+  assert.equal(
+    parseChanges({ changes: [{ id: "3", text: "y", label: "Needs you", needsYou: true }] })[0]
+      .needsYou,
+    true,
+  );
+  assert.equal(parseNeedsYou({ needsYou: 14 }), 14, "the server's count, past the twelve rows");
+  assert.equal(parseNeedsYou({ needsYou: "9" }), 0);
+  assert.equal(parseNeedsYou(null), 0);
   assert.deepEqual(parseChanges(null), []);
   assert.equal(CHANGES_MAX, OWNER_CHANGES_MAX, "the widget's cap mirrors the server's");
 }
@@ -213,6 +240,8 @@ assert.match(main, /changes\.start\(\)/, "asked for on arrival");
       settled: live,
       href: null,
       action: null,
+      // What the server marks as waiting on the owner (owner-view.ts).
+      needsYou: ["Needs you", SAVED_NOTE_LABEL, "Waiting"].includes(label),
     }) as OwnerChange;
   assert.equal(
     changesSummary([c("Building"), c("In line"), c("In line"), c("Live", true), c("Done", true)]),
@@ -223,31 +252,59 @@ assert.match(main, /changes\.start\(\)/, "asked for on arrival");
     "Your changes · 1 needs you · 1 live",
   );
   assert.equal(
-    changesSummary([c("Needs you"), c("Needs you"), c("On its way")]),
+    changesSummary([c("Needs you"), c(SAVED_NOTE_LABEL), c("On its way")]),
     "Your changes · 2 need you · 1 on its way",
     "the open list agrees with the line above it (it said '9 needs you', 2026-10-18)",
   );
   assert.equal(changesSummary([c("Closed")]), "Your changes · 1");
-  // The status line carries the most urgent fragment only.
+  // The line carries ONE number: what waits on the owner's decision —
+  // failed attempts, saved notes, notes not started, and changes said but
+  // not saved. Nothing waiting: nothing on the line ("Watching" alone).
   assert.equal(
     changesHeadline([c("Live", true), c("Needs you"), c("Building")]),
     "1 change needs you",
   );
   assert.equal(
-    changesHeadline([c("Needs you"), c("Needs you")]),
-    "2 changes need you",
-    "says what is counted, in agreement",
+    changesHeadline([c("Needs you"), c(SAVED_NOTE_LABEL), c("Waiting")]),
+    "3 changes need you",
+    "a saved note and one not started wait on the owner too",
   );
-  assert.equal(changesHeadline([c("Live", true), c("Starting"), c("Building")]), "2 being built");
-  assert.equal(changesHeadline([c("Live", true), c("Live", true)]), "2 changes live");
-  assert.equal(changesHeadline([c("On its way")]), "1 on its way");
+  assert.equal(changesHeadline([c("Live", true), c("Starting"), c("Building")]), "");
+  assert.equal(changesHeadline([c("Live", true), c("Live", true)]), "");
+  assert.equal(changesHeadline([c("On its way")]), "");
   assert.equal(changesHeadline([c("Closed")]), "", "nothing to say: nothing on the line");
-  // Notes saved while Loki watched lead the line until they are built.
   assert.equal(
-    changesHeadline([c("Live", true), c(SAVED_NOTE_LABEL), c(SAVED_NOTE_LABEL)]),
-    "2 notes saved",
+    changesHeadline([c("Live", true)], { unsaved: 3 }),
+    "3 changes need you",
+    "changes said on the card and not saved yet are waiting on the owner",
   );
-  assert.equal(changesHeadline([c(SAVED_NOTE_LABEL), c("Needs you")]), "1 change needs you");
+  // The server counts past the twelve rows it sends; the line follows it.
+  // Counting inside the newest twelve let three fresh notes push three
+  // failed fixes out — "9 need you" became 6 with nothing done (2026-10-20).
+  assert.equal(changesHeadline([c("Needs you")], { total: 9 }), "9 changes need you");
+  assert.equal(needsYouCount([c("Needs you"), c("Needs you")], { total: 9, unsaved: 1 }), 10);
+  // The open list shows every row the line counts, first.
+  const many = [
+    c("Live", true),
+    c("Building"),
+    c("Needs you"),
+    c("On its way"),
+    c(SAVED_NOTE_LABEL),
+    c("Needs you"),
+  ];
+  const shown = shownChanges(many);
+  assert.deepEqual(
+    shown.slice(0, 3).map((x) => x.label),
+    ["Needs you", SAVED_NOTE_LABEL, "Needs you"],
+    "every row that needs the owner leads the list",
+  );
+  assert.equal(shown.length, 3, "and the rest fill up to CHANGES_SHOWN, no more");
+  assert.equal(
+    shownChanges([c("Needs you"), c("Needs you"), c("Needs you"), c("Needs you"), c("Live", true)])
+      .length,
+    4,
+    "never fewer rows than the line counts",
+  );
   assert.match(builtSay({ started: 3, total: 3 }), /Started your 3 saved notes/);
   assert.match(
     builtSay({ started: 5, total: 5, builds: 2 }),

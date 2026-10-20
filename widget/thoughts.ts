@@ -81,19 +81,16 @@ export function thoughtsSummary(trail: TrailEntry[], watching: boolean): string 
 }
 
 /**
- * The panel's one status line, short: "Watching", "Watching · noticed 2
- * things", "Paused". The page and press counts stay in thoughtsSummary (its
- * tooltip) and in the list — on the line itself they were detail nobody
- * asked for. The owner's changes, when there are any, take the line instead
- * (thoughts-view.ts): one number of one thing.
+ * The panel's one status line, short: "Watching", "Watching · 2 changes need
+ * you", "Paused". The ONE number it carries is what waits on the owner's
+ * decision (changes.ts changesHeadline); with nothing waiting it says only
+ * the state. What Loki noticed is in the list under it, not counted here —
+ * "noticed 4 things" beside "9 changes need you" were two numbers of two
+ * things, and neither matched the list (owner, 2026-10-20).
  */
-export function watchHeadline(trail: TrailEntry[], watching: boolean): string {
-  if (!watching) return "Paused";
-  const problems = trail
-    .map(thoughtFor)
-    .filter((t) => t.tone === "warn" || t.tone === "bad").length;
-  if (!problems) return "Watching";
-  return `Watching · noticed ${problems} ${problems === 1 ? "thing" : "things"}`;
+export function watchHeadline(watching: boolean, needsYou = ""): string {
+  const state = watching ? "Watching" : "Paused";
+  return needsYou ? `${state} · ${needsYou}` : state;
 }
 
 /** "now", "40s", "3m" — how long ago, short enough for a line's margin. */

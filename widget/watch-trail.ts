@@ -341,14 +341,19 @@ export function explainNotice(n: Notice): { say: string; fix: string } {
  */
 export function explainChecks(
   checks: string[],
+  /** Which page, by name ("Voice"): the card outlives the page it is about,
+   *  and three "Looking at this page" cards from three pages read as one
+   *  remark said three times. */
+  page?: string,
 ): { say: string; fix: string; short: string } | null {
   if (!checks.length) return null;
   const list = checks.map((c) => `• ${c}`).join("\n");
   // Said in plain words (plain-checks.ts); the fix request keeps the exact
   // finding, which is what a builder needs.
   const plain = checks.map((c) => `• ${plainCheck(c)}`).join("\n");
+  const where = page ? `the ${page} page` : "this page";
   return {
-    say: `Looking at this page, ${checks.length === 1 ? "one thing stands out" : `${checks.length} things stand out`}:\n${plain}`,
+    say: `Looking at ${where}, ${checks.length === 1 ? "one thing stands out" : `${checks.length} things stand out`}:\n${plain}`,
     fix: `Fix these on this page:\n${list}`,
     short: `${checks.length === 1 ? "one thing" : `${checks.length} things`} on this page could be better`,
   };
@@ -367,17 +372,52 @@ const SITE_WIDE_CHECKS: readonly RegExp[] = [/<html lang>/i];
 export function onceSiteWide(
   checks: readonly string[],
   said: ReadonlySet<string>,
+  /** The page being looked at. The page a site-wide finding was FIRST said
+   *  on keeps it: that page's card is re-read on a revisit, and dropping the
+   *  line there made a finding look fixed that was not. */
+  path?: string,
 ): { checks: string[]; keys: string[] } {
   const keys: string[] = [];
   const kept = checks.filter((check) => {
     const rule = SITE_WIDE_CHECKS.find((re) => re.test(check));
     if (!rule) return true;
     const key = `site|${rule.source}`;
-    if (said.has(key)) return false;
+    if (said.has(key)) return path !== undefined && said.has(`${key}@${path}`);
     keys.push(key);
+    if (path !== undefined) keys.push(`${key}@${path}`);
     return true;
   });
   return { checks: kept, keys };
+}
+
+/**
+ * What a finding is ABOUT, without its count or its example: "2 form
+ * field(s) have no label — only a placeholder like “Name”" and "1 form
+ * field(s) have no label" are one finding. "No main heading" and "3 main
+ * headings" are one too — the page's title — and are never two cards.
+ */
+export function findingKind(check: string): string {
+  if (/main heading/.test(check)) return "The page's main heading (h1)";
+  return check
+    .replace(/\s*\(e\.g\.[^)]*\)/g, "")
+    .replace(/\s+\u2014 only a placeholder like .*$/, "")
+    .replace(/\d+(\.\d+)?/g, "#")
+    .trim();
+}
+
+/**
+ * Two readings of one page, a moment apart: what the LATER one found, where
+ * the earlier one found the same. A page caught mid-swap — a setup screen
+ * leaving, the next one arriving — reads "2 main headings", then "no main
+ * heading", then settles; each reading used to be said as it was taken
+ * (/voice, operator's phone, 2026-10-20). What the two disagree on waits
+ * until the page holds still. The heading's COUNT must agree too: "2" then
+ * "none" is the page moving, not a finding.
+ */
+export function stableChecks(earlier: readonly string[], later: readonly string[]): string[] {
+  const id = (c: string) => (/main heading/.test(c) ? c : findingKind(c));
+  const seen = new Set(earlier.map(id));
+  return later.filter((c) => seen.has(id(c)));
 }
 
 /**
@@ -387,13 +427,16 @@ export function onceSiteWide(
  * got two cards for it (2026-10-09). Digits and the example are dropped.
  */
 export function checksSignature(path: string, checks: readonly string[]): string {
-  const kinds = checks.map((c) =>
-    c
-      .replace(/\s*\(e\.g\.[^)]*\)/g, "")
-      .replace(/\d+(\.\d+)?/g, "#")
-      .trim(),
-  );
-  return `${path}|checks|${kinds.join("|")}`;
+  return `${checksSlot(path)}|${checks.map(findingKind).join("|")}`;
+}
+
+/**
+ * The one card a page's checks own. A new reading of the same page replaces
+ * it — never a second card beside it (2026-10-20: "no main title" three
+ * times in one panel, "1 form field" and "2 form fields" both shown).
+ */
+export function checksSlot(path: string): string {
+  return `${path}|checks`;
 }
 
 /** Same remark, same signature — so a reload does not say it again. */

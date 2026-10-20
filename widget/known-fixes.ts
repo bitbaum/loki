@@ -26,6 +26,9 @@ export type KnownFix = {
   live: boolean;
   settled: boolean;
   href: string | null;
+  /** The words on the link — "Open it in Loki to see why" for a failed
+   *  attempt (owner-view.ts ownerTap). */
+  action: string | null;
 };
 
 /** The server's cap on a key (api/feedback FeedbackBody.noticeKey). */
@@ -53,6 +56,7 @@ export function parseKnown(body: unknown): KnownFix[] {
       live: k.live === true,
       settled: k.settled === true,
       href: typeof k.href === "string" && /^https?:\/\//.test(k.href) ? k.href : null,
+      action: typeof k.action === "string" ? k.action.slice(0, 60) : null,
     }));
 }
 
@@ -92,4 +96,27 @@ function shortDate(iso: string): string {
   return Number.isNaN(d.getTime())
     ? ""
     : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+/** A fix Loki started that did not finish: it waits on the owner. */
+export function fixFailed(k: KnownFix | null): boolean {
+  return !!k && !k.settled && k.tone === "warning";
+}
+
+/** What Watch says when it starts a fix on its own (watch.ts). */
+export const FIX_STARTED = "I've started a fix \u2014 it goes live by itself.";
+
+/**
+ * A remark that started a fix, said as things stand NOW. The card said "I've
+ * started a fix — it goes live by itself" directly above "Needs you — The
+ * attempt did not finish" (operator's phone, 2026-10-20): a promise the line
+ * under it had already broken. The promise follows the fix.
+ */
+export function filedText(text: string, k: KnownFix | null): string {
+  if (!text.endsWith(FIX_STARTED) || !k) return text;
+  const head = text.slice(0, -FIX_STARTED.length);
+  if (fixFailed(k)) return `${head}The fix I started did not finish.`;
+  if (k.live) return `${head}I fixed it, and the fix is live.`;
+  if (k.settled) return `${head}The fix I started was closed without a change.`;
+  return text;
 }

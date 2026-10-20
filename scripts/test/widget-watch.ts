@@ -22,6 +22,9 @@ import {
   watchReport,
   explainChecks,
   checksSignature,
+  checksSlot,
+  findingKind,
+  stableChecks,
   explainNotice,
   noticeSignature,
   type TrailEntry,
@@ -255,6 +258,37 @@ check(() => {
   const a = noticeSignature("/shop", { kind: "slow", text: "GET /a → 200 in 4.2s" });
   assert.equal(a, noticeSignature("/shop", { kind: "slow", text: "GET /a → 200 in 5.9s" }));
   assert.notEqual(a, noticeSignature("/cart", { kind: "slow", text: "GET /a → 200 in 4.2s" }));
+});
+
+// The miscount, reproduced from the readings the operator's phone took on
+// /voice (2026-10-20): the page swaps its setup screen for its speaking
+// screen, and readings taken across the swap disagree about the title.
+check(() => {
+  const two = "The page has 2 main headings (h1), so none of them is THE title";
+  const none = "The page has no main heading (h1) — what it is about is never stated";
+  const field1 =
+    "1 form field(s) have no label — only a placeholder like “Ask”, which vanishes once typing starts";
+  const field2 = "2 form field(s) have no label";
+  // Mid-swap: both screens' h1, then neither. Not one of them is said.
+  assert.deepEqual(stableChecks([two, field1], [none, field2]), [field2]);
+  // Held still: what both readings found is said, in the later words.
+  assert.deepEqual(stableChecks([none, field1], [none, field2]), [none, field2]);
+  assert.deepEqual(stableChecks([], [none]), [], "a first reading alone says nothing");
+  // A finding's kind leaves out its count and its example.
+  assert.equal(findingKind(field1), findingKind(field2));
+  assert.equal(findingKind(two), findingKind(none), "the title is one finding, whatever the count");
+  // So the page's card has ONE signature for either reading of a field, and
+  // the title's two readings never become two cards.
+  assert.equal(checksSignature("/voice", [field1]), checksSignature("/voice", [field2]));
+  assert.equal(checksSignature("/voice", [two]), checksSignature("/voice", [none]));
+  assert.ok(checksSignature("/voice", [none]).startsWith(`${checksSlot("/voice")}|`));
+  // The card names its page: three "Looking at this page" cards from three
+  // pages read as one remark said three times.
+  assert.match(
+    explainChecks([none], "Voice")!.say,
+    /^Looking at the Voice page, one thing stands out:/,
+  );
+  assert.match(explainChecks([none])!.say, /^Looking at this page,/);
 });
 
 console.log(`${n} widget-watch cases passed`);

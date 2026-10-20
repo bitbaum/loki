@@ -33,6 +33,8 @@ export function createThoughtsView(
   update: (trail: TrailEntry[], watching: boolean) => void;
   /** Repaint with what is known (the changes changed, not the trail). */
   repaint: () => void;
+  /** Fold the details away (a row in them pointed somewhere below). */
+  close: () => void;
 } {
   const el = h("div", "thoughts");
   // Two controls on one line: the summary opens the details, the text action
@@ -63,25 +65,23 @@ export function createThoughtsView(
 
   let open = false;
   let last: { trail: TrailEntry[]; watching: boolean } = { trail: [], watching: false };
-  row.addEventListener("click", () => {
-    open = !open;
+  const setOpen = (value: boolean) => {
+    open = value;
     row.setAttribute("aria-expanded", String(open));
     el.classList.toggle("open", open);
     details.style.display = open ? "" : "none";
     paint();
-  });
+  };
+  row.addEventListener("click", () => setOpen(!open));
 
   function paint() {
     const { trail, watching } = last;
     mark.classList.toggle("watching", watching);
     mark.classList.toggle("paused", !watching);
     el.classList.toggle("watching", watching);
-    // One number of one thing: the owner's changes when there are any (what
-    // needs them, what is being built…), else what Loki noticed on the page.
-    const more = extra?.headline() ?? "";
-    summary.textContent = more
-      ? `${watching ? "Watching" : "Paused"} · ${more}`
-      : watchHeadline(trail, watching);
+    // One number of one thing: what waits on the owner's decision. Nothing
+    // waiting: just the state.
+    summary.textContent = watchHeadline(watching, extra?.headline() ?? "");
     row.title = thoughtsSummary(trail, watching);
     el.classList.toggle("needs-you", extra?.attention() ?? false);
     toggle.textContent = watching ? "Pause" : "Resume";
@@ -119,5 +119,6 @@ export function createThoughtsView(
       paint();
     },
     repaint: paint,
+    close: () => setOpen(false),
   };
 }

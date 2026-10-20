@@ -172,6 +172,12 @@ const second = onceSiteWide(["3 button(s)/link(s) have no name", lang], said);
 assert.deepEqual(second.checks, ["3 button(s)/link(s) have no name"], "not on the next");
 assert.deepEqual(second.keys, []);
 assert.deepEqual(onceSiteWide([taps], said).checks, [taps], "page findings are always said");
+// The page it was first said on keeps it: that page's card is re-read on a
+// revisit, and dropping the line there made the finding look fixed.
+const onPath = new Set<string>();
+for (const k of onceSiteWide([lang], onPath, "/a").keys) onPath.add(k);
+assert.deepEqual(onceSiteWide([lang], onPath, "/a").checks, [lang], "back on /a: still said");
+assert.deepEqual(onceSiteWide([lang], onPath, "/b").checks, [], "on /b: said once already");
 
 // ── Wiring: the pieces are where they must be ──────────────────────────────
 const model = readFileSync("widget/conversation-model.ts", "utf8");
@@ -191,7 +197,7 @@ assert.match(
   /api\/widget\/understand\|/,
   "the route answers cross-origin without a Loki session",
 );
-assert.match(readFileSync("widget/watch.ts", "utf8"), /onceSiteWide\(checks, said\)/);
+assert.match(readFileSync("widget/watch.ts", "utf8"), /onceSiteWide\(checks, said, path\)/);
 
 // The read is one call per note, read before anything is built: the strong
 // model, with instructions that say what "these things" must become.
