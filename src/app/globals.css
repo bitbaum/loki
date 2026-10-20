@@ -9058,6 +9058,17 @@
   }
 }
 
+/* An answer drawn by chatkit's renderer inside Loki's answer column: the
+   column sets the size (16px on a phone, 14px from sm), the renderer the
+   shapes. The sources button sits under the answer like its other actions. */
+.ui-loki-answer .ck-md {
+  font-size: inherit;
+  line-height: inherit;
+}
+.ui-loki-answer-sources {
+  margin-top: 0.5rem;
+}
+
 /* A review has one stage, one conversation and explicit evidence below. */
 .ui-inspection-workspace {
   display: grid;

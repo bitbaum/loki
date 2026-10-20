@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { ArrowDown, Loader2, Square } from "lucide-react";
 import { ChatReplies, useStickToBottom } from "@bitbaum/chatkit/react";
-import { MarkdownText } from "@/components/ui/markdown-text";
+import { AnswerMarkdown } from "./AnswerMarkdown";
 import { readReplies } from "@/lib/loki/replies";
 import { projectSwitches } from "@/lib/loki/project-switches";
 import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
@@ -156,7 +156,7 @@ export function Thread({
               <WorkTrail work={live.work} live />
               {live.preview ? (
                 <div className="ui-loki-answer">
-                  <MarkdownText text={live.preview} className="space-y-2" />
+                  <AnswerMarkdown text={live.preview} />
                 </div>
               ) : (
                 <p className="ui-loki-live-status" role="status" aria-live="polite">
