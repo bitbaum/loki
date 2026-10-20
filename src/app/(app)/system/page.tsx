@@ -5,6 +5,7 @@ import { SystemStats } from "@/components/system/SystemStats";
 import { HetznerCapacityCard } from "@/components/system/HetznerCapacityCard";
 import { RevenueCard } from "@/components/system/RevenueCard";
 import { PlansCard } from "@/components/system/PlansCard";
+import { PrivateBuildersCard } from "@/components/system/PrivateBuildersCard";
 import { ScheduledJobsCard } from "@/components/system/ScheduledJobsCard";
 import { MemorySummaryCard } from "@/components/system/MemorySummaryCard";
 import { RecentFailuresCard } from "@/components/system/RecentFailuresCard";
@@ -113,6 +114,11 @@ export default async function SystemPage() {
             {isFounder && (
               <Suspense fallback={<CardSkeleton />}>
                 <PlansCard />
+              </Suspense>
+            )}
+            {isFounder && (
+              <Suspense fallback={<CardSkeleton />}>
+                <PrivateBuildersCard />
               </Suspense>
             )}
             <Suspense fallback={<CardSkeleton />}>

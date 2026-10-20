@@ -4,7 +4,7 @@ import { getSessionUserId } from "@/lib/session";
 import { jsonError, jsonOk, readIdParam, readJsonBody } from "@/lib/api/route-helpers";
 import { getProjectCore } from "@/db/queries/projects";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
-import { getExecutionAccess } from "@/lib/execution-access";
+import { isFleetInfrastructureAllowed } from "@/lib/execution-access";
 import { readAppsConf } from "@/lib/register/apps-conf";
 import { studioRepoRoot } from "@/lib/site-cd-local";
 import { siteCdSlug } from "@/lib/site-cd";
@@ -77,7 +77,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (body instanceof NextResponse) return body;
   const parsed = normalizeOwnDomain(body.domain);
   if (!parsed.ok) return jsonError(parsed.error, 400);
-  const access = await getExecutionAccess(site.userId);
+  // A host on the studio box is the fleet's to attach, not a cloud builder's.
+  const fleet = await isFleetInfrastructureAllowed(site.userId).catch(() => false);
   return respond(
     await setOwnDomain({
       userId: site.userId,
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       userProjectId: site.up.id,
       slug: site.slug,
       domain: parsed.domain,
-      cloudBuilderAllowed: access.cloudBuilderAllowed,
+      cloudBuilderAllowed: fleet,
     }),
   );
 }
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const site = await loadSite(params);
   if (site instanceof NextResponse) return site;
-  const access = await getExecutionAccess(site.userId);
+  const fleet = await isFleetInfrastructureAllowed(site.userId).catch(() => false);
   return respond(
     await setOwnDomain({
       userId: site.userId,
@@ -101,7 +102,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
       userProjectId: site.up.id,
       slug: site.slug,
       domain: null,
-      cloudBuilderAllowed: access.cloudBuilderAllowed,
+      cloudBuilderAllowed: fleet,
     }),
   );
 }

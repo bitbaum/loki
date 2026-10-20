@@ -855,6 +855,13 @@
       "when": 1792443527996,
       "tag": "0121_client_allowance",
       "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1792489401649,
+      "tag": "0122_private_builder",
+      "breakpoints": true
     }
   ]
 }

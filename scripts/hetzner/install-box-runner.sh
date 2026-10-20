@@ -71,6 +71,10 @@ Environment=HOME=/home/ubuntu
 Environment=PATH=/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=NODE_ENV=production
 Environment=LOKI_BOX_PREPARE=true
+# Agents get a shell's environment, the engine keys this unit holds and the
+# run's own repository token — never this unit's whole environment
+# (src/lib/agent-execution/agent-env.ts).
+Environment=LOKI_AGENT_ENV=allowlist
 Environment=LOKI_RUNNER_PRESENCE_CHANNEL=cloud
 Environment=LOKI_RUNNER_UNATTENDED=true
 Environment=LOKI_WEB_URL=https://loki.orangecat.ch

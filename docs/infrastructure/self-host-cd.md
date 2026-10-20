@@ -145,8 +145,8 @@ row, deploy secret, sync-infra. Prefer it over a parallel host.
 `POST /api/projects/[id]/register-cd` (also called from **Make it happen** after
 provision) runs `scripts/hetzner/register-site.sh` **in-process** when all of:
 
-1. **Eligible account** — `users.is_default` or `LOKI_CLOUD_BUILDER_USER_IDS`
-   (same gate as shared cloud builder; studio CD is not multi-tenant).
+1. **Eligible account** — `users.is_default` (`isFleetInfrastructureAllowed`;
+   studio CD is the fleet's, not any private builder's).
 2. **Script present** — resolved in order: `LOKI_REGISTER_SITE_SCRIPT`,
    `$LOKI_REPO_ROOT/scripts/hetzner/register-site.sh`,
    `$LOKI_BOX_DEV_ROOT/loki/...` (default durable root

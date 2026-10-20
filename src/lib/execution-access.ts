@@ -2,7 +2,11 @@ import type { RunnerChannel } from "@/db/schema/pending-commands";
 import type { BuilderChannelPresence } from "@/lib/builder-presence";
 import { isCloneableGitUrl } from "@/lib/git-url";
 import { DEFAULT_BUILDER_CHANNEL, isBuilderChannel } from "@/lib/constants/statuses";
-import { BOX_DEV_ROOT, sanitizeWorkspaceKey } from "@/lib/agent-execution/box-workspace-path";
+import {
+  BOX_DEV_ROOT,
+  sanitizeWorkspaceKey,
+  TENANT_DEV_ROOT_RE,
+} from "@/lib/agent-execution/box-workspace-path";
 import { isPreviewDir } from "@/lib/previews/root";
 import path from "path";
 
@@ -13,28 +17,35 @@ const BUILDER_REQUIRED_MESSAGE =
   "No builder is connected for this account. Open Fleet Runner on your connected computer, then dispatch again.";
 
 /**
- * May this account use FLEET-OWNED infrastructure — the shared cloud builder,
- * and the org GitHub token that creates repositories in the fleet's
- * organisation? Founder or explicit allowlist, nothing else.
+ * May this account act as the FLEET — the org GitHub token that creates
+ * repositories in the fleet's organisation, studio previews and CD on the
+ * box, the server's own folders and session files? The founder, nothing
+ * else. A private builder (below) is not this: it grants cloud BUILDING in
+ * the account's own sealed unit, never the studio's powers. Until 2026-10-20
+ * one predicate granted both, and an environment allowlist
+ * (LOKI_CLOUD_BUILDER_USER_IDS) could hand a stranger the org token.
  *
  * Separate from getExecutionAccess because that one also reads runner
  * presence, which a GitHub write has no use for; and because the question
  * "may this account act as the fleet" deserves one name that every caller
- * asks by, rather than each re-deriving `isDefault || allowlist`.
+ * asks by.
  */
 export async function isFleetInfrastructureAllowed(userId: string): Promise<boolean> {
   const { getUserById } = await import("@/db/queries/users");
   const user = await getUserById(userId).catch(() => null);
-  return !!user?.isDefault || cloudBuilderAllowlist().has(userId);
+  return !!user?.isDefault;
 }
 
-function cloudBuilderAllowlist(): Set<string> {
-  return new Set(
-    (process.env.LOKI_CLOUD_BUILDER_USER_IDS ?? "")
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean),
-  );
+/**
+ * May this account BUILD on Loki's cloud? The founder (on the box's legacy
+ * unit) or an account with `users.private_builder`, whose own unit the box
+ * reconciles from that flag (scripts/hetzner/reconcile-tenants.sh). Pure on
+ * the row, so routing tests need no database.
+ */
+export function isCloudBuilderAllowed(
+  user: { isDefault?: boolean | null; privateBuilder?: boolean | null } | null | undefined,
+): boolean {
+  return !!user?.isDefault || !!user?.privateBuilder;
 }
 
 export type ExecutionAccess = {
@@ -70,8 +81,7 @@ export async function getExecutionAccess(userId: string): Promise<ExecutionAcces
     getUserById(userId),
     getBuilderPresence(userId).catch(() => ({ cloud: false, local: false, any: false })),
   ]);
-  const cloudBuilderAllowed = !!user?.isDefault || cloudBuilderAllowlist().has(userId);
-  return { userId, cloudBuilderAllowed, presence };
+  return { userId, cloudBuilderAllowed: isCloudBuilderAllowed(user), presence };
 }
 
 /**
@@ -247,8 +257,11 @@ export function projectChannelLock(project: ProjectLocus): RunnerChannel | null 
  * the default clone root is `~/dev`, which on a laptop is the laptop's tree.
  */
 export function isBoxRootedDir(dirPath: string | null | undefined): boolean {
+  if (!dirPath) return false;
+  // A private builder's own root is on the box too (box-workspace-path.ts).
+  if (TENANT_DEV_ROOT_RE.test(dirPath)) return true;
   const root = process.env.LOKI_BOX_DEV_ROOT?.trim().replace(/\/+$/, "");
-  if (!root || !dirPath) return false;
+  if (!root) return false;
   return dirPath === root || dirPath.startsWith(`${root}/`);
 }
 

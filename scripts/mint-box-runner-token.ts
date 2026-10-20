@@ -1,14 +1,18 @@
 /**
- * Provision a runner token for the headless box-runner and write it directly to
- * the token file — the box-runner equivalent of the desktop "install runner"
- * flow. Mints a fresh ck_ token (never an existing user secret), so it can be
- * revoked independently from Settings.
+ * Provision a runner token for a headless box-runner unit and write it
+ * directly to the token file — the box-runner equivalent of the desktop
+ * "install runner" flow. Mints a fresh ck_ token (never an existing user
+ * secret), so it can be revoked independently from Settings.
  *
- * Usage (run on the box, from /opt/loki/runner, with DATABASE_URL set):
- *   tsx scripts/mint-box-runner-token.ts [outPath]
+ * Usage (run where DATABASE_URL is set — the app host, never inside a
+ * tenant's unit):
+ *   tsx scripts/mint-box-runner-token.ts [outPath] [--user <userId>]
  * Default outPath = ~/.config/loki/fleet-runner-token (token-store's path).
+ * Without --user the token is the owner's (the `loki` entity's owner); with
+ * it, one tenant's — their unit then claims only their own account's work
+ * (docs/architecture/private-builders.md).
  *
- * Prints the owner userId + token PREFIX only (never the full token).
+ * Prints the userId + token PREFIX only (never the full token).
  */
 import fs from "fs";
 import path from "path";
@@ -17,15 +21,32 @@ import { createAgentToken } from "@/db/queries/agent-tokens";
 import { getSelfImprovementTarget } from "@/db/queries/frontier";
 import { getUserById } from "@/db/queries/users";
 
+function readArgs(argv: string[]): { outPath: string; userId: string | null } {
+  const rest: string[] = [];
+  let userId: string | null = null;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--user") userId = argv[++i]?.trim() || null;
+    else rest.push(argv[i]);
+  }
+  return {
+    outPath: rest[0] || path.join(os.homedir(), ".config", "loki", "fleet-runner-token"),
+    userId,
+  };
+}
+
 async function main(): Promise<void> {
-  const target = await getSelfImprovementTarget();
+  const args = readArgs(process.argv.slice(2));
+  const target = args.userId ? { userId: args.userId } : await getSelfImprovementTarget();
   if (!target) {
     console.error("[mint] no owner found (no 'loki' entity). Aborting.");
     process.exit(1);
   }
   const user = await getUserById(target.userId).catch(() => null);
-  const outPath =
-    process.argv[2] || path.join(os.homedir(), ".config", "loki", "fleet-runner-token");
+  if (args.userId && !user) {
+    console.error(`[mint] no user ${args.userId}. Aborting.`);
+    process.exit(1);
+  }
+  const outPath = args.outPath;
 
   const { token } = await createAgentToken(target.userId, "box-runner");
 

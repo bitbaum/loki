@@ -13,6 +13,7 @@
  * SandboxExecutor shares. All this class owns is the spawn.
  */
 import { spawn, type IPty } from "node-pty";
+import { agentEnvironment } from "./agent-env";
 import { PtyExecutor } from "./pty-executor";
 import type { WorkspaceSpec } from "./types";
 
@@ -25,7 +26,9 @@ export class LocalPtyExecutor extends PtyExecutor {
       cwd: spec.cwd,
       cols: spec.cols ?? 120,
       rows: spec.rows ?? 32,
-      env: { ...process.env, ...(spec.env ?? {}) } as Record<string, string>,
+      // On the box an allowlist (agent-env.ts); elsewhere the inheritance a
+      // laptop expects.
+      env: agentEnvironment(process.env, spec.env),
     });
     return { pty, meta: undefined };
   }

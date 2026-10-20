@@ -69,11 +69,22 @@ export async function listUsersWithPlans(limit = 200) {
       plan: users.plan,
       planStatus: users.planStatus,
       planExpiresAt: users.planExpiresAt,
+      isDefault: users.isDefault,
+      privateBuilder: users.privateBuilder,
       createdAt: users.createdAt,
     })
     .from(users)
     .orderBy(sql`case when ${users.plan} = 'free' then 1 else 0 end`, desc(users.createdAt))
     .limit(limit);
+}
+
+/** The operator gives an account a private builder on the cloud, or takes it
+ *  away; the box reconciles the flag (scripts/hetzner/reconcile-tenants.sh). */
+export async function setPrivateBuilder(id: string, enabled: boolean): Promise<void> {
+  await db
+    .update(users)
+    .set({ privateBuilder: enabled, updatedAt: new Date() })
+    .where(eq(users.id, id));
 }
 
 export async function getUserCount(): Promise<number> {

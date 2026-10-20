@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.50",
+    tag: "fleet-runner-v0.8.50",
+    date: "2026-10-20T10:00:00Z",
+    highlights: [
+      "On the cloud, each agent is born with only its own environment: a shell, the engine key its account holds, and a token for the one repository it works on — never the builder's database password or the studio's GitHub token.",
+      "The cloud builder asks Loki what to clone with its own token instead of reading the database itself, so a builder can run with no database password at all — the ground for one private builder per account.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.49",
     tag: "fleet-runner-v0.8.49",
     date: "2026-10-19T17:00:00Z",

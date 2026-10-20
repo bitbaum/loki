@@ -24,6 +24,23 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
 - **"Hosted runner" is offered only where it exists.** It serves one account;
   everyone else saw it as a choice, could pick it, and queued work that was
   never claimed.
+- **An agent on the cloud builder sees only its own environment.** {#agent-env}
+  It is born with what a shell needs, the engine key its account holds, and
+  a token for the one repository it is working on. It used to inherit the
+  builder's whole environment, database password and all.
+- **The cloud builder asks Loki what to clone.** {#runner-no-db} It no longer
+  reads the database itself: it asks with its own token and gets its own
+  account's projects and a token that account may use. One step from a
+  builder with no database password at all.
+- **A private builder per account.** {#new-tenant} {#private-builder-flag}
+  The operator switches it on for an account in System → Plans, and within
+  a minute that account has its own builder on Loki's cloud: its own Linux
+  user and home on the box, its own runner token, its own agent sign-ins,
+  no database password, a memory and CPU ceiling of its own. Its Sessions
+  page shows that builder; `claude` then `/login` signs in its own Claude
+  account there. Nothing of the studio's — its GitHub organisation, its
+  previews, the box's own folders — comes with it. Until now the cloud was
+  the founder's alone, with an environment variable as the only other door.
 
 ## 2026-10-17 — See what every session is doing
 
