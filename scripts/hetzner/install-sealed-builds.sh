@@ -71,8 +71,13 @@ driver = "overlay"
 graphroot = "$STORE"
 runroot = "/run/loki-agent-image"
 CONF
+    # --network=host for the BUILD only: Docker, also on this box, sets the
+    # firewall's FORWARD policy to DROP, which strands a rootful podman bridge
+    # — deploy 2623's log showed apt-get fetching no package index at all.
+    # Tenants' sealed containers run rootless with user-mode networking
+    # (slirp4netns/pasta), which that chain never sees.
     if CONTAINERS_STORAGE_CONF=/opt/loki/agent-image/storage.conf \
-         podman build -t loki-agent:latest -f "$SRC" "$(dirname "$SRC")" >"$BUILD_LOG" 2>&1; then
+         podman build --network=host -t loki-agent:latest -f "$SRC" "$(dirname "$SRC")" >"$BUILD_LOG" 2>&1; then
       echo "$stamp" > /opt/loki/agent-image/.built
       note "✓ loki-agent image built"
     else
