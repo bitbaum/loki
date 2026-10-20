@@ -13,7 +13,7 @@
 // {{name}} placeholders the body contains. The parser below derives this
 // from the body so callers don't have to maintain both in sync.
 
-import { and, asc, desc, eq, or, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, ne, or, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { prompts, type PromptRow } from "@/db/schema/prompts";
@@ -135,6 +135,66 @@ export async function deletePrompt(userId: string, id: string): Promise<boolean>
     .where(and(eq(prompts.id, id), eq(prompts.userId, userId)))
     .returning({ id: prompts.id });
   return !!row;
+}
+
+// ── Identical copies ────────────────────────────────────────────────────────
+// One prompt is a name + its words (lib/prompt-duplicates dupeKey). Saving the
+// same pair twice made a second row the list then had to fold away; on prod
+// "Next Best Step" was eight rows in two groups of four (2026-09-18), and the
+// owner still saw "4 identical copies saved" on its cards (2026-10-20).
+
+/** The caller's own active prompt with exactly this name and body, if any —
+ *  so a second Create (or Fork) of the same prompt opens the first. */
+export async function findIdenticalPrompt(
+  userId: string,
+  name: string,
+  body: string,
+): Promise<PromptRow | null> {
+  const [row] = await db
+    .select()
+    .from(prompts)
+    .where(
+      and(
+        eq(prompts.userId, userId),
+        eq(prompts.isActive, true),
+        eq(prompts.name, name),
+        eq(prompts.body, body),
+      ),
+    )
+    .orderBy(desc(prompts.updatedAt))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Remove the caller's extra copies of one prompt: every other active row of
+ * theirs with the same name and body. The newest stays — it is the one the
+ * card shows. Removal is the same soft delete as Delete (is_active=false), so
+ * nothing is destroyed; only the person's own rows are touched, never an org
+ * peer's. Returns null when `id` is not one of the caller's prompts.
+ */
+export async function removeIdenticalCopies(
+  userId: string,
+  id: string,
+): Promise<{ kept: string; removed: number } | null> {
+  const row = await getPrompt(userId, id);
+  if (!row || !row.isActive) return null;
+  const kept = await findIdenticalPrompt(userId, row.name, row.body);
+  if (!kept) return null;
+  const removed = await db
+    .update(prompts)
+    .set({ isActive: false, updatedAt: new Date() })
+    .where(
+      and(
+        eq(prompts.userId, userId),
+        eq(prompts.isActive, true),
+        eq(prompts.name, row.name),
+        eq(prompts.body, row.body),
+        ne(prompts.id, kept.id),
+      ),
+    )
+    .returning({ id: prompts.id });
+  return { kept: kept.id, removed: removed.length };
 }
 
 // ── Reads ───────────────────────────────────────────────────────────────────

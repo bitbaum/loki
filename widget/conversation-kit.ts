@@ -11,7 +11,7 @@
 import { h } from "./dom";
 import { answerLinks } from "./rich-text";
 import { suggestionBox } from "./suggestions";
-import { knownLabel, type KnownFix } from "./known-fixes";
+import { filedText, knownLabel, type KnownFix } from "./known-fixes";
 import { REVIEW_QUESTION } from "./loki-api";
 import { receiptFull, receiptLinkLabel, receiptText } from "./receipt";
 import { greetingFor } from "./greeting";
@@ -55,6 +55,15 @@ function button(cls: string, label: string, onClick: () => void): HTMLButtonElem
   return b;
 }
 
+/** A remark's words as they stand now — the fix it started follows its fix. */
+export function noticedText(
+  item: Extract<ThreadItem, { kind: "noticed" }>,
+  known: KnownFix | null,
+): string {
+  const text = filedText(item.text, known);
+  return item.again ? `${text}\n\nLoki fixed this before. It is back.` : text;
+}
+
 /** Under a remark Loki made unasked: where its fix is, or Fix this + Why. */
 export function noticedExtras(
   item: Extract<ThreadItem, { kind: "noticed" }>,
@@ -66,13 +75,17 @@ export function noticedExtras(
   const box = h("div", "noticed-extras");
   const inFlight = !!known && !known.settled;
   if (known && (inFlight || known.live)) {
-    const st = h("a", `noticed-status tone-${known.tone}`);
-    st.textContent = `${knownLabel(known)} — ${known.detail}`;
-    st.title = known.detail;
+    // The state in words, then the ONE tap that acts on it as a real link —
+    // "Open it in Loki" used to be words inside the status, with nothing to
+    // press (2026-10-20). A failed attempt opens that run's Watch page.
+    const st = h("div", `noticed-status tone-${known.tone}`);
+    st.append(`${knownLabel(known)} — ${known.detail}`);
     if (known.href) {
-      st.href = known.href;
-      st.target = "_blank";
-      st.rel = "noopener noreferrer";
+      const go = h("a", "noticed-go", `${known.action ?? "Open in Loki"} →`);
+      go.href = known.href;
+      go.target = "_blank";
+      go.rel = "noopener noreferrer";
+      st.append(" ", go);
     }
     box.appendChild(st);
   }
@@ -143,14 +156,15 @@ export function kitState(i: KitInputs): KitState {
         footer: footer.childNodes.length ? footer : null,
       });
     } else if (item.kind === "noticed") {
+      const known = item.key ? i.known(item.key) : null;
       messages.push({
         id,
         role: "assistant",
-        content: item.again ? `${item.text}\n\nLoki fixed this before. It is back.` : item.text,
+        content: noticedText(item, known),
         speaker: LOKI,
         footer: noticedExtras(
           item,
-          item.key ? i.known(item.key) : null,
+          known,
           i.owner,
           () => model.build(item.fix, item.key),
           () =>
@@ -215,9 +229,41 @@ export function kitState(i: KitInputs): KitState {
   };
 }
 
-/** The whole of a sent note, folded: one tap to read every word that went. */
+/** Notes the person opened with "Show all" — the thread is redrawn often. */
+const shownWhole = new Set<string>();
+
+/**
+ * The whole of a sent note, under the receipt: clamped to whole lines
+ * (SENT_LINES), one tap from all of it. Never a sentence cut at the panel's
+ * edge with nothing to open (2026-10-20); the button goes when everything
+ * already fits.
+ */
 export function sentFull(text: string): HTMLElement {
-  const box = h("details", "sent-full");
-  box.append(h("summary", undefined, "Show all you sent"), h("div", "sent-full-text", text));
+  const box = h("div", "sent-full");
+  const body = h("div", "sent-full-text", text);
+  const more = h("button", "sent-full-more");
+  more.type = "button";
+  const set = (open: boolean) => {
+    body.classList.toggle("clamped", !open);
+    more.textContent = open ? "Show less" : "Show all";
+    more.setAttribute("aria-expanded", String(open));
+  };
+  set(shownWhole.has(text));
+  more.addEventListener("click", () => {
+    const open = !shownWhole.has(text);
+    if (open) shownWhole.add(text);
+    else shownWhole.delete(text);
+    set(open);
+  });
+  // Once laid out: a note that fits in the clamp needs no button.
+  requestAnimationFrame(() => {
+    if (
+      body.isConnected &&
+      body.classList.contains("clamped") &&
+      body.scrollHeight <= body.clientHeight + 1
+    )
+      more.hidden = true;
+  });
+  box.append(body, more);
   return box;
 }

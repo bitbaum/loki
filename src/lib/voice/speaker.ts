@@ -11,11 +11,14 @@
  *           hands the REST of the text to the synth speaker and stops
  *           asking the server for two minutes, so a box without a key, or
  *           a vendor having a bad hour, costs one hiccup and not a silence.
+ *           The swap is reported (onUnavailable, with the route's reason),
+ *           so the page can say why every voice now sounds the same.
  *
  * Client-only (audio APIs), no React.
  */
 import { guessSpeechLang } from "@/lib/loki/speech-text";
 import { splitForSpeech } from "@/lib/voice/speak-chunks";
+import { readTtsFailure, ttsFailure, type TtsFailure } from "@/lib/voice/tts-failure";
 
 export type Speaker = {
   /** Resolves when the text has been read, or cut off. Never rejects. */
@@ -51,11 +54,23 @@ export function createSynthSpeaker(): Speaker {
   };
 }
 
+/** The studio voice refused, with the route's reason (lib/voice/tts-failure). */
+class SpeakRefused extends Error {
+  constructor(readonly failure: TtsFailure) {
+    super(failure.reason);
+  }
+}
+
 export function createServerSpeaker(opts: {
   voice: string;
   ctx: AudioContext;
   out: AudioNode;
   fallback: Speaker;
+  /** The studio voice is off, and why — the page says so instead of
+   *  swapping in the phone's voice without a word. */
+  onUnavailable?: (failure: TtsFailure) => void;
+  /** A piece played in the studio voice: whatever was wrong is fixed. */
+  onAvailable?: () => void;
 }): Speaker {
   let token = 0;
   let source: AudioBufferSourceNode | null = null;
@@ -69,7 +84,7 @@ export function createServerSpeaker(opts: {
       body: JSON.stringify({ text, voice: opts.voice }),
       signal,
     });
-    if (!res.ok) throw new Error(`speak ${res.status}`);
+    if (!res.ok) throw new SpeakRefused(readTtsFailure(await res.json().catch(() => null)));
     const bytes = await res.arrayBuffer();
     return opts.ctx.decodeAudioData(bytes);
   };
@@ -101,11 +116,19 @@ export function createServerSpeaker(opts: {
         let buffer: AudioBuffer;
         try {
           buffer = await (next as Promise<AudioBuffer>);
-        } catch {
+        } catch (err) {
           if (my !== token) return;
           brokenUntil = Date.now() + SERVER_RETRY_MS;
+          opts.onUnavailable?.(
+            err instanceof SpeakRefused
+              ? err.failure
+              : // fetch rejects with a TypeError when the network drops; anything
+                // else (audio the phone could not decode) has no better name.
+                ttsFailure(err instanceof TypeError ? "unreachable" : "unknown"),
+          );
           return opts.fallback.speak(pieces.slice(i).join(" "));
         }
+        opts.onAvailable?.();
         // Fetch the next piece while this one plays, so the cut is not a pause.
         next = i + 1 < pieces.length ? fetchPiece(pieces[i + 1], signal) : null;
         next?.catch(() => {});

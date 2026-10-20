@@ -1,6 +1,6 @@
 import { AGENT_LABELS, type AnyAgentId } from "@/lib/agent-labels";
 import { NAV_ITEMS, type NavItem } from "@/config/navigation";
-import { PROMPT_TEMPLATES, type PromptTemplate } from "@/config/prompt-library";
+import { CATEGORY_META, PROMPT_TEMPLATES, type PromptTemplate } from "@/config/prompt-library";
 import type { AgentPrompt } from "@/app/api/prompts/agent/route";
 import { rankByQuery, searchHits, TEXT_SPEC, type Range, type SearchSpec } from "@/lib/search";
 
@@ -68,7 +68,7 @@ export function buildPaletteEntries(input: {
     kind: "prompt-template",
     key: `template:${t.id}`,
     label: t.name,
-    sub: `Template · ${t.category}`,
+    sub: `Template · ${CATEGORY_META[t.category].label}`,
     icon: null,
     href: `/prompts?template=${encodeURIComponent(t.id)}`,
   }));

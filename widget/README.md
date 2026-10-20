@@ -57,8 +57,10 @@ every page of the walk, not only the open one; changes lead with **Save** for
 the owner (then **Fix it now**) and **Save feedback** for a visitor. Nothing waits on the read: while it comes, and if it
 fails, the card is the words as spoken with the buttons as before, and words
 edited before it arrives are never replaced. Whatever is saved, the words as
-spoken travel with it in each moment's `said`. The card never sends by itself. The whole note is kept — the receipt quotes its start and folds
-the rest under *Show all you sent*.
+spoken travel with it in each moment's `said`. The card never sends by itself. The whole note is kept — the receipt quotes a short note whole and
+otherwise names it ("Saved your 3 changes."), with the note under it, one
+change per line, clamped to whole lines with **Show all** — never a sentence
+cut at the panel's edge.
 
 The original location stays attached even if you move before sending. Unsent
 transcripts survive same-tab page loads. Finish recording before following a
@@ -110,9 +112,11 @@ passes the active app theme directly.
 **Few controls, each said once.** The owner's panel starts with ONE line — *●
 Watching · 11 changes need you › Pause ✕* — which is the header: it opens what
 Loki noted and where each change is. Then the conversation, and the composer
-(*Talk · screenshots · Fix it · Ask*). The line carries one number of one named
-thing: what needs the owner, else saved notes, being built, … else live, else
-what Loki noticed on the page. It was two status rows, two microphones and a
+(*Talk · screenshots · Fix it · Ask*). The line carries ONE number: what waits
+on the owner's decision — changes said and not saved yet, saved notes and notes
+not started, failed attempts — counted over all of the owner's changes, not the
+newest twelve; with nothing waiting it says just *Watching*. Opened, the list
+shows every one of those rows first, each one tap from acting on it. It was two status rows, two microphones and a
 footer before a word was said (owner, 2026-10-17: "too intimidating"), and then
 a brand row, the page name and "Watching · 4 to look at · 11 needs you" — three
 rows and two unnamed numbers (2026-10-18). A visitor's panel keeps the brand
@@ -127,7 +131,7 @@ the keyboard (`interactive-widget=resizes-content`, Loki's own): the sheet kept
 
 **Record now, build later.** While Loki watches, **Talk**, scroll, **Done**: the
 owner's note card leads with **Save** (then *Fix it now*, *Ask*). Saved notes
-collect on the status line — *Watching · 3 notes saved ›* — and one tap,
+collect on the status line — *Watching · 3 changes need you ›* — and one tap,
 **Build all 3 saved notes**, starts them as one build per page, in the order
 they were said — a page's notes are fixed together, in one pass that sees
 them all (`groupNotesByPage`; a lone note builds on its own)
@@ -148,6 +152,15 @@ open dialog still wins over a later region's tab (`resolvePlaceDirective`).
 **Watch is the owner's, and it speaks.** While it watches, Loki says what it
 noticed — in the conversation, in plain words, naming the tap that led there,
 each with *Fix this* and *Why does it matter?* — and is otherwise quiet.
+A finding is said once: a page's checks own ONE card, which each new reading
+updates in place (and a clean reading takes back), so the same finding never
+stacks (`widget/thread.ts` `pushNoticed`). The checks measure only what is
+rendered, once the page has held still, twice, and say only what both
+readings agree on — a page caught swapping screens once read "no main title"
+and "2 main titles" at the same time (`settledPageChecks`,
+`scripts/test/widget-page-checks-browser.ts`). A fix Watch starts is said as it
+stands: "I've started a fix" becomes "the fix I started did not finish", with
+**Open it in Loki to see why →** — a link to that run's Watch page.
 
 Rules that resolve the trade-offs:
 
@@ -273,7 +286,11 @@ not to the site. Two ways:
   tab, and said in the conversation in one line ("About me, not this page…")
   so the owner knows it went somewhere. Only the owner's browser speaks
   unasked — a visitor never agreed to that. A 4xx from Loki is Loki answering
-  on purpose and is not a defect.
+  on purpose and is not a defect. Reads the widget repeats on its own (the
+  changes poll, the boot check) count only after three failures in a row, and
+  a request that lived through the page being put away (a phone locking) is
+  never one: "I couldn't check on your changes just now" was said for one
+  dropped poll (2026-10-20).
 
 **Loki improving Loki.** When the person is Loki's *own* owner — using Loki's
 widget on one of their sites — a note about the widget, a crash, or a panel

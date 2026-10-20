@@ -69,6 +69,34 @@ export function list(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
+/** A sentence starts with a capital: "one run failed" → "One run failed".
+ *  The screen shows what the voice says, and it read "one run is waiting"
+ *  mid-paragraph (owner, 2026-10-20). */
+export function sentence(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+const TIMES = ["", "once", "twice"];
+function times(n: number): string {
+  return TIMES[n] ?? `${count(n, "time")}`;
+}
+
+/**
+ * Where a set of runs happened, each project said once, in the order first
+ * seen: " on loki" when they are all one project, ": loki and heidi" when
+ * each is a different one, ": loki three times and heidi once" otherwise.
+ * It used to list every run's project, so three failures on one project
+ * were read as "loki, loki and loki". Names are spoken forms already.
+ */
+export function whereSaid(names: string[]): string {
+  const tally = new Map<string, number>();
+  for (const name of names) tally.set(name, (tally.get(name) ?? 0) + 1);
+  if (tally.size === 0) return "";
+  if (tally.size === 1) return ` on ${names[0]}`;
+  if (tally.size === names.length) return `: ${list(names)}`;
+  return `: ${list([...tally].map(([name, k]) => `${name} ${times(k)}`))}`;
+}
+
 function since(min: number): string {
   if (min < 1) return "just now";
   if (min < 60) return `for ${count(min, "minute")}`;
@@ -104,17 +132,22 @@ export function composeBriefing(s: FleetSnapshot, opts: { hints?: boolean } = {}
   else if (s.builderOnline === null) lines.push("I can't tell whether the builder is online.");
 
   if (s.working.length > 0) {
-    const who = s.working.map((w) => `${spoken(w.project)} ${since(w.sinceMin)}`);
-    lines.push(`${count(s.working.length, "agent is", "agents are")} working: ${list(who)}.`);
+    lines.push(
+      sentence(
+        `${count(s.working.length, "agent is", "agents are")} working${workingWhere(s.working)}.`,
+      ),
+    );
   } else {
     lines.push("Nobody is working right now.");
   }
 
   if (s.waitingForBuilder.length > 0) {
     lines.push(
-      `${count(s.waitingForBuilder.length, "run is", "runs are")} waiting for a builder: ${list(
-        s.waitingForBuilder.map((w) => spoken(w.project)),
-      )}.`,
+      sentence(
+        `${count(s.waitingForBuilder.length, "run is", "runs are")} waiting for a builder${whereSaid(
+          s.waitingForBuilder.map((w) => spoken(w.project)),
+        )}.`,
+      ),
     );
   }
 
@@ -122,20 +155,26 @@ export function composeBriefing(s: FleetSnapshot, opts: { hints?: boolean } = {}
     lines.push("Approvals are locked behind your PIN. Unlock them on screen to hear them.");
   } else if (s.approvals.length > 0) {
     lines.push(
-      `${count(s.approvals.length, "thing is", "things are")} waiting on you.${hints ? ` Say "what's waiting" to hear them.` : ""}`,
+      sentence(
+        `${count(s.approvals.length, "thing is", "things are")} waiting on you.${hints ? ` Say "what's waiting" to hear them.` : ""}`,
+      ),
     );
   }
 
   const failed = s.recentRuns.filter((r) => r.failed);
   if (failed.length > 0) {
     lines.push(
-      `${count(failed.length, "run")} failed: ${list(failed.map((r) => spoken(r.project)))}.${hints ? ` Say "what failed" for the errors.` : ""}`,
+      sentence(
+        `${count(failed.length, "run")} failed${whereSaid(failed.map((r) => spoken(r.project)))}.${hints ? ` Say "what failed" for the errors.` : ""}`,
+      ),
     );
   }
 
   if (s.alerts.length > 0) {
     lines.push(
-      `${count(s.alerts.length, "alert is", "alerts are")} open: ${list(s.alerts.map((a) => excerptForSpeech(a.title, 80)))}.`,
+      sentence(
+        `${count(s.alerts.length, "alert is", "alerts are")} open: ${list(s.alerts.map((a) => excerptForSpeech(a.title, 80)))}.`,
+      ),
     );
   }
 
@@ -160,7 +199,7 @@ export function composeWaiting(s: FleetSnapshot): string {
     .map((a, i) => `${ORDINAL[i]}: ${excerptForSpeech(a.title, 120)}.`);
   const more =
     s.approvals.length > ORDINAL.length ? ` And ${s.approvals.length - ORDINAL.length} more.` : "";
-  return `${count(s.approvals.length, "thing", "things")}. ${items.join(" ")}${more} Say "approve the first one", "reject number two", or "approve all".`;
+  return `${sentence(count(s.approvals.length, "thing", "things"))}. ${items.join(" ")}${more} Say "approve the first one", "reject number two", or "approve all".`;
 }
 
 export function composeFailures(s: FleetSnapshot): string {
@@ -170,7 +209,23 @@ export function composeFailures(s: FleetSnapshot): string {
     const why = excerptForSpeech(r.note, 200);
     return `${spoken(r.project)}: ${why || "no error was recorded"}.`;
   });
-  return `${count(failed.length, "failure")}. ${items.join(" ")}`;
+  // A project's name keeps its own case, even where it opens a sentence.
+  return `${sentence(count(failed.length, "failure"))}. ${items.join(" ")}`;
+}
+
+/** ": heidi for 12 minutes", " on loki" (all on one), ": two on loki and
+ *  heidi for 3 minutes" — a project with several agents is named once. */
+function workingWhere(working: FleetSnapshot["working"]): string {
+  const byProject = new Map<string, number[]>();
+  for (const w of working) {
+    const name = spoken(w.project);
+    byProject.set(name, [...(byProject.get(name) ?? []), w.sinceMin]);
+  }
+  if (byProject.size === 1 && working.length > 1) return ` on ${spoken(working[0].project)}`;
+  const parts = [...byProject].map(([name, mins]) =>
+    mins.length === 1 ? `${name} ${since(mins[0])}` : `${count(mins.length, "agent")} on ${name}`,
+  );
+  return `: ${list(parts)}`;
 }
 
 export function composeHelp(): string {

@@ -15,7 +15,10 @@ import {
   WIDGET_SELF_NOTE_MAX,
 } from "../../src/lib/widget/self-report";
 import {
+  BACKGROUND_FAILS,
+  backgroundRead,
   classifyOwnRequest,
+  nextReadStreak,
   panelOverflow,
   SELF_SLOW_MS,
   selfSay,
@@ -142,16 +145,41 @@ check(() => {
   // words says they are still here to send again.
   assert.match(
     selfSay("request", true, false, "POST /api/feedback answered 502 after 3.0s"),
-    /my call to Loki to save your note failed\. I've sent it to the people who build Loki\. Your words are still here — press it again\.$/,
+    /I couldn't save your note just now\. I've sent it to the people who build Loki\. Your words are still here — press it again\.$/,
   );
   assert.match(
     selfSay("slow", true, false, "POST /api/widget/advise took 24.0s"),
-    /my call to Loki to answer you was very slow.*nothing for you to do/,
+    /asking Loki to answer you took far too long.*nothing for you to do/,
   );
-  assert.match(
+  // Said as a person would say it, not "my call to Loki to read where your
+  // changes are failed" (2026-10-20).
+  assert.equal(
     selfSay("request", true, false, "GET /api/widget/owner/changes answered 500 after 1.0s"),
-    /read where your changes are failed.*nothing for you to do/,
+    "About me, not this page: I couldn't check on your changes just now. I've sent it to the people who build Loki — nothing for you to do.",
     "a call that carried none of the owner's words asks nothing of them",
+  );
+  // A read the widget repeats on its own is a fault only when it keeps
+  // failing: one dropped poll (a phone waking, a deploy restarting) is not.
+  assert.equal(
+    backgroundRead("https://loki/api/widget/owner/changes"),
+    backgroundRead("/api/widget/owner/changes"),
+  );
+  assert.equal(
+    backgroundRead("https://loki/api/feedback"),
+    null,
+    "a note is never a background read",
+  );
+  let streak = 0;
+  const fails: boolean[] = [];
+  for (const failed of [true, true, false, true, true, true, true]) {
+    const next = nextReadStreak(streak, failed);
+    streak = next.streak;
+    fails.push(next.report);
+  }
+  assert.deepEqual(
+    fails,
+    [false, false, false, false, false, true, false],
+    `reported once, on the ${BACKGROUND_FAILS}rd failure in a row — a success in between starts over`,
   );
   assert.match(
     selfSay("request", true, false, "POST /api/elsewhere answered 500"),

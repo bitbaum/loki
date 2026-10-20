@@ -8,8 +8,10 @@
  * an example so it can be acted on. They cost one bounded DOM pass (no layout
  * thrash beyond reading rects) and never touch what anyone typed.
  *
- * Tested in a real browser: scripts/test/widget-watch-browser.ts.
+ * Tested in a real browser: scripts/test/widget-watch-browser.ts and
+ * scripts/test/widget-page-checks-browser.ts.
  */
+import { stableChecks } from "./watch-trail";
 
 /** WCAG 2.2 AA (2.5.8): targets at least 24×24 CSS px. */
 export const MIN_TARGET_PX = 24;
@@ -22,14 +24,27 @@ const MAX_CHECKS = 8;
 const clean = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").trim();
 const quote = (s: string) => `“${clean(s).slice(0, 40)}”`;
 
+/** Loki's own UI in the light DOM. Its panel lives in a shadow root, which
+ *  querySelectorAll never enters; this covers the host and anything in it. */
 function ours(el: Element): boolean {
   return el.closest("#loki-feedback-host") !== null;
 }
 
+/**
+ * On screen for a person, or read out to one. Only the element's OWN style
+ * used to be read, so a heading inside a wrapper the page had just hidden —
+ * the setup screen a page swaps out — still counted. Now: not inside a
+ * hidden, inert or aria-hidden subtree, not display:none or visibility:hidden
+ * anywhere up the tree, and with a size.
+ */
 function shown(el: Element): boolean {
   if (!(el instanceof HTMLElement)) return true;
+  if (el.closest("[hidden],[inert],[aria-hidden=true]")) return false;
   const r = el.getBoundingClientRect();
   if (r.width === 0 && r.height === 0) return false;
+  const check = (el as { checkVisibility?: (o?: Record<string, boolean>) => boolean })
+    .checkVisibility;
+  if (check && !check.call(el, { visibilityProperty: true })) return false;
   const cs = getComputedStyle(el);
   return cs.visibility !== "hidden" && cs.display !== "none";
 }
@@ -227,4 +242,64 @@ export function runPageChecks(doc: Document = document): string[] {
   if (tiny) out.push(`${tiny} piece(s) of text are under ${MIN_TEXT_PX}px (e.g. ${tinyExample})`);
 
   return out.slice(0, MAX_CHECKS);
+}
+
+/** No change to the page for this long, and it counts as settled. */
+export const SETTLE_QUIET_MS = 800;
+/** Measured twice this far apart; only what both readings agree on is said. */
+export const CONFIRM_MS = 1_200;
+/** A page that never stops moving (a ticker, an animation) is measured anyway. */
+export const SETTLE_MAX_MS = 8_000;
+
+/** Resolve once nothing outside Loki's own UI has changed for `quietMs`, or
+ *  after `maxMs` whatever the page is doing. */
+export function pageSettled(
+  doc: Document,
+  isOurs: (node: Node) => boolean,
+  quietMs = SETTLE_QUIET_MS,
+  maxMs = SETTLE_MAX_MS,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const win = doc.defaultView ?? window;
+    const observer = new MutationObserver((records) => {
+      if (!records.some((r) => !isOurs(r.target))) return;
+      win.clearTimeout(quiet);
+      quiet = win.setTimeout(done, quietMs);
+    });
+    const done = () => {
+      observer.disconnect();
+      win.clearTimeout(quiet);
+      win.clearTimeout(cap);
+      resolve();
+    };
+    let quiet = win.setTimeout(done, quietMs);
+    const cap = win.setTimeout(done, maxMs);
+    observer.observe(doc.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterData: true,
+    });
+  });
+}
+
+/**
+ * The checks as Watch says them: taken once the page has held still, taken
+ * again a moment later, and only what both readings found (stableChecks). A
+ * page caught mid-swap was measured once and said as measured — on /voice
+ * that was "no main title" from one reading and "2 main titles" from another
+ * (operator's phone, 2026-10-20).
+ */
+export async function settledPageChecks(
+  doc: Document,
+  isOurs: (node: Node) => boolean,
+  timing: { quietMs?: number; confirmMs?: number; maxMs?: number } = {},
+): Promise<string[]> {
+  const quietMs = timing.quietMs ?? SETTLE_QUIET_MS;
+  const maxMs = timing.maxMs ?? SETTLE_MAX_MS;
+  await pageSettled(doc, isOurs, quietMs, maxMs);
+  const first = runPageChecks(doc);
+  await new Promise((r) => setTimeout(r, timing.confirmMs ?? CONFIRM_MS));
+  await pageSettled(doc, isOurs, quietMs, maxMs);
+  return stableChecks(first, runPageChecks(doc));
 }

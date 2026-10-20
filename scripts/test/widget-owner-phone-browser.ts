@@ -29,6 +29,8 @@ const changes = Array.from({ length: 14 }, (_, i) => ({
   settled: i >= 11,
   href: null,
   action: null,
+  // The server marks what waits on the owner (owner-view.ts); the line counts it.
+  needsYou: i < 11,
 }));
 
 async function main() {

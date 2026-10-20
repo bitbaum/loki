@@ -1,7 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
-import { EARCONS, MUSIC, chordAt, midiToHz, type EarconKind } from "@/lib/voice/soundscape";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  EARCONS,
+  EARCON_GAIN,
+  MUSIC,
+  chordAt,
+  midiToHz,
+  type EarconKind,
+} from "@/lib/voice/soundscape";
 
 /**
  * The air around the voice: one AudioContext that carries the earcons, the
@@ -94,6 +101,14 @@ export function useSoundscape() {
         speech.gain.value = 1;
         speech.connect(master);
 
+        // A context the phone suspended while the music is meant to play is
+        // asked back at once; the platform allows it to a page that has had
+        // a tap, and says no otherwise (the next tap on the circle retries).
+        const own = ctx;
+        own.onstatechange = () => {
+          if (musicTimerRef.current !== null && own.state === "suspended")
+            void own.resume().catch(() => {});
+        };
         ctxRef.current = ctx;
         masterRef.current = master;
         musicGainRef.current = musicGain;
@@ -102,11 +117,25 @@ export function useSoundscape() {
         streamRef.current = stream;
         if (!stream) connectDirect();
       }
+      // Synchronously, inside the tap that called arm(): a context resumed
+      // later, after an await, may be refused as "not started by a gesture".
       if (ctx.state !== "running") void ctx.resume().catch(() => {});
       return { ctx, speech: speechRef.current as AudioNode, stream: streamRef.current };
     },
     [connectDirect],
   );
+
+  /**
+   * Wake the context if the phone put it to sleep. Android suspends a page's
+   * audio when another app takes the speaker for a moment — the phone's own
+   * text-to-speech is one — and nothing woke it again, so the bed went quiet
+   * for the rest of the session. Called on every tap on the circle (a
+   * gesture, so it is allowed), and whenever the context says it stopped.
+   */
+  const resume = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (ctx && ctx.state !== "running" && ctx.state !== "closed") void ctx.resume().catch(() => {});
+  }, []);
 
   const earcon = useCallback((kind: EarconKind) => {
     const ctx = ctxRef.current;
@@ -119,7 +148,7 @@ export function useSoundscape() {
       osc.frequency.value = midiToHz(n.midi);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, t0 + n.at);
-      g.gain.linearRampToValueAtTime(0.16, t0 + n.at + 0.008);
+      g.gain.linearRampToValueAtTime(EARCON_GAIN, t0 + n.at + 0.008);
       g.gain.exponentialRampToValueAtTime(0.001, t0 + n.at + n.dur);
       osc.connect(g).connect(master);
       osc.start(t0 + n.at);
@@ -144,7 +173,7 @@ export function useSoundscape() {
     for (const midi of notes) {
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.22 / notes.length, now + MUSIC.attackSeconds);
+      gain.gain.linearRampToValueAtTime(MUSIC.chordGain / notes.length, now + MUSIC.attackSeconds);
       gain.connect(input);
       const oscs = [ctx.createOscillator(), ctx.createOscillator()];
       oscs[0].type = "sine";
@@ -212,5 +241,24 @@ export function useSoundscape() {
 
   useEffect(() => dispose, [dispose]);
 
-  return { arm, connectDirect, earcon, startMusic, stopMusic, duck, dispose };
+  // Wake the context when the person comes back to the page.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") resume();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [resume]);
+
+  // ONE object for the life of the component. It was a new one on every
+  // render, so every effect that listed it re-ran on every render — and the
+  // voice page renders about twenty times a second while it listens (the
+  // level meter): the gain was re-ramped each frame, the "heard" blip could
+  // fire more than once, and the twenty-second fleet poll was cleared and
+  // re-armed before it could ever fire, so nothing was announced while the
+  // microphone was open.
+  return useMemo(
+    () => ({ arm, connectDirect, resume, earcon, startMusic, stopMusic, duck, dispose }),
+    [arm, connectDirect, resume, earcon, startMusic, stopMusic, duck, dispose],
+  );
 }

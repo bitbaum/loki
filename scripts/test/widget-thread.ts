@@ -6,9 +6,12 @@
 import assert from "node:assert/strict";
 import {
   assistantFor,
+  dropNoticed,
   historyFor,
   isPageReadKey,
+  noticeSlot,
   pushItem,
+  pushNoticed,
   pushPageRead,
   restoreThread,
   THREAD_MAX,
@@ -186,6 +189,66 @@ assert.deepEqual(parseWidgetSurfaceModes("nonsense"), ["report", "ask"]);
   assert.ok(
     isPageReadKey("/b|read") && !isPageReadKey("/a|notice|slow") && !isPageReadKey(undefined),
   );
+}
+
+// ---- one card per finding: a new reading updates it, never stacks ----
+{
+  // 2026-10-20, operator's phone on /voice: "no main title" three times in
+  // one panel, "1 form field has no label" beside "2 form fields have no
+  // label". A page's checks own ONE card; each reading replaces it in place.
+  const checks = (
+    at: number,
+    kinds: string,
+    text: string,
+  ): Extract<ThreadItem, { kind: "noticed" }> => ({
+    kind: "noticed",
+    at,
+    text,
+    fix: "f",
+    key: `/voice|checks|${kinds}`,
+  });
+  let t: ThreadItem[] = [];
+  t = pushNoticed(t, checks(1, "The page's main heading (h1)", "no main title"));
+  t = pushItem(t, { kind: "you", at: 2, text: "hello" });
+  t = pushNoticed(
+    t,
+    checks(3, "The page's main heading (h1)|# form field(s) have no label", "two things"),
+  );
+  t = pushNoticed(t, checks(4, "# form field(s) have no label", "one field"));
+  assert.deepEqual(
+    t.map((i) => `${i.at}:${i.kind}`),
+    ["4:noticed", "2:you"],
+    "the card keeps its place and shows only the newest reading",
+  );
+  // The same words again (a reload): nothing changes.
+  assert.equal(pushNoticed(t, checks(4, "# form field(s) have no label", "one field")), t);
+  // Another page's checks are another card.
+  t = pushNoticed(t, {
+    kind: "noticed",
+    at: 5,
+    text: "other page",
+    fix: "f",
+    key: "/loki|checks|x",
+  });
+  assert.equal(t.filter((i) => i.kind === "noticed").length, 2);
+  // A remark whose words are already on screen is not said twice.
+  const slow = { kind: "noticed" as const, at: 6, text: "It took 4s", fix: "f", key: "/a|slow|x" };
+  t = pushNoticed(t, slow);
+  assert.equal(pushNoticed(t, { ...slow, at: 7, key: "/b|slow|y" }).length, t.length);
+  // A clean reading takes the page's card back.
+  assert.equal(noticeSlot("/voice|checks|# form field(s) have no label"), "/voice|checks");
+  assert.equal(noticeSlot("/voice|fail|request:x"), "/voice|fail|request:x");
+  const dropped = dropNoticed(t, "/voice|checks");
+  assert.deepEqual(
+    dropped.map((i) => i.at),
+    [2, 5, 6],
+    "only that page's card goes",
+  );
+  assert.equal(dropNoticed(dropped, "/voice|checks"), dropped, "nothing to drop: same thread");
+  // Reads keep their own rule: one read at a time.
+  t = pushNoticed(t, { kind: "noticed", at: 8, text: "read a", fix: "f", key: "/a|read" });
+  t = pushNoticed(t, { kind: "noticed", at: 9, text: "read b", fix: "f", key: "/b|read" });
+  assert.equal(t.filter((i) => i.kind === "noticed" && isPageReadKey(i.key)).length, 1);
 }
 
 // ---- the thread as model history ----

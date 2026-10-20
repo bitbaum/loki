@@ -25,6 +25,7 @@ export type VoiceCommandKind =
   | "repeat"
   | "details"
   | "quiet"
+  | "voice"
   | "end"
   | "ask";
 
@@ -91,6 +92,11 @@ export const NO_SCREEN_COMMANDS: readonly VoiceCommandDoc[] = [
     kind: "quiet",
     say: ["Quiet", "Hold on"],
     does: "Stops talking and listens.",
+  },
+  {
+    kind: "voice",
+    say: ["Use Troy", "Change your voice to Diana", "Other voice", "Change your voice"],
+    does: 'Loki reads with that voice from now on, as if you had picked it on screen. "Other voice" tries the next one; without a name it lists them.',
   },
   {
     kind: "help",
@@ -303,5 +309,26 @@ export const NO_SCREEN_DEFAULT_SETTINGS: NoScreenSettings = {
   bargeIn: true,
   mode: "everything",
 };
+/**
+ * The three switches on the start screen, each with the one line that says
+ * what it does. The screen shows the line under its switch, and Loki is told
+ * the same lines when asked about itself (lib/voice/self.ts) — one wording,
+ * so what it says about a switch is what the switch says.
+ */
+export const NO_SCREEN_OPTIONS = {
+  music: {
+    title: "Music bed",
+    note: "Quiet music the phone plays under Loki, so a silence never sounds like a dropped line.",
+  },
+  bargeIn: {
+    title: "Talk to interrupt",
+    note: "Start talking while Loki speaks and it stops to listen. Off: press the circle or the headphone button.",
+  },
+  important: {
+    title: "Only what needs me",
+    note: "Failures and approvals straight away; finished runs saved up and read together every five minutes.",
+  },
+} as const;
+
 /** Per-device conveniences, kept in the browser (no account state). */
 export const NO_SCREEN_SETTINGS_KEY = "loki.no-screen.settings";

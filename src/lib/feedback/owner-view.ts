@@ -81,11 +81,13 @@ export function ownerStatusFor(work: FeedbackWorkView, requiresReview = false): 
       };
     case FEEDBACK_WORK_PHASE.STUCK:
     case FEEDBACK_WORK_PHASE.FAILED:
+      // The way into Loki is the row's link (ownerTap), never a sentence that
+      // says "open it" with nothing to press (2026-10-20).
       return {
         ...base,
         label: "Needs you",
         tone: "warning",
-        detail: "The attempt did not finish. Open it in Loki to see why and try again.",
+        detail: "The attempt did not finish.",
         needsYou: true,
       };
     case FEEDBACK_WORK_PHASE.NEEDS_VERIFY: {
@@ -135,6 +137,25 @@ export function ownerStatusFor(work: FeedbackWorkView, requiresReview = false): 
   }
 }
 
+/**
+ * Where a row's one tap goes, and the words on it. Every "needs you" carries
+ * the tap that acts on it: a failed attempt opens THAT run's Watch page (via
+ * the stable /feedback/<id>/watch-fix address, which resolves the run, or the
+ * project's inbox when there is none), so "see why and try again" is one
+ * press. Pure; the route turns `to` into a URL.
+ */
+export function ownerTap(
+  status: Pick<OwnerChangeStatus, "label" | "live" | "needsYou">,
+  hasRun: boolean,
+): { to: "live" | "run" | "inbox" | null; action: string | null } {
+  if (status.live) return { to: "live", action: "See it" };
+  if (status.label === "Needs you")
+    return { to: hasRun ? "run" : "inbox", action: "Open it in Loki to see why" };
+  if (status.needsYou) return { to: "inbox", action: "Open in Loki" };
+  if (hasRun) return { to: "run", action: "Watch it" };
+  return { to: null, action: null };
+}
+
 /** Mirrors widget/changes.ts. */
 export const OWNER_CHANGES_MAX = 12;
 /** Rows read before the owner's own are picked out of them. */
@@ -154,6 +175,9 @@ export type OwnerChange = {
   /** Where "See it" / "Open in Loki" goes, when there is somewhere to go. */
   href: string | null;
   action: string | null;
+  /** Waiting on the owner's decision: a saved note, one not started, a
+   *  failed attempt. Exactly what "N changes need you" counts. */
+  needsYou: boolean;
 };
 
 /**
@@ -174,6 +198,8 @@ export type KnownFix = {
   live: boolean;
   settled: boolean;
   href: string | null;
+  /** The words on the link (ownerTap). */
+  action: string | null;
 };
 
 /** How many keyed rows the widget is told about — enough for a whole site. */

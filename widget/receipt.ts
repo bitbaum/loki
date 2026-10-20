@@ -10,36 +10,45 @@ import type { ThreadItem } from "./thread";
 type Sent = Extract<ThreadItem, { kind: "sent" }>;
 
 /**
- * How much of what was sent the receipt's sentence quotes. The whole note is
- * kept and shown under it (receiptFull): the receipt used to be the only copy
- * the person saw, cut at 300 characters, so a 90-second voice note read as if
- * all but its first sentence had been lost (2026-10-16).
+ * The longest note the receipt's sentence quotes whole. Anything longer — or
+ * on more than one line, like a spoken note's list of changes — is named
+ * ("your 3 changes", "your note") and shown in full under the sentence,
+ * clamped to whole lines with "Show all" (conversation-kit.ts sentFull). A
+ * quote cut to fit read "Saved “3 changes: Make it possible for users to hear
+ * what is…” with nothing to open (owner's phone, 2026-10-20); before that, a
+ * 300-character cut made a 90-second note look lost (2026-10-16).
  */
 export const RECEIPT_QUOTE = 140;
 
-function quote(text: string): string {
+const fitsInline = (text: string) => {
   const t = text.trim();
-  if (t.length <= RECEIPT_QUOTE) return `“${t}”`;
-  const cut = t.slice(0, RECEIPT_QUOTE).replace(/\s+\S*$/, "");
-  return `“${cut}…”`;
+  return t.length <= RECEIPT_QUOTE && !t.includes("\n");
+};
+
+/** What the sentence calls what was sent: the words, or a name for them. */
+function quote(item: Sent): string {
+  const t = item.text.trim();
+  if (fitsInline(t)) return `“${t}”`;
+  return item.changes && item.changes > 1 ? `your ${item.changes} changes` : "your note";
 }
 
-/** The whole of what was sent, when the sentence above quoted only its start. */
+/** The whole of what was sent, when the sentence above only named it. */
 export function receiptFull(item: Sent): string | null {
-  return item.text.trim().length > RECEIPT_QUOTE ? item.text.trim() : null;
+  return fitsInline(item.text) ? null : item.text.trim();
 }
 
 export function receiptText(item: Sent): string {
-  const q = quote(item.text);
+  const q = quote(item);
+  const is = !fitsInline(item.text) && (item.changes ?? 1) > 1 ? "are" : "is";
   if (item.toLoki) {
     if (item.building)
-      return `On it — ${q} is being built into Loki itself. It goes live by itself; you'll see it here.`;
+      return `On it — ${q} ${is} being built into Loki itself. It goes live by itself; you'll see it here.`;
     if (item.note) return `Sent to Loki about itself: ${q}. ${item.note}`;
     return `Sent to the people who build Loki: ${q}. Thank you — it helps the panel you're using get better.`;
   }
   if (item.owner) {
     if (item.building)
-      return `On it — ${q} is being built. Follow it on the Watching line above; it goes live here by itself and Loki tells you.`;
+      return `On it — ${q} ${is} being built. Follow it on the Watching line above; it goes live here by itself and Loki tells you.`;
     return `Saved ${q}. ${item.note ?? "It waits with your other saved notes — build them all from the Watching line above when you're ready."}`;
   }
   // A member of the project (a client): Loki says what happened, in the

@@ -13,23 +13,35 @@ import type { Project } from "./types";
  * them here.
  *
  * Usage:
- *   const { openRun, openSchedule, modals } = usePromptModals(template, projects);
+ *   const { openRun, openSchedule, modals } = usePromptModals(template, projects, timeZone);
  *   <button onClick={openRun}>Run</button>
  *   {modals}
  */
-export function usePromptModals(template: PromptTemplate, projects: Project[]) {
+export function usePromptModals(
+  template: PromptTemplate,
+  projects: Project[],
+  timeZone: string,
+  pinnedProjectId?: string | null,
+) {
   const [showRun, setShowRun] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
 
   const modals = (
     <>
       {showRun && (
-        <RunModal template={template} projects={projects} onClose={() => setShowRun(false)} />
+        <RunModal
+          template={template}
+          projects={projects}
+          pinnedProjectId={pinnedProjectId}
+          onClose={() => setShowRun(false)}
+        />
       )}
       {showSchedule && (
         <ScheduleModal
           template={template}
           projects={projects}
+          timeZone={timeZone}
+          pinnedProjectId={pinnedProjectId}
           onClose={() => setShowSchedule(false)}
         />
       )}

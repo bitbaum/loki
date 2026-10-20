@@ -99,9 +99,42 @@ const CALLS: Array<[RegExp, string, boolean]> = [
   [/\/api\/widget\/owner\/build\b/, "start your builds", true],
   [/\/api\/widget\/(advise|chat|understand)\b/, "answer you", true],
   [/\/api\/widget\/transcribe\b/, "write down what you said", true],
-  [/\/api\/widget\/owner\/changes\b/, "read where your changes are", false],
-  [/\/api\/widget-boot\b/, "load", false],
+  [/\/api\/widget\/owner\/changes\b/, "check on your changes", false],
+  [/\/api\/widget-boot\b/, "finish loading", false],
 ];
+
+/**
+ * Reads the widget repeats on its own (the changes poll every half minute,
+ * the boot check). One that fails once is asked again moments later and
+ * nobody is the worse for it: a phone waking from its lock screen, a deploy
+ * restarting the server, a tunnel. Only a read that keeps failing is a fault
+ * worth telling Loki about — the owner was told "my call to Loki … failed"
+ * for one dropped poll (2026-10-20).
+ */
+const BACKGROUND_READS: readonly RegExp[] = [
+  /\/api\/widget\/owner\/changes\b/,
+  /\/api\/widget-boot\b/,
+];
+/** Failures in a row before a background read counts as broken. */
+export const BACKGROUND_FAILS = 3;
+
+/** Which background read a URL is, if any (its pattern's source). */
+export function backgroundRead(url: string): string | null {
+  return BACKGROUND_READS.find((re) => re.test(url))?.source ?? null;
+}
+
+/**
+ * Fold one finished background read into its failure streak. `report` is
+ * true on the failure that completes the streak, and only then.
+ */
+export function nextReadStreak(
+  streak: number,
+  failed: boolean,
+): { streak: number; report: boolean } {
+  if (!failed) return { streak: 0, report: false };
+  const next = streak + 1;
+  return { streak: next, report: next === BACKGROUND_FAILS };
+}
 
 export function callInWords(detail: string | undefined): { doing: string; yours: boolean } | null {
   if (!detail) return null;
@@ -116,10 +149,12 @@ export function selfSay(
   detail?: string,
 ): string {
   const call = kind === "request" || kind === "slow" ? callInWords(detail) : null;
+  // "I couldn't check on your changes just now", not "my call to Loki to
+  // read where your changes are failed" — a sentence the owner had to parse.
   const what = call
     ? kind === "slow"
-      ? `my call to Loki to ${call.doing} was very slow`
-      : `my call to Loki to ${call.doing} failed`
+      ? `asking Loki to ${call.doing} took far too long`
+      : `I couldn't ${call.doing} just now`
     : SAY[kind];
   // A failed call that carried the owner's words is theirs to redo: the
   // note or the question is still in the panel, and one press sends it.
@@ -166,6 +201,8 @@ export function installSelfWatch(opts: {
 } {
   const said = readSaid(opts.token);
   let filed = 0;
+  /** Failures in a row, per background read (BACKGROUND_READS). */
+  const streaks = new Map<string, number>();
   const found = (f: Finding) => {
     const pass = opts.pass();
     if (!pass || !opts.active() || said.has(f.kind) || filed >= SELF_PER_PAGE) return;
@@ -202,6 +239,13 @@ export function installSelfWatch(opts: {
       // The report itself is not reported (see found()).
       if (url.includes("/api/widget/self-report")) return;
       const f = classifyOwnRequest(method, url, status, ms);
+      const read = backgroundRead(url);
+      if (read) {
+        // A repeated read is a fault only when it keeps failing.
+        const next = nextReadStreak(streaks.get(read) ?? 0, f?.kind === "request");
+        streaks.set(read, next.streak);
+        if (f?.kind === "request" && !next.report) return;
+      }
       if (f) found(f);
     },
     checkPanel: (panel) => {

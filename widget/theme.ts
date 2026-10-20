@@ -417,8 +417,8 @@ ${spiralCSS(theme)}
 .noticed-actions { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-top: 6px; }
 .noticed-actions .act { margin-top: 0; align-self: center; }
 /* Where the fix for this finding is — in place of a second "Fix this". */
-.noticed-status { display: block; margin-top: 6px; font-size: 12px; line-height: 1.4; color: ${theme.textTertiary}; text-decoration: none; }
-a.noticed-status:hover { text-decoration: underline; }
+.noticed-status { display: block; margin-top: 6px; font-size: 12px; line-height: 1.4; color: ${theme.textTertiary}; }
+.noticed-go { display: inline-block; padding: 4px 0; font-weight: 600; color: inherit; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
 .noticed-status.tone-accent { color: ${theme.accent}; }
 .noticed-status.tone-positive { color: ${theme.success}; }
 .noticed-status.tone-warning { color: ${theme.error}; }
@@ -441,13 +441,13 @@ a.noticed-status:hover { text-decoration: underline; }
 .yours-build { align-self: flex-start; margin: 4px 0 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; font-size: 12px; font-weight: 600; background: ${theme.text}; color: ${theme.surface}; }
 .yours-build:disabled { opacity: .6; cursor: default; }
 .yours-list { display: flex; flex-direction: column; }
-.yours-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; padding: 7px 0; font-size: 12px; line-height: 1.4; color: inherit; text-decoration: none; }
-a.yours-row:hover .yours-text { color: ${theme.accent}; }
+.yours-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; width: 100%; text-align: left; padding: 7px 0; font-size: 12px; line-height: 1.4; color: inherit; text-decoration: none; }
+a.yours-row:hover .yours-text, button.yours-row:hover .yours-text { color: ${theme.accent}; }
 .yours-dot { width: 7px; height: 7px; border-radius: 50%; background: ${theme.textMuted}; }
 .yours-row.tone-accent .yours-dot { background: ${theme.accent}; }
 .yours-row.tone-positive .yours-dot { background: ${theme.success}; }
 .yours-row.tone-warning .yours-dot { background: ${theme.error}; }
-.yours-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: ${theme.text}; }
+.yours-text { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; color: ${theme.text}; }
 .yours-status { font-size: 11px; color: ${theme.textTertiary}; white-space: nowrap; }
 .yours-row.tone-positive .yours-status { color: ${theme.success}; }
 .yours-row.tone-warning .yours-status { color: ${theme.error}; }
@@ -685,13 +685,12 @@ function sendCardCSS(theme: WidgetTheme, rs: string): string {
 .sendcard-actions { flex-wrap: wrap; align-items: center; }
 .ghost.outline { border: 1px solid ${theme.borderStrong}; color: ${theme.text}; }
 .ghost.outline:hover { border-color: ${theme.borderDark}; }
-/* The whole of a sent note, folded under its receipt. */
-.sent-full { margin-top: 6px; font-size: 12px; }
-.sent-full summary { cursor: pointer; color: ${theme.textSecondary}; font-weight: 500; list-style: none; }
-.sent-full summary::-webkit-details-marker { display: none; }
-.sent-full summary::after { content: " ↓"; }
-.sent-full[open] summary::after { content: " ↑"; }
-.sent-full-text { margin-top: 6px; padding: 8px 10px; border-left: 2px solid ${theme.border}; color: ${theme.textSecondary}; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* A sent note under its receipt: whole lines, then "Show all" — never cut at the edge. */
+.sent-full { margin-top: 6px; font-size: 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.sent-full-text { align-self: stretch; padding: 8px 10px; border-left: 2px solid ${theme.border}; color: ${theme.textSecondary}; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sent-full-text.clamped { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.sent-full-more { min-height: 32px; padding: 0 2px; color: ${theme.textSecondary}; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.sent-full-more:hover { color: ${theme.text}; }
 .sendcard .err { margin-top: 0; }
 .voice-note { gap: 14px; padding: 16px; border-color: ${theme.borderStrong}; }
 .voice-note .changes-title { font: 500 16px/1.4 ${theme.fontSans ?? "system-ui,sans-serif"}; color: ${theme.text}; text-transform: none; letter-spacing: normal; }

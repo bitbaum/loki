@@ -40,12 +40,14 @@ assert.equal(thoughtsSummary(trail.slice(0, 2), true), "Watching · 1 page · no
 assert.match(thoughtsSummary([], true), /waiting for the page to settle/);
 assert.match(thoughtsSummary(trail, false), /^Not watching/);
 
-// The status line says the state in as few words as it can: the counts stay
-// in the tooltip and the list.
-assert.equal(watchHeadline(trail, true), "Watching · noticed 2 things");
-assert.equal(watchHeadline(trail.slice(0, 2), true), "Watching");
-assert.equal(watchHeadline([], true), "Watching");
-assert.equal(watchHeadline(trail, false), "Paused");
+// The status line says the state, and the ONE number it ever carries is what
+// waits on the owner (changes.ts changesHeadline). What Loki noticed is in the
+// list, never counted on the line — "noticed 4 things" beside "9 changes need
+// you" was two numbers of two things (2026-10-20).
+assert.equal(watchHeadline(true), "Watching", "nothing waiting: just the state");
+assert.equal(watchHeadline(false), "Paused");
+assert.equal(watchHeadline(true, "2 changes need you"), "Watching · 2 changes need you");
+assert.equal(watchHeadline(false, "1 change needs you"), "Paused · 1 change needs you");
 
 // `look` survives a page load like every other step.
 assert.equal(freshTrail(trail, t0 + 30_000).length, trail.length);

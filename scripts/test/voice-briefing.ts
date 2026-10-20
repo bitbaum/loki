@@ -13,6 +13,8 @@ import {
   diffSnapshots,
   excerptForSpeech,
   list,
+  sentence,
+  whereSaid,
   type FleetSnapshot,
 } from "../../src/lib/voice/briefing";
 
@@ -68,17 +70,65 @@ check(() => {
     { id: "r1", project: "orangecat", failed: true, finishedAt: null, note: "tsc: 3 errors" },
   ];
   const b = composeBriefing(s);
-  assert.match(b, /one agent is working: heidi for 12 minutes\./);
-  assert.match(b, /one thing is waiting on you\. Say "what's waiting"/);
-  assert.match(b, /one run failed: orangecat\./);
+  assert.match(b, /One agent is working: heidi for 12 minutes\./);
+  assert.match(b, /One thing is waiting on you\. Say "what's waiting"/);
+  assert.match(b, /One run failed on orangecat\./);
   // Lead with the fleet, not with the builder being fine.
   assert.ok(!b.includes("online"));
   // Read once from /today's Listen button: same facts, no spoken commands
   // inviting a reply that nothing is listening for.
   const quiet = composeBriefing(s, { hints: false });
-  assert.match(quiet, /one thing is waiting on you\./);
-  assert.match(quiet, /one run failed: orangecat\./);
+  assert.match(quiet, /One thing is waiting on you\./);
+  assert.match(quiet, /One run failed on orangecat\./);
   assert.ok(!quiet.includes("Say "));
+});
+
+check(() => {
+  // The owner's briefing, 2026-10-20: every sentence starts with a capital,
+  // and a project that repeats is named once, with how many.
+  const s = empty();
+  s.waitingForBuilder = [{ project: "loki", sinceMin: 4 }];
+  s.approvalsLocked = true;
+  const run = (id: string, project: string) => ({
+    id,
+    project,
+    failed: true,
+    finishedAt: null,
+    note: null,
+  });
+  s.recentRuns = [run("r1", "loki"), run("r2", "loki"), run("r3", "loki")];
+  assert.equal(
+    composeBriefing(s),
+    'Nobody is working right now. One run is waiting for a builder on loki. Approvals are locked behind your PIN. Unlock them on screen to hear them. Three runs failed on loki. Say "what failed" for the errors.',
+  );
+  s.recentRuns = [run("r1", "loki"), run("r2", "heidi"), run("r3", "loki"), run("r4", "loki")];
+  assert.match(composeBriefing(s), /Four runs failed: loki three times and heidi once\./);
+  s.recentRuns = [run("r1", "loki"), run("r2", "heidi")];
+  assert.match(composeBriefing(s), /Two runs failed: loki and heidi\./);
+  // Every sentence of a busy briefing opens with a capital.
+  for (const part of composeBriefing(s).split(/(?<=\.) /)) assert.match(part, /^[A-Z"]/, part);
+});
+
+check(() => {
+  assert.equal(sentence("three runs"), "Three runs");
+  assert.equal(whereSaid([]), "");
+  assert.equal(whereSaid(["loki"]), " on loki");
+  assert.equal(whereSaid(["loki", "loki"]), " on loki");
+  assert.equal(whereSaid(["a", "b", "c"]), ": a, b and c");
+  assert.equal(whereSaid(["a", "b", "a"]), ": a twice and b once");
+  // Several agents on one project: named once.
+  const s = empty();
+  s.working = [
+    { project: "loki", sinceMin: 3 },
+    { project: "loki", sinceMin: 9 },
+    { project: "heidi", sinceMin: 12 },
+  ];
+  assert.match(
+    composeBriefing(s),
+    /^Three agents are working: two agents on loki and heidi for 12 minutes\./,
+  );
+  s.working = s.working.slice(0, 2);
+  assert.match(composeBriefing(s), /^Two agents are working on loki\./);
 });
 
 check(() => {
@@ -104,7 +154,7 @@ check(() => {
   const w = composeWaiting(s);
   assert.match(
     w,
-    /^two things\. First: Send a message to Anna\. Second: Book Friday 10:00 with Ben\./,
+    /^Two things\. First: Send a message to Anna\. Second: Book Friday 10:00 with Ben\./,
   );
   assert.match(w, /approve the first one/);
 });
@@ -115,7 +165,7 @@ check(() => {
   s.recentRuns = [
     { id: "r1", project: "aoz-begleitung", failed: true, finishedAt: null, note: null },
   ];
-  assert.equal(composeFailures(s), "one failure. aoz begleitung: no error was recorded.");
+  assert.equal(composeFailures(s), "One failure. aoz begleitung: no error was recorded.");
 });
 
 check(() => {

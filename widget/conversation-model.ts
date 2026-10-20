@@ -26,10 +26,10 @@ import {
   type Answer,
 } from "./loki-api";
 import {
+  dropNoticed,
   historyFor,
-  isPageReadKey,
   pushItem,
-  pushPageRead,
+  pushNoticed,
   restoreThread,
   type Assistant,
   type Link,
@@ -117,6 +117,17 @@ export type Draft = {
   /** The read is on its way — the card works without it in the meantime. */
   reading?: boolean;
 };
+
+/**
+ * Changes said but not saved yet: a spoken note's change lines while its card
+ * is open (or the note itself, before Loki has read it into lines). They wait
+ * on the owner's Save, so the header counts them among what needs them.
+ */
+export function unsavedChanges(draft: Draft | null): number {
+  if (!draft || draft.intent !== "note") return 0;
+  if (draft.items) return draft.items.filter((i) => i.kind === "change" && i.text.trim()).length;
+  return draft.text.trim() ? 1 : 0;
+}
 
 const draftKey = (token: string) => `loki-voice-draft:${token}`;
 function readRecordedDraft(token: string): Draft | null {
@@ -422,7 +433,12 @@ export function createConversationModel(opts: ConversationModelOpts) {
   }
 
   /** After filing: the card goes (or keeps what is left), the receipt lands. */
-  function sent(res: Awaited<ReturnType<typeof sendReport>>, body: string, left?: Draft) {
+  function sent(
+    res: Awaited<ReturnType<typeof sendReport>>,
+    body: string,
+    left?: Draft,
+    count = 1,
+  ) {
     draft = left ?? null;
     keepRecordedDraft(opts.token, draft);
     opts.screenshots.clear();
@@ -435,6 +451,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
       ...(res.member ? { member: true } : {}),
       ...(res.building ? { building: true } : {}),
       ...(res.savedOnly ? { savedOnly: true } : {}),
+      ...(count > 1 ? { changes: count } : {}),
       ...(res.buildNote || res.say ? { note: res.buildNote ?? res.say } : {}),
       // One link either way: a visitor tracks their report, the owner
       // follows the build Loki just started.
@@ -599,11 +616,10 @@ export function createConversationModel(opts: ConversationModelOpts) {
       if (pass && !res.owner) opts.onPassRefused();
       memberHonoured(pass, res);
       const questions = note.items?.filter((i) => i.kind === "question") ?? [];
+      // One change per line, each whole: the receipt shows them as a list.
       const said =
-        changes.length === 1
-          ? changes[0].text
-          : `${changes.length} changes: ${changes.map((c) => c.text).join(" · ")}`;
-      sent(res, said, questions.length ? { ...note, items: questions } : undefined);
+        changes.length === 1 ? changes[0].text : changes.map((c) => `• ${c.text}`).join("\n");
+      sent(res, said, questions.length ? { ...note, items: questions } : undefined, changes.length);
     },
     editDraft(text: string) {
       if (!draft) return;
@@ -622,7 +638,7 @@ export function createConversationModel(opts: ConversationModelOpts) {
     },
     /** Watch noticed something: Loki says it in the thread, with Fix this. */
     noticed(remark: { say: string; fix: string; filed?: boolean; key?: string; again?: boolean }) {
-      const item: ThreadItem = {
+      const item: Extract<ThreadItem, { kind: "noticed" }> = {
         kind: "noticed",
         at: Date.now(),
         text: remark.say,
@@ -631,10 +647,18 @@ export function createConversationModel(opts: ConversationModelOpts) {
         ...(remark.key ? { key: remark.key } : {}),
         ...(remark.again ? { again: true } : {}),
       };
-      if (isPageReadKey(remark.key)) {
-        thread = pushPageRead(thread, item);
-        writeThread(opts.token, thread);
-      } else remember(item);
+      const next = pushNoticed(thread, item);
+      if (next === thread) return;
+      thread = next;
+      writeThread(opts.token, thread);
+      changed();
+    },
+    /** The newest reading of a page found nothing: its older card goes. */
+    unnoticed(slot: string) {
+      const next = dropNoticed(thread, slot);
+      if (next === thread) return;
+      thread = next;
+      writeThread(opts.token, thread);
       changed();
     },
     /** Loki on Loki (self-watch.ts) — quiet: never moves your reading place. */

@@ -263,7 +263,7 @@ export function PromptPicker({
                     <span
                       className={cn(
                         "shrink-0 rounded-full border px-1.5 py-0.5 text-micro font-medium",
-                        meta.color,
+                        "ui-tag-neutral",
                       )}
                     >
                       {meta.label}
