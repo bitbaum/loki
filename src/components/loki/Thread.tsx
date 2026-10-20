@@ -1,17 +1,9 @@
 "use client";
 
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { ArrowDown, Loader2, Square } from "lucide-react";
-import { ChatReplies } from "@bitbaum/chatkit/react";
-import { MarkdownText } from "@/components/ui/markdown-text";
+import { ChatReplies, useStickToBottom } from "@bitbaum/chatkit/react";
+import { AnswerMarkdown } from "./AnswerMarkdown";
 import { readReplies } from "@/lib/loki/replies";
 import { projectSwitches } from "@/lib/loki/project-switches";
 import { LOKI_STATUS_COPY } from "@/lib/loki/stream";
@@ -20,13 +12,6 @@ import { FollowUps } from "./FollowUps";
 import { MessageTurn } from "./MessageTurn";
 import { WorkTrail } from "./WorkTrail";
 import type { LokiMessage } from "./types";
-
-/**
- * How close to the bottom still counts as "following the conversation".
- * Above this, the operator is reading something older and the view must not be
- * yanked back every time a token arrives.
- */
-const FOLLOW_THRESHOLD_PX = 120;
 
 /**
  * The conversation.
@@ -90,37 +75,13 @@ export function Thread({
   /** Rendered after the last turn, inside the scroll (e.g. "save to project"). */
   tail?: ReactNode;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
-  const [following, setFollowing] = useState(true);
-
-  const onScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setFollowing(distance < FOLLOW_THRESHOLD_PX);
-  }, []);
-
-  const jumpToBottom = useCallback(() => {
-    setFollowing(true);
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
-  // Layout effect so the view is pinned before the browser paints the new
-  // token — in a passive effect the content lands first and the scroll catches
-  // up, which reads as a shudder on every chunk.
-  useLayoutEffect(() => {
-    if (!following) return;
-    endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length, live?.preview, live?.work.length, live?.status, sending, following]);
-
-  // A new turn always re-arms following: sending a message is an unambiguous
-  // statement that you want to see the reply.
-  const previousCount = useRef(messages.length);
-  useEffect(() => {
-    if (messages.length > previousCount.current) setFollowing(true);
-    previousCount.current = messages.length;
-  }, [messages.length]);
+  // chatkit's follow-the-bottom: pinned while the reader is at the bottom,
+  // through new tokens AND size changes (the floating composer growing, its
+  // height measured after the first paint), re-armed by every new turn.
+  const { scrollRef, endRef, following, onScroll, jumpToBottom } = useStickToBottom(
+    [messages.length, live?.preview, live?.work.length, live?.status, sending],
+    messages.length,
+  );
 
   if (loading) {
     return (
@@ -195,7 +156,7 @@ export function Thread({
               <WorkTrail work={live.work} live />
               {live.preview ? (
                 <div className="ui-loki-answer">
-                  <MarkdownText text={live.preview} className="space-y-2" />
+                  <AnswerMarkdown text={live.preview} />
                 </div>
               ) : (
                 <p className="ui-loki-live-status" role="status" aria-live="polite">

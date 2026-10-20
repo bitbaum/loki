@@ -137,7 +137,7 @@ function sourcesFor(text: string, citations?: CitationMap): ReactNode {
 
 /** The sentence without its handles: "offline [F1]." reads "offline.", and a
  *  range "[F5]–[F7]" leaves no stray dash behind. */
-function withoutCitations(text: string): string {
+export function withoutCitations(text: string): string {
   return text
     .replace(/(\[[FD]\d+(?:,\s*[FD]\d+)*\])\s*[–-]\s*(?=\[[FD]\d)/g, "$1")
     .replace(/\s*\[[FD]\d+(?:,\s*[FD]\d+)*\]/g, "");

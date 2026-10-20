@@ -1,6 +1,6 @@
 "use client";
 
-import { MarkdownText } from "@/components/ui/markdown-text";
+import { AnswerMarkdown } from "./AnswerMarkdown";
 import { userMessageDisplay } from "@/lib/loki/message-display";
 import { readWork } from "@/lib/loki/work";
 import { readProgressUpdate } from "@/lib/loki/progress-update";
@@ -101,11 +101,7 @@ export function MessageTurn({
         <ProgressUpdateCard update={update} />
       ) : (
         <div className="ui-loki-answer">
-          <MarkdownText
-            text={message.content}
-            className="space-y-2"
-            citations={citationsFrom(message.meta)}
-          />
+          <AnswerMarkdown text={message.content} citations={citationsFrom(message.meta)} />
         </div>
       )}
 

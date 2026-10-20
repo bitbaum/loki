@@ -21,31 +21,13 @@ import { ThreadTitle } from "./ThreadTitle";
  *
  * Lifted out of LokiWorkspace, which is at its line cap.
  */
-export function WorkspaceChrome({
-  inThread,
-  activeId,
-  title,
-  projects,
-  pinned,
-  historyPinned,
-  canSaveContext,
-  onToggleHistoryPinned,
-  onOpenHistory,
-  onNewChat,
-  onLeaveThread,
-  onOpenProjects,
-  onSaveContext,
-  onTogglePin,
-  onRename,
-}: {
-  inThread: boolean;
+/** The open thread's controls, shared by the desktop bar and the phone header. */
+export type ThreadChrome = {
   activeId: string | null;
   title: string;
   projects: string[];
   pinned: boolean;
-  historyPinned: boolean;
   canSaveContext: boolean;
-  onToggleHistoryPinned: () => void;
   onOpenHistory: () => void;
   onNewChat: () => void;
   /** Back to the chats — the start page without "New chat"'s fresh box. */
@@ -54,8 +36,22 @@ export function WorkspaceChrome({
   onSaveContext: () => void;
   onTogglePin: (id: string, pinned: boolean) => void;
   onRename: (id: string, title: string) => void;
+};
+
+export function WorkspaceChrome({
+  inThread,
+  activeId,
+  title,
+  historyPinned,
+  onToggleHistoryPinned,
+  onOpenHistory,
+  onNewChat,
+  onRename,
+}: ThreadChrome & {
+  inThread: boolean;
+  historyPinned: boolean;
+  onToggleHistoryPinned: () => void;
 }) {
-  const router = useRouter();
   const buttons = (
     <LokiTopbarButtons
       pinned={historyPinned}
@@ -66,23 +62,7 @@ export function WorkspaceChrome({
   );
   return (
     <>
-      {inThread ? (
-        <ThreadHeader
-          title={title}
-          projects={projects}
-          onBack={onLeaveThread}
-          onOpenLokis={onOpenHistory}
-          onNewChat={onNewChat}
-          onOpenProjects={onOpenProjects}
-          onSaveContext={canSaveContext ? onSaveContext : undefined}
-          onReportProblem={() => openFeedback(() => router.push("/support"))}
-          pinned={pinned}
-          onTogglePin={activeId ? () => onTogglePin(activeId, !pinned) : undefined}
-          onRename={activeId ? (t) => onRename(activeId, t) : undefined}
-        />
-      ) : (
-        <TopbarPortal>{buttons}</TopbarPortal>
-      )}
+      {!inThread && <TopbarPortal>{buttons}</TopbarPortal>}
       <div className="ui-loki-topbar max-md:hidden">
         {buttons}
         {inThread && activeId && (
@@ -90,5 +70,41 @@ export function WorkspaceChrome({
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * The phone's one-line thread header (back · name · menu). Rendered by the
+ * workspace into ChatScreen's header, where it floats over the conversation.
+ */
+export function WorkspaceThreadHeader({
+  activeId,
+  title,
+  projects,
+  pinned,
+  canSaveContext,
+  onOpenHistory,
+  onNewChat,
+  onLeaveThread,
+  onOpenProjects,
+  onSaveContext,
+  onTogglePin,
+  onRename,
+}: ThreadChrome) {
+  const router = useRouter();
+  return (
+    <ThreadHeader
+      title={title}
+      projects={projects}
+      onBack={onLeaveThread}
+      onOpenLokis={onOpenHistory}
+      onNewChat={onNewChat}
+      onOpenProjects={onOpenProjects}
+      onSaveContext={canSaveContext ? onSaveContext : undefined}
+      onReportProblem={() => openFeedback(() => router.push("/support"))}
+      pinned={pinned}
+      onTogglePin={activeId ? () => onTogglePin(activeId, !pinned) : undefined}
+      onRename={activeId ? (t) => onRename(activeId, t) : undefined}
+    />
   );
 }
