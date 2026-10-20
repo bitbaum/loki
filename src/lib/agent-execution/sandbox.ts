@@ -19,9 +19,24 @@ import { PtyExecutor, type PtyWorkspaceState } from "./pty-executor";
 export type SandboxNetwork = "none" | "bridge";
 export type SandboxUser = "current" | "root";
 export type SandboxMountMode = "rw" | "ro";
+/**
+ * Two ways to be born in a container:
+ * - "docker": the original hosted-sandbox shape — the project bound at
+ *   /workspace, HOME=/tmp, network off, the docker CLI (root's).
+ * - "podman": a PRIVATE BUILDER's sealed build (docs/master-plan-2026-10.md
+ *   4.2). Rootless, as the tenant's own user (`--userns=keep-id`), with the
+ *   tenant's HOME bound at the same path so the agent CLI finds its sign-in,
+ *   its trust and its transcripts exactly where the runner looks for them;
+ *   the project is under that home. Network on (the agent needs its vendor
+ *   and GitHub); gVisor's runsc as the OCI runtime when the box has it
+ *   (`ociRuntime`), so a tricked agent meets a user-space kernel, not the
+ *   host's. `--cgroups=disabled` keeps the processes in the unit's cgroup,
+ *   where the deploy's drain counts them.
+ */
+export type SandboxRuntime = "docker" | "podman";
 
 export interface SandboxExecutorConfig {
-  runtime: "docker";
+  runtime: SandboxRuntime;
   image: string;
   workspaceRoot: string;
   network: SandboxNetwork;
@@ -31,6 +46,10 @@ export interface SandboxExecutorConfig {
   user: SandboxUser;
   mountMode: SandboxMountMode;
   extraRunArgs: string[];
+  /** podman only: the OCI runtime to ask for (runsc), or null for the default. */
+  ociRuntime: string | null;
+  /** podman only: the home bound into the container at the same path. */
+  home: string;
 }
 
 /** All this backend remembers beyond the shared PTY state. */
@@ -42,19 +61,34 @@ function envValue(name: string, fallback: string): string {
 }
 
 export function resolveSandboxConfig(): SandboxExecutorConfig {
+  const runtime: SandboxRuntime =
+    envValue("LOKI_SANDBOX_RUNTIME", "docker") === "podman" ? "podman" : "docker";
   return {
-    runtime: "docker",
-    image: envValue("LOKI_SANDBOX_IMAGE", "ubuntu:24.04"),
-    workspaceRoot: path.resolve(
-      envValue("LOKI_SANDBOX_WORKSPACE_ROOT", path.join(os.homedir(), "dev")),
+    runtime,
+    image: envValue(
+      "LOKI_SANDBOX_IMAGE",
+      runtime === "podman" ? "loki-agent:latest" : "ubuntu:24.04",
     ),
-    network: envValue("LOKI_SANDBOX_NETWORK", "none") === "bridge" ? "bridge" : "none",
+    // A private builder's root is its home: the project and its worktrees
+    // are both under it, and the home is what the container is given.
+    workspaceRoot: path.resolve(
+      envValue(
+        "LOKI_SANDBOX_WORKSPACE_ROOT",
+        runtime === "podman" ? os.homedir() : path.join(os.homedir(), "dev"),
+      ),
+    ),
+    network:
+      envValue("LOKI_SANDBOX_NETWORK", runtime === "podman" ? "bridge" : "none") === "bridge"
+        ? "bridge"
+        : "none",
     cpus: envValue("LOKI_SANDBOX_CPUS", "2"),
     memory: envValue("LOKI_SANDBOX_MEMORY", "4g"),
     pidsLimit: envValue("LOKI_SANDBOX_PIDS", "512"),
     user: envValue("LOKI_SANDBOX_USER", "current") === "root" ? "root" : "current",
     mountMode: envValue("LOKI_SANDBOX_MOUNT", "rw") === "ro" ? "ro" : "rw",
     extraRunArgs: (process.env.LOKI_SANDBOX_DOCKER_ARGS ?? "").split(/\s+/).filter(Boolean),
+    ociRuntime: process.env.LOKI_SANDBOX_OCI_RUNTIME?.trim() || null,
+    home: os.homedir(),
   };
 }
 
@@ -77,6 +111,7 @@ export function buildDockerRunArgs(
   containerName = sandboxContainerName(spec.id),
 ): string[] {
   const cwd = assertSandboxCwdAllowed(spec.cwd, config.workspaceRoot);
+  if (config.runtime === "podman") return buildPodmanRunArgs(spec, config, containerName, cwd);
   const userArgs =
     config.user === "current"
       ? ["--user", `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`]
@@ -114,6 +149,55 @@ export function buildDockerRunArgs(
     "--env",
     "HOME=/tmp",
     ...userArgs,
+    ...envArgs,
+    ...config.extraRunArgs,
+    config.image,
+    spec.command,
+    ...(spec.args ?? []),
+  ];
+}
+
+/** A private builder's sealed build (see SandboxRuntime). */
+function buildPodmanRunArgs(
+  spec: WorkspaceSpec,
+  config: SandboxExecutorConfig,
+  containerName: string,
+  cwd: string,
+): string[] {
+  const envArgs = Object.entries(spec.env ?? {}).flatMap(([key, value]) => [
+    "--env",
+    `${key}=${value}`,
+  ]);
+  return [
+    "run",
+    "--rm",
+    "-i",
+    "--name",
+    containerName,
+    // The tenant inside is the tenant outside: files it writes are its own.
+    "--userns=keep-id",
+    // Stay in the unit's cgroup (rootless, no delegation needed), so the
+    // deploy's drain sees these processes and MemoryMax still bounds them.
+    "--cgroups=disabled",
+    ...(config.ociRuntime ? ["--runtime", config.ociRuntime] : []),
+    "--workdir",
+    cwd,
+    "--mount",
+    `type=bind,src=${config.home},dst=${config.home}`,
+    "--network",
+    config.network,
+    "--pids-limit",
+    config.pidsLimit,
+    "--security-opt",
+    "no-new-privileges",
+    "--cap-drop",
+    "ALL",
+    "--env",
+    "TERM=xterm-256color",
+    "--env",
+    `HOME=${config.home}`,
+    "--env",
+    `PATH=${config.home}/.local/bin:${config.home}/.npm-global/bin:/usr/local/bin:/usr/bin:/bin`,
     ...envArgs,
     ...config.extraRunArgs,
     config.image,

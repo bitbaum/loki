@@ -127,6 +127,35 @@ if ! cmp -s "$TEMPLATE_SRC" "$TEMPLATE_DST"; then
   systemctl daemon-reload
   log "unit template installed"
 fi
+# 8. Sealed builds (docs/master-plan-2026-10.md 4.2): each build in its own
+#    rootless podman container, gVisor when the box has it. Two readings
+#    switch it on, both root's: install-sealed-builds.sh wrote "ready" to
+#    /etc/loki/sealed-builds, and the operator put /etc/loki/sealed-builds.on
+#    in place after reading a tenant build in a container. Until then the
+#    drop-in is absent and the tenant builds unsealed, exactly as today.
+DROPIN_DIR="/etc/systemd/system/${UNIT}.d"
+DROPIN="${DROPIN_DIR}/sealed.conf"
+if [ -f /etc/loki/sealed-builds.on ] && grep -qx ready /etc/loki/sealed-builds 2>/dev/null; then
+  mkdir -p "$DROPIN_DIR" "$HOME_DIR/.run"
+  chown "$TENANT:$TENANT" "$HOME_DIR/.run"; chmod 0700 "$HOME_DIR/.run"
+  {
+    echo "[Service]"
+    echo "Environment=LOKI_EXECUTOR=sandbox"
+    echo "Environment=LOKI_SANDBOX_RUNTIME=podman"
+    # Rootless podman keeps its runtime files under XDG_RUNTIME_DIR; a unit
+    # has no login session, so it is a folder in the home.
+    echo "Environment=XDG_RUNTIME_DIR=${HOME_DIR}/.run"
+    grep -qx runsc /etc/loki/sealed-builds 2>/dev/null && echo "Environment=LOKI_SANDBOX_OCI_RUNTIME=runsc"
+  } > "$DROPIN.tmp"
+  if ! cmp -s "$DROPIN.tmp" "$DROPIN"; then
+    mv "$DROPIN.tmp" "$DROPIN"; systemctl daemon-reload; log "sealed builds on"
+  else
+    rm -f "$DROPIN.tmp"
+  fi
+elif [ -f "$DROPIN" ]; then
+  rm -f "$DROPIN"; rmdir "$DROPIN_DIR" 2>/dev/null || true; systemctl daemon-reload; log "sealed builds off"
+fi
+
 systemctl enable --now "$UNIT" >/dev/null 2>&1 || systemctl restart "$UNIT"
 sleep 3
 if systemctl is-active "$UNIT" >/dev/null 2>&1; then

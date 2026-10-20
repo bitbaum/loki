@@ -118,4 +118,15 @@ assert.match(
   "and finds its cgroup wherever systemd put it",
 );
 
+// ─── Sealed builds: built, switched on only by a reading ────────────────────
+assert.match(newTenant, /\/etc\/loki\/sealed-builds\.on/, "the operator's one file");
+assert.match(newTenant, /grep -qx ready \/etc\/loki\/sealed-builds/, "and the box's reading");
+assert.match(newTenant, /LOKI_SANDBOX_RUNTIME=podman/);
+assert.match(unit, /^NoNewPrivileges=true$/m, "still sealed as a unit");
+assert.doesNotMatch(unit, /LOKI_EXECUTOR/, "the template never seals by itself");
+const installer = read("scripts/hetzner/install-sealed-builds.sh");
+assert.doesNotMatch(installer, /usermod .*docker/, "no tenant in the docker group: that is root");
+assert.match(installer, /additionalimagestores/, "one image, read-only to every tenant");
+assert.match(deploy, /install-sealed-builds\.sh/, "the deploy takes the reading");
+
 console.log("✓ private builders: the flag, one short id, a sealed unit, reconciled on the box");

@@ -163,6 +163,33 @@ key with a monthly cap in CHF — are step C, not this step.)
 Each PR is reversible on its own: a template unit can be stopped and the old
 unit started; the allowlist env var is read until PR 5 removes it.
 
+## Sealed builds (Track 4.2 of the master plan) — built, switched on by a reading
+
+Each build in its own container inside the tenant's unit, so a tricked
+agent cannot reach even its own tenant's other work:
+
+- `SandboxExecutor` has a **podman** mode (`sandbox.ts buildPodmanRunArgs`):
+  rootless, as the tenant (`--userns=keep-id`), the tenant's home bound at
+  the same path (sign-ins, trust and transcripts stay where the runner
+  looks), the project's real path as workdir, network on, capabilities
+  dropped, `--cgroups=disabled` so the deploy's drain still counts the
+  processes, and gVisor's `runsc` as the OCI runtime when the box has it
+  (no KVM needed; the CX43 has none).
+- `scripts/hetzner/agent-image/Containerfile` is the image (a shell, git,
+  gh, node, Claude Code, Codex); `install-sealed-builds.sh`, run by every
+  deploy, installs rootless podman, tries runsc, builds the image into a
+  shared read-only store, and writes a READING to `/etc/loki/sealed-builds`
+  (`ready`, and `runsc` when it is there).
+- **Nothing switches on by itself.** `new-tenant.sh` adds the unit drop-in
+  (`LOKI_EXECUTOR=sandbox`, `LOKI_SANDBOX_RUNTIME=podman`, runsc when read)
+  only when the reading says `ready` AND the operator has put
+  `/etc/loki/sealed-builds.on` in place after watching one tenant build
+  inside a container. Until then every tenant builds unsealed, exactly as
+  before, and the roadmap milestone stays unticked. Why: the pieces are
+  verified by unit tests and the deploy's readings, not yet by a build on
+  the box, and `NoNewPrivileges` in the unit means rootless podman runs in
+  its single-uid mapping — enough for the agent CLIs, to be confirmed live.
+
 ## What could go wrong
 
 - **Memory.** A CX43 (8 vCPU, 16 GB) carries roughly 6–10 concurrent Claude
