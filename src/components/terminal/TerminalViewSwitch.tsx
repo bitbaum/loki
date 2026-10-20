@@ -15,6 +15,11 @@ import type { TerminalViewMode } from "@/config/terminal-modes";
  * could not tell whether it would say Grok (owner: "it doesn't really say
  * much"). An agent with no chat view (Grok, Codex today) gets no switch at
  * all: the terminal is the only way it can be shown.
+ *
+ * Tapping the view you are already in flips to the other one, so every tap
+ * changes the screen. As a plain segmented control a second tap on
+ * "Terminal" did nothing at all, which was reported (2026-10-20) as a
+ * Terminal button that does not toggle the terminal pane.
  */
 export function TerminalViewSwitch({
   view,
@@ -44,8 +49,8 @@ export function TerminalViewSwitch({
           type="button"
           className={view === id ? "ui-term-view-active" : "ui-term-view"}
           aria-pressed={view === id}
-          title={hint}
-          onClick={() => onViewChange(id)}
+          title={view === id ? `${hint} — tap again to switch back` : hint}
+          onClick={() => onViewChange(view === id ? other(id) : id)}
         >
           <Icon className="h-3.5 w-3.5" aria-hidden="true" />
           {label}
@@ -53,4 +58,8 @@ export function TerminalViewSwitch({
       ))}
     </div>
   );
+}
+
+function other(view: TerminalViewMode): TerminalViewMode {
+  return view === "chat" ? "terminal" : "chat";
 }

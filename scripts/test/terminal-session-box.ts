@@ -43,6 +43,21 @@ const read = (f: string) => readFileSync(join(process.cwd(), "src/components/ter
       ok(pressed.includes(view === "chat" ? ">Chat<" : ">Terminal<"), `marks ${view} as current`);
     }
   }
+
+  // Every tap changes the screen: tapping the view you are in flips to the
+  // other, so "Terminal" toggles the terminal pane instead of doing nothing.
+  const tap = (view: "chat" | "terminal", label: string) => {
+    let picked: string | null = null;
+    const root = TerminalViewSwitch({ view, onViewChange: (v) => (picked = v) });
+    const buttons = root.props.children as {
+      props: { children: unknown[]; onClick: () => void };
+    }[];
+    buttons.find((b) => b.props.children.includes(label))!.props.onClick();
+    return picked;
+  };
+  ok(tap("chat", "Terminal") === "terminal", "Terminal from chat opens the terminal");
+  ok(tap("terminal", "Terminal") === "chat", "Terminal again toggles back to chat");
+  ok(tap("terminal", "Chat") === "chat", "Chat from the terminal opens chat");
 }
 {
   // Wired where you look, at every width, and in both views.
