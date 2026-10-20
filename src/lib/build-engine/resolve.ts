@@ -1,5 +1,9 @@
 import { getUserById } from "@/db/queries/users";
-import { countRunsOnEngine, monthStart, welcomeSpendUsdThisMonth } from "@/db/queries/build-allowance";
+import {
+  countRunsOnEngine,
+  monthStart,
+  welcomeSpendUsdThisMonth,
+} from "@/db/queries/build-allowance";
 import { buildAllowance, RUN_ENGINE, type BuildAllowance, type RunEngine } from "./allowance";
 
 export type ResolvedRunEngine =
@@ -16,7 +20,10 @@ export type ResolvedRunEngine =
  * (scripts/write-tenant-engines.ts). One reader for the dispatch gate, the
  * settings screen and the box.
  */
-export async function resolveRunEngine(userId: string, now = new Date()): Promise<ResolvedRunEngine> {
+export async function resolveRunEngine(
+  userId: string,
+  now = new Date(),
+): Promise<ResolvedRunEngine> {
   const user = await getUserById(userId);
   if (!user || user.buildEngine !== "loki")
     return { ok: true, choice: "own", engine: RUN_ENGINE.OWN, allowance: null };
