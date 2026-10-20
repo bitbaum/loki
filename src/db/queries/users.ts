@@ -1,3 +1,4 @@
+import type { BuildEngineChoice } from "@/db/schema/users";
 import { db } from "@/db";
 import { users, invitations } from "@/db/schema";
 import { eq, count, desc, sql } from "drizzle-orm";
@@ -84,6 +85,14 @@ export async function setPrivateBuilder(id: string, enabled: boolean): Promise<v
   await db
     .update(users)
     .set({ privateBuilder: enabled, updatedAt: new Date() })
+    .where(eq(users.id, id));
+}
+
+/** What the person's builds run on: their own engine, or Loki's within its builds. */
+export async function setBuildEngine(id: string, choice: BuildEngineChoice): Promise<void> {
+  await db
+    .update(users)
+    .set({ buildEngine: choice, updatedAt: new Date() })
     .where(eq(users.id, id));
 }
 

@@ -35,6 +35,7 @@ const userRow = {
   username: "g",
   isDefault: false,
   privateBuilder: false,
+  buildEngine: "own",
   onboardedAt: null,
   orangecatActorId: null,
   plan: "pro",

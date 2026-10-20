@@ -42,6 +42,12 @@ export type KickoffRunState = {
    * the person's own computer (Fleet Runner), offered as a button.
    */
   needsBuilder?: boolean;
+  /**
+   * The agent was refused because this account builds on Loki's engine and
+   * has no builds left on it (lib/build-engine/allowance.ts): the sentence
+   * says so and names the way forward, and the screen offers Settings.
+   */
+  needsEngine?: string;
 };
 
 /** A step's route answer: status + JSON body, or a thrown transport error. */
@@ -112,6 +118,9 @@ export async function runKickoffPlan(
         if (res.body.hasGithub === false) set({ ...run, needsGithub: true });
         if (res.body.code === "cloud-builder-private" || res.body.code === "builder-required") {
           set({ ...run, needsBuilder: true });
+        }
+        if (res.body.code === "engine-exhausted" && typeof error === "string") {
+          set({ ...run, needsEngine: error });
         }
         mark(id, "failed", typeof error === "string" ? error : `HTTP ${res.status}`);
         return null;

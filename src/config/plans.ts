@@ -13,6 +13,7 @@
 // registered — and then the same button becomes "Pay in Bitcoin".
 
 import type { Plan } from "@/db/schema/users";
+import { WELCOME_BUILDS } from "@/config/welcome-changes";
 import { PLAN_LIMITS, isUnlimitedProjects } from "@/lib/plan";
 
 export const PRICING_CURRENCY = "CHF";
@@ -48,6 +49,10 @@ const projectLimitLabel = (plan: Plan): string =>
 const aiAllowanceLabel = (plan: Plan): string =>
   `About ${PLAN_LIMITS.aiAnswersMonthly[plan].toLocaleString("en-US")} Loki answers a month, with no daily wait`;
 
+/** Builds on Loki's engine are the bounded part; on your own they are not counted. */
+const buildsLabel = (plan: Plan): string =>
+  `${PLAN_LIMITS.buildsMonthly[plan]} builds a month on Loki's engine; no limit on your own sign-in or key`;
+
 export const PRICING_PLANS: PricingPlan[] = [
   {
     key: "free",
@@ -57,8 +62,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     highlights: [
       projectLimitLabel("free"),
       "Loki's chat on the free models, from a pool shared by everyone each day",
+      `${WELCOME_BUILDS} welcome builds on Loki's engine, then your own agent sign-ins and keys`,
       "Everything in Loki — nothing held back",
-      "Use your own agent sign-ins and keys",
     ],
     cta: "Start free",
     featured: true,
@@ -71,6 +76,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     highlights: [
       projectLimitLabel("personal"),
       aiAllowanceLabel("personal"),
+      buildsLabel("personal"),
       "Everything in Free",
       "Room for a real project portfolio",
     ],
@@ -84,6 +90,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     highlights: [
       projectLimitLabel("pro"),
       aiAllowanceLabel("pro"),
+      buildsLabel("pro"),
       "Everything in Personal",
       "No ceiling as your fleet grows",
     ],
@@ -97,6 +104,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     highlights: [
       projectLimitLabel("team"),
       aiAllowanceLabel("team"),
+      buildsLabel("team"),
       "Everything in Pro",
       "Shared projects, roles, and team visibility",
     ],
@@ -111,7 +119,7 @@ const PRICING_ANNOUNCED = PRICING_PLANS.some((p) => p.priceMonthly !== null && p
 // renews by itself (BillingSettings). Until the passes exist, a paid plan can
 // only be reserved — and the note says so, under every price.
 export const PRICING_BILLING_NOTE = PRICING_ANNOUNCED
-  ? "Prices are per month. Payments open once Loki's company is registered — until then you can reserve a plan, and nothing is charged. Your agents run with your own sign-ins and keys, so Loki never bills you for what they use."
+  ? "Prices are per month. Payments open once Loki's company is registered — until then you can reserve a plan, and nothing is charged. Your agents run with your own sign-ins and keys, which Loki never bills, or on Loki's engine within your plan's builds a month."
   : "Loki is free while prices are not announced. Nothing is charged until they are, and every feature below is on every plan.";
 
 // Available on EVERY plan (all shipped today). Listed once, honestly, instead of
@@ -127,7 +135,8 @@ export const PRICING_INCLUDED: string[] = [
   "One assistant — Loki — over the agents you already use: Claude, Codex, Cursor, Antigravity and Grok",
   "A feedback button for every site you run — what visitors report becomes work you can hand to an agent, and the visitor hears back when it is fixed",
   "Fleet dashboard: Control, Today, Projects, Activity",
-  "Agents run on your own computer with the Fleet Runner app, or on Loki's cloud builder where your account has it",
+  "Agents run on your own computer with the Fleet Runner app, or in a private builder of your own on Loki's cloud",
+  "Whoever asks for a change pays for it, with their own engine, in their own builder — nobody's request runs on another person's subscription",
   "Give a project a definition of done, and a run is checked against it before it counts as done",
   "Loki keeps your project's code for you, free — no GitHub account needed; take it to your own GitHub whenever you want",
   "Memory across projects, autopilot, and the prompt library",

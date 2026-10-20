@@ -28,6 +28,7 @@ export const USER_CLIENT_FIELDS = [
   "username",
   "isDefault",
   "privateBuilder",
+  "buildEngine",
   "onboardedAt",
   "orangecatActorId",
   "plan",

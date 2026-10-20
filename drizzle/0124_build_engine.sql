@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "build_engine" text DEFAULT 'own' NOT NULL;

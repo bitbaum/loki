@@ -47,6 +47,18 @@ CHANGELOG.md. Format: `docs/architecture/building-in-public-records.md`.
   or Gemini's own variable, and your builds run on it instead of a sign-in.
   A key stays chat-only until you say otherwise. The other way in is as
   before: start the agent in your Sessions and type `/login`.
+- **Welcome builds, then your plan's, then your own.** {#welcome-changes} An
+  account with a private builder can choose to build on Loki's engine: three
+  welcome builds to start, then the builds a month its plan includes (10 on
+  Personal, 40 on Pro, 100 on Team), and past them its own sign-in or key.
+  Every run records which engine paid for it, a dispatch past the last build
+  is refused with the way forward instead of queued, and Loki's welcome
+  spending stops for everyone at a cap in francs the owner set.
+- **Capacity you can read.** {#capacity-card} The System page shows how long
+  work waited for a builder in the last day, per channel, and this month's
+  builds, tokens and cost per account — beside what welcome builds cost
+  against their cap. The numbers that decide when the box needs a bigger
+  neighbour, read instead of guessed.
 
 ## 2026-10-17 — See what every session is doing
 

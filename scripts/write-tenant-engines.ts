@@ -22,6 +22,8 @@ import { eq } from "drizzle-orm";
 import { listBuildEngineKeys } from "@/db/queries/user-model-keys";
 import { tenantShortId } from "@/lib/agent-execution/box-workspace-path";
 import { renderEnvFile } from "@/lib/tenant-engines-env";
+import { resolveRunEngine } from "@/lib/build-engine/resolve";
+import { LOKI_BUILD_ENGINE_KEY_VAR } from "@/config/welcome-changes";
 
 function readArgs(argv: string[]): { dir: string } {
   const i = argv.indexOf("--dir");
@@ -35,10 +37,21 @@ async function main(): Promise<void> {
     .select({ id: users.id })
     .from(users)
     .where(eq(users.privateBuilder, true));
+  // Loki's own key, for a tenant who chose Loki's engine and still has builds
+  // on it (lib/build-engine/resolve.ts). Set in the app's env on the box; a
+  // server without it has no Loki engine, and the settings screen says so.
+  const lokiKey = process.env[LOKI_BUILD_ENGINE_KEY_VAR]?.trim() || null;
   for (const t of tenants) {
     const short = tenantShortId(t.id);
     const file = path.join(dir, `${short}.env`);
-    const next = renderEnvFile(await listBuildEngineKeys(t.id));
+    const engine = await resolveRunEngine(t.id);
+    const keys =
+      engine.choice === "loki"
+        ? engine.ok && lokiKey
+          ? [{ env: "ANTHROPIC_API_KEY", value: lokiKey }]
+          : []
+        : await listBuildEngineKeys(t.id);
+    const next = renderEnvFile(keys);
     const prev = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null;
     if (prev === next) continue;
     fs.writeFileSync(`${file}.tmp`, next, { mode: 0o600 });

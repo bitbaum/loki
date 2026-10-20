@@ -11,6 +11,7 @@ import { VoiceSettings } from "./VoiceSettings";
 import { AiBudgetSettings } from "./AiBudgetSettings";
 import { AiQuotaSettings } from "./AiQuotaSettings";
 import { OwnModelSettings } from "./OwnModelSettings";
+import { BuildEngineChoice } from "./BuildEngineChoice";
 import { ProviderOrderSettings } from "./ProviderOrderSettings";
 import { AgentTokenSettings } from "./AgentTokenSettings";
 import { BeaconSettings } from "./BeaconSettings";
@@ -207,6 +208,7 @@ export function SettingsTabs({
           <div className="space-y-6">
             {/* Your own model first: it is the way past the shared pool below. */}
             <AiBudgetSettings />
+            {user.cloudBuilder && <BuildEngineChoice />}
             <OwnModelSettings cloudBuilder={user.cloudBuilder} />
             <AiQuotaSettings />
           </div>

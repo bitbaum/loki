@@ -6,6 +6,7 @@ import { HetznerCapacityCard } from "@/components/system/HetznerCapacityCard";
 import { RevenueCard } from "@/components/system/RevenueCard";
 import { PlansCard } from "@/components/system/PlansCard";
 import { PrivateBuildersCard } from "@/components/system/PrivateBuildersCard";
+import { CapacityCard } from "@/components/system/CapacityCard";
 import { ScheduledJobsCard } from "@/components/system/ScheduledJobsCard";
 import { MemorySummaryCard } from "@/components/system/MemorySummaryCard";
 import { RecentFailuresCard } from "@/components/system/RecentFailuresCard";
@@ -80,6 +81,9 @@ export default async function SystemPage() {
               {/* Directly under the host stats: when disk/RAM are tight, the
                   next question is always "can I upgrade yet?" */}
               <HetznerCapacityCard />
+              <Suspense fallback={<CardSkeleton />}>
+                <CapacityCard />
+              </Suspense>
               <FleetDoctorCard />
               <Suspense fallback={<CardSkeleton />}>
                 <RecentFailuresCard />
