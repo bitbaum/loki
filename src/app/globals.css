@@ -3658,6 +3658,14 @@
   .ui-segmented-cols-3 {
     @apply grid-flow-row grid-cols-3;
   }
+  /* Four across: seven voices as 4 + 3, the last one two cells wide, so the
+     second row ends where the first does instead of leaving a hole. */
+  .ui-segmented-cols-4 {
+    @apply grid-flow-row grid-cols-4;
+  }
+  .ui-segmented-cols-4 > :last-child:nth-child(4n + 3) {
+    @apply col-span-2;
+  }
   .ui-segment,
   .ui-segment-active {
     @apply flex min-h-11 min-w-0 items-center justify-center rounded-lg px-1.5 py-1.5 text-center text-sm font-medium leading-tight transition-colors [overflow-wrap:anywhere];
@@ -4915,6 +4923,25 @@
   .ui-filter-chip-row > * {
     @apply shrink-0 whitespace-nowrap;
   }
+  /* On a phone the row scrolls, and the edge must read as "more this way",
+     not as a word cut in half: /prompts ended "Engineering (" at the screen's
+     edge under a 24px fade (owner, 2026-10-20). So a fade wide enough to take
+     a whole word out gently, a swipe that settles on a chip's start, and room
+     after the last chip so it can scroll fully clear of the fade. */
+  @media (max-width: 639px) {
+    .ui-filter-chip-row.ui-scroll-fade-right {
+      mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+      -webkit-mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+      scroll-snap-type: x proximity;
+    }
+    .ui-filter-chip-row.ui-scroll-fade-right > * {
+      scroll-snap-align: start;
+    }
+    .ui-filter-chip-row.ui-scroll-fade-right::after {
+      content: "";
+      flex: 0 0 2.5rem;
+    }
+  }
   /* Rounded-pill toggle — agent/health/category selector chips. Compact by
      default; THE TOUCH FLOOR gives it a 44px target on coarse pointers. */
   .ui-chip-toggle {
@@ -4931,10 +4958,6 @@
   }
   .ui-chip-toggle-compact-active {
     @apply inline-flex items-center rounded-full border border-accent-primary bg-accent-muted px-2.5 py-1 text-xs text-text-primary transition-colors;
-  }
-  /* Inline category/scope chip — shape only; caller adds color classes */
-  .ui-chip {
-    @apply inline-flex items-center rounded-xl border px-3 py-1 text-sm font-medium;
   }
   /* Dashed-border "add" placeholder chip — click-to-add inline affordance */
   .ui-add-chip {
@@ -5216,44 +5239,6 @@
       mask-image: none;
       -webkit-mask-image: none;
     }
-  }
-
-  /* Prompt-library category chip colors — applied alongside .ui-chip or as filter-chip active state */
-  .ui-cat-fleet {
-    @apply bg-amber-500/15 text-amber-400 border-amber-500/20;
-  }
-  .ui-cat-security {
-    @apply bg-red-500/15 text-red-400 border-red-500/20;
-  }
-  .ui-cat-engineering {
-    @apply bg-blue-500/15 text-blue-400 border-blue-500/20;
-  }
-  .ui-cat-frontend {
-    @apply bg-purple-500/15 text-purple-400 border-purple-500/20;
-  }
-  .ui-cat-backend {
-    @apply bg-indigo-500/15 text-indigo-400 border-indigo-500/20;
-  }
-  .ui-cat-database {
-    @apply bg-cyan-500/15 text-cyan-400 border-cyan-500/20;
-  }
-  .ui-cat-devops {
-    @apply bg-orange-500/15 text-orange-400 border-orange-500/20;
-  }
-  .ui-cat-design {
-    @apply bg-pink-500/15 text-pink-400 border-pink-500/20;
-  }
-  .ui-cat-business {
-    @apply bg-emerald-500/15 text-emerald-400 border-emerald-500/20;
-  }
-  .ui-cat-marketing {
-    @apply bg-yellow-500/15 text-yellow-400 border-yellow-500/20;
-  }
-  .ui-cat-research {
-    @apply bg-teal-500/15 text-teal-400 border-teal-500/20;
-  }
-  .ui-cat-personal {
-    @apply bg-rose-500/15 text-rose-400 border-rose-500/20;
   }
 
   /* ── Brand / category color classes ────────────────────────────────────────
@@ -7927,7 +7912,8 @@
   .ui-voice-command-does {
     @apply text-sm text-text-tertiary;
   }
-  /* The four choices on the start screen: a label and a row of chips. */
+  /* The four choices on the start screen: the voice as a <Segmented> grid,
+     the three switches as one row each, every one under a small heading. */
   .ui-voice-settings {
     @apply mt-2 w-full space-y-3 text-left;
   }
@@ -7937,8 +7923,30 @@
   .ui-voice-setting-label {
     @apply text-xs font-semibold uppercase text-text-secondary;
   }
-  .ui-voice-setting-note {
-    @apply text-xs text-text-muted;
+  /* The speaking screen's name. The app top bar carries the page's h1, but
+     on a phone that bar steps aside for the open session, so this is the h1
+     there — and only there (md:hidden), so the page never has two. */
+  .ui-voice-title {
+    @apply self-start text-base font-semibold text-text-primary md:hidden;
+  }
+  /* End, where the thumb is — and clear of the feedback launcher: the
+     speaking screen asks it for the slim edge tab (data-fc-place="tab"), and
+     this row keeps a band below End for the home indicator and a thumb. */
+  .ui-voice-ending {
+    @apply flex justify-center pt-4 pb-6;
+  }
+  /* No-screen mode's stage can hold more than a short phone shows (the
+     studio-voice notice): it scrolls, centred only while everything fits,
+     and nothing in it is squeezed — the circle stays a circle. */
+  .ui-voice-stage-scroll {
+    @apply min-h-0 justify-center-safe overflow-y-auto;
+  }
+  .ui-voice-stage-scroll > * {
+    @apply shrink-0;
+  }
+  /* Studio voices are off: what, why, and the one link that fixes it. */
+  .ui-voice-notice {
+    @apply w-full flex-col gap-2 text-left text-text-secondary;
   }
   /* The composer's way into it. With an empty box it TAKES the send slot —
      the same filled circle, a waveform instead of an arrow — and the disabled

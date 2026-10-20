@@ -44,6 +44,9 @@ export type ThreadItem =
       claimUrl?: string;
       /** Sent about the widget itself, to Loki's own team (self-report.ts). */
       toLoki?: boolean;
+      /** Several changes filed at once (a spoken note's list): `text` holds
+       *  them one per line. */
+      changes?: number;
     }
   | {
       /** Watch spoke up on its own: something it saw while the owner used
@@ -87,6 +90,45 @@ export const isPageReadKey = (key: string | undefined): boolean => !!key?.endsWi
 export function pushPageRead(thread: ThreadItem[], item: ThreadItem): ThreadItem[] {
   const kept = thread.filter((i) => !(i.kind === "noticed" && isPageReadKey(i.key)));
   return pushItem(kept, item);
+}
+
+/**
+ * The card a remark belongs to. A page's checks own ONE card (its newest
+ * reading, watch-trail.ts checksSlot); everything else is its own remark.
+ */
+export function noticeSlot(key: string | undefined): string | null {
+  if (!key) return null;
+  const at = key.indexOf("|checks|");
+  return at >= 0 ? key.slice(0, at + "|checks".length) : key;
+}
+
+type Noticed = Extract<ThreadItem, { kind: "noticed" }>;
+
+/**
+ * Add something Watch noticed — or update the card that already says it.
+ * Remarks used to be appended, so one page's checks taken three times were
+ * three cards, and two readings of a form ("1 field", "2 fields") two
+ * (operator's phone, 2026-10-20). Now a remark whose slot already has a card
+ * replaces that card where it stands, and one whose words are already on
+ * screen is not said again. Reads keep their own rule (pushPageRead).
+ */
+export function pushNoticed(thread: ThreadItem[], item: Noticed): ThreadItem[] {
+  if (isPageReadKey(item.key)) return pushPageRead(thread, item);
+  const slot = noticeSlot(item.key);
+  const same = (i: ThreadItem): i is Noticed =>
+    i.kind === "noticed" && ((!!slot && noticeSlot(i.key) === slot) || i.text === item.text);
+  const at = thread.findIndex(same);
+  if (at < 0) return pushItem(thread, item);
+  const prev = thread[at] as Noticed;
+  if (prev.text === item.text && prev.key === item.key && prev.filed === item.filed) return thread;
+  return thread.flatMap((i, n): ThreadItem[] => (n === at ? [item] : same(i) ? [] : [i]));
+}
+
+/** Take back the card a slot owns: the newest reading of that page found
+ *  nothing, so the older one is no longer true. */
+export function dropNoticed(thread: ThreadItem[], slot: string): ThreadItem[] {
+  const next = thread.filter((i) => !(i.kind === "noticed" && noticeSlot(i.key) === slot));
+  return next.length === thread.length ? thread : next;
 }
 
 const str = (v: unknown, max: number): string | null =>
@@ -152,6 +194,12 @@ function restoreItem(raw: unknown, now: number): ThreadItem | null {
       ...(r.building === true ? { building: true } : {}),
       ...(r.savedOnly === true ? { savedOnly: true } : {}),
       ...(r.toLoki === true ? { toLoki: true } : {}),
+      ...(typeof r.changes === "number" &&
+      Number.isInteger(r.changes) &&
+      r.changes > 1 &&
+      r.changes <= 50
+        ? { changes: r.changes }
+        : {}),
       ...(note ? { note } : {}),
       ...(claimUrl ? { claimUrl } : {}),
     };

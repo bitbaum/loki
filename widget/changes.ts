@@ -29,6 +29,9 @@ export type OwnerChange = {
   settled: boolean;
   href: string | null;
   action: string | null;
+  /** Waiting on the owner's decision — a saved note, one not started, a
+   *  failed attempt (owner-view.ts). The one thing the header counts. */
+  needsYou: boolean;
 };
 
 /** Mirrors OWNER_CHANGES_MAX in src/lib/feedback/owner-view.ts. */
@@ -84,11 +87,14 @@ export function toSeen(next: readonly OwnerChange[]): Record<string, boolean> {
  * cares — what needs them, what is being built, what is waiting its turn,
  * what is live. "Your changes · 1 needs you · 1 building · 2 live".
  */
-export function changesSummary(changes: readonly OwnerChange[], visitors = 0): string {
+export function changesSummary(
+  changes: readonly OwnerChange[],
+  visitors = 0,
+  waiting: Waiting = {},
+): string {
   const count = (label: string) => changes.filter((c) => c.label === label).length;
   const parts: Array<[number, string, string]> = [
-    [count("Needs you"), "needs you", "need you"],
-    [savedNotes(changes), "saved", "saved"],
+    [needsYouCount(changes, waiting), "needs you", "need you"],
     [count("Building") + count("Starting"), "building", "building"],
     [count("In line"), "in line", "in line"],
     [count("On its way"), "on its way", "on their way"],
@@ -99,27 +105,36 @@ export function changesSummary(changes: readonly OwnerChange[], visitors = 0): s
   return said.length ? `Your changes · ${said.join(" · ")}` : `Your changes · ${changes.length}`;
 }
 
+/** What waits on the owner beyond the rows the list carries. */
+export type Waiting = {
+  /** The server's count of every row that needs the owner — past the twelve
+   *  rows it sends, too (api/widget/owner/changes). */
+  total?: number;
+  /** Changes said on the open card and not saved yet. */
+  unsaved?: number;
+};
+
 /**
- * The one fragment the panel's status line carries about changes: the most
- * urgent thing, not every count, and always naming what is counted — "11
- * changes need you", else "2 being built", … else "4 changes live". It once
- * read "4 to look at · 11 needs you": two numbers of two different things,
- * neither said what (owner, 2026-10-18). Empty when there is nothing to say.
- * The full line is changesSummary, shown when the list is open.
+ * How many things wait on the owner's decision: saved notes, notes not
+ * started, failed attempts, and changes said but not saved. The ONLY number
+ * the header shows.
  */
-export function changesHeadline(changes: readonly OwnerChange[]): string {
-  const count = (...labels: string[]) => changes.filter((c) => labels.includes(c.label)).length;
-  const saved = savedNotes(changes);
-  const ranked: Array<[number, string, string]> = [
-    [count("Needs you"), "change needs you", "changes need you"],
-    [saved, "note saved", "notes saved"],
-    [count("Building", "Starting"), "being built", "being built"],
-    [count("In line"), "waiting its turn", "waiting their turn"],
-    [count("On its way"), "on its way", "on their way"],
-    [changes.filter((c) => c.live).length, "change live", "changes live"],
-  ];
-  const top = ranked.find(([n]) => n > 0);
-  return top ? `${top[0]} ${top[0] === 1 ? top[1] : top[2]}` : "";
+export function needsYouCount(changes: readonly OwnerChange[], waiting: Waiting = {}): number {
+  const rows = changes.filter((c) => c.needsYou).length;
+  return Math.max(rows, waiting.total ?? 0) + (waiting.unsaved ?? 0);
+}
+
+/**
+ * The one fragment the panel's status line carries about changes: how many
+ * need the owner, and nothing else. It used to fall back to "2 being built",
+ * "4 changes live"… and before that counted only failed attempts inside a
+ * window of the newest twelve, so the line said "9 changes need you" over a
+ * list that showed none of them, then 6 with nothing done (2026-10-20).
+ * Empty when nothing needs the owner: the line then says just "Watching".
+ */
+export function changesHeadline(changes: readonly OwnerChange[], waiting: Waiting = {}): string {
+  const n = needsYouCount(changes, waiting);
+  return n ? `${n} ${n === 1 ? "change needs you" : "changes need you"}` : "";
 }
 
 /**
@@ -172,8 +187,26 @@ export function parseChanges(body: unknown): OwnerChange[] {
       settled: c.settled === true,
       href: typeof c.href === "string" && /^https?:\/\//.test(c.href) ? c.href : null,
       action: typeof c.action === "string" ? c.action.slice(0, 40) : null,
+      needsYou: c.needsYou === true,
     }))
     .slice(0, CHANGES_MAX);
+}
+
+/** The server's count of rows waiting on the owner (0 when absent). */
+export function parseNeedsYou(body: unknown): number {
+  const n = (body as { needsYou?: unknown })?.needsYou;
+  return typeof n === "number" && Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+/**
+ * The rows the open list shows: EVERY one that needs the owner, then the
+ * newest of the rest up to CHANGES_SHOWN — so the number on the line is
+ * always the rows under it.
+ */
+export function shownChanges(changes: readonly OwnerChange[]): OwnerChange[] {
+  const mine = changes.filter((c) => c.needsYou);
+  const rest = changes.filter((c) => !c.needsYou);
+  return [...mine, ...rest.slice(0, Math.max(0, CHANGES_SHOWN - mine.length))];
 }
 
 export function createChanges(opts: {
@@ -192,6 +225,10 @@ export function createChanges(opts: {
   onRender?: () => void;
   /** Said in the conversation (what "Build them" started). */
   onSay?: (text: string) => void;
+  /** Changes said on the open card and not saved yet (conversation.ts). */
+  unsaved?: () => number;
+  /** The "not saved yet" row: bring the card into view. */
+  onUnsaved?: () => void;
 }) {
   // No line of its own: the panel's one status line carries the most urgent
   // fragment ("4 live") and opens this list under it (thoughts-view.ts). It
@@ -215,6 +252,9 @@ export function createChanges(opts: {
   body.append(buildBtn, list, all, visitorsLine);
 
   let changes: OwnerChange[] = [];
+  /** Every row waiting on the owner, as the server counted them. */
+  let needsYouTotal = 0;
+  const waiting = (): Waiting => ({ total: needsYouTotal, unsaved: opts.unsaved?.() ?? 0 });
   /** Every keyed fix the server knows, open or settled (known-fixes.ts). */
   let known: KnownFix[] = [];
   let firstRead: (() => void) | null = null;
@@ -240,7 +280,27 @@ export function createChanges(opts: {
       visitorsLine.textContent = `${visitors} note${visitors === 1 ? "" : "s"} from visitors, in Loki →`;
       visitorsLine.href = inbox;
     }
-    for (const c of changes.slice(0, CHANGES_SHOWN)) {
+    // Said but not saved: it needs the owner too, and its tap is the card.
+    const unsaved = opts.unsaved?.() ?? 0;
+    if (unsaved) {
+      const row = h("button", "yours-row tone-warning");
+      row.type = "button";
+      row.addEventListener("click", () => opts.onUnsaved?.());
+      row.append(
+        h("span", "yours-dot"),
+        h(
+          "span",
+          "yours-text",
+          unsaved === 1
+            ? "1 change you said is not saved yet"
+            : `${unsaved} changes you said are not saved yet`,
+        ),
+        h("span", "yours-status", "Save or discard ↓"),
+      );
+      list.appendChild(row);
+    }
+    const shown = shownChanges(changes);
+    for (const c of shown) {
       // The row IS the link when there is somewhere to go — no second line.
       const row = c.href
         ? h("a", `yours-row tone-${c.tone}`)
@@ -250,13 +310,16 @@ export function createChanges(opts: {
         row.rel = "noopener";
         row.target = "_blank";
       }
-      row.title = c.detail;
+      // The whole request on hover; the row itself wraps to two lines.
+      row.title = c.detail ? `${c.text}\n\n${c.detail}` : c.text;
       const text = h("span", "yours-text", c.text);
-      const status = h("span", "yours-status", c.label);
+      // A row waiting on the owner says it is a tap (the row is the link).
+      const status = h("span", "yours-status", c.needsYou && c.href ? `${c.label} →` : c.label);
+      if (c.needsYou && c.action) row.setAttribute("aria-label", `${c.text} — ${c.action}`);
       row.append(h("span", "yours-dot"), text, status);
       list.appendChild(row);
     }
-    const more = changes.length - CHANGES_SHOWN;
+    const more = changes.length - shown.length;
     all.textContent = more > 0 ? `All ${changes.length} in Loki →` : "Open in Loki →";
     all.style.display = inbox ? "" : "none";
     if (inbox) all.href = inbox;
@@ -293,6 +356,7 @@ export function createChanges(opts: {
       if (isThemePreference(body.theme)) opts.onTheme?.(body.theme);
       const next = parseChanges(body);
       known = parseKnown(body);
+      needsYouTotal = parseNeedsYou(body);
       opts.onUpdate?.();
       inbox = typeof body.inbox === "string" && /^https?:\/\//.test(body.inbox) ? body.inbox : null;
       visitors =
@@ -376,10 +440,12 @@ export function createChanges(opts: {
     /** The list itself, for a status line that opens it (thoughts-view.ts). */
     body,
     /** The status line's fragment, and whether something needs the owner. */
-    has: () => changes.length > 0 || visitors > 0,
-    headline: () => changesHeadline(changes),
-    summary: () => changesSummary(changes, visitors),
-    attention: () => changes.some((c) => c.tone === "warning"),
+    has: () => changes.length > 0 || visitors > 0 || (opts.unsaved?.() ?? 0) > 0,
+    headline: () => changesHeadline(changes, waiting()),
+    summary: () => changesSummary(changes, visitors, waiting()),
+    attention: () => needsYouCount(changes, waiting()) > 0,
+    /** Draw the list again (the open card changed: its "not saved" row follows). */
+    repaint: () => render(),
     /** The fix a remark's key already has, if any — see known-fixes.ts. */
     known: (key: string) => knownFor(known, key),
     /** Resolves once Loki has answered (or could not), never later than the caller's own wait. */

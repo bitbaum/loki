@@ -15,7 +15,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  FIX_STARTED,
   NOTICE_KEY_MAX,
+  filedText,
+  fixFailed,
   knownFor,
   knownLabel,
   parseKnown,
@@ -40,6 +43,7 @@ const fix = (over: Partial<KnownFix>): KnownFix => ({
   live: false,
   settled: false,
   href: "https://loki.example/feedback",
+  action: "Watch it",
   ...over,
 });
 
@@ -152,6 +156,43 @@ check("the owner route answers for every keyed row, beyond the strip's twelve", 
   assert.ok(watch.includes("noticeKey: key"), "a failure Watch files itself carries its key too");
   const conv = readFileSync("widget/conversation-model.ts", "utf8");
   assert.ok(conv.includes("{ noticeKey: key }"), "Fix this files the key with the note");
+});
+
+check("a fix Watch started is said as it stands now, with the tap that acts on it", () => {
+  // 2026-10-20: "I've started a fix — it goes live by itself." directly above
+  // "Needs you — The attempt did not finish. Open it in Loki…" with no link.
+  const said = `Something broke: the page asked for /api/voice/speak and got 502. ${FIX_STARTED}`;
+  const failed = fix({
+    label: "Needs you",
+    tone: "warning",
+    detail: "The attempt did not finish.",
+  });
+  assert.ok(fixFailed(failed));
+  assert.equal(
+    filedText(said, failed),
+    "Something broke: the page asked for /api/voice/speak and got 502. The fix I started did not finish.",
+  );
+  assert.equal(filedText(said, fix({})), said, "still in flight: the promise stands");
+  assert.match(filedText(said, fix({ live: true, settled: true })), /the fix is live\.$/);
+  assert.equal(filedText(said, null), said);
+  assert.equal(filedText("Other words.", failed), "Other words.", "only Watch's own promise");
+  const [parsed] = parseKnown({
+    known: [
+      {
+        ...failed,
+        action: "Open it in Loki to see why",
+        href: "https://loki.example/feedback/f1/watch-fix",
+      },
+    ],
+  });
+  assert.equal(parsed.action, "Open it in Loki to see why", "the link's words come with it");
+  assert.equal(parseKnown({ known: [{ ...failed, action: 7 }] })[0].action, null);
+  // The card draws it as a real link (conversation-kit.ts noticedExtras).
+  const kit = readFileSync("widget/conversation-kit.ts", "utf8");
+  assert.match(kit, /h\("a", "noticed-go"/, "the status line's tap is an anchor");
+  assert.match(kit, /filedText\(item\.text, known\)/, "the remark's words follow its fix");
+  const route = readFileSync("src/app/api/widget/owner/changes/route.ts", "utf8");
+  assert.match(route, /watchFixPath\(item\.id\)/, "a failed run links to its Watch page");
 });
 
 console.log(`\nknown-fixes: ${passed} passed`);

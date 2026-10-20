@@ -59,7 +59,7 @@ export function ProjectPromptLibrary({
                 <span
                   className={cn(
                     "mt-auto self-start rounded-full border px-1.5 py-0.5 text-micro font-medium",
-                    meta.color,
+                    "ui-tag-neutral",
                   )}
                 >
                   {meta.label}

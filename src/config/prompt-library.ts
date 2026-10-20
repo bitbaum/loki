@@ -14,7 +14,7 @@
  *
  * Categories: fleet → security → engineering → frontend → backend → database
  *           → devops → design → business → marketing → research → personal
- *           → control (autopilot/loop primitives) → content (copy/docs)
+ *           → content (copy/docs). The autopilot/loop primitives are fleet too.
  * scope:    "global" = runs across all projects, "project" = runs against one
  * style:    "primary" | "action" | "more" | "dimension" | "internal" | "danger"
  *           — drives CTA prominence in the IntentPanel and DimensionSection
@@ -40,7 +40,6 @@ export type PromptCategory =
   | "marketing"
   | "research"
   | "personal"
-  | "control"
   | "content";
 
 type PromptScope = "global" | "project";
@@ -84,21 +83,30 @@ export type PromptTemplate = {
   attach?: readonly LokiRecord[];
 };
 
-export const CATEGORY_META: Record<PromptCategory, { label: string; color: string }> = {
-  fleet: { label: "Fleet Control", color: "ui-cat-fleet" },
-  security: { label: "Security", color: "ui-cat-security" },
-  engineering: { label: "Engineering", color: "ui-cat-engineering" },
-  frontend: { label: "Frontend", color: "ui-cat-frontend" },
-  backend: { label: "Backend", color: "ui-cat-backend" },
-  database: { label: "Database", color: "ui-cat-database" },
-  devops: { label: "DevOps", color: "ui-cat-devops" },
-  design: { label: "Design", color: "ui-cat-design" },
-  business: { label: "Business", color: "ui-cat-business" },
-  marketing: { label: "Marketing", color: "ui-cat-marketing" },
-  research: { label: "Research", color: "ui-cat-research" },
-  personal: { label: "Personal", color: "ui-cat-personal" },
-  control: { label: "Control", color: "ui-cat-fleet" },
-  content: { label: "Content", color: "ui-cat-marketing" },
+/**
+ * What each category is called. No colour: in the app colour means status, so
+ * a category chip is drawn neutral wherever it appears (ui-tag-neutral). The
+ * chips were a rainbow of ui-cat-* classes until 2026-10-20 — "Fleet Control"
+ * in amber read as a warning on a page with nothing wrong.
+ *
+ * There is one fleet category. "control" was a second id for the same prompts,
+ * labelled "Control" beside "Fleet Control", filtered under one group and
+ * painted the same colour: two names for one thing (owner, 2026-10-20).
+ */
+export const CATEGORY_META: Record<PromptCategory, { label: string }> = {
+  fleet: { label: "Fleet control" },
+  security: { label: "Security" },
+  engineering: { label: "Engineering" },
+  frontend: { label: "Frontend" },
+  backend: { label: "Backend" },
+  database: { label: "Database" },
+  devops: { label: "DevOps" },
+  design: { label: "Design" },
+  business: { label: "Business" },
+  marketing: { label: "Marketing" },
+  research: { label: "Research" },
+  personal: { label: "Personal" },
+  content: { label: "Content" },
 };
 
 /**
@@ -906,7 +914,7 @@ Be direct. If nothing shipped, say so. If you could not see something, say what.
     tags: ["review", "daily"],
   },
 
-  // ─── Control (loop primitives) ─────────────────────────────────────────────
+  // ─── Fleet control: loop primitives ────────────────────────────────────────
   // These six were JSON-only until 2026-05-31 — meaning they were dispatchable
   // by the autopilot runner but invisible to the /prompts library page and
   // ProjectPromptLibrary modal. Now they live in the unified SSOT with
@@ -936,7 +944,7 @@ Be direct. If nothing shipped, say so. If you could not see something, say what.
     name: "Next best task",
     description:
       "Autopilot loop — read ground truth, pick the single highest-impact next action, execute fully. Self-throttles when productivity is low.",
-    category: "control",
+    category: "fleet",
     scope: "global",
     template: `[autopilot · loop=next_best — this prompt was auto-injected by the local dispatch loop, NOT typed by a human. Treat it as a regularly-scheduled review task; if the conversation seems off, suspect the loop, not the human.]
 
@@ -1008,7 +1016,7 @@ Worked examples (read these once; they replace 200 lines of edge-case rules):
     name: "Test & fix",
     description:
       "Run the test suite, walk affected flows in the browser, fix every failure to root cause.",
-    category: "control",
+    category: "fleet",
     scope: "global",
     template: `[autopilot · loop=test_and_fix — this prompt was auto-injected by the local dispatch loop, NOT typed by a human. Treat it as a regularly-scheduled review task; if the conversation seems off, suspect the loop, not the human.]
 
@@ -1030,7 +1038,7 @@ ${HANDOFF_CLOSE_CONTRACT}
     name: "Quality pass",
     description:
       "Raise the code-quality bar without adding features. DRY, SSOT, complexity, TODO debt.",
-    category: "control",
+    category: "fleet",
     scope: "global",
     template: `[autopilot · loop=quality — this prompt was auto-injected by the local dispatch loop, NOT typed by a human. Treat it as a regularly-scheduled review task; if the conversation seems off, suspect the loop, not the human.]
 
@@ -1052,7 +1060,7 @@ Run \`grep -rn "TODO\\|FIXME\\|console\\.log\\|// @ts-ignore" src/ 2>/dev/null |
     name: "Orient",
     description:
       "Re-read project state from scratch — git log, roadmap, session handoff, recent failures — and report current reality.",
-    category: "control",
+    category: "fleet",
     scope: "global",
     template: `Re-establish ground truth before doing anything. Run:
   git log --oneline -10
@@ -1079,7 +1087,7 @@ Then in 5 bullets tell me:
     name: "Unblock",
     description:
       "Agent is stuck — diagnose what's preventing progress and propose two paths forward.",
-    category: "control",
+    category: "fleet",
     scope: "global",
     template: `You appear stuck. Diagnose:
 1. What was the last thing you tried, and what was its concrete failure mode? (Quote the error or output.)
@@ -1099,7 +1107,7 @@ Do not implement either path yet. Hand off to the user with these four answers s
     name: "Roadmap check",
     description:
       "Audit ~/.loki/sessions/<P>.roadmap.md for stale entries, duplicates, completed items still marked open.",
-    category: "control",
+    category: "fleet",
     scope: "global",
     template: `Read ~/.loki/sessions/<P>.roadmap.md end-to-end. For every T0/T1/T2 entry, verify against git log + current code state:
 - Is it actually still open? (If it was shipped, mark DONE with the commit hash.)
@@ -1118,7 +1126,7 @@ Report a punch list of stale/duplicate/vague entries you'd fix. Don't fix yet �
     name: "Onboarding audit",
     description:
       "Walk the new-user signup-to-first-action flow as if you were a stranger and document every friction point.",
-    category: "control",
+    category: "fleet",
     scope: "global",
     template: `Walk through the new-user signup-to-first-action flow as if you were a stranger:
 1. Landing page → /sign-up
@@ -1141,7 +1149,7 @@ For each step, name (a) what is unclear, (b) what is missing, (c) what is broken
     name: "Raise blocker",
     description:
       "When the agent hits a gate it cannot pass (credentials, OAuth consent, deploy approval), create a structured blocker file that surfaces to the user next loop iteration.",
-    category: "control",
+    category: "fleet",
     scope: "global",
     template: `You hit something that needs a human action you cannot take yourself (credentials you cannot enter, an OAuth consent only the owner can give, a deploy that needs manual trigger, a destructive op that needs explicit approval, a missing env var that only the user can set). Raise a blocker so the next loop iteration surfaces it concretely instead of you spinning or guessing.
 
@@ -1174,7 +1182,7 @@ Next loop iteration: next_best Setup detects the file, Rule 0 surfaces it, and o
     id: "hard-stop",
     name: "Hard stop",
     description: "Kill switch — agent stops immediately, writes nothing, runs no tools.",
-    category: "control",
+    category: "fleet",
     scope: "global",
     template: `HARD STOP. Stop all work immediately. Do not run any more tools. Do not write any code. Do not make any changes. Say only "Stopped." and stop.`,
     agentKey: "hard_stop",
@@ -1187,14 +1195,14 @@ Next loop iteration: next_best Setup detects the file, Rule 0 surfaces it, and o
 ];
 
 // ── Category groups ──────────────────────────────────────────────────────────
-// The library has 14 fine-grained categories — too many to scan as a filter bar.
+// The library has 13 fine-grained categories — too many to scan as a filter bar.
 // Collapse them into a handful of top-level GROUPS for the /prompts filter, while
 // each card still shows its fine-grained CATEGORY_META chip. This is a pure
 // grouping layer over the SSOT categories (no prompt is re-tagged).
 export type PromptGroup = "fleet" | "engineering" | "security" | "design" | "growth" | "personal";
 
 export const GROUP_META: Record<PromptGroup, { label: string }> = {
-  fleet: { label: "Fleet & Control" },
+  fleet: { label: "Fleet control" },
   engineering: { label: "Engineering" },
   security: { label: "Security" },
   design: { label: "Design" },
@@ -1207,7 +1215,6 @@ export const PROMPT_GROUPS = Object.keys(GROUP_META) as PromptGroup[];
 
 export const CATEGORY_TO_GROUP: Record<PromptCategory, PromptGroup> = {
   fleet: "fleet",
-  control: "fleet",
   engineering: "engineering",
   frontend: "engineering",
   backend: "engineering",

@@ -1,19 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Headphones, Loader2, Mic } from "lucide-react";
+import { Loader2, Mic } from "lucide-react";
 import {
-  NO_SCREEN_COMMANDS,
   NO_SCREEN_DIGEST_MS,
   NO_SCREEN_POLL_MS,
   NO_SCREEN_VOICES,
-  type NoScreenSettings,
+  type NoScreenVoice,
 } from "@/config/no-screen";
 import { useVoiceConversation, type VoicePhase } from "@/hooks/use-voice-conversation";
 import { useMediaSession } from "@/hooks/use-media-session";
 import { useSoundscape } from "@/hooks/use-soundscape";
 import { useNoScreenSettings } from "@/hooks/use-no-screen-settings";
 import { useImmersiveChat } from "@/hooks/use-immersive-chat";
+import { useStudioVoiceStatus } from "@/hooks/use-studio-voice-status";
 import { getJson, postJson } from "@/lib/api/fetch";
 import { parseVoiceCommand } from "@/lib/voice/commands";
 import { composeBriefing, diffSnapshots, type FleetSnapshot } from "@/lib/voice/briefing";
@@ -25,9 +25,17 @@ import {
   type FleetChange,
 } from "@/lib/voice/announce";
 import { createServerSpeaker, createSynthSpeaker, type Speaker } from "@/lib/voice/speaker";
+import {
+  composeVoiceList,
+  composeVoiceSwitched,
+  resolveVoiceChoice,
+  type VoiceModeState,
+} from "@/lib/voice/self";
+import { studioVoiceOffSentence } from "@/lib/voice/tts-failure";
 import type { VoiceTurnResult } from "@/lib/voice/turn";
 import { cn } from "@/lib/utils";
-import { OptionRow } from "@/components/terminal/sheet-rows";
+import { NoScreenStart } from "@/components/voice/NoScreenStart";
+import { StudioVoiceNotice } from "@/components/voice/StudioVoiceNotice";
 
 const PHASE_LABEL: Record<VoicePhase, string> = {
   off: "Off",
@@ -43,8 +51,12 @@ const OPENING = "Loki here. Reading your fleet.";
 const HISTORY_MAX = 8;
 /** Two failed polls in a row is a dropped line, not a slow one. */
 const OFFLINE_AFTER_FAILURES = 2;
+/** Said once per session, the first time the studio voice is refused. */
+const STUDIO_OFF_SPOKEN =
+  "Studio voices are off right now, so I'm reading with your phone's voice. The screen says how to turn them on.";
 
 type Turn = { role: "user" | "assistant"; content: string };
+type Armed = { ctx: AudioContext; speech: AudioNode };
 
 /**
  * No-screen mode: the fleet in your ear, your voice as the only control.
@@ -54,16 +66,18 @@ type Turn = { role: "user" | "assistant"; content: string };
  * each announcement behind its earcon, coalesced and varied so an hour of
  * it does not grate (lib/voice/announce). A music bed the phone composes
  * itself fills the silence and ducks under the voice; the voice is a studio
- * one when the box has it, the phone's own when it does not.
+ * one when the box has it, the phone's own when it does not — and then the
+ * screen says why (StudioVoiceNotice), once aloud.
  *
- * The three commands that are about the conversation itself (quiet, say that
- * again, end) and "details" are answered here without a round trip;
- * everything else is one POST to /api/voice/turn, whose answer is read aloud.
+ * The commands that are about the conversation itself (quiet, say that
+ * again, end, details) and the voice ("use Troy") are answered here without
+ * a round trip; everything else is one POST to /api/voice/turn, whose answer
+ * is read aloud. A question goes with this screen's state, so Loki can answer
+ * one about itself truthfully (lib/voice/self).
  */
 export function NoScreenMode() {
   const [on, setOn] = useState(false);
   const [answer, setAnswer] = useState<{ id: string; text: string } | null>(null);
-  const [failed, setFailed] = useState(false);
   const [lastSaid, setLastSaid] = useState("");
   const [line, setLine] = useState<"online" | "offline">("online");
   const [speaker, setSpeaker] = useState<Speaker | undefined>(undefined);
@@ -72,6 +86,8 @@ export function NoScreenMode() {
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+  const studio = useStudioVoiceStatus();
+  const { report: reportStudioOff, clear: clearStudioOff } = studio;
 
   const snapshotRef = useRef<FleetSnapshot | null>(null);
   const historyRef = useRef<Turn[]>([]);
@@ -80,6 +96,7 @@ export function NoScreenMode() {
   const heldRef = useRef<FleetChange[]>([]);
   const variantRef = useRef(0);
   const failuresRef = useRef(0);
+  const armedRef = useRef<Armed | null>(null);
   const sayRef = useRef<(text: string, cue?: () => void) => void>(() => {});
   const stopRef = useRef<() => void>(() => {});
 
@@ -89,6 +106,30 @@ export function NoScreenMode() {
     lastSaidRef.current = text;
     setLastSaid(text);
   };
+  const reply = (text: string) => {
+    said(text);
+    setAnswer({ id: crypto.randomUUID(), text });
+  };
+
+  /** Who reads in `voice`: the studio voice through the soundscape, or the phone's. */
+  const makeSpeaker = useCallback(
+    (voice: NoScreenVoice): Speaker => {
+      const synth = createSynthSpeaker();
+      const armed = armedRef.current;
+      if (!armed || voice === "phone") return synth;
+      return createServerSpeaker({
+        voice,
+        ctx: armed.ctx,
+        out: armed.speech,
+        fallback: synth,
+        onUnavailable: (failure) => {
+          if (reportStudioOff(failure)) sayRef.current(STUDIO_OFF_SPOKEN);
+        },
+        onAvailable: clearStudioOff,
+      });
+    },
+    [reportStudioOff, clearStudioOff],
+  );
 
   /** Read a batch of changes: earcon, then the sentence, in urgency order. */
   const announce = useCallback(
@@ -114,72 +155,88 @@ export function NoScreenMode() {
     [announce],
   );
 
-  const send = useCallback(
-    async (text: string) => {
-      const projects = snapshotRef.current?.projects ?? [];
-      const cmd = parseVoiceCommand(text, projects);
-      setFailed(false);
-      if (cmd.kind === "quiet") {
-        setAnswer({ id: crypto.randomUUID(), text: "" });
-        return;
+  /** "Use Troy", "other voice", "change your voice": switched here, kept like the picker. */
+  const changeVoice = (choice: Parameters<typeof resolveVoiceChoice>[0]) => {
+    const current = settingsRef.current.voice;
+    const next = resolveVoiceChoice(choice, current);
+    if (!next) return reply(composeVoiceList(current));
+    settingsRef.current = { ...settingsRef.current, voice: next };
+    update({ voice: next });
+    // The new speaker is in place before the answer is read, so the answer
+    // is the first thing heard in the new voice.
+    setSpeaker(makeSpeaker(next));
+    const off = studio.failureRef.current;
+    reply(composeVoiceSwitched(next, off && next !== "phone" ? studioVoiceOffSentence(off) : null));
+  };
+
+  const send = async (text: string) => {
+    const projects = snapshotRef.current?.projects ?? [];
+    const cmd = parseVoiceCommand(text, projects);
+    if (cmd.kind === "quiet") {
+      setAnswer({ id: crypto.randomUUID(), text: "" });
+      return;
+    }
+    if (cmd.kind === "repeat") {
+      setAnswer({
+        id: crypto.randomUUID(),
+        text: lastSaidRef.current || "I haven't said anything yet.",
+      });
+      return;
+    }
+    if (cmd.kind === "details")
+      return reply(detailsFor([...lastChangesRef.current, ...heldRef.current]));
+    if (cmd.kind === "voice") return changeVoice(cmd.voice);
+    if (cmd.kind === "end") {
+      // The microphone closes first, then the farewell: it is the one line
+      // spoken outside the loop, because the loop is what is ending.
+      stopRef.current();
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance("Ending no-screen mode. Bye."));
       }
-      if (cmd.kind === "repeat") {
-        setAnswer({
-          id: crypto.randomUUID(),
-          text: lastSaidRef.current || "I haven't said anything yet.",
-        });
-        return;
+      return;
+    }
+    const s = settingsRef.current;
+    const off = studio.failureRef.current;
+    const mode: VoiceModeState = {
+      voice: s.voice,
+      music: s.music,
+      bargeIn: s.bargeIn,
+      mode: s.mode,
+      studioOff: off && s.voice !== "phone" ? studioVoiceOffSentence(off) : null,
+    };
+    try {
+      const res = await postJson("/api/voice/turn", { text, history: historyRef.current, mode });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? `HTTP ${res.status}`);
       }
-      if (cmd.kind === "details") {
-        const all = [...lastChangesRef.current, ...heldRef.current];
-        const d = detailsFor(all);
-        said(d);
-        setAnswer({ id: crypto.randomUUID(), text: d });
-        return;
+      const result = (await res.json()) as VoiceTurnResult;
+      if (result.kind === "ask") {
+        const next: Turn[] = [
+          ...historyRef.current,
+          { role: "user", content: text },
+          { role: "assistant", content: result.say },
+        ];
+        historyRef.current = next.slice(-HISTORY_MAX);
       }
-      if (cmd.kind === "end") {
-        // The microphone closes first, then the farewell: it is the one line
-        // spoken outside the loop, because the loop is what is ending.
-        stopRef.current();
-        if ("speechSynthesis" in window) {
-          window.speechSynthesis.speak(new SpeechSynthesisUtterance("Ending no-screen mode. Bye."));
-        }
-        return;
-      }
-      try {
-        const res = await postJson("/api/voice/turn", { text, history: historyRef.current });
-        if (!res.ok) {
-          const data = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(data.error ?? `HTTP ${res.status}`);
-        }
-        const result = (await res.json()) as VoiceTurnResult;
-        if (result.kind === "ask") {
-          const next: Turn[] = [
-            ...historyRef.current,
-            { role: "user", content: text },
-            { role: "assistant", content: result.say },
-          ];
-          historyRef.current = next.slice(-HISTORY_MAX);
-        }
-        // A briefing already covers everything held for the digest.
-        if (result.kind === "status") heldRef.current = [];
-        said(result.say);
-        setAnswer({ id: crypto.randomUUID(), text: result.say });
-        absorb(result.snapshot);
-      } catch (err) {
-        const why = err instanceof Error ? err.message : "unknown error";
-        const text = `That didn't go through: ${why}. Say it again.`;
-        said(text);
-        setAnswer({ id: crypto.randomUUID(), text });
-      }
-    },
-    [absorb],
-  );
+      // A briefing already covers everything held for the digest.
+      if (result.kind === "status") heldRef.current = [];
+      reply(result.say);
+      absorb(result.snapshot);
+    } catch (err) {
+      const why = err instanceof Error ? err.message : "unknown error";
+      reply(`That didn't go through: ${why}. Say it again.`);
+    }
+  };
+  const sendRef = useRef(send);
+  useEffect(() => {
+    sendRef.current = send;
+  });
 
   const voice = useVoiceConversation({
-    onUtterance: (text) => void send(text),
+    onUtterance: (text) => void sendRef.current(text),
     latestAnswer: answer,
-    turnFailed: failed,
+    turnFailed: false,
     idle: "listen",
     speaker,
     bargeIn: settings.bargeIn,
@@ -191,7 +248,10 @@ export function NoScreenMode() {
   const media = useMediaSession({
     title: "Loki — no-screen mode",
     phase: PHASE_LABEL[voice.phase],
-    onToggle: voice.tap,
+    onToggle: () => {
+      sound.resume();
+      voice.tap();
+    },
     onNext: () => {
       const s = snapshotRef.current;
       if (s) sayRef.current(composeBriefing(s));
@@ -209,19 +269,14 @@ export function NoScreenMode() {
   }, [stop]);
 
   const start = () => {
+    // Everything that needs the tap happens here, before the first await:
+    // the audio context starts (and resumes) inside it, and so does the
+    // media element that carries the music.
     const armed = sound.arm();
+    sound.resume();
+    armedRef.current = armed ? { ctx: armed.ctx, speech: armed.speech } : null;
     media.arm(armed?.stream ?? null, sound.connectDirect);
-    const synth = createSynthSpeaker();
-    setSpeaker(
-      armed && settings.voice !== "phone"
-        ? createServerSpeaker({
-            voice: settings.voice,
-            ctx: armed.ctx,
-            out: armed.speech,
-            fallback: synth,
-          })
-        : synth,
-    );
+    setSpeaker(makeSpeaker(settings.voice));
     if (settings.music) sound.startMusic();
     setOn(true);
     void voice.start(OPENING);
@@ -293,42 +348,35 @@ export function NoScreenMode() {
 
   if (!on) {
     return (
-      <div className="ui-voice-start">
-        <Headphones className="h-10 w-10 text-text-tertiary" aria-hidden />
-        <h1 className="ui-page-title">Voice</h1>
-        <p className="ui-page-subtitle max-w-sm">
-          Put the headphones in, press Start, and put the phone away. Loki reads your fleet aloud,
-          listens for what you say, and tells you when something finishes or needs you.
-        </p>
-        {voice.error && <p className="ui-error text-center">{voice.error}</p>}
-        <button type="button" className="ui-voice-start-btn" onClick={start}>
-          <Mic className="h-6 w-6" aria-hidden />
-          Start
-        </button>
-
-        <NoScreenSettingsRow settings={settings} update={update} />
-
-        <ul className="ui-voice-commands" aria-label="What you can say">
-          {NO_SCREEN_COMMANDS.map((c) => (
-            <li key={c.kind} className="ui-voice-command">
-              <span className="ui-voice-command-say">“{c.say[0]}”</span>
-              <span className="ui-voice-command-does">{c.does}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <NoScreenStart
+        settings={settings}
+        update={update}
+        studioOff={studio.failure}
+        error={voice.error}
+        onStart={start}
+      />
     );
   }
 
   const busy =
     voice.phase === "starting" || voice.phase === "transcribing" || voice.phase === "thinking";
   return (
-    <div className="ui-voice">
-      <div className="ui-voice-stage">
+    // data-fc-place="tab": the feedback launcher's corner is where End is,
+    // and its "Watching" pill sat on top of it (owner, 2026-10-20). Here it
+    // is the slim handle on the side edge instead, still one tap away.
+    <div className="ui-voice" data-fc-place="tab">
+      <h1 className="ui-voice-title">Voice</h1>
+      {/* Scrolls rather than pushing End off a short screen when the
+          studio-voice notice is showing; centred only while it fits. */}
+      <div className="ui-voice-stage ui-voice-stage-scroll">
         <button
           type="button"
           className={cn("ui-voice-orb", `ui-voice-orb-${voice.phase}`)}
-          onClick={voice.tap}
+          onClick={() => {
+            // A tap is the one moment the phone lets a page wake its sound.
+            sound.resume();
+            voice.tap();
+          }}
           disabled={busy}
           aria-label={voice.phase === "listening" ? "Send what you said now" : "Interrupt and talk"}
           style={{
@@ -345,89 +393,24 @@ export function NoScreenMode() {
           {line === "offline" ? "Reconnecting" : PHASE_LABEL[voice.phase]}
         </p>
         <p className="ui-voice-hint">
-          {voiceLabel}
+          {studio.failure && settings.voice !== "phone" ? "Phone voice" : voiceLabel}
           {settings.music ? " · music on" : ""}
           {settings.bargeIn ? " · talk to interrupt" : " · press to interrupt"}
         </p>
         {voice.heard && <p className="ui-voice-heard">“{voice.heard}”</p>}
         {lastSaid && <p className="ui-voice-said">{lastSaid}</p>}
         {voice.error && <p className="ui-error text-center">{voice.error}</p>}
+        {studio.failure && settings.voice !== "phone" && (
+          <div className="mt-2 w-full max-w-sm">
+            <StudioVoiceNotice failure={studio.failure} />
+          </div>
+        )}
       </div>
-      <div className="ui-voice-bottom">
-        <button type="button" className="ui-btn-secondary" onClick={stop}>
+      <div className="ui-voice-ending">
+        <button type="button" className="ui-btn-secondary min-h-12 min-w-32" onClick={stop}>
           End
         </button>
       </div>
-    </div>
-  );
-}
-
-/**
- * The four choices, read once before the phone goes away. Voice is one
- * scrolling row of names; the other three are on/off rows.
- */
-function NoScreenSettingsRow({
-  settings,
-  update,
-}: {
-  settings: NoScreenSettings;
-  update: (patch: Partial<NoScreenSettings>) => void;
-}) {
-  return (
-    <div className="ui-voice-settings">
-      <div className="ui-voice-setting">
-        <span className="ui-voice-setting-label">Voice</span>
-        <div
-          className="ui-filter-chip-row ui-scroll-fade-right"
-          role="radiogroup"
-          aria-label="Voice"
-        >
-          {NO_SCREEN_VOICES.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              role="radio"
-              aria-checked={settings.voice === v.id}
-              title={v.note}
-              className={cn("ui-chip-toggle", settings.voice === v.id && "ui-chip-toggle-active")}
-              onClick={() => update({ voice: v.id })}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="ui-voice-setting">
-        <span className="ui-voice-setting-label">While you listen</span>
-        {/* On/off, one per row: as chips the third wrapped alone onto a
-            second line on a phone (2026-10-19). */}
-        <div className="flex flex-col gap-1">
-          <OptionRow
-            toggle
-            title="Music bed"
-            active={settings.music}
-            onSelect={() => update({ music: !settings.music })}
-          />
-          <OptionRow
-            toggle
-            title="Talk to interrupt"
-            active={settings.bargeIn}
-            onSelect={() => update({ bargeIn: !settings.bargeIn })}
-          />
-          <OptionRow
-            toggle
-            title="Only what needs me"
-            active={settings.mode === "important"}
-            onSelect={() =>
-              update({ mode: settings.mode === "important" ? "everything" : "important" })
-            }
-          />
-        </div>
-      </div>
-      <p className="ui-voice-setting-note">
-        The music is made by the phone itself — no file, no licence. &ldquo;Only what needs
-        me&rdquo; holds finished runs and reads them as one sentence every five minutes.
-      </p>
     </div>
   );
 }

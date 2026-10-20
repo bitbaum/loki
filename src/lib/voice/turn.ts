@@ -25,6 +25,8 @@ import {
   type FleetSnapshot,
 } from "@/lib/voice/briefing";
 import { loadFleetSnapshot } from "@/lib/voice/fleet-snapshot";
+import { askInVoiceMode, composeVoiceList, type VoiceModeState } from "@/lib/voice/self";
+import { NO_SCREEN_DEFAULT_VOICE } from "@/config/no-screen";
 
 export type VoiceTurnResult = {
   kind: VoiceCommand["kind"];
@@ -84,6 +86,9 @@ export async function runVoiceTurn(
   userId: string,
   text: string,
   history: ChatMessage[] = [],
+  /** The page's own state (voice, switches), so a question about the
+   *  screen is answered from the screen. Null from a caller that has none. */
+  mode: VoiceModeState | null = null,
 ): Promise<VoiceTurnResult> {
   const before = await loadFleetSnapshot(userId);
   const cmd = parseVoiceCommand(text, before.projects);
@@ -101,6 +106,11 @@ export async function runVoiceTurn(
       break;
     case "help":
       say = composeHelp();
+      break;
+    // The phone switches the voice itself (it holds the choice); asked here,
+    // the server can still say what there is.
+    case "voice":
+      say = composeVoiceList(mode?.voice ?? NO_SCREEN_DEFAULT_VOICE);
       break;
     case "approve":
     case "reject":
@@ -137,7 +147,9 @@ export async function runVoiceTurn(
       say = "";
       break;
     case "ask": {
-      const { status, body } = await askLoki(cmd.text, {
+      // Told what this screen is first, so "can I change your voice?" gets
+      // this screen's answer, not a generic assistant's (lib/voice/self).
+      const { status, body } = await askLoki(askInVoiceMode(cmd.text, mode), {
         sessionKey: `agent:main:web:voice:${userId}`,
         userId,
         history,

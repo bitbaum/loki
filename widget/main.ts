@@ -59,6 +59,7 @@ import { startWatchMode, type WatchSession } from "./watch";
 import { installSelfWatch } from "./self-watch";
 import { askAdvisor, READ_QUESTION } from "./loki-api";
 import { createConversation } from "./conversation";
+import { unsavedChanges } from "./conversation-model";
 import { loadChat } from "./chat-loader";
 import { chatkitVars } from "./chat/theme";
 import { createChanges } from "./changes";
@@ -374,6 +375,13 @@ interface LokiApi {
       },
       onRender: () => thoughts.repaint(),
       onSay: (text) => conversation.say(text),
+      // Changes said on the open card wait on the owner's Save: counted, and
+      // a row in the list that brings the card into view.
+      unsaved: () => unsavedChanges(conversation?.model.snapshot().draft ?? null),
+      onUnsaved: () => {
+        thoughts.close();
+        conversation.showDraft();
+      },
     });
     // The owner's one status line under the header: watching, and where
     // their changes are (thoughts-view.ts).
@@ -481,6 +489,8 @@ interface LokiApi {
       // The one microphone: talk while you scroll (browse-voice.ts).
       ...(isVoiceSupported() ? { talk: startTalk } : {}),
     });
+    // The open card came or went: the header's count and list follow.
+    conversation.model.subscribe(() => changes.repaint());
 
     const foot = h("div", "panel-foot");
     foot.append(madeWith, hideLink);
@@ -617,7 +627,7 @@ interface LokiApi {
         token,
         pass: () => ownerPass,
         active: () => watchSession?.on() ?? false,
-        onFinding: (say) => conversation.selfNote(say),
+        onFinding: (say) => conversation.model.selfNote(say),
       });
     if (ownerPass)
       watchSession = startWatchMode({
@@ -631,12 +641,13 @@ interface LokiApi {
           picker.start();
         },
         onRemark: (r) => {
-          conversation.noticed(r);
+          conversation.model.noticed(r);
           if (panel.isConnected || browseVoice?.active()) return;
           unread++;
           syncWatch();
           launcher.say(r.short ?? r.say.split("\n")[0]);
         },
+        onWithdraw: (slot) => conversation.model.unnoticed(slot),
         statusShown: () => !!browseVoice?.active() || panel.isConnected || launcher.isShown(),
         onChange: syncWatch,
         onTrail: (trail) => thoughts.update(trail, watchSession?.on() ?? false),

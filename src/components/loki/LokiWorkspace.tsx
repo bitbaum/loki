@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChatScreen } from "@bitbaum/chatkit/react";
 import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
+import { useNewChat } from "@/hooks/use-new-chat";
 import { initialLokiSelection } from "@/lib/loki/project-selection";
 import { initialThreadId } from "@/lib/loki/conversation-param";
 import { useSendQueue } from "@/hooks/use-send-queue";
@@ -426,6 +427,7 @@ export function LokiWorkspace({
     setError(null);
     setComposerPrefill(null);
   };
+  const newChat = useNewChat(startNewConversation, () => setHistoryOpen(false));
 
   const deleteConversation = async (id: string) => {
     setError(null);
@@ -577,7 +579,6 @@ export function LokiWorkspace({
   // Which thread the menu opened "save to context" for — it closes itself by
   // no longer matching when the operator moves to another thread.
   const [saveFor, setSaveFor] = useState<string | null>(null);
-  const saveOpen = saveFor === (activeId ?? "new");
   const activeThread = activeId ? conversations.find((c) => c.id === activeId) : undefined;
 
   // The thread's controls, shared by the desktop bar and the phone's header.
@@ -588,7 +589,8 @@ export function LokiWorkspace({
     pinned: Boolean(activeThread?.pinnedAt),
     canSaveContext: messages.length > 0,
     onOpenHistory: () => setHistoryOpen(true),
-    onNewChat: startNewConversation,
+    onNewChat: newChat.start,
+    onLeaveThread: startNewConversation,
     onOpenProjects: () => setFilterOpen(true),
     onSaveContext: () => setSaveFor(activeId ?? "new"),
     onTogglePin: inbox.pinConversation,
@@ -632,13 +634,13 @@ export function LokiWorkspace({
         // permanent line of a phone screen from the conversation.
         // On a phone it waits in the thread menu until asked for.
         tail={
-          messages.length > 0 && (wide || saveOpen) ? (
+          messages.length > 0 && (wide || saveFor === (activeId ?? "new")) ? (
             <SaveContextBar
               key={activeId ?? "new"}
               projects={projects}
               messages={messages}
               selectedProject={selectedProjects[0] ?? null}
-              defaultOpen={saveOpen}
+              defaultOpen={saveFor === (activeId ?? "new")}
             />
           ) : null
         }
@@ -671,6 +673,7 @@ export function LokiWorkspace({
         context={site.context}
         onContextUsed={site.spend}
         draftKey={lokiDraftKey(activeId)}
+        freshRequest={newChat.fresh}
         selectedProjects={selectedProjects}
         projectCount={projects.length}
         selectedGoal={selectedGoal}
@@ -712,10 +715,7 @@ export function LokiWorkspace({
         setActiveId(id);
         setHistoryOpen(false);
       }}
-      onNew={() => {
-        startNewConversation();
-        setHistoryOpen(false);
-      }}
+      onNew={newChat.start}
       onDelete={(id) => void deleteConversation(id)}
     />
   );
@@ -761,6 +761,7 @@ export function LokiWorkspace({
       <div className="ui-loki-main">
         <WorkspaceChrome
           {...chrome}
+          onNewChat={newChat.start}
           inThread={!isStart}
           historyPinned={historyPinned}
           onToggleHistoryPinned={() => setHistoryPinned((open) => !open)}

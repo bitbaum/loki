@@ -130,12 +130,30 @@ assert.deepEqual(
 );
 assert.deepEqual(spokenSegments({ text: "no segments" }), []);
 
-// The receipt quotes the start and keeps the whole.
+// The receipt never quotes a cut sentence: a long note is NAMED, and shown
+// whole under it (clamped to whole lines with "Show all"). "Saved “3 changes:
+// Make it possible for users to hear what is…”" had nothing to open
+// (owner's phone, 2026-10-20).
 const long = "word ".repeat(200).trim();
-const sent = { kind: "sent", text: long } as Parameters<typeof receiptText>[0];
-assert.ok(receiptText(sent).includes("…”"), "a long note is quoted with an ellipsis");
-assert.ok(!receiptText(sent).includes("wor…"), "and cut at a word");
+const sent = { kind: "sent", owner: true, text: long } as Parameters<typeof receiptText>[0];
+assert.ok(!receiptText(sent).includes("…"), "no sentence is cut short");
+assert.match(receiptText(sent), /^Saved your note\./);
 assert.equal(receiptFull(sent), long, "the whole note is still there to read");
+const several = {
+  ...sent,
+  text: "• Make it louder\n• Add a pause button\n• Say the time",
+  changes: 3,
+};
+assert.match(receiptText(several), /^Saved your 3 changes\./, "several changes are named as such");
+assert.equal(receiptFull(several), several.text, "and listed whole, one per line");
+assert.match(
+  receiptText({ ...several, building: true }),
+  /^On it — your 3 changes are being built\./,
+);
+assert.equal(
+  receiptText({ ...sent, text: "Make it louder" }).startsWith("Saved “Make it louder”"),
+  true,
+);
 assert.equal(
   receiptFull({ ...sent, text: "short" }),
   null,

@@ -35,10 +35,12 @@ import {
   type NoticeKind,
   type TrailEntry,
   checksSignature,
+  checksSlot,
 } from "./watch-trail";
-import { runPageChecks } from "./page-checks";
+import { runPageChecks, settledPageChecks } from "./page-checks";
+import { pageLabel } from "./page-label";
 import { sendReport } from "./send-report";
-import { remarkVerdict, type KnownFix } from "./known-fixes";
+import { FIX_STARTED, remarkVerdict, type KnownFix } from "./known-fixes";
 import { pressVerb } from "./press";
 
 const pausedKey = (token: string) => `loki-watch-paused:${token}`;
@@ -285,7 +287,17 @@ export function installWatch(opts: {
   window.addEventListener("pagehide", () => (leaving = true));
   window.addEventListener("beforeunload", () => (leaving = true));
   window.addEventListener("pageshow", () => (leaving = false));
-  const cutOff = () => leaving || document.visibilityState === "hidden" || !navigator.onLine;
+  // A phone that locks or switches app suspends the page, and what it was
+  // asking for fails when it wakes — AFTER it is visible again, so "hidden
+  // now" missed it. A request that lived through the page being put away is
+  // cut off, whenever its failure surfaces.
+  let away = 0;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") away++;
+  });
+  window.addEventListener("pagehide", () => away++);
+  const cutOff = (since: number) =>
+    leaving || since !== away || document.visibilityState === "hidden" || !navigator.onLine;
 
   const originalFetch = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -298,13 +310,14 @@ export function installWatch(opts: {
       settleTap("it asked the server");
     }
     const started = performance.now();
+    const since = away;
     try {
       const res = await originalFetch(input, init);
       onRequest(method, url, res.status, performance.now() - started);
       return res;
     } catch (err) {
       // An aborted request is the page changing its mind, not a failure.
-      if (!(err instanceof DOMException && err.name === "AbortError") && !cutOff())
+      if (!(err instanceof DOMException && err.name === "AbortError") && !cutOff(since))
         onRequest(method, url, null, performance.now() - started);
       throw err;
     }
@@ -323,9 +336,10 @@ export function installWatch(opts: {
       settleTap("it asked the server");
     }
     const started = performance.now();
+    const since = away;
     this.addEventListener("loadend", () => {
       const [m, u] = this.__lokiReq ?? ["GET", ""];
-      if (this.status === 0 && cutOff()) return;
+      if (this.status === 0 && cutOff(since)) return;
       onRequest(m, u, this.status === 0 ? null : this.status, performance.now() - started);
     });
     return (open as (...a: unknown[]) => void).call(this, method, url, ...rest);
@@ -617,6 +631,9 @@ export function startWatchMode(opts: {
   onPoint?: () => void;
   /** Loki noticed something — say it in the conversation. */
   onRemark: (remark: Remark) => void;
+  /** The newest reading of a page found nothing: take back the card that
+   *  slot (watch-trail.ts checksSlot) held. */
+  onWithdraw?: (slot: string) => void;
   /** True while the launcher or the open panel already shows that Loki is
    *  watching — then the top bar stays out of the site's way. */
   statusShown: () => boolean;
@@ -735,7 +752,7 @@ export function startWatchMode(opts: {
     }
     remark(key, {
       say: filed
-        ? `${failureSay(failure)} I've started a fix — it goes live by itself.`
+        ? `${failureSay(failure)} ${FIX_STARTED}`
         : `${failureSay(failure)} I couldn't reach Loki to fix it — send it from here.`,
       fix: message,
       filed,
@@ -745,12 +762,22 @@ export function startWatchMode(opts: {
   // Look at each page once it has settled: what a visitor pays for that
   // nobody sees (unnamed buttons, tiny targets, broken images…).
   let checksTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Which reading each page's card shows (checksSlot → checksSignature). */
+  const readings = readSlots(opts.token);
+  let looking = 0;
   const scheduleChecks = () => {
     if (checksTimer) clearTimeout(checksTimer);
     checksTimer = setTimeout(async () => {
+      const turn = ++looking;
+      const path = location.pathname;
       await lookFirst();
       if (paused) return;
-      const checks = safePageChecks();
+      // Measured once the page holds still, twice, and only what both
+      // readings agree on — never a page caught changing screens.
+      const checks = await settledChecks(opts.host);
+      // The owner moved on while Loki was looking: that reading is not of
+      // the page they are on, and the next look is already scheduled.
+      if (paused || turn !== looking || location.pathname !== path) return;
       // Said in the notes even when clean: "looked, all fine" is what the
       // owner could not see while watch only spoke about problems.
       recorder?.note(
@@ -760,10 +787,25 @@ export function startWatchMode(opts: {
           : "nothing stands out",
       );
       // A finding about the whole site is said on the first page only.
-      const fresh = onceSiteWide(checks, said);
-      const r = explainChecks(fresh.checks);
-      if (r && !paused) {
-        remark(checksSignature(location.pathname, fresh.checks), r);
+      const fresh = onceSiteWide(checks, said, path);
+      const slot = checksSlot(path);
+      const signature = checksSignature(path, fresh.checks);
+      const r = explainChecks(fresh.checks, pageLabel(document.title, path));
+      if (!r) {
+        // Clean now: a card from an earlier reading of this page is no
+        // longer true, so it goes.
+        if (readings[slot]) {
+          delete readings[slot];
+          writeSlots(opts.token, readings);
+          opts.onWithdraw?.(slot);
+        }
+      } else if (readings[slot] !== signature) {
+        // One card per page, always the newest reading (thread.ts
+        // pushNoticed replaces it in place).
+        readings[slot] = signature;
+        writeSlots(opts.token, readings);
+        said.delete(signature);
+        remark(signature, r);
         for (const key of fresh.keys) said.add(key);
         writeSaid(opts.token, said);
       }
@@ -810,7 +852,7 @@ export function startWatchMode(opts: {
     );
     const list = r.changes.map((c) => `• ${c}`).join("\n");
     opts.onRemark({
-      say: `Reading this page as a visitor:\n${r.say}`,
+      say: `Reading the ${pageLabel(document.title, location.pathname)} page as a visitor:\n${r.say}`,
       fix: `Make these changes on this page, together:\n${list}`,
       short: `reading it, ${r.changes.length === 1 ? "one thing" : `${r.changes.length} things`} could be better`,
       key,
@@ -900,6 +942,41 @@ function safePageChecks(): string[] {
     return runPageChecks(document);
   } catch {
     return [];
+  }
+}
+
+/** The checks Watch SAYS: of a settled page, agreed by two readings. */
+async function settledChecks(host: HTMLElement): Promise<string[]> {
+  try {
+    return await settledPageChecks(document, (node) => isOurNode(node, host));
+  } catch {
+    return [];
+  }
+}
+
+const slotsKey = (token: string) => `loki-watch-readings:${token}`;
+
+/** Each page's card and the reading it shows, this visit (per tab). */
+function readSlots(token: string): Record<string, string> {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(slotsKey(token)) ?? "{}") as unknown;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    return Object.fromEntries(
+      Object.entries(raw).filter((e): e is [string, string] => typeof e[1] === "string"),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeSlots(token: string, slots: Record<string, string>): void {
+  try {
+    sessionStorage.setItem(
+      slotsKey(token),
+      JSON.stringify(Object.fromEntries(Object.entries(slots).slice(-50))),
+    );
+  } catch {
+    /* storage blocked: a reload may say the page's reading once more */
   }
 }
 

@@ -50,9 +50,23 @@ assert.deepEqual(
   "needs-you first (newest first within), then moving, then live",
 );
 
-// The widget route sorts with it and sends no rank field to the browser.
+// The widget route sorts with it, over ALL the owner's rows, and only then
+// cuts the list to twelve — and it counts what needs the owner over all of
+// them. Ordering and counting inside the newest twelve let three fresh notes
+// push three failed fixes out: "9 need you" became 6 with nothing done
+// (2026-10-20).
 const route = readFileSync("src/app/api/widget/owner/changes/route.ts", "utf8");
 assert.match(route, /orderForOwner\(/, "the owner's rows are ordered for the owner");
-assert.match(route, /needsYou: _needsYou, \.\.\.change/, "the rank input stays server-side");
+assert.doesNotMatch(
+  route,
+  /FEEDBACK_SOURCE\.AI_REVIEW,?\s*\)\s*\.slice\(0, OWNER_CHANGES_MAX\)/,
+  "never a window of the newest before ordering",
+);
+assert.match(route, /changes: ordered\.slice\(0, OWNER_CHANGES_MAX\)/, "cut after ordering");
+assert.match(
+  route,
+  /needsYou: ordered\.filter\(\(c\) => c\.needsYou\)\.length/,
+  "the line's number is counted over every row",
+);
 
 console.log("✓ owner-changes-order: the rows the line counts are the rows the list shows first");

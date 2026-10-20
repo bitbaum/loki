@@ -45,19 +45,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     `${APP_URL}/feedback?project=${encodeURIComponent(row.projectName)}`,
   );
   const live = livePageHref(row.liveUrl, row.feedback.url, row.feedback.page);
-  if (!live) return projectInbox;
   const runId = row.feedback.dispatchedRunId;
   const run = runId ? (await getOrchestrationRunsByIds(userId, [runId])).get(runId) : null;
   const status = ownerStatusFor(
     deriveFeedbackWork(row.feedback.status, runToFeedbackSnapshot(run)),
   );
   if (!status.live) {
-    // Watch reads runs by the signed-in user, so only the owner can follow one.
+    // Watch reads runs by the signed-in user, so only the owner can follow
+    // one. A run that FAILED lands here too — the widget's "Needs you" links
+    // to this address — and its Watch page is where the why is, whether or
+    // not the project has a live page (that only matters for the tour).
     if (run && userId === row.ownerUserId && run.projectId === row.feedback.projectId)
       return NextResponse.redirect(
         `${APP_URL}/projects/${encodeURIComponent(row.feedback.projectId)}/watch?run=${encodeURIComponent(run.id)}`,
       );
     return projectInbox;
   }
+  if (!live) return projectInbox;
   return NextResponse.redirect(tourSiteUrl(live, createTourToken(row.feedback.id)));
 }

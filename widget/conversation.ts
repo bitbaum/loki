@@ -40,7 +40,7 @@ import {
   type ConversationWatch,
   type Draft,
 } from "./conversation-model";
-import { kitState, noticedExtras, sentFull } from "./conversation-kit";
+import { kitState, noticedExtras, noticedText, sentFull } from "./conversation-kit";
 import { heardLine } from "./walk-read";
 import {
   itemCounts,
@@ -634,10 +634,8 @@ export function createConversation(opts: {
     input,
     focus,
     useKit,
-    /** True once the shared chat draws the conversation. */
-    kit: () => kit !== null,
-    /** Re-read who is speaking (owner/visitor) and what is picked. */
-    /** `follow`: jump to the newest message (opening the panel to see it). */
+    kit: () => kit !== null, // true once the shared chat draws the conversation
+    /** Re-read who speaks and what is picked; `follow` jumps to the newest. */
     refresh: (follow = false) => {
       syncContext();
       render(follow);
@@ -647,15 +645,16 @@ export function createConversation(opts: {
     /** Host page's report(): straight to the confirmation, prefilled. */
     draft: (message: string, diagnostics: ReportDiagnostics | null) =>
       model.openDraft(message, diagnostics),
-    /** Watch noticed something: Loki says it in the thread, with Fix this. */
     hasDraft: () => !!model.snapshot().draft,
+    /** The rules and state underneath (conversation-model.ts): what Watch
+     *  says or takes back, Loki on itself, the open card's changes. */
+    model,
+    /** Bring the open card into view (the header's "not saved yet" row). */
+    showDraft: () => card?.el.scrollIntoView({ block: "start", behavior: "smooth" }),
     recorded: (...args: Parameters<typeof model.recorded>) => {
       model.recorded(...args);
       focus();
     },
-    noticed: model.noticed,
-    /** Loki on Loki (self-watch.ts) — quiet: never moves your reading place. */
-    selfNote: model.selfNote,
     /** Loki says something unprompted (e.g. "this site is not yours"). */
     say: (text: string, links?: Link[]) => model.say(text, links),
     /** Closing the panel: stop the mic; the thread itself is kept. */
@@ -698,7 +697,7 @@ function noticedCard(
   const m = deps.bubble(
     "bot noticed from-loki",
     item.again ? "Loki noticed — again" : "Loki noticed",
-    item.again ? `${item.text}\n\nLoki fixed this before. It is back.` : item.text,
+    noticedText(item, deps.known),
   );
   const extras = noticedExtras(item, deps.known, deps.owner, deps.onFix, deps.onWhy);
   if (extras) m.appendChild(extras);

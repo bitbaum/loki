@@ -7,7 +7,7 @@
 import { build } from "esbuild";
 import { chromium, type Browser, type Page } from "playwright";
 import { PALETTE } from "../../src/lib/palette";
-import { noticeSignature } from "../../widget/watch-trail";
+import { failureSignature, noticeSignature } from "../../widget/watch-trail";
 
 let pass = 0;
 let fail = 0;
@@ -373,6 +373,51 @@ async function main() {
     const filed = s.reports.find((r) => r.suggestion.includes("/shop/sizes")) as
       (Report & { noticeKey?: string }) | undefined;
     ok(filed?.noticeKey === key, `Fix again carries the key (${filed?.noticeKey})`);
+    await s.close();
+  }
+
+  // ---- a fix Watch started and that failed: said as it stands, with a link ----
+  {
+    // 2026-10-20: "I've started a fix — it goes live by itself." over "Needs
+    // you — The attempt did not finish. Open it in Loki…" with nothing to tap.
+    const known: unknown[] = [];
+    const s = await open(browser, js, "#loki-owner=pass123", known);
+    await s.p.keyboard.press("Escape");
+    await s.p.click("#buy");
+    await s.p.waitForTimeout(600);
+    known.push({
+      key: `/|fail|${failureSignature({ kind: "request", text: "POST /shop/checkout → 500" })}`,
+      id: "f-checkout",
+      at: "2026-10-20T10:00:00Z",
+      label: "Needs you",
+      tone: "warning",
+      detail: "The attempt did not finish.",
+      live: false,
+      settled: false,
+      href: "https://loki.example/feedback/f-checkout/watch-fix",
+      action: "Open it in Loki to see why",
+    });
+    // Opening the panel asks Loki where the owner's fixes are.
+    await clickPill(s.p, "Show");
+    await s.p.waitForTimeout(500);
+    const card = await s.p.evaluate(() => {
+      const r = document.getElementById("loki-feedback-host")!.shadowRoot!;
+      const m = Array.from(r.querySelectorAll(".msg.noticed")).find((x) =>
+        (x as HTMLElement).innerText.includes("/shop/checkout"),
+      ) as HTMLElement | undefined;
+      const go = m?.querySelector(".noticed-status a") as HTMLAnchorElement | null;
+      return { text: m?.innerText ?? "", link: go?.innerText ?? "", href: go?.href ?? "" };
+    });
+    ok(
+      card.text.includes("The fix I started did not finish.") &&
+        !card.text.includes("goes live by itself"),
+      `a failed fix is never still promised (${card.text})`,
+    );
+    ok(
+      card.link.startsWith("Open it in Loki to see why") &&
+        card.href === "https://loki.example/feedback/f-checkout/watch-fix",
+      `"Open it in Loki" is a real link to that run (${card.link} → ${card.href})`,
+    );
     await s.close();
   }
 

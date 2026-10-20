@@ -55,18 +55,32 @@ export const EARCONS: Record<EarconKind, EarconNote[]> = {
 /** Every earcon ends well under a second: a cue, never a jingle. */
 export const EARCON_MAX_SECONDS = 0.6;
 
+/** Peak level of one earcon note: above the bed, below the voice. */
+export const EARCON_GAIN = 0.3;
+
+/**
+ * The bed's levels. The first version was set by ear on a laptop and was
+ * inaudible on a phone (owner, 2026-10-20: "Music bed is on but I cannot hear
+ * any music"): about −38 dBFS RMS with nobody talking and −50 under the
+ * voice, with every note between 98 and 370 Hz behind a 900 Hz low-pass —
+ * below what a phone's speaker, and many earbuds, reproduce. It now sits an
+ * octave higher and about 12 dB louder: roughly −26 dBFS RMS alone, −36
+ * under the voice. Still a floor under the words, now one you can hear.
+ */
 export const MUSIC = {
   /** Bed level while nobody is talking. Quiet: it is a floor, not a song. */
-  level: 0.09,
+  level: 0.25,
   /** Bed level under the voice. */
-  ducked: 0.025,
+  ducked: 0.08,
+  /** Gain shared by the notes of one chord, before the bed level. */
+  chordGain: 0.3,
   /** Seconds a chord holds before the next one fades in. */
   chordSeconds: 18,
   attackSeconds: 5,
   releaseSeconds: 6,
   /** The low-pass filter's centre and how far its slow LFO sweeps it. */
-  filterHz: 900,
-  filterSweepHz: 250,
+  filterHz: 1600,
+  filterSweepHz: 400,
   filterLfoHz: 0.04,
   delaySeconds: 0.55,
   delayFeedback: 0.32,
@@ -76,16 +90,17 @@ export const MUSIC = {
 
 /**
  * The progression, as MIDI notes, low to high. Six chords in D that resolve
- * nowhere in particular — the point is a bed, not a tune — rooted low enough
- * to sit under speech (the voice lives in the 1–4 kHz band; this does not).
+ * nowhere in particular — the point is a bed, not a tune. Between G3 and
+ * F#5 (196–740 Hz): high enough for a phone's speaker to play, still under
+ * the 1–4 kHz band where speech is understood.
  */
 export const MUSIC_PROGRESSION: readonly (readonly number[])[] = [
-  [50, 57, 62, 66], // D  A  D  F#   D major
-  [47, 54, 59, 62], // B  F# B  D    B minor
-  [43, 50, 57, 61], // G  D  A  C#   G major 7
-  [45, 52, 57, 61], // A  E  A  C#   A major
-  [50, 57, 62, 64], // D  A  D  E    D sus2
-  [48, 55, 59, 62], // C  G  B  D    C major 7
+  [62, 69, 74, 78], // D  A  D  F#   D major
+  [59, 66, 71, 74], // B  F# B  D    B minor
+  [55, 62, 69, 73], // G  D  A  C#   G major 7
+  [57, 64, 69, 73], // A  E  A  C#   A major
+  [62, 69, 74, 76], // D  A  D  E    D sus2
+  [60, 67, 71, 74], // C  G  B  D    C major 7
 ];
 
 export function chordAt(index: number): readonly number[] {

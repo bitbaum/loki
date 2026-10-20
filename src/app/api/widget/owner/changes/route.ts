@@ -19,6 +19,7 @@ import {
   OWNER_CHANGES_MAX,
   orderForOwner,
   ownerStatusFor,
+  ownerTap,
   type KnownFix,
   type OwnerChange,
 } from "@/lib/feedback/owner-view";
@@ -68,7 +69,25 @@ export function OPTIONS(req: NextRequest) {
   });
 }
 
+/**
+ * Every answer carries the CORS headers, failures included. An exception that
+ * escaped to Next's own 500 had none, so on a customer's site the browser
+ * hid the status and the widget saw "never answered" — which it reports as a
+ * fault of its own (widget/self-watch.ts).
+ */
 export async function POST(req: NextRequest) {
+  try {
+    return await answer(req);
+  } catch (error) {
+    console.error("[widget-changes] failed", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return corsJson({ error: "Could not read your changes just now" }, 503);
+  }
+}
+
+async function answer(req: NextRequest) {
   const ip = getClientIp(req);
   if (!checkRateLimit(`widget-changes:ip:${ip}`, RATE_PER_IP, RATE_LIMIT_WINDOW_SHORT_MS)) {
     return corsJson({ error: "Too many requests" }, 429);
@@ -95,9 +114,15 @@ export async function POST(req: NextRequest) {
   // on its own while watching or reviewing. A stranger's "so nice picture!"
   // listed as the owner's own request (2026-10-09) is not a status, it is
   // noise — visitors' notes are counted, and read in Loki.
-  const mine = all
-    .filter((i) => i.source === FEEDBACK_SOURCE.OWNER || i.source === FEEDBACK_SOURCE.AI_REVIEW)
-    .slice(0, OWNER_CHANGES_MAX);
+  //
+  // All of them, not the newest twelve: the line counts what needs the owner,
+  // and counting inside a window of the newest let three fresh notes push
+  // three failed fixes out of it — "9 changes need you" became 6 with nothing
+  // done (2026-10-20). The list is cut to twelve AFTER ordering, so what needs
+  // the owner is always in it.
+  const mine = all.filter(
+    (i) => i.source === FEEDBACK_SOURCE.OWNER || i.source === FEEDBACK_SOURCE.AI_REVIEW,
+  );
   const visitors = all.filter(
     (i) =>
       i.source !== FEEDBACK_SOURCE.OWNER &&
@@ -113,10 +138,30 @@ export async function POST(req: NextRequest) {
     ...keyed.filter((k) => !mine.some((m) => m.id === k.id)),
   ]);
   const inbox = `${appUrl()}/feedback${key ? `?project=${encodeURIComponent(key)}` : ""}`;
-  const known: KnownFix[] = withWork.flatMap((item) => {
-    if (!item.noticeKey) return [];
+  // One rule for where a row's tap goes (owner-view ownerTap). A failed
+  // attempt opens THAT run's Watch page through the stable watch-fix address.
+  const tap = (item: (typeof withWork)[number], tour: boolean) => {
     const status = ownerStatusFor(item.work, item.requiresReview);
     const liveHref = livePageHref(item.liveUrl, item.url, item.page);
+    const { to, action } = ownerTap(status, !!item.dispatchedRunId);
+    const href =
+      to === "live"
+        ? liveHref
+          ? // "See it" is the walkthrough of THIS change, minted for the owner.
+            tour
+            ? tourSiteUrl(liveHref, createTourToken(item.id))
+            : liveHref
+          : inbox
+        : to === "run"
+          ? `${appUrl()}${watchFixPath(item.id)}`
+          : to === "inbox"
+            ? inbox
+            : null;
+    return { status, href, action: to === "live" && !liveHref ? "Open in Loki" : action };
+  };
+  const known: KnownFix[] = withWork.flatMap((item) => {
+    if (!item.noticeKey) return [];
+    const { status, href, action } = tap(item, false);
     return [
       {
         key: item.noticeKey,
@@ -127,28 +172,17 @@ export async function POST(req: NextRequest) {
         detail: status.detail,
         live: status.live,
         settled: status.settled,
-        href: status.live && liveHref ? liveHref : inbox,
+        href: href ?? inbox,
+        action: action ?? "Open in Loki",
       },
     ];
   });
 
-  const changes: OwnerChange[] = orderForOwner(
+  const ordered: OwnerChange[] = orderForOwner(
     withWork
       .filter((item) => mine.some((m) => m.id === item.id))
       .map((item) => {
-        const status = ownerStatusFor(item.work, item.requiresReview);
-        const liveHref = livePageHref(item.liveUrl, item.url, item.page);
-        // "See it" is the walkthrough of THIS change on the live page, minted for
-        // the owner; it is offered only once the change is actually live.
-        const href = status.live
-          ? liveHref
-            ? tourSiteUrl(liveHref, createTourToken(item.id))
-            : inbox
-          : status.needsYou
-            ? inbox
-            : item.dispatchedRunId
-              ? `${appUrl()}${watchFixPath(item.id)}`
-              : null;
+        const { status, href, action } = tap(item, true);
         return {
           id: item.id,
           text: item.suggestion.slice(0, OWNER_CHANGE_TEXT_MAX),
@@ -160,22 +194,17 @@ export async function POST(req: NextRequest) {
           settled: status.settled,
           needsYou: status.needsYou,
           href,
-          action: status.live
-            ? liveHref
-              ? "See it"
-              : "Open in Loki"
-            : status.needsYou
-              ? "Open in Loki"
-              : item.dispatchedRunId
-                ? "Watch it"
-                : null,
+          action,
         };
       }),
-  ).map(({ needsYou: _needsYou, ...change }) => change);
+  );
   return corsJson({
     ok: true,
     owner: true,
-    changes,
+    changes: ordered.slice(0, OWNER_CHANGES_MAX),
+    // What the panel's line counts: every row waiting on the owner, even
+    // past the twelve the list carries (ordering puts them first).
+    needsYou: ordered.filter((c) => c.needsYou).length,
     known,
     inbox,
     visitors,

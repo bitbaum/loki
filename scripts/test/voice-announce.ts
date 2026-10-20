@@ -29,7 +29,7 @@ check(() => {
   const out = phraseChanges([finished("heidi"), finished("solon"), finished("orangecat")]);
   assert.equal(out.length, 1);
   assert.equal(out[0].earcon, "finished");
-  assert.match(out[0].text, /^three runs finished: heidi, solon and orangecat\./);
+  assert.match(out[0].text, /^Three runs finished: heidi, solon and orangecat\./);
 });
 
 check(() => {
@@ -82,7 +82,18 @@ check(() => {
   assert.equal(phraseHeld([{ kind: "started", project: "x" }]), null);
   const d = phraseHeld([finished("heidi"), finished("heidi"), finished("solon")], 0);
   assert.ok(d);
-  assert.match(d.text, /three runs finished on heidi and solon/);
+  assert.match(d.text, /three runs finished: heidi twice and solon once\./);
+  // The other wording starts its sentence with a capital.
+  assert.match(
+    phraseHeld([finished("heidi"), finished("heidi")], 1)?.text ?? "",
+    /^Two runs finished while you were walking on heidi\./,
+  );
+  // Three failures on one project are not "loki, loki and loki".
+  const failed = (project: string): FleetChange => ({ kind: "failed", project, note: null });
+  assert.match(
+    phraseChanges([failed("loki"), failed("loki"), failed("loki")])[0].text,
+    /^Three runs failed on loki\./,
+  );
   assert.equal(d.earcon, "finished");
 });
 
