@@ -446,6 +446,8 @@ sync_runner "$PROJECT_DIR/scripts/box-runner.ts" \
 # The deferred-restart script must reach the box BEFORE it is invoked below.
 sync_runner "$PROJECT_DIR/scripts/hetzner/drain-and-restart-runner.sh" \
   "$HOST:$RUNNER_DIR/scripts/"
+# The sealed-build image recipe, built on the box by install-sealed-builds.sh.
+sync_runner "$PROJECT_DIR/scripts/hetzner/agent-image/" "$HOST:$RUNNER_DIR/scripts/agent-image/"
 sync_runner "$PROJECT_DIR/tsconfig.json" "$HOST:$RUNNER_DIR/tsconfig.json"
 
 # Dependencies ship WITH the code that imports them. Until now the runner's
@@ -578,6 +580,15 @@ if timeout 60 ssh "$HOST" "install -m 0644 $RUNNER_DIR/scripts/loki-box-runner@.
   echo "  ✓ tenant unit template and loki-tenants.timer in place"
 else
   echo "  ⚠ could not install the tenant template or timer — run scripts/hetzner/install-tenant-reconcile.sh by hand" >&2
+fi
+# Sealed builds: podman, runsc and the agent image, as readings. Switching a
+# tenant to them is the operator's one file (new-tenant.sh, step 8), never
+# this step's. The first run builds the image, which takes a few minutes.
+if sealed_out=$(timeout 900 bash "$PROJECT_DIR/scripts/hetzner/install-sealed-builds.sh" "$HOST" 2>&1); then
+  printf '%s\n' "$sealed_out" | sed 's/^/  /'
+else
+  echo "  ⚠ sealed-build readings unavailable this deploy" >&2
+  printf '%s\n' "$sealed_out" | tail -5 | sed 's/^/    /' >&2
 fi
 
 # 2. A browser for the app user. The fix check (src/lib/feedback/page-picture.ts)

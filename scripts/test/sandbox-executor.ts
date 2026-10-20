@@ -30,6 +30,8 @@ const config: SandboxExecutorConfig = {
   user: "current",
   mountMode: "rw",
   extraRunArgs: [],
+  ociRuntime: null,
+  home: path.join(root, "tenant-a"),
 };
 
 function hasPair(args: string[], key: string, value: string): boolean {
@@ -116,6 +118,42 @@ async function main() {
   );
   check("docker run passes explicit env only", hasPair(args, "--env", "FOO=bar"));
   check("docker run ends with requested command", args.slice(-3).join(" ") === "bash -lc pwd");
+
+  // A private builder's sealed build: rootless podman as the tenant, its home
+  // at the same path, network on, runsc when asked, the unit's own cgroup.
+  const sealed = buildDockerRunArgs(
+    { id: "user:repo", cwd, command: "bash", args: ["-lic", "claude"], env: { GH_TOKEN: "t" } },
+    {
+      ...config,
+      runtime: "podman",
+      network: "bridge",
+      ociRuntime: "runsc",
+      image: "loki-agent:latest",
+    },
+    "fc-sealed",
+  );
+  check("sealed build runs as the tenant", sealed.includes("--userns=keep-id"));
+  check("sealed build stays in the unit's cgroup", sealed.includes("--cgroups=disabled"));
+  check("sealed build asks for gVisor when the box has it", hasPair(sealed, "--runtime", "runsc"));
+  check(
+    "sealed build binds the home at the same path",
+    sealed.includes(`type=bind,src=${config.home},dst=${config.home}`),
+  );
+  check(
+    "sealed build works in the project's real path",
+    hasPair(sealed, "--workdir", path.resolve(cwd)),
+  );
+  check("sealed build keeps HOME real", hasPair(sealed, "--env", `HOME=${config.home}`));
+  check("sealed build has the network the agent needs", hasPair(sealed, "--network", "bridge"));
+  check("sealed build drops capabilities too", hasPair(sealed, "--cap-drop", "ALL"));
+  check("sealed build passes the run's token", hasPair(sealed, "--env", "GH_TOKEN=t"));
+  check("sealed build never mounts /workspace", !sealed.some((a) => a.includes("dst=/workspace")));
+  const unsealed = buildDockerRunArgs(
+    { id: "user:repo", cwd, command: "bash" },
+    { ...config, runtime: "podman", ociRuntime: null },
+    "fc-plain",
+  );
+  check("without runsc no runtime is asked for", !unsealed.includes("--runtime"));
 
   const envConfig = resolveSandboxConfig();
   check("default sandbox config has a workspace root", envConfig.workspaceRoot.length > 1);

@@ -1,0 +1,26 @@
+# The image a private builder's sealed build runs in (docs/master-plan-2026-10.md 4.2).
+#
+# Everything an agent needs and nothing of the box: a shell, git and gh, node,
+# and the agent CLIs. The tenant's HOME is bound in at run time (sandbox.ts
+# buildPodmanRunArgs), so sign-ins, trust and transcripts are the tenant's own
+# files and survive the container, which does not. Built by
+# install-sealed-builds.sh into the shared read-only image store every
+# rootless podman on the box reads.
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates curl git gnupg bash less procps openssh-client python3 \
+ && mkdir -p /etc/apt/keyrings \
+ && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+ && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
+ && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+ && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends nodejs gh \
+ && npm install -g pnpm @anthropic-ai/claude-code @openai/codex \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# No default user: the tenant comes in as itself (--userns=keep-id).
+CMD ["bash"]
