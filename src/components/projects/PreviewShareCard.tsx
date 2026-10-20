@@ -12,9 +12,9 @@ import { useClipboard } from "@/hooks/use-clipboard";
  * side, lib/previews/before-after-page). One button copies all of it as a
  * message ready to paste into WhatsApp or mail.
  *
- * Their notes on it come to the owner. To let them change it themselves, the
- * owner invites them as Client — a seat in their own name, with a monthly
- * allowance (config/client-allowance.ts). "Open it" carries the OWNER's pass
+ * Their notes on it come to the owner. To give them a say in their own name,
+ * the owner invites them as Client — a seat whose asks the owner decides on
+ * and whose changes go live on their word. "Open it" carries the OWNER's pass
  * and is for the owner's browser only: it used to be the thing a client was
  * sent, and it acted as the owner for 90 days for whoever held it.
  */

@@ -6,7 +6,6 @@ import {
 } from "@/db/queries/build-requests";
 import { getProjectPreviewCode } from "@/db/queries/preview-code";
 import { upsertProjectMember } from "@/db/queries/project-access";
-import { REQUESTER_CLIENT_ALLOWANCE } from "@/config/client-allowance";
 import { getUserById } from "@/db/queries/users";
 import { getUserProjectByEntityId } from "@/db/queries/user-projects";
 import type { BuildRequest } from "@/db/schema/build-requests";
@@ -84,11 +83,8 @@ export async function decideBuildRequest(
   };
   await recordBuildRequestPreview(id, preview);
   // The person who asked gets a seat on the site made for them: their notes
-  // are theirs, a few changes a month build at once, and they put each live.
-  if (projectId)
-    await upsertProjectMember(projectId, row.userId, "client", REQUESTER_CLIENT_ALLOWANCE).catch(
-      () => null,
-    );
+  // are theirs, and each goes to the operator to build.
+  if (projectId) await upsertProjectMember(projectId, row.userId, "client").catch(() => null);
   const done = { ...row, ...preview };
   void tell(done);
   return { ok: true, row: done };

@@ -5,6 +5,7 @@
 import {
   decideQueuedExecution,
   offlineFallbackChannel,
+  requestedDispatchChannel,
   type ExecutionAccess,
 } from "@/lib/execution-access";
 
@@ -71,6 +72,28 @@ if (
 ) {
   throw new Error("tenant explicit cloud must be blocked");
 }
+
+// What inject-core REQUESTS: a lock or a stored choice, never the cloud
+// floor. Passing the floor as the request turned every fresh account's first
+// dispatch into a 403 with Fleet Runner connected (2026-10-20).
+if (requestedDispatchChannel({ builderPref: null, gitUrl: "https://github.com/x/y" }) !== null)
+  throw new Error("nobody chose: nothing is requested");
+if (requestedDispatchChannel({ builderPref: "local" }) !== "local")
+  throw new Error("a stored choice is requested");
+if (requestedDispatchChannel({ builderPref: "hosted" }) !== null)
+  throw new Error("hosted is not a channel anyone claims");
+const tenantFloor = decideQueuedExecution(access({ cloudBuilderAllowed: false, local: true }), {
+  requestedChannel: requestedDispatchChannel({ builderPref: null }),
+  defaultChannel: "cloud",
+});
+if (!tenantFloor.ok || tenantFloor.channel !== "local")
+  throw new Error("an unchosen project on a tenant with a computer runs on the computer");
+const founderFloor = decideQueuedExecution(access({ cloudBuilderAllowed: true, cloud: true }), {
+  requestedChannel: requestedDispatchChannel({ builderPref: null }),
+  defaultChannel: "cloud",
+});
+if (!founderFloor.ok || founderFloor.channel !== "cloud")
+  throw new Error("the floor still routes the founder to the cloud");
 
 console.log("✓ execution-access tests passed");
 

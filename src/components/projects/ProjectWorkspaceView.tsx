@@ -236,7 +236,6 @@ export function ProjectWorkspaceView({
           ownerPass={ownerPass}
           memberPass={memberPass}
           joined={joined}
-          allowance={dossier.viewerAllowance}
           ready={dossier.viewerReady}
           status={buildStatus}
           workspaceKey={workspaceKey}
@@ -265,7 +264,6 @@ export function ProjectWorkspaceView({
                       ownerPass={ownerPass}
                       memberPass={memberPass}
                       joined={joined}
-                      allowance={dossier.viewerAllowance}
                       ready={dossier.viewerReady}
                     />
                   )}

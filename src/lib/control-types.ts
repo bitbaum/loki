@@ -254,6 +254,10 @@ export type ControlData = {
    *  Fleet Runner" is ever the way forward (lib/builder-way-forward). null on
    *  local runtime host. */
   cloudBuilderAllowed: boolean | null;
+  /** Does the hosted runner serve this account? It serves one
+   *  (lib/hosted-runner/serves.ts); the "Runs on" choice is offered only
+   *  there. null on local runtime host. */
+  hostedBuilderAvailable: boolean | null;
   /** Execution health: a runner can push snapshots while its command loop is
    *  hung, queuing dispatches forever. null when runtime is local. */
   runnerExecutionStall: {

@@ -15,7 +15,6 @@ import {
   verifyFeedbackClaimToken,
 } from "../../src/lib/feedback/claim-token";
 import { feedbackReceivedTemplate, feedbackShippedTemplate } from "../../src/lib/email";
-import { REQUESTER_CLIENT_ALLOWANCE } from "../../src/config/client-allowance";
 
 process.env.AUTH_SECRET ??= "test-secret-for-member-pass";
 const read = (p: string) => readFileSync(p, "utf8");
@@ -73,8 +72,8 @@ assert.match(model, /const member = ownerPass \? null : \(opts\.memberPass\?\.\(
 assert.match(model, /res\.member !== true\) opts\.onMemberRefused\?\.\(\)/);
 const sent = { kind: "sent" as const, at: 0, owner: false, member: true, text: "Bigger logo" };
 assert.equal(
-  receiptText({ ...sent, note: "Loki is building it now. 4 of 5 changes left this month." }),
-  "Got it — “Bigger logo”. Loki is building it now. 4 of 5 changes left this month.",
+  receiptText({ ...sent, note: "Sent to George. They decide, and you are told when it ships." }),
+  "Got it — “Bigger logo”. Sent to George. They decide, and you are told when it ships.",
 );
 assert.equal(receiptLinkLabel(sent), "See it in Loki →");
 
@@ -83,10 +82,9 @@ const share = read("src/components/projects/PreviewShareCard.tsx");
 assert.match(share, /Invite them as Client/);
 assert.match(share, /Their notes\s+come to you\./);
 // An approved /change request seats its requester as the site's client.
-assert.ok(REQUESTER_CLIENT_ALLOWANCE && REQUESTER_CLIENT_ALLOWANCE > 0);
 assert.match(
   read("src/lib/build-requests/decide.ts"),
-  /upsertProjectMember\(projectId, row\.userId, "client", REQUESTER_CLIENT_ALLOWANCE\)/,
+  /upsertProjectMember\(projectId, row\.userId, "client"\)/,
 );
 assert.match(read("src/app/change/requests/[id]/page.tsx"), /\/projects\/\$\{row\.projectId\}#ask/);
 

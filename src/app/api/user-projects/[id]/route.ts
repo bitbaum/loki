@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { BUILDER_PREFS } from "@/lib/constants/statuses";
+import { BUILDER_PREFS, isHostedBuilderPref } from "@/lib/constants/statuses";
+import { hostedRunnerServes } from "@/lib/hosted-runner/serves";
 import { getSessionUserId } from "@/lib/session";
 import { readJsonBody, readIdParam, z } from "@/lib/api/route-helpers";
 import { emptyToUndefined } from "@/lib/validation";
@@ -37,6 +38,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (idOrResp instanceof NextResponse) return idOrResp;
   const dataOrResp = await readJsonBody(req, UpdateBody);
   if (dataOrResp instanceof NextResponse) return dataOrResp;
+  // A stored choice nothing would claim is refused, not saved.
+  if (isHostedBuilderPref(dataOrResp.builderPref) && !(await hostedRunnerServes(userId)))
+    return NextResponse.json(
+      { error: "The hosted runner does not serve this account." },
+      { status: 403 },
+    );
   const updated = await updateUserProject(idOrResp, userId, dataOrResp);
   if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (updated.entityProjectId)

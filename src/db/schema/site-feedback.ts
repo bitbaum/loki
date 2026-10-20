@@ -57,11 +57,14 @@ export const siteFeedback = pgTable(
     suggestion: text("suggestion").notNull(),
     /** A review observation is not permission for autopilot to make a change. */
     requiresReview: boolean("requires_review").notNull().default(false),
-    /** A client's ask that built on their monthly allowance — the count of
-     *  these this month is what the allowance is measured against. */
-    onAllowance: boolean("on_allowance").notNull().default(false),
-    /** The client said "Make it live": their change may merge. A client's
-     *  change never merges without it (lib/feedback/auto-ship.ts). */
+    /** Built for the person who asked, not on the owner's word: the fix opens
+     *  as a DRAFT and goes live on their "Make it live", never before
+     *  (lib/feedback/auto-ship.ts). The column keeps its old name: it was
+     *  "on_allowance" while a client's monthly allowance set it (retired
+     *  2026-10-20); a seat's own builder sets it next (private-builders.md). */
+    previewFirst: boolean("on_allowance").notNull().default(false),
+    /** The person who asked said "Make it live": their change may merge. A
+     *  preview-first change never merges without it (lib/feedback/auto-ship.ts). */
     liveApprovedAt: timestamp("live_approved_at", { withTimezone: true }),
     liveApprovedBy: uuid("live_approved_by").references(() => users.id, { onDelete: "set null" }),
     captureContext: jsonb("capture_context").$type<FeedbackCaptureContext>(),

@@ -110,16 +110,16 @@ check("no collaborator role is silently as powerful as the owner", () => {
   }
 });
 
-// The manual a non-technical person reads before and after joining: a Builder
-// is told nothing waits for the owner; everyone else is told the owner decides.
+// The manual a non-technical person reads before and after joining: every
+// seat is told the owner decides. A Builder used to be told "nothing waits
+// for them" — true only because the build ran on the owner's subscription
+// (gone 2026-10-20: whoever asks pays, in their own builder).
 check("the role guide says what happens to what they ask for", () => {
   const names = { site: "petvity.orangecat.ch", owner: "George" };
   const builder = roleGuide("editor", names);
   assert.equal(builder.steps.length, 2);
   assert.match(builder.steps[0], /petvity\.orangecat\.ch/);
-  assert.match(builder.then, /Loki builds it/);
-  assert.match(builder.then, /nothing waits for them/);
-  for (const role of ["viewer", "client"] as const) {
+  for (const role of ["editor", "viewer", "client"] as const) {
     const guide = roleGuide(role, names);
     assert.match(guide.then, /George sees it first/);
     assert.doesNotMatch(guide.then, /Loki builds/);
@@ -135,14 +135,13 @@ check("an ask from Loki is answered with what happens to it", () => {
     roleGuide("editor", { site: "petvity.orangecat.ch", owner: "George" }).steps[0],
     /page in Loki/,
   );
-  const built = askReply("editor", {
+  const built = askReply("owner", {
     owner: "George",
     site: "petvity.orangecat.ch",
     building: true,
   });
   assert.match(built, /^Loki is building it now/);
   assert.match(built, /petvity\.orangecat\.ch/);
-  assert.match(built, /George is told/);
   assert.doesNotMatch(askReply("owner", { owner: "George", site: null, building: true }), /George/);
   assert.equal(
     askReply("owner", {
@@ -154,19 +153,11 @@ check("an ask from Loki is answered with what happens to it", () => {
     "Saved. You have sent a lot today.",
     "the owner hears why a build did not start, in the build's own words",
   );
-  const waiting = askReply("editor", {
-    owner: "George",
-    site: null,
-    building: false,
-    buildNote: "Add a Git URL on the project page, then Implement.",
-  });
-  assert.doesNotMatch(waiting, /Git URL/, "a Builder is never handed the owner's chore");
-  assert.match(waiting, /George has been told/);
-  for (const role of ["viewer", "client"] as const)
+  for (const role of ["editor", "viewer", "client"] as const)
     assert.equal(
       askReply(role, { owner: "George", site: null, building: true }),
       "Sent to George. They decide, and you are told when it ships.",
-      "only someone who may build is told it is being built",
+      "a seat is never told it is being built: the owner decides",
     );
   assert.equal(
     askPath("a873c84a-5030-4068-9fbc-683a86a95c58"),
@@ -186,7 +177,7 @@ check("the chat knows where a shared project is changed", () => {
   );
   assert.match(line, /you are its Builder/);
   assert.match(line, /projects\/x#ask/);
-  assert.match(line, /nothing to install/);
+  assert.match(line, /George decides/);
   assert.match(
     sharedProjectLine({ name: "p", role: "viewer", ownerName: null, liveUrl: null }, "u"),
     /its owner decides/,

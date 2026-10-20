@@ -26,12 +26,15 @@ type AgentId = string;
 const BUILDER_CHOICES: { id: BuilderPref; label: string; detail?: string }[] = [
   { id: "cloud", label: EXECUTOR_COPY.builder.cloudChoice },
   { id: "local", label: EXECUTOR_COPY.builder.localChoice },
-  {
-    id: HOSTED_BUILDER_PREF,
-    label: EXECUTOR_COPY.builder.hostedChoice,
-    detail: EXECUTOR_COPY.builder.hostedDetail,
-  },
 ];
+/** The hosted runner serves one account (lib/hosted-runner/serves.ts): the
+ *  choice is offered there and nowhere else, so nobody pins a project to a
+ *  builder that will never claim its work. */
+const HOSTED_CHOICE: (typeof BUILDER_CHOICES)[number] = {
+  id: HOSTED_BUILDER_PREF,
+  label: EXECUTOR_COPY.builder.hostedChoice,
+  detail: EXECUTOR_COPY.builder.hostedDetail,
+};
 
 function ProjectContextSummary({ project }: { project: ProjectState }) {
   const handoff = buildSessionHandoffFromProjectSession(project.session);
@@ -122,6 +125,7 @@ function ProjectContextSummary({ project }: { project: ProjectState }) {
 
 export function ProjectProfile({
   project,
+  hostedBuilderAvailable = false,
   globalAdapter,
   localAgent,
   availableAgents,
@@ -130,6 +134,7 @@ export function ProjectProfile({
   onRunPrompt,
 }: {
   project: ProjectState;
+  hostedBuilderAvailable?: boolean;
   globalAdapter: string;
   localAgent: AgentId | null;
   availableAgents: AgentEntry[];
@@ -239,7 +244,9 @@ export function ProjectProfile({
         <div className="min-w-0 flex-1">
           <Segmented
             label="Runs on"
-            options={BUILDER_CHOICES.map((c) => ({ id: c.id, label: c.label, means: c.detail }))}
+            options={[...BUILDER_CHOICES, ...(hostedBuilderAvailable ? [HOSTED_CHOICE] : [])].map(
+              (c) => ({ id: c.id, label: c.label, means: c.detail }),
+            )}
             value={localBuilder ?? DEFAULT_BUILDER_CHANNEL}
             onChange={(id) =>
               persistBuilderPref(

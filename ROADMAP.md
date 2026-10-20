@@ -12,7 +12,7 @@ work that is actually moving; finished items live under "Shipped".
 ### Private builders
 One sealed builder per account on the box you already have: its own Linux user, home, token and agent sign-ins, and the rule that whoever asks for a change pays for it with their own engine — a Loki plan, their own key, or their own subscription signed in with the CLI's `/login`. Nobody's request runs on another person's subscription. Plan: `docs/architecture/private-builders.md`.
 - [x] Design note: tenant model, credential handling, what a request without an engine becomes
-- [ ] A request on a shared project from someone with no engine goes to the owner as a suggestion; the per-site allowance is retired
+- [x] A request on a shared project from someone with no engine goes to the owner as a suggestion; the per-site allowance is retired {#seat-suggests}
 - [ ] Agent terminals get an allowlisted environment, never the runner's whole one
 - [ ] The runner reads projects through the API and carries no database password
 - [ ] `new-tenant.sh`: user, dev root, `loki-box-runner@<tenant>` unit, token per tenant; the owner's runner on the same template

@@ -226,9 +226,10 @@ export function resolveProjectStage(raw: string | null | undefined): ProjectStag
 /**
  * Who filed a feedback row: a real visitor (widget), the AI page reviewer, the
  * inbox synthesizer (whose rows are aggregate BRIEFs, not reports — the
- * digester must not re-cluster them), the owner or a Builder (proven by a
- * pass or a session), or the project's client (a session). The server decides
- * every one of them; a body's claim is never read (feedback/agent-pass.ts).
+ * digester must not re-cluster them), the owner (proven by a pass or a
+ * session), the project's client, or anyone else with a seat on it (a
+ * session or a member pass). The server decides every one of them; a body's
+ * claim is never read (feedback/agent-pass.ts).
  */
 export const FEEDBACK_SOURCE_VALUES = [
   "visitor",
@@ -236,6 +237,7 @@ export const FEEDBACK_SOURCE_VALUES = [
   "synthesizer",
   "owner",
   "client",
+  "member",
 ] as const;
 export type FeedbackSource = (typeof FEEDBACK_SOURCE_VALUES)[number];
 export const FEEDBACK_SOURCE = {
@@ -245,14 +247,17 @@ export const FEEDBACK_SOURCE = {
   /** The project's owner, proven by a signed owner pass (feedback/owner-pass.ts)
    *  — the one source ingest never accepts as a self-assertion. */
   OWNER: "owner",
-  /** The project's client, signed in (feedback/ask-in-loki.ts). Builds on
-   *  their monthly allowance; goes live only when they say so. */
+  /** The project's client, signed in (feedback/ask-in-loki.ts): the person
+   *  the site is for. Waits for the owner's tap, like a visitor's note. */
   CLIENT: "client",
+  /** Anyone else with a seat on the project — a Builder, a viewer — signed in
+   *  or carrying their member pass. Waits for the owner's tap: whoever asks
+   *  pays, and a seat is not the owner's engine (ask-in-loki.ts). */
+  MEMBER: "member",
 } as const satisfies Record<string, FeedbackSource>;
 /** Notes that may build with nobody looking: the owner's own words and
  *  Loki's own findings. Everything else — a visitor's note, a row older than
- *  sources, a client's ask past their allowance — waits for a person's tap
- *  (lib/autopilot-night.ts). */
+ *  sources, a seat's ask — waits for a person's tap (lib/autopilot-night.ts). */
 const BUILDS_UNASKED: ReadonlySet<string> = new Set([
   FEEDBACK_SOURCE.OWNER,
   FEEDBACK_SOURCE.AI_REVIEW,

@@ -39,7 +39,7 @@ async function main() {
       createRoot(document.getElementById('app')).render(<main className="app-main"><div className="app-page space-y-5">{q.has('track') ? track : q.has('share') ? share : owner
         ? <ProjectMembersPanel projectId="${ID}" projectName="Bakery" defaultRole="client"/>
         : <MemberGuide projectId="${ID}" role="client" projectName="Bakery" ownerName="George" liveUrl="https://bakery.example" ownerPass={null} joined={false}
-            allowance={{limit:20,left:17}} ready={[{id:"${READY}",suggestion:"Make the opening hours bigger and put them at the top of the home page, where people look first."}]}/>}</div></main>);`,
+            ready={[{id:"${READY}",suggestion:"Make the opening hours bigger and put them at the top of the home page, where people look first."}]}/>}</div></main>);`,
     },
     bundle: true,
     write: false,
@@ -91,7 +91,6 @@ async function main() {
                   name: "Anna",
                   email: "anna@bakery.example",
                   role: "client",
-                  monthlyChanges: 20,
                 },
               ],
               invitations: [],
@@ -109,20 +108,12 @@ async function main() {
           false,
           `${what} at ${width}px: no sideways scroll`,
         );
-      const oneRow = async (name: string) => {
-        const ys = await page
-          .getByRole("radiogroup", { name, exact: true })
-          .getByRole("radio")
-          .evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
-        assert.equal(ys.length, 4, `${name}: four choices`);
-        assert.equal(new Set(ys).size, 1, `${name} at ${width}px: one even row`);
-      };
 
       // The client's page.
       await page.goto("http://seat.fixture/projects");
       await page.addScriptTag({ content: bundle.outputFiles[0].text });
       await page.getByText("Ready for you · 1").waitFor();
-      await page.getByText("17 of 20 changes left this month.").waitFor();
+      await page.getByText("George sees it first and decides.", { exact: false }).waitFor();
       await noSideways("client page");
       await page.screenshot({ path: path.join(out, `client-${width}.png`), fullPage: true });
       await page.getByRole("button", { name: "Make it live" }).click();
@@ -135,29 +126,21 @@ async function main() {
       // The owner's People panel.
       await page.goto("http://seat.fixture/projects?owner");
       await page.addScriptTag({ content: bundle.outputFiles[0].text });
-      await page.getByText("Anna · Client · 20 a month").waitFor();
-      await oneRow("Changes a month");
-      await oneRow("Changes a month for Anna");
+      await page.getByText("Anna · Client").waitFor();
+      assert.equal(
+        await page.getByRole("radiogroup", { name: /Changes a month/ }).count(),
+        0,
+        "nothing to ration: a seat's asks go to the owner",
+      );
       await noSideways("people panel");
       await page.screenshot({ path: path.join(out, `owner-${width}.png`), fullPage: true });
-      await page
-        .getByRole("radiogroup", { name: "Changes a month for Anna" })
-        .getByRole("radio", { name: "5", exact: true })
-        .click();
-      await expectSoon(() =>
-        sent.some(
-          (s) =>
-            s.method === "PATCH" &&
-            JSON.stringify(s.body) === JSON.stringify({ userId: CLIENT, monthlyChanges: 5 }),
-        ),
-      );
       await page.getByRole("button", { name: "Create invite link" }).click();
       await expectSoon(() =>
         sent.some(
           (s) =>
             s.method === "POST" &&
-            (s.body as { role?: string; monthlyChanges?: number })?.role === "client" &&
-            (s.body as { monthlyChanges?: number }).monthlyChanges === 20,
+            (s.body as { role?: string })?.role === "client" &&
+            !("monthlyChanges" in (s.body as object)),
         ),
       );
       // The visitor's own page, from the link in their mail: no account asked.

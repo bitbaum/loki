@@ -189,6 +189,20 @@ export async function roadmapStep(
 // Must match box-workspace.ts DEV_ROOT so dirPath == where the runner clones.
 const DEV_ROOT = process.env.LOKI_BOX_DEV_ROOT || path.join(os.homedir(), "dev");
 
+/**
+ * Where the cloud builder will clone this project — for an account the cloud
+ * builder serves. For any other account the path is left EMPTY: a path under
+ * the box's dev root locks the project to the cloud (execution-access.ts
+ * isBoxRootedDir → projectChannelLock), which for them is a 403 on every
+ * dispatch even with Fleet Runner connected (2026-10-20). Without a path,
+ * their builder clones on demand into its own root (coldStartWorkspaceDir).
+ */
+async function boxDirPathFor(userId: string, projectName: string): Promise<string | null> {
+  const { getExecutionAccess } = await import("@/lib/execution-access");
+  const access = await getExecutionAccess(userId).catch(() => null);
+  return access?.cloudBuilderAllowed ? path.join(DEV_ROOT, repoSlug(projectName)) : null;
+}
+
 const ACTIONS_OFF_FAILED =
   "The repository was created, but GitHub Actions could not be switched off for it. Nothing was imported. Try again.";
 
@@ -254,7 +268,7 @@ export async function provisionStep(
         full_name: `${linkedCopy.owner}/${linkedCopy.repo}`,
         gitUrl: project.gitUrl,
       },
-      dirPath: path.join(DEV_ROOT, repoSlug(project.name)),
+      dirPath: await boxDirPathFor(userId, project.name),
       template,
       templateSeeded: true,
     });
@@ -285,7 +299,7 @@ export async function provisionStep(
       ? await upsertWidgetToken(userId, id, { origins: [cdPlan.liveUrl] })
       : null;
   const feedback = widget ? { token: widget.token, appUrl: appUrl() } : undefined;
-  const dirPath = path.join(DEV_ROOT, repoSlug(project.name));
+  const dirPath = await boxDirPathFor(userId, project.name);
 
   if (linked && reseed) {
     const seeded = await seedTemplate(

@@ -1,8 +1,8 @@
 /**
  * "Make it live": the client says their change may go on the site.
  *
- * A change built on a client's allowance opens as a draft pull request and
- * merges on their word only (auto-ship.ts). This records the word, then asks
+ * A change built for the person who asked (`previewFirst`) opens as a draft
+ * pull request and merges on their word only (auto-ship.ts). This records the word, then asks
  * the fix ledger to act on it at once — the same refresh the owner's inbox
  * runs — so the client is not left waiting for someone to open a page. When
  * GitHub is not ready yet (checks running), the next refresh merges it.
@@ -35,7 +35,7 @@ export async function makeItLive(userId: string, feedbackId: string): Promise<Go
     access?.canEdit === true || (access?.role === "client" && feedback.reporterUserId === userId);
   if (!access || !mayDecide)
     return { ok: false, status: 403, error: "Only the person who asked for it can put it live." };
-  if (!feedback.onAllowance)
+  if (!feedback.previewFirst)
     return {
       ok: false,
       status: 409,

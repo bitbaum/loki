@@ -20,7 +20,6 @@ export function MemberProjectView({
   ownerPass,
   memberPass,
   joined,
-  allowance,
   ready,
   status,
   workspaceKey,
@@ -33,7 +32,6 @@ export function MemberProjectView({
   ownerPass: string | null;
   memberPass: string | null;
   joined: boolean;
-  allowance: { limit: number; left: number } | null;
   ready: { id: string; suggestion: string }[];
   status: BuildStatus;
   workspaceKey: string;
@@ -49,7 +47,6 @@ export function MemberProjectView({
         ownerPass={ownerPass}
         memberPass={memberPass}
         joined={joined}
-        allowance={allowance}
         ready={ready}
       />
       <ProjectBuildStatus

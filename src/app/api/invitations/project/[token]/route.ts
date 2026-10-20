@@ -64,7 +64,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     liveUrl: loaded.liveUrl,
     inviterName: loaded.inviterName,
     role: loaded.invitation.role,
-    monthlyChanges: loaded.invitation.monthlyChanges ?? null,
     // Null for an open link: there is no address to name.
     invitedEmail: loaded.invitation.email ? maskEmail(loaded.invitation.email) : null,
     signedIn: Boolean(userId),

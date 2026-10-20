@@ -63,7 +63,8 @@ assert.equal(waitsForATap(FEEDBACK_SOURCE.VISITOR), true);
 assert.equal(waitsForATap(null), true, "a row older than sources is nobody's word");
 assert.equal(waitsForATap(FEEDBACK_SOURCE.OWNER), false);
 assert.equal(waitsForATap(FEEDBACK_SOURCE.AI_REVIEW), false);
-assert.equal(waitsForATap(FEEDBACK_SOURCE.CLIENT), true, "a client's ask past their allowance");
+assert.equal(waitsForATap(FEEDBACK_SOURCE.CLIENT), true, "a client's ask waits for the owner");
+assert.equal(waitsForATap(FEEDBACK_SOURCE.MEMBER), true, "so does any other seat's");
 const night = read("src/lib/autopilot-night.ts");
 assert.match(
   night,

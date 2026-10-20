@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getApiUserId } from "@/lib/session";
 import { readJsonBody, jsonOk, jsonError, z } from "@/lib/api/route-helpers";
 import { dispatchToHostedRunner } from "@/lib/hosted-runner/dispatch";
+import { hostedRunnerServes } from "@/lib/hosted-runner/serves";
 
 const HermesDispatchBody = z.object({
   projectKey: z.string().min(1).max(80),
@@ -22,6 +23,8 @@ export async function POST(req: NextRequest) {
 
   const userId = await getApiUserId();
   if (!userId) return jsonError("Unauthorized", 401);
+  if (!(await hostedRunnerServes(userId)))
+    return jsonError("The hosted runner does not serve this account.", 403);
 
   const res = await dispatchToHostedRunner({
     userId,

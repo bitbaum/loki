@@ -57,8 +57,8 @@ assert.match(
 );
 assert.match(
   ingest,
-  /const holder = await passHolder\(data\.ownerPass, token\);\s*const fromOwner = holder !== null;/,
-  "the owner or an editor, verified",
+  /const holder = passHolder\(data\.ownerPass, token\);\s*const fromOwner = holder !== null;/,
+  "the owner, verified — and only the owner (whoever asks pays, 2026-10-20)",
 );
 // One way an owner's words start a fix, shared by Report and the walkthrough's "Not quite".
 const ownerBuild = readFileSync("src/lib/feedback/owner-build.ts", "utf8");

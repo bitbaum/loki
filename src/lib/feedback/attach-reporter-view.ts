@@ -75,7 +75,7 @@ export async function attachReporterView(
         liveHref,
         tourHref,
         client: {
-          onAllowance: item.onAllowance,
+          previewFirst: item.previewFirst,
           liveApprovedAt: item.liveApprovedAt,
           ownerMerges: item.projectAutoShip === false,
         },

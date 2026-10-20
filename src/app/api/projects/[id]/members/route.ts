@@ -12,22 +12,13 @@ import {
   listProjectMembers,
   removeProjectMember,
   revokeProjectInvitation,
-  setClientMonthlyChanges,
   upsertProjectMember,
 } from "@/db/queries/project-access";
-import { CLIENT_ALLOWANCE_VALUES, DEFAULT_CLIENT_ALLOWANCE } from "@/config/client-allowance";
 import { jsonError, jsonOk, readIdParam, readJsonBody, z } from "@/lib/api/route-helpers";
 import { PROJECT_ROLE_VALUES } from "@/db/schema";
 import { PROJECT_INVITE_TTL_DAYS, projectInvitePath } from "@/lib/project-invites";
 import { appUrl, projectInviteTemplate, sendEmail } from "@/lib/email";
 import { DemoBlockedError, requireNotDemo } from "@/lib/demo-guard";
-
-// One of the choices the People panel offers, never a number typed elsewhere.
-const Allowance = z
-  .number()
-  .int()
-  .refine((n) => CLIENT_ALLOWANCE_VALUES.includes(n), "Not one of the choices")
-  .nullable();
 
 // No email: an open link the owner sends themselves (WhatsApp, a text).
 const AddBody = z.object({
@@ -39,10 +30,7 @@ const AddBody = z.object({
     .optional()
     .or(z.literal("").transform(() => undefined)),
   role: z.enum(PROJECT_ROLE_VALUES).default("viewer"),
-  /** A client's changes a month; omitted = the default, null = ask me first. */
-  monthlyChanges: Allowance.optional(),
 });
-const PatchBody = z.object({ userId: z.string().uuid(), monthlyChanges: Allowance });
 const DeleteBody = z.union([
   z.object({ userId: z.string().uuid() }),
   z.object({ invitationId: z.string().uuid() }),
@@ -89,8 +77,6 @@ async function addPerson(req: NextRequest, params: Promise<{ id: string }>) {
   await requireNotDemo(result.userId, "tenancy");
   const body = await readJsonBody(req, AddBody);
   if (body instanceof NextResponse) return body;
-  const monthlyChanges =
-    body.monthlyChanges === undefined ? DEFAULT_CLIENT_ALLOWANCE : body.monthlyChanges;
 
   // An open link: nothing to look up or email — the owner sends it.
   if (!body.email) {
@@ -99,7 +85,6 @@ async function addPerson(req: NextRequest, params: Promise<{ id: string }>) {
       email: null,
       role: body.role,
       invitedBy: result.userId,
-      monthlyChanges,
     });
     return jsonOk({
       invitation: {
@@ -118,7 +103,7 @@ async function addPerson(req: NextRequest, params: Promise<{ id: string }>) {
   if (user) {
     if (user.id === result.access.ownerUserId)
       return jsonError("The project owner already has full access", 409);
-    const member = await upsertProjectMember(result.id, user.id, body.role, monthlyChanges);
+    const member = await upsertProjectMember(result.id, user.id, body.role);
     // Added, and told: the owner used to read "they already had an account"
     // while the person heard nothing and never found the project.
     let emailed = false;
@@ -152,7 +137,6 @@ async function addPerson(req: NextRequest, params: Promise<{ id: string }>) {
     email: body.email,
     role: body.role,
     invitedBy: result.userId,
-    monthlyChanges,
   });
   const link = `${appUrl()}${projectInvitePath(token)}`;
 
@@ -200,19 +184,6 @@ async function addPerson(req: NextRequest, params: Promise<{ id: string }>) {
     link,
     emailed,
   });
-}
-
-/** The owner changes a client's monthly allowance. */
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const result = await ownerAccess(params);
-  if ("error" in result) return result.error;
-  if (!result.access.canManageMembers)
-    return jsonError("Only the project owner can change what a client may do", 403);
-  const body = await readJsonBody(req, PatchBody);
-  if (body instanceof NextResponse) return body;
-  const changed = await setClientMonthlyChanges(result.id, body.userId, body.monthlyChanges);
-  if (!changed) return jsonError("That person is not this project's client", 404);
-  return jsonOk({ monthlyChanges: body.monthlyChanges });
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

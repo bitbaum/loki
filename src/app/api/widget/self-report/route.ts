@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
   if (!isWidgetOriginAllowed({ tokenOrigins: host.origins, origin, allowMissingOrigin: false })) {
     return corsError("Origin not allowed for this widget", 403);
   }
-  const holder = await passHolder(data.ownerPass, host);
+  const holder = passHolder(data.ownerPass, host);
   const fromOwner = !!holder;
   if (selfReportNeedsOwner(data.kind) && !fromOwner) {
     return corsError("Only the site's owner's widget reports on its own", 403);

@@ -39,6 +39,8 @@ type Deps = {
   openLaunchModal: (project: ProjectState) => void;
   runtimeAvailable: boolean;
   runtimeStateKnown: boolean;
+  /** The hosted runner serves this account (control-types.ts). */
+  hostedBuilderAvailable: boolean;
   runnerSyncStale: boolean;
   /** Fleet-wide: builder connected but queued dispatches aren't executing. */
   executionStalled: boolean;
@@ -128,6 +130,7 @@ export function buildCardProps(deps: Deps) {
     onLaunch: () => deps.openLaunchModal(project),
     runtimeAvailable: deps.runtimeAvailable,
     runtimeStateKnown: deps.runtimeStateKnown,
+    hostedBuilderAvailable: deps.hostedBuilderAvailable,
     runnerSyncStale: deps.runnerSyncStale,
     executionStalled: deps.executionStalled,
     automationMode: deps.automationMode,

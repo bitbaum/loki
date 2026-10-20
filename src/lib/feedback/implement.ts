@@ -56,10 +56,16 @@ export async function implementFeedback(
 ): Promise<ImplementFeedbackResult> {
   const row = await getFeedbackWithProject(actorUserId, feedbackId);
   if (!row) return { status: 404, body: { error: "Feedback not found" } };
-  if (!row.canEdit)
+  // The build runs on the project owner's builder and engine, so only the
+  // owner's word starts it: whoever asks pays, in their own builder. Until
+  // 2026-10-20 an editor's tap here ran on the owner's subscription.
+  if (actorUserId !== row.ownerUserId)
     return {
       status: 403,
-      body: { error: "Only project owners and editors can implement feedback" },
+      body: {
+        error:
+          "Only the project's owner can start a build on their builder. Your ask is with them.",
+      },
     };
   const executionUserId = row.ownerUserId;
 
