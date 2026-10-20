@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getJson, postJson, deleteJson, throwApiError } from "@/lib/api/fetch";
 import { useLokiStream } from "@/hooks/use-loki-stream";
+import { useNewChat } from "@/hooks/use-new-chat";
 import { initialLokiSelection } from "@/lib/loki/project-selection";
 import { initialThreadId } from "@/lib/loki/conversation-param";
 import { useSendQueue } from "@/hooks/use-send-queue";
@@ -424,6 +425,7 @@ export function LokiWorkspace({
     setError(null);
     setComposerPrefill(null);
   };
+  const newChat = useNewChat(startNewConversation, () => setHistoryOpen(false));
 
   const deleteConversation = async (id: string) => {
     setError(null);
@@ -660,6 +662,7 @@ export function LokiWorkspace({
         context={site.context}
         onContextUsed={site.spend}
         draftKey={lokiDraftKey(activeId)}
+        freshRequest={newChat.fresh}
         selectedProjects={selectedProjects}
         projectCount={projects.length}
         selectedGoal={selectedGoal}
@@ -701,10 +704,7 @@ export function LokiWorkspace({
         setActiveId(id);
         setHistoryOpen(false);
       }}
-      onNew={() => {
-        startNewConversation();
-        setHistoryOpen(false);
-      }}
+      onNew={newChat.start}
       onDelete={(id) => void deleteConversation(id)}
     />
   );
@@ -758,7 +758,8 @@ export function LokiWorkspace({
           canSaveContext={messages.length > 0}
           onToggleHistoryPinned={() => setHistoryPinned((open) => !open)}
           onOpenHistory={() => setHistoryOpen(true)}
-          onNewChat={startNewConversation}
+          onNewChat={newChat.start}
+          onLeaveThread={startNewConversation}
           onOpenProjects={() => setFilterOpen(true)}
           onSaveContext={() => setSaveFor(activeId ?? "new")}
           onTogglePin={inbox.pinConversation}
