@@ -876,6 +876,13 @@
       "when": 1792490877838,
       "tag": "0124_build_engine",
       "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1792493623787,
+      "tag": "0125_builder_seat_and_fee",
+      "breakpoints": true
     }
   ]
 }

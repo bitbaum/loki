@@ -56,6 +56,17 @@ export const CourseAssessment = z
   })
   .strict();
 export type CourseAssessmentInput = z.infer<typeof CourseAssessment>;
+/**
+ * What a partner may state a fee in: what OrangeCat lists a service in. The
+ * fee is the partner's own price for the agreed work, paid to the partner's
+ * own wallet; Loki never holds it.
+ */
+export const FEE_CURRENCIES = ["CHF", "BTC", "EUR", "USD"] as const;
+export type FeeCurrency = (typeof FEE_CURRENCIES)[number];
+export const StudioFee = z
+  .object({ amount: z.number().positive().max(1_000_000_000), currency: z.enum(FEE_CURRENCIES) })
+  .strict();
+export type StudioFeeInput = z.infer<typeof StudioFee>;
 const mutation = { mutationId: z.uuid() };
 const message = z.string().trim().min(1).max(2000);
 const version = z.number().int().min(0);
@@ -94,6 +105,8 @@ export const StudioGuestAction = z.discriminatedUnion("action", [
       action: z.literal("deliver_assignment"),
       requestId: z.uuid(),
       ...preview,
+      /** Stated once per brief, with a delivery; listed in the partner's name on OrangeCat. */
+      fee: StudioFee.optional(),
     })
     .strict(),
 ]);

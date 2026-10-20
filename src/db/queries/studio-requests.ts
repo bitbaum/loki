@@ -1,10 +1,11 @@
-import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
-import { randomBytes, randomUUID } from "node:crypto";
+import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { db } from "@/db";
 import {
   studioRequests as requests,
   studioRequestEvents as events,
   userProjects,
+  users,
   type StudioRequest,
   type WidgetToken,
 } from "@/db/schema";
@@ -14,6 +15,7 @@ import { requireNotDemo } from "@/lib/demo-guard";
 import { studioHash, studioKeyMatches } from "@/lib/studio/access";
 import { studioView } from "@/lib/studio/projection";
 import { mailStudioUpdate } from "@/lib/studio/link-mail";
+import { applyBuilderSeat, seatChange, type SeatChange } from "@/lib/studio/seat";
 import {
   StudioConflict,
   validateCourseEvidence,
@@ -339,7 +341,11 @@ export async function mutateStudioPortal(
   return db.transaction(
     async (
       tx,
-    ): Promise<false | { replay: true } | { replay: false; row: StudioRequest; body: string }> => {
+    ): Promise<
+      | false
+      | { replay: true }
+      | { replay: false; row: StudioRequest; body: string; feeFor?: StudioRequest }
+    > => {
       const [row] = await tx.select().from(requests).where(eq(requests.id, id)).for("update");
       if (!accessible(row, key)) return false;
       await requireNotDemo(row.userId, "content");
@@ -349,6 +355,7 @@ export async function mutateStudioPortal(
       let body = "";
       let version: number | null = null;
       let visible = true;
+      let feeFor: StudioRequest | undefined;
       switch (input.action) {
         case "message":
           body = input.body;
@@ -429,20 +436,26 @@ export async function mutateStudioPortal(
           if (!assignment || assignment.kind !== "website" || assignment.status === "closed")
             throw new StudioConflict("This brief is not assigned to you or is closed.", 404);
           requireDeliveryVersion(assignment.deliveryVersion, input.expectedVersion);
+          // One fee per brief, stated until it is listed; after that the
+          // listing on OrangeCat is the record and changes there.
+          if (input.fee && assignment.feeServiceId)
+            throw new StudioConflict(
+              "The fee for this brief is already listed on OrangeCat; change it there.",
+            );
           const nextVersion = assignment.deliveryVersion + 1;
-          await tx
-            .update(requests)
-            .set({
-              previewUrl: input.previewUrl,
-              scope: input.scope,
-              deliverySummary: input.summary,
-              deliveryVersion: nextVersion,
-              approvedVersion: null,
-              previewAcceptedAt: null,
-              status: "ready_for_review",
-              updatedAt: new Date(),
-            })
-            .where(owned(row.userId, assignment.id));
+          const delivered = {
+            previewUrl: input.previewUrl,
+            scope: input.scope,
+            deliverySummary: input.summary,
+            deliveryVersion: nextVersion,
+            approvedVersion: null,
+            previewAcceptedAt: null,
+            status: "ready_for_review" as const,
+            ...(input.fee ? { feeAmount: input.fee.amount, feeCurrency: input.fee.currency } : {}),
+            updatedAt: new Date(),
+          };
+          await tx.update(requests).set(delivered).where(owned(row.userId, assignment.id));
+          if (input.fee) feeFor = { ...assignment, ...delivered };
           await record(
             tx,
             assignment,
@@ -453,7 +466,9 @@ export async function mutateStudioPortal(
             input.summary,
             nextVersion,
           );
-          body = "Assigned preview delivered.";
+          body = input.fee
+            ? `Assigned preview delivered. Fee stated: ${input.fee.amount} ${input.fee.currency}.`
+            : "Assigned preview delivered.";
           visible = false;
           break;
         }
@@ -470,9 +485,58 @@ export async function mutateStudioPortal(
         version,
         visible,
       );
-      return { replay: false, row, body };
+      return { replay: false, row, body, feeFor };
     },
   );
+}
+
+/** The fee's listing on OrangeCat, written once it exists there (lib/studio/fee-listing.ts). */
+export async function setStudioFeeListing(
+  userId: string,
+  id: string,
+  serviceId: string,
+  url: string,
+): Promise<void> {
+  await db
+    .update(requests)
+    .set({ feeServiceId: serviceId, feeUrl: url, updatedAt: new Date() })
+    .where(and(owned(userId, id), isNull(requests.feeServiceId)));
+}
+
+/**
+ * OrangeCat says the fee's service was paid: the one way a brief becomes
+ * paid. Idempotent on the payment (its intent id is the mutation), and a
+ * brief whose fee is already paid is left alone. Returns what to tell whom.
+ */
+export async function markStudioFeePaid(serviceId: string, externalId: string) {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(requests)
+      .where(eq(requests.feeServiceId, serviceId))
+      .for("update");
+    if (!row || row.feePaidAt) return null;
+    const mutationId = paymentMutationId(externalId);
+    const hash = eventHash({ fee_paid: externalId });
+    if (await replay(tx, row, mutationId, hash)) return null;
+    const [partner] = row.partnerId
+      ? await tx.select().from(requests).where(eq(requests.id, row.partnerId)).limit(1)
+      : [];
+    const name = partner?.proposedProfile?.name ?? "the partner";
+    const body = `The fee was paid to ${name} on OrangeCat.`;
+    await tx
+      .update(requests)
+      .set({ feePaidAt: new Date(), updatedAt: new Date() })
+      .where(eq(requests.id, row.id));
+    await record(tx, row, mutationId, hash, "studio", "fee_paid", body);
+    return { row, partner: partner ?? null, body };
+  });
+}
+
+/** A payment intent id as the UUID the events table keys replays on. */
+function paymentMutationId(externalId: string): string {
+  const hex = createHash("sha256").update(`oc-fee-paid:${externalId}`).digest("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
 export async function listStudioRequests(userId: string) {
@@ -502,6 +566,7 @@ export async function getStudioReview(userId: string, id: string) {
     contact: row.contact,
     projectId: row.projectId,
     partnerId: row.partnerId,
+    builderUserId: row.builderUserId,
     preferredPartnerId: row.preferredPartnerId,
     revoked: row.accessRevoked,
   };
@@ -519,6 +584,7 @@ export async function mutateStudioReview(userId: string, id: string, input: Stud
     let body = "";
     let version: number | null = null;
     let visible = true;
+    let seat: SeatChange | null = null;
     switch (input.action) {
       case "message":
         body = input.body;
@@ -560,7 +626,10 @@ export async function mutateStudioReview(userId: string, id: string, input: Stud
         if (!project)
           throw new StudioConflict("Select a project owned by this studio account.", 404);
         patch.projectId = input.projectId;
-        body = "Linked an internal project without granting project access.";
+        seat = seatChange(row, { projectId: input.projectId, builderUserId: row.builderUserId });
+        body = row.builderUserId
+          ? "Linked an internal project; the assigned partner holds a seat on it."
+          : "Linked an internal project without granting project access.";
         visible = false;
         break;
       }
@@ -623,11 +692,24 @@ export async function mutateStudioReview(userId: string, id: string, input: Stud
             "Select an approved, published partner with current availability.",
           );
         patch.partnerId = partner.id;
-        body = `Assigned to ${partner.proposedProfile!.name}. Scope, timing and payment are agreed directly with the independent partner.`;
+        // The partner's Loki account, when they have signed in with the
+        // OrangeCat identity they connected: the holder of the seat on the
+        // linked project, building in their own tenant on their own engine.
+        const [builder] = partner.orangecatActorId
+          ? await tx
+              .select({ id: users.id })
+              .from(users)
+              .where(eq(users.orangecatActorId, partner.orangecatActorId))
+              .limit(1)
+          : [];
+        patch.builderUserId = builder?.id ?? null;
+        seat = seatChange(row, { projectId: row.projectId, builderUserId: builder?.id ?? null });
+        body = `Assigned to ${partner.proposedProfile!.name}. Scope and timing are agreed directly with the independent partner; a fee they state with a delivery is paid to them on OrangeCat.`;
         break;
       }
       case "revoke_access":
         patch.accessRevoked = true;
+        seat = seatChange(row, { projectId: null, builderUserId: null });
         body = "Guest access revoked.";
         visible = false;
         break;
@@ -636,9 +718,10 @@ export async function mutateStudioReview(userId: string, id: string, input: Stud
     await record(tx, row, input.mutationId, hash, "studio", input.action, body, version, visible);
     // What the visitor can see is what they are told about (a replayed
     // mutation tells nobody twice).
-    return { tell: visible ? { to: row.contact, kind: row.kind, note: body } : null };
+    return { tell: visible ? { to: row.contact, kind: row.kind, note: body } : null, seat };
   });
   if (!saved) return false;
+  if (saved.seat) await applyBuilderSeat(saved.seat);
   if (saved.tell) mailStudioUpdate(saved.tell);
   return true;
 }

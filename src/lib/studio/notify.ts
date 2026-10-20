@@ -23,6 +23,7 @@ const HEADLINE: Record<string, string> = {
   propose_profile: "A partner profile proposed",
   set_availability: "A partner changed availability",
   deliver_assignment: "An assigned preview delivered",
+  fee_paid: "A partner's fee was paid on OrangeCat",
 };
 
 /**

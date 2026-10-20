@@ -178,6 +178,29 @@ export function StudioRequests({
                 >
                   Open preview
                 </a>
+                {view.fee && (
+                  <p className="text-sm text-text-secondary">
+                    Fee {view.fee.amount} {view.fee.currency}
+                    {view.fee.paidAt
+                      ? ` · paid on ${new Date(view.fee.paidAt).toLocaleDateString()}`
+                      : view.fee.url
+                        ? " · listed in the partner's name on OrangeCat"
+                        : " · not listed yet: the partner signs in to Loki with OrangeCat first"}
+                    {view.fee.url && (
+                      <>
+                        {" · "}
+                        <a
+                          className="text-accent-text underline"
+                          href={view.fee.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open on OrangeCat
+                        </a>
+                      </>
+                    )}
+                  </p>
+                )}
               </section>
             )}
             <section className="ui-card-shell space-y-4 p-5">
@@ -309,6 +332,15 @@ export function StudioRequests({
                         The server verifies approval, publication consent and current availability
                         before assignment.
                       </p>
+                      {view.partnerId && (
+                        <p className="text-sm text-text-secondary">
+                          {view.builderUserId
+                            ? view.projectId
+                              ? "The partner holds a seat on the linked project and builds in a Loki of their own, on their own engine."
+                              : "The partner has a Loki account. Link a project above and they get a seat on it."
+                            : "The partner has no Loki account yet. They sign in with OrangeCat from their portal, and the seat follows."}
+                        </p>
+                      )}
                       {send("Assign this brief")}
                     </form>
                   </section>
