@@ -39,6 +39,18 @@ credits/metered model (the deferred "Fleet Credits" — port OrangeCat's
 per-user run quota/entitlement gate. Until then, hosted execution stays
 founder-only. **This gate is currently SHUT and must stay shut.**
 
+> **Split 2026-10-20** (`docs/master-plan-2026-10.md` §7). The gate's reason
+> is Loki-paid compute under a flat plan, so it now reads in two halves:
+>
+> - Hosted execution **on the person's own engine** — their own subscription
+>   signed in, or their own key, inside their own private builder
+>   (`docs/architecture/private-builders.md`) — is allowed once that builder
+>   exists. Loki pays nothing per build; the gate's reason does not apply.
+> - Hosted execution **on Loki's key** — welcome changes and the builds a
+>   plan includes — stays gated exactly as above: tokens per run per tenant
+>   recorded first, a cap in CHF on the System page second. Shut until both
+>   exist.
+
 ## Gate 2 — Per-user Groq cap before ~50 active users
 
 **Threshold:** roughly 50 daily-active users (whenever Groq free-tier rate limits
