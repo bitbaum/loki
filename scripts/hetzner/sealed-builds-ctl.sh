@@ -36,6 +36,33 @@ matrix)
       --mount "type=bind,src=$H,dst=$H" loki-agent:latest bash -c 'echo OK uid=$(id -u) $(cat /opt/loki/app/.env >/dev/null 2>&1 && echo LEAK || echo sealed)' 2>&1 | grep -v level=warn | tail -1 | cut -c1-140)"
     echo "nnp=$nnp rt=$rt cgroups=$cg -> $o"
   done; done; done ;;
+diag)
+  # Runner journal for the given run ids + gemini under a real PTY inside the
+  # sealed container, with and without -t. RUNS: space-separated ids (env).
+  U="$(unit_user)"; H="$(unit_home)"; EF="$(unit_envfile)"
+  echo "unit env: $(systemctl show -p Environment --value "$UNIT.service" | tr ' ' '\n' | grep -o '^LOKI_[A-Z_]*=[a-z0-9]*' | tr '\n' ' ')"
+  echo "runner version: $(cat /opt/loki/runner/package.json 2>/dev/null | grep -m1 '"version"')"
+  echo "gemini on host: $(sudo -u "$U" bash -lc 'gemini --version' 2>&1 | tail -1); ~/.gemini: $(ls -A "$H/.gemini" 2>/dev/null | tr '\n' ' ' | cut -c1-200)"
+  echo "GEMINI_API_KEY in env file: $([ -n "$EF" ] && grep -q '^GEMINI_API_KEY=.' "$EF" && echo yes || echo no)"
+  echo "--- journal (masked) ---"
+  pat="$(echo "${RUNS:-x}" | tr ' ' '|')"
+  journalctl -u "$UNIT" --since "-4h" --no-pager -o short-iso 2>/dev/null | grep -Ei "$pat|gemini|antigravity|sandbox|podman|never accepted" \
+    | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | cut -c1-400 | tail -120
+  echo "--- PTY repro ---"
+  RT=""; [ -f /etc/loki/sealed-builds.on ] && grep -qx runsc "$STATE" 2>/dev/null && RT="--runtime runsc --runtime-flag ignore-cgroups"
+  proj="$H/.sealed-test"; mkdir -p "$proj"; echo "# sealed test" > "$proj/README.md"; chown -R "$U:$U" "$proj"; mkdir -p "$H/.run"; chown "$U:$U" "$H/.run"
+  ensure_image "$U" "$H"
+  chmod 755 /tmp/sealed-pty-probe.py
+  keyenv=(); [ -n "$EF" ] && k="$(set -a; . "$EF" 2>/dev/null; printf %s "${GEMINI_API_KEY:-}")" && [ -n "$k" ] && keyenv=(-p "Environment=GEMINI_API_KEY=$k")
+  for tflag in "-i" "-it"; do
+    echo "podman run $tflag ($RT):"
+    systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=no -p WorkingDirectory="$proj" \
+      -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" -p Environment=PATH=/usr/local/bin:/usr/bin:/bin "${keyenv[@]}" \
+      python3 /tmp/sealed-pty-probe.py 45 -- podman run --rm $tflag --userns=keep-id $RT --workdir "$proj" \
+        --mount "type=bind,src=$H,dst=$H" --network slirp4netns --pids-limit 512 --security-opt no-new-privileges --cap-drop ALL \
+        --env TERM=xterm-256color --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" --env GEMINI_API_KEY \
+        loki-agent:latest gemini --skip-trust --yolo 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
+  done ;;
 read)
   echo "reading:  $(tr '\n' ' ' < "$STATE" 2>/dev/null || echo none)"
   echo "runsc:    $(command -v runsc >/dev/null && runsc --version 2>/dev/null | head -1 || echo absent)"
