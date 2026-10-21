@@ -32,7 +32,7 @@ composer = bool(re.search(r"type your message", txt(buf), re.I))
 print(f"  composer seen: {composer} after {time.time()-t0:.1f}s, alive={alive}, bytes={len(buf)}")
 mark = len(buf)
 if alive:
-    os.write(fd, b"\x1b[200~Reply with the single word PONG and nothing else.\x1b[201~")
+    os.write(fd, b"\x1b[200~" + os.environ.get("PROBE_PROMPT","Reply with the single word PONG and nothing else.").encode() + b"\x1b[201~")
     time.sleep(0.25); os.write(fd, b"\r"); time.sleep(0.55); os.write(fd, b"\r")
     pump(secs)
 after = txt(buf[mark:])
@@ -44,7 +44,11 @@ lines = [re.sub(r"\s+", " ", l) for l in lines if len(l.strip()) > 1]
 seen = []
 for l in lines:
     if l not in seen: seen.append(l)
-for l in seen[-25:]:
+print("  -- composer screen --")
+for l in dict.fromkeys(re.sub(r"\s+"," ",x).strip() for x in re.split(r"\r?\n|\r", txt(buf[:mark]))):
+    if len(l)>1: print("  c| " + l[:160])
+print("  -- after submit (unique) --")
+for l in seen[-60:]:
     print("  | " + re.sub(r"[A-Za-z0-9_-]{28,}", "<masked>", l)[:160])
 try: os.kill(pid, 9)
 except Exception: pass

@@ -54,11 +54,11 @@ diag)
   ensure_image "$U" "$H"
   chmod 755 /tmp/sealed-pty-probe.py
   keyenv=(); [ -n "$EF" ] && k="$(set -a; . "$EF" 2>/dev/null; printf %s "${GEMINI_API_KEY:-}")" && [ -n "$k" ] && keyenv=(-p "Environment=GEMINI_API_KEY=$k")
-  for tflag in "-i" "-it"; do
+  for tflag in "-it"; do
     echo "podman run $tflag ($RT):"
     systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=no -p WorkingDirectory="$proj" \
-      -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" -p Environment=PATH=/usr/local/bin:/usr/bin:/bin "${keyenv[@]}" \
-      python3 /tmp/sealed-pty-probe.py 45 -- podman run --rm $tflag --userns=keep-id $RT --workdir "$proj" \
+      -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" -p Environment=PATH=/usr/local/bin:/usr/bin:/bin "${keyenv[@]}" -p 'Environment="PROBE_PROMPT=Run the shell command sleep 8, then list the files here, then append a haiku to README.md."' \
+      python3 /tmp/sealed-pty-probe.py 50 -- podman run --rm $tflag --userns=keep-id $RT --workdir "$proj" \
         --mount "type=bind,src=$H,dst=$H" --network slirp4netns --pids-limit 512 --security-opt no-new-privileges --cap-drop ALL \
         --env TERM=xterm-256color --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" --env GEMINI_API_KEY \
         loki-agent:latest gemini --skip-trust --yolo 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
