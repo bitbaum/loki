@@ -8572,6 +8572,13 @@
   .ui-loki-suggest-row > * {
     @apply shrink-0 whitespace-nowrap;
   }
+  /* Room after the last chip, so it can scroll clear of the fade. */
+  @media (max-width: 639px) {
+    .ui-loki-suggest-row::after {
+      content: "";
+      flex: 0 0 1.5rem;
+    }
+  }
   .ui-loki-suggest-chip {
     @apply inline-flex min-h-9 shrink-0 items-center rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-colors hover:border-border-default hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-8;
   }
