@@ -44,3 +44,21 @@ export function promptAcceptedEvidence(
     .join(" ");
   return said.replace(/\s+/g, "").length >= 24;
 }
+
+/**
+ * Pure: the reason a sealed container never started, from podman/runsc's own
+ * words on the PTY (exit 125: name in use, runsc delete failed, image missing,
+ * OCI runtime error), or null. 2026-10-21 22:22: three providers were blamed
+ * for "never accepting the prompt" when no container had ever existed.
+ */
+export function containerStartFailure(raw: string): string | null {
+  const text = raw.replace(ANSI_RE, "");
+  const m = text.match(
+    /^\s*Error:\s*(.*(?:container|runsc|OCI|crun|name .* in use|image|storage|netns|slirp4netns|cgroup).*)$/im,
+  );
+  if (!m) return null;
+  return m[1]
+    .replace(/[A-Za-z0-9]{32,}/g, "…")
+    .trim()
+    .slice(0, 240);
+}

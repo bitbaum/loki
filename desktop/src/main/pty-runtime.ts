@@ -22,7 +22,7 @@ import { fetchWorkspaceSource, repoTokenEnv } from "./workspace-source";
 import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
 import { EXIT_SETTLE_MS, forgetTab, rememberTab } from "./tab-memory";
 import { stripReportResidue, stripTerminalReports } from "@/lib/terminal-reports";
-import { promptAcceptedEvidence, WORKING_MARKERS } from "@/lib/prompt-evidence";
+import { containerStartFailure, promptAcceptedEvidence, WORKING_MARKERS } from "@/lib/prompt-evidence";
 
 const agentByTab = new Map<string, AgentOption>();
 /** The directory each tab's agent was actually launched in (after box
@@ -153,7 +153,7 @@ export async function launchAgentPty(
     ...(Object.keys(runEnv).length ? { env: runEnv } : {}),
     workspaceId: runnerWorkspaceId(tab),
   });
-  agentByTab.set(tab, agent);
+  agentByTab.set(tab.toLowerCase(), agent);
   dirByTab.set(tab.toLowerCase(), effectiveDir);
   // Written down so a builder restart reopens it (tab-memory). Crossed off
   // only when the agent exits AND the builder is still here a moment later:
@@ -170,7 +170,7 @@ export async function launchAgentPty(
 }
 
 export function ptyAgentForTab(tab: string): AgentOption | null {
-  return agentByTab.get(tab) ?? null;
+  return agentByTab.get(tab.toLowerCase()) ?? null;
 }
 
 export function shouldReplacePtyAgent(
@@ -305,6 +305,13 @@ export function explainPtyDispatchFailure(tab: string, agent: AgentOption): stri
   if (/not (?:logged|signed) in|login required|authentication required|unauthorized|\b401\b/.test(screen)) {
     return `${agent} is not logged in on this computer. Open Terminal, run ${agent === "cursor" ? "cursor-agent login" : `${agent} login`}, then Retry.`;
   }
+  const startFailure = containerStartFailure(peekPtyBuffer(tab) ?? "");
+  if (startFailure) {
+    return `${agentLabel(agent)}'s container failed to start: ${startFailure}. Nothing ran, so this says nothing about ${agentLabel(agent)} itself; Loki moves the run to the next AI provider. Check the builder (sealed-builds containers / clean-dead).`;
+  }
+  if (process.env.LOKI_EXECUTOR === "sandbox" && !isPtyBacked(tab) && !(peekPtyBuffer(tab) ?? "").trim()) {
+    return `${agentLabel(agent)}'s container failed to start: it exited before printing anything. Nothing ran; Loki moves the run to the next AI provider. Check the builder (sealed-builds containers / journal).`;
+  }
   const seen = screenExcerpt(peekPtyBuffer(tab) ?? "");
   if (WORKING_MARKERS[agent]) {
     return (
@@ -416,7 +423,7 @@ export async function terminatePty(tab: string): Promise<void> {
   // Closed on purpose: it must not come back after the next restart.
   forgetTab(tab);
   await executor.terminate(runnerWorkspaceId(tab));
-  agentByTab.delete(tab);
+  agentByTab.delete(tab.toLowerCase());
 }
 
 /** Tabs currently backed by a live owned PTY (for the heartbeat's open-tabs). */

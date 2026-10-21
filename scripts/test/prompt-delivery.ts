@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { stripReportResidue, stripTerminalReports } from "../../src/lib/terminal-reports";
-import { promptAcceptedEvidence } from "../../src/lib/prompt-evidence";
+import { containerStartFailure, promptAcceptedEvidence } from "../../src/lib/prompt-evidence";
 import { decideAutoReimplement } from "../../src/lib/feedback/auto-reimplement-policy";
 import { runBranchName, startRunBranch } from "../../src/lib/agent-execution/box-workspace";
 
@@ -80,6 +80,24 @@ assert.equal(
   promptAcceptedEvidence("\x1b[2K\r> " + "1;2c".repeat(50) + `> ${prompt}`, "gemini", prompt),
   false,
   "0.65 markers do not fire on residue or echo",
+);
+// Exit 125 before the agent existed (Substrata, 2026-10-21 22:22).
+assert.match(
+  containerStartFailure(
+    "WARN[0000] Falling back to --cgroup-manager=cgroupfs\r\nError: cleaning up container abc: removing container abc from runtime: `/usr/bin/runsc --ignore-cgroups delete --force abc` failed: exit status 1\r\n",
+  ) ?? "",
+  /removing container abc from runtime/,
+);
+assert.match(
+  containerStartFailure(
+    'Error: creating container storage: the container name "fc-ws-ede9" is already in use',
+  ) ?? "",
+  /already in use/,
+);
+assert.equal(
+  containerStartFailure("✦ Error: the build failed, fixing it"),
+  null,
+  "an agent's own words are not a start failure",
 );
 assert.equal(stripReportResidue("1;2c1;2c?62;22cok"), "ok");
 
