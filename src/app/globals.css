@@ -173,6 +173,9 @@
   --radius-pill: calc(var(--radius) * 3.5); /* floating nav pill: 1.75rem at default scale */
   --text-micro: var(--text-micro);
   --text-compact: var(--text-compact);
+  --text-meta: var(--text-meta);
+  --text-section: var(--text-section);
+  --text-bar-title: var(--text-bar-title);
   --tracking-display: var(--tracking-display);
   --tracking-label: var(--tracking-label);
   --tracking-caps: var(--tracking-caps);
@@ -236,6 +239,10 @@
      to remove from Petvity. */
   --text-micro: 0.75rem;
   --text-compact: 0.8rem; /* 12.8px — small button/control text between xs and sm */
+  /* The phone type scale of the design reset (docs/development/design-reset-2026-10.md). */
+  --text-meta: 0.8125rem; /* 13px — a list row's trailing fact (time, count) */
+  --text-section: 0.9375rem; /* 15px — a sentence-case section heading */
+  --text-bar-title: 1.0625rem; /* 17px — the page's name in the phone top bar */
   --modal-max-height: 85vh; /* standard tall-modal cap */
   --page-min-height: 60vh; /* error / empty / placeholder page min */
   --tracking-display: -0.03em;
@@ -252,7 +259,11 @@
   --surface-terminal: #0a0a0a; /* MUST match PALETTE.dark.surfacePage in src/lib/palette.ts — the JS mirror used by xterm/OG/email/themeColor (they can't read CSS vars) */
   --shell-max: 90rem;
   /* Mobile chrome — bottom nav + safe area (Layer 1) */
-  --mobile-nav-height: 3.25rem;
+  /* The bottom tab bar's height. The bar is sized FROM this (.ui-mobile-nav),
+     so everything that clears it — the main column, sheets, full-height panes
+     — clears it exactly. It said 3.25rem while the bar measured 70px, and the
+     last 18px of every page scrolled under the bar. */
+  --mobile-nav-height: 4rem;
   --mobile-nav-offset: 0.75rem;
   --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
   --mobile-chrome-bottom: calc(
@@ -520,7 +531,17 @@
   }
   .app-main {
     @apply min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto;
-    padding-bottom: calc(var(--mobile-chrome-bottom) + 1rem);
+    padding-bottom: 1rem;
+  }
+  /* On a phone the column stops ABOVE the floating tab bar, so nothing ever
+     scrolls under it: the scroll area used to run to the bottom edge with
+     padding at its end, which kept the LAST row clear but let every other
+     row slide under the bar and peek out through the gap beneath it (Home's
+     footer, 2026-10-21). */
+  @media (max-width: 47.99rem) {
+    .app-main-column {
+      padding-bottom: var(--mobile-chrome-bottom);
+    }
   }
   @media (min-width: 48rem) {
     .app-main {
@@ -543,9 +564,13 @@
     @apply grid min-h-[28rem] gap-4 md:grid-cols-[17rem_minmax(0,1fr)];
   }
 
-  /* App top bar — slim, sticky, hosts Cmd-K + global status pills */
+  /* App top bar — slim, sticky, hosts Cmd-K + global status pills. On a phone:
+     the page's name on the left, then round 40px icons with no borders, then
+     the page's one primary action, then the avatar (the reference apps'
+     shape: Claude, ChatGPT, Grok). */
   .ui-app-topbar {
-    @apply sticky top-0 z-30 flex items-center gap-3 px-3 py-2 sm:px-5 sm:py-2.5;
+    min-height: var(--app-topbar-height);
+    @apply sticky top-0 z-30 flex items-center gap-1 px-2 py-1 sm:px-5 sm:py-2.5 md:gap-3;
     background: oklch(from var(--surface-page) l c h / 0.85);
     backdrop-filter: blur(8px);
     /* No hard border — soft inset shadow only, mirroring the sidebar treatment. */
@@ -564,8 +589,19 @@
     @apply truncate;
   }
   .ui-app-topbar-right {
-    @apply ml-auto flex items-center gap-2;
+    @apply ml-auto flex shrink-0 items-center gap-0.5 md:gap-2;
   }
+  /* The page's name, phones only (the sidebar names it from md up). Left-
+     aligned, 17px, never two lines. */
+  .ui-app-topbar-title {
+    font-size: var(--text-bar-title);
+    @apply min-w-0 flex-1 truncate pl-2 font-semibold leading-snug text-text-primary;
+  }
+  /* The slot a page's ONE primary action renders into on a phone (PageAction). */
+  .ui-app-topbar-action {
+    @apply flex shrink-0 items-center empty:hidden md:hidden;
+  }
+
   .ui-topbar-pill {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-text-tertiary transition-colors;
     background: oklch(1 0 0 / 0.04);
@@ -610,10 +646,11 @@
   }
   .ui-mobile-nav {
     bottom: calc(var(--mobile-nav-offset) + var(--mobile-safe-bottom));
-    @apply fixed inset-x-3 z-40 flex md:hidden rounded-pill border border-border-default bg-surface-base/92 px-1.5 py-1.5 backdrop-blur-md shadow-panel-strong;
+    height: var(--mobile-nav-height);
+    @apply fixed inset-x-3 z-40 flex md:hidden rounded-pill border border-border-default bg-surface-base/92 px-1.5 py-1 backdrop-blur-md shadow-panel-strong;
   }
   .ui-mobile-nav-item {
-    @apply relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 text-micro font-medium transition-colors min-h-11;
+    @apply relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-micro font-medium transition-colors min-h-11;
   }
   .ui-mobile-nav-item-active {
     @apply bg-accent-muted text-text-primary;
@@ -632,7 +669,7 @@
     @apply min-h-0 flex-1 overflow-y-auto overscroll-contain py-2;
   }
   .ui-mobile-nav-sheet-label {
-    @apply mb-1.5 px-3 text-micro font-semibold uppercase tracking-caps text-text-muted;
+    @apply mb-1 mt-3 px-3 text-sm font-semibold text-text-secondary;
   }
   /* The section's question, shown only in the Menu sheet. The sidebar keeps
      it as a tooltip instead: the sheet is a surface you open to ask "where
@@ -3720,7 +3757,10 @@
   }
   body.fc-terminal-fullscreen .app-main,
   body.fc-overlay-open .app-main,
-  body.fc-keyboard-open .app-main {
+  body.fc-keyboard-open .app-main,
+  body.fc-terminal-fullscreen .app-main-column,
+  body.fc-overlay-open .app-main-column,
+  body.fc-keyboard-open .app-main-column {
     padding-bottom: 0;
   }
   body.fc-overlay-open {
@@ -3733,7 +3773,8 @@
     body.fc-chat-immersive .ui-app-topbar {
       display: none;
     }
-    body.fc-chat-immersive .app-main {
+    body.fc-chat-immersive .app-main,
+    body.fc-chat-immersive .app-main-column {
       padding-bottom: 0;
     }
     body.fc-chat-immersive .ui-loki-page {
@@ -3993,10 +4034,13 @@
   .ui-field-hint {
     @apply mt-1.5 text-xs leading-snug text-text-tertiary;
   }
+  /* A field's or a tag's label — NOT a section title (that is
+     .ui-section-heading). It was 12px letter-spaced caps, and ~50 places used
+     it as a heading, so every page shouted in small capitals (design reset,
+     rule 4). Now: 13px, sentence case as written, no tracking. */
   .ui-kicker {
-    font-size: 0.75rem;
-    @apply font-semibold uppercase text-text-secondary;
-    letter-spacing: var(--tracking-label);
+    font-size: var(--text-meta);
+    @apply font-medium text-text-secondary;
   }
   /* Micro-kicker for compact data cells — 10px caps */
   /* A field's length, shown once it matters. Muted while there is room; the
@@ -4007,8 +4051,10 @@
   .ui-char-count-full {
     @apply text-micro text-status-warning;
   }
+  /* The smallest label (a cell's name, a tag). Same rule as .ui-kicker: no
+     caps, no tracking; tertiary rather than muted so 12px stays readable. */
   .ui-micro-label {
-    @apply text-micro uppercase tracking-wider text-text-muted;
+    @apply text-micro font-medium text-text-tertiary;
   }
   /* Inline error messages — use ui-error for form-level, ui-error-xs for tight row contexts */
   .ui-error {
@@ -4351,9 +4397,11 @@
   .ui-btn-pill-positive {
     @apply flex shrink-0 items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-overlay hover:text-status-positive hover:border-status-positive/30;
   }
+  /* Empty is quiet (design reset, rule 10): an icon, a line, a button — no
+     border, no box. Kept as a class for the pages not rebuilt yet; new code
+     uses <EmptyState>. */
   .ui-empty-panel {
-    @apply flex flex-col items-center gap-3 rounded-2xl border border-border-subtle bg-surface-base py-14 text-center text-text-tertiary;
-    box-shadow: var(--shadow-panel);
+    @apply flex flex-col items-center gap-3 py-14 text-center text-text-tertiary;
   }
   /* Inline empty state — lives inside an existing Card. Three sizes (sm/md/lg) cover
      the spectrum from tight section empties (py-4) to first-run hero empties (py-16). */
@@ -4370,10 +4418,10 @@
     @apply py-16;
   }
   .ui-empty-icon {
-    @apply h-10 w-10 text-text-tertiary;
+    @apply h-8 w-8 text-text-tertiary;
   }
   .ui-empty-title {
-    @apply text-sm font-medium text-text-secondary;
+    @apply max-w-sm text-base text-text-secondary;
   }
   .ui-empty-helper {
     @apply max-w-md text-xs text-text-tertiary;
@@ -4737,7 +4785,41 @@
      violation, and 36px, which the responsive audit flags as under the 44px
      touch minimum on every phone and tablet. */
   .ui-topbar-btn {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-secondary;
+    @apply relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:text-text-primary;
+  }
+  /* The visible circle: 40px (design reset), inside the 44px the finger gets. */
+  .ui-topbar-btn::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border-radius: 9999px;
+    transition: background-color 150ms ease;
+  }
+  .ui-topbar-btn:hover::before {
+    background: var(--surface-raised);
+  }
+  .ui-topbar-btn > * {
+    position: relative;
+  }
+  /* A live state on a top-bar icon: a 8px dot on its upper right. */
+  .ui-topbar-btn-dot {
+    @apply absolute right-2.5 top-2.5 h-2 w-2 rounded-full;
+    box-shadow: 0 0 0 2px var(--surface-page);
+  }
+  /* A count on a top-bar icon that is NOT an alarm (what Loki said while its
+     panel was closed): ink on the page colour, never red. */
+  .ui-topbar-btn-count {
+    @apply absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-text-primary px-1 text-micro font-semibold tabular-nums text-text-inverted;
+  }
+  /* The feedback launcher's spiral, turning slowly while Loki watches. */
+  .ui-topbar-spiral-watching {
+    animation: ui-brand-spiral-spin 9s linear infinite;
+    transform-origin: 50% 50%;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ui-topbar-spiral-watching {
+      animation: none;
+    }
   }
 
   /* For controls whose SHAPE is the meaning — a 16x28 switch pill, a tiny
@@ -8599,6 +8681,141 @@
   .ui-loki-project-goal {
     @apply mt-0.5 block truncate text-xs text-text-tertiary;
   }
+
+  /* ══ Design reset primitives (2026-10) ═══════════════════════════════════
+     The pieces every rebuilt page is made of. What each one is for, and when
+     to use it: docs/development/design-reset-2026-10.md → "Primitives".
+     Components: src/components/ui/{list-row,section-heading,empty-state,
+     choice-menu,page-action}.tsx. */
+
+  /* SectionHeading — sentence case, 15px semibold, 8px above its content.
+     The 24px above it is the page stack's gap (PageLayout), not a margin, so
+     it holds wherever the section sits. */
+  .ui-section-head {
+    @apply mb-2 flex items-center justify-between gap-3;
+  }
+  .ui-section-heading {
+    font-size: var(--text-section);
+    @apply min-w-0 truncate font-semibold leading-snug text-text-primary;
+  }
+  /* "See all": a text link, 44px tall for a finger without growing the row. */
+  .ui-section-link {
+    @apply -my-3 inline-flex min-h-11 shrink-0 items-center text-sm text-text-secondary transition-colors hover:text-text-primary;
+  }
+
+  /* List + ListRow — a collection is rows: leading icon or avatar, a title,
+     ONE secondary line, at most one trailing fact. The list bleeds 12px past
+     the text column so a pressed row's highlight has room around its words. */
+  .ui-list {
+    @apply -mx-3 flex list-none flex-col p-0;
+  }
+  .ui-listrow {
+    @apply relative flex min-h-14 items-center gap-3 rounded-xl px-3;
+  }
+  .ui-listrow-interactive {
+    @apply transition-colors hover:bg-surface-raised active:bg-surface-raised;
+  }
+  .ui-listrow-interactive:has(.ui-listrow-hit:focus-visible) {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: -2px;
+  }
+  /* The whole row is the link or button: its ::after covers the row, and the
+     row's own menu sits above it (.ui-listrow-menu). */
+  .ui-listrow-hit {
+    @apply text-left outline-none;
+  }
+  .ui-listrow-hit::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+  .ui-listrow-lead {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center text-text-secondary;
+  }
+  /* An initial or a photo in a circle — people, projects, anything with a name. */
+  .ui-listrow-avatar {
+    @apply overflow-hidden rounded-full bg-surface-raised text-sm font-medium;
+  }
+  /* Everything right of the leading slot. The hairline between rows is drawn
+     here, so it starts at the text column rather than at the screen edge. */
+  .ui-listrow-main {
+    @apply flex min-w-0 flex-1 items-center gap-3 self-stretch py-3;
+  }
+  .ui-listrow + .ui-listrow > .ui-listrow-main {
+    box-shadow: inset 0 1px 0 var(--border-subtle);
+  }
+  .ui-listrow-text {
+    @apply flex min-w-0 flex-1 flex-col;
+  }
+  .ui-listrow-title {
+    @apply truncate text-base font-medium text-text-primary;
+  }
+  .ui-listrow-secondary {
+    @apply mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-text-secondary;
+  }
+  .ui-listrow-secondary-text {
+    @apply min-w-0 truncate;
+  }
+  .ui-listrow-trail {
+    font-size: var(--text-meta);
+    @apply shrink-0 whitespace-nowrap tabular-nums text-text-tertiary;
+  }
+  .ui-listrow-chevron {
+    @apply h-4 w-4 shrink-0 text-text-muted;
+  }
+  .ui-listrow-menu {
+    @apply relative z-[1] -mr-2 flex shrink-0 items-center;
+  }
+  /* ListSearch — a list's search is its first row and scrolls with it, never
+     a pinned block above it (rule 6). */
+  .ui-list-search {
+    @apply relative mb-2;
+  }
+  .ui-list-search-icon {
+    @apply pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary;
+  }
+  .ui-list-search-input {
+    @apply h-11 w-full rounded-full bg-surface-raised pl-10 pr-4 text-base text-text-primary outline-none transition-shadow placeholder:text-text-muted focus-visible:ring-2 focus-visible:ring-border-strong;
+  }
+
+  /* ChoiceMenu — "Sort: Priority ▾": one button that opens the choices as a
+     bottom sheet on a phone and a popover from md up (rule 7, fit or menu). */
+  .ui-choice-trigger {
+    @apply -mx-2 inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary;
+  }
+  .ui-choice-trigger-value {
+    @apply font-medium text-text-primary;
+  }
+  .ui-choice-popover {
+    @apply absolute top-full z-50 mt-1 min-w-56 max-w-[calc(100vw-2rem)] rounded-xl border border-border-default bg-surface-overlay p-1;
+    box-shadow: var(--shadow-panel-strong);
+  }
+  .ui-choice-sheet-title {
+    font-size: var(--text-section);
+    @apply px-3 pb-1 pt-1 font-semibold text-text-primary;
+  }
+  .ui-choice-option {
+    @apply flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-base text-text-primary transition-colors hover:bg-surface-raised md:min-h-10 md:text-sm;
+  }
+  .ui-choice-option-hint {
+    @apply block text-sm text-text-tertiary md:text-xs;
+  }
+
+  /* PageAction — the page's ONE primary action. A filled 40px circle in the
+     phone top bar (the place Claude puts "new chat"); a pill with its verb
+     at the right of the page header from md up. */
+  .ui-page-action {
+    @apply inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-accent-primary px-4 text-sm font-medium text-text-inverted transition-colors hover:bg-accent-hover active:opacity-90 disabled:bg-surface-raised disabled:text-text-muted;
+  }
+  @media (max-width: 47.99rem) {
+    .ui-page-action {
+      @apply w-10 px-0;
+    }
+    .ui-page-action-label {
+      @apply sr-only;
+    }
+  }
 }
 
 /* ─── Sidebar portal tooltip (outside @layer to avoid Tailwind 4 keyframe issue) ── */
@@ -8883,7 +9100,9 @@
      `a[href]` above is (0,1,1) — the attribute counts as a class — so a
      bare class loses to it; the opt-out names the element too. */
   a[href].ui-projects-row-link,
-  a[href].ui-alert-row-link {
+  a[href].ui-alert-row-link,
+  a[href].ui-listrow-hit,
+  button.ui-listrow-hit {
     min-height: 0;
   }
 }
@@ -9172,4 +9391,17 @@
   .ui-inspection-viewport {
     max-height: 65dvh;
   }
+}
+
+/* The avatar sits in the top bar like the icons beside it: a 40px circle, no
+   ring. accountkit draws it bordered on surface-base — the only bordered thing
+   in a borderless bar. Unlayered on purpose: the package's stylesheet is
+   imported unlayered, and a rule inside @layer components can never beat it. */
+.ui-app-topbar .acct-trigger {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  min-inline-size: 2.5rem;
+  margin-inline-start: 0.25rem;
+  border-color: transparent;
+  background: var(--surface-raised);
 }

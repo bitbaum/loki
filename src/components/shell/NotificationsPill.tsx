@@ -72,7 +72,7 @@ export function NotificationsPill() {
         }
         aria-label={hasAlerts ? `${totalCount} notifications` : "Notifications"}
       >
-        <Bell className="h-4 w-4" />
+        <Bell className="h-5 w-5" />
         {hasAlerts && (
           <span className="ui-notification-badge">{totalCount > 9 ? "9+" : totalCount}</span>
         )}

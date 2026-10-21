@@ -1,15 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Plus, X, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { AiAssistBar } from "@/components/ui/ai-assist-bar";
+import { PageActionButton } from "@/components/ui/page-action";
 import { setActiveForm } from "@/lib/active-form";
 import type { UseAiForm } from "@fleet/ai-forms/react";
 
 interface Props {
   /** Trigger button label shown next to Plus icon. Default: "Add". */
   triggerLabel?: string;
+  /**
+   * How the trigger looks. "page-action" makes it the page's one primary
+   * action (a round + in the phone top bar, a pill in the header from md up)
+   * — render it inside <PageAction>, or pass it as PageLayout's `action`.
+   */
+  trigger?: "button" | "page-action";
   /** Modal header title. */
   title: string;
   /** Submit button text when idle. */
@@ -48,6 +56,7 @@ interface Props {
 
 export function ModalForm({
   triggerLabel = "Add",
+  trigger = "button",
   title,
   submitLabel,
   savingLabel = "Saving…",
@@ -87,6 +96,13 @@ export function ModalForm({
     assist?.reset();
   };
 
+  // As the page action, the trigger lives in the phone top bar (PageAction),
+  // and the bar is hidden while any dialog is open (fc-overlay-open) — a
+  // dialog rendered inside it would vanish with it. It opens only after a
+  // click, so `document` is always there.
+  const portal = (node: React.ReactNode) =>
+    trigger === "page-action" ? createPortal(node, document.body) : node;
+
   const handleSubmit = async () => {
     const ok = await onSubmit();
     if (ok) close();
@@ -94,52 +110,57 @@ export function ModalForm({
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="ui-btn-confirm">
-        <Plus className="h-4 w-4" />
-        {triggerLabel}
-      </button>
-
-      {open && (
-        <Modal onClose={close} size={size}>
-          {/* form: Enter in any <input> submits natively; textarea doesn't */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (canSubmit && !saving) handleSubmit();
-            }}
-            className="contents"
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">{title}</div>
-              <button
-                type="button"
-                onClick={close}
-                className="p-1 text-text-tertiary hover:text-text-secondary rounded"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {assist && <AiAssistBar assist={assist} fillPlaceholder={assistPlaceholder} />}
-
-            <div className="space-y-3">{children}</div>
-
-            {error && <div className="ui-box-error">{error}</div>}
-
-            <button type="submit" disabled={saving || !canSubmit} className="ui-btn-submit">
-              {saving ? (
-                <>
-                  <Loader2 className="ui-spinner" /> {savingLabel}
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" /> {submitLabel}
-                </>
-              )}
-            </button>
-          </form>
-        </Modal>
+      {trigger === "page-action" ? (
+        <PageActionButton label={triggerLabel} onClick={() => setOpen(true)} />
+      ) : (
+        <button onClick={() => setOpen(true)} className="ui-btn-confirm">
+          <Plus className="h-4 w-4" />
+          {triggerLabel}
+        </button>
       )}
+
+      {open &&
+        portal(
+          <Modal onClose={close} size={size}>
+            {/* form: Enter in any <input> submits natively; textarea doesn't */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (canSubmit && !saving) handleSubmit();
+              }}
+              className="contents"
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold">{title}</div>
+                <button
+                  type="button"
+                  onClick={close}
+                  className="p-1 text-text-tertiary hover:text-text-secondary rounded"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {assist && <AiAssistBar assist={assist} fillPlaceholder={assistPlaceholder} />}
+
+              <div className="space-y-3">{children}</div>
+
+              {error && <div className="ui-box-error">{error}</div>}
+
+              <button type="submit" disabled={saving || !canSubmit} className="ui-btn-submit">
+                {saving ? (
+                  <>
+                    <Loader2 className="ui-spinner" /> {savingLabel}
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" /> {submitLabel}
+                  </>
+                )}
+              </button>
+            </form>
+          </Modal>,
+        )}
     </>
   );
 }

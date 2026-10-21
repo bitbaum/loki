@@ -31,13 +31,13 @@ export function MobileNav() {
 
   return (
     <>
-      {/* data-fc-place="tab": on a phone the launcher is the slim edge tab on
-          every app page, never "hidden". This bar once carried "hidden", which
-          took the launcher off every page; then nothing, and the owner's wide
-          "Watching" pill floated over Control's cards above it (owner,
-          2026-10-18: "why is it so crowded?"). The tab carries the same live
-          dot. The bar is display:none from md up, so desktop keeps its corner
-          button; an open dialog still wins (widget/placement.ts). */}
+      {/* data-fc-place="tab": the FALLBACK shape of the feedback launcher on a
+          phone. On app pages the top bar draws the launcher itself
+          (FeedbackLauncher, data-fc-place="host", which outranks this), so
+          nothing floats over the content; when a page hides the top bar but
+          keeps this bar, the slim edge tab comes back. It is never "hidden":
+          this bar once carried that, and it took the launcher off every page.
+          An open dialog still wins (widget/placement.ts). */}
       <nav className="ui-mobile-nav" aria-label="Primary" data-fc-place="tab">
         {MOBILE_NAV_ITEMS.map((item) => {
           const isActive = isCurrentPath(pathname, item.href);

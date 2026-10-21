@@ -77,8 +77,8 @@ export function MobileNavSheet({ pathname, onClose }: { pathname: string; onClos
         </div>
 
         <div className="ui-mobile-nav-sheet-scroll">
-          {/* No "Feedback on this page" row: the widget's edge tab is on
-              every page with this bar (MobileNav, data-fc-place="tab"), and
+          {/* No "Feedback on this page" row: the feedback launcher is in the
+              top bar on every page with this sheet (FeedbackLauncher), and
               the same way to the same panel, first in a menu of places, read
               as one more unexplained thing (owner, 2026-10-19). */}
           {SIDEBAR_SECTIONS.map((section) => {

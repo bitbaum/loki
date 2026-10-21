@@ -68,20 +68,36 @@ for (const surface of FLEET_SURFACES) {
   );
 }
 
-// ─── 2. The top bar does not repeat the bottom bar ───────────────────────────
-// Below md the bottom bar shows Today / Loki / Control as labelled, highlighted
-// tabs. On those pages the top bar's title was a third simultaneous answer to
-// "where am I?", after the bottom tab and the page's own heading.
+// ─── 2. One name for the page on a phone, and one <h1> ──────────────────────
+// Until 2026-10-21 the top bar went quiet on the bottom-bar tabs, because the
+// page's own heading and the tab already said where you were. The design reset
+// (docs/development/design-reset-2026-10.md, rule 1) moved the name to where
+// the reference apps keep it: the top bar names EVERY page on a phone, and the
+// page does not repeat it (PageTitle is read but not drawn there). So the name
+// is said once on screen, and the DOM holds exactly one <h1>: the top bar's
+// name is plain text whenever the page draws its own h1.
 const topBar = src("components/shell/AppTopBar.tsx");
+assert.equal(
+  /onBottomBarTab/.test(topBar),
+  false,
+  "AppTopBar names every page on a phone — it no longer goes quiet on the bottom-bar tabs",
+);
 assert.ok(
-  /onBottomBarTab/.test(topBar) && /MOBILE_NAV_ITEMS/.test(topBar),
-  "AppTopBar must suppress its mobile page label on pages the bottom bar already names",
+  /useMainHasHeading/.test(topBar) &&
+    /<h1/.test(topBar) &&
+    /<p className="ui-app-topbar-title/.test(topBar),
+  "AppTopBar's name must be an <h1> only when the page in <main> has none (exactly one h1)",
+);
+const pageTitle = src("components/ui/page-title.tsx");
+assert.ok(
+  /max-md:sr-only/.test(pageTitle) && !/hidden md:block/.test(pageTitle),
+  "PageTitle must stay in the accessibility tree on a phone (sr-only), never display:none",
 );
 for (const tab of MOBILE_NAV_ITEMS) {
   assert.ok(
     MOBILE_NAV_ITEMS.some((i) => isCurrentPath(tab.href, i.href)),
     `${tab.id} must be recognised as a bottom-bar tab by the same isCurrentPath ` +
-      `the top bar uses — otherwise the suppression silently never fires`,
+      `the bottom bar uses to highlight it`,
   );
 }
 // And it must still speak where the bottom bar cannot: Menu is not a page, so
@@ -113,12 +129,18 @@ assert.equal(
   "the Menu sheet must not carry an account footer — AccountMenu in the top bar " +
     "owns Settings, appearance and sign out, on every viewport",
 );
-// Feedback on a phone is the widget's edge tab, which the bottom bar asks for
-// on every page (data-fc-place="tab"). The sheet repeating it as its first row
-// read as one more unexplained thing above the menu (owner, 2026-10-19).
+// Feedback on Loki's own pages is a top-bar icon (FeedbackLauncher, the
+// widget's data-fc-place="host"); the bottom bar keeps asking for the edge tab
+// as the fallback for when a page hides the top bar. The sheet repeating it as
+// its first row read as one more unexplained thing (owner, 2026-10-19).
+assert.ok(
+  /data-fc-place="host"/.test(src("components/shell/FeedbackLauncher.tsx")) &&
+    /FeedbackLauncher/.test(topBar),
+  'the top bar must draw the feedback launcher (data-fc-place="host") on Loki\'s own pages',
+);
 assert.ok(
   /data-fc-place="tab"/.test(src("components/shell/MobileNav.tsx")),
-  "the bottom bar must keep the feedback widget's edge tab on every phone page",
+  "the bottom bar must keep the edge tab as the launcher's fallback on a phone",
 );
 assert.equal(
   /openFeedback/.test(sheet),
@@ -127,6 +149,6 @@ assert.equal(
 );
 
 console.log(
-  `✓ nav surfaces: strip is project-gated, top bar defers to the bottom bar on ` +
-    `${MOBILE_NAV_ITEMS.length} tabs and still names ${nonTab.length} other destinations`,
+  `✓ nav surfaces: strip is project-gated, top bar names every page (${MOBILE_NAV_ITEMS.length} tabs ` +
+    `and ${nonTab.length} other destinations) with one h1`,
 );

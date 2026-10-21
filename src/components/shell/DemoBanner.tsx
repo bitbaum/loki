@@ -26,7 +26,13 @@ export function DemoBanner() {
   return (
     <div className="ui-callout-accent mx-3 mb-2 mt-2 flex items-center gap-2 py-1.5 text-xs text-text-secondary sm:mx-4">
       <FlaskConical className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
-      <span className="min-w-0 flex-1">
+      {/* One line on a phone: the strip sits above every page and cannot be
+          closed, and the long sentence was four lines — a sixth of the screen
+          on every page (design reset, 2026-10-21). */}
+      <span className="min-w-0 flex-1 sm:hidden">
+        Demo — agents and messages are off, resets nightly.
+      </span>
+      <span className="hidden min-w-0 flex-1 sm:inline">
         You&rsquo;re in the demo — explore freely. Dispatching agents, terminals and outbound
         messages are off, and everything here resets nightly.
       </span>
