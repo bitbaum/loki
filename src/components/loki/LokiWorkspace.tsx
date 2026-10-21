@@ -29,7 +29,7 @@ import { LokiComposer } from "./Composer";
 import { SaveContextBar } from "./SaveContextBar";
 import { useImmersiveChat } from "@/hooks/use-immersive-chat";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { WorkspaceChrome, WorkspaceThreadHeader } from "./WorkspaceChrome";
+import { WorkspaceChrome, WorkspacePhoneHeader } from "./WorkspaceChrome";
 import { ProjectFilter } from "./ProjectFilter";
 import { VoiceConversation } from "./VoiceConversation";
 import { useVoiceConversation } from "@/hooks/use-voice-conversation";
@@ -570,8 +570,9 @@ export function LokiWorkspace({
       : null;
 
   const isStart = messages.length === 0 && !transcriptLoading && !sending && !activeId;
-  // A thread takes the whole phone (useImmersiveChat); the start keeps the shell.
-  useImmersiveChat(!isStart);
+  // The whole of /loki takes the phone (useImmersiveChat), the start screen as
+  // much as a thread: with the app bars it was chrome around a clipped scroller.
+  useImmersiveChat(true);
   // The rail is `md:flex` — pinned or not, a phone never shows it. Treating
   // "pinned" as "visible" hid the recent chats on every phone (the pin
   // defaults to on), so Back from a thread landed on an empty screen.
@@ -762,7 +763,6 @@ export function LokiWorkspace({
         <WorkspaceChrome
           {...chrome}
           onNewChat={newChat.start}
-          inThread={!isStart}
           historyPinned={historyPinned}
           onToggleHistoryPinned={() => setHistoryPinned((open) => !open)}
         />
@@ -777,7 +777,7 @@ export function LokiWorkspace({
         >
           <ChatScreen
             composer={dock}
-            header={!isStart && !wide ? <WorkspaceThreadHeader {...chrome} /> : undefined}
+            header={wide ? undefined : <WorkspacePhoneHeader start={isStart} {...chrome} />}
           >
             {conversation}
           </ChatScreen>

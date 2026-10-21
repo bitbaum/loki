@@ -1,8 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { NAV } from "@/config/navigation";
 import { openFeedback } from "@/lib/open-feedback";
-import { TopbarPortal } from "@/components/shell/TopbarSlot";
+import { MobileNavSheet } from "@/components/shell/MobileNavSheet";
 import { LokiTopbarButtons, ThreadHeader } from "./ThreadHeader";
 import { ThreadTitle } from "./ThreadTitle";
 
@@ -14,9 +16,12 @@ import { ThreadTitle } from "./ThreadTitle";
  * screen and the global sidebar above that. The rail itself owns "new chat"
  * now, so what is left is the only thing the rail cannot do: reveal itself.
  *
- * Phones: in a thread, the thread's own one-line header (back, name, menu);
- * outside one, the same two buttons live in the app top bar's empty left half
- * (TopbarPortal) instead of a second header row under it. From md up: the
+ * Phones: the whole of /loki owns the screen (useImmersiveChat), so the app
+ * top bar is gone and the page's own one-line header floats over the
+ * conversation instead — WorkspaceThreadHeader in a thread (back, name, menu)
+ * and WorkspaceStartHeader on the start screen (chats, Loki, menu). It used to
+ * lend two buttons to the top bar's empty left half (TopbarPortal) outside a
+ * thread; the bar that slot sat in no longer shows here. From md up: the
  * reveal button, and the open thread's name, which is where it is renamed.
  *
  * Lifted out of LokiWorkspace, which is at its line cap.
@@ -39,7 +44,6 @@ export type ThreadChrome = {
 };
 
 export function WorkspaceChrome({
-  inThread,
   activeId,
   title,
   historyPinned,
@@ -48,27 +52,52 @@ export function WorkspaceChrome({
   onNewChat,
   onRename,
 }: ThreadChrome & {
-  inThread: boolean;
   historyPinned: boolean;
   onToggleHistoryPinned: () => void;
 }) {
-  const buttons = (
-    <LokiTopbarButtons
-      pinned={historyPinned}
-      onTogglePinned={onToggleHistoryPinned}
-      onOpenLokis={onOpenHistory}
-      onNewChat={onNewChat}
-    />
+  return (
+    <div className="ui-loki-topbar max-md:hidden">
+      <LokiTopbarButtons
+        pinned={historyPinned}
+        onTogglePinned={onToggleHistoryPinned}
+        onOpenLokis={onOpenHistory}
+        onNewChat={onNewChat}
+      />
+      {activeId && <ThreadTitle title={title} onRename={(t) => onRename(activeId, t)} />}
+    </div>
   );
+}
+
+/**
+ * The phone's start-screen header (chats · Loki · menu), floating over the
+ * start screen like the thread's. With the bottom tabs gone from under the
+ * composer, the menu is the way to the rest of the app: Home, and the sheet
+ * of every other page the tabs' "More" used to open.
+ */
+export function WorkspaceStartHeader({
+  projects,
+  onOpenHistory,
+  onNewChat,
+  onOpenProjects,
+}: ThreadChrome) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
   return (
     <>
-      {!inThread && <TopbarPortal>{buttons}</TopbarPortal>}
-      <div className="ui-loki-topbar max-md:hidden">
-        {buttons}
-        {inThread && activeId && (
-          <ThreadTitle title={title} onRename={(t) => onRename(activeId, t)} />
-        )}
-      </div>
+      <ThreadHeader
+        leading="chats"
+        title="Loki"
+        subtitle={projects.length === 0 ? "Ask, or send work to a project" : undefined}
+        projects={projects}
+        onOpenLokis={onOpenHistory}
+        onNewChat={onNewChat}
+        onOpenProjects={onOpenProjects}
+        onGoHome={() => router.push(NAV.control.href)}
+        onOpenMore={() => setMoreOpen(true)}
+        onReportProblem={() => openFeedback(() => router.push("/support"))}
+      />
+      {moreOpen && <MobileNavSheet pathname={pathname} onClose={() => setMoreOpen(false)} />}
     </>
   );
 }
@@ -107,4 +136,9 @@ export function WorkspaceThreadHeader({
       onRename={activeId ? (t) => onRename(activeId, t) : undefined}
     />
   );
+}
+
+/** The phone's floating header: the start screen's or the open thread's. */
+export function WorkspacePhoneHeader({ start, ...chrome }: ThreadChrome & { start: boolean }) {
+  return start ? <WorkspaceStartHeader {...chrome} /> : <WorkspaceThreadHeader {...chrome} />;
 }
