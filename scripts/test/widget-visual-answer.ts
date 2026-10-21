@@ -115,3 +115,31 @@ parityCheck().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
+
+async function audioHistoryCheck() {
+  const { richAnswerText: shared } = await import("@bitbaum/chatkit");
+  const { richAnswerText: widget } = await import("../../widget/rich-history");
+  for (const src of [
+    "/morning.wav",
+    "https://audio.test/sample.mp3",
+    "javascript:alert(1)",
+    "data:audio/wav,AA==",
+  ]) {
+    const text =
+      "```chat_ui\n" +
+      JSON.stringify({
+        type: "audio",
+        title: "Morning",
+        src,
+        creator: "Studio",
+        caption: "An instrumental draft",
+      }) +
+      "\n```";
+    assert.equal(widget(text), shared(text));
+  }
+  console.log("widget audio history: 4 passed");
+}
+audioHistoryCheck().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
