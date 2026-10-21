@@ -37,6 +37,7 @@ import { DAEMON_HEARTBEAT_MS } from '@/lib/constants/daemon'
 import { parseProjectsConf, resolveEffectiveTab } from '@/lib/agent-config'
 import { getAgentProcesses, readFastState } from '@/lib/control-fast-state'
 import { listAgentRegistry } from '@/lib/agent-registry'
+import { probeProviderInventory, usableAgents, type ProviderInventoryEntry } from '@/lib/agents/provider-inventory'
 import type { PaneRecord } from '@/db/schema/runtime-snapshots'
 import { loadToken, clearToken, isDevBaseOverride } from './token-store'
 import { listPtyTabs, runnerWorkspaceId } from './pty-runtime'
@@ -88,6 +89,7 @@ async function pushOnce(): Promise<void> {
   let openTabs: string[] = []
   let projects: ReturnType<typeof buildProjectRuntimePayload> = []
   let installedAgents: string[] = []
+  let providerInventory: ProviderInventoryEntry[] | undefined
   let panes: PaneRecord[] = []
   // "Open tabs" = tabs backed by a live owned PTY. Nothing else hosts an agent
   // on this runner, so nothing else is a tab.
@@ -98,6 +100,18 @@ async function pushOnce(): Promise<void> {
     installedAgents = listAgentRegistry()
       .filter((entry) => entry.available)
       .map((entry) => entry.id)
+    // Failover reads installedAgents. Narrow it by the measured inventory:
+    // an agent with no credential, or whose last real probe failed (for a
+    // reason other than quota), is not somewhere to send work.
+    try {
+      const channel = (process.env.LOKI_RUNNER_PRESENCE_CHANNEL ?? 'local').trim() === 'cloud' ? 'cloud' : 'local'
+      providerInventory = await probeProviderInventory(channel)
+      const usable = new Set(usableAgents(providerInventory))
+      const known = new Set(providerInventory.map((e) => e.id))
+      installedAgents = installedAgents.filter((id) => !known.has(id) || usable.has(id))
+    } catch (err) {
+      console.warn('[pusher] provider inventory failed:', (err as Error).message)
+    }
     projects = buildProjectRuntimePayload(openTabs)
     panes = buildPaneTopology(openTabs)
   } catch (err) {
@@ -120,6 +134,7 @@ async function pushOnce(): Promise<void> {
       body: JSON.stringify({
         openTabs,
         installedAgents,
+        providerInventory,
         projects,
         panes,
         runnerVersion: runnerVersion(),

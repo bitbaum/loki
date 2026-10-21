@@ -1,0 +1,1 @@
+ALTER TABLE "runtime_snapshots" ADD COLUMN "provider_inventory" jsonb;
