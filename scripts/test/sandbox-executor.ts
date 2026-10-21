@@ -133,7 +133,30 @@ async function main() {
     "fc-sealed",
   );
   check("sealed build runs as the tenant", sealed.includes("--userns=keep-id"));
-  check("sealed build stays in the unit's cgroup", sealed.includes("--cgroups=disabled"));
+  check(
+    "gVisor build never asks for NoCgroups (runsc refuses it)",
+    !sealed.includes("--cgroups=disabled"),
+  );
+  check(
+    "gVisor build tells runsc to ignore cgroups",
+    hasPair(sealed, "--runtime-flag", "ignore-cgroups"),
+  );
+  const sealedCrun = buildDockerRunArgs(
+    { id: "user:repo", cwd, command: "bash" },
+    {
+      ...config,
+      runtime: "podman",
+      network: "bridge",
+      ociRuntime: "crun",
+      image: "loki-agent:latest",
+    },
+    "fc-sealed-crun",
+  );
+  check(
+    "sealed build uses slirp4netns for rootless networking",
+    hasPair(sealed, "--network", "slirp4netns"),
+  );
+  check("crun build stays in the unit's cgroup", sealedCrun.includes("--cgroups=disabled"));
   check("sealed build asks for gVisor when the box has it", hasPair(sealed, "--runtime", "runsc"));
   check(
     "sealed build binds the home at the same path",
@@ -144,7 +167,7 @@ async function main() {
     hasPair(sealed, "--workdir", path.resolve(cwd)),
   );
   check("sealed build keeps HOME real", hasPair(sealed, "--env", `HOME=${config.home}`));
-  check("sealed build has the network the agent needs", hasPair(sealed, "--network", "bridge"));
+  check("sealed build has the network the agent needs", !sealed.includes("none"));
   check("sealed build drops capabilities too", hasPair(sealed, "--cap-drop", "ALL"));
   check("sealed build passes the run's token", hasPair(sealed, "--env", "GH_TOKEN=t"));
   check("sealed build never mounts /workspace", !sealed.some((a) => a.includes("dst=/workspace")));
