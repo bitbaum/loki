@@ -1,8 +1,9 @@
 # Work-order preflight: first cross-provider contract
 
-**Status: contract and pure unit tests only.** No storage, dispatch API, robot
-control, provider directory, automatic spend, or payment settlement has shipped
-with this change. The current owner of execution remains Loki.
+**Status: contract, a Crew read-only adapter, a private GET endpoint and
+pure unit tests.** No new storage, dispatch API, robot control, provider
+directory, automatic spend or payment settlement has shipped. The current owner
+of execution remains Loki.
 
 ## Why this exists
 
@@ -66,24 +67,75 @@ Do not copy confidential case, patient or customer data into a shared global
 work-order graph. Reference the minimum permitted artifact, with a scoped access
 check in its original system.
 
+## Crew projection (implemented)
+
+`projectCrewWork(task)` takes an owner-scoped Crew detail returned by Loki's
+existing `getHumanTask(userId, id)`. It emits a projection that includes
+`previewOnly: true`, the original Crew status, a linked work order when
+its project/assignee/fee fields are complete, and **observations** from the
+Crew timeline. It never exposes the bearer share token, private contact notes,
+fee payee URL or the full timeline.
+
+The only HTTP surface is:
+
+`GET /api/crew/tasks/{id}/work-order`
+
+It requires the same private-zone access as Crew's existing routes. A missing
+or other user's assignment returns 404. Responses are explicitly non-cacheable.
+There are no POST, PATCH, PUT or DELETE methods.
+
+The projected capability is the **generic** `human.delegated_assignment`.
+Its two criteria describe Crew's procedural handoff and operator review;
+they are NOT a domain-specific inspection or manufacturing quality standard.
+More precise task criteria must come from the owning domain before real
+dispatch. The source assignment may lack a project or assignee, so the
+projection reports `issues` and leaves `order` null instead of inventing one.
+
+Crew stores fees in a numeric field read into a JavaScript number. The
+adapter converts only values that can be represented without denomination
+rounding (2 decimals for CHF/USD/EUR/GBP, 8 for BTC) to integer minor units.
+A missing currency or an unrepresentable quote **blocks** the work-order
+projection; it is never rewritten as free work. Fee terms and payment settlement
+remain authoritative in Crew and OrangeCat respectively.
+
+### Important known Crew consent gap
+
+Today's `patchHumanTask` can change an assignee even after they have
+responded, without binding that historical acceptance to the new assignee.
+The timeline also does not carry an authenticated person ID that proves who
+accepted the current revision. Therefore `currentAssigneeConsentVerified`
+is **always false** in this adapter, regardless of status or timeline.
+`assigneeResponseRecorded`, `deliveryRecorded` and
+`workflowCompletionRecorded` are observations of existing events, not
+authorization credentials. Do not derive `AcceptanceStamp` from them.
+
+The projection's revision uses `updatedAt` milliseconds for a conservative
+display snapshot only; timestamps are not guaranteed monotonically unique
+and MUST NOT be used to sign dispatch approvals. Before active cross-provider
+dispatch, introduce an atomically incremented Crew revision and bind every
+assignee acceptance to that exact revision and assignee identity. Revoke or
+invalidate outstanding links when assignment identity changes.
+
 ## Next implementation steps (not included here)
 
-1. Create a **read-only adapter** from an existing Crew assignment into a
-   work-order preview, preserving Crew's existing status vocabulary.
-2. Create the equivalent projection from an agent run. Verify that no generic
-   'done' status can override actual run evidence.
-3. Prove one real handoff with a person and a verified deliverable, without a new
-   work-order table or parallel human-task lifecycle.
-4. Only then add an authorized robot gateway adapter; start with a bounded
-   status-only integration and explicitly tested deny paths.
-5. Connect OrangeCat's signed provider offer and settled payment records,
-   through an outbox with replay and reconciliation, never by guessed status.
+1. Fix Crew's reassignment/consent/version binding in its authoritative write
+   path, and add a signed or transactionally verified acceptance evidence API.
+2. Create the read-only agent-run projection. Never equate an agent's "ready"
+   sentinel with a verified deliverable.
+3. Prove one real human handoff with attached acceptance criteria, independently
+   checked evidence and owner approval.
+4. Add a bounded physical robot gateway with offline fail-safe and explicit
+   deny-path tests.
+5. Connect OrangeCat's accepted provider offers and actual settlement events,
+   with durable replay and reconciliation.
 
 ## Tests
 
-`scripts/test/work-order-preflight.ts` is auto-discovered by Loki's existing
-`scripts/test-unit.ts`. It pins stale-scope rejection, distinct human consent,
-exact money matching, missing criteria, and fresh robot telemetry.
+`scripts/test/work-order-preflight.ts` and
+`scripts/test/work-order-crew-projection.ts` are auto-discovered by Loki's
+existing `scripts/test-unit.ts`. They pin stale-scope rejection, separate
+human consent, exact money matching, missing criteria, fresh robot telemetry,
+owner-scoped projections, non-invented fields and data minimization.
 
 When this contract is used across two independently deployed products, extract
 the **stable wire schema** into one versioned Fleet package. Do not extract it
