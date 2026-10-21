@@ -21,15 +21,19 @@ const COMPOSER: Partial<Record<string, RegExp>> = {
 const PROMPT = "Reply with the single word PONG and nothing else. Do not run any tools.";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function check(agent: AgentOption): Promise<boolean> {
+async function check(spec: string): Promise<boolean> {
+  // "agent" or "agent@tab": @tab launches in that tab's own container name
+  // (fc-ws-<hash of runner:tab>) — the name a dead container can hold.
+  const [agent, tabArg] = spec.split("@") as [AgentOption, string | undefined];
   const dir = path.join(os.homedir(), ".sealed-test", `launch-${agent}`);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "README.md"), "# sealed launch check\n");
-  const id = `runner:sealed-check-${agent}`;
+  const tab = tabArg || `sealed-check-${agent}`;
+  const id = `runner:${tab}`;
   let raw = "";
   let exited: number | null | undefined;
   const handle = await provisionAgentWorkspace("runner", {
-    projectKey: `sealed-check-${agent}`,
+    projectKey: tab,
     dir,
     agent,
     workspaceId: id,
@@ -73,7 +77,7 @@ async function check(agent: AgentOption): Promise<boolean> {
     .slice(-8)
     .map((l) => "    | " + l.replace(/[A-Za-z0-9_-]{28,}/g, "<masked>").slice(0, 160));
   console.log(
-    `${ok ? "✓" : "✗"} ${agent}: ${ok ? "prompt accepted" : exited !== undefined ? `exited (${exited}) before accepting` : "prompt not accepted"} in ${((Date.now() - t0) / 1000).toFixed(0)}s`,
+    `${ok ? "✓" : "✗"} ${spec}: ${ok ? "prompt accepted" : exited !== undefined ? `exited (${exited}) before accepting` : "prompt not accepted"} in ${((Date.now() - t0) / 1000).toFixed(0)}s`,
   );
   if (!ok) console.log(tail.join("\n"));
   return ok;

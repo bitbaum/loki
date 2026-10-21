@@ -60,7 +60,7 @@ jobs:
           UNIT: ${{ inputs.unit }}
           RUNS: ${{ inputs.runs }}
         run: |
-          case "$RUNS" in *[!a-z0-9\ -]*) echo "::error::bad runs"; exit 1 ;; esac
+          case "$RUNS" in *[!a-z0-9@\ -]*) echo "::error::bad runs"; exit 1 ;; esac
           scp -q scripts/hetzner/sealed-pty-probe.py scripts/hetzner/sealed-launch-check.ts "root@$HETZNER_IP:/tmp/"
           case "$UNIT" in loki-box-runner|loki-box-runner@[a-z0-9-]*) ;; *) echo "::error::bad unit"; exit 1 ;; esac
           ssh "root@$HETZNER_IP" RUNS="\"$RUNS\"" bash -s -- "$MODE" "$UNIT" < scripts/hetzner/sealed-builds-ctl.sh
