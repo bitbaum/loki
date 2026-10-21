@@ -55,7 +55,9 @@ for k in GEMINI_API_KEY XAI_API_KEY CURSOR_API_KEY; do
 done
 # Usable = the model actually answers with the runner's own key.
 if key_present "$RUNNER_ENV" GEMINI_API_KEY; then
-  out="$(sudo -u "$RUNNER_USER" -H bash -c "set -a; . '$RUNNER_ENV'; set +a; cd /tmp && PATH='$BIN':\$PATH timeout 120 gemini -p 'Reply with exactly: PONG' 2>&1" | tail -15)"
+  # The env file is root-only (systemd reads it as root), so root loads it and
+  # hands the runner user just that one variable — as the runner itself does.
+  out="$( (set -a; . "$RUNNER_ENV"; set +a; cd /tmp && sudo -u "$RUNNER_USER" -H --preserve-env=GEMINI_API_KEY env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" timeout 120 gemini -p 'Reply with exactly: PONG' 2>&1) | tail -15)"
   if case "$out" in *PONG*) true ;; *) false ;; esac; then echo "probe      gemini ok"
   else
     # Show WHY, with any long token-looking string masked (public logs).
