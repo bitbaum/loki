@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.56",
+    tag: "fleet-runner-v0.8.56",
+    date: "2026-10-21T22:30:00Z",
+    highlights: [
+      "Control counts a sealed run as working or awaiting you from the run's own progress, the same reading every other page uses.",
+      'A sealed container that never starts now says "container failed to start" with the reason, instead of blaming the AI provider for not accepting the prompt.',
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.55",
     tag: "fleet-runner-v0.8.55",
     date: "2026-10-21T20:00:00Z",
