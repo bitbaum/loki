@@ -1,5 +1,6 @@
 "use client";
 
+import { stripTerminalReports } from "@/lib/terminal-reports";
 import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -686,7 +687,7 @@ export function TerminalView({
       };
       const inputDisposable = interactive
         ? term.onData((data) => {
-            inputBuffer += data;
+            inputBuffer += stripTerminalReports(data); // query answers are not keys
             void flushInput();
           })
         : null;
