@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.51",
+    tag: "fleet-runner-v0.8.51",
+    date: "2026-10-21T17:00:00Z",
+    highlights: [
+      "The Fleet Runner now measures which AI providers it can actually build with — installed, signed in or keyed, and a real one-line prompt answered — and reports it, so Settings → Agent shows each provider's status and the exact next step, and failover only picks agents that can run.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.50",
     tag: "fleet-runner-v0.8.50",
     date: "2026-10-20T10:00:00Z",
