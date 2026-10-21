@@ -7,6 +7,10 @@
  * in a beige or red box holding its full text (owner, 2026-10-19: "a bunch of
  * text … some are red, some are green. Very bad design").
  *
+ * The bell's sheet is ListRows since the design reset (2026-10): one grey
+ * line per alert, the whole row the action, × to dismiss, and anything past
+ * its relevance under "Earlier", uncounted (lib/alerts/relevance).
+ *
  * Run: npx tsx scripts/test/alert-list-browser.ts
  */
 import assert from "node:assert/strict";
@@ -50,6 +54,20 @@ const ALERTS = [
     createdAt: hourAgo,
   },
 ];
+
+/** Nineteen days old and not urgent: /api/alerts marks it `earlier`
+ *  (lib/alerts/relevance, tested in alert-relevance.ts), so the bell lists it
+ *  under "Earlier". */
+const OLD = {
+  id: "a4",
+  type: "studio_request",
+  severity: "info",
+  title: "Older partner application",
+  description: "Application: an old one",
+  actionUrl: "/studio/requests/y",
+  createdAt: new Date(Date.now() - 19 * 86_400_000).toISOString(),
+  earlier: true,
+};
 
 async function main() {
   const require = createRequire(import.meta.url);
@@ -116,7 +134,7 @@ async function main() {
       if (url.endsWith("/api/alerts"))
         return r.fulfill({
           contentType: "application/json",
-          body: JSON.stringify({ alerts: ALERTS }),
+          body: JSON.stringify({ alerts: [...ALERTS, OLD] }),
         });
       return r.fulfill({
         contentType: "text/html",
@@ -133,7 +151,58 @@ async function main() {
     const mount = (w: string) =>
       page.evaluate((x) => (window as unknown as { mount: (w: string) => void }).mount(x), w);
 
-    for (const which of ["bell", "system"]) {
+    // The bell: rows, one line each, the old one folded under "Earlier".
+    await mount("bell");
+    const sheet = page.locator(".ui-notification-body");
+    await sheet.locator(".ui-listrow").first().waitFor();
+    {
+      const text = (await sheet.innerText()) ?? "";
+      for (const word of ["WARNING", "INFO", "URGENT"]) {
+        assert.ok(!text.includes(word), `bell: no "${word}" in capitals`);
+      }
+      assert.ok(!text.includes("budget 48h") && !text.includes("0.8.40"), "bell: details folded");
+      const tall = await sheet
+        .locator(".ui-listrow-secondary-text")
+        .evaluateAll(
+          (els) =>
+            els.filter(
+              (e) =>
+                e.getBoundingClientRect().height > parseFloat(getComputedStyle(e).lineHeight) + 1,
+            ).length,
+        );
+      assert.equal(tall, 0, "bell: one grey line per alert");
+      const now = await page
+        .getByRole("list", { name: "Needs you" })
+        .locator(".ui-listrow-title")
+        .allTextContents();
+      assert.equal(now.length, 3, "bell: the three fresh alerts need you");
+      const earlier = await page
+        .getByRole("list", { name: "Earlier notifications" })
+        .locator(".ui-listrow-title")
+        .allTextContents();
+      assert.deepEqual(earlier, ["Older partner application"], "bell: the old one is Earlier");
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390);
+      await page.screenshot({ path: ".tmp/alerts/bell-390.png" });
+      await page
+        .getByRole("button", { name: "Dismiss: Fleet Runner needs an update on one computer" })
+        .click();
+      await page
+        .getByText("Fleet Runner needs an update on one computer")
+        .waitFor({ state: "detached" });
+      await page.getByRole("button", { name: "Clear all" }).click();
+      await page.getByText("Older partner application").waitFor({ state: "detached" });
+      assert.ok(
+        patched.some((u) => u.includes("/a1/")),
+        "bell: × dismissed it",
+      );
+      assert.ok(
+        patched.some((u) => u.includes("/a4/")),
+        "bell: Clear all cleared Earlier",
+      );
+      patched.length = 0;
+    }
+
+    for (const which of ["system"]) {
       await mount(which);
       await page.locator(".ui-alert-row").first().waitFor();
       const text = (await page.locator("body").innerText()) ?? "";
@@ -182,7 +251,7 @@ async function main() {
     );
     assert.equal(patched.length, 1);
     assert.deepEqual(errors, []);
-    console.log("✓ alert-list: calm rows, two lines, one named action, details folded");
+    console.log("✓ alert-list: bell rows with Earlier folded; /system calm rows, one named action");
   } finally {
     await browser.close();
   }

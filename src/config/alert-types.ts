@@ -60,7 +60,18 @@ export type AlertTypeSpec = {
    * (ALERT_DESTINATION_ACTIONS) — for a type whose link depends on the case.
    */
   action?: string;
+  /**
+   * How many days the alert is news (design reset rule 11). Past it, the bell
+   * folds it under "Earlier" and stops counting it: a partner application
+   * from 19 days ago is a record, not a nudge, and a red "9+" over records is
+   * a count nobody can clear by acting. Omitted = ALERT_FRESH_DAYS. An URGENT
+   * alert never folds while it is open — broken is broken however old.
+   */
+  freshForDays?: number;
 };
+
+/** Days an alert counts as news when its type says nothing (rule 11). */
+export const ALERT_FRESH_DAYS = 7;
 
 export const ALERT_TYPES = {
   telemetry_stale: {
@@ -90,6 +101,7 @@ export const ALERT_TYPES = {
     label: "A queued command is not being executed",
     audience: "system",
     action: "Open Home",
+    freshForDays: 1,
     producer: "src/app/api/crons/check-runner-stall/route.ts",
   },
   pending_approvals: {
@@ -134,6 +146,7 @@ export const ALERT_TYPES = {
     label: "A visitor's fix reached the live site",
     audience: "operator",
     action: "See it",
+    freshForDays: 3,
     producer: "src/lib/feedback/notify-shipped.ts",
   },
   fix_deploy_failed: {
@@ -171,6 +184,13 @@ export function alertRestatesListedSource(type: string): boolean {
   if (!isRegisteredAlertType(type)) return false;
   const spec: AlertTypeSpec = ALERT_TYPES[type];
   return spec.restates !== undefined;
+}
+
+/** Days an alert of this type is news — unregistered types get the default. */
+export function alertFreshDays(type: string): number {
+  if (!isRegisteredAlertType(type)) return ALERT_FRESH_DAYS;
+  const spec: AlertTypeSpec = ALERT_TYPES[type];
+  return spec.freshForDays ?? ALERT_FRESH_DAYS;
 }
 
 /** The alert types /system owns. Anything not registered is treated as operator. */
