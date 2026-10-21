@@ -34,6 +34,7 @@ export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
     date: "2026-10-21T19:30:00Z",
     highlights: [
       "Antigravity runs unattended (auto-approve), and when any agent stops at a permission question the run shows Needs you with that question instead of Working.",
+      "Sealed builds can commit and push (git identity + the run's GitHub token), a builder restart waits for sealed agents instead of killing them, and an agent whose process dies shows Agent stopped at once.",
     ],
     breaking: [],
     notes: "",

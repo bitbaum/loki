@@ -512,6 +512,16 @@ function derivePhase(
   // and acting on it takes ten seconds. On 2026-09-12 a dispatch sat silent
   // for thirteen minutes wanting a sign-in, while the row said "no output" and
   // George opened a terminal by hand to find out.
+  if (run.blocked === "exited") {
+    return {
+      phase: FEEDBACK_WORK_PHASE.STUCK,
+      label: "Agent stopped",
+      detail: `${run.blockedQuestion?.trim() || "The agent process ended"} before the run finished — Try again`,
+      watchable: true,
+      since,
+      lastActivityAt: run.lastProgressAt,
+    };
+  }
   if (run.blocked === "permission") {
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,

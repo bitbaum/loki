@@ -11,7 +11,7 @@ on:
         required: true
         default: read
         type: choice
-        options: ["read", "test", "on", "off", "matrix", "diag"]
+        options: ["read", "test", "on", "off", "matrix", "diag", "worktree"]
       unit:
         description: "Runner unit (owner: loki-box-runner)"
         required: false

@@ -9,6 +9,7 @@
  * point at.
  */
 import { spawn, type IPty } from "node-pty";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -188,6 +189,44 @@ export function agentCredentialEnv(env: NodeJS.ProcessEnv = process.env): Record
   return out;
 }
 
+/**
+ * Git inside a sealed build. The container has its own /etc and no host
+ * gitconfig, so the agent's `git commit` died with "unable to auto-detect
+ * email address (ubuntu@bitbaum.(none))" and nothing could be pushed
+ * (Substrata on Antigravity, 2026-10-21). Identity comes from the host's git
+ * config when it has one; pushes to GitHub use the run's GH_TOKEN through an
+ * env-only credential helper, so no token is written to disk or argv.
+ */
+export function sealedGitEnv(
+  readHostConfig: (key: string) => string | null = hostGitConfig,
+): Record<string, string> {
+  const name = readHostConfig("user.name") || "Loki builder";
+  const email = readHostConfig("user.email") || "loki-builder@users.noreply.github.com";
+  return {
+    GIT_AUTHOR_NAME: name,
+    GIT_AUTHOR_EMAIL: email,
+    GIT_COMMITTER_NAME: name,
+    GIT_COMMITTER_EMAIL: email,
+    GIT_CONFIG_COUNT: "2",
+    GIT_CONFIG_KEY_0: "credential.https://github.com.helper",
+    GIT_CONFIG_VALUE_0:
+      '!f() { test "$1" = get || exit 0; echo username=x-access-token; echo "password=${GH_TOKEN:-$GITHUB_TOKEN}"; }; f',
+    GIT_CONFIG_KEY_1: "safe.directory",
+    GIT_CONFIG_VALUE_1: "*",
+  };
+}
+
+function hostGitConfig(key: string): string | null {
+  try {
+    return (
+      execFileSync("git", ["config", "--get", key], { encoding: "utf8", timeout: 2000 }).trim() ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
 /** A private builder's sealed build (see SandboxRuntime). */
 function buildPodmanRunArgs(
   spec: WorkspaceSpec,
@@ -199,6 +238,9 @@ function buildPodmanRunArgs(
     "--env",
     `${key}=${value}`,
   ]);
+  const gitArgs = Object.entries(sealedGitEnv())
+    .filter(([name]) => !(spec.env && name in spec.env))
+    .flatMap(([name, value]) => ["--env", `${name}=${value}`]);
   const credentialArgs = Object.keys(agentCredentialEnv())
     .filter((name) => !(spec.env && name in spec.env))
     .flatMap((name) => ["--env", name]);
@@ -248,6 +290,7 @@ function buildPodmanRunArgs(
     `HOME=${config.home}`,
     "--env",
     `PATH=${config.home}/.local/bin:${config.home}/.npm-global/bin:/usr/local/bin:/usr/bin:/bin`,
+    ...gitArgs,
     ...credentialArgs,
     ...envArgs,
     ...config.extraRunArgs,

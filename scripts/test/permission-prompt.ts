@@ -55,4 +55,12 @@ assert.equal(step.kind, "blocked");
 assert.match(step.summary, /Needs you/);
 assert.equal(step.detail, "Allow execution of [Shell]?");
 
+const dead = summarizeRunStep({
+  blocked: "exited",
+  blockedQuestion: "the agent process was killed",
+  lastProgressAt: new Date().toISOString(),
+});
+assert.equal(dead.kind, "blocked");
+assert.equal(dead.summary, "Agent stopped");
+
 console.log("✓ permission prompts read as Needs you");

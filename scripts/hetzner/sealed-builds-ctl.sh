@@ -63,6 +63,18 @@ diag)
         --env TERM=xterm-256color --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" --env GEMINI_API_KEY \
         loki-agent:latest gemini --skip-trust --yolo 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
   done ;;
+worktree)
+  # Read-only: branch, status and diff of the run worktrees named in RUNS.
+  H="$(unit_home)"
+  for r in ${RUNS:-}; do
+    for d in "$H"/.loki/worktrees/*"$r"*/ "$H"/.loki/worktrees/*/*"$r"*/; do
+      [ -d "$d/.git" ] || [ -f "$d/.git" ] || continue
+      echo "=== $d"
+      sudo -u "$(unit_user)" git -C "$d" -c safe.directory='*' log -1 --format='head: %h %s' 2>&1
+      sudo -u "$(unit_user)" git -C "$d" -c safe.directory='*' status -sb 2>&1 | head -20
+      sudo -u "$(unit_user)" git -C "$d" -c safe.directory='*' diff 2>&1 | head -200
+    done
+  done ;;
 read)
   echo "reading:  $(tr '\n' ' ' < "$STATE" 2>/dev/null || echo none)"
   echo "runsc:    $(command -v runsc >/dev/null && runsc --version 2>/dev/null | head -1 || echo absent)"

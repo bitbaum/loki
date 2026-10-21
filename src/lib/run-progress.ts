@@ -40,6 +40,10 @@ export const RUN_BLOCKED = {
   /** The agent stopped at a tool-approval prompt ("Allow execution of
    *  [Shell]? 1. Allow once …") and waits for a human to choose. */
   PERMISSION: "permission",
+  /** The agent's process ended while the run was still open (crash, kill,
+   *  builder restart). Nothing will print again; the row must not say
+   *  Working (2026-10-21: "Working · 10 min" after a runsc kill). */
+  EXITED: "exited",
 } as const;
 export type RunBlocked = (typeof RUN_BLOCKED)[keyof typeof RUN_BLOCKED];
 

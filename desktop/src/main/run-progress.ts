@@ -69,7 +69,18 @@ export function startRunProgress(
   let replaying = true
   track.unsub = executor.subscribe(runnerWorkspaceId(tab), 0, (e) => {
     if (replaying) return
-    if (e.kind === 'exit') { stopRunProgress(runId); return }
+    if (e.kind === 'exit') {
+      // Say so once, at once, then stop: a dead agent is not Working.
+      const code = e.exitCode
+      stopRunProgress(runId)
+      void sendBeat(base, token, runId, {
+        outputBytes: 0,
+        lastOutputAt: new Date(track.lastOutputAt).toISOString(),
+        blocked: RUN_BLOCKED.EXITED,
+        question: code == null ? 'the agent process was killed' : `the agent process exited (code ${code})`,
+      })
+      return
+    }
     if (e.kind !== 'output' || !e.data) return
     track.bytesSinceBeat += e.data.length
     track.lastOutputAt = Date.now()
@@ -123,6 +134,10 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
   }
   t.bytesSinceBeat = 0
   t.lastBeatAt = Date.now()
+  await sendBeat(base, token, runId, beat)
+}
+
+async function sendBeat(base: string, token: string, runId: string, beat: RunProgressBeat): Promise<void> {
   try {
     const res = await fetch(`${base}/api/control/runs/${runId}/progress`, {
       method: 'PATCH',

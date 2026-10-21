@@ -77,6 +77,13 @@ export function summarizeRunStep(input: {
   queuedBehind?: { label: string | null } | null;
   now?: number;
 }): RunStepSnapshot {
+  if (input.blocked === "exited") {
+    return {
+      kind: "blocked",
+      summary: "Agent stopped",
+      detail: input.blockedQuestion?.trim() || "The agent process ended before the run finished.",
+    };
+  }
   if (input.blocked === "permission") {
     return {
       kind: "blocked",

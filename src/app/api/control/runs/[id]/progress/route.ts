@@ -35,12 +35,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // the operator's problem RIGHT NOW; "thinking" is nobody's. Before this, both
   // looked identical from here and the row could only report the silence.
   const blocked =
-    body.blocked === RUN_BLOCKED.AUTH || body.blocked === RUN_BLOCKED.PERMISSION
+    body.blocked === RUN_BLOCKED.AUTH ||
+    body.blocked === RUN_BLOCKED.PERMISSION ||
+    body.blocked === RUN_BLOCKED.EXITED
       ? body.blocked
       : null;
   // The agent's own question at a tool-approval prompt — shown as text only.
   const question =
-    blocked === RUN_BLOCKED.PERMISSION && typeof body.question === "string"
+    (blocked === RUN_BLOCKED.PERMISSION || blocked === RUN_BLOCKED.EXITED) &&
+    typeof body.question === "string"
       ? body.question
           .replace(/[\u0000-\u001f\u007f]+/g, " ")
           .trim()
@@ -66,7 +69,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         reason:
           blocked === RUN_BLOCKED.AUTH
             ? "agent is not signed in"
-            : `agent is asking: ${question ?? "permission to run a tool"}`,
+            : blocked === RUN_BLOCKED.EXITED
+              ? `agent stopped: ${question ?? "its process ended"}`
+              : `agent is asking: ${question ?? "permission to run a tool"}`,
       });
   }
   return NextResponse.json({ ok: true, live });
