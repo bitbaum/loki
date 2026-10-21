@@ -41,6 +41,9 @@ export function shippedPr(s: {
   pr: { url: string; state: string; headRefOid: string } | null;
 }): string | null {
   if (s.dirty || !s.branch || s.branch === s.defaultBranch || !s.pr) return null;
-  if (s.pr.state !== "OPEN" || !s.headSha || s.pr.headRefOid !== s.headSha) return null;
+  // MERGED counts too: auto-merge usually lands the PR within minutes, before
+  // the agent has been quiet long enough (Substrata #193/#194, 2026-10-22).
+  if (s.pr.state !== "OPEN" && s.pr.state !== "MERGED") return null;
+  if (!s.headSha || s.pr.headRefOid !== s.headSha) return null;
   return /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/.test(s.pr.url) ? s.pr.url : null;
 }

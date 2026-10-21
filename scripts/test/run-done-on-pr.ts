@@ -15,7 +15,8 @@ const ok = {
 assert.equal(shippedPr(ok), url);
 assert.equal(shippedPr({ ...ok, dirty: true }), null, "uncommitted work: not done");
 assert.equal(shippedPr({ ...ok, headSha: "abc1234" }), null, "unpushed commits: not done");
-assert.equal(shippedPr({ ...ok, pr: { ...ok.pr, state: "MERGED" } }), null);
+assert.equal(shippedPr({ ...ok, pr: { ...ok.pr, state: "MERGED" } }), url, "auto-merged already");
+assert.equal(shippedPr({ ...ok, pr: { ...ok.pr, state: "CLOSED" } }), null);
 assert.equal(shippedPr({ ...ok, pr: null }), null);
 assert.equal(shippedPr({ ...ok, branch: "main" }), null);
 assert.equal(shippedPr({ ...ok, pr: { ...ok.pr, url: "https://evil.example/pull/1" } }), null);

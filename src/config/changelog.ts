@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.58",
+    tag: "fleet-runner-v0.8.58",
+    date: "2026-10-21T23:35:00Z",
+    highlights: [
+      "A run whose pull request was already merged automatically also closes as Done with that link once the agent goes quiet.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.57",
     tag: "fleet-runner-v0.8.57",
     date: "2026-10-21T22:45:00Z",
