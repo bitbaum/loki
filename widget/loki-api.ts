@@ -101,6 +101,7 @@ export async function askConcierge(opts: {
   history: Turn[];
 }): Promise<Answer> {
   const body = await post(`${opts.apiBase}/api/widget/chat`, {
+    visualAnswers: true,
     token: opts.token,
     message: opts.message.slice(0, CHAT_MAX_MESSAGE),
     history: opts.history
