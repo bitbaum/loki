@@ -20,6 +20,9 @@ KEY_SRC="${KEY_SRC:-/opt/orangecat/app/.env}"
 BIN="$RUNNER_HOME/.local/bin"
 as_user() { sudo -u "$RUNNER_USER" -H env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" bash -lc "$1"; }
 
+# key_present <file> <NAME> — set and non-empty, without reading it out.
+key_present() { [ -r "$1" ] && grep -Eq "^(export )?$2=['\"]?[^'\"[:space:]]+" "$1"; }
+
 if [ "${1:-}" != "--probe-only" ]; then
 as_user "mkdir -p '$BIN'"
 echo "→ Antigravity (gemini)"
@@ -29,8 +32,6 @@ as_user "curl -fsS https://cursor.com/install | bash >/dev/null 2>&1" || echo " 
 echo "→ Grok"
 as_user "curl -fsSL https://x.ai/cli/install.sh | GROK_BIN_DIR=\$HOME/.local/bin bash >/dev/null 2>&1" || echo "  ⚠ grok install failed"
 
-# key_present <file> <NAME> — set and non-empty, without reading it out.
-key_present() { [ -r "$1" ] && grep -Eq "^(export )?$2=['\"]?[^'\"[:space:]]+" "$1"; }
 
 if key_present "$RUNNER_ENV" GEMINI_API_KEY; then
   echo "✓ GEMINI_API_KEY already in runner env"
