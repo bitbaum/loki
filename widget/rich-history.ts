@@ -42,6 +42,14 @@ function blockText(raw: string): string {
   if (!record(b) || !str(b.title, 200)) return "";
   const title = b.title;
   switch (b.type) {
+    case "audio":
+      if (
+        !safeImageSrc(b.src) ||
+        (b.creator !== undefined && !str(b.creator, 200)) ||
+        (b.caption !== undefined && !str(b.caption, 1000))
+      )
+        return "";
+      return `${title}${b.creator ? ` — ${b.creator}` : ""}${b.caption ? `\n${b.caption}` : ""}\n${b.src}`;
     case "callout":
       return str(b.body) ? `${title}\n${b.body}` : "";
     case "gallery": {
