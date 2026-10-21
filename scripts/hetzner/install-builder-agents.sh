@@ -66,6 +66,20 @@ if key_present "$RUNNER_ENV" GEMINI_API_KEY; then
   fi
 fi
 
+# What the RUNNER itself sees (its failover reads this, not the probe above):
+# names on its PATH/env and its cached provider probes (secrets masked).
+pid="$(systemctl show -p MainPID --value loki-box-runner 2>/dev/null)"
+if [ -n "$pid" ] && [ "$pid" != 0 ] && [ -r "/proc/$pid/environ" ]; then
+  echo "── runner process (pid $pid)"
+  tr '\0' '\n' < "/proc/$pid/environ" | grep -E '^PATH=' | sed 's/^/  /'
+  for k in GEMINI_API_KEY GOOGLE_API_KEY XAI_API_KEY CURSOR_API_KEY HOME; do
+    tr '\0' '\n' < "/proc/$pid/environ" | grep -q "^$k=." && echo "  env set    $k" || echo "  env unset  $k"
+  done
+fi
+echo "── runner provider-probes.json"
+cat "$RUNNER_HOME/.loki/provider-probes.json" 2>/dev/null | sed -E 's/[A-Za-z0-9_-]{24,}/<masked>/g' | tr ',' '\n' | sed 's/^/  /' || echo "  (none)"
+echo
+
 case "${1:-}" in --no-restart|--probe-only) exit 0 ;; esac
 echo "── scheduling drain-then-restart of runner units"
 for u in loki-box-runner $(systemctl list-units 'loki-box-runner@*' --no-legend --plain 2>/dev/null | awk '{print $1}' | sed 's/\.service$//'); do
