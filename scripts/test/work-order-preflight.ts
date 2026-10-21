@@ -24,7 +24,11 @@ const nowMs = 20_000;
 const owner = { orderId: base.id, revision: 1, actorId: "operator-1" };
 const evidence: DispatchEvidence = { nowMs, ownerApproval: owner };
 
-function expect(order: WorkOrder, blockers: PreflightBlocker[], diff: Partial<DispatchEvidence> = {}) {
+function expect(
+  order: WorkOrder,
+  blockers: PreflightBlocker[],
+  diff: Partial<DispatchEvidence> = {},
+) {
   const result = reviewDispatchPrerequisites(order, { ...evidence, ...diff });
   assert.deepEqual(result.blockers, blockers);
   assert.equal(result.prerequisitesMet, blockers.length === 0);
