@@ -22,6 +22,7 @@ import {
   looksLine,
   recommendFor,
   summarizeDecisions,
+  decisionKey,
   type Recommendation,
 } from "@/lib/feedback/recommend";
 
@@ -79,8 +80,16 @@ export function FeedbackInbox() {
   const [projectFilter, setProjectFilter] = useState<string | null>(null);
   const { busyId, error, notice, dispatchFix, runInCloud, setStatus, feature } =
     useFeedbackActions(refetch);
-  /** Decisions taken on this screen: the card says "Done" until the list refreshes. */
+  /**
+   * Decisions taken on this screen, keyed by the decision itself (item + kind
+   * + the run it was about), not the item alone. Keyed by item, a "Build it"
+   * tap stayed "taken" after that run failed and the item came back as a new
+   * "Try again" decision — the card then read "Done — try again" over a
+   * failure (2026-10-21, Substrata). A new run or a new kind is a new decision.
+   */
   const [taken, setTaken] = useState<Set<string>>(new Set());
+  const isTaken = (f: { id: string; dispatchedRunId?: string | null }, rec: Recommendation) =>
+    taken.has(decisionKey(f, rec));
   const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
   // Loki's read of each new report (lib/feedback/read-report), asked for one
   // at a time as the queue is open: the owner should never tap "Build" on a
@@ -166,7 +175,9 @@ export function FeedbackInbox() {
   );
   const done = filtered.filter((f) => f.status === FEEDBACK_STATUS.RESOLVED);
   const archived = filtered.filter((f) => f.status === FEEDBACK_STATUS.ARCHIVED);
-  const summary = summarizeDecisions(decisions.filter((d) => !taken.has(d.f.id)).map((d) => d.rec));
+  const summary = summarizeDecisions(
+    decisions.filter((d) => !isTaken(d.f, d.rec)).map((d) => d.rec),
+  );
 
   /** Take one decision — the same routes the full row uses. */
   const inFlight = useRef<string | null>(null);
@@ -174,7 +185,7 @@ export function FeedbackInbox() {
     if (inFlight.current) return;
     const next = decisions.find(
       (d) =>
-        d.rec.kind === RECOMMEND.BUILD && !d.f.read && !(d.f.id in reads) && !taken.has(d.f.id),
+        d.rec.kind === RECOMMEND.BUILD && !d.f.read && !(d.f.id in reads) && !isTaken(d.f, d.rec),
     );
     if (!next || Object.keys(reads).length >= READS_PER_VISIT) return;
     const id = next.f.id;
@@ -192,6 +203,7 @@ export function FeedbackInbox() {
         inFlight.current = null;
         setReadingId(null);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isTaken reads `taken`
   }, [decisions, reads, taken]);
 
   const take = async (f: InboxItem, rec: Recommendation, ask?: string) => {
@@ -214,13 +226,13 @@ export function FeedbackInbox() {
       case RECOMMEND.LOOK:
         return;
     }
-    setTaken((s) => new Set(s).add(f.id));
+    setTaken((s) => new Set(s).add(decisionKey(f, rec)));
   };
 
   const takeAll = async () => {
     const todo = decisions.filter(
       (d) =>
-        d.rec.kind !== RECOMMEND.CONNECT && d.rec.kind !== RECOMMEND.LOOK && !taken.has(d.f.id),
+        d.rec.kind !== RECOMMEND.CONNECT && d.rec.kind !== RECOMMEND.LOOK && !isTaken(d.f, d.rec),
     );
     setBatch({ done: 0, total: todo.length });
     for (const [i, d] of todo.entries()) {
@@ -272,7 +284,7 @@ export function FeedbackInbox() {
   });
   const projectOf = (f: InboxItem) =>
     projectFilter || projects.length <= 1 ? null : { id: f.projectId, name: f.projectName };
-  const open = summary.total - [...taken].filter((id) => decided.has(id)).length;
+  const open = summary.total;
 
   return (
     <div className="space-y-5">
@@ -341,7 +353,7 @@ export function FeedbackInbox() {
               item={f}
               rec={rec}
               busy={busyId === f.id}
-              taken={taken.has(f.id)}
+              taken={isTaken(f, rec)}
               project={projectOf(f)}
               onTake={(ask) => void take(f, rec, ask)}
               read={reads[f.id] ?? f.read ?? null}
