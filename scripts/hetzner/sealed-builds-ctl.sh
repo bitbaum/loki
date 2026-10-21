@@ -6,7 +6,7 @@
 #   sealed-builds-ctl.sh off  <unit>   # drop-in removed, then drain-restart
 # Prints verdicts only, never a secret (public Action logs).
 set -uo pipefail
-MODE="${1:-read}"; UNIT="${2:-loki-box-runner}"; UNIT="${UNIT%.service}"
+MODE="${1:-read}"; UNIT="${2:-loki-box-runner}"; NNP="${3:-yes}"; UNIT="${UNIT%.service}"
 STATE=/etc/loki/sealed-builds
 unit_user() { systemctl show -p User --value "$UNIT.service"; }
 unit_home() { getent passwd "$(unit_user)" | cut -d: -f6; }
@@ -42,7 +42,7 @@ if cat /opt/loki/runner/.env >/dev/null 2>&1; then echo "  LEAK: runner .env rea
 [ -n "${GEMINI_API_KEY:-}" ] && { o="$(timeout 150 gemini --skip-trust -p "Append the line sealed-ok to README.md, then reply DONE" --yolo 2>&1 | tail -3)"; echo "  agent said: $(printf %s "$o" | sed -E "s/[A-Za-z0-9_-]{24,}/<masked>/g" | tr "\n" " " | cut -c1-200)"; }
 echo "  README now: $(tr "\n" "|" < README.md)"'
   echo "runtime: ${RT:-default (no runsc)}"
-  systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=yes -p WorkingDirectory="$proj" \
+  systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges="${NNP:-yes}" -p WorkingDirectory="$proj" \
     -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" "${keyarg[@]}" \
     podman run --rm --userns=keep-id --cgroups=disabled $RT --workdir "$proj" \
       --mount "type=bind,src=$H,dst=$H" --network slirp4netns --pids-limit 512 \

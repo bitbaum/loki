@@ -16,6 +16,10 @@ on:
         description: "Runner unit (owner: loki-box-runner)"
         required: false
         default: loki-box-runner
+      nnp:
+        description: "test only: NoNewPrivileges as the unit has it (yes) or not (no, diagnostic)"
+        required: false
+        default: "yes"
 
 concurrency:
   group: sealed-builds
@@ -41,6 +45,7 @@ jobs:
         env:
           MODE: ${{ inputs.mode }}
           UNIT: ${{ inputs.unit }}
+          NNP: ${{ inputs.nnp }}
         run: |
           case "$UNIT" in loki-box-runner|loki-box-runner@[a-z0-9-]*) ;; *) echo "::error::bad unit"; exit 1 ;; esac
-          ssh "root@$HETZNER_IP" bash -s -- "$MODE" "$UNIT" < scripts/hetzner/sealed-builds-ctl.sh
+          ssh "root@$HETZNER_IP" bash -s -- "$MODE" "$UNIT" "${NNP:-yes}" < scripts/hetzner/sealed-builds-ctl.sh
