@@ -65,67 +65,58 @@ export function HabitGoalLinks({
       setSaving(null);
     }
   };
-
+  // Rows, in the habit's sheet: each linked goal with its own unlink, then
+  // "Link a goal" opening the goals not linked yet as rows to tap.
   return (
-    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-      <Target className="h-3 w-3 text-text-muted shrink-0" />
-      {linkError && <span className="text-xs text-status-negative">{linkError}</span>}
-
+    <div className="space-y-1">
       {items.length === 0 && !picking && (
-        <span className="text-xs text-text-muted">no goal linked</span>
+        <p className="text-base text-text-tertiary">Not linked to a goal yet.</p>
       )}
-
       {items.map((goal) => (
-        <span key={goal.id} className="flex items-center gap-0.5 ui-tag ui-tag-accent group">
-          <span>{goal.title}</span>
+        <div key={goal.id} className="ui-milestone-row">
+          <Target className="mx-3 h-5 w-5 shrink-0 text-text-secondary" aria-hidden />
+          <span className="min-w-0 flex-1 truncate text-text-primary">{goal.title}</span>
           <button
+            type="button"
             onClick={() => handleUnlink(goal.id)}
             disabled={saving === goal.id}
-            className="ui-hover-reveal transition-opacity ml-0.5"
+            className="ui-btn-icon shrink-0 text-text-muted"
+            aria-label={`Unlink ${goal.title}`}
             title="Unlink"
           >
             {saving === goal.id ? (
-              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              <Loader2 className="ui-spinner-sm" />
             ) : (
-              <XCircle className="h-2.5 w-2.5" />
+              <XCircle className="h-4 w-4" />
             )}
           </button>
-        </span>
+        </div>
       ))}
-
-      {saving && !items.some((g) => g.id === saving) && (
-        <Loader2 className="h-3 w-3 animate-spin text-text-muted" />
-      )}
-
-      {unlinked.length > 0 && !picking && (
-        <button
-          onClick={() => setPicking(true)}
-          className="flex items-center gap-0.5 text-xs text-text-muted hover:text-accent-text transition-colors"
-          title="Link to a goal"
-        >
-          <Plus className="h-3 w-3" />
-          <span>link goal</span>
-        </button>
-      )}
-
-      {picking && (
-        <div className="flex items-center gap-1 flex-wrap">
+      {linkError && <p className="ui-error-xs">{linkError}</p>}
+      {picking ? (
+        <div className="space-y-1 border-t border-border-subtle pt-2">
           {unlinked.map((goal) => (
             <button
               key={goal.id}
+              type="button"
               onClick={() => handleLink(goal)}
-              className="text-xs px-2 py-0.5 rounded bg-surface-raised hover:bg-accent-muted text-text-secondary hover:text-accent-text border border-border-subtle transition-colors"
+              disabled={saving !== null}
+              className="ui-detail-sheet-action"
             >
-              {goal.title}
+              <Plus className="h-5 w-5 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{goal.title}</span>
             </button>
           ))}
-          <button
-            onClick={() => setPicking(false)}
-            className="ui-tap-icon p-1 text-text-muted hover:text-text-secondary transition-colors"
-          >
-            <X className="h-3 w-3" />
+          <button type="button" onClick={() => setPicking(false)} className="ui-life-add">
+            <X className="h-4 w-4" /> Done
           </button>
         </div>
+      ) : (
+        unlinked.length > 0 && (
+          <button type="button" onClick={() => setPicking(true)} className="ui-life-add">
+            <Plus className="h-4 w-4" /> Link a goal
+          </button>
+        )
       )}
     </div>
   );

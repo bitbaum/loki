@@ -1,16 +1,14 @@
 import { Repeat2 } from "lucide-react";
 import { PageLayout } from "@/components/ui/page-layout";
-import { Card, StatCard } from "@/components/ui/card";
-import { StatRow } from "@/components/ui/stat-row";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getAllHabitsWithHistory } from "@/db/queries/habits";
 import { listActiveGoals } from "@/db/queries/goals";
 import { getGoalsByHabitIds } from "@/db/queries/habit-goals";
 import { requirePageUserId } from "@/lib/session";
-import { HabitCard } from "@/components/habits/HabitCard";
-import { AddHabitButton } from "@/components/habits/AddHabitButton";
+import { HabitsList } from "@/components/habits/HabitsList";
 import { NewHabitButton } from "@/components/habits/NewHabitButton";
 import { HABIT_HISTORY_DAYS } from "@/lib/constants";
+import { toLocalDateStr } from "@/lib/dates";
 
 export const metadata = { title: "Habits" };
 
@@ -20,66 +18,43 @@ export default async function HabitsPage() {
     getAllHabitsWithHistory(userId, HABIT_HISTORY_DAYS),
     listActiveGoals(userId),
   ]);
-
-  const habitIds = habits.map((h) => h.id);
-  const linkedGoalsByHabit = await getGoalsByHabitIds(userId, habitIds);
+  const linkedGoalsByHabit = await getGoalsByHabitIds(
+    userId,
+    habits.map((h) => h.id),
+  );
 
   const active = habits.filter((h) => h.active);
-  const totalCompletions = habits.reduce((s, h) => s + h.completionsInWindow, 0);
+  const today = toLocalDateStr(new Date());
+  const doneToday = active.filter((h) => h.completedDates.has(today)).length;
   const bestStreak = habits.reduce((max, h) => Math.max(max, h.streak), 0);
-
-  const goalOptions = activeGoals.map((g) => ({ id: g.id, title: g.title }));
+  // The page's numbers as one sentence (design reset rule 7), not three tiles.
+  const summary =
+    active.length === 0
+      ? "Every habit is paused."
+      : `${doneToday} of ${active.length} done today.` +
+        (bestStreak >= 2 ? ` Longest streak: ${bestStreak} days.` : "");
 
   return (
     <PageLayout
       title="Habits"
-      subtitle={`${HABIT_HISTORY_DAYS}-day history — consistency compounds`}
-      right={<NewHabitButton />}
+      maxWidth="max-w-2xl"
+      action={<NewHabitButton trigger="page-action" />}
     >
-      {/* A row of zeros summarises nothing — it is the empty state wearing a
-          suit. With no habits the phone screen said "you have none" four
-          times (three stat cards, the empty panel, and New Habit in the
-          header) and filled the fold doing it. */}
-      {habits.length > 0 && (
-        <StatRow>
-          <StatCard
-            label="Active Habits"
-            value={String(active.length)}
-            sub={`${habits.length} total`}
-          />
-          <StatCard
-            label={`Completions (${HABIT_HISTORY_DAYS}d)`}
-            value={String(totalCompletions)}
-            sub="across all habits"
-          />
-          <StatCard
-            label="Best Streak"
-            value={bestStreak > 0 ? `${bestStreak}d` : "—"}
-            sub="current longest"
-          />
-        </StatRow>
-      )}
-
       {habits.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={Repeat2}
-            title="No habits tracked yet"
-            action={<AddHabitButton emptyState />}
-          />
-        </Card>
+        <EmptyState
+          icon={Repeat2}
+          title="Something you want to do every day?"
+          action={<NewHabitButton triggerLabel="Add the first habit" />}
+        />
       ) : (
-        <div className="space-y-3">
-          {habits.map((h) => (
-            <HabitCard
-              key={h.id}
-              habit={h}
-              linkedGoals={linkedGoalsByHabit.get(h.id) ?? []}
-              activeGoals={goalOptions}
-            />
-          ))}
-          <AddHabitButton />
-        </div>
+        <>
+          <p className="ui-life-summary">{summary}</p>
+          <HabitsList
+            habits={habits.map((h) => ({ ...h, completedDates: [...h.completedDates] }))}
+            linkedGoals={Object.fromEntries(linkedGoalsByHabit)}
+            activeGoals={activeGoals.map((g) => ({ id: g.id, title: g.title }))}
+          />
+        </>
       )}
     </PageLayout>
   );
