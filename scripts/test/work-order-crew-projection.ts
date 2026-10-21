@@ -22,8 +22,8 @@ const task = {
 } as HumanTaskDetail;
 
 const statusEvent = (
-  status: typeof S[keyof typeof S],
-  actor: typeof TASK_ACTOR[keyof typeof TASK_ACTOR] = TASK_ACTOR.ASSIGNEE,
+  status: (typeof S)[keyof typeof S],
+  actor: (typeof TASK_ACTOR)[keyof typeof TASK_ACTOR] = TASK_ACTOR.ASSIGNEE,
 ) => ({
   id: "event-1",
   kind: TASK_EVENT.STATUS,
@@ -101,25 +101,22 @@ assert.deepEqual(projectCrewWork({ ...task, projectId: null }).issues, ["project
 assert.equal(projectCrewWork({ ...task, projectId: null }).order, null);
 assert.deepEqual(projectCrewWork({ ...task, assigneeId: null }).issues, ["assignee_required"]);
 assert.equal(projectCrewWork({ ...task, assigneeId: null }).order, null);
-assert.deepEqual(
-  projectCrewWork({ ...task, feeAmount: 25.0, feeCurrency: null }).issues,
-  ["currency_required"],
-);
+assert.deepEqual(projectCrewWork({ ...task, feeAmount: 25.0, feeCurrency: null }).issues, [
+  "currency_required",
+]);
 assert.equal(
   projectCrewWork({ ...task, feeAmount: 25.0, feeCurrency: null }).order,
   null,
   "missing money terms must not be interpreted as free work",
 );
-assert.deepEqual(
-  projectCrewWork({ ...task, feeAmount: 1.005, feeCurrency: "CHF" }).issues,
-  ["invalid_fee"],
-);
+assert.deepEqual(projectCrewWork({ ...task, feeAmount: 1.005, feeCurrency: "CHF" }).issues, [
+  "invalid_fee",
+]);
 assert.equal(
-  projectCrewWork({ ...task, feeAmount: 0.00000001, feeCurrency: "BTC" }).order?.price
-    ?.amountMinor,
+  projectCrewWork({ ...task, feeAmount: 0.00000001, feeCurrency: "BTC" }).order?.price?.amountMinor,
   "1",
 );
-assert.deepEqual(crewFeeToMinor(12.50, "CHF"), { amountMinor: "1250", currency: "CHF" });
+assert.deepEqual(crewFeeToMinor(12.5, "CHF"), { amountMinor: "1250", currency: "CHF" });
 assert.deepEqual(crewFeeToMinor(0.0005, "BTC"), { amountMinor: "50000", currency: "BTC" });
 assert.equal(crewFeeToMinor(1.001, "USD"), null);
 assert.equal(crewFeeToMinor(-1, "CHF"), null);
