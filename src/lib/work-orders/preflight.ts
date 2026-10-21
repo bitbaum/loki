@@ -95,8 +95,7 @@ function present(value: string): boolean {
 
 function validPrice(price: WorkPrice): boolean {
   return (
-    /^(0|[1-9][0-9]*)$/.test(price.amountMinor) &&
-    /^[A-Z][A-Z0-9]{1,11}$/.test(price.currency)
+    /^(0|[1-9][0-9]*)$/.test(price.amountMinor) && /^[A-Z][A-Z0-9]{1,11}$/.test(price.currency)
   );
 }
 
