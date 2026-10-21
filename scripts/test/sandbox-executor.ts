@@ -177,6 +177,30 @@ async function main() {
     "fc-plain",
   );
   check("without runsc no runtime is asked for", !unsealed.includes("--runtime"));
+  // Antigravity in runsc, 2026-10-21: no TTY + no key = gemini exits, "never accepted the prompt".
+  check("sealed build gives the agent a TTY (-t)", sealed.includes("-t") && sealed.includes("-i"));
+  check("sealed build keeps the host's hostname", hasPair(sealed, "--hostname", os.hostname()));
+  const savedKey = process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY = "secret-gemini-key";
+  const keyed = buildDockerRunArgs(
+    { id: "user:repo", cwd, command: "gemini" },
+    { ...config, runtime: "podman", network: "bridge", ociRuntime: "runsc" },
+    "fc-keyed",
+  );
+  if (savedKey === undefined) delete process.env.GEMINI_API_KEY;
+  else process.env.GEMINI_API_KEY = savedKey;
+  check(
+    "sealed build forwards the runner's GEMINI_API_KEY by name",
+    hasPair(keyed, "--env", "GEMINI_API_KEY"),
+  );
+  check(
+    "the key value never lands on the command line",
+    !keyed.some((a) => a.includes("secret-gemini-key")),
+  );
+  check(
+    "only present credentials are forwarded",
+    !keyed.includes("OPENROUTER_API_KEY") || Boolean(process.env.OPENROUTER_API_KEY),
+  );
 
   const envConfig = resolveSandboxConfig();
   check("default sandbox config has a workspace root", envConfig.workspaceRoot.length > 1);

@@ -65,6 +65,22 @@ assert.equal(
   ),
   true,
 );
+// Gemini CLI 0.65.0 (sealed builder, 2026-10-21): no "esc to cancel" anywhere.
+assert.equal(
+  promptAcceptedEvidence(
+    "\x1b[2K │ ✓ Shell sleep 8\r\n │ ✓ ReadFolder . → Found 1 item(s).",
+    "gemini",
+    prompt,
+  ),
+  true,
+  "Gemini 0.65 tool lines",
+);
+assert.equal(promptAcceptedEvidence("\r\n✦ PONG\r\n", "gemini", prompt), true, "Gemini 0.65 reply");
+assert.equal(
+  promptAcceptedEvidence("\x1b[2K\r> " + "1;2c".repeat(50) + `> ${prompt}`, "gemini", prompt),
+  false,
+  "0.65 markers do not fire on residue or echo",
+);
 assert.equal(stripReportResidue("1;2c1;2c?62;22cok"), "ok");
 
 // 4. A prompt that was never accepted fails over to the next provider.

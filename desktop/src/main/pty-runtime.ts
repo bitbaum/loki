@@ -266,7 +266,9 @@ export function waitForPtyOutput(
  * first output).
  */
 const COMPOSER_MARKERS: Partial<Record<AgentOption, RegExp>> = {
-  gemini: /type your message/i,
+  // 0.65.0 shows no "Type your message" placeholder; its banner ends with the
+  // getting-started tips right before the composer opens.
+  gemini: /type your message|tips for getting started|\/help for more information/i,
 };
 
 export function waitForAgentComposer(
