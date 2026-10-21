@@ -63,6 +63,16 @@ diag)
         --env TERM=xterm-256color --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" --env GEMINI_API_KEY \
         loki-agent:latest gemini --skip-trust --yolo 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
   done ;;
+stop-sealed)
+  # Stop the unit's sealed agent containers (fc-ws-*) so a waiting restart can
+  # proceed. Only for a stuck session; the runner sees the PTY exit and closes
+  # the run as Failed with the cause (and salvages its work into a draft PR).
+  U="$(unit_user)"; H="$(unit_home)"
+  for c in $(systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman ps --format '{{.Names}}' 2>/dev/null | grep '^fc-ws-'); do
+    echo "stopping $c"
+    systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman stop -t 10 "$c" 2>&1 | grep -v level= | tail -1
+  done
+  journalctl -t loki-drain --since -30min --no-pager -o short-iso 2>/dev/null | tail -5 ;;
 worktree)
   # Read-only: branch, status and diff of the run worktrees named in RUNS.
   H="$(unit_home)"
