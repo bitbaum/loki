@@ -89,3 +89,31 @@ local fixture (`scripts/seed-showcase.ts`):
 
 `.tmp/crawl/crawl.mjs`-style screenshots before and after go with every
 change, and a reviewer looks at them before it ships.
+
+## Primitives
+
+Build every rebuilt page from these. Each lives in `src/components/ui/` (shell
+pieces in `src/components/shell/`) with its `ui-*` classes in `globals.css`
+under "Design reset primitives". `/memory` and `/robots` are the two worked
+examples — copy them.
+
+| Primitive | File | Use it for |
+|---|---|---|
+| `PageLayout` (`title`, `action`, `back`, `right`) | `ui/page-layout.tsx` | Every page. `title` is the page's only `<h1>` (read but not drawn on a phone, where the top bar names the page). `action` is the ONE primary action. Sections are 24px apart. Leave `subtitle` out (rule 2). |
+| `PageAction`, `PageActionButton` | `ui/page-action.tsx` | The primary action (rule 5): a filled 40px round button in the phone top bar before the avatar, a pill with its verb in the header from md up. One element, moved, not copied. Pass it as `PageLayout action`; a page with its own header renders `<PageAction>` itself. A dialog it opens must portal to `<body>` (the bar hides while a dialog is open). |
+| `ModalForm trigger="page-action"` | `ui/modal-form.tsx` | A "New …" form as the page's primary action — already portals its dialog. |
+| `List` + `ListRow` | `ui/list-row.tsx` | Every collection (rule 3). Slots: `icon` or `avatar`, `title`, ONE `secondary` line, `status` dot, one `trailing` fact, `chevron`, `menu` (a `RowActions`). `href`/`onClick` makes the whole row the target. Hairlines between rows, inset to the text column. No cards around lists. |
+| `ListSearch` | `ui/list-row.tsx` | A list's search, as its first row — it scrolls with the list (rule 6). |
+| `Section`, `SectionHeading` | `ui/section-heading.tsx` | A titled part of a page: sentence case, 15px semibold, optional "See all" `link` or a `right` control (rule 4). Replaces `ui-kicker` headings. |
+| `EmptyState` | `ui/empty-state.tsx` | An empty list or page: `icon`, one-line `title`, one `action` (rule 10). No box. Bare children = a dim one-liner inside a section. Don't pass `children` together with `title` in new code. |
+| `ChoiceMenu` | `ui/choice-menu.tsx` | "Sort: Priority ▾" when choices don't fit as a `Segmented` row (rule 7): one button, a bottom sheet on a phone, a popover from md up (`align`). |
+| `FeedbackLauncher` | `shell/FeedbackLauncher.tsx` | Loki's own feedback widget, drawn as a top-bar icon (rule 12). Nothing to do per page: the floating launcher is off wherever the top bar shows. |
+
+Classes that changed under every page: `ui-kicker` and `ui-micro-label` are no
+longer uppercase or tracked (labels only — headings are `SectionHeading`);
+`ui-empty-panel` has no box; `ui-topbar-btn` is a borderless 40px circle in a
+44px target; the bottom bar is exactly `--mobile-nav-height` (4rem) and the
+main column ends above it on a phone, so nothing scrolls under it.
+
+Type tokens: `text-bar-title` (17px, top bar), `text-section` (15px, section
+heading), `text-meta` (13px, a row's trailing fact).

@@ -15,7 +15,14 @@ function asRobotClass(value: unknown): RobotClass {
     : ROBOT_CLASS.OTHER;
 }
 
-export function NewRobotButton({ onCreated }: { onCreated?: () => void } = {}) {
+export function NewRobotButton({
+  onCreated,
+  trigger,
+}: {
+  onCreated?: () => void;
+  /** "page-action": the page's one primary action (see ModalForm). */
+  trigger?: "button" | "page-action";
+} = {}) {
   const form = useAiForm({
     target: ROBOT_FORM.key,
     fields: ROBOT_FORM.fields,
@@ -45,6 +52,8 @@ export function NewRobotButton({ onCreated }: { onCreated?: () => void } = {}) {
 
   return (
     <ModalForm
+      trigger={trigger}
+      triggerLabel="Add robot"
       title="Add robot"
       submitLabel="Add robot"
       savingLabel="Adding…"
