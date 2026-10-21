@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { NAV } from "@/config/navigation";
 import { openFeedback } from "@/lib/open-feedback";
 import { MobileNavSheet } from "@/components/shell/MobileNavSheet";
+import { TEMPORARY_CHAT_NOTE } from "@/lib/loki/temporary-chat";
 import { LokiTopbarButtons, ThreadHeader } from "./ThreadHeader";
 import { ThreadTitle } from "./ThreadTitle";
 
@@ -37,6 +38,9 @@ export type ThreadChrome = {
   onNewChat: () => void;
   /** Back to the chats — the start page without "New chat"'s fresh box. */
   onLeaveThread: () => void;
+  /** On the start screen: the next chat is temporary. In a thread: this one is. */
+  temporary: boolean;
+  onToggleTemporary: () => void;
   onOpenProjects: () => void;
   onSaveContext: () => void;
   onTogglePin: (id: string, pinned: boolean) => void;
@@ -79,6 +83,8 @@ export function WorkspaceStartHeader({
   onOpenHistory,
   onNewChat,
   onOpenProjects,
+  temporary,
+  onToggleTemporary,
 }: ThreadChrome) {
   const router = useRouter();
   const pathname = usePathname();
@@ -88,11 +94,19 @@ export function WorkspaceStartHeader({
       <ThreadHeader
         leading="chats"
         title="Loki"
-        subtitle={projects.length === 0 ? "Ask, or send work to a project" : undefined}
+        subtitle={
+          temporary
+            ? TEMPORARY_CHAT_NOTE
+            : projects.length === 0
+              ? "Ask, or send work to a project"
+              : undefined
+        }
         projects={projects}
         onOpenLokis={onOpenHistory}
         onNewChat={onNewChat}
         onOpenProjects={onOpenProjects}
+        temporary={temporary}
+        onToggleTemporary={onToggleTemporary}
         onGoHome={() => router.push(NAV.control.href)}
         onOpenMore={() => setMoreOpen(true)}
         onReportProblem={() => openFeedback(() => router.push("/support"))}
@@ -119,11 +133,13 @@ export function WorkspaceThreadHeader({
   onSaveContext,
   onTogglePin,
   onRename,
+  temporary,
 }: ThreadChrome) {
   const router = useRouter();
   return (
     <ThreadHeader
       title={title}
+      subtitle={temporary ? TEMPORARY_CHAT_NOTE : undefined}
       projects={projects}
       onBack={onLeaveThread}
       onOpenLokis={onOpenHistory}
