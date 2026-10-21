@@ -84,6 +84,18 @@ launch-check)
     /opt/loki/runner/node_modules/.bin/tsx scripts/hetzner/sealed-launch-check.ts ${RUNS:-gemini grok cursor} 2>&1 \
     | grep -v level= | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
   rc=${PIPESTATUS[0]}; echo "exit: $rc"; exit "$rc" ;;
+clean-dead)
+  # Remove Exited sealed containers the runtime could not delete (leaked gVisor
+  # overlay mount). Root unmounts the leftover merged dir, then podman forgets it.
+  U="$(unit_user)"; H="$(unit_home)"
+  asu() { systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" "$@" 2>&1 | grep -v level=; }
+  for c in $(asu podman ps -a --filter status=exited --format '{{.Names}}' | grep '^fc-ws-'); do
+    echo "dead: $c"
+    asu podman rm -f "$c" | tail -1 && continue
+    for m in $(awk '{print $2}' /proc/mounts | grep "$H/.local/share/containers/storage/overlay/.*/merged"); do umount -l "$m" 2>/dev/null && echo "  unmounted $m"; done
+    asu podman rm -f "$c" | tail -1 || asu podman rm --storage "$c" | tail -1
+  done
+  asu podman ps -a --format '  {{.Names}} {{.Status}}' ;;
 containers)
   U="$(unit_user)"; H="$(unit_home)"
   systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman ps -a --format '  {{.Names}} {{.Status}} {{.Created}}' 2>&1 | grep -v level= ;;
