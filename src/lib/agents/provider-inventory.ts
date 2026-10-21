@@ -69,7 +69,7 @@ export const PROVIDERS: readonly ProviderSpec[] = [
     versionArgs: ["--version"],
     keyEnvs: ["CURSOR_API_KEY"],
     loginFiles: [".config/cursor/auth.json", ".cursor/cli-config.json"],
-    probe: () => ["-p", "--output-format", "text", PONG],
+    probe: () => ["-p", "--trust", "--output-format", "text", PONG],
     install: "curl https://cursor.com/install -fsS | bash",
   },
   {
