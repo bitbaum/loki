@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build, type Plugin } from "esbuild";
+import { build, transform, type Plugin } from "esbuild";
 import { shadowChatkitCss } from "../widget/chat/shadow-css";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -28,10 +28,16 @@ const chatkitCss: Plugin = {
       path: require.resolve("@bitbaum/chatkit/styles.css"),
       namespace: "chatkit-css",
     }));
-    b.onLoad({ filter: /.*/, namespace: "chatkit-css" }, (args) => ({
-      contents: shadowChatkitCss(readFileSync(args.path, "utf8")),
-      loader: "text",
-    }));
+    b.onLoad({ filter: /.*/, namespace: "chatkit-css" }, async (args) => {
+      // JS minification leaves text-loader contents untouched. Minify the
+      // stylesheet itself before inlining it so new media controls fit the
+      // existing widget download budget without removing shared styles.
+      const css = await transform(shadowChatkitCss(readFileSync(args.path, "utf8")), {
+        loader: "css",
+        minify: true,
+      });
+      return { contents: css.code, loader: "text" };
+    });
   },
 };
 
