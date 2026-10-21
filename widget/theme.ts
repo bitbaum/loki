@@ -205,15 +205,13 @@ ${spiralCSS(theme)}
 .fab .fab-icon { display: none; width: 18px; height: 18px; }
 .fab .fab-icon svg { width: 18px; height: 18px; display: block; }
 @media (max-width: 480px) {
-  /* Narrow viewports: content spans the full width, so a fixed launcher sits
-     on whatever scrolls into its corner (observed covering a pricing CTA at
-     320px). Collapse to an icon, and get out of the way while the page is
-     scrolling — taps during scroll-reading never hit the launcher instead of
-     the page. */
+  /* Narrow viewports: content spans the full width, so collapse to an icon.
+     It never fades or goes untappable while the page scrolls: a launcher at
+     30% that ignored taps read as "sometimes transparent, sometimes broken"
+     (G, 2026-10-22). Always solid, always tappable. */
   .fab { width: 44px; height: 44px; padding: 0; right: 12px; bottom: 12px; justify-content: center; }
   .fab .fab-label, .fab .fab-icon { display: none; }
   .fab .dot.spiral { width: 18px; height: 18px; }
-  .fab.scrolling { opacity: .3; pointer-events: none; }
 }
 
 /* The owner's launcher is the status of Loki on their site, in a word at
@@ -246,7 +244,6 @@ ${spiralCSS(theme)}
   .fab.owner { width: auto; height: 44px; padding: 0 14px 0 12px; gap: 8px; }
   .fab.owner .fab-label { display: inline; }
   .fab.owner .fab-icon { display: none; }
-  .fab.owner.scrolling { opacity: .3; pointer-events: none; }
 }
 @media (prefers-reduced-motion: reduce) { .fab.watching::before { animation: none; } }
 
@@ -255,10 +252,10 @@ ${spiralCSS(theme)}
    Terminal, a composer, a wall of controls. Same button, same click, same
    long-press menu; only the shape changes, so it is never "missing". Wins over
    the narrow-viewport and owner rules above by specificity, not order. */
-.fab.tab, .fab.tab.owner, .fab.tab.scrolling {
+.fab.tab, .fab.tab.owner {
   width: 24px; height: 64px; padding: 0; gap: 0; justify-content: center;
   border-radius: ${rs} 0 0 ${rs}; border-right: 0;
-  opacity: .7; transform: none; pointer-events: auto;
+  opacity: 1; transform: none; pointer-events: auto;
   box-shadow: 0 1px 2px rgba(0,0,0,.4);
 }
 .fab.tab.on-left { border-radius: 0 ${rs} ${rs} 0; border-right: 1px solid ${theme.borderDark}; border-left: 0; }
