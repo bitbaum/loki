@@ -387,6 +387,7 @@ space fits the whole pill.
 | `data-fc-place="left"` / `"right"` | `<html>` or any rendered page region | keep the launcher on that side (it may still climb that edge) |
 | `data-fc-place="tab"` | `<html>` or any rendered page region | the edge tab instead of the corner button while that region is rendered — for pages whose corners are busy (Loki's Terminal and chat use it) |
 | `data-fc-place="hidden"` | `<html>` or any rendered page region | no launcher while that region is rendered — e.g. a checkout. The host's off switch: give people another way in (`Loki.report()`) |
+| `data-fc-place="host"` | the host's own launcher element | the host draws the launcher: no floating button while that element is rendered, and the owner's state counts as shown (watch mode adds no bar). The element calls `window.Loki.open()` and shows `window.Loki.status` (`{ owner, watching, unread }`, changes announced as a `loki:status` event on `window`). If the element is hidden — an immersive page drops the bar it sits in — the launcher comes back by itself. Loki's own top bar uses it; a `hidden` region still wins |
 
 `<html>` sets the site default; a rendered region overrides it (the last one in
 document order wins). A region that is `display:none` or unmounted says nothing,

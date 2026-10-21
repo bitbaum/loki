@@ -301,6 +301,15 @@ ok(
   resolvePlaceDirective([null, "hidden", "tab"]) === "hidden",
   "an open dialog keeps the launcher off it even when a later region asks for the tab",
 );
+ok(
+  resolvePlaceDirective([null, "host", "tab"]) === "host",
+  "a host-drawn launcher outranks the tab a later region asks for",
+);
+ok(
+  resolvePlaceDirective([null, "host", "hidden"]) === "hidden",
+  "an open dialog still keeps the launcher off it when the host draws its own",
+);
+ok(resolvePlaceDirective(["host"]) === "host", "host may be declared site-wide on <html>");
 
 // ---- chooseTabTop: the edge tab lands in the same place on every page ----
 {
