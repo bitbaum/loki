@@ -42,6 +42,7 @@ import {
   type TaskEventKind,
 } from "@/config/crew";
 import { assertAssignablePerson } from "@/db/queries/crew";
+import { changesCrewConsentTerms } from "@/lib/crew/consent-terms";
 
 const assignee = aliasedTable(entities, "assignee");
 const project = aliasedTable(entities, "project");
@@ -275,55 +276,88 @@ export async function patchHumanTask(
   id: string,
   input: PatchHumanTaskInput,
 ): Promise<HumanTaskDetail | null> {
-  const existing = await getHumanTask(userId, id);
-  if (!existing) return null;
+  // Resolve foreign keys before acquiring the row lock. The transaction is
+  // responsible for judging consent against the *current*, locked assignment.
+  const assigneeId =
+    input.assigneeId === undefined
+      ? undefined
+      : input.assigneeId
+        ? ((await assertAssignablePerson(userId, input.assigneeId))?.id ?? null)
+        : null;
+  const projectId =
+    input.projectId === undefined ? undefined : await resolveProjectId(userId, input.projectId);
 
-  const patch: Partial<typeof humanTasks.$inferInsert> = { updatedAt: new Date() };
-  if (input.title !== undefined) patch.title = input.title.trim();
-  if (input.brief !== undefined) patch.brief = input.brief?.trim() || null;
-  if (input.reason !== undefined) patch.reason = input.reason?.trim() || null;
-  if (input.dueDate !== undefined) patch.dueDate = parseDate(input.dueDate);
-  if (input.feeAmount !== undefined) patch.feeAmount = input.feeAmount;
-  if (input.feeCurrency !== undefined) patch.feeCurrency = input.feeCurrency;
-  if (input.projectId !== undefined)
-    patch.projectId = await resolveProjectId(userId, input.projectId);
-  if (input.assigneeId !== undefined) {
-    patch.assigneeId = input.assigneeId
-      ? ((await assertAssignablePerson(userId, input.assigneeId))?.id ?? null)
-      : null;
-  }
+  const changed = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(humanTasks)
+      .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)))
+      .limit(1)
+      .for("update");
+    if (!existing) return false;
 
-  const nextStatus = input.status;
-  if (nextStatus && nextStatus !== existing.status) {
-    if (!canOperatorMove(existing.status, nextStatus)) {
-      throw new TaskTransitionError(existing.status, nextStatus);
+    const now = new Date();
+    const patch: Partial<typeof humanTasks.$inferInsert> = { updatedAt: now };
+    if (input.title !== undefined) patch.title = input.title.trim();
+    if (input.brief !== undefined) patch.brief = input.brief?.trim() || null;
+    if (input.reason !== undefined) patch.reason = input.reason?.trim() || null;
+    if (input.dueDate !== undefined) patch.dueDate = parseDate(input.dueDate);
+    if (input.feeAmount !== undefined) patch.feeAmount = input.feeAmount;
+    if (input.feeCurrency !== undefined) patch.feeCurrency = input.feeCurrency;
+    if (projectId !== undefined) patch.projectId = projectId;
+    if (assigneeId !== undefined) patch.assigneeId = assigneeId;
+
+    const termsChanged = changesCrewConsentTerms(existing, patch);
+    if (termsChanged && CLOSED_HUMAN_TASK_STATUSES.includes(existing.status)) {
+      throw new TaskShareError("Reopen this assignment before changing its terms.");
     }
-    patch.status = nextStatus;
-    if (nextStatus === HUMAN_TASK_STATUS.DONE) patch.completedAt = new Date();
-    // Pulling an ask back to draft un-sends it: the link dies with the status.
-    if (nextStatus === HUMAN_TASK_STATUS.DRAFT) {
-      patch.revokedAt = new Date();
+    if (termsChanged && input.status && input.status !== HUMAN_TASK_STATUS.DRAFT) {
+      throw new TaskShareError(
+        "Changing the assignment requires a fresh handover; edit it first, then share it.",
+      );
+    }
+
+    const nextStatus = termsChanged ? HUMAN_TASK_STATUS.DRAFT : input.status;
+    if (termsChanged) {
+      // A changed ask has NO current assignee consent. Its previous share link
+      // is dead even if an old ACCEPTED event remains in the audit timeline.
+      patch.status = HUMAN_TASK_STATUS.DRAFT;
+      patch.revokedAt = now;
       patch.assignedAt = null;
+      patch.respondedAt = null;
+      patch.deliveredAt = null;
+      patch.completedAt = null;
+      patch.viewedAt = null;
+    } else if (nextStatus && nextStatus !== existing.status) {
+      if (!canOperatorMove(existing.status, nextStatus)) {
+        throw new TaskTransitionError(existing.status, nextStatus);
+      }
+      patch.status = nextStatus;
+      if (nextStatus === HUMAN_TASK_STATUS.DONE) patch.completedAt = now;
+      if (nextStatus === HUMAN_TASK_STATUS.DRAFT) {
+        patch.revokedAt = now;
+        patch.assignedAt = null;
+      }
     }
-  }
 
-  await db
-    .update(humanTasks)
-    .set(patch)
-    .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)));
+    await tx
+      .update(humanTasks)
+      .set(patch)
+      .where(and(eq(humanTasks.id, id), eq(humanTasks.userId, userId)));
 
-  if (nextStatus && nextStatus !== existing.status) {
-    await recordEvent(userId, id, TASK_EVENT.STATUS, TASK_ACTOR.OPERATOR, {
-      status: nextStatus,
-      note: input.note,
+    const statusChanged = nextStatus && nextStatus !== existing.status;
+    await tx.insert(humanTaskEvents).values({
+      taskId: id,
+      userId,
+      kind: termsChanged || statusChanged ? TASK_EVENT.STATUS : input.note ? TASK_EVENT.NOTE : TASK_EVENT.EDITED,
+      actor: TASK_ACTOR.OPERATOR,
+      status: termsChanged ? HUMAN_TASK_STATUS.DRAFT : statusChanged ? nextStatus : null,
+      note: input.note?.trim() || (termsChanged ? "Terms changed — fresh acceptance required." : null),
     });
-  } else if (input.note) {
-    await recordEvent(userId, id, TASK_EVENT.NOTE, TASK_ACTOR.OPERATOR, { note: input.note });
-  } else {
-    await recordEvent(userId, id, TASK_EVENT.EDITED, TASK_ACTOR.OPERATOR);
-  }
+    return true;
+  });
 
-  return getHumanTask(userId, id);
+  return changed ? getHumanTask(userId, id) : null;
 }
 
 export async function deleteHumanTask(userId: string, id: string): Promise<boolean> {
