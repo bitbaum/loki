@@ -176,6 +176,7 @@ agent cannot reach even its own tenant's other work:
   processes, and gVisor's `runsc` as the OCI runtime when the box has it
   (no KVM needed; the CX43 has none).
 - `scripts/hetzner/agent-image/Containerfile` is the image (a shell, git,
+  Cursor, Grok, Antigravity, opencode,
   gh, node, Claude Code, Codex); `install-sealed-builds.sh`, run by every
   deploy, installs rootless podman, tries runsc, builds the image into a
   shared read-only store, and writes a READING to `/etc/loki/sealed-builds`
