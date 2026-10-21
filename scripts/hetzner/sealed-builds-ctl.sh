@@ -74,7 +74,7 @@ worktree)
       echo "=== $d"
       sudo -u "$(unit_user)" git -C "$d" -c safe.directory='*' log -1 --format='head: %h %s' 2>&1
       sudo -u "$(unit_user)" git -C "$d" -c safe.directory='*' status -sb 2>&1 | head -20
-      sudo -u "$(unit_user)" git -C "$d" -c safe.directory='*' diff 2>&1 | head -200
+      sudo -u "$(unit_user)" git -C "$d" -c safe.directory='*' diff HEAD 2>&1 | head -200
     done
   done ;;
 read)
