@@ -53,7 +53,7 @@ done
 # Usable = the model actually answers with the runner's own key.
 if key_present "$RUNNER_ENV" GEMINI_API_KEY; then
   out="$(sudo -u "$RUNNER_USER" -H bash -c "set -a; . '$RUNNER_ENV'; set +a; cd /tmp && PATH='$BIN':\$PATH timeout 120 gemini -p 'Reply with exactly: PONG' 2>&1" | tail -3)"
-  if printf '%s' "$out" | grep -q PONG; then echo "probe      gemini ok"
+  if case "$out" in *PONG*) true ;; *) false ;; esac; then echo "probe      gemini ok"
   else echo "probe      gemini FAILED: $(printf '%s' "$out" | tr -d '\r' | grep -vi 'key' | tail -1 | cut -c1-160)"; fi
 fi
 
