@@ -27,8 +27,8 @@ txt = lambda b: ANSI.sub(b"", b).decode("utf8", "replace")
 alive = True
 while time.time() - t0 < 60 and alive:
     alive = pump(0.5)
-    if re.search(r"type your message", txt(buf), re.I): break
-composer = bool(re.search(r"type your message", txt(buf), re.I))
+    if re.search(r"type your message|tips for getting started", txt(buf), re.I): break
+composer = bool(re.search(r"type your message|tips for getting started", txt(buf), re.I))
 print(f"  composer seen: {composer} after {time.time()-t0:.1f}s, alive={alive}, bytes={len(buf)}")
 mark = len(buf)
 if alive:

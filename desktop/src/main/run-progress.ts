@@ -7,7 +7,7 @@
 // event, which is what turns Feedback's "Queued" into "Working · 12 min" and
 // lets it call a silent agent stalled instead of guessing.
 import { executor } from '@/lib/agent-execution'
-import { runnerWorkspaceId } from './pty-runtime'
+import { peekPtyBuffer, runnerWorkspaceId } from './pty-runtime'
 import { detectAuthFailure } from './agent-auth'
 import { newestLog, readRange } from './transcript-streamer'
 import { newTranscriptState, reduceTranscriptLine, type TranscriptItem } from '@/lib/claude-transcript'
@@ -15,6 +15,7 @@ import { latestRunStep } from '@/lib/run-step'
 import {
   RUN_BLOCKED,
   RUN_PROGRESS_BEAT_MS,
+  detectPermissionPrompt,
   shouldBeat,
   shouldDiagnoseSilence,
   type RunBlocked,
@@ -33,6 +34,7 @@ type Track = {
   /** The workspace dir, so a silent agent can be asked WHY it is silent. */
   dir: string
   blocked: RunBlocked | null
+  question: string | null
 }
 
 const tracks = new Map<string, Track>()
@@ -59,6 +61,7 @@ export function startRunProgress(
     unsub: () => {},
     dir,
     blocked: null,
+    question: null,
     timer: setInterval(() => void tick(base, token, runId), Math.min(RUN_PROGRESS_BEAT_MS, 15_000)),
   }
   // subscribe replays the retained buffer synchronously; skip it — the replay
@@ -89,10 +92,23 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
   // Silence has two meanings and the operator can only act on one. Before
   // deciding whether to beat, work out whether this quiet agent is thinking or
   // waiting for a human — the runner is the only thing that can tell.
-  if (shouldDiagnoseSilence(t)) {
+  // A tool-approval prompt is checked on every tick, not only after the long
+  // silence: the agent is waiting on a human the moment it asks, and its
+  // spinner may keep redrawing (Gemini 0.65 at "Allow execution of [Shell]?",
+  // 2026-10-21, shown as Working).
+  const asked = detectPermissionPrompt(peekPtyBuffer(t.tab) ?? '')
+  if (asked) {
+    const changed = t.blocked !== RUN_BLOCKED.PERMISSION || t.question !== asked
+    t.blocked = RUN_BLOCKED.PERMISSION
+    t.question = asked
+    // Say it now, not at the next 45s beat.
+    if (changed) t.lastBeatAt = 0
+  } else if (shouldDiagnoseSilence(t)) {
     t.blocked = detectAuthFailure(t.dir) ? RUN_BLOCKED.AUTH : null
+    t.question = null
   } else if (t.bytesSinceBeat > 0) {
     t.blocked = null
+    t.question = null
   }
   const decision = shouldBeat(t)
   if (decision === 'stop') { stopRunProgress(runId); return }
@@ -102,6 +118,7 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
     outputBytes: t.bytesSinceBeat,
     lastOutputAt: new Date(t.lastOutputAt).toISOString(),
     blocked: t.blocked,
+    ...(t.question ? { question: t.question } : {}),
     ...(step ? { step } : {}),
   }
   t.bytesSinceBeat = 0

@@ -37,6 +37,9 @@ export const RUN_PROGRESS_MAX_MS = 6 * 60 * 60_000;
 export const RUN_BLOCKED = {
   /** The agent needs someone to sign in before it can do anything. */
   AUTH: "auth",
+  /** The agent stopped at a tool-approval prompt ("Allow execution of
+   *  [Shell]? 1. Allow once …") and waits for a human to choose. */
+  PERMISSION: "permission",
 } as const;
 export type RunBlocked = (typeof RUN_BLOCKED)[keyof typeof RUN_BLOCKED];
 
@@ -47,6 +50,8 @@ export type RunProgressBeat = {
   lastOutputAt: string;
   /** Set when the runner can name why the terminal is quiet. */
   blocked?: RunBlocked | null;
+  /** With blocked=permission: the question the agent is asking, one line. */
+  question?: string | null;
   /** What the agent is doing now, in a few words (lib/run-step), when the
    *  runner can read its session log. */
   step?: string;
@@ -94,4 +99,48 @@ export function shouldBeat(
   if (s.bytesSinceBeat <= 0 && !s.blocked) return "wait";
   if (now - s.lastBeatAt < RUN_PROGRESS_BEAT_MS) return "wait";
   return "beat";
+}
+
+/** The longest permission question a beat may carry. */
+export const RUN_QUESTION_MAX_CHARS = 200;
+
+const PROMPT_ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]/g;
+
+/**
+ * Pure: the tool-approval question an agent CLI is waiting on at the bottom of
+ * its screen, or null. Covers Gemini ("Allow execution of [Shell]?" with
+ * "1. Allow once"), Claude ("Do you want to proceed?" / "Yes, and don't ask
+ * again"), Codex ("Allow command?" / "Yes, proceed"), Cursor ("Run this
+ * command?" / "Run (once)") and Grok ("Approve" / "Deny"). Only the screen's
+ * last lines count: a question the agent already got past scrolls up and is
+ * followed by new work. Substrata on Antigravity, 2026-10-21: Gemini sat at
+ * "Allow execution of [Shell]?" while Loki said Working.
+ */
+export function detectPermissionPrompt(screen: string, tailLines = 18): string | null {
+  const lines = screen
+    .replace(PROMPT_ANSI_RE, "")
+    .split(/\r?\n|\r/)
+    .map((l) =>
+      l
+        .replace(/[─━│┃╭╮╰╯┌┐└┘├┤┬┴┼═║]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .filter((l) => l.length > 0)
+    .slice(-tailLines);
+  const tail = lines.join("\n");
+  const choices =
+    /(?:^|\n)\s*(?:[●›>❯]\s*)?1[.)]\s*(?:allow|yes|approve|run)\b|allow once|allow for this session|yes, and don'?t ask again|yes, proceed|\brun \(once\)|\b(?:approve|deny)\b.*\b(?:approve|deny|reject)\b/i;
+  if (!choices.test(tail)) return null;
+  const question = [...lines]
+    .reverse()
+    .find(
+      (l) =>
+        /\?\s*$|^(?:allow|do you want|approve|run this|permission)/i.test(l) &&
+        !/^\s*(?:[●›>❯]\s*)?\d[.)]/.test(l),
+    );
+  return (question ?? "The agent is asking for permission to run a tool.").slice(
+    0,
+    RUN_QUESTION_MAX_CHARS,
+  );
 }

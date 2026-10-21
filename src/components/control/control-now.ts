@@ -101,6 +101,9 @@ export function buildNowJobs(
     if (openRun?.blocked === "auth") {
       tone = "you";
       status = "Waiting for someone to sign in";
+    } else if (openRun?.blocked === "permission") {
+      tone = "you";
+      status = "Waiting for your answer";
     } else if (awaiting) {
       tone = "you";
       // The question IS the job now: lead with it.
