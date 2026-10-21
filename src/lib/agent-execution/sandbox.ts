@@ -178,7 +178,12 @@ function buildPodmanRunArgs(
     "--userns=keep-id",
     // Stay in the unit's cgroup (rootless, no delegation needed), so the
     // deploy's drain sees these processes and MemoryMax still bounds them.
-    "--cgroups=disabled",
+    // gVisor refuses NoCgroups (measured on the box 2026-10-21: "runsc is not
+    // compatible with NoCgroups"), so under runsc podman keeps its default and
+    // runsc is told to leave cgroups alone; crun/runc stay in the unit's cgroup.
+    ...(config.ociRuntime === "runsc"
+      ? ["--runtime-flag", "ignore-cgroups"]
+      : ["--cgroups=disabled"]),
     ...(config.ociRuntime ? ["--runtime", config.ociRuntime] : []),
     "--workdir",
     cwd,
