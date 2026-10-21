@@ -16,8 +16,12 @@ interface Props {
    * How the trigger looks. "page-action" makes it the page's one primary
    * action (a round + in the phone top bar, a pill in the header from md up)
    * — render it inside <PageAction>, or pass it as PageLayout's `action`.
+   * "secondary" is the quiet bordered button, for an empty state's one
+   * action when the page action already carries the filled one. "none"
+   * draws no trigger at all: the form is opened by its caller (with
+   * `defaultOpen`) from a control elsewhere, such as a row's menu.
    */
-  trigger?: "button" | "page-action";
+  trigger?: "button" | "page-action" | "secondary" | "none";
   /** Modal header title. */
   title: string;
   /** Submit button text when idle. */
@@ -101,7 +105,7 @@ export function ModalForm({
   // dialog rendered inside it would vanish with it. It opens only after a
   // click, so `document` is always there.
   const portal = (node: React.ReactNode) =>
-    trigger === "page-action" ? createPortal(node, document.body) : node;
+    trigger === "page-action" || trigger === "none" ? createPortal(node, document.body) : node;
 
   const handleSubmit = async () => {
     const ok = await onSubmit();
@@ -110,10 +114,13 @@ export function ModalForm({
 
   return (
     <>
-      {trigger === "page-action" ? (
+      {trigger === "none" ? null : trigger === "page-action" ? (
         <PageActionButton label={triggerLabel} onClick={() => setOpen(true)} />
       ) : (
-        <button onClick={() => setOpen(true)} className="ui-btn-confirm">
+        <button
+          onClick={() => setOpen(true)}
+          className={trigger === "secondary" ? "ui-btn-secondary" : "ui-btn-confirm"}
+        >
           <Plus className="h-4 w-4" />
           {triggerLabel}
         </button>
