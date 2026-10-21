@@ -17,7 +17,7 @@ on:
         required: true
         default: login
         type: choice
-        options: [login, status]
+        options: [login, status, reprobe]
 
 concurrency:
   group: builder-agent-login
@@ -26,7 +26,7 @@ concurrency:
 jobs:
   login:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     env:
       HETZNER_IP: ${{ vars.HETZNER_IP }}
     steps:
