@@ -144,3 +144,89 @@ export async function ensureBoxWorkspace(
   ensureClaudeReady(boxDir);
   return boxDir;
 }
+
+/** The branch a run works on: one per run, named so it is obviously Loki's. */
+export function runBranchName(runId: string): string {
+  return `loki/run-${runId
+    .replace(/[^0-9a-zA-Z]/g, "")
+    .slice(0, 8)
+    .toLowerCase()}`;
+}
+
+function defaultRemoteBranch(dir: string): string {
+  try {
+    const ref = execFileSync(
+      "git",
+      ["-C", dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+      {
+        timeout: 15_000,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    )
+      .toString()
+      .trim();
+    if (ref.startsWith("origin/")) return ref.slice("origin/".length);
+  } catch {
+    // origin/HEAD unset (old clone): try the usual names below.
+  }
+  for (const name of ["main", "master"]) {
+    try {
+      execFileSync(
+        "git",
+        ["-C", dir, "rev-parse", "--verify", "--quiet", `refs/remotes/origin/${name}`],
+        {
+          timeout: 15_000,
+          stdio: "ignore",
+        },
+      );
+      return name;
+    } catch {
+      // not this one
+    }
+  }
+  return "main";
+}
+
+/**
+ * Put a box checkout on a FRESH branch off the remote default branch before a
+ * run starts. The checkout is shared by every run of the project, so whatever
+ * branch the last run (or a person) left it on is not this run's starting
+ * point: the 2026-10-21 Substrata /chat run began on fix/atlas-title-hierarchy.
+ * Uncommitted leftovers are stashed with a message naming where they came
+ * from, never discarded. Best effort: a failure leaves the checkout as it was
+ * and says so in the runner log.
+ */
+export function startRunBranch(dir: string, runId: string, token: string | null): string | null {
+  // A worktree (`.git` is a file) already has its own per-run branch.
+  const dotGit = path.join(dir, ".git");
+  if (!fs.existsSync(dotGit) || !fs.statSync(dotGit).isDirectory()) return null;
+  const git = (args: string[], timeout = 60_000) =>
+    execFileSync("git", ["-C", dir, ...args], { timeout, stdio: ["ignore", "pipe", "pipe"] })
+      .toString()
+      .trim();
+  const branch = runBranchName(runId);
+  try {
+    const base = defaultRemoteBranch(dir);
+    execFileSync("git", [...authArgs(token), "-C", dir, "fetch", "--depth", "50", "origin", base], {
+      timeout: 120_000,
+      stdio: "inherit",
+    });
+    if (git(["status", "--porcelain"])) {
+      const was = git(["rev-parse", "--abbrev-ref", "HEAD"]);
+      git([
+        "stash",
+        "push",
+        "--include-untracked",
+        "-m",
+        `loki: left on ${was} before run ${runId}`,
+      ]);
+    }
+    git(["checkout", "-B", branch, `origin/${base}`]);
+    return branch;
+  } catch (e) {
+    console.warn(
+      `[box-prepare] could not start ${branch} in ${dir}: ${e instanceof Error ? e.message : String(e)}`,
+    );
+    return null;
+  }
+}

@@ -61,6 +61,7 @@ export async function autoReimplementAfterRunnerNack(
         runPayload,
         runAdapter,
         decision.because,
+        decision.failoverWhy ?? "ran out of quota",
       );
     }
     if (!autoDispatchEnabled()) return { retried: false, reason: AUTO_DISPATCH_OFF_REASON };
@@ -116,6 +117,7 @@ async function failoverOnQuota(
   runPayload: { providersTried?: unknown } | null | undefined,
   runAdapter: string | null | undefined,
   because: string,
+  why: string,
 ): Promise<{ retried: boolean; reason?: string; newRunId?: string }> {
   const tried = providersTriedAfter(runPayload, runAdapter);
   await stampFeedbackAutoRetried(runId, userId);
@@ -138,12 +140,12 @@ async function failoverOnQuota(
   await mergeRunPayload(newRunId, {
     priorRunId: runId,
     providersTried: tried,
-    autoRetriedBecause: last ? `${providerLabel(last)} ran out of quota` : because,
+    autoRetriedBecause: last ? `${providerLabel(last)} ${why}` : because,
   }).catch(() => undefined);
   void logDebug({
     source: "feedback-auto-reimplement",
     level: "info",
-    message: `Feedback ${feedbackId} failed over after quota: tried ${tried.join(", ")}`,
+    message: `Feedback ${feedbackId} failed over (${why}): tried ${tried.join(", ")}`,
     meta: { userId, runId, newRunId, tried },
   });
   return { retried: true, newRunId };

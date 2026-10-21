@@ -15,7 +15,7 @@ const WORKSPACE_RE =
   /not materializable|does not exist (?:here|on this machine)|no cloneable|nothing was launched here/i;
 
 export type AutoReimplementDecision =
-  | { retry: true; because: string; failover?: true }
+  | { retry: true; because: string; failover?: true; failoverWhy?: string }
   | {
       retry: false;
       reason: "already-retried" | "needs-auth" | "needs-workspace" | "not-retryable" | "no-error";
@@ -39,7 +39,28 @@ export function decideAutoReimplement(
     !payload?.feedbackAutoRetriedAt &&
     looksLikeAgentCapacityIssue(text0)
   ) {
-    return { retry: true, because: "the agent ran out of quota", failover: true };
+    return {
+      retry: true,
+      because: "the agent ran out of quota",
+      failover: true,
+      failoverWhy: "ran out of quota",
+    };
+  }
+  // An agent that never took the prompt (it sat in the composer, the CLI
+  // stayed silent) chains the same way: the next provider is tried, never the
+  // same one again (Antigravity, 2026-10-21).
+  if (
+    text0 &&
+    !AUTH_RE.test(text0) &&
+    !payload?.feedbackAutoRetriedAt &&
+    looksLikeAgentNoAnswer(text0)
+  ) {
+    return {
+      retry: true,
+      because: "the agent opened but never accepted the prompt, so it runs on the next provider",
+      failover: true,
+      failoverWhy: "never accepted the prompt",
+    };
   }
   if (payload?.priorRunId || payload?.feedbackAutoRetriedAt) {
     return { retry: false, reason: "already-retried" };
