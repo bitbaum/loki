@@ -189,8 +189,10 @@ function buildPodmanRunArgs(
     cwd,
     "--mount",
     `type=bind,src=${config.home},dst=${config.home}`,
+    // Rootless "bridge" goes through pasta, which could not open its netns
+    // under the runner unit on the box (2026-10-21); slirp4netns works.
     "--network",
-    config.network,
+    config.network === "bridge" ? "slirp4netns" : config.network,
     "--pids-limit",
     config.pidsLimit,
     "--security-opt",
