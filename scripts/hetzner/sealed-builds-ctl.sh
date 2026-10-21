@@ -73,6 +73,10 @@ stop-sealed)
     systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman stop -t 10 "$c" 2>&1 | grep -v level= | tail -1
   done
   journalctl -t loki-drain --since -30min --no-pager -o short-iso 2>/dev/null | tail -5 ;;
+journal)
+  pat="$(echo "${RUNS:-x}" | tr ' ' '|')"
+  journalctl -u "$UNIT" -t loki-drain -t systemd --since "-1h" --no-pager -o short-iso 2>/dev/null | grep -Ei "$pat" \
+    | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | cut -c1-300 | tail -40 ;;
 worktree)
   # Read-only: branch, status and diff of the run worktrees named in RUNS.
   H="$(unit_home)"
