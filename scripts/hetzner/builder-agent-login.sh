@@ -33,12 +33,7 @@ p=sys.argv[1]; c=json.load(open(p))
 for k in sys.argv[2:]: c.pop(k,None)
 json.dump(c,open(p,'w'))
 PY
-  echo "→ dropped cached probes: $IDS; waiting up to 150s for the runner to re-probe"
-  for i in $(seq 1 30); do sleep 5; n=$(python3 -c "import json,sys;c=json.load(open('$C'));print(sum(k in c for k in sys.argv[1:]))" $IDS 2>/dev/null || echo 0); [ "$n" -ge $(echo $IDS | wc -w) ] && break; done
-  echo "→ provider-probes.json after ${i}x5s:"
-  python3 -c "
-import json;c=json.load(open('$C'))
-for k,v in c.items(): print(f'  {k:8} ok={v[\"ok\"]} at={v[\"at\"]} {v[\"detail\"][:140]}')" 2>&1 | sed -E 's/[A-Za-z0-9_-]{24,}/<masked>/g'
+  echo "→ dropped cached probes: $IDS — the runner re-probes them on its next heartbeats (one at a time, up to 2 min each). Read results with builder-agents.yml probe_only=true."
   exit 0
 fi
 if [ "$MODE" = status ]; then
