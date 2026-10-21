@@ -32,7 +32,10 @@ assert.deepEqual(WORK_TERMS_FIELDS, [
 
 assert.equal(changesCrewConsentTerms(sample, {}), false);
 assert.equal(changesCrewConsentTerms(sample, { title: sample.title }), false);
-assert.equal(changesCrewConsentTerms(sample, { dueDate: new Date(sample.dueDate!.getTime()) }), false);
+assert.equal(
+  changesCrewConsentTerms(sample, { dueDate: new Date(sample.dueDate!.getTime()) }),
+  false,
+);
 assert.equal(changesCrewConsentTerms(sample, { feeAmount: sample.feeAmount }), false);
 assert.equal(changesCrewConsentTerms(sample, { reason: sample.reason }), false);
 assert.equal(changesCrewConsentTerms(sample, { assigneeId: "person-2" }), true);
@@ -57,7 +60,8 @@ const patches = [
 ];
 for (let i = 0; i < patches.length; i++) {
   const start = db.indexOf(patches[i]);
-  const stop = i + 1 < patches.length ? db.indexOf(patches[i + 1]) : db.indexOf("/** Everything still open");
+  const stop =
+    i + 1 < patches.length ? db.indexOf(patches[i + 1]) : db.indexOf("/** Everything still open");
   const functionBody = db.slice(start, stop);
   assert.ok(start >= 0 && stop > start, `missing writer ${patches[i]}`);
   assert.match(functionBody, /db\.transaction\(async \(tx\)/, `transaction needed: ${patches[i]}`);
