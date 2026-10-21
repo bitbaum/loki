@@ -107,7 +107,10 @@ export async function askConcierge(opts: {
     message: opts.message.slice(0, CHAT_MAX_MESSAGE),
     history: opts.history
       .slice(-CHAT_MAX_HISTORY)
-      .map((t) => ({ ...t, content: richAnswerText(t.content).slice(0, 2000) })),
+      .map((t) => ({
+        ...t,
+        content: (t.role === "assistant" ? richAnswerText(t.content) : t.content).slice(0, 2000),
+      })),
     url: location.href.slice(0, 1000),
     pageTitle: document.title.slice(0, 300) || undefined,
   });
