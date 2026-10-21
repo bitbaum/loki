@@ -922,11 +922,14 @@ export async function stampRunProgress(
   /** What the agent is doing now (lib/run-step). Kept when a beat has none,
    *  so a beat from an agent between steps does not blank the card. */
   step: string | null = null,
+  /** With blocked=permission: the agent's question. Cleared with blocked. */
+  question: string | null = null,
 ): Promise<boolean> {
   const now = new Date().toISOString();
-  const base = sql`jsonb_set(
+  const base = sql`jsonb_set(jsonb_set(
         jsonb_set(COALESCE(payload, '{}'), '{lastProgressAt}', ${JSON.stringify(now)}::jsonb),
-        '{blocked}', ${JSON.stringify(blocked)}::jsonb)`;
+        '{blocked}', ${JSON.stringify(blocked)}::jsonb),
+        '{blockedQuestion}', ${JSON.stringify(question)}::jsonb)`;
   const rows = await db
     .update(orchestrationRuns)
     .set({

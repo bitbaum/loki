@@ -139,6 +139,8 @@ export type FeedbackRunSnapshot = {
   lastProgressAt: string | null;
   /** payload.blocked — the runner named why the agent is quiet ("auth"). */
   blocked?: string | null;
+  /** With blocked=permission: the question the agent is asking. */
+  blockedQuestion?: string | null;
   /**
    * Runner inject ack: true = post-prompt generation confirmed; false =
    * inject-no-generate (prompt typed, agent never generated). Null/undefined
@@ -285,6 +287,7 @@ function withStep(
     deliveredAt: run.deliveredAt,
     lastProgressAt: run.lastProgressAt,
     blocked: run.blocked,
+    blockedQuestion: run.blockedQuestion ?? null,
     pendingUnclaimed: run.pendingUnclaimed,
     queuedBehind: run.queuedBehind ?? null,
     hosted: run.hostedPending === true,
@@ -509,6 +512,26 @@ function derivePhase(
   // and acting on it takes ten seconds. On 2026-09-12 a dispatch sat silent
   // for thirteen minutes wanting a sign-in, while the row said "no output" and
   // George opened a terminal by hand to find out.
+  if (run.blocked === "exited") {
+    return {
+      phase: FEEDBACK_WORK_PHASE.STUCK,
+      label: "Agent stopped",
+      detail: `${run.blockedQuestion?.trim() || "The agent process ended"} before the run finished — Try again`,
+      watchable: true,
+      since,
+      lastActivityAt: run.lastProgressAt,
+    };
+  }
+  if (run.blocked === "permission") {
+    return {
+      phase: FEEDBACK_WORK_PHASE.STUCK,
+      label: "Needs you",
+      detail: `The agent is asking: ${run.blockedQuestion?.trim() || "permission to run a tool"} — answer it on Watch`,
+      watchable: true,
+      since,
+      lastActivityAt: run.lastProgressAt,
+    };
+  }
   if (run.blocked === "auth") {
     return {
       phase: FEEDBACK_WORK_PHASE.STUCK,

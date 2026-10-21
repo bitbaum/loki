@@ -5,6 +5,7 @@ import {
   buildDockerRunArgs,
   resolveSandboxConfig,
   sandboxContainerName,
+  sealedGitEnv,
   SandboxExecutor,
   type SandboxExecutorConfig,
 } from "../../src/lib/agent-execution/sandbox";
@@ -177,6 +178,20 @@ async function main() {
     "fc-plain",
   );
   check("without runsc no runtime is asked for", !unsealed.includes("--runtime"));
+  // git commit in the sealed container, 2026-10-21: "unable to auto-detect email".
+  check(
+    "sealed build sets a git author",
+    sealed.some((a) => a.startsWith("GIT_AUTHOR_EMAIL=")),
+  );
+  check(
+    "sealed build pushes with the run token via an env-only helper",
+    sealed.some((a) => a.startsWith("GIT_CONFIG_VALUE_0=") && a.includes("GH_TOKEN")),
+  );
+  const git = sealedGitEnv(() => null);
+  check(
+    "git identity falls back when the host has none",
+    git.GIT_COMMITTER_NAME === "Loki builder",
+  );
   // Antigravity in runsc, 2026-10-21: no TTY + no key = gemini exits, "never accepted the prompt".
   check("sealed build gives the agent a TTY (-t)", sealed.includes("-t") && sealed.includes("-i"));
   check("sealed build keeps the host's hostname", hasPair(sealed, "--hostname", os.hostname()));

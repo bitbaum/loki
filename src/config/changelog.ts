@@ -29,6 +29,17 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.54",
+    tag: "fleet-runner-v0.8.54",
+    date: "2026-10-21T19:30:00Z",
+    highlights: [
+      "Antigravity runs unattended (auto-approve), and when any agent stops at a permission question the run shows Needs you with that question instead of Working.",
+      "Sealed builds can commit and push (git identity + the run's GitHub token), a builder restart waits for sealed agents instead of killing them, and an agent whose process dies shows Agent stopped at once.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.53",
     tag: "fleet-runner-v0.8.53",
     date: "2026-10-21T18:30:00Z",

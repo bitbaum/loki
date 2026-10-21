@@ -48,8 +48,11 @@ export const geminiAdapter: AgentAdapter = {
   },
 
   buildLaunchCommand({ dir, model }: AgentRuntimeConfig): string {
+    // Implement is unattended, like cursor --trust --yolo: without auto-approve
+    // Gemini 0.65 stops at "Allow execution of [Shell]?" while the run reads
+    // Working (Substrata, 2026-10-21). --approval-mode=yolo is 0.65's flag.
     const m = (model ?? "").trim();
     const modelFlag = m ? ` -m ${shellEscape(m)}` : "";
-    return `source ~/.bashrc >/dev/null 2>&1 || true; cd ${shellEscape(dir)} && gemini --skip-trust${modelFlag}`;
+    return `source ~/.bashrc >/dev/null 2>&1 || true; cd ${shellEscape(dir)} && gemini --skip-trust --approval-mode=yolo${modelFlag}`;
   },
 };

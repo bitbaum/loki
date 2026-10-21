@@ -276,6 +276,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     deliveredAt?: string;
     lastProgressAt?: string;
     blocked?: string | null;
+    blockedQuestion?: string | null;
     injectVerified?: boolean | null;
     injectWarning?: string | null;
     error?: string;
@@ -296,6 +297,7 @@ export function runToFeedbackSnapshot(row: RunRow | null | undefined): FeedbackR
     deliveredAt: payload?.deliveredAt ?? null,
     lastProgressAt: payload?.lastProgressAt ?? null,
     blocked: payload?.blocked ?? null,
+    blockedQuestion: payload?.blockedQuestion ?? null,
     injectVerified: typeof payload?.injectVerified === "boolean" ? payload.injectVerified : null,
     injectWarning: payload?.injectWarning ?? null,
     error: payload?.error ?? null,
