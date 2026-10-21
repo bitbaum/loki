@@ -10,7 +10,14 @@ import { ModalForm } from "@/components/ui/modal-form";
 import { useCreateMutation } from "@/hooks/use-create-mutation";
 import { DateInput } from "@/components/ui/date-input";
 
-export function NewGoalButton({ goals }: { goals: GoalWithChildren[] }) {
+export function NewGoalButton({
+  goals,
+  trigger,
+}: {
+  goals: GoalWithChildren[];
+  /** "page-action": the page's one primary action (see ModalForm). */
+  trigger?: "button" | "page-action";
+}) {
   // One store for the whole form. The user types into it and the assistant
   // writes into it — which is what makes "now move the target date" work.
   const form = useAiForm({ target: GOAL_FORM.key, fields: GOAL_FORM.fields });
@@ -46,9 +53,10 @@ export function NewGoalButton({ goals }: { goals: GoalWithChildren[] }) {
 
   return (
     <ModalForm
-      triggerLabel="New Goal"
-      title="New Goal"
-      submitLabel="Create Goal"
+      trigger={trigger}
+      triggerLabel="New goal"
+      title="New goal"
+      submitLabel="Add goal"
       savingLabel="Creating…"
       size="md"
       canSubmit={!!form.text("title").trim()}
@@ -80,7 +88,7 @@ export function NewGoalButton({ goals }: { goals: GoalWithChildren[] }) {
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Target Date" aiTouched={form.isAiTouched("targetDate")}>
+        <Field label="Target date" aiTouched={form.isAiTouched("targetDate")}>
           <DateInput
             type="date"
             value={form.text("targetDate")}
@@ -90,13 +98,13 @@ export function NewGoalButton({ goals }: { goals: GoalWithChildren[] }) {
         </Field>
 
         {flatGoals.length > 0 && (
-          <Field label="Parent Goal">
+          <Field label="Part of">
             <select
               value={form.text("parentGoalId")}
               onChange={(e) => form.setValue("parentGoalId", e.target.value)}
               className="ui-input"
             >
-              <option value="">— None —</option>
+              <option value="">Nothing — a goal of its own</option>
               {flatGoals.map((g) => (
                 <option key={g.id} value={g.id}>
                   {"  ".repeat(g.depth)}

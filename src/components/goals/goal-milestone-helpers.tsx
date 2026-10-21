@@ -41,8 +41,8 @@ export function AddMilestoneInline({
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="ui-btn-add-success mt-1">
-        <Plus className="h-3 w-3" /> Add milestone
+      <button onClick={() => setOpen(true)} className="ui-life-add">
+        <Plus className="h-4 w-4" /> Add a milestone
       </button>
     );
   }
@@ -61,9 +61,10 @@ export function AddMilestoneInline({
               setError(null);
             }
           }}
-          placeholder="Milestone title…"
+          placeholder="The next thing that has to be true"
           autoFocus
-          className="flex-1 ui-input-tight"
+          aria-label="Milestone"
+          className="ui-input flex-1"
         />
         <button
           onClick={save}
@@ -162,8 +163,8 @@ export function MilestoneRow({
   };
 
   return (
-    <div className="text-xs md:text-sm group">
-      <div className="flex items-center gap-2">
+    <div className="group">
+      <div className="ui-milestone-row">
         <button
           onClick={toggle}
           disabled={toggling}
@@ -172,9 +173,9 @@ export function MilestoneRow({
           {toggling ? (
             <Loader2 className="ui-spinner-sm text-text-muted" />
           ) : milestone.done ? (
-            <CheckCircle className="h-4 w-4 text-status-positive/70 hover:text-status-positive transition-colors" />
+            <CheckCircle className="h-5 w-5 text-status-positive" />
           ) : (
-            <div className="h-4 w-4 rounded-full border border-border-strong hover:border-border-interactive transition-colors" />
+            <div className="h-5 w-5 rounded-full border-2 border-border-strong hover:border-border-interactive transition-colors" />
           )}
         </button>
         {editing ? (
@@ -191,7 +192,7 @@ export function MilestoneRow({
                 }
               }}
               autoFocus
-              className="flex-1 ui-input-tight text-xs"
+              className="ui-input flex-1"
             />
             {savingEdit && <Loader2 className="ui-spinner-xs shrink-0 text-text-muted" />}
           </div>
@@ -199,7 +200,7 @@ export function MilestoneRow({
           <>
             <span
               onClick={() => setEditing(true)}
-              className={`flex-1 cursor-text ${milestone.done ? "text-text-tertiary line-through" : "text-text-secondary"}`}
+              className={`min-w-0 flex-1 cursor-text ${milestone.done ? "text-text-tertiary line-through" : "text-text-primary"}`}
               title="Click to rename"
             >
               {milestone.title}
@@ -208,12 +209,12 @@ export function MilestoneRow({
               onDelete={deleteMilestone}
               label="Remove?"
               triggerTitle="Remove milestone"
-              triggerClassName="ui-hover-reveal ui-icon-btn transition-all shrink-0 p-1 rounded hover:text-status-negative text-text-muted"
+              triggerClassName="ui-btn-icon shrink-0 text-text-muted hover:text-status-negative"
             />
           </>
         )}
       </div>
-      {error && <p className="ui-error-xs mt-0.5 ml-12">{error}</p>}
+      {error && <p className="ui-error-xs ml-12">{error}</p>}
     </div>
   );
 }
