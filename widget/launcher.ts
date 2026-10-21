@@ -119,8 +119,6 @@ export function createLauncher(opts: {
   function setOwnerStatus(status: OwnerStatus | null) {
     const wasOwner = owner;
     owner = status !== null;
-    const previousLabel = fabLabel.textContent;
-    const previousBadge = badge.textContent;
     fab.classList.toggle("owner", status !== null);
     fab.classList.toggle("watching", !!status?.watching);
     fab.classList.toggle("paused", status !== null && !status.watching);
@@ -137,11 +135,11 @@ export function createLauncher(opts: {
         ? `Open Loki${status.watching ? " — watching" : ""}${unread ? `, ${unread} new` : ""}`
         : "Give feedback",
     );
-    // Measure after the label, badge and owner styles have changed, including
-    // a watch/pause transition that changes width without changing ownership.
-    if (owner !== wasOwner || previousLabel !== label || previousBadge !== badge.textContent) {
-      reposition();
-    }
+    // Re-measure only when the launcher changes KIND (visitor ↔ owner pill).
+    // Watching/Paused flips and unread-count ticks used to re-run the whole
+    // avoid pass, and each pass could move it — "it jumps around" (G,
+    // 2026-10-22). A label or badge change keeps the spot it already has.
+    if (owner !== wasOwner) reposition();
   }
 
   function say(text: string) {
@@ -267,22 +265,13 @@ export function createLauncher(opts: {
   fab.addEventListener("touchmove", cancelPress, { passive: true });
   fab.addEventListener("touchcancel", cancelPress);
 
-  // Scroll-fade companion to the narrow-viewport CSS above: the class is
-  // toggled on every viewport, but only the ≤480px media query styles it.
-  let scrollSettle = 0;
-  // Captured on the document, not the window: a bottom sheet or chat log
-  // scrolls on its own and never fires a window scroll, yet it moves what sits
-  // under the launcher just the same.
+  // Scrolling only tucks away a remark preview. The launcher itself stays
+  // exactly where it is: re-placing it whenever scrolling settled made it
+  // climb, switch sides or turn into the tab mid-read (G, 2026-10-22).
   document.addEventListener(
     "scroll",
     () => {
       bubble.style.display = "none";
-      fab.classList.add("scrolling");
-      clearTimeout(scrollSettle);
-      scrollSettle = window.setTimeout(() => {
-        fab.classList.remove("scrolling");
-        reposition();
-      }, 350);
     },
     { passive: true, capture: true },
   );
@@ -368,6 +357,9 @@ export function createLauncher(opts: {
     // A previous region may have hidden the button; restore visibility before
     // measuring.
     show(true);
+    // A position the person chose is theirs: heuristics never move it. If it
+    // covers something, that was their call.
+    const chosen = opts.getVisitorOverride() !== null;
     const base: Slot = {
       corner: side ? withSide(p.corner, side) : p.corner,
       offsetX: p.offsetX,
@@ -375,7 +367,7 @@ export function createLauncher(opts: {
     };
     place(base);
     current = base;
-    if (!p.autoAvoid) {
+    if (!p.autoAvoid || chosen) {
       show(true);
       return;
     }
@@ -462,26 +454,28 @@ export function createLauncher(opts: {
   window.setInterval(() => {
     if (location.href === lastHref) return;
     lastHref = location.href;
+    lastDirective = readPlaceDirective();
     window.setTimeout(reposition, 300);
     window.setTimeout(reposition, 1500);
   }, 1000);
 
-  // Bottom sheets open, composers mount, cookie bars arrive — none of which
-  // resizes or navigates. Watch the host DOM, throttled to one pass a second:
-  // an animated page mutates constantly and must not keep us measuring.
-  // Mutations inside our own shadow root are invisible to this observer, so
-  // repositioning never feeds itself.
-  const MUTATION_MIN_INTERVAL = 1000;
-  let lastMutationRun = 0;
-  let mutationTimer = 0;
+  // The avoid pass runs on load, resize and route change ONLY. It used to
+  // re-run on every DOM mutation (≤1/s) and every scroll settle, and each run
+  // could move the launcher — the "jumping" (G, 2026-10-22). What still
+  // reacts to the DOM is the host's explicit contract: a region that says
+  // data-fc-place="hidden" / "tab" / "left" / "right" appearing or going away.
+  // That is the host's decision, not a measurement, so it is honoured live.
+  let lastDirective = readPlaceDirective();
+  let directiveTimer = 0;
   new MutationObserver(() => {
-    if (mutationTimer) return;
-    const wait = Math.max(200, MUTATION_MIN_INTERVAL - (Date.now() - lastMutationRun));
-    mutationTimer = window.setTimeout(() => {
-      mutationTimer = 0;
-      lastMutationRun = Date.now();
+    if (directiveTimer) return;
+    directiveTimer = window.setTimeout(() => {
+      directiveTimer = 0;
+      const now = readPlaceDirective();
+      if (now === lastDirective) return;
+      lastDirective = now;
       reposition();
-    }, wait);
+    }, 200);
   }).observe(document.documentElement, {
     subtree: true,
     childList: true,

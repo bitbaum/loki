@@ -365,9 +365,13 @@ async function main() {
     }
 
     // 8. A sheet mounted AFTER load (no resize, no navigation): the launcher
-    //    must move off it on the mutation alone.
+    //    does NOT jump on the mutation (G, 2026-10-22: "it jumps around") —
+    //    it re-checks on the next route change, which is when a new screen
+    //    actually arrives in an SPA.
     {
       const { p, close } = await open(browser, page(filler), 390, 844, js);
+      await p.waitForTimeout(1500); // past the 2.5s load re-check
+      const before = await fab(p);
       await p.evaluate(() => {
         const s = document.createElement("section");
         s.id = "late";
@@ -377,10 +381,44 @@ async function main() {
         document.body.append(s);
       });
       await settle(p);
+      const still = await fab(p);
+      ok(
+        !!before && !!still && before.top === still.top && before.left === still.left,
+        "late-mounted sheet: launcher stays put (no mutation-driven jump)",
+      );
+      await p.evaluate(() => history.pushState(null, "", "/next"));
+      await p.waitForTimeout(2800);
       const f = await fab(p);
       ok(
         !!f && f.visible && !overlap(f, await box(p, "#late")),
-        "late-mounted sheet: launcher moves off it",
+        "late-mounted sheet: launcher moves off it on the next route change",
+      );
+      await close();
+    }
+
+    // 8b. Scrolling never moves or fades the launcher.
+    {
+      const html = page(
+        `${filler}${filler}<button id="mid" style="position:absolute;right:0;top:1400px;width:200px;height:200px">mid</button>`,
+      );
+      const { p, close } = await open(browser, html, 390, 844, js);
+      const before = await fab(p);
+      for (const y of [400, 900, 1300]) {
+        await p.evaluate((yy) => window.scrollTo(0, yy), y);
+        await p.waitForTimeout(150);
+        const op = await p.evaluate(() => {
+          const el = document
+            .getElementById("loki-feedback-host")
+            ?.shadowRoot?.querySelector(".fab");
+          return el ? Number(getComputedStyle(el).opacity) : 0;
+        });
+        ok(op === 1, `scroll ${y}: launcher fully opaque`);
+      }
+      await settle(p);
+      const after = await fab(p);
+      ok(
+        !!before && !!after && before.top === after.top && before.left === after.left,
+        "scroll: launcher did not move",
       );
       await close();
     }
