@@ -39,6 +39,7 @@ test)
   U="$(unit_user)"; H="$(unit_home)"; EF="$(unit_envfile)"
   [ -n "$U" ] && [ -d "$H" ] || { echo "✗ no user/home for $UNIT"; exit 1; }
   RT=""; grep -qx runsc "$STATE" 2>/dev/null && RT="--runtime runsc"
+  case "$NNP" in *norunsc) RT=""; NNP="${NNP%-norunsc}" ;; esac
   mkdir -p "$H/.run"; chown "$U:$U" "$H/.run"; chmod 700 "$H/.run"
   proj="$H/.sealed-test"; rm -rf "$proj"; mkdir -p "$proj"; echo "# sealed test" > "$proj/README.md"; chown -R "$U:$U" "$proj"
   keyarg=()
