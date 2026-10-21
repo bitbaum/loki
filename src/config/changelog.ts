@@ -29,6 +29,18 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.51",
+    tag: "fleet-runner-v0.8.51",
+    date: "2026-10-21T17:00:00Z",
+    highlights: [
+      "A terminal watching an agent no longer types its own replies to the agent's terminal questions into the agent's input, which kept Antigravity from ever receiving its task.",
+      "A run only shows as working once the agent has visibly started on the prompt; otherwise it fails with the reason and moves to the next AI provider.",
+      "Every cloud run starts on its own fresh branch off the main branch, instead of whatever branch the last run left behind.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.50",
     tag: "fleet-runner-v0.8.50",
     date: "2026-10-20T10:00:00Z",
