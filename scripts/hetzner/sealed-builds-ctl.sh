@@ -74,6 +74,16 @@ stop-sealed)
     systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman stop -t 10 "$c" 2>&1 | grep -v level= | tail -1
   done
   journalctl -t loki-drain --since -30min --no-pager -o short-iso 2>/dev/null | tail -5 ;;
+launch-check)
+  # The real launch path, as the unit runs it: its user, env file, drop-in env.
+  U="$(unit_user)"; EF="$(unit_envfile)"
+  envp=(); for kv in $(systemctl show -p Environment --value "$UNIT.service"); do envp+=(-p "Environment=$kv"); done
+  [ -n "$EF" ] && envp+=(-p "EnvironmentFile=$EF")
+  install -m 644 /tmp/sealed-launch-check.ts /opt/loki/runner/scripts/hetzner/sealed-launch-check.ts
+  systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=no -p WorkingDirectory=/opt/loki/runner "${envp[@]}" \
+    /opt/loki/runner/node_modules/.bin/tsx scripts/hetzner/sealed-launch-check.ts ${RUNS:-gemini grok cursor} 2>&1 \
+    | grep -v level= | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
+  rc=${PIPESTATUS[0]}; echo "exit: $rc"; exit "$rc" ;;
 containers)
   U="$(unit_user)"; H="$(unit_home)"
   systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman ps -a --format '  {{.Names}} {{.Status}} {{.Created}}' 2>&1 | grep -v level= ;;
