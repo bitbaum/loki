@@ -88,14 +88,17 @@ clean-dead)
   # Remove Exited sealed containers the runtime could not delete (leaked gVisor
   # overlay mount). Root unmounts the leftover merged dir, then podman forgets it.
   U="$(unit_user)"; H="$(unit_home)"
-  asu() { systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" "$@" 2>&1 | grep -v level=; }
-  for c in $(asu podman ps -a --filter status=exited --format '{{.Names}}' | grep '^fc-ws-'); do
+  asu() { systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" "$@" 2>&1 | grep -v -e level= -e '^WARN' ; return 0; }
+  echo "before:"; asu podman ps -a --format '  {{.Names}} {{.Status}}'
+  for c in $(asu podman ps -a --format '{{.Names}} {{.Status}}' | awk '$1 ~ /^fc-ws-/ && $2 == "Exited" {print $1}'); do
     echo "dead: $c"
-    asu podman rm -f "$c" | tail -1 && continue
+    asu podman rm -f "$c" | tail -2
+    asu podman container exists "$c"; asu podman ps -a --format '{{.Names}}' | grep -qx "$c" || { echo "  removed"; continue; }
     for m in $(awk '{print $2}' /proc/mounts | grep "$H/.local/share/containers/storage/overlay/.*/merged"); do umount -l "$m" 2>/dev/null && echo "  unmounted $m"; done
-    asu podman rm -f "$c" | tail -1 || asu podman rm --storage "$c" | tail -1
+    asu podman rm -f "$c" | tail -2
+    asu podman ps -a --format '{{.Names}}' | grep -qx "$c" && { echo "  still there; forgetting its storage"; asu podman rm --storage "$c" | tail -2; }
   done
-  asu podman ps -a --format '  {{.Names}} {{.Status}}' ;;
+  echo "after:"; asu podman ps -a --format '  {{.Names}} {{.Status}}' ;;
 containers)
   U="$(unit_user)"; H="$(unit_home)"
   systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman ps -a --format '  {{.Names}} {{.Status}} {{.Created}}' 2>&1 | grep -v level= ;;
