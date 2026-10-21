@@ -153,9 +153,13 @@ for (const [label, vp] of [
     }
     await page.waitForTimeout(2500);
     const name = route.replace(/\W+/g, "_").replace(/^_/, "") || "root";
-    await page.screenshot({ path: `${OUT}/${label}-${name}.png` });
+    await page
+      .screenshot({ path: `${OUT}/${label}-${name}.png` })
+      .catch((e) => errs.push("screenshot: " + e.message.slice(0, 80)));
     if (label === "phone")
-      await page.screenshot({ path: `${OUT}/${label}-${name}-full.png`, fullPage: true });
+      await page
+        .screenshot({ path: `${OUT}/${label}-${name}-full.png`, fullPage: true })
+        .catch(() => undefined);
     const m = await measure(page);
     report[`${label} ${route}`] = {
       finalUrl: page.url().replace(BASE, ""),
