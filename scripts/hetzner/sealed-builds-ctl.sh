@@ -49,7 +49,8 @@ diag)
   journalctl -u "$UNIT" --since "-4h" --no-pager -o short-iso 2>/dev/null | grep -Ei "$pat|gemini|antigravity|sandbox|podman|never accepted" \
     | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | cut -c1-400 | tail -120
   echo "--- PTY repro ---"
-  RT=""; [ -f /etc/loki/sealed-builds.on ] && grep -qx runsc "$STATE" 2>/dev/null && RT="--runtime runsc --runtime-flag ignore-cgroups"
+  # As the unit runs it: the drop-in's OCI runtime, not the installer's reading.
+  RT=""; systemctl show -p Environment --value "$UNIT.service" | grep -q 'LOKI_SANDBOX_OCI_RUNTIME=runsc' && RT="--runtime runsc --runtime-flag ignore-cgroups"
   proj="$H/.sealed-test"; mkdir -p "$proj"; echo "# sealed test" > "$proj/README.md"; chown -R "$U:$U" "$proj"; mkdir -p "$H/.run"; chown "$U:$U" "$H/.run"
   ensure_image "$U" "$H"
   chmod 755 /tmp/sealed-pty-probe.py
@@ -63,6 +64,23 @@ diag)
         --env TERM=xterm-256color --env "HOME=$H" --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" --env GEMINI_API_KEY \
         loki-agent:latest gemini --skip-trust --yolo 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
   done ;;
+stop-sealed)
+  # Stop the unit's sealed agent containers (fc-ws-*) so a waiting restart can
+  # proceed. Only for a stuck session; the runner sees the PTY exit and closes
+  # the run as Failed with the cause (and salvages its work into a draft PR).
+  U="$(unit_user)"; H="$(unit_home)"
+  for c in $(systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman ps --format '{{.Names}}' 2>/dev/null | grep '^fc-ws-'); do
+    echo "stopping $c"
+    systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman stop -t 10 "$c" 2>&1 | grep -v level= | tail -1
+  done
+  journalctl -t loki-drain --since -30min --no-pager -o short-iso 2>/dev/null | tail -5 ;;
+containers)
+  U="$(unit_user)"; H="$(unit_home)"
+  systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman ps -a --format '  {{.Names}} {{.Status}} {{.Created}}' 2>&1 | grep -v level= ;;
+journal)
+  pat="$(echo "${RUNS:-x}" | tr ' ' '|')"
+  { journalctl -u "$UNIT" --since "-1h" --no-pager -o short-iso; journalctl -t loki-drain --since "-1h" --no-pager -o short-iso; } 2>/dev/null | sort | grep -Ei "$pat" \
+    | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | cut -c1-400 | tail -${JTAIL:-600} || true ;;
 worktree)
   # Read-only: branch, status and diff of the run worktrees named in RUNS.
   H="$(unit_home)"
