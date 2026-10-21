@@ -12,6 +12,12 @@ on:
         default: cursor
         type: choice
         options: [cursor, grok]
+      mode:
+        description: "login (start, print URL, exit) or status"
+        required: true
+        default: login
+        type: choice
+        options: [login, status]
 
 concurrency:
   group: builder-agent-login
@@ -20,7 +26,7 @@ concurrency:
 jobs:
   login:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 3
     env:
       HETZNER_IP: ${{ vars.HETZNER_IP }}
     steps:
@@ -36,4 +42,5 @@ jobs:
       - name: Login
         env:
           AGENT: ${{ inputs.agent }}
-        run: ssh "root@$HETZNER_IP" bash -s -- "$AGENT" 900 < scripts/hetzner/builder-agent-login.sh
+          MODE: ${{ inputs.mode }}
+        run: ssh "root@$HETZNER_IP" bash -s -- "$AGENT" "$MODE" < scripts/hetzner/builder-agent-login.sh
