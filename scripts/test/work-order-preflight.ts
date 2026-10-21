@@ -1,12 +1,13 @@
-// Pure unit test: automatically discovered by scripts/test-unit.ts.
+// Automatically discovered by scripts/test-unit.ts; needs no DB or network.
 // Run: npx tsx scripts/test/work-order-preflight.ts
 import assert from "node:assert/strict";
 import {
   PREFLIGHT_BLOCKER as B,
   ROBOT_READINESS_MAX_AGE_MS,
   reviewDispatchPrerequisites,
-  type WorkOrder,
   type DispatchEvidence,
+  type PreflightBlocker,
+  type WorkOrder,
 } from "@/lib/work-orders/preflight";
 
 const base: WorkOrder = {
@@ -22,110 +23,54 @@ const base: WorkOrder = {
 const nowMs = 20_000;
 const owner = { orderId: base.id, revision: 1, actorId: "operator-1" };
 const evidence: DispatchEvidence = { nowMs, ownerApproval: owner };
-const review = (order: WorkOrder, context: DispatchEvidence = evidence) =>
-  reviewDispatchPrerequisites(order, context);
 
-assert.deepEqual(
-  review(base, { nowMs }).blockers,
-  [B.OWNER_APPROVAL],
-  "no owner's approval means no agent dispatch",
-);
-assert.deepEqual(review(base).blockers, [], "approved free agent work has no extra requirements");
-assert.equal(review(base).prerequisitesMet, true);
-assert.deepEqual(
-  review({ ...base, revision: 2 }).blockers,
-  [B.OWNER_APPROVAL],
-  "editing scope invalidates the approval",
-);
-assert.deepEqual(
-  review(base, { ...evidence, ownerApproval: { ...owner, orderId: "another" } }).blockers,
-  [B.OWNER_APPROVAL],
-  "an approval for another project cannot cross over",
-);
-assert.deepEqual(
-  review({ ...base, acceptanceCriteria: [] }).blockers,
-  [B.INVALID_ORDER],
-  "a work order without measurable acceptance criteria is invalid",
-);
-assert.deepEqual(
-  review({ ...base, provider: { kind: "agent", agentId: "" } }).blockers,
-  [B.INVALID_ORDER],
-);
-assert.deepEqual(
-  review(base, { ...evidence, nowMs: NaN }).blockers,
-  [B.INVALID_ORDER],
-  "an invalid server clock must fail closed",
-);
+function expect(order: WorkOrder, blockers: PreflightBlocker[], diff: Partial<DispatchEvidence> = {}) {
+  const result = reviewDispatchPrerequisites(order, { ...evidence, ...diff });
+  assert.deepEqual(result.blockers, blockers);
+  assert.equal(result.prerequisitesMet, blockers.length === 0);
+}
 
-const paid: WorkOrder = {
-  ...base,
-  price: { amountMinor: "2500", currency: "CHF" },
-};
-assert.deepEqual(review(paid).blockers, [B.SPEND_APPROVAL]);
-assert.deepEqual(
-  review(paid, {
-    ...evidence,
-    spendApproval: { ...owner, amountMinor: "2501", currency: "CHF" },
-  }).blockers,
-  [B.SPEND_APPROVAL],
-  "approval for a different quote is not good enough",
-);
-assert.equal(
-  review(paid, {
-    ...evidence,
-    spendApproval: { ...owner, amountMinor: "2500", currency: "CHF" },
-  }).prerequisitesMet,
-  true,
-);
-assert.deepEqual(
-  review({ ...paid, price: { amountMinor: "25.00", currency: "CHF" } }).blockers,
-  [B.INVALID_ORDER],
-  "money never enters as a float or a major-unit decimal",
-);
-assert.equal(
-  review({ ...base, price: { amountMinor: "0", currency: "BTC" } }).prerequisitesMet,
-  true,
-  "no spending permission is required for a truly zero-price order",
-);
+// Nobody may execute just because an agent proposed the task.
+expect(base, [B.OWNER_APPROVAL], { ownerApproval: null });
+expect(base, []);
+expect({ ...base, revision: 2 }, [B.OWNER_APPROVAL]);
+expect(base, [B.OWNER_APPROVAL], { ownerApproval: { ...owner, orderId: "other" } });
+expect({ ...base, acceptanceCriteria: [] }, [B.INVALID_ORDER]);
+expect({ ...base, provider: { kind: "agent", agentId: "" } }, [B.INVALID_ORDER]);
+expect(base, [B.INVALID_ORDER], { nowMs: NaN });
 
+// A spend authorization must match the exact canonical amount and currency.
+const paid: WorkOrder = { ...base, price: { amountMinor: "2500", currency: "CHF" } };
+const spend = { ...owner, amountMinor: "2500", currency: "CHF" };
+expect(paid, [B.SPEND_APPROVAL]);
+expect(paid, [B.SPEND_APPROVAL], { spendApproval: { ...spend, amountMinor: "2501" } });
+expect(paid, [B.SPEND_APPROVAL], { spendApproval: { ...spend, currency: "BTC" } });
+expect(paid, [], { spendApproval: spend });
+expect({ ...paid, revision: 2 }, [B.OWNER_APPROVAL, B.SPEND_APPROVAL]);
+expect({ ...paid, price: { ...paid.price!, amountMinor: "25.00" } }, [B.INVALID_ORDER]);
+expect({ ...base, price: { amountMinor: "0", currency: "BTC" } }, []);
+
+// An offered assignment is not a person's consent to perform the work.
 const human: WorkOrder = {
   ...base,
   capability: "repair.inspect_laptop",
   provider: { kind: "human", assignmentId: "crew-task-1" },
 };
-assert.deepEqual(
-  review(human).blockers,
-  [B.PROVIDER_ACCEPTANCE],
-  "asking a person is not their consent to perform the work",
-);
-assert.deepEqual(
-  review(human, {
-    ...evidence,
-    providerAcceptance: { orderId: base.id, revision: 1, providerRef: "crew-task-2" },
-  }).blockers,
-  [B.PROVIDER_ACCEPTANCE],
-);
-assert.equal(
-  review(human, {
-    ...evidence,
-    providerAcceptance: { orderId: base.id, revision: 1, providerRef: "crew-task-1" },
-  }).prerequisitesMet,
-  true,
-);
+const personAccepted = { orderId: base.id, revision: 1, providerRef: "crew-task-1" };
+expect(human, [B.PROVIDER_ACCEPTANCE]);
+expect(human, [B.PROVIDER_ACCEPTANCE], {
+  providerAcceptance: { ...personAccepted, providerRef: "somebody-else" },
+});
+expect(human, [], { providerAcceptance: personAccepted });
 
-const service: WorkOrder = {
-  ...base,
-  provider: { kind: "service", offerId: "offer-1" },
-};
-assert.deepEqual(review(service).blockers, [B.PROVIDER_ACCEPTANCE]);
-assert.equal(
-  review(service, {
-    ...evidence,
-    providerAcceptance: { orderId: base.id, revision: 1, providerRef: "offer-1" },
-  }).prerequisitesMet,
-  true,
-);
+// An external workshop must accept a specific offer too.
+const service: WorkOrder = { ...base, provider: { kind: "service", offerId: "offer-1" } };
+expect(service, [B.PROVIDER_ACCEPTANCE]);
+expect(service, [], {
+  providerAcceptance: { ...personAccepted, providerRef: "offer-1" },
+});
 
+// Hardware reports are scoped to a device, a gateway, a capability and a time.
 const robot: WorkOrder = {
   ...base,
   capability: "vacuum.clean_zone",
@@ -140,49 +85,33 @@ const ready = {
   checkedAtMs: nowMs,
   ready: true,
 };
-assert.deepEqual(review(robot).blockers, [B.ROBOT_READINESS]);
-assert.equal(review(robot, { ...evidence, robotReadiness: ready }).prerequisitesMet, true);
-assert.deepEqual(
-  review(robot, {
-    ...evidence,
-    robotReadiness: { ...ready, robotId: "somebody-elses-robot" },
-  }).blockers,
-  [B.ROBOT_READINESS],
-);
-assert.deepEqual(
-  review(robot, { ...evidence, robotReadiness: { ...ready, ready: false } }).blockers,
-  [B.ROBOT_READINESS],
-);
-assert.deepEqual(
-  review(robot, { ...evidence, robotReadiness: { ...ready, checkedAtMs: nowMs + 1 } }).blockers,
-  [B.ROBOT_READINESS],
-  "future-dated telemetry is not current safety evidence",
-);
-assert.deepEqual(
-  review(robot, {
-    ...evidence,
-    nowMs: nowMs + ROBOT_READINESS_MAX_AGE_MS + 1,
-    robotReadiness: ready,
-  }).blockers,
-  [B.ROBOT_READINESS],
-  "a stale ready flag must not authorize physical action",
-);
-assert.deepEqual(
-  review(robot, {
-    ...evidence,
-    ownerApproval: null,
-    robotReadiness: ready,
-  }).blockers,
-  [B.OWNER_APPROVAL],
-  "device readiness never replaces the owner's permission",
-);
-assert.deepEqual(
-  review(
-    { ...robot, revision: 2, price: { amountMinor: "1", currency: "BTC" } },
-    { ...evidence, robotReadiness: ready },
-  ).blockers,
+expect(robot, [B.ROBOT_READINESS]);
+expect(robot, [], { robotReadiness: ready });
+expect(robot, [B.ROBOT_READINESS], {
+  robotReadiness: { ...ready, robotId: "wrong-robot" },
+});
+expect(robot, [B.ROBOT_READINESS], {
+  robotReadiness: { ...ready, gatewayId: "wrong-gateway" },
+});
+expect(robot, [B.ROBOT_READINESS], {
+  robotReadiness: { ...ready, capability: "robot.other_capability" },
+});
+expect(robot, [B.ROBOT_READINESS], { robotReadiness: { ...ready, ready: false } });
+expect(robot, [B.ROBOT_READINESS], {
+  robotReadiness: { ...ready, checkedAtMs: nowMs + 1 },
+});
+expect(robot, [B.ROBOT_READINESS], {
+  nowMs: nowMs + ROBOT_READINESS_MAX_AGE_MS + 1,
+  robotReadiness: ready,
+});
+expect(robot, [B.OWNER_APPROVAL], {
+  ownerApproval: null,
+  robotReadiness: ready,
+});
+expect(
+  { ...robot, revision: 2, price: { amountMinor: "1", currency: "BTC" } },
   [B.OWNER_APPROVAL, B.SPEND_APPROVAL, B.ROBOT_READINESS],
-  "revision changes invalidate every independent credential",
+  { robotReadiness: ready },
 );
 
 console.log("✓ work-order preflight — consent, scope, money and robot freshness");
