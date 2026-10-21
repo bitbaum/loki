@@ -142,6 +142,7 @@ export function Thread({
                         .find((p) => p.role === "user")?.content ?? null)
                     : null
                 }
+                onReply={!live && !sending && m.id === lastAssistant?.id ? onFollowUp : undefined}
                 onPickProject={onPickProject}
                 onContinue={onContinue}
                 onAnswerAnyway={onAnswerAnyway}

@@ -25,10 +25,8 @@ import {
   linksForReply,
   renderConciergeFacts,
   splitSpeakers,
-  stripEmphasis,
-  stripMeta,
-  trimToLastSentence,
 } from "@/lib/widget-chat/concierge";
+import { formatConciergeAnswer, visualAnswerInstruction } from "@/lib/widget-chat/answer-format";
 import { isWidgetOriginAllowed } from "@/lib/widget/origin";
 
 /**
@@ -73,6 +71,7 @@ const RATE_PER_IP = 20;
 const RATE_PER_TOKEN = 300;
 
 const ChatBody = z.object({
+  visualAnswers: z.boolean().optional(),
   token: z.string().startsWith("fcw_").max(100),
   message: z.string().trim().min(1).max(WIDGET_CHAT_MAX_MESSAGE),
   history: z
@@ -191,10 +190,11 @@ export async function POST(req: NextRequest) {
   try {
     const answered = await callTextDetailed(conciergePrompt(data.history ?? [], data.message), {
       feature: "widget-chat",
-      systemPrompt: conciergeSystemPrompt(renderConciergeFacts(map, await studioContract()), {
-        url: data.url,
-        title: data.pageTitle,
-      }),
+      systemPrompt:
+        conciergeSystemPrompt(renderConciergeFacts(map, await studioContract()), {
+          url: data.url,
+          title: data.pageTitle,
+        }) + visualAnswerInstruction(data.visualAnswers === true),
       // Reasoning models spend hidden tokens from this budget before the first
       // visible word; 700 cut real answers mid-sentence in production.
       maxTokens: 1600,
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
       timeoutMs: HTTP_TIMEOUT_LONG_MS,
     });
     recordVisitorSpend(answered.tokens);
-    const reply = trimToLastSentence(stripEmphasis(stripMeta(stripReasoning(answered.text))));
+    const reply = formatConciergeAnswer(stripReasoning(answered.text), data.visualAnswers === true);
     if (!reply) throw new Error("empty answer");
     return NextResponse.json(
       {

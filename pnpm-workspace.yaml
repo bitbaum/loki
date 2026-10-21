@@ -66,6 +66,7 @@ minimumReleaseAgeExclude:
   - "@bitbaum/mail-kit"
   - "bip-kit"
   - "limitkit"
+  - "@bitbaum/chatkit"
 
 # braces GHSA-vfj7-8cjw-p6xm has NO patched release (<=3.0.3 = every version).
 # Reached only via shadcn's CLI (fast-glob > micromatch) at dev time, never at
