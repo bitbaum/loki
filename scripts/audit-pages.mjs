@@ -8,6 +8,14 @@
  *     AUDIT_EMAIL / AUDIT_PASSWORD          (default: the public demo)
  *     THEME=light|dark                      (default: light — the owner's)
  *
+ * The demo has three tidy projects, so long lists, failures and stale alerts
+ * never show on it. To see the pages the way the owner does, seed the local
+ * showcase account (`pnpm run seed:showcase`, local databases only) and pass
+ * its pair:
+ *
+ *   AUDIT_EMAIL=owner@loki.local AUDIT_PASSWORD=showcase-owner \
+ *     BASE=http://localhost:3000 node scripts/audit-pages.mjs .tmp/audit
+ *
  * Writes phone-<page>.png (first screen), phone-<page>-full.png, desk-<page>.png
  * and report.json: overflow, <h1> count, sticky/fixed blocks, text cut off,
  * small tap targets, console errors and failed requests per page.

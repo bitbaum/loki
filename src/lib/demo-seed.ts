@@ -84,8 +84,12 @@ function ident(name: string): string {
 /**
  * Delete every row owned by `userId`, then the user. Returns rows removed per
  * table, so the cron can log what it actually did rather than "ok".
+ *
+ * Exported for scripts/seed-showcase.ts, the only other caller. The rule in
+ * the header binds it too: pass only an id resolved from a FIXED email inside
+ * the calling module, never one handed in from outside.
  */
-async function wipeUserRows(userId: string): Promise<Record<string, number>> {
+export async function wipeUserRows(userId: string): Promise<Record<string, number>> {
   const refs = await userChildRefs();
   const removed: Record<string, number> = {};
 
@@ -116,7 +120,7 @@ async function wipeUserRows(userId: string): Promise<Record<string, number>> {
 
   if (remaining.length > 0) {
     throw new Error(
-      `demo wipe could not clear: ${remaining.map((r) => `${r.table}.${r.column}`).join(", ")}`,
+      `user wipe could not clear: ${remaining.map((r) => `${r.table}.${r.column}`).join(", ")}`,
     );
   }
 
