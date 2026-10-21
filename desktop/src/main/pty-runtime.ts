@@ -21,6 +21,8 @@ import { ensureGrokWorkspaceTrusted } from "./grok-prep";
 import { fetchWorkspaceSource, repoTokenEnv } from "./workspace-source";
 import { looksLikeAgentCapacityIssue } from "@/lib/agent-resolution";
 import { EXIT_SETTLE_MS, forgetTab, rememberTab } from "./tab-memory";
+import { stripReportResidue, stripTerminalReports } from "@/lib/terminal-reports";
+import { promptAcceptedEvidence, WORKING_MARKERS } from "@/lib/prompt-evidence";
 
 const agentByTab = new Map<string, AgentOption>();
 /** The directory each tab's agent was actually launched in (after box
@@ -74,6 +76,8 @@ export async function launchAgentPty(
   sessionId?: string,
   /** Continue the newest Claude conversation in the folder (Resume). */
   resumeLatest = false,
+  /** A new run: start the box checkout on a fresh branch off the default. */
+  opts: { runId?: string } = {},
 ): Promise<void> {
   // Refuse a CLI this builder does not have before opening a terminal for it:
   // otherwise the shell says "command not found" and the run reads as an agent
@@ -94,10 +98,16 @@ export async function launchAgentPty(
   let runEnv: Record<string, string> = {};
   if (process.env.LOKI_BOX_PREPARE === "true") {
     try {
-      const { ensureBoxWorkspace } = await import("@/lib/agent-execution/box-workspace");
+      const { ensureBoxWorkspace, startRunBranch } = await import(
+        "@/lib/agent-execution/box-workspace"
+      );
       const source = await fetchWorkspaceSource(tab);
       runEnv = repoTokenEnv(source);
       effectiveDir = await ensureBoxWorkspace(tab, dir, source);
+      if (opts.runId) {
+        const branch = startRunBranch(effectiveDir, opts.runId, source?.token ?? null);
+        if (branch) console.log(`[box-prepare] ${tab}: run ${opts.runId} starts on ${branch}`);
+      }
     } catch (e) {
       console.error(`[box-prepare] ${tab}: ${e instanceof Error ? e.message : String(e)}`);
       // Fall through with the requested dir; provision will surface the failure.
@@ -217,12 +227,16 @@ export function isPtyBusy(tab: string): boolean {
  * a run can be visibly working in Terminal at second seven and read idle at
  * second eight. Subscribe before injection and remember any later output.
  */
-export function waitForPtyOutput(tab: string, timeoutMs = 8000): Promise<boolean> {
+export function waitForPtyOutput(
+  tab: string,
+  timeoutMs = 8000,
+  opts: { agent?: AgentOption; prompt?: string } = {},
+): Promise<boolean> {
   return new Promise((resolve) => {
     const id = runnerWorkspaceId(tab);
     let replaying = true;
     let settled = false;
-    let bytes = 0;
+    let raw = "";
     let timer: ReturnType<typeof setTimeout>;
     const finish = (value: boolean) => {
       if (settled) return;
@@ -233,13 +247,48 @@ export function waitForPtyOutput(tab: string, timeoutMs = 8000): Promise<boolean
     };
     const unsub = executor.subscribe(id, 0, (event) => {
       if (replaying || event.kind !== "output" || !event.data) return;
-      bytes += event.data.length;
-      // A submitted prompt causes a redraw even before the first model token.
-      // Requiring more than a cursor-control byte filters terminal noise.
-      if (bytes >= 64) finish(true);
+      raw += event.data;
+      // Byte volume is not evidence: a composer redrawing `1;2c1;2c…` (viewer
+      // DA answers) or the echo of our own paste produces plenty of bytes
+      // while the prompt sits unsubmitted (Substrata on Antigravity,
+      // 2026-10-21: "Agent is working" for 14 minutes, nothing ran).
+      if (promptAcceptedEvidence(raw, opts.agent ?? null, opts.prompt ?? "")) finish(true);
     });
     replaying = false;
     timer = setTimeout(() => finish(false), timeoutMs);
+  });
+}
+
+/**
+ * Resolve when the agent's composer is on screen, so the paste lands in the
+ * input and not in a boot banner, trust dialog or terminal-capability probe.
+ * Agents without a known marker resolve at once (the caller already waited for
+ * first output).
+ */
+const COMPOSER_MARKERS: Partial<Record<AgentOption, RegExp>> = {
+  gemini: /type your message/i,
+};
+
+export function waitForAgentComposer(
+  tab: string,
+  agent: AgentOption,
+  maxWaitMs = 30000,
+): Promise<boolean> {
+  const marker = COMPOSER_MARKERS[agent];
+  if (!marker) return Promise.resolve(true);
+  const seen = () => marker.test(stripReportResidue((peekPtyBuffer(tab) ?? "").replace(ANSI_RE, "")));
+  if (seen()) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const tick = setInterval(() => {
+      if (seen()) {
+        clearInterval(tick);
+        resolve(true);
+      } else if (Date.now() - started > maxWaitMs) {
+        clearInterval(tick);
+        resolve(false);
+      }
+    }, 250);
   });
 }
 
@@ -255,6 +304,12 @@ export function explainPtyDispatchFailure(tab: string, agent: AgentOption): stri
     return `${agent} is not logged in on this computer. Open Terminal, run ${agent === "cursor" ? "cursor-agent login" : `${agent} login`}, then Retry.`;
   }
   const seen = screenExcerpt(peekPtyBuffer(tab) ?? "");
+  if (WORKING_MARKERS[agent]) {
+    return (
+      `${agentLabel(agent)} never accepted the prompt: Loki submitted it but the CLI never started working on it. Loki moves the run to the next AI provider; to keep ${agentLabel(agent)}, open Terminal to see its screen, then Retry.` +
+      (seen ? ` Its screen ended with: “${seen}”` : "")
+    );
+  }
   return (
     `${agent} opened on this computer, but produced no response after Loki submitted the prompt. Open Terminal to see the live CLI; if it is idle, choose another AI provider and Retry.` +
     (seen ? ` Its screen ended with: “${seen}”` : "")
@@ -276,6 +331,8 @@ export function screenExcerpt(raw: string, maxLines = 6, maxChars = 320): string
   const tail = lines.slice(-maxLines).join(" / ");
   return tail.length > maxChars ? `…${tail.slice(-maxChars)}` : tail;
 }
+
+const agentLabel = (agent: AgentOption) => (agent === "gemini" ? "Antigravity" : agent);
 
 const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]/g;
 const normalizeScreenText = (s: string) => s.replace(ANSI_RE, "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -341,7 +398,9 @@ export function detectPtyCapacityFailure(
  */
 export function writeRawKey(tab: string, bytes: string): void {
   if (!isPtyBacked(tab)) return;
-  executor.write(runnerWorkspaceId(tab), bytes);
+  // A viewer's answer to a terminal query is not a key (terminal-reports.ts).
+  const keys = stripTerminalReports(bytes);
+  if (keys) executor.write(runnerWorkspaceId(tab), keys);
 }
 
 /** Resize the agent's PTY (interactive terminal fit). No-ops without a live PTY. */
