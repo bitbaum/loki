@@ -25,6 +25,17 @@ ensure_image() { # <user> <home>
   rm -f "$t"
 }
 case "$MODE" in
+matrix)
+  command -v crun >/dev/null || apt-get install -y -qq crun >/dev/null 2>&1; echo "crun: $(crun --version 2>/dev/null | head -1 || echo absent)"
+  U="$(unit_user)"; H="$(unit_home)"; mkdir -p "$H/.run"; chown "$U:$U" "$H/.run"
+  ensure_image "$U" "$H"
+  for nnp in yes no; do for rt in runsc crun; do for cg in disabled enabled; do
+    extra=""; [ "$rt" = runsc ] && extra="--runtime-flag ignore-cgroups"
+    o="$(systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges=$nnp -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" \
+      podman run --rm --userns=keep-id --cgroups=$cg --runtime $rt $extra --network slirp4netns --security-opt no-new-privileges --cap-drop ALL \
+      --mount "type=bind,src=$H,dst=$H" loki-agent:latest bash -c 'echo OK uid=$(id -u) $(cat /opt/loki/app/.env >/dev/null 2>&1 && echo LEAK || echo sealed)' 2>&1 | grep -v level=warn | tail -1 | cut -c1-140)"
+    echo "nnp=$nnp rt=$rt cgroups=$cg -> $o"
+  done; done; done ;;
 read)
   echo "reading:  $(tr '\n' ' ' < "$STATE" 2>/dev/null || echo none)"
   echo "runsc:    $(command -v runsc >/dev/null && runsc --version 2>/dev/null | head -1 || echo absent)"
