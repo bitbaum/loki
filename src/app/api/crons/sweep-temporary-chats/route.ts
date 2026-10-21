@@ -9,6 +9,7 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { logDebug } from "@/db/queries/debug-logs";
 import { deleteStaleEphemeralConversations } from "@/db/queries/conversations";
 import { TEMPORARY_CHAT_MAX_AGE_MS } from "@/lib/loki/temporary-chat";
 
@@ -18,5 +19,13 @@ export async function GET(req: NextRequest) {
   const deleted = await deleteStaleEphemeralConversations(
     new Date(Date.now() - TEMPORARY_CHAT_MAX_AGE_MS),
   );
+  // Written down, not only returned: the journal holds about a day, and a
+  // sweep that keeps finding chats to delete is the client's delete failing.
+  await logDebug({
+    source: "crons/sweep-temporary-chats",
+    level: deleted > 0 ? "warn" : "info",
+    message: `Swept ${deleted} temporary chat(s) older than a day`,
+    meta: { deleted },
+  });
   return NextResponse.json({ ok: true, deleted });
 }
