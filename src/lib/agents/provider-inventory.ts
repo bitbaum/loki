@@ -213,7 +213,8 @@ function run(
   timeoutMs: number,
 ): Promise<{ ok: boolean; out: string }> {
   return new Promise((resolve) => {
-    execFile(
+    // stdin closed: an open pipe made Claude wait, warn and fail the probe.
+    const child = execFile(
       bin,
       args,
       {
@@ -224,6 +225,7 @@ function run(
       },
       (err, stdout, stderr) => resolve({ ok: !err, out: `${stdout ?? ""}${stderr ?? ""}` }),
     );
+    child.stdin?.end();
   });
 }
 

@@ -18,7 +18,7 @@ RUNNER_HOME="/home/$RUNNER_USER"
 RUNNER_ENV="${RUNNER_ENV:-/opt/loki/runner/.env}"
 KEY_SRC="${KEY_SRC:-/opt/orangecat/app/.env}"
 BIN="$RUNNER_HOME/.local/bin"
-as_user() { sudo -u "$RUNNER_USER" -H env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" bash -lc "$1"; }
+as_user() { sudo -u "$RUNNER_USER" -H env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" bash -lc "$1" </dev/null; }
 
 # key_present <file> <NAME> — set and non-empty, without reading it out.
 key_present() { [ -r "$1" ] && grep -Eq "^(export )?$2=['\"]?[^'\"[:space:]]+" "$1"; }
@@ -57,7 +57,7 @@ done
 if key_present "$RUNNER_ENV" GEMINI_API_KEY; then
   # The env file is root-only (systemd reads it as root), so root loads it and
   # hands the runner user just that one variable — as the runner itself does.
-  out="$( (set -a; . "$RUNNER_ENV"; set +a; cd /tmp && sudo -u "$RUNNER_USER" -H --preserve-env=GEMINI_API_KEY env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" timeout 120 gemini --skip-trust -p 'Reply with exactly: PONG' 2>&1) | tail -15)"
+  out="$( (set -a; . "$RUNNER_ENV"; set +a; cd /tmp && sudo -u "$RUNNER_USER" -H --preserve-env=GEMINI_API_KEY env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" timeout 120 gemini --skip-trust -p 'Reply with exactly: PONG' </dev/null 2>&1) | tail -15)"
   if case "$out" in *PONG*) true ;; *) false ;; esac; then echo "probe      gemini ok"
   else
     # Show WHY, with any long token-looking string masked (public logs).
@@ -65,6 +65,20 @@ if key_present "$RUNNER_ENV" GEMINI_API_KEY; then
     printf '%s\n' "$out" | tr -d '\r' | sed -E 's/[A-Za-z0-9_-]{24,}/<masked>/g' | cut -c1-300 | sed 's/^/           /'
   fi
 fi
+
+# What the RUNNER itself sees (its failover reads this, not the probe above):
+# names on its PATH/env and its cached provider probes (secrets masked).
+pid="$(systemctl show -p MainPID --value loki-box-runner 2>/dev/null)"
+if [ -n "$pid" ] && [ "$pid" != 0 ] && [ -r "/proc/$pid/environ" ]; then
+  echo "── runner process (pid $pid)"
+  tr '\0' '\n' < "/proc/$pid/environ" | grep -E '^PATH=' | sed 's/^/  /'
+  for k in GEMINI_API_KEY GOOGLE_API_KEY XAI_API_KEY CURSOR_API_KEY HOME; do
+    tr '\0' '\n' < "/proc/$pid/environ" | grep -q "^$k=." && echo "  env set    $k" || echo "  env unset  $k"
+  done
+fi
+echo "── runner provider-probes.json"
+cat "$RUNNER_HOME/.loki/provider-probes.json" 2>/dev/null | sed -E 's/[A-Za-z0-9_-]{24,}/<masked>/g' | tr ',' '\n' | sed 's/^/  /' || echo "  (none)"
+echo
 
 case "${1:-}" in --no-restart|--probe-only) exit 0 ;; esac
 echo "── scheduling drain-then-restart of runner units"
