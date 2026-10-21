@@ -20,6 +20,10 @@ KEY_SRC="${KEY_SRC:-/opt/orangecat/app/.env}"
 BIN="$RUNNER_HOME/.local/bin"
 as_user() { sudo -u "$RUNNER_USER" -H env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" bash -lc "$1"; }
 
+# key_present <file> <NAME> — set and non-empty, without reading it out.
+key_present() { [ -r "$1" ] && grep -Eq "^(export )?$2=['\"]?[^'\"[:space:]]+" "$1"; }
+
+if [ "${1:-}" != "--probe-only" ]; then
 as_user "mkdir -p '$BIN'"
 echo "→ Antigravity (gemini)"
 as_user "npm install -g --prefix \$HOME/.local @google/gemini-cli >/dev/null 2>&1" || echo "  ⚠ gemini install failed"
@@ -28,8 +32,6 @@ as_user "curl -fsS https://cursor.com/install | bash >/dev/null 2>&1" || echo " 
 echo "→ Grok"
 as_user "curl -fsSL https://x.ai/cli/install.sh | GROK_BIN_DIR=\$HOME/.local/bin bash >/dev/null 2>&1" || echo "  ⚠ grok install failed"
 
-# key_present <file> <NAME> — set and non-empty, without reading it out.
-key_present() { [ -r "$1" ] && grep -Eq "^(export )?$2=['\"]?[^'\"[:space:]]+" "$1"; }
 
 if key_present "$RUNNER_ENV" GEMINI_API_KEY; then
   echo "✓ GEMINI_API_KEY already in runner env"
@@ -41,6 +43,7 @@ else
   echo "⚠ no GEMINI_API_KEY in $KEY_SRC — Antigravity installed but keyless"
 fi
 
+fi
 echo "── report"
 for a in claude codex cursor-agent grok gemini; do
   if [ -x "$BIN/$a" ] || as_user "command -v $a" >/dev/null 2>&1; then
@@ -52,12 +55,18 @@ for k in GEMINI_API_KEY XAI_API_KEY CURSOR_API_KEY; do
 done
 # Usable = the model actually answers with the runner's own key.
 if key_present "$RUNNER_ENV" GEMINI_API_KEY; then
-  out="$(sudo -u "$RUNNER_USER" -H bash -c "set -a; . '$RUNNER_ENV'; set +a; cd /tmp && PATH='$BIN':\$PATH timeout 120 gemini -p 'Reply with exactly: PONG' 2>&1" | tail -3)"
+  # The env file is root-only (systemd reads it as root), so root loads it and
+  # hands the runner user just that one variable — as the runner itself does.
+  out="$( (set -a; . "$RUNNER_ENV"; set +a; cd /tmp && sudo -u "$RUNNER_USER" -H --preserve-env=GEMINI_API_KEY env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" timeout 120 gemini --skip-trust -p 'Reply with exactly: PONG' 2>&1) | tail -15)"
   if case "$out" in *PONG*) true ;; *) false ;; esac; then echo "probe      gemini ok"
-  else echo "probe      gemini FAILED: $(printf '%s' "$out" | tr -d '\r' | grep -vi 'key' | tail -1 | cut -c1-160)"; fi
+  else
+    # Show WHY, with any long token-looking string masked (public logs).
+    echo "probe      gemini FAILED:"
+    printf '%s\n' "$out" | tr -d '\r' | sed -E 's/[A-Za-z0-9_-]{24,}/<masked>/g' | cut -c1-300 | sed 's/^/           /'
+  fi
 fi
 
-[ "${1:-}" = "--no-restart" ] && exit 0
+case "${1:-}" in --no-restart|--probe-only) exit 0 ;; esac
 echo "── scheduling drain-then-restart of runner units"
 for u in loki-box-runner $(systemctl list-units 'loki-box-runner@*' --no-legend --plain 2>/dev/null | awk '{print $1}' | sed 's/\.service$//'); do
   r="loki-runner-restart-${u//@/-}"

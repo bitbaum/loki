@@ -50,6 +50,6 @@ export const geminiAdapter: AgentAdapter = {
   buildLaunchCommand({ dir, model }: AgentRuntimeConfig): string {
     const m = (model ?? "").trim();
     const modelFlag = m ? ` -m ${shellEscape(m)}` : "";
-    return `source ~/.bashrc >/dev/null 2>&1 || true; cd ${shellEscape(dir)} && gemini${modelFlag}`;
+    return `source ~/.bashrc >/dev/null 2>&1 || true; cd ${shellEscape(dir)} && gemini --skip-trust${modelFlag}`;
   },
 };

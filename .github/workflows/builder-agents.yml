@@ -12,6 +12,11 @@ on:
         required: false
         default: true
         type: boolean
+      probe_only:
+        description: "Only report installs/keys and probe (no install, no restart)"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: builder-agents
@@ -36,6 +41,7 @@ jobs:
       - name: Install and report
         env:
           RESTART: ${{ inputs.restart }}
+          PROBE_ONLY: ${{ inputs.probe_only }}
         run: |
-          [ "$RESTART" = "true" ] && A="" || A="--no-restart"
+          [ "$RESTART" = "true" ] && A="" || A="--no-restart"; [ "$PROBE_ONLY" = "true" ] && A="--probe-only"
           ssh "root@$HETZNER_IP" bash -s -- $A < scripts/hetzner/install-builder-agents.sh
