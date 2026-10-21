@@ -15,7 +15,10 @@ const normalizeScreenText = (s: string) =>
  * spinner for every turn, including tool calls.
  */
 export const WORKING_MARKERS: Partial<Record<AgentOption, RegExp>> = {
-  gemini: /esc to cancel|esc to interrupt/i,
+  // Gemini CLI 0.65.0 (measured in the sealed container, 2026-10-21) draws no
+  // "esc to cancel" at all: a taken prompt shows a braille spinner, "✓ Tool …"
+  // lines for each tool call and "✦" before every model reply.
+  gemini: /esc to cancel|esc to interrupt|✦|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]|✓ [A-Z]/i,
 };
 
 /**

@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.53",
+    tag: "fleet-runner-v0.8.53",
+    date: "2026-10-21T18:30:00Z",
+    highlights: [
+      'Antigravity works in sealed builds again: the sealed container now gives the agent a real terminal and its sign-in key, and the runner recognises Gemini CLI 0.65\'s working screen, so runs no longer fail as "never accepted the prompt".',
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.52",
     tag: "fleet-runner-v0.8.52",
     date: "2026-10-21T17:30:00Z",

@@ -157,6 +157,37 @@ export function buildDockerRunArgs(
   ];
 }
 
+/**
+ * Agent sign-in that lives in the runner's environment (the unit's env file).
+ * A sealed build sees none of the runner's env unless named here, so Gemini
+ * inside runsc exited with "When using Gemini API, you must specify the
+ * GEMINI_API_KEY environment variable" six seconds after launch and every
+ * Antigravity run failed as "never accepted the prompt" (Substrata,
+ * 2026-10-21). Passed as `--env NAME` (value inherited from podman's own
+ * environment), so no key ever appears on a command line.
+ */
+export const AGENT_CREDENTIAL_ENV = [
+  "GEMINI_API_KEY",
+  "GOOGLE_API_KEY",
+  "GOOGLE_GENAI_USE_VERTEXAI",
+  "ANTHROPIC_API_KEY",
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "OPENAI_API_KEY",
+  "CURSOR_API_KEY",
+  "XAI_API_KEY",
+  "GROK_API_KEY",
+  "OPENROUTER_API_KEY",
+] as const;
+
+export function agentCredentialEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of AGENT_CREDENTIAL_ENV) {
+    const value = env[name];
+    if (value) out[name] = value;
+  }
+  return out;
+}
+
 /** A private builder's sealed build (see SandboxRuntime). */
 function buildPodmanRunArgs(
   spec: WorkspaceSpec,
@@ -168,12 +199,24 @@ function buildPodmanRunArgs(
     "--env",
     `${key}=${value}`,
   ]);
+  const credentialArgs = Object.keys(agentCredentialEnv())
+    .filter((name) => !(spec.env && name in spec.env))
+    .flatMap((name) => ["--env", name]);
   return [
     "run",
     "--rm",
+    // -t as well as -i: the runner drives an interactive TUI through node-pty.
+    // With -i alone the agent's stdin is a pipe, so Gemini CLI skips its
+    // composer and exits ("No input provided via stdin") — measured in the
+    // sealed container 2026-10-21; with -it the same image answers a prompt.
     "-i",
+    "-t",
     "--name",
     containerName,
+    // Same hostname as the host: CLIs that seal their stored sign-in to the
+    // machine (Gemini's file keychain) read it as corrupted under a random one.
+    "--hostname",
+    os.hostname(),
     // The tenant inside is the tenant outside: files it writes are its own.
     "--userns=keep-id",
     // Stay in the unit's cgroup (rootless, no delegation needed), so the
@@ -205,6 +248,7 @@ function buildPodmanRunArgs(
     `HOME=${config.home}`,
     "--env",
     `PATH=${config.home}/.local/bin:${config.home}/.npm-global/bin:/usr/local/bin:/usr/bin:/bin`,
+    ...credentialArgs,
     ...envArgs,
     ...config.extraRunArgs,
     config.image,
@@ -228,7 +272,14 @@ export class SandboxExecutor extends PtyExecutor<SandboxMeta> {
       cwd: this.config.workspaceRoot,
       cols: spec.cols ?? 120,
       rows: spec.rows ?? 32,
-      env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? os.homedir() },
+      env: {
+        PATH: process.env.PATH ?? "",
+        HOME: process.env.HOME ?? os.homedir(),
+        // podman reads XDG_RUNTIME_DIR for its rootless state; the sealed
+        // drop-in sets it on the unit.
+        ...(process.env.XDG_RUNTIME_DIR ? { XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR } : {}),
+        ...(this.config.runtime === "podman" ? agentCredentialEnv() : {}),
+      },
     });
 
     return { pty, meta: { containerName } };

@@ -11,11 +11,15 @@ on:
         required: true
         default: read
         type: choice
-        options: ["read", "test", "on", "off", "matrix"]
+        options: ["read", "test", "on", "off", "matrix", "diag"]
       unit:
         description: "Runner unit (owner: loki-box-runner)"
         required: false
         default: loki-box-runner
+      runs:
+        description: "diag: space-separated run ids to pull from the runner journal"
+        required: false
+        default: ""
 
 concurrency:
   group: sealed-builds
@@ -41,6 +45,9 @@ jobs:
         env:
           MODE: ${{ inputs.mode }}
           UNIT: ${{ inputs.unit }}
+          RUNS: ${{ inputs.runs }}
         run: |
+          case "$RUNS" in *[!a-z0-9\ -]*) echo "::error::bad runs"; exit 1 ;; esac
+          scp -q scripts/hetzner/sealed-pty-probe.py "root@$HETZNER_IP:/tmp/sealed-pty-probe.py"
           case "$UNIT" in loki-box-runner|loki-box-runner@[a-z0-9-]*) ;; *) echo "::error::bad unit"; exit 1 ;; esac
-          ssh "root@$HETZNER_IP" bash -s -- "$MODE" "$UNIT" < scripts/hetzner/sealed-builds-ctl.sh
+          ssh "root@$HETZNER_IP" RUNS="\"$RUNS\"" bash -s -- "$MODE" "$UNIT" < scripts/hetzner/sealed-builds-ctl.sh
