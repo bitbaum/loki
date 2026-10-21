@@ -73,6 +73,9 @@ stop-sealed)
     systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman stop -t 10 "$c" 2>&1 | grep -v level= | tail -1
   done
   journalctl -t loki-drain --since -30min --no-pager -o short-iso 2>/dev/null | tail -5 ;;
+containers)
+  U="$(unit_user)"; H="$(unit_home)"
+  systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman ps -a --format '  {{.Names}} {{.Status}} {{.Created}}' 2>&1 | grep -v level= ;;
 journal)
   pat="$(echo "${RUNS:-x}" | tr ' ' '|')"
   { journalctl -u "$UNIT" --since "-1h" --no-pager -o short-iso; journalctl -t loki-drain --since "-1h" --no-pager -o short-iso; } 2>/dev/null | sort | grep -Ei "$pat" \
