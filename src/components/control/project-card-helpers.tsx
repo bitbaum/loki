@@ -124,7 +124,7 @@ export function RunningBanner({
       <div className="flex items-start gap-2.5">
         <Loader2 className="ui-spinner-sm ui-icon-nudge text-accent-text shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className="text-micro font-semibold uppercase tracking-caps text-accent-text/60">
+          <p className="text-micro font-semibold text-accent-text/60">
             Working
             {mayTruncate && (
               <button

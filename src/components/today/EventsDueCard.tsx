@@ -50,7 +50,7 @@ export async function EventsDueCard() {
                   {format(deadline, "d MMM")}
                 </span>
                 {event.category && (
-                  <span className="text-xs uppercase tracking-caps text-status-positive/60 font-medium">
+                  <span className="text-xs text-status-positive/60 font-medium">
                     {event.category}
                   </span>
                 )}

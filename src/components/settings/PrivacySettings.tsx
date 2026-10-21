@@ -240,7 +240,7 @@ function PinInput({
 }) {
   return (
     <label className="block space-y-1">
-      <span className="text-xs uppercase tracking-caps text-text-muted">{label}</span>
+      <span className="text-xs text-text-muted">{label}</span>
       <input
         type="password"
         inputMode="numeric"
