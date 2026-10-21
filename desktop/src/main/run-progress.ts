@@ -7,8 +7,9 @@
 // event, which is what turns Feedback's "Queued" into "Working · 12 min" and
 // lets it call a silent agent stalled instead of guessing.
 import { executor } from '@/lib/agent-execution'
-import { peekPtyBuffer, runnerWorkspaceId } from './pty-runtime'
+import { peekPtyBuffer, ptyAgentForTab, runnerWorkspaceId, writeRawKey } from './pty-runtime'
 import { detectAuthFailure } from './agent-auth'
+import { salvageShip } from './salvage-ship'
 import { newestLog, readRange } from './transcript-streamer'
 import { newTranscriptState, reduceTranscriptLine, type TranscriptItem } from '@/lib/claude-transcript'
 import { latestRunStep } from '@/lib/run-step'
@@ -16,6 +17,7 @@ import {
   RUN_BLOCKED,
   RUN_PROGRESS_BEAT_MS,
   detectPermissionPrompt,
+  sealedAutoApproval,
   shouldBeat,
   shouldDiagnoseSilence,
   type RunBlocked,
@@ -73,20 +75,51 @@ export function startRunProgress(
       // Say so once, at once, then stop: a dead agent is not Working.
       const code = e.exitCode
       stopRunProgress(runId)
-      void sendBeat(base, token, runId, {
-        outputBytes: 0,
-        lastOutputAt: new Date(track.lastOutputAt).toISOString(),
-        blocked: RUN_BLOCKED.EXITED,
-        question: code == null ? 'the agent process was killed' : `the agent process exited (code ${code})`,
-      })
+      const why = code == null ? 'the agent process was killed' : `the agent process exited (code ${code})`
+      const beat = (question: string) =>
+        sendBeat(base, token, runId, {
+          outputBytes: 0,
+          lastOutputAt: new Date(track.lastOutputAt).toISOString(),
+          blocked: RUN_BLOCKED.EXITED,
+          question,
+        })
+      // Work it left behind still ships first (commit, push, draft PR), then
+      // one beat closes the run as Failed with the cause and the PR.
+      void salvageShip(tab, dir, runId)
+        .catch(() => null)
+        .then((url) => beat(url ? `${why}; Loki opened ${url} with its changes` : why))
       return
     }
     if (e.kind !== 'output' || !e.data) return
     track.bytesSinceBeat += e.data.length
     track.lastOutputAt = Date.now()
+    scheduleSealedApproval(track)
   })
   replaying = false
   tracks.set(runId, track)
+}
+
+const SEALED = process.env.LOKI_EXECUTOR === 'sandbox'
+const approvalTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const lastApprovalAt = new Map<string, number>()
+
+/** Answer Gemini's "Allow once" in a sealed build once the menu settles. */
+function scheduleSealedApproval(t: Track): void {
+  if (!SEALED) return
+  clearTimeout(approvalTimers.get(t.runId))
+  approvalTimers.set(
+    t.runId,
+    setTimeout(() => {
+      approvalTimers.delete(t.runId)
+      if (!tracks.has(t.runId)) return
+      if (Date.now() - (lastApprovalAt.get(t.runId) ?? 0) < 3000) return
+      const asked = sealedAutoApproval(peekPtyBuffer(t.tab) ?? '', ptyAgentForTab(t.tab), SEALED)
+      if (!asked) return
+      lastApprovalAt.set(t.runId, Date.now())
+      console.log(`[sealed-approve] ${t.tab} run ${t.runId}: answered "Allow once" to: ${asked}`)
+      writeRawKey(t.tab, '\r')
+    }, 800),
+  )
 }
 
 export function stopRunProgress(runId: string): void {
@@ -107,7 +140,9 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
   // silence: the agent is waiting on a human the moment it asks, and its
   // spinner may keep redrawing (Gemini 0.65 at "Allow execution of [Shell]?",
   // 2026-10-21, shown as Working).
-  const asked = detectPermissionPrompt(peekPtyBuffer(t.tab) ?? '')
+  const screen = peekPtyBuffer(t.tab) ?? ''
+  // In a sealed build Loki answers Gemini's own approvals (scheduleSealedApproval).
+  const asked = sealedAutoApproval(screen, ptyAgentForTab(t.tab), SEALED) ? null : detectPermissionPrompt(screen)
   if (asked) {
     const changed = t.blocked !== RUN_BLOCKED.PERMISSION || t.question !== asked
     t.blocked = RUN_BLOCKED.PERMISSION

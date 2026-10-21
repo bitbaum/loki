@@ -106,7 +106,7 @@ export function shouldBeat(
 }
 
 /** The longest permission question a beat may carry. */
-export const RUN_QUESTION_MAX_CHARS = 200;
+export const RUN_QUESTION_MAX_CHARS = 300;
 
 const PROMPT_ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]/g;
 
@@ -147,4 +147,25 @@ export function detectPermissionPrompt(screen: string, tailLines = 18): string |
     0,
     RUN_QUESTION_MAX_CHARS,
   );
+}
+
+/**
+ * Pure: inside a sealed build only, the Gemini approval Loki answers itself
+ * with "Allow once" (the highlighted first option), or null. Gemini 0.65
+ * asks even in YOLO mode when it thinks a command's flags came from untrusted
+ * input ("CRITICAL SECURITY WARNING: Untrusted Command Flags Detected") — no
+ * setting turns that off (its scheduler forces ASK_USER on taint risk). The
+ * sealed container is the boundary that makes running it safe; outside it,
+ * the question goes to the person as Needs you.
+ */
+export function sealedAutoApproval(
+  screen: string,
+  agent: string | null,
+  sealed: boolean,
+): string | null {
+  if (!sealed || agent !== "gemini") return null;
+  const question = detectPermissionPrompt(screen);
+  if (!question) return null;
+  const tail = screen.replace(PROMPT_ANSI_RE, "").slice(-4000);
+  return /allow once/i.test(tail) ? question : null;
 }

@@ -40,7 +40,7 @@ import { listAgentRegistry } from '@/lib/agent-registry'
 import { probeProviderInventory, usableAgents, type ProviderInventoryEntry } from '@/lib/agents/provider-inventory'
 import type { PaneRecord } from '@/db/schema/runtime-snapshots'
 import { loadToken, clearToken, isDevBaseOverride } from './token-store'
-import { listPtyTabs, runnerWorkspaceId } from './pty-runtime'
+import { listPtyTabs, ptyAgentForTab, ptyDirForTab, runnerWorkspaceId } from './pty-runtime'
 import { fleetSessionsDir, legacyClaudeSessionsDir } from '@/lib/session-paths'
 
 // Runner version is reported in the runtime-state heartbeat. The desktop sets
@@ -231,7 +231,7 @@ type ProjectRuntimePayload = {
  */
 function buildPaneTopology(openTabs: string[]): PaneRecord[] {
   const registry = listAgentRegistry()
-  const agentProcesses = getAgentProcesses(registry)
+  const agentProcesses = withSealedAgents(getAgentProcesses(registry))
   const conf = parseProjectsConf()
 
   const byTab = new Map<string, typeof agentProcesses>()
@@ -328,7 +328,7 @@ function projectEntries(agentProcesses: ReturnType<typeof getAgentProcesses>): {
 
 function buildProjectRuntimePayload(openTabs: string[]): ProjectRuntimePayload[] {
   const agentRegistry = listAgentRegistry()
-  const agentProcesses = getAgentProcesses(agentRegistry)
+  const agentProcesses = withSealedAgents(getAgentProcesses(agentRegistry))
   const projects = projectEntries(agentProcesses).map(({ tab, dir }) => {
     const resolvedTab = resolveEffectiveTab(tab, openTabs)
     const projectProcesses = agentProcesses.filter((p) => p.cwd === dir || p.cwd.startsWith(`${dir}/`))
@@ -429,4 +429,23 @@ export async function pushNow(): Promise<void> {
 export function restartPusher(): void {
   stopPusher()
   startPusher()
+}
+
+/**
+ * A sealed build's agent runs inside gVisor, where the host's /proc scan never
+ * sees it — so Control said "0 working" and the project page "Queued for a
+ * builder" while Antigravity worked (2026-10-21). The runner owns those PTYs;
+ * count each live one as that tab's agent in its launch directory.
+ */
+function withSealedAgents(found: ReturnType<typeof getAgentProcesses>): ReturnType<typeof getAgentProcesses> {
+  if (process.env.LOKI_EXECUTOR !== 'sandbox') return found
+  const out = [...found]
+  for (const tab of listPtyTabs()) {
+    const dir = ptyDirForTab(tab)
+    const agent = ptyAgentForTab(tab)
+    if (!dir || !agent) continue
+    if (out.some((p) => p.cwd === dir || p.cwd.startsWith(`${dir}/`))) continue
+    out.push({ agentId: agent, cwd: dir, sessionLifecycleSignals: false, pid: 0 })
+  }
+  return out
 }
