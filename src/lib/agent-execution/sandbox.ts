@@ -10,7 +10,7 @@
  */
 import { spawn, type IPty } from "node-pty";
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -314,7 +314,17 @@ export class SandboxExecutor extends PtyExecutor<SandboxMeta> {
   protected async launch(spec: WorkspaceSpec): Promise<{ pty: IPty; meta: SandboxMeta }> {
     if (!fs.existsSync(spec.cwd)) throw new Error(`Sandbox cwd does not exist: ${spec.cwd}`);
 
-    const containerName = sandboxContainerName(spec.id);
+    // podman: a fresh name per launch. A sealed container killed with its PTY
+    // can be left Exited and UNREMOVABLE (runsc delete fails on its gVisor
+    // filestore), so a per-tab name stayed taken and every later launch on
+    // that tab died with exit 125 before the agent existed (Substrata,
+    // 2026-10-21: fc-ws-ede9… held "runner:substrata" for two hours; --replace
+    // cannot take it back either). The tab hash stays the prefix, so drains
+    // and cleanups still recognise it.
+    const containerName =
+      this.config.runtime === "podman"
+        ? `${sandboxContainerName(spec.id)}-${randomBytes(3).toString("hex")}`
+        : sandboxContainerName(spec.id);
     const args = buildDockerRunArgs(spec, this.config, containerName);
     const pty = spawn(this.config.runtime, args, {
       name: "xterm-color",
