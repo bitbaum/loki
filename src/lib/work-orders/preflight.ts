@@ -177,7 +177,7 @@ export function reviewDispatchPrerequisites(
     if (
       !validApproval(order, approval) ||
       approval?.amountMinor !== order.price.amountMinor ||
-      approval.currency !== order.price.currency
+      approval?.currency !== order.price.currency
     ) {
       blockers.push(PREFLIGHT_BLOCKER.SPEND_APPROVAL);
     }
