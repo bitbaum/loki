@@ -7,7 +7,7 @@
  * model, so a historical "accepted" event is NOT proof that the current
  * assignee consented. Fix that binding before building a human dispatcher.
  */
-import { HUMAN_TASK_STATUS, TASK_ACTOR, TASK_EVENT } from "@/config/crew";
+import { HUMAN_TASK_STATUS, TASK_ACTOR, TASK_CURRENCIES, TASK_EVENT } from "@/config/crew";
 import type { HumanTaskDetail } from "@/db/queries/human-tasks";
 import type { WorkOrder, WorkPrice } from "./preflight";
 
@@ -61,7 +61,7 @@ export function crewFeeToMinor(
   currency: string | null,
 ): WorkPrice | null {
   if (amount === null) return null;
-  if (currency !== "BTC" && !["CHF", "USD", "EUR", "GBP"].includes(currency ?? "")) return null;
+  if (!(TASK_CURRENCIES as readonly string[]).includes(currency ?? "")) return null;
   if (!Number.isFinite(amount) || amount < 0) return null;
   const decimals = currency === "BTC" ? 8 : 2;
   const fixed = amount.toFixed(decimals);
