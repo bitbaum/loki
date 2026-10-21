@@ -19,9 +19,28 @@ case "$AGENT" in
   grok)
     echo "→ grok --help (login lines):"; as_user "grok --help 2>&1 | grep -iE 'login|auth|device' | head -10"
     if as_user "grok login --help >/dev/null 2>&1"; then LOGIN="grok login"; else LOGIN="grok auth login"; fi
-    STATUS="grok whoami 2>&1 || grok auth status 2>&1"; DIRS=".grok .config/grok" ;;
+    # grok has no `status`, and `whoami` needs a tty: run it under script.
+    STATUS="{ [ -s ~/.grok/auth.json ] && echo 'auth file: ~/.grok/auth.json present' || echo 'auth file: none (not logged in)'; } ; script -qfc 'timeout 20 grok whoami' /dev/null </dev/null 2>&1 | sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g' | tr -d '\r' | grep -v '^[[:space:]]*$' | head -4"; DIRS=".grok .config/grok" ;;
   *) echo "::error::agent must be cursor or grok"; exit 2 ;;
 esac
+if [ "$MODE" = reprobe ]; then
+  # Force fresh provider probes without a restart: drop cached entries so the
+  # runner's next heartbeat re-probes them (provider-inventory.ts), then show.
+  C="$H/.loki/provider-probes.json"; IDS="${REPROBE_IDS:-cursor grok claude gemini}"
+  [ -f "$C" ] && python3 - "$C" $IDS <<'PY'
+import json,sys
+p=sys.argv[1]; c=json.load(open(p))
+for k in sys.argv[2:]: c.pop(k,None)
+json.dump(c,open(p,'w'))
+PY
+  echo "→ dropped cached probes: $IDS; waiting up to 150s for the runner to re-probe"
+  for i in $(seq 1 30); do sleep 5; n=$(python3 -c "import json,sys;c=json.load(open('$C'));print(sum(k in c for k in sys.argv[1:]))" $IDS 2>/dev/null || echo 0); [ "$n" -ge $(echo $IDS | wc -w) ] && break; done
+  echo "→ provider-probes.json after ${i}x5s:"
+  python3 -c "
+import json;c=json.load(open('$C'))
+for k,v in c.items(): print(f'  {k:8} ok={v[\"ok\"]} at={v[\"at\"]} {v[\"detail\"][:140]}')" 2>&1 | sed -E 's/[A-Za-z0-9_-]{24,}/<masked>/g'
+  exit 0
+fi
 if [ "$MODE" = status ]; then
   echo "→ status: $(as_user "$STATUS" 2>&1 | head -5)"
   echo "→ login process: $(pgrep -u "$RUNNER_USER" -f "script -qfc $LOGIN" >/dev/null && echo still waiting || echo ended)"
