@@ -114,7 +114,11 @@ assert.deepEqual(
   projectCrewWork({ ...task, feeAmount: 1.005, feeCurrency: "CHF" }).issues,
   ["invalid_fee"],
 );
-assert.equal(projectCrewWork({ ...task, feeAmount: 0.00000001, feeCurrency: "BTC" }).order?.price?.amountMinor, "1");
+assert.equal(
+  projectCrewWork({ ...task, feeAmount: 0.00000001, feeCurrency: "BTC" }).order?.price
+    ?.amountMinor,
+  "1",
+);
 assert.deepEqual(crewFeeToMinor(12.50, "CHF"), { amountMinor: "1250", currency: "CHF" });
 assert.deepEqual(crewFeeToMinor(0.0005, "BTC"), { amountMinor: "50000", currency: "BTC" });
 assert.equal(crewFeeToMinor(1.001, "USD"), null);
