@@ -1,37 +1,42 @@
 #!/usr/bin/env bash
-# Box-side (root): run a coding agent's own CLI device login for the runner user,
-# the same way you would in a terminal — no API key. Prints the sign-in URL /
-# device code to the log, waits up to WAIT seconds, then prints status.
-# Credentials land in the runner user's HOME (~/.cursor, ~/.config/cursor,
-# ~/.grok), which the sealed container bind-mounts (sealed-builds-ctl.sh mounts
-# $HOME), and are then copied to per-tenant builder homes (lk-*) if any.
-# Usage: builder-agent-login.sh cursor|grok [wait_seconds]
+# Box-side (root): run a coding agent's own CLI device login for the runner user
+# (no API key). mode=login starts the login DETACHED (setsid nohup script) so it
+# keeps waiting up to 15 min for approval on the box, while this job prints the
+# sign-in URL/code and exits within ~30s (so `gh run view --log` can read it).
+# mode=status prints the agent status and the tail of the login log.
+# Creds land in the runner HOME (~/.cursor, ~/.config/cursor, ~/.grok), which
+# the sealed container bind-mounts; mode=status also copies them to lk-* homes.
+# Usage: builder-agent-login.sh cursor|grok [login|status]
 set -uo pipefail
-AGENT="${1:-cursor}"; WAIT="${2:-900}"
+AGENT="${1:-cursor}"; MODE="${2:-login}"
 RUNNER_USER="${RUNNER_USER:-ubuntu}"; H="/home/$RUNNER_USER"; BIN="$H/.local/bin"
+LOG="$H/.loki-login-$AGENT.log"
 as_user() { sudo -u "$RUNNER_USER" -H env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" \
   NO_OPEN_BROWSER=1 BROWSER=echo TERM=xterm-256color bash -lc "$1"; }
+clean() { sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\x1b\][^\a]*\a//g; s/\r/\n/g' "$LOG" 2>/dev/null | grep -v '^[[:space:]]*$'; }
 case "$AGENT" in
   cursor) LOGIN="cursor-agent login"; STATUS="cursor-agent status"; DIRS=".cursor .config/cursor" ;;
   grok)
-    echo "→ grok --help (login options):"; as_user "grok --help 2>&1 | grep -iE 'login|auth|device' | head -10"
+    echo "→ grok --help (login lines):"; as_user "grok --help 2>&1 | grep -iE 'login|auth|device' | head -10"
     if as_user "grok login --help >/dev/null 2>&1"; then LOGIN="grok login"; else LOGIN="grok auth login"; fi
-    STATUS="grok whoami 2>&1 || grok auth status 2>&1 || grok status 2>&1"; DIRS=".grok .config/grok" ;;
+    STATUS="grok whoami 2>&1 || grok auth status 2>&1"; DIRS=".grok .config/grok" ;;
   *) echo "::error::agent must be cursor or grok"; exit 2 ;;
 esac
+if [ "$MODE" = status ]; then
+  echo "→ status: $(as_user "$STATUS" 2>&1 | head -5)"
+  echo "→ login process: $(pgrep -u "$RUNNER_USER" -f "script -qfc $LOGIN" >/dev/null && echo still waiting || echo ended)"
+  echo "→ log tail:"; clean | tail -15
+  for u in $(getent passwd | cut -d: -f1 | grep '^lk-'); do
+    uh=$(getent passwd "$u" | cut -d: -f6)
+    for d in $DIRS; do [ -e "$H/$d" ] || continue; mkdir -p "$uh/$(dirname "$d")"; rm -rf "$uh/$d"; cp -a "$H/$d" "$uh/$d"; chown -R "$u:" "$uh/$d"; done
+    echo "  copied creds to $u"
+  done
+  exit 0
+fi
 echo "→ before: $(as_user "$STATUS" 2>&1 | head -3)"
-LOG=$(mktemp); chown "$RUNNER_USER" "$LOG"
-echo "→ running: $LOGIN (pty)"
-as_user "script -qfc '$LOGIN' '$LOG' </dev/null >/dev/null 2>&1" &
-PID=$!
-# Stream the login output (ANSI stripped) so the URL/code shows promptly.
-( tail -n +1 -f "$LOG" --pid=$PID 2>/dev/null | sed -u 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\r/\n/g' | grep --line-buffered -v '^[[:space:]]*$' ) &
-T=0; while kill -0 $PID 2>/dev/null && [ $T -lt "$WAIT" ]; do sleep 5; T=$((T+5)); done
-kill $PID 2>/dev/null; sleep 1
-echo; echo "→ after ${T}s: $(as_user "$STATUS" 2>&1 | head -5)"
-for u in $(getent passwd | cut -d: -f1 | grep '^lk-'); do
-  uh=$(getent passwd "$u" | cut -d: -f6)
-  for d in $DIRS; do [ -e "$H/$d" ] || continue; mkdir -p "$uh/$(dirname "$d")"; rm -rf "$uh/$d"; cp -a "$H/$d" "$uh/$d"; chown -R "$u:" "$uh/$d"; done
-  echo "  copied creds to $u"
-done
+pkill -u "$RUNNER_USER" -f "script -qfc $LOGIN" 2>/dev/null
 rm -f "$LOG"
+as_user "setsid nohup timeout 900 script -qfc '$LOGIN' '$LOG' </dev/null >/dev/null 2>&1 &"
+echo "→ started detached: $LOGIN at $(date '+%H:%M %Z'); waits until $(date -d '+15 min' '+%H:%M %Z')"
+for i in $(seq 1 25); do sleep 1; clean | grep -qiE 'https?://' && { sleep 2; break; }; done
+echo "→ login output:"; clean | head -30
