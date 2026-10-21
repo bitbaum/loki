@@ -104,15 +104,21 @@ export function ProviderSwitch({
           // Hiding it read as "not installed" (Antigravity, 21 Oct).
           agents={[
             ...(data?.current && !(data.options ?? []).some((o) => o.id === data.current)
-              ? [{ id: data.current, label: `${currentLabel(data.current)} (current)`, available: true }]
+              ? [
+                  {
+                    id: data.current,
+                    label: `${currentLabel(data.current)} (current)`,
+                    available: true,
+                  },
+                ]
               : []),
             ...(data?.options ?? []).map((o) => ({
-            id: o.id,
-            label: o.label,
-            available: o.usable,
-            ...(o.reason ? { availabilityReason: o.reason } : {}),
-            ...(o.block ? { unavailableNote: PROVIDER_BLOCK_NOTE[o.block] } : {}),
-          })),
+              id: o.id,
+              label: o.label,
+              available: o.usable,
+              ...(o.reason ? { availabilityReason: o.reason } : {}),
+              ...(o.block ? { unavailableNote: PROVIDER_BLOCK_NOTE[o.block] } : {}),
+            })),
           ]}
           activeAgentId=""
           title="Try another provider"
