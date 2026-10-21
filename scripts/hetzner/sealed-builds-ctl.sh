@@ -51,6 +51,8 @@ echo "  README now: $(tr "\n" "|" < README.md)"'
       localhost/loki-agent:latest bash -c "$inner" 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
   echo "exit: ${PIPESTATUS[0]}"
   echo "images visible to $U:"; systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman images --format '  {{.Repository}}:{{.Tag}}' 2>&1 | grep -v level= | head -5
+  ls -ld /opt/loki /opt/loki/agent-image /opt/loki/agent-image/store /opt/loki/agent-image/store/overlay-images 2>&1 | awk '{print "  "$1" "$3" "$NF}'
+  systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman info --format '  graphRoot={{.Store.GraphRoot}} imageStores={{json .Store.GraphOptions}}' 2>&1 | grep -v level= | head -3
   echo "user storage.conf: $([ -f "$H/.config/containers/storage.conf" ] && echo present || echo none); subuid: $(grep -c "^$U:" /etc/subuid)"
   echo "host README: $(tr '\n' '|' < "$proj/README.md")" ;;
 on)
