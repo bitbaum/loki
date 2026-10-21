@@ -16,6 +16,14 @@ restart() {
   systemctl stop "$r.service" 2>/dev/null || true; systemctl reset-failed "$r.service" 2>/dev/null || true
   systemd-run --unit="$r" --collect --quiet /bin/bash /opt/loki/runner/scripts/drain-and-restart-runner.sh "$UNIT" && echo "✓ $UNIT drain-then-restart scheduled"
 }
+ensure_image() { # <user> <home>
+  local t=/tmp/loki-agent-image.tar
+  CONTAINERS_STORAGE_CONF=/opt/loki/agent-image/storage.conf podman save -q -o "$t" loki-agent:latest 2>&1 | tail -2
+  chmod 644 "$t"
+  systemd-run --wait --pipe --quiet -p User="$1" -p Environment=XDG_RUNTIME_DIR="$2/.run" -p Environment=HOME="$2" \
+    podman load -q -i "$t" 2>&1 | grep -v level= | tail -2
+  rm -f "$t"
+}
 case "$MODE" in
 read)
   echo "reading:  $(tr '\n' ' ' < "$STATE" 2>/dev/null || echo none)"
@@ -41,6 +49,9 @@ if cat /opt/loki/app/.env >/dev/null 2>&1; then echo "  LEAK: /opt/loki/app/.env
 if cat /opt/loki/runner/.env >/dev/null 2>&1; then echo "  LEAK: runner .env readable"; else echo "  ✓ /opt/loki/runner/.env not readable"; fi
 [ -n "${GEMINI_API_KEY:-}" ] && { o="$(timeout 150 gemini --skip-trust -p "Append the line sealed-ok to README.md, then reply DONE" --yolo 2>&1 | tail -3)"; echo "  agent said: $(printf %s "$o" | sed -E "s/[A-Za-z0-9_-]{24,}/<masked>/g" | tr "\n" " " | cut -c1-200)"; }
 echo "  README now: $(tr "\n" "|" < README.md)"'
+  # Rootless podman does not see root's shared store (0700, imageStores={}),
+  # so hand the user its own copy of the image: root saves, the user loads.
+  ensure_image "$U" "$H"
   echo "runtime: ${RT:-default (no runsc)}"
   systemd-run --wait --pipe --quiet -p User="$U" -p NoNewPrivileges="${NNP:-yes}" -p WorkingDirectory="$proj" \
     -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" "${keyarg[@]}" \
@@ -48,7 +59,7 @@ echo "  README now: $(tr "\n" "|" < README.md)"'
       --mount "type=bind,src=$H,dst=$H" --network slirp4netns --pids-limit 512 \
       --security-opt no-new-privileges --cap-drop ALL --env TERM=xterm-256color --env "HOME=$H" \
       --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" --env GEMINI_API_KEY \
-      localhost/loki-agent:latest bash -c "$inner" 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
+      loki-agent:latest bash -c "$inner" 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
   echo "exit: ${PIPESTATUS[0]}"
   echo "images visible to $U:"; systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman images --format '  {{.Repository}}:{{.Tag}}' 2>&1 | grep -v level= | head -5
   ls -ld /opt/loki /opt/loki/agent-image /opt/loki/agent-image/store /opt/loki/agent-image/store/overlay-images 2>&1 | awk '{print "  "$1" "$3" "$NF}'
