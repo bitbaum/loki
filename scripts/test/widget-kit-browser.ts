@@ -46,7 +46,7 @@ type Bundles = { js: string; chat: string };
 async function open(
   browser: Browser,
   b: Bundles,
-  o: { kit?: boolean; chunk?: boolean; width?: number; height?: number } = {},
+  o: { kit?: boolean; chunk?: boolean; width?: number; height?: number; visual?: boolean } = {},
 ) {
   const ctx = await browser.newContext({
     viewport: { width: o.width ?? 1200, height: o.height ?? 800 },
@@ -79,7 +79,19 @@ async function open(
       asked.push(JSON.parse(route.request().postData() ?? "{}") as { question: string });
       return json({
         ok: true,
-        reply: "The button says **Submit**, which does not tell a guest what happens.",
+        reply: o.visual
+          ? "Here are your options.\n\n```chat_ui\n" +
+            JSON.stringify({
+              type: "choices",
+              title: "What would help next?",
+              options: [
+                { label: "Compare alternatives", reply: "Please compare the alternatives" },
+                { label: "Explain the recommendation", reply: "Please explain the recommendation" },
+              ],
+              submit: "Continue",
+            }) +
+            "\n```"
+          : "The button says **Submit**, which does not tell a guest what happens.",
         changes: ["Change the button text from 'Submit' to 'Book your stay'"],
       });
     }
@@ -144,6 +156,38 @@ async function main() {
   }
 
   try {
+    // A generated choice is a conversation reply, even when the composer has
+    // been switched to saving feedback. It must never file a report.
+    {
+      const t = await open(browser, b, { visual: true, width: 390, height: 800 });
+      await t.p.locator(`${root} .fab`).click();
+      const input = t.p.locator(`${root} .ck-input`);
+      await input.waitFor({ timeout: 5000 });
+      await input.fill("Help me decide");
+      await input.press("Enter");
+      await t.p.locator(`${root} .ck-choice`).waitFor({ timeout: 5000 });
+      await t.p.locator(`${root} .ck-mode`).filter({ hasText: "Save feedback" }).click();
+      await t.p
+        .locator(`${root} .ck-choice-option`)
+        .filter({ hasText: "Compare alternatives" })
+        .click();
+      const response = t.p.waitForResponse(
+        (r) => new URL(r.url()).pathname === "/api/widget/advise",
+      );
+      await t.p.locator(`${root} .ck-choice-submit`).click();
+      await response;
+      await t.p.locator(`${root} .ck-choice`).nth(1).waitFor({ timeout: 5000 });
+      ok(
+        t.asked.at(-1)?.question === "Please compare the alternatives",
+        "a guided choice asks the assistant through its normal handler",
+      );
+      ok(
+        t.reports.length === 0,
+        "a guided reply never files feedback in the selected composer mode",
+      );
+      ok(t.errors.length === 0, "the visual answer has no browser errors");
+      await t.close();
+    }
     // ── The panel draws its conversation with chatkit ────────────────────────
     {
       const t = await open(browser, b);
