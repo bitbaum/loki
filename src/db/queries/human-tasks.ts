@@ -349,11 +349,12 @@ export async function patchHumanTask(
     await tx.insert(humanTaskEvents).values({
       taskId: id,
       userId,
-      kind: termsChanged || statusChanged
-        ? TASK_EVENT.STATUS
-        : input.note
-          ? TASK_EVENT.NOTE
-          : TASK_EVENT.EDITED,
+      kind:
+        termsChanged || statusChanged
+          ? TASK_EVENT.STATUS
+          : input.note
+            ? TASK_EVENT.NOTE
+            : TASK_EVENT.EDITED,
       actor: TASK_ACTOR.OPERATOR,
       status: termsChanged ? HUMAN_TASK_STATUS.DRAFT : statusChanged ? nextStatus : null,
       note:
