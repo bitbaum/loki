@@ -46,7 +46,7 @@ export default async function MissionsPage() {
       goals: goalsByProject.get(project.id) ?? [],
     }),
   );
-  const withObjective = missions.filter((mission) => mission.phase !== "needs-objective").length;
+  const withObjective = missions.filter((mission) => Boolean(mission.statement)).length;
   const withRoadmap = missions.filter((mission) => mission.goalsTotal > 0).length;
 
   return (
