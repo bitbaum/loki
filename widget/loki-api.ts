@@ -12,6 +12,7 @@
  * Every field is clamped to the route's own cap; the routes reject a request
  * outright on one character over, and the person would lose their message.
  */
+import { richAnswerText } from "@bitbaum/chatkit";
 import type { SelectedEl } from "./picker";
 import { SNAPSHOT_MAX_CHARS, takeSnapshot, type SnapshotScope } from "./page-snapshot";
 import { REVIEW_SESSION_MAX } from "./watch-trail";
@@ -106,7 +107,7 @@ export async function askConcierge(opts: {
     message: opts.message.slice(0, CHAT_MAX_MESSAGE),
     history: opts.history
       .slice(-CHAT_MAX_HISTORY)
-      .map((t) => ({ ...t, content: t.content.slice(0, 2000) })),
+      .map((t) => ({ ...t, content: richAnswerText(t.content).slice(0, 2000) })),
     url: location.href.slice(0, 1000),
     pageTitle: document.title.slice(0, 300) || undefined,
   });
@@ -115,7 +116,7 @@ export async function askConcierge(opts: {
     .filter((m) => typeof m.text === "string" && m.text.trim())
     .map((m) => ({
       speaker: (m.speaker === "cat" ? "cat" : "loki") as Speaker,
-      text: String(m.text).slice(0, 4000),
+      text: String(m.text).slice(0, 16_000),
     }));
   const links = (Array.isArray(body.links) ? body.links : [])
     .map((l) => (l ?? {}) as { label?: unknown; url?: unknown })
@@ -123,7 +124,7 @@ export async function askConcierge(opts: {
     .filter((l): l is Link => !!l.url && !!l.label)
     .slice(0, 5);
   return {
-    messages: said.length ? said : [{ speaker: "loki", text: String(body.reply).slice(0, 4000) }],
+    messages: said.length ? said : [{ speaker: "loki", text: String(body.reply).slice(0, 16_000) }],
     changes: [],
     links,
     degraded: body.degraded === true,
