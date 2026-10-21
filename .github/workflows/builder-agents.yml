@@ -1,0 +1,41 @@
+# Install Cursor, Grok and Antigravity on the cloud builder and restart it.
+# Same SSH setup as box-doctor.yml. Prints install/key-present/probe verdicts
+# only — never a secret value (public repo, public logs).
+#   gh workflow run builder-agents.yml
+name: Builder agents
+
+on:
+  workflow_dispatch:
+    inputs:
+      restart:
+        description: "Drain-then-restart the runner afterwards"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: builder-agents
+  cancel-in-progress: false
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HETZNER_IP: ${{ vars.HETZNER_IP }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: SSH setup (same key and host as deploy.yml)
+        run: |
+          test -n "$HETZNER_IP" || { echo "::error::org variable HETZNER_IP is not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HETZNER_IP" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' "$HETZNER_IP" >> ~/.ssh/config
+      - name: Install and report
+        env:
+          RESTART: ${{ inputs.restart }}
+        run: |
+          [ "$RESTART" = "true" ] && A="" || A="--no-restart"
+          ssh "root@$HETZNER_IP" bash -s -- $A < scripts/hetzner/install-builder-agents.sh
