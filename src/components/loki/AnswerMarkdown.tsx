@@ -11,8 +11,8 @@ import { withoutCitations, type CitationMap } from "@/components/ui/markdown-tex
  * things reads as cards, a table is a table, headings keep their level, and
  * the sources the answer cites are ONE button under it that opens every
  * record (CitationNote), the way MarkdownText did — the handles themselves
- * are taken out of the sentences first. Every other LLM-output surface
- * (digests, project bios, the work trail) still uses MarkdownText.
+ * are taken out of the sentences first. Other LLM-output surfaces
+ * (digests, project bios, the work trail) use the same renderer via MarkdownText.
  */
 export function AnswerMarkdown({
   text,
