@@ -890,6 +890,13 @@
       "when": 1792558119467,
       "tag": "0126_temporary_conversations",
       "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1792600125849,
+      "tag": "0127_provider_inventory",
+      "breakpoints": true
     }
   ]
 }
