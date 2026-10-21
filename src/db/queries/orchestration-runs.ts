@@ -390,6 +390,39 @@ export async function closeRunShipped(runId: string, userId: string, prUrl: stri
 }
 
 /**
+ * A queued run whose work was finished before any builder picked it up (its
+ * feedback item is done). Closed without ever running: not a failure, nothing
+ * to retry (lib/dispatch-superseded).
+ */
+export async function closeRunSuperseded(runId: string, userId: string, reason: string) {
+  const note = `Not started: ${reason}, so there was nothing left for this run to do.`;
+  const [closed] = await db
+    .update(orchestrationRuns)
+    .set({
+      state: ORCH_STATE.CLOSED,
+      outcome: ORCHESTRATION_OUTCOME.USER_ABORT,
+      finishedAt: new Date(),
+      payload: sql`jsonb_set(COALESCE(payload, '{}'), '{note}', to_jsonb(${note}::text))`,
+    })
+    .where(
+      and(
+        eq(orchestrationRuns.id, runId),
+        eq(orchestrationRuns.userId, userId),
+        isNull(orchestrationRuns.finishedAt),
+      ),
+    )
+    .returning();
+  if (closed) {
+    void emitRunEvent(runId, userId, "closed", {
+      outcome: ORCHESTRATION_OUTCOME.USER_ABORT,
+      by: "superseded",
+      reason,
+    });
+  }
+  return closed ?? null;
+}
+
+/**
  * Recent successful runs for one project — feeds the OC promote backfill so a
  * dropped run→wall emit self-heals (external ids are deterministic, OC
  * reconciles on them). Uses idx_orchestration_runs_recent_outcomes.
