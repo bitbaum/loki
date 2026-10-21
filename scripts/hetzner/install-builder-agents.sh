@@ -57,7 +57,7 @@ done
 if key_present "$RUNNER_ENV" GEMINI_API_KEY; then
   # The env file is root-only (systemd reads it as root), so root loads it and
   # hands the runner user just that one variable — as the runner itself does.
-  out="$( (set -a; . "$RUNNER_ENV"; set +a; cd /tmp && sudo -u "$RUNNER_USER" -H --preserve-env=GEMINI_API_KEY env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" timeout 120 gemini -p 'Reply with exactly: PONG' 2>&1) | tail -15)"
+  out="$( (set -a; . "$RUNNER_ENV"; set +a; cd /tmp && sudo -u "$RUNNER_USER" -H --preserve-env=GEMINI_API_KEY env PATH="$BIN:/usr/local/bin:/usr/bin:/bin" timeout 120 gemini --skip-trust -p 'Reply with exactly: PONG' 2>&1) | tail -15)"
   if case "$out" in *PONG*) true ;; *) false ;; esac; then echo "probe      gemini ok"
   else
     # Show WHY, with any long token-looking string masked (public logs).
