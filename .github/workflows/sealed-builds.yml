@@ -24,6 +24,7 @@ on:
             "journal",
             "containers",
             "launch-check",
+            "clean-dead",
           ]
       unit:
         description: "Runner unit (owner: loki-box-runner)"
