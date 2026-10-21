@@ -349,10 +349,15 @@ export async function patchHumanTask(
     await tx.insert(humanTaskEvents).values({
       taskId: id,
       userId,
-      kind: termsChanged || statusChanged ? TASK_EVENT.STATUS : input.note ? TASK_EVENT.NOTE : TASK_EVENT.EDITED,
+      kind: termsChanged || statusChanged
+        ? TASK_EVENT.STATUS
+        : input.note
+          ? TASK_EVENT.NOTE
+          : TASK_EVENT.EDITED,
       actor: TASK_ACTOR.OPERATOR,
       status: termsChanged ? HUMAN_TASK_STATUS.DRAFT : statusChanged ? nextStatus : null,
-      note: input.note?.trim() || (termsChanged ? "Terms changed — fresh acceptance required." : null),
+      note:
+        input.note?.trim() || (termsChanged ? "Terms changed — fresh acceptance required." : null),
     });
     return true;
   });
@@ -589,7 +594,13 @@ export async function respondToSharedTask(
     await tx
       .update(humanTasks)
       .set(patch)
-      .where(and(eq(humanTasks.id, existing.id), eq(humanTasks.shareToken, token), isNull(humanTasks.revokedAt)));
+      .where(
+        and(
+          eq(humanTasks.id, existing.id),
+          eq(humanTasks.shareToken, token),
+          isNull(humanTasks.revokedAt),
+        ),
+      );
     await tx.insert(humanTaskEvents).values({
       taskId: existing.id,
       userId: existing.userId,
