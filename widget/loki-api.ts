@@ -12,7 +12,7 @@
  * Every field is clamped to the route's own cap; the routes reject a request
  * outright on one character over, and the person would lose their message.
  */
-import { richAnswerText } from "@bitbaum/chatkit";
+import { richAnswerText } from "./rich-history";
 import type { SelectedEl } from "./picker";
 import { SNAPSHOT_MAX_CHARS, takeSnapshot, type SnapshotScope } from "./page-snapshot";
 import { REVIEW_SESSION_MAX } from "./watch-trail";
