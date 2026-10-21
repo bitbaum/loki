@@ -68,7 +68,9 @@ worktree)
   H="$(unit_home)"
   for r in ${RUNS:-}; do
     ls -d "$H"/.loki/worktrees/*"$r"* 2>/dev/null | sed 's/^/  dir: /'
-    for d in $(find "$H/.loki/worktrees" -maxdepth 3 -name .git -path "*$r*" -printf '%h\n' 2>/dev/null); do
+    for d in $(find "$H/.loki/worktrees" "$H/dev" -maxdepth 4 -name .git -printf '%h\n' 2>/dev/null); do
+      b="$(sudo -u "$(unit_user)" git -C "$d" -c safe.directory='*' branch --show-current 2>/dev/null)"
+      case "$d $b" in *"$r"*) ;; *) continue ;; esac
       echo "=== $d"
       sudo -u "$(unit_user)" git -C "$d" -c safe.directory='*' log -1 --format='head: %h %s' 2>&1
       sudo -u "$(unit_user)" git -C "$d" -c safe.directory='*' status -sb 2>&1 | head -20
