@@ -3,10 +3,39 @@
 // fix ledger then follows that PR like any other. Plan: src/lib/salvage-plan.ts.
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { salvagePlan } from '@/lib/salvage-plan'
+import { salvagePlan, shippedPr } from '@/lib/salvage-plan'
 import { fetchWorkspaceSource } from './workspace-source'
 
 const run = promisify(execFile)
+
+/** The open PR the agent itself shipped from this workspace, if it is done. */
+export async function findShippedPr(tab: string, dir: string): Promise<string | null> {
+  const source = await fetchWorkspaceSource(tab).catch(() => null)
+  const token = source?.token ?? process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? ''
+  const env = { ...process.env, ...(token ? { GH_TOKEN: token, GITHUB_TOKEN: token } : {}), GIT_TERMINAL_PROMPT: '0' }
+  const git = async (...args: string[]) =>
+    (await run('git', ['-C', dir, ...args], { env, timeout: 30_000 })).stdout.trim()
+  try {
+    const dirty = (await git('status', '--porcelain', '--', '.', ':(exclude).claude')).length > 0
+    const branch = (await git('branch', '--show-current')) || null
+    const def =
+      (await git('symbolic-ref', '--short', 'refs/remotes/origin/HEAD').catch(() => 'origin/main')).replace(
+        /^origin\//,
+        '',
+      ) || 'main'
+    if (dirty || !branch || branch === def) return null
+    const headSha = await git('rev-parse', 'HEAD')
+    const out = await run('gh', ['pr', 'view', branch, '--json', 'url,state,headRefOid'], {
+      cwd: dir,
+      env,
+      timeout: 30_000,
+    }).catch(() => ({ stdout: '' }))
+    const pr = out.stdout.trim() ? (JSON.parse(out.stdout) as { url: string; state: string; headRefOid: string }) : null
+    return shippedPr({ dirty, branch, defaultBranch: def, headSha, pr })
+  } catch {
+    return null
+  }
+}
 
 export async function salvageShip(tab: string, dir: string, runId: string): Promise<string | null> {
   const source = await fetchWorkspaceSource(tab).catch(() => null)

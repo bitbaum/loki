@@ -7,9 +7,9 @@
 // event, which is what turns Feedback's "Queued" into "Working · 12 min" and
 // lets it call a silent agent stalled instead of guessing.
 import { executor } from '@/lib/agent-execution'
-import { peekPtyBuffer, ptyAgentForTab, runnerWorkspaceId, writeRawKey } from './pty-runtime'
+import { peekPtyBuffer, ptyAgentForTab, runnerWorkspaceId, terminatePty, writeRawKey } from './pty-runtime'
 import { detectAuthFailure } from './agent-auth'
-import { salvageShip } from './salvage-ship'
+import { findShippedPr, salvageShip } from './salvage-ship'
 import { newestLog, readRange } from './transcript-streamer'
 import { newTranscriptState, reduceTranscriptLine, type TranscriptItem } from '@/lib/claude-transcript'
 import { latestRunStep } from '@/lib/run-step'
@@ -20,6 +20,8 @@ import {
   sealedAutoApproval,
   shouldBeat,
   shouldDiagnoseSilence,
+  shouldCheckShipped,
+  SHIPPED_IDLE_MS,
   type RunBlocked,
   type RunProgressBeat,
 } from '@/lib/run-progress'
@@ -37,6 +39,8 @@ type Track = {
   dir: string
   blocked: RunBlocked | null
   question: string | null
+  /** Last time we asked git/gh whether the agent already shipped its PR. */
+  shipCheckedAt: number
 }
 
 const tracks = new Map<string, Track>()
@@ -64,6 +68,7 @@ export function startRunProgress(
     dir,
     blocked: null,
     question: null,
+    shipCheckedAt: 0,
     timer: setInterval(() => void tick(base, token, runId), Math.min(RUN_PROGRESS_BEAT_MS, 15_000)),
   }
   // subscribe replays the retained buffer synchronously; skip it — the replay
@@ -155,6 +160,25 @@ async function tick(base: string, token: string, runId: string): Promise<void> {
   } else if (t.bytesSinceBeat > 0) {
     t.blocked = null
     t.question = null
+  }
+  // Done is the agent's own PR, open, at exactly what it left checked out,
+  // while it sits quiet at its prompt: close the run Done with that link and
+  // stop the agent, instead of "Working" until a reaper.
+  if (!t.blocked && shouldCheckShipped(t)) {
+    t.shipCheckedAt = Date.now()
+    const url = await findShippedPr(t.tab, t.dir)
+    if (url && tracks.get(runId) === t && Date.now() - t.lastOutputAt >= SHIPPED_IDLE_MS) {
+      stopRunProgress(runId)
+      console.log(`[run-done] ${t.tab} run ${runId}: agent shipped ${url} and is idle; closing Done`)
+      await sendBeat(base, token, runId, {
+        outputBytes: 0,
+        lastOutputAt: new Date(t.lastOutputAt).toISOString(),
+        blocked: null,
+        shipped: url,
+      })
+      await terminatePty(t.tab).catch((e) => console.warn('[run-done] stop failed:', (e as Error).message))
+      return
+    }
   }
   const decision = shouldBeat(t)
   if (decision === 'stop') { stopRunProgress(runId); return }

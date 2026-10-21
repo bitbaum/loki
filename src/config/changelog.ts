@@ -29,6 +29,16 @@ export interface ReleaseEntry {
 /** Newest first. */
 export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
   {
+    version: "0.8.57",
+    tag: "fleet-runner-v0.8.57",
+    date: "2026-10-21T22:45:00Z",
+    highlights: [
+      "When the agent has opened its pull request and sits idle with nothing left uncommitted, the run closes as Done with that PR link and the agent is stopped, instead of staying Working.",
+    ],
+    breaking: [],
+    notes: "",
+  },
+  {
     version: "0.8.56",
     tag: "fleet-runner-v0.8.56",
     date: "2026-10-21T22:30:00Z",

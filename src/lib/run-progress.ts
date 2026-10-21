@@ -59,6 +59,9 @@ export type RunProgressBeat = {
   /** What the agent is doing now, in a few words (lib/run-step), when the
    *  runner can read its session log. */
   step?: string;
+  /** The agent's own open PR, at its checked-out HEAD, while it sits idle:
+   *  the run closes Done with this link (lib/salvage-plan shippedPr). */
+  shipped?: string;
 };
 
 /** The longest step a beat may carry. */
@@ -169,3 +172,18 @@ export function sealedAutoApproval(
   const tail = screen.replace(PROMPT_ANSI_RE, "").slice(-4000);
   return /allow once/i.test(tail) ? question : null;
 }
+
+/** Quiet this long after the agent's PR matches its HEAD = the job is done. */
+export const SHIPPED_IDLE_MS = 90_000;
+/** How often an idle run asks git/gh whether its agent has shipped. */
+export const SHIPPED_CHECK_EVERY_MS = 60_000;
+
+export function shouldCheckShipped(
+  s: { lastOutputAt: number; shipCheckedAt: number },
+  now = Date.now(),
+): boolean {
+  return now - s.lastOutputAt >= SHIPPED_IDLE_MS && now - s.shipCheckedAt >= SHIPPED_CHECK_EVERY_MS;
+}
+
+/** A GitHub pull request URL and nothing else — the only thing `shipped` may carry. */
+export const SHIPPED_PR_URL_RE = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/;

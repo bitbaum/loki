@@ -1,9 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getApiUserId } from "@/lib/session";
 import { isValidUuid } from "@/lib/utils";
-import { closeRunAgentExited, stampRunProgress } from "@/db/queries/orchestration-runs";
+import {
+  closeRunAgentExited,
+  closeRunShipped,
+  stampRunProgress,
+} from "@/db/queries/orchestration-runs";
 import { emitRunEvent } from "@/db/queries/run-events";
-import { RUN_BLOCKED, RUN_QUESTION_MAX_CHARS, RUN_STEP_MAX_CHARS } from "@/lib/run-progress";
+import {
+  RUN_BLOCKED,
+  RUN_QUESTION_MAX_CHARS,
+  RUN_STEP_MAX_CHARS,
+  SHIPPED_PR_URL_RE,
+} from "@/lib/run-progress";
 
 /**
  * Runner heartbeat for a dispatched run — PATCH /api/control/runs/:id/progress
@@ -22,6 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     blocked?: unknown;
     step?: unknown;
     question?: unknown;
+    shipped?: unknown;
   };
   const outputBytes =
     typeof body.outputBytes === "number" && Number.isFinite(body.outputBytes)
@@ -75,6 +85,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       });
   }
   // A dead agent is a finished run: Failed, with the cause, at once.
+  const shipped =
+    !blocked && typeof body.shipped === "string" && SHIPPED_PR_URL_RE.test(body.shipped)
+      ? body.shipped
+      : null;
+  if (live && shipped) {
+    await closeRunShipped(id, userId, shipped);
+    return NextResponse.json({ ok: true, live: false });
+  }
   if (live && blocked === RUN_BLOCKED.EXITED) {
     await closeRunAgentExited(id, userId, question ?? "its process ended");
     return NextResponse.json({ ok: true, live: false });
