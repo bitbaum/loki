@@ -12,6 +12,8 @@ const CreateBody = z.object({
   // auto-titled from its first message (see messages route).
   title: z.string().trim().min(1).max(200).default(DEFAULT_CONVERSATION_TITLE),
   projectKeys: z.array(z.string().trim().min(1).max(120)).max(50).default([]),
+  // A temporary chat: never listed, gone when the person leaves it.
+  ephemeral: z.boolean().default(false),
 });
 
 export async function GET(req: NextRequest) {

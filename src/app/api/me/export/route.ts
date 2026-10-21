@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import {
   users,
@@ -89,7 +89,10 @@ export async function GET() {
     db.select().from(orchestrationRuns).where(eq(orchestrationRuns.userId, userId)),
     db.select().from(promptHistory).where(eq(promptHistory.userId, userId)),
     db.select().from(prompts).where(eq(prompts.userId, userId)),
-    db.select().from(conversations).where(eq(conversations.userId, userId)),
+    db
+      .select()
+      .from(conversations)
+      .where(and(eq(conversations.userId, userId), eq(conversations.ephemeral, false))),
     db.select().from(agentMessages).where(eq(agentMessages.userId, userId)),
     db.select().from(entities).where(eq(entities.userId, userId)),
     db.select().from(entityRelations).where(eq(entityRelations.userId, userId)),
