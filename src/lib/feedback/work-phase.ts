@@ -162,6 +162,8 @@ export type FeedbackRunSnapshot = {
   feedbackAutoRetriedAt?: string | null;
   /** This run is Loki's own second attempt; why the first failed (auto-reimplement.ts). */
   autoRetriedBecause?: string | null;
+  /** Agents a quota failover chain tried, as labels, in order (auto-reimplement.ts). */
+  providersTried?: string[] | null;
   /**
    * The builder that owns this queue is offline. Channel-aware: a local-queued
    * job with Fleet Runner down is offline even when the cloud builder is up.
@@ -394,7 +396,7 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.FAILED,
       label: "Never started",
-      detail: explainRunFailure(run.error),
+      detail: explainRunFailure(run.error, { tried: run.providersTried ?? [] }),
       diagnostic: run.error?.slice(0, 400) ?? null,
     };
   }
@@ -408,7 +410,7 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.FAILED,
       label: "Failed",
-      detail: explainRunFailure(run.error),
+      detail: explainRunFailure(run.error, { tried: run.providersTried ?? [] }),
       diagnostic: run.error?.slice(0, 400) ?? null,
     };
   }
@@ -430,7 +432,7 @@ function derivePhase(
     return {
       phase: FEEDBACK_WORK_PHASE.FAILED,
       label: "Failed",
-      detail: explainRunFailure(run.error),
+      detail: explainRunFailure(run.error, { tried: run.providersTried ?? [] }),
       diagnostic: run.error?.slice(0, 400) ?? null,
     };
   }

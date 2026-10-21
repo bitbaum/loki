@@ -1,3 +1,4 @@
+import { providerLabel } from "@/config/quota-alternatives";
 /**
  * Run context: which builder queue owns a run, whether that builder is up, and
  * what the runner's inject-ack said.
@@ -77,11 +78,15 @@ export function applyRunContext(
     hostedDispatchId?: string;
     feedbackAutoRetriedAt?: string;
     autoRetriedBecause?: string;
+    providersTried?: string[];
   } | null;
   if (!snap.commandId && payload?.commandId) snap.commandId = payload.commandId;
   if (payload?.hostedDispatchId) snap.hostedPending = true;
   snap.feedbackAutoRetriedAt = payload?.feedbackAutoRetriedAt ?? null;
   snap.autoRetriedBecause = payload?.autoRetriedBecause ?? null;
+  snap.providersTried = Array.isArray(payload?.providersTried)
+    ? payload.providersTried.map(providerLabel)
+    : null;
 
   snap.localOnline = ctx.presence.local;
   snap.cloudOnline = ctx.presence.cloud;

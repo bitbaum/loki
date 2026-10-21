@@ -15,7 +15,7 @@ const WORKSPACE_RE =
   /not materializable|does not exist (?:here|on this machine)|no cloneable|nothing was launched here/i;
 
 export type AutoReimplementDecision =
-  | { retry: true; because: string }
+  | { retry: true; because: string; failover?: true }
   | {
       retry: false;
       reason: "already-retried" | "needs-auth" | "needs-workspace" | "not-retryable" | "no-error";
@@ -24,8 +24,23 @@ export type AutoReimplementDecision =
 /** Pure: whether the runner's refusal is one a second attempt can answer. */
 export function decideAutoReimplement(
   error: string | null | undefined,
-  payload: { priorRunId?: unknown; feedbackAutoRetriedAt?: unknown } | null | undefined,
+  payload:
+    | { priorRunId?: unknown; feedbackAutoRetriedAt?: unknown; providersTried?: unknown }
+    | null
+    | undefined,
 ): AutoReimplementDecision {
+  const text0 = (error ?? "").trim();
+  // A quota wall is the one failure that CHAINS: each hop runs on a provider
+  // not yet tried, so the loop is bounded by the provider list itself, not by
+  // a single-retry stamp. Checked before the stamp guard on purpose.
+  if (
+    text0 &&
+    !AUTH_RE.test(text0) &&
+    !payload?.feedbackAutoRetriedAt &&
+    looksLikeAgentCapacityIssue(text0)
+  ) {
+    return { retry: true, because: "the agent ran out of quota", failover: true };
+  }
   if (payload?.priorRunId || payload?.feedbackAutoRetriedAt) {
     return { retry: false, reason: "already-retried" };
   }
@@ -56,4 +71,28 @@ export function decideAutoReimplement(
 /** One sentence for the row: what happened and that Loki already acted on it. */
 export function autoRetryNotice(because: string): string {
   return `Retried automatically — the first attempt failed because ${because}.`;
+}
+
+/**
+ * Pure: the providers a quota failover chain has tried, this run included,
+ * in order and without repeats.
+ */
+export function providersTriedAfter(
+  payload: { providersTried?: unknown } | null | undefined,
+  thisRunAdapter: string | null | undefined,
+): string[] {
+  const before = Array.isArray(payload?.providersTried)
+    ? payload.providersTried.filter((x): x is string => typeof x === "string")
+    : [];
+  const all = thisRunAdapter ? [...before, thisRunAdapter] : before;
+  return [...new Set(all)];
+}
+
+/** Pure: the first provider in `order` that is usable and not yet tried. */
+export function nextFailoverProvider(
+  order: readonly string[],
+  tried: readonly string[],
+  usable: (id: string) => boolean = () => true,
+): string | null {
+  return order.find((id) => !tried.includes(id) && usable(id)) ?? null;
 }
