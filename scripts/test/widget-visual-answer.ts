@@ -73,16 +73,42 @@ async function parityCheck() {
   const samples = [
     "Plain answer, no visuals.",
     `Intro.\n\n${fence({ type: "callout", title: "T", body: "B" })}\n\nOutro.`,
-    fence({ type: "gallery", title: "G", images: [{ src: "/a.jpg", alt: "A", caption: "C" }, { src: "https://x.test/b.png", alt: "B" }] }),
+    fence({
+      type: "gallery",
+      title: "G",
+      images: [
+        { src: "/a.jpg", alt: "A", caption: "C" },
+        { src: "https://x.test/b.png", alt: "B" },
+      ],
+    }),
     fence({ type: "gallery", title: "Bad", images: [{ src: "javascript:alert(1)", alt: "A" }] }),
-    fence({ type: "diagram", title: "D", nodes: [{ id: "a", label: "In", detail: "d" }, { id: "b", label: "Out" }], edges: [{ from: "a", to: "b", label: "to" }] }),
-    fence({ type: "diagram", title: "D", nodes: [{ id: "a", label: "In" }], edges: [{ from: "a", to: "zz" }] }),
-    fence({ type: "choices", title: "Next?", options: [{ label: "One", reply: "1" }], submit: "Go" }),
+    fence({
+      type: "diagram",
+      title: "D",
+      nodes: [
+        { id: "a", label: "In", detail: "d" },
+        { id: "b", label: "Out" },
+      ],
+      edges: [{ from: "a", to: "b", label: "to" }],
+    }),
+    fence({
+      type: "diagram",
+      title: "D",
+      nodes: [{ id: "a", label: "In" }],
+      edges: [{ from: "a", to: "zz" }],
+    }),
+    fence({
+      type: "choices",
+      title: "Next?",
+      options: [{ label: "One", reply: "1" }],
+      submit: "Go",
+    }),
     fence({ type: "unknown", title: "U" }),
     "```chat_ui\n{not json",
     `Two ${fence({ type: "callout", title: "A", body: "a" })} and ${fence({ type: "callout", title: "B", body: "b" })}`,
   ];
-  for (const s of samples) assert.equal(mine.richAnswerText(s), kit.richAnswerText(s), s.slice(0, 60));
+  for (const s of samples)
+    assert.equal(mine.richAnswerText(s), kit.richAnswerText(s), s.slice(0, 60));
   console.log(`widget rich-history parity: ${samples.length} passed`);
 }
 parityCheck().catch((error) => {
