@@ -7815,21 +7815,6 @@
   .ui-loki-msg-image img {
     @apply block max-h-56 w-auto max-w-full object-contain;
   }
-  /* Actions stay out of the way until the turn is hovered or focused — but a
-     touch device has no hover, so there they are simply always visible. */
-  .ui-loki-turn-actions {
-    @apply mt-1 flex items-center gap-1 opacity-0 transition-opacity group-hover/turn:opacity-100 group-focus-within/turn:opacity-100;
-  }
-  @media (hover: none) {
-    .ui-loki-turn-actions {
-      @apply opacity-100;
-    }
-  }
-  /* Icon-only on phones (the label stays for screen readers), so it needs the
-     full 44px target there instead of a 32px pill. */
-  .ui-loki-turn-action {
-    @apply inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary max-sm:h-11 max-sm:w-11 max-sm:justify-center max-sm:px-0;
-  }
   /* Suggested follow-ups under the newest answer: quiet rows, each a full
      44px tap target, read as "what you might say next" rather than buttons
      competing with the answer above them. */
@@ -9116,6 +9101,38 @@
 .ui-loki-answer .ck-md {
   font-size: inherit;
   line-height: inherit;
+}
+/* The row under an answer is chatkit's (Copy · Listen · Share · Try again ·
+   Bad answer). In Loki's turn it stays out of the way until the turn is
+   hovered or focused; a touch screen has no hover, so there it is simply
+   there. Icon-only on phones (the label stays for screen readers), with the
+   full 44px target. The player that replaces it while an answer is read
+   keeps its words. */
+@media (hover: hover) {
+  .ui-loki-turn .ck-turn-actions:not(.ck-player) {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .ui-loki-turn:hover .ck-turn-actions,
+  .ui-loki-turn:focus-within .ck-turn-actions {
+    opacity: 1;
+  }
+}
+@media (max-width: 639px) {
+  .ui-loki-turn .ck-turn-actions:not(.ck-player) .ck-action {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    justify-content: center;
+    padding: 0;
+  }
+  .ui-loki-turn .ck-turn-actions:not(.ck-player) .ck-action > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
 }
 .ui-loki-answer-sources {
   margin-top: 0.5rem;
