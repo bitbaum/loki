@@ -49,7 +49,8 @@ diag)
   journalctl -u "$UNIT" --since "-4h" --no-pager -o short-iso 2>/dev/null | grep -Ei "$pat|gemini|antigravity|sandbox|podman|never accepted" \
     | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | cut -c1-400 | tail -120
   echo "--- PTY repro ---"
-  RT=""; [ -f /etc/loki/sealed-builds.on ] && grep -qx runsc "$STATE" 2>/dev/null && RT="--runtime runsc --runtime-flag ignore-cgroups"
+  # As the unit runs it: the drop-in's OCI runtime, not the installer's reading.
+  RT=""; systemctl show -p Environment --value "$UNIT.service" | grep -q 'LOKI_SANDBOX_OCI_RUNTIME=runsc' && RT="--runtime runsc --runtime-flag ignore-cgroups"
   proj="$H/.sealed-test"; mkdir -p "$proj"; echo "# sealed test" > "$proj/README.md"; chown -R "$U:$U" "$proj"; mkdir -p "$H/.run"; chown "$U:$U" "$H/.run"
   ensure_image "$U" "$H"
   chmod 755 /tmp/sealed-pty-probe.py
