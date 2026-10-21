@@ -33,7 +33,7 @@ export const FLEET_RUNNER_RELEASES: ReleaseEntry[] = [
     tag: "fleet-runner-v0.8.55",
     date: "2026-10-21T20:00:00Z",
     highlights: [
-      "Sealed Antigravity runs stay unattended: Loki answers Gemini's own \"Allow once\" safety prompt inside the sandbox (logged), sealed agents count as working everywhere, a dead agent fails the run with its cause, and work it left behind is pushed as a draft PR.",
+      'Sealed Antigravity runs stay unattended: Loki answers Gemini\'s own "Allow once" safety prompt inside the sandbox (logged), sealed agents count as working everywhere, a dead agent fails the run with its cause, and work it left behind is pushed as a draft PR.',
     ],
     breaking: [],
     notes: "",
