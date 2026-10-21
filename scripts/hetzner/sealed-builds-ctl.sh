@@ -75,7 +75,7 @@ stop-sealed)
   journalctl -t loki-drain --since -30min --no-pager -o short-iso 2>/dev/null | tail -5 ;;
 journal)
   pat="$(echo "${RUNS:-x}" | tr ' ' '|')"
-  { journalctl -u "$UNIT" --since "-1h" --no-pager -o short-iso; journalctl -t loki-drain --since "-1h" --no-pager -o short-iso; } 2>/dev/null | sort | grep -Ei "$pat" | grep -v 'podman\[' \
+  { journalctl -u "$UNIT" --since "-1h" --no-pager -o short-iso; journalctl -t loki-drain --since "-1h" --no-pager -o short-iso; } 2>/dev/null | sort | grep -Ei "$pat" \
     | sed -E 's/[A-Za-z0-9_-]{28,}/<masked>/g' | cut -c1-400 | tail -${JTAIL:-600} || true ;;
 worktree)
   # Read-only: branch, status and diff of the run worktrees named in RUNS.
