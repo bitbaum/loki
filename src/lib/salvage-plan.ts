@@ -25,3 +25,22 @@ export function salvagePlan(s: SalvageState): SalvageStep[] {
   if (!s.hasOpenPr) steps.push("open_pr");
   return steps;
 }
+
+/**
+ * Pure: the agent finished its job — everything is committed, its branch is
+ * not the default one, and an open PR's head is exactly what is checked out.
+ * Returns that PR's URL (the run closes Done with it), else null.
+ * Substrata c7d57dc0, 2026-10-22: the agent opened #190 and then sat at its
+ * prompt for 20+ minutes with the run still "Working".
+ */
+export function shippedPr(s: {
+  dirty: boolean;
+  branch: string | null;
+  defaultBranch: string;
+  headSha: string;
+  pr: { url: string; state: string; headRefOid: string } | null;
+}): string | null {
+  if (s.dirty || !s.branch || s.branch === s.defaultBranch || !s.pr) return null;
+  if (s.pr.state !== "OPEN" || !s.headSha || s.pr.headRefOid !== s.headSha) return null;
+  return /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/.test(s.pr.url) ? s.pr.url : null;
+}

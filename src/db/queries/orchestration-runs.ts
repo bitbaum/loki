@@ -357,6 +357,39 @@ export async function closeRunAgentExited(runId: string, userId: string, reason:
 }
 
 /**
+ * The agent opened its PR and went quiet at its prompt with nothing left
+ * uncommitted: the run is Done, and the PR is its result. Closing here (not at
+ * a reaper) is what lets Feedback and Control stop saying "Working".
+ */
+export async function closeRunShipped(runId: string, userId: string, prUrl: string) {
+  const [closed] = await db
+    .update(orchestrationRuns)
+    .set({
+      state: ORCH_STATE.DONE,
+      outcome: ORCHESTRATION_OUTCOME.SUCCESS,
+      finishedAt: new Date(),
+      payload: sql`jsonb_set(COALESCE(payload, '{}'), '{prUrl}', to_jsonb(${prUrl}::text))`,
+    })
+    .where(
+      and(
+        eq(orchestrationRuns.id, runId),
+        eq(orchestrationRuns.userId, userId),
+        isNull(orchestrationRuns.finishedAt),
+      ),
+    )
+    .returning();
+  if (closed) {
+    void emitRunEvent(runId, userId, "closed", {
+      outcome: ORCHESTRATION_OUTCOME.SUCCESS,
+      by: "agent-shipped",
+      prUrl,
+    });
+    void notifyRunClosed(closed);
+  }
+  return closed ?? null;
+}
+
+/**
  * Recent successful runs for one project — feeds the OC promote backfill so a
  * dropped run→wall emit self-heals (external ids are deterministic, OC
  * reconciles on them). Uses idx_orchestration_runs_recent_outcomes.
