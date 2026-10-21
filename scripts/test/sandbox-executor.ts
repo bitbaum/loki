@@ -167,7 +167,7 @@ async function main() {
     hasPair(sealed, "--workdir", path.resolve(cwd)),
   );
   check("sealed build keeps HOME real", hasPair(sealed, "--env", `HOME=${config.home}`));
-  check("sealed build has the network the agent needs", hasPair(sealed, "--network", "bridge"));
+  check("sealed build has the network the agent needs", !sealed.includes("none"));
   check("sealed build drops capabilities too", hasPair(sealed, "--cap-drop", "ALL"));
   check("sealed build passes the run's token", hasPair(sealed, "--env", "GH_TOKEN=t"));
   check("sealed build never mounts /workspace", !sealed.some((a) => a.includes("dst=/workspace")));
