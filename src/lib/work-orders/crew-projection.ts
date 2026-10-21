@@ -62,10 +62,7 @@ export type CrewWorkProjection = {
 };
 
 /** Refuse unknown currencies and amounts more precise than the denomination. */
-export function crewFeeToMinor(
-  amount: number | null,
-  currency: string | null,
-): WorkPrice | null {
+export function crewFeeToMinor(amount: number | null, currency: string | null): WorkPrice | null {
   if (amount === null) return null;
   if (!(TASK_CURRENCIES as readonly string[]).includes(currency ?? "")) return null;
   if (!Number.isFinite(amount) || amount < 0 || amount > MAX_TASK_FEE) return null;
