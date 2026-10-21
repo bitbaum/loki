@@ -321,6 +321,42 @@ export async function closeRunUndelivered(
 }
 
 /**
+ * The runner saw the agent's process end while the run was open (crash, kill,
+ * a restart that could not wait). Nothing will print again, so the run closes
+ * now as Failed with that cause — not "Working · 10 min" until a reaper looks
+ * an hour later (Substrata on Antigravity, 2026-10-21). Work the agent left is
+ * shipped by the runner first (salvage-ship) and named in the reason.
+ */
+export async function closeRunAgentExited(runId: string, userId: string, reason: string) {
+  const error = `The agent stopped before finishing: ${reason}`;
+  const [closed] = await db
+    .update(orchestrationRuns)
+    .set({
+      state: ORCH_STATE.ERROR,
+      outcome: ORCHESTRATION_OUTCOME.ERROR,
+      finishedAt: new Date(),
+      payload: sql`jsonb_set(COALESCE(payload, '{}'), '{error}', to_jsonb(${error}::text))`,
+    })
+    .where(
+      and(
+        eq(orchestrationRuns.id, runId),
+        eq(orchestrationRuns.userId, userId),
+        isNull(orchestrationRuns.finishedAt),
+      ),
+    )
+    .returning();
+  if (closed) {
+    void emitRunEvent(runId, userId, "closed", {
+      outcome: ORCHESTRATION_OUTCOME.ERROR,
+      by: "agent-exited",
+      reason,
+    });
+    void notifyRunClosed(closed);
+  }
+  return closed ?? null;
+}
+
+/**
  * Recent successful runs for one project — feeds the OC promote backfill so a
  * dropped run→wall emit self-heals (external ids are deterministic, OC
  * reconciles on them). Uses idx_orchestration_runs_recent_outcomes.

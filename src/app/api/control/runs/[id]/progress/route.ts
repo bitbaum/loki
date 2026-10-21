@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getApiUserId } from "@/lib/session";
 import { isValidUuid } from "@/lib/utils";
-import { stampRunProgress } from "@/db/queries/orchestration-runs";
+import { closeRunAgentExited, stampRunProgress } from "@/db/queries/orchestration-runs";
 import { emitRunEvent } from "@/db/queries/run-events";
 import { RUN_BLOCKED, RUN_QUESTION_MAX_CHARS, RUN_STEP_MAX_CHARS } from "@/lib/run-progress";
 
@@ -73,6 +73,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
               ? `agent stopped: ${question ?? "its process ended"}`
               : `agent is asking: ${question ?? "permission to run a tool"}`,
       });
+  }
+  // A dead agent is a finished run: Failed, with the cause, at once.
+  if (live && blocked === RUN_BLOCKED.EXITED) {
+    await closeRunAgentExited(id, userId, question ?? "its process ended");
+    return NextResponse.json({ ok: true, live: false });
   }
   return NextResponse.json({ ok: true, live });
 }
