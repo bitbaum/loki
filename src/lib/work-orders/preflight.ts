@@ -94,8 +94,10 @@ function present(value: string): boolean {
 }
 
 function validPrice(price: WorkPrice): boolean {
-  return /^(0|[1-9][0-9]*)$/.test(price.amountMinor) &&
-    /^[A-Z][A-Z0-9]{1,11}$/.test(price.currency);
+  return (
+    /^(0|[1-9][0-9]*)$/.test(price.amountMinor) &&
+    /^[A-Z][A-Z0-9]{1,11}$/.test(price.currency)
+  );
 }
 
 function validOrder(order: WorkOrder): boolean {
@@ -106,7 +108,9 @@ function validOrder(order: WorkOrder): boolean {
   if (
     order.acceptanceCriteria.length === 0 ||
     order.acceptanceCriteria.some((criterion) => !present(criterion))
-  ) return false;
+  ) {
+    return false;
+  }
   if (order.price && !validPrice(order.price)) return false;
   switch (order.provider.kind) {
     case "agent":
