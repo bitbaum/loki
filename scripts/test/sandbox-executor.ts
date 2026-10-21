@@ -193,6 +193,10 @@ async function main() {
     git.GIT_COMMITTER_NAME === "Loki builder",
   );
   // Antigravity in runsc, 2026-10-21: no TTY + no key = gemini exits, "never accepted the prompt".
+  check(
+    "sealed build takes its name back from a dead container (--replace)",
+    sealed.includes("--replace"),
+  );
   check("sealed build gives the agent a TTY (-t)", sealed.includes("-t") && sealed.includes("-i"));
   check("sealed build keeps the host's hostname", hasPair(sealed, "--hostname", os.hostname()));
   const savedKey = process.env.GEMINI_API_KEY;

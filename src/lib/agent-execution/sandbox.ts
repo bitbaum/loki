@@ -253,6 +253,12 @@ function buildPodmanRunArgs(
     // sealed container 2026-10-21; with -it the same image answers a prompt.
     "-i",
     "-t",
+    // The name is per tab, and a container that died without podman's own
+    // cleanup (killed with its PTY, a stop from outside) keeps it: every later
+    // launch on that tab then failed before the container existed — "image
+    // pull", no "create", and gemini → grok → cursor all "never accepted"
+    // (Substrata, 2026-10-21 22:22). --replace takes the name back.
+    "--replace",
     "--name",
     containerName,
     // Same hostname as the host: CLIs that seal their stored sign-in to the
