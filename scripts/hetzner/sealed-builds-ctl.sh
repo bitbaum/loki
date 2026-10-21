@@ -48,8 +48,10 @@ echo "  README now: $(tr "\n" "|" < README.md)"'
       --mount "type=bind,src=$H,dst=$H" --network slirp4netns --pids-limit 512 \
       --security-opt no-new-privileges --cap-drop ALL --env TERM=xterm-256color --env "HOME=$H" \
       --env "PATH=$H/.local/bin:$H/.npm-global/bin:/usr/local/bin:/usr/bin:/bin" --env GEMINI_API_KEY \
-      loki-agent:latest bash -c "$inner" 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
+      localhost/loki-agent:latest bash -c "$inner" 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/<masked>/g'
   echo "exit: ${PIPESTATUS[0]}"
+  echo "images visible to $U:"; systemd-run --wait --pipe --quiet -p User="$U" -p Environment=XDG_RUNTIME_DIR="$H/.run" -p Environment=HOME="$H" podman images --format '  {{.Repository}}:{{.Tag}}' 2>&1 | grep -v level= | head -5
+  echo "user storage.conf: $([ -f "$H/.config/containers/storage.conf" ] && echo present || echo none); subuid: $(grep -c "^$U:" /etc/subuid)"
   echo "host README: $(tr '\n' '|' < "$proj/README.md")" ;;
 on)
   grep -qx ready "$STATE" 2>/dev/null || { echo "✗ reading is not ready — refusing"; exit 1; }
